@@ -615,36 +615,7 @@ const _Notifications = (() => {
     }
 
     function _repositionBar() {
-        const bar = document.getElementById('adsb-status-bar');
-        if (!bar) return;
-        const wrapper = _getWrapper();
-        const notifOpen = wrapper && wrapper.classList.contains('notif-panel-open');
-        const listWrap = document.getElementById('notif-list-wrap');
-        const hasItems = _load().length > 0;
-        const refEl = (hasItems && listWrap && listWrap.offsetWidth > 0)
-            ? listWrap
-            : document.getElementById('notif-header');
-        if (notifOpen && refEl && refEl.offsetWidth > 0) {
-            // Center the bar in the space between the notification panel's right
-            // edge and the viewport right edge, with a minimum 14px right margin.
-            const notifRight = refEl.getBoundingClientRect().right;
-            const gap = 12; // gap between notif panel and bar
-            const rightMargin = 14;
-            const zone = window.innerWidth - notifRight - gap - rightMargin;
-            // midpoint of the zone, anchored from notifRight + gap
-            const midX = notifRight + gap + zone / 2;
-            bar.style.left = midX + 'px';
-            bar.style.right = 'auto';
-            bar.style.transform = 'translateX(-50%)';
-            bar.style.maxWidth = (zone) + 'px';
-            bar.style.width = '';
-        } else {
-            bar.style.left = '';
-            bar.style.right = '';
-            bar.style.transform = '';
-            bar.style.maxWidth = '';
-            bar.style.width = '';
-        }
+        // Status bar is now positioned via the #tracking-panel CSS — no repositioning needed.
     }
 
     function _setOpen(open) {
@@ -657,6 +628,8 @@ const _Notifications = (() => {
             // Stop repeating pulse when panel is opened and clear unread count
             _stopBellPulse();
             _unreadCount = 0;
+            // Close tracking panel when notifications open (tab behaviour)
+            if (typeof _Tracking !== 'undefined') _Tracking.closePanel();
         }
         if (open) _updateScrollIndicator();
         _updateCount();
@@ -711,6 +684,76 @@ const _Notifications = (() => {
 })();
 
 // --- End Landing Notifications ---
+
+// ============================================================
+// TRACKING PANEL — manages the tracking panel open/close state
+// ============================================================
+const _Tracking = (() => {
+    let _count = 0;
+
+    function _getPanel()  { return document.getElementById('tracking-panel'); }
+    function _getBtn()    { return document.getElementById('tracking-toggle-btn'); }
+    function _getCount()  { return document.getElementById('tracking-count'); }
+
+    function _isOpen() {
+        const p = _getPanel();
+        return p ? p.classList.contains('tracking-panel-open') : false;
+    }
+
+    function _updateCount() {
+        const el = _getCount();
+        if (!el) return;
+        el.textContent = _count > 0 ? String(_count) : '';
+        if (_count > 0 && !_isOpen()) {
+            el.classList.add('tracking-count-active');
+        } else {
+            el.classList.remove('tracking-count-active');
+        }
+    }
+
+    function setCount(n) {
+        _count = n;
+        _updateCount();
+    }
+
+    function openPanel() {
+        const panel = _getPanel();
+        const btn   = _getBtn();
+        if (panel) panel.classList.add('tracking-panel-open');
+        if (btn)   btn.classList.add('tracking-btn-active');
+        _updateCount();
+        // Close notifications when tracking opens (tab behaviour)
+        if (typeof _Notifications !== 'undefined') {
+            const nw = document.getElementById('notifications-panel');
+            const nb = document.getElementById('notif-toggle-btn');
+            if (nw) nw.classList.remove('notif-panel-open');
+            if (nb) nb.classList.remove('notif-btn-active');
+            try { localStorage.setItem('notificationsOpen', '0'); } catch (e) {}
+        }
+    }
+
+    function closePanel() {
+        const panel = _getPanel();
+        const btn   = _getBtn();
+        if (panel) panel.classList.remove('tracking-panel-open');
+        if (btn)   btn.classList.remove('tracking-btn-active');
+        _updateCount();
+    }
+
+    function toggle() {
+        if (_isOpen()) closePanel(); else openPanel();
+    }
+
+    function init() {
+        const btn = _getBtn();
+        if (btn) btn.addEventListener('click', toggle);
+        _updateCount();
+    }
+
+    return { openPanel, closePanel, toggle, init, setCount };
+})();
+
+// --- End Tracking Panel ---
 
 
 // Custom control for toggling roads
@@ -986,9 +1029,12 @@ class AirportsToggleControl {
             `</div>`
         ).join('');
         return `<div class="adsb-sb-header">` +
-            `<span class="adsb-sb-callsign" style="color:#c8ff00">${p.icao}</span>` +
-            `<span class="adsb-sb-hex">${p.name.toUpperCase()}</span>` +
+            `<span class="adsb-sb-label-tag">AIRPORT</span>` +
             `<button class="adsb-sb-untrack-btn" id="apt-panel-close">CLOSE</button>` +
+            `</div>` +
+            `<div class="adsb-sb-header" style="border-top:none;border-bottom:1px solid rgba(255,255,255,0.08);height:auto;padding:8px 14px 9px">` +
+            `<span class="adsb-sb-callsign" style="color:#c8ff00">${p.icao}</span>` +
+            `<span style="font-size:10px;font-weight:400;letter-spacing:0.08em;color:rgba(255,255,255,0.4)">${p.name.toUpperCase()}</span>` +
             `</div>` +
             `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
     }
@@ -998,15 +1044,19 @@ class AirportsToggleControl {
         if (!bar) {
             bar = document.createElement('div');
             bar.id = 'adsb-status-bar';
-            document.body.appendChild(bar);
+            const trackingPanel = document.getElementById('tracking-panel');
+            if (trackingPanel) trackingPanel.appendChild(bar);
+            else document.body.appendChild(bar);
         }
         bar.dataset.apt = '1';
         bar.innerHTML = this._buildAirportPanelHTML(p, coords);
         bar.classList.add('adsb-sb-visible');
+        if (typeof _Tracking !== 'undefined') { _Tracking.setCount(1); _Tracking.openPanel(); }
         bar.querySelector('#apt-panel-close').addEventListener('click', (e) => {
             e.stopPropagation();
             bar.classList.remove('adsb-sb-visible');
             delete bar.dataset.apt;
+            if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
             this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, duration: 800 });
         });
     }
@@ -1286,8 +1336,11 @@ class RAFToggleControl {
             `</div>`
         ).join('');
         return `<div class="adsb-sb-header">` +
-            `<span class="adsb-sb-callsign" style="color:#ffffff">${p.name.toUpperCase()}</span>` +
+            `<span class="adsb-sb-label-tag">RAF BASE</span>` +
             `<button class="adsb-sb-untrack-btn" id="apt-panel-close">CLOSE</button>` +
+            `</div>` +
+            `<div class="adsb-sb-header" style="border-top:none;border-bottom:1px solid rgba(255,255,255,0.08);height:auto;padding:8px 14px 9px">` +
+            `<span class="adsb-sb-callsign" style="color:#ffffff">${p.name.toUpperCase()}</span>` +
             `</div>` +
             `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
     }
@@ -1297,15 +1350,19 @@ class RAFToggleControl {
         if (!bar) {
             bar = document.createElement('div');
             bar.id = 'adsb-status-bar';
-            document.body.appendChild(bar);
+            const trackingPanel = document.getElementById('tracking-panel');
+            if (trackingPanel) trackingPanel.appendChild(bar);
+            else document.body.appendChild(bar);
         }
         bar.dataset.apt = '1';
         bar.innerHTML = this._buildRAFPanelHTML(p, coords);
         bar.classList.add('adsb-sb-visible');
+        if (typeof _Tracking !== 'undefined') { _Tracking.setCount(1); _Tracking.openPanel(); }
         bar.querySelector('#apt-panel-close').addEventListener('click', (e) => {
             e.stopPropagation();
             bar.classList.remove('adsb-sb-visible');
             delete bar.dataset.apt;
+            if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
             this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, duration: 800 });
         });
     }
@@ -2297,8 +2354,11 @@ class AdsbLiveControl {
         ).join('');
 
         return `<div class="adsb-sb-header">` +
-            `<span class="adsb-sb-callsign" style="color:${headerColor}">${callsign}</span>` +
+            `<span class="adsb-sb-label-tag">TRACKING</span>` +
             `<button class="adsb-sb-untrack-btn">UNTRACK</button>` +
+            `</div>` +
+            `<div class="adsb-sb-header" style="border-top:none;border-bottom:1px solid rgba(255,255,255,0.08);height:auto;padding:8px 14px 9px">` +
+            `<span class="adsb-sb-callsign" style="color:${headerColor}">${callsign}</span>` +
             `</div>` +
             `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
     }
@@ -2308,21 +2368,23 @@ class AdsbLiveControl {
         if (!bar) {
             bar = document.createElement('div');
             bar.id = 'adsb-status-bar';
-            document.body.appendChild(bar);
+            const panel = document.getElementById('tracking-panel');
+            if (panel) panel.appendChild(bar);
+            else document.body.appendChild(bar);
         }
         delete bar.dataset.apt;
         bar.innerHTML = this._buildStatusBarHTML(props);
         bar.classList.add('adsb-sb-visible');
         this._wireStatusBarUntrack(bar);
+        if (typeof _Tracking !== 'undefined') { _Tracking.setCount(1); _Tracking.openPanel(); }
         if (typeof _FilterPanel !== 'undefined') _FilterPanel.reposition();
-        if (typeof _Notifications !== 'undefined') requestAnimationFrame(() => _Notifications.repositionBar());
     }
 
     _hideStatusBar() {
         const bar = document.getElementById('adsb-status-bar');
         if (bar) bar.classList.remove('adsb-sb-visible');
+        if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
         if (typeof _FilterPanel !== 'undefined') _FilterPanel.reposition();
-        if (typeof _Notifications !== 'undefined') _Notifications.repositionBar();
     }
 
     _updateStatusBar() {
@@ -4454,6 +4516,9 @@ if ('geolocation' in navigator) {
 
 // Restore persisted landing notifications on page load
 _Notifications.init();
+
+// Initialise tracking panel toggle
+_Tracking.init();
 
 // Initialise filter panel
 _FilterPanel.init();

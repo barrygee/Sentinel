@@ -277,141 +277,133 @@ html {
 
 
 /* ============================================================
+   TRACKING PANEL
+   ============================================================ */
+#tracking-panel {
+    position: fixed;
+    bottom: calc(44px + 14px); /* footer height + gap */
+    top: calc(68px + 8px);     /* header height + breathing room */
+    left: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+#tracking-panel.tracking-panel-open {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* ============================================================
    ADS-B SELECTED AIRCRAFT STATUS BAR
    ============================================================ */
 #adsb-status-bar {
-    position: fixed;
-    bottom: calc(44px + 14px); /* footer height + gap matching control button margin */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 560px;
-    max-width: calc(100vw - 28px);
-    background: rgba(0, 0, 0, 0.9);
+    width: 220px;
+    background: #000;
     color: #fff;
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 15px;
-    font-weight: 400;
-    padding: 13px 28px;
-    z-index: 999;
-    display: none;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     pointer-events: auto;
+    display: none;
+    flex-direction: column;
+    gap: 0;
     user-select: none;
     box-sizing: border-box;
 }
 
-#adsb-status-bar[data-apt] {
-    width: auto;
-    max-width: calc(100vw - 28px);
-    white-space: nowrap;
-}
-
 #adsb-status-bar.adsb-sb-visible {
-    display: block;
+    display: flex;
 }
 
 .adsb-sb-header {
     display: flex;
-    align-items: baseline;
-    gap: 16px;
-    margin-bottom: 8px;
-    padding-bottom: 7px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    align-items: center;
+    justify-content: space-between;
+    height: 38px;
+    padding: 0 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #000;
     position: relative;
+    z-index: 1;
+}
+
+.adsb-sb-label-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #c8ff00;
+    opacity: 0.75;
 }
 
 .adsb-sb-untrack-btn {
-    position: absolute;
-    bottom: 7px;
-    right: 0;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
-    color: #c8ff00;
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     line-height: 1;
+    transition: color 0.2s;
+}
+
+.adsb-sb-untrack-btn:hover {
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .adsb-sb-callsign {
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.12em;
-}
-
-.adsb-sb-hex {
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    opacity: 0.4;
+    color: #fff;
+    line-height: 1.2;
 }
 
 .adsb-sb-fields {
+    padding: 10px 14px 12px;
     display: flex;
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    gap: 0 24px;
+    flex-direction: column;
+    gap: 0;
 }
 
 .adsb-sb-field {
     display: flex;
-    flex-shrink: 0;
-    gap: 4px;
-    align-items: baseline;
-    line-height: 1.7;
+    gap: 14px;
+    line-height: 1.8;
 }
 
 .adsb-sb-label {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.1em;
-    opacity: 0.45;
+    color: rgba(255, 255, 255, 0.45);
     text-transform: uppercase;
     flex-shrink: 0;
+    min-width: 48px;
 }
 
 .adsb-sb-value {
-    font-size: 15px;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 13px;
     font-weight: 400;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.85);
     flex-shrink: 0;
 }
 
 .adsb-sb-emrg {
     color: #ff4040;
     font-weight: 600;
-}
-
-@media (min-width: 601px) and (max-width: 1024px) {
-    .adsb-sb-fields {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0 20px;
-    }
-}
-
-@media (max-width: 600px) {
-    #adsb-status-bar {
-        left: 0;
-        right: 0;
-        transform: none;
-        width: 100%;
-        max-width: 100%;
-        padding: 10px 16px;
-        box-sizing: border-box;
-    }
-
-    .adsb-sb-fields {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0 16px;
-    }
-
-    .adsb-sb-field {
-        gap: 6px;
-    }
 }
 
 
@@ -1364,6 +1356,57 @@ body:has(#side-menu.expanded) #filter-panel {
 }
 
 #notif-count.notif-count-unread {
+    color: #c8ff00;
+}
+
+/* ---- Footer tracking toggle button ---- */
+#tracking-toggle-btn {
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #fff;
+    opacity: 0.6;
+    transition: background 0.2s, opacity 0.2s, color 0.2s;
+    flex-shrink: 0;
+    margin: 4px 0;
+}
+
+#tracking-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    opacity: 1;
+}
+
+#tracking-toggle-btn.tracking-btn-active {
+    opacity: 1;
+    color: #c8ff00;
+}
+
+#tracking-icon {
+    display: block;
+    flex-shrink: 0;
+    width: auto;
+    height: 15px;
+}
+
+#tracking-count {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+#tracking-count.tracking-count-active {
     color: #c8ff00;
 }
 
