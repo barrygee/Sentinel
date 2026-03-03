@@ -1875,6 +1875,7 @@ class AdsbLiveControl {
         this._prevSquawk = {};  // hex -> last known squawk code (for change detection)
         this._typeFilter = 'all'; // 'all' | 'civil' | 'mil'
         this._allHidden = false; // true = hide all planes regardless of type filter
+        this._hideNonPlane = false; // true = hide non-aircraft (ground vehicles, towers, UAVs, etc.)
     }
 
     setTypeFilter(mode) {
@@ -1894,6 +1895,12 @@ class AdsbLiveControl {
         if (hoverEl) hoverEl.style.visibility = hidden ? 'hidden' : '';
     }
 
+    setHideNonPlane(hide) {
+        this._hideNonPlane = hide;
+        this._applyTypeFilter();
+        this._updateCallsignMarkers();
+    }
+
     _applyTypeFilter() {
         if (!this.map) return;
         const baseFilter = ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]];
@@ -1909,12 +1916,20 @@ class AdsbLiveControl {
         ['adsb-bracket', 'adsb-icons'].forEach(id => {
             try { this.map.setLayoutProperty(id, 'visibility', this.visible ? 'visible' : 'none'); } catch(e) {}
         });
+        // Non-plane filter: exclude surface-category items (C1–C5) when hideNonPlane is on
+        const nonPlaneCategories = ['C1', 'C2', 'C3', 'C4', 'C5'];
+        const nonPlaneFilter = this._hideNonPlane
+            ? ['!', ['in', ['get', 'category'], ['literal', nonPlaneCategories]]]
+            : null;
+
         if (this._typeFilter === 'civil') {
-            filter = ['all', baseFilter, ['!', ['boolean', ['get', 'military'], false]]];
+            const f = ['all', baseFilter, ['!', ['boolean', ['get', 'military'], false]]];
+            filter = nonPlaneFilter ? ['all', f, nonPlaneFilter] : f;
         } else if (this._typeFilter === 'mil') {
-            filter = ['all', baseFilter, ['boolean', ['get', 'military'], false]];
+            const f = ['all', baseFilter, ['boolean', ['get', 'military'], false]];
+            filter = nonPlaneFilter ? ['all', f, nonPlaneFilter] : f;
         } else {
-            filter = baseFilter; // 'all'
+            filter = nonPlaneFilter ? ['all', baseFilter, nonPlaneFilter] : baseFilter;
         }
         try { this.map.setFilter('adsb-bracket', filter); } catch(e) {}
         try { this.map.setFilter('adsb-icons',   filter); } catch(e) {}
@@ -2082,6 +2097,71 @@ class AdsbLiveControl {
         return ctx.getImageData(0, 0, S, S);
     }
 
+    // Fixed obstruction/tower icon — solid black circle centred on canvas.
+    _createTowerBlip(scale = 1.1) {
+        const S  = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = S;
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(S / 2, S / 2, 9 * scale, 0, Math.PI * 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+        return ctx.getImageData(0, 0, S, S);
+    }
+
+    // Ground vehicle icon — solid white square centred on canvas.
+    _createGroundVehicleBlip(color = '#ffffff', scale = 1.1) {
+        const S  = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = S;
+        const ctx = canvas.getContext('2d');
+        const half = 9 * scale;
+        const cx = S / 2, cy = S / 2;
+        ctx.fillStyle = color;
+        ctx.fillRect(cx - half, cy - half, half * 2, half * 2);
+        return ctx.getImageData(0, 0, S, S);
+    }
+
+    // UAV/drone icon — same triangle as radar blip with an X drawn inside the body.
+    _createUAVBlip(color = '#ffffff', scale = 1.1) {
+        const S  = 64;
+        const cx = S / 2, cy = S / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = S;
+        const ctx = canvas.getContext('2d');
+
+        const apex = { x: cx,      y: cy - 13 };
+        const bR   = { x: cx +  9, y: cy + 10 };
+        const bL   = { x: cx -  9, y: cy + 10 };
+
+        const gcx = (apex.x + bR.x + bL.x) / 3;
+        const gcy = (apex.y + bR.y + bL.y) / 3;
+        const s   = (v) => ({ x: gcx + (v.x - gcx) * scale, y: gcy + (v.y - gcy) * scale });
+        const A = s(apex), B = s(bR), C = s(bL);
+
+        // Draw filled triangle
+        ctx.beginPath();
+        ctx.moveTo(A.x, A.y);
+        ctx.lineTo(B.x, B.y);
+        ctx.lineTo(C.x, C.y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Draw X inside the triangle body — centred on the triangle centroid
+        const xSize = 4.5 * scale;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth   = 1.8;
+        ctx.lineCap     = 'round';
+        ctx.beginPath();
+        ctx.moveTo(gcx - xSize, gcy - xSize); ctx.lineTo(gcx + xSize, gcy + xSize);
+        ctx.moveTo(gcx + xSize, gcy - xSize); ctx.lineTo(gcx - xSize, gcy + xSize);
+        ctx.stroke();
+
+        return ctx.getImageData(0, 0, S, S);
+    }
+
     _registerIcons() {
         if (this.map.hasImage('adsb-bracket'))         this.map.removeImage('adsb-bracket');
         if (this.map.hasImage('adsb-bracket-mil'))     this.map.removeImage('adsb-bracket-mil');
@@ -2089,12 +2169,22 @@ class AdsbLiveControl {
         if (this.map.hasImage('adsb-blip'))            this.map.removeImage('adsb-blip');
         if (this.map.hasImage('adsb-blip-mil'))        this.map.removeImage('adsb-blip-mil');
         if (this.map.hasImage('adsb-blip-emerg'))      this.map.removeImage('adsb-blip-emerg');
-        this.map.addImage('adsb-bracket',     this._createBracket(),                 { pixelRatio: 2, sdf: false });
-        this.map.addImage('adsb-bracket-mil', this._createMilBracket(),              { pixelRatio: 2, sdf: false });
-        this.map.addImage('adsb-bracket-emerg', this._createBracket('#ff2222'),      { pixelRatio: 2, sdf: false });
-        this.map.addImage('adsb-blip',        this._createRadarBlip('#ffffff', 1.1), { pixelRatio: 2, sdf: false });
-        this.map.addImage('adsb-blip-mil',    this._createRadarBlip('#c8ff00', 1.1), { pixelRatio: 2, sdf: false });
-        this.map.addImage('adsb-blip-emerg',  this._createRadarBlip('#ff2222', 1.1), { pixelRatio: 2, sdf: false });
+        if (this.map.hasImage('adsb-blip-uav'))        this.map.removeImage('adsb-blip-uav');
+        if (this.map.hasImage('adsb-blip-gnd'))        this.map.removeImage('adsb-blip-gnd');
+        if (this.map.hasImage('adsb-blip-tower'))      this.map.removeImage('adsb-blip-tower');
+        if (this.map.hasImage('adsb-blip-emerg-gnd')) this.map.removeImage('adsb-blip-emerg-gnd');
+        if (this.map.hasImage('adsb-bracket-emerg-gnd')) this.map.removeImage('adsb-bracket-emerg-gnd');
+        this.map.addImage('adsb-bracket',         this._createBracket(),                         { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-bracket-mil',     this._createMilBracket(),                      { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-bracket-emerg',   this._createBracket('#ff2222'),                { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-bracket-emerg-gnd', this._createBracket('#ff2222'),              { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip',            this._createRadarBlip('#ffffff',         1.1), { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip-mil',        this._createRadarBlip('#c8ff00',         1.1), { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip-emerg',      this._createRadarBlip('#ff2222',         1.1), { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip-uav',        this._createUAVBlip('#ffffff',           1.1), { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip-gnd',        this._createGroundVehicleBlip('#ffffff', 1.1), { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip-emerg-gnd',  this._createGroundVehicleBlip('#ff2222', 1.1), { pixelRatio: 2, sdf: false });
+        this.map.addImage('adsb-blip-tower',      this._createTowerBlip(1.1),                    { pixelRatio: 2, sdf: false });
     }
 
     initLayers() {
@@ -2134,13 +2224,14 @@ class AdsbLiveControl {
             id: 'adsb-bracket',
             type: 'symbol',
             source: 'adsb-live',
-            filter: ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]],
+            filter: ['all', ['!', ['in', ['get', 'category'], ['literal', ['A0', 'B0', 'C0']]]], ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]]],
             layout: {
                 visibility: vis,
                 'icon-image': [
                     'case',
                     ['==', ['get', 'squawkEmerg'], 1], 'adsb-bracket-emerg',
                     ['boolean', ['get', 'military'], false], 'adsb-bracket-mil',
+                    ['==', ['get', 'category'], 'C1'], 'adsb-bracket-emerg-gnd',
                     'adsb-bracket'
                 ],
                 'icon-size': 0.75,
@@ -2160,13 +2251,17 @@ class AdsbLiveControl {
             id: 'adsb-icons',
             type: 'symbol',
             source: 'adsb-live',
-            filter: ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]],
+            filter: ['all', ['!', ['in', ['get', 'category'], ['literal', ['A0', 'B0', 'C0']]]], ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]]],
             layout: {
                 visibility: vis,
                 'icon-image': [
                     'case',
                     ['==', ['get', 'squawkEmerg'], 1], 'adsb-blip-emerg',
                     ['boolean', ['get', 'military'], false], 'adsb-blip-mil',
+                    ['==', ['get', 'category'], 'B6'], 'adsb-blip-uav',
+                    ['==', ['get', 'category'], 'C1'], 'adsb-blip-emerg-gnd',
+                    ['==', ['get', 'category'], 'C2'], 'adsb-blip-gnd',
+                    ['==', ['get', 'category'], 'C3'], 'adsb-blip-tower',
                     'adsb-blip'
                 ],
                 'icon-size': 0.75,
@@ -2245,6 +2340,23 @@ class AdsbLiveControl {
         if (this.visible && !this._pollInterval) this._startPolling();
     }
 
+    _categoryLabel(code) {
+        const map = {
+            A0: 'No category info', A1: 'Light aircraft', A2: 'Small aircraft',
+            A3: 'Large aircraft',   A4: 'High vortex',    A5: 'Heavy aircraft',
+            A6: 'High performance', A7: 'Rotorcraft',
+            B0: 'No category info', B1: 'Glider / sailplane', B2: 'Lighter-than-air',
+            B3: 'Parachutist',      B4: 'Ultralight',         B6: 'UAV / drone',
+            B7: 'Space vehicle',
+            C1: 'Emergency surface vehicle', C2: 'Service surface vehicle',
+            C3: 'Fixed obstruction / tower', C4: 'Cluster obstacle',
+            C5: 'Line obstacle',             C6: 'No category info',
+        };
+        if (!code) return null;
+        const desc = map[code.toUpperCase()];
+        return desc ? `${code.toUpperCase()} – ${desc}` : code.toUpperCase();
+    }
+
     _buildTagHTML(props) {
         const raw      = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim();
         const callsign = raw || 'UNKNOWN';
@@ -2302,6 +2414,8 @@ class AdsbLiveControl {
         if (props.t) rows.push(['TYP', props.t]);
         if (props.r) rows.push(['REG', props.r]);
         if (props.squawk) rows.push(['SQK', props.squawk]);
+        const catLabel = this._categoryLabel(props.category);
+        if (catLabel) rows.push(['CAT', catLabel]);
 
         const rowsHTML = rows.map(([lbl, val]) =>
             `<div style="display:flex;gap:14px;line-height:1.8">` +
@@ -2344,6 +2458,8 @@ class AdsbLiveControl {
         if (props.squawk)       fields.push(['SQUAWK',  props.squawk]);
         if (props.emergency && props.emergency !== 'none') fields.push(['EMRG', props.emergency.toUpperCase()]);
         if (props.military)     fields.push(['CLASS',   'MILITARY']);
+        const catLabel = this._categoryLabel(props.category);
+        if (catLabel)           fields.push(['CATEGORY', catLabel]);
 
         const isEmergency = props.emergency && props.emergency !== 'none';
         const headerColor = isEmergency ? '#ff4040' : '#ffffff';
@@ -2767,9 +2883,12 @@ class AdsbLiveControl {
             const zoom = this.map.getZoom();
             const iconVisible = (f.properties.alt_baro > 0) || (zoom >= 10);
             const isMil = !!f.properties.military;
+            const cat = (f.properties.category || '').toUpperCase();
+            const isNonPlane = ['C1','C2','C3','C4','C5'].includes(cat);
             const typeVisible = !this._allHidden && (this._typeFilter === 'all'
                 || (this._typeFilter === 'civil' && !isMil)
-                || (this._typeFilter === 'mil'   && isMil));
+                || (this._typeFilter === 'mil'   && isMil))
+                && !(this._hideNonPlane && isNonPlane);
             if (!iconVisible || !typeVisible) {
                 if (this._callsignMarkers[hex]) {
                     this._callsignMarkers[hex].remove();
@@ -3016,7 +3135,7 @@ class AdsbLiveControl {
             this._geojson = {
                 type: 'FeatureCollection',
                 features: aircraft
-                    .filter(a => a.lat != null && a.lon != null)
+                    .filter(a => a.lat != null && a.lon != null && !['A0', 'B0', 'C0'].includes((a.category || '').toUpperCase()))
                     .map(a => {
                         const alt = this._parseAlt(a.alt_baro);
                         const hex = a.hex || '';
@@ -3760,6 +3879,9 @@ let _syncSideMenuForPlanes = null;
     overlayGroup.appendChild(labelsBtn);
     labelsBtn.addEventListener('click', syncLabelsBtn);
     syncLabelsBtn();
+    const groundBtn = makeOverlayBtn('GND', '8px', 'GROUND VEHICLES', () => adsbControl ? !adsbControl._hideNonPlane : true, () => { if (adsbControl) adsbControl.setHideNonPlane(!adsbControl._hideNonPlane); });
+    groundBtn.classList.add('sm-expanded-only');
+    overlayGroup.appendChild(groundBtn);
     panel.appendChild(overlayGroup);
 
     const clearGroup = makeGroup();
