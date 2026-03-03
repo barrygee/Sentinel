@@ -3251,12 +3251,14 @@ class AdsbLiveControl {
                 el.appendChild(trkBtn);
             }
         }
-        // Emergency squawk badge
+        // Emergency squawk badge — same flush-right panel style as mil-model-badge
         if (isEmerg) {
+            el.style.paddingRight = '0';
+            el.style.gap = '0';
             const badge = document.createElement('span');
             badge.className = 'sqk-badge';
             badge.textContent = props.squawk;
-            badge.style.cssText = 'background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 4px;border-radius:2px;letter-spacing:.05em;';
+            badge.style.cssText = 'background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 8px;';
             el.appendChild(badge);
         }
         el.addEventListener('mouseenter', () => {
@@ -3386,20 +3388,26 @@ class AdsbLiveControl {
                 } else {
                     labelEl.querySelector('.mil-model-badge')?.remove();
                     labelEl.querySelector('.mil-trk-btn')?.remove();
-                    labelEl.style.paddingRight = '8px';
+                    if (!isEmerg) labelEl.style.paddingRight = '8px';
                 }
                 // Update/add/remove squawk badge
                 let badge = labelEl.querySelector('.sqk-badge');
                 if (isEmerg) {
+                    labelEl.style.paddingRight = '0';
+                    labelEl.style.gap = '0';
                     if (!badge) {
                         badge = document.createElement('span');
                         badge.className = 'sqk-badge';
-                        badge.style.cssText = 'background:#000;color:#ff2222;font-size:11px;font-weight:700;padding:0 4px;border-radius:2px;letter-spacing:.05em;';
+                        badge.style.cssText = 'background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 8px;';
                         labelEl.appendChild(badge);
                     }
                     badge.textContent = f.properties.squawk;
                 } else if (badge) {
                     badge.remove();
+                    labelEl.style.gap = '5px';
+                    if (!labelEl.querySelector('.mil-model-badge') && !labelEl.querySelector('.mil-trk-btn')) {
+                        labelEl.style.paddingRight = '8px';
+                    }
                 }
             } else {
                 const labelEl = this._buildCallsignLabelEl(f.properties);
