@@ -112,6 +112,60 @@ The footer displays:
 
 ---
 
+## Data Sources
+
+### Live Aircraft (ADS-B)
+
+Live aircraft positions are fetched from the [airplanes.live](https://airplanes.live) public API:
+
+```
+https://api.airplanes.live/v2/point/{lat}/{lon}/250
+```
+
+The app queries a 250 nm radius around the user's location (or map centre) every second. No API key is required. Data includes position, altitude, heading, ground speed, squawk code, registration, aircraft type, and military classification.
+
+### Map Tiles
+
+| Mode | Source | Format |
+|------|--------|--------|
+| Online | [OpenFreeMap](https://openfreemap.org) (`tiles.openfreemap.org/planet`) | Vector tiles over HTTPS |
+| Offline | Locally bundled PMTiles (`uk.pmtiles`, `surroundings.pmtiles`) | PMTiles (served by nginx) |
+
+The offline tile files cover approximately 20°W–32°E, 44°N–67°N and must be downloaded separately using the provided `download-world-tiles.sh` / `download-world-tiles.py` scripts.
+
+### Reverse Geocoding
+
+The footer location label is resolved using the [Nominatim](https://nominatim.openstreetmap.org) reverse geocoding API (OpenStreetMap):
+
+```
+https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}
+```
+
+Requests are throttled to once every 2 minutes per the Nominatim usage policy.
+
+### Connectivity Check
+
+Network connectivity is probed every 2 seconds by sending a `HEAD` request to:
+
+```
+https://tile.openstreetmap.org/favicon.ico
+```
+
+This uses `mode: 'no-cors'` so any reachable response counts as online; a network failure triggers the offline style switch.
+
+### Static Reference Data
+
+The following data is bundled directly in the application (no external API):
+
+| Dataset | Source / Notes |
+|---------|---------------|
+| Civil airports (26) | Hardcoded coordinates, ICAO/IATA codes, and ATC frequencies for major UK and Irish airports |
+| RAF & co-located bases (24) | Hardcoded coordinates and ICAO codes for UK RAF stations and USAF co-located bases |
+| UK Air-to-Air Refuelling Areas (AARA 1–14) | Hardcoded GeoJSON polygons for UK AARA zones |
+| AWACS orbit areas | Hardcoded GeoJSON polygons |
+
+---
+
 ## Tech Stack
 
 | Component | Technology |
@@ -121,4 +175,5 @@ The footer displays:
 | Map style | Custom Fiord dark theme |
 | Fonts | Barlow / Barlow Condensed (Google Fonts) |
 | Server | Docker / nginx |
+| ADS-B data | airplanes.live public API |
 | Geocoding | Nominatim (OpenStreetMap) |
