@@ -1,5 +1,9 @@
 /* ============================================================
    BASE RESET
+   Ensures consistent box-model across all elements.
+   Locks viewport to full screen, prevents scrollbars on the
+   outer page (the map handles its own scroll/zoom).
+   Black background prevents flash on load before map renders.
    ============================================================ */
 *,
 *::before,
@@ -13,7 +17,7 @@ html {
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: hidden;       /* map fills the viewport — no page scroll */
     background: #000;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
 }
@@ -21,6 +25,10 @@ html {
 
 /* ============================================================
    NAVIGATION HEADER
+   Fixed 68px bar at the top of the viewport.
+   Contains the animated SVG logo (left) and domain nav links
+   (AIR / SPACE / SEA / LAND) on the right.
+   z-index 1000 keeps it above the MapLibre canvas and controls.
    ============================================================ */
 #nav {
     position: fixed;
@@ -37,19 +45,29 @@ html {
     z-index: 1000;
 }
 
+/* Left side of the nav bar — wraps the SVG logo element */
 #nav-logo {
     display: flex;
     align-items: center;
     height: 100%;
 }
 
+/* The SVG logo image itself; height constrained to 24px */
 #logo-img {
     height: 24px;
     width: auto;
     display: block;
 }
 
-/* Logo load animation — bracket corners draw in, then text types */
+/* ---- Logo load animation ----
+   Four bracket corner paths draw in via stroke-dashoffset,
+   staggered 70ms apart. After the corners finish (~0.43 s),
+   the centre dot fades in and the background rectangle pulses
+   twice. The SENTINEL typewriter text is driven by JS after
+   the CSS animations complete.
+   ------------------------------------------------------------ */
+
+/* Each bracket corner path: strokes from 0 to full length */
 .logo-corner {
     stroke-dasharray: 10;
     stroke-dashoffset: 10;
@@ -64,6 +82,7 @@ html {
     to { stroke-dashoffset: 0; }
 }
 
+/* Centre dot fades in after all corners are drawn (0.38 s) */
 .logo-dot {
     opacity: 0;
     animation: logo-dot-in 0.15s ease-out 0.38s forwards;
@@ -73,6 +92,7 @@ html {
     to { opacity: 1; }
 }
 
+/* Background rectangle pulses lime-ish twice after dot appears */
 .logo-bg {
     animation: logo-bg-pulse 0.4s ease-in-out 0.43s 2 both;
 }
@@ -83,12 +103,15 @@ html {
     100% { fill-opacity: 0; }
 }
 
+/* Right side of the nav bar — flex row containing nav links */
 #nav-right {
     display: flex;
     align-items: center;
     gap: 32px;
 }
 
+/* Domain navigation link (AIR / SPACE / SEA / LAND).
+   Muted by default; brightens on hover. */
 .nav-link {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 10px;
@@ -104,6 +127,7 @@ html {
     color: rgba(255, 255, 255, 0.75);
 }
 
+/* Active domain link — always lime, never dims on hover */
 .nav-link--active {
     color: #c8ff00;
 }
@@ -114,16 +138,22 @@ html {
 
 
 /* ============================================================
-   MAP
+   MAP VIEWPORT
+   The MapLibre canvas sits between the 68px header and 44px
+   footer, spanning the full viewport width. The brightness /
+   saturation filter dims the tile set to match a dark
+   tactical aesthetic (mimics adsb.lol dim mode).
    ============================================================ */
 #map {
     position: absolute;
-    top: 68px;
-    bottom: 44px;
+    top: 68px;      /* below fixed nav */
+    bottom: 44px;   /* above fixed footer */
     width: 100%;
 }
 
-/* Dim mode — matches adsb.lol dim + darker colours applied to fiord tile set */
+/* Dim mode applied to the raw MapLibre canvas element.
+   Reduces brightness to 65% and desaturates to 85% so the
+   dark fiord tile set sits naturally against the black chrome. */
 .maplibregl-canvas {
     filter: brightness(0.65) saturate(0.85);
 }
@@ -131,6 +161,10 @@ html {
 
 /* ============================================================
    FOOTER
+   Fixed 44px bar at the bottom of the viewport.
+   Left side: notification + tracking toggle buttons.
+   Right side: connection status label + location coordinates.
+   Mirrors the header's visual weight and z-index.
    ============================================================ */
 #footer {
     position: fixed;
@@ -147,18 +181,23 @@ html {
     z-index: 1000;
 }
 
+/* Left cluster: notification toggle + tracking toggle buttons */
 #footer-left {
     display: flex;
     align-items: baseline;
     gap: 16px;
 }
 
+/* Right cluster: connection indicator + user location label */
 #footer-right {
     display: flex;
     align-items: center;
     gap: 16px;
 }
 
+/* ---- Connection status indicator ----
+   Toggled between .conn-online / .conn-offline / .conn-checking
+   by the connectivity module whenever OSM poll results change. */
 #conn-status {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
@@ -167,10 +206,14 @@ html {
     text-transform: uppercase;
 }
 
+/* Online: lime — matches the primary accent colour */
 .conn-online  { color: #c8ff00; }
+/* Offline: muted red — danger state, readable at small size */
 .conn-offline { color: rgba(255, 80, 80, 0.8); }
+/* Checking: near-invisible white — transitional, low noise */
 .conn-checking { color: rgba(255, 255, 255, 0.2); }
 
+/* Generic dim footer label (e.g. "LOC:" prefix) */
 .footer-label {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 10px;
@@ -180,6 +223,7 @@ html {
     text-transform: uppercase;
 }
 
+/* Coordinate / data value displayed next to a footer label */
 .footer-code {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 10px;
@@ -191,117 +235,163 @@ html {
 
 
 /* ============================================================
-   MAPLIBRE CONTROLS — pure black, sharp corners, Anduril theme
+   MAPLIBRE BUILT-IN CONTROLS
+   Override MapLibre's default rounded/white controls with a
+   pure black, sharp-cornered, Anduril-style theme.
+   All !important flags are required to beat the library's
+   inline and scoped styles.
    ============================================================ */
+
+/* Control group container (zoom, compass, etc.) */
 .maplibregl-ctrl-group {
     background-color: #000000 !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 0 !important;
+    border-radius: 0 !important;     /* sharp corners throughout */
     box-shadow: none !important;
 }
 
+/* Divider between stacked buttons within a group */
 .maplibregl-ctrl-group button + button {
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
+/* Invert the default SVG icons so they appear white on black */
 .maplibregl-ctrl-icon {
     filter: invert(1) brightness(1.2) !important;
 }
 
+/* Subtle hover state for all built-in control buttons */
 .maplibregl-ctrl-group button:hover {
     background-color: #111111 !important;
 }
 
+/* Compass icon needs extra brightness to read clearly when rotated */
 .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
     filter: invert(1) brightness(2) !important;
 }
 
+/* Shared cursor and transition for all control buttons */
 .maplibregl-ctrl-group button {
     cursor: pointer;
     transition: opacity 0.2s, color 0.2s;
 }
 
-/* Nudge right-side controls inward to match nav padding */
+/* Nudge the top-right control cluster inward to align with nav padding */
 .maplibregl-ctrl-top-right {
     right: 14px;
     top: 12px;
 }
 
-/* Custom controls — sharp corners, no radius */
+/* Custom (non-group) controls — e.g. the side menu container —
+   get the same border style but remain frameless */
 .maplibregl-ctrl:not(.maplibregl-ctrl-group) {
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 0 !important;
 }
 
+/* Font applied to all map control buttons (built-in + custom) */
+.maplibregl-ctrl button {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif !important;
+    letter-spacing: 0.08em !important;
+    font-weight: 600 !important;
+    transition: opacity 0.2s, color 0.2s !important;
+}
+
+
 /* ============================================================
    USER LOCATION MARKER
+   SVG marker injected into the map at the user's GPS position.
+   The element is a MapLibre DOM marker (not a layer/symbol),
+   so it sits above the canvas on its own stacking context.
+
+   Animations:
+     marker-circle-draw   — outer ring strokes in via dashoffset
+     marker-dot-pulse     — inner dot flashes white→lime on first
+                            appearance to attract attention
+     marker-dot-end-pulse — steady slow pulse once settled
+     marker-coord-bg-in/out — coordinate label slides in/out
+                              using clip-path when user taps marker
    ============================================================ */
 
-/* Circle draws on via stroke-dashoffset */
+/* Circle ring draws in by animating stroke-dashoffset to 0 */
 @keyframes marker-circle-draw {
     to { stroke-dashoffset: 0; }
 }
 
-/* Dot intro pulse: white → green → white (used on first appearance) */
+/* Initial dot pulse: white → lime → white (attention grab on first fix) */
 @keyframes marker-dot-pulse {
     0%   { opacity: 1; fill: white; }
     50%  { opacity: 1; fill: #c8ff00; }
     100% { opacity: 1; fill: white; }
 }
 
-/* Dot end pulse: dips near-transparent each cycle, ends fully opaque white */
+/* Ongoing dot pulse: dips near-transparent then returns fully opaque */
 @keyframes marker-dot-end-pulse {
     0%   { opacity: 1;    fill: white; }
     40%  { opacity: 0.08; fill: white; }
     100% { opacity: 1;    fill: white; }
 }
 
-/* Coord background slides in left→right via clip-path */
+/* Coordinate label background reveals left-to-right */
 @keyframes marker-coord-bg-in {
     from { clip-path: inset(0 100% 0 0); }
     to   { clip-path: inset(0 0% 0 0); }
 }
 
-/* Coord background slides out right→left (right inset grows) */
+/* Coordinate label background hides right-to-left */
 @keyframes marker-coord-bg-out {
     from { clip-path: inset(0 0% 0 0); }
     to   { clip-path: inset(0 100% 0 0); }
 }
 
+/* Wrapper div injected by MapLibre's Marker API */
 .user-location-marker {
     cursor: pointer;
     position: relative;
-    z-index: 9999;
+    z-index: 9999;  /* above all map layers, below panels */
 }
-
 
 
 /* ============================================================
    TRACKING PANEL
+   Fixed overlay anchored to the bottom-left of the map area
+   (above the footer, below the header). Contains:
+     - #adsb-status-bar  — selected aircraft detail card
+   Visibility and opacity are transitioned; pointer-events are
+   disabled by default so the closed panel doesn't block the map.
+   Opened by JS adding .tracking-panel-open.
    ============================================================ */
 #tracking-panel {
     position: fixed;
-    bottom: calc(44px + 14px); /* footer height + gap */
-    top: calc(68px + 8px);     /* header height + breathing room */
+    bottom: calc(44px + 14px); /* footer height + breathing gap */
+    top: calc(68px + 8px);     /* header height + breathing gap */
     left: 24px;
     z-index: 10000;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: flex-end;
-    pointer-events: none;
+    justify-content: flex-end;  /* card sits at the bottom of the panel */
+    pointer-events: none;       /* closed: map clicks pass through */
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
+/* Opened state — JS adds this class to make the panel interactive */
 #tracking-panel.tracking-panel-open {
     visibility: visible;
     opacity: 1;
 }
 
+
 /* ============================================================
    ADS-B SELECTED AIRCRAFT STATUS BAR
+   The detail card shown inside #tracking-panel when an aircraft
+   is actively tracked. 220px wide, pure black background.
+   Fields: callsign, altitude, speed, heading, squawk, type.
+   Rendered by AdsbLiveControl.renderStatusBar() in main.js.
+   Toggled via .adsb-sb-visible class; hidden via display:none
+   to prevent layout shift in the tracking panel column.
    ============================================================ */
 #adsb-status-bar {
     width: 220px;
@@ -309,17 +399,19 @@ html {
     color: #fff;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     pointer-events: auto;
-    display: none;
+    display: none;          /* hidden until an aircraft is selected */
     flex-direction: column;
     gap: 0;
     user-select: none;
     box-sizing: border-box;
 }
 
+/* Visible state: switched on by JS when tracking begins */
 #adsb-status-bar.adsb-sb-visible {
     display: flex;
 }
 
+/* Top row of the card: "TRACKING" label (left) + UNTRACK button (right) */
 .adsb-sb-header {
     display: flex;
     align-items: center;
@@ -331,6 +423,7 @@ html {
     z-index: 1;
 }
 
+/* "TRACKING" section label — lime, small caps */
 .adsb-sb-label-tag {
     font-size: 10px;
     font-weight: 700;
@@ -340,6 +433,7 @@ html {
     opacity: 0.75;
 }
 
+/* "UNTRACK" ghost button in the status bar header */
 .adsb-sb-untrack-btn {
     background: none;
     border: none;
@@ -359,6 +453,7 @@ html {
     color: rgba(255, 255, 255, 0.75);
 }
 
+/* Aircraft callsign — primary identifier, displayed prominently */
 .adsb-sb-callsign {
     font-size: 14px;
     font-weight: 600;
@@ -367,6 +462,7 @@ html {
     line-height: 1.2;
 }
 
+/* Container for all data field rows below the header */
 .adsb-sb-fields {
     padding: 10px 14px 12px;
     display: flex;
@@ -374,12 +470,14 @@ html {
     gap: 0;
 }
 
+/* Single data row: label + value side by side */
 .adsb-sb-field {
     display: flex;
     gap: 14px;
     line-height: 1.8;
 }
 
+/* Left-column field label (e.g. "ALT", "SPD", "HDG") */
 .adsb-sb-label {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 11px;
@@ -388,9 +486,10 @@ html {
     color: rgba(255, 255, 255, 0.45);
     text-transform: uppercase;
     flex-shrink: 0;
-    min-width: 48px;
+    min-width: 48px;    /* aligns values into a clean column */
 }
 
+/* Right-column field value (e.g. "35000 ft", "420 kts") */
 .adsb-sb-value {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 13px;
@@ -400,30 +499,38 @@ html {
     flex-shrink: 0;
 }
 
+/* Emergency value override — red text for squawk 7500/7600/7700 */
 .adsb-sb-emrg {
     color: #ff4040;
     font-weight: 600;
 }
 
 
-/* Font for all map control buttons */
-.maplibregl-ctrl button {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif !important;
-    letter-spacing: 0.08em !important;
-    font-weight: 600 !important;
-    transition: opacity 0.2s, color 0.2s !important;
-}
-
-
 /* ============================================================
    SIDE MENU
+   Collapsible control panel anchored to the top-right of the
+   map. Two states managed by JS toggling .expanded on #side-menu:
+
+   Minimised (default):
+     - Each group (.sm-group) is ~46.67px wide (one button column)
+     - Buttons show icon only (.sm-icon visible, .sm-label hidden)
+     - Tooltips appear to the left on hover
+
+   Expanded:
+     - Groups expand to 148px wide
+     - Buttons show text label only (.sm-label visible, .sm-icon hidden)
+     - Nav group (#sm-group-nav) switches to a horizontal row layout
+     - Expanded-only buttons (.sm-expanded-only) become visible
+
+   Button states:
+     .active  — overlay is enabled, lime tint
+     .enabled — overlay is visible but not the primary active state
+     .sm-planes-off — ADS-B is disabled; planes button grayed + non-interactive
+
+   Layout: groups separated by 4px gap; buttons have no gap within a group.
    ============================================================ */
 
-/*
-   Layout: a column of "groups". Each group is a div with class .sm-group.
-   Groups are separated by 4px gap. Each button carries its own border.
-*/
-
+/* Root side menu container — column of groups */
 #side-menu {
     position: fixed;
     top: 80px;
@@ -435,7 +542,10 @@ html {
     align-items: flex-end;
 }
 
-/* Each group: transparent bg, no borders */
+/* ---- Group containers ----
+   Each logical grouping of controls (e.g. nav buttons, ADS-B controls,
+   map overlays) lives in a .sm-group div. Transparent background so the
+   dark map shows through between buttons. */
 .sm-group {
     background: transparent;
     border: none;
@@ -443,16 +553,17 @@ html {
     flex-direction: column;
     flex-shrink: 0;
     gap: 4px;
-    /* minimised width matches expanded nav button width */
+    /* minimised: one-third of expanded width minus gaps */
     width: calc((148px - 8px) / 3);
     transition: width 0.2s ease;
 }
 
+/* Expanded: all groups widen to 148px */
 #side-menu.expanded .sm-group {
     width: 148px;
 }
 
-/* In expanded mode the zoom/location group rows horizontally */
+/* Nav group (#sm-group-nav) lays buttons in a horizontal row when expanded */
 #side-menu.expanded #sm-group-nav {
     flex-direction: row;
     gap: 4px;
@@ -460,18 +571,21 @@ html {
     border-color: transparent;
 }
 
+/* Each nav button fills its share of the row */
 #side-menu.expanded .sm-nav-btn {
     flex: 1;
     width: auto;
 }
 
-/* toggle group keeps its width in expanded mode */
+/* Toggle group stays narrow even when menu is expanded —
+   prevents the single collapse button stretching to full width */
 #side-menu.expanded #sm-group-toggle {
     gap: 0;
     width: calc((148px - 8px) / 3);
 }
 
-/* ---- Toggle button (its own group) ---- */
+/* ---- Expand/collapse toggle button ----
+   The leftmost/topmost button that shows ‹ or › to open/close the menu */
 #side-menu-toggle {
     width: 100%;
     height: 36px;
@@ -493,7 +607,9 @@ html {
     color: rgba(255,255,255,0.75);
 }
 
-/* ---- Zoom + location buttons ---- */
+/* ---- Zoom + location navigation buttons ----
+   Three small utility buttons: zoom in (+), zoom out (−), locate me (⊕).
+   Shown as a compact column in minimised mode, horizontal row in expanded. */
 .sm-nav-btn {
     flex: none;
     width: 100%;
@@ -516,12 +632,17 @@ html {
     color: #fff;
 }
 
+/* Active state: locate-me button lit lime when following user position */
 .sm-nav-btn.active {
     background: #111;
     color: #c8ff00;
 }
 
-/* ---- Overlay toggle buttons ---- */
+/* ---- Overlay toggle buttons ----
+   The main control buttons for each map layer/overlay (airports, RAF,
+   ADS-B, range rings, AARA, etc.). Inactive by default (opacity 0.3).
+   Activated overlays glow lime (.active); visible-but-not-primary (.enabled)
+   are fully opaque white. */
 .sm-btn {
     width: 100%;
     height: 36px;
@@ -536,7 +657,7 @@ html {
     align-items: center;
     justify-content: center;
     transition: background 0.2s, opacity 0.2s, color 0.2s;
-    opacity: 0.3;
+    opacity: 0.3;           /* inactive/off: very dim */
     flex-shrink: 0;
     white-space: nowrap;
     padding: 0;
@@ -546,21 +667,27 @@ html {
     background: #111;
 }
 
+/* Active overlay: full opacity, lime tint at 75% */
 .sm-btn.active {
     opacity: 1;
     color: rgba(200, 255, 0, 0.75);
 }
 
+/* Enabled but not primary active (e.g. overlay visible but not selected) */
 .sm-btn.enabled {
     opacity: 1;
 }
 
+/* ADS-B disabled state: barely visible, non-interactive.
+   Applied when the live feed is turned off globally. */
 .sm-btn.sm-planes-off {
     opacity: 0.1;
     pointer-events: none;
 }
 
-/* Icon span: visible in minimised, hidden in expanded */
+/* ---- Icon span (minimised mode) ----
+   SVG icon centred in the button; hidden when the menu is expanded
+   and replaced by a text label. */
 .sm-btn .sm-icon {
     display: flex;
     align-items: center;
@@ -576,7 +703,9 @@ html {
     height: 15px;
 }
 
-/* Label span: hidden in minimised, visible in expanded */
+/* ---- Label span (expanded mode) ----
+   Text label hidden in minimised mode; shown in expanded mode.
+   Uses smaller uppercase Barlow for the tactical look. */
 .sm-btn .sm-label {
     display: none;
     font-size: 9px;
@@ -584,6 +713,7 @@ html {
     letter-spacing: 0.14em;
 }
 
+/* Expanded: left-align content and reveal label, hide icon */
 #side-menu.expanded .sm-btn {
     justify-content: flex-start;
     padding: 0 14px;
@@ -597,7 +727,9 @@ html {
     display: flex;
 }
 
-/* Buttons that only appear in the expanded menu */
+/* ---- Expanded-only buttons ----
+   Buttons that only appear in expanded mode (e.g. CLR overlays, range-ring
+   selector). Hidden in minimised mode to keep the narrow column clean. */
 .sm-btn.sm-expanded-only {
     display: none;
 }
@@ -605,7 +737,18 @@ html {
     display: flex;
 }
 
-/* ---- Tooltips ---- */
+/* ---- Side menu tooltips ----
+   ::before pseudo-element on each button renders a tooltip label.
+   In minimised mode tooltips float to the left.
+   In expanded mode, nav buttons need individually offset positions
+   because they share a horizontal row — each tooltip must clear
+   all buttons to its right.
+
+   Tooltip width is unconstrained (white-space: nowrap) so it never
+   wraps. Opacity transition fades it in/out on hover.
+   ------------------------------------------------------------ */
+
+/* All buttons with [data-tooltip] in the relevant menu states get position:relative */
 #side-menu:not(.expanded) .sm-btn[data-tooltip],
 #side-menu:not(.expanded) .sm-nav-btn[data-tooltip],
 #side-menu:not(.expanded) #side-menu-toggle[data-tooltip],
@@ -613,13 +756,13 @@ html {
     position: relative;
 }
 
-/* Minimised: tooltip appears to the left */
+/* Minimised: tooltip appears to the left of the button */
 #side-menu:not(.expanded) .sm-btn[data-tooltip]::before,
 #side-menu:not(.expanded) .sm-nav-btn[data-tooltip]::before,
 #side-menu:not(.expanded) #side-menu-toggle[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
-    right: calc(100% + 8px);
+    right: calc(100% + 8px);    /* 8px gap between button left edge and tooltip */
     top: 50%;
     transform: translateY(-50%);
     background: #000;
@@ -640,19 +783,21 @@ html {
     z-index: 1002;
 }
 
+/* Show on hover */
 #side-menu:not(.expanded) .sm-btn[data-tooltip]:hover::before,
 #side-menu:not(.expanded) .sm-nav-btn[data-tooltip]:hover::before,
 #side-menu:not(.expanded) #side-menu-toggle[data-tooltip]:hover::before {
     opacity: 1;
 }
 
-/* Expanded: nav button tooltips — all anchored to the left of the + button.
-   Each button is (148-8)/3 = 46.67px wide with 4px gaps, so step = 50.67px. */
+/* Expanded: nav row tooltips use position:relative so offsets work correctly.
+   Step width = (148px - 8px) / 3 + 4px gap = ~50.67px per button. */
 #side-menu.expanded #sm-group-nav .sm-nav-btn[data-tooltip],
 #side-menu.expanded #side-menu-toggle[data-tooltip] {
     position: relative;
 }
 
+/* Shared tooltip styles for expanded-mode nav buttons */
 #side-menu.expanded #sm-group-nav .sm-nav-btn[data-tooltip]::before,
 #side-menu.expanded #side-menu-toggle[data-tooltip]::before {
     content: attr(data-tooltip);
@@ -677,26 +822,27 @@ html {
     z-index: 1002;
 }
 
-/* + button (1st): tooltip sits directly to its left */
+/* + button (1st in row): tooltip directly to its left */
 #side-menu.expanded #sm-group-nav .sm-nav-btn:nth-child(1)[data-tooltip]::before {
     right: calc(100% + 8px);
 }
 
-/* − button (2nd): offset left by one button+gap width extra */
+/* − button (2nd in row): must clear the button to its right (1 step) */
 #side-menu.expanded #sm-group-nav .sm-nav-btn:nth-child(2)[data-tooltip]::before {
     right: calc(100% + 8px + 50.67px);
 }
 
-/* location button (3rd): offset left by two button+gap widths extra */
+/* location button (3rd in row): must clear two buttons to its right */
 #side-menu.expanded #sm-group-nav .sm-nav-btn:nth-child(3)[data-tooltip]::before {
     right: calc(100% + 8px + 101.33px);
 }
 
-/* Toggle (minimise) button tooltip: to the left */
+/* Collapse toggle tooltip: directly to the left of the toggle button */
 #side-menu.expanded #side-menu-toggle[data-tooltip]::before {
     right: calc(100% + 8px);
 }
 
+/* Show expanded nav tooltips on hover */
 #side-menu.expanded #sm-group-nav .sm-nav-btn[data-tooltip]:hover::before,
 #side-menu.expanded #side-menu-toggle[data-tooltip]:hover::before {
     opacity: 1;
@@ -705,12 +851,25 @@ html {
 
 /* ============================================================
    FILTER PANEL
-   ============================================================ */
+   Floating search panel that appears below the nav bar,
+   horizontally centred within the space left of the side menu.
+   Allows searching aircraft by callsign / ICAO hex / squawk,
+   and filtering display mode (ALL / CIVIL / MIL / HIDE).
 
+   Positioning uses CSS custom properties to account for whether
+   the side menu is expanded or minimised, adjusting the centring
+   accordingly via :has() selectors.
+
+   Sections:
+     #filter-mode-bar      — ALL / CIVIL / MIL / HIDE tab row
+     #filter-input-wrap    — search input + clear button
+     #filter-results       — scrollable list of matching aircraft/airports
+   ============================================================ */
 #filter-panel {
     position: fixed;
     top: calc(68px + 12px);
-    --side-menu-width: calc((148px - 8px) / 3 + 14px); /* minimised menu + right gap */
+    /* centre in the viewport minus the side menu's right column */
+    --side-menu-width: calc((148px - 8px) / 3 + 14px);
     left: calc((100vw - var(--side-menu-width)) / 2);
     transform: translateX(-50%);
     width: 460px;
@@ -719,17 +878,19 @@ html {
     color: #fff;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     z-index: 1001;
-    display: none;
+    display: none;          /* hidden until .filter-panel-visible added by JS */
     pointer-events: auto;
     user-select: none;
     box-sizing: border-box;
 }
 
+/* Visible state toggled by JS */
 #filter-panel.filter-panel-visible {
     display: block;
 }
 
-/* When side menu is expanded, centre filter in the space left of the menu */
+/* When side menu is expanded, re-centre filter in the narrower available space
+   (viewport width minus the 148px expanded menu and its 14px right offset) */
 body:has(#side-menu.expanded) #filter-panel {
     --menu-left: calc(100vw - 14px - 148px);
     left: calc(var(--menu-left) / 2);
@@ -737,11 +898,14 @@ body:has(#side-menu.expanded) #filter-panel {
     max-width: calc(var(--menu-left) - 28px);
 }
 
+/* ---- Filter mode bar (ALL / CIVIL / MIL / HIDE) ----
+   Tab-style row at the top of the panel. Active mode shown in lime. */
 #filter-mode-bar {
     display: flex;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Individual mode tab buttons */
 .filter-mode-btn {
     flex: 1;
     background: none;
@@ -758,6 +922,7 @@ body:has(#side-menu.expanded) #filter-panel {
     text-transform: uppercase;
 }
 
+/* Remove right border from last tab to avoid double border */
 .filter-mode-btn:last-child {
     border-right: none;
 }
@@ -767,14 +932,17 @@ body:has(#side-menu.expanded) #filter-panel {
     background: rgba(255, 255, 255, 0.04);
 }
 
+/* Active mode: lime for ALL/CIVIL/MIL */
 .filter-mode-btn.active {
     color: #c8ff00;
 }
 
+/* Active HIDE mode: muted white (not lime — indicates suppression) */
 .filter-mode-btn[data-mode="none"].active {
     color: rgba(255, 255, 255, 0.5);
 }
 
+/* ---- Search input row ---- */
 #filter-input-wrap {
     display: flex;
     align-items: center;
@@ -783,12 +951,14 @@ body:has(#side-menu.expanded) #filter-panel {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Magnifying-glass icon to the left of the input */
 #filter-icon {
     flex-shrink: 0;
     color: rgba(255, 255, 255, 0.35);
     display: block;
 }
 
+/* The search text input field */
 #filter-input {
     flex: 1;
     background: none;
@@ -799,17 +969,19 @@ body:has(#side-menu.expanded) #filter-panel {
     font-size: 14px;
     font-weight: 400;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    caret-color: #c8ff00;
-    min-width: 0;
+    text-transform: uppercase;     /* normalise callsigns/hex to upper */
+    caret-color: #c8ff00;          /* lime cursor to match accent colour */
+    min-width: 0;                  /* allows flex shrink */
 }
 
+/* Placeholder text — smaller and dimmer than input text */
 #filter-input::placeholder {
     color: rgba(255, 255, 255, 0.2);
     font-size: 11px;
     letter-spacing: 0.14em;
 }
 
+/* × clear button — hidden until there is text in the input */
 #filter-clear-btn {
     background: none;
     border: none;
@@ -819,7 +991,7 @@ body:has(#side-menu.expanded) #filter-panel {
     font-size: 10px;
     font-weight: 700;
     padding: 0;
-    display: none;
+    display: none;              /* JS adds .filter-clear-visible to show */
     transition: color 0.15s;
     flex-shrink: 0;
 }
@@ -832,16 +1004,20 @@ body:has(#side-menu.expanded) #filter-panel {
     color: rgba(255, 255, 255, 0.75);
 }
 
+/* ---- Results list ----
+   Scrollable area beneath the search input.
+   Scrollbar hidden (native scrolling preserved) for cleanliness. */
 #filter-results {
     max-height: 340px;
     overflow-y: auto;
-    scrollbar-width: none;
+    scrollbar-width: none;      /* Firefox */
 }
 
 #filter-results::-webkit-scrollbar {
-    display: none;
+    display: none;              /* Chrome / Safari */
 }
 
+/* Category label above a result group (e.g. "AIRCRAFT", "AIRPORTS") */
 .filter-section-label {
     font-size: 9px;
     font-weight: 700;
@@ -851,6 +1027,7 @@ body:has(#side-menu.expanded) #filter-panel {
     text-transform: uppercase;
 }
 
+/* A single result row: icon + info column + action button */
 .filter-result-item {
     display: flex;
     align-items: center;
@@ -868,14 +1045,16 @@ body:has(#side-menu.expanded) #filter-panel {
     background: rgba(255, 255, 255, 0.06);
 }
 
+/* Info column: stacks primary (callsign) and secondary (route/type) text */
 .filter-result-info {
     flex: 1;
-    min-width: 0;
+    min-width: 0;               /* allows text-overflow ellipsis to work */
     display: flex;
     flex-direction: column;
     gap: 1px;
 }
 
+/* Generic action button (fly-to, track) on the right of each result row */
 .filter-action-btn {
     background: none;
     border: none;
@@ -893,6 +1072,7 @@ body:has(#side-menu.expanded) #filter-panel {
     color: #fff !important;
 }
 
+/* Track / Fly-to text action button (text variant of .filter-action-btn) */
 .filter-track-btn {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 9px;
@@ -902,27 +1082,32 @@ body:has(#side-menu.expanded) #filter-panel {
     padding: 6px 10px;
 }
 
+/* Left icon column — small SVG/unicode glyph indicating result type */
 .filter-result-icon {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 18px;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.3);    /* default: dim white */
 }
 
+/* Civil aircraft icon — full white */
 .filter-result-icon.filter-icon-plane {
     color: #ffffff;
 }
 
+/* Airport icon — lime accent */
 .filter-result-icon.filter-icon-airport {
     color: #c8ff00;
 }
 
+/* Military aircraft icon — half-opacity lime */
 .filter-result-icon.filter-icon-mil {
     color: rgba(200, 255, 0, 0.5);
 }
 
+/* Primary text: callsign or airport ICAO code */
 .filter-result-primary {
     font-size: 13px;
     font-weight: 600;
@@ -931,6 +1116,7 @@ body:has(#side-menu.expanded) #filter-panel {
     flex-shrink: 0;
 }
 
+/* Secondary text: route, aircraft type, or airport name */
 .filter-result-secondary {
     font-size: 10px;
     font-weight: 400;
@@ -941,6 +1127,7 @@ body:has(#side-menu.expanded) #filter-panel {
     white-space: nowrap;
 }
 
+/* Right-side badge (e.g. squawk code, distance) */
 .filter-result-badge {
     margin-left: auto;
     font-size: 9px;
@@ -950,10 +1137,12 @@ body:has(#side-menu.expanded) #filter-panel {
     flex-shrink: 0;
 }
 
+/* Emergency badge override — red for squawk 7500/7600/7700 */
 .filter-result-badge.filter-badge-emrg {
     color: #ff4040;
 }
 
+/* No-results placeholder text */
 .filter-no-results {
     padding: 20px 18px;
     font-size: 10px;
@@ -964,6 +1153,9 @@ body:has(#side-menu.expanded) #filter-panel {
     text-transform: uppercase;
 }
 
+/* ---- Filter panel responsive behaviour ----
+   On narrow viewports the panel narrows to avoid overlapping
+   the side menu; the centring logic is preserved. */
 @media (max-width: 600px) {
     #filter-panel {
         left: 50%;
@@ -972,6 +1164,7 @@ body:has(#side-menu.expanded) #filter-panel {
         max-width: calc(100vw - 200px);
     }
 
+    /* When side menu is expanded on mobile, further constrain the panel */
     body:has(#side-menu.expanded) #filter-panel {
         --menu-left: calc(100vw - 14px - 148px);
         left: calc(var(--menu-left) / 2);
@@ -984,21 +1177,42 @@ body:has(#side-menu.expanded) #filter-panel {
 
 /* ============================================================
    NOTIFICATIONS PANEL
-   ============================================================ */
+   Fixed overlay anchored bottom-left, between header and footer.
+   Grows upward from the footer anchor (justify-content: flex-end).
+   Contains a scrollable list of notification cards (.notif-item).
 
+   Opened by JS adding .notif-panel-open to #notifications-panel.
+   pointer-events: none on the panel container means only the
+   inner list (#notif-list-wrap) intercepts clicks when visible.
+
+   Notification types (data-type attribute on .notif-item):
+     flight     — new tracked flight entered range
+     departure  — tracked aircraft is departing/landing
+     track      — manual tracking started
+     tracking   — auto-follow state change
+     notif-off  — notifications disabled for a callsign
+     system     — general system message (connection, overlay)
+     message    — informational (blue)
+     emergency  — squawk 7500/7600/7700 alert (red)
+     squawk-clr — emergency squawk cleared
+   ============================================================ */
 #notifications-panel {
     position: fixed;
-    bottom: calc(44px + 14px); /* footer height + gap */
-    top: calc(68px + 8px);     /* header height + breathing room — prevents overflow above map */
+    bottom: calc(44px + 14px); /* footer height + breathing gap */
+    top: calc(68px + 8px);     /* header height + breathing gap — prevents overflow */
     left: 24px;
     z-index: 10000;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: flex-end; /* panel grows upward from the footer anchor */
-    pointer-events: none;
+    justify-content: flex-end;  /* new notifications stack up from the bottom */
+    pointer-events: none;       /* closed: pass map clicks through */
 }
 
+/* ---- Notification list wrapper ----
+   Flex row so the list and scroll-hint sit side by side.
+   Fades in/out with panel open state. flex: 0 1 auto lets it
+   shrink if the panel height is constrained by the viewport. */
 #notif-list-wrap {
     display: flex;
     flex-direction: row;
@@ -1007,17 +1221,20 @@ body:has(#side-menu.expanded) #filter-panel {
     visibility: hidden;
     opacity: 0;
     pointer-events: all;
-    touch-action: none; /* JS handles touch scrolling to prevent map interference */
+    touch-action: none;         /* JS handles touch scrolling to prevent map pan interference */
     transition: opacity 0.2s ease, visibility 0.2s ease;
-    flex: 0 1 auto; /* shrinks with the panel so the list stays within map bounds */
+    flex: 0 1 auto;
     min-height: 0;
 }
 
+/* Show the list when the panel is opened */
 #notifications-panel.notif-panel-open #notif-list-wrap {
     visibility: visible;
     opacity: 1;
 }
 
+/* ---- Panel header row ("NOTIFICATIONS" label + "CLEAR ALL" button) ----
+   Hidden when panel is closed; becomes flex row when open. */
 #notif-header {
     display: none;
     width: 220px;
@@ -1032,6 +1249,7 @@ body:has(#side-menu.expanded) #filter-panel {
     display: flex;
 }
 
+/* "CLEAR ALL" button — dismisses all notifications at once */
 #notif-clear-all-btn {
     display: block;
     pointer-events: all;
@@ -1054,26 +1272,31 @@ body:has(#side-menu.expanded) #filter-panel {
     color: rgba(255, 255, 255, 0.75);
 }
 
-
+/* ---- Scrollable notification list ----
+   220px wide, max 580px tall (capped so it stays within the panel).
+   Scrollbar hidden on all browsers; scrolling still works natively. */
 #notif-list {
     display: flex;
     flex-direction: column;
     gap: 4px;
     align-items: flex-start;
     width: 220px;
-    max-height: 580px; /* upper bound on large screens */
-    flex: 0 1 auto;    /* shrinks to fit available panel height on small screens */
+    max-height: 580px;          /* upper bound on large screens */
+    flex: 0 1 auto;             /* shrinks on small screens */
     min-height: 0;
     overflow-y: auto;
-    scrollbar-width: none; /* Firefox */
-    pointer-events: none;
+    scrollbar-width: none;      /* Firefox */
+    pointer-events: none;       /* individual .notif-item re-enables pointer-events */
 }
 
 #notif-list::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    display: none;              /* Chrome / Safari */
 }
 
-/* Scroll hint */
+/* ---- Scroll overflow hint ----
+   Small label that appears when the list is taller than the visible
+   area, telling the user there are more notifications to scroll to.
+   Arrow rotates 180° when the user is at the bottom (#notif-arrow-up). */
 #notif-scroll-hint {
     background: rgba(0, 0, 0, 0.25);
     color: rgba(255, 255, 255, 0.35);
@@ -1097,6 +1320,7 @@ body:has(#side-menu.expanded) #filter-panel {
     opacity: 1;
 }
 
+/* Scroll direction arrow — rotates to indicate which direction has more */
 #notif-scroll-arrow {
     display: inline-block;
     vertical-align: middle;
@@ -1104,12 +1328,17 @@ body:has(#side-menu.expanded) #filter-panel {
     transition: transform 0.2s ease;
 }
 
+/* Rotated upward when the user is scrolled to the bottom */
 #notif-scroll-arrow.notif-arrow-up {
     transform: rotate(180deg);
 }
 
+/* ---- Individual notification card ----
+   Each card slides in from the left (translateX(-10px) → 0) and
+   fades in. Cards remain flex-shrink: 0 so they never squash.
+   pointer-events: auto overrides the parent's pointer-events: none. */
 .notif-item {
-    width: 220px; /* slightly wider than expanded side menu width */
+    width: 220px;
     background: #000;
     color: #fff;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -1123,11 +1352,13 @@ body:has(#side-menu.expanded) #filter-panel {
     flex-shrink: 0;
 }
 
+/* JS adds this class once the card is inserted to trigger the slide-in */
 .notif-item.notif-visible {
     opacity: 1;
     transform: translateX(0);
 }
 
+/* Card header row: type label (left) + dismiss × button (right) */
 .notif-header {
     display: flex;
     align-items: center;
@@ -1140,6 +1371,7 @@ body:has(#side-menu.expanded) #filter-panel {
     z-index: 1;
 }
 
+/* Type label — colour-coded per data-type (see selectors below) */
 .notif-label {
     font-size: 10px;
     font-weight: 700;
@@ -1147,6 +1379,7 @@ body:has(#side-menu.expanded) #filter-panel {
     text-transform: uppercase;
 }
 
+/* ---- Notification type label colours ---- */
 .notif-item[data-type="flight"]     .notif-label { color: #c8ff00; opacity: 0.75; }
 .notif-item[data-type="departure"]  .notif-label { color: #c8ff00; opacity: 0.75; }
 .notif-item[data-type="track"]      .notif-label { color: #c8ff00; opacity: 0.75; }
@@ -1157,6 +1390,7 @@ body:has(#side-menu.expanded) #filter-panel {
 .notif-item[data-type="emergency"]  .notif-label { color: #ff2222; }
 .notif-item[data-type="squawk-clr"] .notif-label { color: rgba(255, 255, 255, 0.45); }
 
+/* × dismiss button — ghost style, brightens on hover */
 .notif-dismiss {
     background: none;
     border: none;
@@ -1176,6 +1410,7 @@ body:has(#side-menu.expanded) #filter-panel {
     color: rgba(255, 255, 255, 0.75);
 }
 
+/* Card body: title + detail text + timestamp */
 .notif-body {
     padding: 10px 14px 12px;
     display: flex;
@@ -1183,6 +1418,7 @@ body:has(#side-menu.expanded) #filter-panel {
     gap: 3px;
 }
 
+/* Main notification text (e.g. callsign or event description) */
 .notif-title {
     font-size: 14px;
     font-weight: 600;
@@ -1191,10 +1427,12 @@ body:has(#side-menu.expanded) #filter-panel {
     line-height: 1.2;
 }
 
+/* Emergency title override — red to match the header label */
 .notif-item[data-type="emergency"] .notif-title {
     color: #ff2222;
 }
 
+/* Supporting detail text (squawk code, altitude, route info) */
 .notif-detail {
     font-size: 10px;
     font-weight: 400;
@@ -1202,9 +1440,10 @@ body:has(#side-menu.expanded) #filter-panel {
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
     line-height: 1.6;
-    white-space: pre-line;
+    white-space: pre-line;  /* allows \n in detail strings */
 }
 
+/* Timestamp shown below detail text */
 .notif-time {
     font-size: 10px;
     font-weight: 400;
@@ -1213,6 +1452,10 @@ body:has(#side-menu.expanded) #filter-panel {
     margin-top: 4px;
 }
 
+/* ---- Notification action button (e.g. "disable alerts for callsign") ----
+   Ghost button in the header row, to the left of the dismiss button.
+   Tooltip (::before) appears to the left. On hover the label text
+   swaps from default to a "disable" confirmation via sibling selector. */
 .notif-action {
     position: relative;
     background: none;
@@ -1230,15 +1473,18 @@ body:has(#side-menu.expanded) #filter-panel {
     color: #c8ff00;
 }
 
+/* Default state label (shown when not hovering action) */
 .notif-label-default {
     transition: opacity 0.15s;
 }
 
+/* "Disable" confirmation label — only visible while hovering the action */
 .notif-label-disable {
     display: none;
     color: #fff;
 }
 
+/* Swap the header labels when the action button is hovered */
 .notif-header:has(.notif-action:hover) .notif-label-default {
     display: none;
 }
@@ -1247,6 +1493,7 @@ body:has(#side-menu.expanded) #filter-panel {
     display: inline;
 }
 
+/* Action button tooltip — appears to the left, same style as side menu tooltips */
 .notif-action[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
@@ -1275,7 +1522,9 @@ body:has(#side-menu.expanded) #filter-panel {
     opacity: 1;
 }
 
-/* ---- Bell pulse — fires when a notification arrives while panel is closed ---- */
+/* ---- Bell pulse animation ----
+   Fired on #notif-toggle-btn when a new notification arrives while
+   the panel is closed. Pulses 3× white→lime→white to alert the user. */
 @keyframes notif-bell-pulse {
     0%   { opacity: 0.6; color: #fff; }
     50%  { opacity: 1;   color: #c8ff00; }
@@ -1286,7 +1535,21 @@ body:has(#side-menu.expanded) #filter-panel {
     animation: notif-bell-pulse 0.6s ease-in-out 3;
 }
 
-/* ---- Footer notifications toggle button — matches minimised .sm-btn ---- */
+
+/* ============================================================
+   FOOTER TOGGLE BUTTONS — NOTIFICATIONS & TRACKING
+   Two ghost icon-buttons in the footer's left cluster.
+   Both follow the same pattern:
+     - 36px tall, transparent background
+     - Icon (SVG) + count badge in a flex row
+     - Hover: subtle white-tinted background, border-radius
+     - Active (.notif-btn-active / .tracking-btn-active): full
+       opacity, distinct colour tint
+   The notification button adds a diagonal strike-through line
+   over the bell icon when the panel is closed (not active).
+   ============================================================ */
+
+/* ---- Notification toggle button ---- */
 #notif-toggle-btn {
     height: 36px;
     background: none;
@@ -1299,7 +1562,7 @@ body:has(#side-menu.expanded) #filter-panel {
     justify-content: center;
     gap: 6px;
     color: #fff;
-    opacity: 0.6;
+    opacity: 0.6;               /* dim when panel is closed */
     transition: background 0.2s, opacity 0.2s, color 0.2s;
     flex-shrink: 0;
     margin: 4px 0;
@@ -1311,12 +1574,15 @@ body:has(#side-menu.expanded) #filter-panel {
     opacity: 1;
 }
 
+/* Opened state: full opacity */
 #notif-toggle-btn.notif-btn-active {
     opacity: 1;
     color: #fff;
 }
 
-/* Diagonal line through bell when panel is closed */
+/* ---- Diagonal strike line through the bell icon (panel closed only) ----
+   Created with a ::after pseudo-element on the icon span.
+   Rotated 45° to cut diagonally through the bell SVG. */
 #notif-toggle-btn:not(.notif-btn-active) {
     position: relative;
 }
@@ -1337,6 +1603,7 @@ body:has(#side-menu.expanded) #filter-panel {
     pointer-events: none;
 }
 
+/* Bell SVG icon element */
 #notif-icon {
     display: block;
     flex-shrink: 0;
@@ -1344,6 +1611,7 @@ body:has(#side-menu.expanded) #filter-panel {
     height: 15px;
 }
 
+/* Notification count badge next to the bell icon */
 #notif-count {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
@@ -1351,14 +1619,15 @@ body:has(#side-menu.expanded) #filter-panel {
     letter-spacing: 0.05em;
     color: rgba(255, 255, 255, 0.4);
     line-height: 1;
-    margin-bottom: 4px
+    margin-bottom: 4px;
 }
 
+/* Unread state: lime count badge when there are unseen notifications */
 #notif-count.notif-count-unread {
     color: #c8ff00;
 }
 
-/* ---- Footer tracking toggle button ---- */
+/* ---- Tracking toggle button ---- */
 #tracking-toggle-btn {
     height: 36px;
     background: none;
@@ -1371,7 +1640,7 @@ body:has(#side-menu.expanded) #filter-panel {
     justify-content: center;
     gap: 6px;
     color: #fff;
-    opacity: 0.6;
+    opacity: 0.6;               /* dim when panel is closed */
     transition: background 0.2s, opacity 0.2s, color 0.2s;
     flex-shrink: 0;
     margin: 4px 0;
@@ -1383,11 +1652,13 @@ body:has(#side-menu.expanded) #filter-panel {
     opacity: 1;
 }
 
+/* Active: lime tint confirms tracking is open and an aircraft is followed */
 #tracking-toggle-btn.tracking-btn-active {
     opacity: 1;
     color: #c8ff00;
 }
 
+/* Tracking crosshair / target SVG icon */
 #tracking-icon {
     display: block;
     flex-shrink: 0;
@@ -1395,6 +1666,7 @@ body:has(#side-menu.expanded) #filter-panel {
     height: 15px;
 }
 
+/* Tracked aircraft count badge */
 #tracking-count {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
@@ -1405,11 +1677,15 @@ body:has(#side-menu.expanded) #filter-panel {
     margin-bottom: 4px;
 }
 
+/* Lime badge when at least one aircraft is being tracked */
 #tracking-count.tracking-count-active {
     color: #c8ff00;
 }
 
-/* ---- Footer button tooltips ---- */
+/* ---- Footer button tooltips ----
+   Tooltips for the two footer toggle buttons appear above the button
+   (bottom: 100% + 8px gap). Only shown when neither panel is currently
+   open, preventing the tooltip from appearing over an active panel. */
 #notif-toggle-btn[data-tooltip],
 #tracking-toggle-btn[data-tooltip] {
     position: relative;
@@ -1419,7 +1695,7 @@ body:has(#side-menu.expanded) #filter-panel {
 #tracking-toggle-btn[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: calc(100% + 8px);
+    bottom: calc(100% + 8px);  /* appears above the button */
     left: 0;
     background: #000;
     color: rgba(255, 255, 255, 0.75);
@@ -1439,8 +1715,9 @@ body:has(#side-menu.expanded) #filter-panel {
     z-index: 1002;
 }
 
+/* Only show tooltip when neither panel button is in its active state.
+   This prevents a tooltip overlapping an already-open panel. */
 #footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active)) #notif-toggle-btn[data-tooltip]:hover::before,
 #footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active)) #tracking-toggle-btn[data-tooltip]:hover::before {
     opacity: 1;
 }
-
