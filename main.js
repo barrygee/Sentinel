@@ -480,6 +480,12 @@ const _Notifications = (() => {
         }
         const btn = document.getElementById('notif-clear-all-btn');
         if (btn) btn.style.display = (total > 0 && _isOpen()) ? 'block' : 'none';
+        const toggleBtn = _getBtn();
+        if (toggleBtn) {
+            toggleBtn.disabled = total === 0;
+            toggleBtn.style.opacity = total === 0 ? '0.35' : '';
+            toggleBtn.style.pointerEvents = total === 0 ? 'none' : '';
+        }
     }
 
     // ---- render ----
@@ -708,6 +714,12 @@ const _Tracking = (() => {
             el.classList.add('tracking-count-active');
         } else {
             el.classList.remove('tracking-count-active');
+        }
+        const btn = _getBtn();
+        if (btn) {
+            btn.disabled = _count === 0;
+            btn.style.opacity = _count === 0 ? '0.35' : '';
+            btn.style.pointerEvents = _count === 0 ? 'none' : '';
         }
     }
 
