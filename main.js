@@ -2,12 +2,23 @@
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol));
 
-// --- Connectivity detection ---
-// navigator.onLine reflects the OS network stack. The browser fires
-// 'online'/'offline' events when connectivity changes; the footer updates
-// immediately and the map style is swapped to match without a full reload.
+// ============================================================
+// GROUP 1 — CONNECTIVITY DETECTION
+// Polls real internet connectivity independently of navigator.onLine.
+// Drives map style switching (online/offline) and fires system notifications.
+//
+// Globals read/written: _connState, map
+// External deps: OSM favicon fetch, _Notifications, _switchStyle
+// Target module: frontend/app/connectivity.js
+// ============================================================
+
 const _isOnline = navigator.onLine;
 
+/**
+ * Update the footer connection-status pill.
+ * @param {boolean} online - true = connected
+ * Side effects: sets className + textContent on #conn-status
+ */
 function _setConnStatus(online) {
     const el = document.getElementById('conn-status');
     if (!el) return;
@@ -19,8 +30,13 @@ _setConnStatus(_isOnline);
 window.addEventListener('online',  () => { _connState = true;  _setConnStatus(true);  _switchStyle(true);  if (typeof _Notifications !== 'undefined') _Notifications.add({ type: 'system', title: 'ONLINE', detail: 'Connection restored' }); });
 window.addEventListener('offline', () => { _connState = false; _setConnStatus(false); _switchStyle(false); if (typeof _Notifications !== 'undefined') _Notifications.add({ type: 'system', title: 'OFFLINE', detail: 'Connection lost' }); });
 
-// Poll real internet connectivity every 2 s and also check immediately on load.
-// mode:'no-cors' resolves for any reachable server; rejects only on network failure.
+/**
+ * Poll OSM favicon to detect real internet connectivity (mode:'no-cors' resolves
+ * on any reachable server; rejects only on genuine network failure).
+ * Fires every 2 s via setInterval and immediately on page load.
+ * @returns {void}
+ * Side effects: mutates _connState; calls _setConnStatus, _switchStyle, _Notifications.add
+ */
 let _connState = _isOnline;
 function _checkConn() {
     fetch('https://tile.openstreetmap.org/favicon.ico', { method: 'HEAD', cache: 'no-store', mode: 'no-cors' })
@@ -50,6 +66,13 @@ setInterval(_checkConn, 2000);
 
 const _OFFLINE_BOUNDS = [[-20, 44], [32, 67]];
 
+/**
+ * Switch the MapLibre style between online (OSM vector tiles) and offline (local PMTiles).
+ * Also adjusts minZoom and maxBounds so the offline PMTiles coverage area is enforced.
+ * @param {boolean} online - true = use fiord-online.json, false = use fiord.json
+ * Side effects: calls map.setMinZoom, map.setMaxBounds, map.setStyle
+ * Dependencies: global map, _OFFLINE_BOUNDS, window.location.origin
+ */
 function _switchStyle(online) {
     if (typeof map === 'undefined') return;
     map.setMinZoom(online ? 2 : 5);
@@ -61,15 +84,30 @@ function _switchStyle(online) {
 }
 // --- End connectivity detection ---
 
-// --- Range rings ---
+// ============================================================
+// GROUP 2 — GEOMETRY HELPERS
+// Pure math utilities for geodesic range rings and polygon labels.
+// No side effects; no external dependencies.
+// Target module: frontend/map/geometry.js
+// ============================================================
+
 const RING_DISTANCES_NM = [50, 100, 150, 200, 250];
 let rangeRingCenter = null;
 let rangeRingsControl = null;
 let adsbLabelsControl = null;
 
+/** @param {number} deg - degrees  @returns {number} radians */
 function _toRad(deg) { return deg * Math.PI / 180; }
+/** @param {number} rad - radians  @returns {number} degrees */
 function _toDeg(rad) { return rad * 180 / Math.PI; }
 
+/**
+ * Generate 181 geodesic points forming a great-circle around a centre.
+ * @param {number} lng - centre longitude
+ * @param {number} lat - centre latitude
+ * @param {number} radiusNm - radius in nautical miles
+ * @returns {[number, number][]} Array of [lng, lat] coordinate pairs (0–360°, step 2°)
+ */
 function generateGeodesicCircle(lng, lat, radiusNm) {
     const d = radiusNm / 3440.065;
     const latR = _toRad(lat);
@@ -84,6 +122,15 @@ function generateGeodesicCircle(lng, lat, radiusNm) {
     return pts;
 }
 
+/**
+ * Build GeoJSON FeatureCollections for 5 range rings (50–250 nm) and their north-point labels.
+ * @param {number} lng - centre longitude
+ * @param {number} lat - centre latitude
+ * @returns {{ lines: GeoJSON.FeatureCollection, labels: GeoJSON.FeatureCollection }}
+ *   lines  — 5 LineString features, one per ring distance
+ *   labels — 5 Point features with property {label: '<nm> nm'} at north bearing
+ * Dependencies: generateGeodesicCircle, _toRad, _toDeg
+ */
 function buildRingsGeoJSON(lng, lat) {
     const lines = { type: 'FeatureCollection', features: [] };
     const labels = { type: 'FeatureCollection', features: [] };
@@ -106,9 +153,24 @@ function buildRingsGeoJSON(lng, lat) {
     });
     return { lines, labels };
 }
-// --- End range rings helpers ---
+// --- End geometry helpers ---
 
-// Compute the area-weighted centroid of a polygon ring, returned as [lng, lat].
+// ============================================================
+// GROUP 3 — MAP INITIALISATION
+// Creates the MapLibre GL map instance and handles all style.load events.
+// After every style switch, re-initialises all overlay layers.
+// Inner function updateCityFilter() manages city/town label zoom filtering.
+//
+// Globals written: map, _styleLoadedOnce
+// Dependencies: all control instances, _overlayStates, _OFFLINE_BOUNDS
+// Target module: frontend/map/init.js
+// ============================================================
+
+/**
+ * Compute the area-weighted centroid of a GeoJSON polygon ring (shoelace formula).
+ * @param {number[][][]} coordinates - GeoJSON Polygon coordinates array; uses ring [0]
+ * @returns {[number, number]} [lng, lat] centroid point
+ */
 function computeCentroid(coordinates) {
     const ring = coordinates[0];
     let area = 0, cx = 0, cy = 0;
@@ -124,8 +186,12 @@ function computeCentroid(coordinates) {
     return [cx / (6 * area), cy / (6 * area)];
 }
 
-// Compute the MapLibre text-rotate value that aligns a label with the
-// long axis of a polygon.  Returns a value in (-90, 90] degrees.
+/**
+ * Compute the MapLibre text-rotate angle that aligns a label with the longest edge of a polygon.
+ * Uses Mercator cos(lat) correction to account for longitude distortion.
+ * @param {number[][][]} coordinates - GeoJSON Polygon coordinates array; uses ring [0]
+ * @returns {number} Rotation angle in degrees, constrained to (-90, 90] so text reads L→R
+ */
 function computeTextRotate(coordinates) {
     const ring = coordinates[0];
     let maxLen = -1, bearing = 0;
@@ -167,6 +233,13 @@ const map = new maplibregl.Map({
 
 let _styleLoadedOnce = false;
 
+/**
+ * style.load event handler — fires on initial load and after every map.setStyle() call.
+ * Re-applies min/max zoom constraints and reconstructs all custom overlay layers.
+ * Inner: updateCityFilter() — applies a zoom-dependent MapLibre filter to place_city/place_town layers.
+ * Side effects: re-calls initLayers()/applyVisibility() on all control objects; attaches map.on('zoom').
+ * Dependencies: all control instances, _styleLoadedOnce, _connState, _OFFLINE_BOUNDS
+ */
 map.on('style.load', () => {
     console.log('Style loaded successfully');
     map.setMinZoom(_connState ? 2 : 5);
@@ -290,15 +363,43 @@ map.on('error', (e) => {
 });
 
 
-// --- Overlay state persistence ---
-// Defaults: everything ON on first load; subsequent loads restore last state.
+// ============================================================
+// GROUP 4 — OVERLAY STATE PERSISTENCE
+// Saves and restores the on/off state of every map overlay to localStorage
+// so visibility survives page reloads.
+//
+// _OVERLAY_DEFAULTS  — first-load defaults (all overlays defined here)
+// _overlayStates     — live state object, initialised from localStorage or defaults
+// _saveOverlayStates — serialises current control states back to localStorage
+//
+// Dependencies: all control instances (read their .visible/.roadsVisible etc.)
+// localStorage key: 'overlayStates'
+// Target module: frontend/app/overlay-state.js
+// ============================================================
+
+/** Default overlay visibility on first load (no prior localStorage entry). */
 const _OVERLAY_DEFAULTS = { roads: true, names: false, rings: false, aar: false, awacs: false, airports: true, raf: false, adsb: true, adsbLabels: true };
+
+/**
+ * Initialise overlay state from localStorage, merging saved values over defaults.
+ * IIFE — runs once at startup.
+ * @returns {object} Merged state object { roads, names, rings, aar, awacs, airports, raf, adsb, adsbLabels }
+ */
 const _overlayStates = (() => {
     try {
         const saved = localStorage.getItem('overlayStates');
         return saved ? Object.assign({}, _OVERLAY_DEFAULTS, JSON.parse(saved)) : Object.assign({}, _OVERLAY_DEFAULTS);
     } catch (e) { return Object.assign({}, _OVERLAY_DEFAULTS); }
 })();
+/**
+ * Persist all overlay visibility states to localStorage.
+ * Reads the current .visible / .roadsVisible / .namesVisible / .ringsVisible / .labelsVisible
+ * property from each control instance (falls back to _overlayStates defaults if control is null).
+ * @returns {void}
+ * Side effects: writes JSON to localStorage key 'overlayStates'
+ * Dependencies: roadsControl, namesControl, rangeRingsControl, aarControl, awacsControl,
+ *               airportsControl, rafControl, adsbControl, adsbLabelsControl
+ */
 function _saveOverlayStates() {
     try {
         localStorage.setItem('overlayStates', JSON.stringify({
@@ -317,11 +418,26 @@ function _saveOverlayStates() {
 // --- End overlay state persistence ---
 
 
-// --- Notifications ---
-// Generalised notification system supporting types: 'flight', 'system', 'message'.
-// Persists across sessions via localStorage ('notifications').
-// Panel is toggled by the footer NOTIFY button; unread count shown as a badge.
-// Flight notifications only fire for actively tracked aircraft.
+// ============================================================
+// GROUP 5 — NOTIFICATIONS SYSTEM
+// IIFE that owns the entire notification panel lifecycle.
+// Persists items across sessions (localStorage key: 'notifications').
+// Panel is toggled by the footer bell button; unread badge counts items
+// seen since the panel was last opened; bell pulses every 15 s while unread.
+//
+// PUBLIC API:
+//   add(opts)        — create notification, returns id (string)
+//   update(opts)     — mutate existing item in-place by id
+//   dismiss(id)      — remove one notification with fade animation
+//   clearAll()       — remove all notifications
+//   toggle()         — open/close panel
+//   init()           — restore state from localStorage, attach DOM handlers
+//
+// Internal state: _actions (id→cb), _clickActions (id→cb), _unreadCount, _bellPulseInterval
+// localStorage keys: 'notifications', 'notificationsOpen'
+// Panel mutex: opening notifications closes the Tracking panel (_Tracking.closePanel)
+// Target module: frontend/notifications/notifications.js
+// ============================================================
 
 const _Notifications = (() => {
     const STORAGE_KEY  = 'notifications';
@@ -331,6 +447,7 @@ const _Notifications = (() => {
     let _unreadCount   = 0;
 
     // ---- storage ----
+    /** @returns {object[]} Notification items from localStorage ([] on error) */
     function _load() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -338,16 +455,30 @@ const _Notifications = (() => {
         } catch (e) { return []; }
     }
 
+    /**
+     * Persist notification items array to localStorage.
+     * @param {object[]} items
+     */
     function _save(items) {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
     }
 
     // ---- helpers ----
+    /**
+     * Format a Unix timestamp as HH:MM LOCAL.
+     * @param {number} ts - Unix millisecond timestamp
+     * @returns {string} e.g. '14:32 LOCAL'
+     */
     function _formatTime(ts) {
         const d = new Date(ts);
         return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' LOCAL';
     }
 
+    /**
+     * Map a notification type string to its display label.
+     * @param {string} type - 'flight'|'departure'|'track'|'tracking'|'notif-off'|'system'|'message'|'emergency'|'squawk-clr'
+     * @returns {string} Human-readable label
+     */
     function _labelForType(type) {
         if (type === 'flight')     return 'LANDED';
         if (type === 'departure')  return 'DEPARTED';
@@ -361,13 +492,22 @@ const _Notifications = (() => {
         return 'NOTICE';
     }
 
-    // ---- DOM ----
+    // ---- DOM accessors ----
+    /** @returns {HTMLElement|null} Outer panel wrapper #notifications-panel */
     function _getWrapper() { return document.getElementById('notifications-panel'); }
+    /** @returns {HTMLElement|null} Inner list container #notif-list */
     function _getPanel()   { return document.getElementById('notif-list'); }
+    /** @returns {HTMLElement|null} Footer bell toggle button #notif-toggle-btn */
     function _getBtn()     { return document.getElementById('notif-toggle-btn'); }
+    /** @returns {HTMLElement|null} Unread count badge #notif-count */
     function _getCount()   { return document.getElementById('notif-count'); }
 
     // ---- scroll indicator ----
+    /**
+     * Show or hide the scroll-hint arrow based on whether the list overflows.
+     * Arrow direction flips when the user is already at the bottom.
+     * Side effects: toggles .notif-scroll-hint-visible / .notif-arrow-up on DOM elements
+     */
     function _updateScrollIndicator() {
         const list  = _getPanel();
         const hint  = document.getElementById('notif-scroll-hint');
@@ -384,6 +524,11 @@ const _Notifications = (() => {
         }
     }
 
+    /**
+     * Attach scroll / wheel / touch event listeners to the panel list wrapper.
+     * Prevents map zoom/pan while the user scrolls the notification list.
+     * Side effects: adds wheel + touchstart + touchmove listeners to #notif-list-wrap
+     */
     function _initScrollBtns() {
         const list = _getPanel();
         if (!list) return;
@@ -408,6 +553,12 @@ const _Notifications = (() => {
         }
     }
 
+    /**
+     * Build the DOM element for a single notification item.
+     * Attaches dismiss, action (bell-slash), and body-click handlers.
+     * @param {{ id: string, type: string, title: string, detail?: string, ts: number }} item
+     * @returns {HTMLDivElement} Fully wired notification element (initially invisible; fades in via rAF)
+     */
     function _renderItem(item) {
         const el = document.createElement('div');
         el.className = 'notif-item';
@@ -465,6 +616,12 @@ const _Notifications = (() => {
     }
 
     // ---- count label ----
+    /**
+     * Refresh the unread badge text, highlight colour, and button disabled state.
+     * Badge shows green (#notif-count-unread) when unread > 0 and panel is closed.
+     * Button is disabled/dimmed when there are zero notifications.
+     * Side effects: mutates badge text, class, button opacity/pointer-events
+     */
     function _updateCount() {
         const total = _load().length;
         const el = _getCount();
@@ -489,6 +646,12 @@ const _Notifications = (() => {
     }
 
     // ---- render ----
+    /**
+     * Render all notification items into the panel list.
+     * Preserves existing DOM nodes; prepends newly added items to avoid re-rendering stable items.
+     * @param {string[]} [forceIds] - Optional array of ids to force-re-render even if already in DOM
+     * Side effects: mutates #notif-list innerHTML; calls _updateCount, _updateScrollIndicator
+     */
     function render(forceIds) {
         const panel = _getPanel();
         if (!panel) return;
@@ -517,7 +680,17 @@ const _Notifications = (() => {
 
     // ---- public API ----
 
-    // add({ type, title, detail?, action?: { label, callback } }) — type: 'flight' | 'system' | 'message' | 'tracking'
+    /**
+     * Create a new notification and add it to the panel.
+     * @param {{ type: string, title: string, detail?: string, action?: {label: string, callback: function}, clickAction?: function }} opts
+     *   type        — 'flight'|'departure'|'system'|'message'|'tracking'|'notif-off'|'emergency'|'squawk-clr'
+     *   title       — main notification text
+     *   detail      — optional secondary text
+     *   action      — optional bell-slash button: clicking fires callback then dismisses
+     *   clickAction — optional: fires when the notification body is clicked
+     * @returns {string} Unique notification id (used for update/dismiss)
+     * Side effects: localStorage write, DOM render, bell pulse, badge update
+     */
     function add(opts) {
         const item = {
             id:     opts.type + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -537,7 +710,12 @@ const _Notifications = (() => {
         return item.id;
     }
 
-    // update({ id, type?, title?, detail?, action? }) — mutate an existing item in-place
+    /**
+     * Mutate an existing notification in-place (updates both localStorage and DOM).
+     * @param {{ id: string, type?: string, title?: string, detail?: string, action?: object|null }} opts
+     *   Pass action: null to remove an existing action button.
+     * Side effects: localStorage update, partial DOM re-render of the matching .notif-item
+     */
     function update(opts) {
         const items = _load();
         const item = items.find(i => i.id === opts.id);
@@ -581,6 +759,11 @@ const _Notifications = (() => {
         }
     }
 
+    /**
+     * Remove a notification by id with a CSS fade-out animation (220 ms).
+     * @param {string} id - Notification id returned by add()
+     * Side effects: localStorage delete, DOM element removal after animation, badge update
+     */
     function dismiss(id) {
         delete _actions[id];
         delete _clickActions[id];
@@ -597,6 +780,10 @@ const _Notifications = (() => {
         _repositionBar();
     }
 
+    /**
+     * Remove all notifications with fade-out animation, reset unread count, stop bell pulse.
+     * Side effects: clears localStorage 'notifications', animates all panel items out, calls _stopBellPulse
+     */
     function clearAll() {
         const items = _load();
         if (!items.length) return;
@@ -616,14 +803,23 @@ const _Notifications = (() => {
     }
 
     // ---- panel open/close ----
+    /** @returns {boolean} True if the notifications panel is currently open (reads localStorage) */
     function _isOpen() {
         try { return localStorage.getItem(OPEN_KEY) === '1'; } catch (e) { return false; }
     }
 
+    /** No-op: status bar is now positioned entirely via CSS on #tracking-panel. */
     function _repositionBar() {
         // Status bar is now positioned via the #tracking-panel CSS — no repositioning needed.
     }
 
+    /**
+     * Open or close the notification panel, persisting the state to localStorage.
+     * Opening: stops bell pulse, resets unread count, closes Tracking panel (tab mutex).
+     * @param {boolean} open
+     * Side effects: toggles .notif-panel-open / .notif-btn-active, localStorage write,
+     *               calls _Tracking.closePanel() if opening
+     */
     function _setOpen(open) {
         try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch (e) {}
         const wrapper = _getWrapper();
@@ -644,6 +840,11 @@ const _Notifications = (() => {
 
     let _bellPulseInterval = null;
 
+    /**
+     * Trigger one 3-pulse CSS animation on the bell button immediately, then repeat every 15 s
+     * until the panel is opened. Skips if panel is already open.
+     * Side effects: adds/removes .notif-btn-unread class; sets _bellPulseInterval
+     */
     function _pulseBell() {
         if (_isOpen()) return;
         const btn = _getBtn();
@@ -665,16 +866,27 @@ const _Notifications = (() => {
         }
     }
 
+    /**
+     * Stop the repeating bell pulse animation and remove the pulse class immediately.
+     * Side effects: clears _bellPulseInterval, removes .notif-btn-unread from button
+     */
     function _stopBellPulse() {
         if (_bellPulseInterval) { clearInterval(_bellPulseInterval); _bellPulseInterval = null; }
         const btn = _getBtn();
         if (btn) { btn.classList.remove('notif-btn-unread'); void btn.offsetWidth; }
     }
 
+    /** Toggle the notification panel open/closed. */
     function toggle() {
         _setOpen(!_isOpen());
     }
 
+    /**
+     * Bootstrap the notification system on page load.
+     * Restores panel open state, renders persisted notifications, attaches button handlers.
+     * Side effects: calls _initScrollBtns, _setOpen, render; attaches click handlers to
+     *               #notif-toggle-btn and #notif-clear-all-btn; adds window resize listener
+     */
     function init() {
         _initScrollBtns();
         _setOpen(_isOpen()); // restore panel state
@@ -692,20 +904,41 @@ const _Notifications = (() => {
 // --- End Landing Notifications ---
 
 // ============================================================
-// TRACKING PANEL — manages the tracking panel open/close state
+// GROUP 6 — TRACKING PANEL
+// IIFE that manages the right-side tracking panel open/close state and aircraft count badge.
+// Panel is mutually exclusive with the Notifications panel (tab behaviour).
+//
+// PUBLIC API:
+//   openPanel()  — show panel; closes Notifications
+//   closePanel() — hide panel
+//   toggle()     — flip open/close
+//   setCount(n)  — update aircraft count badge (0 = disables button)
+//   init()       — attach click handler to tracking button
+//
+// DOM elements: #tracking-panel, #tracking-toggle-btn, #tracking-count
+// Target module: frontend/tracking/tracking.js
 // ============================================================
 const _Tracking = (() => {
     let _count = 0;
 
+    /** @returns {HTMLElement|null} #tracking-panel */
     function _getPanel()  { return document.getElementById('tracking-panel'); }
+    /** @returns {HTMLElement|null} #tracking-toggle-btn */
     function _getBtn()    { return document.getElementById('tracking-toggle-btn'); }
+    /** @returns {HTMLElement|null} #tracking-count badge */
     function _getCount()  { return document.getElementById('tracking-count'); }
 
+    /** @returns {boolean} True if #tracking-panel has .tracking-panel-open class */
     function _isOpen() {
         const p = _getPanel();
         return p ? p.classList.contains('tracking-panel-open') : false;
     }
 
+    /**
+     * Refresh the count badge text, highlight colour, and button disabled state.
+     * Badge shows green (.tracking-count-active) when count > 0 and panel is closed.
+     * Button is disabled/dimmed when count === 0.
+     */
     function _updateCount() {
         const el = _getCount();
         if (!el) return;
@@ -723,11 +956,20 @@ const _Tracking = (() => {
         }
     }
 
+    /**
+     * Update the tracked aircraft count and refresh the badge.
+     * @param {number} n - new count (0 disables the button)
+     */
     function setCount(n) {
         _count = n;
         _updateCount();
     }
 
+    /**
+     * Open the tracking panel and close the notifications panel (tab mutex).
+     * Side effects: adds .tracking-panel-open / .tracking-btn-active; removes notif panel classes;
+     *               writes 'notificationsOpen'='0' to localStorage
+     */
     function openPanel() {
         const panel = _getPanel();
         const btn   = _getBtn();
@@ -744,6 +986,7 @@ const _Tracking = (() => {
         }
     }
 
+    /** Hide the tracking panel. Side effects: removes .tracking-panel-open / .tracking-btn-active */
     function closePanel() {
         const panel = _getPanel();
         const btn   = _getBtn();
@@ -752,10 +995,15 @@ const _Tracking = (() => {
         _updateCount();
     }
 
+    /** Toggle the tracking panel open/closed. */
     function toggle() {
         if (_isOpen()) closePanel(); else openPanel();
     }
 
+    /**
+     * Bootstrap: attach click listener to #tracking-toggle-btn and initialise badge.
+     * Called once from boot sequence.
+     */
     function init() {
         const btn = _getBtn();
         if (btn) btn.addEventListener('click', toggle);
@@ -768,7 +1016,33 @@ const _Tracking = (() => {
 // --- End Tracking Panel ---
 
 
-// Custom control for toggling roads
+// ============================================================
+// GROUP 7 — MAP OVERLAY CONTROLS
+// Eight MapLibre IControl classes that each manage one overlay layer/data set.
+// All follow the same pattern:
+//   onAdd(map)   — create button element, register style.load listener, return container
+//   onRemove()   — detach container from DOM, clear this.map
+//   initLayers() — add/recreate GeoJSON sources and symbol/fill/line layers after style reload
+//   toggle()     — flip visibility state, call _saveOverlayStates()
+//
+// State is initialised from _overlayStates (localStorage) in each constructor.
+// All controls write their visible state back via _saveOverlayStates() on every toggle.
+//
+// Controls (in order):
+//   RoadsToggleControl    — 15 road layer IDs    target: frontend/map/controls/roads.js
+//   ResetViewControl      — home flyTo button     target: frontend/map/controls/reset-view.js
+//   AirportsToggleControl — 26 civil airports     target: frontend/components/air/airports.js
+//   RAFToggleControl      — 24 RAF/USAF bases     target: frontend/components/air/raf.js
+//   NamesToggleControl    — place/water labels    target: frontend/map/controls/names.js
+//   RangeRingsControl     — geodesic ring lines   target: frontend/map/controls/range-rings.js
+//   AARToggleControl      — 14 AARA polygons      target: frontend/components/air/aara.js
+//   AWACSToggleControl    — AWACS orbit lobes     target: frontend/components/air/awacs.js
+// ============================================================
+
+// ---- RoadsToggleControl ----
+// Inputs:  none (reads _overlayStates.roads from constructor)
+// Outputs: toggles visibility on 15 road layer IDs via map.setLayoutProperty
+// Button:  'R' — lime when roads visible, white+dim when hidden
 class RoadsToggleControl {
     constructor() {
         this.roadsVisible = _overlayStates.roads;
@@ -862,7 +1136,9 @@ class RoadsToggleControl {
     }
 }
 
-// --- Home / reset view ---
+// ---- ResetViewControl ----
+// On click: map.flyTo({ center: [-4.4815, 54.1453], zoom: 6 }) (Irish Sea / central UK home)
+// Button: SVG lime corner-bracket icon
 class ResetViewControl {
     onAdd(map) {
         this.map = map;
@@ -907,11 +1183,15 @@ class ResetViewControl {
         this.map = undefined;
     }
 }
-// --- End home / reset view ---
-
-// --- Airports ---
-// bounds: [minLng, minLat, maxLng, maxLat] covering full runway extent
-// freqs: { tower, radar, approach, atis }
+// ---- AirportsToggleControl ----
+// Data: AIRPORTS_DATA — GeoJSON FeatureCollection of 26 UK/Ireland civil airports.
+//   Each feature: { icao, iata, name, bounds: [minLng, minLat, maxLng, maxLat], freqs: { tower, radar, approach, atis } }
+// Markers: HTML div markers (not MapLibre symbol layers) — reused across style changes.
+//   hover → frequency hover panel; click → map.fitBounds(runway) + _showAirportPanel()
+// _buildFreqPanel(p)         — returns HTML string for inline frequency table
+// _buildAirportPanelHTML(p, coords) — returns HTML string for #adsb-status-bar detail card
+// _showAirportPanel(p, coords)      — injects card into DOM, opens tracking panel (count=1)
+// Button: 'CVL' — lime when visible
 const AIRPORTS_DATA = {
     type: 'FeatureCollection',
     features: [
@@ -1172,9 +1452,14 @@ class AirportsToggleControl {
 }
 
 let airportsControl = new AirportsToggleControl();
-// --- End Airports ---
 
-// --- RAF Bases ---
+// ---- RAFToggleControl ----
+// Data: RAF_DATA — GeoJSON FeatureCollection of 24 RAF/USAF bases in UK.
+//   Each feature: { icao (may be empty), name, bounds: [minLng, minLat, maxLng, maxLat] }
+// Same marker pattern as AirportsToggleControl; no frequency display (RAF bases omit civil freqs).
+// _buildRAFPanelHTML(p, coords) — returns HTML for base detail card
+// _showRAFPanel(p, coords)      — injects card into DOM, opens tracking panel (count=1)
+// Button: 'MIL' — lime when visible
 const RAF_DATA = {
     type: 'FeatureCollection',
     features: [
@@ -1392,7 +1677,29 @@ class RAFToggleControl {
 }
 
 let rafControl = new RAFToggleControl();
-// --- End RAF Bases ---
+
+// ---- NamesToggleControl ----
+// Layers: place_suburb, place_village, place_town, place_city, place_state, place_country, water_name
+// applyNamesVisibility() — sets 'visibility' layout property on all 7 name layers + updates button
+// Button: 'N' — lime when visible
+
+// ---- RangeRingsControl ----
+// Source: 'range-rings-lines' GeoJSON LineString FeatureCollection (5 rings, 50–250 nm)
+// Center: reads global rangeRingCenter (set by side-menu dropdown) or falls back to map centre
+// initRings()         — creates source + dashed white line layer; called on each style reload
+// updateCenter(lng, lat) — update ring source data for a new center without recreating the layer
+// Button: '◎' — lime when visible
+
+// ---- AARToggleControl ----
+// Data: AARA_ZONES — GeoJSON FeatureCollection of 14 UK Air-to-Air Refuelling Area polygons
+// Layers: 'aara-fill' (lime semi-transparent), 'aara-outline' (dashed lime)
+// Labels: HTML div markers positioned at polygon centroid, rotated to longest edge angle
+// Button: '=' — lime when visible
+
+// ---- AWACSToggleControl ----
+// Data: AWACS_ORBITS — GeoJSON FeatureCollection of named lobe polygons (multiple groups)
+// Layers: 'awacs-fill' + 'awacs-outline' (no label markers)
+// Button: '○' — lime when visible
 
 const roadsControl = new RoadsToggleControl();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
@@ -1852,8 +2159,74 @@ map.addControl(awacsControl, 'top-right');
 // --- End UK AWACS Orbits ---
 
 
-// --- ADS-B Live Feed ---
-// Aircraft symbol drawn programmatically — traditional ATC radar blip (filled triangle)
+// ============================================================
+// GROUP 8 — ADS-B LIVE TRACKING  (AdsbLiveControl)
+// The largest module. Polls airplanes.live every 1 s and dead-reckons positions at 100 ms.
+// All aircraft icons are drawn programmatically to <canvas> then registered as MapLibre sprites.
+//
+// DATA SOURCE: https://api.airplanes.live/v2/point/{lat}/{lon}/250  (250 nm radius)
+// POLL:        _pollInterval — 1 000 ms fetch; _interpolateInterval — 100 ms dead-reckoning
+//
+// MapLibre sources & layers:
+//   'adsb-source'  → 'adsb-icons' (symbol), 'adsb-bracket' (symbol), callsign labels
+//   'adsb-trails'  → trail LineString layer
+//
+// Icon sprites (all canvas-drawn, 64×64 px):
+//   adsb-blip, adsb-blip-mil, adsb-blip-emerg, adsb-blip-uav, adsb-blip-gnd, adsb-blip-tower,
+//   adsb-blip-emerg-gnd, adsb-bracket, adsb-bracket-mil, adsb-bracket-emerg
+//
+// Aircraft classification (by API properties):
+//   a.military === true  → lime colour + mil bracket
+//   squawk 7500/7600/7700 → red bracket + emergency notification
+//   category C1/C2       → ground vehicle icon (square)
+//   category C3/C4/C5 or t==='TWR' → tower icon (circle)
+//   t === 'UAV'          → UAV icon (triangle + X)
+//
+// Key state (constructor):
+//   _geojson          — live aircraft FeatureCollection
+//   _trails           — hex → point array (trail history, max _MAX_TRAIL=100)
+//   _selectedHex      — hex of selected aircraft
+//   _followEnabled    — whether camera follows selected aircraft
+//   _tagMarker        — MapLibre Marker for selected aircraft data tag
+//   _hoverMarker      — MapLibre Marker for hovered aircraft data tag
+//   _callsignMarkers  — hex → Marker (callsign HTML labels)
+//   _typeFilter       — 'all'|'civil'|'mil'
+//   _allHidden        — hide all aircraft flag
+//   _notifEnabled     — Set of hexes with notifications on
+//   _emergencySquawks — Set {'7700','7600','7500'}
+//
+// PUBLIC API:
+//   setTypeFilter(mode)          — 'all'|'civil'|'mil'; rebuilds MapLibre filter
+//   setAllHidden(hidden)         — hide/show all aircraft
+//   setHideGroundVehicles(hide)  — exclude C1/C2 from filter
+//   setHideTowers(hide)          — exclude C3/C4/C5/TWR from filter
+//   toggle()                     — flip visibility, start/stop polling
+//   setLabelsVisible(v)          — show/hide callsign label markers
+//   initLayers()                 — (re)create sources/layers after style reload
+//
+// PRIVATE METHODS:
+//   _fetch()                — GET airplanes.live; update features + trails; detect events
+//   _interpolate()          — dead-reckoning position update (100 ms tick)
+//   _applyTypeFilter()      — build + apply MapLibre filter expression
+//   _parseAlt(alt_baro)     — normalise altitude value (ground string → 0)
+//   _createRadarBlip()      — draw filled triangle radar blip on canvas
+//   _createBracket()        — draw selection bracket on canvas
+//   _createMilBracket()     — draw military (black) bracket on canvas
+//   _createTowerBlip()      — draw white circle (tower icon) on canvas
+//   _createGroundVehicleBlip() — draw white square (ground vehicle) on canvas
+//   _createUAVBlip()        — draw triangle+X (UAV icon) on canvas
+//   _registerIcons()        — register all canvas icons to MapLibre sprite registry
+//   _applySelection()       — highlight selected aircraft bracket + reposition tag
+//   _selectAircraft(hex)    — set selection, update status bar, trigger follow
+//   _unselectAircraft()     — clear selection + remove tag marker
+//   _buildTagMarker(feature)— create HTML data tag DOM element for one aircraft
+//   _wireTagButton(hex)     — attach track/bell button handlers inside tag
+//   _updateCallsignMarkers()— sync callsign HTML label markers to current features
+//   _rebuildTagForHex(hex)  — recreate tag DOM after data update
+//   _stopPolling()          — clearInterval on both _pollInterval + _interpolateInterval
+//
+// Target module: frontend/components/air/adsb.js
+// ============================================================
 
 class AdsbLiveControl {
     constructor() {
@@ -3660,7 +4033,16 @@ let adsbControl = new AdsbLiveControl();
 map.addControl(adsbControl, 'top-right');
 window._adsb = adsbControl; // dev testing hook — see squawk-test.js
 
-// --- ADS-B Label Toggle ---
+// ============================================================
+// GROUP 9 — ADS-B LABELS TOGGLE  (AdsbLabelsToggleControl)
+// Independently controls callsign label HTML marker visibility.
+// Syncs its button state with adsbControl.visible via syncToAdsb().
+//
+// toggle()          — flip labelsVisible, calls adsbControl.setLabelsVisible
+// syncToAdsb(bool)  — called by AdsbLiveControl.toggle() to dim/enable this button
+// Button: 'L' — lime when visible; disabled+dimmed when ADS-B is off
+// Target module: frontend/components/air/adsb-labels.js
+// ============================================================
 class AdsbLabelsToggleControl {
     constructor() {
         this.labelsVisible = _overlayStates.adsbLabels ?? true;
@@ -3729,7 +4111,16 @@ map.addControl(adsbLabelsControl, 'top-right');
 // --- End ADS-B Live Feed ---
 
 
-// --- Clear all overlays ---
+// ============================================================
+// GROUP 10 — CLEAR OVERLAYS CONTROL  (ClearOverlaysControl)
+// '✕' toggle button: first click saves all overlay states + hides all overlays.
+// Second click restores the saved states.
+//
+// toggle()        — snapshot and hide, or restore from snapshot
+// savedStates     — internal snapshot of all control visibility booleans
+// Button: '✕' — white+dim in normal state, lime when all cleared
+// Target module: frontend/map/controls/clear-overlays.js
+// ============================================================
 class ClearOverlaysControl {
     constructor() {
         this.cleared = false;
@@ -3836,6 +4227,30 @@ map.addControl(clearControl, 'top-right');
 // Each control is still added to the map (it manages layers/sources), but its
 // maplibre container is hidden. The side menu calls through to the controls'
 // own toggle methods and mirrors their active state.
+
+// ============================================================
+// GROUP 11 — SIDE MENU  (buildSideMenu IIFE)
+// Builds the entire right-side collapsible controls panel and wires all user interactions.
+//
+// Panel sections (built in order):
+//   1. Header         — collapse arrow + "CONTROLS" label
+//   2. Location       — current coords display; manual location context menu (right-click map)
+//   3. Filter panel   — embedded _FilterPanel search + mode buttons (ALL/CIVIL/MIL/HIDE ALL)
+//   4. Overlay toggles — one button per overlay, wired to each control's toggle() method
+//   5. Range ring center — <select> dropdown wiring to rangeRingsControl.updateCenter()
+//   6. Tooltips       — hover info for each toggle button
+//   7. Context menu   — right-click map → set/clear manual location pin
+//
+// Exported callbacks (set on globals, consumed by geolocation watcher):
+//   _onGoToUserLocation   — fly map to user position
+//   _syncSideMenuForPlanes — sync labels/filter button state to plane visibility
+//
+// Inner function setUserLocation(pos) — called by boot geolocation watchPosition;
+//   updates _userLat, _userLng, footer location label, range ring center if user-selected.
+//
+// Dependencies: all control instances, _FilterPanel, _Tracking, _Notifications, map
+// Target module: frontend/app/side-menu.js
+// ============================================================
 
 // Callback set by the side-menu IIFE to activate the location button.
 let _onGoToUserLocation = null;
@@ -4055,7 +4470,29 @@ let _syncSideMenuForPlanes = null;
     document.body.appendChild(panel);
 })();
 
-// --- Filter Panel ---
+// ============================================================
+// GROUP 12 — FILTER PANEL  (_FilterPanel IIFE)
+// Real-time search across live aircraft, airports, and RAF bases.
+// Integrated into the side menu; results wire directly to map selection/zoom.
+//
+// PUBLIC API:
+//   init()   — attach input + mode-button event listeners
+//   toggle() — open/close filter panel
+//
+// PRIVATE HELPERS:
+//   _getAircraftData()          — pull features from adsbControl._geojson
+//   _matchesQuery(q, ...fields) — case-insensitive substring check across multiple fields
+//   _search(query)              — search planes (callsign/hex/reg/squawk), airports (icao/iata/name),
+//                                  RAF bases (icao/name); returns results array
+//   _selectPlane(feature)       — select aircraft in adsbControl; zoom to position; open tag
+//   _selectAirport(feature)     — fitBounds to runway; call airportsControl._showAirportPanel
+//   _selectMil(feature)         — fitBounds to base; call rafControl._showRAFPanel
+//   _renderResults(results, q)  — build result DOM: icon, text, bell/track buttons per result
+//
+// DOM: #filter-panel, #filter-input, #filter-results, #filter-clear-btn, #filter-mode-bar
+// Dependencies: adsbControl, AIRPORTS_DATA, RAF_DATA, airportsControl, rafControl
+// Target module: frontend/app/filter-panel.js
+// ============================================================
 const _FilterPanel = (() => {
     let _open = false;
 
@@ -4882,6 +5319,22 @@ if (cachedLocation) {
     });
 })();
 
+// ============================================================
+// GROUP 13 — BOOT / INITIALISATION
+// Page startup sequence: geolocation watcher, subsystem init, logo animation.
+//
+// Execution order:
+//   1. navigator.geolocation.watchPosition(setUserLocation) — continuous position tracking
+//   2. _Notifications.init()  — restore notifications + attach bell handler
+//   3. _Tracking.init()       — attach tracking button handler
+//   4. _FilterPanel.init()    — attach search input + mode-button handlers
+//   5. Logo animation IIFE    — bracket draw-in + typewriter effect
+//
+// setUserLocation(pos) is defined inside buildSideMenu() and referenced here.
+// playLogoAnimation() — inner function of logo IIFE; resets + replays SVG + typewriter on click.
+// Target module: frontend/app/boot.js
+// ============================================================
+
 // Continuously watch for location changes
 if ('geolocation' in navigator) {
     console.log('[location] registering watchPosition');
@@ -4903,7 +5356,14 @@ _Tracking.init();
 // Initialise filter panel
 _FilterPanel.init();
 
-// --- Logo animation (bracket draw-in + typewriter) ---
+// ---- Logo animation (bracket draw-in + typewriter) ----
+// IIFE — runs once on load and re-plays on logo click.
+// Restarts CSS animations on .logo-corner, .logo-bg, .logo-dot by forcing a reflow.
+// playLogoAnimation() — inner function:
+//   Cancels any in-flight timers, resets text, restarts CSS animations, then:
+//   - after 1.23 s (corners + 2 bg pulses): typewriter types 'SENTINEL' at 75 ms/char
+//   - after all chars: blinks cursor 6 times at 200 ms interval
+// Side effects: mutates logoTextEl.textContent, element.style.animation; sets typeTimer, blinkTimer
 (function () {
     const logoSvg    = document.getElementById('logo-img');
     const logoTextEl = document.getElementById('logo-text-el');
