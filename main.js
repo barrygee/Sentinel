@@ -244,8 +244,10 @@ const map = new maplibregl.Map({
     maxBounds: _isOnline ? null : _OFFLINE_BOUNDS,
     attributionControl: false,
     fadeDuration: 0,
+    cooperativeGestures: false,
     transformRequest: (url) => ({ url })
 });
+map.scrollZoom.enable();
 
 let _styleLoadedOnce = false;
 
@@ -1365,7 +1367,8 @@ class AirportsToggleControl {
             bar.classList.remove('adsb-sb-visible');
             delete bar.dataset.apt;
             if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
-            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: 0, bearing: 0, duration: 800 });
+            const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
+            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: is3D ? 45 : 0, bearing: 0, duration: 800 });
         });
     }
 
@@ -1407,10 +1410,13 @@ class AirportsToggleControl {
                     `<br><span class="apt-name" style="opacity:0.7;font-weight:400">${p.name.toUpperCase()}</span>`;
                 el.appendChild(label);
 
-                // Click — fly to airport at zoom 10, pitch 45
+                // Click — fly to airport
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 800 });
+                    const pitch = (typeof window._is3DActive === 'function' && window._is3DActive()) ? 45 : undefined;
+                    const easeOpts = { center: f.geometry.coordinates, zoom: 13, duration: 800 };
+                    if (pitch !== undefined) easeOpts.pitch = pitch;
+                    this.map.easeTo(easeOpts);
                     this._showAirportPanel(p, f.geometry.coordinates);
                 });
 
@@ -1577,7 +1583,10 @@ class RAFToggleControl {
 
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 800 });
+                    const pitch = (typeof window._is3DActive === 'function' && window._is3DActive()) ? 45 : undefined;
+                    const easeOpts = { center: f.geometry.coordinates, zoom: 16, duration: 800 };
+                    if (pitch !== undefined) easeOpts.pitch = pitch;
+                    this.map.easeTo(easeOpts);
                     this._showRAFPanel(p, f.geometry.coordinates);
                 });
 
@@ -1646,7 +1655,8 @@ class RAFToggleControl {
             bar.classList.remove('adsb-sb-visible');
             delete bar.dataset.apt;
             if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
-            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: 0, bearing: 0, duration: 800 });
+            const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
+            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: is3D ? 45 : 0, bearing: 0, duration: 800 });
         });
     }
 
@@ -2807,7 +2817,6 @@ class AdsbLiveControl {
             const hasBadge = !!(props.military && props.t);
             return `<div style="` +
                 `background:rgba(0,0,0,0.7);` +
-                `border:1px solid rgba(255,255,255,0.15);` +
                 `color:#fff;` +
                 `font-family:'Barlow Condensed','Barlow',sans-serif;` +
                 `font-size:13px;font-weight:400;` +
@@ -2964,7 +2973,8 @@ class AdsbLiveControl {
             }
             this._hideStatusBar();
             this._saveTrackingState();
-            this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+            const is3D_u = typeof window._is3DActive === 'function' && window._is3DActive();
+            if (!is3D_u) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
         });
     }
 
@@ -3070,7 +3080,8 @@ class AdsbLiveControl {
                         type: 'track', title: _trkCs, detail: _trkDetail,
                     });
                     this._showStatusBar(f.properties);
-                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 400 });
+                    const is3D_a = typeof window._is3DActive === 'function' && window._is3DActive();
+                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 16, ...(is3D_a ? { pitch: 45 } : {}), duration: 600 });
                     // Rebuild the tag marker in tracking layout.
                     const coords = this._interpolatedCoords(hex) || f.geometry.coordinates;
                     const newEl = document.createElement('div');
@@ -3123,10 +3134,12 @@ class AdsbLiveControl {
                         .addTo(this.map);
                     if (this._followEnabled) {
                         this._showStatusBar(f.properties);
-                        this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 400 });
+                        const is3D_b = typeof window._is3DActive === 'function' && window._is3DActive();
+                        this.map.easeTo({ center: f.geometry.coordinates, zoom: 16, ...(is3D_b ? { pitch: 45 } : {}), duration: 600 });
                     } else {
                         this._hideStatusBar();
-                        this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+                        const is3D_c = typeof window._is3DActive === 'function' && window._is3DActive();
+                        if (!is3D_c) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
                     }
                 }
             }
@@ -3588,7 +3601,7 @@ class AdsbLiveControl {
             if (f) {
                 this._tagMarker.setLngLat(f.geometry.coordinates);
                 if (this._followEnabled) {
-                    this.map.easeTo({ center: f.geometry.coordinates, pitch: 45, duration: 1100, easing: t => t });
+                    this.map.setCenter(f.geometry.coordinates);
                 }
             }
         }
@@ -3996,7 +4009,8 @@ class AdsbLiveControl {
                 .setLngLat(coords)
                 .addTo(this.map);
             this._showStatusBar(f.properties);
-            this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 600 });
+            const is3D_r = typeof window._is3DActive === 'function' && window._is3DActive();
+            this.map.easeTo({ center: f.geometry.coordinates, zoom: 16, ...(is3D_r ? { pitch: 45 } : {}), duration: 600 });
         } catch(e) {}
     }
 
@@ -4438,19 +4452,53 @@ let _syncSideMenuForPlanes = null;
     overlayGroup.appendChild(awacsBtn);
 
     // ---- 3D view toggle ----
-    let _tiltActive = false;
+    let _tiltActive = localStorage.getItem('sentinel_3d') === '1';
     const CUBE_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="7,1 13,4.5 13,9.5 7,13 1,9.5 1,4.5" stroke="currentColor" stroke-width="1.2" fill="none"/><polyline points="7,1 7,7" stroke="currentColor" stroke-width="1.2"/><polyline points="1,4.5 7,7 13,4.5" stroke="currentColor" stroke-width="1.2"/></svg>`;
     const tiltBtn = makeOverlayBtn(CUBE_SVG, '14px', '3D VIEW', () => _tiltActive, () => {
         _tiltActive = !_tiltActive;
+        localStorage.setItem('sentinel_3d', _tiltActive ? '1' : '0');
         const panel3d = document.getElementById('map-3d-controls');
         if (panel3d) panel3d.style.display = _tiltActive ? 'grid' : 'none';
+        const isTracking = typeof adsbControl !== 'undefined' && adsbControl._followEnabled;
         if (_tiltActive) {
-            map.easeTo({ pitch: 45, duration: 400 });
+            if (isTracking) {
+                const hex = adsbControl._tagHex;
+                const f = hex && adsbControl._geojson && adsbControl._geojson.features.find(f => f.properties.hex === hex);
+                const center = f ? f.geometry.coordinates : undefined;
+                map.easeTo({ pitch: 45, zoom: 16, ...(center ? { center } : {}), duration: 600 });
+            } else {
+                map.easeTo({ pitch: 45, duration: 400 });
+            }
         } else {
-            map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+            if (isTracking) {
+                const hex = adsbControl._tagHex;
+                const f = hex && adsbControl._geojson && adsbControl._geojson.features.find(f => f.properties.hex === hex);
+                const center = f ? f.geometry.coordinates : undefined;
+                map.easeTo({ pitch: 0, bearing: 0, zoom: 14, ...(center ? { center } : {}), duration: 600 });
+            } else {
+                map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+            }
         }
     }, true);
     overlayGroup.appendChild(tiltBtn);
+
+    // Expose a helper so other controls can read the 3D state.
+    window._is3DActive  = () => _tiltActive;
+    window._set3DActive = function(active, applyPitch) {
+        if (_tiltActive === active && !applyPitch) return;
+        _tiltActive = active;
+        localStorage.setItem('sentinel_3d', _tiltActive ? '1' : '0');
+        const panel3d = document.getElementById('map-3d-controls');
+        if (panel3d) panel3d.style.display = _tiltActive ? 'grid' : 'none';
+        tiltBtn.classList.toggle('active', _tiltActive);
+        if (applyPitch) {
+            if (_tiltActive) {
+                map.easeTo({ pitch: 45, duration: 400 });
+            } else {
+                map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+            }
+        }
+    };
 
     const cvlBtn = makeOverlayBtn('CVL', '8px',  'AIRPORTS',       () => airportsControl ? airportsControl.visible : false,         () => { if (airportsControl) airportsControl.toggle(); });
     cvlBtn.classList.add('sm-expanded-only');
@@ -4529,6 +4577,8 @@ let _syncSideMenuForPlanes = null;
     ctrl3d.appendChild(make3dBtn('+', 'ZOOM IN',      () => map.zoomIn()));
 
     document.body.appendChild(ctrl3d);
+    // Restore panel visibility immediately (pitch is applied on style.load)
+    if (_tiltActive) ctrl3d.style.display = 'grid';
 })();
 
 // ============================================================
@@ -5407,6 +5457,13 @@ if ('geolocation' in navigator) {
 } else {
     console.warn('[location] geolocation not available in navigator');
 }
+
+// Restore 3D pitch state after map is fully loaded
+map.once('load', () => {
+    if (typeof window._is3DActive === 'function' && window._is3DActive()) {
+        map.easeTo({ pitch: 45, duration: 400 });
+    }
+});
 
 // Restore persisted landing notifications on page load
 _Notifications.init();
