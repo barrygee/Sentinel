@@ -2956,7 +2956,7 @@ class AdsbLiveControl {
                     const isTracked = this._notifEnabled.has(hex);
                     const hasBadge = !!f.properties.t;
                     if (hasBadge || isTracked) labelEl.style.paddingRight = '0';
-                    else labelEl.style.paddingRight = '';
+                    else labelEl.style.paddingRight = '8px';
                     // Model badge
                     let modelBadge = labelEl.querySelector('.mil-model-badge');
                     if (hasBadge) {
@@ -2991,7 +2991,7 @@ class AdsbLiveControl {
                 } else {
                     labelEl.querySelector('.mil-model-badge')?.remove();
                     labelEl.querySelector('.mil-trk-btn')?.remove();
-                    labelEl.style.paddingRight = '';
+                    labelEl.style.paddingRight = '8px';
                 }
                 // Update/add/remove squawk badge
                 let badge = labelEl.querySelector('.sqk-badge');
