@@ -1167,7 +1167,7 @@ class ResetViewControl {
         this.button.style.justifyContent = 'center';
         this.button.style.transition = 'opacity 0.2s';
         this.button.onclick = () => {
-            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6 });
+            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: 0, bearing: 0 });
         };
         this.button.onmouseover = () => this.button.style.backgroundColor = '#111111';
         this.button.onmouseout = () => this.button.style.backgroundColor = '#000000';
@@ -1349,7 +1349,7 @@ class AirportsToggleControl {
             bar.classList.remove('adsb-sb-visible');
             delete bar.dataset.apt;
             if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
-            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, duration: 800 });
+            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: 0, bearing: 0, duration: 800 });
         });
     }
 
@@ -1391,27 +1391,10 @@ class AirportsToggleControl {
                     `<br><span class="apt-name" style="opacity:0.7;font-weight:400">${p.name.toUpperCase()}</span>`;
                 el.appendChild(label);
 
-                // Click — zoom to runway bounds with 25% padding
+                // Click — fly to airport at zoom 10, pitch 45
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const b = p.bounds; // [minLng, minLat, maxLng, maxLat]
-                    // Measure the right-side control panel width so we can compensate
-                    // for the asymmetric viewport and keep the airport truly centred.
-                    const ctrlPanel = document.querySelector('.maplibregl-ctrl-top-right');
-                    const ctrlW = ctrlPanel ? ctrlPanel.offsetWidth : 0;
-                    const ctrlH = ctrlPanel ? ctrlPanel.offsetHeight : 0;
-                    const pad = 80;
-                    // Offset top padding by half the controls panel height so the
-                    // airport sits in the true vertical centre of the remaining space.
-                    const topExtra = Math.max(0, ctrlH / 2 - pad);
-                    this.map.fitBounds(
-                        [[b[0], b[1]], [b[2], b[3]]],
-                        {
-                            padding: { top: pad + topExtra, bottom: pad, left: pad, right: pad + ctrlW },
-                            maxZoom: 13,
-                            duration: 800,
-                        }
-                    );
+                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 800 });
                     this._showAirportPanel(p, f.geometry.coordinates);
                 });
 
@@ -1578,20 +1561,7 @@ class RAFToggleControl {
 
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const b = p.bounds;
-                    const ctrlPanel = document.querySelector('.maplibregl-ctrl-top-right');
-                    const ctrlW = ctrlPanel ? ctrlPanel.offsetWidth : 0;
-                    const ctrlH = ctrlPanel ? ctrlPanel.offsetHeight : 0;
-                    const pad = 80;
-                    const topExtra = Math.max(0, ctrlH / 2 - pad);
-                    this.map.fitBounds(
-                        [[b[0], b[1]], [b[2], b[3]]],
-                        {
-                            padding: { top: pad + topExtra, bottom: pad, left: pad, right: pad + ctrlW },
-                            maxZoom: 13,
-                            duration: 800,
-                        }
-                    );
+                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 800 });
                     this._showRAFPanel(p, f.geometry.coordinates);
                 });
 
@@ -1660,7 +1630,7 @@ class RAFToggleControl {
             bar.classList.remove('adsb-sb-visible');
             delete bar.dataset.apt;
             if (typeof _Tracking !== 'undefined') { _Tracking.setCount(0); _Tracking.closePanel(); }
-            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, duration: 800 });
+            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: 0, bearing: 0, duration: 800 });
         });
     }
 
@@ -2959,6 +2929,7 @@ class AdsbLiveControl {
             }
             this._hideStatusBar();
             this._saveTrackingState();
+            this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
         });
     }
 
@@ -3064,7 +3035,7 @@ class AdsbLiveControl {
                         type: 'track', title: _trkCs, detail: _trkDetail,
                     });
                     this._showStatusBar(f.properties);
-                    this.map.easeTo({ center: f.geometry.coordinates, duration: 400 });
+                    this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 400 });
                     // Rebuild the tag marker in tracking layout.
                     const coords = this._interpolatedCoords(hex) || f.geometry.coordinates;
                     const newEl = document.createElement('div');
@@ -3117,9 +3088,10 @@ class AdsbLiveControl {
                         .addTo(this.map);
                     if (this._followEnabled) {
                         this._showStatusBar(f.properties);
-                        this.map.easeTo({ center: f.geometry.coordinates, duration: 400 });
+                        this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 400 });
                     } else {
                         this._hideStatusBar();
+                        this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
                     }
                 }
             }
@@ -3573,7 +3545,7 @@ class AdsbLiveControl {
             if (f) {
                 this._tagMarker.setLngLat(f.geometry.coordinates);
                 if (this._followEnabled) {
-                    this.map.easeTo({ center: f.geometry.coordinates, duration: 1100, easing: t => t });
+                    this.map.easeTo({ center: f.geometry.coordinates, pitch: 45, duration: 1100, easing: t => t });
                 }
             }
         }
@@ -3981,7 +3953,7 @@ class AdsbLiveControl {
                 .setLngLat(coords)
                 .addTo(this.map);
             this._showStatusBar(f.properties);
-            this.map.easeTo({ center: f.geometry.coordinates, duration: 600 });
+            this.map.easeTo({ center: f.geometry.coordinates, zoom: 14, pitch: 45, duration: 600 });
         } catch(e) {}
     }
 
