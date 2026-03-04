@@ -4580,16 +4580,16 @@ let _syncSideMenuForPlanes = null;
 
     // 3×3 grid: top-left empty, tilt-up, top-right empty,
     //           rotate-left, reset, rotate-right,
-    //           zoom-out, tilt-down, zoom-in
+    //           empty, tilt-down, empty
     ctrl3d.appendChild(document.createElement('span')); // [0,0] empty
     ctrl3d.appendChild(make3dBtn('↑', 'TILT UP',      () => { const p = Math.min(map.getPitch() + 10, 85); if (typeof window._setTargetPitch === 'function') window._setTargetPitch(p); map.easeTo({ pitch: p, duration: 300 }); }));
     ctrl3d.appendChild(document.createElement('span')); // [0,2] empty
     ctrl3d.appendChild(make3dBtn('↺', 'ROTATE LEFT',  () => map.easeTo({ bearing: map.getBearing() - 15, duration: 300 })));
     ctrl3d.appendChild(make3dBtn('⌖', 'RESET BEARING', () => map.easeTo({ bearing: 0, duration: 400 })));
     ctrl3d.appendChild(make3dBtn('↻', 'ROTATE RIGHT', () => map.easeTo({ bearing: map.getBearing() + 15, duration: 300 })));
-    ctrl3d.appendChild(make3dBtn('−', 'ZOOM OUT',     () => map.zoomOut()));
+    ctrl3d.appendChild(document.createElement('span')); // [2,0] empty
     ctrl3d.appendChild(make3dBtn('↓', 'TILT DOWN',    () => { const p = Math.max(map.getPitch() - 10, 0); if (typeof window._setTargetPitch === 'function') window._setTargetPitch(p); map.easeTo({ pitch: p, duration: 300 }); }));
-    ctrl3d.appendChild(make3dBtn('+', 'ZOOM IN',      () => map.zoomIn()));
+    ctrl3d.appendChild(document.createElement('span')); // [2,2] empty
 
     document.body.appendChild(ctrl3d);
     // Restore panel visibility immediately (pitch is applied on style.load)
