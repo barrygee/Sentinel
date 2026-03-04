@@ -2356,8 +2356,8 @@ class AdsbLiveControl {
             }
         }
 
-        if (showGnd)    conditions.push(['all', baseFilter, isGndExpr]);
-        if (showTowers) conditions.push(['all', baseFilter, isTowerExpr]);
+        if (showGnd)    conditions.push(isGndExpr);
+        if (showTowers) conditions.push(isTowerExpr);
 
         const filter = conditions.length === 0
             ? ['==', ['get', 'hex'], '']
@@ -3357,11 +3357,12 @@ class AdsbLiveControl {
 
             // Only show label if the icon is visible (mirrors the layer filter).
             const zoom = this.map.getZoom();
-            const iconVisible = (f.properties.alt_baro > 0) || (zoom >= 10);
             const isMil = !!f.properties.military;
             const cat = (f.properties.category || '').toUpperCase();
             const isGnd    = ['C1', 'C2'].includes(cat);
             const isTower  = ['C3', 'C4', 'C5'].includes(cat) || (f.properties.t || '').toUpperCase() === 'TWR';
+            // Ground vehicles and towers have no altitude — always icon-visible when enabled.
+            const iconVisible = isGnd || isTower || (f.properties.alt_baro > 0) || (zoom >= 10);
             let typeVisible;
             if (this._allHidden) {
                 typeVisible = false;
@@ -3597,7 +3598,6 @@ class AdsbLiveControl {
 
         if (this.map.getSource('adsb-live')) {
             this.map.getSource('adsb-live').setData(interpolated);
-            console.log('[ADSB] _interpolate: setData called with', interpolated.features.length, 'features');
             // setData resets layer filters — reapply immediately
             this._applyTypeFilter();
         } else {
@@ -3839,7 +3839,7 @@ class AdsbLiveControl {
                                 baro_rate:    a.baro_rate ?? 0,
                                 nav_altitude: a.nav_altitude_mcp ?? a.nav_altitude_fms ?? null,
                                 nav_heading:  a.nav_heading ?? null,
-                                category:     a.category || '',
+                                category:     (a.category || '').toUpperCase(),
                                 emergency:    a.emergency || '',
                                 squawk:       a.squawk || '',
                                 squawkEmerg:  this._emergencySquawks.has(a.squawk || '') ? 1 : 0,
@@ -4890,6 +4890,7 @@ const _FilterPanel = (() => {
             info.addEventListener('click', () => _selectPlane(r.feature));
             icon.style.cursor = 'pointer';
             icon.addEventListener('click', () => _selectPlane(r.feature));
+            item._selectAction = () => _selectPlane(r.feature);
 
             container.appendChild(item);
         });
@@ -4920,6 +4921,7 @@ const _FilterPanel = (() => {
             item.appendChild(badge);
 
             item.addEventListener('click', () => _selectAirport(r.feature));
+            item._selectAction = () => _selectAirport(r.feature);
             container.appendChild(item);
         });
 
@@ -4949,6 +4951,7 @@ const _FilterPanel = (() => {
             item.appendChild(badge);
 
             item.addEventListener('click', () => _selectMil(r.feature));
+            item._selectAction = () => _selectMil(r.feature);
             container.appendChild(item);
         });
     }
@@ -4997,7 +5000,41 @@ const _FilterPanel = (() => {
         });
 
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') close();
+            if (e.key === 'Escape') { close(); return; }
+            const container = _getResults();
+            if (!container) return;
+            const items = Array.from(container.querySelectorAll('.filter-result-item'));
+            if (!items.length) return;
+            const focused = container.querySelector('.filter-result-item.keyboard-focused');
+            const idx = focused ? items.indexOf(focused) : -1;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (focused) focused.classList.remove('keyboard-focused');
+                const next = items[idx + 1] || items[0];
+                next.classList.add('keyboard-focused');
+                next.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (idx <= 0) {
+                    // At first item (or none focused) — return focus to input
+                    if (focused) focused.classList.remove('keyboard-focused');
+                } else {
+                    if (focused) focused.classList.remove('keyboard-focused');
+                    const prev = items[idx - 1];
+                    prev.classList.add('keyboard-focused');
+                    prev.scrollIntoView({ block: 'nearest' });
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (focused) {
+                    if (focused._selectAction) focused._selectAction();
+                    input.focus();
+                } else {
+                    // No item focused yet — highlight the first result
+                    items[0].classList.add('keyboard-focused');
+                    items[0].scrollIntoView({ block: 'nearest' });
+                }
+            }
         });
 
         if (clearBtn) {
@@ -5520,6 +5557,14 @@ _Tracking.init();
 
 // Initialise filter panel
 _FilterPanel.init();
+
+// Global Ctrl+F / Cmd+F shortcut to toggle filter panel
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        _FilterPanel.toggle();
+    }
+});
 
 // ---- Logo animation (bracket draw-in + typewriter) ----
 // IIFE — runs once on load and re-plays on logo click.

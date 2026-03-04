@@ -1041,8 +1041,14 @@ body:has(#side-menu.expanded) #filter-panel {
     border-bottom: none;
 }
 
-.filter-result-item:hover {
+.filter-result-item:hover,
+.filter-result-item.keyboard-focused {
     background: rgba(255, 255, 255, 0.06);
+}
+
+.filter-result-item.keyboard-focused {
+    outline: 1px solid rgba(200, 255, 0, 0.4);
+    outline-offset: -1px;
 }
 
 /* Info column: stacks primary (callsign) and secondary (route/type) text */
