@@ -3417,6 +3417,9 @@ class AdsbLiveControl {
             }
 
             const lngLat = this._interpolatedCoords(hex) || f.geometry.coordinates;
+            const pos = this._lastPositions[hex];
+            const ageSec = pos ? (Date.now() - pos.lastSeen) / 1000 : 0;
+            const isStale = ageSec >= 30 && f.properties.alt_baro !== 0;
 
             if (this._callsignMarkers[hex]) {
                 this._callsignMarkers[hex].setLngLat(lngLat);
@@ -3426,10 +3429,11 @@ class AdsbLiveControl {
                 const isEmerg = f.properties.squawkEmerg === 1;
                 // Update background
                 labelEl.style.background = isEmerg ? 'rgba(180,0,0,0.85)' : 'rgba(0,0,0,0.5)';
+                labelEl.style.opacity = isStale ? '0.3' : '1';
                 // Update callsign text (first child span)
                 const nameSpan = labelEl.querySelector('span:not(.sqk-badge):not(.mil-model-badge)') || labelEl;
                 nameSpan.textContent = raw || 'UNKNOWN';
-                nameSpan.style.cssText = 'color:#ffffff !important';
+                nameSpan.style.cssText = isStale ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important';
                 // Update/add/remove military model badge + tracking button
                 if (f.properties.military) {
                     const isTracked = this._notifEnabled.has(hex);
@@ -3493,6 +3497,11 @@ class AdsbLiveControl {
                 }
             } else {
                 const labelEl = this._buildCallsignLabelEl(f.properties);
+                if (isStale) {
+                    labelEl.style.opacity = '0.3';
+                    const nameSpan = labelEl.querySelector('span:not(.sqk-badge):not(.mil-model-badge)') || labelEl;
+                    if (nameSpan) nameSpan.style.color = 'rgba(255,255,255,0.45)';
+                }
                 const marker = new maplibregl.Marker({ element: labelEl, anchor: 'left', offset: [14, 0] })
                     .setLngLat(lngLat)
                     .addTo(this.map);
@@ -3643,10 +3652,6 @@ class AdsbLiveControl {
             const hex = f.properties.hex;
             if (hex && this._callsignMarkers[hex]) {
                 this._callsignMarkers[hex].setLngLat(f.geometry.coordinates);
-                const labelEl = this._callsignMarkers[hex].getElement();
-                labelEl.style.opacity = f.properties.stale ? '0.3' : '1';
-                const nameSpan = labelEl.querySelector('span:not(.sqk-badge):not(.mil-model-badge)');
-                if (nameSpan) nameSpan.style.color = f.properties.stale ? 'rgba(255,255,255,0.45)' : '#ffffff';
             }
             if (hex && hex === this._hoverHex && this._hoverMarker) {
                 this._hoverMarker.setLngLat(f.geometry.coordinates);
