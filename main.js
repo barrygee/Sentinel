@@ -3729,7 +3729,7 @@ class AdsbLiveControl {
                 if (resp.status === 429) {
                     console.warn('[ADSB] Rate limited (429) — backing off 30s');
                     this._isFetching = false;
-                    this._stopPolling();
+                    this._stopFetching();
                     setTimeout(() => { if (this.visible) this._startPolling(); }, 30000);
                     return;
                 }
@@ -4026,7 +4026,7 @@ class AdsbLiveControl {
                 console.warn(`[ADSB] ${this._fetchFailCount} consecutive fetch failures — backing off 30s`);
                 this._fetchFailCount = 0;
                 this._isFetching = false;
-                this._stopPolling();
+                this._stopFetching();
                 setTimeout(() => { if (this.visible) this._startPolling(); }, 30000);
                 return;
             }
@@ -4114,13 +4114,19 @@ class AdsbLiveControl {
         // Skip the immediate fetch if a pre-fetch already completed recently
         // (within the last 4 seconds) to avoid a redundant API call.
         if (Date.now() - this._lastFetchTime > 4000) this._fetch();
-        this._pollInterval = setInterval(() => this._fetch(), 1000);
-        this._interpolateInterval = setInterval(() => this._interpolate(), 100);
+        this._pollInterval = setInterval(() => this._fetch(), 5000);
+        if (!this._interpolateInterval) {
+            this._interpolateInterval = setInterval(() => this._interpolate(), 100);
+        }
     }
 
     _stopPolling() {
         if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
         if (this._interpolateInterval) { clearInterval(this._interpolateInterval); this._interpolateInterval = null; }
+    }
+
+    _stopFetching() {
+        if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
     }
 
     toggle() {
