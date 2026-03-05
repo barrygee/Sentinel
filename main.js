@@ -1854,7 +1854,7 @@ class RangeRingsControl {
             source: 'range-rings-lines',
             layout: { visibility: this.ringsVisible ? 'visible' : 'none' },
             paint: {
-                'line-color': 'rgba(255, 255, 255, 0.18)',
+                'line-color': 'rgba(255, 255, 255, 0.40)',
                 'line-width': 1,
                 'line-dasharray': [4, 4]
             }
