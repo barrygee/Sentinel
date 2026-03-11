@@ -8,14 +8,13 @@
 //   onStyleLoad   — register a callback to run after every style.load
 //   isOnline()    — current connectivity state
 //
-// Usage on section pages (loaded before section-specific scripts):
+// Usage (loaded before section-specific scripts):
 //   <script src="./assets/pmtiles.js"></script>
 //   <script src="./assets/maplibre-gl.js"></script>
 //   <script src="./frontend/app/map/map.js"></script>
 //
-// NOTE: On index.html, map.js is NOT loaded — the map init and all
-// overlay re-init logic remains in main.js. Map.js is for new
-// section pages that need a clean map without the AIR overlays.
+// Used by all pages (index.html / air, and future space/sea/land pages).
+// Overlay controls register their style-reload callbacks via MapComponent.onStyleLoad().
 // ============================================================
 
 // ---- PMTiles protocol ----
@@ -231,7 +230,7 @@ const _mapStyleURL = _mapIsOnline
 
 const _sentinelMap = new maplibregl.Map({
     container: 'map',
-    style: { version: 8, sources: {}, layers: [] }, // blank stub; real style applied below
+    style: _mapStyleURL,
     center: _mapIsOnline ? [-4.4815, 54.1453] : [-4.5481, 54.2361],
     zoom: _mapIsOnline ? 6 : 5,
     minZoom: _mapIsOnline ? 2 : 5,
@@ -239,10 +238,10 @@ const _sentinelMap = new maplibregl.Map({
     attributionControl: false,
     fadeDuration: 0,
     cooperativeGestures: false,
-    transformRequest: (url) => ({ url: url.startsWith('/') ? _mapOrigin + url : url })
+    transformRequest: (url) => ({ url: url.startsWith('/') ? _mapOrigin + url : url }),
+    transformStyle: _mapTransformStyle,
 });
 _sentinelMap.scrollZoom.enable();
-_sentinelMap.setStyle(_mapStyleURL, { transformStyle: _mapTransformStyle });
 
 // ---- style.load handler registration ----
 // Overlay controls register callbacks via MapComponent.onStyleLoad(fn).

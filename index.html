@@ -114,7 +114,37 @@
     <script src='./assets/maplibre-gl.js'></script>
     <script src="./frontend/app/notifications/notifications.js"></script>
     <script src="./frontend/app/tracking/tracking.js"></script>
-    <script src="main.js?v=52"></script>
+
+    <!-- Map component (tile loading, connectivity, geometry helpers) -->
+    <script src="./frontend/app/map/map.js"></script>
+
+    <!-- Air component: shared globals and state -->
+    <script src="./frontend/components/air/air-globals.js"></script>
+    <script src="./frontend/components/air/overlay-state.js"></script>
+    <script src="./frontend/components/air/map-alias.js"></script>
+
+    <!-- Air component: map overlay controls -->
+    <script src="./frontend/components/air/controls/roads.js"></script>
+    <script src="./frontend/components/air/controls/reset-view.js"></script>
+    <script src="./frontend/components/air/controls/airports.js"></script>
+    <script src="./frontend/components/air/controls/raf.js"></script>
+    <script src="./frontend/components/air/controls/names.js"></script>
+    <script src="./frontend/components/air/controls/range-rings.js"></script>
+    <script src="./frontend/components/air/controls/aara.js"></script>
+    <script src="./frontend/components/air/controls/awacs.js"></script>
+    <script src="./frontend/components/air/controls/adsb.js"></script>
+    <script src="./frontend/components/air/controls/adsb-labels.js"></script>
+    <script src="./frontend/components/air/controls/clear-overlays.js"></script>
+
+    <!-- Style reload re-init (must follow all controls) -->
+    <script src="./frontend/components/air/overlay-reinit.js"></script>
+
+    <!-- Side panel, filter, user location, boot -->
+    <script src="./frontend/components/air/side-menu.js"></script>
+    <script src="./frontend/components/air/filter.js"></script>
+    <script src="./frontend/components/air/user-location.js"></script>
+    <script src="./frontend/components/air/boot.js"></script>
+
     <script src="squawk-test.js"></script>
 </body>
 
