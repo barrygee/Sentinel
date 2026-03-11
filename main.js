@@ -753,6 +753,11 @@ const _Notifications = (() => {
         const items = _load();
         items.push(item);
         _save(items);
+        fetch('/api/air/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msg_id: item.id, type: item.type, title: item.title, detail: item.detail, ts: item.ts }),
+        }).catch(() => {});
         if (!_isOpen()) _unreadCount++;
         render();
         _pulseBell();
@@ -817,6 +822,7 @@ const _Notifications = (() => {
         delete _actions[id];
         delete _clickActions[id];
         _save(_load().filter(i => i.id !== id));
+        fetch(`/api/air/messages/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
         const panel = _getPanel();
         if (panel) {
             const el = panel.querySelector(`.notif-item[data-id="${id}"]`);
@@ -838,6 +844,7 @@ const _Notifications = (() => {
         if (!items.length) return;
         items.forEach(i => { delete _actions[i.id]; delete _clickActions[i.id]; });
         _save([]);
+        fetch('/api/air/messages', { method: 'DELETE' }).catch(() => {});
         _unreadCount = 0;
         const panel = _getPanel();
         if (panel) {
@@ -3721,7 +3728,7 @@ class AdsbLiveControl {
             lon = c.lng;
         }
         try {
-            const url = `${origin}/api/adsb/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`;
+            const url = `${origin}/api/air/adsb/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`;
             console.time('[ADSB] API fetch');
             const resp = await fetch(url);
             console.timeEnd('[ADSB] API fetch');
@@ -4046,10 +4053,26 @@ class AdsbLiveControl {
 
     _saveTrackingState() {
         try {
-            if (this._tagHex && this._followEnabled) {
-                localStorage.setItem('adsbTracking', JSON.stringify({ hex: this._tagHex }));
+            const activeHex = this._tagHex || (this._followEnabled ? this._selectedHex : null);
+            if (activeHex && this._followEnabled) {
+                const prevHex = (() => { try { return JSON.parse(localStorage.getItem('adsbTracking') || '{}').hex; } catch(e) { return null; } })();
+                if (prevHex && prevHex !== activeHex) {
+                    fetch(`/api/air/tracking/${encodeURIComponent(prevHex)}`, { method: 'DELETE' }).catch(() => {});
+                }
+                localStorage.setItem('adsbTracking', JSON.stringify({ hex: activeHex }));
+                const f = this._geojson.features.find(f => f.properties.hex === activeHex);
+                const callsign = f ? ((f.properties.flight || '').trim() || (f.properties.r || '').trim() || '') : '';
+                fetch('/api/air/tracking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hex: activeHex, callsign, follow: true }),
+                }).catch(() => {});
             } else {
+                const prevHex = (() => { try { return JSON.parse(localStorage.getItem('adsbTracking') || '{}').hex; } catch(e) { return null; } })();
                 localStorage.removeItem('adsbTracking');
+                if (prevHex) {
+                    fetch(`/api/air/tracking/${encodeURIComponent(prevHex)}`, { method: 'DELETE' }).catch(() => {});
+                }
             }
         } catch(e) {}
     }
@@ -4057,6 +4080,20 @@ class AdsbLiveControl {
     _restoreTrackingState() {
         if (this._trackingRestored) return;
         this._trackingRestored = true;
+        // Try backend first, fall back to localStorage
+        fetch('/api/air/tracking')
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => {
+                const tracked = rows.find(r => r.follow);
+                if (tracked) {
+                    localStorage.setItem('adsbTracking', JSON.stringify({ hex: tracked.hex }));
+                }
+                this._doRestoreTracking();
+            })
+            .catch(() => this._doRestoreTracking());
+    }
+
+    _doRestoreTracking() {
         try {
             const saved = localStorage.getItem('adsbTracking');
             if (!saved) return;
@@ -5525,9 +5562,7 @@ function setUserLocation(position) {
     const now = Date.now();
     if (now - setUserLocation._lastGeocode > 2 * 60 * 1000) {
         setUserLocation._lastGeocode = now;
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`, {
-            headers: { 'Accept-Language': 'en' }
-        })
+        fetch(`/api/air/geocode/reverse?lat=${latitude}&lon=${longitude}`)
             .then(r => r.json())
             .then(data => {
                 const country = data.address && data.address.country;
