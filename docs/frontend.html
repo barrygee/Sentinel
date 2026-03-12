@@ -42,6 +42,18 @@
     <h4>State</h4>
     <a href="#localstorage">localStorage Keys</a>
     <a href="#constants">Key Constants</a>
+    <h4>Stylesheets</h4>
+    <a href="#css-architecture">CSS Architecture</a>
+    <a href="#css-shell">shell.css</a>
+    <a href="#css-map">map.css</a>
+    <a href="#css-notifications">notifications.css</a>
+    <a href="#css-tracking">tracking.css</a>
+    <a href="#css-filter">filter.css</a>
+    <a href="#css-global">style.css</a>
+    <h4>Reference Files</h4>
+    <a href="#index-html">index.html</a>
+    <a href="#main-js">main.js</a>
+    <a href="#squawk-test">squawk-test.js</a>
   </nav>
   <main class="main">
 
@@ -50,7 +62,7 @@
       <p>All JavaScript is loaded via <code>&lt;script&gt;</code> tags in <code>index.html</code>. There is no bundler — dependencies are satisfied by load order.</p>
 
       <div class="diagram">
-        <svg width="720" height="480" viewBox="0 0 720 480" font-family="'Consolas', monospace" font-size="11" fill="#e0e0e0">
+        <svg width="720" height="480" viewBox="0 0 720 480" font-family="'Consolas', monospace" font-size="11" fill="#1a1a1a">
           <!-- Phase labels -->
           <text x="8" y="24" fill="#555" font-size="10" letter-spacing="1">PHASE 1</text>
           <text x="8" y="84" fill="#555" font-size="10" letter-spacing="1">PHASE 2</text>
@@ -62,71 +74,71 @@
           <text x="8" y="444" fill="#555" font-size="10" letter-spacing="1">PHASE 8</text>
 
           <!-- Phase 1: Libraries -->
-          <rect x="70" y="10" width="120" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
+          <rect x="70" y="10" width="120" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
           <text x="130" y="28" text-anchor="middle" fill="#666">pmtiles.js</text>
-          <rect x="200" y="10" width="130" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
+          <rect x="200" y="10" width="130" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
           <text x="265" y="28" text-anchor="middle" fill="#666">maplibre-gl.js</text>
 
           <!-- Phase 2: Shared Panels -->
-          <rect x="70" y="70" width="130" height="28" rx="3" fill="#001020" stroke="#00336a"/>
-          <text x="135" y="88" text-anchor="middle" fill="#00aaff">notifications.js</text>
-          <rect x="210" y="70" width="120" height="28" rx="3" fill="#001020" stroke="#00336a"/>
-          <text x="270" y="88" text-anchor="middle" fill="#00aaff">tracking.js</text>
+          <rect x="70" y="70" width="130" height="28" rx="3" fill="#e8f4ff" stroke="#0055aa"/>
+          <text x="135" y="88" text-anchor="middle" fill="#0066cc">notifications.js</text>
+          <rect x="210" y="70" width="120" height="28" rx="3" fill="#e8f4ff" stroke="#0055aa"/>
+          <text x="270" y="88" text-anchor="middle" fill="#0066cc">tracking.js</text>
 
           <!-- Phase 3: Map -->
-          <rect x="70" y="130" width="200" height="28" rx="3" fill="#0f1500" stroke="#c8ff00"/>
-          <text x="170" y="148" text-anchor="middle" fill="#c8ff00">map/map.js → window.MapComponent</text>
+          <rect x="70" y="130" width="200" height="28" rx="3" fill="#f0fff0" stroke="#3a7d00"/>
+          <text x="170" y="148" text-anchor="middle" fill="#3a7d00">map/map.js → window.MapComponent</text>
 
           <!-- Phase 4: Air Setup -->
-          <rect x="70" y="190" width="110" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="125" y="208" text-anchor="middle" fill="#ff9900">air-globals.js</text>
-          <rect x="190" y="190" width="120" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="250" y="208" text-anchor="middle" fill="#ff9900">overlay-state.js</text>
-          <rect x="320" y="190" width="110" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="375" y="208" text-anchor="middle" fill="#ff9900">map-alias.js</text>
+          <rect x="70" y="190" width="110" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="125" y="208" text-anchor="middle" fill="#b84800">air-globals.js</text>
+          <rect x="190" y="190" width="120" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="250" y="208" text-anchor="middle" fill="#b84800">overlay-state.js</text>
+          <rect x="320" y="190" width="110" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="375" y="208" text-anchor="middle" fill="#b84800">map-alias.js</text>
 
           <!-- Phase 5: Controls (base + 11 controls) -->
-          <rect x="70" y="250" width="150" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="145" y="268" text-anchor="middle" fill="#cc88ff">sentinel-control-base.js</text>
-          <rect x="230" y="250" width="80" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="270" y="268" text-anchor="middle" fill="#cc88ff">roads.js</text>
-          <rect x="320" y="250" width="90" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="365" y="268" text-anchor="middle" fill="#cc88ff">reset-view.js</text>
-          <rect x="420" y="250" width="90" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="465" y="268" text-anchor="middle" fill="#cc88ff">airports.js</text>
-          <rect x="520" y="250" width="70" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="555" y="268" text-anchor="middle" fill="#cc88ff">raf.js</text>
-          <rect x="600" y="250" width="80" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="640" y="268" text-anchor="middle" fill="#cc88ff">names.js</text>
-          <rect x="70" y="284" width="100" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="120" y="302" text-anchor="middle" fill="#cc88ff">range-rings.js</text>
-          <rect x="180" y="284" width="70" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="215" y="302" text-anchor="middle" fill="#cc88ff">aara.js</text>
-          <rect x="260" y="284" width="70" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="295" y="302" text-anchor="middle" fill="#cc88ff">awacs.js</text>
-          <rect x="340" y="284" width="60" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="370" y="302" text-anchor="middle" fill="#cc88ff">adsb.js</text>
-          <rect x="410" y="284" width="100" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="460" y="302" text-anchor="middle" fill="#cc88ff">adsb-labels.js</text>
-          <rect x="520" y="284" width="120" height="28" rx="3" fill="#1a001a" stroke="#3a003a"/>
-          <text x="580" y="302" text-anchor="middle" fill="#cc88ff">clear-overlays.js</text>
+          <rect x="70" y="250" width="150" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="145" y="268" text-anchor="middle" fill="#6020cc">sentinel-control-base.js</text>
+          <rect x="230" y="250" width="80" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="270" y="268" text-anchor="middle" fill="#6020cc">roads.js</text>
+          <rect x="320" y="250" width="90" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="365" y="268" text-anchor="middle" fill="#6020cc">reset-view.js</text>
+          <rect x="420" y="250" width="90" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="465" y="268" text-anchor="middle" fill="#6020cc">airports.js</text>
+          <rect x="520" y="250" width="70" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="555" y="268" text-anchor="middle" fill="#6020cc">raf.js</text>
+          <rect x="600" y="250" width="80" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="640" y="268" text-anchor="middle" fill="#6020cc">names.js</text>
+          <rect x="70" y="284" width="100" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="120" y="302" text-anchor="middle" fill="#6020cc">range-rings.js</text>
+          <rect x="180" y="284" width="70" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="215" y="302" text-anchor="middle" fill="#6020cc">aara.js</text>
+          <rect x="260" y="284" width="70" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="295" y="302" text-anchor="middle" fill="#6020cc">awacs.js</text>
+          <rect x="340" y="284" width="60" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="370" y="302" text-anchor="middle" fill="#6020cc">adsb.js</text>
+          <rect x="410" y="284" width="100" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="460" y="302" text-anchor="middle" fill="#6020cc">adsb-labels.js</text>
+          <rect x="520" y="284" width="120" height="28" rx="3" fill="#faf0ff" stroke="#9900cc"/>
+          <text x="580" y="302" text-anchor="middle" fill="#6020cc">clear-overlays.js</text>
 
           <!-- Phase 6: Reinit -->
-          <rect x="70" y="330" width="170" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="155" y="348" text-anchor="middle" fill="#ff9900">overlay-reinit.js</text>
+          <rect x="70" y="330" width="170" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="155" y="348" text-anchor="middle" fill="#b84800">overlay-reinit.js</text>
 
           <!-- Phase 7: UI -->
-          <rect x="70" y="390" width="110" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="125" y="408" text-anchor="middle" fill="#ff9900">side-menu.js</text>
-          <rect x="190" y="390" width="80" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="230" y="408" text-anchor="middle" fill="#ff9900">filter.js</text>
-          <rect x="280" y="390" width="120" height="28" rx="3" fill="#161616" stroke="#2a2a2a"/>
-          <text x="340" y="408" text-anchor="middle" fill="#ff9900">user-location.js</text>
-          <rect x="410" y="390" width="80" height="28" rx="3" fill="#0f1500" stroke="#c8ff00"/>
-          <text x="450" y="408" text-anchor="middle" fill="#c8ff00">boot.js</text>
+          <rect x="70" y="390" width="110" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="125" y="408" text-anchor="middle" fill="#b84800">side-menu.js</text>
+          <rect x="190" y="390" width="80" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="230" y="408" text-anchor="middle" fill="#b84800">filter.js</text>
+          <rect x="280" y="390" width="120" height="28" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="340" y="408" text-anchor="middle" fill="#b84800">user-location.js</text>
+          <rect x="410" y="390" width="80" height="28" rx="3" fill="#f0fff0" stroke="#3a7d00"/>
+          <text x="450" y="408" text-anchor="middle" fill="#3a7d00">boot.js</text>
 
           <!-- Phase 8: Dev hook -->
-          <rect x="70" y="450" width="130" height="28" rx="3" fill="#1a1a00" stroke="#3a3a00"/>
+          <rect x="70" y="450" width="130" height="28" rx="3" fill="#fffbf0" stroke="#c8a000"/>
           <text x="135" y="468" text-anchor="middle" fill="#888">squawk-test.js</text>
         </svg>
       </div>
@@ -157,6 +169,80 @@
     <div class="section" id="map-component">
       <h2>map/map.js — MapComponent</h2>
       <p>Initializes MapLibre GL, handles connectivity, and provides geometry utilities to all controls.</p>
+
+      <h3>Connectivity State Machine</h3>
+      <div class="diagram">
+        <svg width="740" height="220" viewBox="0 0 740 220" font-family="'Consolas', monospace" font-size="11" fill="#1a1a1a">
+          <defs>
+            <marker id="cma" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#666"/></marker>
+            <marker id="cml" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#3a7d00"/></marker>
+          </defs>
+
+          <!-- Poll trigger -->
+          <rect x="10" y="88" width="110" height="44" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="65" y="108" text-anchor="middle" fill="#888">Poll OSM</text>
+          <text x="65" y="123" text-anchor="middle" fill="#666" font-size="10">every 2s</text>
+
+          <!-- Decision diamond -->
+          <polygon points="190,90 240,110 190,130 140,110" fill="#fffbf0" stroke="#3a7d00" stroke-width="1"/>
+          <text x="190" y="114" text-anchor="middle" fill="#3a7d00" font-size="10">reachable?</text>
+
+          <!-- ONLINE state -->
+          <rect x="290" y="68" width="140" height="64" rx="3" fill="#f0fff0" stroke="#3a7d00"/>
+          <text x="360" y="92" text-anchor="middle" fill="#3a7d00">ONLINE</text>
+          <text x="360" y="108" text-anchor="middle" fill="#666" font-size="10">fiord-online.json</text>
+          <text x="360" y="122" text-anchor="middle" fill="#666" font-size="10">OSM tile server</text>
+
+          <!-- OFFLINE state -->
+          <rect x="290" y="148" width="140" height="64" rx="3" fill="#fff0f0" stroke="#cc2222"/>
+          <text x="360" y="172" text-anchor="middle" fill="#cc2222">OFFLINE</text>
+          <text x="360" y="188" text-anchor="middle" fill="#666" font-size="10">fiord.json (PMTiles)</text>
+          <text x="360" y="202" text-anchor="middle" fill="#666" font-size="10">local tile bundle</text>
+
+          <!-- Style switch diamond -->
+          <polygon points="510,90 560,110 510,130 460,110" fill="#f5f5f5" stroke="#aaaaaa"/>
+          <text x="510" y="107" text-anchor="middle" fill="#777" font-size="10">state</text>
+          <text x="510" y="119" text-anchor="middle" fill="#777" font-size="10">changed?</text>
+
+          <!-- Consequences -->
+          <rect x="590" y="68" width="140" height="64" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="660" y="88" text-anchor="middle" fill="#6020cc">map.setStyle()</text>
+          <text x="660" y="104" text-anchor="middle" fill="#666" font-size="10">→ onStyleLoad fires</text>
+          <text x="660" y="120" text-anchor="middle" fill="#666" font-size="10">→ overlay-reinit runs</text>
+
+          <rect x="590" y="148" width="140" height="44" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="660" y="168" text-anchor="middle" fill="#666">No action</text>
+          <text x="660" y="184" text-anchor="middle" fill="#666" font-size="10">state unchanged</text>
+
+          <!-- Poll → decision -->
+          <line x1="120" y1="110" x2="140" y2="110" stroke="#aaaaaa" stroke-width="1" marker-end="url(#cma)"/>
+
+          <!-- YES → ONLINE -->
+          <line x1="240" y1="100" x2="290" y2="92" stroke="#3a7d00" stroke-width="1" marker-end="url(#cml)"/>
+          <text x="264" y="90" text-anchor="middle" fill="#3a7d00" font-size="9">YES</text>
+
+          <!-- NO → OFFLINE -->
+          <line x1="240" y1="120" x2="290" y2="165" stroke="#cc2222" stroke-width="1" marker-end="url(#cma)"/>
+          <text x="263" y="150" text-anchor="middle" fill="#cc2222" font-size="9">NO</text>
+
+          <!-- States → decision -->
+          <line x1="430" y1="100" x2="460" y2="105" stroke="#aaaaaa" stroke-width="1" marker-end="url(#cma)"/>
+          <line x1="430" y1="170" x2="460" y2="115" stroke="#aaaaaa" stroke-width="1" marker-end="url(#cma)"/>
+
+          <!-- YES → setStyle -->
+          <line x1="560" y1="100" x2="590" y2="95" stroke="#3a7d00" stroke-width="1" marker-end="url(#cml)"/>
+          <text x="574" y="93" text-anchor="middle" fill="#3a7d00" font-size="9">YES</text>
+
+          <!-- NO → no action -->
+          <line x1="560" y1="118" x2="590" y2="162" stroke="#aaaaaa" stroke-width="1" marker-end="url(#cma)"/>
+          <text x="575" y="148" text-anchor="middle" fill="#555" font-size="9">NO</text>
+
+          <!-- Loop back -->
+          <path d="M660,132 L660,138 Q660,145 653,145 L65,145 Q58,145 58,138 L58,132" stroke="#bbbbbb" stroke-width="1" fill="none" stroke-dasharray="3 2"/>
+          <line x1="58" y1="132" x2="58" y2="88" stroke="#bbbbbb" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#cma)"/>
+          <text x="362" y="158" text-anchor="middle" fill="#555" font-size="9">loop every 2s</text>
+        </svg>
+      </div>
 
       <h3>Connectivity Detection</h3>
       <div class="fn-block">
@@ -215,6 +301,59 @@
 
     <div class="section" id="notifications">
       <h2>notifications/notifications.js — _Notifications</h2>
+
+      <h3>Panel Mutex — Notifications vs Tracking</h3>
+      <div class="diagram">
+        <svg width="700" height="180" viewBox="0 0 700 180" font-family="'Consolas', monospace" font-size="11" fill="#1a1a1a">
+          <defs>
+            <marker id="nma" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#666"/></marker>
+            <marker id="nml" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#3a7d00"/></marker>
+            <marker id="nmb" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#0066cc"/></marker>
+          </defs>
+
+          <!-- Footer buttons -->
+          <rect x="10" y="70" width="110" height="40" rx="3" fill="#f8f8f8" stroke="#bbbbbb"/>
+          <text x="65" y="88" text-anchor="middle" fill="#888">🔔 Footer</text>
+          <text x="65" y="103" text-anchor="middle" fill="#666" font-size="10">bell button</text>
+
+          <rect x="10" y="120" width="110" height="40" rx="3" fill="#f8f8f8" stroke="#bbbbbb"/>
+          <text x="65" y="138" text-anchor="middle" fill="#888">✈ Footer</text>
+          <text x="65" y="153" text-anchor="middle" fill="#666" font-size="10">tracking button</text>
+
+          <!-- Panels -->
+          <rect x="200" y="20" width="160" height="80" rx="3" fill="#e8f4ff" stroke="#0055aa"/>
+          <text x="280" y="46" text-anchor="middle" fill="#0066cc">Notifications</text>
+          <text x="280" y="62" text-anchor="middle" fill="#666" font-size="10">Panel OPEN</text>
+          <text x="280" y="76" text-anchor="middle" fill="#666" font-size="10">→ slides in from left</text>
+          <text x="280" y="90" text-anchor="middle" fill="#666" font-size="10">→ bell badge clears</text>
+
+          <rect x="200" y="120" width="160" height="50" rx="3" fill="#e8f4ff" stroke="#0055aa"/>
+          <text x="280" y="142" text-anchor="middle" fill="#555">Tracking</text>
+          <text x="280" y="158" text-anchor="middle" fill="#555" font-size="10">Panel CLOSED (forced)</text>
+
+          <rect x="450" y="20" width="160" height="80" rx="3" fill="#e8f4ff" stroke="#0055aa"/>
+          <text x="530" y="46" text-anchor="middle" fill="#555">Notifications</text>
+          <text x="530" y="62" text-anchor="middle" fill="#555" font-size="10">Panel CLOSED (forced)</text>
+
+          <rect x="450" y="120" width="160" height="50" rx="3" fill="#e8f4ff" stroke="#0055aa"/>
+          <text x="530" y="142" text-anchor="middle" fill="#0066cc">Tracking</text>
+          <text x="530" y="158" text-anchor="middle" fill="#666" font-size="10">Panel OPEN</text>
+
+          <!-- Arrows -->
+          <line x1="120" y1="85" x2="200" y2="55" stroke="#0066cc" stroke-width="1" marker-end="url(#nmb)"/>
+          <line x1="200" y1="145" x2="120" y2="145" stroke="#bbbbbb" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="160" y="162" text-anchor="middle" fill="#555" font-size="9">forced closed</text>
+
+          <line x1="120" y1="140" x2="450" y2="148" stroke="#0066cc" stroke-width="1" marker-end="url(#nmb)"/>
+          <line x1="450" y1="55" x2="360" y2="55" stroke="#bbbbbb" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="408" y="44" text-anchor="middle" fill="#555" font-size="9">forced closed</text>
+
+          <!-- MUTEX label -->
+          <rect x="290" y="90" width="120" height="28" rx="12" fill="#fff0f0" stroke="#cc2222"/>
+          <text x="350" y="108" text-anchor="middle" fill="#cc2222" font-size="10" letter-spacing="1">MUTEX — only one open</text>
+        </svg>
+      </div>
+
       <p>Reusable notification panel shared by all features. Persists to localStorage and syncs with the backend <code>/api/air/messages</code> endpoint.</p>
 
       <h3>Public API</h3>
@@ -291,6 +430,73 @@
     <div class="section" id="overlay-reinit">
       <h2>air/overlay-reinit.js — Style Switch Handler</h2>
       <p>Registers a <code>MapComponent.onStyleLoad</code> callback that re-initializes all overlays whenever the map style changes (online ↔ offline switch).</p>
+
+      <h3>Overlay Lifecycle on Style Switch</h3>
+      <div class="diagram">
+        <svg width="700" height="270" viewBox="0 0 700 270" font-family="'Consolas', monospace" font-size="11" fill="#1a1a1a">
+          <defs>
+            <marker id="ora" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#666"/></marker>
+            <marker id="orl" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#3a7d00"/></marker>
+          </defs>
+
+          <!-- Trigger -->
+          <rect x="10" y="115" width="110" height="40" rx="3" fill="#fff0f8" stroke="#3a7d00"/>
+          <text x="65" y="132" text-anchor="middle" fill="#3a7d00">connectivity</text>
+          <text x="65" y="148" text-anchor="middle" fill="#3a7d00">changes</text>
+
+          <!-- setStyle -->
+          <rect x="160" y="115" width="110" height="40" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="215" y="132" text-anchor="middle" fill="#6020cc">map.setStyle()</text>
+          <text x="215" y="148" text-anchor="middle" fill="#666" font-size="10">layers destroyed</text>
+
+          <!-- style.load fires -->
+          <rect x="320" y="115" width="130" height="40" rx="3" fill="#f0fff0" stroke="#3a7d00"/>
+          <text x="385" y="132" text-anchor="middle" fill="#3a7d00">style.load fires</text>
+          <text x="385" y="148" text-anchor="middle" fill="#666" font-size="10">onStyleLoad callbacks</text>
+
+          <!-- overlay-reinit cascade (vertical) -->
+          <rect x="510" y="10" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="30" text-anchor="middle" fill="#888" font-size="10">updateRoadsVisibility()</text>
+
+          <rect x="510" y="48" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="68" text-anchor="middle" fill="#888" font-size="10">applyNamesVisibility()</text>
+
+          <rect x="510" y="86" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="106" text-anchor="middle" fill="#888" font-size="10">rangeRingsControl.initRings()</text>
+
+          <rect x="510" y="124" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="144" text-anchor="middle" fill="#888" font-size="10">aarControl.initLayers()</text>
+
+          <rect x="510" y="162" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="182" text-anchor="middle" fill="#888" font-size="10">awacsControl.initLayers()</text>
+
+          <rect x="510" y="200" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="220" text-anchor="middle" fill="#888" font-size="10">airportsControl.initLayers()</text>
+
+          <rect x="510" y="238" width="170" height="30" rx="3" fill="#f5f5f5" stroke="#cccccc"/>
+          <text x="595" y="258" text-anchor="middle" fill="#888" font-size="10">adsbControl.initLayers()</text>
+
+          <!-- Bracket linking the cascade -->
+          <line x1="495" y1="25" x2="510" y2="25" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="63" x2="510" y2="63" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="101" x2="510" y2="101" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="139" x2="510" y2="139" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="177" x2="510" y2="177" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="215" x2="510" y2="215" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="253" x2="510" y2="253" stroke="#999999" stroke-width="1"/>
+          <line x1="495" y1="25" x2="495" y2="253" stroke="#999999" stroke-width="1"/>
+
+          <!-- Arrows -->
+          <line x1="120" y1="135" x2="160" y2="135" stroke="#aaaaaa" stroke-width="1" marker-end="url(#ora)"/>
+          <line x1="270" y1="135" x2="320" y2="135" stroke="#aaaaaa" stroke-width="1" marker-end="url(#ora)"/>
+          <line x1="450" y1="135" x2="494" y2="135" stroke="#3a7d00" stroke-width="1" marker-end="url(#orl)"/>
+
+          <!-- Note -->
+          <text x="215" y="170" text-anchor="middle" fill="#555" font-size="9">all MapLibre layers</text>
+          <text x="215" y="182" text-anchor="middle" fill="#555" font-size="9">are wiped on style change</text>
+        </svg>
+      </div>
+
       <p>Re-initialization order:</p>
       <ol style="color: var(--muted); font-size: 0.85rem; padding-left: 20px; margin-bottom: 12px;">
         <li><code>roadsControl.updateRoadsVisibility()</code></li>
@@ -437,6 +643,183 @@
           <tr><td><code>AWACS_ORBITS</code></td><td>~50 orbit zone polygons GeoJSON</td><td>awacs.js</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="section" id="css-architecture">
+      <h2>CSS Architecture</h2>
+      <p>Styles are split across component-scoped CSS files loaded alongside their JS modules, plus a global <code>style.css</code> for shared/legacy rules. There is no CSS preprocessor or bundler — each file is a plain stylesheet.</p>
+      <table>
+        <thead><tr><th>File</th><th>Loads with</th><th>Covers</th></tr></thead>
+        <tbody>
+          <tr><td><code>frontend/components/shell/shell.css</code></td><td>index.html (early)</td><td>Body reset, nav header, footer, logo animation</td></tr>
+          <tr><td><code>frontend/components/map/map.css</code></td><td>index.html</td><td>Map viewport, MapLibre control overrides, user-location marker keyframes</td></tr>
+          <tr><td><code>frontend/components/notifications/notifications.css</code></td><td>notifications.js</td><td>Notification panel, item cards, bell badge</td></tr>
+          <tr><td><code>frontend/components/tracking/tracking.css</code></td><td>tracking.js</td><td>Tracking panel, ADS-B status bar card</td></tr>
+          <tr><td><code>frontend/components/filter/filter.css</code></td><td>filter.js</td><td>Filter panel, mode bar, search input, result list</td></tr>
+          <tr><td><code>style.css</code> (root)</td><td>index.html</td><td>Side menu, 3D controls widget, context menu, squawk/emergency badges</td></tr>
+        </tbody>
+      </table>
+      <div class="callout info">
+        <code>style.css</code> comments at the top indicate which sections have been migrated to component CSS files. The remaining content is side-menu and miscellaneous overlay styles that have not yet been split out.
+      </div>
+    </div>
+
+    <div class="section" id="css-shell">
+      <h2>shell.css — Shell &amp; Navigation</h2>
+      <p><strong>File:</strong> <code>frontend/components/shell/shell.css</code></p>
+      <table>
+        <thead><tr><th>Selector / Section</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Base reset (<code>*, body, html</code>)</td><td>Box-model reset; full viewport, <code>overflow:hidden</code>, black bg, Barlow font. Prevents page scroll — the map handles panning.</td></tr>
+          <tr><td><code>#nav</code></td><td>Fixed 68px header bar; black bg, subtle bottom border, flex layout with logo left and nav links right. z-index 1000.</td></tr>
+          <tr><td><code>#nav-logo</code>, <code>#logo-img</code></td><td>SVG logo wrapper; image constrained to 24px height.</td></tr>
+          <tr><td>Logo animation</td><td>SVG bracket draw-in via <code>stroke-dasharray</code>/<code>stroke-dashoffset</code> keyframes. Typewriter for callsign text is done in JS (boot.js).</td></tr>
+          <tr><td><code>.nav-link</code></td><td>Domain navigation links (AIR / SPACE / SEA / LAND). Active link highlighted with lime accent.</td></tr>
+          <tr><td><code>#footer</code></td><td>Fixed 44px bar at the bottom. Contains notification bell, tracking toggle, connectivity pill, and location label.</td></tr>
+          <tr><td><code>#conn-status</code></td><td>Connectivity status pill — lime "ONLINE" or red "OFFLINE".</td></tr>
+          <tr><td><code>#footer-label</code></td><td>Reverse-geocoded country name from the user's GPS position.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="css-map">
+      <h2>map.css — Map Viewport &amp; Controls</h2>
+      <p><strong>File:</strong> <code>frontend/components/map/map.css</code></p>
+      <table>
+        <thead><tr><th>Selector / Section</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>#map</code></td><td>Absolutely positioned element spanning full width, from 68px (below nav) to 44px from the bottom (above footer).</td></tr>
+          <tr><td><code>.maplibregl-canvas</code></td><td>Dim filter: <code>brightness(0.65) saturate(0.85)</code> — gives the fiord tileset a dark tactical look against the black chrome.</td></tr>
+          <tr><td><code>.maplibregl-ctrl-group</code></td><td>Overrides MapLibre's default white rounded controls with pure black, sharp-cornered buttons. Requires <code>!important</code> to beat library styles.</td></tr>
+          <tr><td><code>.maplibregl-ctrl-icon</code></td><td>Inverts default SVG icons to white (<code>invert(1)</code>).</td></tr>
+          <tr><td>User location marker keyframes</td><td><code>@keyframes pulse-ring</code> — expanding ring animation on the GPS dot. <code>@keyframes fadeInUp</code> — coordinate label typewriter entrance.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="css-notifications">
+      <h2>notifications.css — Notifications Panel</h2>
+      <p><strong>File:</strong> <code>frontend/components/notifications/notifications.css</code></p>
+      <table>
+        <thead><tr><th>Selector / Section</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>#notifications-panel</code></td><td>Fixed overlay, bottom-left, spanning between header and footer. <code>pointer-events:none</code> so closed panel passes clicks to the map.</td></tr>
+          <tr><td><code>#notif-list-wrap</code></td><td>Inner container; fades in/out with <code>opacity</code> + <code>visibility</code> transitions. <code>touch-action:none</code> prevents panel scroll interfering with map panning.</td></tr>
+          <tr><td><code>.notif-panel-open</code></td><td>JS adds this class to show the panel; removes it to hide.</td></tr>
+          <tr><td><code>.notif-item</code></td><td>Individual notification card. <code>data-type</code> attribute (<code>emergency</code>, <code>flight</code>, <code>system</code>, <code>squawk-clr</code>, etc.) drives header label and accent colour via attribute selectors.</td></tr>
+          <tr><td><code>#notif-scroll-hint</code></td><td>"MORE ↓" indicator visible when notifications overflow the panel height.</td></tr>
+          <tr><td>Bell pulse</td><td><code>@keyframes bell-pulse</code> — icon shake animation applied every 15 s when panel is closed and there are unread items.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="css-tracking">
+      <h2>tracking.css — Tracking Panel</h2>
+      <p><strong>File:</strong> <code>frontend/components/tracking/tracking.css</code></p>
+      <table>
+        <thead><tr><th>Selector / Section</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>#tracking-panel</code></td><td>Fixed overlay, bottom-left, same position as notifications panel. Hidden by default (<code>opacity:0; visibility:hidden</code>). Opened by JS adding <code>.tracking-panel-open</code>.</td></tr>
+          <tr><td><code>#adsb-status-bar</code></td><td>220px wide aircraft detail card inside the panel. <code>display:none</code> until an aircraft is selected; toggled to <code>display:flex</code> by adding <code>.adsb-sb-visible</code>.</td></tr>
+          <tr><td>Status bar rows</td><td>Two-column key/value rows for callsign, ICAO hex, registration, type, altitude, speed, heading, squawk. Lime accent on primary fields.</td></tr>
+          <tr><td>TRACK / FOLLOW buttons</td><td>Full-width action buttons at the bottom of the card. FOLLOW turns lime when camera-follow is active.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="css-filter">
+      <h2>filter.css — Filter Panel</h2>
+      <p><strong>File:</strong> <code>frontend/components/filter/filter.css</code></p>
+      <table>
+        <thead><tr><th>Selector / Section</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>#filter-panel</code></td><td>Fixed, horizontally centred below the nav bar. Uses CSS custom property <code>--side-menu-width</code> to centre in the space left of the side menu. Width 460px, max 100vw - 28px.</td></tr>
+          <tr><td><code>body:has(#side-menu.expanded) #filter-panel</code></td><td>Recentres panel when the side menu expands to 148px, using <code>:has()</code> selector to respond to sibling state.</td></tr>
+          <tr><td><code>#filter-mode-bar</code> / <code>.filter-mode-btn</code></td><td>Tab row (ALL / CIVIL / MIL / HIDE). Active tab highlighted lime. Calls <code>adsbControl.setTypeFilter()</code> / <code>setAllHidden()</code>.</td></tr>
+          <tr><td><code>#filter-input-wrap</code></td><td>Search input with a clear (×) button. Input has transparent bg, white text, bottom-border-only style.</td></tr>
+          <tr><td><code>#filter-results</code></td><td>Scrollable results list. Grouped into AIRCRAFT, AIRPORTS, MILITARY sections with section headers.</td></tr>
+          <tr><td><code>.filter-result-item</code></td><td>Individual result row: callsign/ICAO left, squawk/type right. Lime highlight on hover/active.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="css-global">
+      <h2>style.css — Global Styles</h2>
+      <p><strong>File:</strong> <code>style.css</code> (root level, 1446 lines)</p>
+      <p>The original global stylesheet. Comments at the top cross-reference which sections have been migrated to component CSS files. The remaining content covers:</p>
+      <table>
+        <thead><tr><th>Section</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Side menu (<code>#side-menu</code>)</td><td>Collapsible right-side overlay control panel. Minimised: ~47px wide (icon only); expanded: 148px (text labels). Groups (<code>.sm-group</code>) stack vertically with 4px gap.</td></tr>
+          <tr><td><code>.sm-group</code></td><td>Each logical cluster of buttons. Width animates on expand via CSS transition.</td></tr>
+          <tr><td><code>#sm-group-nav</code></td><td>Navigation buttons (zoom +/−, go-to-location). Switches to horizontal row layout when expanded.</td></tr>
+          <tr><td><code>.sm-btn</code></td><td>Overlay toggle buttons. <code>.active</code> = lime tint; <code>.sm-planes-off</code> = greyed + pointer-events none when ADS-B disabled.</td></tr>
+          <tr><td>3D controls widget</td><td>3×3 grid of tilt/rotate/zoom buttons. Shown only when <code>window._is3DActive()</code> is true. Appears as a separate group above the main side menu.</td></tr>
+          <tr><td>Right-click context menu</td><td>Popup at cursor position. Single item: "DROP PIN HERE". Black bg, lime accent on hover.</td></tr>
+          <tr><td>Squawk / emergency badge</td><td><code>.squawk-badge</code> — red badge shown on aircraft icons in emergency state. Keyframe <code>blink-red</code> pulses the badge.</td></tr>
+          <tr><td>Airport / RAF hover frequency panel</td><td>Hover popup on marker hover. Shows frequencies (tower/radar/approach/atis) in a dark card.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="index-html">
+      <h2>index.html — Application Shell</h2>
+      <p>The single HTML file that bootstraps the application. It contains no application logic — its sole purpose is to load CSS and JS in the correct order, and provide the DOM anchors the JS modules target.</p>
+      <h3>DOM Structure</h3>
+      <table>
+        <thead><tr><th>Element</th><th>ID</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>&lt;nav&gt;</code></td><td><code>#nav</code></td><td>Fixed header — logo + domain links (AIR/SPACE/SEA/LAND)</td></tr>
+          <tr><td><code>&lt;div&gt;</code></td><td><code>#map</code></td><td>MapLibre GL mount point</td></tr>
+          <tr><td><code>&lt;div&gt;</code></td><td><code>#footer</code></td><td>Fixed bottom bar — bell, tracking toggle, conn status, location label</td></tr>
+          <tr><td><code>&lt;div&gt;</code></td><td><code>#notifications-panel</code></td><td>Notification panel mount (populated by notifications.js)</td></tr>
+          <tr><td><code>&lt;div&gt;</code></td><td><code>#tracking-panel</code></td><td>Tracking panel mount (populated by tracking.js)</td></tr>
+        </tbody>
+      </table>
+      <h3>CSS Load Order</h3>
+      <ol style="color: var(--muted); font-size: 0.85rem; padding-left: 20px; margin-bottom: 12px;">
+        <li>Google Fonts (Barlow, Barlow Condensed)</li>
+        <li><code>assets/maplibre-gl.css</code> — MapLibre built-in styles</li>
+        <li><code>frontend/components/shell/shell.css</code></li>
+        <li><code>frontend/components/map/map.css</code></li>
+        <li><code>frontend/components/notifications/notifications.css</code></li>
+        <li><code>frontend/components/tracking/tracking.css</code></li>
+        <li><code>frontend/components/filter/filter.css</code></li>
+        <li><code>style.css</code> — side menu and remaining global styles</li>
+      </ol>
+      <p>Script load order is documented in the <a href="#script-order">Script Load Order</a> section above.</p>
+    </div>
+
+    <div class="section" id="main-js">
+      <h2>main.js — Reference Monolith</h2>
+      <p><strong>File:</strong> <code>main.js</code> (root, 5176 lines) — <strong>not loaded by <code>index.html</code></strong></p>
+      <p>The original single-file implementation, kept as a reference during the modular refactor. It is not loaded by the application and has no effect at runtime.</p>
+      <div class="callout warn">
+        Do not load <code>main.js</code> alongside the modular files — it would re-declare all globals and break the app. Its purpose is purely as a diff reference and fallback.
+      </div>
+      <p>All functionality in <code>main.js</code> has been split into the modules under <code>frontend/components/</code>. The line-range breakdown of the monolith is documented in the project MEMORY file.</p>
+    </div>
+
+    <div class="section" id="squawk-test">
+      <h2>squawk-test.js — Dev Testing Hook</h2>
+      <p><strong>File:</strong> <code>squawk-test.js</code> (root, 173 lines) — loaded last in <code>index.html</code>, development only.</p>
+      <p>Exposes <code>window.sqkTest</code> with helpers for testing emergency squawk detection without needing a real aircraft in distress. It works by monkey-patching <code>window.fetch</code> to return a mock ADS-B response with a controlled squawk code.</p>
+      <h3>Public API (<code>window.sqkTest</code>)</h3>
+      <table>
+        <thead><tr><th>Method</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>enterEmergency(squawk)</code></td><td>Mock fetch to return one aircraft with the given squawk (7700/7600/7500). Next poll cycle triggers the EMERGENCY notification.</td></tr>
+          <tr><td><code>clearEmergency(newSquawk)</code></td><td>Mock fetch to return the aircraft with a normal squawk. Next poll triggers SQUAWK CLEARED.</td></tr>
+          <tr><td><code>fullFlow(squawk, holdMs)</code></td><td>Automated enter → hold → clear sequence. Default hold 8 s. Restores real fetch after one more poll cycle.</td></tr>
+          <tr><td><code>allCodes()</code></td><td>Fires all three emergency codes (7700 → 7600 → 7500) in sequence, one per poll cycle (~6 s apart). Uses distinct hex IDs so each fires independently.</td></tr>
+          <tr><td><code>restore()</code></td><td>Restores the real <code>window.fetch</code> and removes test hex entries from <code>adsbControl._prevSquawk</code>.</td></tr>
+          <tr><td><code>status()</code></td><td>Logs <code>_prevSquawk</code> state table and lists any currently active emergency aircraft from the GeoJSON source.</td></tr>
+          <tr><td><code>help()</code></td><td>Prints usage summary to the console.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        ADS-B polls run automatically every 5 s — after calling <code>enterEmergency()</code> you just wait for the next poll. Always call <code>sqkTest.restore()</code> when done to re-enable real data.
+      </div>
     </div>
 
   </main>
