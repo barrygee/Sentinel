@@ -210,9 +210,8 @@ class IssControl extends SentinelControlBase {
             filter: ['==', ['geometry-type'], 'LineString'],
             layout: { visibility: fpVis },
             paint: {
-                'line-color': 'rgba(200,255,0,0.5)',
+                'line-color': '#000000',
                 'line-width': 1.2,
-                'line-dasharray': [3, 3],
             },
         });
 
