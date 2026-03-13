@@ -9,7 +9,14 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(source /Users/barry/.nvm/nvm.sh)",
       "Bash(nvm use:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\(''/Users/barry/Desktop/Sentinel/frontend/components/air/air-filter/air-filter.js.map''\\)\\); print\\(''version:'', d.get\\(''version''\\)\\); print\\(''file:'', d.get\\(''file''\\)\\)\")",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(echo \"=== $f ===\")",
+      "Read(//Users/barry/Desktop/Sentinel/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(open\\(''$f''\\)\\); print\\(''version:'', d.get\\(''version''\\), ''| file:'', d.get\\(''file''\\)\\)\")",
+      "Bash(find /Users/barry/Desktop/Sentinel/frontend -name \"*.js.map\" -delete)"
     ]
   }
 }

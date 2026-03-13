@@ -10,7 +10,7 @@
     "outDir": ".",
     "rootDir": ".",
     "declaration": false,
-    "sourceMap": true,
+    "sourceMap": false,
     "skipLibCheck": true
   },
   "include": ["frontend/components/**/*.ts"],
