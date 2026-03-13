@@ -1,9 +1,8 @@
 """
-Air domain router — ADS-B live tracking and geocoding.
+Air domain router — ADS-B live tracking.
 
 Endpoints:
   GET    /api/air/adsb/point/{lat}/{lon}/{radius}  — ADS-B aircraft proxy with SQLite cache
-  GET    /api/air/geocode/reverse                  — Nominatim reverse geocode proxy with cache
   GET    /api/air/messages                         — List air-domain notification messages
   POST   /api/air/messages                         — Create a new air message
   DELETE /api/air/messages/{msg_id}                — Dismiss (soft-delete) a message
@@ -25,9 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import get_db
-from backend.models import AdsbCache, AirMessage, AirTracking, GeocodeCache
+from backend.models import AdsbCache, AirMessage, AirTracking
 from backend.services import adsb as adsb_service
-from backend.services import geocode as geocode_service
 
 
 # ── Request body schemas ───────────────────────────────────────────────────────
@@ -111,57 +109,6 @@ async def get_aircraft_near_point(
         if row and is_within_stale(row.fetched_at, settings.adsb_stale_ms):
             return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "STALE"})
         raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
-
-
-# ── Reverse geocode proxy ──────────────────────────────────────────────────────
-
-@router.get("/geocode/reverse")
-async def reverse_geocode(
-    lat: float,
-    lon: float,
-    db: AsyncSession = Depends(get_db),
-):
-    """Proxy Nominatim reverse-geocode with a 10-minute SQLite cache.
-
-    Cache key is rounded to 2 decimal places (~1 km grid) so nearby positions
-    share the same cache entry. Returns the full Nominatim JSON — callers read
-    data.address.country for the footer location label.
-    """
-    # Round coordinates to 2dp for the cache key (avoids excessive unique entries)
-    cache_key = f"{lat:.2f}_{lon:.2f}"
-
-    result = await db.execute(select(GeocodeCache).where(GeocodeCache.cache_key == cache_key))
-    row = result.scalar_one_or_none()
-
-    if row and is_fresh(row.expires_at):
-        return JSONResponse(content=json.loads(row.raw), headers={"X-Cache": "HIT"})
-
-    try:
-        data = await geocode_service.reverse_geocode(lat, lon)
-        raw_str = json.dumps(data)
-        ts = now_ms()
-
-        if row:
-            row.raw        = raw_str
-            row.fetched_at = ts
-            row.expires_at = ts + settings.geocode_ttl_ms
-        else:
-            db.add(GeocodeCache(
-                cache_key=cache_key,
-                lat=lat,
-                lon=lon,
-                raw=raw_str,
-                fetched_at=ts,
-                expires_at=ts + settings.geocode_ttl_ms,
-            ))
-        await db.commit()
-
-        return JSONResponse(content=data, headers={"X-Cache": "MISS"})
-
-    except (httpx.HTTPError, Exception):
-        if row and is_within_stale(row.fetched_at, settings.geocode_stale_ms):
-            return JSONResponse(content=json.loads(row.raw), headers={"X-Cache": "STALE"})
-        raise HTTPException(status_code=503, detail="Geocode upstream unavailable")
 
 
 # ── Notification messages ──────────────────────────────────────────────────────

@@ -7,7 +7,6 @@
 //   - GPS watchPosition updates from boot.ts
 //   - Cached location restore on page load (5-minute expiry for GPS, no expiry for manual)
 //   - Manual location override via right-click context menu
-//   - Reverse-geocode footer label update (Nominatim, throttled to once per 2 minutes)
 //
 // Depends on: map (global alias), maplibregl, rangeRingCenter, rangeRingsControl
 // ============================================================
@@ -244,23 +243,7 @@ const setUserLocation = (function () {
             }
         }
         localStorage.setItem('geolocationGranted', 'true');
-        const now = Date.now();
-        if (now - fn._lastGeocode > 2 * 60 * 1000) {
-            fn._lastGeocode = now;
-            fetch(`/api/air/geocode/reverse?lat=${latitude}&lon=${longitude}`)
-                .then(r => r.json())
-                .then((data) => {
-                const country = data.address && data.address.country;
-                if (country) {
-                    const footerEl = document.getElementById('footer-location');
-                    if (footerEl)
-                        footerEl.textContent = country.toUpperCase();
-                }
-            })
-                .catch(() => { });
-        }
     }
-    fn._lastGeocode = 0;
     return fn;
 })();
 // ============================================================

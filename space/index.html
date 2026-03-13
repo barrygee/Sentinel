@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="../style.css?v=25">
 </head>
 
-<body>
+<body data-domain="space">
     <header id="nav">
         <div id="nav-logo">
             <svg id="logo-img" viewBox="0 0 410 60" xmlns="http://www.w3.org/2000/svg" aria-label="SENTINEL" overflow="visible">
@@ -99,6 +99,11 @@
 
     <!-- Map component (tile loading, connectivity, geometry helpers) -->
     <script src="../frontend/components/map/map.js"></script>
+
+    <!-- Shared boot: panel init + logo animation -->
+    <script src="../frontend/components/shared/boot.js"></script>
+    <!-- Domain status: calls /api/space/status, shows coming-soon banner -->
+    <script src="../frontend/components/shared/domain-status.js"></script>
 
 </body>
 

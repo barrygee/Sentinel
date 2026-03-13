@@ -64,7 +64,7 @@
         `</div>` +
         `<div id="footer-right">` +
             `<span id="conn-status" class="conn-checking">—</span>` +
-            `<span id="footer-location" class="footer-label">UNITED KINGDOM</span>` +
+            `<span id="footer-location" class="footer-label"></span>` +
         `</div>`;
 
     let navEl = document.getElementById('nav') as HTMLElement | null;
