@@ -86,5 +86,5 @@ async def land_page(request: Request):
 
 # ── Static files ───────────────────────────────────────────────────────────────
 # Mount specific directories rather than "/" so page routes are never shadowed.
-app.mount("/assets",   StaticFiles(directory=str(ROOT_DIR / "assets")),   name="assets")
+app.mount("/assets",   StaticFiles(directory=str(ROOT_DIR / "frontend" / "assets")),   name="assets")
 app.mount("/frontend", StaticFiles(directory=str(ROOT_DIR / "frontend")),  name="frontend")
