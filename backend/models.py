@@ -22,6 +22,22 @@ class AdsbCache(Base):
     expires_at = Column(Integer, nullable=False)            # fetched_at + TTL_MS
 
 
+class TleCache(Base):
+    """Cached TLE text fetched from Celestrak.
+
+    cache_key is the NORAD catalogue number as a string (e.g. '25544').
+    payload stores the raw three-line element text (name + TLE1 + TLE2).
+    Designed for long TTL — TLE data changes slowly (Celestrak updates daily).
+    """
+    __tablename__ = "tle_cache"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    cache_key  = Column(Text, nullable=False, unique=True)  # NORAD ID e.g. "25544"
+    payload    = Column(Text, nullable=False)               # raw 3-line TLE text
+    fetched_at = Column(Integer, nullable=False)            # Unix ms when fetched
+    expires_at = Column(Integer, nullable=False)            # fetched_at + TTL_MS
+
+
 class AirMessage(Base):
     """Air-domain notification message (emergency squawks, system alerts, etc.)."""
     __tablename__ = "air_messages"

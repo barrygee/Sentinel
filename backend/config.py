@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     # Base URL for the airplanes.live ADS-B API
     adsb_upstream_base: str = "https://api.airplanes.live/v2"
 
+    # TLE data TTL — 1 hour (TLE changes slowly; Celestrak updates daily)
+    tle_ttl_ms: int = 3_600_000
+    # Stale window for TLE — 12 hours (serve old TLE if Celestrak is unreachable)
+    tle_stale_ms: int = 43_200_000
+    # Celestrak TLE URL for the ISS (NORAD ID 25544)
+    celestrak_iss_url: str = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

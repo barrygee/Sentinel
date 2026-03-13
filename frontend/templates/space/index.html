@@ -1,13 +1,28 @@
 {% extends "base.html" %}
 
+{% block head %}
+    <link rel="stylesheet" href="/frontend/components/space/overlay/space-side-menu.css">
+{% endblock %}
+
 {% block content %}
-    <div id="domain-status-banner">
-        <span class="domain-status-label">SPACE</span>
-        <span class="domain-status-msg">COMING SOON</span>
-    </div>
     <div id="map"></div>
 {% endblock %}
 
 {% block scripts %}
-    <script src="/frontend/assets/template.js"></script>
+    <!-- Space component: shared globals and state -->
+    <script src="/frontend/components/space/init/space-globals.js"></script>
+    <script src="/frontend/components/space/overlay/space-overlay-state.js"></script>
+    <script src="/frontend/components/space/init/space-map-alias.js"></script>
+
+    <!-- Space component: map overlay controls -->
+    <script src="/frontend/components/air/controls/sentinel-control-base/sentinel-control-base.js"></script>
+    <script src="/frontend/components/space/controls/daynight/daynight-control.js"></script>
+    <script src="/frontend/components/space/controls/iss/iss-control.js"></script>
+
+    <!-- Style reload re-init (must follow all controls) -->
+    <script src="/frontend/components/space/init/space-overlay-reinit.js"></script>
+
+    <!-- Side menu and boot -->
+    <script src="/frontend/components/space/overlay/space-side-menu.js"></script>
+    <script src="/frontend/components/space/init/space-boot.js"></script>
 {% endblock %}
