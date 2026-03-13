@@ -9,8 +9,8 @@
 //             airportsControl, militaryBasesControl, _syncSideMenuForPlanes
 // ============================================================
 
-/// <reference path="../globals.d.ts" />
-/// <reference path="../types.ts" />
+/// <reference path="../../globals.d.ts" />
+/// <reference path="../../types.ts" />
 
 window._FilterPanel = (() => {
     let _open = false;
