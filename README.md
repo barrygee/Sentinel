@@ -123,11 +123,10 @@ uv add <package>
 | Data | Source |
 |------|--------|
 | Live aircraft (ADS-B) | [airplanes.live](https://airplanes.live) public API — 250 nm radius, polled every 1 s |
-| Reverse geocoding | [Nominatim](https://nominatim.openstreetmap.org) — throttled, cached 10 min |
 | Map tiles (online) | [OpenFreeMap](https://openfreemap.org) vector tiles |
 | Map tiles (offline) | Locally bundled PMTiles (`uk.pmtiles`, `surroundings.pmtiles`) |
 | World overview tiles | Natural Earth raster tiles downloaded via `download-world-tiles.py` |
-| Airports, RAF bases, AARA, AWACS | Hardcoded GeoJSON in `main.js` |
+| Airports, Military bases, AARA, AWACS | Hardcoded GeoJSON in `main.js` |
 
 Offline tiles cover approximately 20°W–32°E, 44°N–67°N.
 
@@ -163,28 +162,6 @@ This downloads **5,461 PNG tiles** from [OpenFreeMap](https://openfreemap.org) (
 - Notifications and aircraft tracking panel
 - 3D tilt mode
 - Filter panel (callsign / ICAO / squawk search, ALL / CIVIL / MIL / HIDE modes)
-
----
-
-## Testing Emergency Visuals
-
-A dev helper (`squawk-test.js`) mocks the ADS-B feed to trigger emergency states.
-
-Load it in the browser console:
-
-```js
-const s = document.createElement('script'); s.src = '/squawk-test.js'; document.head.appendChild(s);
-sqkTest.help()
-```
-
-Key commands:
-
-```js
-sqkTest.enterEmergency('7700')   // trigger emergency aircraft
-sqkTest.fullFlow('7700', 8000)   // full flow: emergency → hold 8s → clear
-sqkTest.allCodes()               // test 7700, 7600, 7500 simultaneously
-sqkTest.restore()                // restore real ADS-B feed
-```
 
 ---
 
