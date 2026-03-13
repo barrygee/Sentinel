@@ -44,10 +44,6 @@ async def health_check():
 
 # ── Root-level static files ────────────────────────────────────────────────────
 
-@app.get("/style.css")
-async def style_css():
-    return FileResponse(ROOT_DIR / "style.css", media_type="text/css")
-
 @app.get("/favicon.ico")
 async def favicon_ico():
     return FileResponse(ROOT_DIR / "frontend" / "assets" / "favicon.ico", media_type="image/x-icon")
