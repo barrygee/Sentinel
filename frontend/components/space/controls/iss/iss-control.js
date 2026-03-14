@@ -74,23 +74,23 @@ class IssControl extends SentinelControlBase {
         const ctx = canvas.getContext('2d');
         const cx = size / 2, cy = size / 2;
 
-        // Body: diamond shape in lime
+        // Body: diamond shape in white
         ctx.beginPath();
         ctx.moveTo(cx, cy - 11);
         ctx.lineTo(cx + 9, cy);
         ctx.lineTo(cx, cy + 11);
         ctx.lineTo(cx - 9, cy);
         ctx.closePath();
-        ctx.fillStyle = '#c8ff00';
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
 
         // Solar panels: horizontal bars
-        ctx.fillStyle = 'rgba(200,255,0,0.55)';
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
         ctx.fillRect(cx - 28, cy - 4, 15, 8);  // left panel
         ctx.fillRect(cx + 13,  cy - 4, 15, 8);  // right panel
 
         // Antenna: vertical line up
-        ctx.strokeStyle = 'rgba(200,255,0,0.55)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(cx, cy - 11);
