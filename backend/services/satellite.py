@@ -104,10 +104,9 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
 
 
 def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
-    """Compute past 1 orbit and next 2 orbits as a GeoJSON FeatureCollection.
+    """Compute current and next orbit as a GeoJSON FeatureCollection.
 
     ISS orbital period ~92 minutes, so:
-      - past:    -92..0   minutes  → properties.track = 'past'
       - orbit1:   0..92   minutes  → properties.track = 'orbit1'  (current orbit)
       - orbit2:  92..184  minutes  → properties.track = 'orbit2'  (next orbit)
 
@@ -119,7 +118,6 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     features = []
 
     for track_type, start_min, end_min in [
-        ("past",   -92,   0),
         ("orbit1",   0,  92),
         ("orbit2",  92, 184),
     ]:

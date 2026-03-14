@@ -6,7 +6,6 @@
 // Renders all three as MapLibre layers.
 //
 // Layers:
-//   iss-track-past    — dashed dim line (previous orbit)
 //   iss-track-orbit1  — solid bright line (current orbit)
 //   iss-track-orbit2  — solid dimmer line (next orbit)
 //   iss-footprint     — dashed circle (visibility horizon)
@@ -127,7 +126,7 @@ class IssControl extends SentinelControlBase {
     // ---- Layer init ----
     initLayers() {
         // Clean up existing layers/sources
-        ['iss-track-past', 'iss-track-future', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-footprint-fill', 'iss-footprint', 'iss-bracket', 'iss-icon'].forEach(id => {
+        ['iss-track-orbit1', 'iss-track-orbit2', 'iss-footprint-fill', 'iss-footprint', 'iss-bracket', 'iss-icon'].forEach(id => {
             try { this.map.removeLayer(id); } catch (e) {}
         });
         ['iss-track-source', 'iss-footprint-source', 'iss-live'].forEach(id => {
@@ -147,21 +146,6 @@ class IssControl extends SentinelControlBase {
 
         // Ground track source — past, orbit1, orbit2 features in one collection
         this.map.addSource('iss-track-source', { type: 'geojson', data: this._trackGeojson });
-
-        // Past orbit: dashed, dim
-        this.map.addLayer({
-            id: 'iss-track-past',
-            type: 'line',
-            source: 'iss-track-source',
-            filter: ['==', ['get', 'track'], 'past'],
-            layout: { visibility: trackVis },
-            paint: {
-                'line-color': '#c8ff00',
-                'line-width': 1.5,
-                'line-opacity': 0.30,
-                'line-dasharray': [4, 3],
-            },
-        });
 
         // Current orbit: solid, bright
         this.map.addLayer({
@@ -438,7 +422,7 @@ class IssControl extends SentinelControlBase {
         ['iss-icon', 'iss-bracket'].forEach(id => {
             try { this.map.setLayoutProperty(id, 'visibility', issVis); } catch (e) {}
         });
-        ['iss-track-past', 'iss-track-orbit1', 'iss-track-orbit2'].forEach(id => {
+        ['iss-track-orbit1', 'iss-track-orbit2'].forEach(id => {
             try { this.map.setLayoutProperty(id, 'visibility', trackVis); } catch (e) {}
         });
         ['iss-footprint-fill', 'iss-footprint'].forEach(id => {
@@ -459,7 +443,7 @@ class IssControl extends SentinelControlBase {
     toggleTrack() {
         this.trackVisible = !this.trackVisible;
         const trackVis = (this.issVisible && this.trackVisible) ? 'visible' : 'none';
-        ['iss-track-past', 'iss-track-orbit1', 'iss-track-orbit2'].forEach(id => {
+        ['iss-track-orbit1', 'iss-track-orbit2'].forEach(id => {
             try { this.map.setLayoutProperty(id, 'visibility', trackVis); } catch (e) {}
         });
         if (typeof _spaceSyncSideMenu === 'function') _spaceSyncSideMenu();
