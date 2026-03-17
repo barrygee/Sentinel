@@ -231,6 +231,10 @@
     right: calc(100% + 8px + 50.67px);
 }
 
+#space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(3)[data-tooltip]::before {
+    right: calc(100% + 8px + 101.33px);
+}
+
 #space-side-menu.expanded #space-side-menu-toggle[data-tooltip]::before {
     right: calc(100% + 8px);
 }
