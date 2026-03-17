@@ -349,31 +349,31 @@ class IssControl extends SentinelControlBase {
     _buildTagEl(props) {
         const el = document.createElement('div');
         el.style.cssText = [
-            'background:#000',
-            'border:1px solid rgba(200,255,0,0.5)',
-            'color:#fff',
-            'font-family:"Barlow Condensed","Barlow","Helvetica Neue",Arial,sans-serif',
-            'font-size:11px',
-            'letter-spacing:0.08em',
-            'padding:8px 12px',
             'pointer-events:none',
             'white-space:nowrap',
             'z-index:1000',
-            'transform:translate(-50%,-115%)',
         ].join(';');
         el.innerHTML = this._tagHTML(props);
         return el;
     }
 
     _tagHTML(p) {
-        return [
-            `<div style="color:#c8ff00;font-weight:700;font-size:12px;margin-bottom:4px">ISS</div>`,
-            `<div>ALT&nbsp;&nbsp;<span style="color:#c8ff00">${p.alt_km} km</span></div>`,
-            `<div>VEL&nbsp;&nbsp;<span style="color:#c8ff00">${p.velocity_kms} km/s</span></div>`,
-            `<div>HDG&nbsp;&nbsp;<span style="color:#c8ff00">${p.track_deg}°</span></div>`,
-            `<div>LAT&nbsp;&nbsp;<span style="color:rgba(255,255,255,0.6)">${p.lat}°</span></div>`,
-            `<div>LON&nbsp;&nbsp;<span style="color:rgba(255,255,255,0.6)">${p.lon}°</span></div>`,
-        ].join('');
+        const rows = [
+            ['ALT', `${p.alt_km} km`],
+            ['VEL', `${p.velocity_kms} km/s`],
+            ['HDG', `${p.track_deg}°`],
+            ['LAT', `${p.lat}°`],
+            ['LON', `${p.lon}°`],
+        ];
+        const rowsHTML = rows.map(([lbl, val]) =>
+            `<div style="display:flex;gap:14px;line-height:1.8">` +
+            `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
+            `<span>${val}</span></div>`
+        ).join('');
+        return `<div style="background:rgba(0,0,0,0.7);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;padding:6px 14px 9px;white-space:nowrap;user-select:none">` +
+            `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;font-size:15px;letter-spacing:.12em;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
+            `<span style="font-size:13px;font-weight:400;pointer-events:none;color:#c8ff00;letter-spacing:.12em">ISS</span></div>` +
+            `<div style="pointer-events:none">` + rowsHTML + `</div></div>`;
     }
 
     _updateTagContent(position) {
@@ -388,7 +388,7 @@ class IssControl extends SentinelControlBase {
         const coords = e.features[0].geometry.coordinates;
         this._hideTag();
         const el = this._buildTagEl(props);
-        this._tagMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        this._tagMarker = new maplibregl.Marker({ element: el, anchor: 'top-left', offset: [14, -13] })
             .setLngLat(coords)
             .addTo(this.map);
     }
