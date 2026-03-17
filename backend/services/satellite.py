@@ -172,6 +172,150 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     return {"type": "FeatureCollection", "features": features}
 
 
+def _angular_distance_rad(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return the great-circle angular distance (radians) between two lat/lon points."""
+    lat1r, lon1r = math.radians(lat1), math.radians(lon1)
+    lat2r, lon2r = math.radians(lat2), math.radians(lon2)
+    dlat = lat2r - lat1r
+    dlon = lon2r - lon1r
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1r) * math.cos(lat2r) * math.sin(dlon / 2) ** 2
+    return 2 * math.asin(math.sqrt(a))
+
+
+def _elevation_deg(dist_rad: float, alt_km: float) -> float:
+    """Return observer elevation angle (degrees) given angular distance from sub-satellite point."""
+    if dist_rad <= 0:
+        return 90.0
+    return math.degrees(math.atan(
+        (math.cos(dist_rad) - (_RE_KM / (_RE_KM + alt_km))) / math.sin(dist_rad)
+    ))
+
+
+def _jday_offset(jd: int, fr: float, offset_seconds: float) -> tuple[int, float]:
+    """Return (jd, fr) shifted by offset_seconds."""
+    fr_new = fr + offset_seconds / 86400.0
+    jd_new = jd
+    if fr_new >= 1.0:
+        extra = int(fr_new)
+        jd_new += extra
+        fr_new -= extra
+    elif fr_new < 0.0:
+        extra = int(abs(fr_new)) + 1
+        jd_new -= extra
+        fr_new += extra
+    return jd_new, fr_new
+
+
+def compute_passes(
+    tle_line1: str,
+    tle_line2: str,
+    obs_lat: float,
+    obs_lon: float,
+    lookahead_hours: int = 24,
+    min_elevation_deg: float = 0.0,
+) -> list[dict]:
+    """Predict passes of the satellite above the observer's horizon.
+
+    A pass begins (AOS) when the satellite rises above the observer's horizon
+    (elevation >= 0°) and ends (LOS) when it sets below the horizon.
+
+    Returns up to 10 passes within lookahead_hours, each with:
+      aos_utc, los_utc, aos_unix_ms, los_unix_ms, duration_s,
+      max_elevation_deg, max_el_utc
+    """
+    sat = Satrec.twoline2rv(tle_line1, tle_line2)
+    jd, fr = _jday_now()
+    now = datetime.now(timezone.utc)
+
+    total_minutes = lookahead_hours * 60
+    passes: list[dict] = []
+
+    # --- coarse scan at 1-minute resolution ---
+    prev_visible = False
+    # Track (minute_offset, elevation) for the current pass window
+    pass_start_min: float | None = None
+    pass_samples: list[tuple[float, float]] = []  # (offset_seconds, elev_deg)
+
+    def _vis_at(offset_s: float) -> tuple[bool, float, float]:
+        """Return (visible, elevation_deg, alt_km) at now + offset_s."""
+        jd_t, fr_t = _jday_offset(jd, fr, offset_s)
+        result = _propagate_at(sat, jd_t, fr_t)
+        if result is None:
+            return False, -90.0, 0.0
+        r, _ = result
+        t_prop = now + timedelta(seconds=offset_s)
+        lat, lon, alt_km = _eci_to_geodetic(r, t_prop)
+        fp_rad = math.acos(max(-1.0, min(1.0, _RE_KM / (_RE_KM + alt_km))))
+        dist_rad = _angular_distance_rad(lat, lon, obs_lat, obs_lon)
+        elev = _elevation_deg(dist_rad, alt_km)
+        return dist_rad <= fp_rad, elev, alt_km
+
+    def _refine_transition(t_before_s: float, t_after_s: float) -> float:
+        """Binary-search to find the transition second within a 5-second resolution."""
+        lo, hi = t_before_s, t_after_s
+        for _ in range(10):
+            mid = (lo + hi) / 2
+            vis_mid, _, _ = _vis_at(mid)
+            if vis_mid == _vis_at(t_before_s)[0]:
+                lo = mid
+            else:
+                hi = mid
+        return (lo + hi) / 2
+
+    for minute in range(total_minutes + 1):
+        offset_s = minute * 60.0
+        visible, elev, _ = _vis_at(offset_s)
+
+        if visible and not prev_visible:
+            # AOS transition
+            aos_s = _refine_transition((minute - 1) * 60.0, offset_s) if minute > 0 else 0.0
+            pass_start_min = aos_s
+            pass_samples = [(offset_s, elev)]
+        elif visible and prev_visible:
+            pass_samples.append((offset_s, elev))
+        elif not visible and prev_visible and pass_start_min is not None:
+            # LOS transition
+            los_s = _refine_transition((minute - 1) * 60.0, offset_s)
+
+            # Find max elevation within pass
+            best_s, best_elev = max(pass_samples, key=lambda x: x[1])
+            # Refine max elevation time at 5-second resolution
+            lo_s = max(pass_start_min, best_s - 60.0)
+            hi_s = min(los_s, best_s + 60.0)
+            max_elev = best_elev
+            max_elev_s = best_s
+            step = lo_s
+            while step <= hi_s:
+                _, e, _ = _vis_at(step)
+                if e > max_elev:
+                    max_elev = e
+                    max_elev_s = step
+                step += 5.0
+
+            if max_elev >= min_elevation_deg:
+                aos_dt = now + timedelta(seconds=pass_start_min)
+                los_dt = now + timedelta(seconds=los_s)
+                max_el_dt = now + timedelta(seconds=max_elev_s)
+                passes.append({
+                    "aos_utc":           aos_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "los_utc":           los_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "aos_unix_ms":       int(aos_dt.timestamp() * 1000),
+                    "los_unix_ms":       int(los_dt.timestamp() * 1000),
+                    "duration_s":        int(los_s - pass_start_min),
+                    "max_elevation_deg": round(max_elev, 1),
+                    "max_el_utc":        max_el_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                })
+                if len(passes) >= 10:
+                    break
+
+            pass_start_min = None
+            pass_samples = []
+
+        prev_visible = visible
+
+    return passes
+
+
 def compute_footprint(lat: float, lon: float, alt_km: float) -> list[list[float]]:
     """Compute the ISS visibility footprint (horizon circle) as a list of [lon, lat] points.
 

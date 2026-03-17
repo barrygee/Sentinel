@@ -76,9 +76,6 @@ function _checkInternetConnection() {
             _mapConnState = true;
             _updateConnStatusPill(true);
             _switchMapStyle(true);
-            if (typeof window._Notifications !== 'undefined') {
-                window._Notifications.add({ type: 'system', title: 'ONLINE', detail: 'Connection restored' });
-            }
         }
     })
         .catch(() => {
@@ -86,9 +83,6 @@ function _checkInternetConnection() {
             _mapConnState = false;
             _updateConnStatusPill(false);
             _switchMapStyle(false);
-            if (typeof window._Notifications !== 'undefined') {
-                window._Notifications.add({ type: 'system', title: 'OFFLINE', detail: 'Connection lost' });
-            }
         }
     });
 }

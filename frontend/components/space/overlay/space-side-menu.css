@@ -154,6 +154,12 @@
     display: flex;
 }
 
+/* ---- Hide footprint/ISS/day-night groups when collapsed ---- */
+#space-side-menu:not(.expanded) #ssm-group-iss,
+#space-side-menu:not(.expanded) #ssm-group-daynight {
+    display: none;
+}
+
 /* ---- Tooltips ---- */
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip],
 #space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip],
@@ -229,6 +235,10 @@
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(2)[data-tooltip]::before {
     right: calc(100% + 8px + 50.67px);
+}
+
+#space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(3)[data-tooltip]::before {
+    right: calc(100% + 8px + 101.33px);
 }
 
 #space-side-menu.expanded #space-side-menu-toggle[data-tooltip]::before {
