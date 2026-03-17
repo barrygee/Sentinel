@@ -362,6 +362,15 @@ window._FilterPanel = (() => {
         else
             open();
     }
+    function _saveAdsbFilter() {
+        try {
+            localStorage.setItem('adsbFilter', JSON.stringify({
+                typeFilter: adsbControl ? adsbControl._typeFilter : 'all',
+                allHidden: adsbControl ? adsbControl._allHidden : false,
+            }));
+        }
+        catch (e) { }
+    }
     function init() {
         const input = _getInput();
         const clearBtn = _getClearBtn();
@@ -454,6 +463,7 @@ window._FilterPanel = (() => {
                             });
                         }
                         adsbControl.setAllHidden(hiding);
+                        _saveAdsbFilter();
                         if (_syncSideMenuForPlanes)
                             _syncSideMenuForPlanes();
                     });
@@ -474,10 +484,33 @@ window._FilterPanel = (() => {
                                 _syncSideMenuForPlanes();
                         }
                         adsbControl.setTypeFilter(mode);
+                        _saveAdsbFilter();
                         modeBar.querySelectorAll('[data-mode]:not([data-mode="none"])').forEach(b => b.classList.toggle('active', b === modeBtn));
                     });
                 }
             });
+            // ---- Restore persisted filter state ----
+            try {
+                const saved = localStorage.getItem('adsbFilter');
+                if (saved) {
+                    const { typeFilter, allHidden } = JSON.parse(saved);
+                    if (adsbControl) {
+                        if (allHidden) {
+                            adsbControl.setAllHidden(true);
+                            const hideBtn = modeBar.querySelector('[data-mode="none"]');
+                            if (hideBtn) { hideBtn.textContent = 'SHOW ALL'; hideBtn.classList.add('active'); }
+                            modeBar.querySelectorAll('[data-mode]:not([data-mode="none"])').forEach(b => b.classList.remove('active'));
+                        }
+                        else if (typeFilter && typeFilter !== 'all') {
+                            adsbControl.setTypeFilter(typeFilter);
+                            modeBar.querySelectorAll('[data-mode]:not([data-mode="none"])').forEach(b => {
+                                b.classList.toggle('active', b.dataset['mode'] === typeFilter);
+                            });
+                        }
+                    }
+                }
+            }
+            catch (e) { }
         }
     }
     return { open, close, toggle, init, reposition: _repositionPanel };
