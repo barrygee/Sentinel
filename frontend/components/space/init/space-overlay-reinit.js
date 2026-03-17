@@ -8,8 +8,15 @@
 // Must be loaded after all space control instances have been constructed.
 // ============================================================
 window.MapComponent.onStyleLoad(function () {
-    if (daynightControl)
+    if (daynightControl) {
         daynightControl.initLayers();
-    if (issControl)
+        daynightControl._fetch();
+    }
+    if (issControl) {
         issControl.initLayers();
+        if (issControl.issVisible) {
+            issControl._fetch();
+            issControl._startPolling();
+        }
+    }
 });
