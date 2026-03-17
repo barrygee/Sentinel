@@ -33,6 +33,7 @@ class IssControl extends SentinelControlBase {
         this._lastPosition = null;
         this._labelMarker = null;
         this._followEnabled = false;
+        this._trackingRestored = false;
         this._hoverHideTimer = null;
         // GeoJSON stores
         this._issGeojson = { type: 'FeatureCollection', features: [] };
@@ -267,6 +268,11 @@ class IssControl extends SentinelControlBase {
             const fpSource = this.map && this.map.getSource('iss-footprint-source');
             if (fpSource)
                 fpSource.setData(this._footprintGeojson);
+            // Restore tracking state on first fetch after page load
+            if (!this._trackingRestored) {
+                this._trackingRestored = true;
+                this._restoreIssTracking();
+            }
             // Keep callsign label in sync (only when tag is not shown)
             if (this.issVisible && !this._hoverTagMarker && !this._followEnabled) {
                 this._showLabel(position.lon, position.lat);
@@ -329,8 +335,8 @@ class IssControl extends SentinelControlBase {
             const trkSpan = document.createElement('span');
             trkSpan.style.cssText = 'color:#c8ff00;font-size:10px;font-weight:700;letter-spacing:.1em;transition:color 0.2s';
             trkSpan.textContent = 'TRACKING';
-            el.addEventListener('mouseenter', () => { trkSpan.textContent = 'UNTRACK'; trkSpan.style.color = 'rgba(255,255,255,0.75)'; });
-            el.addEventListener('mouseleave', () => { trkSpan.textContent = 'TRACKING'; trkSpan.style.color = '#c8ff00'; });
+            el.addEventListener('mouseenter', () => { trkSpan.textContent = 'UNTRACK'; });
+            el.addEventListener('mouseleave', () => { trkSpan.textContent = 'TRACKING'; });
             el.appendChild(trkSpan);
         }
         return el;
@@ -467,6 +473,27 @@ class IssControl extends SentinelControlBase {
             this._startFollowing();
         });
     }
+    // ---- Tracking state persistence ----
+    _saveIssTracking() {
+        try {
+            if (this._followEnabled) {
+                localStorage.setItem('issTracking', '1');
+            }
+            else {
+                localStorage.removeItem('issTracking');
+            }
+        }
+        catch (e) { }
+    }
+    _restoreIssTracking() {
+        try {
+            if (localStorage.getItem('issTracking') === '1' && this._lastPosition) {
+                localStorage.removeItem('issTracking');
+                this._startFollowing();
+            }
+        }
+        catch (e) { }
+    }
     // ---- Following / tracked tag ----
     _startFollowing() {
         if (!this._lastPosition)
@@ -490,6 +517,7 @@ class IssControl extends SentinelControlBase {
         this.map.easeTo({ center: coords, duration: 600 });
         // Show tracking info in footer panel
         this._showStatusBar(pos);
+        this._saveIssTracking();
     }
     _wireUntrackButton(el) {
         const btn = el.querySelector('.iss-track-btn');
@@ -512,6 +540,7 @@ class IssControl extends SentinelControlBase {
                 .addTo(this.map);
         }
         this._hideStatusBar();
+        this._saveIssTracking();
     }
     // ---- Status bar ----
     _buildStatusBarHTML(p) {

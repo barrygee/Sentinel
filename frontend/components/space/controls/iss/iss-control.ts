@@ -46,8 +46,9 @@ class IssControl extends SentinelControlBase {
     _hoverTagMarker:  maplibregl.Marker | null;
     _lastPosition:    IssPosition | null;
     _labelMarker:     maplibregl.Marker | null;
-    _followEnabled:   boolean;
-    _hoverHideTimer:  ReturnType<typeof setTimeout> | null;
+    _followEnabled:      boolean;
+    _trackingRestored:   boolean;
+    _hoverHideTimer:     ReturnType<typeof setTimeout> | null;
     _issGeojson:      GeoJSON.FeatureCollection;
     _trackGeojson:    GeoJSON.FeatureCollection;
     _footprintGeojson: GeoJSON.FeatureCollection;
@@ -62,8 +63,9 @@ class IssControl extends SentinelControlBase {
         this._hoverTagMarker  = null;
         this._lastPosition    = null;
         this._labelMarker     = null;
-        this._followEnabled   = false;
-        this._hoverHideTimer  = null;
+        this._followEnabled     = false;
+        this._trackingRestored  = false;
+        this._hoverHideTimer    = null;
         // GeoJSON stores
         this._issGeojson       = { type: 'FeatureCollection', features: [] };
         this._trackGeojson     = { type: 'FeatureCollection', features: [] };
@@ -317,6 +319,12 @@ class IssControl extends SentinelControlBase {
             const fpSource = this.map && this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined;
             if (fpSource) fpSource.setData(this._footprintGeojson);
 
+            // Restore tracking state on first fetch after page load
+            if (!this._trackingRestored) {
+                this._trackingRestored = true;
+                this._restoreIssTracking();
+            }
+
             // Keep callsign label in sync (only when tag is not shown)
             if (this.issVisible && !this._hoverTagMarker && !this._followEnabled) {
                 this._showLabel(position.lon, position.lat);
@@ -378,8 +386,8 @@ class IssControl extends SentinelControlBase {
             const trkSpan = document.createElement('span');
             trkSpan.style.cssText = 'color:#c8ff00;font-size:10px;font-weight:700;letter-spacing:.1em;transition:color 0.2s';
             trkSpan.textContent = 'TRACKING';
-            el.addEventListener('mouseenter', () => { trkSpan.textContent = 'UNTRACK'; trkSpan.style.color = 'rgba(255,255,255,0.75)'; });
-            el.addEventListener('mouseleave', () => { trkSpan.textContent = 'TRACKING'; trkSpan.style.color = '#c8ff00'; });
+            el.addEventListener('mouseenter', () => { trkSpan.textContent = 'UNTRACK'; });
+            el.addEventListener('mouseleave', () => { trkSpan.textContent = 'TRACKING'; });
             el.appendChild(trkSpan);
         }
         return el;
@@ -514,6 +522,26 @@ class IssControl extends SentinelControlBase {
     }
 
     // ---- Following / tracked tag ----
+    // ---- Tracking state persistence ----
+    private _saveIssTracking(): void {
+        try {
+            if (this._followEnabled) {
+                localStorage.setItem('issTracking', '1');
+            } else {
+                localStorage.removeItem('issTracking');
+            }
+        } catch (e) {}
+    }
+
+    private _restoreIssTracking(): void {
+        try {
+            if (localStorage.getItem('issTracking') === '1' && this._lastPosition) {
+                localStorage.removeItem('issTracking');
+                this._startFollowing();
+            }
+        } catch (e) {}
+    }
+
     private _startFollowing(): void {
         if (!this._lastPosition) return;
         this._followEnabled = true;
@@ -537,6 +565,7 @@ class IssControl extends SentinelControlBase {
 
         // Show tracking info in footer panel
         this._showStatusBar(pos);
+        this._saveIssTracking();
     }
 
     private _wireUntrackButton(el: HTMLElement): void {
@@ -560,6 +589,7 @@ class IssControl extends SentinelControlBase {
                 .addTo(this.map);
         }
         this._hideStatusBar();
+        this._saveIssTracking();
     }
 
     // ---- Status bar ----

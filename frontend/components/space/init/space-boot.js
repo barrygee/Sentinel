@@ -20,6 +20,9 @@ else {
 if (typeof window._Notifications !== 'undefined') {
     window._Notifications.init();
 }
+if (typeof window._Tracking !== 'undefined') {
+    window._Tracking.init();
+}
 // ---- 2b. Sync space overlay states from backend (after controls are ready) ----
 map.once('load', function () {
     if (typeof _syncSpaceOverlayStatesFromBackend === 'function') {
