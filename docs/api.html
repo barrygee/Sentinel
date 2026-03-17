@@ -32,6 +32,8 @@
     <a href="#geocode">Geocode Proxy</a>
     <a href="#messages">Messages</a>
     <a href="#tracking">Tracking</a>
+    <h4>Settings</h4>
+    <a href="#settings">User Settings</a>
     <h4>Stub Domains</h4>
     <a href="#space">Space</a>
     <a href="#sea">Sea</a>
@@ -284,6 +286,79 @@
             <tr><td>404</td><td>No tracked aircraft with this hex</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="section" id="settings">
+      <h2>User Settings</h2>
+      <p>Persist and retrieve user preferences. Values are stored as JSON in the <code>user_settings</code> SQLite table, keyed by <code>(namespace, key)</code>. All PUT operations are upserts — duplicate keys update the existing row.</p>
+
+      <h4>Namespaces</h4>
+      <table>
+        <thead><tr><th>Namespace</th><th>Current keys</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>app</code></td><td><code>theme</code></td><td>Application-wide preferences (e.g. <code>"light"</code> / <code>"dark"</code>)</td></tr>
+          <tr><td><code>air</code></td><td><code>overlayStates</code></td><td>Air domain overlay toggle states (JSON object)</td></tr>
+          <tr><td><code>space</code>, <code>sea</code>, <code>land</code>, <code>sdr</code></td><td>—</td><td>Reserved for future domain settings</td></tr>
+        </tbody>
+      </table>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="tag tag-get">GET</span>
+          <h3>/api/settings</h3>
+        </div>
+        <p>Returns all persisted settings grouped by namespace. Namespaces with no saved settings are omitted.</p>
+        <h4>Response</h4>
+        <pre><code>{
+  "app": {
+    "theme": "dark"
+  },
+  "air": {
+    "overlayStates": { "airports": true, "military": false }
+  }
+}</code></pre>
+      </div>
+
+      <div class="card" style="margin-top: 12px;">
+        <div class="card-header">
+          <span class="tag tag-get">GET</span>
+          <h3>/api/settings/{namespace}</h3>
+        </div>
+        <p>Returns all settings for a single namespace as a flat key/value object. Returns an empty object if the namespace has no saved settings.</p>
+        <h4>Path Parameters</h4>
+        <table>
+          <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>namespace</code></td><td>string</td><td>One of: <code>app</code>, <code>air</code>, <code>space</code>, <code>sea</code>, <code>land</code>, <code>sdr</code></td></tr>
+          </tbody>
+        </table>
+        <h4>Response</h4>
+        <pre><code>{
+  "theme": "dark"
+}</code></pre>
+      </div>
+
+      <div class="card" style="margin-top: 12px;">
+        <div class="card-header">
+          <span class="tag tag-put">PUT</span>
+          <h3>/api/settings/{namespace}/{key}</h3>
+          <code style="margin-left: auto; font-size: 0.8rem;">200 OK</code>
+        </div>
+        <p>Create or update a single setting. If a row for <code>(namespace, key)</code> already exists it is updated in-place; otherwise a new row is inserted.</p>
+        <h4>Path Parameters</h4>
+        <table>
+          <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>namespace</code></td><td>string</td><td>Setting namespace (e.g. <code>app</code>)</td></tr>
+            <tr><td><code>key</code></td><td>string</td><td>Setting key (e.g. <code>theme</code>)</td></tr>
+          </tbody>
+        </table>
+        <h4>Request Body</h4>
+        <pre><code>{ "value": "dark" }</code></pre>
+        <p>The <code>value</code> field accepts any JSON-serialisable type: string, boolean, number, object, or array.</p>
+        <h4>Response</h4>
+        <pre><code>{ "status": "ok" }</code></pre>
       </div>
     </div>
 

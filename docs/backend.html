@@ -33,6 +33,7 @@
     <a href="#models">models.py</a>
     <h4>Routers</h4>
     <a href="#router-air">air.py</a>
+    <a href="#router-settings">settings.py</a>
     <a href="#router-space">space.py</a>
     <a href="#router-sea">sea.py</a>
     <a href="#router-land">land.py</a>
@@ -153,6 +154,7 @@
         <thead><tr><th>Router</th><th>Prefix</th><th>Status</th></tr></thead>
         <tbody>
           <tr><td><code>routers.air</code></td><td><code>/api/air</code></td><td><span class="tag tag-live">Live</span></td></tr>
+          <tr><td><code>routers.settings</code></td><td><code>/api/settings</code></td><td><span class="tag tag-live">Live</span></td></tr>
           <tr><td><code>routers.space</code></td><td><code>/api/space</code></td><td><span class="tag tag-stub">Stub</span></td></tr>
           <tr><td><code>routers.sea</code></td><td><code>/api/sea</code></td><td><span class="tag tag-stub">Stub</span></td></tr>
           <tr><td><code>routers.land</code></td><td><code>/api/land</code></td><td><span class="tag tag-stub">Stub</span></td></tr>
@@ -276,6 +278,27 @@
           <tr><td><code>added_at</code></td><td>BigInteger</td><td>Unix ms when tracking started</td></tr>
         </tbody>
       </table>
+
+      <h3>UserSettings</h3>
+      <p>Persists user preferences across browser sessions. Keyed by <code>(namespace, key)</code> — one row per setting. Values are stored as JSON strings, allowing any JSON-serialisable type (boolean, string, object, array). A composite unique constraint on <code>(namespace, key)</code> means every PUT is an upsert.</p>
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>Integer PK</td><td>Auto-increment primary key</td></tr>
+          <tr><td><code>namespace</code></td><td>Text</td><td><code>'app'</code> | <code>'air'</code> | <code>'space'</code> | <code>'sea'</code> | <code>'land'</code> | <code>'sdr'</code></td></tr>
+          <tr><td><code>key</code></td><td>Text</td><td>Setting name — e.g. <code>'theme'</code>, <code>'overlayStates'</code></td></tr>
+          <tr><td><code>value</code></td><td>Text</td><td>JSON-serialised value — e.g. <code>"dark"</code>, <code>true</code>, <code>{"airports":true}</code></td></tr>
+          <tr><td><code>updated_at</code></td><td>Integer</td><td>Unix ms timestamp of last write</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>Namespace</th><th>Current keys</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>app</code></td><td><code>theme</code></td><td>Application-wide preferences</td></tr>
+          <tr><td><code>air</code></td><td><code>overlayStates</code></td><td>Air domain overlay toggle states</td></tr>
+          <tr><td><code>space</code>, <code>sea</code>, <code>land</code>, <code>sdr</code></td><td>—</td><td>Reserved for future domain settings</td></tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="section" id="router-air">
@@ -301,6 +324,28 @@
         4. On upstream success → upsert to SQLite, return with <code>X-Cache: MISS</code>.<br>
         5. On upstream failure → if <code>is_within_stale(fetched_at, adsb_stale_ms)</code> → return stale with <code>X-Cache: STALE</code>.<br>
         6. Otherwise → raise HTTP 503.
+      </div>
+    </div>
+
+    <div class="section" id="router-settings">
+      <h2>routers/settings.py — User Settings Router</h2>
+      <p>All endpoints are prefixed <code>/api/settings</code>. Persists and retrieves user preferences in the <code>user_settings</code> SQLite table. Full endpoint details are in the <a href="api.html#settings">API Reference</a>.</p>
+
+      <h3>Endpoints</h3>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET</code></td><td><code>/api/settings</code></td><td>Returns all settings grouped by namespace as <code>{ namespace: { key: value } }</code></td></tr>
+          <tr><td><code>GET</code></td><td><code>/api/settings/{namespace}</code></td><td>Returns all settings for one namespace as <code>{ key: value }</code></td></tr>
+          <tr><td><code>PUT</code></td><td><code>/api/settings/{namespace}/{key}</code></td><td>Upserts a single setting. Body: <code>{ "value": any }</code>. Returns <code>{ "status": "ok" }</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Value Serialisation</h3>
+      <p>All values are stored as JSON strings in the <code>value</code> column and deserialised before returning. This means the API transparently handles booleans (<code>true</code>/<code>false</code>), strings (<code>"dark"</code>), and objects (<code>{"airports": true}</code>) without the caller needing to manage serialisation.</p>
+
+      <div class="callout info">
+        <strong>Fire-and-forget design:</strong> The frontend <code>window._SettingsAPI</code> client catches all errors from these endpoints and logs them to the console without propagating them. A settings persistence failure never interrupts the UI.
       </div>
     </div>
 
@@ -409,6 +454,7 @@ CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", 
           <tr><td><code>geocode_cache</code></td><td>1 per ~1km cell visited</td><td>Nominatim reverse-geocode results. Accumulates as new locations are visited.</td><td>Slow growth</td></tr>
           <tr><td><code>air_message</code></td><td>1 per notification ever shown</td><td>Notification history including dismissed ones (soft-delete). Can grow unbounded in long-running deployments.</td><td>Grows over time</td></tr>
           <tr><td><code>air_tracking</code></td><td>1 per tracked aircraft</td><td>Currently tracked aircraft. Small — deleted when aircraft is untracked.</td><td>Small / bounded</td></tr>
+          <tr><td><code>user_settings</code></td><td>1 per namespace/key pair</td><td>User preferences persisted across sessions (theme, overlay states, etc.). Upserted on every change — never grows beyond the number of distinct settings.</td><td>Bounded (upsert)</td></tr>
         </tbody>
       </table>
     </div>
@@ -510,6 +556,16 @@ conn.close()</code></pre>
     added_at BIGINT NOT NULL              -- Unix milliseconds
 );</code></pre>
 
+      <h3>user_settings</h3>
+      <pre><code>CREATE TABLE user_settings (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    namespace  TEXT NOT NULL,       -- 'app' | 'air' | 'space' | 'sea' | 'land' | 'sdr'
+    key        TEXT NOT NULL,       -- e.g. 'theme', 'overlayStates'
+    value      TEXT NOT NULL,       -- JSON-serialised value
+    updated_at INTEGER NOT NULL,    -- Unix milliseconds
+    UNIQUE (namespace, key)         -- composite unique constraint; PUT is an upsert
+);</code></pre>
+
       <h3>Useful Diagnostic Queries</h3>
       <pre><code>-- See what's currently in the ADS-B cache
 SELECT cache_key, ac_count,
@@ -528,7 +584,15 @@ FROM air_tracking ORDER BY added_at DESC;
 
 -- Check geocode cache coverage
 SELECT COUNT(*) as cached_cells FROM geocode_cache;
-SELECT cache_key FROM geocode_cache ORDER BY fetched_at DESC LIMIT 10;</code></pre>
+SELECT cache_key FROM geocode_cache ORDER BY fetched_at DESC LIMIT 10;
+
+-- List all persisted user settings
+SELECT namespace, key, value,
+       datetime(updated_at/1000, 'unixepoch') AS last_updated
+FROM user_settings ORDER BY namespace, key;
+
+-- Get all settings for the 'app' namespace
+SELECT key, value FROM user_settings WHERE namespace = 'app';</code></pre>
     </div>
 
     <div class="section" id="cache-strategy">
