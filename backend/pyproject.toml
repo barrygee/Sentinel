@@ -12,4 +12,5 @@ dependencies = [
     "uvicorn[standard]>=0.41.0",
     "jinja2>=3.1",
     "greenlet>=3.3.2",
+    "sgp4>=2.23",
 ]

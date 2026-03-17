@@ -228,7 +228,6 @@ _sentinelMap.setStyle(_mapStyleURL, { transformStyle: _fixStylePaths });
 _sentinelMap.scrollZoom.enable();
 // Style.load handler registration
 const _styleLoadCallbacks = [];
-let _styleHasLoadedOnce = false;
 _sentinelMap.on('style.load', () => {
     _sentinelMap.setMinZoom(_mapConnState ? 2 : 5);
     _sentinelMap.setMaxBounds(_mapConnState ? null : _OFFLINE_BOUNDS);
@@ -258,17 +257,14 @@ _sentinelMap.on('style.load', () => {
     }
     applyZoomDependentCityFilter();
     _sentinelMap.on('zoom', applyZoomDependentCityFilter);
-    if (_styleHasLoadedOnce) {
-        _styleLoadCallbacks.forEach(fn => {
-            try {
-                fn();
-            }
-            catch (e) {
-                console.error('style.load handler error:', e);
-            }
-        });
-    }
-    _styleHasLoadedOnce = true;
+    _styleLoadCallbacks.forEach(fn => {
+        try {
+            fn();
+        }
+        catch (e) {
+            console.error('style.load handler error:', e);
+        }
+    });
 });
 _sentinelMap.on('error', (e) => {
     const msg = e.error?.message ?? '';

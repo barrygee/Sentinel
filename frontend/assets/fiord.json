@@ -36,8 +36,13 @@
       "source-layer": "water",
       "filter": [
         "match",
-        ["geometry-type"],
-        ["MultiPolygon", "Polygon"],
+        [
+          "geometry-type"
+        ],
+        [
+          "MultiPolygon",
+          "Polygon"
+        ],
         true,
         false
       ],
@@ -61,7 +66,14 @@
       "type": "line",
       "source": "surroundings",
       "source-layer": "boundaries",
-      "filter": ["==", ["get", "kind_detail"], 2],
+      "filter": [
+        "==",
+        [
+          "get",
+          "kind_detail"
+        ],
+        2
+      ],
       "layout": {
         "line-cap": "round",
         "line-join": "round"
@@ -69,14 +81,24 @@
       "paint": {
         "line-blur": 0.4,
         "line-color": "hsla(195,47%,62%,0.26)",
-        "line-dasharray": [2, 2],
+        "line-dasharray": [
+          2,
+          2
+        ],
         "line-opacity": 1,
         "line-width": [
           "interpolate",
-          ["exponential", 1.3],
-          ["zoom"],
-          3, 1,
-          22, 15
+          [
+            "exponential",
+            1.3
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          1,
+          22,
+          15
         ]
       }
     },
@@ -87,8 +109,26 @@
       "source-layer": "roads",
       "filter": [
         "all",
-        ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
-        ["==", ["get", "kind"], "motorway"]
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "kind"
+          ],
+          "motorway"
+        ]
       ],
       "layout": {
         "line-cap": "round",
@@ -98,10 +138,17 @@
         "line-color": "hsla(239,45%,69%,0.2)",
         "line-width": [
           "interpolate",
-          ["exponential", 1.4],
-          ["zoom"],
-          4, 2,
-          8, 3
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          2,
+          8,
+          3
         ]
       }
     },
@@ -113,15 +160,57 @@
       "minzoom": 5,
       "filter": [
         "all",
-        ["match", ["geometry-type"], ["MultiPoint", "Point"], true, false],
-        ["match", ["coalesce", ["get", "kind_detail"], ["get", "kind"]], ["city"], true, false]
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "coalesce",
+            [
+              "get",
+              "kind_detail"
+            ],
+            [
+              "get",
+              "kind"
+            ]
+          ],
+          [
+            "city"
+          ],
+          true,
+          false
+        ]
       ],
       "layout": {
         "text-anchor": "center",
-        "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]],
-        "text-font": ["Noto Sans Regular"],
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name_en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "text-color": "hsl(195,25%,76%)",
@@ -454,10 +543,6 @@
     },
     {
       "id": "tunnel_motorway_inner",
-      "type": "line",
-      "source": "openmaptiles",
-      "source-layer": "roads",
-      "minzoom": 9,
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "aeroway",
@@ -955,11 +1040,10 @@
     },
     {
       "id": "highway_motorway_inner",
-      "minzoom": 6,
+      "minzoom": 9,
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "roads",
-      "minzoom": 9,
       "layout": {
         "line-cap": "round",
         "line-join": "round"
@@ -1380,33 +1464,14 @@
         "symbol-placement": "line",
         "symbol-spacing": 500,
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -1454,33 +1519,14 @@
         "symbol-placement": "line",
         "symbol-spacing": 350,
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            " ",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -1735,33 +1781,14 @@
       "layout": {
         "text-anchor": "center",
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -1773,7 +1800,8 @@
           0
         ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "text-color": "hsl(195,37%,73%)",
@@ -1826,33 +1854,14 @@
       "layout": {
         "text-anchor": "center",
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -1864,7 +1873,8 @@
           0
         ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "text-color": "hsl(195,41%,49%)",
@@ -1917,33 +1927,14 @@
         "icon-size": 0.4,
         "text-anchor": "left",
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -1955,7 +1946,8 @@
           0.2
         ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "icon-opacity": 0.7,
@@ -2018,33 +2010,14 @@
           "center"
         ],
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2056,7 +2029,8 @@
           0.2
         ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "icon-opacity": 0.7,
@@ -2129,33 +2103,14 @@
           "center"
         ],
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2167,7 +2122,8 @@
           0.2
         ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "icon-opacity": 0.7,
@@ -2240,33 +2196,14 @@
           "center"
         ],
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2278,7 +2215,8 @@
           0.2
         ],
         "text-size": 14,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "icon-opacity": 0.7,
@@ -2319,40 +2257,22 @@
       ],
       "layout": {
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
           "Noto Sans Regular"
         ],
         "text-size": 10,
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "text-color": "rgb(113,129,144)",
@@ -2399,33 +2319,14 @@
       ],
       "layout": {
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2508,33 +2409,14 @@
       ],
       "layout": {
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2618,33 +2500,14 @@
       "layout": {
         "text-anchor": "center",
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2719,33 +2582,14 @@
       "layout": {
         "text-anchor": "center",
         "text-field": [
-          "case",
+          "coalesce",
           [
-            "has",
-            "name:nonlatin"
+            "get",
+            "name_en"
           ],
           [
-            "concat",
-            [
-              "get",
-              "name:latin"
-            ],
-            "\n",
-            [
-              "get",
-              "name:nonlatin"
-            ]
-          ],
-          [
-            "coalesce",
-            [
-              "get",
-              "name_en"
-            ],
-            [
-              "get",
-              "name"
-            ]
+            "get",
+            "name"
           ]
         ],
         "text-font": [
@@ -2767,7 +2611,8 @@
           4,
           14
         ],
-        "text-transform": "uppercase"
+        "text-transform": "uppercase",
+        "visibility": "none"
       },
       "paint": {
         "text-color": "hsl(0,0%,100%)",
