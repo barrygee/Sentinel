@@ -334,6 +334,7 @@ class IssControl extends SentinelControlBase {
             if (this._followEnabled) {
                 if (this._labelMarker) this._labelMarker.setLngLat([position.lon, position.lat]);
                 this.map.easeTo({ center: [position.lon, position.lat], duration: 150, easing: (t: number) => t });
+                this._updateStatusBar(position);
             }
 
         } catch (e) {
@@ -529,7 +530,11 @@ class IssControl extends SentinelControlBase {
             .setLngLat(coords)
             .addTo(this.map);
 
-        this.map.easeTo({ center: coords, zoom: 4, duration: 600 });
+        // Centre map (no zoom change — satellites are best viewed at current zoom)
+        this.map.easeTo({ center: coords, duration: 600 });
+
+        // Show tracking info in footer panel
+        this._showStatusBar(pos);
     }
 
     private _wireUntrackButton(el: HTMLElement): void {
@@ -552,6 +557,7 @@ class IssControl extends SentinelControlBase {
                 .setLngLat([this._lastPosition.lon, this._lastPosition.lat])
                 .addTo(this.map);
         }
+        this._hideStatusBar();
     }
 
     // ---- Status bar ----

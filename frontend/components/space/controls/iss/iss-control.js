@@ -284,6 +284,7 @@ class IssControl extends SentinelControlBase {
                 if (this._labelMarker)
                     this._labelMarker.setLngLat([position.lon, position.lat]);
                 this.map.easeTo({ center: [position.lon, position.lat], duration: 150, easing: (t) => t });
+                this._updateStatusBar(position);
             }
         }
         catch (e) {
@@ -366,11 +367,9 @@ class IssControl extends SentinelControlBase {
             ['LAT', `${p.lat}°`],
             ['LON', `${p.lon}°`],
         ];
-        const rowsHTML = rows.map(([lbl, val]) =>
-            `<div style="display:flex;gap:14px;line-height:1.8">` +
+        const rowsHTML = rows.map(([lbl, val]) => `<div style="display:flex;gap:14px;line-height:1.8">` +
             `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
-            `<span class="iss-tag-val" data-field="${lbl}">${val}</span></div>`
-        ).join('');
+            `<span class="iss-tag-val" data-field="${lbl}">${val}</span></div>`).join('');
         return `<div style="background:rgba(0,0,0,0.7);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;padding:6px 14px 9px;white-space:nowrap;user-select:none">` +
             `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;font-size:15px;letter-spacing:.12em;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
             `<span style="font-size:13px;font-weight:400;pointer-events:none;color:#c8ff00;letter-spacing:.12em">ISS</span>` +
@@ -485,7 +484,10 @@ class IssControl extends SentinelControlBase {
         this._labelMarker = new maplibregl.Marker({ element: newLabelEl, anchor: 'left', offset: [26, 0] })
             .setLngLat(coords)
             .addTo(this.map);
-        this.map.easeTo({ center: coords, zoom: 4, duration: 600 });
+        // Centre map (no zoom change — satellites are best viewed at current zoom)
+        this.map.easeTo({ center: coords, duration: 600 });
+        // Show tracking info in footer panel
+        this._showStatusBar(pos);
     }
     _wireUntrackButton(el) {
         const btn = el.querySelector('.iss-track-btn');
@@ -507,6 +509,7 @@ class IssControl extends SentinelControlBase {
                 .setLngLat([this._lastPosition.lon, this._lastPosition.lat])
                 .addTo(this.map);
         }
+        this._hideStatusBar();
     }
     // ---- Status bar ----
     _buildStatusBarHTML(p) {
