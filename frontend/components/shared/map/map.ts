@@ -286,11 +286,9 @@ _sentinelMap.on('style.load', () => {
     applyZoomDependentCityFilter();
     _sentinelMap.on('zoom', applyZoomDependentCityFilter);
 
-    if (_styleHasLoadedOnce) {
-        _styleLoadCallbacks.forEach(fn => {
-            try { fn(); } catch (e) { console.error('style.load handler error:', e); }
-        });
-    }
+    _styleLoadCallbacks.forEach(fn => {
+        try { fn(); } catch (e) { console.error('style.load handler error:', e); }
+    });
     _styleHasLoadedOnce = true;
 });
 
