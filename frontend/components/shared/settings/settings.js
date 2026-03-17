@@ -56,17 +56,19 @@ window._SettingsPanel = (function () {
         var searchWrap = document.createElement('div');
         searchWrap.id = 'settings-search-wrap';
         searchWrap.innerHTML =
-            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-                '<circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>' +
-                '<line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
-            '</svg>' +
-            '<input id="settings-search-input" type="text" placeholder="SEARCH SETTINGS" autocomplete="off" spellcheck="false">' +
-            '<button id="settings-search-clear" aria-label="Clear search">' +
-                '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-                    '<line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-                    '<line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
+            '<div id="settings-search-inner">' +
+                '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+                    '<circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>' +
+                    '<line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
                 '</svg>' +
-            '</button>';
+                '<input id="settings-search-input" type="text" placeholder="SEARCH SETTINGS" autocomplete="off" spellcheck="false">' +
+                '<button id="settings-search-clear" aria-label="Clear search">' +
+                    '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+                        '<line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
+                        '<line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
+                    '</svg>' +
+                '</button>' +
+            '</div>';
 
         // Body
         var body = document.createElement('div');
