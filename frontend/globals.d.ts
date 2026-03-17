@@ -7,11 +7,17 @@
 /// <reference types="maplibre-gl" />
 
 // ---- Window interface extensions ----
+interface SettingsAPI {
+    getNamespace(ns: string): Promise<Record<string, unknown> | null>;
+    put(ns: string, key: string, value: unknown): Promise<void>;
+}
+
 interface Window {
     MapComponent:    MapComponentAPI;
     _Notifications:  NotificationsAPI;
     _Tracking:       TrackingAPI;
     _FilterPanel:    FilterPanelAPI;
+    _SettingsAPI:    SettingsAPI | undefined;
     _adsb:           AdsbLiveControl | undefined;
     _is3DActive:     (() => boolean) | undefined;
     _getTargetPitch: (() => number)  | undefined;
@@ -49,5 +55,3 @@ declare namespace maplibregl {
     type EaseToOptions           = import('maplibre-gl').EaseToOptions;
 }
 
-// ---- Air control instances (declared in air-globals.js, assigned at addControl time) ----
-declare let adsbControl: { _registerIcons(): void } | null;
