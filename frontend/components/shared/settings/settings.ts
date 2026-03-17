@@ -108,9 +108,9 @@ window._SettingsPanel = (function () {
         const wrap = document.createElement('div');
         wrap.className = 'settings-theme-switch';
 
-        const labelLight = document.createElement('span');
-        labelLight.className = 'settings-theme-label';
-        labelLight.textContent = 'LIGHT';
+        const labelDark = document.createElement('span');
+        labelDark.className = 'settings-theme-label';
+        labelDark.textContent = 'DARK';
 
         const track = document.createElement('button');
         track.className = 'settings-theme-track' + (isDark ? ' is-dark' : '');
@@ -122,9 +122,9 @@ window._SettingsPanel = (function () {
         thumb.className = 'settings-theme-thumb';
         track.appendChild(thumb);
 
-        const labelDark = document.createElement('span');
-        labelDark.className = 'settings-theme-label';
-        labelDark.textContent = 'DARK';
+        const labelLight = document.createElement('span');
+        labelLight.className = 'settings-theme-label';
+        labelLight.textContent = 'LIGHT';
 
         track.addEventListener('click', function () {
             isDark = !isDark;
@@ -162,9 +162,9 @@ window._SettingsPanel = (function () {
             });
         })();
 
-        wrap.appendChild(labelLight);
-        wrap.appendChild(track);
         wrap.appendChild(labelDark);
+        wrap.appendChild(track);
+        wrap.appendChild(labelLight);
 
         return wrap;
     }

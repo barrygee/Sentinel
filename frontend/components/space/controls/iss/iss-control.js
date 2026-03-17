@@ -279,10 +279,10 @@ class IssControl extends SentinelControlBase {
                 this._hoverTagMarker.setLngLat([position.lon, position.lat]);
                 this._updateHoverTagContent(position);
             }
-            // Keep follow tag position in sync and centre map
-            if (this._tagMarker && this._followEnabled) {
-                this._tagMarker.setLngLat([position.lon, position.lat]);
-                this._updateStatusBar(position);
+            // Keep following — centre map and update label position
+            if (this._followEnabled) {
+                if (this._labelMarker)
+                    this._labelMarker.setLngLat([position.lon, position.lat]);
                 this.map.easeTo({ center: [position.lon, position.lat], duration: 150, easing: (t) => t });
             }
         }
@@ -302,9 +302,12 @@ class IssControl extends SentinelControlBase {
         }
     }
     // ---- Callsign label ----
-    _buildLabelEl() {
+    _buildLabelEl(isTracking = false) {
         const el = document.createElement('div');
         el.style.cssText = [
+            'display:flex',
+            'align-items:center',
+            'gap:8px',
             'background:rgba(0,0,0,0.5)',
             'color:#ffffff',
             "font-family:'Barlow Condensed','Barlow','Helvetica Neue',Arial,sans-serif",
@@ -314,10 +317,19 @@ class IssControl extends SentinelControlBase {
             'text-transform:uppercase',
             'padding:1px 8px',
             'white-space:nowrap',
-            'pointer-events:none',
+            isTracking ? 'pointer-events:auto' : 'pointer-events:none',
             'user-select:none',
+            isTracking ? 'cursor:pointer' : '',
         ].join(';');
-        el.textContent = 'ISS';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = 'ISS';
+        el.appendChild(nameSpan);
+        if (isTracking) {
+            const trkSpan = document.createElement('span');
+            trkSpan.style.cssText = 'color:#c8ff00;font-size:10px;font-weight:700;letter-spacing:.1em';
+            trkSpan.textContent = 'TRACKING';
+            el.appendChild(trkSpan);
+        }
         return el;
     }
     _showLabel(lon, lat) {
@@ -325,8 +337,8 @@ class IssControl extends SentinelControlBase {
             this._labelMarker.setLngLat([lon, lat]);
             return;
         }
-        const el = this._buildLabelEl();
-        this._labelMarker = new maplibregl.Marker({ element: el, anchor: 'left', offset: [22, 0] })
+        const el = this._buildLabelEl(false);
+        this._labelMarker = new maplibregl.Marker({ element: el, anchor: 'left', offset: [26, 0] })
             .setLngLat([lon, lat])
             .addTo(this.map);
     }
@@ -341,6 +353,12 @@ class IssControl extends SentinelControlBase {
         const trkColor = isTracking ? '#c8ff00' : 'rgba(255,255,255,0.3)';
         const trkText = isTracking ? 'TRACKING' : 'TRACK';
         const trkBtn = `<button class="iss-track-btn" style="background:none;border:none;cursor:pointer;padding:8px 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkText}</button>`;
+        const bellBtn = `<button class="iss-notif-btn" disabled style="background:none;border:none;cursor:default;padding:8px 6px;color:rgba(255,255,255,0.3);line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Notifications (coming soon)">` +
+            `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
+            `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
+            `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
+            `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>` +
+            `</svg></button>`;
         const rows = [
             ['ALT', `${p.alt_km} km`],
             ['VEL', `${p.velocity_kms} km/s`],
@@ -348,13 +366,15 @@ class IssControl extends SentinelControlBase {
             ['LAT', `${p.lat}°`],
             ['LON', `${p.lon}°`],
         ];
-        const rowsHTML = rows.map(([lbl, val]) => `<div style="display:flex;gap:14px;line-height:1.8">` +
+        const rowsHTML = rows.map(([lbl, val]) =>
+            `<div style="display:flex;gap:14px;line-height:1.8">` +
             `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
-            `<span>${val}</span></div>`).join('');
+            `<span class="iss-tag-val" data-field="${lbl}">${val}</span></div>`
+        ).join('');
         return `<div style="background:rgba(0,0,0,0.7);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;padding:6px 14px 9px;white-space:nowrap;user-select:none">` +
             `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;font-size:15px;letter-spacing:.12em;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
             `<span style="font-size:13px;font-weight:400;pointer-events:none;color:#c8ff00;letter-spacing:.12em">ISS</span>` +
-            `${trkBtn}</div>` +
+            `<div style="display:flex;align-items:center;gap:0">${bellBtn}${trkBtn}</div></div>` +
             `<div style="pointer-events:none">` + rowsHTML + `</div></div>`;
     }
     // ---- Hover tag ----
@@ -369,8 +389,10 @@ class IssControl extends SentinelControlBase {
         }
         if (this._hoverTagMarker)
             return; // already shown
-        const props = e.features[0].properties;
-        const coords = e.features[0].geometry.coordinates;
+        const coords = [e.lngLat.lng, e.lngLat.lat];
+        const props = this._lastPosition
+            ? { ...this._lastPosition }
+            : { ...e.features[0].properties, lon: coords[0], lat: coords[1] };
         // Hide the label while tag is visible
         if (this._labelMarker)
             this._labelMarker.getElement().style.visibility = 'hidden';
@@ -385,8 +407,11 @@ class IssControl extends SentinelControlBase {
         });
         el.addEventListener('mouseleave', () => this._scheduleHideHoverTag());
         this._wireTrackButton(el, props);
-        this._hoverTagMarker = new maplibregl.Marker({ element: el, anchor: 'top-left', offset: [14, -13] })
-            .setLngLat(coords)
+        const markerCoords = this._lastPosition
+            ? [this._lastPosition.lon, this._lastPosition.lat]
+            : coords;
+        this._hoverTagMarker = new maplibregl.Marker({ element: el, anchor: 'top-left', offset: [26, -13] })
+            .setLngLat(markerCoords)
             .addTo(this.map);
     }
     _scheduleHideHoverTag() {
@@ -395,7 +420,7 @@ class IssControl extends SentinelControlBase {
         this._hoverHideTimer = setTimeout(() => {
             this._hoverHideTimer = null;
             this._hideHoverTagNow();
-        }, 200);
+        }, 400);
     }
     _hideHoverTagNow() {
         if (this._hoverTagMarker) {
@@ -407,26 +432,27 @@ class IssControl extends SentinelControlBase {
             this._labelMarker.getElement().style.visibility = '';
         }
     }
+    _updateTagContent(marker, position) {
+        const el = marker.getElement();
+        if (!el)
+            return;
+        const vals = {
+            ALT: `${position.alt_km} km`,
+            VEL: `${position.velocity_kms} km/s`,
+            HDG: `${position.track_deg}°`,
+            LAT: `${position.lat}°`,
+            LON: `${position.lon}°`,
+        };
+        el.querySelectorAll('.iss-tag-val').forEach(span => {
+            const field = span.dataset['field'];
+            if (field && vals[field] !== undefined)
+                span.textContent = vals[field];
+        });
+    }
     _updateHoverTagContent(position) {
         if (!this._hoverTagMarker)
             return;
-        const el = this._hoverTagMarker.getElement();
-        if (!el)
-            return;
-        const inner = el.querySelector('[style*="background:rgba"]');
-        if (!inner)
-            return;
-        const rowsDiv = inner.querySelector('div:last-child');
-        if (rowsDiv)
-            rowsDiv.innerHTML = [
-                ['ALT', `${position.alt_km} km`],
-                ['VEL', `${position.velocity_kms} km/s`],
-                ['HDG', `${position.track_deg}°`],
-                ['LAT', `${position.lat}°`],
-                ['LON', `${position.lon}°`],
-            ].map(([lbl, val]) => `<div style="display:flex;gap:14px;line-height:1.8">` +
-                `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
-                `<span>${val}</span></div>`).join('');
+        this._updateTagContent(this._hoverTagMarker, position);
     }
     // ---- Track button wiring ----
     _wireTrackButton(el, _props) {
@@ -447,31 +473,18 @@ class IssControl extends SentinelControlBase {
         this._followEnabled = true;
         const pos = this._lastPosition;
         const coords = [pos.lon, pos.lat];
-        // Hide label while tracking
+        // Update label to show TRACKING state; clicking it untracks
+        const newLabelEl = this._buildLabelEl(true);
+        newLabelEl.style.visibility = '';
+        newLabelEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._stopFollowing();
+        });
         if (this._labelMarker)
-            this._labelMarker.getElement().style.visibility = 'hidden';
-        const el = document.createElement('div');
-        el.style.pointerEvents = 'auto';
-        el.innerHTML = this._tagHTML(pos, true);
-        el.addEventListener('mouseenter', () => {
-            const b = el.querySelector('.iss-track-btn');
-            if (b)
-                b.textContent = 'UNTRACK';
-        });
-        el.addEventListener('mouseleave', () => {
-            const b = el.querySelector('.iss-track-btn');
-            if (b)
-                b.textContent = 'TRACKING';
-        });
-        this._wireUntrackButton(el);
-        if (this._tagMarker) {
-            this._tagMarker.remove();
-            this._tagMarker = null;
-        }
-        this._tagMarker = new maplibregl.Marker({ element: el, anchor: 'top-left', offset: [14, -13] })
+            this._labelMarker.remove();
+        this._labelMarker = new maplibregl.Marker({ element: newLabelEl, anchor: 'left', offset: [26, 0] })
             .setLngLat(coords)
             .addTo(this.map);
-        this._showStatusBar(pos);
         this.map.easeTo({ center: coords, zoom: 4, duration: 600 });
     }
     _wireUntrackButton(el) {
@@ -486,14 +499,14 @@ class IssControl extends SentinelControlBase {
     }
     _stopFollowing() {
         this._followEnabled = false;
-        if (this._tagMarker) {
-            this._tagMarker.remove();
-            this._tagMarker = null;
+        // Restore label to non-tracking state
+        if (this._labelMarker && this._lastPosition) {
+            const newLabelEl = this._buildLabelEl(false);
+            this._labelMarker.remove();
+            this._labelMarker = new maplibregl.Marker({ element: newLabelEl, anchor: 'left', offset: [26, 0] })
+                .setLngLat([this._lastPosition.lon, this._lastPosition.lat])
+                .addTo(this.map);
         }
-        this._hideStatusBar();
-        // Restore label
-        if (this._labelMarker)
-            this._labelMarker.getElement().style.visibility = '';
     }
     // ---- Status bar ----
     _buildStatusBarHTML(p) {
