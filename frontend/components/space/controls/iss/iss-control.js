@@ -35,6 +35,12 @@ class IssControl extends SentinelControlBase {
         this._followEnabled = false;
         this._trackingRestored = false;
         this._hoverHideTimer = null;
+        // Pass notifications
+        this._passNotifEnabled = false;
+        this._passNotifTimeout = null;
+        this._passRefreshInterval = null;
+        this._lastFiredPassAos = 0;
+        this._restorePassNotifState();
         // GeoJSON stores
         this._issGeojson = { type: 'FeatureCollection', features: [] };
         this._trackGeojson = { type: 'FeatureCollection', features: [] };
@@ -272,6 +278,8 @@ class IssControl extends SentinelControlBase {
             if (!this._trackingRestored) {
                 this._trackingRestored = true;
                 this._restoreIssTracking();
+                if (this._passNotifEnabled)
+                    this._startPassNotifPolling();
             }
             // Keep callsign label in sync (only when tag is not shown)
             if (this.issVisible && !this._hoverTagMarker && !this._followEnabled) {
@@ -362,11 +370,14 @@ class IssControl extends SentinelControlBase {
         const trkColor = isTracking ? '#c8ff00' : 'rgba(255,255,255,0.3)';
         const trkText = isTracking ? 'TRACKING' : 'TRACK';
         const trkBtn = `<button class="iss-track-btn" style="background:none;border:none;cursor:pointer;padding:8px 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkText}</button>`;
-        const bellBtn = `<button class="iss-notif-btn" disabled style="background:none;border:none;cursor:default;padding:8px 6px;color:rgba(255,255,255,0.3);line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Notifications (coming soon)">` +
+        const bellColor = this._passNotifEnabled ? '#c8ff00' : 'rgba(255,255,255,0.3)';
+        const bellSlash = this._passNotifEnabled ? '' :
+            `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`;
+        const bellBtn = `<button class="iss-notif-btn" style="background:none;border:none;cursor:pointer;padding:8px 6px;color:${bellColor};line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle pass notifications">` +
             `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
             `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
             `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
-            `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>` +
+            bellSlash +
             `</svg></button>`;
         const rows = [
             ['ALT', `${p.alt_km} km`],
@@ -414,6 +425,7 @@ class IssControl extends SentinelControlBase {
         });
         el.addEventListener('mouseleave', () => this._scheduleHideHoverTag());
         this._wireTrackButton(el, props);
+        this._wireNotifButton(el);
         const markerCoords = this._lastPosition
             ? [this._lastPosition.lon, this._lastPosition.lat]
             : coords;
@@ -473,6 +485,180 @@ class IssControl extends SentinelControlBase {
             this._startFollowing();
         });
     }
+    // ---- Pass notifications ----
+    _restorePassNotifState() {
+        try {
+            this._passNotifEnabled = localStorage.getItem('issPassNotifEnabled') === '1';
+        }
+        catch (e) { }
+    }
+    _savePassNotifState() {
+        try {
+            if (this._passNotifEnabled)
+                localStorage.setItem('issPassNotifEnabled', '1');
+            else
+                localStorage.removeItem('issPassNotifEnabled');
+        }
+        catch (e) { }
+    }
+    _wireNotifButton(el) {
+        const btn = el.querySelector('.iss-notif-btn');
+        if (!btn)
+            return;
+        btn.addEventListener('mousedown', (e) => e.stopPropagation());
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._togglePassNotif();
+            // Update bell appearance in this tag
+            const svg = btn.querySelector('svg');
+            if (svg) {
+                btn.style.color = this._passNotifEnabled ? '#c8ff00' : 'rgba(255,255,255,0.3)';
+                const existingSlash = svg.querySelector('line');
+                if (this._passNotifEnabled && existingSlash)
+                    existingSlash.remove();
+                else if (!this._passNotifEnabled && !existingSlash) {
+                    const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    slash.setAttribute('x1', '1.5');
+                    slash.setAttribute('y1', '1.5');
+                    slash.setAttribute('x2', '11.5');
+                    slash.setAttribute('y2', '11.5');
+                    slash.setAttribute('stroke', 'currentColor');
+                    slash.setAttribute('stroke-width', '1.5');
+                    slash.setAttribute('stroke-linecap', 'square');
+                    svg.appendChild(slash);
+                }
+            }
+        });
+    }
+    _togglePassNotif() {
+        if (this._passNotifEnabled) {
+            // Disable
+            this._passNotifEnabled = false;
+            this._lastFiredPassAos = 0;
+            if (this._passNotifTimeout) {
+                clearTimeout(this._passNotifTimeout);
+                this._passNotifTimeout = null;
+            }
+            if (this._passRefreshInterval) {
+                clearInterval(this._passRefreshInterval);
+                this._passRefreshInterval = null;
+            }
+            this._savePassNotifState();
+            if (window._Notifications) {
+                window._Notifications.add({ type: 'notif-off', title: 'ISS', detail: 'Pass notifications disabled' });
+            }
+        }
+        else {
+            // Enable
+            if (!spaceUserLocationCenter) {
+                // Trigger location request then retry once location resolves
+                if (typeof goToSpaceUserLocation === 'function')
+                    goToSpaceUserLocation();
+                const poller = setInterval(() => {
+                    if (spaceUserLocationCenter) {
+                        clearInterval(poller);
+                        this._passNotifEnabled = true;
+                        this._savePassNotifState();
+                        this._startPassNotifPolling();
+                    }
+                }, 500);
+                setTimeout(() => clearInterval(poller), 30000);
+                return;
+            }
+            this._passNotifEnabled = true;
+            this._savePassNotifState();
+            this._startPassNotifPolling();
+            if (window._Notifications) {
+                window._Notifications.add({ type: 'tracking', title: 'ISS', detail: 'Pass notifications enabled' });
+            }
+        }
+    }
+    _startPassNotifPolling() {
+        this._fetchAndSchedulePasses();
+        if (this._passRefreshInterval)
+            clearInterval(this._passRefreshInterval);
+        this._passRefreshInterval = setInterval(() => this._fetchAndSchedulePasses(), 5 * 60 * 1000);
+    }
+    async _fetchAndSchedulePasses() {
+        if (!spaceUserLocationCenter)
+            return;
+        const [lon, lat] = spaceUserLocationCenter;
+        try {
+            const resp = await fetch(`/api/space/iss/passes?lat=${lat}&lon=${lon}&hours=24`);
+            if (!resp.ok)
+                return;
+            const data = await resp.json();
+            if (data.error || !data.passes)
+                return;
+            this._schedulePassNotification(data.passes);
+        }
+        catch (e) { }
+    }
+    _schedulePassNotification(passes) {
+        // Cancel any pending notification
+        if (this._passNotifTimeout) {
+            clearTimeout(this._passNotifTimeout);
+            this._passNotifTimeout = null;
+        }
+        if (!this._passNotifEnabled)
+            return;
+        const now = Date.now();
+        const leadMs = 10 * 60 * 1000; // notify 10 min before AOS
+        // Find the next upcoming pass
+        const next = passes.find(p => p.aos_unix_ms > now);
+        if (!next)
+            return;
+        const delay = (next.aos_unix_ms - leadMs) - now;
+        if (delay < 0) {
+            // Pass is imminent or already in progress — fire only if not already fired
+            if (this._lastFiredPassAos !== next.aos_unix_ms) {
+                this._lastFiredPassAos = next.aos_unix_ms;
+                this._firePassNotification(next);
+            }
+            // Schedule the one after
+            const remaining = passes.filter(p => p.aos_unix_ms > now + 60000);
+            if (remaining.length > 0)
+                this._schedulePassNotification(remaining);
+            return;
+        }
+        this._passNotifTimeout = setTimeout(() => {
+            this._passNotifTimeout = null;
+            if (!this._passNotifEnabled)
+                return;
+            this._lastFiredPassAos = next.aos_unix_ms;
+            this._firePassNotification(next);
+            // Schedule the next pass after this one
+            const remaining = passes.filter(p => p.aos_unix_ms > next.aos_unix_ms + 60000);
+            if (remaining.length > 0) {
+                this._schedulePassNotification(remaining);
+            }
+            else {
+                // Refresh the pass list to get the next day's passes
+                this._fetchAndSchedulePasses();
+            }
+        }, delay);
+    }
+    _firePassNotification(pass) {
+        if (!window._Notifications)
+            return;
+        const aosDate = new Date(pass.aos_unix_ms);
+        const aosTime = aosDate.toUTCString().slice(17, 22) + ' UTC';
+        window._Notifications.add({
+            type: 'tracking',
+            title: 'ISS PASS',
+            detail: `AOS ~10 min — max ${pass.max_elevation_deg}° elev at ${aosTime}`,
+            action: {
+                label: 'DISABLE',
+                callback: () => {
+                    if (issControl) {
+                        issControl._passNotifEnabled = true; // ensure toggle turns it off
+                        issControl._togglePassNotif();
+                    }
+                },
+            },
+        });
+    }
+    // ---- Following / tracked tag ----
     // ---- Tracking state persistence ----
     _saveIssTracking() {
         try {
@@ -494,7 +680,6 @@ class IssControl extends SentinelControlBase {
         }
         catch (e) { }
     }
-    // ---- Following / tracked tag ----
     _startFollowing() {
         if (!this._lastPosition)
             return;
@@ -683,6 +868,14 @@ class IssControl extends SentinelControlBase {
         this._stopFollowing();
         this._hideHoverTagNow();
         this._hideLabel();
+        if (this._passNotifTimeout) {
+            clearTimeout(this._passNotifTimeout);
+            this._passNotifTimeout = null;
+        }
+        if (this._passRefreshInterval) {
+            clearInterval(this._passRefreshInterval);
+            this._passRefreshInterval = null;
+        }
         super.onRemove();
     }
 }
