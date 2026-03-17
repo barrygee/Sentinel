@@ -228,6 +228,7 @@ _sentinelMap.setStyle(_mapStyleURL, { transformStyle: _fixStylePaths });
 _sentinelMap.scrollZoom.enable();
 // Style.load handler registration
 const _styleLoadCallbacks = [];
+let _styleHasLoadedOnce = false;
 _sentinelMap.on('style.load', () => {
     _sentinelMap.setMinZoom(_mapConnState ? 2 : 5);
     _sentinelMap.setMaxBounds(_mapConnState ? null : _OFFLINE_BOUNDS);
@@ -265,6 +266,7 @@ _sentinelMap.on('style.load', () => {
             console.error('style.load handler error:', e);
         }
     });
+    _styleHasLoadedOnce = true;
 });
 _sentinelMap.on('error', (e) => {
     const msg = e.error?.message ?? '';
