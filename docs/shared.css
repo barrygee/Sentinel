@@ -56,6 +56,7 @@ pre code { background: none; border: none; padding: 0; font-size: 0.82rem; color
 .tag-get  { background: #e0f7f4; color: #007a66; border: 1px solid #b0e8e0; }
 .tag-post { background: #edffd0; color: #3a7d00; border: 1px solid #b8e88c; }
 .tag-delete { background: #fde8e8; color: #cc2222; border: 1px solid #f5b8b8; }
+.tag-put    { background: #e8f0ff; color: #0044cc; border: 1px solid #aabcff; }
 .tag-live { background: #edffd0; color: #3a7d00; border: 1px solid #b8e88c; }
 .tag-stub { background: #fff3e0; color: #c45e00; border: 1px solid #ffd699; }
 .tag-backend { background: #e0eeff; color: #0055aa; border: 1px solid #aacbff; }

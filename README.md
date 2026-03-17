@@ -71,6 +71,9 @@ nginx (:8080)          — serves static files (index.html, main.js, assets)
                            ├── GET  /api/air/tracking
                            ├── POST /api/air/tracking
                            ├── DELETE /api/air/tracking/{hex}
+                           ├── GET  /api/settings
+                           ├── GET  /api/settings/{namespace}
+                           ├── PUT  /api/settings/{namespace}/{key}
                            ├── GET  /api/space/status  (stub — not called by frontend)
                            ├── GET  /api/sea/status    (stub — not called by frontend)
                            └── GET  /api/land/status   (stub — not called by frontend)
@@ -85,9 +88,10 @@ FastAPI application with SQLite caching.
 | `main.py` | App factory, router mounts, `/health` endpoint, static file serving |
 | `config.py` | Settings via `pydantic-settings` (TTLs, upstream URLs, DB path) |
 | `database.py` | Async SQLAlchemy engine + session factory (aiosqlite) |
-| `models.py` | `AdsbCache`, `GeocodeCache`, `AirMessage`, `AirTracking` ORM models |
+| `models.py` | `AdsbCache`, `GeocodeCache`, `AirMessage`, `AirTracking`, `UserSettings` ORM models |
 | `cache.py` | TTL helpers (`is_fresh`, `is_within_stale`) |
 | `routers/air.py` | ADS-B proxy, reverse geocode proxy, messages, tracking |
+| `routers/settings.py` | User settings persistence (read/write `user_settings` table) |
 | `routers/space.py` | Space domain stub |
 | `routers/sea.py` | Sea domain stub |
 | `routers/land.py` | Land domain stub |
@@ -110,6 +114,20 @@ Cache status is returned in the `X-Cache` response header: `HIT`, `MISS`, or `ST
 #### Air tracking
 
 `POST /api/air/tracking` adds an aircraft (ICAO hex + callsign + follow flag) to the tracked set. If the hex already exists, callsign and follow are updated. `DELETE /api/air/tracking/{hex}` removes it. `GET /api/air/tracking` lists all currently tracked aircraft.
+
+#### User settings
+
+User preferences are persisted to the `user_settings` SQLite table across browser sessions. Settings are keyed by `(namespace, key)` — one row per setting — and values are stored as JSON strings, supporting booleans, strings, and objects.
+
+| Namespace | Purpose |
+|-----------|---------|
+| `app` | Application-wide prefs — currently `theme` (`"light"` / `"dark"`) |
+| `air` | Air domain prefs — e.g. `overlayStates` (object of toggle booleans) |
+| `space`, `sea`, `land`, `sdr` | Reserved for future domain settings |
+
+`GET /api/settings` returns all settings grouped by namespace as `{ namespace: { key: value } }`. `GET /api/settings/{namespace}` returns a single namespace. `PUT /api/settings/{namespace}/{key}` upserts a value with body `{ "value": <any> }`.
+
+The frontend (`window._SettingsAPI`) calls these endpoints fire-and-forget — backend errors are logged to the console but never interrupt the UI.
 
 #### Adding a dependency
 
