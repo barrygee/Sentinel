@@ -41,26 +41,18 @@ window._SettingsPanel = (function () {
         {
             section:       'app',
             sectionLabel:  'App Settings',
-            id:            'theme',
-            label:         'Theme',
-            desc:          'Switch between light and dark mode',
-            renderControl: _renderThemeToggle,
+            id:            'app-connectivity-probe',
+            label:         'Connectivity Probe URL',
+            desc:          'URL polled every 2 s to detect internet access',
+            renderControl: function () { return _renderConnectivityProbeControl(); },
         },
-        {
+{
             section:       'app',
             sectionLabel:  'App Settings',
             id:            'location',
             label:         'My Location',
             desc:          'Set a fixed latitude / longitude for your position',
             renderControl: _renderLocationControl,
-        },
-        {
-            section:       'app',
-            sectionLabel:  'App Settings',
-            id:            'app-connectivity-probe',
-            label:         'Connectivity Probe URL',
-            desc:          'URL polled every 2 s to detect internet access',
-            renderControl: function () { return _renderConnectivityProbeControl(); },
         },
         // AIR
         {
