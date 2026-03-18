@@ -73,6 +73,18 @@
     min-width: 0;
 }
 
+/* ---- Section heading ---- */
+#settings-section-heading {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 36px 48px 0;
+    flex-shrink: 0;
+}
+
 /* ---- Search ---- */
 #settings-search-wrap {
     display: flex;
@@ -422,11 +434,6 @@
     color: rgba(255, 255, 255, 0.2);
     font-size: 11px;
     letter-spacing: 0.14em;
-}
-
-.settings-datasource-port-input {
-    width: 80px;
-    flex: none;
 }
 
 .settings-datasource-status {

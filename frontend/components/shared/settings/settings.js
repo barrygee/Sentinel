@@ -121,6 +121,10 @@ window._SettingsPanel = (function () {
         // Content area
         const content = document.createElement('div');
         content.id = 'settings-content';
+        // Section heading
+        const sectionHeading = document.createElement('div');
+        sectionHeading.id = 'settings-section-heading';
+        sectionHeading.textContent = 'App Settings';
         // Search row
         const searchWrap = document.createElement('div');
         searchWrap.id = 'settings-search-wrap';
@@ -141,6 +145,7 @@ window._SettingsPanel = (function () {
         // Body
         const body = document.createElement('div');
         body.id = 'settings-body';
+        content.appendChild(sectionHeading);
         content.appendChild(searchWrap);
         content.appendChild(body);
         panel.appendChild(sidebar);
@@ -259,34 +264,17 @@ window._SettingsPanel = (function () {
         urlInput.autocomplete = 'off';
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
-        // PORT row
-        const portRow = document.createElement('div');
-        portRow.className = 'settings-datasource-row';
-        const portLabel = document.createElement('span');
-        portLabel.className = 'settings-datasource-label';
-        portLabel.textContent = 'PORT';
-        const portInput = document.createElement('input');
-        portInput.type = 'text';
-        portInput.className = 'settings-datasource-input settings-datasource-port-input';
-        portInput.placeholder = '8080';
-        portInput.spellcheck = false;
-        portInput.autocomplete = 'off';
-        portRow.appendChild(portLabel);
-        portRow.appendChild(portInput);
         const status = document.createElement('div');
         status.className = 'settings-datasource-status';
         wrap.appendChild(urlRow);
-        wrap.appendChild(portRow);
         wrap.appendChild(status);
-        // Load saved values
+        // Load saved value
         try {
             const raw = localStorage.getItem(LS_KEY);
             if (raw) {
                 const saved = JSON.parse(raw);
                 if (saved.url)
                     urlInput.value = saved.url;
-                if (saved.port)
-                    portInput.value = saved.port;
             }
         }
         catch (e) { }
@@ -298,8 +286,6 @@ window._SettingsPanel = (function () {
                 const backendVal = data['offlineSource'];
                 if (!urlInput.value && backendVal.url)
                     urlInput.value = backendVal.url;
-                if (!portInput.value && backendVal.port)
-                    portInput.value = backendVal.port;
                 try {
                     localStorage.setItem(LS_KEY, JSON.stringify(backendVal));
                 }
@@ -317,7 +303,6 @@ window._SettingsPanel = (function () {
         }
         function _save() {
             const url = urlInput.value.trim();
-            const port = portInput.value.trim();
             if (url) {
                 try {
                     new URL(url);
@@ -327,11 +312,7 @@ window._SettingsPanel = (function () {
                     return;
                 }
             }
-            if (port && (!/^\d+$/.test(port) || parseInt(port, 10) < 1 || parseInt(port, 10) > 65535)) {
-                _showStatus('INVALID PORT', true);
-                return;
-            }
-            const val = { url, port };
+            const val = { url };
             try {
                 localStorage.setItem(LS_KEY, JSON.stringify(val));
             }
@@ -341,7 +322,6 @@ window._SettingsPanel = (function () {
             _showStatus('SAVED', false);
         }
         urlInput.addEventListener('blur', _save);
-        portInput.addEventListener('blur', _save);
         return wrap;
     }
     function _renderLocationControl() {
@@ -536,6 +516,13 @@ window._SettingsPanel = (function () {
         if (!body)
             return;
         body.innerHTML = '';
+        const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
+        const heading = document.getElementById('settings-section-heading');
+        if (heading) {
+            heading.textContent = navSection
+                ? (navSection.key === 'app' ? navSection.label : navSection.label + ' SETTINGS')
+                : sectionKey;
+        }
         const items = _settings.filter(function (s) { return s.section === sectionKey; });
         if (!items.length) {
             const placeholder = document.createElement('div');
@@ -544,11 +531,6 @@ window._SettingsPanel = (function () {
             body.appendChild(placeholder);
             return;
         }
-        const labelEl = document.createElement('div');
-        labelEl.className = 'settings-section-label';
-        const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
-        labelEl.textContent = navSection ? navSection.label : sectionKey;
-        body.appendChild(labelEl);
         items.forEach(function (item) {
             body.appendChild(_makeSettingRow(item));
         });
@@ -568,6 +550,9 @@ window._SettingsPanel = (function () {
         if (!body)
             return;
         body.innerHTML = '';
+        const heading = document.getElementById('settings-section-heading');
+        if (heading)
+            heading.textContent = 'SEARCH RESULTS';
         if (!results.length) {
             const empty = document.createElement('div');
             empty.className = 'settings-empty';

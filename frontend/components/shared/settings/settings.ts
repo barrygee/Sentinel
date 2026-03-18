@@ -144,6 +144,11 @@ window._SettingsPanel = (function () {
         const content = document.createElement('div');
         content.id = 'settings-content';
 
+        // Section heading
+        const sectionHeading = document.createElement('div');
+        sectionHeading.id = 'settings-section-heading';
+        sectionHeading.textContent = 'App Settings';
+
         // Search row
         const searchWrap = document.createElement('div');
         searchWrap.id = 'settings-search-wrap';
@@ -166,6 +171,7 @@ window._SettingsPanel = (function () {
         const body = document.createElement('div');
         body.id = 'settings-body';
 
+        content.appendChild(sectionHeading);
         content.appendChild(searchWrap);
         content.appendChild(body);
 
@@ -283,35 +289,18 @@ window._SettingsPanel = (function () {
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
 
-        // PORT row
-        const portRow = document.createElement('div');
-        portRow.className = 'settings-datasource-row';
-        const portLabel = document.createElement('span');
-        portLabel.className = 'settings-datasource-label';
-        portLabel.textContent = 'PORT';
-        const portInput = document.createElement('input');
-        portInput.type = 'text';
-        portInput.className = 'settings-datasource-input settings-datasource-port-input';
-        portInput.placeholder = '8080';
-        portInput.spellcheck = false;
-        portInput.autocomplete = 'off';
-        portRow.appendChild(portLabel);
-        portRow.appendChild(portInput);
-
         const status = document.createElement('div');
         status.className = 'settings-datasource-status';
 
         wrap.appendChild(urlRow);
-        wrap.appendChild(portRow);
         wrap.appendChild(status);
 
-        // Load saved values
+        // Load saved value
         try {
             const raw = localStorage.getItem(LS_KEY);
             if (raw) {
-                const saved = JSON.parse(raw) as { url?: string; port?: string };
-                if (saved.url)  urlInput.value  = saved.url;
-                if (saved.port) portInput.value = saved.port;
+                const saved = JSON.parse(raw) as { url?: string };
+                if (saved.url) urlInput.value = saved.url;
             }
         } catch (e) {}
 
@@ -319,9 +308,8 @@ window._SettingsPanel = (function () {
         if (window._SettingsAPI) {
             window._SettingsAPI.getNamespace(ns).then(function (data) {
                 if (!data || !data['offlineSource']) return;
-                const backendVal = data['offlineSource'] as { url?: string; port?: string };
+                const backendVal = data['offlineSource'] as { url?: string };
                 if (!urlInput.value && backendVal.url) urlInput.value = backendVal.url;
-                if (!portInput.value && backendVal.port) portInput.value = backendVal.port;
                 try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
             });
         }
@@ -337,28 +325,20 @@ window._SettingsPanel = (function () {
         }
 
         function _save(): void {
-            const url  = urlInput.value.trim();
-            const port = portInput.value.trim();
-
+            const url = urlInput.value.trim();
             if (url) {
                 try { new URL(url); } catch (e) {
                     _showStatus('INVALID URL', true);
                     return;
                 }
             }
-            if (port && (!/^\d+$/.test(port) || parseInt(port, 10) < 1 || parseInt(port, 10) > 65535)) {
-                _showStatus('INVALID PORT', true);
-                return;
-            }
-
-            const val = { url, port };
+            const val = { url };
             try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
             if (window._SettingsAPI) window._SettingsAPI.put(ns, 'offlineSource', val);
             _showStatus('SAVED', false);
         }
 
         urlInput.addEventListener('blur', _save);
-        portInput.addEventListener('blur', _save);
 
         return wrap;
     }
@@ -566,6 +546,14 @@ window._SettingsPanel = (function () {
         if (!body) return;
         body.innerHTML = '';
 
+        const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
+        const heading = document.getElementById('settings-section-heading');
+        if (heading) {
+            heading.textContent = navSection
+                ? (navSection.key === 'app' ? navSection.label : navSection.label + ' SETTINGS')
+                : sectionKey;
+        }
+
         const items = _settings.filter(function (s) { return s.section === sectionKey; });
 
         if (!items.length) {
@@ -575,12 +563,6 @@ window._SettingsPanel = (function () {
             body.appendChild(placeholder);
             return;
         }
-
-        const labelEl = document.createElement('div');
-        labelEl.className = 'settings-section-label';
-        const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
-        labelEl.textContent = navSection ? navSection.label : sectionKey;
-        body.appendChild(labelEl);
 
         items.forEach(function (item) {
             body.appendChild(_makeSettingRow(item));
@@ -601,6 +583,8 @@ window._SettingsPanel = (function () {
         const body = document.getElementById('settings-body');
         if (!body) return;
         body.innerHTML = '';
+        const heading = document.getElementById('settings-section-heading');
+        if (heading) heading.textContent = 'SEARCH RESULTS';
 
         if (!results.length) {
             const empty = document.createElement('div');
