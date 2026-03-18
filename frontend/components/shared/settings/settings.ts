@@ -11,6 +11,9 @@ window._SettingsPanel = (function () {
     let _open = false;
     let _activeSection = 'app';
 
+    // Pending changes map: key → { commit: () => void }
+    const _pending: Map<string, { commit: () => void }> = new Map();
+
     // ── Settings registry ────────────────────────────────────
     interface SettingItem {
         section:       string;
@@ -171,19 +174,81 @@ window._SettingsPanel = (function () {
         const body = document.createElement('div');
         body.id = 'settings-body';
 
+        // Footer bar with Apply Changes button
+        const footer = document.createElement('div');
+        footer.id = 'settings-footer';
+
+        const applyStatus = document.createElement('span');
+        applyStatus.id = 'settings-apply-status';
+
+        const applyBtn = document.createElement('button');
+        applyBtn.id = 'settings-apply-btn';
+        applyBtn.textContent = 'APPLY CHANGES';
+
+        footer.appendChild(applyStatus);
+        footer.appendChild(applyBtn);
+
         content.appendChild(sectionHeading);
         content.appendChild(searchWrap);
         content.appendChild(body);
+        content.appendChild(footer);
 
         panel.appendChild(sidebar);
         panel.appendChild(content);
         document.body.appendChild(panel);
     })();
 
+    // ── Apply button logic ────────────────────────────────────
+    function _showApplyStatus(msg: string, isError: boolean): void {
+        const status = document.getElementById('settings-apply-status');
+        if (!status) return;
+        status.textContent = msg;
+        status.className = isError
+            ? 'settings-apply-status--error'
+            : 'settings-apply-status--ok';
+        setTimeout(function () {
+            status.textContent = '';
+            status.className = '';
+        }, 2500);
+    }
+
+    function _commitAll(): void {
+        if (_pending.size === 0) {
+            _showApplyStatus('NO CHANGES', false);
+            return;
+        }
+        let hasError = false;
+        _pending.forEach(function (entry) {
+            try {
+                entry.commit();
+            } catch (e) {
+                hasError = true;
+            }
+        });
+        if (!hasError) {
+            _pending.clear();
+            _showApplyStatus('SAVED', false);
+        } else {
+            _showApplyStatus('ERROR', true);
+        }
+    }
+
+    function _stagePending(id: string, commitFn: () => void): void {
+        _pending.set(id, { commit: commitFn });
+    }
+
+    function _clearPendingForSection(sectionKey: string): void {
+        const ids = _settings
+            .filter(function (s) { return s.section === sectionKey; })
+            .map(function (s) { return s.id; });
+        ids.forEach(function (id) { _pending.delete(id); });
+    }
+
     // ── Controls ─────────────────────────────────────────────
 
     function _renderOnlineSourceControl(ns: string): HTMLElement {
         const LS_KEY = 'sentinel_' + ns + '_onlineUrl';
+        const SETTING_ID = ns + '-online-source';
 
         const wrap = document.createElement('div');
         wrap.className = 'settings-datasource-wrap';
@@ -204,12 +269,7 @@ window._SettingsPanel = (function () {
 
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
-
-        const status = document.createElement('div');
-        status.className = 'settings-datasource-status';
-
         wrap.appendChild(urlRow);
-        wrap.appendChild(status);
 
         // Load saved value
         try {
@@ -229,40 +289,24 @@ window._SettingsPanel = (function () {
             });
         }
 
-        function _showStatus(msg: string, isError: boolean): void {
-            status.textContent = msg;
-            status.className = 'settings-datasource-status ' +
-                (isError ? 'settings-datasource-status--err' : 'settings-datasource-status--ok');
-            setTimeout(function () {
-                status.textContent = '';
-                status.className = 'settings-datasource-status';
-            }, 2500);
-        }
-
-        function _save(): void {
-            const val = urlInput.value.trim();
-            if (!val) {
-                try { localStorage.removeItem(LS_KEY); } catch (e) {}
-                if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', '');
-                return;
-            }
-            try { new URL(val); } catch (e) {
-                _showStatus('INVALID URL', true);
-                return;
-            }
-            try { localStorage.setItem(LS_KEY, val); } catch (e) {}
-            if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', val);
-            _showStatus('SAVED', false);
-        }
-
-        let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
         urlInput.addEventListener('input', function () {
-            if (_debounceTimer !== null) clearTimeout(_debounceTimer);
-            _debounceTimer = setTimeout(_save, 800);
+            _stagePending(SETTING_ID, function () {
+                const val = urlInput.value.trim();
+                if (val) {
+                    try { new URL(val); } catch (e) {
+                        throw new Error('INVALID URL');
+                    }
+                    try { localStorage.setItem(LS_KEY, val); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', val);
+                } else {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', '');
+                }
+            });
         });
-        urlInput.addEventListener('blur', function () {
-            if (_debounceTimer !== null) { clearTimeout(_debounceTimer); _debounceTimer = null; }
-            _save();
+
+        urlInput.addEventListener('keydown', function (e: KeyboardEvent) {
+            if (e.key === 'Enter') _commitAll();
         });
 
         return wrap;
@@ -270,6 +314,7 @@ window._SettingsPanel = (function () {
 
     function _renderOfflineSourceControl(ns: string): HTMLElement {
         const LS_KEY = 'sentinel_' + ns + '_offlineSource';
+        const SETTING_ID = ns + '-offline-source';
 
         const wrap = document.createElement('div');
         wrap.className = 'settings-datasource-wrap';
@@ -288,12 +333,7 @@ window._SettingsPanel = (function () {
         urlInput.autocomplete = 'off';
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
-
-        const status = document.createElement('div');
-        status.className = 'settings-datasource-status';
-
         wrap.appendChild(urlRow);
-        wrap.appendChild(status);
 
         // Load saved value
         try {
@@ -314,31 +354,23 @@ window._SettingsPanel = (function () {
             });
         }
 
-        function _showStatus(msg: string, isError: boolean): void {
-            status.textContent = msg;
-            status.className = 'settings-datasource-status ' +
-                (isError ? 'settings-datasource-status--err' : 'settings-datasource-status--ok');
-            setTimeout(function () {
-                status.textContent = '';
-                status.className = 'settings-datasource-status';
-            }, 2500);
-        }
-
-        function _save(): void {
-            const url = urlInput.value.trim();
-            if (url) {
-                try { new URL(url); } catch (e) {
-                    _showStatus('INVALID URL', true);
-                    return;
+        urlInput.addEventListener('input', function () {
+            _stagePending(SETTING_ID, function () {
+                const url = urlInput.value.trim();
+                if (url) {
+                    try { new URL(url); } catch (e) {
+                        throw new Error('INVALID URL');
+                    }
                 }
-            }
-            const val = { url };
-            try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
-            if (window._SettingsAPI) window._SettingsAPI.put(ns, 'offlineSource', val);
-            _showStatus('SAVED', false);
-        }
+                const val = { url };
+                try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
+                if (window._SettingsAPI) window._SettingsAPI.put(ns, 'offlineSource', val);
+            });
+        });
 
-        urlInput.addEventListener('blur', _save);
+        urlInput.addEventListener('keydown', function (e: KeyboardEvent) {
+            if (e.key === 'Enter') _commitAll();
+        });
 
         return wrap;
     }
@@ -385,20 +417,8 @@ window._SettingsPanel = (function () {
         lonRow.appendChild(lonLabel);
         lonRow.appendChild(lonInput);
 
-        // Action row
-        const actionRow = document.createElement('div');
-        actionRow.className = 'settings-location-action-row';
-        const status = document.createElement('span');
-        status.className = 'settings-location-status';
-        const applyBtn = document.createElement('button');
-        applyBtn.className = 'settings-location-apply';
-        applyBtn.textContent = 'APPLY';
-        actionRow.appendChild(status);
-        actionRow.appendChild(applyBtn);
-
         wrap.appendChild(latRow);
         wrap.appendChild(lonRow);
-        wrap.appendChild(actionRow);
 
         // Populate from saved location
         const saved = _loadSaved();
@@ -407,34 +427,48 @@ window._SettingsPanel = (function () {
             lonInput.value = saved.longitude.toFixed(5);
         }
 
-        function _showStatus(msg: string, isError: boolean): void {
-            status.textContent = msg;
-            status.className = 'settings-location-status ' +
-                (isError ? 'settings-location-status--error' : 'settings-location-status--ok');
-            setTimeout(function () {
-                status.textContent = '';
-                status.className = 'settings-location-status';
-            }, 2500);
+        // Reconcile with backend
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace('app').then(function (data) {
+                if (!data || !data['location']) return;
+                const loc = data['location'] as { latitude?: number; longitude?: number };
+                if (!latInput.value && loc.latitude != null) latInput.value = loc.latitude.toFixed(5);
+                if (!lonInput.value && loc.longitude != null) lonInput.value = loc.longitude.toFixed(5);
+            });
         }
 
-        applyBtn.addEventListener('click', function () {
-            const lat = parseFloat(latInput.value);
-            const lon = parseFloat(lonInput.value);
-            if (isNaN(lat) || lat < -90 || lat > 90) {
-                _showStatus('INVALID LAT', true); return;
-            }
-            if (isNaN(lon) || lon < -180 || lon > 180) {
-                _showStatus('INVALID LON', true); return;
-            }
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    longitude: lon, latitude: lat, ts: Date.now(), manual: true,
-                }));
-            } catch (e) {}
-            if (typeof setUserLocation === 'function') {
-                setUserLocation({ coords: { longitude: lon, latitude: lat }, _fromCache: false, _manual: true });
-            }
-            _showStatus('SAVED', false);
+        function _stageLocation(): void {
+            _stagePending('location', function () {
+                const lat = parseFloat(latInput.value);
+                const lon = parseFloat(lonInput.value);
+                if (isNaN(lat) || lat < -90 || lat > 90) {
+                    throw new Error('INVALID LAT');
+                }
+                if (isNaN(lon) || lon < -180 || lon > 180) {
+                    throw new Error('INVALID LON');
+                }
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        longitude: lon, latitude: lat, ts: Date.now(), manual: true,
+                    }));
+                } catch (e) {}
+                if (window._SettingsAPI) {
+                    window._SettingsAPI.put('app', 'location', { latitude: lat, longitude: lon });
+                }
+                if (typeof setUserLocation === 'function') {
+                    setUserLocation({ coords: { longitude: lon, latitude: lat }, _fromCache: false, _manual: true });
+                }
+            });
+        }
+
+        latInput.addEventListener('input', _stageLocation);
+        lonInput.addEventListener('input', _stageLocation);
+
+        latInput.addEventListener('keydown', function (e: KeyboardEvent) {
+            if (e.key === 'Enter') _commitAll();
+        });
+        lonInput.addEventListener('keydown', function (e: KeyboardEvent) {
+            if (e.key === 'Enter') _commitAll();
         });
 
         return wrap;
@@ -472,6 +506,7 @@ window._SettingsPanel = (function () {
             track.classList.toggle('is-dark', isDark);
             track.setAttribute('aria-checked', isDark ? 'true' : 'false');
             const mode = isDark ? 'dark' : 'light';
+            // Theme applies immediately — no need to defer to Apply
             try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {}
             if (window._SettingsAPI) {
                 window._SettingsAPI.put('app', 'theme', mode);
@@ -545,6 +580,9 @@ window._SettingsPanel = (function () {
         const body = document.getElementById('settings-body');
         if (!body) return;
         body.innerHTML = '';
+
+        // Clear pending changes from the previous section
+        _pending.clear();
 
         const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
         const heading = document.getElementById('settings-section-heading');
@@ -631,6 +669,7 @@ window._SettingsPanel = (function () {
 
     function close(): void {
         _open = false;
+        _pending.clear();
         const panel = document.getElementById('settings-panel');
         if (panel) panel.classList.remove('settings-panel-visible');
         const btn = document.getElementById('settings-btn');
@@ -695,6 +734,12 @@ window._SettingsPanel = (function () {
                 _renderSection(_activeSection);
             });
         });
+
+        // Apply Changes button
+        const applyBtn = document.getElementById('settings-apply-btn');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', _commitAll);
+        }
     }
 
     return { open, close, toggle, init };
