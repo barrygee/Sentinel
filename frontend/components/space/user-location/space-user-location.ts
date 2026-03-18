@@ -107,6 +107,11 @@ function setSpaceUserLocation(position: SpaceUserPosition): void {
     localStorage.setItem('geolocationGranted', 'true');
 }
 
+window.addEventListener('sentinel:setUserLocation', function (e: Event) {
+    const detail = (e as CustomEvent).detail as { longitude: number; latitude: number };
+    setSpaceUserLocation({ coords: { longitude: detail.longitude, latitude: detail.latitude }, _fromCache: false, _manual: true });
+});
+
 // ============================================================
 // CACHED LOCATION RESTORE
 // ============================================================

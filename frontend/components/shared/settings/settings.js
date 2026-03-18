@@ -531,6 +531,13 @@ window._SettingsPanel = (function () {
             });
         }
         function _stageLocation() {
+            const lat = parseFloat(latInput.value);
+            const lon = parseFloat(lonInput.value);
+            if (!isNaN(lat) && lat >= -90 && lat <= 90 && !isNaN(lon) && lon >= -180 && lon <= 180) {
+                window.dispatchEvent(new CustomEvent('sentinel:setUserLocation', {
+                    detail: { longitude: lon, latitude: lat }
+                }));
+            }
             _stagePending('location', function () {
                 const lat = parseFloat(latInput.value);
                 const lon = parseFloat(lonInput.value);
@@ -549,9 +556,6 @@ window._SettingsPanel = (function () {
                 if (window._SettingsAPI) {
                     window._SettingsAPI.put('app', 'location', { latitude: lat, longitude: lon });
                 }
-                window.dispatchEvent(new CustomEvent('sentinel:setUserLocation', {
-                    detail: { longitude: lon, latitude: lat }
-                }));
             });
         }
         latInput.addEventListener('input', _stageLocation);

@@ -30,9 +30,6 @@ function goToSpaceUserLocation() {
 }
 // The single MapLibre Marker for the user's position
 let _spaceUserMarker = null;
-// ============================================================
-// MARKER ELEMENT BUILDER
-// ============================================================
 function _createSpaceUserMarkerElement() {
     const el = document.createElement('div');
     el.style.width = '60px';
@@ -93,6 +90,10 @@ function setSpaceUserLocation(position) {
     }
     localStorage.setItem('geolocationGranted', 'true');
 }
+window.addEventListener('sentinel:setUserLocation', function (e) {
+    const detail = e.detail;
+    setSpaceUserLocation({ coords: { longitude: detail.longitude, latitude: detail.latitude }, _fromCache: false, _manual: true });
+});
 // ============================================================
 // CACHED LOCATION RESTORE
 // ============================================================
