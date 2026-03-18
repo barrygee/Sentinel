@@ -11,6 +11,7 @@ const _SPACE_OVERLAY_DEFAULTS: SpaceOverlayStates = {
     groundTrack: true,
     footprint:   true,
     daynight:    true,
+    names:       true,
 };
 
 /**
@@ -34,10 +35,11 @@ let _spaceOverlayStates: SpaceOverlayStates = (() => {
 function _saveSpaceOverlayStates(): void {
     try {
         const current: SpaceOverlayStates = {
-            iss:         issControl      ? issControl.issVisible        : _spaceOverlayStates.iss,
-            groundTrack: issControl      ? issControl.trackVisible      : _spaceOverlayStates.groundTrack,
-            footprint:   issControl      ? issControl.footprintVisible  : _spaceOverlayStates.footprint,
-            daynight:    daynightControl ? daynightControl.dnVisible    : _spaceOverlayStates.daynight,
+            iss:         issControl        ? issControl.issVisible          : _spaceOverlayStates.iss,
+            groundTrack: issControl        ? issControl.trackVisible        : _spaceOverlayStates.groundTrack,
+            footprint:   issControl        ? issControl.footprintVisible    : _spaceOverlayStates.footprint,
+            daynight:    daynightControl   ? daynightControl.dnVisible      : _spaceOverlayStates.daynight,
+            names:       spaceNamesControl ? spaceNamesControl.namesVisible : _spaceOverlayStates.names,
         };
         localStorage.setItem('spaceOverlayStates', JSON.stringify(current));
         if (window._SettingsAPI) {
@@ -83,5 +85,8 @@ async function _syncSpaceOverlayStatesFromBackend(): Promise<void> {
     }
     if (daynightControl && daynightControl.dnVisible !== _spaceOverlayStates.daynight) {
         daynightControl.toggleDaynight();
+    }
+    if (spaceNamesControl && spaceNamesControl.namesVisible !== _spaceOverlayStates.names) {
+        spaceNamesControl.toggleNames();
     }
 }

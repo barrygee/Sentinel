@@ -312,8 +312,7 @@ function setSpaceUserLocation(position: SpaceUserPosition): void {
         menu.style.cssText = [
             'position:absolute',
             'background:#000',
-            'border:1px solid rgba(255,255,255,0.12)',
-            'border-radius:3px',
+            'border:none',
             'padding:4px 0',
             'font-family:\'Barlow\',\'Helvetica Neue\',Arial,sans-serif',
             'font-size:10px',
@@ -322,7 +321,7 @@ function setSpaceUserLocation(position: SpaceUserPosition): void {
             'text-transform:uppercase',
             'color:rgba(255,255,255,0.75)',
             'z-index:9999',
-            'box-shadow:0 4px 16px rgba(0,0,0,0.8)',
+            'box-shadow:0 4px 20px rgba(0,0,0,0.9)',
             'min-width:180px',
             'cursor:default',
         ].join(';');

@@ -12,6 +12,7 @@ interface SpaceOverlayStates {
     groundTrack: boolean;
     footprint:   boolean;
     daynight:    boolean;
+    names:       boolean;
 }
 
 // ----- Overlay state helpers (functions declared in space-overlay-state.ts) -----

@@ -10,8 +10,9 @@
 /// <reference path="../globals.d.ts" />
 
 // Control instances — assigned when controls are added to the map
-let issControl:      IssControl      | null = null;
-let daynightControl: DaynightControl | null = null;
+let issControl:        IssControl              | null = null;
+let daynightControl:   DaynightControl         | null = null;
+let spaceNamesControl: SpaceNamesToggleControl | null = null;
 
 // Side-menu sync callback — assigned by space-side-menu.ts IIFE on load
 let _spaceSyncSideMenu: (() => void) | null = null;

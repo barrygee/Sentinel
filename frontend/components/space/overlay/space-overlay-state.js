@@ -10,6 +10,7 @@ const _SPACE_OVERLAY_DEFAULTS = {
     groundTrack: true,
     footprint: true,
     daynight: true,
+    names: true,
 };
 /**
  * Load saved space overlay states from localStorage, merging over defaults.
@@ -36,6 +37,7 @@ function _saveSpaceOverlayStates() {
             groundTrack: issControl ? issControl.trackVisible : _spaceOverlayStates.groundTrack,
             footprint: issControl ? issControl.footprintVisible : _spaceOverlayStates.footprint,
             daynight: daynightControl ? daynightControl.dnVisible : _spaceOverlayStates.daynight,
+            names: spaceNamesControl ? spaceNamesControl.namesVisible : _spaceOverlayStates.names,
         };
         localStorage.setItem('spaceOverlayStates', JSON.stringify(current));
         if (window._SettingsAPI) {
@@ -83,5 +85,8 @@ async function _syncSpaceOverlayStatesFromBackend() {
     }
     if (daynightControl && daynightControl.dnVisible !== _spaceOverlayStates.daynight) {
         daynightControl.toggleDaynight();
+    }
+    if (spaceNamesControl && spaceNamesControl.namesVisible !== _spaceOverlayStates.names) {
+        spaceNamesControl.toggleNames();
     }
 }

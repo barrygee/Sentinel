@@ -11,6 +11,7 @@
 // Control instances — assigned when controls are added to the map
 let issControl = null;
 let daynightControl = null;
+let spaceNamesControl = null;
 // Side-menu sync callback — assigned by space-side-menu.ts IIFE on load
 let _spaceSyncSideMenu = null;
 // User location — set by space-user-location.ts
