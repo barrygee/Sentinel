@@ -17,6 +17,14 @@ window._SettingsPanel = (function () {
             desc: 'Switch between light and dark mode',
             renderControl: _renderThemeToggle,
         },
+        {
+            section: 'app',
+            sectionLabel: 'App Settings',
+            id: 'location',
+            label: 'My Location',
+            desc: 'Set a fixed latitude / longitude for your position',
+            renderControl: _renderLocationControl,
+        },
     ];
     const _NAV_SECTIONS = [
         { key: 'app', label: 'App Settings' },
@@ -72,6 +80,99 @@ window._SettingsPanel = (function () {
         document.body.appendChild(panel);
     })();
     // ── Controls ─────────────────────────────────────────────
+    function _renderLocationControl() {
+        const STORAGE_KEY = 'userLocation';
+        function _loadSaved() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw)
+                    return null;
+                return JSON.parse(raw);
+            }
+            catch (e) {
+                return null;
+            }
+        }
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-location-wrap';
+        // Lat row
+        const latRow = document.createElement('div');
+        latRow.className = 'settings-location-row';
+        const latLabel = document.createElement('span');
+        latLabel.className = 'settings-location-label';
+        latLabel.textContent = 'LAT';
+        const latInput = document.createElement('input');
+        latInput.type = 'text';
+        latInput.className = 'settings-location-input';
+        latInput.placeholder = '0.000';
+        latInput.spellcheck = false;
+        latRow.appendChild(latLabel);
+        latRow.appendChild(latInput);
+        // Lon row
+        const lonRow = document.createElement('div');
+        lonRow.className = 'settings-location-row';
+        const lonLabel = document.createElement('span');
+        lonLabel.className = 'settings-location-label';
+        lonLabel.textContent = 'LON';
+        const lonInput = document.createElement('input');
+        lonInput.type = 'text';
+        lonInput.className = 'settings-location-input';
+        lonInput.placeholder = '0.000';
+        lonInput.spellcheck = false;
+        lonRow.appendChild(lonLabel);
+        lonRow.appendChild(lonInput);
+        // Action row
+        const actionRow = document.createElement('div');
+        actionRow.className = 'settings-location-action-row';
+        const status = document.createElement('span');
+        status.className = 'settings-location-status';
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'settings-location-apply';
+        applyBtn.textContent = 'APPLY';
+        actionRow.appendChild(status);
+        actionRow.appendChild(applyBtn);
+        wrap.appendChild(latRow);
+        wrap.appendChild(lonRow);
+        wrap.appendChild(actionRow);
+        // Populate from saved location
+        const saved = _loadSaved();
+        if (saved) {
+            latInput.value = saved.latitude.toFixed(5);
+            lonInput.value = saved.longitude.toFixed(5);
+        }
+        function _showStatus(msg, isError) {
+            status.textContent = msg;
+            status.className = 'settings-location-status ' +
+                (isError ? 'settings-location-status--error' : 'settings-location-status--ok');
+            setTimeout(function () {
+                status.textContent = '';
+                status.className = 'settings-location-status';
+            }, 2500);
+        }
+        applyBtn.addEventListener('click', function () {
+            const lat = parseFloat(latInput.value);
+            const lon = parseFloat(lonInput.value);
+            if (isNaN(lat) || lat < -90 || lat > 90) {
+                _showStatus('INVALID LAT', true);
+                return;
+            }
+            if (isNaN(lon) || lon < -180 || lon > 180) {
+                _showStatus('INVALID LON', true);
+                return;
+            }
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    longitude: lon, latitude: lat, ts: Date.now(), manual: true,
+                }));
+            }
+            catch (e) { }
+            if (typeof setUserLocation === 'function') {
+                setUserLocation({ coords: { longitude: lon, latitude: lat }, _fromCache: false, _manual: true });
+            }
+            _showStatus('SAVED', false);
+        });
+        return wrap;
+    }
     function _renderThemeToggle() {
         const STORAGE_KEY = 'sentinel_theme';
         let saved = 'dark';

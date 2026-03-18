@@ -11,7 +11,7 @@
     z-index: 10000;
     display: none;
     flex-direction: row;
-    background-color: #000;
+    background-color: #38435c;
 }
 
 #settings-panel.settings-panel-visible {
@@ -28,6 +28,7 @@
     width: 200px;
     flex-shrink: 0;
     border-right: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
     padding: 24px 0;
@@ -76,7 +77,7 @@
 #settings-search-wrap {
     display: flex;
     align-items: center;
-    padding: 36px 24px 11px;
+    padding: 36px 48px 11px;
     flex-shrink: 0;
 }
 
@@ -155,7 +156,7 @@
     font-weight: 700;
     letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.3);
-    padding: 36px 24px 20px;
+    padding: 48px 48px 12px;
     text-transform: uppercase;
 }
 
@@ -164,9 +165,9 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 14px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    gap: 12px;
+    padding: 24px 48px;
+    gap: 16px;
+    max-width: 640px;
 }
 
 .settings-item-info {
@@ -205,7 +206,7 @@
 
 /* ---- Empty / coming soon ---- */
 .settings-empty {
-    padding: 32px 24px;
+    padding: 32px 48px;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
     font-weight: 700;
@@ -315,6 +316,56 @@
 .settings-location-apply:hover {
     color: rgba(255, 255, 255, 0.9);
     border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ---- Theme toggle ---- */
+.settings-theme-switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.settings-theme-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    user-select: none;
+}
+
+.settings-theme-track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    padding: 0;
+}
+
+.settings-theme-track.is-dark {
+    background: rgba(200, 255, 0, 0.15);
+    border-color: rgba(200, 255, 0, 0.4);
+}
+
+.settings-theme-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transition: transform 0.2s, background 0.2s;
+}
+
+.settings-theme-track.is-dark .settings-theme-thumb {
+    transform: translateX(20px);
+    background: #c8ff00;
 }
 
 /* ---- Footer settings button active state ---- */
