@@ -368,6 +368,87 @@
     background: #c8ff00;
 }
 
+/* ---- Data source controls ---- */
+.settings-datasource-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+}
+
+.settings-datasource-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.settings-datasource-row:focus-within {
+    border-color: rgba(200, 255, 0, 0.4);
+}
+
+.settings-datasource-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    padding: 0 10px;
+    flex-shrink: 0;
+    user-select: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-datasource-input {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 9px 12px;
+    color: rgba(255, 255, 255, 0.9);
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    outline: none;
+    caret-color: #c8ff00;
+    min-width: 0;
+}
+
+.settings-datasource-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+}
+
+.settings-datasource-port-input {
+    width: 80px;
+    flex: none;
+}
+
+.settings-datasource-status {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: transparent;
+    transition: color 0.2s;
+    height: 16px;
+    line-height: 16px;
+}
+
+.settings-datasource-status--ok {
+    color: #c8ff00;
+}
+
+.settings-datasource-status--err {
+    color: rgba(255, 80, 80, 0.9);
+}
+
 /* ---- Footer settings button active state ---- */
 #settings-btn.settings-btn-active {
     opacity: 1;

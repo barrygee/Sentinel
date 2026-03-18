@@ -43,6 +43,74 @@ window._SettingsPanel = (function () {
             desc:          'Set a fixed latitude / longitude for your position',
             renderControl: _renderLocationControl,
         },
+        // AIR
+        {
+            section:       'air',
+            sectionLabel:  'AIR',
+            id:            'air-online-source',
+            label:         'Online Data Source',
+            desc:          'URL for live air data feed',
+            renderControl: function () { return _renderOnlineSourceControl('air'); },
+        },
+        {
+            section:       'air',
+            sectionLabel:  'AIR',
+            id:            'air-offline-source',
+            label:         'Offline Data Source',
+            desc:          'Local server URL and port for air data',
+            renderControl: function () { return _renderOfflineSourceControl('air'); },
+        },
+        // SPACE
+        {
+            section:       'space',
+            sectionLabel:  'SPACE',
+            id:            'space-online-source',
+            label:         'Online Data Source',
+            desc:          'URL for live space data feed',
+            renderControl: function () { return _renderOnlineSourceControl('space'); },
+        },
+        {
+            section:       'space',
+            sectionLabel:  'SPACE',
+            id:            'space-offline-source',
+            label:         'Offline Data Source',
+            desc:          'Local server URL and port for space data',
+            renderControl: function () { return _renderOfflineSourceControl('space'); },
+        },
+        // SEA
+        {
+            section:       'sea',
+            sectionLabel:  'SEA',
+            id:            'sea-online-source',
+            label:         'Online Data Source',
+            desc:          'URL for live sea data feed',
+            renderControl: function () { return _renderOnlineSourceControl('sea'); },
+        },
+        {
+            section:       'sea',
+            sectionLabel:  'SEA',
+            id:            'sea-offline-source',
+            label:         'Offline Data Source',
+            desc:          'Local server URL and port for sea data',
+            renderControl: function () { return _renderOfflineSourceControl('sea'); },
+        },
+        // LAND
+        {
+            section:       'land',
+            sectionLabel:  'LAND',
+            id:            'land-online-source',
+            label:         'Online Data Source',
+            desc:          'URL for live land data feed',
+            renderControl: function () { return _renderOnlineSourceControl('land'); },
+        },
+        {
+            section:       'land',
+            sectionLabel:  'LAND',
+            id:            'land-offline-source',
+            label:         'Offline Data Source',
+            desc:          'Local server URL and port for land data',
+            renderControl: function () { return _renderOfflineSourceControl('land'); },
+        },
     ];
 
     const _NAV_SECTIONS: NavSection[] = [
@@ -107,6 +175,194 @@ window._SettingsPanel = (function () {
     })();
 
     // ── Controls ─────────────────────────────────────────────
+
+    function _renderOnlineSourceControl(ns: string): HTMLElement {
+        const LS_KEY = 'sentinel_' + ns + '_onlineUrl';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-datasource-wrap';
+
+        const urlRow = document.createElement('div');
+        urlRow.className = 'settings-datasource-row';
+
+        const urlLabel = document.createElement('span');
+        urlLabel.className = 'settings-datasource-label';
+        urlLabel.textContent = 'URL';
+
+        const urlInput = document.createElement('input');
+        urlInput.type = 'url';
+        urlInput.className = 'settings-datasource-input';
+        urlInput.placeholder = 'https://';
+        urlInput.spellcheck = false;
+        urlInput.autocomplete = 'off';
+
+        urlRow.appendChild(urlLabel);
+        urlRow.appendChild(urlInput);
+
+        const status = document.createElement('div');
+        status.className = 'settings-datasource-status';
+
+        wrap.appendChild(urlRow);
+        wrap.appendChild(status);
+
+        // Load saved value
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved) urlInput.value = saved;
+        } catch (e) {}
+
+        // Reconcile with backend
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace(ns).then(function (data) {
+                if (!data || !data['onlineUrl']) return;
+                const backendVal = data['onlineUrl'] as string;
+                if (backendVal && !urlInput.value) {
+                    urlInput.value = backendVal;
+                    try { localStorage.setItem(LS_KEY, backendVal); } catch (e) {}
+                }
+            });
+        }
+
+        function _showStatus(msg: string, isError: boolean): void {
+            status.textContent = msg;
+            status.className = 'settings-datasource-status ' +
+                (isError ? 'settings-datasource-status--err' : 'settings-datasource-status--ok');
+            setTimeout(function () {
+                status.textContent = '';
+                status.className = 'settings-datasource-status';
+            }, 2500);
+        }
+
+        function _save(): void {
+            const val = urlInput.value.trim();
+            if (!val) {
+                try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', '');
+                return;
+            }
+            try { new URL(val); } catch (e) {
+                _showStatus('INVALID URL', true);
+                return;
+            }
+            try { localStorage.setItem(LS_KEY, val); } catch (e) {}
+            if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', val);
+            _showStatus('SAVED', false);
+        }
+
+        let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        urlInput.addEventListener('input', function () {
+            if (_debounceTimer !== null) clearTimeout(_debounceTimer);
+            _debounceTimer = setTimeout(_save, 800);
+        });
+        urlInput.addEventListener('blur', function () {
+            if (_debounceTimer !== null) { clearTimeout(_debounceTimer); _debounceTimer = null; }
+            _save();
+        });
+
+        return wrap;
+    }
+
+    function _renderOfflineSourceControl(ns: string): HTMLElement {
+        const LS_KEY = 'sentinel_' + ns + '_offlineSource';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-datasource-wrap';
+
+        // URL row
+        const urlRow = document.createElement('div');
+        urlRow.className = 'settings-datasource-row';
+        const urlLabel = document.createElement('span');
+        urlLabel.className = 'settings-datasource-label';
+        urlLabel.textContent = 'URL';
+        const urlInput = document.createElement('input');
+        urlInput.type = 'url';
+        urlInput.className = 'settings-datasource-input';
+        urlInput.placeholder = 'http://localhost';
+        urlInput.spellcheck = false;
+        urlInput.autocomplete = 'off';
+        urlRow.appendChild(urlLabel);
+        urlRow.appendChild(urlInput);
+
+        // PORT row
+        const portRow = document.createElement('div');
+        portRow.className = 'settings-datasource-row';
+        const portLabel = document.createElement('span');
+        portLabel.className = 'settings-datasource-label';
+        portLabel.textContent = 'PORT';
+        const portInput = document.createElement('input');
+        portInput.type = 'text';
+        portInput.className = 'settings-datasource-input settings-datasource-port-input';
+        portInput.placeholder = '8080';
+        portInput.spellcheck = false;
+        portInput.autocomplete = 'off';
+        portRow.appendChild(portLabel);
+        portRow.appendChild(portInput);
+
+        const status = document.createElement('div');
+        status.className = 'settings-datasource-status';
+
+        wrap.appendChild(urlRow);
+        wrap.appendChild(portRow);
+        wrap.appendChild(status);
+
+        // Load saved values
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw) as { url?: string; port?: string };
+                if (saved.url)  urlInput.value  = saved.url;
+                if (saved.port) portInput.value = saved.port;
+            }
+        } catch (e) {}
+
+        // Reconcile with backend
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace(ns).then(function (data) {
+                if (!data || !data['offlineSource']) return;
+                const backendVal = data['offlineSource'] as { url?: string; port?: string };
+                if (!urlInput.value && backendVal.url) urlInput.value = backendVal.url;
+                if (!portInput.value && backendVal.port) portInput.value = backendVal.port;
+                try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
+            });
+        }
+
+        function _showStatus(msg: string, isError: boolean): void {
+            status.textContent = msg;
+            status.className = 'settings-datasource-status ' +
+                (isError ? 'settings-datasource-status--err' : 'settings-datasource-status--ok');
+            setTimeout(function () {
+                status.textContent = '';
+                status.className = 'settings-datasource-status';
+            }, 2500);
+        }
+
+        function _save(): void {
+            const url  = urlInput.value.trim();
+            const port = portInput.value.trim();
+
+            if (url) {
+                try { new URL(url); } catch (e) {
+                    _showStatus('INVALID URL', true);
+                    return;
+                }
+            }
+            if (port && (!/^\d+$/.test(port) || parseInt(port, 10) < 1 || parseInt(port, 10) > 65535)) {
+                _showStatus('INVALID PORT', true);
+                return;
+            }
+
+            const val = { url, port };
+            try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
+            if (window._SettingsAPI) window._SettingsAPI.put(ns, 'offlineSource', val);
+            _showStatus('SAVED', false);
+        }
+
+        urlInput.addEventListener('blur', _save);
+        portInput.addEventListener('blur', _save);
+
+        return wrap;
+    }
+
     function _renderLocationControl(): HTMLElement {
         const STORAGE_KEY = 'userLocation';
 
