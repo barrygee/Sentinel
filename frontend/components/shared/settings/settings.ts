@@ -1113,6 +1113,18 @@ window._SettingsPanel = (function () {
         });
     }
 
-    return { open, close, toggle, init };
+    function openSection(sectionKey: string): void {
+        _activeSection = sectionKey;
+        document.querySelectorAll('.settings-nav-item').forEach(function (el) {
+            const item = el as HTMLElement;
+            const isTarget = item.dataset['section'] === sectionKey;
+            item.classList.toggle('active', isTarget);
+        });
+        const searchWrap = document.getElementById('settings-search-wrap');
+        if (searchWrap) searchWrap.classList.toggle('settings-search-wrap--hidden', sectionKey !== 'app');
+        open();
+    }
+
+    return { open, close, toggle, init, openSection };
 
 })();

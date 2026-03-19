@@ -1087,5 +1087,15 @@ window._SettingsPanel = (function () {
             _pending.delete('location');
         });
     }
-    return { open, close, toggle, init };
+    function openSection(sectionKey) {
+        _activeSection = sectionKey;
+        document.querySelectorAll('.settings-nav-item').forEach(function (el) {
+            const isTarget = el.dataset['section'] === sectionKey;
+            el.classList.toggle('active', isTarget);
+        });
+        const searchWrap = document.getElementById('settings-search-wrap');
+        if (searchWrap) searchWrap.classList.toggle('settings-search-wrap--hidden', sectionKey !== 'app');
+        open();
+    }
+    return { open, close, toggle, init, openSection };
 })();

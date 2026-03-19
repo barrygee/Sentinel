@@ -254,39 +254,76 @@ html {
 
 
 /* ============================================================
-   DOMAIN STATUS BANNER — coming-soon bar above the map
+   NO-URL OVERLAY — shown when active mode has no data source URL
    ============================================================ */
-#domain-status-banner {
+.no-url-overlay {
     position: fixed;
-    top: 68px;      /* below fixed nav */
+    top: 68px;
+    bottom: 44px;
     left: 0;
     right: 0;
     z-index: 500;
+    background-color: #38435c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.no-url-overlay-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 18px 40px;
-    background: #000;
-    border-bottom: 1px solid #c8ff00;
-    pointer-events: none;
+    gap: 12px;
+    max-width: 420px;
+    text-align: center;
+    padding: 48px;
 }
 
-.domain-status-label {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 4px;
-    color: #c8ff00;
+.no-url-overlay-domain {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
+    color: #c8ff00;
 }
 
-.domain-status-msg {
+.no-url-overlay-title {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 22px;
     font-weight: 700;
-    letter-spacing: 6px;
-    color: #ffffff;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.no-url-overlay-msg {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.6;
+    margin-top: 4px;
+}
+
+.no-url-overlay-btn {
+    margin-top: 12px;
+    background: none;
+    border: 1px solid rgba(200, 255, 0, 0.4);
+    border-radius: 3px;
+    padding: 9px 24px;
+    color: #c8ff00;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.no-url-overlay-btn:hover {
+    background: rgba(200, 255, 0, 0.08);
+    border-color: rgba(200, 255, 0, 0.7);
 }
