@@ -127,16 +127,24 @@ async def get_aircraft_near_point(
     # Build a deterministic cache key from the query parameters
     cache_key = f"{lat:.4f}_{lon:.4f}_{radius}"
 
+    # Resolve connectivity mode first so cache hits respect the current mode
+    primary_url, fallback_url = await _get_air_urls(db)
+
     # Look up any existing cache row for this key
     result = await db.execute(select(AdsbCache).where(AdsbCache.cache_key == cache_key))
     row = result.scalar_one_or_none()
 
-    # Return immediately if the cached data is still within its TTL
-    if row and is_fresh(row.expires_at):
+    # Return immediately if the cached data is still within its TTL,
+    # but only when there is a primary source to fetch from. If primary_url
+    # is None (e.g. offline mode with no offline source configured) we skip
+    # the cache so callers get a 503 rather than stale online data.
+    if row and is_fresh(row.expires_at) and primary_url is not None:
         return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "HIT"})
 
-    # Cache miss or expired — try to fetch fresh data from upstream
-    primary_url, fallback_url = await _get_air_urls(db)
+    # If primary_url is None the effective mode is offline with no offline source —
+    # do not fall back to the online URL, just serve a 503.
+    if primary_url is None:
+        raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
 
     data: dict | None = None
     for base_url in filter(None, [primary_url, fallback_url]):

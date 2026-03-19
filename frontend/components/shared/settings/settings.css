@@ -84,7 +84,11 @@
     color: rgba(255, 255, 255, 0.9);
     padding: 36px 48px 0;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+
 
 /* ---- Search ---- */
 #settings-search-wrap {
@@ -226,6 +230,21 @@
     text-transform: uppercase;
 }
 
+/* ---- Group labels (within a section) ---- */
+.settings-group-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: rgba(255, 255, 255, 0.2);
+    text-transform: uppercase;
+    padding: 20px 48px 4px;
+}
+
+.settings-group-label--spaced {
+    padding-top: 72px;
+}
+
 /* ---- Setting items ---- */
 .settings-item {
     display: flex;
@@ -234,6 +253,10 @@
     padding: 24px 48px;
     gap: 16px;
     max-width: 640px;
+}
+
+.settings-item + .settings-item {
+    padding-top: 48px;
 }
 
 .settings-item-info {
@@ -696,4 +719,729 @@
 
 #settings-btn.settings-btn-active[data-tooltip]::before {
     opacity: 0 !important;
+}
+
+/* ================================================================
+   TLE MANAGEMENT CONTROLS
+   ================================================================ */
+
+/* ── Shared action button — matches settings-source-override-btn ── */
+.tle-action-btn {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 16px;
+    height: 37px;              /* same as datasource-row height */
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+}
+.tle-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.85);
+}
+.tle-action-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.tle-action-btn--primary {
+    background: rgba(200, 255, 0, 0.08);
+    color: #c8ff00;
+    border-left-color: rgba(200, 255, 0, 0.2);
+}
+.tle-action-btn--primary:hover:not(:disabled) {
+    background: rgba(200, 255, 0, 0.15);
+    color: #c8ff00;
+}
+.tle-action-btn--danger {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    color: rgba(255, 100, 100, 0.7);
+    height: 34px;
+    padding: 0 16px;
+}
+.tle-action-btn--danger:hover:not(:disabled) {
+    background: rgba(255, 60, 60, 0.1);
+    border-color: rgba(255, 80, 80, 0.5);
+    color: rgba(255, 120, 120, 0.9);
+}
+.tle-action-btn--confirm {
+    background: rgba(255, 140, 0, 0.1);
+    border-color: rgba(255, 140, 0, 0.4);
+    color: rgba(255, 180, 0, 0.9);
+}
+
+/* ── Category select (native, used only in uncat-assign rows) ────── */
+.tle-uncat-select {
+    flex: 1;
+    min-width: 0;
+    height: 37px;
+    padding: 0 28px 0 10px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.65);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+.tle-uncat-select:focus {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
+    outline: none;
+}
+.tle-uncat-select option {
+    background-color: #222831;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: 'Barlow', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    padding: 6px 8px;
+}
+
+/* ── Custom flat dropdown (replaces native select in cat-row-ctrl) ── */
+.tle-dropdown {
+    position: relative;
+    width: 200px;
+    flex-shrink: 0;
+    height: 37px;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+}
+
+.tle-dropdown-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    padding: 0 10px 0 10px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tle-dropdown-selected-text {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tle-dropdown-selected-text--chosen {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.tle-dropdown-arrow {
+    flex-shrink: 0;
+    width: 8px;
+    height: 5px;
+    margin-left: 8px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: transform 0.15s;
+}
+
+.tle-dropdown--open .tle-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.tle-dropdown--open .tle-dropdown-selected {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.tle-dropdown-menu {
+    display: none;
+    position: absolute;
+    z-index: 99999;
+    background: #222831;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-top: none;
+    overflow-y: auto;
+    max-height: 240px;
+}
+
+.tle-dropdown-menu.tle-dropdown-menu--open {
+    display: block;
+}
+
+.tle-dropdown-item {
+    padding: 9px 12px;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s;
+}
+
+.tle-dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+}
+
+.tle-dropdown-item--placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Row combining label + select + button (matches datasource-row) */
+.tle-cat-row-ctrl {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: visible;
+    /* clip corners of children without clipping dropdown menu */
+    clip-path: none;
+    /* keep child backgrounds contained */
+    isolation: isolate;
+}
+/* Round the label's left edge and button's right edge so the row looks contained */
+.tle-cat-row-ctrl > .tle-inline-label:first-child {
+    border-radius: 2px 0 0 2px;
+}
+.tle-cat-row-ctrl > .tle-action-btn:last-child {
+    border-radius: 0 2px 2px 0;
+}
+.tle-cat-row-ctrl:focus-within {
+    border-color: rgba(200, 255, 0, 0.4);
+}
+
+/* Inline label inside a row (same as datasource-label) */
+.tle-inline-label {
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+    height: 37px;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Status badge ───────────────────────────────────────────────── */
+.tle-status-line {
+    min-height: 18px;
+    margin-top: 4px;
+}
+.tle-status-badge {
+    display: inline-block;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+}
+.tle-status-badge--ok {
+    color: #c8ff00;
+    background: rgba(200, 255, 0, 0.07);
+}
+.tle-status-badge--error {
+    color: rgba(255, 100, 100, 0.9);
+    background: rgba(255, 60, 60, 0.07);
+}
+.tle-status-badge--info {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Sub-section heading within a control ───────────────────────── */
+.tle-section-heading {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.75);
+    text-transform: uppercase;
+    margin-top: 40px;
+    margin-bottom: 10px;
+    user-select: none;
+}
+.tle-section-heading:first-child {
+    margin-top: 0;
+}
+
+/* ── Online source wrap — same max-width as datasource-wrap ────── */
+.tle-online-wrap {
+    max-width: 860px;
+}
+
+/* ── Celestrak info toggle + panel ─────────────────────────────── */
+.tle-info-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: 2px;
+}
+.tle-info-row-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+.tle-info-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.tle-info-toggle:hover,
+.tle-info-toggle--active {
+    color: #c8ff00;
+    border-color: #c8ff00;
+}
+.tle-info-chevron {
+    display: inline-flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, color 0.15s;
+    line-height: 0;
+}
+.tle-info-chevron--open {
+    transform: rotate(180deg);
+}
+.tle-info-row-header:hover .tle-info-chevron {
+    color: rgba(200, 255, 0, 0.6);
+}
+.tle-info-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    user-select: none;
+    transition: color 0.15s;
+}
+.tle-info-row-header:hover .tle-info-label,
+.tle-info-toggle--active ~ .tle-info-label {
+    color: rgba(200, 255, 0, 0.6);
+}
+.tle-info-panel {
+    margin-top: 8px;
+    width: 100%;
+}
+
+/* Simple list replacing the old bordered table */
+.tle-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.tle-info-list-item {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    padding: 5px 0;
+}
+.tle-info-list-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.45);
+    flex-shrink: 0;
+}
+.tle-info-list-sep {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+.tle-info-table-url {
+    color: rgba(200, 255, 0, 0.7);
+    text-decoration: none;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, monospace;
+    font-size: 11px;
+    word-break: break-all;
+}
+.tle-info-table-url:hover {
+    color: #c8ff00;
+    text-decoration: underline;
+}
+
+/* ── Manual TLE — single column, stretches wide ─────────────────── */
+.tle-manual-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+
+
+/* ── File upload row ────────────────────────────────────────────── */
+.tle-file-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+.tle-file-input {
+    display: none;
+}
+.tle-file-label {
+    flex-shrink: 0;
+    height: 37px;
+    padding: 0 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+}
+.tle-file-label:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.85);
+}
+.tle-file-name {
+    flex: 1;
+    padding: 0 12px;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.04em;
+}
+
+/* ── TLE database summary ───────────────────────────────────────── */
+.tle-db-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 480px;
+}
+.tle-db-summary {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Per-category table ─────────────────────────────────────────── */
+.tle-cat-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.tle-cat-row {
+    display: grid;
+    grid-template-columns: 1fr 48px 90px;
+    align-items: center;
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+}
+.tle-cat-row:last-child {
+    border-bottom: none;
+}
+.tle-cat-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+}
+.tle-cat-name {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+.tle-cat-count {
+    font-family: 'Barlow Condensed', 'Barlow', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8ff00;
+    text-align: right;
+    padding-right: 16px;
+}
+.tle-cat-age {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: right;
+    letter-spacing: 0.04em;
+}
+
+/* ── Uncategorised satellites list ─────────────────────────────── */
+.tle-uncat-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 580px;
+}
+.tle-uncat-count {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.45);
+    text-decoration: none;
+}
+.tle-uncat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.tle-uncat-list::-webkit-scrollbar { width: 4px; }
+.tle-uncat-list::-webkit-scrollbar-track { background: transparent; }
+.tle-uncat-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+.tle-uncat-row {
+    display: grid;
+    grid-template-columns: 1fr 56px auto;
+    align-items: center;
+    overflow: visible;
+    gap: 0;
+    padding: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+}
+.tle-uncat-row:last-child {
+    border-bottom: none;
+}
+.tle-uncat-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+}
+.tle-uncat-name {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.03em;
+}
+.tle-uncat-id {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.25);
+    text-align: right;
+    padding-right: 8px;
+    letter-spacing: 0.04em;
+}
+/* Custom dropdown inside uncat row */
+.tle-uncat-row .tle-uncat-drop {
+    height: 34px;
+    min-width: 150px;
+}
+.tle-uncat-row .tle-uncat-drop .tle-dropdown-selected {
+    height: 34px;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.tle-uncat-row .tle-uncat-drop .tle-dropdown-selected-text {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+}
+
+/* Settings item wide modifier — breaks 640px max-width for wide TLE controls */
+.settings-item--wide {
+    max-width: none !important;
+}
+/* Wide items still cap at a readable content width */
+.settings-item--wide .tle-manual-wrap,
+.settings-item--wide .tle-satlist-wrap,
+.settings-item--wide .tle-online-wrap {
+    max-width: 860px;
+}
+
+/* ── Satellite list — show/hide panel ───────────────────────────── */
+.tle-satlist-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.tle-satlist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    max-width: 860px;
+}
+.tle-satlist-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.tle-satlist-header-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.tle-satlist-chevron {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.25);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+.tle-satlist-chevron--open {
+    transform: rotate(90deg);
+}
+
+.tle-satlist-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 12px;
+    max-width: 860px;
+}
+.tle-satlist-body--hidden {
+    display: none;
+}
+
+.tle-satlist-search-row {
+    margin-bottom: 0;
+}
+
+/* Table */
+.tle-satlist-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.tle-satlist-table::-webkit-scrollbar { width: 4px; }
+.tle-satlist-table::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+.tle-satlist-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 130px 72px;
+    align-items: center;
+    padding: 5px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.02);
+}
+.tle-satlist-row:last-child { border-bottom: none; }
+.tle-satlist-row:nth-child(even) { background: rgba(255, 255, 255, 0.04); }
+
+.tle-satlist-name {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 8px;
+}
+.tle-satlist-id {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.25);
+    text-align: left;
+}
+.tle-satlist-cat {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(200, 255, 0, 0.6);
+}
+.tle-satlist-cat--none {
+    color: rgba(255, 255, 255, 0.2);
+}
+.tle-satlist-age {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: right;
+}
+
+.tle-satlist-count {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.06em;
+    text-align: right;
+}
+
+.tle-satlist-loading {
+    padding: 16px 12px;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.06em;
 }
