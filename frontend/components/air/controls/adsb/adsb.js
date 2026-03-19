@@ -515,7 +515,7 @@ class AdsbLiveControl {
         this._applyTypeFilter();
         if (this._geojson.features.length)
             this._interpolate();
-        if (this.visible && !this._pollInterval)
+        if (this.visible && !this._pollInterval && typeof _airEffectiveMode === 'function' && _airEffectiveMode() !== 'offline')
             this._startPolling();
     }
     // ---- ADS-B category label ----
@@ -1346,6 +1346,9 @@ class AdsbLiveControl {
                         this._startPolling(); }, 30000);
                     return;
                 }
+                this._geojson = { type: 'FeatureCollection', features: [] };
+                this._lastPositions = {};
+                try { this.map.getSource('adsb-live')?.setData(this._geojson); } catch(e) {}
                 this._isFetching = false;
                 return;
             }
@@ -1762,3 +1765,33 @@ class AdsbLiveControl {
 // Instantiate and register with MapLibre.
 adsbControl = new AdsbLiveControl();
 map.addControl(adsbControl, 'top-right');
+
+// Returns the effective mode for the 'air' domain by checking its sourceOverride,
+// falling back to the app-level connectivityMode.
+function _airEffectiveMode() {
+    try {
+        const override = localStorage.getItem('sentinel_air_sourceOverride') || 'auto';
+        if (override !== 'auto') return override;
+        return localStorage.getItem('sentinel_app_connectivityMode') || 'auto';
+    } catch(e) { return 'auto'; }
+}
+
+// Clear aircraft immediately when switching to offline mode.
+function _clearAdsbAircraft() {
+    adsbControl._stopPolling();
+    adsbControl._geojson = { type: 'FeatureCollection', features: [] };
+    adsbControl._lastPositions = {};
+    try { map.getSource('adsb-live')?.setData(adsbControl._geojson); } catch(e) {}
+}
+
+function _handleAirConnectivityChange() {
+    const mode = _airEffectiveMode();
+    if (mode === 'offline') {
+        _clearAdsbAircraft();
+    } else if (adsbControl.visible) {
+        adsbControl._startPolling();
+    }
+}
+
+window.addEventListener('sentinel:connectivityModeChanged', _handleAirConnectivityChange);
+window.addEventListener('sentinel:sourceOverrideChanged', _handleAirConnectivityChange);

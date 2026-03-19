@@ -509,7 +509,7 @@ class AdsbLiveControl implements maplibregl.IControl {
         this._raiseLayers();
         this._applyTypeFilter();
         if (this._geojson.features.length) this._interpolate();
-        if (this.visible && !this._pollInterval) this._startPolling();
+        if (this.visible && !this._pollInterval && _airEffectiveMode() !== 'offline') this._startPolling();
     }
 
     // ---- ADS-B category label ----
@@ -1249,6 +1249,10 @@ class AdsbLiveControl implements maplibregl.IControl {
                     setTimeout(() => { if (this.visible) this._startPolling(); }, 30000);
                     return;
                 }
+                this._geojson = { type: 'FeatureCollection', features: [] };
+                this._lastPositions = {};
+                try { (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)
+                    ?.setData(this._geojson as GeoJSON.GeoJSON); } catch(e) {}
                 this._isFetching = false; return;
             }
             this._fetchFailCount = 0;
@@ -1588,5 +1592,38 @@ class AdsbLiveControl implements maplibregl.IControl {
 // Instantiate and register with MapLibre.
 adsbControl = new AdsbLiveControl();
 map.addControl(adsbControl, 'top-right');
+
+// Returns the effective mode for the 'air' domain by checking its sourceOverride,
+// falling back to the app-level connectivityMode.
+function _airEffectiveMode(): string {
+    try {
+        const override = localStorage.getItem('sentinel_air_sourceOverride') || 'auto';
+        if (override !== 'auto') return override;
+        return localStorage.getItem('sentinel_app_connectivityMode') || 'auto';
+    } catch(e) { return 'auto'; }
+}
+
+// Clear aircraft immediately when switching to offline mode.
+function _clearAdsbAircraft(): void {
+    adsbControl['_stopPolling']();
+    adsbControl['_geojson'] = { type: 'FeatureCollection', features: [] };
+    adsbControl['_lastPositions'] = {};
+    try {
+        (map.getSource('adsb-live') as maplibregl.GeoJSONSource)
+            ?.setData(adsbControl['_geojson'] as GeoJSON.GeoJSON);
+    } catch(e) {}
+}
+
+function _handleAirConnectivityChange(): void {
+    const mode = _airEffectiveMode();
+    if (mode === 'offline') {
+        _clearAdsbAircraft();
+    } else if (adsbControl.visible) {
+        adsbControl['_startPolling']();
+    }
+}
+
+window.addEventListener('sentinel:connectivityModeChanged', _handleAirConnectivityChange);
+window.addEventListener('sentinel:sourceOverrideChanged', _handleAirConnectivityChange);
 
 
