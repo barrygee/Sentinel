@@ -1014,7 +1014,6 @@ window._SettingsPanel = (function () {
 
         const wrap = document.createElement('div');
         wrap.className = 'settings-datasource-wrap tle-online-wrap';
-        wrap.dataset['wide'] = 'true';
 
         // URL row — matches existing datasource-row pattern
         const urlRow = document.createElement('div');

@@ -187,7 +187,10 @@ window._SettingsPanel = (function () {
         // Section heading
         const sectionHeading = document.createElement('div');
         sectionHeading.id = 'settings-section-heading';
-        sectionHeading.textContent = 'App Settings';
+        const _headingText = document.createElement('span');
+        _headingText.id = 'settings-section-heading-text';
+        _headingText.textContent = 'App Settings';
+        sectionHeading.appendChild(_headingText);
         // Search row
         const searchWrap = document.createElement('div');
         searchWrap.id = 'settings-search-wrap';
@@ -1001,6 +1004,56 @@ window._SettingsPanel = (function () {
         const statusLine = document.createElement('div');
         statusLine.className = 'tle-status-line';
         wrap.appendChild(statusLine);
+        // Info toggle — shows Celestrak URLs for each category
+        const infoRow = document.createElement('div');
+        infoRow.className = 'tle-info-row';
+        const infoHeader = document.createElement('div');
+        infoHeader.className = 'tle-info-row-header';
+        const infoToggle = document.createElement('button');
+        infoToggle.className = 'tle-info-toggle';
+        infoToggle.type = 'button';
+        infoToggle.title = 'Show Celestrak source URLs';
+        infoToggle.innerHTML = '';
+        const infoLabel = document.createElement('span');
+        infoLabel.className = 'tle-info-label';
+        infoLabel.textContent = 'View Celestrak source URLs';
+        const infoPanel = document.createElement('div');
+        infoPanel.className = 'tle-info-panel';
+        infoPanel.hidden = true;
+        const infoTable = document.createElement('div');
+        infoTable.className = 'tle-info-table';
+        _TLE_CATEGORIES.filter(function (c) { return c.value && _CELESTRAK_URLS[c.value]; }).forEach(function (cat) {
+            const row = document.createElement('div');
+            row.className = 'tle-info-table-row';
+            const labelEl = document.createElement('span');
+            labelEl.className = 'tle-info-table-label';
+            labelEl.textContent = cat.label;
+            const urlEl = document.createElement('a');
+            urlEl.className = 'tle-info-table-url';
+            urlEl.textContent = _CELESTRAK_URLS[cat.value];
+            urlEl.href = _CELESTRAK_URLS[cat.value];
+            urlEl.target = '_blank';
+            urlEl.rel = 'noopener noreferrer';
+            row.appendChild(labelEl);
+            row.appendChild(urlEl);
+            infoTable.appendChild(row);
+        });
+        infoPanel.appendChild(infoTable);
+        const infoChevron = document.createElement('span');
+        infoChevron.className = 'tle-info-chevron';
+        infoChevron.innerHTML = '<svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="1,2.5 4,5.5 7,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        infoHeader.appendChild(infoToggle);
+        infoHeader.appendChild(infoLabel);
+        infoHeader.appendChild(infoChevron);
+        infoRow.appendChild(infoHeader);
+        infoRow.appendChild(infoPanel);
+        wrap.appendChild(infoRow);
+        infoHeader.addEventListener('click', function () {
+            const visible = !infoPanel.hidden;
+            infoPanel.hidden = visible;
+            infoToggle.classList.toggle('tle-info-toggle--active', !visible);
+            infoChevron.classList.toggle('tle-info-chevron--open', !visible);
+        });
         // Load saved URL
         try {
             const saved = localStorage.getItem(LS_KEY);
@@ -1075,10 +1128,6 @@ window._SettingsPanel = (function () {
         wrap.className = 'tle-manual-wrap';
         wrap.dataset['wide'] = 'true';
         // ── Section: Fetch from local URL ────────────────────────────────
-        const urlHeading = document.createElement('div');
-        urlHeading.className = 'tle-section-heading';
-        urlHeading.textContent = 'FETCH FROM URL';
-        wrap.appendChild(urlHeading);
         const urlRow = document.createElement('div');
         urlRow.className = 'settings-datasource-row';
         const urlLabel = document.createElement('span');
@@ -1118,7 +1167,7 @@ window._SettingsPanel = (function () {
         // ── Section: Paste / Upload ──────────────────────────────────────
         const pasteHeading = document.createElement('div');
         pasteHeading.className = 'tle-section-heading';
-        pasteHeading.textContent = 'PASTE / UPLOAD';
+        pasteHeading.textContent = 'UPLOAD TLE FILE';
         wrap.appendChild(pasteHeading);
         const fileRow = document.createElement('div');
         fileRow.className = 'tle-file-row';
@@ -1616,9 +1665,9 @@ window._SettingsPanel = (function () {
         // Clear pending changes from the previous section
         _pending.clear();
         const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
-        const heading = document.getElementById('settings-section-heading');
-        if (heading) {
-            heading.textContent = navSection
+        const headingText = document.getElementById('settings-section-heading-text');
+        if (headingText) {
+            headingText.textContent = navSection
                 ? (navSection.key === 'app' ? navSection.label : navSection.label + ' SETTINGS')
                 : sectionKey;
         }
@@ -1662,9 +1711,9 @@ window._SettingsPanel = (function () {
         if (!body)
             return;
         body.innerHTML = '';
-        const heading = document.getElementById('settings-section-heading');
-        if (heading)
-            heading.textContent = 'SEARCH RESULTS';
+        const headingText2 = document.getElementById('settings-section-heading-text');
+        if (headingText2)
+            headingText2.textContent = 'SEARCH RESULTS';
         if (!results.length) {
             const empty = document.createElement('div');
             empty.className = 'settings-empty';

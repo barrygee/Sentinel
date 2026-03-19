@@ -84,7 +84,11 @@
     color: rgba(255, 255, 255, 0.9);
     padding: 36px 48px 0;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+
 
 /* ---- Search ---- */
 #settings-search-wrap {
@@ -1007,18 +1011,35 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 16px;
+    height: 16px;
     padding: 0;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
     background: transparent;
     color: rgba(255, 255, 255, 0.35);
     cursor: pointer;
-    transition: color 0.15s;
+    transition: color 0.15s, border-color 0.15s;
     flex-shrink: 0;
     line-height: 1;
 }
 .tle-info-toggle:hover,
 .tle-info-toggle--active {
     color: #c8ff00;
+    border-color: #c8ff00;
+}
+.tle-info-chevron {
+    display: inline-flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, color 0.15s;
+    line-height: 0;
+}
+.tle-info-chevron--open {
+    transform: rotate(180deg);
+}
+.tle-info-row-header:hover .tle-info-chevron {
+    color: rgba(200, 255, 0, 0.6);
 }
 .tle-info-label {
     font-size: 10px;
