@@ -16,6 +16,20 @@ if ('geolocation' in navigator) {
 else {
     console.warn('[space/location] geolocation not available in navigator');
 }
+// ---- 1b. No-TLE overlay button ----
+(function () {
+    const btn = document.getElementById('no-tle-overlay-btn');
+    if (btn) {
+        btn.addEventListener('click', function () {
+            if (window._SettingsPanel && window._SettingsPanel.openSection) {
+                window._SettingsPanel.openSection('space');
+            }
+            else if (window._SettingsPanel) {
+                window._SettingsPanel.open();
+            }
+        });
+    }
+})();
 // ---- 2. Panel initialisation ----
 if (typeof window._Notifications !== 'undefined') {
     window._Notifications.init();

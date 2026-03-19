@@ -98,8 +98,15 @@ async def get_iss(db: AsyncSession = Depends(get_db)):
 
     Position is propagated fresh on each request using the cached TLE.
     TLE is refreshed from the configured upstream URL at most once per hour.
+    Returns 503 with no_tle_data=true if the TLE database is empty (e.g. after a manual clear).
     """
     try:
+        # If the TLE database is empty (e.g. user cleared all data), do not auto-fetch —
+        # return a distinct error so the UI can prompt the user to add TLE data.
+        tle_count_result = await db.execute(select(func.count()).select_from(TleCache))
+        if tle_count_result.scalar() == 0:
+            return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
+
         online_url, offline_url = await _get_space_urls(db)
         tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url, offline_url)
         _, line1, line2 = tle_service.parse_tle_lines(tle_text)

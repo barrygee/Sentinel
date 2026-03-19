@@ -85,13 +85,13 @@
     const toggleGroup = makeGroup('ssm-group-toggle');
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'space-side-menu-toggle';
-    toggleBtn.textContent = '‹';
+    toggleBtn.textContent = '›';
     toggleBtn.title = 'Expand / collapse menu';
     toggleBtn.dataset['tooltip'] = 'EXPAND MENU';
     toggleBtn.addEventListener('click', () => {
         expanded = !expanded;
         panel.classList.toggle('expanded', expanded);
-        toggleBtn.textContent = expanded ? '›' : '‹';
+        toggleBtn.textContent = expanded ? '‹' : '›';
         toggleBtn.dataset['tooltip'] = expanded ? 'COLLAPSE MENU' : 'EXPAND MENU';
     });
     toggleGroup.appendChild(toggleBtn);

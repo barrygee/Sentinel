@@ -76,6 +76,7 @@ window._SettingsPanel = (function () {
             id: 'space-manual-tle',
             label: 'TLE Import',
             desc: 'Upload a .tle file or fetch from a local network URL',
+            groupLabel: '',
             renderControl: _renderSpaceManualTleControl,
         },
         {
@@ -84,6 +85,7 @@ window._SettingsPanel = (function () {
             id: 'space-tle-database',
             label: 'TLE Database',
             desc: 'Satellite count, sources, and per-category last-updated times',
+            groupLabel: 'TLE DATABASE',
             renderControl: _renderSpaceTleDatabaseControl,
         },
         {
@@ -100,6 +102,7 @@ window._SettingsPanel = (function () {
             id: 'space-tle-satlist',
             label: 'Satellite List',
             desc: 'Full list of all TLE records stored in the database',
+            groupLabel: '',
             renderControl: _renderSpaceTleSatListControl,
         },
         // SEA
@@ -183,10 +186,7 @@ window._SettingsPanel = (function () {
         // Section heading
         const sectionHeading = document.createElement('div');
         sectionHeading.id = 'settings-section-heading';
-        const _headingText = document.createElement('span');
-        _headingText.id = 'settings-section-heading-text';
-        _headingText.textContent = 'App Settings';
-        sectionHeading.appendChild(_headingText);
+        sectionHeading.textContent = 'App Settings';
         // Search row
         const searchWrap = document.createElement('div');
         searchWrap.id = 'settings-search-wrap';
@@ -965,7 +965,6 @@ window._SettingsPanel = (function () {
         const LS_KEY = 'sentinel_space_onlineUrl';
         const wrap = document.createElement('div');
         wrap.className = 'settings-datasource-wrap tle-online-wrap';
-        wrap.dataset['wide'] = 'true';
         // URL row — matches existing datasource-row pattern
         const urlRow = document.createElement('div');
         urlRow.className = 'settings-datasource-row';
@@ -1120,6 +1119,10 @@ window._SettingsPanel = (function () {
         wrap.className = 'tle-manual-wrap';
         wrap.dataset['wide'] = 'true';
         // ── Section: Fetch from local URL ────────────────────────────────
+        const urlHeading = document.createElement('div');
+        urlHeading.className = 'tle-section-heading';
+        urlHeading.textContent = 'FETCH FROM URL';
+        wrap.appendChild(urlHeading);
         const urlRow = document.createElement('div');
         urlRow.className = 'settings-datasource-row';
         const urlLabel = document.createElement('span');
@@ -1654,9 +1657,9 @@ window._SettingsPanel = (function () {
         // Clear pending changes from the previous section
         _pending.clear();
         const navSection = _NAV_SECTIONS.find(function (s) { return s.key === sectionKey; });
-        const headingText = document.getElementById('settings-section-heading-text');
-        if (headingText) {
-            headingText.textContent = navSection
+        const heading = document.getElementById('settings-section-heading');
+        if (heading) {
+            heading.textContent = navSection
                 ? (navSection.key === 'app' ? navSection.label : navSection.label + ' SETTINGS')
                 : sectionKey;
         }
@@ -1673,7 +1676,8 @@ window._SettingsPanel = (function () {
             if (item.groupLabel !== undefined && item.groupLabel !== lastGroup) {
                 const grpLabel = document.createElement('div');
                 grpLabel.className = 'settings-group-label';
-                if (lastGroup !== undefined) grpLabel.classList.add('settings-group-label--spaced');
+                if (lastGroup !== undefined)
+                    grpLabel.classList.add('settings-group-label--spaced');
                 grpLabel.textContent = item.groupLabel;
                 body.appendChild(grpLabel);
                 lastGroup = item.groupLabel;
@@ -1696,9 +1700,9 @@ window._SettingsPanel = (function () {
         if (!body)
             return;
         body.innerHTML = '';
-        const headingText2 = document.getElementById('settings-section-heading-text');
-        if (headingText2)
-            headingText2.textContent = 'SEARCH RESULTS';
+        const heading = document.getElementById('settings-section-heading');
+        if (heading)
+            heading.textContent = 'SEARCH RESULTS';
         if (!results.length) {
             const empty = document.createElement('div');
             empty.className = 'settings-empty';

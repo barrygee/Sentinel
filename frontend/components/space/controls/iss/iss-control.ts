@@ -305,13 +305,29 @@ class IssControl extends SentinelControlBase {
         this.map.on('mouseleave', 'iss-bracket', () => { this.map.getCanvas().style.cursor = ''; this._scheduleHideHoverTag(); });
     }
 
+    // ---- No TLE overlay helpers ----
+    private _showNoTleOverlay(): void {
+        const overlay = document.getElementById('no-tle-overlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    private _hideNoTleOverlay(): void {
+        const overlay = document.getElementById('no-tle-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
     // ---- Data fetch ----
     async _fetch(): Promise<void> {
         try {
             const resp = await fetch('/api/space/iss');
-            if (!resp.ok) return;
+            if (!resp.ok) {
+                const body = await resp.json().catch(() => ({})) as { no_tle_data?: boolean };
+                if (body.no_tle_data) this._showNoTleOverlay();
+                return;
+            }
             const data = await resp.json() as IssApiResponse;
             if (data.error) return;
+            this._hideNoTleOverlay();
 
             const { position, ground_track, footprint } = data;
             this._lastPosition = position;
