@@ -388,11 +388,35 @@ class AdsbLiveControl {
             }
             catch (e) { }
         });
+        // Cancel any pending timers that could mutate state after we wipe it.
+        if (this._hoverHideTimer) { clearTimeout(this._hoverHideTimer); this._hoverHideTimer = null; }
+        for (const t of Object.values(this._parkedTimers)) clearTimeout(t);
+        this._parkedTimers = {};
+        // Remove all DOM markers.
         this._clearCallsignMarkers();
+        this._hideHoverTagNow();
+        if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null; }
+        this._tagHex = null;
+        this._hideStatusBar();
+        // Reset selection/tracking state.
+        this._selectedHex = null;
+        this._followEnabled = false;
         ['adsb-live', 'adsb-trails-source'].forEach(id => {
             if (this.map.getSource(id))
                 this.map.removeSource(id);
         });
+        // Clear stale data so a style reload (e.g. online→offline with no offline URL)
+        // never re-renders old data from the previous source.
+        this._geojson = { type: 'FeatureCollection', features: [] };
+        this._trailsGeojson = { type: 'FeatureCollection', features: [] };
+        this._trails = {};
+        this._lastPositions = {};
+        this._interpolatedFeatures = [];
+        this._prevAlt = {};
+        this._hasDeparted = {};
+        this._seenOnGround = {};
+        this._landedAt = {};
+        this._prevSquawk = {};
         this._registerIcons();
         this.map.addSource('adsb-trails-source', { type: 'geojson', data: this._trailsGeojson });
         this.map.addLayer({
@@ -1779,9 +1803,32 @@ function _airEffectiveMode() {
 // Clear aircraft immediately when switching to offline mode.
 function _clearAdsbAircraft() {
     adsbControl._stopPolling();
+    // Cancel pending timers.
+    if (adsbControl._hoverHideTimer) { clearTimeout(adsbControl._hoverHideTimer); adsbControl._hoverHideTimer = null; }
+    for (const t of Object.values(adsbControl._parkedTimers)) clearTimeout(t);
+    adsbControl._parkedTimers = {};
+    // Remove all DOM markers.
+    adsbControl._clearCallsignMarkers();
+    adsbControl._hideHoverTagNow();
+    if (adsbControl._tagMarker) { adsbControl._tagMarker.remove(); adsbControl._tagMarker = null; }
+    adsbControl._tagHex = null;
+    adsbControl._hideStatusBar();
+    // Reset selection/tracking state.
+    adsbControl._selectedHex = null;
+    adsbControl._followEnabled = false;
+    // Clear all aircraft data.
     adsbControl._geojson = { type: 'FeatureCollection', features: [] };
+    adsbControl._trailsGeojson = { type: 'FeatureCollection', features: [] };
+    adsbControl._trails = {};
     adsbControl._lastPositions = {};
+    adsbControl._interpolatedFeatures = [];
+    adsbControl._prevAlt = {};
+    adsbControl._hasDeparted = {};
+    adsbControl._seenOnGround = {};
+    adsbControl._landedAt = {};
+    adsbControl._prevSquawk = {};
     try { map.getSource('adsb-live')?.setData(adsbControl._geojson); } catch(e) {}
+    try { map.getSource('adsb-trails-source')?.setData(adsbControl._trailsGeojson); } catch(e) {}
 }
 
 function _handleAirConnectivityChange() {
