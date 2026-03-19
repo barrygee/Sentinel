@@ -242,7 +242,7 @@
 }
 
 .settings-group-label--spaced {
-    padding-top: 48px;
+    padding-top: 72px;
 }
 
 /* ---- Setting items ---- */
@@ -253,6 +253,10 @@
     padding: 24px 48px;
     gap: 16px;
     max-width: 640px;
+}
+
+.settings-item + .settings-item {
+    padding-top: 48px;
 }
 
 .settings-item-info {
@@ -974,10 +978,10 @@
 /* ── Sub-section heading within a control ───────────────────────── */
 .tle-section-heading {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: rgba(255, 255, 255, 0.25);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.75);
     text-transform: uppercase;
     margin-top: 40px;
     margin-bottom: 10px;

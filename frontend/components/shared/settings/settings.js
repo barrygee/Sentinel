@@ -76,7 +76,6 @@ window._SettingsPanel = (function () {
             id: 'space-manual-tle',
             label: 'TLE Import',
             desc: 'Upload a .tle file or fetch from a local network URL',
-            groupLabel: '',
             renderControl: _renderSpaceManualTleControl,
         },
         {
@@ -85,7 +84,6 @@ window._SettingsPanel = (function () {
             id: 'space-tle-database',
             label: 'TLE Database',
             desc: 'Satellite count, sources, and per-category last-updated times',
-            groupLabel: '',
             renderControl: _renderSpaceTleDatabaseControl,
         },
         {
@@ -102,7 +100,6 @@ window._SettingsPanel = (function () {
             id: 'space-tle-satlist',
             label: 'Satellite List',
             desc: 'Full list of all TLE records stored in the database',
-            groupLabel: '',
             renderControl: _renderSpaceTleSatListControl,
         },
         // SEA
