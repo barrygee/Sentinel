@@ -93,16 +93,40 @@ window._SettingsPanel = (function () {
             sectionLabel:  'SPACE',
             id:            'space-online-source',
             label:         'Online Data Source',
-            desc:          'URL for live space data feed',
-            renderControl: function () { return _renderOnlineSourceControl('space'); },
+            desc:          'URL to fetch TLE data from — select a category and click UPDATE TLE',
+            renderControl: _renderSpaceOnlineSourceControl,
         },
         {
             section:       'space',
             sectionLabel:  'SPACE',
-            id:            'space-offline-source',
-            label:         'Offline Data Source',
-            desc:          'Local server URL and port for space data',
-            renderControl: function () { return _renderOfflineSourceControl('space'); },
+            id:            'space-manual-tle',
+            label:         'TLE Import',
+            desc:          'Upload a .tle file or fetch from a local network URL',
+            renderControl: _renderSpaceManualTleControl,
+        },
+        {
+            section:       'space',
+            sectionLabel:  'SPACE',
+            id:            'space-tle-database',
+            label:         'TLE Database',
+            desc:          'Satellite count, sources, and per-category last-updated times',
+            renderControl: _renderSpaceTleDatabaseControl,
+        },
+        {
+            section:       'space',
+            sectionLabel:  'SPACE',
+            id:            'space-tle-uncategorised',
+            label:         'Uncategorised Satellites',
+            desc:          'Assign categories to satellites imported without one',
+            renderControl: _renderSpaceTleUncategorisedControl,
+        },
+        {
+            section:       'space',
+            sectionLabel:  'SPACE',
+            id:            'space-tle-satlist',
+            label:         'Satellite List',
+            desc:          'Full list of all TLE records stored in the database',
+            renderControl: _renderSpaceTleSatListControl,
         },
         // SEA
         {
@@ -820,6 +844,690 @@ window._SettingsPanel = (function () {
         return wrap;
     }
 
+    // ── Space TLE controls ───────────────────────────────────────────────────
+
+    // Categories shown on import controls (URL fetch / file upload) — includes 'active'
+    const _TLE_CATEGORIES: Array<{ value: string; label: string }> = [
+        { value: '',              label: 'Select category...' },
+        { value: 'space_station', label: 'Space Stations' },
+        { value: 'amateur',       label: 'Amateur Radio' },
+        { value: 'weather',       label: 'Weather' },
+        { value: 'military',      label: 'Military' },
+        { value: 'navigation',    label: 'Navigation (GNSS)' },
+        { value: 'science',       label: 'Science' },
+        { value: 'cubesat',       label: 'CubeSats' },
+        { value: 'active',        label: 'All Active (no category)' },
+        { value: 'unknown',       label: 'Unknown' },
+    ];
+
+    // Categories available for manual assignment — 'active' excluded (not a meaningful choice)
+    const _TLE_ASSIGN_CATEGORIES: Array<{ value: string; label: string }> = _TLE_CATEGORIES.filter(
+        function (c) { return c.value !== 'active'; }
+    );
+
+    const _CELESTRAK_URLS: Record<string, string> = {
+        space_station: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle',
+        amateur:       'https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle',
+        weather:       'https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle',
+        military:      'https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle',
+        navigation:    'https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle',
+        science:       'https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle',
+        cubesat:       'https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle',
+        active:        'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle',
+    };
+
+    function _makeCategorySelect(
+        includeBlank: boolean,
+        list?: Array<{ value: string; label: string }>,
+    ): HTMLSelectElement {
+        const sel = document.createElement('select');
+        sel.className = 'tle-category-select';
+        (list ?? _TLE_CATEGORIES).forEach(function (opt) {
+            if (!includeBlank && opt.value === '') return;
+            const el = document.createElement('option');
+            el.value       = opt.value;
+            el.textContent = opt.label;
+            sel.appendChild(el);
+        });
+        return sel;
+    }
+
+    function _makeTleStatusBadge(text: string, type: 'ok' | 'error' | 'info'): HTMLElement {
+        const badge = document.createElement('span');
+        badge.className = 'tle-status-badge tle-status-badge--' + type;
+        badge.textContent = text;
+        return badge;
+    }
+
+    function _fmtAge(ms: number): string {
+        const secs = Math.floor((Date.now() - ms) / 1000);
+        if (secs < 60)  return secs + 's ago';
+        if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+        if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+        return Math.floor(secs / 86400) + 'd ago';
+    }
+
+    const _CAT_LABELS: Record<string, string> = {
+        space_station: 'Space Stations',
+        amateur:       'Amateur Radio',
+        weather:       'Weather',
+        military:      'Military',
+        navigation:    'Navigation',
+        science:       'Science',
+        cubesat:       'CubeSats',
+        active:        'Active',
+        unknown:       'Unknown',
+    };
+
+    function _renderSpaceOnlineSourceControl(): HTMLElement {
+        const LS_KEY = 'sentinel_space_onlineUrl';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-datasource-wrap tle-online-wrap';
+
+        // URL row — matches existing datasource-row pattern
+        const urlRow = document.createElement('div');
+        urlRow.className = 'settings-datasource-row';
+
+        const urlLabel = document.createElement('span');
+        urlLabel.className   = 'settings-datasource-label';
+        urlLabel.textContent = 'URL';
+
+        const urlInput = document.createElement('input');
+        urlInput.type         = 'url';
+        urlInput.className    = 'settings-datasource-input';
+        urlInput.placeholder  = 'https://celestrak.org/...';
+        urlInput.spellcheck   = false;
+        urlInput.autocomplete = 'off';
+
+        urlRow.appendChild(urlLabel);
+        urlRow.appendChild(urlInput);
+        wrap.appendChild(urlRow);
+
+        // Category selector row — flat segmented style
+        const catRow = document.createElement('div');
+        catRow.className = 'tle-cat-row-ctrl';
+
+        const catLabel = document.createElement('span');
+        catLabel.className   = 'settings-datasource-label tle-inline-label';
+        catLabel.textContent = 'CATEGORY';
+
+        const catSel = _makeCategorySelect(true);
+
+        const updateBtn = document.createElement('button');
+        updateBtn.className   = 'tle-action-btn';
+        updateBtn.textContent = 'UPDATE TLE';
+
+        catRow.appendChild(catLabel);
+        catRow.appendChild(catSel);
+        catRow.appendChild(updateBtn);
+        wrap.appendChild(catRow);
+
+        // Status line
+        const statusLine = document.createElement('div');
+        statusLine.className = 'tle-status-line';
+        wrap.appendChild(statusLine);
+
+        // Load saved URL
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved) urlInput.value = saved;
+        } catch (e) {}
+
+        // Reconcile with backend
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace('space').then(function (data) {
+                if (!data || !data['onlineUrl']) return;
+                const backendVal = data['onlineUrl'] as string;
+                if (backendVal && !urlInput.value) {
+                    urlInput.value = backendVal;
+                    try { localStorage.setItem(LS_KEY, backendVal); } catch (e) {}
+                }
+            });
+        }
+
+        // Auto-fill URL when category changes
+        catSel.addEventListener('change', function () {
+            const preset = _CELESTRAK_URLS[catSel.value];
+            if (preset) urlInput.value = preset;
+        });
+
+        urlInput.addEventListener('input', function () {
+            _stagePending('space-online-source', function () {
+                const val = urlInput.value.trim();
+                if (val) {
+                    try { new URL(val); } catch (e) { throw new Error('INVALID URL'); }
+                    try { localStorage.setItem(LS_KEY, val); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put('space', 'onlineUrl', val);
+                } else {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put('space', 'onlineUrl', '');
+                }
+            });
+        });
+
+        urlInput.addEventListener('keydown', function (e: KeyboardEvent) {
+            if (e.key === 'Enter') _commitAll();
+        });
+
+        updateBtn.addEventListener('click', async function () {
+            const url = urlInput.value.trim();
+            if (!url) { statusLine.innerHTML = ''; statusLine.appendChild(_makeTleStatusBadge('Enter a URL first', 'error')); return; }
+            const category = catSel.value || null;
+            updateBtn.textContent = 'UPDATING\u2026';
+            updateBtn.disabled    = true;
+            statusLine.innerHTML  = '';
+            try {
+                const resp = await fetch('/api/space/tle/fetch', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ url, category }),
+                });
+                const data = await resp.json() as { inserted?: number; updated?: number; error?: string };
+                if (!resp.ok) throw new Error(data.error || resp.statusText);
+                statusLine.appendChild(_makeTleStatusBadge(
+                    `${(data.inserted ?? 0) + (data.updated ?? 0)} satellites loaded · ${data.inserted ?? 0} new · ${data.updated ?? 0} updated`,
+                    'ok',
+                ));
+                document.dispatchEvent(new CustomEvent('tle:refreshStatus'));
+            } catch (err) {
+                statusLine.appendChild(_makeTleStatusBadge('Error: ' + (err as Error).message, 'error'));
+            } finally {
+                updateBtn.textContent = 'UPDATE TLE';
+                updateBtn.disabled    = false;
+            }
+        });
+
+        return wrap;
+    }
+
+    function _renderSpaceManualTleControl(): HTMLElement {
+        // Single-column wrap that stretches wide — textarea is inline, below controls
+        const wrap = document.createElement('div');
+        wrap.className = 'tle-manual-wrap';
+        wrap.dataset['wide'] = 'true';
+
+        // ── Section: Fetch from local URL ────────────────────────────────
+        const urlHeading = document.createElement('div');
+        urlHeading.className   = 'tle-section-heading';
+        urlHeading.textContent = 'FETCH FROM URL';
+        wrap.appendChild(urlHeading);
+
+        const urlRow = document.createElement('div');
+        urlRow.className = 'settings-datasource-row';
+        const urlLabel = document.createElement('span');
+        urlLabel.className   = 'settings-datasource-label';
+        urlLabel.textContent = 'URL';
+        const urlInput = document.createElement('input');
+        urlInput.type         = 'url';
+        urlInput.className    = 'settings-datasource-input';
+        urlInput.placeholder  = 'http://192.168.x.x/iss.tle';
+        urlInput.spellcheck   = false;
+        urlInput.autocomplete = 'off';
+        urlRow.appendChild(urlLabel);
+        urlRow.appendChild(urlInput);
+        wrap.appendChild(urlRow);
+
+        const urlCatRow = document.createElement('div');
+        urlCatRow.className = 'tle-cat-row-ctrl';
+        const urlCatLabel = document.createElement('span');
+        urlCatLabel.className   = 'settings-datasource-label tle-inline-label';
+        urlCatLabel.textContent = 'CATEGORY';
+        const urlCatSel = _makeCategorySelect(true);
+        const fetchBtn = document.createElement('button');
+        fetchBtn.className   = 'tle-action-btn tle-action-btn--primary';
+        fetchBtn.textContent = 'UPDATE TLE';
+        urlCatRow.appendChild(urlCatLabel);
+        urlCatRow.appendChild(urlCatSel);
+        urlCatRow.appendChild(fetchBtn);
+        wrap.appendChild(urlCatRow);
+
+        const urlStatus = document.createElement('div');
+        urlStatus.className = 'tle-status-line';
+        wrap.appendChild(urlStatus);
+
+        // ── Divider ──────────────────────────────────────────────────────
+        const divider = document.createElement('div');
+        divider.className = 'tle-left-divider';
+        wrap.appendChild(divider);
+
+        // ── Section: Paste / Upload ──────────────────────────────────────
+        const pasteHeading = document.createElement('div');
+        pasteHeading.className   = 'tle-section-heading';
+        pasteHeading.textContent = 'PASTE / UPLOAD';
+        wrap.appendChild(pasteHeading);
+
+        const fileRow = document.createElement('div');
+        fileRow.className = 'tle-file-row';
+        const fileInput = document.createElement('input');
+        fileInput.type      = 'file';
+        fileInput.accept    = '.tle,.txt';
+        fileInput.className = 'tle-file-input';
+        fileInput.id        = 'tle-file-input';
+        const fileLabel = document.createElement('label');
+        fileLabel.htmlFor     = 'tle-file-input';
+        fileLabel.className   = 'tle-file-label';
+        fileLabel.textContent = 'CHOOSE FILE';
+        const fileNameSpan = document.createElement('span');
+        fileNameSpan.className   = 'tle-file-name';
+        fileNameSpan.textContent = 'No file selected';
+        fileRow.appendChild(fileInput);
+        fileRow.appendChild(fileLabel);
+        fileRow.appendChild(fileNameSpan);
+        wrap.appendChild(fileRow);
+
+        const pasteCatRow = document.createElement('div');
+        pasteCatRow.className = 'tle-cat-row-ctrl';
+        const pasteCatLabel = document.createElement('span');
+        pasteCatLabel.className   = 'settings-datasource-label tle-inline-label';
+        pasteCatLabel.textContent = 'CATEGORY';
+        const pasteCatSel = _makeCategorySelect(true);
+        const applyBtn = document.createElement('button');
+        applyBtn.className   = 'tle-action-btn tle-action-btn--primary';
+        applyBtn.textContent = 'UPDATE TLE';
+        pasteCatRow.appendChild(pasteCatLabel);
+        pasteCatRow.appendChild(pasteCatSel);
+        pasteCatRow.appendChild(applyBtn);
+        wrap.appendChild(pasteCatRow);
+
+        const pasteStatus = document.createElement('div');
+        pasteStatus.className = 'tle-status-line';
+        wrap.appendChild(pasteStatus);
+
+        // ── Event handlers ───────────────────────────────────────────────
+        // File reader — reads file and posts directly to manual endpoint
+        let _fileText = '';
+        fileInput.addEventListener('change', function () {
+            const file = fileInput.files?.[0];
+            if (!file) return;
+            fileNameSpan.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = function (e) { _fileText = (e.target?.result as string) ?? ''; };
+            reader.readAsText(file);
+        });
+
+        fetchBtn.addEventListener('click', async function () {
+            const url = urlInput.value.trim();
+            if (!url) { urlStatus.innerHTML = ''; urlStatus.appendChild(_makeTleStatusBadge('Enter a URL first', 'error')); return; }
+            const category = urlCatSel.value || null;
+            fetchBtn.textContent = 'UPDATING\u2026';
+            fetchBtn.disabled    = true;
+            urlStatus.innerHTML  = '';
+            try {
+                const resp = await fetch('/api/space/tle/fetch', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ url, category }),
+                });
+                const data = await resp.json() as { inserted?: number; updated?: number; error?: string };
+                if (!resp.ok) throw new Error(data.error || resp.statusText);
+                urlStatus.appendChild(_makeTleStatusBadge(
+                    `${(data.inserted ?? 0) + (data.updated ?? 0)} satellites loaded · ${data.inserted ?? 0} new · ${data.updated ?? 0} updated`,
+                    'ok',
+                ));
+                document.dispatchEvent(new CustomEvent('tle:refreshStatus'));
+            } catch (err) {
+                urlStatus.appendChild(_makeTleStatusBadge('Error: ' + (err as Error).message, 'error'));
+            } finally {
+                fetchBtn.textContent = 'UPDATE TLE';
+                fetchBtn.disabled    = false;
+            }
+        });
+
+        applyBtn.addEventListener('click', async function () {
+            if (!_fileText) { pasteStatus.innerHTML = ''; pasteStatus.appendChild(_makeTleStatusBadge('Choose a file first', 'error')); return; }
+            const category = pasteCatSel.value || null;
+            applyBtn.textContent  = 'UPDATING\u2026';
+            applyBtn.disabled     = true;
+            pasteStatus.innerHTML = '';
+            try {
+                const resp = await fetch('/api/space/tle/manual', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ text: _fileText, category }),
+                });
+                const data = await resp.json() as { inserted?: number; updated?: number; total?: number; error?: string };
+                if (!resp.ok) throw new Error(data.error || resp.statusText);
+                pasteStatus.appendChild(_makeTleStatusBadge(
+                    `${data.total ?? 0} satellites processed · ${data.inserted ?? 0} new · ${data.updated ?? 0} updated`,
+                    'ok',
+                ));
+                _fileText                = '';
+                fileNameSpan.textContent = 'No file selected';
+                fileInput.value          = '';
+                document.dispatchEvent(new CustomEvent('tle:refreshStatus'));
+            } catch (err) {
+                pasteStatus.appendChild(_makeTleStatusBadge('Error: ' + (err as Error).message, 'error'));
+            } finally {
+                applyBtn.textContent = 'UPDATE TLE';
+                applyBtn.disabled    = false;
+            }
+        });
+
+        return wrap;
+    }
+
+    function _renderSpaceTleSatListControl(): HTMLElement {
+        const wrap = document.createElement('div');
+        wrap.className = 'tle-satlist-wrap';
+        wrap.dataset['wide'] = 'true';
+
+        // Toggle header — click to show/hide the list
+        const header = document.createElement('div');
+        header.className = 'tle-satlist-header';
+
+        const headerLabel = document.createElement('span');
+        headerLabel.className   = 'tle-satlist-header-label';
+        headerLabel.textContent = 'VIEW ALL STORED SATELLITES';
+
+        const chevron = document.createElement('span');
+        chevron.className   = 'tle-satlist-chevron';
+        chevron.textContent = '\u25b6';  // ▶
+
+        header.appendChild(headerLabel);
+        header.appendChild(chevron);
+        wrap.appendChild(header);
+
+        // Collapsible body
+        const body = document.createElement('div');
+        body.className = 'tle-satlist-body tle-satlist-body--hidden';
+        wrap.appendChild(body);
+
+        // Search row
+        const searchRow = document.createElement('div');
+        searchRow.className = 'settings-datasource-row tle-satlist-search-row';
+        const searchLabel = document.createElement('span');
+        searchLabel.className   = 'settings-datasource-label';
+        searchLabel.textContent = 'SEARCH';
+        const searchInput = document.createElement('input');
+        searchInput.type        = 'text';
+        searchInput.className   = 'settings-datasource-input';
+        searchInput.placeholder = 'Filter by name or NORAD ID\u2026';
+        searchInput.spellcheck  = false;
+        searchRow.appendChild(searchLabel);
+        searchRow.appendChild(searchInput);
+        body.appendChild(searchRow);
+
+        // Table
+        const table = document.createElement('div');
+        table.className = 'tle-satlist-table';
+        body.appendChild(table);
+
+        const countLine = document.createElement('div');
+        countLine.className   = 'tle-satlist-count';
+        countLine.textContent = '';
+        body.appendChild(countLine);
+
+        type SatRow = { norad_id: string; name: string; category: string | null; updated_at: number };
+        let _allSats: SatRow[] = [];
+
+        function _renderTable(sats: SatRow[]): void {
+            table.innerHTML = '';
+            sats.forEach(function (sat) {
+                const row = document.createElement('div');
+                row.className = 'tle-satlist-row';
+
+                const nameEl = document.createElement('span');
+                nameEl.className   = 'tle-satlist-name';
+                nameEl.textContent = sat.name;
+
+                const idEl = document.createElement('span');
+                idEl.className   = 'tle-satlist-id';
+                idEl.textContent = sat.norad_id;
+
+                const catEl = document.createElement('span');
+                catEl.className   = 'tle-satlist-cat';
+                catEl.textContent = sat.category ? (_CAT_LABELS[sat.category] ?? sat.category) : '—';
+                if (!sat.category) catEl.classList.add('tle-satlist-cat--none');
+
+                const ageEl = document.createElement('span');
+                ageEl.className   = 'tle-satlist-age';
+                ageEl.textContent = sat.updated_at ? _fmtAge(sat.updated_at) : '—';
+
+                row.appendChild(nameEl);
+                row.appendChild(idEl);
+                row.appendChild(catEl);
+                row.appendChild(ageEl);
+                table.appendChild(row);
+            });
+            countLine.textContent = `${sats.length} of ${_allSats.length} satellites`;
+        }
+
+        async function _load(): Promise<void> {
+            table.innerHTML = '<div class="tle-satlist-loading">Loading\u2026</div>';
+            try {
+                const resp = await fetch('/api/space/tle/list');
+                if (!resp.ok) throw new Error(resp.statusText);
+                const data = await resp.json() as { satellites: SatRow[] };
+                _allSats = data.satellites;
+                const q = searchInput.value.trim().toLowerCase();
+                _renderTable(q ? _allSats.filter(function (s) {
+                    return s.name.toLowerCase().includes(q) || s.norad_id.includes(q);
+                }) : _allSats);
+            } catch (err) {
+                table.innerHTML = `<div class="tle-satlist-loading">Failed to load: ${(err as Error).message}</div>`;
+            }
+        }
+
+        // Toggle show/hide
+        let _open = false;
+        header.addEventListener('click', function () {
+            _open = !_open;
+            body.classList.toggle('tle-satlist-body--hidden', !_open);
+            chevron.classList.toggle('tle-satlist-chevron--open', _open);
+            if (_open && _allSats.length === 0) _load();
+        });
+
+        // Refresh when TLE data changes
+        document.addEventListener('tle:refreshStatus', function () {
+            if (_open) _load();
+        });
+
+        // Live search filter
+        searchInput.addEventListener('input', function () {
+            const q = searchInput.value.trim().toLowerCase();
+            if (!q) { _renderTable(_allSats); return; }
+            _renderTable(_allSats.filter(function (s) {
+                return s.name.toLowerCase().includes(q) || s.norad_id.includes(q);
+            }));
+        });
+
+        return wrap;
+    }
+
+    function _renderSpaceTleDatabaseControl(): HTMLElement {
+        const wrap = document.createElement('div');
+        wrap.className = 'tle-db-wrap';
+
+        const summary = document.createElement('div');
+        summary.className   = 'tle-db-summary';
+        summary.textContent = 'Loading\u2026';
+        wrap.appendChild(summary);
+
+        const catTable = document.createElement('div');
+        catTable.className = 'tle-cat-table';
+        wrap.appendChild(catTable);
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className   = 'tle-action-btn tle-action-btn--danger';
+        clearBtn.textContent = 'CLEAR ALL TLE DATA';
+        wrap.appendChild(clearBtn);
+
+        async function _load(): Promise<void> {
+            try {
+                const resp = await fetch('/api/space/tle/status');
+                if (!resp.ok) throw new Error(resp.statusText);
+                const data = await resp.json() as {
+                    total: number;
+                    uncategorised: number;
+                    by_source: Record<string, number>;
+                    by_category: Record<string, { count: number; last_updated: number }>;
+                };
+
+                const srcParts = Object.entries(data.by_source)
+                    .map(([s, n]) => `${s} (${n})`).join(' · ');
+                summary.textContent = `${data.total} satellites · ${srcParts || 'none'}`;
+
+                catTable.innerHTML = '';
+                const cats = Object.entries(data.by_category).sort((a, b) => a[0].localeCompare(b[0]));
+                cats.forEach(function ([cat, info]) {
+                    const row = document.createElement('div');
+                    row.className = 'tle-cat-row';
+
+                    const nameEl = document.createElement('span');
+                    nameEl.className   = 'tle-cat-name';
+                    nameEl.textContent = _CAT_LABELS[cat] ?? cat;
+
+                    const countEl = document.createElement('span');
+                    countEl.className   = 'tle-cat-count';
+                    countEl.textContent = String(info.count);
+
+                    const ageEl = document.createElement('span');
+                    ageEl.className   = 'tle-cat-age';
+                    ageEl.textContent = info.last_updated ? _fmtAge(info.last_updated) : '—';
+
+                    row.appendChild(nameEl);
+                    row.appendChild(countEl);
+                    row.appendChild(ageEl);
+                    catTable.appendChild(row);
+                });
+            } catch (err) {
+                summary.textContent = 'Failed to load TLE status';
+            }
+        }
+
+        _load();
+        document.addEventListener('tle:refreshStatus', _load);
+
+        let _confirmPending = false;
+        clearBtn.addEventListener('click', async function () {
+            if (!_confirmPending) {
+                clearBtn.textContent  = 'CONFIRM — CLEAR ALL TLE DATA?';
+                clearBtn.classList.add('tle-action-btn--confirm');
+                _confirmPending = true;
+                setTimeout(function () {
+                    _confirmPending = false;
+                    clearBtn.textContent = 'CLEAR ALL TLE DATA';
+                    clearBtn.classList.remove('tle-action-btn--confirm');
+                }, 4000);
+                return;
+            }
+            clearBtn.textContent = 'CLEARING\u2026';
+            clearBtn.disabled    = true;
+            try {
+                const resp = await fetch('/api/space/tle?confirm=true', { method: 'DELETE' });
+                if (!resp.ok) throw new Error((await resp.json() as { error?: string }).error ?? resp.statusText);
+                document.dispatchEvent(new CustomEvent('tle:refreshStatus'));
+            } catch (err) {
+                summary.textContent = 'Error: ' + (err as Error).message;
+            } finally {
+                _confirmPending      = false;
+                clearBtn.textContent = 'CLEAR ALL TLE DATA';
+                clearBtn.disabled    = false;
+                clearBtn.classList.remove('tle-action-btn--confirm');
+            }
+        });
+
+        return wrap;
+    }
+
+    function _renderSpaceTleUncategorisedControl(): HTMLElement {
+        const wrap = document.createElement('div');
+        wrap.className = 'tle-uncat-wrap';
+
+        const countLine = document.createElement('div');
+        countLine.className   = 'tle-uncat-count';
+        countLine.textContent = 'Loading\u2026';
+        wrap.appendChild(countLine);
+
+        const list = document.createElement('div');
+        list.className = 'tle-uncat-list';
+        wrap.appendChild(list);
+
+        const saveAllBtn = document.createElement('button');
+        saveAllBtn.className   = 'tle-action-btn';
+        saveAllBtn.textContent = 'SAVE ALL';
+        saveAllBtn.style.display = 'none';
+        wrap.appendChild(saveAllBtn);
+
+        async function _load(): Promise<void> {
+            try {
+                const resp = await fetch('/api/space/tle/uncategorised');
+                if (!resp.ok) throw new Error(resp.statusText);
+                const data = await resp.json() as { satellites: Array<{ norad_id: string; name: string }> };
+                list.innerHTML = '';
+
+                if (data.satellites.length === 0) {
+                    countLine.textContent    = 'All satellites are categorised';
+                    saveAllBtn.style.display = 'none';
+                    return;
+                }
+
+                countLine.textContent    = `${data.satellites.length} satellites have no category`;
+                saveAllBtn.style.display = '';
+
+                data.satellites.forEach(function (sat) {
+                    const row = document.createElement('div');
+                    row.className = 'tle-uncat-row';
+                    row.dataset['norad'] = sat.norad_id;
+
+                    const nameEl = document.createElement('span');
+                    nameEl.className   = 'tle-uncat-name';
+                    nameEl.textContent = sat.name;
+
+                    const idEl = document.createElement('span');
+                    idEl.className   = 'tle-uncat-id';
+                    idEl.textContent = sat.norad_id;
+
+                    const sel = _makeCategorySelect(false, _TLE_ASSIGN_CATEGORIES);
+                    sel.className += ' tle-uncat-select';
+
+                    row.appendChild(nameEl);
+                    row.appendChild(idEl);
+                    row.appendChild(sel);
+                    list.appendChild(row);
+                });
+            } catch (err) {
+                countLine.textContent = 'Failed to load';
+            }
+        }
+
+        _load();
+        document.addEventListener('tle:refreshStatus', _load);
+
+        async function _saveAll(): Promise<void> {
+            const rows = list.querySelectorAll<HTMLElement>('.tle-uncat-row');
+            const assignments: Array<{ norad_id: string; category: string }> = [];
+            rows.forEach(function (row) {
+                const sel = row.querySelector<HTMLSelectElement>('.tle-uncat-select');
+                if (sel && sel.value) {
+                    assignments.push({ norad_id: row.dataset['norad'] ?? '', category: sel.value });
+                }
+            });
+            if (!assignments.length) return;
+            saveAllBtn.textContent = 'SAVING\u2026';
+            saveAllBtn.disabled    = true;
+            try {
+                const resp = await fetch('/api/space/tle/category', {
+                    method:  'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ assignments }),
+                });
+                if (!resp.ok) throw new Error((await resp.json() as { error?: string }).error ?? resp.statusText);
+                document.dispatchEvent(new CustomEvent('tle:refreshStatus'));
+            } catch (err) {
+                countLine.textContent = 'Error saving: ' + (err as Error).message;
+            } finally {
+                saveAllBtn.textContent = 'SAVE ALL';
+                saveAllBtn.disabled    = false;
+            }
+        }
+
+        saveAllBtn.addEventListener('click', _saveAll);
+
+        return wrap;
+    }
+
     function _renderSourceOverrideControl(ns: string): HTMLElement {
         const LS_KEY = 'sentinel_' + ns + '_sourceOverride';
         const SETTING_ID = ns + '-source-override';
@@ -927,6 +1635,10 @@ window._SettingsPanel = (function () {
 
         if (item.renderControl) {
             const control = item.renderControl();
+            // If the control signals it needs full width (e.g. two-column TLE panel)
+            if ((control as HTMLElement).dataset['wide'] === 'true') {
+                row.classList.add('settings-item--wide');
+            }
             row.appendChild(control);
         }
 

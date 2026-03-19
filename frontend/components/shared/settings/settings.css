@@ -697,3 +697,521 @@
 #settings-btn.settings-btn-active[data-tooltip]::before {
     opacity: 0 !important;
 }
+
+/* ================================================================
+   TLE MANAGEMENT CONTROLS
+   ================================================================ */
+
+/* ── Shared action button — matches settings-source-override-btn ── */
+.tle-action-btn {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 16px;
+    height: 37px;              /* same as datasource-row height */
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+}
+.tle-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.85);
+}
+.tle-action-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.tle-action-btn--primary {
+    background: rgba(200, 255, 0, 0.08);
+    color: #c8ff00;
+    border-left-color: rgba(200, 255, 0, 0.2);
+}
+.tle-action-btn--primary:hover:not(:disabled) {
+    background: rgba(200, 255, 0, 0.15);
+    color: #c8ff00;
+}
+.tle-action-btn--danger {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    color: rgba(255, 100, 100, 0.7);
+    height: 34px;
+    padding: 0 16px;
+}
+.tle-action-btn--danger:hover:not(:disabled) {
+    background: rgba(255, 60, 60, 0.1);
+    border-color: rgba(255, 80, 80, 0.5);
+    color: rgba(255, 120, 120, 0.9);
+}
+.tle-action-btn--confirm {
+    background: rgba(255, 140, 0, 0.1);
+    border-color: rgba(255, 140, 0, 0.4);
+    color: rgba(255, 180, 0, 0.9);
+}
+
+/* ── Category select — flat, matches datasource-row ─────────────── */
+.tle-category-select,
+.tle-uncat-select {
+    flex: 1;
+    min-width: 0;
+    height: 37px;
+    padding: 0 28px 0 10px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.65);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+.tle-category-select:focus,
+.tle-uncat-select:focus {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
+    outline: none;
+}
+/* Dropdown options — dark background matching panel */
+.tle-category-select option,
+.tle-uncat-select option {
+    background-color: #222831;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: 'Barlow', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    padding: 6px 8px;
+}
+
+/* ── Row combining label + select + button (matches datasource-row) */
+.tle-cat-row-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+.tle-cat-row-ctrl:focus-within {
+    border-color: rgba(200, 255, 0, 0.4);
+}
+
+/* Inline label inside a row (same as datasource-label) */
+.tle-inline-label {
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+    height: 37px;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Status badge ───────────────────────────────────────────────── */
+.tle-status-line {
+    min-height: 18px;
+    margin-top: 8px;
+}
+.tle-status-badge {
+    display: inline-block;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+}
+.tle-status-badge--ok {
+    color: #c8ff00;
+    background: rgba(200, 255, 0, 0.07);
+}
+.tle-status-badge--error {
+    color: rgba(255, 100, 100, 0.9);
+    background: rgba(255, 60, 60, 0.07);
+}
+.tle-status-badge--info {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Sub-section heading within a control ───────────────────────── */
+.tle-section-heading {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    user-select: none;
+}
+.tle-section-heading:first-child {
+    margin-top: 0;
+}
+
+/* ── Online source wrap — same max-width as datasource-wrap ────── */
+.tle-online-wrap {
+    max-width: 480px;
+}
+
+/* ── Manual TLE — single column, stretches wide ─────────────────── */
+.tle-manual-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* Thin divider between URL fetch and paste sections */
+.tle-left-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 22px 0;
+}
+
+
+/* ── File upload row ────────────────────────────────────────────── */
+.tle-file-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+.tle-file-input {
+    display: none;
+}
+.tle-file-label {
+    flex-shrink: 0;
+    height: 37px;
+    padding: 0 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+}
+.tle-file-label:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.85);
+}
+.tle-file-name {
+    flex: 1;
+    padding: 0 12px;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.04em;
+}
+
+/* ── TLE database summary ───────────────────────────────────────── */
+.tle-db-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 480px;
+}
+.tle-db-summary {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Per-category table ─────────────────────────────────────────── */
+.tle-cat-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.tle-cat-row {
+    display: grid;
+    grid-template-columns: 1fr 48px 90px;
+    align-items: center;
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+}
+.tle-cat-row:last-child {
+    border-bottom: none;
+}
+.tle-cat-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+}
+.tle-cat-name {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+.tle-cat-count {
+    font-family: 'Barlow Condensed', 'Barlow', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8ff00;
+    text-align: right;
+    padding-right: 16px;
+}
+.tle-cat-age {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: right;
+    letter-spacing: 0.04em;
+}
+
+/* ── Uncategorised satellites list ─────────────────────────────── */
+.tle-uncat-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 580px;
+}
+.tle-uncat-count {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.45);
+}
+.tle-uncat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.tle-uncat-list::-webkit-scrollbar { width: 4px; }
+.tle-uncat-list::-webkit-scrollbar-track { background: transparent; }
+.tle-uncat-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+.tle-uncat-row {
+    display: grid;
+    grid-template-columns: 1fr 56px auto;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+}
+.tle-uncat-row:last-child {
+    border-bottom: none;
+}
+.tle-uncat-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+}
+.tle-uncat-name {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.03em;
+}
+.tle-uncat-id {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.25);
+    text-align: right;
+    padding-right: 8px;
+    letter-spacing: 0.04em;
+}
+/* Select inside uncat row — inherits the flat row style */
+.tle-uncat-row .tle-uncat-select {
+    height: 34px;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: none;
+    border-top: none;
+    border-bottom: none;
+    border-radius: 0;
+    background-color: rgba(255, 255, 255, 0.03);
+    min-width: 150px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+}
+
+/* Settings item wide modifier — breaks 640px max-width for wide TLE controls */
+.settings-item--wide {
+    max-width: none !important;
+}
+/* Wide items still cap at a readable content width */
+.settings-item--wide .tle-manual-wrap,
+.settings-item--wide .tle-satlist-wrap {
+    max-width: 860px;
+}
+
+/* ── Satellite list — show/hide panel ───────────────────────────── */
+.tle-satlist-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.tle-satlist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    max-width: 860px;
+}
+.tle-satlist-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.tle-satlist-header-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.tle-satlist-chevron {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.25);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+.tle-satlist-chevron--open {
+    transform: rotate(90deg);
+}
+
+.tle-satlist-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 12px;
+    max-width: 860px;
+}
+.tle-satlist-body--hidden {
+    display: none;
+}
+
+.tle-satlist-search-row {
+    margin-bottom: 0;
+}
+
+/* Table */
+.tle-satlist-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.tle-satlist-table::-webkit-scrollbar { width: 4px; }
+.tle-satlist-table::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+.tle-satlist-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 130px 72px;
+    align-items: center;
+    padding: 5px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.02);
+}
+.tle-satlist-row:last-child { border-bottom: none; }
+.tle-satlist-row:nth-child(even) { background: rgba(255, 255, 255, 0.04); }
+
+.tle-satlist-name {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 8px;
+}
+.tle-satlist-id {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.25);
+    text-align: left;
+}
+.tle-satlist-cat {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(200, 255, 0, 0.6);
+}
+.tle-satlist-cat--none {
+    color: rgba(255, 255, 255, 0.2);
+}
+.tle-satlist-age {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: right;
+}
+
+.tle-satlist-count {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.06em;
+    text-align: right;
+}
+
+.tle-satlist-loading {
+    padding: 16px 12px;
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.06em;
+}

@@ -899,36 +899,3 @@ class IssControl extends SentinelControlBase {
 }
 issControl = new IssControl();
 map.addControl(issControl, 'top-right');
-
-// Returns the effective mode for the 'space' domain.
-function _spaceEffectiveMode() {
-    try {
-        const override = localStorage.getItem('sentinel_space_sourceOverride') || 'auto';
-        if (override !== 'auto') return override;
-        return localStorage.getItem('sentinel_app_connectivityMode') || 'auto';
-    } catch(e) { return 'auto'; }
-}
-
-function _clearIssDisplay() {
-    issControl._stopPolling();
-    try {
-        const empty = { type: 'FeatureCollection', features: [] };
-        issControl.map?.getSource('iss-live')?.setData(empty);
-        issControl.map?.getSource('iss-track-source')?.setData(empty);
-        issControl.map?.getSource('iss-footprint-source')?.setData(empty);
-    } catch(e) {}
-    issControl._hideLabel?.();
-}
-
-function _handleSpaceConnectivityChange() {
-    const mode = _spaceEffectiveMode();
-    if (mode === 'offline') {
-        _clearIssDisplay();
-    } else if (issControl.issVisible) {
-        issControl._fetch();
-        issControl._startPolling();
-    }
-}
-
-window.addEventListener('sentinel:connectivityModeChanged', _handleSpaceConnectivityChange);
-window.addEventListener('sentinel:sourceOverrideChanged', _handleSpaceConnectivityChange);

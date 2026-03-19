@@ -15,10 +15,7 @@ window.MapComponent.onStyleLoad(function () {
     }
     if (issControl) {
         issControl.initLayers();
-        const spaceOverride = (() => { try { return localStorage.getItem('sentinel_space_sourceOverride') || 'auto'; } catch(e) { return 'auto'; } })();
-        const appMode = (() => { try { return localStorage.getItem('sentinel_app_connectivityMode') || 'auto'; } catch(e) { return 'auto'; } })();
-        const spaceEffective = spaceOverride !== 'auto' ? spaceOverride : appMode;
-        if (issControl.issVisible && spaceEffective !== 'offline') {
+        if (issControl.issVisible) {
             issControl._fetch();
             issControl._startPolling();
         }
