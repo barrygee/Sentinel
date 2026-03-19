@@ -96,7 +96,7 @@ window._SettingsPanel = (function () {
             id:            'space-manual-tle',
             label:         'TLE Import',
             desc:          'Upload a .tle file or fetch from a local network URL',
-            groupLabel:    'DATA SOURCES',
+            groupLabel:    'TLE IMPORT',
             renderControl: _renderSpaceManualTleControl,
         },
         {
