@@ -76,7 +76,6 @@ window._SettingsPanel = (function () {
             id: 'space-manual-tle',
             label: 'TLE Import',
             desc: 'Upload a .tle file or fetch from a local network URL',
-            groupLabel: '',
             renderControl: _renderSpaceManualTleControl,
         },
         {
@@ -85,7 +84,6 @@ window._SettingsPanel = (function () {
             id: 'space-tle-database',
             label: 'TLE Database',
             desc: 'Satellite count, sources, and per-category last-updated times',
-            groupLabel: 'TLE DATABASE',
             renderControl: _renderSpaceTleDatabaseControl,
         },
         {
@@ -102,7 +100,6 @@ window._SettingsPanel = (function () {
             id: 'space-tle-satlist',
             label: 'Satellite List',
             desc: 'Full list of all TLE records stored in the database',
-            groupLabel: '',
             renderControl: _renderSpaceTleSatListControl,
         },
         // SEA
@@ -1118,11 +1115,6 @@ window._SettingsPanel = (function () {
         const wrap = document.createElement('div');
         wrap.className = 'tle-manual-wrap';
         wrap.dataset['wide'] = 'true';
-        // ── Section: Fetch from local URL ────────────────────────────────
-        const urlHeading = document.createElement('div');
-        urlHeading.className = 'tle-section-heading';
-        urlHeading.textContent = 'FETCH FROM URL';
-        wrap.appendChild(urlHeading);
         const urlRow = document.createElement('div');
         urlRow.className = 'settings-datasource-row';
         const urlLabel = document.createElement('span');
