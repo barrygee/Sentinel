@@ -56,20 +56,55 @@ window._Tracking.init();
         return false;
     }
 
+    function _show() {
+        const mode = _getActiveMode();
+        const modeLabel = mode === 'online' ? 'Online' : 'Offline';
+        const settingLabel = mode === 'online' ? 'Online Data Source' : 'Offline Data Source';
+        msgEl.textContent = modeLabel + ' mode is active but no ' + settingLabel + ' URL has been set for '
+            + ns.toUpperCase() + '. Configure a URL in settings or switch connectivity mode to continue.';
+        btn.dataset.section = ns;
+        overlay.classList.remove('hidden');
+    }
+
     function _check() {
         const mode = _getActiveMode();
         const hasUrl = _hasUrl(mode);
 
         if (!hasUrl) {
-            const modeLabel = mode === 'online' ? 'Online' : 'Offline';
-            const settingLabel = mode === 'online' ? 'Online Data Source' : 'Offline Data Source';
-            msgEl.textContent = modeLabel + ' mode is active but no ' + settingLabel + ' URL has been set for '
-                + ns.toUpperCase() + '. Configure a URL in settings or switch connectivity mode to continue.';
-            btn.dataset.section = ns;
-            overlay.style.display = '';
+            _show();
         } else {
-            overlay.style.display = 'none';
+            overlay.classList.add('hidden');
         }
+    }
+
+    function _checkWithBackend() {
+        const mode = _getActiveMode();
+        if (!window._SettingsAPI) { _check(); return; }
+        window._SettingsAPI.getNamespace(ns).then(function (data) {
+            if (!data) { _check(); return; }
+            var lsKey = mode === 'online'
+                ? 'sentinel_' + ns + '_onlineUrl'
+                : 'sentinel_' + ns + '_offlineSource';
+            var backendUrl = '';
+            if (mode === 'online') {
+                backendUrl = (data['onlineUrl'] || '') + '';
+            } else {
+                try {
+                    var src = data['offlineSource'];
+                    backendUrl = (src && typeof src === 'object' && src.url) ? src.url : '';
+                } catch (e) {}
+            }
+            var backendValid = backendUrl.length > 0 && !/^https?:\/\/?$/.test(backendUrl.trim());
+            if (!backendValid) {
+                // Backend has no real URL — clear any stale localStorage value and show overlay
+                try { localStorage.removeItem(lsKey); } catch (e) {}
+                _show();
+            } else {
+                // Backend has a valid URL — sync to localStorage and hide overlay
+                try { localStorage.setItem(lsKey, mode === 'online' ? backendUrl : JSON.stringify(data['offlineSource'])); } catch (e) {}
+                overlay.classList.add('hidden');
+            }
+        }).catch(function () { _check(); });
     }
 
     btn.addEventListener('click', function () {
@@ -92,7 +127,7 @@ window._Tracking.init();
         if (e.target && e.target.id === 'settings-apply-btn') setTimeout(_check, 100);
     });
 
-    _check();
+    _checkWithBackend();
 })();
 
 // ---- 2. Logo animation ----
