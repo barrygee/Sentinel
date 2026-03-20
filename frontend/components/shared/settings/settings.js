@@ -50,7 +50,7 @@ window._SettingsPanel = (function () {
             id: 'air-online-source',
             label: 'Online Data Source',
             desc: 'URL for live air data feed',
-            renderControl: function () { return _renderOnlineSourceControl('air'); },
+            renderControl: function () { return _renderOnlineSourceControl('air', ''); },
         },
         {
             section: 'air',
@@ -58,7 +58,7 @@ window._SettingsPanel = (function () {
             id: 'air-offline-source',
             label: 'Offline Data Source',
             desc: 'Local server URL and port for air data',
-            renderControl: function () { return _renderOfflineSourceControl('air'); },
+            renderControl: function () { return _renderOfflineSourceControl('air', ''); },
         },
         // SPACE
         {
@@ -361,29 +361,34 @@ window._SettingsPanel = (function () {
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
         wrap.appendChild(urlRow);
-        // Load saved value (skip if no default URL has been configured yet)
-        if (defaultUrl !== '') {
-            try {
-                const saved = localStorage.getItem(LS_KEY);
-                if (saved)
-                    urlInput.value = saved;
+        const noDefault = defaultUrl === '';
+        function _isOnlinePlaceholder(url) {
+            return !url.trim() || /^https?:\/\/?$/.test(url.trim());
+        }
+        // Load saved value
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved && !(noDefault && _isOnlinePlaceholder(saved))) {
+                urlInput.value = saved;
+            } else if (noDefault && saved && _isOnlinePlaceholder(saved)) {
+                try { localStorage.removeItem(LS_KEY); } catch (e) {}
             }
-            catch (e) { }
-            // Reconcile with backend
-            if (window._SettingsAPI) {
-                window._SettingsAPI.getNamespace(ns).then(function (data) {
-                    if (!data || !data['onlineUrl'])
-                        return;
-                    const backendVal = data['onlineUrl'];
-                    if (backendVal && !urlInput.value) {
-                        urlInput.value = backendVal;
-                        try {
-                            localStorage.setItem(LS_KEY, backendVal);
-                        }
-                        catch (e) { }
-                    }
-                });
-            }
+        }
+        catch (e) { }
+        // Reconcile with backend (skip placeholder values like "https://")
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace(ns).then(function (data) {
+                if (!data || !data['onlineUrl'])
+                    return;
+                const backendVal = data['onlineUrl'];
+                if (backendVal && !_isOnlinePlaceholder(backendVal) && !urlInput.value) {
+                    urlInput.value = backendVal;
+                    try { localStorage.setItem(LS_KEY, backendVal); } catch (e) {}
+                } else if (noDefault && backendVal && _isOnlinePlaceholder(backendVal)) {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put(ns, 'onlineUrl', '');
+                }
+            });
         }
         urlInput.addEventListener('input', function () {
             _stagePending(SETTING_ID, function () {
@@ -438,31 +443,42 @@ window._SettingsPanel = (function () {
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
         wrap.appendChild(urlRow);
-        // Load saved value (skip if no default URL has been configured yet)
-        if (defaultUrl !== '') {
-            try {
-                const raw = localStorage.getItem(LS_KEY);
-                if (raw) {
-                    const saved = JSON.parse(raw);
-                    if (saved.url)
-                        urlInput.value = saved.url;
+        // When defaultUrl is '' the field has no built-in default, so treat
+        // placeholder-like values (http://localhost) as empty rather than real URLs.
+        const noDefault = defaultUrl === '';
+        function _isOfflinePlaceholder(url) {
+            const t = url.trim();
+            return !t || /^http:\/\/localhost\/?$/.test(t);
+        }
+        // Load saved value
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw);
+                if (saved.url && !(noDefault && _isOfflinePlaceholder(saved.url))) {
+                    urlInput.value = saved.url;
+                } else if (noDefault && saved.url && _isOfflinePlaceholder(saved.url)) {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
                 }
             }
-            catch (e) { }
-            // Reconcile with backend
-            if (window._SettingsAPI) {
-                window._SettingsAPI.getNamespace(ns).then(function (data) {
-                    if (!data || !data['offlineSource'])
-                        return;
-                    const backendVal = data['offlineSource'];
-                    if (!urlInput.value && backendVal.url)
-                        urlInput.value = backendVal.url;
-                    try {
-                        localStorage.setItem(LS_KEY, JSON.stringify(backendVal));
-                    }
-                    catch (e) { }
-                });
-            }
+        }
+        catch (e) { }
+        // Reconcile with backend (skip placeholder values like "http://localhost")
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace(ns).then(function (data) {
+                if (!data || !data['offlineSource'])
+                    return;
+                const backendVal = data['offlineSource'];
+                if (backendVal.url && !_isOfflinePlaceholder(backendVal.url) && !urlInput.value) {
+                    urlInput.value = backendVal.url;
+                    try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
+                } else if (noDefault && backendVal.url && _isOfflinePlaceholder(backendVal.url)) {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put(ns, 'offlineSource', { url: '' });
+                } else if (!noDefault) {
+                    try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
+                }
+            });
         }
         urlInput.addEventListener('input', function () {
             _stagePending(SETTING_ID, function () {
