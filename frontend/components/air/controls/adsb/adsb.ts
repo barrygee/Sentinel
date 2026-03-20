@@ -1,7 +1,8 @@
+s too
 // ============================================================
 // ADS-B LIVE CONTROL
 // Polls airplanes.live API (via backend proxy) every 5s,
-// dead-reckons positions every 100ms, renders aircraft as
+// holds aircraft at last known position (removes after 60s no data), renders aircraft as
 // canvas sprites in MapLibre symbol layers, manages click/hover
 // data tags, trail history, tracking, squawk emergency detection,
 // and departure/landing notifications.
@@ -1084,19 +1085,18 @@ class AdsbLiveControl implements maplibregl.IControl {
                 continue;
             }
             const lngLat  = this._interpolatedCoords(hex) || f.geometry.coordinates;
-            const pos     = this._lastPositions[hex];
-            const ageSec  = pos ? (Date.now() - pos.lastSeen) / 1000 : 0;
-            const isStale = ageSec >= 30 && f.properties.alt_baro !== 0;
+            const pos2    = this._lastPositions[hex];
+            const isDim   = pos2 ? (Date.now() - pos2.lastSeen) / 1000 >= 45 : false;
             if (this._callsignMarkers[hex]) {
                 this._callsignMarkers[hex].setLngLat(lngLat);
                 const labelEl = this._callsignMarkers[hex].getElement();
                 const raw     = (f.properties.flight || '').trim() || (f.properties.r || '').trim() || f.properties.hex || '';
                 const isEmerg = f.properties.squawkEmerg === 1;
                 labelEl.style.background = isEmerg ? 'rgba(180,0,0,0.85)' : 'rgba(0,0,0,0.5)';
-                labelEl.style.opacity    = isStale ? '0.3' : '1';
+                labelEl.style.opacity    = isDim ? '0.3' : '1';
                 const nameSpan = labelEl.querySelector('span:not(.sqk-badge):not(.mil-model-badge)') as HTMLElement || labelEl;
                 nameSpan.textContent = raw || 'UNKNOWN';
-                nameSpan.style.cssText = isStale ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important';
+                nameSpan.style.cssText = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important';
                 if (f.properties.military) {
                     const isTracked = this._notifEnabled.has(hex);
                     const hasBadge  = !!f.properties.t;
@@ -1207,12 +1207,12 @@ class AdsbLiveControl implements maplibregl.IControl {
         }
     }
 
-    // ---- Dead-reckoning interpolator ----
+    // ---- Position hold / stale removal ----
 
     private _interpolate(): void {
         if (!this.map || !this._geojson.features.length) return;
         const now = Date.now();
-        const NM_DEG = 1 / 60, HR_SEC = 3600, STALE_SEC = 30, REMOVE_SEC = 60;
+        const DIM_SEC = 45, REMOVE_SEC = 60;
 
         this._geojson.features = this._geojson.features.filter(f => {
             const pos = this._lastPositions[f.properties.hex];
@@ -1230,31 +1230,15 @@ class AdsbLiveControl implements maplibregl.IControl {
             const hex    = f.properties.hex;
             const pos    = this._lastPositions[hex];
             const ageSec = pos ? (now - pos.lastSeen) / 1000 : 0;
-            const onGround = f.properties.alt_baro === 0;
-            if (onGround) {
-                const groundStale = ageSec >= STALE_SEC;
-                if (!pos || pos.gs < 10 || groundStale || pos.track === null) {
-                    const coords = pos ? [pos.lon, pos.lat] as [number, number] : f.geometry.coordinates;
-                    return { ...f, geometry: { type: 'Point' as const, coordinates: coords }, properties: { ...f.properties, stale: 0 } };
-                }
-            } else {
-                const stale = ageSec >= STALE_SEC ? 1 : 0;
-                if (!pos || pos.gs < 10 || stale) {
-                    const coords = pos ? [pos.lon, pos.lat] as [number, number] : f.geometry.coordinates;
-                    return { ...f, geometry: { type: 'Point' as const, coordinates: coords }, properties: { ...f.properties, stale } };
-                }
-            }
-            const trackRad = pos!.track! * Math.PI / 180;
-            const nmPerSec = pos!.gs / HR_SEC;
-            const dLat = nmPerSec * ageSec * Math.cos(trackRad) * NM_DEG;
-            const dLon = nmPerSec * ageSec * Math.sin(trackRad) * NM_DEG / Math.cos(pos!.baseLat * Math.PI / 180);
-            return { ...f, geometry: { type: 'Point' as const, coordinates: [pos!.baseLon + dLon, pos!.baseLat + dLat] as [number, number] }, properties: { ...f.properties, stale: 0 } };
+            // Hold the plane at its last known position until new data arrives or REMOVE_SEC expires.
+            const coords = pos ? [pos.lon, pos.lat] as [number, number] : f.geometry.coordinates;
+            const stale  = ageSec >= DIM_SEC ? 1 : 0;
+            return { ...f, geometry: { type: 'Point' as const, coordinates: coords }, properties: { ...f.properties, stale } };
         });
 
         if (this.map.getSource('adsb-live')) {
             (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)
                 .setData({ type: 'FeatureCollection', features: this._interpolatedFeatures } as GeoJSON.GeoJSON);
-            this._applyTypeFilter();
         }
 
         if (this._tagMarker && this._tagHex) {
@@ -1357,12 +1341,8 @@ class AdsbLiveControl implements maplibregl.IControl {
                     if (!existing) {
                         this._lastPositions[hex] = { lon: a.lon!, lat: a.lat!, gs: a.gs ?? 0, track: a.track ?? null, lastSeen, baseLon: a.lon!, baseLat: a.lat! };
                     } else {
-                        // Use current interpolated position as the new dead-reckoning base so
-                        // there is no snap back to raw API coords when ageSec resets to 0.
-                        const interp = this._interpolatedCoords(hex);
-                        existing.baseLon = interp ? interp[0] : existing.lon;
-                        existing.baseLat = interp ? interp[1] : existing.lat;
                         existing.lon = a.lon!; existing.lat = a.lat!;
+                        existing.baseLon = a.lon!; existing.baseLat = a.lat!;
                         existing.gs  = a.gs ?? 0; existing.track = a.track ?? null;
                         existing.lastSeen = lastSeen;
                     }
@@ -1432,12 +1412,7 @@ class AdsbLiveControl implements maplibregl.IControl {
                     || (hexInt >= 0x43C000 && hexInt <= 0x43FFFF)
                     || (hexInt >= 0xAE0000 && hexInt <= 0xAFFFFF));
 
-                // Preserve existing geometry coordinates to avoid snapping back to raw API
-                // position on each fetch. _interpolate() will project forward from _lastPositions.
-                const existingFeature = existingByHex.get(hex);
-                const coords = existingFeature
-                    ? existingFeature.geometry.coordinates
-                    : [a.lon!, a.lat!] as [number, number];
+                const coords = [a.lon!, a.lat!] as [number, number];
 
                 newFeatures.push({
                     type: 'Feature' as const,
