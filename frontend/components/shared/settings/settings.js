@@ -436,13 +436,23 @@ window._SettingsPanel = (function () {
         urlRow.appendChild(urlLabel);
         urlRow.appendChild(urlInput);
         wrap.appendChild(urlRow);
+        // When defaultUrl is '' the field has no built-in default, so treat
+        // placeholder-like values (http://localhost) as empty rather than real URLs.
+        const noDefault = defaultUrl === '';
+        function _isOfflinePlaceholder(url) {
+            const t = url.trim();
+            return !t || /^http:\/\/localhost\/?$/.test(t);
+        }
         // Load saved value
         try {
             const raw = localStorage.getItem(LS_KEY);
             if (raw) {
                 const saved = JSON.parse(raw);
-                if (saved.url)
+                if (saved.url && !(noDefault && _isOfflinePlaceholder(saved.url))) {
                     urlInput.value = saved.url;
+                } else if (noDefault && saved.url && _isOfflinePlaceholder(saved.url)) {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                }
             }
         }
         catch (e) { }
@@ -452,12 +462,15 @@ window._SettingsPanel = (function () {
                 if (!data || !data['offlineSource'])
                     return;
                 const backendVal = data['offlineSource'];
-                if (backendVal.url && !/^http:\/\/localhost\/?$/.test(backendVal.url.trim()) && !urlInput.value)
+                if (backendVal.url && !_isOfflinePlaceholder(backendVal.url) && !urlInput.value) {
                     urlInput.value = backendVal.url;
-                try {
-                    localStorage.setItem(LS_KEY, JSON.stringify(backendVal));
+                    try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
+                } else if (noDefault && backendVal.url && _isOfflinePlaceholder(backendVal.url)) {
+                    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put(ns, 'offlineSource', { url: '' });
+                } else if (!noDefault) {
+                    try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
                 }
-                catch (e) { }
             });
         }
         urlInput.addEventListener('input', function () {
