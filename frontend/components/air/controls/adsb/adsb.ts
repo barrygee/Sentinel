@@ -404,8 +404,19 @@ class AdsbLiveControl implements maplibregl.IControl {
             if (this.map.getSource(id)) this.map.removeSource(id);
         });
 
-        // Clear stale data so a style reload (e.g. online→offline with no offline URL)
-        // never re-renders old data from the previous source.
+        // Preserve aircraft data across style reloads — sources/layers must be re-added
+        // after setStyle() destroys them, but the data itself must survive so planes don't
+        // vanish. Deliberate data wipes (going offline) are handled by _clearAdsbAircraft().
+        const _savedGeojson        = this._geojson;
+        const _savedTrailsGeojson  = this._trailsGeojson;
+        const _savedTrails         = this._trails;
+        const _savedLastPositions  = this._lastPositions;
+        const _savedInterpolated   = this._interpolatedFeatures;
+        const _savedPrevAlt        = this._prevAlt;
+        const _savedHasDeparted    = this._hasDeparted;
+        const _savedSeenOnGround   = this._seenOnGround;
+        const _savedLandedAt       = this._landedAt;
+        const _savedPrevSquawk     = this._prevSquawk;
         this._geojson           = { type: 'FeatureCollection', features: [] };
         this._trailsGeojson     = { type: 'FeatureCollection', features: [] };
         this._trails            = {};
@@ -489,6 +500,25 @@ class AdsbLiveControl implements maplibregl.IControl {
                 'icon-opacity-transition': { duration: 0 },
             } as Record<string, unknown>,
         });
+
+        // Restore aircraft data into the freshly re-created sources.
+        this._geojson              = _savedGeojson;
+        this._trailsGeojson        = _savedTrailsGeojson;
+        this._trails               = _savedTrails;
+        this._lastPositions        = _savedLastPositions;
+        this._interpolatedFeatures = _savedInterpolated;
+        this._prevAlt              = _savedPrevAlt;
+        this._hasDeparted          = _savedHasDeparted;
+        this._seenOnGround         = _savedSeenOnGround;
+        this._landedAt             = _savedLandedAt;
+        this._prevSquawk           = _savedPrevSquawk;
+        try {
+            const renderData = (this._interpolatedFeatures && this._interpolatedFeatures.length)
+                ? { type: 'FeatureCollection' as const, features: this._interpolatedFeatures }
+                : this._geojson;
+            (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)?.setData(renderData as GeoJSON.GeoJSON);
+            (this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource)?.setData(this._trailsGeojson as GeoJSON.GeoJSON);
+        } catch(e) {}
 
         if (!this._eventsAdded) {
             this._eventsAdded = true;
@@ -1217,8 +1247,8 @@ class AdsbLiveControl implements maplibregl.IControl {
             const trackRad = pos!.track! * Math.PI / 180;
             const nmPerSec = pos!.gs / HR_SEC;
             const dLat = nmPerSec * ageSec * Math.cos(trackRad) * NM_DEG;
-            const dLon = nmPerSec * ageSec * Math.sin(trackRad) * NM_DEG / Math.cos(pos!.lat * Math.PI / 180);
-            return { ...f, geometry: { type: 'Point' as const, coordinates: [pos!.lon + dLon, pos!.lat + dLat] as [number, number] }, properties: { ...f.properties, stale: 0 } };
+            const dLon = nmPerSec * ageSec * Math.sin(trackRad) * NM_DEG / Math.cos(pos!.baseLat * Math.PI / 180);
+            return { ...f, geometry: { type: 'Point' as const, coordinates: [pos!.baseLon + dLon, pos!.baseLat + dLat] as [number, number] }, properties: { ...f.properties, stale: 0 } };
         });
 
         if (this.map.getSource('adsb-live')) {
@@ -1278,11 +1308,17 @@ class AdsbLiveControl implements maplibregl.IControl {
                     setTimeout(() => { if (this.visible) this._startPolling(); }, 30000);
                     return;
                 }
-                this._geojson = { type: 'FeatureCollection', features: [] };
-                this._lastPositions = {};
-                this._clearCallsignMarkers();
-                try { (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)
-                    ?.setData(this._geojson as GeoJSON.GeoJSON); } catch(e) {}
+                // Transient error — don't clear planes immediately; interpolation will
+                // fade and remove stale aircraft naturally. Only clear after 3 failures.
+                this._fetchFailCount++;
+                if (this._fetchFailCount >= 3) {
+                    this._fetchFailCount = 0;
+                    this._geojson = { type: 'FeatureCollection', features: [] };
+                    this._lastPositions = {};
+                    this._clearCallsignMarkers();
+                    try { (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)
+                        ?.setData(this._geojson as GeoJSON.GeoJSON); } catch(e) {}
+                }
                 this._isFetching = false; return;
             }
             this._fetchFailCount = 0;
@@ -1290,126 +1326,153 @@ class AdsbLiveControl implements maplibregl.IControl {
             const aircraft = (data.ac || []) as AircraftApiEntry[];
             const seen     = new Set<string>();
 
-            this._geojson = {
-                type: 'FeatureCollection',
-                features: aircraft
-                    .filter(a => a.lat != null && a.lon != null && !['A0', 'B0', 'C0'].includes((a.category || '').toUpperCase()))
-                    .map(a => {
-                        const alt = this._parseAlt(a.alt_baro ?? null);
-                        const hex = a.hex || '';
-                        seen.add(hex);
+            // Build a lookup of existing features so we can merge rather than replace.
+            // Merging keeps aircraft visible between fetches (the API doesn't return every
+            // aircraft every cycle) and avoids snapping positions back to raw API coords.
+            const existingByHex = new Map<string, AircraftGeoFeature>();
+            for (const f of this._geojson.features) {
+                if (f.properties.hex) existingByHex.set(f.properties.hex, f);
+            }
 
-                        if (hex) {
-                            if (!this._trails[hex]) this._trails[hex] = [];
-                            const trail = this._trails[hex];
-                            const last  = trail[trail.length - 1];
-                            if (!last || last.lon !== a.lon || last.lat !== a.lat) {
-                                trail.push({ lon: a.lon!, lat: a.lat!, alt });
-                                if (trail.length > this._MAX_TRAIL) trail.shift();
-                            }
+            const newFeatures: AircraftGeoFeature[] = [];
+
+            for (const a of aircraft.filter(a => a.lat != null && a.lon != null && !['A0', 'B0', 'C0'].includes((a.category || '').toUpperCase()))) {
+                const alt = this._parseAlt(a.alt_baro ?? null);
+                const hex = a.hex || '';
+                seen.add(hex);
+
+                if (hex) {
+                    if (!this._trails[hex]) this._trails[hex] = [];
+                    const trail = this._trails[hex];
+                    const last  = trail[trail.length - 1];
+                    if (!last || last.lon !== a.lon || last.lat !== a.lat) {
+                        trail.push({ lon: a.lon!, lat: a.lat!, alt });
+                        if (trail.length > this._MAX_TRAIL) trail.shift();
+                    }
+                }
+
+                if (hex) {
+                    const lastSeen = Date.now();
+                    const existing = this._lastPositions[hex];
+                    if (!existing) {
+                        this._lastPositions[hex] = { lon: a.lon!, lat: a.lat!, gs: a.gs ?? 0, track: a.track ?? null, lastSeen, baseLon: a.lon!, baseLat: a.lat! };
+                    } else {
+                        // Use current interpolated position as the new dead-reckoning base so
+                        // there is no snap back to raw API coords when ageSec resets to 0.
+                        const interp = this._interpolatedCoords(hex);
+                        existing.baseLon = interp ? interp[0] : existing.lon;
+                        existing.baseLat = interp ? interp[1] : existing.lat;
+                        existing.lon = a.lon!; existing.lat = a.lat!;
+                        existing.gs  = a.gs ?? 0; existing.track = a.track ?? null;
+                        existing.lastSeen = lastSeen;
+                    }
+                }
+
+                if (hex) {
+                    const prevAlt    = this._prevAlt[hex];
+                    const gs         = a.gs ?? 0;
+                    const justLanded = (prevAlt !== undefined && prevAlt > 0 && alt === 0);
+                    if (justLanded) this._landedAt[hex] = Date.now();
+                    if (alt === 0 && this._notifEnabled.has(hex)) this._seenOnGround[hex] = true;
+                    const justDeparted = (
+                        alt > 0 && gs > 0 &&
+                        !this._hasDeparted[hex] &&
+                        this._seenOnGround[hex] &&
+                        this._notifEnabled.has(hex)
+                    );
+                    this._prevAlt[hex] = alt;
+                    if (alt === 0) this._hasDeparted[hex] = false;
+
+                    const _nearestAirport = (aLat: number, aLon: number) => {
+                        let best: AirportProperties | null = null, bestDist = Infinity;
+                        for (const f of AIRPORTS_DATA.features) {
+                            const [fLon, fLat] = f.geometry.coordinates;
+                            const dLat = (aLat - fLat) * Math.PI / 180;
+                            const dLon = (aLon - fLon) * Math.PI / 180;
+                            const a2 = Math.sin(dLat/2)**2 + Math.cos(fLat * Math.PI/180) * Math.cos(aLat * Math.PI/180) * Math.sin(dLon/2)**2;
+                            const dist = 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1-a2));
+                            if (dist < bestDist) { bestDist = dist; best = f.properties; }
                         }
+                        return best;
+                    };
 
-                        if (hex) {
-                            const lastSeen = Date.now() - (a.seen_pos ?? 0) * 1000;
-                            const existing = this._lastPositions[hex];
-                            if (!existing) {
-                                this._lastPositions[hex] = { lon: a.lon!, lat: a.lat!, gs: a.gs ?? 0, track: a.track ?? null, lastSeen };
-                            } else {
-                                existing.lon = a.lon!; existing.lat = a.lat!;
-                                existing.gs  = a.gs ?? 0; existing.track = a.track ?? null;
-                                existing.lastSeen = lastSeen;
+                    if (justDeparted) {
+                        this._hasDeparted[hex] = true;
+                        const callsign = (a.flight || '').trim() || (a.r || '').trim();
+                        const apt      = _nearestAirport(a.lat!, a.lon!);
+                        window._Notifications.add({ type: 'departure', title: callsign, ...(apt ? { detail: `${apt.name} (${apt.icao})` } : {}) });
+                    }
+
+                    if (justLanded && this._notifEnabled.has(hex)) {
+                        const callsign = (a.flight || '').trim() || (a.r || '').trim();
+                        const apt      = _nearestAirport(a.lat!, a.lon!);
+                        window._Notifications.add({ type: 'flight', title: callsign, ...(apt ? { detail: `${apt.name} (${apt.icao})` } : {}) });
+                        if (this._parkedTimers[hex]) clearTimeout(this._parkedTimers[hex]);
+                        this._parkedTimers[hex] = setTimeout(() => {
+                            delete this._parkedTimers[hex]; delete this._prevAlt[hex];
+                            delete this._hasDeparted[hex]; delete this._trails[hex];
+                            delete this._lastPositions[hex];
+                            this._geojson = { type: 'FeatureCollection', features: this._geojson.features.filter(f => f.properties.hex !== hex) };
+                            if (this._interpolatedFeatures) this._interpolatedFeatures = this._interpolatedFeatures.filter(f => f.properties.hex !== hex);
+                            if (this._callsignMarkers[hex]) { this._callsignMarkers[hex].remove(); delete this._callsignMarkers[hex]; }
+                            if (this._selectedHex === hex) {
+                                this._selectedHex = null; this._followEnabled = false;
+                                this._hideSelectedTag(); this._hideStatusBar();
                             }
-                        }
+                            this._rebuildTrails(); this._interpolate();
+                        }, 60 * 1000);
+                    }
+                    if (alt > 0 && this._parkedTimers[hex]) { clearTimeout(this._parkedTimers[hex]); delete this._parkedTimers[hex]; }
+                }
 
-                        if (hex) {
-                            const prevAlt    = this._prevAlt[hex];
-                            const gs         = a.gs ?? 0;
-                            const justLanded = (prevAlt !== undefined && prevAlt > 0 && alt === 0);
-                            if (justLanded) this._landedAt[hex] = Date.now();
-                            if (alt === 0 && this._notifEnabled.has(hex)) this._seenOnGround[hex] = true;
-                            const justDeparted = (
-                                alt > 0 && gs > 0 &&
-                                !this._hasDeparted[hex] &&
-                                this._seenOnGround[hex] &&
-                                this._notifEnabled.has(hex)
-                            );
-                            this._prevAlt[hex] = alt;
-                            if (alt === 0) this._hasDeparted[hex] = false;
+                const gs     = a.gs ?? 0;
+                const hexInt = parseInt(hex, 16);
+                const military = a.t !== 'LAAD'
+                    && (a.military === true
+                    || (hexInt >= 0x43C000 && hexInt <= 0x43FFFF)
+                    || (hexInt >= 0xAE0000 && hexInt <= 0xAFFFFF));
 
-                            const _nearestAirport = (aLat: number, aLon: number) => {
-                                let best: AirportProperties | null = null, bestDist = Infinity;
-                                for (const f of AIRPORTS_DATA.features) {
-                                    const [fLon, fLat] = f.geometry.coordinates;
-                                    const dLat = (aLat - fLat) * Math.PI / 180;
-                                    const dLon = (aLon - fLon) * Math.PI / 180;
-                                    const a2 = Math.sin(dLat/2)**2 + Math.cos(fLat * Math.PI/180) * Math.cos(aLat * Math.PI/180) * Math.sin(dLon/2)**2;
-                                    const dist = 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1-a2));
-                                    if (dist < bestDist) { bestDist = dist; best = f.properties; }
-                                }
-                                return best;
-                            };
+                // Preserve existing geometry coordinates to avoid snapping back to raw API
+                // position on each fetch. _interpolate() will project forward from _lastPositions.
+                const existingFeature = existingByHex.get(hex);
+                const coords = existingFeature
+                    ? existingFeature.geometry.coordinates
+                    : [a.lon!, a.lat!] as [number, number];
 
-                            if (justDeparted) {
-                                this._hasDeparted[hex] = true;
-                                const callsign = (a.flight || '').trim() || (a.r || '').trim();
-                                const apt      = _nearestAirport(a.lat!, a.lon!);
-                                window._Notifications.add({ type: 'departure', title: callsign, ...(apt ? { detail: `${apt.name} (${apt.icao})` } : {}) });
-                            }
+                newFeatures.push({
+                    type: 'Feature' as const,
+                    geometry:   { type: 'Point' as const, coordinates: coords },
+                    properties: {
+                        hex, flight: (a.flight || '').trim(), r: a.r || '', t: a.t || '',
+                        alt_baro: alt, alt_geom: a.alt_geom ?? null, gs,
+                        ias: a.ias ?? null, mach: a.mach ?? null,
+                        track: a.track ?? 0, baro_rate: a.baro_rate ?? 0,
+                        nav_altitude: a.nav_altitude_mcp ?? a.nav_altitude_fms ?? null,
+                        nav_heading: a.nav_heading ?? null,
+                        category: (a.category || '').toUpperCase(),
+                        emergency: a.emergency || '', squawk: a.squawk || '',
+                        squawkEmerg: this._emergencySquawks.has(a.squawk || '') ? 1 : 0,
+                        rssi: a.rssi ?? null, military,
+                        stale: 0,
+                    } as AircraftProperties,
+                });
+                existingByHex.delete(hex);
+            }
 
-                            if (justLanded && this._notifEnabled.has(hex)) {
-                                const callsign = (a.flight || '').trim() || (a.r || '').trim();
-                                const apt      = _nearestAirport(a.lat!, a.lon!);
-                                window._Notifications.add({ type: 'flight', title: callsign, ...(apt ? { detail: `${apt.name} (${apt.icao})` } : {}) });
-                                if (this._parkedTimers[hex]) clearTimeout(this._parkedTimers[hex]);
-                                this._parkedTimers[hex] = setTimeout(() => {
-                                    delete this._parkedTimers[hex]; delete this._prevAlt[hex];
-                                    delete this._hasDeparted[hex]; delete this._trails[hex];
-                                    delete this._lastPositions[hex];
-                                    this._geojson = { type: 'FeatureCollection', features: this._geojson.features.filter(f => f.properties.hex !== hex) };
-                                    if (this._interpolatedFeatures) this._interpolatedFeatures = this._interpolatedFeatures.filter(f => f.properties.hex !== hex);
-                                    if (this._callsignMarkers[hex]) { this._callsignMarkers[hex].remove(); delete this._callsignMarkers[hex]; }
-                                    if (this._selectedHex === hex) {
-                                        this._selectedHex = null; this._followEnabled = false;
-                                        this._hideSelectedTag(); this._hideStatusBar();
-                                    }
-                                    this._rebuildTrails(); this._interpolate();
-                                }, 60 * 1000);
-                            }
-                            if (alt > 0 && this._parkedTimers[hex]) { clearTimeout(this._parkedTimers[hex]); delete this._parkedTimers[hex]; }
-                        }
+            // Keep aircraft that weren't in this response — _interpolate() will age them out
+            // after REMOVE_SEC (60s). Don't delete them just because one fetch missed them.
+            for (const [, f] of existingByHex) {
+                if (this._lastPositions[f.properties.hex]) newFeatures.push(f);
+            }
 
-                        const gs     = a.gs ?? 0;
-                        const hexInt = parseInt(hex, 16);
-                        const military = a.t !== 'LAAD'
-                            && (a.military === true
-                            || (hexInt >= 0x43C000 && hexInt <= 0x43FFFF)
-                            || (hexInt >= 0xAE0000 && hexInt <= 0xAFFFFF));
+            this._geojson = { type: 'FeatureCollection', features: newFeatures };
 
-                        return {
-                            type: 'Feature' as const,
-                            geometry:   { type: 'Point' as const, coordinates: [a.lon!, a.lat!] as [number, number] },
-                            properties: {
-                                hex, flight: (a.flight || '').trim(), r: a.r || '', t: a.t || '',
-                                alt_baro: alt, alt_geom: a.alt_geom ?? null, gs,
-                                ias: a.ias ?? null, mach: a.mach ?? null,
-                                track: a.track ?? 0, baro_rate: a.baro_rate ?? 0,
-                                nav_altitude: a.nav_altitude_mcp ?? a.nav_altitude_fms ?? null,
-                                nav_heading: a.nav_heading ?? null,
-                                category: (a.category || '').toUpperCase(),
-                                emergency: a.emergency || '', squawk: a.squawk || '',
-                                squawkEmerg: this._emergencySquawks.has(a.squawk || '') ? 1 : 0,
-                                rssi: a.rssi ?? null, military,
-                                stale: 0,
-                            } as AircraftProperties,
-                        };
-                    }),
-            };
-
-            for (const hex of Object.keys(this._trails))        { if (!seen.has(hex)) delete this._trails[hex]; }
-            for (const hex of Object.keys(this._lastPositions)) { if (!seen.has(hex)) delete this._lastPositions[hex]; }
-            for (const hex of Object.keys(this._prevAlt))       { if (!seen.has(hex) && !this._parkedTimers[hex]) delete this._prevAlt[hex]; }
-            for (const hex of Object.keys(this._hasDeparted))   { if (!seen.has(hex)) delete this._hasDeparted[hex]; }
-            for (const hex of Object.keys(this._prevSquawk))    { if (!seen.has(hex)) delete this._prevSquawk[hex]; }
+            // Only clean up state for aircraft whose _lastPositions have fully expired
+            // (i.e. already removed by _interpolate). Don't wipe data for aircraft that
+            // simply weren't in this particular response.
+            for (const hex of Object.keys(this._prevAlt))    { if (!seen.has(hex) && !this._parkedTimers[hex] && !this._lastPositions[hex]) delete this._prevAlt[hex]; }
+            for (const hex of Object.keys(this._hasDeparted)){ if (!seen.has(hex) && !this._lastPositions[hex]) delete this._hasDeparted[hex]; }
+            for (const hex of Object.keys(this._prevSquawk)) { if (!seen.has(hex) && !this._lastPositions[hex]) delete this._prevSquawk[hex]; }
 
             for (const f of this._geojson.features) {
                 const props  = f.properties;

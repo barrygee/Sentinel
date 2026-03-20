@@ -109,6 +109,8 @@ interface LastPosition {
     gs:       number;
     track:    number | null;
     lastSeen: number;
+    baseLon:  number;   // dead-reckoning origin (set to interpolated pos on each update to avoid snap)
+    baseLat:  number;
 }
 
 // ----- Notification system -----
