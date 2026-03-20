@@ -237,12 +237,12 @@ class IssControl extends SentinelControlBase {
     _showNoTleOverlay() {
         const overlay = document.getElementById('no-tle-overlay');
         if (overlay)
-            overlay.style.display = 'flex';
+            overlay.classList.remove('hidden');
     }
     _hideNoTleOverlay() {
         const overlay = document.getElementById('no-tle-overlay');
         if (overlay)
-            overlay.style.display = 'none';
+            overlay.classList.add('hidden');
     }
     // ---- Data fetch ----
     async _fetch() {
