@@ -395,24 +395,22 @@ window._SettingsPanel = (function () {
         urlRow.appendChild(urlInput);
         wrap.appendChild(urlRow);
 
-        // Load saved value (skip if no default URL has been configured yet)
-        if (defaultUrl !== '') {
-            try {
-                const saved = localStorage.getItem(LS_KEY);
-                if (saved) urlInput.value = saved;
-            } catch (e) {}
+        // Load saved value
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved) urlInput.value = saved;
+        } catch (e) {}
 
-            // Reconcile with backend
-            if (window._SettingsAPI) {
-                window._SettingsAPI.getNamespace(ns).then(function (data) {
-                    if (!data || !data['onlineUrl']) return;
-                    const backendVal = data['onlineUrl'] as string;
-                    if (backendVal && !urlInput.value) {
-                        urlInput.value = backendVal;
-                        try { localStorage.setItem(LS_KEY, backendVal); } catch (e) {}
-                    }
-                });
-            }
+        // Reconcile with backend (skip placeholder values like "https://")
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace(ns).then(function (data) {
+                if (!data || !data['onlineUrl']) return;
+                const backendVal = data['onlineUrl'] as string;
+                if (backendVal && !/^https?:\/\/?$/.test(backendVal.trim()) && !urlInput.value) {
+                    urlInput.value = backendVal;
+                    try { localStorage.setItem(LS_KEY, backendVal); } catch (e) {}
+                }
+            });
         }
 
         urlInput.addEventListener('input', function () {
@@ -461,25 +459,25 @@ window._SettingsPanel = (function () {
         urlRow.appendChild(urlInput);
         wrap.appendChild(urlRow);
 
-        // Load saved value (skip if no default URL has been configured yet)
-        if (defaultUrl !== '') {
-            try {
-                const raw = localStorage.getItem(LS_KEY);
-                if (raw) {
-                    const saved = JSON.parse(raw) as { url?: string };
-                    if (saved.url) urlInput.value = saved.url;
-                }
-            } catch (e) {}
-
-            // Reconcile with backend
-            if (window._SettingsAPI) {
-                window._SettingsAPI.getNamespace(ns).then(function (data) {
-                    if (!data || !data['offlineSource']) return;
-                    const backendVal = data['offlineSource'] as { url?: string };
-                    if (!urlInput.value && backendVal.url) urlInput.value = backendVal.url;
-                    try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
-                });
+        // Load saved value
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw) as { url?: string };
+                if (saved.url) urlInput.value = saved.url;
             }
+        } catch (e) {}
+
+        // Reconcile with backend (skip placeholder values like "http://localhost")
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace(ns).then(function (data) {
+                if (!data || !data['offlineSource']) return;
+                const backendVal = data['offlineSource'] as { url?: string };
+                if (backendVal.url && !/^http:\/\/localhost\/?$/.test(backendVal.url.trim()) && !urlInput.value) {
+                    urlInput.value = backendVal.url;
+                }
+                try { localStorage.setItem(LS_KEY, JSON.stringify(backendVal)); } catch (e) {}
+            });
         }
 
         urlInput.addEventListener('input', function () {

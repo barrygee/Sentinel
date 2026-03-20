@@ -39,18 +39,22 @@ window._Tracking.init();
         return 'online';
     }
 
+    function _isPlaceholder(url) {
+        const t = url.trim();
+        return !t || /^https?:\/\/?$/.test(t) || /^http:\/\/localhost\/?$/.test(t);
+    }
+
     function _hasUrl(mode) {
         try {
             if (mode === 'online') {
                 const val = localStorage.getItem('sentinel_' + ns + '_onlineUrl') || '';
-                // Reject bare protocol placeholders like "https://" or "http://"
-                return val.length > 0 && !/^https?:\/\/?$/.test(val.trim());
+                return val.length > 0 && !_isPlaceholder(val);
             } else {
                 const raw = localStorage.getItem('sentinel_' + ns + '_offlineSource');
                 if (!raw) return false;
                 const obj = JSON.parse(raw);
                 const url = (obj && obj.url) || '';
-                return url.length > 0 && !/^https?:\/\/?$/.test(url.trim());
+                return url.length > 0 && !_isPlaceholder(url);
             }
         } catch (e) {}
         return false;
@@ -94,7 +98,7 @@ window._Tracking.init();
                     backendUrl = (src && typeof src === 'object' && src.url) ? src.url : '';
                 } catch (e) {}
             }
-            var backendValid = backendUrl.length > 0 && !/^https?:\/\/?$/.test(backendUrl.trim());
+            var backendValid = backendUrl.length > 0 && !_isPlaceholder(backendUrl);
             if (!backendValid) {
                 // Backend has no real URL — clear any stale localStorage value and show overlay
                 try { localStorage.removeItem(lsKey); } catch (e) {}
