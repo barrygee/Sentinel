@@ -38,7 +38,7 @@ window._SpaceFilterPanel = (() => {
                     `<circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.3"/>` +
                     `<line x1="8.5" y1="8.5" x2="12" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` +
                 `</svg>` +
-                `<input id="space-filter-input" type="text" placeholder="SATELLITE NAME · NORAD ID" autocomplete="off" spellcheck="false" />` +
+                `<input id="space-filter-input" type="text" placeholder="SATELLITE NAME · NORAD ID · CATEGORY" autocomplete="off" spellcheck="false" />` +
                 `<button id="space-filter-clear-btn" aria-label="Clear filter">✕</button>` +
             `</div>` +
             `<div id="space-filter-results"></div>`;
@@ -74,10 +74,36 @@ window._SpaceFilterPanel = (() => {
         return fields.some(f => f && f.toLowerCase().includes(lq));
     }
 
+    // Maps human-readable aliases to category keys so "space station" matches space_station, etc.
+    const _CATEGORY_ALIASES: Record<string, string[]> = {
+        space_station: ['space station', 'station', 'iss'],
+        amateur:       ['amateur', 'ham'],
+        weather:       ['weather', 'met'],
+        military:      ['military', 'mil', 'defense', 'defence'],
+        navigation:    ['navigation', 'nav', 'gps', 'gnss'],
+        science:       ['science', 'sci', 'research'],
+        cubesat:       ['cubesat', 'cube', 'smallsat'],
+        active:        ['active'],
+        unknown:       ['unknown', 'unkn'],
+    };
+
+    function _categoryForQuery(query: string): string | null {
+        const lq = query.toLowerCase().trim();
+        if (lq.length < 2) return null;
+        for (const [cat, aliases] of Object.entries(_CATEGORY_ALIASES)) {
+            if (aliases.some(a => a === lq || a.startsWith(lq) || lq.startsWith(a))) return cat;
+        }
+        return null;
+    }
+
     function _search(query: string): SatEntry[] {
         const q = query.trim();
         if (!q) return [];
-        return _satellites.filter(s => _matchesQuery(q, s.name, s.norad_id));
+        const matchedCategory = _categoryForQuery(q);
+        return _satellites.filter(s =>
+            _matchesQuery(q, s.name, s.norad_id) ||
+            (matchedCategory !== null && s.category === matchedCategory)
+        );
     }
 
     function _renderResults(results: SatEntry[], query: string): void {
