@@ -174,18 +174,18 @@ window._SettingsPanel = (function () {
         },
         // CONFIG
         {
-            section:       'config',
-            sectionLabel:  'Config',
+            section:       'app',
+            sectionLabel:  'App Settings',
             id:            'config-current',
-            label:         'Current Config',
+            label:         'View / Edit App Config',
             desc:          'Settings currently stored in the database',
             renderControl: _renderConfigCurrentControl,
         },
         {
-            section:       'config',
-            sectionLabel:  'Config',
+            section:       'app',
+            sectionLabel:  'App Settings',
             id:            'config-upload',
-            label:         'Upload Config',
+            label:         'Upload a New Config File',
             desc:          'Upload a JSON config file — preview its contents, then apply to replace all current settings',
             renderControl: _renderConfigUploadControl,
         },
@@ -198,7 +198,6 @@ window._SettingsPanel = (function () {
         { key: 'sea',   label: 'SEA' },
         { key: 'land',  label: 'LAND' },
         { key: 'sdr',    label: 'SDR' },
-        { key: 'config', label: 'Config' },
     ];
 
     // ── DOM injection ────────────────────────────────────────
@@ -730,7 +729,7 @@ window._SettingsPanel = (function () {
         wrap.className = 'settings-config-wrap';
 
         const textarea = document.createElement('textarea');
-        textarea.className = 'settings-config-preview settings-config-preview--textarea';
+        textarea.className = 'settings-config-preview settings-config-preview--textarea settings-config-preview--hidden';
         textarea.value = 'Loading…';
         textarea.spellcheck = false;
         textarea.autocomplete = 'off';
@@ -738,13 +737,23 @@ window._SettingsPanel = (function () {
         const actionRow = document.createElement('div');
         actionRow.className = 'settings-config-action-row';
 
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'settings-config-btn';
+        toggleBtn.textContent = 'SHOW';
+
         const exportBtn = document.createElement('button');
         exportBtn.className = 'settings-config-btn';
         exportBtn.textContent = 'EXPORT';
 
-        wrap.appendChild(textarea);
+        toggleBtn.addEventListener('click', function () {
+            const hidden = textarea.classList.toggle('settings-config-preview--hidden');
+            toggleBtn.textContent = hidden ? 'SHOW' : 'HIDE';
+        });
+
         wrap.appendChild(actionRow);
+        actionRow.appendChild(toggleBtn);
         actionRow.appendChild(exportBtn);
+        wrap.appendChild(textarea);
 
         // Export: download the current textarea content as JSON
         exportBtn.addEventListener('click', function () {
