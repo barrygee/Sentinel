@@ -172,6 +172,23 @@ window._SettingsPanel = (function () {
             desc:          'Local server URL and port for land data',
             renderControl: function () { return _renderOfflineSourceControl('land', ''); },
         },
+        // CONFIG
+        {
+            section:       'app',
+            sectionLabel:  'App Settings',
+            id:            'config-current',
+            label:         'View / Edit Application Config',
+            desc:          'Settings currently stored in the database',
+            renderControl: _renderConfigCurrentControl,
+        },
+        {
+            section:       'app',
+            sectionLabel:  'App Settings',
+            id:            'config-upload',
+            label:         'Upload New Application Config File',
+            desc:          'Upload a JSON config file — preview its contents, then apply to replace all current settings',
+            renderControl: _renderConfigUploadControl,
+        },
     ];
 
     const _NAV_SECTIONS: NavSection[] = [
@@ -180,7 +197,7 @@ window._SettingsPanel = (function () {
         { key: 'space', label: 'SPACE' },
         { key: 'sea',   label: 'SEA' },
         { key: 'land',  label: 'LAND' },
-        { key: 'sdr',   label: 'SDR' },
+        { key: 'sdr',    label: 'SDR' },
     ];
 
     // ── DOM injection ────────────────────────────────────────
@@ -705,6 +722,187 @@ window._SettingsPanel = (function () {
         return wrap;
     }
 
+    // ── Config controls ───────────────────────────────────────
+
+    function _renderConfigCurrentControl(): HTMLElement {
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-config-wrap';
+        wrap.dataset['wide'] = 'true';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'settings-config-preview settings-config-preview--textarea settings-config-preview--hidden';
+        textarea.value = 'Loading…';
+        textarea.spellcheck = false;
+        textarea.autocomplete = 'off';
+
+        const actionRow = document.createElement('div');
+        actionRow.className = 'settings-config-action-row';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'settings-config-btn';
+        toggleBtn.textContent = 'SHOW';
+
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'settings-config-btn';
+        exportBtn.textContent = 'EXPORT';
+
+        function autoSize() {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        toggleBtn.addEventListener('click', function () {
+            const hidden = textarea.classList.toggle('settings-config-preview--hidden');
+            toggleBtn.textContent = hidden ? 'SHOW' : 'HIDE';
+            if (!hidden) autoSize();
+        });
+
+        wrap.appendChild(actionRow);
+        actionRow.appendChild(toggleBtn);
+        actionRow.appendChild(exportBtn);
+        wrap.appendChild(textarea);
+
+        // Export: download the current textarea content as JSON
+        exportBtn.addEventListener('click', async function () {
+            const content = textarea.value;
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await (window as any).showSaveFilePicker({
+                        suggestedName: 'sentinel_config.json',
+                        types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    return;
+                } catch (err: any) {
+                    if (err.name === 'AbortError') return; // user cancelled
+                }
+            }
+            // Fallback for browsers without File System Access API
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sentinel_config.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        fetch('/api/settings/config/preview')
+            .then(function (res) { return res.json(); })
+            .then(function (data) { textarea.value = JSON.stringify(data, null, 2); autoSize(); })
+            .catch(function () { textarea.value = 'Failed to load config.'; autoSize(); });
+
+        return wrap;
+    }
+
+    function _renderConfigUploadControl(): HTMLElement {
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-config-wrap';
+
+        // File picker row
+        const pickerRow = document.createElement('div');
+        pickerRow.className = 'settings-config-picker-row';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json,application/json';
+        fileInput.className = 'settings-config-file-input';
+        fileInput.id = 'settings-config-file-input';
+
+        const chooseLabel = document.createElement('label');
+        chooseLabel.htmlFor = 'settings-config-file-input';
+        chooseLabel.className = 'settings-config-btn';
+        chooseLabel.textContent = 'CHOOSE FILE';
+
+        const filenameSpan = document.createElement('span');
+        filenameSpan.className = 'settings-config-filename';
+        filenameSpan.textContent = 'No file selected';
+
+        pickerRow.appendChild(fileInput);
+        pickerRow.appendChild(chooseLabel);
+        pickerRow.appendChild(filenameSpan);
+
+        // Preview box — hidden until a file is chosen
+        const pre = document.createElement('pre');
+        pre.className = 'settings-config-preview settings-config-preview--hidden';
+
+        // Action row
+        const actionRow = document.createElement('div');
+        actionRow.className = 'settings-config-action-row settings-config-action-row--hidden';
+
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'settings-config-btn settings-config-upload-btn';
+        applyBtn.textContent = 'APPLY CONFIG';
+
+        const statusMsg = document.createElement('span');
+        statusMsg.className = 'settings-config-status';
+
+        actionRow.appendChild(applyBtn);
+        actionRow.appendChild(statusMsg);
+
+        wrap.appendChild(pickerRow);
+        wrap.appendChild(pre);
+        wrap.appendChild(actionRow);
+
+        // Read and preview the chosen file locally (no upload yet)
+        fileInput.addEventListener('change', function () {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+
+            filenameSpan.textContent = file.name;
+            statusMsg.textContent = '';
+            statusMsg.className = 'settings-config-status';
+
+            const reader = new FileReader();
+            reader.onload = function () {
+                try {
+                    const parsed = JSON.parse(reader.result as string);
+                    pre.textContent = JSON.stringify(parsed, null, 2);
+                    pre.classList.remove('settings-config-preview--hidden');
+                    actionRow.classList.remove('settings-config-action-row--hidden');
+                } catch (e) {
+                    pre.textContent = 'Invalid JSON — cannot preview.';
+                    pre.classList.remove('settings-config-preview--hidden');
+                    actionRow.classList.add('settings-config-action-row--hidden');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Apply the previewed config to the backend
+        applyBtn.addEventListener('click', function () {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+
+            applyBtn.disabled = true;
+            statusMsg.textContent = 'Applying…';
+            statusMsg.className = 'settings-config-status';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/settings/config/upload', { method: 'POST', body: formData })
+                .then(function (res) {
+                    if (!res.ok) return res.json().then(function (e: { detail?: string }) { throw new Error(e.detail || 'Upload failed'); });
+                    return res.json();
+                })
+                .then(function (data: { imported?: number }) {
+                    statusMsg.textContent = 'APPLIED — ' + (data.imported ?? '?') + ' SETTINGS IMPORTED';
+                    statusMsg.className = 'settings-config-status settings-config-status--ok';
+                    applyBtn.disabled = false;
+                })
+                .catch(function (err: Error) {
+                    statusMsg.textContent = err.message.toUpperCase();
+                    statusMsg.className = 'settings-config-status settings-config-status--error';
+                    applyBtn.disabled = false;
+                });
+        });
+
+        return wrap;
+    }
+
     function _renderConnectivityToggle(): HTMLElement {
         const LS_KEY = 'sentinel_app_connectivityMode';
         const DOMAIN_NAMESPACES = ['air', 'space', 'sea', 'land'];
@@ -1125,32 +1323,41 @@ window._SettingsPanel = (function () {
         infoPanel.className = 'tle-info-panel';
         infoPanel.hidden    = true;
 
+        // Per-category URLs — starts as a copy of the hardcoded defaults,
+        // then overridden by space.onlineUrls from the backend config.
+        const effectiveUrls: Record<string, string> = Object.assign({}, _CELESTRAK_URLS);
+
+        function _buildInfoList(): void {
+            infoList.innerHTML = '';
+            _TLE_CATEGORIES.filter(function (c) { return c.value && effectiveUrls[c.value]; }).forEach(function (cat) {
+                const item = document.createElement('div');
+                item.className = 'tle-info-list-item';
+
+                const labelEl = document.createElement('span');
+                labelEl.className   = 'tle-info-list-label';
+                labelEl.textContent = cat.label;
+
+                const sepEl = document.createElement('span');
+                sepEl.className   = 'tle-info-list-sep';
+                sepEl.textContent = ':';
+
+                const urlEl = document.createElement('a');
+                urlEl.className   = 'tle-info-table-url';
+                urlEl.textContent = effectiveUrls[cat.value]!;
+                urlEl.href        = effectiveUrls[cat.value]!;
+                urlEl.target      = '_blank';
+                urlEl.rel         = 'noopener noreferrer';
+
+                item.appendChild(labelEl);
+                item.appendChild(sepEl);
+                item.appendChild(urlEl);
+                infoList.appendChild(item);
+            });
+        }
+
         const infoList = document.createElement('div');
         infoList.className = 'tle-info-list';
-        _TLE_CATEGORIES.filter(function (c) { return c.value && _CELESTRAK_URLS[c.value]; }).forEach(function (cat) {
-            const item = document.createElement('div');
-            item.className = 'tle-info-list-item';
-
-            const labelEl = document.createElement('span');
-            labelEl.className   = 'tle-info-list-label';
-            labelEl.textContent = cat.label;
-
-            const sepEl = document.createElement('span');
-            sepEl.className   = 'tle-info-list-sep';
-            sepEl.textContent = ':';
-
-            const urlEl = document.createElement('a');
-            urlEl.className   = 'tle-info-table-url';
-            urlEl.textContent = _CELESTRAK_URLS[cat.value]!;
-            urlEl.href        = _CELESTRAK_URLS[cat.value]!;
-            urlEl.target      = '_blank';
-            urlEl.rel         = 'noopener noreferrer';
-
-            item.appendChild(labelEl);
-            item.appendChild(sepEl);
-            item.appendChild(urlEl);
-            infoList.appendChild(item);
-        });
+        _buildInfoList();
 
         infoPanel.appendChild(infoList);
         infoRow.appendChild(infoHeader);
@@ -1169,16 +1376,29 @@ window._SettingsPanel = (function () {
             const saved = localStorage.getItem(LS_KEY);
             const migrated = saved ? saved.replace(/FORMAT=TLE\b/, 'FORMAT=tle').replace(/CATNR=25544/, 'GROUP=active') : null;
             if (migrated && migrated !== saved) localStorage.setItem(LS_KEY, migrated);
-            urlInput.value = migrated || _CELESTRAK_URLS['active']!;
+            urlInput.value = migrated || effectiveUrls['active']!;
         } catch (e) {
-            urlInput.value = _CELESTRAK_URLS['active']!;
+            urlInput.value = effectiveUrls['active']!;
         }
 
-        // Reconcile with backend
+        // Reconcile with backend — apply onlineUrls overrides and onlineUrl fallback
         if (window._SettingsAPI) {
             window._SettingsAPI.getNamespace('space').then(function (data) {
-                if (!data || !data['onlineUrl']) return;
-                const backendVal = data['onlineUrl'] as string;
+                if (!data) return;
+                // Merge per-category URL overrides from config
+                const configUrls = data['onlineUrls'];
+                if (configUrls && typeof configUrls === 'object') {
+                    Object.assign(effectiveUrls, configUrls as Record<string, string>);
+                    _buildInfoList();
+                    // Re-fill URL input if the current category is now overridden
+                    const currentCat = catDrop.getValue();
+                    if (currentCat && effectiveUrls[currentCat]) {
+                        urlInput.value = effectiveUrls[currentCat]!;
+                        try { localStorage.setItem(LS_KEY, urlInput.value); } catch (e) {}
+                    }
+                }
+                // Fall back to legacy single onlineUrl if input is still empty
+                const backendVal = data['onlineUrl'] as string | undefined;
                 if (backendVal && !urlInput.value) {
                     urlInput.value = backendVal;
                     try { localStorage.setItem(LS_KEY, backendVal); } catch (e) {}
@@ -1188,7 +1408,7 @@ window._SettingsPanel = (function () {
 
         // Auto-fill URL when category changes
         catDrop.onChange(function (val) {
-            urlInput.value = _CELESTRAK_URLS[val] ?? '';
+            urlInput.value = effectiveUrls[val] ?? '';
         });
 
         updateBtn.addEventListener('click', async function () {

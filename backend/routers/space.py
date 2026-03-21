@@ -56,8 +56,8 @@ async def get_iss(db: AsyncSession = Depends(get_db)):
         if tle_count_result.scalar() == 0:
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        online_url, offline_url = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url, offline_url)
+        online_url, _ = await resolve_domain_urls("space", db)
+        tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url)
         _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
         position = sat_service.compute_position(line1, line2)
@@ -90,8 +90,8 @@ async def get_satellite(norad_id: str, db: AsyncSession = Depends(get_db)):
         if tle_count_result.scalar() == 0:
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        online_url, offline_url = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(norad_id, db, online_url, offline_url)
+        online_url, _ = await resolve_domain_urls("space", db)
+        tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
         _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
         position = sat_service.compute_position(line1, line2)
@@ -129,8 +129,8 @@ async def get_iss_passes(
     Results include AOS/LOS times, duration, and maximum elevation angle.
     """
     try:
-        online_url, offline_url = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url, offline_url)
+        online_url, _ = await resolve_domain_urls("space", db)
+        tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url)
         _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
         passes = sat_service.compute_passes(
