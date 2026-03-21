@@ -157,7 +157,7 @@ window._SettingsPanel = (function () {
             section: 'app',
             sectionLabel: 'App Settings',
             id: 'config-current',
-            label: 'View / Edit App Config',
+            label: 'View / Edit Application Config',
             desc: 'Settings currently stored in the database',
             renderControl: _renderConfigCurrentControl,
         },
@@ -165,7 +165,7 @@ window._SettingsPanel = (function () {
             section: 'app',
             sectionLabel: 'App Settings',
             id: 'config-upload',
-            label: 'Upload New App Config File',
+            label: 'Upload New Application Config File',
             desc: 'Upload a JSON config file — preview its contents, then apply to replace all current settings',
             renderControl: _renderConfigUploadControl,
         },
@@ -746,14 +746,31 @@ window._SettingsPanel = (function () {
         toggleBtn.addEventListener('click', function () {
             const hidden = textarea.classList.toggle('settings-config-preview--hidden');
             toggleBtn.textContent = hidden ? 'SHOW' : 'HIDE';
+            if (!hidden) autoSize();
         });
         wrap.appendChild(actionRow);
         actionRow.appendChild(toggleBtn);
         actionRow.appendChild(exportBtn);
         wrap.appendChild(textarea);
         // Export: download the current textarea content as JSON
-        exportBtn.addEventListener('click', function () {
-            const blob = new Blob([textarea.value], { type: 'application/json' });
+        exportBtn.addEventListener('click', async function () {
+            const content = textarea.value;
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: 'sentinel_config.json',
+                        types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return; // user cancelled
+                }
+            }
+            // Fallback for browsers without File System Access API
+            const blob = new Blob([content], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -761,10 +778,15 @@ window._SettingsPanel = (function () {
             a.click();
             URL.revokeObjectURL(url);
         });
+        function autoSize() {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
         fetch('/api/settings/config/preview')
             .then(function (res) { return res.json(); })
-            .then(function (data) { textarea.value = JSON.stringify(data, null, 2); })
-            .catch(function () { textarea.value = 'Failed to load config.'; });
+            .then(function (data) { textarea.value = JSON.stringify(data, null, 2); autoSize(); })
+            .catch(function () { textarea.value = 'Failed to load config.'; autoSize(); });
         return wrap;
     }
     function _renderConfigUploadControl() {

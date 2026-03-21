@@ -1481,7 +1481,6 @@
 .settings-config-preview--textarea {
     resize: vertical;
     width: 75%;
-    height: 600px;
     box-sizing: border-box;
     outline: none;
     caret-color: var(--color-accent);

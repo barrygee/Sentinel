@@ -94,11 +94,12 @@ async def seed_default_settings() -> None:
     # Remove stale placeholder URL rows that were seeded in earlier versions.
     # sea/land have no built-in default URLs; users must configure them.
     _OBSOLETE_KEYS = [
-        ("air",  "offlineSource"),
-        ("sea",  "onlineUrl"),
-        ("sea",  "offlineSource"),
-        ("land", "onlineUrl"),
-        ("land", "offlineSource"),
+        ("air",   "offlineSource"),
+        ("space", "offlineSource"),
+        ("sea",   "onlineUrl"),
+        ("sea",   "offlineSource"),
+        ("land",  "onlineUrl"),
+        ("land",  "offlineSource"),
     ]
     async with AsyncSessionLocal() as session:
         for namespace, key in _OBSOLETE_KEYS:
