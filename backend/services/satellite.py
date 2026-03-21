@@ -119,6 +119,9 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
 
     features = []
 
+    # 10-second steps (~0.167 min) for smoother track lines
+    step = 1 / 6
+
     for track_type, start_min, end_min in [
         ("orbit1",   0,  92),
         ("orbit2",  92, 184),
@@ -127,8 +130,9 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
         current_segment: list[list[float]] = []
         prev_lon: float | None = None
 
-        for minute in range(start_min, end_min + 1):
-            offset_days = minute / 1440.0
+        t = start_min
+        while t <= end_min + 1e-9:
+            offset_days = t / 1440.0
             jd_t = jd
             fr_t = fr + offset_days
             # Handle fractional day overflow
@@ -142,10 +146,11 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
 
             result = _propagate_at(sat, jd_t, fr_t)
             if result is None:
+                t += step
                 continue
 
             r, _ = result
-            t_propagated = now + timedelta(minutes=minute)
+            t_propagated = now + timedelta(minutes=t)
             lat, lon, _ = _eci_to_geodetic(r, t_propagated)
 
             # Detect antimeridian crossing (longitude jump > 180°)
@@ -156,6 +161,7 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
 
             current_segment.append([round(lon, 4), round(lat, 4)])
             prev_lon = lon
+            t += step
 
         if current_segment:
             segments.append(current_segment)
