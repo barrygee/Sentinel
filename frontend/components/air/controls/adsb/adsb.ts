@@ -1210,6 +1210,23 @@ class AdsbLiveControl implements maplibregl.IControl {
 
     // ---- Position hold / stale removal ----
 
+    private _deadReckon(lon: number, lat: number, trackDeg: number, gs: number, elapsedSec: number): [number, number] {
+        const distNm  = gs * (elapsedSec / 3600);          // knots × hours = nm
+        const angDist = distNm / 3440.065;                 // radians (Earth radius in nm)
+        const bearRad = trackDeg * Math.PI / 180;
+        const lat1    = lat * Math.PI / 180;
+        const lon1    = lon * Math.PI / 180;
+        const lat2    = Math.asin(
+            Math.sin(lat1) * Math.cos(angDist) +
+            Math.cos(lat1) * Math.sin(angDist) * Math.cos(bearRad)
+        );
+        const lon2    = lon1 + Math.atan2(
+            Math.sin(bearRad) * Math.sin(angDist) * Math.cos(lat1),
+            Math.cos(angDist) - Math.sin(lat1) * Math.sin(lat2)
+        );
+        return [lon2 * 180 / Math.PI, lat2 * 180 / Math.PI];
+    }
+
     private _interpolate(): void {
         if (!this.map || !this._geojson.features.length) return;
         const now = Date.now();
@@ -1222,6 +1239,7 @@ class AdsbLiveControl implements maplibregl.IControl {
             if (ageSec >= REMOVE_SEC) {
                 const hex = f.properties.hex;
                 if (hex && this._callsignMarkers[hex]) { this._callsignMarkers[hex].remove(); delete this._callsignMarkers[hex]; }
+                delete this._lastPositions[hex];
                 return false;
             }
             return true;
@@ -1232,20 +1250,22 @@ class AdsbLiveControl implements maplibregl.IControl {
             const pos    = this._lastPositions[hex];
             const ageSec = pos ? (now - pos.lastSeen) / 1000 : 0;
             let coords: [number, number];
-            if (pos && pos.prevSeen !== pos.lastSeen) {
-                // Lerp from previous fix toward current fix over the poll window.
-                // t is how far through the window we are since the new fix arrived.
-                const window = pos.lastSeen - pos.prevSeen;
-                const elapsed = now - pos.lastSeen;
-                const t = Math.min(elapsed / window, 1);
-                coords = [
-                    pos.prevLon + (pos.lon - pos.prevLon) * t,
-                    pos.prevLat + (pos.lat - pos.prevLat) * t,
-                ];
+
+            if (pos) {
+                const elapsedSec = (now - pos.lastSeen) / 1000;
+                if (pos.track != null && pos.gs > 0) {
+                    // Dead-reckon forward from the last confirmed API fix on current heading.
+                    // This runs continuously — no lerp window, no freeze, no backward jumps.
+                    coords = this._deadReckon(pos.lon, pos.lat, pos.track, pos.gs, elapsedSec);
+                } else {
+                    // No speed/track data — hold at last known fix
+                    coords = [pos.lon, pos.lat];
+                }
             } else {
-                coords = pos ? [pos.lon, pos.lat] : f.geometry.coordinates;
+                coords = f.geometry.coordinates;
             }
-            const stale  = ageSec >= DIM_SEC ? 1 : 0;
+
+            const stale = ageSec >= DIM_SEC ? 1 : 0;
             return { ...f, geometry: { type: 'Point' as const, coordinates: coords }, properties: { ...f.properties, stale } };
         });
 
@@ -1352,13 +1372,18 @@ class AdsbLiveControl implements maplibregl.IControl {
                     const lastSeen = Date.now();
                     const existing = this._lastPositions[hex];
                     if (!existing) {
-                        this._lastPositions[hex] = { lon: a.lon!, lat: a.lat!, gs: a.gs ?? 0, track: a.track ?? null, lastSeen, prevLon: a.lon!, prevLat: a.lat!, prevSeen: lastSeen };
+                        this._lastPositions[hex] = { lon: a.lon!, lat: a.lat!, gs: a.gs ?? 0, track: a.track ?? null, lastSeen, prevLon: a.lon!, prevLat: a.lat!, prevSeen: lastSeen, interpLon: a.lon!, interpLat: a.lat! };
                     } else {
-                        // Advance the lerp window: current target becomes the new origin
-                        existing.prevLon = existing.lon; existing.prevLat = existing.lat;
-                        existing.prevSeen = existing.lastSeen;
-                        existing.lon = a.lon!; existing.lat = a.lat!;
-                        existing.gs  = a.gs ?? 0; existing.track = a.track ?? null;
+                        // Compute where the plane visually is right now (before updating the fix)
+                        // and use that as the new dead-reckoning origin, so there is no backward jump.
+                        const prevElapsed = (lastSeen - existing.lastSeen) / 1000;
+                        const [curLon, curLat] = (existing.track != null && existing.gs > 0)
+                            ? this._deadReckon(existing.lon, existing.lat, existing.track, existing.gs, prevElapsed)
+                            : [existing.lon, existing.lat];
+                        existing.lon      = curLon;
+                        existing.lat      = curLat;
+                        existing.gs       = a.gs ?? 0;
+                        existing.track    = a.track ?? null;
                         existing.lastSeen = lastSeen;
                     }
                 }
