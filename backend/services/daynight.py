@@ -22,7 +22,7 @@ def _solar_position(dt: datetime) -> tuple[float, float]:
     doy = dt.timetuple().tm_yday
     hour_utc = dt.hour + dt.minute / 60.0 + dt.second / 3600.0
 
-    B = math.radians((360.0 / 365.0) * (doy - 81))
+    B = math.radians((360.0 / 365.0) * (doy - 80))
     declination_deg = (
         23.45 * math.sin(B)
         - 0.39 * math.sin(2 * B)
@@ -88,7 +88,7 @@ def compute_terminator() -> dict:
     now = datetime.now(timezone.utc)
     sun_lat, sun_lon = _solar_position(now)
 
-    EQUINOX_THRESH = 0.01   # degrees — treat as equinox below this declination
+    EQUINOX_THRESH = 0.001  # degrees — treat as equinox below this declination
 
     # ------------------------------------------------------------------ #
     # EQUINOX CASE                                                         #
@@ -113,16 +113,13 @@ def compute_terminator() -> dict:
         if lo < hi:
             # No antimeridian split needed
             ring = [[lo, -90.0], [hi, -90.0], [hi, 90.0], [lo, 90.0], [lo, -90.0]]
-            polys = [[ring]]
         else:
-            # Night band crosses the antimeridian — split into two rectangles
-            ring1 = [[-180.0, -90.0], [hi, -90.0], [hi, 90.0], [-180.0, 90.0], [-180.0, -90.0]]
-            ring2 = [[lo, -90.0], [180.0, -90.0], [180.0, 90.0], [lo, 90.0], [lo, -90.0]]
-            polys = [[ring1], [ring2]]
+            # Night band crosses antimeridian — full-width rectangle (slight over-coverage, acceptable)
+            ring = [[-180.0, -90.0], [180.0, -90.0], [180.0, 90.0], [-180.0, 90.0], [-180.0, -90.0]]
 
         return {
             "type": "Feature",
-            "geometry": {"type": "MultiPolygon", "coordinates": polys},
+            "geometry": {"type": "Polygon", "coordinates": [ring]},
             "properties": {"sun_lat": round(sun_lat, 3), "sun_lon": round(sun_lon, 3)},
         }
 
@@ -165,10 +162,8 @@ def compute_terminator() -> dict:
     return {
         "type": "Feature",
         "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [[[  # MultiPolygon > Polygon > ring
-                pt for pt in ring
-            ]]],
+            "type": "Polygon",
+            "coordinates": [ring],
         },
         "properties": {
             "sun_lat": round(sun_lat, 3),
