@@ -109,9 +109,11 @@ interface LastPosition {
     gs:       number;
     track:    number | null;
     lastSeen: number;   // timestamp of current API fix
-    prevLon:  number;   // previous API fix — lerp origin
-    prevLat:  number;
-    prevSeen: number;   // timestamp of previous API fix — lerp start
+    prevLon:  number;   // lerp origin longitude
+    prevLat:  number;   // lerp origin latitude
+    prevSeen: number;   // timestamp of lerp origin — lerp start
+    interpLon: number;  // visual lon at last _interpolate() tick
+    interpLat: number;  // visual lat at last _interpolate() tick
 }
 
 // ----- Notification system -----
