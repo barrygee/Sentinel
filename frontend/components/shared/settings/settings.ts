@@ -746,15 +746,40 @@ window._SettingsPanel = (function () {
         exportBtn.className = 'settings-config-btn';
         exportBtn.textContent = 'EXPORT';
 
+        const SS_KEY = 'sentinel_config_preview_visible';
+
         function autoSize() {
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
         }
 
+        // Restore visibility state across renders/reloads
+        try {
+            if (sessionStorage.getItem(SS_KEY) === '1') {
+                textarea.classList.remove('settings-config-preview--hidden');
+                toggleBtn.textContent = 'HIDE';
+            }
+        } catch (e) {}
+
         toggleBtn.addEventListener('click', function () {
             const hidden = textarea.classList.toggle('settings-config-preview--hidden');
             toggleBtn.textContent = hidden ? 'EDIT' : 'HIDE';
+            try { sessionStorage.setItem(SS_KEY, hidden ? '0' : '1'); } catch (e) {}
             if (!hidden) autoSize();
+        });
+
+        textarea.addEventListener('input', function () {
+            autoSize();
+            _stagePending('config-current', function () {
+                const content = textarea.value;
+                try { JSON.parse(content); } catch (e) { throw new Error('Invalid JSON'); }
+                const blob = new Blob([content], { type: 'application/json' });
+                const file = new File([blob], 'sentinel_config.json', { type: 'application/json' });
+                const formData = new FormData();
+                formData.append('file', file);
+                fetch('/api/settings/config/upload', { method: 'POST', body: formData })
+                    .catch(function () {});
+            });
         });
 
         wrap.appendChild(textarea);
