@@ -177,7 +177,7 @@ window._SettingsPanel = (function () {
             section:       'app',
             sectionLabel:  'App Settings',
             id:            'config-current',
-            label:         'View / Edit Application Config',
+            label:         'Application Config',
             desc:          'Settings currently stored in the database',
             renderControl: _renderConfigCurrentControl,
         },
@@ -740,7 +740,7 @@ window._SettingsPanel = (function () {
 
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'settings-config-btn';
-        toggleBtn.textContent = 'SHOW';
+        toggleBtn.textContent = 'EDIT';
 
         const exportBtn = document.createElement('button');
         exportBtn.className = 'settings-config-btn';
@@ -753,14 +753,14 @@ window._SettingsPanel = (function () {
 
         toggleBtn.addEventListener('click', function () {
             const hidden = textarea.classList.toggle('settings-config-preview--hidden');
-            toggleBtn.textContent = hidden ? 'SHOW' : 'HIDE';
+            toggleBtn.textContent = hidden ? 'EDIT' : 'HIDE';
             if (!hidden) autoSize();
         });
 
+        wrap.appendChild(textarea);
         wrap.appendChild(actionRow);
         actionRow.appendChild(toggleBtn);
         actionRow.appendChild(exportBtn);
-        wrap.appendChild(textarea);
 
         // Export: download the current textarea content as JSON
         exportBtn.addEventListener('click', async function () {
