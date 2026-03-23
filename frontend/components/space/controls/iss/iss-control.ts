@@ -951,8 +951,12 @@ class IssControl extends SentinelControlBase {
             if (trackSource) trackSource.setData(ground_track);
             if (fpSource)    fpSource.setData(footprintGeo);
 
-            // Fly to the previewed satellite
-            this.map.flyTo({ center: [position.lon, position.lat], zoom: Math.max(this.map.getZoom(), 2), duration: 800 });
+            // Fly to the previewed satellite only if the user setting allows it
+            let hoverPreference = 'stay';
+            try { hoverPreference = localStorage.getItem('sentinel_space_filterHoverPreview') || 'stay'; } catch (_e) {}
+            if (hoverPreference === 'fly') {
+                this.map.flyTo({ center: [position.lon, position.lat], zoom: Math.max(this.map.getZoom(), 2), duration: 800 });
+            }
 
         } catch (_e) {
             // Fetch aborted or failed — ignore
@@ -973,8 +977,10 @@ class IssControl extends SentinelControlBase {
         if (trackSource) trackSource.setData(this._trackGeojson);
         if (fpSource)    fpSource.setData(this._footprintGeojson);
 
-        // Return map view to active satellite
-        if (this._lastPosition) {
+        // Return map view to active satellite (only if fly mode was active)
+        let hoverPreference = 'stay';
+        try { hoverPreference = localStorage.getItem('sentinel_space_filterHoverPreview') || 'stay'; } catch (_e) {}
+        if (hoverPreference === 'fly' && this._lastPosition) {
             this.map.flyTo({ center: [this._lastPosition.lon, this._lastPosition.lat], zoom: Math.max(this.map.getZoom(), 2), duration: 800 });
         }
     }

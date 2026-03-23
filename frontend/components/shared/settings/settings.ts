@@ -122,6 +122,15 @@ window._SettingsPanel = (function () {
             desc:          'Full list of all TLE records stored in the database',
             renderControl: _renderSpaceTleSatListControl,
         },
+        {
+            section:       'space',
+            sectionLabel:  'SPACE',
+            id:            'space-filter-hover-preview',
+            label:         'Filter Hover Behaviour',
+            desc:          'When hovering a satellite in the search results, choose whether the map stays in place or flies to that satellite',
+            groupLabel:    'FILTER HOVER',
+            renderControl: _renderSpaceHoverPreviewControl,
+        },
         // SEA
         {
             section:       'sea',
@@ -1861,6 +1870,68 @@ window._SettingsPanel = (function () {
         return wrap;
     }
 
+    function _renderSpaceHoverPreviewControl(): HTMLElement {
+        const LS_KEY    = 'sentinel_space_filterHoverPreview';
+        const SETTING_ID = 'space-filter-hover-preview';
+        type HoverOpt = 'stay' | 'fly';
+        const OPTIONS: Array<{ value: HoverOpt; label: string }> = [
+            { value: 'stay', label: 'STAY IN PLACE' },
+            { value: 'fly',  label: 'FLY TO SATELLITE' },
+        ];
+
+        let current: HoverOpt = 'stay';
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved === 'fly') current = 'fly';
+        } catch (e) {}
+
+        const wrap  = document.createElement('div');
+        wrap.className = 'settings-source-override-wrap';
+
+        const group = document.createElement('div');
+        group.className = 'settings-source-override-group';
+
+        function _setActive(val: HoverOpt): void {
+            current = val;
+            group.querySelectorAll<HTMLButtonElement>('.settings-source-override-btn').forEach(function (btn) {
+                btn.classList.toggle('is-active', btn.dataset['value'] === val);
+            });
+        }
+
+        OPTIONS.forEach(function (opt) {
+            const btn = document.createElement('button');
+            btn.className = 'settings-source-override-btn' + (current === opt.value ? ' is-active' : '');
+            btn.textContent = opt.label;
+            btn.dataset['value'] = opt.value;
+
+            btn.addEventListener('click', function () {
+                if (current === opt.value) return;
+                _setActive(opt.value);
+                _stagePending(SETTING_ID, function () {
+                    try { localStorage.setItem(LS_KEY, current); } catch (e) {}
+                    if (window._SettingsAPI) window._SettingsAPI.put('space', 'filterHoverPreview', current);
+                });
+            });
+
+            group.appendChild(btn);
+        });
+
+        // Sync from backend
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace('space').then(function (data) {
+                if (!data || !data['filterHoverPreview']) return;
+                const val = data['filterHoverPreview'] as string;
+                if (val === 'fly' || val === 'stay') {
+                    _setActive(val as HoverOpt);
+                    try { localStorage.setItem(LS_KEY, val); } catch (e) {}
+                }
+            });
+        }
+
+        wrap.appendChild(group);
+        return wrap;
+    }
+
     function _renderSourceOverrideControl(ns: string): HTMLElement {
         const LS_KEY = 'sentinel_' + ns + '_sourceOverride';
         const SETTING_ID = ns + '-source-override';
@@ -2067,9 +2138,9 @@ window._SettingsPanel = (function () {
     }
 
     // ── Open / close / toggle ────────────────────────────────
-    function _updateFooterVisibility(sectionKey: string): void {
+    function _updateFooterVisibility(_sectionKey: string): void {
         const footer = document.getElementById('settings-footer');
-        if (footer) footer.style.display = sectionKey === 'space' ? 'none' : '';
+        if (footer) footer.style.display = '';
     }
 
     function open(): void {
