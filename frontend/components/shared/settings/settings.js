@@ -108,7 +108,6 @@ window._SettingsPanel = (function () {
             id: 'space-filter-hover-preview',
             label: 'Filter Hover Behaviour',
             desc: 'When hovering a satellite in the search results, choose whether the map stays in place or flies to that satellite',
-            groupLabel: 'FILTER HOVER',
             renderControl: _renderSpaceHoverPreviewControl,
         },
         // SEA
