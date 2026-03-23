@@ -259,6 +259,10 @@
     padding-top: 48px;
 }
 
+.settings-item:last-child {
+    padding-bottom: 48px;
+}
+
 .settings-item-info {
     display: flex;
     flex-direction: column;
