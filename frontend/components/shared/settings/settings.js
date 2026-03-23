@@ -282,6 +282,7 @@ window._SettingsPanel = (function () {
         if (!hasError) {
             _pending.clear();
             _showApplyStatus('SAVED', false);
+            setTimeout(function () { location.reload(); }, 800);
         }
         else {
             _showApplyStatus('ERROR', true);
@@ -915,6 +916,7 @@ window._SettingsPanel = (function () {
                 statusMsg.textContent = 'APPLIED — ' + (data.imported ?? '?') + ' SETTINGS IMPORTED';
                 statusMsg.className = 'settings-config-status settings-config-status--ok';
                 applyBtn.disabled = false;
+                setTimeout(function () { location.reload(); }, 1200);
             })
                 .catch(function (err) {
                 statusMsg.textContent = err.message.toUpperCase();
