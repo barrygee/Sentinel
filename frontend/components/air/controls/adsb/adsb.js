@@ -1878,6 +1878,8 @@ function _airEffectiveMode() {
 }
 // Clear aircraft immediately when switching to offline mode.
 function _clearAdsbAircraft() {
+    if (!adsbControl)
+        return;
     adsbControl['_stopPolling']();
     // Cancel pending timers.
     if (adsbControl['_hoverHideTimer']) {
@@ -1924,7 +1926,7 @@ function _handleAirConnectivityChange() {
     if (mode === 'offline') {
         _clearAdsbAircraft();
     }
-    else if (adsbControl.visible) {
+    else if (adsbControl && adsbControl.visible) {
         adsbControl['_stopPolling']();
         adsbControl['_startPolling']();
     }

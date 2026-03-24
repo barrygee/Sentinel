@@ -108,6 +108,7 @@ window._SettingsPanel = (function () {
             id: 'space-filter-hover-preview',
             label: 'Filter Hover Behaviour',
             desc: 'When hovering a satellite in the search results, choose whether the map stays in place or flies to that satellite',
+            groupLabel: 'FILTER HOVER',
             renderControl: _renderSpaceHoverPreviewControl,
         },
         // SEA
@@ -178,17 +179,13 @@ window._SettingsPanel = (function () {
             renderControl: _renderConfigUploadControl,
         },
     ];
-    const _DOMAIN_SECTIONS = [
+    const _NAV_SECTIONS = [
+        { key: 'app', label: 'App Settings' },
         { key: 'air', label: 'AIR' },
         { key: 'space', label: 'SPACE' },
         { key: 'sea', label: 'SEA' },
         { key: 'land', label: 'LAND' },
         { key: 'sdr', label: 'SDR' },
-    ];
-    const _enabledDomains = window._SENTINEL_ENABLED_DOMAINS || [];
-    const _NAV_SECTIONS = [
-        { key: 'app', label: 'App Settings' },
-        ..._DOMAIN_SECTIONS.filter(function (s) { return _enabledDomains.includes(s.key); }),
     ];
     // ── DOM injection ────────────────────────────────────────
     (function _injectHTML() {

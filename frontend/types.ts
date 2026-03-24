@@ -12,15 +12,16 @@ type LngLatBounds = [number, number, number, number]; // [w, s, e, n]
 
 // ----- Overlay state -----
 interface OverlayStates {
-    roads:      boolean;
-    names:      boolean;
-    rings:      boolean;
-    aar:        boolean;
-    awacs:      boolean;
-    airports:   boolean;
+    roads:        boolean;
+    names:        boolean;
+    rings:        boolean;
+    aar:          boolean;
+    awacs:        boolean;
+    airports:     boolean;
     militaryBases: boolean;
-    adsb:       boolean;
-    adsbLabels: boolean;
+    adsb:         boolean;
+    adsbLabels:   boolean;
+    airspace:     boolean;
 }
 
 // ----- Airport / Military base data -----

@@ -8,15 +8,16 @@
 /// <reference path="../types.ts" />
 
 const _OVERLAY_DEFAULTS: OverlayStates = {
-    roads:      true,
-    names:      false,
-    rings:      false,
-    aar:        false,
-    awacs:      false,
-    airports:   true,
+    roads:        true,
+    names:        false,
+    rings:        false,
+    aar:          false,
+    awacs:        false,
+    airports:     true,
     militaryBases: false,
-    adsb:       true,
-    adsbLabels: true,
+    adsb:         true,
+    adsbLabels:   true,
+    airspace:     false,
 };
 
 /**
@@ -40,15 +41,16 @@ let _overlayStates: OverlayStates = (() => {
 function _saveOverlayStates(): void {
     try {
         const current = {
-            roads:      roadsControl      ? roadsControl.roadsVisible          : _overlayStates.roads,
-            names:      namesControl      ? namesControl.namesVisible           : _overlayStates.names,
-            rings:      rangeRingsControl ? rangeRingsControl.ringsVisible      : _overlayStates.rings,
-            aar:        aarControl        ? aarControl.visible                  : _overlayStates.aar,
-            awacs:      awacsControl      ? awacsControl.visible                : _overlayStates.awacs,
-            airports:   airportsControl   ? airportsControl.visible             : _overlayStates.airports,
-            militaryBases: militaryBasesControl ? militaryBasesControl.visible  : _overlayStates.militaryBases,
-            adsb:       adsbControl       ? adsbControl.visible                 : _overlayStates.adsb,
-            adsbLabels: adsbLabelsControl ? adsbLabelsControl.labelsVisible     : _overlayStates.adsbLabels,
+            roads:        roadsControl          ? roadsControl.roadsVisible          : _overlayStates.roads,
+            names:        namesControl          ? namesControl.namesVisible           : _overlayStates.names,
+            rings:        rangeRingsControl     ? rangeRingsControl.ringsVisible      : _overlayStates.rings,
+            aar:          aarControl            ? aarControl.visible                  : _overlayStates.aar,
+            awacs:        awacsControl          ? awacsControl.visible                : _overlayStates.awacs,
+            airports:     airportsControl       ? airportsControl.visible             : _overlayStates.airports,
+            militaryBases: militaryBasesControl ? militaryBasesControl.visible        : _overlayStates.militaryBases,
+            adsb:         adsbControl           ? adsbControl.visible                 : _overlayStates.adsb,
+            adsbLabels:   adsbLabelsControl     ? adsbLabelsControl.labelsVisible     : _overlayStates.adsbLabels,
+            airspace:     airspaceControl       ? airspaceControl.visible             : _overlayStates.airspace,
         };
         localStorage.setItem('overlayStates', JSON.stringify(current));
         if (window._SettingsAPI) {
@@ -96,4 +98,7 @@ async function _syncOverlayStatesFromBackend(): Promise<void> {
     if (militaryBasesControl && militaryBasesControl.visible     !== _overlayStates.militaryBases) militaryBasesControl.toggle();
     if (adsbControl       && adsbControl.visible                 !== _overlayStates.adsb)       adsbControl.toggle();
     if (adsbLabelsControl && adsbLabelsControl.labelsVisible     !== _overlayStates.adsbLabels) adsbLabelsControl.toggle();
+    if (airspaceControl && airspaceControl.visible !== _overlayStates.airspace) {
+        airspaceControl.setVisible(_overlayStates.airspace);
+    }
 }

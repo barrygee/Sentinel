@@ -24,10 +24,11 @@ let roadsControl:    RoadsToggleControl    | null = null;
 let namesControl:    NamesToggleControl    | null = null;
 let airportsControl: AirportsToggleControl | null = null;
 let militaryBasesControl: MilitaryBasesToggleControl | null = null;
-let aarControl:      AARToggleControl      | null = null;
-let awacsControl:    AWACSToggleControl    | null = null;
-let adsbControl:     AdsbLiveControl       | null = null;
-let clearControl:    ClearOverlaysControl  | null = null;
+let aarControl:          AARToggleControl      | null = null;
+let awacsControl:        AWACSToggleControl    | null = null;
+let airspaceControl: AirspaceControl | null = null;
+let adsbControl:         AdsbLiveControl       | null = null;
+let clearControl:        ClearOverlaysControl  | null = null;
 
 // Side-menu callbacks — assigned by the side-menu.ts IIFE on load.
 let _syncSideMenuForPlanes: (() => void) | null = null;

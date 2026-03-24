@@ -23,6 +23,7 @@ let airportsControl = null;
 let militaryBasesControl = null;
 let aarControl = null;
 let awacsControl = null;
+let airspaceControl = null;
 let adsbControl = null;
 let clearControl = null;
 // Side-menu callbacks — assigned by the side-menu.ts IIFE on load.

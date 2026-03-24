@@ -10,12 +10,13 @@
 /// <reference path="../globals.d.ts" />
 
 window.MapComponent.onStyleLoad(function () {
-    if (roadsControl)      roadsControl.updateRoadsVisibility();
-    if (namesControl)      namesControl.applyNamesVisibility();
-    if (rangeRingsControl) rangeRingsControl.initRings();
-    if (aarControl)        aarControl.initLayers();
-    if (awacsControl)      awacsControl.initLayers();
-    if (airportsControl)   airportsControl.initLayers();
+    if (roadsControl)         roadsControl.updateRoadsVisibility();
+    if (namesControl)         namesControl.applyNamesVisibility();
+    if (rangeRingsControl)    rangeRingsControl.initRings();
+    if (airspaceControl)      airspaceControl.initLayers();
+    if (aarControl)           aarControl.initLayers();
+    if (awacsControl)         awacsControl.initLayers();
+    if (airportsControl)      airportsControl.initLayers();
     if (militaryBasesControl) militaryBasesControl.initLayers();
-    if (adsbControl)       adsbControl.initLayers();
+    if (adsbControl)          adsbControl.initLayers();
 });

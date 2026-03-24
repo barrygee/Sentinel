@@ -15,6 +15,8 @@ window.MapComponent.onStyleLoad(function () {
         namesControl.applyNamesVisibility();
     if (rangeRingsControl)
         rangeRingsControl.initRings();
+    if (airspaceControl)
+        airspaceControl.initLayers();
     if (aarControl)
         aarControl.initLayers();
     if (awacsControl)

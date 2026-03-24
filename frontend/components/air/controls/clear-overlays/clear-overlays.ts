@@ -43,15 +43,16 @@ class ClearOverlaysControl extends SentinelControlBase {
      */
     _hideAllOverlays(): void {
         this.savedStates = {
-            roads:      roadsControl      ? roadsControl.roadsVisible          : false,
-            names:      namesControl      ? namesControl.namesVisible           : false,
-            rings:      rangeRingsControl ? rangeRingsControl.ringsVisible      : false,
-            aar:        aarControl        ? aarControl.visible                  : false,
-            awacs:      awacsControl      ? awacsControl.visible                : false,
-            airports:   airportsControl   ? airportsControl.visible             : false,
-            militaryBases: militaryBasesControl ? militaryBasesControl.visible  : false,
-            adsb:       adsbControl       ? adsbControl.visible                 : false,
-            adsbLabels: adsbLabelsControl ? adsbLabelsControl.labelsVisible     : false,
+            roads:        roadsControl          ? roadsControl.roadsVisible          : false,
+            names:        namesControl          ? namesControl.namesVisible           : false,
+            rings:        rangeRingsControl     ? rangeRingsControl.ringsVisible      : false,
+            aar:          aarControl            ? aarControl.visible                  : false,
+            awacs:        awacsControl          ? awacsControl.visible                : false,
+            airports:     airportsControl       ? airportsControl.visible             : false,
+            militaryBases: militaryBasesControl ? militaryBasesControl.visible        : false,
+            adsb:         adsbControl           ? adsbControl.visible                 : false,
+            adsbLabels:   adsbLabelsControl     ? adsbLabelsControl.labelsVisible     : false,
+            airspace:     airspaceControl        ? airspaceControl.visible             : false,
         };
 
         if (roadsControl      && roadsControl.roadsVisible)      roadsControl.toggleRoads();
@@ -59,6 +60,7 @@ class ClearOverlaysControl extends SentinelControlBase {
         if (rangeRingsControl && rangeRingsControl.ringsVisible)  rangeRingsControl.toggleRings();
         if (aarControl        && aarControl.visible)              aarControl.toggle();
         if (awacsControl      && awacsControl.visible)            awacsControl.toggle();
+        if (airspaceControl  && airspaceControl.visible)  airspaceControl.setVisible(false);
         if (airportsControl   && airportsControl.visible)         airportsControl.toggle();
         if (militaryBasesControl && militaryBasesControl.visible) militaryBasesControl.toggle();
 
@@ -90,6 +92,7 @@ class ClearOverlaysControl extends SentinelControlBase {
         if (awacsControl      && savedStates.awacs      && !awacsControl.visible)            awacsControl.toggle();
         if (airportsControl   && savedStates.airports   && !airportsControl.visible)         airportsControl.toggle();
         if (militaryBasesControl && savedStates.militaryBases && !militaryBasesControl.visible) militaryBasesControl.toggle();
+        if (airspaceControl  && savedStates.airspace)  airspaceControl.setVisible(true);
 
         if (adsbControl && savedStates.adsb) {
             adsbControl.setAllHidden(false);

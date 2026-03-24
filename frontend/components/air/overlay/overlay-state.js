@@ -16,6 +16,7 @@ const _OVERLAY_DEFAULTS = {
     militaryBases: false,
     adsb: true,
     adsbLabels: true,
+    airspace: false,
 };
 /**
  * Load saved overlay states from localStorage, merging over defaults.
@@ -47,6 +48,7 @@ function _saveOverlayStates() {
             militaryBases: militaryBasesControl ? militaryBasesControl.visible : _overlayStates.militaryBases,
             adsb: adsbControl ? adsbControl.visible : _overlayStates.adsb,
             adsbLabels: adsbLabelsControl ? adsbLabelsControl.labelsVisible : _overlayStates.adsbLabels,
+            airspace: airspaceControl ? airspaceControl.visible : _overlayStates.airspace,
         };
         localStorage.setItem('overlayStates', JSON.stringify(current));
         if (window._SettingsAPI) {
@@ -102,4 +104,7 @@ async function _syncOverlayStatesFromBackend() {
         adsbControl.toggle();
     if (adsbLabelsControl && adsbLabelsControl.labelsVisible !== _overlayStates.adsbLabels)
         adsbLabelsControl.toggle();
+    if (airspaceControl && airspaceControl.visible !== _overlayStates.airspace) {
+        airspaceControl.setVisible(_overlayStates.airspace);
+    }
 }

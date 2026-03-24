@@ -177,6 +177,12 @@
     pointer-events: none;
 }
 
+/* Offline-only feature: dimmed and non-interactive when app is offline. */
+.sm-btn.sm-offline-disabled {
+    opacity: 0.2;
+    pointer-events: none;
+}
+
 /* ---- Icon span (minimised mode) ----
    SVG icon centred in the button; hidden when the menu is expanded
    and replaced by a text label. */
@@ -340,6 +346,94 @@
     opacity: 1;
 }
 
+
+/* ============================================================
+   AIRSPACE FLYOUT SUB-PANEL
+   Slides in from the right of the AS button when clicked.
+   Contains ALL + per-type toggle buttons in a vertical column.
+   ============================================================ */
+
+#as-flyout {
+    position: fixed;
+    /* right/top set dynamically by JS via positionAsFlyout() */
+    z-index: 1003;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(8px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#as-flyout.open {
+    pointer-events: auto;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.as-btn {
+    width: calc((148px - 8px) / 3);
+    height: 36px;
+    background: #000;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.as-btn:hover {
+    background: #111;
+    color: #fff;
+}
+
+.as-btn.active {
+    color: rgba(200, 255, 0, 0.75);
+}
+
+/* Tooltip to the left of each flyout button */
+.as-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 10px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1004;
+}
+
+.as-btn[data-tooltip]:hover::before {
+    opacity: 1;
+}
+
+/* AS button indicator: subtle accent border when flyout is open */
+.sm-btn.flyout-open {
+    outline: 1px solid rgba(200, 255, 0, 0.3);
+    outline-offset: -1px;
+}
 
 /* ============================================================
    3D CONTROLS WIDGET
