@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 from sqlalchemy import select, text as sa_text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -41,7 +42,8 @@ async def create_tables():
             await conn.execute(
                 sa_text("ALTER TABLE satellite_catalogue ADD COLUMN name_source TEXT")
             )
-        except Exception:  # noqa: BLE001 — SQLite raises OperationalError if column exists
+        except OperationalError:
+            # Column already exists — raised by SQLite on duplicate ALTER TABLE
             pass
 
 
@@ -60,13 +62,13 @@ def _parse_config_file(path: Path) -> list[tuple[str, str, object]]:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return []
-    rows = []
+    config_entries = []
     for namespace, entries in raw.items():
         if namespace.startswith("_") or not isinstance(entries, dict):
             continue
         for key, value in entries.items():
-            rows.append((namespace, key, value))
-    return rows
+            config_entries.append((namespace, key, value))
+    return config_entries
 
 
 # Default URL settings seeded into the database on first startup.

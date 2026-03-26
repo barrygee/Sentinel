@@ -41,11 +41,11 @@ async def resolve_domain_urls(domain: str, db: AsyncSession) -> tuple[str | None
 
     settings_map: dict[str, object] = {}
     for row in rows:
-        compound_key = f"{row.namespace}.{row.key}"
+        namespaced_key = f"{row.namespace}.{row.key}"
         try:
-            settings_map[compound_key] = json.loads(row.value)
+            settings_map[namespaced_key] = json.loads(row.value)
         except (json.JSONDecodeError, TypeError):
-            settings_map[compound_key] = row.value
+            settings_map[namespaced_key] = row.value
 
     # Resolve effective mode
     override = settings_map.get(f"{domain}.sourceOverride", "auto")

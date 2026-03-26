@@ -158,7 +158,8 @@ def compute_terminator() -> dict:
     # Verify no antimeridian crossings (should never happen with this construction)
     crossings = [i for i in range(1, len(ring))
                  if abs(ring[i][0] - ring[i - 1][0]) > 180]
-    assert not crossings, f"Unexpected antimeridian crossing: {crossings}"
+    if crossings:
+        raise RuntimeError(f"Unexpected antimeridian crossing at indices: {crossings}")
 
     return {
         "type": "Feature",
