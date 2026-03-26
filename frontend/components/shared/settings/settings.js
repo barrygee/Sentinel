@@ -274,7 +274,10 @@ window._SettingsPanel = (function () {
         if (!hasError) {
             _pending.clear();
             _showApplyStatus('SAVED', false);
-            setTimeout(function () { location.reload(); }, 800);
+            setTimeout(function () {
+                try { sessionStorage.setItem('sentinel_settings_reopen', '1'); } catch (e) {}
+                location.reload();
+            }, 800);
         }
         else {
             _showApplyStatus('ERROR', true);
@@ -2038,6 +2041,13 @@ window._SettingsPanel = (function () {
         if (applyBtn) {
             applyBtn.addEventListener('click', _commitAll);
         }
+        // Reopen panel if it was open before an Apply Changes reload
+        try {
+            if (sessionStorage.getItem('sentinel_settings_reopen') === '1') {
+                sessionStorage.removeItem('sentinel_settings_reopen');
+                open();
+            }
+        } catch (e) {}
         // Sync location inputs when user pins a location via right-click on map
         window.addEventListener('sentinel:locationChanged', function (e) {
             if (!_open || _activeSection !== 'app')
