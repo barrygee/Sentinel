@@ -7,11 +7,12 @@
 // content is injected by each domain's filter component.
 //
 // PUBLIC API:
-//   init()                        — inject HTML, wire tabs
+//   init()                        — inject HTML, wire tabs, wire footer toggle
 //   switchTab(tab)                — switch active tab ('search'|'alerts'|'tracking')
 //   setAlertCount(n)              — update alerts tab badge
 //   setTrackingCount(n)           — update tracking tab badge
 //   getSearchPane()               — returns #msb-pane-search element
+//   toggle()                      — show/hide the sidebar
 // ============================================================
 /// <reference path="../globals.d.ts" />
 window._MapSidebar = (() => {
@@ -19,7 +20,7 @@ window._MapSidebar = (() => {
         `<div id="map-sidebar-tabs">` +
         `<button class="msb-tab msb-tab-active" data-tab="search">SEARCH</button>` +
         `<button class="msb-tab" data-tab="alerts">ALERTS <span class="msb-tab-badge" id="msb-alerts-badge"></span></button>` +
-        `<button class="msb-tab" data-tab="tracking">TRACK <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
+        `<button class="msb-tab" data-tab="tracking">TRACKING <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
         `</div>` +
         `<div id="map-sidebar-panes">` +
         `<div class="msb-pane msb-pane-active" id="msb-pane-search"></div>` +
@@ -69,6 +70,14 @@ window._MapSidebar = (() => {
         if (empty)
             empty.style.display = n > 0 ? 'none' : '';
     }
+    function toggle() {
+        const sidebar = document.getElementById('map-sidebar');
+        const btn = document.getElementById('map-sidebar-btn');
+        if (!sidebar || !btn)
+            return;
+        const hidden = sidebar.classList.toggle('msb-hidden');
+        btn.classList.toggle('msb-btn-active', !hidden);
+    }
     function init() {
         // Wire tab clicks (called once from each domain's boot)
         const tabs = _getTabs();
@@ -79,6 +88,12 @@ window._MapSidebar = (() => {
                     switchTab(name);
             });
         });
+        // Wire footer toggle button
+        const btn = document.getElementById('map-sidebar-btn');
+        if (btn) {
+            btn.classList.add('msb-btn-active'); // sidebar visible by default
+            btn.addEventListener('click', toggle);
+        }
     }
-    return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane };
+    return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, toggle };
 })();

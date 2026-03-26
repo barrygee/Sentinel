@@ -164,6 +164,7 @@
 
 /* Type label — colour-coded per data-type (see selectors below) */
 .notif-label {
+    flex: 1;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.14em;

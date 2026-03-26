@@ -802,12 +802,16 @@ class IssControl extends SentinelControlBase {
         if (!bar) {
             bar = document.createElement('div');
             bar.id = 'iss-status-bar';
-            bar.style.cssText = 'width:220px;background:#000;color:#fff;font-family:"Barlow","Helvetica Neue",Arial,sans-serif;pointer-events:auto;display:none;flex-direction:column;gap:0;user-select:none;box-sizing:border-box;';
-            const panel = document.getElementById('tracking-panel');
-            if (panel)
-                panel.appendChild(bar);
-            else
+            const pane = document.getElementById('msb-pane-tracking');
+            if (pane) {
+                const empty = document.getElementById('msb-tracking-empty');
+                if (empty)
+                    empty.remove();
+                pane.appendChild(bar);
+            }
+            else {
                 document.body.appendChild(bar);
+            }
         }
         bar.innerHTML = this._buildStatusBarHTML(p);
         bar.style.display = 'flex';

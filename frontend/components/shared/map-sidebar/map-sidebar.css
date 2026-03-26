@@ -2,7 +2,7 @@
    MAP SIDEBAR
    Fixed left-side overlay panel on air and space map pages.
    Always visible; sits over the map canvas.
-   Width matches the docs/settings sidebar (260px).
+   Width matches the docs/settings sidebar (325px).
    Background is dark but lighter than the pure-black header/footer.
 
    Contains three tabs:
@@ -20,13 +20,75 @@
          .msb-pane#msb-pane-tracking
    ============================================================ */
 
+/* ---- Footer toggle button ---- */
+#map-sidebar-btn {
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0.6;
+    transition: background 0.2s, opacity 0.2s;
+    flex-shrink: 0;
+    margin: 4px 0;
+    position: relative;
+}
+
+#map-sidebar-btn:hover {
+    background: var(--color-border);
+    border-radius: 6px;
+    opacity: 1;
+}
+
+#map-sidebar-btn.msb-btn-active {
+    opacity: 1;
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.08);
+    border-radius: 6px;
+}
+
+#map-sidebar-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+#map-sidebar-btn[data-tooltip]:hover::before {
+    opacity: 1;
+}
+
+#map-sidebar-btn.msb-btn-active[data-tooltip]::before {
+    opacity: 0 !important;
+}
+
 /* ---- Sidebar container ---- */
 #map-sidebar {
     position: fixed;
     top: var(--nav-height);       /* 68px — flush under header */
     bottom: var(--footer-height); /* 44px — flush above footer */
     left: 0;
-    width: 260px;
+    width: 325px;
     background: rgba(10, 13, 20, 0.92);
     border-right: 1px solid var(--color-border);
     z-index: 1002;
@@ -34,6 +96,11 @@
     flex-direction: column;
     overflow: hidden;
     box-sizing: border-box;
+}
+
+/* Hidden state — toggled by footer button */
+#map-sidebar.msb-hidden {
+    display: none;
 }
 
 /* ---- Tab bar ---- */
@@ -176,6 +243,7 @@
     overflow-y: auto;
     scrollbar-width: none;
     padding: 6px 0;
+    align-items: stretch;
 }
 
 #msb-pane-alerts #notif-list::-webkit-scrollbar {
@@ -184,7 +252,7 @@
 
 /* Notification cards fill pane width */
 #msb-pane-alerts .notif-item {
-    width: auto;
+    width: 100%;
 }
 
 /* Scroll hint aligned to right edge of pane */
@@ -219,7 +287,8 @@
 }
 
 /* Status bar fills pane width (not fixed 220px) */
-#msb-pane-tracking #adsb-status-bar {
+#msb-pane-tracking #adsb-status-bar,
+#msb-pane-tracking #iss-status-bar {
     width: auto;
 }
 
