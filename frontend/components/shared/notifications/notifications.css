@@ -261,6 +261,7 @@
     border: none;
     cursor: pointer;
     padding: 0;
+    margin-right: -2px;
     color: rgba(255, 255, 255, 0.3);
     line-height: 1;
     display: flex;

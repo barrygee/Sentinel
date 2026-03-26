@@ -15,7 +15,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 13px 18px 13px 28px;
+    padding: 13px 20px 13px 28px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -157,7 +157,7 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     white-space: nowrap;
-    padding: 6px 10px;
+    padding: 6px 0;
 }
 
 /* Left icon column — small SVG/unicode glyph indicating result type */
