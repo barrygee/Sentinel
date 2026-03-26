@@ -187,13 +187,12 @@ window._FilterPanel = (() => {
         const airports = results.filter(r => r.kind === 'airport') as AirportResult[];
         const mil      = results.filter(r => r.kind === 'mil')     as MilResult[];
 
-        const _container = container;
         function addSection<T>(label: string, items: T[], renderFn: (r: T) => void) {
             if (!items.length) return;
             const lbl = document.createElement('div');
             lbl.className = 'filter-section-label';
             lbl.textContent = label;
-            _container.appendChild(lbl);
+            container.appendChild(lbl);
             items.forEach(renderFn);
         }
 

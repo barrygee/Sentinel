@@ -47,7 +47,7 @@ window._SettingsPanel = (function () {
             desc:          'URL polled every 2 seconds to detect internet access',
             renderControl: function () { return _renderConnectivityProbeControl(); },
         },
-{
+        {
             section:       'app',
             sectionLabel:  'App Settings',
             id:            'location',
@@ -704,9 +704,9 @@ window._SettingsPanel = (function () {
                 return;
             }
             // Fetch from backend and reconcile
-            window._SettingsAPI.getNamespace('app').then(function (ns) {
-                if (!ns || !ns['theme']) return;
-                const backendMode = ns['theme'] as string;
+            window._SettingsAPI.getNamespace('app').then(function (appSettings) {
+                if (!appSettings || !appSettings['theme']) return;
+                const backendMode = appSettings['theme'] as string;
                 const localMode = isDark ? 'dark' : 'light';
                 if (backendMode !== localMode) {
                     isDark = backendMode === 'dark';

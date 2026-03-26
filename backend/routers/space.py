@@ -2,10 +2,11 @@
 Space domain router — ISS tracking, ground track, day/night terminator, and TLE management.
 
 Endpoints:
-  GET  /api/space/iss              — ISS current position, ground track, and footprint
-  GET  /api/space/iss/passes       — Predicted passes over a given observer location
+  GET  /api/space/iss                        — ISS current position, ground track, and footprint
+  GET  /api/space/iss/passes                 — Predicted passes over a given observer location
+  GET  /api/space/satellite/{norad_id}       — Position, ground track, and footprint for any satellite
   GET  /api/space/satellite/{norad_id}/passes — Predicted passes for any satellite by NORAD ID
-  GET  /api/space/daynight         — Day/night terminator as GeoJSON polygon
+  GET  /api/space/daynight                   — Day/night terminator as GeoJSON polygon
 
   GET  /api/space/tle/status       — TLE database summary (counts, per-category last-updated)
   GET  /api/space/tle/uncategorised — Satellites with no assigned category
@@ -37,9 +38,33 @@ _VALID_CATEGORIES = {
     "space_station", "amateur", "weather", "military",
     "navigation", "science", "cubesat", "active", "unknown",
 }
+# 'active' is not directly user-assignable — it is an inferred fallback, not a deliberate choice
+_USER_ASSIGNABLE_CATEGORIES = _VALID_CATEGORIES - {"active"}
 
 _ISS_NORAD = "25544"
 
+
+async def _tle_database_is_empty(db: AsyncSession) -> bool:
+    """Return True if the TLE cache table contains no rows."""
+    result = await db.execute(select(func.count()).select_from(TleCache))
+    return result.scalar() == 0
+
+
+async def _get_satellite_data(norad_id: str, db: AsyncSession) -> dict:
+    """Fetch TLE, propagate position/track/footprint for any satellite.
+
+    Raises RuntimeError if TLE is unavailable, or re-raises other exceptions.
+    """
+    online_url, _ = await resolve_domain_urls("space", db)
+    tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
+    _, line1, line2 = tle_service.parse_tle_lines(tle_text)
+
+    position    = sat_service.compute_position(line1, line2)
+    ground_track = sat_service.compute_ground_track(line1, line2)
+    footprint   = sat_service.compute_footprint(
+        position["lat"], position["lon"], position["alt_km"]
+    )
+    return {"position": position, "ground_track": ground_track, "footprint": footprint}
 
 
 @router.get("/iss")
@@ -53,25 +78,10 @@ async def get_iss(db: AsyncSession = Depends(get_db)):
     try:
         # If the TLE database is empty (e.g. user cleared all data), do not auto-fetch —
         # return a distinct error so the UI can prompt the user to add TLE data.
-        tle_count_result = await db.execute(select(func.count()).select_from(TleCache))
-        if tle_count_result.scalar() == 0:
+        if await _tle_database_is_empty(db):
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        online_url, _ = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url)
-        _, line1, line2 = tle_service.parse_tle_lines(tle_text)
-
-        position = sat_service.compute_position(line1, line2)
-        ground_track = sat_service.compute_ground_track(line1, line2)
-        footprint = sat_service.compute_footprint(
-            position["lat"], position["lon"], position["alt_km"]
-        )
-
-        return JSONResponse({
-            "position": position,
-            "ground_track": ground_track,
-            "footprint": footprint,
-        })
+        return JSONResponse(await _get_satellite_data(_ISS_NORAD, db))
 
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=503)
@@ -87,25 +97,10 @@ async def get_satellite(norad_id: str, db: AsyncSession = Depends(get_db)):
     or 503 if the TLE database is empty.
     """
     try:
-        tle_count_result = await db.execute(select(func.count()).select_from(TleCache))
-        if tle_count_result.scalar() == 0:
+        if await _tle_database_is_empty(db):
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        online_url, _ = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
-        _, line1, line2 = tle_service.parse_tle_lines(tle_text)
-
-        position = sat_service.compute_position(line1, line2)
-        ground_track = sat_service.compute_ground_track(line1, line2)
-        footprint = sat_service.compute_footprint(
-            position["lat"], position["lon"], position["alt_km"]
-        )
-
-        return JSONResponse({
-            "position":     position,
-            "ground_track": ground_track,
-            "footprint":    footprint,
-        })
+        return JSONResponse(await _get_satellite_data(norad_id, db))
 
     except RuntimeError as e:
         msg = str(e)
@@ -114,6 +109,35 @@ async def get_satellite(norad_id: str, db: AsyncSession = Depends(get_db)):
         return JSONResponse({"error": msg}, status_code=503)
     except Exception as e:
         return JSONResponse({"error": f"Unexpected error: {e}"}, status_code=500)
+
+
+async def _compute_passes_response(
+    norad_id: str,
+    lat: float,
+    lon: float,
+    hours: int,
+    min_el: float,
+    db: AsyncSession,
+) -> JSONResponse:
+    """Fetch TLE, compute passes, and return the standard passes JSON response."""
+    online_url, _ = await resolve_domain_urls("space", db)
+    tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
+    _, line1, line2 = tle_service.parse_tle_lines(tle_text)
+
+    passes = sat_service.compute_passes(
+        line1, line2,
+        obs_lat=lat,
+        obs_lon=lon,
+        lookahead_hours=hours,
+        min_elevation_deg=min_el,
+    )
+    return JSONResponse({
+        "passes":          passes,
+        "obs_lat":         lat,
+        "obs_lon":         lon,
+        "lookahead_hours": hours,
+        "computed_at":     datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    })
 
 
 @router.get("/iss/passes")
@@ -130,26 +154,7 @@ async def get_iss_passes(
     Results include AOS/LOS times, duration, and maximum elevation angle.
     """
     try:
-        online_url, _ = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(_ISS_NORAD, db, online_url)
-        _, line1, line2 = tle_service.parse_tle_lines(tle_text)
-
-        passes = sat_service.compute_passes(
-            line1, line2,
-            obs_lat=lat,
-            obs_lon=lon,
-            lookahead_hours=hours,
-            min_elevation_deg=min_el,
-        )
-
-        return JSONResponse({
-            "passes":          passes,
-            "obs_lat":         lat,
-            "obs_lon":         lon,
-            "lookahead_hours": hours,
-            "computed_at":     datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        })
-
+        return await _compute_passes_response(_ISS_NORAD, lat, lon, hours, min_el, db)
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=503)
     except Exception as e:
@@ -167,26 +172,7 @@ async def get_satellite_passes(
 ):
     """Predict passes for any satellite visible from an observer location within the next N hours."""
     try:
-        online_url, _ = await resolve_domain_urls("space", db)
-        tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
-        _, line1, line2 = tle_service.parse_tle_lines(tle_text)
-
-        passes = sat_service.compute_passes(
-            line1, line2,
-            obs_lat=lat,
-            obs_lon=lon,
-            lookahead_hours=hours,
-            min_elevation_deg=min_el,
-        )
-
-        return JSONResponse({
-            "passes":          passes,
-            "obs_lat":         lat,
-            "obs_lon":         lon,
-            "lookahead_hours": hours,
-            "computed_at":     datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        })
-
+        return await _compute_passes_response(norad_id, lat, lon, hours, min_el, db)
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=503)
     except Exception as e:
@@ -237,9 +223,7 @@ async def get_tle_status(db: AsyncSession = Depends(get_db)):
             if row.updated_at > category_stats[cat]["last_updated"]:
                 category_stats[cat]["last_updated"] = row.updated_at
 
-        uncategorised_count = sum(
-            1 for r in cat_rows if r.category is None
-        )
+        uncategorised_count = sum(1 for sat in cat_rows if sat.category is None)
 
         return JSONResponse({
             "total":               len(tle_rows),
@@ -408,9 +392,6 @@ async def patch_tle_category(
     'active' is excluded as a user-assignable category — it has no meaning
     as a deliberate choice and would be overridden by any real category.
     """
-    # 'active' is not a valid user-assignable category
-    _USER_ASSIGNABLE = _VALID_CATEGORIES - {"active"}
-
     try:
         assignments = body.get("assignments") or []
         if not assignments:
@@ -428,7 +409,7 @@ async def patch_tle_category(
             if not norad_id or not category:
                 skipped += 1
                 continue
-            if category not in _USER_ASSIGNABLE:
+            if category not in _USER_ASSIGNABLE_CATEGORIES:
                 invalid.append(category)
                 continue
 
@@ -444,7 +425,7 @@ async def patch_tle_category(
 
         if invalid:
             return JSONResponse(
-                {"error": f"Invalid category values: {list(set(invalid))}. Valid: {sorted(_USER_ASSIGNABLE)}"},
+                {"error": f"Invalid category values: {list(set(invalid))}. Valid: {sorted(_USER_ASSIGNABLE_CATEGORIES)}"},
                 status_code=400,
             )
 
@@ -467,8 +448,6 @@ async def patch_tle_satellite(
     Name is stored with 'user' source so it persists across TLE updates.
     Category follows the same priority rules as the bulk category endpoint.
     """
-    _USER_ASSIGNABLE = _VALID_CATEGORIES - {"active"}
-
     try:
         norad_id = str(body.get("norad_id") or "").strip()
         name     = (body.get("name") or "").strip() or None
@@ -476,9 +455,9 @@ async def patch_tle_satellite(
 
         if not norad_id:
             return JSONResponse({"error": "norad_id is required"}, status_code=400)
-        if category and category not in _USER_ASSIGNABLE:
+        if category and category not in _USER_ASSIGNABLE_CATEGORIES:
             return JSONResponse(
-                {"error": f"Invalid category. Valid values: {sorted(_USER_ASSIGNABLE)}"},
+                {"error": f"Invalid category. Valid values: {sorted(_USER_ASSIGNABLE_CATEGORIES)}"},
                 status_code=400,
             )
 

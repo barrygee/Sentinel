@@ -32,8 +32,8 @@ def _eci_to_geodetic(r_km: list[float], t: datetime | None = None) -> tuple[floa
         t = datetime.now(timezone.utc)
     # Greenwich Mean Sidereal Time (radians) — simple approximation
     j2000 = (t.replace(tzinfo=None) - datetime(2000, 1, 1, 12, 0, 0)).total_seconds() / 86400.0
-    gmst = math.fmod(280.46061837 + 360.98564736629 * j2000, 360.0)
-    gmst_rad = math.radians(gmst)
+    gmst_deg = math.fmod(280.46061837 + 360.98564736629 * j2000, 360.0)
+    gmst_rad = math.radians(gmst_deg)
 
     x, y, z = r_km
     lon_rad = math.atan2(y, x) - gmst_rad
@@ -81,18 +81,18 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
     velocity_kms = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
 
     # Compute heading: propagate 10 seconds ahead for bearing estimate
-    fr2 = fr + 10.0 / 86400.0  # +10 seconds in fractional days
-    result2 = _propagate_at(sat, jd, fr2)
+    fr_ahead = fr + 10.0 / 86400.0  # +10 seconds in fractional days
+    result_ahead = _propagate_at(sat, jd, fr_ahead)
     track_deg = 0.0
-    if result2:
-        r2, _ = result2
-        lat2, lon2, _ = _eci_to_geodetic(r2, now + timedelta(seconds=10))
-        d_lat = math.radians(lat2 - lat)
-        d_lon = math.radians(lon2 - lon)
-        lat_r = math.radians(lat)
-        lat2_r = math.radians(lat2)
-        x = math.sin(d_lon) * math.cos(lat2_r)
-        y = math.cos(lat_r) * math.sin(lat2_r) - math.sin(lat_r) * math.cos(lat2_r) * math.cos(d_lon)
+    if result_ahead:
+        r_ahead, _ = result_ahead
+        lat_ahead, lon_ahead, _ = _eci_to_geodetic(r_ahead, now + timedelta(seconds=10))
+        dlat_rad = math.radians(lat_ahead - lat)
+        dlon_rad = math.radians(lon_ahead - lon)
+        lat_rad  = math.radians(lat)
+        lat_ahead_rad = math.radians(lat_ahead)
+        x = math.sin(dlon_rad) * math.cos(lat_ahead_rad)
+        y = math.cos(lat_rad) * math.sin(lat_ahead_rad) - math.sin(lat_rad) * math.cos(lat_ahead_rad) * math.cos(dlon_rad)
         track_deg = (math.degrees(math.atan2(x, y)) + 360) % 360
 
     return {
@@ -120,7 +120,7 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     features = []
 
     # 10-second steps (~0.167 min) for smoother track lines
-    step = 1 / 6
+    time_step_min = 1 / 6
 
     for track_type, start_min, end_min in [
         ("orbit1",   0,  92),
@@ -146,7 +146,7 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
 
             result = _propagate_at(sat, jd_t, fr_t)
             if result is None:
-                t += step
+                t += time_step_min
                 continue
 
             r, _ = result
@@ -161,7 +161,7 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
 
             current_segment.append([round(lon, 4), round(lat, 4)])
             prev_lon = lon
-            t += step
+            t += time_step_min
 
         if current_segment:
             segments.append(current_segment)
@@ -251,10 +251,10 @@ def compute_passes(
         r, _ = result
         t_prop = now + timedelta(seconds=offset_s)
         lat, lon, alt_km = _eci_to_geodetic(r, t_prop)
-        fp_rad = math.acos(max(-1.0, min(1.0, _RE_KM / (_RE_KM + alt_km))))
+        horizon_rad = math.acos(max(-1.0, min(1.0, _RE_KM / (_RE_KM + alt_km))))
         dist_rad = _angular_distance_rad(lat, lon, obs_lat, obs_lon)
         elev = _elevation_deg(dist_rad, alt_km)
-        return dist_rad <= fp_rad, elev, alt_km
+        return dist_rad <= horizon_rad, elev, alt_km
 
     def _refine_transition(t_before_s: float, t_after_s: float) -> float:
         """Binary-search to find the transition second within a 5-second resolution."""
@@ -290,13 +290,13 @@ def compute_passes(
             hi_s = min(los_s, best_s + 60.0)
             max_elev = best_elev
             max_elev_s = best_s
-            step = lo_s
-            while step <= hi_s:
-                _, e, _ = _vis_at(step)
-                if e > max_elev:
-                    max_elev = e
-                    max_elev_s = step
-                step += 5.0
+            scan_s = lo_s
+            while scan_s <= hi_s:
+                _, elev_at_scan, _ = _vis_at(scan_s)
+                if elev_at_scan > max_elev:
+                    max_elev = elev_at_scan
+                    max_elev_s = scan_s
+                scan_s += 5.0
 
             if max_elev >= min_elevation_deg:
                 aos_dt = now + timedelta(seconds=pass_start_min)

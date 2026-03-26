@@ -84,7 +84,7 @@ def validate_tle_text(tle_text: str) -> list[tuple[str, str, str]]:
     Raises ValueError if the text is completely unparseable.
     Silently skips malformed individual entries (logged via return count).
     """
-    lines = [l.strip() for l in tle_text.strip().splitlines() if l.strip()]
+    lines = [ln.strip() for ln in tle_text.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
         raise ValueError("TLE text must contain at least one 3-line entry")
 
@@ -125,7 +125,7 @@ def parse_tle_lines(tle_text: str) -> tuple[str, str, str]:
     Used by the space router for the ISS position endpoint.
     Raises ValueError if the text does not contain 3 lines.
     """
-    lines = [l.strip() for l in tle_text.strip().splitlines() if l.strip()]
+    lines = [ln.strip() for ln in tle_text.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
         raise ValueError(f"Expected 3 TLE lines, got {len(lines)}")
     return lines[0], lines[1], lines[2]
@@ -189,10 +189,10 @@ async def store_tle_bulk(
             inserted += 1
 
         # ── satellite_catalogue upsert ───────────────────────────────────
-        result2 = await db.execute(
+        cat_result = await db.execute(
             select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id == norad_id)
         )
-        cat_row = result2.scalar_one_or_none()
+        cat_row = cat_result.scalar_one_or_none()
 
         if cat_row:
             # Preserve user-set names; only update name from TLE if not locked
@@ -279,12 +279,12 @@ async def fetch_tle(
                     return f"{name}\n{line1}\n{line2}"
 
             # Fallback: re-query the DB (store_tle_bulk committed it)
-            result2 = await db.execute(
+            db_result = await db.execute(
                 select(TleCache).where(TleCache.cache_key == norad_id)
             )
-            row2 = result2.scalar_one_or_none()
-            if row2:
-                return row2.payload
+            cached_row = db_result.scalar_one_or_none()
+            if cached_row:
+                return cached_row.payload
 
         except Exception:
             continue
