@@ -87,7 +87,7 @@
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-accent);
-    padding: 18px 18px 5px;
+    padding: 18px 18px 5px 28px;
     text-transform: uppercase;
 }
 
@@ -95,7 +95,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 12px 12px 18px;
+    padding: 13px 12px 13px 28px;
     border-bottom: none;
     transition: background 0.12s;
     cursor: pointer;

@@ -729,7 +729,7 @@ class IssControl extends SentinelControlBase {
         newLabelEl.style.visibility = '';
         newLabelEl.addEventListener('click', (e) => {
             e.stopPropagation();
-            this._stopFollowing();
+            this._stopFollowing(true);
         });
         if (this._labelMarker)
             this._labelMarker.remove();
@@ -753,10 +753,10 @@ class IssControl extends SentinelControlBase {
         btn.addEventListener('mousedown', (e) => e.stopPropagation());
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this._stopFollowing();
+            this._stopFollowing(true);
         });
     }
-    _stopFollowing() {
+    _stopFollowing(keepPanelOpen = false) {
         this._followEnabled = false;
         // Restore label to non-tracking state
         if (this._labelMarker && this._lastPosition) {
@@ -770,7 +770,14 @@ class IssControl extends SentinelControlBase {
             window._Notifications.dismiss(this._trackingNotifId);
             this._trackingNotifId = null;
         }
-        this._hideStatusBar();
+        if (keepPanelOpen) {
+            const bar = document.getElementById('iss-status-bar');
+            if (bar) bar.style.display = 'none';
+            if (typeof window._Tracking !== 'undefined') window._Tracking.setCount(0);
+            if (typeof window._FilterPanel !== 'undefined') window._FilterPanel.reposition();
+        } else {
+            this._hideStatusBar();
+        }
         this._saveIssTracking();
         this.map.easeTo({ center: [12, 20], zoom: 2, duration: 600 });
     }
@@ -817,7 +824,7 @@ class IssControl extends SentinelControlBase {
         if (untrackBtn) {
             untrackBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this._stopFollowing();
+                this._stopFollowing(true);
             });
         }
         if (typeof window._Tracking !== 'undefined') {

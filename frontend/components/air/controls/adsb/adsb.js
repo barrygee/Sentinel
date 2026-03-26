@@ -772,7 +772,10 @@ class AdsbLiveControl {
                         .setLngLat(coords).addTo(this.map);
                 }
             }
-            this._hideStatusBar();
+            const bar = document.getElementById('adsb-status-bar');
+            if (bar) bar.classList.remove('adsb-sb-visible');
+            if (typeof window._Tracking !== 'undefined') window._Tracking.setCount(0);
+            if (typeof window._FilterPanel !== 'undefined') window._FilterPanel.reposition();
             this._saveTrackingState();
             const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
             if (!is3D)

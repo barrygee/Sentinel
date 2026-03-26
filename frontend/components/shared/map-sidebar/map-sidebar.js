@@ -18,8 +18,8 @@ window._MapSidebar = (() => {
     const HTML = `<div id="map-sidebar">` +
         `<div id="map-sidebar-tabs">` +
         `<button class="msb-tab msb-tab-active" data-tab="search">SEARCH</button>` +
-        `<button class="msb-tab" data-tab="alerts">ALERTS <span class="msb-tab-badge" id="msb-alerts-badge"></span></button>` +
-        `<button class="msb-tab" data-tab="tracking">TRACKING <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
+        `<button class="msb-tab" data-tab="alerts">ALERTS</button>` +
+        `<button class="msb-tab" data-tab="tracking">TRACKING</button>` +
         `</div>` +
         `<div id="map-sidebar-panes">` +
         `<div class="msb-pane msb-pane-active" id="msb-pane-search"></div>` +

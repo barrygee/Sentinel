@@ -124,19 +124,21 @@
 /* ---- Individual notification card ----
    Each card slides in from the left (translateX(-10px) → 0) and
    fades in. Cards remain flex-shrink: 0 so they never squash.
-   pointer-events: auto overrides the parent's pointer-events: none. */
+   pointer-events: auto overrides the parent's pointer-events: none.
+   Layout mirrors search result items: flat row, same padding + hover. */
 .notif-item {
     width: 100%;
-    background: #000;
+    background: transparent;
     color: #fff;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     pointer-events: auto;
     display: flex;
     flex-direction: column;
     gap: 0;
+    padding: 13px 12px 13px 28px;
     opacity: 0;
     transform: translateX(-10px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.12s;
     flex-shrink: 0;
 }
 
@@ -146,23 +148,27 @@
     transform: translateX(0);
 }
 
+.notif-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
 /* Card header row: type label (left) + dismiss × button (right) */
 .notif-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 28px;
-    padding: 0 14px 0 28px;
     border-bottom: none;
-    background: #000;
+    background: transparent;
     position: relative;
     z-index: 1;
+    gap: 6px;
+    margin-bottom: 2px;
 }
 
 /* Type label — colour-coded per data-type (see selectors below) */
 .notif-label {
     flex: 1;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -185,14 +191,15 @@
     border: none;
     cursor: pointer;
     padding: 0;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.25);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     transition: color 0.2s;
     line-height: 1;
+    flex-shrink: 0;
 }
 
 .notif-dismiss:hover {
@@ -201,19 +208,21 @@
 
 /* Card body: title + detail text + timestamp */
 .notif-body {
-    padding: 6px 14px 10px 28px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 1px;
 }
 
-/* Main notification text (e.g. callsign or event description) */
+/* Main notification text (e.g. callsign or event description) —
+   matches .space-filter-result-primary */
 .notif-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     color: #fff;
-    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Emergency title override — red to match the header label */
@@ -221,15 +230,16 @@
     color: #ff2222;
 }
 
-/* Supporting detail text (squawk code, altitude, route info) */
+/* Supporting detail text — matches .space-filter-result-secondary */
 .notif-detail {
     font-size: 10px;
     font-weight: 400;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
-    line-height: 1.6;
-    white-space: pre-line;  /* allows \n in detail strings */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Timestamp shown below detail text */
@@ -238,7 +248,7 @@
     font-weight: 400;
     letter-spacing: 0.08em;
     color: rgba(255, 255, 255, 0.25);
-    margin-top: 4px;
+    margin-top: 0;
 }
 
 /* ---- Notification action button (e.g. "disable alerts for callsign") ----
