@@ -189,7 +189,7 @@
     const filterBtn   = document.createElement('button');
     filterBtn.className          = 'sm-btn enabled';
     filterBtn.id                 = 'ssm-filter-btn';
-    filterBtn.dataset['tooltip'] = 'FILTER';
+    filterBtn.dataset['tooltip'] = 'SEARCH';
 
     const filterIconSpan = document.createElement('span');
     filterIconSpan.className = 'sm-icon';
@@ -197,7 +197,7 @@
 
     const filterLabelSpan = document.createElement('span');
     filterLabelSpan.className   = 'sm-label';
-    filterLabelSpan.textContent = 'FILTER';
+    filterLabelSpan.textContent = 'SEARCH';
 
     filterBtn.appendChild(filterIconSpan);
     filterBtn.appendChild(filterLabelSpan);
