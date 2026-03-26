@@ -271,7 +271,10 @@ window._SettingsPanel = (function () {
         if (!hasError) {
             _pending.clear();
             _showApplyStatus('SAVED', false);
-            setTimeout(function () { location.reload(); }, 800);
+            setTimeout(function () {
+                try { sessionStorage.setItem('sentinel_settings_reopen', _activeSection); } catch (_e) {}
+                location.reload();
+            }, 800);
         }
         else {
             _showApplyStatus('ERROR', true);
@@ -1982,6 +1985,15 @@ window._SettingsPanel = (function () {
         if (settingsBtn) {
             settingsBtn.addEventListener('click', toggle);
         }
+        // Reopen settings panel (and restore section) after an apply-changes reload
+        try {
+            const reopenSection = sessionStorage.getItem('sentinel_settings_reopen');
+            if (reopenSection) {
+                sessionStorage.removeItem('sentinel_settings_reopen');
+                openSection(reopenSection);
+            }
+        }
+        catch (_e) {}
         const input = document.getElementById('settings-search-input');
         const clearBtn = document.getElementById('settings-search-clear');
         if (input) {
