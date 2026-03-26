@@ -159,6 +159,7 @@ interface NotificationsAPI {
     toggle(): void;
     init(): void;
     repositionBar(): void;
+    isPanelOpen(): boolean;
 }
 
 // ----- Tracking panel -----
@@ -168,6 +169,7 @@ interface TrackingAPI {
     toggle(): void;
     setCount(n: number): void;
     init(): void;
+    isPanelOpen(): boolean;
 }
 
 // ----- Filter panel -----

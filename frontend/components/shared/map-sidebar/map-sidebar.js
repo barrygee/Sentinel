@@ -39,6 +39,16 @@ window._MapSidebar = (() => {
         // Insert as first child of body so it renders behind overlays
         document.body.insertAdjacentHTML('afterbegin', HTML);
     })();
+    // Wire the footer toggle button immediately — so it works on every page,
+    // not just domains that call init(). Also restore open/closed state across navigation.
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('map-sidebar-btn');
+        if (btn) btn.addEventListener('click', toggle);
+        // Restore sidebar visibility from previous page if the user had it open
+        try {
+            if (sessionStorage.getItem(_SS_KEY) === '1') show();
+        } catch (_e) {}
+    });
     function _getTabs() { return document.querySelectorAll('.msb-tab'); }
     function getSearchPane() { return document.getElementById('msb-pane-search'); }
     function switchTab(tab) {
@@ -69,6 +79,7 @@ window._MapSidebar = (() => {
         if (empty)
             empty.style.display = n > 0 ? 'none' : '';
     }
+    const _SS_KEY = 'sentinel_sidebar_open';
     function show() {
         const sidebar = document.getElementById('map-sidebar');
         const btn = document.getElementById('map-sidebar-btn');
@@ -76,6 +87,7 @@ window._MapSidebar = (() => {
             return;
         sidebar.classList.remove('msb-hidden');
         btn.classList.add('msb-btn-active');
+        try { sessionStorage.setItem(_SS_KEY, '1'); } catch (_e) {}
     }
     function hide() {
         const sidebar = document.getElementById('map-sidebar');
@@ -84,6 +96,7 @@ window._MapSidebar = (() => {
             return;
         sidebar.classList.add('msb-hidden');
         btn.classList.remove('msb-btn-active');
+        try { sessionStorage.removeItem(_SS_KEY); } catch (_e) {}
     }
     function toggle() {
         const sidebar = document.getElementById('map-sidebar');
@@ -92,6 +105,7 @@ window._MapSidebar = (() => {
             return;
         const hidden = sidebar.classList.toggle('msb-hidden');
         btn.classList.toggle('msb-btn-active', !hidden);
+        try { hidden ? sessionStorage.removeItem(_SS_KEY) : sessionStorage.setItem(_SS_KEY, '1'); } catch (_e) {}
     }
     function init(opts) {
         // Set domain-specific empty-state labels
@@ -110,12 +124,9 @@ window._MapSidebar = (() => {
                     switchTab(name);
             });
         });
-        // Wire footer toggle button
+        // Mark sidebar as visible by default
         const btn = document.getElementById('map-sidebar-btn');
-        if (btn) {
-            btn.classList.add('msb-btn-active'); // sidebar visible by default
-            btn.addEventListener('click', toggle);
-        }
+        if (btn) btn.classList.add('msb-btn-active');
     }
     return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, show, hide, toggle };
 })();

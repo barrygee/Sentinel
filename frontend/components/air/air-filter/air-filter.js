@@ -344,9 +344,6 @@ window._FilterPanel = (() => {
             btn.classList.remove('active');
             btn.classList.add('enabled');
         }
-        if (typeof window._MapSidebar !== 'undefined') {
-            window._MapSidebar.hide();
-        }
     }
     function toggle() {
         if (_open)

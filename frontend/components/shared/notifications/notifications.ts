@@ -516,5 +516,5 @@ window._Notifications = ((): NotificationsAPI => {
             .catch(() => {});
     }
 
-    return { add, update, dismiss, clearAll, render, init, toggle, repositionBar: _repositionBar };
+    return { add, update, dismiss, clearAll, render, init, toggle, repositionBar: _repositionBar, isPanelOpen: _isPanelOpen };
 })();

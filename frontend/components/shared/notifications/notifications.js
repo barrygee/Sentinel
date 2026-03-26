@@ -270,6 +270,12 @@ window._Notifications = (() => {
             if (typeof window._Tracking !== 'undefined')
                 window._Tracking.closePanel();
         }
+        else {
+            // Hide sidebar only if tracking panel is also closed
+            const trackingOpen = typeof window._Tracking !== 'undefined' && window._Tracking.isPanelOpen();
+            if (!trackingOpen && typeof window._MapSidebar !== 'undefined')
+                window._MapSidebar.hide();
+        }
         if (open)
             _updateScrollHint();
         _refreshBadge();
@@ -491,5 +497,5 @@ window._Notifications = (() => {
         })
             .catch(() => { });
     }
-    return { add, update, dismiss, clearAll, render, init, toggle, repositionBar: _repositionBar };
+    return { add, update, dismiss, clearAll, render, init, toggle, repositionBar: _repositionBar, isPanelOpen: _isPanelOpen };
 })();

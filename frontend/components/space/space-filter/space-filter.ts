@@ -241,7 +241,6 @@ window._SpaceFilterPanel = (() => {
         if (btn) { btn.classList.remove('active'); btn.classList.add('enabled'); }
         // Ensure any active preview is cleared when the panel closes
         if (issControl) issControl.clearPreview();
-        if (typeof window._MapSidebar !== 'undefined') window._MapSidebar.hide();
     }
 
     function toggle(): void {

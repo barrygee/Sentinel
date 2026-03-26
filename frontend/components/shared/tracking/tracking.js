@@ -68,6 +68,10 @@ window._Tracking = (() => {
         const btn = _getBtn();
         if (btn)
             btn.classList.remove('tracking-btn-active');
+        // Hide sidebar only if notifications panel is also closed
+        const notifOpen = typeof window._Notifications !== 'undefined' && window._Notifications.isPanelOpen();
+        if (!notifOpen && typeof window._MapSidebar !== 'undefined')
+            window._MapSidebar.hide();
         _refreshBadge();
     }
     function toggle() {
@@ -90,5 +94,5 @@ window._Tracking = (() => {
             btn.addEventListener('click', toggle);
         _refreshBadge();
     }
-    return { openPanel, closePanel, toggle, init, setCount };
+    return { openPanel, closePanel, toggle, init, setCount, isPanelOpen: _isPanelOpen };
 })();

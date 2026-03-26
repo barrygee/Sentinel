@@ -94,5 +94,5 @@ window._Tracking = ((): TrackingAPI => {
         _refreshBadge();
     }
 
-    return { openPanel, closePanel, toggle, init, setCount };
+    return { openPanel, closePanel, toggle, init, setCount, isPanelOpen: _isPanelOpen };
 })();

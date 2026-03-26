@@ -45,6 +45,17 @@ window._MapSidebar = (() => {
         document.body.insertAdjacentHTML('afterbegin', HTML);
     })();
 
+    // Wire the footer toggle button immediately — so it works on every page,
+    // not just domains that call init(). Also restore open/closed state across navigation.
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('map-sidebar-btn');
+        if (btn) btn.addEventListener('click', toggle);
+        // Restore sidebar visibility from previous page if the user had it open
+        try {
+            if (sessionStorage.getItem(_SS_KEY) === '1') show();
+        } catch (_e) {}
+    });
+
     function _getTabs():     NodeListOf<HTMLElement> { return document.querySelectorAll<HTMLElement>('.msb-tab'); }
     function getSearchPane(): HTMLElement | null { return document.getElementById('msb-pane-search'); }
 
@@ -78,12 +89,15 @@ window._MapSidebar = (() => {
         if (empty) empty.style.display = n > 0 ? 'none' : '';
     }
 
+    const _SS_KEY = 'sentinel_sidebar_open';
+
     function show(): void {
         const sidebar = document.getElementById('map-sidebar');
         const btn     = document.getElementById('map-sidebar-btn');
         if (!sidebar || !btn) return;
         sidebar.classList.remove('msb-hidden');
         btn.classList.add('msb-btn-active');
+        try { sessionStorage.setItem(_SS_KEY, '1'); } catch (_e) {}
     }
 
     function hide(): void {
@@ -92,6 +106,7 @@ window._MapSidebar = (() => {
         if (!sidebar || !btn) return;
         sidebar.classList.add('msb-hidden');
         btn.classList.remove('msb-btn-active');
+        try { sessionStorage.removeItem(_SS_KEY); } catch (_e) {}
     }
 
     function toggle(): void {
@@ -100,6 +115,7 @@ window._MapSidebar = (() => {
         if (!sidebar || !btn) return;
         const hidden = sidebar.classList.toggle('msb-hidden');
         btn.classList.toggle('msb-btn-active', !hidden);
+        try { hidden ? sessionStorage.removeItem(_SS_KEY) : sessionStorage.setItem(_SS_KEY, '1'); } catch (_e) {}
     }
 
     function init(opts?: { alertsEmptyText?: string; trackingEmptyText?: string }): void {
@@ -118,12 +134,9 @@ window._MapSidebar = (() => {
             });
         });
 
-        // Wire footer toggle button
+        // Mark sidebar as visible by default
         const btn = document.getElementById('map-sidebar-btn');
-        if (btn) {
-            btn.classList.add('msb-btn-active'); // sidebar visible by default
-            btn.addEventListener('click', toggle);
-        }
+        if (btn) btn.classList.add('msb-btn-active');
     }
 
     return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, show, hide, toggle };
