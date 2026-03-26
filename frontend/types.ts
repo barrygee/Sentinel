@@ -188,6 +188,15 @@ interface SpaceFilterPanelAPI {
     close(): void;
 }
 
+// ----- Map sidebar -----
+interface MapSidebarAPI {
+    init(): void;
+    switchTab(tab: 'search' | 'alerts' | 'tracking'): void;
+    setAlertCount(n: number): void;
+    setTrackingCount(n: number): void;
+    getSearchPane(): HTMLElement | null;
+}
+
 // ----- Map component -----
 interface RingsGeoJSON {
     lines:  GeoJSON.FeatureCollection<GeoJSON.LineString>;

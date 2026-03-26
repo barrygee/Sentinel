@@ -284,7 +284,10 @@
     // JS hover management — small leave-delay prevents flyout vanishing mid-gap
     let _flyoutLeaveTimer = null;
     function _showFlyout() {
-        if (_flyoutLeaveTimer) { clearTimeout(_flyoutLeaveTimer); _flyoutLeaveTimer = null; }
+        if (_flyoutLeaveTimer) {
+            clearTimeout(_flyoutLeaveTimer);
+            _flyoutLeaveTimer = null;
+        }
         filterFlyout.classList.add('filter-flyout-visible');
         filterBtn.classList.add('filter-flyout-open');
         _syncFlyoutActive();

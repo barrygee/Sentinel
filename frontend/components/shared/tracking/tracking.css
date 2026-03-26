@@ -1,36 +1,4 @@
 /* ============================================================
-   TRACKING PANEL
-   Fixed overlay anchored to the bottom-left of the map area
-   (above the footer, below the header). Contains:
-     - #adsb-status-bar  — selected aircraft detail card
-   Visibility and opacity are transitioned; pointer-events are
-   disabled by default so the closed panel doesn't block the map.
-   Opened by JS adding .tracking-panel-open.
-   ============================================================ */
-#tracking-panel {
-    position: fixed;
-    bottom: calc(44px + 14px); /* footer height + breathing gap */
-    top: calc(68px + 8px);     /* header height + breathing gap */
-    left: 24px; /* overridden dynamically by JS to align with tracking button */
-    z-index: 10001;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;  /* card sits at the bottom of the panel */
-    pointer-events: none;       /* closed: map clicks pass through */
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-/* Opened state — JS adds this class to make the panel interactive */
-#tracking-panel.tracking-panel-open {
-    visibility: visible;
-    opacity: 1;
-}
-
-
-/* ============================================================
    ADS-B SELECTED AIRCRAFT STATUS BAR
    The detail card shown inside #tracking-panel when an aircraft
    is actively tracked. 220px wide, pure black background.

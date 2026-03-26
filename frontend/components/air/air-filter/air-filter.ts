@@ -15,12 +15,10 @@
 window._FilterPanel = (() => {
     let _open = false;
 
-    // ---- Inject panel HTML if not already present ----
+    // ---- Inject filter HTML into the map sidebar search pane ----
     (function _injectHTML() {
-        if (document.getElementById('filter-panel')) return;
-        const panel = document.createElement('div');
-        panel.id = 'filter-panel';
-        panel.innerHTML =
+        if (document.getElementById('filter-input-wrap')) return;
+        const html =
             `<div id="filter-input-wrap">` +
                 `<svg id="filter-icon" width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">` +
                     `<line x1="1" y1="3" x2="12" y2="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` +
@@ -31,10 +29,19 @@ window._FilterPanel = (() => {
                 `<button id="filter-clear-btn" aria-label="Clear filter">✕</button>` +
             `</div>` +
             `<div id="filter-results"></div>`;
-        document.body.appendChild(panel);
+        const pane = document.getElementById('msb-pane-search');
+        if (pane) {
+            pane.insertAdjacentHTML('afterbegin', html);
+        } else {
+            // Fallback: sidebar not yet available — retry on DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', () => {
+                const p = document.getElementById('msb-pane-search');
+                if (p && !document.getElementById('filter-input-wrap')) p.insertAdjacentHTML('afterbegin', html);
+            });
+        }
     })();
 
-    function _getPanel()   { return document.getElementById('filter-panel'); }
+    function _getPanel()   { return document.getElementById('msb-pane-search'); }
     function _getInput()   { return document.getElementById('filter-input')   as HTMLInputElement | null; }
     function _getResults() { return document.getElementById('filter-results'); }
     function _getClearBtn(){ return document.getElementById('filter-clear-btn'); }
@@ -372,18 +379,13 @@ window._FilterPanel = (() => {
         });
     }
 
-    function _repositionPanel(): void {
-        const panel = _getPanel();
-        if (panel) (panel as HTMLElement).style.bottom = '';
-    }
+    function _repositionPanel(): void {}
 
     function _getFilterBtn() { return document.getElementById('sm-filter-btn'); }
 
     function open(): void {
         _open = true;
-        const panel = _getPanel();
-        if (panel) panel.classList.add('filter-panel-visible');
-        _repositionPanel();
+        if (typeof window._MapSidebar !== 'undefined') window._MapSidebar.switchTab('search');
         const btn = _getFilterBtn();
         if (btn) { btn.classList.add('active'); btn.classList.remove('enabled'); }
         const input = _getInput();
@@ -392,11 +394,8 @@ window._FilterPanel = (() => {
 
     function close(): void {
         _open = false;
-        const panel = _getPanel();
-        if (panel) panel.classList.remove('filter-panel-visible');
         const btn = _getFilterBtn();
         if (btn) { btn.classList.remove('active'); btn.classList.add('enabled'); }
-        _repositionPanel();
     }
 
     function toggle(): void {

@@ -1,12 +1,7 @@
 /* ============================================================
-   NOTIFICATIONS PANEL
-   Fixed overlay anchored bottom-left, between header and footer.
-   Grows upward from the footer anchor (justify-content: flex-end).
-   Contains a scrollable list of notification cards (.notif-item).
-
-   Opened by JS adding .notif-panel-open to #notifications-panel.
-   pointer-events: none on the panel container means only the
-   inner list (#notif-list-wrap) intercepts clicks when visible.
+   NOTIFICATIONS
+   Notification cards and controls, hosted inside the map sidebar
+   alerts pane (#msb-pane-alerts). Layout is managed by map-sidebar.css.
 
    Notification types (data-type attribute on .notif-item):
      flight     — new tracked flight entered range
@@ -19,57 +14,29 @@
      emergency  — squawk 7500/7600/7700 alert (red)
      squawk-clr — emergency squawk cleared
    ============================================================ */
-#notifications-panel {
-    position: fixed;
-    bottom: calc(44px + 14px); /* footer height + breathing gap */
-    top: calc(68px + 8px);     /* header height + breathing gap — prevents overflow */
-    left: 24px;
-    z-index: 10001;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;  /* new notifications stack up from the bottom */
-    pointer-events: none;       /* closed: pass map clicks through */
-}
 
 /* ---- Notification list wrapper ----
-   Flex row so the list and scroll-hint sit side by side.
-   Fades in/out with panel open state. flex: 0 1 auto lets it
-   shrink if the panel height is constrained by the viewport. */
+   Flex row so the list and scroll-hint sit side by side. */
 #notif-list-wrap {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     gap: 0;
-    visibility: hidden;
-    opacity: 0;
     pointer-events: all;
     touch-action: none;         /* JS handles touch scrolling to prevent map pan interference */
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-    flex: 0 1 auto;
+    flex: 1;
     min-height: 0;
 }
 
-/* Show the list when the panel is opened */
-#notifications-panel.notif-panel-open #notif-list-wrap {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* ---- Panel header row ("NOTIFICATIONS" label + "CLEAR ALL" button) ----
-   Hidden when panel is closed; becomes flex row when open. */
+/* ---- Panel header row ("CLEAR ALL" button + scroll hint) ---- */
 #notif-header {
-    display: none;
-    width: 220px;
+    display: flex;
+    width: auto;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 6px;
-    pointer-events: none;
-}
-
-#notifications-panel.notif-panel-open #notif-header {
-    display: flex;
+    margin-bottom: 0;
+    pointer-events: all;
 }
 
 /* "CLEAR ALL" button — dismisses all notifications at once */

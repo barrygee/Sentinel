@@ -24,8 +24,8 @@ window._Notifications = (() => {
     const _actions = {};
     const _clickActions = {};
     let _unreadCount = 0;
-    const PANEL_HTML = `<div id="notifications-panel">` +
-        `<div id="notif-header">` +
+    // Notifications content HTML — injected into #msb-pane-alerts
+    const PANEL_INNER_HTML = `<div id="notif-header">` +
         `<button id="notif-clear-all-btn" aria-label="Clear notifications">CLEAR</button>` +
         `<div id="notif-scroll-hint">MORE ` +
         `<svg id="notif-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">` +
@@ -35,7 +35,6 @@ window._Notifications = (() => {
         `</div>` +
         `<div id="notif-list-wrap">` +
         `<div id="notif-list"></div>` +
-        `</div>` +
         `</div>`;
     // ---- Storage helpers ----
     function _load() {
@@ -80,7 +79,7 @@ window._Notifications = (() => {
         return 'NOTICE';
     }
     // ---- DOM accessors ----
-    function _getWrapper() { return document.getElementById('notifications-panel'); }
+    function _getWrapper() { return document.getElementById('msb-pane-alerts'); }
     function _getList() { return document.getElementById('notif-list'); }
     function _getBtn() { return document.getElementById('notif-toggle-btn'); }
     function _getCount() { return document.getElementById('notif-count'); }
@@ -196,13 +195,17 @@ window._Notifications = (() => {
         }
         const clearBtn = document.getElementById('notif-clear-all-btn');
         if (clearBtn) {
-            clearBtn.style.display = (total > 0 && _isPanelOpen()) ? 'block' : 'none';
+            clearBtn.style.display = total > 0 ? 'block' : 'none';
         }
         const toggleBtn = _getBtn();
         if (toggleBtn) {
             toggleBtn.disabled = total === 0;
             toggleBtn.style.opacity = total === 0 ? '0.35' : '';
             toggleBtn.style.pointerEvents = total === 0 ? 'none' : '';
+        }
+        // Update sidebar tab badge
+        if (typeof window._MapSidebar !== 'undefined') {
+            window._MapSidebar.setAlertCount(total);
         }
     }
     // ---- Render ----
@@ -252,15 +255,16 @@ window._Notifications = (() => {
             localStorage.setItem(OPEN_KEY, open ? '1' : '0');
         }
         catch (e) { }
-        const wrapper = _getWrapper();
         const btn = _getBtn();
-        if (wrapper)
-            wrapper.classList.toggle('notif-panel-open', open);
         if (btn)
             btn.classList.toggle('notif-btn-active', open);
         if (open) {
             _stopBellPulse();
             _unreadCount = 0;
+            // Switch sidebar to alerts tab
+            if (typeof window._MapSidebar !== 'undefined')
+                window._MapSidebar.switchTab('alerts');
+            // Tab mutex: close tracking
             if (typeof window._Tracking !== 'undefined')
                 window._Tracking.closePanel();
         }
@@ -444,8 +448,14 @@ window._Notifications = (() => {
         _setPanelOpen(!_isPanelOpen());
     }
     function init() {
-        if (!document.getElementById('notifications-panel')) {
-            document.body.insertAdjacentHTML('beforeend', PANEL_HTML);
+        // Inject notifications content into the sidebar alerts pane
+        const pane = document.getElementById('msb-pane-alerts');
+        if (pane && !document.getElementById('notif-list')) {
+            // Remove empty-state placeholder before injecting content
+            const empty = document.getElementById('msb-alerts-empty');
+            if (empty)
+                empty.remove();
+            pane.insertAdjacentHTML('afterbegin', PANEL_INNER_HTML);
         }
         _initScrollListeners();
         _setPanelOpen(_isPanelOpen());

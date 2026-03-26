@@ -35,6 +35,7 @@ map.once('load', () => {
 });
 
 // ---- 3. Panel initialisation ----
+window._MapSidebar.init();
 window._Notifications.init();
 window._Tracking.init();
 window._FilterPanel.init();

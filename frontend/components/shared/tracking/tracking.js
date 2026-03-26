@@ -11,13 +11,11 @@
 /// <reference path="../types.ts" />
 window._Tracking = (() => {
     let _count = 0;
-    const PANEL_HTML = `<div id="tracking-panel"><div id="adsb-status-bar"></div></div>`;
-    function _getPanel() { return document.getElementById('tracking-panel'); }
     function _getBtn() { return document.getElementById('tracking-toggle-btn'); }
     function _getCount() { return document.getElementById('tracking-count'); }
     function _isPanelOpen() {
-        const p = _getPanel();
-        return p ? p.classList.contains('tracking-panel-open') : false;
+        const btn = _getBtn();
+        return btn ? btn.classList.contains('tracking-btn-active') : false;
     }
     function _refreshBadge() {
         const el = _getCount();
@@ -36,29 +34,25 @@ window._Tracking = (() => {
             btn.style.opacity = _count === 0 ? '0.35' : '';
             btn.style.pointerEvents = _count === 0 ? 'none' : '';
         }
+        // Update sidebar tab badge
+        if (typeof window._MapSidebar !== 'undefined') {
+            window._MapSidebar.setTrackingCount(_count);
+        }
     }
     function setCount(n) {
         _count = n;
         _refreshBadge();
     }
     function openPanel() {
-        const panel = _getPanel();
         const btn = _getBtn();
-        if (panel && btn) {
-            const rect = btn.getBoundingClientRect();
-            panel.style.left = `${rect.left}px`;
-        }
-        if (panel)
-            panel.classList.add('tracking-panel-open');
         if (btn)
             btn.classList.add('tracking-btn-active');
-        _refreshBadge();
+        // Switch sidebar to tracking tab
+        if (typeof window._MapSidebar !== 'undefined')
+            window._MapSidebar.switchTab('tracking');
         // Tab mutex: close notifications panel when tracking opens
         if (typeof window._Notifications !== 'undefined') {
-            const nw = document.getElementById('notifications-panel');
             const nb = document.getElementById('notif-toggle-btn');
-            if (nw)
-                nw.classList.remove('notif-panel-open');
             if (nb)
                 nb.classList.remove('notif-btn-active');
             try {
@@ -66,12 +60,10 @@ window._Tracking = (() => {
             }
             catch (e) { }
         }
+        _refreshBadge();
     }
     function closePanel() {
-        const panel = _getPanel();
         const btn = _getBtn();
-        if (panel)
-            panel.classList.remove('tracking-panel-open');
         if (btn)
             btn.classList.remove('tracking-btn-active');
         _refreshBadge();
@@ -83,8 +75,13 @@ window._Tracking = (() => {
             openPanel();
     }
     function init() {
-        if (!document.getElementById('tracking-panel')) {
-            document.body.insertAdjacentHTML('beforeend', PANEL_HTML);
+        // Inject status bar into the sidebar tracking pane if needed
+        const pane = document.getElementById('msb-pane-tracking');
+        if (pane && !document.getElementById('adsb-status-bar')) {
+            const empty = document.getElementById('msb-tracking-empty');
+            if (empty)
+                empty.remove();
+            pane.insertAdjacentHTML('afterbegin', `<div id="adsb-status-bar"></div>`);
         }
         const btn = _getBtn();
         if (btn)
