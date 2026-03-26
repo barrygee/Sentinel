@@ -50,9 +50,9 @@ window._MapSidebar = (() => {
     document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('map-sidebar-btn');
         if (btn) btn.addEventListener('click', toggle);
-        // Restore sidebar visibility from previous page if the user had it open
+        // Restore sidebar visibility — show if it was open, hide if it was closed
         try {
-            if (sessionStorage.getItem(_SS_KEY) === '1') show();
+            if (sessionStorage.getItem(_SS_KEY) === '1') show(); else hide();
         } catch (_e) {}
     });
 
@@ -134,9 +134,6 @@ window._MapSidebar = (() => {
             });
         });
 
-        // Mark sidebar as visible by default
-        const btn = document.getElementById('map-sidebar-btn');
-        if (btn) btn.classList.add('msb-btn-active');
     }
 
     return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, show, hide, toggle };

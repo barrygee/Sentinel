@@ -250,7 +250,7 @@ window._Notifications = (() => {
         }
     }
     function _repositionBar() { }
-    function _setPanelOpen(open) {
+    function _setPanelOpen(open, skipSidebar = false) {
         try {
             localStorage.setItem(OPEN_KEY, open ? '1' : '0');
         }
@@ -258,23 +258,25 @@ window._Notifications = (() => {
         const btn = _getBtn();
         if (btn)
             btn.classList.toggle('notif-btn-active', open);
-        if (open) {
-            _stopBellPulse();
-            _unreadCount = 0;
-            // Ensure sidebar is visible and switch to alerts tab
-            if (typeof window._MapSidebar !== 'undefined') {
-                window._MapSidebar.show();
-                window._MapSidebar.switchTab('alerts');
+        if (!skipSidebar) {
+            if (open) {
+                _stopBellPulse();
+                _unreadCount = 0;
+                // Ensure sidebar is visible and switch to alerts tab
+                if (typeof window._MapSidebar !== 'undefined') {
+                    window._MapSidebar.show();
+                    window._MapSidebar.switchTab('alerts');
+                }
+                // Tab mutex: close tracking
+                if (typeof window._Tracking !== 'undefined')
+                    window._Tracking.closePanel();
             }
-            // Tab mutex: close tracking
-            if (typeof window._Tracking !== 'undefined')
-                window._Tracking.closePanel();
-        }
-        else {
-            // Hide sidebar only if tracking panel is also closed
-            const trackingOpen = typeof window._Tracking !== 'undefined' && window._Tracking.isPanelOpen();
-            if (!trackingOpen && typeof window._MapSidebar !== 'undefined')
-                window._MapSidebar.hide();
+            else {
+                // Hide sidebar only if tracking panel is also closed
+                const trackingOpen = typeof window._Tracking !== 'undefined' && window._Tracking.isPanelOpen();
+                if (!trackingOpen && typeof window._MapSidebar !== 'undefined')
+                    window._MapSidebar.hide();
+            }
         }
         if (open)
             _updateScrollHint();
@@ -466,7 +468,7 @@ window._Notifications = (() => {
             pane.insertAdjacentHTML('afterbegin', PANEL_INNER_HTML);
         }
         _initScrollListeners();
-        _setPanelOpen(_isPanelOpen());
+        _setPanelOpen(_isPanelOpen(), true);
         render();
         const btn = _getBtn();
         if (btn)

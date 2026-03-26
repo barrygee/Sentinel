@@ -65,13 +65,16 @@ window._Tracking = (() => {
         _refreshBadge();
     }
     function closePanel() {
+        const wasOpen = _isPanelOpen();
         const btn = _getBtn();
         if (btn)
             btn.classList.remove('tracking-btn-active');
-        // Hide sidebar only if notifications panel is also closed
-        const notifOpen = typeof window._Notifications !== 'undefined' && window._Notifications.isPanelOpen();
-        if (!notifOpen && typeof window._MapSidebar !== 'undefined')
-            window._MapSidebar.hide();
+        // Only hide the sidebar if tracking actually had it open
+        if (wasOpen) {
+            const notifOpen = typeof window._Notifications !== 'undefined' && window._Notifications.isPanelOpen();
+            if (!notifOpen && typeof window._MapSidebar !== 'undefined')
+                window._MapSidebar.hide();
+        }
         _refreshBadge();
     }
     function toggle() {
