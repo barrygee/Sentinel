@@ -396,6 +396,7 @@ window._FilterPanel = (() => {
         _open = false;
         const btn = _getFilterBtn();
         if (btn) { btn.classList.remove('active'); btn.classList.add('enabled'); }
+        if (typeof window._MapSidebar !== 'undefined') window._MapSidebar.hide();
     }
 
     function toggle(): void {

@@ -96,18 +96,19 @@
     flex-direction: column;
     overflow: hidden;
     box-sizing: border-box;
+    transform: translateX(0);
+    transition: transform 0.2s ease;
 }
 
-/* Hidden state — toggled by footer button */
+/* Hidden state — slides off to the left */
 #map-sidebar.msb-hidden {
-    display: none;
+    transform: translateX(-100%);
 }
 
 /* ---- Tab bar ---- */
 #map-sidebar-tabs {
     display: flex;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color-border);
     height: 40px;
 }
 
@@ -115,7 +116,7 @@
     flex: 1;
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-bottom: 1px solid transparent;
     color: rgba(255, 255, 255, 0.3);
     font-family: var(--font-primary);
     font-size: 9px;
@@ -129,6 +130,8 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
+    padding-left: 28px;
+    justify-content: flex-start;
     margin-bottom: -1px; /* overlap container border so active tab border replaces it */
 }
 
@@ -209,17 +212,10 @@
     overflow: hidden;
 }
 
-/* Re-home the notifications header into a horizontal bar at the top */
-#msb-pane-alerts #notif-header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+/* Footer bar at the bottom of the alerts pane */
+#msb-pane-alerts #notif-footer {
     flex-shrink: 0;
     width: auto;
-    padding: 8px 14px;
-    margin-bottom: 0;
-    border-bottom: 1px solid var(--color-border);
     pointer-events: all;
 }
 
@@ -231,8 +227,9 @@
     opacity: 1;
     pointer-events: all;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: stretch;
+    overflow: hidden;
 }
 
 /* Notification list fills pane width (not fixed 220px) */
@@ -255,9 +252,10 @@
     width: 100%;
 }
 
-/* Scroll hint aligned to right edge of pane */
+/* Scroll hint sits in the footer at 50% width */
 #msb-pane-alerts #notif-scroll-hint {
     flex-shrink: 0;
+    flex: 1;
 }
 
 /* Empty-state placeholder */
@@ -278,19 +276,15 @@
    Hosts the ADS-B status bar and tracking card. */
 #msb-pane-tracking {
     flex-direction: column;
-    overflow-y: auto;
-    scrollbar-width: none;
-    padding: 6px 0;
+    overflow: hidden;
 }
 
-#msb-pane-tracking::-webkit-scrollbar {
-    display: none;
-}
-
-/* Status bar fills pane width (not fixed 220px) */
+/* Status bar fills pane width and full height so footer sticks to bottom */
 #msb-pane-tracking #adsb-status-bar,
 #msb-pane-tracking #iss-status-bar {
     width: auto;
+    flex: 1;
+    flex-direction: column;
 }
 
 /* Empty-state placeholder */

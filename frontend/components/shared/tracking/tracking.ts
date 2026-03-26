@@ -35,9 +35,9 @@ window._Tracking = ((): TrackingAPI => {
 
         const btn = _getBtn() as HTMLButtonElement | null;
         if (btn) {
-            btn.disabled            = _count === 0;
-            btn.style.opacity       = _count === 0 ? '0.35' : '';
-            btn.style.pointerEvents = _count === 0 ? 'none'  : '';
+            btn.disabled            = false;
+            btn.style.opacity       = '';
+            btn.style.pointerEvents = '';
         }
 
         // Update sidebar tab badge

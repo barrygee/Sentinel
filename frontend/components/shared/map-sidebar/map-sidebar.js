@@ -24,10 +24,10 @@ window._MapSidebar = (() => {
         `<div id="map-sidebar-panes">` +
         `<div class="msb-pane msb-pane-active" id="msb-pane-search"></div>` +
         `<div class="msb-pane" id="msb-pane-alerts">` +
-        `<div id="msb-alerts-empty">No alerts</div>` +
+        `<div id="msb-alerts-empty">No current alerts</div>` +
         `</div>` +
         `<div class="msb-pane" id="msb-pane-tracking">` +
-        `<div id="msb-tracking-empty">No aircraft tracked</div>` +
+        `<div id="msb-tracking-empty">No active tracks</div>` +
         `</div>` +
         `</div>` +
         `</div>`;
@@ -77,6 +77,14 @@ window._MapSidebar = (() => {
         sidebar.classList.remove('msb-hidden');
         btn.classList.add('msb-btn-active');
     }
+    function hide() {
+        const sidebar = document.getElementById('map-sidebar');
+        const btn = document.getElementById('map-sidebar-btn');
+        if (!sidebar || !btn)
+            return;
+        sidebar.classList.add('msb-hidden');
+        btn.classList.remove('msb-btn-active');
+    }
     function toggle() {
         const sidebar = document.getElementById('map-sidebar');
         const btn = document.getElementById('map-sidebar-btn');
@@ -102,5 +110,5 @@ window._MapSidebar = (() => {
             btn.addEventListener('click', toggle);
         }
     }
-    return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, show, toggle };
+    return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, show, hide, toggle };
 })();

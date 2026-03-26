@@ -738,12 +738,9 @@ class IssControl extends SentinelControlBase {
         this.map.easeTo({ center: coords, duration: 600 });
         // Show tracking info in footer panel
         this._showStatusBar(pos);
-        if (!restoring && window._Notifications) {
-            if (this._trackingNotifId) {
-                window._Notifications.dismiss(this._trackingNotifId);
-                this._trackingNotifId = null;
-            }
-            this._trackingNotifId = window._Notifications.add({ type: 'track', title: this._activeSatName });
+        if (this._trackingNotifId && window._Notifications) {
+            window._Notifications.dismiss(this._trackingNotifId);
+            this._trackingNotifId = null;
         }
         this._saveIssTracking();
     }
@@ -788,14 +785,13 @@ class IssControl extends SentinelControlBase {
             `<span class="adsb-sb-label">${lbl}</span>` +
             `<span class="adsb-sb-value">${val}</span>` +
             `</div>`).join('');
-        return `<div class="adsb-sb-header">` +
-            `<span class="adsb-sb-label-tag">TRACKING</span>` +
-            `<button class="adsb-sb-untrack-btn">UNTRACK</button>` +
-            `</div>` +
-            `<div class="adsb-sb-header" style="border-top:none;height:auto;padding:8px 14px 9px">` +
+        return `<div class="adsb-sb-name-row">` +
             `<span class="adsb-sb-callsign" style="color:#c8ff00">${this._activeSatName}</span>` +
             `</div>` +
-            `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
+            `<div class="adsb-sb-fields">${fieldsHTML}</div>` +
+            `<div class="adsb-sb-footer">` +
+            `<button class="adsb-sb-untrack-btn">UNTRACK</button>` +
+            `</div>`;
     }
     _showStatusBar(p) {
         let bar = document.getElementById('iss-status-bar');
