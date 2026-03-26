@@ -187,7 +187,7 @@ window._SpaceFilterPanel = (() => {
             const catLabel = _CATEGORY_SECTION_LABELS[cat] || cat.replace(/_/g, ' ').toUpperCase();
             const lbl = document.createElement('div');
             lbl.className = 'space-filter-section-label';
-            lbl.textContent = catLabel + (sats.length > CAP_PER_GROUP ? ' (showing ' + CAP_PER_GROUP + ' of ' + sats.length + ')' : '');
+            lbl.textContent = catLabel;
             container.appendChild(lbl);
             display.forEach(sat => {
                 const doSelect = () => {
