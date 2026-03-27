@@ -622,7 +622,7 @@ class AdsbLiveControl {
                 ? `<span style="background:#4d6600;color:#c8ff00;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 4px;">${props.t.toUpperCase()}</span>`
                 : '';
             const hasBadge = !!(props.military && props.t);
-            return `<div style="background:rgba(0,0,0,0.7);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 8px;white-space:nowrap;user-select:none">` +
+            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 8px;white-space:nowrap;user-select:none">` +
                 `<div style="display:flex;align-items:stretch;gap:4px">` +
                 `<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>` +
                 `${milTypeBadge}${trkBtn}</div></div>`;
@@ -650,7 +650,7 @@ class AdsbLiveControl {
         const rowsHTML = rows.map(([lbl, val]) => `<div style="display:flex;gap:14px;line-height:1.8">` +
             `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
             `<span>${val}</span></div>`).join('');
-        return `<div style="background:rgba(0,0,0,0.7);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;padding:6px 14px 9px;white-space:nowrap;user-select:none">` +
+        return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;padding:6px 14px 9px;white-space:nowrap;user-select:none">` +
             `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;font-size:15px;letter-spacing:.12em;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
             `<span style="font-size:13px;font-weight:400;pointer-events:none;color:${callsignColor}">${callsign}</span>` +
             `<div style="display:flex;align-items:center;gap:0">${bellBtn}${trkBtn}</div></div>` +
