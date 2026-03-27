@@ -92,6 +92,10 @@
     text-transform: uppercase;
 }
 
+.space-filter-section-label:first-child {
+    padding-top: 34px;
+}
+
 .space-filter-result-item {
     display: flex;
     align-items: center;

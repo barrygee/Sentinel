@@ -99,6 +99,10 @@
     text-transform: uppercase;
 }
 
+.filter-section-label:first-child {
+    padding-top: 34px;
+}
+
 /* A single result row: icon + info column + action button */
 .filter-result-item {
 
