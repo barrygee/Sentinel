@@ -15,6 +15,22 @@
 /// <reference path="../../types.ts" />
 window._SpaceFilterPanel = (() => {
     let _open = false;
+    let _clearPreviewTimer = null;
+    function _scheduleClearPreview() {
+        if (_clearPreviewTimer)
+            clearTimeout(_clearPreviewTimer);
+        _clearPreviewTimer = setTimeout(() => {
+            _clearPreviewTimer = null;
+            if (issControl)
+                issControl.clearPreview();
+        }, 50);
+    }
+    function _cancelClearPreview() {
+        if (_clearPreviewTimer) {
+            clearTimeout(_clearPreviewTimer);
+            _clearPreviewTimer = null;
+        }
+    }
     let _satellites = [];
     let _loaded = false;
     // ---- Inject filter HTML into the map sidebar search pane ----
@@ -133,10 +149,9 @@ window._SpaceFilterPanel = (() => {
         selectBtn.textContent = 'SELECT';
         selectBtn.addEventListener('mousedown', e => e.stopPropagation());
         selectBtn.addEventListener('click', (e) => { e.stopPropagation(); doSelect(); });
-        item.addEventListener('mouseenter', () => { if (issControl)
+        item.addEventListener('mouseenter', () => { _cancelClearPreview(); if (issControl)
             issControl.previewSatellite(sat.norad_id, sat.name || sat.norad_id); });
-        item.addEventListener('mouseleave', () => { if (issControl)
-            issControl.clearPreview(); });
+        item.addEventListener('mouseleave', () => { _scheduleClearPreview(); });
         item.appendChild(icon);
         item.appendChild(info);
         item.appendChild(selectBtn);
@@ -243,6 +258,7 @@ window._SpaceFilterPanel = (() => {
             btn.classList.add('enabled');
         }
         // Ensure any active preview is cleared when the panel closes
+        _cancelClearPreview();
         if (issControl)
             issControl.clearPreview();
     }

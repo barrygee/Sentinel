@@ -16,6 +16,19 @@
 
 window._SpaceFilterPanel = (() => {
     let _open = false;
+    let _clearPreviewTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function _scheduleClearPreview(): void {
+        if (_clearPreviewTimer) clearTimeout(_clearPreviewTimer);
+        _clearPreviewTimer = setTimeout(() => {
+            _clearPreviewTimer = null;
+            if (issControl) issControl.clearPreview();
+        }, 50);
+    }
+
+    function _cancelClearPreview(): void {
+        if (_clearPreviewTimer) { clearTimeout(_clearPreviewTimer); _clearPreviewTimer = null; }
+    }
 
     // Cached satellite list fetched from the API
     interface SatEntry {
@@ -158,8 +171,8 @@ window._SpaceFilterPanel = (() => {
         selectBtn.addEventListener('mousedown', e => e.stopPropagation());
         selectBtn.addEventListener('click', (e) => { e.stopPropagation(); doSelect(); });
 
-        item.addEventListener('mouseenter', () => { if (issControl) issControl.previewSatellite(sat.norad_id, sat.name || sat.norad_id); });
-        item.addEventListener('mouseleave', () => { if (issControl) issControl.clearPreview(); });
+        item.addEventListener('mouseenter', () => { _cancelClearPreview(); if (issControl) issControl.previewSatellite(sat.norad_id, sat.name || sat.norad_id); });
+        item.addEventListener('mouseleave', () => { _scheduleClearPreview(); });
 
         item.appendChild(icon);
         item.appendChild(info);
@@ -262,6 +275,7 @@ window._SpaceFilterPanel = (() => {
         const btn = _getFilterBtn();
         if (btn) { btn.classList.remove('active'); btn.classList.add('enabled'); }
         // Ensure any active preview is cleared when the panel closes
+        _cancelClearPreview();
         if (issControl) issControl.clearPreview();
     }
 
