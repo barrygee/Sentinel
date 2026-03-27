@@ -127,7 +127,7 @@
     flex: 1;
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-bottom: 1px solid transparent;
     color: rgba(255, 255, 255, 0.3);
     font-family: var(--font-primary);
     font-size: 9px;
