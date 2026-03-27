@@ -847,7 +847,7 @@ class IssControl extends SentinelControlBase {
             `</div>`
         ).join('');
         return `<div class="adsb-sb-name-row">` +
-            `<span class="adsb-sb-callsign" style="color:#c8ff00">${this._activeSatName}</span>` +
+            `<span class="adsb-sb-callsign">${this._activeSatName}</span>` +
             `</div>` +
             `<div class="adsb-sb-fields">${fieldsHTML}</div>` +
             `<div class="adsb-sb-footer">` +
