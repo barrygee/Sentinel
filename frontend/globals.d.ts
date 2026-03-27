@@ -13,13 +13,14 @@ interface SettingsAPI {
 }
 
 interface Window {
-    MapComponent:    MapComponentAPI;
-    _MapSidebar:     MapSidebarAPI;
-    _Notifications:  NotificationsAPI;
-    _Tracking:       TrackingAPI;
-    _FilterPanel:    FilterPanelAPI;
-    _SettingsAPI:    SettingsAPI | undefined;
-    _adsb:           AdsbLiveControl | undefined;
+    MapComponent:              MapComponentAPI;
+    _MapSidebar:               MapSidebarAPI;
+    _Notifications:            NotificationsAPI;
+    _Tracking:                 TrackingAPI;
+    _FilterPanel:              FilterPanelAPI;
+    _SettingsAPI:              SettingsAPI | undefined;
+    _SENTINEL_ENABLED_DOMAINS: string[] | undefined;
+    _adsb:                     AdsbLiveControl | undefined;
     _is3DActive:     (() => boolean) | undefined;
     _getTargetPitch: (() => number)  | undefined;
     _setTargetPitch: ((p: number) => void) | undefined;

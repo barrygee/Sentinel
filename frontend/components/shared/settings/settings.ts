@@ -211,7 +211,9 @@ window._SettingsPanel = (function () {
         // Sidebar
         const sidebar = document.createElement('div');
         sidebar.id = 'settings-sidebar';
+        const _enabledDomains: string[] = window._SENTINEL_ENABLED_DOMAINS ?? [];
         _NAV_SECTIONS.forEach(function (s) {
+            if (s.key !== 'app' && !_enabledDomains.includes(s.key)) return;
             const item = document.createElement('div');
             item.className = 'settings-nav-item' + (s.key === 'app' ? ' active' : '');
             item.textContent = s.label;

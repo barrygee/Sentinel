@@ -262,11 +262,14 @@ window._FilterPanel = (() => {
                     }
                     // Hide the status bar without closing the side panel
                     const bar = document.getElementById('adsb-status-bar');
-                    if (bar) bar.classList.remove('adsb-sb-visible');
-                    if (typeof window._Tracking !== 'undefined') window._Tracking.setCount(0);
+                    if (bar)
+                        bar.classList.remove('adsb-sb-visible');
+                    if (typeof window._Tracking !== 'undefined')
+                        window._Tracking.setCount(0);
                     adsbControl._saveTrackingState();
                     const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
-                    if (!is3D) map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+                    if (!is3D)
+                        map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
                     return;
                 }
                 if (adsbControl._selectedHex !== hex) {
