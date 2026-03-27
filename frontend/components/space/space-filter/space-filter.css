@@ -55,6 +55,7 @@
     font-size: 10px;
     font-weight: 700;
     padding: 0;
+    margin-right: 6px;
     display: none;
     transition: color 0.15s;
     flex-shrink: 0;
@@ -89,6 +90,10 @@
     color: var(--color-accent);
     padding: 18px 18px 5px 28px;
     text-transform: uppercase;
+}
+
+.space-filter-section-label:first-child {
+    padding-top: 34px;
 }
 
 .space-filter-result-item {
@@ -160,7 +165,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 6px 10px;
+    padding: 6px 0;
     flex-shrink: 0;
     line-height: 1;
     display: flex;

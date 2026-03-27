@@ -321,8 +321,8 @@ class IssControl extends SentinelControlBase {
                 this._hoverTagMarker.setLngLat([position.lon, position.lat]);
                 this._updateHoverTagContent(position);
             }
-            // Keep following — centre map and update label position
-            if (this._followEnabled) {
+            // Keep following — centre map and update label position (skip during hover preview)
+            if (this._followEnabled && !this._previewNoradId) {
                 if (this._labelMarker)
                     this._labelMarker.setLngLat([position.lon, position.lat]);
                 this.map.easeTo({ center: [position.lon, position.lat], duration: 150, easing: (t) => t });
@@ -788,7 +788,7 @@ class IssControl extends SentinelControlBase {
             `<span class="adsb-sb-value">${val}</span>` +
             `</div>`).join('');
         return `<div class="adsb-sb-name-row">` +
-            `<span class="adsb-sb-callsign" style="color:#c8ff00">${this._activeSatName}</span>` +
+            `<span class="adsb-sb-callsign">${this._activeSatName}</span>` +
             `</div>` +
             `<div class="adsb-sb-fields">${fieldsHTML}</div>` +
             `<div class="adsb-sb-footer">` +
@@ -903,13 +903,18 @@ class IssControl extends SentinelControlBase {
                 trackSource.setData(ground_track);
             if (fpSource)
                 fpSource.setData(footprintGeo);
-            // Update the callsign label to show the previewed satellite's name and position
+            // Update the callsign label to show the previewed satellite's name and position.
+            // If we're tracking a different sat, hide the TRACKING badge and show the preview name.
+            // If we're hovering the currently tracked sat, leave the label untouched.
             if (this._labelMarker) {
-                this._labelMarker.setLngLat([position.lon, position.lat]);
-                if (name) {
-                    const nameSpan = this._labelMarker.getElement().querySelector('span');
-                    if (nameSpan)
-                        nameSpan.textContent = name;
+                const isTrackedSat = noradId === this._activeNoradId;
+                if (!isTrackedSat) {
+                    this._labelMarker.setLngLat([position.lon, position.lat]);
+                    const spans = this._labelMarker.getElement().querySelectorAll('span');
+                    if (spans[0])
+                        spans[0].textContent = name || noradId;
+                    if (spans[1])
+                        spans[1].style.display = 'none'; // hide TRACKING badge
                 }
             }
             // Fly to the previewed satellite only if the user setting allows it
@@ -946,9 +951,11 @@ class IssControl extends SentinelControlBase {
             fpSource.setData(this._footprintGeojson);
         // Restore the callsign label to the active satellite's name and position
         if (this._labelMarker) {
-            const nameSpan = this._labelMarker.getElement().querySelector('span');
-            if (nameSpan)
-                nameSpan.textContent = this._activeSatName;
+            const spans = this._labelMarker.getElement().querySelectorAll('span');
+            if (spans[0])
+                spans[0].textContent = this._activeSatName;
+            if (spans[1])
+                spans[1].style.display = ''; // restore TRACKING badge
             if (this._lastPosition)
                 this._labelMarker.setLngLat([this._lastPosition.lon, this._lastPosition.lat]);
         }

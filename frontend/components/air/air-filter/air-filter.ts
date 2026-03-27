@@ -274,62 +274,9 @@ window._FilterPanel = (() => {
                 adsbControl._rebuildTagForHex(hex);
             });
 
-            const isTracked = adsbControl && adsbControl._followEnabled && adsbControl._tagHex === hex;
-            const trkBtn = document.createElement('button');
-            trkBtn.className = 'filter-action-btn filter-track-btn';
-            trkBtn.textContent = isTracked ? 'TRACKING' : 'TRACK';
-            trkBtn.style.color = isTracked ? '#c8ff00' : 'rgba(255,255,255,0.3)';
-
-            if (isTracked) {
-                trkBtn.addEventListener('mouseenter', () => { trkBtn.textContent = 'UNTRACK'; });
-                trkBtn.addEventListener('mouseleave', () => { trkBtn.textContent = 'TRACKING'; });
-            }
-
-            trkBtn.addEventListener('mousedown', e => e.stopPropagation());
-            trkBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!adsbControl) return;
-                const matchedFeature = (adsbControl._geojson.features as GeoJSON.Feature[]).find(f => (f.properties as AircraftProperties).hex === hex);
-                if (!matchedFeature) return;
-
-                // If already tracking this aircraft, untrack it without closing the side panel
-                if (adsbControl._followEnabled && adsbControl._tagHex === hex) {
-                    adsbControl._followEnabled = false;
-                    if (adsbControl._tagHex) {
-                        if (adsbControl._trackingNotifIds && adsbControl._trackingNotifIds[adsbControl._tagHex]) {
-                            window._Notifications.update({ id: adsbControl._trackingNotifIds[adsbControl._tagHex], type: 'untrack', action: null });
-                            delete adsbControl._trackingNotifIds[adsbControl._tagHex];
-                        }
-                        adsbControl._notifEnabled.delete(adsbControl._tagHex);
-                    }
-                    // Hide the status bar without closing the side panel
-                    const bar = document.getElementById('adsb-status-bar');
-                    if (bar) bar.classList.remove('adsb-sb-visible');
-                    if (typeof window._Tracking !== 'undefined') window._Tracking.setCount(0);
-                    (adsbControl as any)._saveTrackingState();
-                    const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
-                    if (!is3D) map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
-                    return;
-                }
-
-                if (adsbControl._selectedHex !== hex) {
-                    adsbControl._selectedHex = hex;
-                    adsbControl._applySelection();
-                }
-
-                if (adsbControl._tagMarker) {
-                    const tagTrackBtn = adsbControl._tagMarker.getElement().querySelector('.tag-follow-btn') as HTMLButtonElement | null;
-                    if (tagTrackBtn) tagTrackBtn.click();
-                }
-
-                const coords = adsbControl._interpolatedCoords(hex) || (matchedFeature.geometry as GeoJSON.Point).coordinates;
-                map.easeTo({ center: coords as maplibregl.LngLatLike, zoom: Math.max(map.getZoom(), 10), duration: 600 });
-            });
-
             item.appendChild(icon);
             item.appendChild(info);
             item.appendChild(bellBtn);
-            item.appendChild(trkBtn);
 
             info.style.flex = '1';
             info.style.minWidth = '0';

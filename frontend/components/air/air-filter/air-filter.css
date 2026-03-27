@@ -59,6 +59,7 @@
     font-size: 10px;
     font-weight: 700;
     padding: 0;
+    margin-right: 6px;
     display: none;              /* JS adds .filter-clear-visible to show */
     transition: color 0.15s;
     flex-shrink: 0;
@@ -96,6 +97,10 @@
     color: var(--color-accent);
     padding: 18px 18px 5px 28px;
     text-transform: uppercase;
+}
+
+.filter-section-label:first-child {
+    padding-top: 34px;
 }
 
 /* A single result row: icon + info column + action button */
