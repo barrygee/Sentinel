@@ -24,4 +24,7 @@ window.MapComponent.onStyleLoad(function () {
     if (spaceNamesControl) {
         spaceNamesControl.applyNamesVisibility();
     }
+    if (typeof _spaceGlobeActive !== 'undefined' && _spaceGlobeActive) {
+        try { (map as any).setProjection({ type: 'globe' }); } catch (e) { /* ignore */ }
+    }
 });

@@ -48,6 +48,13 @@
         <path d="M15 2C10 2 5 6.5 5 12s5 10 10 10c-6 0-11-4.5-11-10S9 2 15 2z" fill="#ffffff"/>
     </svg>`;
     const LOC_SVG = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`;
+    const GLOBE_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="1.6"/>
+        <ellipse cx="12" cy="12" rx="4.5" ry="9" stroke="#ffffff" stroke-width="1.4"/>
+        <line x1="3" y1="12" x2="21" y2="12" stroke="#ffffff" stroke-width="1.4"/>
+        <line x1="5.5" y1="6.5" x2="18.5" y2="6.5" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
+        <line x1="5.5" y1="17.5" x2="18.5" y2="17.5" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
+    </svg>`;
     function makeNavBtn(content, title, onClick, isHTML) {
         const btn = document.createElement('button');
         btn.className = 'sm-nav-btn';
@@ -122,12 +129,8 @@
         });
     };
     panel.appendChild(navGroup);
-    // ---- Group 3: ISS + ground track + footprint ----
+    // ---- Group 3: ground track + footprint ----
     const issGroup = makeGroup('ssm-group-iss');
-    // ISS toggle
-    const issBtn = makeOverlayBtn(SAT_SVG, '16px', 'ISS', () => issControl ? issControl.issVisible : false, () => { if (issControl)
-        issControl.toggleIss(); _saveSpaceOverlayStates(); }, true);
-    issGroup.appendChild(issBtn);
     // Ground track toggle
     const trackBtn = makeOverlayBtn(TRACK_SVG, '14px', 'GROUND TRACK', () => issControl ? issControl.trackVisible : false, () => { if (issControl)
         issControl.toggleTrack(); _saveSpaceOverlayStates(); }, true);
@@ -143,7 +146,36 @@
         daynightControl.toggleDaynight(); _saveSpaceOverlayStates(); }, true);
     dnGroup.appendChild(dnBtn);
     panel.appendChild(dnGroup);
-    // ---- Group 5: satellite filter ----
+    // ---- Group 5: globe projection ----
+    const globeGroup = makeGroup('ssm-group-globe');
+    function _toggleGlobe() {
+        _spaceGlobeActive = !_spaceGlobeActive;
+        try {
+            localStorage.setItem('sentinel_space_globeProjection', _spaceGlobeActive ? '1' : '0');
+        }
+        catch { /* ignore */ }
+        document.body.classList.toggle('globe-active', _spaceGlobeActive);
+        try {
+            map.setProjection({ type: _spaceGlobeActive ? 'globe' : 'mercator' });
+        }
+        catch (e) {
+            console.error('[globe] setProjection failed:', e);
+        }
+    }
+    const globeBtn = makeOverlayBtn(GLOBE_SVG, '15px', 'GLOBE', () => _spaceGlobeActive, _toggleGlobe, true);
+    globeGroup.appendChild(globeBtn);
+    panel.appendChild(globeGroup);
+    // Restore globe projection from persisted state after map style loads
+    if (_spaceGlobeActive) {
+        document.body.classList.add('globe-active');
+        window.MapComponent.onStyleLoad(function () {
+            try {
+                map.setProjection({ type: 'globe' });
+            }
+            catch (e) { /* ignore */ }
+        });
+    }
+    // ---- Group 6: satellite filter ----
     const FILTER_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
     const filterGroup = makeGroup('ssm-group-filter');
     const filterBtn = document.createElement('button');
@@ -167,9 +199,9 @@
     document.body.appendChild(panel);
     // Expose sync function so controls can refresh button active states
     _spaceSyncSideMenu = function () {
-        issBtn.classList.toggle('active', issControl ? issControl.issVisible : false);
         trackBtn.classList.toggle('active', issControl ? issControl.trackVisible : false);
         footprintBtn.classList.toggle('active', issControl ? issControl.footprintVisible : false);
         dnBtn.classList.toggle('active', daynightControl ? daynightControl.dnVisible : false);
+        globeBtn.classList.toggle('active', _spaceGlobeActive);
     };
 })();

@@ -160,6 +160,11 @@
     display: none;
 }
 
+/* ---- Globe projection: black space background ---- */
+body.globe-active #map {
+    background: #000 !important;
+}
+
 /* ---- Tooltips ---- */
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip],
 #space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip],
