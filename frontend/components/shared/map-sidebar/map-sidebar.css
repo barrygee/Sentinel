@@ -287,18 +287,15 @@
 }
 
 /* ---- Tracking pane ----
-   Hosts the ADS-B status bar and tracking card. */
+   Hosts tracking item cards from all sections. */
 #msb-pane-tracking {
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
 }
 
-/* Status bar fills pane width and full height so footer sticks to bottom */
-#msb-pane-tracking #adsb-status-bar,
-#msb-pane-tracking #iss-status-bar {
-    width: auto;
-    flex: 1;
-    flex-direction: column;
+#msb-pane-tracking::-webkit-scrollbar {
+    display: none;
 }
 
 /* Empty-state placeholder */

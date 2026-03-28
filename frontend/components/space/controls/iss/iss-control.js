@@ -775,76 +775,37 @@ class IssControl extends SentinelControlBase {
         this.map.easeTo({ center: [12, 20], zoom: 2, duration: 600 });
     }
     // ---- Status bar ----
-    _buildStatusBarHTML(p) {
-        const fields = [
-            ['ALT', `${p.alt_km} km`],
-            ['VEL', `${p.velocity_kms} km/s`],
-            ['HDG', `${p.track_deg}°`],
-            ['LAT', `${p.lat}°`],
-            ['LON', `${p.lon}°`],
+    _buildTrackingFields(p) {
+        return [
+            { label: 'ALT', value: `${p.alt_km} km` },
+            { label: 'VEL', value: `${p.velocity_kms} km/s` },
+            { label: 'HDG', value: `${p.track_deg}°` },
+            { label: 'LAT', value: `${p.lat}°` },
+            { label: 'LON', value: `${p.lon}°` },
         ];
-        const fieldsHTML = fields.map(([lbl, val]) => `<div class="adsb-sb-field">` +
-            `<span class="adsb-sb-label">${lbl}</span>` +
-            `<span class="adsb-sb-value">${val}</span>` +
-            `</div>`).join('');
-        return `<div class="adsb-sb-name-row">` +
-            `<span class="adsb-sb-callsign">${this._activeSatName}</span>` +
-            `<button class="adsb-sb-untrack-btn" aria-label="Untrack">UNTRACK</button>` +
-            `</div>` +
-            `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
     }
     _showStatusBar(p) {
-        let bar = document.getElementById('iss-status-bar');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'iss-status-bar';
-            const pane = document.getElementById('msb-pane-tracking');
-            if (pane) {
-                const empty = document.getElementById('msb-tracking-empty');
-                if (empty)
-                    empty.remove();
-                pane.appendChild(bar);
-            }
-            else {
-                document.body.appendChild(bar);
-            }
-        }
-        bar.innerHTML = this._buildStatusBarHTML(p);
-        bar.style.display = 'flex';
-        const untrackBtn = bar.querySelector('.adsb-sb-untrack-btn');
-        if (untrackBtn) {
-            untrackBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this._stopFollowing();
-            });
-        }
-        if (typeof window._Tracking !== 'undefined') {
-            window._Tracking.setCount(1);
-            window._Tracking.openPanel();
-        }
+        if (typeof window._Tracking === 'undefined')
+            return;
+        window._Tracking.register({
+            id: 'space',
+            name: this._activeSatName,
+            domain: 'SPACE',
+            fields: this._buildTrackingFields(p),
+            onUntrack: () => this._stopFollowing(),
+        });
         if (typeof window._FilterPanel !== 'undefined')
             window._FilterPanel.reposition();
     }
     _hideStatusBar() {
-        const bar = document.getElementById('iss-status-bar');
-        if (bar)
-            bar.style.display = 'none';
         if (typeof window._Tracking !== 'undefined')
-            window._Tracking.setCount(0);
+            window._Tracking.unregister('space');
         if (typeof window._FilterPanel !== 'undefined')
             window._FilterPanel.reposition();
     }
     _updateStatusBar(p) {
-        const bar = document.getElementById('iss-status-bar');
-        if (!bar || bar.style.display === 'none')
-            return;
-        bar.innerHTML = this._buildStatusBarHTML(p);
-        const untrackBtn = bar.querySelector('.adsb-sb-untrack-btn');
-        if (untrackBtn) {
-            untrackBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this._stopFollowing();
-            });
+        if (typeof window._Tracking !== 'undefined') {
+            window._Tracking.updateFields('space', this._buildTrackingFields(p));
         }
     }
     // ---- Filter hover preview ----

@@ -163,6 +163,20 @@ interface NotificationsAPI {
 }
 
 // ----- Tracking panel -----
+interface TrackingItemField {
+    label: string;
+    value: string;
+    emrg?: boolean;
+}
+
+interface TrackingItemOptions {
+    id:       string;
+    name:     string;
+    domain:   string;      // e.g. 'AIR', 'SPACE', 'SEA', 'LAND'
+    fields:   TrackingItemField[];
+    onUntrack: () => void;
+}
+
 interface TrackingAPI {
     openPanel(): void;
     closePanel(): void;
@@ -170,6 +184,9 @@ interface TrackingAPI {
     setCount(n: number): void;
     init(): void;
     isPanelOpen(): boolean;
+    register(opts: TrackingItemOptions): void;
+    unregister(id: string): void;
+    updateFields(id: string, fields: TrackingItemField[]): void;
 }
 
 // ----- Filter panel -----

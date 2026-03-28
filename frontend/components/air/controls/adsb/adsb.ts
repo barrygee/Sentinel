@@ -651,107 +651,82 @@ class AdsbLiveControl implements maplibregl.IControl {
             `<div style="pointer-events:none">` + rowsHTML + `</div></div>`;
     }
 
-    private _buildStatusBarHTML(props: AircraftProperties): string {
-        const raw      = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim();
-        const callsign = raw || 'UNKNOWN';
+    private _buildTrackingFields(props: AircraftProperties): TrackingItemField[] {
         const alt      = props.alt_baro ?? 0;
         const vrt      = props.baro_rate ?? 0;
         const altStr   = alt === 0 ? 'GND'
             : alt >= 18000 ? 'FL' + String(Math.round(alt / 100)).padStart(3, '0')
             : alt.toLocaleString() + ' ft';
         const vrtArrow = vrt > 200 ? ' ↑' : vrt < -200 ? ' ↓' : '';
-        const vrtStr   = vrt === 0 ? '0 fpm' : (vrt > 0 ? '+' : '') + Math.round(vrt).toLocaleString() + ' fpm';
-        void vrtStr; // declared for completeness; used in status bar if desired
-        const fields: [string, string][] = [];
-        if (props.r)          fields.push(['REG',    props.r]);
-        if (props.t)          fields.push(['TYPE',   props.t]);
-        fields.push(['ALT',    altStr + vrtArrow]);
-        fields.push(['GS',     Math.round(props.gs ?? 0) + ' kt']);
-        fields.push(['HDG',    Math.round(props.track ?? 0) + '°']);
-        if (props.squawk)     fields.push(['SQUAWK', props.squawk]);
-        if (props.emergency && props.emergency !== 'none') fields.push(['EMRG', props.emergency.toUpperCase()]);
-        if (props.military)   fields.push(['CLASS',  'MILITARY']);
+        const isEmergency = !!(props.emergency && props.emergency !== 'none');
+        const fields: TrackingItemField[] = [];
+        if (props.r)       fields.push({ label: 'REG',      value: props.r });
+        if (props.t)       fields.push({ label: 'TYPE',     value: props.t });
+        fields.push({ label: 'ALT',  value: altStr + vrtArrow });
+        fields.push({ label: 'GS',   value: Math.round(props.gs ?? 0) + ' kt' });
+        fields.push({ label: 'HDG',  value: Math.round(props.track ?? 0) + '°' });
+        if (props.squawk)  fields.push({ label: 'SQUAWK',   value: props.squawk });
+        if (isEmergency)   fields.push({ label: 'EMRG',     value: props.emergency!.toUpperCase(), emrg: true });
+        if (props.military) fields.push({ label: 'CLASS',   value: 'MILITARY' });
         const catLabel = this._categoryLabel(props.category);
-        if (catLabel)         fields.push(['CATEGORY', catLabel]);
-        const isEmergency = props.emergency && props.emergency !== 'none';
-        const headerColor = isEmergency ? '#ff4040' : '#ffffff';
-        const fieldsHTML  = fields.map(([lbl, val]) =>
-            `<div class="adsb-sb-field">` +
-            `<span class="adsb-sb-label">${lbl}</span>` +
-            `<span class="adsb-sb-value${lbl === 'EMRG' ? ' adsb-sb-emrg' : ''}">${val}</span>` +
-            `</div>`
-        ).join('');
-        return `<div class="adsb-sb-name-row">` +
-            `<span class="adsb-sb-callsign" style="color:${headerColor}">${callsign}</span>` +
-            `<button class="adsb-sb-untrack-btn" aria-label="Untrack">UNTRACK</button>` +
-            `</div>` +
-            `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
+        if (catLabel)      fields.push({ label: 'CATEGORY', value: catLabel });
+        return fields;
     }
 
     // ---- Status bar ----
 
     private _showStatusBar(props: AircraftProperties): void {
-        let bar = document.getElementById('adsb-status-bar') as HTMLDivElement | null;
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'adsb-status-bar';
-            const panel = document.getElementById('tracking-panel');
-            if (panel) panel.appendChild(bar);
-            else document.body.appendChild(bar);
-        }
-        delete bar.dataset['apt'];
-        bar.innerHTML = this._buildStatusBarHTML(props);
-        bar.classList.add('adsb-sb-visible');
-        this._wireStatusBarUntrack(bar);
-        if (typeof window._Tracking !== 'undefined') { window._Tracking.setCount(1); window._Tracking.openPanel(); }
+        if (typeof window._Tracking === 'undefined') return;
+        const raw      = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim();
+        const callsign = raw || 'UNKNOWN';
+        const isEmergency = !!(props.emergency && props.emergency !== 'none');
+        window._Tracking.register({
+            id:       'air',
+            name:     isEmergency ? `⚠ ${callsign}` : callsign,
+            domain:   'AIR',
+            fields:   this._buildTrackingFields(props),
+            onUntrack: () => this._handleUntrack(),
+        });
         if (typeof window._FilterPanel !== 'undefined') window._FilterPanel.reposition();
     }
 
     private _hideStatusBar(): void {
-        const bar = document.getElementById('adsb-status-bar');
-        if (bar) bar.classList.remove('adsb-sb-visible');
-        if (typeof window._Tracking !== 'undefined') window._Tracking.setCount(0);
+        if (typeof window._Tracking !== 'undefined') window._Tracking.unregister('air');
         if (typeof window._FilterPanel !== 'undefined') window._FilterPanel.reposition();
     }
 
     private _updateStatusBar(): void {
         if (!this._followEnabled || !this._selectedHex) return;
-        const bar = document.getElementById('adsb-status-bar');
-        if (!bar || !bar.classList.contains('adsb-sb-visible')) return;
+        if (typeof window._Tracking === 'undefined') return;
         const f = this._geojson.features.find(f => f.properties.hex === this._selectedHex);
-        if (f) { bar.innerHTML = this._buildStatusBarHTML(f.properties); this._wireStatusBarUntrack(bar); }
+        if (f) window._Tracking.updateFields('air', this._buildTrackingFields(f.properties));
     }
 
-    private _wireStatusBarUntrack(bar: HTMLElement): void {
-        const btn = bar.querySelector('.adsb-sb-untrack-btn');
-        if (!btn) return;
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._followEnabled = false;
-            if (this._tagHex) {
-                if (this._trackingNotifIds && this._trackingNotifIds[this._tagHex]) {
-                    window._Notifications.update({ id: this._trackingNotifIds[this._tagHex], type: 'untrack', action: null });
-                    delete this._trackingNotifIds[this._tagHex];
-                }
+    private _handleUntrack(): void {
+        this._followEnabled = false;
+        if (this._tagHex) {
+            if (this._trackingNotifIds && this._trackingNotifIds[this._tagHex]) {
+                window._Notifications.update({ id: this._trackingNotifIds[this._tagHex], type: 'untrack', action: null });
+                delete this._trackingNotifIds[this._tagHex];
             }
-            if (this._tagHex) this._notifEnabled.delete(this._tagHex);
-            if (this._tagHex) {
-                const f = this._geojson.features.find(f => f.properties.hex === this._tagHex);
-                if (f) {
-                    const coords = this._interpolatedCoords(this._tagHex) || f.geometry.coordinates;
-                    const newEl = document.createElement('div');
-                    newEl.innerHTML = this._buildTagHTML(f.properties);
-                    this._wireTagButton(newEl);
-                    if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null; }
-                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: 'top-left', offset: [14, -13] })
-                        .setLngLat(coords).addTo(this.map);
-                }
+        }
+        if (this._tagHex) this._notifEnabled.delete(this._tagHex);
+        if (this._tagHex) {
+            const f = this._geojson.features.find(f => f.properties.hex === this._tagHex);
+            if (f) {
+                const coords = this._interpolatedCoords(this._tagHex) || f.geometry.coordinates;
+                const newEl = document.createElement('div');
+                newEl.innerHTML = this._buildTagHTML(f.properties);
+                this._wireTagButton(newEl);
+                if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null; }
+                this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: 'top-left', offset: [14, -13] })
+                    .setLngLat(coords).addTo(this.map);
             }
-            this._hideStatusBar();
-            this._saveTrackingState();
-            const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
-            if (!is3D) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
-        });
+        }
+        this._hideStatusBar();
+        this._saveTrackingState();
+        const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
+        if (!is3D) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
     }
 
     // ---- Tag button wiring ----
