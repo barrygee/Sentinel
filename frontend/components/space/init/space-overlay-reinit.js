@@ -15,10 +15,10 @@ window.MapComponent.onStyleLoad(function () {
     }
     if (issControl) {
         issControl.initLayers();
-        if (issControl.issVisible) {
-            issControl._fetch();
-            issControl._startPolling();
-        }
+        // Always show and track ISS on load
+        if (!issControl.issVisible) issControl.toggleIss();
+        issControl._fetch();
+        issControl._startPolling();
     }
     if (spaceNamesControl) {
         spaceNamesControl.applyNamesVisibility();

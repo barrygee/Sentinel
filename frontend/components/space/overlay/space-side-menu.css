@@ -165,6 +165,19 @@ body.globe-active #map {
     background: #000 !important;
 }
 
+/* ---- Globe projection: lighten side menu buttons so they're visible against black ---- */
+body.globe-active #space-side-menu .sm-btn,
+body.globe-active #space-side-menu .sm-nav-btn,
+body.globe-active #space-side-menu-toggle {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.globe-active #space-side-menu .sm-btn:hover,
+body.globe-active #space-side-menu .sm-nav-btn:hover,
+body.globe-active #space-side-menu-toggle:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
 /* ---- Tooltips ---- */
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip],
 #space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip],

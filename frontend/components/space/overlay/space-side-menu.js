@@ -49,11 +49,11 @@
     </svg>`;
     const LOC_SVG = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`;
     const GLOBE_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="1.6"/>
-        <ellipse cx="12" cy="12" rx="4.5" ry="9" stroke="#ffffff" stroke-width="1.4"/>
-        <line x1="3" y1="12" x2="21" y2="12" stroke="#ffffff" stroke-width="1.4"/>
-        <line x1="5.5" y1="6.5" x2="18.5" y2="6.5" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
-        <line x1="5.5" y1="17.5" x2="18.5" y2="17.5" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+        <ellipse cx="12" cy="12" rx="4.5" ry="9" stroke="currentColor" stroke-width="1.4"/>
+        <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.4"/>
+        <line x1="5.5" y1="6.5" x2="18.5" y2="6.5" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+        <line x1="5.5" y1="17.5" x2="18.5" y2="17.5" stroke="currentColor" stroke-width="1" opacity="0.6"/>
     </svg>`;
     function makeNavBtn(content, title, onClick, isHTML) {
         const btn = document.createElement('button');
@@ -161,6 +161,7 @@
         catch (e) {
             console.error('[globe] setProjection failed:', e);
         }
+        if (spaceNamesControl) spaceNamesControl.applyNamesVisibility();
     }
     const globeBtn = makeOverlayBtn(GLOBE_SVG, '15px', 'GLOBE', () => _spaceGlobeActive, _toggleGlobe, true);
     globeGroup.appendChild(globeBtn);
