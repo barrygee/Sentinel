@@ -123,7 +123,7 @@ window._Tracking = ((): TrackingAPI => {
             `<span class="adsb-sb-domain-label">${domain}</span>` +
             `<span class="adsb-sb-callsign">${name}</span>` +
             `</div>` +
-            (hasUntrack ? `<button class="adsb-sb-untrack-btn" aria-label="Untrack">UNTRACK</button>` : '') +
+            (hasUntrack ? `<button class="adsb-sb-untrack-btn" aria-label="Untrack">&#x2715;</button>` : '') +
             `</div>` +
             `<div class="adsb-sb-fields">${_buildFieldsHTML(fields)}</div>`;
     }
