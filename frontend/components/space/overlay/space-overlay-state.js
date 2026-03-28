@@ -84,10 +84,8 @@ async function _syncSpaceOverlayStatesFromBackend() {
         }
         catch (e) { }
     }
-    // Apply the restored states to live controls
+    // Apply the restored states to live controls (ISS always forced on at load)
     if (issControl) {
-        if (issControl.issVisible !== _spaceOverlayStates.iss)
-            issControl.toggleIss();
         if (issControl.trackVisible !== _spaceOverlayStates.groundTrack)
             issControl.toggleTrack();
         if (issControl.footprintVisible !== _spaceOverlayStates.footprint)

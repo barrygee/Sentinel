@@ -711,10 +711,7 @@ class IssControl extends SentinelControlBase {
     }
     _restoreIssTracking() {
         try {
-            if (localStorage.getItem('issTracking') === '1' && this._lastPosition) {
-                localStorage.removeItem('issTracking');
-                this._startFollowing(true);
-            }
+            localStorage.removeItem('issTracking');
         }
         catch (e) { }
     }

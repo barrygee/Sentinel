@@ -17,3 +17,12 @@ let _spaceSyncSideMenu = null;
 // User location — set by space-user-location.ts
 let spaceUserLocationCenter = null;
 let _onGoToSpaceUserLocation = null;
+// Globe projection state — persisted to localStorage separately from overlay states
+let _spaceGlobeActive = (() => {
+    try {
+        return localStorage.getItem('sentinel_space_globeProjection') === '1';
+    }
+    catch {
+        return false;
+    }
+})();
