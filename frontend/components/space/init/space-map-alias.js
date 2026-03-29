@@ -11,4 +11,4 @@
 // eslint-disable-next-line no-var
 var map = window.MapComponent.map;
 // Set global view — centred on equator, zoomed in enough for the full globe to fill the window with margin
-map.jumpTo({ center: [12, 20], zoom: 1.5 });
+map.jumpTo({ center: [12, 20], zoom: 2.5 });
