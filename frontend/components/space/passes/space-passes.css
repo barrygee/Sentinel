@@ -31,7 +31,8 @@
     padding: 18px 20px 18px 28px;
     background: none;
     border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
     cursor: pointer;
     transition: background 0.12s;
     box-sizing: border-box;
@@ -99,7 +100,7 @@
     flex-direction: column;
     gap: 22px;
     padding: 20px 20px 22px 28px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
     transition: opacity 0.2s;
     overflow: hidden;
 }
@@ -122,40 +123,40 @@
 #spp-category-checkboxes {
     display: flex;
     flex-wrap: wrap;
-    gap: 7px;
+    gap: 4px;
 }
 
 .spp-cat-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
     cursor: pointer;
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.35);
-    padding: 4px 9px;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0 10px;
+    height: 28px;
     text-transform: uppercase;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    transition: background 0.15s, color 0.15s;
     white-space: nowrap;
-    line-height: 1.4;
+    display: flex;
+    align-items: center;
 }
 
 .spp-cat-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
 }
 
 .spp-cat-btn.active {
-    background: rgba(200, 255, 0, 0.1);
-    border-color: rgba(200, 255, 0, 0.4);
-    color: var(--color-accent);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(200, 255, 0, 0.75);
 }
 
 .spp-cat-btn.active:hover {
-    background: rgba(200, 255, 0, 0.16);
-    border-color: rgba(200, 255, 0, 0.65);
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--color-accent);
 }
 
 /* ---- Elevation slider row ---- */
@@ -235,28 +236,35 @@
 }
 
 .spp-seg-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
     cursor: pointer;
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.35);
-    padding: 4px 10px;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0 10px;
+    height: 28px;
     text-transform: uppercase;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
 }
 
 .spp-seg-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
 }
 
 .spp-seg-btn.active {
-    background: rgba(200, 255, 0, 0.1);
-    border-color: rgba(200, 255, 0, 0.4);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.spp-seg-btn.active:hover {
+    background: rgba(255, 255, 255, 0.15);
     color: var(--color-accent);
 }
 

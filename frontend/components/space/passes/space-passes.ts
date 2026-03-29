@@ -16,6 +16,19 @@ window._SpacePassesPanel = (() => {
 
     let _open = false;
     let _injected = false;
+    let _clearPreviewTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function _scheduleClearPreview(): void {
+        if (_clearPreviewTimer) clearTimeout(_clearPreviewTimer);
+        _clearPreviewTimer = setTimeout(() => {
+            _clearPreviewTimer = null;
+            if (issControl) issControl.clearPreview();
+        }, 50);
+    }
+
+    function _cancelClearPreview(): void {
+        if (_clearPreviewTimer) { clearTimeout(_clearPreviewTimer); _clearPreviewTimer = null; }
+    }
     let _currentPasses: SatPass[] = [];
     let _selectedCategories: Set<string> = new Set(['space_station', 'weather', 'amateur']);
     let _minEl: number = 35;
@@ -247,10 +260,10 @@ window._SpacePassesPanel = (() => {
         const list = document.createElement('div');
         list.id = 'spp-list';
 
-        pane.appendChild(filterToggle);
-        pane.appendChild(filterBody);
         pane.appendChild(statusBar);
         pane.appendChild(list);
+        pane.appendChild(filterToggle);
+        pane.appendChild(filterBody);
 
         _injected = true;
     }
@@ -422,6 +435,8 @@ window._SpacePassesPanel = (() => {
             card.appendChild(info);
             card.appendChild(meta);
 
+            card.addEventListener('mouseenter', () => { _cancelClearPreview(); if (issControl) issControl.previewSatellite(pass.norad_id, pass.name || pass.norad_id); });
+            card.addEventListener('mouseleave', () => { _scheduleClearPreview(); });
             card.addEventListener('click', () => {
                 if (issControl) issControl.switchSatellite(pass.norad_id, pass.name || pass.norad_id);
                 close();
@@ -476,6 +491,8 @@ window._SpacePassesPanel = (() => {
         if (_tickInterval)    { clearInterval(_tickInterval);    _tickInterval    = null; }
         if (_locationPollInterval) { clearInterval(_locationPollInterval); _locationPollInterval = null; }
         if (_fetchAbort) { _fetchAbort.abort(); _fetchAbort = null; }
+        _cancelClearPreview();
+        if (issControl) issControl.clearPreview();
     }
 
     function toggle(): void {

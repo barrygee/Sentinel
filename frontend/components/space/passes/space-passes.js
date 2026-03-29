@@ -14,6 +14,22 @@
 window._SpacePassesPanel = (() => {
     let _open = false;
     let _injected = false;
+    let _clearPreviewTimer = null;
+    function _scheduleClearPreview() {
+        if (_clearPreviewTimer)
+            clearTimeout(_clearPreviewTimer);
+        _clearPreviewTimer = setTimeout(() => {
+            _clearPreviewTimer = null;
+            if (issControl)
+                issControl.clearPreview();
+        }, 50);
+    }
+    function _cancelClearPreview() {
+        if (_clearPreviewTimer) {
+            clearTimeout(_clearPreviewTimer);
+            _clearPreviewTimer = null;
+        }
+    }
     let _currentPasses = [];
     let _selectedCategories = new Set(['space_station', 'weather', 'amateur']);
     let _minEl = 35;
@@ -195,10 +211,10 @@ window._SpacePassesPanel = (() => {
         // Pass list
         const list = document.createElement('div');
         list.id = 'spp-list';
-        pane.appendChild(filterToggle);
-        pane.appendChild(filterBody);
         pane.appendChild(statusBar);
         pane.appendChild(list);
+        pane.appendChild(filterToggle);
+        pane.appendChild(filterBody);
         _injected = true;
     }
     function _updateFilterSummary(el) {
@@ -367,6 +383,9 @@ window._SpacePassesPanel = (() => {
             meta.appendChild(detail);
             card.appendChild(info);
             card.appendChild(meta);
+            card.addEventListener('mouseenter', () => { _cancelClearPreview(); if (issControl)
+                issControl.previewSatellite(pass.norad_id, pass.name || pass.norad_id); });
+            card.addEventListener('mouseleave', () => { _scheduleClearPreview(); });
             card.addEventListener('click', () => {
                 if (issControl)
                     issControl.switchSatellite(pass.norad_id, pass.name || pass.norad_id);
@@ -437,6 +456,9 @@ window._SpacePassesPanel = (() => {
             _fetchAbort.abort();
             _fetchAbort = null;
         }
+        _cancelClearPreview();
+        if (issControl)
+            issControl.clearPreview();
     }
     function toggle() {
         if (_open)
