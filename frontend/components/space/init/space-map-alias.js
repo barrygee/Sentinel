@@ -24,4 +24,4 @@ if (_cachedLoc) {
     }
     catch (_) { }
 }
-map.jumpTo({ center: _initialCenter, zoom: 10.0 });
+map.jumpTo({ center: _initialCenter, zoom: 2.0 });

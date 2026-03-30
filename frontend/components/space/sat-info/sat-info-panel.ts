@@ -98,7 +98,7 @@ window._SatInfoPanel = (() => {
 
         const toggleLabel = document.createElement('span');
         toggleLabel.className = 'sip-toggle-label';
-        toggleLabel.textContent = 'SATELLITE INFO';
+        toggleLabel.textContent = 'SELECTED SATELLITE INFO';
 
         toggleLeft.appendChild(toggleIcon);
         toggleLeft.appendChild(toggleLabel);
@@ -168,8 +168,19 @@ window._SatInfoPanel = (() => {
             toggle.setAttribute('aria-expanded', String(_expanded));
         });
 
-        sidebar.appendChild(toggle);
-        sidebar.appendChild(body);
+        toggle.style.display = 'none';
+        body.style.display   = 'none';
+
+        // Insert sat-info toggle/body immediately after #map-sidebar-panes so it
+        // appears above the FILTERS section (which space-passes appends after panes).
+        const panesEl = sidebar.querySelector('#map-sidebar-panes');
+        if (panesEl && panesEl.nextSibling) {
+            sidebar.insertBefore(toggle, panesEl.nextSibling);
+            sidebar.insertBefore(body, toggle.nextSibling);
+        } else {
+            sidebar.appendChild(toggle);
+            sidebar.appendChild(body);
+        }
 
         _injected = true;
     }
@@ -357,8 +368,8 @@ window._SatInfoPanel = (() => {
         _expanded = true;
         const body   = _getBody();
         const toggle = _getToggle();
-        if (body)   body.classList.add('sip-expanded');
-        if (toggle) { toggle.classList.add('sip-expanded'); toggle.setAttribute('aria-expanded', 'true'); }
+        if (toggle) { toggle.style.display = ''; toggle.classList.add('sip-expanded'); toggle.setAttribute('aria-expanded', 'true'); }
+        if (body)   { body.style.display = ''; body.classList.add('sip-expanded'); }
 
         // Show sidebar (whatever tab is active stays active)
         if (window._MapSidebar) window._MapSidebar.show();
@@ -376,6 +387,10 @@ window._SatInfoPanel = (() => {
         if (_fetchAbort)   { _fetchAbort.abort(); _fetchAbort = null; }
         if (_tickInterval) { clearInterval(_tickInterval); _tickInterval = null; }
         if (_locationPoll) { clearInterval(_locationPoll); _locationPoll = null; }
+        const toggle = _getToggle();
+        const body   = _getBody();
+        if (toggle) toggle.style.display = 'none';
+        if (body)   body.style.display   = 'none';
     }
 
     function init(): void {

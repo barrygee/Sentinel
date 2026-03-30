@@ -71,7 +71,7 @@ window._SatInfoPanel = (() => {
         toggleIcon.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const toggleLabel = document.createElement('span');
         toggleLabel.className = 'sip-toggle-label';
-        toggleLabel.textContent = 'SATELLITE INFO';
+        toggleLabel.textContent = 'SELECTED SATELLITE INFO';
         toggleLeft.appendChild(toggleIcon);
         toggleLeft.appendChild(toggleLabel);
         // Right side: sat name + norad (shown when collapsed)
@@ -125,8 +125,18 @@ window._SatInfoPanel = (() => {
             toggle.classList.toggle('sip-expanded', _expanded);
             toggle.setAttribute('aria-expanded', String(_expanded));
         });
-        sidebar.appendChild(toggle);
-        sidebar.appendChild(body);
+        toggle.style.display = 'none';
+        body.style.display = 'none';
+        // Insert sat-info toggle/body immediately after #map-sidebar-panes so it
+        // appears above the FILTERS section (which space-passes appends after panes).
+        const panesEl = sidebar.querySelector('#map-sidebar-panes');
+        if (panesEl && panesEl.nextSibling) {
+            sidebar.insertBefore(toggle, panesEl.nextSibling);
+            sidebar.insertBefore(body, toggle.nextSibling);
+        } else {
+            sidebar.appendChild(toggle);
+            sidebar.appendChild(body);
+        }
         _injected = true;
     }
     // ---- Fetch ----
@@ -305,12 +315,8 @@ window._SatInfoPanel = (() => {
         _expanded = true;
         const body = _getBody();
         const toggle = _getToggle();
-        if (body)
-            body.classList.add('sip-expanded');
-        if (toggle) {
-            toggle.classList.add('sip-expanded');
-            toggle.setAttribute('aria-expanded', 'true');
-        }
+        if (toggle) { toggle.style.display = ''; toggle.classList.add('sip-expanded'); toggle.setAttribute('aria-expanded', 'true'); }
+        if (body) { body.style.display = ''; body.classList.add('sip-expanded'); }
         // Show sidebar (whatever tab is active stays active)
         if (window._MapSidebar)
             window._MapSidebar.show();
@@ -339,6 +345,10 @@ window._SatInfoPanel = (() => {
             clearInterval(_locationPoll);
             _locationPoll = null;
         }
+        const toggle = _getToggle();
+        const body = _getBody();
+        if (toggle) toggle.style.display = 'none';
+        if (body) body.style.display = 'none';
     }
     function init() {
         const sidebar = document.getElementById('map-sidebar');
