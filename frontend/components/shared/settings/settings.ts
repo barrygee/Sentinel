@@ -2067,6 +2067,7 @@ window._SettingsPanel = (function () {
         if (clearBtn) clearBtn.classList.remove('settings-search-clear-visible');
         const body = document.getElementById('settings-body');
         if (body) body.innerHTML = '';
+        document.dispatchEvent(new CustomEvent('settings-panel-closed'));
     }
 
     function toggle(): void {

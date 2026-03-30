@@ -302,6 +302,16 @@ window._SpaceFilterPanel = (() => {
             }
         });
 
+        // When settings panel closes, auto-reload satellite data if it was empty
+        document.addEventListener('settings-panel-closed', () => {
+            if (_satellites.length > 0) return;
+            void _loadSatellites().then(() => {
+                if (!_loaded) return;
+                _open = true;
+                _renderResults(_search(input.value), input.value);
+            });
+        });
+
         input.addEventListener('input', () => {
             const val = input.value;
             if (clearBtn) clearBtn.classList.toggle('space-filter-clear-visible', val.length > 0);

@@ -1551,6 +1551,7 @@ class AdsbLiveControl {
                     newFeatures.push(f);
             }
             this._geojson = { type: 'FeatureCollection', features: newFeatures };
+            document.dispatchEvent(new CustomEvent('adsb-data-update'));
             // Only clean up state for aircraft whose _lastPositions have fully expired
             // (i.e. already removed by _interpolate). Don't wipe data for aircraft that
             // simply weren't in this particular response.

@@ -488,7 +488,6 @@ window._SpacePassesPanel = (() => {
     function close(): void {
         _open = false;
         if (_refreshInterval) { clearInterval(_refreshInterval); _refreshInterval = null; }
-        if (_tickInterval)    { clearInterval(_tickInterval);    _tickInterval    = null; }
         if (_locationPollInterval) { clearInterval(_locationPollInterval); _locationPollInterval = null; }
         if (_fetchAbort) { _fetchAbort.abort(); _fetchAbort = null; }
         _cancelClearPreview();

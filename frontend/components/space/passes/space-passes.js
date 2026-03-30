@@ -444,10 +444,6 @@ window._SpacePassesPanel = (() => {
             clearInterval(_refreshInterval);
             _refreshInterval = null;
         }
-        if (_tickInterval) {
-            clearInterval(_tickInterval);
-            _tickInterval = null;
-        }
         if (_locationPollInterval) {
             clearInterval(_locationPollInterval);
             _locationPollInterval = null;

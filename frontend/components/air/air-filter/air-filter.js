@@ -364,6 +364,19 @@ window._FilterPanel = (() => {
         const clearBtn = _getClearBtn();
         if (!input)
             return;
+        document.addEventListener('msb-tab-switch', (e) => {
+            const { tab } = e.detail;
+            if (tab === 'search') {
+                _renderResults(_search(input.value), input.value);
+            }
+        });
+        document.addEventListener('adsb-data-update', () => {
+            const searchTab = document.querySelector('.msb-tab[data-tab="search"]');
+            const searchActive = searchTab && searchTab.classList.contains('msb-tab-active');
+            if (searchActive) {
+                _renderResults(_search(input.value), input.value);
+            }
+        });
         input.addEventListener('input', () => {
             const inputValue = input.value;
             if (clearBtn)

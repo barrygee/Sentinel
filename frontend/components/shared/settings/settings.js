@@ -1978,6 +1978,7 @@ window._SettingsPanel = (function () {
         const body = document.getElementById('settings-body');
         if (body)
             body.innerHTML = '';
+        document.dispatchEvent(new CustomEvent('settings-panel-closed'));
     }
     function toggle() {
         if (_open)
