@@ -146,6 +146,33 @@ window._SatInfoPanel = (() => {
         bodyHeader.appendChild(bodyName);
         bodyHeader.appendChild(bodyNorad);
 
+        // Live telemetry section
+        const liveData = document.createElement('div');
+        liveData.id        = 'sip-live-data';
+        liveData.className = 'sip-live-data';
+
+        const fields: [string, string][] = [
+            ['ALT', '—'],
+            ['VEL', '—'],
+            ['HDG', '—'],
+            ['LAT', '—'],
+            ['LON', '—'],
+        ];
+        fields.forEach(([lbl]) => {
+            const row = document.createElement('div');
+            row.className = 'sip-live-row';
+            const labelEl = document.createElement('span');
+            labelEl.className = 'sip-live-label';
+            labelEl.textContent = lbl;
+            const valueEl = document.createElement('span');
+            valueEl.className  = 'sip-live-value';
+            valueEl.id         = `sip-live-${lbl.toLowerCase()}`;
+            valueEl.textContent = '—';
+            row.appendChild(labelEl);
+            row.appendChild(valueEl);
+            liveData.appendChild(row);
+        });
+
         // Status bar
         const status = document.createElement('div');
         status.id        = 'sip-status';
@@ -157,6 +184,7 @@ window._SatInfoPanel = (() => {
         list.className = 'sip-list';
 
         body.appendChild(bodyHeader);
+        body.appendChild(liveData);
         body.appendChild(status);
         body.appendChild(list);
 
@@ -393,6 +421,18 @@ window._SatInfoPanel = (() => {
         if (body)   body.style.display   = 'none';
     }
 
+    function updatePosition(p: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number }): void {
+        const set = (id: string, val: string) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+        set('sip-live-alt', `${p.alt_km} km`);
+        set('sip-live-vel', `${p.velocity_kms} km/s`);
+        set('sip-live-hdg', `${p.track_deg}°`);
+        set('sip-live-lat', `${p.lat}°`);
+        set('sip-live-lon', `${p.lon}°`);
+    }
+
     function init(): void {
         const sidebar = document.getElementById('map-sidebar');
         if (sidebar) _injectHTML();
@@ -404,6 +444,6 @@ window._SatInfoPanel = (() => {
         });
     }
 
-    return { init, show, close };
+    return { init, show, close, updatePosition };
 
 })();

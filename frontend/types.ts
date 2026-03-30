@@ -226,6 +226,7 @@ interface SatInfoPanelAPI {
     init(): void;
     show(noradId: string, name: string): void;
     close(): void;
+    updatePosition(p: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number }): void;
 }
 
 interface MapSidebarAPI {

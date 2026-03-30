@@ -107,6 +107,24 @@ window._SatInfoPanel = (() => {
         bodyNorad.textContent = '';
         bodyHeader.appendChild(bodyName);
         bodyHeader.appendChild(bodyNorad);
+        // Live telemetry section
+        const liveData = document.createElement('div');
+        liveData.id = 'sip-live-data';
+        liveData.className = 'sip-live-data';
+        [['ALT', 'alt'], ['VEL', 'vel'], ['HDG', 'hdg'], ['LAT', 'lat'], ['LON', 'lon']].forEach(([lbl, key]) => {
+            const row = document.createElement('div');
+            row.className = 'sip-live-row';
+            const labelEl = document.createElement('span');
+            labelEl.className = 'sip-live-label';
+            labelEl.textContent = lbl;
+            const valueEl = document.createElement('span');
+            valueEl.className = 'sip-live-value';
+            valueEl.id = `sip-live-${key}`;
+            valueEl.textContent = '—';
+            row.appendChild(labelEl);
+            row.appendChild(valueEl);
+            liveData.appendChild(row);
+        });
         // Status bar
         const status = document.createElement('div');
         status.id = 'sip-status';
@@ -116,6 +134,7 @@ window._SatInfoPanel = (() => {
         list.id = 'sip-list';
         list.className = 'sip-list';
         body.appendChild(bodyHeader);
+        body.appendChild(liveData);
         body.appendChild(status);
         body.appendChild(list);
         // Wire toggle click
@@ -350,6 +369,14 @@ window._SatInfoPanel = (() => {
         if (toggle) toggle.style.display = 'none';
         if (body) body.style.display = 'none';
     }
+    function updatePosition(p) {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('sip-live-alt', `${p.alt_km} km`);
+        set('sip-live-vel', `${p.velocity_kms} km/s`);
+        set('sip-live-hdg', `${p.track_deg}°`);
+        set('sip-live-lat', `${p.lat}°`);
+        set('sip-live-lon', `${p.lon}°`);
+    }
     function init() {
         const sidebar = document.getElementById('map-sidebar');
         if (sidebar)
@@ -361,5 +388,5 @@ window._SatInfoPanel = (() => {
             show(noradId, name);
         });
     }
-    return { init, show, close };
+    return { init, show, close, updatePosition };
 })();

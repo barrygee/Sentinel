@@ -408,6 +408,9 @@ class IssControl extends SentinelControlBase {
                 this._updateStatusBar(position);
             }
 
+            // Push live telemetry to sat info panel
+            if (window._SatInfoPanel) window._SatInfoPanel.updatePosition(position);
+
         } catch (e) {
             // Silently ignore fetch errors
         }
