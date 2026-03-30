@@ -117,7 +117,7 @@
 }
 
 .sip-body.sip-expanded {
-    max-height: 520px;
+    max-height: 760px;
     opacity: 1;
 }
 
@@ -190,29 +190,24 @@
 
 /* ---- Status bar ---- */
 .sip-status {
+    display: none;
+}
+
+/* ---- Passes section title ---- */
+.sip-passes-title {
     flex-shrink: 0;
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.14em;
-    color: rgba(255, 255, 255, 0.22);
-    text-transform: uppercase;
-    padding: 14px 20px 6px 28px;
-}
-
-.sip-status.sip-loading {
+    letter-spacing: 0.18em;
     color: var(--color-accent);
+    text-transform: uppercase;
+    padding: 10px 20px 4px 28px;
 }
 
 /* ---- Pass list ---- */
 .sip-list {
-    overflow-y: auto;
-    max-height: 380px;
-    scrollbar-width: none;
-}
-
-.sip-list::-webkit-scrollbar {
-    display: none;
+    overflow-y: visible;
 }
 
 /* ---- Pass card ---- */

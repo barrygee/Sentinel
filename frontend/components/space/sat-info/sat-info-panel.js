@@ -129,6 +129,10 @@ window._SatInfoPanel = (() => {
         const status = document.createElement('div');
         status.id = 'sip-status';
         status.className = 'sip-status';
+        // Passes section title
+        const passesTitle = document.createElement('div');
+        passesTitle.className = 'sip-passes-title';
+        passesTitle.textContent = 'UPCOMING PASSES';
         // Pass list
         const list = document.createElement('div');
         list.id = 'sip-list';
@@ -136,6 +140,7 @@ window._SatInfoPanel = (() => {
         body.appendChild(bodyHeader);
         body.appendChild(liveData);
         body.appendChild(status);
+        body.appendChild(passesTitle);
         body.appendChild(list);
         // Wire toggle click
         toggle.addEventListener('click', () => {
@@ -244,7 +249,7 @@ window._SatInfoPanel = (() => {
             return;
         }
         const now = Date.now();
-        passes.forEach((pass, i) => {
+        passes.slice(0, 10).forEach((pass, i) => {
             const card = document.createElement('div');
             card.className = 'sip-pass-card';
             card.dataset['aosMs'] = String(pass.aos_unix_ms);
@@ -330,12 +335,11 @@ window._SatInfoPanel = (() => {
             bodyName.textContent = name;
         if (bodyNorad)
             bodyNorad.textContent = `NORAD ${noradId}`;
-        // Auto-expand — but don't switch tabs
-        _expanded = true;
+        // Show toggle but don't auto-expand
         const body = _getBody();
         const toggle = _getToggle();
-        if (toggle) { toggle.style.display = ''; toggle.classList.add('sip-expanded'); toggle.setAttribute('aria-expanded', 'true'); }
-        if (body) { body.style.display = ''; body.classList.add('sip-expanded'); }
+        if (toggle) { toggle.style.display = ''; }
+        if (body) { body.style.display = ''; }
         // Show sidebar (whatever tab is active stays active)
         if (window._MapSidebar)
             window._MapSidebar.show();
@@ -387,6 +391,8 @@ window._SatInfoPanel = (() => {
             const { noradId, name } = e.detail;
             show(noradId, name);
         });
+        // Default to ISS (auto-selected when space section opens)
+        show('25544', 'ISS');
     }
     return { init, show, close, updatePosition };
 })();
