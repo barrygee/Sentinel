@@ -255,9 +255,7 @@ window._SatInfoPanel = (() => {
             card.dataset['aosMs'] = String(pass.aos_unix_ms);
             card.dataset['losMs'] = String(pass.los_unix_ms);
             const isNow = now >= pass.aos_unix_ms && now <= pass.los_unix_ms;
-            const num = document.createElement('div');
-            num.className = 'sip-pass-num';
-            num.textContent = String(i + 1).padStart(2, '0');
+
             const times = document.createElement('div');
             times.className = 'sip-pass-times';
             const aosRow = document.createElement('div');
@@ -285,7 +283,6 @@ window._SatInfoPanel = (() => {
             maxEl.textContent = `MAX ${pass.max_elevation_deg.toFixed(1)}°`;
             meta.appendChild(countdown);
             meta.appendChild(maxEl);
-            card.appendChild(num);
             card.appendChild(times);
             card.appendChild(meta);
             list.appendChild(card);
