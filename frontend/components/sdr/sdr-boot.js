@@ -68,7 +68,10 @@
                         window._SdrControls.applyStatus(msg);
                     if (window._SdrAudio)
                         window._SdrAudio.setMode(msg.mode);
-                    sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
+                    // Only restore from server if the user hasn't already tuned to a different frequency
+                    if (!sessionStorage.getItem('sdrLastFreqHz') || !_sdrCurrentFreqHz) {
+                        sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
+                    }
                     sessionStorage.setItem('sdrLastMode', msg.mode);
                     break;
                 case 'spectrum':

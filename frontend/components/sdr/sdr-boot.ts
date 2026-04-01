@@ -68,8 +68,12 @@
                 case 'status':
                     if (window._SdrControls) window._SdrControls.applyStatus(msg as SdrStatusMsg);
                     if (window._SdrAudio)    window._SdrAudio.setMode(msg.mode);
-                    sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
-                    sessionStorage.setItem('sdrLastMode',   msg.mode);
+                    // Only restore sessionStorage from the server if the user hasn't
+                    // already tuned to a different frequency in this session
+                    if (!sessionStorage.getItem('sdrLastFreqHz') || !_sdrCurrentFreqHz) {
+                        sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
+                    }
+                    sessionStorage.setItem('sdrLastMode', msg.mode);
                     break;
                 case 'spectrum':
                     if (window._SdrControls && Array.isArray(msg.bins) && msg.bins.length > 0) {

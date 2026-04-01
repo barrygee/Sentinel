@@ -316,6 +316,15 @@
     color: #c8ff00;
 }
 
+.sdr-stop-btn {
+    color: rgba(255, 80, 80, 0.75);
+}
+
+.sdr-stop-btn:hover {
+    background: rgba(255, 80, 80, 0.15);
+    color: #ff5050;
+}
+
 /* ---- Slider rows ---- */
 .sdr-slider-header {
     display: flex;
@@ -761,7 +770,7 @@
     width: 100%;
     background: none;
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: none;
     padding: 0 28px;
     height: 44px;
     cursor: pointer;
@@ -770,7 +779,7 @@
 
 #sdr-radio-main-toggle {
     border-top: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
 }
 
 .sdr-scanner-main-toggle:hover {

@@ -181,6 +181,15 @@ class RadioBroadcaster:
         logger.info("Broadcaster started for %s:%d", conn.host, conn.port)
         try:
             while True:
+                # Reconnect if needed
+                if not conn.connected:
+                    try:
+                        await conn.connect()
+                    except Exception as exc:
+                        logger.warning("rtl_tcp reconnect failed (%s:%d): %s — retrying in 2s", conn.host, conn.port, exc)
+                        await asyncio.sleep(2)
+                        continue
+
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
@@ -188,11 +197,10 @@ class RadioBroadcaster:
                     logger.debug("rtl_tcp incomplete read during retune, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
-                    logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
+                    logger.warning("rtl_tcp read error (%s:%d): %s — will reconnect", conn.host, conn.port, exc)
                     conn.connected = False
-                    err_frame = {"type": "error", "code": "READ_ERROR", "message": str(exc)}
-                    self._broadcast(err_frame)
-                    break
+                    await asyncio.sleep(1)
+                    continue
 
                 # FFT uses only the first fft_size samples from the chunk
                 frame = compute_fft_frame(raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz)

@@ -67,17 +67,28 @@
         let pI=this._wfmPrevI,pQ=this._wfmPrevQ;
         for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}
         this._wfmPrevI=pI;this._wfmPrevQ=pQ;
-        return this._ds(d,this._sampleRate,48000);
+        return this._decimate(d,this._sampleRate,48000);
     }
     _am(i,q){
-        const n=i.length,e=new Float32Array(n),a=0.0005;let dc=this._amDc;
+        const n=i.length,e=new Float32Array(n);
+        // DC removal: time constant ~0.05s at input sample rate
+        const a=1/(this._sampleRate*0.05);let dc=this._amDc;
         for(let k=0;k<n;k++){const m=Math.sqrt(i[k]*i[k]+q[k]*q[k]);dc+=a*(m-dc);e[k]=m-dc;}
-        this._amDc=dc;return this._ds(e,this._sampleRate,48000);
+        this._amDc=dc;return this._decimate(e,this._sampleRate,48000);
     }
-    _ssb(i,q,s){const o=new Float32Array(i.length);for(let k=0;k<i.length;k++)o[k]=i[k]+s*q[k];return this._ds(o,this._sampleRate,48000);}
-    _ds(inp,inR,outR){
-        const ratio=inR/outR,n=Math.floor(inp.length/ratio),o=new Float32Array(n);
-        for(let k=0;k<n;k++){const s=k*ratio,lo=s|0,fr=s-lo,hi=lo+1<inp.length?lo+1:lo;o[k]=inp[lo]+fr*(inp[hi]-inp[lo]);}
+    _ssb(i,q,s){const o=new Float32Array(i.length);for(let k=0;k<i.length;k++)o[k]=i[k]+s*q[k];return this._decimate(o,this._sampleRate,48000);}
+    // Decimate with boxcar (moving-average) anti-alias filter.
+    // Decimation factor D = round(inR/outR). Filter averages D samples per output.
+    _decimate(inp,inR,outR){
+        const D=Math.round(inR/outR);
+        if(D<=1)return inp;
+        const n=Math.floor(inp.length/D),o=new Float32Array(n);
+        const inv=1/D;
+        for(let k=0;k<n;k++){
+            let s=0,base=k*D;
+            for(let j=0;j<D;j++)s+=inp[base+j];
+            o[k]=s*inv;
+        }
         return o;
     }
     process(_,outputs){
@@ -177,12 +188,15 @@
     }
 
     // Call this from a user gesture (click/keydown) to init the AudioContext
-    async function initAudio() {
+    async function initAudio(radioId?: number) {
+        if (radioId != null) _radioId = radioId;
         await _initAudio();
         if (_ctx && _ctx.state === 'suspended') {
             await _ctx.resume();
         }
-        // If IQ socket is already open, frames will start flowing immediately
+        if (_radioId != null && !_iqSocket) {
+            _openIqSocket(_radioId);
+        }
     }
 
     function stop() {

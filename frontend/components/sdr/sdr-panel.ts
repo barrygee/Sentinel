@@ -60,7 +60,8 @@
                     <div class="sdr-freq-row">
                         <input id="sdr-freq-input" class="sdr-panel-input sdr-freq-input-large" type="text"
                                placeholder="100.000" autocomplete="off" spellcheck="false">
-                        <button id="sdr-freq-tune" class="sdr-tune-btn" title="Tune">TUNE</button>
+                        <button id="sdr-freq-tune" class="sdr-tune-btn" type="button" title="Tune">TUNE</button>
+                        <button id="sdr-freq-stop" class="sdr-tune-btn sdr-stop-btn" type="button" title="Stop audio">STOP</button>
                     </div>
                 </div>
 
@@ -296,6 +297,7 @@
     const radioSelect  = document.getElementById('sdr-radio-select')  as HTMLSelectElement;
     const freqInput    = document.getElementById('sdr-freq-input')     as HTMLInputElement;
     const freqTuneBtn  = document.getElementById('sdr-freq-tune')      as HTMLButtonElement;
+    const freqStopBtn  = document.getElementById('sdr-freq-stop')      as HTMLButtonElement;
     const modePillsEl  = document.getElementById('sdr-mode-pills')!;
     const gainSlider   = document.getElementById('sdr-gain-slider')    as HTMLInputElement;
     const gainVal      = document.getElementById('sdr-gain-val')       as HTMLSpanElement;
@@ -341,7 +343,9 @@
     }
 
     function displayFreq(hz: number) {
-        freqInput.value = (hz / 1e6).toFixed(6).replace(/\.?0+$/, '');
+        if (document.activeElement !== freqInput) {
+            freqInput.value = (hz / 1e6).toFixed(3);
+        }
         activeFreq.textContent = (hz / 1e6).toFixed(3) + ' MHz';
     }
 
@@ -370,14 +374,17 @@
         if (!hz) return;
         _sdrCurrentFreqHz = hz;
         displayFreq(hz);
-        if (window._SdrAudio) window._SdrAudio.initAudio();
+        if (window._SdrAudio) window._SdrAudio.initAudio(getSelectedRadioId());
+        // Always persist so reconnect restores the user's chosen frequency
+        sessionStorage.setItem('sdrLastFreqHz', String(hz));
+        sessionStorage.setItem('sdrLastMode', _sdrCurrentMode);
         if (!_sdrSocket || _sdrSocket.readyState !== WebSocket.OPEN) {
-            // Socket is dead — trigger a reconnect; boot will auto-tune on open
-            sessionStorage.setItem('sdrLastFreqHz', String(hz));
-            sessionStorage.setItem('sdrLastMode', _sdrCurrentMode);
-            const radioId = getSelectedRadioId();
-            if (radioId) {
-                document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId } }));
+            // Only trigger a new connection if no socket exists or it's fully closed
+            if (!_sdrSocket || _sdrSocket.readyState === WebSocket.CLOSED) {
+                const radioId = getSelectedRadioId();
+                if (radioId) {
+                    document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId } }));
+                }
             }
             return;
         }
@@ -386,6 +393,9 @@
 
     freqTuneBtn.addEventListener('click', tune);
     freqInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tune(); });
+    freqStopBtn.addEventListener('click', () => {
+        if (window._SdrAudio) window._SdrAudio.stop();
+    });
 
     // ── Gain + AGC ────────────────────────────────────────────────────────────
 
@@ -688,13 +698,14 @@
     function applyStatus(msg: SdrStatusMsg) {
         setStatus(msg.connected);
         if (msg.connected) {
-            _sdrCurrentFreqHz    = msg.center_hz;
+            const hadUserFreq = _sdrCurrentFreqHz && _sdrCurrentFreqHz !== msg.center_hz;
+            if (!hadUserFreq) _sdrCurrentFreqHz = msg.center_hz;
             _sdrCurrentMode      = msg.mode;
             _sdrCurrentGain      = msg.gain_db;
             _sdrCurrentGainAuto  = msg.gain_auto;
             _sdrCurrentSampleRate = msg.sample_rate;
 
-            displayFreq(msg.center_hz);
+            if (!hadUserFreq) displayFreq(msg.center_hz);
             setModePill(modePillsEl, msg.mode);
 
             if (msg.gain_auto) {

@@ -99,7 +99,7 @@ interface SdrPanelAPI {
 
 interface SdrAudioAPI {
     start(radioId?: number): Promise<void>;
-    initAudio(): Promise<void>;
+    initAudio(radioId?: number): Promise<void>;
     stop(): void;
     pushFrame(frame: SdrSpectrumFrame): void;
     setRadioId(id: number): void;
