@@ -4,11 +4,11 @@
 // Responsibilities:
 //   1. Hide the shared #map-sidebar (not used on SDR page)
 //   2. Re-wire #map-sidebar-btn to toggle the SDR panel
-//   3. Load available radios and populate the controls select
+//   3. Load available radios and populate the panel radio select
 //   4. Load stored frequencies and groups into the panel
 //   5. Restore last active radio+frequency from sessionStorage
 //   6. Open WebSocket when a radio is selected
-//   7. Route incoming WebSocket messages to display + controls
+//   7. Route incoming WebSocket messages to controls + audio
 // ============================================================
 
 /// <reference path="./globals.d.ts" />
@@ -32,14 +32,12 @@
     function rewireSidebarBtn() {
         const btn = document.getElementById('map-sidebar-btn');
         if (!btn) { setTimeout(rewireSidebarBtn, 100); return; }
-        // Remove existing listeners by cloning
         const clone = btn.cloneNode(true) as HTMLElement;
         btn.parentNode!.replaceChild(clone, btn);
         clone.addEventListener('click', () => {
             window._SdrPanel.toggle();
             clone.classList.toggle('msb-btn-active', window._SdrPanel.isVisible());
         });
-        // Reflect initial state
         clone.classList.toggle('msb-btn-active', window._SdrPanel.isVisible());
     }
     rewireSidebarBtn();
@@ -62,28 +60,13 @@
         const ws = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}`);
         _sdrSocket = ws;
 
-        // Show the display area as active
-        const content = document.getElementById('sdr-content');
-        if (content) content.classList.remove('sdr-no-signal');
-
         ws.addEventListener('message', (ev: MessageEvent) => {
             let msg: any;
             try { msg = JSON.parse(ev.data); } catch { return; }
 
-            // Forward all non-spectrum messages to the test log
-            const log = (window as any)._sdrTestLog;
-            if (log && msg.type !== 'spectrum') {
-                log(`← ${JSON.stringify(msg)}`, msg.type === 'error' ? 'err' : 'ok');
-            }
-
             switch (msg.type) {
-                case 'spectrum':
-                    if (window._SdrDisplay) window._SdrDisplay.renderFrame(msg as SdrSpectrumFrame);
-                    if (window._SdrAudio)   window._SdrAudio.pushFrame(msg as SdrSpectrumFrame);
-                    break;
                 case 'status':
                     if (window._SdrControls) window._SdrControls.applyStatus(msg as SdrStatusMsg);
-                    if (window._SdrDisplay)  window._SdrDisplay.setFreqMarker(msg.center_hz);
                     if (window._SdrAudio)    window._SdrAudio.setMode(msg.mode);
                     sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
                     sessionStorage.setItem('sdrLastMode',   msg.mode);
@@ -100,9 +83,8 @@
         ws.addEventListener('open', () => {
             _sdrConnected = true;
             if (window._SdrControls) window._SdrControls.setStatus(true);
-            if (window._SdrAudio) window._SdrAudio.start(radioId); // opens IQ socket only
+            if (window._SdrAudio) window._SdrAudio.start(radioId);
 
-            // Restore last frequency if available
             const lastHz   = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
             const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM';
             if (lastHz > 0) {
@@ -114,12 +96,9 @@
         ws.addEventListener('close', () => {
             _sdrConnected = false;
             if (window._SdrControls) window._SdrControls.setStatus(false);
-            // Auto-reconnect after 3s if the radio selection hasn't changed
             if (_reconnectTimer) clearTimeout(_reconnectTimer);
             _reconnectTimer = setTimeout(() => {
-                if (_sdrCurrentRadioId === radioId) {
-                    openSocket(radioId);
-                }
+                if (_sdrCurrentRadioId === radioId) openSocket(radioId);
             }, 3000);
         });
 
@@ -138,8 +117,6 @@
             if ((window as any)._sdrPopulateRadios) {
                 (window as any)._sdrPopulateRadios(radios);
             }
-
-            // Auto-select last used radio
             const lastId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
             const match  = radios.find(r => r.id === lastId && r.enabled);
             if (match) {
@@ -184,19 +161,13 @@
         window._SdrPanel.hide();
     }
 
-    // Show no-signal placeholder until first frame arrives
-    const content = document.getElementById('sdr-content');
-    if (content) content.classList.add('sdr-no-signal');
-
-    // ── Page visibility — pause/resume data stream ────────────────────────────
+    // ── Page visibility — reconnect if needed ─────────────────────────────────
 
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && _sdrCurrentRadioId && !_sdrConnected) {
             openSocket(_sdrCurrentRadioId);
         }
     });
-
-    // Audio is started manually via the AUDIO button in sdr-controls
 
     // ── Boot sequence ─────────────────────────────────────────────────────────
 

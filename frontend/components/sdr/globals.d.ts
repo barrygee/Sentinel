@@ -22,7 +22,7 @@ interface SdrFrequencyGroup {
 
 interface SdrStoredFrequency {
     id: number;
-    group_id: number | null;
+    group_ids: number[];
     label: string;
     frequency_hz: number;
     mode: string;

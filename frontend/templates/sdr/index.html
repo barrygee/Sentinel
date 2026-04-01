@@ -2,9 +2,6 @@
 
 {% block head %}
     <link rel="stylesheet" href="/frontend/components/sdr/sdr-panel.css">
-    <link rel="stylesheet" href="/frontend/components/sdr/sdr-display.css">
-    <link rel="stylesheet" href="/frontend/components/sdr/sdr-controls.css">
-    <link rel="stylesheet" href="/frontend/components/sdr/sdr-side-menu.css">
 {% endblock %}
 
 {% block content %}
@@ -12,17 +9,11 @@
 {% endblock %}
 
 {% block scripts %}
-    <!-- SigPlot: bundled offline (no CDN) -->
-    <script src="/assets/vendor/sigplot/sigplot.bundle.js"></script>
-
     <!-- SDR: global state variables (must load first) -->
     <script src="/frontend/components/sdr/sdr-globals.js"></script>
 
-    <!-- SDR: UI components -->
-    <script src="/frontend/components/sdr/sdr-display.js"></script>
-    <script src="/frontend/components/sdr/sdr-controls.js"></script>
+    <!-- SDR: panel (includes RADIO tab with all controls) -->
     <script src="/frontend/components/sdr/sdr-panel.js"></script>
-    <script src="/frontend/components/sdr/sdr-side-menu.js"></script>
 
     <!-- SDR: audio demodulator -->
     <script src="/frontend/components/sdr/sdr-audio.js"></script>

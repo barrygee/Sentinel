@@ -2,9 +2,11 @@
 // ============================================================
 // SDR PANEL
 // SDR-specific left panel — replaces the shared map sidebar on the SDR page.
-// Contains three tabs: FREQS / GROUPS / SCAN
+// Contains two tabs: RADIO / SCANNER
 //
 // Exposes window._SdrPanel = { show, hide, toggle, isVisible, refresh, setScanStatus }
+// Exposes window._SdrControls = { setStatus, applyStatus, getSelectedRadioId }
+// Exposes window._sdrPopulateRadios
 // ============================================================
 /// <reference path="./globals.d.ts" />
 (function buildSdrPanel() {
@@ -12,68 +14,237 @@
     const panel = document.createElement('div');
     panel.id = 'sdr-panel';
     panel.innerHTML = `
-        <div id="sdr-panel-tabs">
-            <button class="sdr-ptab sdr-ptab-active" data-tab="freqs">FREQS</button>
-            <button class="sdr-ptab" data-tab="groups">GROUPS</button>
-            <button class="sdr-ptab" data-tab="scan">SCAN</button>
-            <button class="sdr-ptab" data-tab="test">TEST</button>
-        </div>
         <div id="sdr-panel-panes">
-            <div class="sdr-ppane sdr-ppane-active" id="sdr-pane-freqs">
-                <div id="sdr-freq-list"></div>
-                <div id="sdr-freq-empty" class="sdr-panel-empty">No saved frequencies.<br>Click ADD FREQ in the menu to save the current frequency.</div>
-            </div>
-            <div class="sdr-ppane" id="sdr-pane-groups">
-                <div id="sdr-group-list"></div>
-                <div class="sdr-panel-add-row">
-                    <input id="sdr-new-group-name" class="sdr-panel-input" type="text" placeholder="Group name…" maxlength="40">
-                    <button id="sdr-add-group-btn" class="sdr-panel-btn">ADD</button>
+
+            <!-- ── RADIO SECTION ── -->
+            <button class="sdr-scanner-main-toggle sdr-scanner-main-toggle-expanded" id="sdr-radio-main-toggle">
+                <div class="sdr-scanner-section-left">
+                    <span class="sdr-scanner-section-icon">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="sdr-scanner-section-label">RADIO</span>
                 </div>
-            </div>
-            <div class="sdr-ppane" id="sdr-pane-scan">
-                <div class="sdr-scan-status" id="sdr-scan-status">
-                    <div class="sdr-scan-indicator" id="sdr-scan-indicator"></div>
-                    <span id="sdr-scan-label">IDLE</span>
+                <div class="sdr-radio-toggle-status">
+                    <div id="sdr-conn-dot" class="sdr-conn-dot sdr-dot-off" title="Disconnected"></div>
+                    <span id="sdr-active-freq" class="sdr-active-freq"></span>
                 </div>
-                <div class="sdr-scan-current" id="sdr-scan-current"></div>
-                <div class="sdr-scan-dwell-row">
-                    <label class="sdr-ctrl-label">DWELL TIME</label>
-                    <input id="sdr-scan-dwell" class="sdr-panel-input" type="number" min="500" max="30000" step="500" value="2000">
-                    <span class="sdr-scan-dwell-unit">ms</span>
+            </button>
+            <div class="sdr-scanner-main-body sdr-scanner-main-body-expanded" id="sdr-pane-radio">
+
+                <!-- Status row -->
+                <div class="sdr-radio-status-row">
+                    <span id="sdr-status-label" class="sdr-status-label">DISCONNECTED</span>
                 </div>
-                <div class="sdr-scan-controls">
-                    <button id="sdr-scan-start" class="sdr-panel-btn sdr-scan-btn">START SCAN</button>
-                    <button id="sdr-scan-stop"  class="sdr-panel-btn sdr-scan-stop-btn" disabled>STOP</button>
+
+                <!-- Radio selector -->
+                <div class="sdr-radio-section">
+                    <label class="sdr-field-label">DEVICE</label>
+                    <div class="sdr-device-dropdown" id="sdr-device-dropdown" tabindex="0">
+                        <div class="sdr-device-dropdown-selected">
+                            <span class="sdr-device-dropdown-text" id="sdr-device-dropdown-text">— select radio —</span>
+                            <span class="sdr-device-dropdown-arrow"></span>
+                        </div>
+                    </div>
+                    <select id="sdr-radio-select" style="display:none"></select>
                 </div>
-                <div class="sdr-scan-queue-label">SCAN QUEUE <span id="sdr-scan-count">0 frequencies</span></div>
-                <div id="sdr-scan-queue-list" class="sdr-scan-queue"></div>
+
+                <!-- Frequency -->
+                <div class="sdr-radio-section">
+                    <label class="sdr-field-label">FREQ (MHz)</label>
+                    <div class="sdr-freq-row">
+                        <input id="sdr-freq-input" class="sdr-panel-input sdr-freq-input-large" type="text"
+                               placeholder="100.000" autocomplete="off" spellcheck="false">
+                        <button id="sdr-freq-tune" class="sdr-tune-btn" title="Tune">TUNE</button>
+                    </div>
+                </div>
+
+                <!-- Mode — pill buttons -->
+                <div class="sdr-radio-section">
+                    <label class="sdr-field-label">MODE</label>
+                    <div class="sdr-mode-pills" id="sdr-mode-pills">
+                        <button class="sdr-mode-pill active" data-mode="AM">AM</button>
+                        <button class="sdr-mode-pill" data-mode="NFM">NFM</button>
+                        <button class="sdr-mode-pill" data-mode="WFM">WFM</button>
+                        <button class="sdr-mode-pill" data-mode="USB">USB</button>
+                        <button class="sdr-mode-pill" data-mode="LSB">LSB</button>
+                        <button class="sdr-mode-pill" data-mode="CW">CW</button>
+                    </div>
+                </div>
+
+                <!-- RF Gain -->
+                <div class="sdr-radio-section">
+                    <div class="sdr-slider-header">
+                        <label class="sdr-field-label">RF GAIN</label>
+                        <span id="sdr-gain-val" class="sdr-slider-val">30.0 dB</span>
+                    </div>
+                    <input id="sdr-gain-slider" class="sdr-panel-slider" type="range" min="-1" max="49" step="0.5" value="30">
+                </div>
+
+                <!-- AGC checkbox -->
+                <div class="sdr-radio-section sdr-agc-row">
+                    <label class="sdr-checkbox-label">
+                        <input id="sdr-agc-check" type="checkbox" class="sdr-checkbox">
+                        <span class="sdr-checkbox-custom"></span>
+                        <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
+                    </label>
+                </div>
+
+                <!-- Volume -->
+                <div class="sdr-radio-section">
+                    <div class="sdr-slider-header">
+                        <label class="sdr-field-label">VOLUME</label>
+                        <span id="sdr-vol-val" class="sdr-slider-val">80%</span>
+                    </div>
+                    <input id="sdr-vol-slider" class="sdr-panel-slider" type="range" min="0" max="200" step="1" value="80">
+                </div>
+
+                <!-- Squelch -->
+                <div class="sdr-radio-section">
+                    <div class="sdr-slider-header">
+                        <label class="sdr-field-label">SQUELCH</label>
+                        <span id="sdr-sq-val" class="sdr-slider-val">-120 dBFS</span>
+                    </div>
+                    <input id="sdr-sq-slider" class="sdr-panel-slider" type="range" min="-120" max="0" step="1" value="-120">
+                </div>
+
             </div>
 
-            <div class="sdr-ppane" id="sdr-pane-test">
-                <div class="sdr-test-section-label">SEND COMMAND</div>
-                <div class="sdr-test-row">
-                    <label class="sdr-ctrl-label">TUNE (Hz)</label>
-                    <input id="sdr-test-freq" class="sdr-panel-input" type="number" placeholder="118050000" step="1000">
-                    <button class="sdr-panel-btn" id="sdr-test-tune-btn">SEND</button>
+            <!-- ── SCANNER SECTION ── -->
+            <button class="sdr-scanner-main-toggle sdr-scanner-main-toggle-expanded" id="sdr-scanner-main-toggle">
+                <div class="sdr-scanner-section-left">
+                    <span class="sdr-scanner-section-icon">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="sdr-scanner-section-label">SCANNER</span>
                 </div>
-                <div class="sdr-test-row">
-                    <label class="sdr-ctrl-label">GAIN (dB / blank=auto)</label>
-                    <input id="sdr-test-gain" class="sdr-panel-input" type="number" placeholder="auto" step="0.5">
-                    <button class="sdr-panel-btn" id="sdr-test-gain-btn">SEND</button>
+            </button>
+            <div class="sdr-scanner-main-body sdr-scanner-main-body-expanded" id="sdr-pane-scanner">
+
+                <!-- Scan controls section (above frequencies) -->
+                <div class="sdr-scan-controls">
+                    <div class="sdr-scan-state-row">
+                        <div class="sdr-scan-indicator" id="sdr-radio-scan-indicator"></div>
+                        <span id="sdr-radio-scan-label" class="sdr-scan-state-label">IDLE</span>
+                        <span id="sdr-radio-scan-freq" class="sdr-scan-state-freq"></span>
+                    </div>
+                    <div class="sdr-scan-btns-row">
+                        <button id="sdr-radio-scan-btn" class="sdr-scan-action-btn sdr-scan-action-btn--bg">START SCANNING</button>
+                        <button id="sdr-radio-lock-btn" class="sdr-scan-action-btn sdr-scan-action-btn--bg" title="Hold scanner on current frequency">HOLD SCAN</button>
+                    </div>
+                    <!-- Signal meter -->
+                    <div class="sdr-scan-signal-row">
+                        <span class="sdr-field-label" style="margin-bottom:6px;display:block">SIGNAL</span>
+                        <div class="sdr-signal-bar-track">
+                            <div id="sdr-signal-bar" class="sdr-signal-bar"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="sdr-test-row">
-                    <label class="sdr-ctrl-label">SAMPLE RATE (Hz)</label>
-                    <input id="sdr-test-rate" class="sdr-panel-input" type="number" placeholder="2048000" step="1">
-                    <button class="sdr-panel-btn" id="sdr-test-rate-btn">SEND</button>
+
+                <!-- GROUPS section -->
+                <button class="sdr-scanner-section-toggle sdr-scanner-section-toggle-expanded" id="sdr-scanner-groups-toggle" data-section="groups">
+                    <div class="sdr-scanner-section-left">
+                        <span class="sdr-scanner-section-icon">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="sdr-scanner-section-label">GROUPS</span>
+                    </div>
+                </button>
+                <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded" id="sdr-scanner-groups-body">
+                    <div id="sdr-group-list"></div>
+                    <div class="sdr-panel-add-row">
+                        <input id="sdr-new-group-name" class="sdr-panel-input" type="text" placeholder="Group name…" maxlength="40">
+                        <button id="sdr-add-group-btn" class="sdr-panel-btn">ADD</button>
+                    </div>
                 </div>
-                <div class="sdr-test-row">
-                    <label class="sdr-ctrl-label">RAW JSON COMMAND</label>
-                    <input id="sdr-test-raw" class="sdr-panel-input" type="text" placeholder='{"cmd":"ping"}'>
-                    <button class="sdr-panel-btn" id="sdr-test-raw-btn">SEND</button>
+
+                <!-- FREQUENCIES section -->
+                <button class="sdr-scanner-section-toggle sdr-scanner-section-toggle-expanded" id="sdr-scanner-freqs-toggle" data-section="freqs">
+                    <div class="sdr-scanner-section-left">
+                        <span class="sdr-scanner-section-icon">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="sdr-scanner-section-label">FREQUENCIES</span>
+                    </div>
+                </button>
+                <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded" id="sdr-scanner-freqs-body">
+
+                    <!-- Add freq button -->
+                    <div class="sdr-scan-btns-row" style="padding: 10px 28px 0;">
+                        <button id="sdr-radio-add-freq" class="sdr-scan-action-btn sdr-add-freq-btn sdr-scan-action-btn--bg">+ ADD FREQ</button>
+                    </div>
+
+                    <div id="sdr-freq-list"></div>
+                    <div id="sdr-freq-empty" class="sdr-panel-empty">No saved frequencies.<br>Tune to a frequency and use + ADD FREQ to save it.</div>
+
+                    <!-- Edit Frequency — collapsible panel -->
+                    <button class="sdr-editfreq-toggle" id="sdr-editfreq-toggle">
+                        <div class="sdr-editfreq-toggle-left">
+                            <span class="sdr-editfreq-toggle-icon">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                            <span class="sdr-editfreq-toggle-label">EDIT FREQUENCY</span>
+                        </div>
+                    </button>
+                    <div class="sdr-editfreq-body" id="sdr-editfreq-body">
+                        <div class="sdr-editfreq-field">
+                            <label class="sdr-field-label">LABEL</label>
+                            <input id="sdr-ef-label" class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%">
+                        </div>
+                        <div class="sdr-editfreq-field">
+                            <label class="sdr-field-label">FREQ (MHz)</label>
+                            <input id="sdr-ef-freq" class="sdr-panel-input" type="text" placeholder="118.3800" autocomplete="off" style="width:100%">
+                        </div>
+                        <div class="sdr-editfreq-field">
+                            <label class="sdr-field-label">MODE</label>
+                            <div class="sdr-mode-pills" id="sdr-ef-mode-pills">
+                                <button class="sdr-mode-pill active" data-mode="AM">AM</button>
+                                <button class="sdr-mode-pill" data-mode="NFM">NFM</button>
+                                <button class="sdr-mode-pill" data-mode="WFM">WFM</button>
+                                <button class="sdr-mode-pill" data-mode="USB">USB</button>
+                                <button class="sdr-mode-pill" data-mode="LSB">LSB</button>
+                                <button class="sdr-mode-pill" data-mode="CW">CW</button>
+                            </div>
+                        </div>
+                        <div class="sdr-editfreq-field">
+                            <label class="sdr-field-label">GROUPS</label>
+                            <div id="sdr-ef-groups" class="sdr-fmod-groups"></div>
+                        </div>
+                        <div class="sdr-editfreq-actions">
+                            <button id="sdr-ef-delete" class="sdr-panel-btn sdr-editfreq-del-btn" style="display:none">DELETE</button>
+                            <div class="sdr-editfreq-actions-right">
+                                <button id="sdr-ef-cancel" class="sdr-panel-btn">CANCEL</button>
+                                <button id="sdr-ef-save" class="sdr-panel-btn sdr-editfreq-save-btn">SAVE</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="sdr-test-section-label" style="margin-top:10px">RESPONSE LOG</div>
-                <div id="sdr-test-log" class="sdr-test-log"></div>
-                <button class="sdr-panel-btn" id="sdr-test-clear-btn" style="margin:8px 14px">CLEAR LOG</button>
+
+            </div>
+
+        </div>
+
+        <!-- ── GROUP RENAME MODAL ── -->
+        <div id="sdr-group-modal" class="sdr-modal-overlay" style="display:none">
+            <div class="sdr-modal">
+                <div class="sdr-modal-title">EDIT GROUP</div>
+                <div class="sdr-modal-field">
+                    <label class="sdr-field-label">NAME</label>
+                    <input id="sdr-gmod-name" class="sdr-panel-input sdr-modal-input" type="text" placeholder="Group name…" maxlength="40">
+                </div>
+                <div class="sdr-modal-actions">
+                    <button id="sdr-gmod-cancel" class="sdr-panel-btn">CANCEL</button>
+                    <button id="sdr-gmod-save" class="sdr-panel-btn sdr-fmod-save-btn">SAVE</button>
+                </div>
             </div>
         </div>
     `;
@@ -82,19 +253,514 @@
     let _groups = [];
     let _freqs = [];
     let _visible = true;
-    // ── Tab switching ─────────────────────────────────────────────────────────
-    const tabs = panel.querySelectorAll('.sdr-ptab');
-    const panes = panel.querySelectorAll('.sdr-ppane');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('sdr-ptab-active'));
-            panes.forEach(p => p.classList.remove('sdr-ppane-active'));
-            tab.classList.add('sdr-ptab-active');
-            const target = panel.querySelector(`#sdr-pane-${tab.dataset.tab}`);
-            if (target)
-                target.classList.add('sdr-ppane-active');
+    let _editingFreqId = null;
+    // ── Radio / Scanner main section toggles ─────────────────────────────────
+    function bindMainToggle(toggleId, bodyId) {
+        const toggle = document.getElementById(toggleId);
+        const body = document.getElementById(bodyId);
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.classList.contains('sdr-scanner-main-toggle-expanded');
+            toggle.classList.toggle('sdr-scanner-main-toggle-expanded', !expanded);
+            body.classList.toggle('sdr-scanner-main-body-expanded', !expanded);
+        });
+        return { toggle, body };
+    }
+    bindMainToggle('sdr-radio-main-toggle', 'sdr-pane-radio');
+    const { toggle: scannerMainToggle, body: scannerMainBody } = bindMainToggle('sdr-scanner-main-toggle', 'sdr-pane-scanner');
+    // ── Scanner section collapse ──────────────────────────────────────────────
+    panel.querySelectorAll('.sdr-scanner-section-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const section = toggle.dataset.section;
+            const body = document.getElementById(`sdr-scanner-${section}-body`);
+            const expanded = toggle.classList.contains('sdr-scanner-section-toggle-expanded');
+            toggle.classList.toggle('sdr-scanner-section-toggle-expanded', !expanded);
+            if (body)
+                body.classList.toggle('sdr-scanner-section-body-expanded', !expanded);
         });
     });
+    // ── Element refs ──────────────────────────────────────────────────────────
+    const radioSelect = document.getElementById('sdr-radio-select');
+    const freqInput = document.getElementById('sdr-freq-input');
+    const freqTuneBtn = document.getElementById('sdr-freq-tune');
+    const modePillsEl = document.getElementById('sdr-mode-pills');
+    const gainSlider = document.getElementById('sdr-gain-slider');
+    const gainVal = document.getElementById('sdr-gain-val');
+    const agcCheck = document.getElementById('sdr-agc-check');
+    const volSlider = document.getElementById('sdr-vol-slider');
+    const volVal = document.getElementById('sdr-vol-val');
+    const sqSlider = document.getElementById('sdr-sq-slider');
+    const sqVal = document.getElementById('sdr-sq-val');
+    const connDot = document.getElementById('sdr-conn-dot');
+    const statusLabel = document.getElementById('sdr-status-label');
+    const activeFreq = document.getElementById('sdr-active-freq');
+    const signalBar = document.getElementById('sdr-signal-bar');
+    const radioScanBtn = document.getElementById('sdr-radio-scan-btn');
+    const radioScanInd = document.getElementById('sdr-radio-scan-indicator');
+    const radioScanLbl = document.getElementById('sdr-radio-scan-label');
+    const radioScanFreq = document.getElementById('sdr-radio-scan-freq');
+    const addFreqBtn = document.getElementById('sdr-radio-add-freq');
+    const lockBtn = document.getElementById('sdr-radio-lock-btn');
+    // Edit freq panel
+    const efToggle = document.getElementById('sdr-editfreq-toggle');
+    const efBody = document.getElementById('sdr-editfreq-body');
+    const efLabel = document.getElementById('sdr-ef-label');
+    const efFreq = document.getElementById('sdr-ef-freq');
+    const efModePills = document.getElementById('sdr-ef-mode-pills');
+    const efGroupsEl = document.getElementById('sdr-ef-groups');
+    const efCancel = document.getElementById('sdr-ef-cancel');
+    const efSave = document.getElementById('sdr-ef-save');
+    const efDelete = document.getElementById('sdr-ef-delete');
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function sendCmd(obj) {
+        if (_sdrSocket && _sdrSocket.readyState === WebSocket.OPEN) {
+            _sdrSocket.send(JSON.stringify(obj));
+        }
+    }
+    function parseFreqMhz(raw) {
+        const v = parseFloat(raw.replace(/[^\d.]/g, ''));
+        if (isNaN(v) || v <= 0)
+            return null;
+        return v > 30000 ? v : Math.round(v * 1e6);
+    }
+    function displayFreq(hz) {
+        freqInput.value = (hz / 1e6).toFixed(6).replace(/\.?0+$/, '');
+        activeFreq.textContent = (hz / 1e6).toFixed(3) + ' MHz';
+    }
+    // ── Mode pills (main radio tab) ───────────────────────────────────────────
+    function setModePill(container, mode) {
+        container.querySelectorAll('.sdr-mode-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+    }
+    modePillsEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sdr-mode-pill');
+        if (!btn || !btn.dataset.mode)
+            return;
+        const mode = btn.dataset.mode;
+        setModePill(modePillsEl, mode);
+        _sdrCurrentMode = mode;
+        sendCmd({ cmd: 'mode', mode });
+        if (window._SdrAudio)
+            window._SdrAudio.setMode(mode);
+    });
+    // ── Tune ──────────────────────────────────────────────────────────────────
+    function tune() {
+        const hz = parseFreqMhz(freqInput.value);
+        if (!hz)
+            return;
+        _sdrCurrentFreqHz = hz;
+        sendCmd({ cmd: 'tune', frequency_hz: hz });
+        displayFreq(hz);
+    }
+    freqTuneBtn.addEventListener('click', tune);
+    freqInput.addEventListener('keydown', (e) => { if (e.key === 'Enter')
+        tune(); });
+    // ── Gain + AGC ────────────────────────────────────────────────────────────
+    let _gainDebounce = null;
+    function applyGain() {
+        const g = parseFloat(gainSlider.value);
+        const auto = agcCheck.checked || g < 0;
+        if (auto) {
+            gainVal.textContent = 'AUTO';
+            _sdrCurrentGainAuto = true;
+        }
+        else {
+            gainVal.textContent = `${g.toFixed(1)} dB`;
+            _sdrCurrentGain = g;
+            _sdrCurrentGainAuto = false;
+        }
+        if (_gainDebounce)
+            clearTimeout(_gainDebounce);
+        _gainDebounce = setTimeout(() => {
+            sendCmd({ cmd: 'gain', gain_db: auto ? null : g });
+        }, 150);
+    }
+    gainSlider.addEventListener('input', applyGain);
+    agcCheck.addEventListener('change', () => {
+        gainSlider.disabled = agcCheck.checked;
+        applyGain();
+    });
+    // ── Volume ────────────────────────────────────────────────────────────────
+    volSlider.addEventListener('input', () => {
+        const v = parseInt(volSlider.value, 10);
+        volVal.textContent = `${v}%`;
+        if (window._SdrAudio)
+            window._SdrAudio.setVolume(v / 100);
+    });
+    // ── Squelch ───────────────────────────────────────────────────────────────
+    let _sqDebounce = null;
+    sqSlider.addEventListener('input', () => {
+        const sq = parseInt(sqSlider.value, 10);
+        sqVal.textContent = `${sq} dBFS`;
+        _sdrCurrentSquelch = sq;
+        if (_sqDebounce)
+            clearTimeout(_sqDebounce);
+        _sqDebounce = setTimeout(() => {
+            sendCmd({ cmd: 'squelch', squelch_dbfs: sq });
+            if (window._SdrAudio)
+                window._SdrAudio.setSquelch(sq);
+        }, 150);
+    });
+    // ── Signal meter ──────────────────────────────────────────────────────────
+    function updateSignalBar(dbfs) {
+        const pct = Math.max(0, Math.min(100, ((dbfs + 120) / 120) * 100));
+        signalBar.style.width = pct + '%';
+        if (pct < 60) {
+            signalBar.style.background = '#4cdd4c';
+        }
+        else if (pct < 85) {
+            signalBar.style.background = '#c8ff00';
+        }
+        else {
+            signalBar.style.background = '#ff4444';
+        }
+    }
+    // ── Radio select ──────────────────────────────────────────────────────────
+    radioSelect.addEventListener('change', () => {
+        const id = parseInt(radioSelect.value, 10);
+        if (!isNaN(id) && id > 0) {
+            radioSelect.dispatchEvent(new CustomEvent('sdr-radio-selected', { bubbles: true, detail: { radioId: id } }));
+        }
+    });
+    // ── Scan (radio tab) ──────────────────────────────────────────────────────
+    radioScanBtn.addEventListener('click', () => {
+        if (_sdrScanActive) {
+            stopScan();
+        }
+        else {
+            startScan();
+        }
+    });
+    // ── Hold scan ─────────────────────────────────────────────────────────────
+    lockBtn.addEventListener('click', () => {
+        _sdrScanLocked = !_sdrScanLocked;
+        lockBtn.classList.toggle('sdr-btn-active', _sdrScanLocked);
+        lockBtn.textContent = _sdrScanLocked ? 'RESUME SCAN' : 'HOLD SCAN';
+    });
+    // ── Edit frequency — collapsible panel ────────────────────────────────────
+    efToggle.addEventListener('click', () => {
+        const open = !efToggle.classList.contains('expanded');
+        efToggle.classList.toggle('expanded', open);
+        efBody.classList.toggle('expanded', open);
+        if (!open) {
+            _editingFreqId = null;
+        }
+    });
+    function buildEfGroupCheckboxes(selectedIds) {
+        efGroupsEl.innerHTML = '';
+        const makeGroupPill = (id, label, color, active) => {
+            const btn = document.createElement('button');
+            btn.className = 'sdr-mode-pill sdr-ef-gpill' + (active ? ' active' : '');
+            btn.dataset.gid = String(id);
+            btn.type = 'button';
+            if (color) {
+                btn.innerHTML = `<span class="sdr-ef-gpill-dot" style="background:${color}"></span>${label}`;
+            }
+            else {
+                btn.textContent = label;
+            }
+            btn.addEventListener('click', () => btn.classList.toggle('active'));
+            return btn;
+        };
+        const defaultActive = selectedIds.length === 0 || selectedIds.includes(0);
+        efGroupsEl.appendChild(makeGroupPill(0, 'Default', null, defaultActive));
+        _groups.forEach(g => {
+            efGroupsEl.appendChild(makeGroupPill(g.id, g.name, g.color, selectedIds.includes(g.id)));
+        });
+    }
+    function getEfGroupIds() {
+        return Array.from(efGroupsEl.querySelectorAll('.sdr-ef-gpill.active'))
+            .map(btn => parseInt(btn.dataset.gid, 10))
+            .filter(id => id !== 0);
+    }
+    function getEfMode() {
+        const active = efModePills.querySelector('.sdr-mode-pill.active');
+        return active?.dataset.mode ?? 'AM';
+    }
+    efModePills.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sdr-mode-pill');
+        if (!btn || !btn.dataset.mode)
+            return;
+        setModePill(efModePills, btn.dataset.mode);
+    });
+    function switchToScannerTab() {
+        // Expand scanner section
+        scannerMainToggle.classList.add('sdr-scanner-main-toggle-expanded');
+        scannerMainBody.classList.add('sdr-scanner-main-body-expanded');
+        // Ensure freqs section is expanded
+        const freqsToggle = document.getElementById('sdr-scanner-freqs-toggle');
+        const freqsBody = document.getElementById('sdr-scanner-freqs-body');
+        freqsToggle.classList.add('sdr-scanner-section-toggle-expanded');
+        freqsBody.classList.add('sdr-scanner-section-body-expanded');
+    }
+    function clearEditingHighlight() {
+        document.querySelectorAll('.sdr-freq-editing').forEach(el => el.classList.remove('sdr-freq-editing'));
+    }
+    function openEditFreqPanel(f) {
+        _editingFreqId = f.id;
+        efLabel.value = f.label;
+        efFreq.value = (f.frequency_hz / 1e6).toFixed(4);
+        setModePill(efModePills, f.mode);
+        buildEfGroupCheckboxes(f.group_ids || []);
+        efDelete.style.display = '';
+        switchToScannerTab();
+        efToggle.classList.add('expanded');
+        efBody.classList.add('expanded');
+        clearEditingHighlight();
+        const rowEl = document.querySelector(`.sdr-freq-row-item[data-id="${f.id}"]`);
+        if (rowEl)
+            rowEl.classList.add('sdr-freq-editing');
+        efToggle.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function openAddFreqPanel() {
+        _editingFreqId = null;
+        efLabel.value = '';
+        efFreq.value = _sdrCurrentFreqHz ? (_sdrCurrentFreqHz / 1e6).toFixed(4) : '';
+        setModePill(efModePills, _sdrCurrentMode || 'AM');
+        buildEfGroupCheckboxes([]);
+        efDelete.style.display = 'none';
+        switchToScannerTab();
+        efToggle.classList.add('expanded');
+        efBody.classList.add('expanded');
+        efToggle.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    efCancel.addEventListener('click', () => {
+        _editingFreqId = null;
+        clearEditingHighlight();
+        efToggle.classList.remove('expanded');
+        efBody.classList.remove('expanded');
+    });
+    efSave.addEventListener('click', async () => {
+        const label = efLabel.value.trim();
+        const hz = parseFreqMhz(efFreq.value);
+        if (!label || !hz)
+            return;
+        const mode = getEfMode();
+        const groupIds = getEfGroupIds();
+        try {
+            if (_editingFreqId !== null) {
+                await fetch(`/api/sdr/frequencies/${_editingFreqId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label, frequency_hz: hz, mode, group_ids: groupIds }),
+                });
+            }
+            else {
+                await fetch('/api/sdr/frequencies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        label,
+                        frequency_hz: hz,
+                        mode,
+                        squelch: _sdrCurrentSquelch,
+                        gain: _sdrCurrentGain,
+                        scannable: true,
+                        group_ids: groupIds,
+                    }),
+                });
+            }
+            _editingFreqId = null;
+            clearEditingHighlight();
+            efToggle.classList.remove('expanded');
+            efBody.classList.remove('expanded');
+            await reloadData();
+        }
+        catch (_) { }
+    });
+    // ── Delete frequency ──────────────────────────────────────────────────────
+    efDelete.addEventListener('click', async () => {
+        if (_editingFreqId === null)
+            return;
+        try {
+            await fetch(`/api/sdr/frequencies/${_editingFreqId}`, { method: 'DELETE' });
+            _editingFreqId = null;
+            clearEditingHighlight();
+            efToggle.classList.remove('expanded');
+            efBody.classList.remove('expanded');
+            await reloadData();
+        }
+        catch (_) { }
+    });
+    // ── Add frequency button → opens inline panel ─────────────────────────────
+    addFreqBtn.addEventListener('click', openAddFreqPanel);
+    // ── Group modal ───────────────────────────────────────────────────────────
+    const groupModal = document.getElementById('sdr-group-modal');
+    const gmodName = document.getElementById('sdr-gmod-name');
+    const gmodCancel = document.getElementById('sdr-gmod-cancel');
+    const gmodSave = document.getElementById('sdr-gmod-save');
+    let _editingGroupId = null;
+    function openEditGroupModal(g) {
+        _editingGroupId = g.id;
+        gmodName.value = g.name;
+        groupModal.style.display = 'flex';
+        gmodName.focus();
+    }
+    function closeGroupModal() {
+        groupModal.style.display = 'none';
+        _editingGroupId = null;
+    }
+    gmodCancel.addEventListener('click', closeGroupModal);
+    groupModal.addEventListener('click', (e) => { if (e.target === groupModal)
+        closeGroupModal(); });
+    gmodSave.addEventListener('click', async () => {
+        const name = gmodName.value.trim();
+        if (!name || _editingGroupId === null)
+            return;
+        try {
+            await fetch(`/api/sdr/groups/${_editingGroupId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name }),
+            });
+            closeGroupModal();
+            await reloadData();
+        }
+        catch (_) { }
+    });
+    // ── Status dot + controls update ─────────────────────────────────────────
+    function setStatus(connected) {
+        _sdrConnected = connected;
+        connDot.className = 'sdr-conn-dot ' + (connected ? 'sdr-dot-on' : 'sdr-dot-off');
+        connDot.title = connected ? 'Connected' : 'Disconnected';
+        statusLabel.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
+        statusLabel.className = 'sdr-status-label' + (connected ? ' sdr-status-on' : '');
+    }
+    function applyStatus(msg) {
+        setStatus(msg.connected);
+        if (msg.connected) {
+            _sdrCurrentFreqHz = msg.center_hz;
+            _sdrCurrentMode = msg.mode;
+            _sdrCurrentGain = msg.gain_db;
+            _sdrCurrentGainAuto = msg.gain_auto;
+            _sdrCurrentSampleRate = msg.sample_rate;
+            displayFreq(msg.center_hz);
+            setModePill(modePillsEl, msg.mode);
+            if (msg.gain_auto) {
+                agcCheck.checked = true;
+                gainSlider.disabled = true;
+                gainVal.textContent = 'AUTO';
+            }
+            else {
+                agcCheck.checked = false;
+                gainSlider.disabled = false;
+                gainSlider.value = String(msg.gain_db);
+                gainVal.textContent = `${msg.gain_db.toFixed(1)} dB`;
+            }
+            if (typeof msg.signal_dbfs === 'number') {
+                updateSignalBar(msg.signal_dbfs);
+            }
+        }
+    }
+    function getSelectedRadioId() {
+        const v = parseInt(radioSelect.value, 10);
+        return isNaN(v) || v <= 0 ? null : v;
+    }
+    // ── Custom device dropdown ────────────────────────────────────────────────
+    const deviceDropdown = document.getElementById('sdr-device-dropdown');
+    const deviceDropdownText = document.getElementById('sdr-device-dropdown-text');
+    let _deviceMenuEl = null;
+    let _deviceMenuOpen = false;
+    function buildDeviceMenu(radios) {
+        if (_deviceMenuEl)
+            _deviceMenuEl.remove();
+        _deviceMenuEl = document.createElement('div');
+        _deviceMenuEl.className = 'sdr-device-menu';
+        const placeholder = document.createElement('div');
+        placeholder.className = 'sdr-device-menu-item sdr-device-menu-placeholder';
+        placeholder.textContent = '— select radio —';
+        placeholder.addEventListener('click', () => {
+            radioSelect.value = '';
+            deviceDropdownText.textContent = '— select radio —';
+            deviceDropdownText.classList.remove('sdr-device-dropdown-text--chosen');
+            closeDeviceMenu();
+        });
+        _deviceMenuEl.appendChild(placeholder);
+        radios.filter(r => r.enabled).forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'sdr-device-menu-item';
+            item.textContent = r.name;
+            item.dataset.value = String(r.id);
+            item.addEventListener('click', () => {
+                radioSelect.value = String(r.id);
+                deviceDropdownText.textContent = r.name;
+                deviceDropdownText.classList.add('sdr-device-dropdown-text--chosen');
+                closeDeviceMenu();
+                radioSelect.dispatchEvent(new Event('change'));
+            });
+            _deviceMenuEl.appendChild(item);
+        });
+        document.body.appendChild(_deviceMenuEl);
+    }
+    function positionDeviceMenu() {
+        if (!_deviceMenuEl)
+            return;
+        const rect = deviceDropdown.getBoundingClientRect();
+        _deviceMenuEl.style.left = rect.left + 'px';
+        _deviceMenuEl.style.top = (rect.bottom) + 'px';
+        _deviceMenuEl.style.width = rect.width + 'px';
+    }
+    function openDeviceMenu() {
+        if (!_deviceMenuEl)
+            return;
+        positionDeviceMenu();
+        _deviceMenuEl.classList.add('sdr-device-menu--open');
+        deviceDropdown.classList.add('sdr-device-dropdown--open');
+        _deviceMenuOpen = true;
+    }
+    function closeDeviceMenu() {
+        if (!_deviceMenuEl)
+            return;
+        _deviceMenuEl.classList.remove('sdr-device-menu--open');
+        deviceDropdown.classList.remove('sdr-device-dropdown--open');
+        _deviceMenuOpen = false;
+    }
+    deviceDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (_deviceMenuOpen)
+            closeDeviceMenu();
+        else
+            openDeviceMenu();
+    });
+    deviceDropdown.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (_deviceMenuOpen)
+                closeDeviceMenu();
+            else
+                openDeviceMenu();
+        }
+        if (e.key === 'Escape')
+            closeDeviceMenu();
+    });
+    document.addEventListener('click', () => { if (_deviceMenuOpen)
+        closeDeviceMenu(); });
+    // ── Populate radio list ───────────────────────────────────────────────────
+    window._sdrPopulateRadios = function (radios) {
+        const current = radioSelect.value;
+        while (radioSelect.options.length > 0)
+            radioSelect.remove(0);
+        const defOpt = document.createElement('option');
+        defOpt.value = '';
+        defOpt.textContent = '— select radio —';
+        radioSelect.appendChild(defOpt);
+        radios.filter(r => r.enabled).forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = String(r.id);
+            opt.textContent = r.name;
+            radioSelect.appendChild(opt);
+        });
+        if (current) {
+            radioSelect.value = current;
+            const chosen = radios.find(r => String(r.id) === current);
+            if (chosen) {
+                deviceDropdownText.textContent = chosen.name;
+                deviceDropdownText.classList.add('sdr-device-dropdown-text--chosen');
+            }
+        }
+        buildDeviceMenu(radios);
+    };
+    window._SdrControls = { setStatus, applyStatus, getSelectedRadioId };
     // ── Render frequency list ─────────────────────────────────────────────────
     function renderFreqs() {
         const list = document.getElementById('sdr-freq-list');
@@ -105,14 +771,21 @@
             return;
         }
         empty.style.display = 'none';
-        // Group freqs
-        const grouped = { none: [] };
+        const grouped = { default: [] };
         _groups.forEach(g => { grouped[g.id] = []; });
         _freqs.forEach(f => {
-            const key = f.group_id ?? 'none';
-            if (!grouped[key])
-                grouped[key] = [];
-            grouped[key].push(f);
+            const ids = f.group_ids && f.group_ids.length > 0 ? f.group_ids : [];
+            const realIds = ids.filter(id => id !== 0 && _groups.some(g => g.id === id));
+            if (realIds.length === 0) {
+                grouped['default'].push(f);
+            }
+            else {
+                realIds.forEach(id => {
+                    if (!grouped[id])
+                        grouped[id] = [];
+                    grouped[id].push(f);
+                });
+            }
         });
         function renderGroup(name, color, items) {
             if (items.length === 0)
@@ -131,16 +804,19 @@
                         <span class="sdr-freq-row-label">${f.label}</span>
                         <span class="sdr-freq-row-mode">${f.mode}</span>
                     </div>
-                    <div class="sdr-freq-row-hz">${mhz} <span>MHz</span></div>
+                    <div class="sdr-freq-row-sub">
+                        <span class="sdr-freq-row-hz">${mhz} <span>MHz</span></span>
+                    </div>
                 `;
-                row.addEventListener('click', () => tuneToFreq(f));
+                row.addEventListener('click', () => {
+                    tuneToFreq(f);
+                    openEditFreqPanel(f);
+                });
                 list.appendChild(row);
             });
         }
         _groups.forEach(g => renderGroup(g.name, g.color, grouped[g.id] || []));
-        renderGroup('Ungrouped', 'rgba(255,255,255,0.2)', grouped['none'] || []);
-        // Update scan queue list too
-        renderScanQueue();
+        renderGroup('Default', 'rgba(255,255,255,0.2)', grouped['default'] || []);
     }
     function tuneToFreq(f) {
         _sdrCurrentFreqHz = f.frequency_hz;
@@ -149,34 +825,43 @@
             _sdrSocket.send(JSON.stringify({ cmd: 'tune', frequency_hz: f.frequency_hz }));
             _sdrSocket.send(JSON.stringify({ cmd: 'mode', mode: f.mode }));
         }
-        if (window._SdrDisplay)
-            window._SdrDisplay.setFreqMarker(f.frequency_hz);
-        // Sync controls input
-        const freqInput = document.getElementById('sdr-freq-input');
-        if (freqInput)
-            freqInput.value = (f.frequency_hz / 1e6).toFixed(6).replace(/\.?0+$/, '');
-        const modeSelect = document.getElementById('sdr-mode-select');
-        if (modeSelect)
-            modeSelect.value = f.mode;
+        displayFreq(f.frequency_hz);
+        setModePill(modePillsEl, f.mode);
     }
-    // ── Render group list (GROUPS tab) ────────────────────────────────────────
+    // ── Render group list ─────────────────────────────────────────────────────
     function renderGroups() {
         const list = document.getElementById('sdr-group-list');
         list.innerHTML = '';
+        const pills = document.createElement('div');
+        pills.className = 'sdr-group-pills';
+        // Default pill (non-interactive)
+        const defaultPill = document.createElement('div');
+        defaultPill.className = 'sdr-group-pill sdr-group-pill-default';
+        defaultPill.innerHTML = `
+            <span class="sdr-group-pill-dot" style="background:rgba(255,255,255,0.2)"></span>
+            <span class="sdr-group-pill-name">Default</span>
+        `;
+        pills.appendChild(defaultPill);
         _groups.forEach(g => {
-            const row = document.createElement('div');
-            row.className = 'sdr-group-row';
-            row.innerHTML = `
-                <span class="sdr-freq-group-dot" style="background:${g.color}"></span>
-                <span class="sdr-group-name">${g.name}</span>
-                <button class="sdr-group-del" data-id="${g.id}" title="Delete group">&#x2715;</button>
+            const pill = document.createElement('div');
+            pill.className = 'sdr-group-pill';
+            pill.innerHTML = `
+                <span class="sdr-group-pill-dot" style="background:${g.color}"></span>
+                <span class="sdr-group-pill-name">${g.name}</span>
+                <button class="sdr-group-pill-edit" title="Rename group">&#x270E;</button>
+                <button class="sdr-group-pill-del" title="Delete group">&#x2715;</button>
             `;
-            row.querySelector('.sdr-group-del').addEventListener('click', (e) => {
+            pill.querySelector('.sdr-group-pill-edit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openEditGroupModal(g);
+            });
+            pill.querySelector('.sdr-group-pill-del').addEventListener('click', (e) => {
                 e.stopPropagation();
                 deleteGroup(g.id);
             });
-            list.appendChild(row);
+            pills.appendChild(pill);
         });
+        list.appendChild(pills);
     }
     // ── Group add/delete ──────────────────────────────────────────────────────
     document.getElementById('sdr-add-group-btn').addEventListener('click', addGroup);
@@ -203,7 +888,16 @@
         catch (_) { }
     }
     async function deleteGroup(id) {
+        const freqsToUpdate = _freqs.filter(f => {
+            const ids = (f.group_ids || []).filter(gid => gid !== 0);
+            return ids.length === 1 && ids[0] === id;
+        });
         try {
+            await Promise.all(freqsToUpdate.map(f => fetch(`/api/sdr/frequencies/${f.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_ids: [] }),
+            })));
             await fetch(`/api/sdr/groups/${id}`, { method: 'DELETE' });
             await reloadData();
         }
@@ -213,25 +907,16 @@
     let _scanQueue = [];
     let _scanIdx = 0;
     let _scanTimer = null;
-    function renderScanQueue() {
+    function buildScanQueue() {
         _scanQueue = _freqs.filter(f => f.scannable);
-        const count = document.getElementById('sdr-scan-count');
-        count.textContent = `${_scanQueue.length} frequenc${_scanQueue.length === 1 ? 'y' : 'ies'}`;
-        const qList = document.getElementById('sdr-scan-queue-list');
-        qList.innerHTML = '';
-        _scanQueue.forEach(f => {
-            const item = document.createElement('div');
-            item.className = 'sdr-scan-item';
-            item.textContent = `${(f.frequency_hz / 1e6).toFixed(4)} ${f.mode}  ${f.label}`;
-            qList.appendChild(item);
-        });
     }
     function startScan() {
-        if (_sdrScanLocked || _scanQueue.length === 0)
+        if (_sdrScanLocked)
+            return;
+        buildScanQueue();
+        if (_scanQueue.length === 0)
             return;
         _sdrScanActive = true;
-        document.getElementById('sdr-scan-start').setAttribute('disabled', '');
-        document.getElementById('sdr-scan-stop').disabled = false;
         setScanStatus(true, null);
         _scanIdx = 0;
         doScanStep();
@@ -242,8 +927,6 @@
             clearTimeout(_scanTimer);
             _scanTimer = null;
         }
-        document.getElementById('sdr-scan-start').removeAttribute('disabled');
-        document.getElementById('sdr-scan-stop').disabled = true;
         setScanStatus(false, null);
     }
     function doScanStep() {
@@ -252,82 +935,16 @@
         const f = _scanQueue[_scanIdx % _scanQueue.length];
         tuneToFreq(f);
         setScanStatus(true, f.frequency_hz);
-        const dwell = parseInt(document.getElementById('sdr-scan-dwell').value, 10) || 2000;
         _scanIdx++;
-        _scanTimer = setTimeout(doScanStep, dwell);
+        _scanTimer = setTimeout(doScanStep, 2000);
     }
-    document.getElementById('sdr-scan-start').addEventListener('click', startScan);
-    document.getElementById('sdr-scan-stop').addEventListener('click', stopScan);
     function setScanStatus(active, currentHz) {
-        const indicator = document.getElementById('sdr-scan-indicator');
-        const label = document.getElementById('sdr-scan-label');
-        const current = document.getElementById('sdr-scan-current');
-        indicator.className = 'sdr-scan-indicator' + (active ? ' sdr-scan-running' : '');
-        label.textContent = active ? 'SCANNING' : 'IDLE';
-        current.textContent = (active && currentHz) ? `→ ${(currentHz / 1e6).toFixed(4)} MHz` : '';
+        radioScanInd.className = 'sdr-scan-indicator' + (active ? ' sdr-scan-running' : '');
+        radioScanLbl.textContent = active ? 'SCANNING' : 'IDLE';
+        radioScanFreq.textContent = (active && currentHz) ? `→ ${(currentHz / 1e6).toFixed(4)} MHz` : '';
+        radioScanBtn.textContent = active ? 'STOP SCANNING' : 'START SCANNING';
+        radioScanBtn.classList.toggle('sdr-scan-active-btn', active);
     }
-    // ── Test panel ────────────────────────────────────────────────────────────
-    function testLog(msg, type = 'ok') {
-        const log = document.getElementById('sdr-test-log');
-        const line = document.createElement('div');
-        line.className = `sdr-test-log-line sdr-test-${type}`;
-        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-        log.insertBefore(line, log.firstChild);
-        // Keep last 50 lines
-        while (log.children.length > 50)
-            log.removeChild(log.lastChild);
-    }
-    function testSend(obj) {
-        if (!_sdrSocket || _sdrSocket.readyState !== WebSocket.OPEN) {
-            testLog('Not connected — no WebSocket open', 'err');
-            return;
-        }
-        const str = JSON.stringify(obj);
-        _sdrSocket.send(str);
-        testLog(`→ ${str}`, 'sent');
-    }
-    document.getElementById('sdr-test-tune-btn').addEventListener('click', () => {
-        const v = document.getElementById('sdr-test-freq').value;
-        const hz = parseInt(v, 10);
-        if (!hz) {
-            testLog('Invalid frequency', 'err');
-            return;
-        }
-        testSend({ cmd: 'tune', frequency_hz: hz });
-    });
-    document.getElementById('sdr-test-gain-btn').addEventListener('click', () => {
-        const v = document.getElementById('sdr-test-gain').value.trim();
-        testSend({ cmd: 'gain', gain_db: v === '' ? null : parseFloat(v) });
-    });
-    document.getElementById('sdr-test-rate-btn').addEventListener('click', () => {
-        const v = document.getElementById('sdr-test-rate').value;
-        const hz = parseInt(v, 10);
-        if (!hz) {
-            testLog('Invalid sample rate', 'err');
-            return;
-        }
-        testSend({ cmd: 'sample_rate', rate_hz: hz });
-    });
-    document.getElementById('sdr-test-raw-btn').addEventListener('click', () => {
-        const v = document.getElementById('sdr-test-raw').value.trim();
-        try {
-            const obj = JSON.parse(v);
-            testSend(obj);
-        }
-        catch (_) {
-            testLog('Invalid JSON', 'err');
-        }
-    });
-    document.getElementById('sdr-test-clear-btn').addEventListener('click', () => {
-        document.getElementById('sdr-test-log').innerHTML = '';
-    });
-    // Allow Enter key in raw input
-    document.getElementById('sdr-test-raw').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter')
-            document.getElementById('sdr-test-raw-btn').click();
-    });
-    // Expose testLog so sdr-boot can log incoming messages to it
-    window._sdrTestLog = testLog;
     // ── Data reload ───────────────────────────────────────────────────────────
     async function reloadData() {
         try {
@@ -339,6 +956,7 @@
             _freqs = await fRes.json();
             renderGroups();
             renderFreqs();
+            buildScanQueue();
         }
         catch (_) { }
     }
@@ -355,23 +973,20 @@
         document.body.classList.add('sdr-panel-hidden');
         sessionStorage.removeItem('sdrPanelOpen');
     }
-    function toggle() {
-        if (_visible)
-            hide();
-        else
-            show();
-    }
+    function toggle() { if (_visible)
+        hide();
+    else
+        show(); }
     function isVisible() { return _visible; }
     function refresh(groups, freqs) {
         _groups = groups;
         _freqs = freqs;
         renderGroups();
         renderFreqs();
+        buildScanQueue();
     }
     // ── Public API ────────────────────────────────────────────────────────────
     window._SdrPanel = { show, hide, toggle, isVisible, refresh, setScanStatus };
-    // ── Expose reloadData for external use (add-freq button) ─────────────────
     window._sdrPanelReload = reloadData;
-    // Initial load
     reloadData();
 })();

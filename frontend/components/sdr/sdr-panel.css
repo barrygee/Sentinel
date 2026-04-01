@@ -1,17 +1,18 @@
 /* ============================================================
    SDR PANEL
    Fixed left panel for the SDR page.
-   Mirrors the geometry of #map-sidebar but is entirely SDR-specific.
+   Matches the shared map-sidebar geometry: 325px wide, 52px tab bar,
+   28px horizontal padding, 13px vertical section padding.
    ============================================================ */
 
 #sdr-panel {
     position: fixed;
-    top: var(--nav-height);         /* 68px */
-    bottom: var(--footer-height);   /* 44px */
+    top: var(--nav-height);
+    bottom: var(--footer-height);
     left: 0;
-    width: 260px;
-    background: rgba(10, 13, 20, 0.97);
-    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    width: 325px;
+    background: rgba(10, 13, 20, 0.92);
+    border-right: none;
     z-index: 200;
     display: flex;
     flex-direction: column;
@@ -25,212 +26,678 @@
     transform: translateX(-100%);
 }
 
-/* ---- Tab bar ---- */
-#sdr-panel-tabs {
-    display: flex;
-    flex-shrink: 0;
-    height: 44px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.sdr-ptab {
-    flex: 1;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: rgba(255, 255, 255, 0.28);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    cursor: pointer;
-    padding: 0;
-    transition: color 0.15s, border-color 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sdr-ptab:hover {
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.sdr-ptab.sdr-ptab-active {
-    color: #c8ff00;
-    border-bottom-color: #c8ff00;
-}
-
-/* ---- Pane container ---- */
+/* ---- Single scroll container ---- */
 #sdr-panel-panes {
     flex: 1;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-}
-
-.sdr-ppane {
-    display: none;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-}
-
-.sdr-ppane.sdr-ppane-active {
-    display: flex;
-}
-
-/* ---- FREQS pane ---- */
-#sdr-pane-freqs {
     overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: none;
-    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
 }
 
-#sdr-pane-freqs::-webkit-scrollbar { display: none; }
+#sdr-panel-panes::-webkit-scrollbar { display: none; }
 
-.sdr-freq-group-header {
+.sdr-ppane-single {
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   RADIO SECTION
+   ============================================================ */
+
+#sdr-pane-radio {
+    overflow-y: visible;
+    scrollbar-width: none;
+}
+
+/* Status row (status label only, inside collapsed body) */
+.sdr-radio-status-row {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 10px 14px 4px;
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.3);
+    padding: 14px 28px 4px;
+    flex-shrink: 0;
 }
 
-.sdr-freq-group-dot {
-    width: 6px;
-    height: 6px;
+.sdr-conn-dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
 }
 
-.sdr-freq-row-item {
-    padding: 7px 14px;
-    cursor: pointer;
-    transition: background 0.12s;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+.sdr-dot-off {
+    background: rgba(255, 60, 60, 0.6);
 }
 
-.sdr-freq-row-item:hover {
-    background: rgba(255, 255, 255, 0.04);
+.sdr-dot-on {
+    background: #c8ff00;
+    box-shadow: 0 0 6px rgba(200, 255, 0, 0.7);
+    animation: sdr-dot-pulse 2s ease-in-out infinite;
 }
 
-.sdr-freq-row-main {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 2px;
+@keyframes sdr-dot-pulse {
+    0%,100% { box-shadow: 0 0 4px rgba(200,255,0,0.5); }
+    50%      { box-shadow: 0 0 10px rgba(200,255,0,0.9); }
 }
 
-.sdr-freq-row-label {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.8);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 160px;
-}
-
-.sdr-freq-row-mode {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 8px;
+.sdr-status-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    color: rgba(200, 255, 0, 0.6);
-    flex-shrink: 0;
-    margin-left: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
 }
 
-.sdr-freq-row-hz {
-    font-family: 'Barlow Condensed', 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+.sdr-status-label.sdr-status-on {
+    color: rgba(200, 255, 0, 0.6);
+}
+
+.sdr-active-freq {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 13px;
     font-weight: 300;
     color: #c8ff00;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
+    margin-left: auto;
 }
 
-.sdr-freq-row-hz span {
+/* ---- Radio section rows ---- */
+.sdr-radio-section {
+    padding: 22px 28px;
+}
+
+/* Field label */
+.sdr-field-label {
+    display: block;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
-    color: rgba(200, 255, 0, 0.5);
-    margin-left: 2px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
+    margin-bottom: 8px;
 }
 
-.sdr-panel-empty {
-    padding: 24px 18px;
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 10px;
-    font-weight: 400;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.18);
-    line-height: 1.7;
-    display: none;
+/* ---- Device — custom dropdown matching tle-dropdown style ---- */
+.sdr-device-dropdown {
+    position: relative;
+    width: 100%;
+    height: 34px;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
 }
 
-/* ---- GROUPS pane ---- */
-#sdr-pane-groups {
-    overflow-y: auto;
-    scrollbar-width: none;
-    padding: 8px 0;
+.sdr-device-dropdown:focus,
+.sdr-device-dropdown--open {
+    border-color: rgba(200, 255, 0, 0.35);
 }
 
-#sdr-pane-groups::-webkit-scrollbar { display: none; }
-
-.sdr-group-row {
+.sdr-device-dropdown-selected {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    justify-content: space-between;
+    height: 100%;
+    padding: 0 10px;
 }
 
-.sdr-group-name {
+.sdr-device-dropdown-text {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
     flex: 1;
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11px;
-    font-weight: 400;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sdr-device-dropdown-text--chosen {
     color: rgba(255, 255, 255, 0.75);
 }
 
-.sdr-group-del {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.2);
-    cursor: pointer;
-    font-size: 11px;
-    padding: 2px 4px;
-    transition: color 0.15s;
+.sdr-device-dropdown-arrow {
+    flex-shrink: 0;
+    width: 8px;
+    height: 5px;
+    margin-left: 8px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: transform 0.15s;
 }
 
-.sdr-group-del:hover { color: rgba(255, 80, 80, 0.8); }
+.sdr-device-dropdown--open .sdr-device-dropdown-arrow {
+    transform: rotate(180deg);
+}
 
-.sdr-panel-add-row {
+.sdr-device-menu {
+    display: none;
+    position: fixed;
+    z-index: 99999;
+    background: #13171f;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: none;
+    overflow-y: auto;
+    max-height: 220px;
+    box-sizing: border-box;
+}
+
+.sdr-device-menu.sdr-device-menu--open {
+    display: block;
+}
+
+.sdr-device-menu-item {
+    padding: 9px 12px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s;
+}
+
+.sdr-device-menu-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+}
+
+.sdr-device-menu-placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+/* ---- Mode — pill buttons ---- */
+.sdr-mode-pills {
     display: flex;
-    gap: 6px;
-    padding: 10px 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    margin-top: auto;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sdr-mode-pill {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0 10px;
+    height: 28px;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.sdr-mode-pill:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.sdr-mode-pill.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.sdr-mode-pill.active:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #c8ff00;
+}
+
+/* ---- Frequency row ---- */
+.sdr-freq-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sdr-freq-input-large {
+    flex: 1;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: #c8ff00;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    padding: 6px 8px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.sdr-freq-input-large:focus {
+    border-color: rgba(200, 255, 0, 0.5);
+}
+
+.sdr-freq-input-large::placeholder {
+    color: rgba(200, 255, 0, 0.2);
+}
+
+/* ---- Tune button — matches mode pill style ---- */
+.sdr-tune-btn {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: rgba(200, 255, 0, 0.75);
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0 14px;
+    height: 28px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+}
+
+.sdr-tune-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #c8ff00;
+}
+
+/* ---- Slider rows ---- */
+.sdr-slider-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.sdr-slider-header .sdr-field-label {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.sdr-slider-val {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 700;
+    color: #c8ff00;
+    letter-spacing: 0.1em;
+    min-width: 60px;
+    text-align: right;
     flex-shrink: 0;
 }
 
-.sdr-panel-input {
+.sdr-panel-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: #c8ff00;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    display: block;
+    box-sizing: border-box;
+    border: none;
+}
+
+.sdr-panel-slider:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.sdr-panel-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.sdr-panel-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.sdr-panel-slider::-moz-range-track {
+    height: 3px;
+    border-radius: 2px;
+    background: #c8ff00;
+}
+
+/* ---- AGC row ---- */
+.sdr-agc-row {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.sdr-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sdr-checkbox { display: none; }
+
+.sdr-checkbox-custom {
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.sdr-checkbox:checked + .sdr-checkbox-custom {
+    background: rgba(200, 255, 0, 0.12);
+    border-color: rgba(200, 255, 0, 0.6);
+}
+
+.sdr-checkbox:checked + .sdr-checkbox-custom::after {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 5px;
+    border-left: 1.5px solid #c8ff00;
+    border-bottom: 1.5px solid #c8ff00;
+    transform: rotate(-45deg) translateY(-1px);
+}
+
+.sdr-checkbox-text {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.06em;
+}
+
+/* ---- Signal bar ---- */
+.sdr-signal-bar-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.sdr-signal-bar {
+    height: 100%;
+    width: 0%;
+    background: #4cdd4c;
+    border-radius: 2px;
+    transition: width 0.2s ease, background 0.3s;
+}
+
+/* ---- Scanner scan controls block ---- */
+.sdr-scan-controls {
+    padding: 18px 28px 14px;
+}
+
+.sdr-scan-state-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.sdr-scan-state-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.sdr-scan-state-freq {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 12px;
+    color: #c8ff00;
+    letter-spacing: 0.04em;
+    margin-left: auto;
+}
+
+.sdr-scan-btns-row {
+    display: flex;
+    gap: 0;
+}
+
+.sdr-scan-action-btn {
     flex: 1;
+    text-align: center;
+    padding: 7px 4px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    white-space: nowrap;
+}
+
+.sdr-scan-action-btn:hover {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.sdr-scan-action-btn--bg {
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 2px;
+}
+
+.sdr-scan-action-btn--bg:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.sdr-scan-signal-row {
+    padding-top: 14px;
+}
+
+.sdr-add-freq-btn {
+    color: rgba(200, 255, 0, 0.45);
+}
+
+.sdr-add-freq-btn:hover {
+    color: #c8ff00;
+}
+
+.sdr-scan-action-btn.sdr-scan-active-btn {
+    color: rgba(255, 100, 100, 0.75);
+}
+
+.sdr-scan-action-btn.sdr-scan-active-btn:hover {
+    color: rgba(255, 100, 100, 1);
+}
+
+.sdr-btn-active {
+    color: #c8ff00 !important;
+}
+
+/* ============================================================
+   EDIT FREQ — collapsible filter panel (matches spp-filter style)
+   ============================================================ */
+
+.sdr-editfreq-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 14px 28px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s;
+    box-sizing: border-box;
+}
+
+.sdr-editfreq-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sdr-editfreq-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.sdr-editfreq-toggle-icon {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, color 0.15s;
+    flex-shrink: 0;
+    transform: rotate(-90deg);
+}
+
+.sdr-editfreq-toggle.expanded .sdr-editfreq-toggle-icon {
+    transform: rotate(0deg);
+    color: #c8ff00;
+}
+
+.sdr-editfreq-toggle-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    transition: color 0.15s;
+}
+
+.sdr-editfreq-toggle.expanded .sdr-editfreq-toggle-label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.sdr-editfreq-body {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    padding: 0 28px;
+    transition: max-height 0.2s ease, opacity 0.2s ease, padding 0.2s ease;
+}
+
+.sdr-editfreq-body.expanded {
+    max-height: 600px;
+    opacity: 1;
+    padding: 20px 28px 28px;
+}
+
+/* Field inside editfreq body */
+.sdr-editfreq-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.sdr-editfreq-field .sdr-field-label {
+    margin-bottom: 6px;
+}
+
+/* ---- Mode pills in editfreq ---- */
+.sdr-editfreq-field .sdr-mode-pills {
+    flex-wrap: wrap;
+}
+
+/* ---- Groups pill row in editfreq ---- */
+.sdr-fmod-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Color dot inside group pill */
+.sdr-ef-gpill-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+/* ---- Save/cancel/delete row ---- */
+.sdr-editfreq-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sdr-editfreq-actions-right {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.sdr-editfreq-del-btn {
+    background: none;
+    color: rgba(255, 80, 80, 0.5);
+}
+
+.sdr-editfreq-del-btn:hover {
+    background: rgba(255, 80, 80, 0.1);
+    color: rgba(255, 80, 80, 0.9);
+}
+
+.sdr-editfreq-save-btn {
+    background: rgba(200, 255, 0, 0.08);
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.sdr-editfreq-save-btn:hover {
+    background: rgba(200, 255, 0, 0.14);
+    color: #c8ff00;
+}
+
+/* ============================================================
+   SHARED INPUTS + BUTTONS
+   ============================================================ */
+
+.sdr-panel-input {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 2px;
     color: rgba(255, 255, 255, 0.85);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 11px;
-    padding: 5px 8px;
+    padding: 6px 8px;
     outline: none;
     transition: border-color 0.15s;
+    box-sizing: border-box;
 }
 
 .sdr-panel-input:focus {
@@ -242,19 +709,21 @@
 }
 
 .sdr-panel-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.7);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    padding: 5px 10px;
+    padding: 0 14px;
+    height: 28px;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
 }
 
 .sdr-panel-btn:hover {
@@ -267,26 +736,315 @@
     cursor: default;
 }
 
-/* ---- SCAN pane ---- */
-#sdr-pane-scan {
-    overflow-y: auto;
-    scrollbar-width: none;
-    padding: 12px 14px;
-    gap: 10px;
+.sdr-panel-empty {
+    padding: 28px 28px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.18);
+    line-height: 1.8;
+    display: none;
+    text-transform: uppercase;
 }
 
-#sdr-pane-scan::-webkit-scrollbar { display: none; }
+/* ============================================================
+   SCANNER TAB — collapsible sections
+   ============================================================ */
 
-.sdr-scan-status {
+/* Top-level section toggles (RADIO + SCANNER) */
+.sdr-scanner-main-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0 28px;
+    height: 44px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+#sdr-radio-main-toggle {
+    border-top: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sdr-scanner-main-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Conn dot + active freq shown in the radio toggle header */
+.sdr-radio-toggle-status {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    margin-left: auto;
 }
 
+.sdr-scanner-main-body {
+    flex-shrink: 0;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease;
+}
+
+.sdr-scanner-main-body-expanded {
+    max-height: 4000px;
+}
+
+#sdr-pane-scanner {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Section toggle header */
+.sdr-scanner-section-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 20px 28px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s;
+    box-sizing: border-box;
+}
+
+.sdr-scanner-section-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sdr-scanner-section-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.sdr-scanner-section-icon {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, color 0.15s;
+    flex-shrink: 0;
+    transform: rotate(-90deg);
+}
+
+.sdr-scanner-section-toggle-expanded .sdr-scanner-section-icon {
+    transform: rotate(0deg);
+    color: #c8ff00;
+}
+
+.sdr-scanner-section-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    transition: color 0.15s;
+}
+
+.sdr-scanner-section-toggle-expanded .sdr-scanner-section-label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Section body */
+.sdr-scanner-section-body {
+    flex-shrink: 0;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.22s ease;
+}
+
+.sdr-scanner-section-body-expanded {
+    max-height: 2000px;
+}
+
+/* ============================================================
+   FREQS SECTION
+   ============================================================ */
+
+.sdr-freq-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 28px 5px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.sdr-freq-group-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.sdr-freq-row-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 16px 28px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.sdr-freq-row-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.sdr-freq-row-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sdr-freq-row-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sdr-freq-row-mode {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(200, 255, 0, 0.55);
+    flex-shrink: 0;
+}
+
+.sdr-freq-row-sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sdr-freq-row-hz {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 300;
+    color: #c8ff00;
+    letter-spacing: 0.02em;
+}
+
+.sdr-freq-row-hz span {
+    font-size: 9px;
+    color: rgba(200, 255, 0, 0.45);
+    margin-left: 2px;
+}
+
+/* Freq row — indicate selected/editing state */
+.sdr-freq-row-item.sdr-freq-editing {
+    background: rgba(200, 255, 0, 0.04);
+}
+
+/* ============================================================
+   GROUPS SECTION
+   ============================================================ */
+
+#sdr-scanner-groups-body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Pill grid */
+.sdr-group-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 14px 28px 10px;
+}
+
+/* Each group as a pill matching mode pill style */
+.sdr-group-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    height: 28px;
+    padding: 0 4px 0 10px;
+    cursor: default;
+    transition: background 0.15s;
+}
+
+.sdr-group-pill:hover {
+    background: rgba(255, 255, 255, 0.13);
+}
+
+.sdr-group-pill-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.sdr-group-pill-name {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+}
+
+.sdr-group-pill-edit,
+.sdr-group-pill-del {
+    background: none;
+    border: none;
+    padding: 0 5px;
+    height: 100%;
+    cursor: pointer;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.2);
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.sdr-group-pill-edit:hover { color: rgba(200, 255, 0, 0.75); }
+.sdr-group-pill-del:hover  { color: rgba(255, 80, 80, 0.8); }
+
+.sdr-group-pill-default {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.sdr-panel-add-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 28px 18px;
+    flex-shrink: 0;
+}
+
+.sdr-panel-add-row .sdr-panel-input {
+    flex: 1;
+}
+
+/* ============================================================
+   SCAN INDICATOR (radio tab only)
+   ============================================================ */
+
 .sdr-scan-indicator {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.15);
     flex-shrink: 0;
@@ -302,152 +1060,71 @@
     50%      { opacity: 0.3; }
 }
 
-#sdr-scan-label {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.35);
-}
+/* ============================================================
+   GROUP RENAME MODAL
+   ============================================================ */
 
-.sdr-scan-current {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 14px;
-    color: #c8ff00;
-    letter-spacing: 0.04em;
-    min-height: 18px;
-    margin-bottom: 4px;
-}
-
-.sdr-scan-dwell-row {
+.sdr-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 300;
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
-}
-
-.sdr-scan-dwell-row .sdr-ctrl-label {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.3);
-    white-space: nowrap;
-}
-
-.sdr-scan-dwell-unit {
-    font-family: 'Barlow', sans-serif;
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.3);
-}
-
-.sdr-scan-dwell-row .sdr-panel-input {
-    width: 70px;
-    flex: none;
-}
-
-.sdr-scan-controls {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
-}
-
-.sdr-scan-btn { background: rgba(200,255,0,0.08); border-color: rgba(200,255,0,0.25); color: #c8ff00; }
-.sdr-scan-btn:hover { background: rgba(200,255,0,0.15); }
-.sdr-scan-stop-btn { }
-
-.sdr-scan-queue-label {
-    font-family: 'Barlow', sans-serif;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.25);
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.sdr-scan-queue-label span {
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.2);
-}
-
-.sdr-scan-item {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    padding: 3px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-}
-
-/* ---- TEST pane ---- */
-#sdr-pane-test {
-    overflow-y: auto;
-    scrollbar-width: none;
-    padding: 10px 0;
-    gap: 6px;
-}
-
-#sdr-pane-test::-webkit-scrollbar { display: none; }
-
-.sdr-test-section-label {
-    font-family: 'Barlow', sans-serif;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.25);
-    padding: 0 14px 6px;
-}
-
-.sdr-test-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 4px 14px 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-
-.sdr-test-row .sdr-ctrl-label {
-    font-family: 'Barlow', sans-serif;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.28);
-    margin-bottom: 0;
-}
-
-.sdr-test-row .sdr-panel-input {
-    flex: none;
-    width: 100%;
+    justify-content: center;
+    padding: 20px;
     box-sizing: border-box;
 }
 
-.sdr-test-log {
-    flex: 1;
-    overflow-y: auto;
-    scrollbar-width: none;
-    padding: 0 14px;
-    font-family: 'Barlow Condensed', monospace, sans-serif;
-    font-size: 10px;
-    max-height: 180px;
+.sdr-modal {
+    background: rgba(14, 18, 28, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    width: 100%;
+    max-width: 280px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-sizing: border-box;
 }
 
-.sdr-test-log::-webkit-scrollbar { display: none; }
-
-.sdr-test-log-line {
-    padding: 2px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    word-break: break-all;
-    line-height: 1.4;
+.sdr-modal-title {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
 }
 
-.sdr-test-sent { color: rgba(200, 255, 0, 0.7); }
-.sdr-test-ok   { color: rgba(255, 255, 255, 0.5); }
-.sdr-test-err  { color: rgba(255, 80, 80, 0.8); }
+.sdr-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.sdr-modal-field .sdr-field-label {
+    margin-bottom: 6px;
+}
+
+.sdr-modal-input {
+    width: 100%;
+}
+
+.sdr-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.sdr-fmod-save-btn {
+    background: rgba(200, 255, 0, 0.08);
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.sdr-fmod-save-btn:hover {
+    background: rgba(200, 255, 0, 0.14);
+    color: #c8ff00;
+}
