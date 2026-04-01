@@ -331,7 +331,6 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
         return
 
     queue = broadcaster.subscribe_iq()
-    logger.info("SDR IQ WS: radio %d entering stream loop", radio_id)
     try:
         while True:
             payload = await queue.get()
@@ -342,9 +341,8 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
     except (WebSocketDisconnect, asyncio.CancelledError):
         pass
     except Exception as exc:
-        logger.error("SDR IQ WS: stream loop crashed: %s", exc, exc_info=True)
+        logger.error("SDR IQ WS crashed: %s", exc, exc_info=True)
     finally:
-        logger.info("SDR IQ WS: radio %d disconnected", radio_id)
         broadcaster.unsubscribe_iq(queue)
 
 
@@ -369,13 +367,11 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
       { cmd: "ping" }
     """
     await websocket.accept()
-    logger.info("SDR WS: accepted radio_id=%d", radio_id)
 
     # Look up radio in DB (no DB dep injection for WebSocket — open our own session)
     from backend.database import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
         radio = (await db.execute(select(SdrRadio).where(SdrRadio.id == radio_id))).scalar_one_or_none()
-    logger.info("SDR WS: radio lookup done, found=%s", radio is not None)
 
     if not radio:
         await websocket.send_text(json.dumps({"type": "error", "code": "NOT_FOUND", "message": f"Radio {radio_id} not found"}))
@@ -387,9 +383,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     last_exc: Exception = RuntimeError("unknown")
     for attempt in range(3):
         try:
-            logger.info("SDR WS: connecting attempt %d to %s:%d", attempt, radio.host, radio.port)
             broadcaster = await sdr_svc.get_or_create_broadcaster(radio.host, radio.port)
-            logger.info("SDR WS: broadcaster ready on attempt %d", attempt)
             break
         except ConnectionError as exc:
             last_exc = exc
@@ -409,7 +403,10 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
         return
 
     conn = sdr_svc.get_connection(radio.host, radio.port)
-    logger.info("SDR WS: radio %d connected, entering stream loop", radio_id)
+    if conn is None:
+        logger.error("SDR WS: connection object missing for radio %d", radio_id)
+        await websocket.close()
+        return
 
     # Send initial status
     try:
@@ -424,7 +421,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
             "gain_db": conn.gain_db,
             "gain_auto": conn.gain_auto,
         }))
-    except (WebSocketDisconnect, RuntimeError) as exc:
+    except (WebSocketDisconnect, RuntimeError, AttributeError) as exc:
         logger.warning("SDR WS: initial status send failed: %s", exc)
         return
 
@@ -441,17 +438,14 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                 except json.JSONDecodeError:
                     continue
                 cmd = msg.get("cmd")
-                logger.info("SDR cmd received: %s", msg)
                 try:
                     # Reconnect + restart broadcaster if the TCP connection dropped
                     if not conn.connected:
-                        logger.warning("SDR conn not connected, reconnecting...")
                         await sdr_svc.get_or_create_broadcaster(radio.host, radio.port)
                     if cmd == "tune":
                         hz = int(msg["frequency_hz"])
-                        logger.info("SDR tune: %d Hz (connected=%s)", hz, conn.connected)
+                        logger.info("SDR tune: %d Hz", hz)
                         await conn.set_frequency(hz)
-                        logger.info("SDR tune sent to rtl_tcp OK")
                     elif cmd == "mode":
                         conn.mode = str(msg.get("mode", "AM"))
                     elif cmd == "gain":

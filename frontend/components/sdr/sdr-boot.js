@@ -44,6 +44,11 @@
     let _reconnectTimer = null;
     let _currentRadioId = null;
     function openSocket(radioId) {
+        if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
+        // Don't open a new socket if one is already connecting or open for this radio
+        if (_sdrSocket && (_sdrSocket.readyState === WebSocket.CONNECTING || _sdrSocket.readyState === WebSocket.OPEN)) {
+            return;
+        }
         if (_sdrSocket) {
             _sdrSocket.close();
             _sdrSocket = null;

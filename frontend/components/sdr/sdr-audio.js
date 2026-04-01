@@ -91,16 +91,12 @@
     async function _initAudio() {
         if (_ctx)
             return;
-        console.log('[SdrAudio] _initAudio starting...');
         try {
             const blob = new Blob([PROCESSOR_SRC], { type: 'application/javascript' });
             const blobUrl = URL.createObjectURL(blob);
-            console.log('[SdrAudio] blobUrl=', blobUrl);
             _ctx = new AudioContext({ sampleRate: 48000 });
-            console.log('[SdrAudio] AudioContext state=', _ctx.state);
-            _ctx.resume().catch((e) => { console.warn('[SdrAudio] ctx.resume error:', e); });
+            _ctx.resume().catch(() => {});
             await _ctx.audioWorklet.addModule(blobUrl);
-            console.log('[SdrAudio] addModule done');
             URL.revokeObjectURL(blobUrl);
             _worklet = new AudioWorkletNode(_ctx, 'sdr-demod-processor', {
                 numberOfInputs: 0,
@@ -112,7 +108,7 @@
             _worklet.connect(_gain);
             _gain.connect(_ctx.destination);
             _ready = true;
-            console.log('[SdrAudio] ready, ctx.state=', _ctx.state);
+            console.log('[SdrAudio] ready');
         }
         catch (e) {
             console.warn('[SdrAudio] AudioWorklet init failed:', e);
@@ -121,7 +117,6 @@
     }
     let _iqReconnectTimer = null;
     function _openIqSocket(radioId) {
-        console.log('[SdrAudio] _openIqSocket called, radioId=', radioId);
         if (_iqReconnectTimer) {
             clearTimeout(_iqReconnectTimer);
             _iqReconnectTimer = null;
@@ -134,13 +129,7 @@
         const ws = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}/iq`);
         ws.binaryType = 'arraybuffer';
         _iqSocket = ws;
-        ws.addEventListener('open', () => {
-            console.log('[SdrAudio] IQ socket opened, radioId=', radioId);
-        });
-        let _frameCount = 0;
         ws.addEventListener('message', (ev) => {
-            _frameCount++;
-            if (_frameCount <= 5 || _frameCount % 100 === 0) console.log('[SdrAudio] message #' + _frameCount + ' bytes=' + (ev.data instanceof ArrayBuffer ? ev.data.byteLength : typeof ev.data) + ' _ready=' + _ready);
             if (!_ready || !_worklet || !(ev.data instanceof ArrayBuffer)) {
                 return;
             }
@@ -169,7 +158,6 @@
             }, [i.buffer, q.buffer]);
         });
         ws.addEventListener('close', () => {
-            console.log('[SdrAudio] IQ socket closed, radioId=', radioId);
             _iqSocket = null;
             // Auto-reconnect after 1.5s — handles retune-triggered drops
             _iqReconnectTimer = setTimeout(() => {
@@ -184,7 +172,6 @@
     async function start(radioId) {
         // Only open the IQ socket — audio must be inited via a user gesture separately
         const id = radioId ?? _radioId;
-        console.log('[SdrAudio] start() called, radioId=', radioId, 'resolved id=', id);
         if (id != null) {
             _radioId = id;
             _openIqSocket(id);
@@ -193,14 +180,11 @@
     // Call this from a user gesture (click/keydown) to init the AudioContext
     async function initAudio(radioId) {
         if (radioId != null) _radioId = radioId;
-        console.log('[SdrAudio] initAudio called, _radioId=', _radioId, '_ready=', _ready, '_iqSocket=', _iqSocket ? _iqSocket.readyState : 'null', '_ctx=', _ctx ? _ctx.state : 'null');
         await _initAudio();
         if (_ctx && _ctx.state === 'suspended') {
             await _ctx.resume();
         }
-        console.log('[SdrAudio] after init: _ready=', _ready, '_ctx.state=', _ctx ? _ctx.state : 'null', '_iqSocket=', _iqSocket ? _iqSocket.readyState : 'null');
         if (_radioId != null && !_iqSocket) {
-            console.log('[SdrAudio] opening IQ socket for radioId=', _radioId);
             _openIqSocket(_radioId);
         }
     }
