@@ -30,6 +30,392 @@ window._SettingsPanel = (function () {
         label: string;
     }
 
+    // ── SDR Devices control ──────────────────────────────────
+
+    function _renderSdrDevicesControl(): HTMLElement {
+        interface SdrRadioData {
+            id: number;
+            name: string;
+            host: string;
+            port: number;
+            bandwidth: number | null;
+            rf_gain: number | null;
+            agc: boolean | null;
+            enabled: boolean;
+            description: string;
+        }
+
+        let _radios: SdrRadioData[] = [];
+        let _openId: number | 'new' | null = null;  // which accordion is open
+
+        const wrap = document.createElement('div');
+        wrap.className = 'sdr-devices-wrap';
+        wrap.dataset['wide'] = 'true';
+
+        const list = document.createElement('div');
+        list.className = 'sdr-devices-list';
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'sdr-devices-add-btn';
+        addBtn.textContent = '+ ADD SDR';
+
+        wrap.appendChild(list);
+        wrap.appendChild(addBtn);
+
+        // ── Build a field row (label + input) ─────────────────
+
+        function _makeField(labelText: string, input: HTMLElement): HTMLDivElement {
+            const row = document.createElement('div');
+            row.className = 'sdr-devices-form-row';
+            const lbl = document.createElement('span');
+            lbl.className = 'sdr-devices-form-label';
+            lbl.textContent = labelText;
+            row.appendChild(lbl);
+            row.appendChild(input);
+            return row;
+        }
+
+        // ── Build a custom checkbox matching site style ────────
+
+        function _makeCheckbox(labelText: string): { row: HTMLDivElement; input: HTMLInputElement } {
+            const row = document.createElement('div');
+            row.className = 'sdr-devices-form-row sdr-devices-agc-row';
+
+            const lbl = document.createElement('label');
+            lbl.className = 'sdr-devices-agc-label';
+
+            const inp = document.createElement('input');
+            inp.type = 'checkbox';
+            inp.className = 'sdr-devices-agc-input';
+
+            const box = document.createElement('span');
+            box.className = 'sdr-devices-agc-box';
+
+            const txt = document.createElement('span');
+            txt.className = 'sdr-devices-agc-text';
+            txt.textContent = labelText;
+
+            lbl.appendChild(inp);
+            lbl.appendChild(box);
+            lbl.appendChild(txt);
+            row.appendChild(lbl);
+            return { row, input: inp };
+        }
+
+        // ── Build an accordion form panel ─────────────────────
+
+        function _buildForm(radio: SdrRadioData | null): { el: HTMLDivElement; read: () => object | null; showErr: (msg: string) => void } {
+            const panel = document.createElement('div');
+            panel.className = 'sdr-devices-accordion';
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'sdr-devices-form-input';
+            nameInput.placeholder = 'e.g. Roof RTL-SDR';
+            nameInput.autocomplete = 'off';
+            nameInput.spellcheck = false;
+
+            const hostInput = document.createElement('input');
+            hostInput.type = 'text';
+            hostInput.className = 'sdr-devices-form-input';
+            hostInput.placeholder = '192.168.1.x';
+            hostInput.autocomplete = 'off';
+            hostInput.spellcheck = false;
+
+            const portInput = document.createElement('input');
+            portInput.type = 'number';
+            portInput.className = 'sdr-devices-form-input';
+            portInput.placeholder = '8890';
+            portInput.min = '1';
+            portInput.max = '65535';
+
+            const bwInput = document.createElement('input');
+            bwInput.type = 'number';
+            bwInput.className = 'sdr-devices-form-input';
+            bwInput.placeholder = 'e.g. 2048000';
+            bwInput.min = '0';
+
+            const gainInput = document.createElement('input');
+            gainInput.type = 'number';
+            gainInput.className = 'sdr-devices-form-input';
+            gainInput.placeholder = 'e.g. 30';
+            gainInput.min = '-1';
+            gainInput.max = '49';
+            gainInput.step = '0.5';
+
+            const { row: agcRow, input: agcInput } = _makeCheckbox('AGC (Automatic Gain Control)');
+
+            // ── Enabled / Disabled toggle ──────────────────────
+            let _enabled = radio ? radio.enabled !== false : true;
+
+            const enabledRow = document.createElement('div');
+            enabledRow.className = 'sdr-devices-form-row';
+
+            const enabledLbl = document.createElement('span');
+            enabledLbl.className = 'sdr-devices-form-label';
+            enabledLbl.textContent = 'STATUS';
+
+            const enabledGroup = document.createElement('div');
+            enabledGroup.className = 'sdr-devices-enabled-group';
+
+            const enabledBtn = document.createElement('button');
+            enabledBtn.type = 'button';
+            enabledBtn.className = 'sdr-devices-enabled-btn' + (_enabled ? ' is-active' : '');
+            enabledBtn.textContent = 'ENABLED';
+            enabledBtn.dataset['val'] = 'true';
+
+            const disabledBtn = document.createElement('button');
+            disabledBtn.type = 'button';
+            disabledBtn.className = 'sdr-devices-enabled-btn' + (!_enabled ? ' is-active' : '');
+            disabledBtn.textContent = 'DISABLED';
+            disabledBtn.dataset['val'] = 'false';
+
+            function _setEnabled(val: boolean): void {
+                _enabled = val;
+                enabledBtn.classList.toggle('is-active', val);
+                disabledBtn.classList.toggle('is-active', !val);
+            }
+
+            enabledBtn.addEventListener('click', function () { _setEnabled(true); });
+            disabledBtn.addEventListener('click', function () { _setEnabled(false); });
+
+            enabledGroup.appendChild(enabledBtn);
+            enabledGroup.appendChild(disabledBtn);
+            enabledRow.appendChild(enabledLbl);
+            enabledRow.appendChild(enabledGroup);
+
+            // Populate if editing
+            if (radio) {
+                nameInput.value  = radio.name;
+                hostInput.value  = radio.host;
+                portInput.value  = String(radio.port);
+                bwInput.value    = radio.bandwidth != null ? String(radio.bandwidth) : '';
+                gainInput.value  = radio.rf_gain   != null ? String(radio.rf_gain)   : '';
+                agcInput.checked = radio.agc === true;
+            } else {
+                portInput.value = '8890';
+            }
+
+            const errMsg = document.createElement('div');
+            errMsg.className = 'sdr-devices-form-error';
+            errMsg.style.display = 'none';
+
+            const actions = document.createElement('div');
+            actions.className = 'sdr-devices-form-actions';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'sdr-devices-btn';
+            cancelBtn.textContent = 'CANCEL';
+            cancelBtn.type = 'button';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'sdr-devices-btn sdr-devices-btn--primary';
+            saveBtn.textContent = 'SAVE';
+            saveBtn.type = 'button';
+
+            actions.appendChild(cancelBtn);
+            actions.appendChild(saveBtn);
+
+            panel.appendChild(_makeField('NAME', nameInput));
+            panel.appendChild(_makeField('IP ADDRESS', hostInput));
+            panel.appendChild(_makeField('PORT', portInput));
+            panel.appendChild(_makeField('BANDWIDTH (Hz)', bwInput));
+            panel.appendChild(_makeField('RF GAIN (dB)', gainInput));
+            panel.appendChild(enabledRow);
+            panel.appendChild(agcRow);
+            panel.appendChild(errMsg);
+            panel.appendChild(actions);
+
+            cancelBtn.addEventListener('click', function () {
+                _openId = null;
+                _renderList();
+            });
+
+            saveBtn.addEventListener('click', async function () {
+                const body = read();
+                if (!body) return;
+                const id     = radio ? radio.id : null;
+                const url    = id !== null ? '/api/sdr/radios/' + id : '/api/sdr/radios';
+                const method = id !== null ? 'PUT' : 'POST';
+                try {
+                    const res = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+                    if (!res.ok) { showErr('Save failed.'); return; }
+                    _openId = null;
+                    await _load();
+                    document.dispatchEvent(new CustomEvent('sdr:radios-changed'));
+                } catch (_e) {
+                    showErr('Network error.');
+                }
+            });
+
+            function read(): object | null {
+                const name = nameInput.value.trim();
+                const host = hostInput.value.trim();
+                if (!name || !host) { showErr('Name and IP address are required.'); return null; }
+                return {
+                    name, host,
+                    port:        parseInt(portInput.value, 10) || 8890,
+                    bandwidth:   bwInput.value.trim()  ? parseInt(bwInput.value, 10)  : null,
+                    rf_gain:     gainInput.value.trim() ? parseFloat(gainInput.value) : null,
+                    agc:         agcInput.checked,
+                    description: '',
+                    enabled:     _enabled,
+                };
+            }
+
+            function showErr(msg: string): void {
+                errMsg.textContent   = msg;
+                errMsg.style.display = '';
+            }
+
+            setTimeout(function () { nameInput.focus(); }, 0);
+
+            return { el: panel, read, showErr };
+        }
+
+        // ── Render list ───────────────────────────────────────
+
+        function _renderList(): void {
+            list.innerHTML = '';
+
+            if (_radios.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'sdr-devices-empty';
+                empty.textContent = 'No SDRs configured. Add one below.';
+                list.appendChild(empty);
+            }
+
+            _radios.forEach(function (r) {
+                const item = document.createElement('div');
+                item.className = 'sdr-device-item';
+                if (_openId === r.id) item.classList.add('sdr-device-item--open');
+
+                const row = document.createElement('div');
+                row.className = 'sdr-device-row';
+
+                const info = document.createElement('span');
+                info.className = 'sdr-device-info';
+                info.textContent = r.name + '  ' + r.host + ':' + r.port;
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'sdr-device-btn' + (_openId === r.id ? ' sdr-device-btn--active' : '');
+                editBtn.title = 'Edit';
+                editBtn.innerHTML =
+                    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none">' +
+                        '<path d="M9.5 1.5L11.5 3.5L4.5 10.5H2.5V8.5L9.5 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' +
+                    '</svg>';
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'sdr-device-btn sdr-device-btn--danger';
+                delBtn.title = 'Delete';
+                delBtn.innerHTML =
+                    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none">' +
+                        '<line x1="2.5" y1="2.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+                        '<line x1="10.5" y1="2.5" x2="2.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+                    '</svg>';
+
+                // Inline confirm strip (hidden until first delete click)
+                const confirmStrip = document.createElement('div');
+                confirmStrip.className = 'sdr-device-confirm';
+                confirmStrip.style.display = 'none';
+                confirmStrip.innerHTML = '<span class="sdr-device-confirm-label">DELETE?</span>';
+
+                const confirmYes = document.createElement('button');
+                confirmYes.className = 'sdr-device-confirm-btn sdr-device-confirm-btn--yes';
+                confirmYes.textContent = 'YES';
+
+                const confirmNo = document.createElement('button');
+                confirmNo.className = 'sdr-device-confirm-btn';
+                confirmNo.textContent = 'NO';
+
+                confirmStrip.appendChild(confirmYes);
+                confirmStrip.appendChild(confirmNo);
+
+                row.appendChild(info);
+                row.appendChild(editBtn);
+                row.appendChild(delBtn);
+                row.appendChild(confirmStrip);
+                item.appendChild(row);
+
+                // Accordion: inject form if this row is open
+                if (_openId === r.id) {
+                    const { el } = _buildForm(r);
+                    item.appendChild(el);
+                }
+
+                editBtn.addEventListener('click', function () {
+                    _openId = _openId === r.id ? null : r.id;
+                    _renderList();
+                });
+
+                delBtn.addEventListener('click', function () {
+                    delBtn.style.display    = 'none';
+                    editBtn.style.display   = 'none';
+                    info.style.opacity      = '0.4';
+                    confirmStrip.style.display = 'flex';
+                });
+
+                confirmNo.addEventListener('click', function () {
+                    delBtn.style.display    = '';
+                    editBtn.style.display   = '';
+                    info.style.opacity      = '';
+                    confirmStrip.style.display = 'none';
+                });
+
+                confirmYes.addEventListener('click', function () { _delete(r.id); });
+
+                list.appendChild(item);
+            });
+
+            // "Add new" accordion at the bottom
+            if (_openId === 'new') {
+                const item = document.createElement('div');
+                item.className = 'sdr-device-item sdr-device-item--open sdr-device-item--new';
+                const { el } = _buildForm(null);
+                item.appendChild(el);
+                list.appendChild(item);
+            }
+        }
+
+        async function _load(): Promise<void> {
+            try {
+                const res = await fetch('/api/sdr/radios');
+                if (!res.ok) return;
+                const raw: SdrRadioData[] = await res.json();
+                // Normalise IDs to numbers (guards against string IDs in stored JSON)
+                _radios = raw.map(r => ({ ...r, id: Number(r.id) }));
+                _renderList();
+            } catch (_e) {}
+        }
+
+        async function _delete(id: number): Promise<void> {
+            try {
+                const res = await fetch('/api/sdr/radios/' + id, { method: 'DELETE' });
+                if (!res.ok) {
+                    console.error('[SDR] delete failed:', res.status);
+                    return;
+                }
+                if (_openId === id) _openId = null;
+                await _load();
+                document.dispatchEvent(new CustomEvent('sdr:radios-changed'));
+            } catch (_e) {
+                console.error('[SDR] delete error:', _e);
+            }
+        }
+
+        addBtn.addEventListener('click', function () {
+            _openId = _openId === 'new' ? null : 'new';
+            _renderList();
+        });
+
+        _load();
+        return wrap;
+    }
+
     const _settings: SettingItem[] = [
         {
             section:       'app',
@@ -180,6 +566,15 @@ window._SettingsPanel = (function () {
             label:         'Off Grid Data Source',
             desc:          'Local server URL and port for land data',
             renderControl: function () { return _renderOfflineSourceControl('land', ''); },
+        },
+        // SDR
+        {
+            section:       'sdr',
+            sectionLabel:  'SDR',
+            id:            'sdr-devices',
+            label:         'SDR Devices',
+            desc:          'Configure RTL-SDR devices reachable via rtl_tcp',
+            renderControl: _renderSdrDevicesControl,
         },
         // CONFIG
         {
@@ -2030,9 +2425,10 @@ window._SettingsPanel = (function () {
     }
 
     // ── Open / close / toggle ────────────────────────────────
-    function _updateFooterVisibility(_sectionKey: string): void {
+    function _updateFooterVisibility(sectionKey: string): void {
         const footer = document.getElementById('settings-footer');
-        if (footer) footer.style.display = '';
+        if (!footer) return;
+        footer.style.display = sectionKey === 'sdr' ? 'none' : '';
     }
 
     function open(): void {

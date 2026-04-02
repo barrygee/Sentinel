@@ -140,6 +140,12 @@
         }
     }
 
+    // ── Reload radios when settings panel changes the device list ────────────
+
+    document.addEventListener('sdr:radios-changed', function () {
+        loadRadios();
+    });
+
     // ── Listen for radio selection change ─────────────────────────────────────
 
     document.addEventListener('sdr-radio-selected', (e: Event) => {

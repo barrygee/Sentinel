@@ -1313,8 +1313,9 @@
 /* Wide items still cap at a readable content width */
 .settings-item--wide .tle-manual-wrap,
 .settings-item--wide .tle-satlist-wrap,
-.settings-item--wide .tle-online-wrap {
-    max-width: 860px;
+.settings-item--wide .tle-online-wrap,
+.settings-item--wide .sdr-devices-wrap {
+    max-width: 680px;
 }
 
 /* ── Satellite list — show/hide panel ───────────────────────────── */
@@ -1534,5 +1535,351 @@
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.4);
     color: rgba(255, 255, 255, 0.9);
+}
+
+/* ============================================================
+   SDR DEVICE MANAGEMENT (settings SDR section)
+   ============================================================ */
+
+.sdr-devices-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0;
+}
+
+.sdr-devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.sdr-devices-empty {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 4px 0 12px;
+}
+
+/* ── Each SDR item wraps the row + optional accordion ── */
+.sdr-device-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.sdr-device-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.sdr-device-item--open > .sdr-device-row {
+    border-bottom-color: transparent;
+}
+
+.sdr-device-info {
+    flex: 1;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sdr-device-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 4px 5px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s;
+}
+
+.sdr-device-btn:hover {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.sdr-device-btn--active {
+    color: var(--color-accent);
+}
+
+.sdr-device-btn--danger:hover {
+    color: rgba(255, 90, 90, 0.85);
+}
+
+.sdr-device-confirm {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.sdr-device-confirm-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: rgba(255, 90, 90, 0.7);
+    text-transform: uppercase;
+}
+
+.sdr-device-confirm-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    padding: 3px 9px;
+    color: rgba(255, 255, 255, 0.45);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.sdr-device-confirm-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.sdr-device-confirm-btn--yes {
+    border-color: rgba(255, 60, 60, 0.35);
+    color: rgba(255, 90, 90, 0.8);
+}
+
+.sdr-device-confirm-btn--yes:hover {
+    background: rgba(255, 60, 60, 0.1);
+    border-color: rgba(255, 60, 60, 0.6);
+    color: rgba(255, 110, 110, 0.95);
+}
+
+/* ── Accordion form (no border, no background) ── */
+.sdr-devices-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 6px 0 12px 0;
+}
+
+.sdr-device-item--new > .sdr-devices-accordion {
+    padding-top: 4px;
+}
+
+/* ── Field rows ── */
+.sdr-devices-form-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.sdr-devices-form-label {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+    width: 110px;
+    flex-shrink: 0;
+}
+
+.sdr-devices-form-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    padding: 6px 10px;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    outline: none;
+    caret-color: var(--color-accent);
+    transition: border-color 0.15s;
+    min-width: 0;
+    -moz-appearance: textfield;
+}
+
+.sdr-devices-form-input:focus {
+    border-color: rgba(200, 255, 0, 0.3);
+}
+
+.sdr-devices-form-input::placeholder {
+    color: rgba(255, 255, 255, 0.18);
+}
+
+.sdr-devices-form-input::-webkit-outer-spin-button,
+.sdr-devices-form-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* ── Enabled / Disabled toggle ── */
+.sdr-devices-enabled-group {
+    display: flex;
+    gap: 8px;
+}
+
+.sdr-devices-enabled-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    padding: 5px 12px;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.sdr-devices-enabled-btn:hover {
+    color: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.sdr-devices-enabled-btn.is-active {
+    background: rgba(200, 255, 0, 0.08);
+    border-color: rgba(200, 255, 0, 0.45);
+    color: var(--color-accent);
+}
+
+/* ── AGC custom checkbox (matches site .sdr-checkbox style) ── */
+.sdr-devices-agc-row {
+    padding: 4px 0 2px;
+}
+
+.sdr-devices-agc-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sdr-devices-agc-input {
+    display: none;
+}
+
+.sdr-devices-agc-box {
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.sdr-devices-agc-input:checked + .sdr-devices-agc-box {
+    background: rgba(200, 255, 0, 0.12);
+    border-color: rgba(200, 255, 0, 0.6);
+}
+
+.sdr-devices-agc-input:checked + .sdr-devices-agc-box::after {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 5px;
+    border-left: 1.5px solid #c8ff00;
+    border-bottom: 1.5px solid #c8ff00;
+    transform: rotate(-45deg) translateY(-1px);
+}
+
+.sdr-devices-agc-text {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.06em;
+}
+
+/* ── Error message ── */
+.sdr-devices-form-error {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: rgba(255, 80, 80, 0.9);
+    padding: 0;
+    margin-left: 124px;
+}
+
+/* ── Form action buttons ── */
+.sdr-devices-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 2px;
+}
+
+.sdr-devices-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 3px;
+    padding: 7px 16px;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.sdr-devices-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.sdr-devices-btn--primary {
+    border-color: rgba(200, 255, 0, 0.4);
+    color: var(--color-accent);
+}
+
+.sdr-devices-btn--primary:hover {
+    background: rgba(200, 255, 0, 0.07);
+    border-color: rgba(200, 255, 0, 0.7);
+}
+
+/* ── Add SDR button ── */
+.sdr-devices-add-btn {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    color: rgba(255, 255, 255, 0.35);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.12s;
+    align-self: flex-start;
+}
+
+.sdr-devices-add-btn:hover {
+    color: var(--color-accent);
 }
 

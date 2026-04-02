@@ -9,6 +9,325 @@ window._SettingsPanel = (function () {
     let _activeSection = 'app';
     // Pending changes map: key → { commit: () => void }
     const _pending = new Map();
+    // ── SDR Devices control ──────────────────────────────────
+    function _renderSdrDevicesControl() {
+        let _radios = [];
+        let _openId = null; // which accordion is open
+        const wrap = document.createElement('div');
+        wrap.className = 'sdr-devices-wrap';
+        wrap.dataset['wide'] = 'true';
+        const list = document.createElement('div');
+        list.className = 'sdr-devices-list';
+        const addBtn = document.createElement('button');
+        addBtn.className = 'sdr-devices-add-btn';
+        addBtn.textContent = '+ ADD SDR';
+        wrap.appendChild(list);
+        wrap.appendChild(addBtn);
+        // ── Build a field row (label + input) ─────────────────
+        function _makeField(labelText, input) {
+            const row = document.createElement('div');
+            row.className = 'sdr-devices-form-row';
+            const lbl = document.createElement('span');
+            lbl.className = 'sdr-devices-form-label';
+            lbl.textContent = labelText;
+            row.appendChild(lbl);
+            row.appendChild(input);
+            return row;
+        }
+        // ── Build a custom checkbox matching site style ────────
+        function _makeCheckbox(labelText) {
+            const row = document.createElement('div');
+            row.className = 'sdr-devices-form-row sdr-devices-agc-row';
+            const lbl = document.createElement('label');
+            lbl.className = 'sdr-devices-agc-label';
+            const inp = document.createElement('input');
+            inp.type = 'checkbox';
+            inp.className = 'sdr-devices-agc-input';
+            const box = document.createElement('span');
+            box.className = 'sdr-devices-agc-box';
+            const txt = document.createElement('span');
+            txt.className = 'sdr-devices-agc-text';
+            txt.textContent = labelText;
+            lbl.appendChild(inp);
+            lbl.appendChild(box);
+            lbl.appendChild(txt);
+            row.appendChild(lbl);
+            return { row, input: inp };
+        }
+        // ── Build an accordion form panel ─────────────────────
+        function _buildForm(radio) {
+            const panel = document.createElement('div');
+            panel.className = 'sdr-devices-accordion';
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'sdr-devices-form-input';
+            nameInput.placeholder = 'e.g. Roof RTL-SDR';
+            nameInput.autocomplete = 'off';
+            nameInput.spellcheck = false;
+            const hostInput = document.createElement('input');
+            hostInput.type = 'text';
+            hostInput.className = 'sdr-devices-form-input';
+            hostInput.placeholder = '192.168.1.x';
+            hostInput.autocomplete = 'off';
+            hostInput.spellcheck = false;
+            const portInput = document.createElement('input');
+            portInput.type = 'number';
+            portInput.className = 'sdr-devices-form-input';
+            portInput.placeholder = '8890';
+            portInput.min = '1';
+            portInput.max = '65535';
+            const bwInput = document.createElement('input');
+            bwInput.type = 'number';
+            bwInput.className = 'sdr-devices-form-input';
+            bwInput.placeholder = 'e.g. 2048000';
+            bwInput.min = '0';
+            const gainInput = document.createElement('input');
+            gainInput.type = 'number';
+            gainInput.className = 'sdr-devices-form-input';
+            gainInput.placeholder = 'e.g. 30';
+            gainInput.min = '-1';
+            gainInput.max = '49';
+            gainInput.step = '0.5';
+            const { row: agcRow, input: agcInput } = _makeCheckbox('AGC (Automatic Gain Control)');
+            // ── Enabled / Disabled toggle ──────────────────────
+            let _enabled = radio ? radio.enabled !== false : true;
+            const enabledRow = document.createElement('div');
+            enabledRow.className = 'sdr-devices-form-row';
+            const enabledLbl = document.createElement('span');
+            enabledLbl.className = 'sdr-devices-form-label';
+            enabledLbl.textContent = 'STATUS';
+            const enabledGroup = document.createElement('div');
+            enabledGroup.className = 'sdr-devices-enabled-group';
+            const enabledBtn = document.createElement('button');
+            enabledBtn.type = 'button';
+            enabledBtn.className = 'sdr-devices-enabled-btn' + (_enabled ? ' is-active' : '');
+            enabledBtn.textContent = 'ENABLED';
+            enabledBtn.dataset['val'] = 'true';
+            const disabledBtn = document.createElement('button');
+            disabledBtn.type = 'button';
+            disabledBtn.className = 'sdr-devices-enabled-btn' + (!_enabled ? ' is-active' : '');
+            disabledBtn.textContent = 'DISABLED';
+            disabledBtn.dataset['val'] = 'false';
+            function _setEnabled(val) {
+                _enabled = val;
+                enabledBtn.classList.toggle('is-active', val);
+                disabledBtn.classList.toggle('is-active', !val);
+            }
+            enabledBtn.addEventListener('click', function () { _setEnabled(true); });
+            disabledBtn.addEventListener('click', function () { _setEnabled(false); });
+            enabledGroup.appendChild(enabledBtn);
+            enabledGroup.appendChild(disabledBtn);
+            enabledRow.appendChild(enabledLbl);
+            enabledRow.appendChild(enabledGroup);
+            // Populate if editing
+            if (radio) {
+                nameInput.value = radio.name;
+                hostInput.value = radio.host;
+                portInput.value = String(radio.port);
+                bwInput.value = radio.bandwidth != null ? String(radio.bandwidth) : '';
+                gainInput.value = radio.rf_gain != null ? String(radio.rf_gain) : '';
+                agcInput.checked = radio.agc === true;
+            }
+            else {
+                portInput.value = '8890';
+            }
+            const errMsg = document.createElement('div');
+            errMsg.className = 'sdr-devices-form-error';
+            errMsg.style.display = 'none';
+            const actions = document.createElement('div');
+            actions.className = 'sdr-devices-form-actions';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'sdr-devices-btn';
+            cancelBtn.textContent = 'CANCEL';
+            cancelBtn.type = 'button';
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'sdr-devices-btn sdr-devices-btn--primary';
+            saveBtn.textContent = 'SAVE';
+            saveBtn.type = 'button';
+            actions.appendChild(cancelBtn);
+            actions.appendChild(saveBtn);
+            panel.appendChild(_makeField('NAME', nameInput));
+            panel.appendChild(_makeField('IP ADDRESS', hostInput));
+            panel.appendChild(_makeField('PORT', portInput));
+            panel.appendChild(_makeField('BANDWIDTH (Hz)', bwInput));
+            panel.appendChild(_makeField('RF GAIN (dB)', gainInput));
+            panel.appendChild(enabledRow);
+            panel.appendChild(agcRow);
+            panel.appendChild(errMsg);
+            panel.appendChild(actions);
+            cancelBtn.addEventListener('click', function () {
+                _openId = null;
+                _renderList();
+            });
+            saveBtn.addEventListener('click', async function () {
+                const body = read();
+                if (!body)
+                    return;
+                const id = radio ? radio.id : null;
+                const url = id !== null ? '/api/sdr/radios/' + id : '/api/sdr/radios';
+                const method = id !== null ? 'PUT' : 'POST';
+                try {
+                    const res = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+                    if (!res.ok) {
+                        showErr('Save failed.');
+                        return;
+                    }
+                    _openId = null;
+                    await _load();
+                    document.dispatchEvent(new CustomEvent('sdr:radios-changed'));
+                }
+                catch (_e) {
+                    showErr('Network error.');
+                }
+            });
+            function read() {
+                const name = nameInput.value.trim();
+                const host = hostInput.value.trim();
+                if (!name || !host) {
+                    showErr('Name and IP address are required.');
+                    return null;
+                }
+                return {
+                    name, host,
+                    port: parseInt(portInput.value, 10) || 8890,
+                    bandwidth: bwInput.value.trim() ? parseInt(bwInput.value, 10) : null,
+                    rf_gain: gainInput.value.trim() ? parseFloat(gainInput.value) : null,
+                    agc: agcInput.checked,
+                    description: '',
+                    enabled: _enabled,
+                };
+            }
+            function showErr(msg) {
+                errMsg.textContent = msg;
+                errMsg.style.display = '';
+            }
+            setTimeout(function () { nameInput.focus(); }, 0);
+            return { el: panel, read, showErr };
+        }
+        // ── Render list ───────────────────────────────────────
+        function _renderList() {
+            list.innerHTML = '';
+            if (_radios.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'sdr-devices-empty';
+                empty.textContent = 'No SDRs configured. Add one below.';
+                list.appendChild(empty);
+            }
+            _radios.forEach(function (r) {
+                const item = document.createElement('div');
+                item.className = 'sdr-device-item';
+                if (_openId === r.id)
+                    item.classList.add('sdr-device-item--open');
+                const row = document.createElement('div');
+                row.className = 'sdr-device-row';
+                const info = document.createElement('span');
+                info.className = 'sdr-device-info';
+                info.textContent = r.name + '  ' + r.host + ':' + r.port;
+                const editBtn = document.createElement('button');
+                editBtn.className = 'sdr-device-btn' + (_openId === r.id ? ' sdr-device-btn--active' : '');
+                editBtn.title = 'Edit';
+                editBtn.innerHTML =
+                    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none">' +
+                        '<path d="M9.5 1.5L11.5 3.5L4.5 10.5H2.5V8.5L9.5 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' +
+                        '</svg>';
+                const delBtn = document.createElement('button');
+                delBtn.className = 'sdr-device-btn sdr-device-btn--danger';
+                delBtn.title = 'Delete';
+                delBtn.innerHTML =
+                    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none">' +
+                        '<line x1="2.5" y1="2.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+                        '<line x1="10.5" y1="2.5" x2="2.5" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+                        '</svg>';
+                // Inline confirm strip (hidden until first delete click)
+                const confirmStrip = document.createElement('div');
+                confirmStrip.className = 'sdr-device-confirm';
+                confirmStrip.style.display = 'none';
+                confirmStrip.innerHTML = '<span class="sdr-device-confirm-label">DELETE?</span>';
+                const confirmYes = document.createElement('button');
+                confirmYes.className = 'sdr-device-confirm-btn sdr-device-confirm-btn--yes';
+                confirmYes.textContent = 'YES';
+                const confirmNo = document.createElement('button');
+                confirmNo.className = 'sdr-device-confirm-btn';
+                confirmNo.textContent = 'NO';
+                confirmStrip.appendChild(confirmYes);
+                confirmStrip.appendChild(confirmNo);
+                row.appendChild(info);
+                row.appendChild(editBtn);
+                row.appendChild(delBtn);
+                row.appendChild(confirmStrip);
+                item.appendChild(row);
+                // Accordion: inject form if this row is open
+                if (_openId === r.id) {
+                    const { el } = _buildForm(r);
+                    item.appendChild(el);
+                }
+                editBtn.addEventListener('click', function () {
+                    _openId = _openId === r.id ? null : r.id;
+                    _renderList();
+                });
+                delBtn.addEventListener('click', function () {
+                    delBtn.style.display = 'none';
+                    editBtn.style.display = 'none';
+                    info.style.opacity = '0.4';
+                    confirmStrip.style.display = 'flex';
+                });
+                confirmNo.addEventListener('click', function () {
+                    delBtn.style.display = '';
+                    editBtn.style.display = '';
+                    info.style.opacity = '';
+                    confirmStrip.style.display = 'none';
+                });
+                confirmYes.addEventListener('click', function () { _delete(r.id); });
+                list.appendChild(item);
+            });
+            // "Add new" accordion at the bottom
+            if (_openId === 'new') {
+                const item = document.createElement('div');
+                item.className = 'sdr-device-item sdr-device-item--open sdr-device-item--new';
+                const { el } = _buildForm(null);
+                item.appendChild(el);
+                list.appendChild(item);
+            }
+        }
+        async function _load() {
+            try {
+                const res = await fetch('/api/sdr/radios');
+                if (!res.ok)
+                    return;
+                const raw = await res.json();
+                // Normalise IDs to numbers (guards against string IDs in stored JSON)
+                _radios = raw.map(r => ({ ...r, id: Number(r.id) }));
+                _renderList();
+            }
+            catch (_e) { }
+        }
+        async function _delete(id) {
+            try {
+                const res = await fetch('/api/sdr/radios/' + id, { method: 'DELETE' });
+                if (!res.ok) {
+                    console.error('[SDR] delete failed:', res.status);
+                    return;
+                }
+                if (_openId === id)
+                    _openId = null;
+                await _load();
+                document.dispatchEvent(new CustomEvent('sdr:radios-changed'));
+            }
+            catch (_e) {
+                console.error('[SDR] delete error:', _e);
+            }
+        }
+        addBtn.addEventListener('click', function () {
+            _openId = _openId === 'new' ? null : 'new';
+            _renderList();
+        });
+        _load();
+        return wrap;
+    }
     const _settings = [
         {
             section: 'app',
@@ -101,6 +420,15 @@ window._SettingsPanel = (function () {
             desc: 'Full list of all TLE records stored in the database',
             renderControl: _renderSpaceTleSatListControl,
         },
+        {
+            section: 'space',
+            sectionLabel: 'SPACE',
+            id: 'space-filter-hover-preview',
+            label: 'Filter Hover Behaviour',
+            desc: 'When hovering over a satellite in the search results, choose whether the map stays in place or flies to that satellite',
+            groupLabel: 'FILTER HOVER',
+            renderControl: _renderSpaceHoverPreviewControl,
+        },
         // SEA
         {
             section: 'sea',
@@ -151,6 +479,24 @@ window._SettingsPanel = (function () {
             desc: 'Local server URL and port for land data',
             renderControl: function () { return _renderOfflineSourceControl('land', ''); },
         },
+        // SDR
+        {
+            section: 'sdr',
+            sectionLabel: 'SDR',
+            id: 'sdr-devices',
+            label: 'SDR Devices',
+            desc: 'Configure RTL-SDR devices reachable via rtl_tcp',
+            renderControl: _renderSdrDevicesControl,
+        },
+        // CONFIG
+        {
+            section: 'app',
+            sectionLabel: 'App Settings',
+            id: 'config-current',
+            label: 'Application Config',
+            desc: 'Settings currently stored in the database',
+            renderControl: _renderConfigCurrentControl,
+        },
     ];
     const _NAV_SECTIONS = [
         { key: 'app', label: 'App Settings' },
@@ -169,7 +515,10 @@ window._SettingsPanel = (function () {
         // Sidebar
         const sidebar = document.createElement('div');
         sidebar.id = 'settings-sidebar';
+        const _enabledDomains = window._SENTINEL_ENABLED_DOMAINS ?? [];
         _NAV_SECTIONS.forEach(function (s) {
+            if (s.key !== 'app' && !_enabledDomains.includes(s.key))
+                return;
             const item = document.createElement('div');
             item.className = 'settings-nav-item' + (s.key === 'app' ? ' active' : '');
             item.textContent = s.label;
@@ -252,6 +601,13 @@ window._SettingsPanel = (function () {
         if (!hasError) {
             _pending.clear();
             _showApplyStatus('SAVED', false);
+            setTimeout(function () {
+                try {
+                    sessionStorage.setItem('sentinel_settings_reopen', _activeSection);
+                }
+                catch (_e) { }
+                location.reload();
+            }, 800);
         }
         else {
             _showApplyStatus('ERROR', true);
@@ -686,10 +1042,10 @@ window._SettingsPanel = (function () {
                 return;
             }
             // Fetch from backend and reconcile
-            window._SettingsAPI.getNamespace('app').then(function (ns) {
-                if (!ns || !ns['theme'])
+            window._SettingsAPI.getNamespace('app').then(function (appSettings) {
+                if (!appSettings || !appSettings['theme'])
                     return;
-                const backendMode = ns['theme'];
+                const backendMode = appSettings['theme'];
                 const localMode = isDark ? 'dark' : 'light';
                 if (backendMode !== localMode) {
                     isDark = backendMode === 'dark';
@@ -705,6 +1061,104 @@ window._SettingsPanel = (function () {
         wrap.appendChild(labelDark);
         wrap.appendChild(track);
         wrap.appendChild(labelLight);
+        return wrap;
+    }
+    // ── Config controls ───────────────────────────────────────
+    function _renderConfigCurrentControl() {
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-config-wrap';
+        wrap.dataset['wide'] = 'true';
+        const textarea = document.createElement('textarea');
+        textarea.className = 'settings-config-preview settings-config-preview--textarea settings-config-preview--hidden';
+        textarea.value = 'Loading…';
+        textarea.spellcheck = false;
+        textarea.autocomplete = 'off';
+        const actionRow = document.createElement('div');
+        actionRow.className = 'settings-config-action-row';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'settings-config-btn';
+        toggleBtn.textContent = 'EDIT';
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'settings-config-btn';
+        exportBtn.textContent = 'EXPORT';
+        const SS_KEY = 'sentinel_config_preview_visible';
+        function autoSize() {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+        // Restore visibility state across renders/reloads
+        try {
+            if (sessionStorage.getItem(SS_KEY) === '1') {
+                textarea.classList.remove('settings-config-preview--hidden');
+                toggleBtn.textContent = 'HIDE';
+            }
+        }
+        catch (e) { }
+        toggleBtn.addEventListener('click', function () {
+            const hidden = textarea.classList.toggle('settings-config-preview--hidden');
+            toggleBtn.textContent = hidden ? 'EDIT' : 'HIDE';
+            try {
+                sessionStorage.setItem(SS_KEY, hidden ? '0' : '1');
+            }
+            catch (e) { }
+            if (!hidden)
+                autoSize();
+        });
+        textarea.addEventListener('input', function () {
+            autoSize();
+            _stagePending('config-current', function () {
+                const content = textarea.value;
+                try {
+                    JSON.parse(content);
+                }
+                catch (e) {
+                    throw new Error('Invalid JSON');
+                }
+                const blob = new Blob([content], { type: 'application/json' });
+                const file = new File([blob], 'sentinel_config.json', { type: 'application/json' });
+                const formData = new FormData();
+                formData.append('file', file);
+                fetch('/api/settings/config/upload', { method: 'POST', body: formData })
+                    .catch(function () { });
+            });
+        });
+        wrap.appendChild(textarea);
+        wrap.appendChild(actionRow);
+        actionRow.appendChild(toggleBtn);
+        actionRow.appendChild(exportBtn);
+        // Export: download the current textarea content as JSON
+        exportBtn.addEventListener('click', async function () {
+            const content = textarea.value;
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: 'sentinel_config.json',
+                        types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    return;
+                }
+                catch (err) {
+                    if (err.name === 'AbortError')
+                        return; // user cancelled
+                }
+            }
+            // Fallback for browsers without File System Access API
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sentinel_config.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+        fetch('/api/settings/config/preview')
+            .then(function (res) { if (!res.ok)
+            throw new Error(res.status.toString()); return res.json(); })
+            .then(function (data) { textarea.value = JSON.stringify(data, null, 2); autoSize(); })
+            .catch(function (err) { textarea.value = 'Failed to load config: ' + err.message; autoSize(); });
         return wrap;
     }
     function _renderConnectivityToggle() {
@@ -1074,28 +1528,35 @@ window._SettingsPanel = (function () {
         const infoPanel = document.createElement('div');
         infoPanel.className = 'tle-info-panel';
         infoPanel.hidden = true;
+        // Per-category URLs — starts as a copy of the hardcoded defaults,
+        // then overridden by space.onlineUrls from the backend config.
+        const effectiveUrls = Object.assign({}, _CELESTRAK_URLS);
+        function _buildInfoList() {
+            infoList.innerHTML = '';
+            _TLE_CATEGORIES.filter(function (c) { return c.value && effectiveUrls[c.value]; }).forEach(function (cat) {
+                const item = document.createElement('div');
+                item.className = 'tle-info-list-item';
+                const labelEl = document.createElement('span');
+                labelEl.className = 'tle-info-list-label';
+                labelEl.textContent = cat.label;
+                const sepEl = document.createElement('span');
+                sepEl.className = 'tle-info-list-sep';
+                sepEl.textContent = ':';
+                const urlEl = document.createElement('a');
+                urlEl.className = 'tle-info-table-url';
+                urlEl.textContent = effectiveUrls[cat.value];
+                urlEl.href = effectiveUrls[cat.value];
+                urlEl.target = '_blank';
+                urlEl.rel = 'noopener noreferrer';
+                item.appendChild(labelEl);
+                item.appendChild(sepEl);
+                item.appendChild(urlEl);
+                infoList.appendChild(item);
+            });
+        }
         const infoList = document.createElement('div');
         infoList.className = 'tle-info-list';
-        _TLE_CATEGORIES.filter(function (c) { return c.value && _CELESTRAK_URLS[c.value]; }).forEach(function (cat) {
-            const item = document.createElement('div');
-            item.className = 'tle-info-list-item';
-            const labelEl = document.createElement('span');
-            labelEl.className = 'tle-info-list-label';
-            labelEl.textContent = cat.label;
-            const sepEl = document.createElement('span');
-            sepEl.className = 'tle-info-list-sep';
-            sepEl.textContent = ':';
-            const urlEl = document.createElement('a');
-            urlEl.className = 'tle-info-table-url';
-            urlEl.textContent = _CELESTRAK_URLS[cat.value];
-            urlEl.href = _CELESTRAK_URLS[cat.value];
-            urlEl.target = '_blank';
-            urlEl.rel = 'noopener noreferrer';
-            item.appendChild(labelEl);
-            item.appendChild(sepEl);
-            item.appendChild(urlEl);
-            infoList.appendChild(item);
-        });
+        _buildInfoList();
         infoPanel.appendChild(infoList);
         infoRow.appendChild(infoHeader);
         infoRow.appendChild(infoPanel);
@@ -1112,16 +1573,32 @@ window._SettingsPanel = (function () {
             const migrated = saved ? saved.replace(/FORMAT=TLE\b/, 'FORMAT=tle').replace(/CATNR=25544/, 'GROUP=active') : null;
             if (migrated && migrated !== saved)
                 localStorage.setItem(LS_KEY, migrated);
-            urlInput.value = migrated || _CELESTRAK_URLS['active'];
+            urlInput.value = migrated || effectiveUrls['active'];
         }
         catch (e) {
-            urlInput.value = _CELESTRAK_URLS['active'];
+            urlInput.value = effectiveUrls['active'];
         }
-        // Reconcile with backend
+        // Reconcile with backend — apply onlineUrls overrides and onlineUrl fallback
         if (window._SettingsAPI) {
             window._SettingsAPI.getNamespace('space').then(function (data) {
-                if (!data || !data['onlineUrl'])
+                if (!data)
                     return;
+                // Merge per-category URL overrides from config
+                const configUrls = data['onlineUrls'];
+                if (configUrls && typeof configUrls === 'object') {
+                    Object.assign(effectiveUrls, configUrls);
+                    _buildInfoList();
+                    // Re-fill URL input if the current category is now overridden
+                    const currentCat = catDrop.getValue();
+                    if (currentCat && effectiveUrls[currentCat]) {
+                        urlInput.value = effectiveUrls[currentCat];
+                        try {
+                            localStorage.setItem(LS_KEY, urlInput.value);
+                        }
+                        catch (e) { }
+                    }
+                }
+                // Fall back to legacy single onlineUrl if input is still empty
                 const backendVal = data['onlineUrl'];
                 if (backendVal && !urlInput.value) {
                     urlInput.value = backendVal;
@@ -1134,7 +1611,7 @@ window._SettingsPanel = (function () {
         }
         // Auto-fill URL when category changes
         catDrop.onChange(function (val) {
-            urlInput.value = _CELESTRAK_URLS[val] ?? '';
+            urlInput.value = effectiveUrls[val] ?? '';
         });
         updateBtn.addEventListener('click', async function () {
             const url = urlInput.value.trim();
@@ -1527,6 +2004,68 @@ window._SettingsPanel = (function () {
         saveAllBtn.addEventListener('click', _saveAll);
         return wrap;
     }
+    function _renderSpaceHoverPreviewControl() {
+        const LS_KEY = 'sentinel_space_filterHoverPreview';
+        const SETTING_ID = 'space-filter-hover-preview';
+        const OPTIONS = [
+            { value: 'stay', label: 'STAY IN PLACE' },
+            { value: 'fly', label: 'FLY TO SATELLITE' },
+        ];
+        let current = 'stay';
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved === 'fly')
+                current = 'fly';
+        }
+        catch (e) { }
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-source-override-wrap';
+        const group = document.createElement('div');
+        group.className = 'settings-source-override-group';
+        function _setActive(val) {
+            current = val;
+            group.querySelectorAll('.settings-source-override-btn').forEach(function (btn) {
+                btn.classList.toggle('is-active', btn.dataset['value'] === val);
+            });
+        }
+        OPTIONS.forEach(function (opt) {
+            const btn = document.createElement('button');
+            btn.className = 'settings-source-override-btn' + (current === opt.value ? ' is-active' : '');
+            btn.textContent = opt.label;
+            btn.dataset['value'] = opt.value;
+            btn.addEventListener('click', function () {
+                if (current === opt.value)
+                    return;
+                _setActive(opt.value);
+                _stagePending(SETTING_ID, function () {
+                    try {
+                        localStorage.setItem(LS_KEY, current);
+                    }
+                    catch (e) { }
+                    if (window._SettingsAPI)
+                        window._SettingsAPI.put('space', 'filterHoverPreview', current);
+                });
+            });
+            group.appendChild(btn);
+        });
+        // Sync from backend
+        if (window._SettingsAPI) {
+            window._SettingsAPI.getNamespace('space').then(function (data) {
+                if (!data || !data['filterHoverPreview'])
+                    return;
+                const val = data['filterHoverPreview'];
+                if (val === 'fly' || val === 'stay') {
+                    _setActive(val);
+                    try {
+                        localStorage.setItem(LS_KEY, val);
+                    }
+                    catch (e) { }
+                }
+            });
+        }
+        wrap.appendChild(group);
+        return wrap;
+    }
     function _renderSourceOverrideControl(ns) {
         const LS_KEY = 'sentinel_' + ns + '_sourceOverride';
         const SETTING_ID = ns + '-source-override';
@@ -1723,11 +2262,20 @@ window._SettingsPanel = (function () {
     // ── Open / close / toggle ────────────────────────────────
     function _updateFooterVisibility(sectionKey) {
         const footer = document.getElementById('settings-footer');
-        if (footer)
-            footer.style.display = sectionKey === 'space' ? 'none' : '';
+        if (!footer)
+            return;
+        footer.style.display = sectionKey === 'sdr' ? 'none' : '';
     }
     function open() {
         _open = true;
+        // Close docs panel if open
+        const docsPanel = document.getElementById('docs-panel');
+        if (docsPanel && docsPanel.classList.contains('docs-panel-visible')) {
+            docsPanel.classList.remove('docs-panel-visible');
+            const docsBtn = document.getElementById('docs-btn');
+            if (docsBtn)
+                docsBtn.classList.remove('docs-btn-active');
+        }
         const panel = document.getElementById('settings-panel');
         if (panel)
             panel.classList.add('settings-panel-visible');
@@ -1758,6 +2306,7 @@ window._SettingsPanel = (function () {
         const body = document.getElementById('settings-body');
         if (body)
             body.innerHTML = '';
+        document.dispatchEvent(new CustomEvent('settings-panel-closed'));
     }
     function toggle() {
         if (_open)
@@ -1771,6 +2320,15 @@ window._SettingsPanel = (function () {
         if (settingsBtn) {
             settingsBtn.addEventListener('click', toggle);
         }
+        // Reopen settings panel (and restore section) after an apply-changes reload
+        try {
+            const reopenSection = sessionStorage.getItem('sentinel_settings_reopen');
+            if (reopenSection) {
+                sessionStorage.removeItem('sentinel_settings_reopen');
+                openSection(reopenSection);
+            }
+        }
+        catch (_e) { }
         const input = document.getElementById('settings-search-input');
         const clearBtn = document.getElementById('settings-search-clear');
         if (input) {

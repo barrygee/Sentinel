@@ -9,6 +9,9 @@ interface SdrRadio {
     port: number;
     description: string;
     enabled: boolean;
+    bandwidth:  number | null;
+    rf_gain:    number | null;
+    agc:        boolean | null;
     created_at: number;
 }
 
