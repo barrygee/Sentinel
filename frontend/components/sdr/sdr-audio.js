@@ -53,7 +53,9 @@
     }
     _pwr(i,q){let s=0;for(let k=0;k<i.length;k++)s+=i[k]*i[k]+q[k]*q[k];return 10*Math.log10(s/i.length+1e-20);}
     _demod(i,q){
-        if(this._pwr(i,q)<this._squelch)return new Float32Array(Math.round(i.length*48000/this._sampleRate));
+        const dbfs=this._pwr(i,q);
+        this.port.postMessage({type:'power',dbfs});
+        if(dbfs<this._squelch)return new Float32Array(Math.round(i.length*48000/this._sampleRate));
         if(this._mode==='AM')return this._am(i,q);
         if(this._mode==='USB')return this._ssb(i,q,1);
         if(this._mode==='LSB')return this._ssb(i,q,-1);
@@ -114,6 +116,11 @@
             _gain.gain.value = 1.0;
             _worklet.connect(_gain);
             _gain.connect(_ctx.destination);
+            _worklet.port.onmessage = (ev) => {
+                if (ev.data?.type === 'power' && window._SdrControls) {
+                    window._SdrControls.updateSignalBar(ev.data.dbfs);
+                }
+            };
             _ready = true;
             console.log('[SdrAudio] ready');
         }

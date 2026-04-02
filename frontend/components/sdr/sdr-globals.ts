@@ -25,6 +25,8 @@ var _sdrCurrentRadioId: number | null = null;
 // @ts-ignore
 var _sdrCurrentSampleRate: number = 2_048_000;
 // @ts-ignore
+var _sdrCurrentBwHz: number = 10_000;
+// @ts-ignore
 var _sdrScanActive: boolean = false;
 // @ts-ignore
 var _sdrScanLocked: boolean = false;

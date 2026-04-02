@@ -70,6 +70,7 @@ declare let _sdrCurrentGainAuto: boolean;
 declare let _sdrCurrentSquelch: number;
 declare let _sdrCurrentRadioId: number | null;
 declare let _sdrCurrentSampleRate: number;
+declare let _sdrCurrentBwHz: number;
 declare let _sdrScanActive: boolean;
 declare let _sdrScanLocked: boolean;
 

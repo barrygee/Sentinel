@@ -24,6 +24,8 @@ var _sdrCurrentRadioId = null;
 // @ts-ignore
 var _sdrCurrentSampleRate = 2048000;
 // @ts-ignore
+var _sdrCurrentBwHz = 10000;
+// @ts-ignore
 var _sdrScanActive = false;
 // @ts-ignore
 var _sdrScanLocked = false;

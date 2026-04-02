@@ -42,76 +42,105 @@
                     <span id="sdr-status-label" class="sdr-status-label">DISCONNECTED</span>
                 </div>
 
-                <!-- Radio selector -->
-                <div class="sdr-radio-section">
-                    <label class="sdr-field-label">DEVICE</label>
-                    <div class="sdr-device-dropdown" id="sdr-device-dropdown" tabindex="0">
-                        <div class="sdr-device-dropdown-selected">
-                            <span class="sdr-device-dropdown-text" id="sdr-device-dropdown-text">— select radio —</span>
-                            <span class="sdr-device-dropdown-arrow"></span>
+                <!-- ── Group 1: Device / Bandwidth / RF Gain / AGC ── -->
+                <div class="sdr-control-group">
+
+                    <!-- Device -->
+                    <div class="sdr-radio-section">
+                        <label class="sdr-field-label">DEVICE</label>
+                        <div class="sdr-device-dropdown" id="sdr-device-dropdown" tabindex="0">
+                            <div class="sdr-device-dropdown-selected">
+                                <span class="sdr-device-dropdown-text" id="sdr-device-dropdown-text">— select radio —</span>
+                                <span class="sdr-device-dropdown-arrow"></span>
+                            </div>
+                        </div>
+                        <select id="sdr-radio-select" style="display:none"></select>
+                    </div>
+
+                    <!-- Bandwidth -->
+                    <div class="sdr-radio-section">
+                        <div class="sdr-slider-header">
+                            <label class="sdr-field-label">BANDWIDTH</label>
+                            <span id="sdr-bw-val" class="sdr-slider-val">10 kHz</span>
+                        </div>
+                        <input id="sdr-bw-slider" class="sdr-panel-slider" type="range" min="1000" max="2048000" step="500" value="10000">
+                    </div>
+
+                    <!-- RF Gain -->
+                    <div class="sdr-radio-section">
+                        <div class="sdr-slider-header">
+                            <label class="sdr-field-label">RF GAIN</label>
+                            <span id="sdr-gain-val" class="sdr-slider-val">30.0 dB</span>
+                        </div>
+                        <input id="sdr-gain-slider" class="sdr-panel-slider" type="range" min="-1" max="49" step="0.5" value="30">
+                    </div>
+
+                    <!-- AGC -->
+                    <div class="sdr-radio-section sdr-agc-row">
+                        <label class="sdr-checkbox-label">
+                            <input id="sdr-agc-check" type="checkbox" class="sdr-checkbox">
+                            <span class="sdr-checkbox-custom"></span>
+                            <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
+                        </label>
+                    </div>
+
+                </div>
+
+                <!-- ── Group 2: Signal / Frequency / Mode / Volume / Squelch ── -->
+                <div class="sdr-control-group">
+
+                    <!-- Signal meter -->
+                    <div class="sdr-radio-section">
+                        <span class="sdr-field-label">SIGNAL</span>
+                        <div id="sdr-signal-bar" class="sdr-signal-segments"></div>
+                    </div>
+
+                    <!-- Frequency -->
+                    <div class="sdr-radio-section">
+                        <label class="sdr-field-label">FREQUENCY MHz</label>
+                        <div class="sdr-freq-row">
+                            <input id="sdr-freq-input" class="sdr-panel-input sdr-freq-input-large" type="text"
+                                   placeholder="100.000" autocomplete="off" spellcheck="false">
+                            <button id="sdr-freq-tune" class="sdr-tune-btn" type="button" title="Tune">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                            </button>
+                            <button id="sdr-freq-stop" class="sdr-tune-btn sdr-stop-btn" type="button" title="Stop audio">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
+                            </button>
                         </div>
                     </div>
-                    <select id="sdr-radio-select" style="display:none"></select>
-                </div>
 
-                <!-- Frequency -->
-                <div class="sdr-radio-section">
-                    <label class="sdr-field-label">FREQ (MHz)</label>
-                    <div class="sdr-freq-row">
-                        <input id="sdr-freq-input" class="sdr-panel-input sdr-freq-input-large" type="text"
-                               placeholder="100.000" autocomplete="off" spellcheck="false">
-                        <button id="sdr-freq-tune" class="sdr-tune-btn" type="button" title="Tune">TUNE</button>
-                        <button id="sdr-freq-stop" class="sdr-tune-btn sdr-stop-btn" type="button" title="Stop audio">STOP</button>
+                    <!-- Mode -->
+                    <div class="sdr-radio-section">
+                        <label class="sdr-field-label">MODE</label>
+                        <div class="sdr-mode-pills" id="sdr-mode-pills">
+                            <button class="sdr-mode-pill active" data-mode="AM">AM</button>
+                            <button class="sdr-mode-pill" data-mode="NFM">NFM</button>
+                            <button class="sdr-mode-pill" data-mode="WFM">WFM</button>
+                            <button class="sdr-mode-pill" data-mode="USB">USB</button>
+                            <button class="sdr-mode-pill" data-mode="LSB">LSB</button>
+                            <button class="sdr-mode-pill" data-mode="CW">CW</button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Mode — pill buttons -->
-                <div class="sdr-radio-section">
-                    <label class="sdr-field-label">MODE</label>
-                    <div class="sdr-mode-pills" id="sdr-mode-pills">
-                        <button class="sdr-mode-pill active" data-mode="AM">AM</button>
-                        <button class="sdr-mode-pill" data-mode="NFM">NFM</button>
-                        <button class="sdr-mode-pill" data-mode="WFM">WFM</button>
-                        <button class="sdr-mode-pill" data-mode="USB">USB</button>
-                        <button class="sdr-mode-pill" data-mode="LSB">LSB</button>
-                        <button class="sdr-mode-pill" data-mode="CW">CW</button>
+                    <!-- Volume -->
+                    <div class="sdr-radio-section">
+                        <div class="sdr-slider-header">
+                            <label class="sdr-field-label">VOLUME</label>
+                            <span id="sdr-vol-val" class="sdr-slider-val">80%</span>
+                        </div>
+                        <input id="sdr-vol-slider" class="sdr-panel-slider" type="range" min="0" max="200" step="1" value="80">
                     </div>
-                </div>
 
-                <!-- RF Gain -->
-                <div class="sdr-radio-section">
-                    <div class="sdr-slider-header">
-                        <label class="sdr-field-label">RF GAIN</label>
-                        <span id="sdr-gain-val" class="sdr-slider-val">30.0 dB</span>
+                    <!-- Squelch -->
+                    <div class="sdr-radio-section">
+                        <div class="sdr-slider-header">
+                            <label class="sdr-field-label">SQUELCH</label>
+                            <span id="sdr-sq-val" class="sdr-slider-val">-120 dBFS</span>
+                        </div>
+                        <input id="sdr-sq-slider" class="sdr-panel-slider" type="range" min="-120" max="0" step="1" value="-120">
                     </div>
-                    <input id="sdr-gain-slider" class="sdr-panel-slider" type="range" min="-1" max="49" step="0.5" value="30">
-                </div>
 
-                <!-- AGC checkbox -->
-                <div class="sdr-radio-section sdr-agc-row">
-                    <label class="sdr-checkbox-label">
-                        <input id="sdr-agc-check" type="checkbox" class="sdr-checkbox">
-                        <span class="sdr-checkbox-custom"></span>
-                        <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
-                    </label>
-                </div>
-
-                <!-- Volume -->
-                <div class="sdr-radio-section">
-                    <div class="sdr-slider-header">
-                        <label class="sdr-field-label">VOLUME</label>
-                        <span id="sdr-vol-val" class="sdr-slider-val">80%</span>
-                    </div>
-                    <input id="sdr-vol-slider" class="sdr-panel-slider" type="range" min="0" max="200" step="1" value="80">
-                </div>
-
-                <!-- Squelch -->
-                <div class="sdr-radio-section">
-                    <div class="sdr-slider-header">
-                        <label class="sdr-field-label">SQUELCH</label>
-                        <span id="sdr-sq-val" class="sdr-slider-val">-120 dBFS</span>
-                    </div>
-                    <input id="sdr-sq-slider" class="sdr-panel-slider" type="range" min="-120" max="0" step="1" value="-120">
                 </div>
 
             </div>
@@ -139,13 +168,6 @@
                     <div class="sdr-scan-btns-row">
                         <button id="sdr-radio-scan-btn" class="sdr-scan-action-btn sdr-scan-action-btn--bg">START SCANNING</button>
                         <button id="sdr-radio-lock-btn" class="sdr-scan-action-btn sdr-scan-action-btn--bg" title="Hold scanner on current frequency">HOLD SCAN</button>
-                    </div>
-                    <!-- Signal meter -->
-                    <div class="sdr-scan-signal-row">
-                        <span class="sdr-field-label" style="margin-bottom:6px;display:block">SIGNAL</span>
-                        <div class="sdr-signal-bar-track">
-                            <div id="sdr-signal-bar" class="sdr-signal-bar"></div>
-                        </div>
                     </div>
                 </div>
 
@@ -306,10 +328,12 @@
     const volVal       = document.getElementById('sdr-vol-val')        as HTMLSpanElement;
     const sqSlider     = document.getElementById('sdr-sq-slider')      as HTMLInputElement;
     const sqVal        = document.getElementById('sdr-sq-val')         as HTMLSpanElement;
+    const bwSlider     = document.getElementById('sdr-bw-slider')      as HTMLInputElement;
+    const bwVal        = document.getElementById('sdr-bw-val')         as HTMLSpanElement;
     const connDot      = document.getElementById('sdr-conn-dot')       as HTMLDivElement;
     const statusLabel  = document.getElementById('sdr-status-label')   as HTMLSpanElement;
     const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanElement;
-    const signalBar    = document.getElementById('sdr-signal-bar')     as HTMLDivElement;
+    const signalBarEl  = document.getElementById('sdr-signal-bar')     as HTMLDivElement;
     const radioScanBtn = document.getElementById('sdr-radio-scan-btn') as HTMLButtonElement;
     const radioScanInd = document.getElementById('sdr-radio-scan-indicator') as HTMLDivElement;
     const radioScanLbl = document.getElementById('sdr-radio-scan-label') as HTMLSpanElement;
@@ -379,6 +403,7 @@
             window._SdrAudio.setMode(mode);
             window._SdrAudio.setBandwidthHz(defaultBwHz(mode));
         }
+        setBandwidthSlider(defaultBwHz(mode));
     });
 
     // ── Tune ──────────────────────────────────────────────────────────────────
@@ -391,7 +416,9 @@
         if (window._SdrAudio) {
             window._SdrAudio.initAudio(getSelectedRadioId() ?? undefined);
             window._SdrAudio.setMode(_sdrCurrentMode);
-            window._SdrAudio.setBandwidthHz(defaultBwHz(_sdrCurrentMode));
+            const bw = defaultBwHz(_sdrCurrentMode);
+            window._SdrAudio.setBandwidthHz(bw);
+            setBandwidthSlider(bw);
         }
         // Always persist so reconnect restores the user's chosen frequency
         sessionStorage.setItem('sdrLastFreqHz', String(hz));
@@ -465,17 +492,50 @@
         }, 150);
     });
 
+    // ── Bandwidth ─────────────────────────────────────────────────────────────
+
+    function formatBwHz(hz: number): string {
+        if (hz >= 1_000_000) return `${(hz / 1_000_000).toFixed(2)} MHz`;
+        if (hz >= 1_000)     return `${Math.round(hz / 1000)} kHz`;
+        return `${hz} Hz`;
+    }
+
+    function setBandwidthSlider(hz: number) {
+        bwSlider.value    = String(hz);
+        bwVal.textContent = formatBwHz(hz);
+        _sdrCurrentBwHz   = hz;
+    }
+
+    let _bwDebounce: ReturnType<typeof setTimeout> | null = null;
+    bwSlider.addEventListener('input', () => {
+        const hz = parseInt(bwSlider.value, 10);
+        bwVal.textContent = formatBwHz(hz);
+        _sdrCurrentBwHz   = hz;
+        if (window._SdrAudio) window._SdrAudio.setBandwidthHz(hz);
+        if (_bwDebounce) clearTimeout(_bwDebounce);
+        _bwDebounce = setTimeout(() => {
+            sendCmd({ cmd: 'sample_rate', rate_hz: hz });
+        }, 150);
+    });
+
     // ── Signal meter ──────────────────────────────────────────────────────────
 
+    const SIGNAL_SEGS = 36;
+    const _segEls: HTMLDivElement[] = [];
+    for (let i = 0; i < SIGNAL_SEGS; i++) {
+        const seg = document.createElement('div');
+        seg.className = 'sdr-signal-seg';
+        signalBarEl.appendChild(seg);
+        _segEls.push(seg);
+    }
+
+    let _signalSmoothed = -120;
     function updateSignalBar(dbfs: number) {
-        const pct = Math.max(0, Math.min(100, ((dbfs + 120) / 120) * 100));
-        signalBar.style.width = pct + '%';
-        if (pct < 60) {
-            signalBar.style.background = '#4cdd4c';
-        } else if (pct < 85) {
-            signalBar.style.background = '#c8ff00';
-        } else {
-            signalBar.style.background = '#ff4444';
+        const alpha = dbfs > _signalSmoothed ? 0.3 : 0.05;
+        _signalSmoothed += alpha * (dbfs - _signalSmoothed);
+        const lit = Math.round(Math.max(0, Math.min(SIGNAL_SEGS, ((_signalSmoothed + 120) / 120) * SIGNAL_SEGS)));
+        for (let i = 0; i < SIGNAL_SEGS; i++) {
+            _segEls[i].classList.toggle('sdr-signal-seg--on', i < lit);
         }
     }
 
@@ -722,6 +782,12 @@
             _sdrCurrentGain      = msg.gain_db;
             _sdrCurrentGainAuto  = msg.gain_auto;
             _sdrCurrentSampleRate = msg.sample_rate;
+
+            // Update bandwidth slider max to match the SDR's sample rate
+            bwSlider.max = String(msg.sample_rate);
+            const clampedBw = Math.min(_sdrCurrentBwHz, msg.sample_rate);
+            setBandwidthSlider(clampedBw);
+            if (window._SdrAudio) window._SdrAudio.setBandwidthHz(clampedBw);
 
             if (!hadUserFreq) displayFreq(msg.center_hz);
             setModePill(modePillsEl, msg.mode);
