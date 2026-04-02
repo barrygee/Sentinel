@@ -419,6 +419,12 @@
         setBandwidthSlider(defaultBwHz(mode));
     });
     // ── Tune ──────────────────────────────────────────────────────────────────
+    // Stop is disabled until play is clicked; they toggle each other
+    freqStopBtn.disabled = true;
+    function setPlayingState(playing) {
+        freqTuneBtn.disabled = playing;
+        freqStopBtn.disabled = !playing;
+    }
     function tune() {
         const hz = parseFreqMhz(freqInput.value);
         if (!hz)
@@ -432,6 +438,7 @@
             window._SdrAudio.setBandwidthHz(bw);
             setBandwidthSlider(bw);
         }
+        setPlayingState(true);
         // Always persist so reconnect restores the user's chosen frequency
         sessionStorage.setItem('sdrLastFreqHz', String(hz));
         sessionStorage.setItem('sdrLastMode', _sdrCurrentMode);
@@ -447,12 +454,33 @@
         }
         sendCmd({ cmd: 'tune', frequency_hz: hz });
     }
+    function retune(hz) {
+        if (!_sdrSocket || _sdrSocket.readyState !== WebSocket.OPEN)
+            return;
+        _sdrCurrentFreqHz = hz;
+        displayFreq(hz);
+        sessionStorage.setItem('sdrLastFreqHz', String(hz));
+        sendCmd({ cmd: 'tune', frequency_hz: hz });
+    }
     freqTuneBtn.addEventListener('click', tune);
     freqInput.addEventListener('keydown', (e) => { if (e.key === 'Enter')
         tune(); });
+    // Auto-retune when frequency input changes while audio is playing
+    let _retuneDebounce = null;
+    freqInput.addEventListener('input', () => {
+        if (freqStopBtn.disabled)
+            return; // not playing
+        const hz = parseFreqMhz(freqInput.value);
+        if (!hz)
+            return;
+        if (_retuneDebounce)
+            clearTimeout(_retuneDebounce);
+        _retuneDebounce = setTimeout(() => retune(hz), 600);
+    });
     freqStopBtn.addEventListener('click', () => {
         if (window._SdrAudio)
             window._SdrAudio.stop();
+        setPlayingState(false);
     });
     // ── Gain + AGC ────────────────────────────────────────────────────────────
     let _gainDebounce = null;
