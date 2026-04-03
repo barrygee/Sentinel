@@ -36,11 +36,29 @@
   },
   "sdr": {
     "enabled": true,
+    "onlineUrl": "https://",
+    "offgridSource": {
+      "url": "http://localhost"
+    },
     "defaultSampleRate": 2048000,
     "defaultFftSize": 1024,
-    "defaultGain": 30.0,
-    "defaultSquelch": -60.0,
+    "defaultGain": 30,
+    "defaultSquelch": -60,
     "waterfallRows": 300,
-    "spectrumFps": 15
+    "spectrumFps": 15,
+    "radios": [
+      {
+        "name": "Sentinel RTL-SDR",
+        "host": "192.168.1.111",
+        "port": 1234,
+        "enabled": true
+      },
+      {
+        "name": "Pauls SDR",
+        "host": "192.168.20.222",
+        "port": 1234,
+        "enabled": true
+      }
+    ]
   }
 }

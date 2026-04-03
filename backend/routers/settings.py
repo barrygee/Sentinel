@@ -96,6 +96,15 @@ async def config_upload(
     if not isinstance(config, dict):
         raise HTTPException(status_code=400, detail="Config must be a JSON object")
 
+    # Assign sequential IDs to any sdr.radios entries that are missing them
+    sdr_radios = config.get("sdr", {}).get("radios") if isinstance(config.get("sdr"), dict) else None
+    if isinstance(sdr_radios, list):
+        next_id = max((r.get("id", 0) for r in sdr_radios if isinstance(r, dict)), default=0) + 1
+        for r in sdr_radios:
+            if isinstance(r, dict) and not isinstance(r.get("id"), int):
+                r["id"] = next_id
+                next_id += 1
+
     ts = now_ms()
     for namespace, keys in config.items():
         if not isinstance(keys, dict):

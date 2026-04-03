@@ -169,7 +169,18 @@ def _freq_to_dict(f: SdrStoredFrequency) -> dict:
 
 @router.get("/api/sdr/radios")
 async def list_radios(db: AsyncSession = Depends(get_db)):
-    return JSONResponse(await _get_radios(db))
+    radios = await _get_radios(db)
+    # Heal any radios missing integer IDs (e.g. seeded from default_config.json)
+    needs_save = False
+    next_id = max((r.get("id", 0) for r in radios if isinstance(r.get("id"), int)), default=0) + 1
+    for r in radios:
+        if not isinstance(r.get("id"), int):
+            r["id"] = next_id
+            next_id += 1
+            needs_save = True
+    if needs_save:
+        await _save_radios(radios, db)
+    return JSONResponse(radios)
 
 
 @router.post("/api/sdr/radios", status_code=201)

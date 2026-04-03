@@ -4,8 +4,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: sentinel-api
-    ports:
-      - "8000:8000"
+    network_mode: host
     volumes:
       - sentinel_db:/app/data
     environment:

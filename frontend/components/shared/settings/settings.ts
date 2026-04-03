@@ -11,8 +11,8 @@ window._SettingsPanel = (function () {
     let _open = false;
     let _activeSection = 'app';
 
-    // Pending changes map: key → { commit: () => void }
-    const _pending: Map<string, { commit: () => void }> = new Map();
+    // Pending changes map: key → { commit: () => Promise<unknown> | void }
+    const _pending: Map<string, { commit: () => Promise<unknown> | void }> = new Map();
 
     // ── Settings registry ────────────────────────────────────
     interface SettingItem {
@@ -385,9 +385,9 @@ window._SettingsPanel = (function () {
             try {
                 const res = await fetch('/api/sdr/radios');
                 if (!res.ok) return;
-                const raw: SdrRadioData[] = await res.json();
+                const raw = await res.json();
                 // Normalise IDs to numbers (guards against string IDs in stored JSON)
-                _radios = raw.map(r => ({ ...r, id: Number(r.id) }));
+                _radios = raw.map((r: SdrRadioData) => ({ ...r, id: Number(r.id) }));
                 _renderList();
             } catch (_e) {}
         }
@@ -685,32 +685,42 @@ window._SettingsPanel = (function () {
         }, 2500);
     }
 
-    function _commitAll(): void {
+    async function _commitAll(): Promise<void> {
         if (_pending.size === 0) {
             _showApplyStatus('NO CHANGES', false);
             return;
         }
+        const promises: Promise<unknown>[] = [];
         let hasError = false;
         _pending.forEach(function (entry) {
             try {
-                entry.commit();
+                const result = entry.commit();
+                if (result && typeof (result as any).then === 'function') {
+                    promises.push(result as Promise<unknown>);
+                }
             } catch (e) {
                 hasError = true;
             }
         });
-        if (!hasError) {
-            _pending.clear();
-            _showApplyStatus('SAVED', false);
-            setTimeout(function () {
-                try { sessionStorage.setItem('sentinel_settings_reopen', _activeSection); } catch (_e) {}
-                location.reload();
-            }, 800);
-        } else {
+        if (hasError) {
             _showApplyStatus('ERROR', true);
+            return;
         }
+        try {
+            await Promise.all(promises);
+        } catch (e) {
+            _showApplyStatus('ERROR', true);
+            return;
+        }
+        _pending.clear();
+        _showApplyStatus('SAVED', false);
+        setTimeout(function () {
+            try { sessionStorage.setItem('sentinel_settings_reopen', _activeSection); } catch (_e) {}
+            location.reload();
+        }, 400);
     }
 
-    function _stagePending(id: string, commitFn: () => void): void {
+    function _stagePending(id: string, commitFn: () => Promise<unknown> | void): void {
         _pending.set(id, { commit: commitFn });
     }
 
@@ -1179,8 +1189,7 @@ window._SettingsPanel = (function () {
                 const file = new File([blob], 'sentinel_config.json', { type: 'application/json' });
                 const formData = new FormData();
                 formData.append('file', file);
-                fetch('/api/settings/config/upload', { method: 'POST', body: formData })
-                    .catch(function () {});
+                return fetch('/api/settings/config/upload', { method: 'POST', body: formData });
             });
         });
 

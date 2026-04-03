@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 # Default FFT parameters
 DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
 DEFAULT_SAMPLE_RATE = 2_048_000
-# Read ~85ms worth of IQ per chunk (174080 bytes @ 2.048MHz).
-# Large enough to keep the audio worklet buffer full between frames.
-READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz
+# Read ~21ms worth of IQ per chunk (43008 bytes @ 2.048MHz).
+# Smaller chunks reduce USB transfer pressure on rtl_tcp over Docker/network.
+READ_CHUNK_SAMPLES  = 21504  # ~21ms @ 2.048MHz (multiple of 512 for USB alignment)
 READ_CHUNK_BYTES    = READ_CHUNK_SAMPLES * 2  # 2 bytes per IQ pair
 
 # Connection cache: key = "host:port"

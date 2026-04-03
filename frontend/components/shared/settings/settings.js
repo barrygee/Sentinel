@@ -585,34 +585,44 @@ window._SettingsPanel = (function () {
             status.className = '';
         }, 2500);
     }
-    function _commitAll() {
+    async function _commitAll() {
         if (_pending.size === 0) {
             _showApplyStatus('NO CHANGES', false);
             return;
         }
+        const promises = [];
         let hasError = false;
         _pending.forEach(function (entry) {
             try {
-                entry.commit();
+                const result = entry.commit();
+                if (result && typeof result.then === 'function') {
+                    promises.push(result);
+                }
             }
             catch (e) {
                 hasError = true;
             }
         });
-        if (!hasError) {
-            _pending.clear();
-            _showApplyStatus('SAVED', false);
-            setTimeout(function () {
-                try {
-                    sessionStorage.setItem('sentinel_settings_reopen', _activeSection);
-                }
-                catch (_e) { }
-                location.reload();
-            }, 800);
-        }
-        else {
+        if (hasError) {
             _showApplyStatus('ERROR', true);
+            return;
         }
+        try {
+            await Promise.all(promises);
+        }
+        catch (e) {
+            _showApplyStatus('ERROR', true);
+            return;
+        }
+        _pending.clear();
+        _showApplyStatus('SAVED', false);
+        setTimeout(function () {
+            try {
+                sessionStorage.setItem('sentinel_settings_reopen', _activeSection);
+            }
+            catch (_e) { }
+            location.reload();
+        }, 400);
     }
     function _stagePending(id, commitFn) {
         _pending.set(id, { commit: commitFn });
@@ -1119,8 +1129,7 @@ window._SettingsPanel = (function () {
                 const file = new File([blob], 'sentinel_config.json', { type: 'application/json' });
                 const formData = new FormData();
                 formData.append('file', file);
-                fetch('/api/settings/config/upload', { method: 'POST', body: formData })
-                    .catch(function () { });
+                return fetch('/api/settings/config/upload', { method: 'POST', body: formData });
             });
         });
         wrap.appendChild(textarea);

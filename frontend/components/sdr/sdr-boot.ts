@@ -49,8 +49,8 @@
 
     function openSocket(radioId: number) {
         if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
-        // Don't open a new socket if one is already connecting or open for this radio
-        if (_sdrSocket && (_sdrSocket.readyState === WebSocket.CONNECTING || _sdrSocket.readyState === WebSocket.OPEN)) {
+        // Don't open a new socket if one is already connecting or open for the same radio
+        if (_currentRadioId === radioId && _sdrSocket && (_sdrSocket.readyState === WebSocket.CONNECTING || _sdrSocket.readyState === WebSocket.OPEN)) {
             return;
         }
         if (_sdrSocket) {
@@ -125,14 +125,17 @@
         try {
             const res = await fetch('/api/sdr/radios');
             const radios: SdrRadio[] = await res.json();
-            if ((window as any)._sdrPopulateRadios) {
-                (window as any)._sdrPopulateRadios(radios);
-            }
             const lastId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
             const match  = radios.find(r => r.id === lastId && r.enabled);
+            // Pre-select the last radio before populating so _sdrPopulateRadios can restore the dropdown text
             if (match) {
                 const sel = document.getElementById('sdr-radio-select') as HTMLSelectElement | null;
                 if (sel) sel.value = String(match.id);
+            }
+            if ((window as any)._sdrPopulateRadios) {
+                (window as any)._sdrPopulateRadios(radios);
+            }
+            if (match) {
                 openSocket(match.id);
             }
         } catch (e) {
