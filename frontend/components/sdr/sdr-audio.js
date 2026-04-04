@@ -28,8 +28,17 @@
     constructor() {
         super();
         this._mode='AM'; this._squelch=-120; this._sampleRate=2048000;
-        this._buf=[]; this._wfmPrevI=1; this._wfmPrevQ=0; this._amDc=0;
+        // Circular PCM buffer — 48000*2 = 2s capacity; pre-roll 0.08s before playing
+        this._pcmBuf=new Float32Array(48000*2); this._pcmWr=0; this._pcmRd=0; this._pcmLen=0;
+        this._preroll=Math.round(48000*0.08); this._buffering=true;
+        this._wfmPrevI=1; this._wfmPrevQ=0; this._amDc=0;
         this._bwHz=0; // 0 = full bandwidth
+        // WFM de-emphasis IIR state (75µs time constant)
+        this._deemphY=0;
+        // FIR LPF taps (updated when bw or sample_rate changes)
+        this._lpfTaps=null; this._lpfBw=0; this._lpfSr=0;
+        // FIR delay line for I and Q channels
+        this._lpfDelayI=null; this._lpfDelayQ=null; this._lpfPos=0;
         this.port.onmessage=(ev)=>{
             const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz}=ev.data;
             if(type==='bw'){if(bandwidth_hz!==undefined)this._bwHz=bandwidth_hz;return;}
@@ -38,18 +47,55 @@
             if(squelch_dbfs!==undefined)this._squelch=squelch_dbfs;
             if(sample_rate!==undefined)this._sampleRate=sample_rate;
             const iA=new Float32Array(i),qA=new Float32Array(q);
-            // Apply bandwidth limiting: only use centre portion of IQ chunk
-            const{iT,qT}=this._bwHz>0?this._trim(iA,qA,sample_rate):({iT:iA,qT:qA});
-            const audio=this._demod(iT,qT);
-            for(let k=0;k<audio.length;k++)this._buf.push(audio[k]);
+            // Apply FIR LPF only when BW is narrow enough to need it (skip for WFM — decimation handles it)
+            const bwRatio=this._bwHz>0?this._bwHz/this._sampleRate:1;
+            const{iF,qF}=bwRatio>0&&bwRatio<0.35
+                ?this._lpf(iA,qA)
+                :{iF:iA,qF:qA};
+            const audio=this._demod(iF,qF);
+            const cap=this._pcmBuf.length;
+            for(let k=0;k<audio.length;k++){
+                if(this._pcmLen<cap){this._pcmBuf[this._pcmWr]=audio[k];this._pcmWr=(this._pcmWr+1)%cap;this._pcmLen++;}
+            }
+            if(this._buffering&&this._pcmLen>=this._preroll)this._buffering=false;
         };
     }
-    _trim(i,q,sr){
-        // Keep only the centre (bwHz/sr) fraction of samples
-        const frac=Math.min(1,this._bwHz/sr);
-        const keep=Math.max(1,Math.floor(i.length*frac));
-        const off=Math.floor((i.length-keep)/2);
-        return{iT:i.subarray(off,off+keep),qT:q.subarray(off,off+keep)};
+    // Build windowed-sinc FIR low-pass taps (Hamming window, M=64 taps)
+    _buildLpf(cutHz,sr){
+        const M=64,fc=cutHz/sr;
+        const taps=new Float32Array(M+1);
+        let sum=0;
+        for(let n=0;n<=M;n++){
+            const h=n===M/2?2*Math.PI*fc:Math.sin(2*Math.PI*fc*(n-M/2))/(n-M/2);
+            const w=0.54-0.46*Math.cos(2*Math.PI*n/M); // Hamming
+            taps[n]=h*w; sum+=taps[n];
+        }
+        for(let n=0;n<=M;n++)taps[n]/=sum;
+        return taps;
+    }
+    _lpf(i,q){
+        const sr=this._sampleRate,bw=this._bwHz;
+        if(this._lpfTaps===null||this._lpfBw!==bw||this._lpfSr!==sr){
+            this._lpfTaps=this._buildLpf(bw/2,sr);
+            const M=this._lpfTaps.length;
+            this._lpfDelayI=new Float32Array(M);
+            this._lpfDelayQ=new Float32Array(M);
+            this._lpfPos=0;
+            this._lpfBw=bw;this._lpfSr=sr;
+        }
+        const taps=this._lpfTaps,M=taps.length;
+        const dI=this._lpfDelayI,dQ=this._lpfDelayQ;
+        const oI=new Float32Array(i.length),oQ=new Float32Array(q.length);
+        let pos=this._lpfPos;
+        for(let k=0;k<i.length;k++){
+            dI[pos]=i[k];dQ[pos]=q[k];
+            let sI=0,sQ=0;
+            for(let j=0;j<M;j++){const p=(pos-j+M)%M;sI+=taps[j]*dI[p];sQ+=taps[j]*dQ[p];}
+            oI[k]=sI;oQ[k]=sQ;
+            pos=(pos+1)%M;
+        }
+        this._lpfPos=pos;
+        return{iF:oI,qF:oQ};
     }
     _pwr(i,q){let s=0;for(let k=0;k<i.length;k++)s+=i[k]*i[k]+q[k]*q[k];return 10*Math.log10(s/i.length+1e-20);}
     _demod(i,q){
@@ -59,6 +105,7 @@
         if(this._mode==='AM')return this._am(i,q);
         if(this._mode==='USB')return this._ssb(i,q,1);
         if(this._mode==='LSB')return this._ssb(i,q,-1);
+        if(this._mode==='WFM')return this._wfm(i,q);
         return this._fm(i,q);
     }
     _fm(i,q){
@@ -67,6 +114,23 @@
         for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}
         this._wfmPrevI=pI;this._wfmPrevQ=pQ;
         return this._decimate(d,this._sampleRate,48000);
+    }
+    _wfm(i,q){
+        // FM discriminator (same as NFM)
+        const n=i.length,d=new Float32Array(n);
+        let pI=this._wfmPrevI,pQ=this._wfmPrevQ;
+        for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}
+        this._wfmPrevI=pI;this._wfmPrevQ=pQ;
+        // Decimate to 48 kHz
+        const pcm=this._decimate(d,this._sampleRate,48000);
+        // 75µs de-emphasis IIR: y[n] = alpha*y[n-1] + (1-alpha)*x[n]
+        // alpha = exp(-1 / (48000 * 75e-6))
+        const alpha=Math.exp(-1/(48000*75e-6));
+        const beta=1-alpha;
+        let y=this._deemphY;
+        for(let k=0;k<pcm.length;k++){y=alpha*y+beta*pcm[k];pcm[k]=y;}
+        this._deemphY=y;
+        return pcm;
     }
     _am(i,q){
         const n=i.length,e=new Float32Array(n);
@@ -93,7 +157,12 @@
     process(_,outputs){
         const out=outputs[0][0];if(!out)return true;
         const need=out.length;
-        if(this._buf.length>=need)out.set(this._buf.splice(0,need));else out.fill(0);
+        if(this._buffering||this._pcmLen<need){out.fill(0);return true;}
+        const cap=this._pcmBuf.length;
+        for(let k=0;k<need;k++){out[k]=this._pcmBuf[this._pcmRd];this._pcmRd=(this._pcmRd+1)%cap;}
+        this._pcmLen-=need;
+        // Only re-buffer if completely empty — avoid thrashing
+        if(this._pcmLen===0)this._buffering=true;
         return true;
     }
 });`;

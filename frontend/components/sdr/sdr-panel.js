@@ -33,11 +33,6 @@
             </button>
             <div class="sdr-scanner-main-body sdr-scanner-main-body-expanded" id="sdr-pane-radio">
 
-                <!-- Status row -->
-                <div class="sdr-radio-status-row">
-                    <span id="sdr-status-label" class="sdr-status-label">DISCONNECTED</span>
-                </div>
-
                 <!-- ── Group 1: Device / Bandwidth / RF Gain / AGC ── -->
                 <button class="sdr-group-toggle sdr-group-toggle-expanded" id="sdr-device-group-toggle">
                     <div class="sdr-scanner-section-left">
@@ -350,8 +345,7 @@
     const bwSlider = document.getElementById('sdr-bw-slider');
     const bwVal = document.getElementById('sdr-bw-val');
     const connDot = document.getElementById('sdr-conn-dot');
-    const statusLabel = document.getElementById('sdr-status-label');
-    const activeFreq = document.getElementById('sdr-active-freq');
+const activeFreq = document.getElementById('sdr-active-freq');
     const signalBarEl = document.getElementById('sdr-signal-bar');
     const radioScanBtn = document.getElementById('sdr-radio-scan-btn');
     const radioScanInd = document.getElementById('sdr-radio-scan-indicator');
@@ -777,8 +771,6 @@
         _sdrConnected = connected;
         connDot.className = 'sdr-conn-dot ' + (connected ? 'sdr-dot-on' : 'sdr-dot-off');
         connDot.title = connected ? 'Connected' : 'Disconnected';
-        statusLabel.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
-        statusLabel.className = 'sdr-status-label' + (connected ? ' sdr-status-on' : '');
     }
     function applyStatus(msg) {
         setStatus(msg.connected);

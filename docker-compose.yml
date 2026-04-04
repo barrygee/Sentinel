@@ -4,7 +4,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: sentinel-api
-    network_mode: host
+    networks:
+      - sentinel-net
     volumes:
       - sentinel_db:/app/data
       - ./backend:/app/backend         # Live reload backend code
@@ -21,6 +22,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sentinel
+    networks:
+      - sentinel-net
     ports:
       - "8080:80"
     volumes:
@@ -29,6 +32,9 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+networks:
+  sentinel-net:
 
 volumes:
   sentinel_db:
