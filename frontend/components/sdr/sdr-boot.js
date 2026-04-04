@@ -17,12 +17,12 @@
         const sidebar = document.getElementById('map-sidebar');
         if (sidebar) {
             sidebar.style.display = 'none';
-        } else {
+        }
+        else {
             setTimeout(hideMapSidebar, 50);
         }
     }
     hideMapSidebar();
-
     // ── Re-wire the footer sidebar toggle button ──────────────────────────────
     function rewireSidebarToggleBtn() {
         const btn = document.getElementById('map-sidebar-btn');
@@ -40,19 +40,16 @@
         fresh.classList.toggle('msb-btn-active', window._SdrPanel.isVisible());
     }
     rewireSidebarToggleBtn();
-
-    // ── WebSocket management ──────────────────────────────────────────────────
+    // ── WebSocket management ──────────────────────���───────────────────────────
     let _reconnectTimer = null;
-    let _activeRadioId  = null;
-
+    let _activeRadioId = null;
     function openControlSocket(radioId) {
         if (_reconnectTimer) {
             clearTimeout(_reconnectTimer);
             _reconnectTimer = null;
         }
         // Don't open a duplicate socket for the same radio
-        if (_activeRadioId === radioId &&
-            _sdrSocket &&
+        if (_activeRadioId === radioId && _sdrSocket &&
             (_sdrSocket.readyState === WebSocket.CONNECTING || _sdrSocket.readyState === WebSocket.OPEN)) {
             return;
         }
@@ -60,21 +57,26 @@
             _sdrSocket.close();
             _sdrSocket = null;
         }
-        _activeRadioId  = radioId;
+        _activeRadioId = radioId;
         _sdrCurrentRadioId = radioId;
         sessionStorage.setItem('sdrLastRadioId', String(radioId));
-
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-        const ws    = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}`);
-        _sdrSocket  = ws;
-
+        const ws = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}`);
+        _sdrSocket = ws;
         ws.addEventListener('message', (ev) => {
             let msg;
-            try { msg = JSON.parse(ev.data); } catch { return; }
+            try {
+                msg = JSON.parse(ev.data);
+            }
+            catch {
+                return;
+            }
             switch (msg.type) {
                 case 'status':
-                    if (window._SdrControls) window._SdrControls.applyStatus(msg);
-                    if (window._SdrAudio)    window._SdrAudio.setMode(msg.mode);
+                    if (window._SdrControls)
+                        window._SdrControls.applyStatus(msg);
+                    if (window._SdrAudio)
+                        window._SdrAudio.setMode(msg.mode);
                     // Only persist frequency if the user hasn't tuned manually this session
                     if (!sessionStorage.getItem('sdrLastFreqHz') || !_sdrCurrentFreqHz) {
                         sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
@@ -83,44 +85,47 @@
                     break;
                 case 'error':
                     console.warn('[SDR] error', msg.code, msg.message);
-                    if (window._SdrControls) window._SdrControls.setStatus(false);
+                    if (window._SdrControls)
+                        window._SdrControls.setStatus(false);
                     break;
                 case 'pong':
                     break;
             }
         });
-
         ws.addEventListener('open', () => {
             _sdrConnected = true;
-            if (window._SdrControls) window._SdrControls.setStatus(true);
-            if (window._SdrAudio)    window._SdrAudio.start(radioId);
+            if (window._SdrControls)
+                window._SdrControls.setStatus(true);
+            if (window._SdrAudio)
+                window._SdrAudio.start(radioId);
             const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
-            const lastMode   = sessionStorage.getItem('sdrLastMode') || 'AM';
+            const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM';
             if (lastFreqHz > 0) {
                 ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }));
                 ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
             }
         });
-
         ws.addEventListener('close', () => {
             _sdrConnected = false;
-            if (window._SdrControls) window._SdrControls.setStatus(false);
-            if (_reconnectTimer) clearTimeout(_reconnectTimer);
+            if (window._SdrControls)
+                window._SdrControls.setStatus(false);
+            if (_reconnectTimer)
+                clearTimeout(_reconnectTimer);
             _reconnectTimer = setTimeout(() => {
-                if (_sdrCurrentRadioId === radioId) openControlSocket(radioId);
+                if (_sdrCurrentRadioId === radioId)
+                    openControlSocket(radioId);
             }, 3000);
         });
-
         ws.addEventListener('error', () => {
             _sdrConnected = false;
-            if (window._SdrControls) window._SdrControls.setStatus(false);
+            if (window._SdrControls)
+                window._SdrControls.setStatus(false);
         });
     }
-
     // ── Load radios and restore last selection ────────────────────────────────
     async function loadRadios() {
         try {
-            const res    = await fetch('/api/sdr/radios');
+            const res = await fetch('/api/sdr/radios');
             const radios = await res.json();
             if (window._sdrPopulateRadios) {
                 window._sdrPopulateRadios(radios);
@@ -133,30 +138,36 @@
                     document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId: match.id } }));
                 }
             }
-        } catch (e) {
+        }
+        catch (e) {
             console.warn('[SDR] Could not load radios:', e);
         }
     }
-
     // ── Reload radios when the settings panel changes the device list ─────────
     document.addEventListener('sdr:radios-changed', loadRadios);
-
     // ── Listen for radio selection / deselection ──────────────────────────────
     document.addEventListener('sdr-radio-selected', (e) => {
         const { radioId } = e.detail;
-        if (radioId) openControlSocket(radioId);
+        if (radioId)
+            openControlSocket(radioId);
     });
-
     document.addEventListener('sdr-radio-deselected', () => {
-        if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
-        if (_sdrSocket)      { _sdrSocket.close(); _sdrSocket = null; }
-        _activeRadioId     = null;
+        if (_reconnectTimer) {
+            clearTimeout(_reconnectTimer);
+            _reconnectTimer = null;
+        }
+        if (_sdrSocket) {
+            _sdrSocket.close();
+            _sdrSocket = null;
+        }
+        _activeRadioId = null;
         _sdrCurrentRadioId = null;
         sessionStorage.removeItem('sdrLastRadioId');
-        if (window._SdrAudio)    window._SdrAudio.stop();
-        if (window._SdrControls) window._SdrControls.setStatus(false);
+        if (window._SdrAudio)
+            window._SdrAudio.stop();
+        if (window._SdrControls)
+            window._SdrControls.setStatus(false);
     });
-
     // ── Load stored frequencies and groups into the panel ─────────────────────
     async function loadFrequencies() {
         try {
@@ -165,28 +176,28 @@
                 fetch('/api/sdr/frequencies'),
             ]);
             const groups = await groupsRes.json();
-            const freqs  = await freqsRes.json();
-            if (window._SdrPanel) window._SdrPanel.refresh(groups, freqs);
-        } catch (e) {
+            const freqs = await freqsRes.json();
+            if (window._SdrPanel)
+                window._SdrPanel.refresh(groups, freqs);
+        }
+        catch (e) {
             console.warn('[SDR] Could not load frequencies:', e);
         }
     }
-
     // ── Panel initial visibility ───────────────────────────────────────────────
     const panelShouldBeOpen = sessionStorage.getItem('sdrPanelOpen') !== '0';
     if (panelShouldBeOpen) {
         window._SdrPanel.show();
-    } else {
+    }
+    else {
         window._SdrPanel.hide();
     }
-
     // ── Page visibility — reconnect if socket dropped while hidden ────────────
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && _sdrCurrentRadioId && !_sdrConnected) {
             openControlSocket(_sdrCurrentRadioId);
         }
     });
-
     // ── Boot sequence ─────────────────────────────────────────────────────────
     loadRadios();
     loadFrequencies();

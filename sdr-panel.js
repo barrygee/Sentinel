@@ -32,11 +32,6 @@
             </button>
             <div class="sdr-scanner-main-body sdr-scanner-main-body-expanded" id="sdr-pane-radio">
 
-                <!-- Status row -->
-                <div class="sdr-radio-status-row">
-                    <span id="sdr-status-label" class="sdr-status-label">DISCONNECTED</span>
-                </div>
-
                 <!-- ── Group 1: Device / Bandwidth / RF Gain / AGC ── -->
                 <button class="sdr-group-toggle sdr-group-toggle-expanded" id="sdr-device-group-toggle">
                     <div class="sdr-scanner-section-left">
@@ -349,7 +344,6 @@
     const bwSlider = document.getElementById('sdr-bw-slider');
     const bwVal = document.getElementById('sdr-bw-val');
     const connDot = document.getElementById('sdr-conn-dot');
-    const statusLabel = document.getElementById('sdr-status-label');
     const activeFreq = document.getElementById('sdr-active-freq');
     const signalBarEl = document.getElementById('sdr-signal-bar');
     const radioScanBtn = document.getElementById('sdr-radio-scan-btn');
@@ -578,6 +572,10 @@
         if (!isNaN(id) && id > 0) {
             radioSelect.dispatchEvent(new CustomEvent('sdr-radio-selected', { bubbles: true, detail: { radioId: id } }));
         }
+        else {
+            document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
+        }
+        setStatus(_sdrConnected);
     });
     // ── Scan (radio tab) ──────────────────────────────────────────────────────
     radioScanBtn.addEventListener('click', () => {
@@ -779,10 +777,14 @@
     // ── Status dot + controls update ─────────────────────────────────────────
     function setStatus(connected) {
         _sdrConnected = connected;
-        connDot.className = 'sdr-conn-dot ' + (connected ? 'sdr-dot-on' : 'sdr-dot-off');
-        connDot.title = connected ? 'Connected' : 'Disconnected';
-        statusLabel.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
-        statusLabel.className = 'sdr-status-label' + (connected ? ' sdr-status-on' : '');
+        const isOn = connected && getSelectedRadioId() !== null;
+        connDot.className = 'sdr-conn-dot ' + (isOn ? 'sdr-dot-on' : 'sdr-dot-off');
+        connDot.title = isOn ? 'Connected' : 'Disconnected';
+        if (!connected) {
+            _signalSmoothed = -120;
+            for (let i = 0; i < SIGNAL_SEGS; i++)
+                _segEls[i].classList.remove('sdr-signal-seg--on');
+        }
     }
     function applyStatus(msg) {
         setStatus(msg.connected);
@@ -814,9 +816,6 @@
                 gainSlider.value = String(msg.gain_db);
                 gainVal.textContent = `${msg.gain_db.toFixed(1)} dB`;
             }
-            if (typeof msg.signal_dbfs === 'number') {
-                updateSignalBar(msg.signal_dbfs);
-            }
         }
     }
     function getSelectedRadioId() {
@@ -841,6 +840,7 @@
             deviceDropdownText.textContent = '— select radio —';
             deviceDropdownText.classList.remove('sdr-device-dropdown-text--chosen');
             closeDeviceMenu();
+            document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
         });
         _deviceMenuEl.appendChild(placeholder);
         radios.filter(r => r.enabled).forEach(r => {
@@ -923,6 +923,11 @@
             if (chosen) {
                 deviceDropdownText.textContent = chosen.name;
                 deviceDropdownText.classList.add('sdr-device-dropdown-text--chosen');
+            }
+            else {
+                // Previously selected radio no longer exists — clear the display
+                deviceDropdownText.textContent = '— select radio —';
+                deviceDropdownText.classList.remove('sdr-device-dropdown-text--chosen');
             }
         }
         buildDeviceMenu(radios);
@@ -1055,16 +1060,7 @@
         catch (_) { }
     }
     async function deleteGroup(id) {
-        const freqsToUpdate = _freqs.filter(f => {
-            const ids = (f.group_ids || []).filter(gid => gid !== 0);
-            return ids.length === 1 && ids[0] === id;
-        });
         try {
-            await Promise.all(freqsToUpdate.map(f => fetch(`/api/sdr/frequencies/${f.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ group_ids: [] }),
-            })));
             await fetch(`/api/sdr/groups/${id}`, { method: 'DELETE' });
             await reloadData();
         }
@@ -1138,7 +1134,7 @@
         _visible = false;
         panel.classList.add('sdr-panel-hidden');
         document.body.classList.add('sdr-panel-hidden');
-        sessionStorage.removeItem('sdrPanelOpen');
+        sessionStorage.setItem('sdrPanelOpen', '0');
     }
     function toggle() { if (_visible)
         hide();

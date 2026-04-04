@@ -428,6 +428,9 @@
         if (window._SdrAudio) {
             window._SdrAudio.initAudio(getSelectedRadioId() ?? undefined);
             window._SdrAudio.setMode(_sdrCurrentMode);
+            const bw = defaultBwHz(_sdrCurrentMode);
+            window._SdrAudio.setBandwidthHz(bw);
+            setBandwidthSlider(bw);
         }
         setPlayingState(true);
         // Always persist so reconnect restores the user's chosen frequency
@@ -568,9 +571,11 @@
         const id = parseInt(radioSelect.value, 10);
         if (!isNaN(id) && id > 0) {
             radioSelect.dispatchEvent(new CustomEvent('sdr-radio-selected', { bubbles: true, detail: { radioId: id } }));
-        } else {
+        }
+        else {
             document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
         }
+        setStatus(_sdrConnected);
     });
     // ── Scan (radio tab) ──────────────────────────────────────────────────────
     radioScanBtn.addEventListener('click', () => {
@@ -771,11 +776,13 @@
     // ── Status dot + controls update ─────────────────────────────────────────
     function setStatus(connected) {
         _sdrConnected = connected;
-        connDot.className = 'sdr-conn-dot ' + (connected ? 'sdr-dot-on' : 'sdr-dot-off');
-        connDot.title = connected ? 'Connected' : 'Disconnected';
+        const isOn = connected && getSelectedRadioId() !== null;
+        connDot.className = 'sdr-conn-dot ' + (isOn ? 'sdr-dot-on' : 'sdr-dot-off');
+        connDot.title = isOn ? 'Connected' : 'Disconnected';
         if (!connected) {
             _signalSmoothed = -120;
-            for (let i = 0; i < SIGNAL_SEGS; i++) _segEls[i].classList.remove('sdr-signal-seg--on');
+            for (let i = 0; i < SIGNAL_SEGS; i++)
+                _segEls[i].classList.remove('sdr-signal-seg--on');
         }
     }
     function applyStatus(msg) {
@@ -915,7 +922,8 @@
             if (chosen) {
                 deviceDropdownText.textContent = chosen.name;
                 deviceDropdownText.classList.add('sdr-device-dropdown-text--chosen');
-            } else {
+            }
+            else {
                 // Previously selected radio no longer exists — clear the display
                 deviceDropdownText.textContent = '— select radio —';
                 deviceDropdownText.classList.remove('sdr-device-dropdown-text--chosen');

@@ -606,6 +606,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         } else {
             document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
         }
+        setStatus(_sdrConnected);
     });
 
     // ── Scan (radio tab) ──────────────────────────────────────────────────────
@@ -827,8 +828,9 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
 
     function setStatus(connected: boolean) {
         _sdrConnected = connected;
-        connDot.className = 'sdr-conn-dot ' + (connected ? 'sdr-dot-on' : 'sdr-dot-off');
-        connDot.title = connected ? 'Connected' : 'Disconnected';
+        const isOn = connected && getSelectedRadioId() !== null;
+        connDot.className = 'sdr-conn-dot ' + (isOn ? 'sdr-dot-on' : 'sdr-dot-off');
+        connDot.title = isOn ? 'Connected' : 'Disconnected';
         if (!connected) {
             _signalSmoothed = -120;
             for (let i = 0; i < SIGNAL_SEGS; i++) _segEls[i].classList.remove('sdr-signal-seg--on');

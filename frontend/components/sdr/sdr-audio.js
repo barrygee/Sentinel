@@ -272,10 +272,6 @@
         }
     }
     function stop() {
-        if (_iqReconnectTimer) {
-            clearTimeout(_iqReconnectTimer);
-            _iqReconnectTimer = null;
-        }
         if (_iqSocket) {
             _iqSocket.close();
             _iqSocket = null;
