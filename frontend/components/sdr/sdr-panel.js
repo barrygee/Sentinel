@@ -575,7 +575,7 @@
         else {
             document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
         }
-        setStatus(_sdrConnected);
+        setStatus(false);
     });
     // ── Scan (radio tab) ──────────────────────────────────────────────────────
     radioScanBtn.addEventListener('click', () => {

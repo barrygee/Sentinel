@@ -606,7 +606,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         } else {
             document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
         }
-        setStatus(_sdrConnected);
+        setStatus(false);
     });
 
     // ── Scan (radio tab) ──────────────────────────────────────────────────────

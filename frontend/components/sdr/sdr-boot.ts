@@ -90,8 +90,6 @@
         });
 
         ws.addEventListener('open', () => {
-            _sdrConnected = true;
-            if (window._SdrControls) window._SdrControls.setStatus(true);
             if (window._SdrAudio)    window._SdrAudio.start(radioId);
             const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
             const lastMode   = sessionStorage.getItem('sdrLastMode') || 'AM';
