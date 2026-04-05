@@ -289,6 +289,7 @@
     // ── State ─────────────────────────────────────────────────────────────────
     let _groups = [];
     let _freqs = [];
+    let _knownRadios = [];
     let _visible = true;
     let _editingFreqId = null;
     // ── Radio / Scanner main section toggles ─────────────────────────────────
@@ -365,17 +366,17 @@
     const efDelete = document.getElementById('sdr-ef-delete');
     // ── Helpers ───────────────────────────────────────────────────────────────
     function setRadioControlsDisabled(disabled) {
-        freqInput.disabled    = disabled;
-        freqTuneBtn.disabled  = disabled;
-        freqStopBtn.disabled  = disabled;
-        gainSlider.disabled   = disabled || _sdrCurrentGainAuto;
-        agcCheck.disabled     = disabled;
-        volSlider.disabled    = disabled;
-        sqSlider.disabled     = disabled;
-        bwSlider.disabled     = disabled;
+        freqInput.disabled = disabled;
+        freqTuneBtn.disabled = disabled;
+        freqStopBtn.disabled = disabled;
+        gainSlider.disabled = disabled || _sdrCurrentGainAuto;
+        agcCheck.disabled = disabled;
+        volSlider.disabled = disabled;
+        sqSlider.disabled = disabled;
+        bwSlider.disabled = disabled;
         radioScanBtn.disabled = disabled;
-        lockBtn.disabled      = disabled;
-        addFreqBtn.disabled   = disabled;
+        lockBtn.disabled = disabled;
+        addFreqBtn.disabled = disabled;
         modePillsEl.querySelectorAll('.sdr-mode-pill').forEach(btn => {
             btn.disabled = disabled;
         });
@@ -593,6 +594,29 @@
         const id = parseInt(radioSelect.value, 10);
         if (!isNaN(id) && id > 0) {
             setRadioControlsDisabled(false);
+            // Apply stored defaults to UI sliders immediately on radio selection
+            const radio = _knownRadios.find(r => r.id === id);
+            if (radio) {
+                if (radio.agc === true) {
+                    agcCheck.checked = true;
+                    gainSlider.disabled = true;
+                    gainVal.textContent = 'AUTO';
+                    _sdrCurrentGainAuto = true;
+                }
+                else if (radio.rf_gain != null) {
+                    agcCheck.checked = false;
+                    gainSlider.disabled = false;
+                    gainSlider.value = String(radio.rf_gain);
+                    gainVal.textContent = `${radio.rf_gain.toFixed(1)} dB`;
+                    _sdrCurrentGain = radio.rf_gain;
+                    _sdrCurrentGainAuto = false;
+                }
+                if (radio.bandwidth != null) {
+                    setBandwidthSlider(radio.bandwidth);
+                    if (window._SdrAudio)
+                        window._SdrAudio.setBandwidthHz(radio.bandwidth);
+                }
+            }
             radioSelect.dispatchEvent(new CustomEvent('sdr-radio-selected', { bubbles: true, detail: { radioId: id } }));
         }
         else {
@@ -800,7 +824,7 @@
     // ── Status dot + controls update ─────────────────────────────────────────
     function setStatus(connected) {
         _sdrConnected = connected;
-        const isOn = connected && (_sdrCurrentRadioId !== null || getSelectedRadioId() !== null);
+        const isOn = connected;
         connDot.className = 'sdr-conn-dot ' + (isOn ? 'sdr-dot-on' : 'sdr-dot-off');
         connDot.title = isOn ? 'Connected' : 'Disconnected';
         if (!connected) {
@@ -817,7 +841,9 @@
         document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
     }
     function applyStatus(msg) {
-        setStatus(msg.connected);
+        // Do not drive the connection dot here — setStatus(true) is only called
+        // once real spectrum data arrives (in sdr-boot), so a stale cached
+        // connection never produces a false green.
         if (msg.connected) {
             const hadUserFreq = _sdrCurrentFreqHz && _sdrCurrentFreqHz !== msg.center_hz;
             if (!hadUserFreq)
@@ -935,6 +961,7 @@
         closeDeviceMenu(); });
     // ── Populate radio list ───────────────────────────────────────────────────
     window._sdrPopulateRadios = function (radios) {
+        _knownRadios = radios;
         const current = radioSelect.value;
         while (radioSelect.options.length > 0)
             radioSelect.remove(0);

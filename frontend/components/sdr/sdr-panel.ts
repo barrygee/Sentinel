@@ -894,7 +894,9 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     }
 
     function applyStatus(msg: SdrStatusMsg) {
-        setStatus(msg.connected);
+        // Do not drive the connection dot here — setStatus(true) is only called
+        // once real spectrum data arrives (in sdr-boot), so a stale cached
+        // connection never produces a false green.
         if (msg.connected) {
             const hadUserFreq = _sdrCurrentFreqHz && _sdrCurrentFreqHz !== msg.center_hz;
             if (!hadUserFreq) _sdrCurrentFreqHz = msg.center_hz;

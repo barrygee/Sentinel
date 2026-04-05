@@ -290,7 +290,8 @@
             _ctx.close();
             _ctx = null;
         }
-        if (window._SdrControls) window._SdrControls.setStatus(false);
+        if (window._SdrControls)
+            window._SdrControls.setStatus(false);
     }
     function setRadioId(id) {
         _radioId = id;

@@ -436,11 +436,12 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
 
     conn = sdr_svc.get_connection(radio["host"], radio["port"])
 
-    # Send initial status
+    # Send initial status — connected=False until the first spectrum frame confirms
+    # data is actually flowing from the physical device
     try:
         await websocket.send_text(json.dumps({
             "type": "status",
-            "connected": True,
+            "connected": False,
             "radio_id": radio["id"],
             "radio_name": radio["name"],
             "center_hz": conn.center_hz,
