@@ -14,7 +14,7 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 18px 20px 18px 28px;
+    padding: 18px 28px 18px 28px;
     background: none;
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -117,14 +117,14 @@
 }
 
 .sip-body.sip-expanded {
-    max-height: 520px;
+    max-height: 760px;
     opacity: 1;
 }
 
 /* ---- Sat name header inside body ---- */
 .sip-body-header {
     flex-shrink: 0;
-    padding: 16px 20px 10px 28px;
+    padding: 8px 28px 6px 28px;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -152,31 +152,61 @@
     text-transform: uppercase;
 }
 
+/* ---- Live telemetry ---- */
+.sip-live-data {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 28px 12px 28px;
+    gap: 4px;
+}
+
+.sip-live-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    line-height: 1.8;
+}
+
+.sip-live-label {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    min-width: 28px;
+    flex-shrink: 0;
+}
+
+.sip-live-value {
+    font-family: var(--font-primary);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.85);
+}
+
 /* ---- Status bar ---- */
 .sip-status {
+    display: none;
+}
+
+/* ---- Passes section title ---- */
+.sip-passes-title {
     flex-shrink: 0;
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.14em;
-    color: rgba(255, 255, 255, 0.22);
-    text-transform: uppercase;
-    padding: 14px 20px 6px 28px;
-}
-
-.sip-status.sip-loading {
+    letter-spacing: 0.18em;
     color: var(--color-accent);
+    text-transform: uppercase;
+    padding: 10px 28px 4px 28px;
 }
 
 /* ---- Pass list ---- */
 .sip-list {
-    overflow-y: auto;
-    max-height: 380px;
-    scrollbar-width: none;
-}
-
-.sip-list::-webkit-scrollbar {
-    display: none;
+    overflow-y: visible;
 }
 
 /* ---- Pass card ---- */
@@ -184,7 +214,7 @@
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 10px 20px 10px 28px;
+    padding: 10px 28px 10px 28px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -285,7 +315,7 @@
    ============================================================ */
 
 .sip-message {
-    padding: 14px 20px 18px 28px;
+    padding: 14px 28px 18px 28px;
     font-family: var(--font-primary);
     font-size: 10px;
     font-weight: 400;

@@ -1,7 +1,10 @@
 import json
+import logging
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -10,9 +13,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.database import create_tables, get_db, seed_default_settings
+from backend.database import create_tables, get_db, migrate_sdr_radios_to_settings, seed_default_settings
 from backend.models import UserSettings
-from backend.routers import air, space, sea, land, settings as settings_router
+from backend.routers import air, space, sea, land, settings as settings_router, sdr as sdr_router
 
 
 ROOT_DIR = Path(__file__).parent.parent
@@ -47,6 +50,7 @@ async def _get_enabled_domains(db: AsyncSession) -> list[str]:
 async def lifespan(app: FastAPI):
     """Application lifespan handler — runs create_tables once on startup."""
     await create_tables()
+    await migrate_sdr_radios_to_settings()
     await seed_default_settings()
     yield  # application runs here; nothing needed on shutdown
 
@@ -63,6 +67,7 @@ app.include_router(space.router)
 app.include_router(sea.router)
 app.include_router(land.router)
 app.include_router(settings_router.router)
+app.include_router(sdr_router.router)
 
 
 @app.get("/health")
