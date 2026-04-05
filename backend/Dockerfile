@@ -4,9 +4,13 @@ WORKDIR /app
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Increase HTTP timeout for slow/flaky network in Docker Desktop on macOS
+ENV UV_HTTP_TIMEOUT=120
+
 # Install dependencies
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev --no-install-project
 
 # We still COPY for production-readiness, 
 # but the Compose Volume will override this during dev
@@ -32,7 +36,7 @@ CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", 
 
 # # Install dependencies via uv sync (uses lockfile for reproducible builds)
 # COPY backend/pyproject.toml backend/uv.lock ./
-# RUN uv sync --frozen --no-dev --no-install-project
+# RUN uv sync --no-dev --no-install-project
 
 # # Copy backend code
 # COPY backend/ ./backend/

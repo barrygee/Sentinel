@@ -1,10 +1,10 @@
-"""SDR service — rtl_tcp connection manager and IQ processing pipeline.
+"""SDR service — rtl_tcp connection manager and IQ/FFT processing pipeline.
 
 Each SdrRadio connects to a remote rtl_tcp daemon via a raw asyncio TCP socket.
-IQ samples are read by a single background broadcaster task per radio and fanned
-out to all subscribed IQ WebSocket queues.  This avoids the "readexactly() called
-while another coroutine is already waiting" error that occurs when multiple
-WebSocket handlers share the same StreamReader.
+IQ samples are read by a single background broadcaster task per radio; computed
+spectrum frames are fanned out to all subscribed WebSocket queues.  This avoids
+the "readexactly() called while another coroutine is already waiting" error that
+occurs when multiple WebSocket handlers share the same StreamReader.
 
 rtl_tcp binary command format: 5 bytes — [cmd_byte (1)] [value (4, big-endian uint32)]
 Key commands:
@@ -20,15 +20,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
+# Default FFT parameters
+DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
 DEFAULT_SAMPLE_RATE = 2_048_000
-# Read ~5ms worth of IQ per chunk (10240 bytes @ 2.048MHz).
-# Must stay small so the async loop drains rtl_tcp fast enough to avoid worker timeout.
-READ_CHUNK_SAMPLES  = 5120   # ~5ms @ 2.048MHz (multiple of 512 for USB alignment)
+# Read ~85ms worth of IQ per chunk (174080 bytes @ 2.048MHz).
+# Large enough to keep the audio worklet buffer full between frames.
+READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz
 READ_CHUNK_BYTES    = READ_CHUNK_SAMPLES * 2  # 2 bytes per IQ pair
 
 # Connection cache: key = "host:port"
@@ -49,6 +54,7 @@ class RtlTcpConnection:
     gain_db: float = 30.0
     gain_auto: bool = False
     mode: str = "AM"
+    fft_size: int = DEFAULT_FFT_SIZE
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     async def connect(self) -> None:
@@ -123,13 +129,25 @@ class RtlTcpConnection:
 # ── Fan-out broadcaster ───────────────────────────────────────────────────────
 
 class RadioBroadcaster:
-    """Single read loop per radio; fans raw IQ to subscriber queues."""
+    """Single read loop per radio; fans computed frames and raw IQ to subscriber queues."""
 
     def __init__(self, conn: RtlTcpConnection) -> None:
         self._conn = conn
+        self._subscribers:    list[asyncio.Queue] = []   # FFT JSON frames
         self._iq_subscribers: list[asyncio.Queue] = []   # raw IQ bytes
         self._task: Optional[asyncio.Task] = None
         self._lock = asyncio.Lock()
+
+    def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=4)
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        try:
+            self._subscribers.remove(q)
+        except ValueError:
+            pass
 
     def subscribe_iq(self) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=4)
@@ -161,58 +179,41 @@ class RadioBroadcaster:
     async def _run(self) -> None:
         conn = self._conn
         logger.info("Broadcaster started for %s:%d", conn.host, conn.port)
-        # Queue between the read loop and the process loop — large enough to absorb bursts
-        iq_queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=16)
-        process_task = asyncio.create_task(self._process(iq_queue))
         try:
             while True:
-                # Reconnect if needed
-                if not conn.connected:
-                    try:
-                        await conn.connect()
-                    except Exception as exc:
-                        logger.warning("rtl_tcp reconnect failed (%s:%d): %s — retrying in 2s", conn.host, conn.port, exc)
-                        await asyncio.sleep(2)
-                        continue
-
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
+                    # Dongle briefly stops sending during retune — skip this chunk
                     logger.debug("rtl_tcp incomplete read during retune, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
-                    logger.warning("rtl_tcp read error (%s:%d): %s — will reconnect", conn.host, conn.port, exc)
+                    logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
                     conn.connected = False
-                    await asyncio.sleep(1)
-                    continue
+                    err_frame = {"type": "error", "code": "READ_ERROR", "message": str(exc)}
+                    self._broadcast(err_frame)
+                    break
 
-                # Drop oldest chunk if process loop is falling behind — never block the read
-                if iq_queue.full():
-                    try:
-                        iq_queue.get_nowait()
-                    except asyncio.QueueEmpty:
-                        pass
-                iq_queue.put_nowait(raw_iq)
-
-        except asyncio.CancelledError:
-            pass
-        finally:
-            process_task.cancel()
-            try:
-                await process_task
-            except asyncio.CancelledError:
-                pass
-            logger.info("Broadcaster stopped for %s:%d", conn.host, conn.port)
-
-    async def _process(self, iq_queue: asyncio.Queue) -> None:
-        """Consume raw IQ chunks and fan out to IQ subscribers."""
-        conn = self._conn
-        try:
-            while True:
-                raw_iq = await iq_queue.get()
+                # FFT uses only the first fft_size samples from the chunk
+                frame = compute_fft_frame(raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz)
+                self._broadcast(frame)
                 self._broadcast_iq(raw_iq, conn.sample_rate, conn.center_hz)
         except asyncio.CancelledError:
             pass
+        finally:
+            logger.info("Broadcaster stopped for %s:%d", conn.host, conn.port)
+
+    def _broadcast(self, frame: dict) -> None:
+        for q in list(self._subscribers):
+            try:
+                q.put_nowait(frame)
+            except asyncio.QueueFull:
+                # Slow consumer — drop oldest frame and push new one
+                try:
+                    q.get_nowait()
+                    q.put_nowait(frame)
+                except (asyncio.QueueEmpty, asyncio.QueueFull):
+                    pass
 
     def _broadcast_iq(self, raw_iq: bytes, sample_rate: int, center_hz: int) -> None:
         """Fan raw IQ bytes to IQ subscribers.
@@ -234,6 +235,39 @@ class RadioBroadcaster:
                     q.put_nowait(payload)
                 except (asyncio.QueueEmpty, asyncio.QueueFull):
                     pass
+
+
+# ── FFT ───────────────────────────────────────────────────────────────────────
+
+def _iq_bytes_to_complex(raw: bytes) -> np.ndarray:
+    """Convert raw rtl_tcp 8-bit IQ bytes to normalised complex float array."""
+    samples = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
+    samples = (samples - 127.5) / 127.5
+    return samples[0::2] + 1j * samples[1::2]
+
+
+def _hann_window(n: int) -> np.ndarray:
+    return np.hanning(n).astype(np.float32)
+
+
+def compute_fft_frame(
+    raw_iq: bytes,
+    n_fft: int,
+    sample_rate: int,
+    center_hz: int,
+) -> dict:
+    """Compute a spectrum frame from raw IQ bytes."""
+    iq = _iq_bytes_to_complex(raw_iq[:n_fft * 2])
+    windowed = iq * _hann_window(len(iq))
+    spectrum = np.fft.fftshift(np.fft.fft(windowed, n=n_fft))
+    power_db = 10.0 * np.log10(np.abs(spectrum) ** 2 + 1e-12)
+    return {
+        "type": "spectrum",
+        "center_hz": center_hz,
+        "sample_rate": sample_rate,
+        "bins": [round(float(v), 1) for v in power_db],
+        "timestamp_ms": int(time.time() * 1000),
+    }
 
 
 # ── Connection cache helpers ──────────────────────────────────────────────────

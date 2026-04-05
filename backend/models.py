@@ -85,6 +85,19 @@ class AirTracking(Base):
 
 
 
+class SdrRadio(Base):
+    """A configured SDR device reachable via rtl_tcp on the network."""
+    __tablename__ = "sdr_radios"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    name        = Column(Text, nullable=False)               # user label e.g. "Roof RTL-SDR"
+    host        = Column(Text, nullable=False)               # hostname or IP e.g. "192.168.1.45"
+    port        = Column(Integer, nullable=False, default=1234)
+    description = Column(Text, nullable=False, default="")
+    enabled     = Column(Boolean, nullable=False, default=True)
+    created_at  = Column(Integer, nullable=False)            # Unix ms
+
+
 class SdrFrequencyGroup(Base):
     """Named group that organises stored frequencies (e.g. 'Aviation', 'Marine')."""
     __tablename__ = "sdr_frequency_groups"
