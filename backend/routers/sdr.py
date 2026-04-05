@@ -335,7 +335,10 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
 
     if not radio:
         await websocket.send_text(json.dumps({"type": "error", "code": "NOT_FOUND", "message": f"Radio {radio_id} not found"}))
-        await websocket.close()
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
         return
 
     broadcaster = None
@@ -353,7 +356,10 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
             await websocket.send_text(json.dumps({"type": "error", "code": "CONNECT_FAILED", "message": str(last_exc)}))
         except Exception:
             pass
-        await websocket.close()
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
         return
 
     queue = broadcaster.subscribe_iq()
@@ -400,7 +406,10 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
 
     if not radio:
         await websocket.send_text(json.dumps({"type": "error", "code": "NOT_FOUND", "message": f"Radio {radio_id} not found"}))
-        await websocket.close()
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
         return
 
     # Connect (or reuse) and start the shared broadcaster — retry a few times
@@ -419,7 +428,10 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
             await websocket.send_text(json.dumps({"type": "error", "code": "CONNECT_FAILED", "message": str(last_exc)}))
         except Exception:
             pass
-        await websocket.close()
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
         return
 
     conn = sdr_svc.get_connection(radio["host"], radio["port"])
@@ -481,12 +493,12 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
             frame = await queue.get()
             try:
                 await websocket.send_text(json.dumps(frame))
-            except WebSocketDisconnect:
+            except (WebSocketDisconnect, RuntimeError):
                 break
             if frame.get("type") == "error":
                 break
 
-    except (WebSocketDisconnect, asyncio.CancelledError):
+    except (WebSocketDisconnect, RuntimeError, asyncio.CancelledError):
         pass
     finally:
         broadcaster.unsubscribe(queue)
