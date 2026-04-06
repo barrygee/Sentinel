@@ -497,6 +497,9 @@
         if (window._SdrAudio)
             window._SdrAudio.stop();
         setPlayingState(false);
+        _signalSmoothed = -120;
+        for (let i = 0; i < SIGNAL_SEGS; i++)
+            _segEls[i].classList.remove('sdr-signal-seg--on');
     });
     // ── Gain + AGC ────────────────────────────────────────────────────────────
     let _gainDebounce = null;
