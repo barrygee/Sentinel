@@ -111,7 +111,11 @@
                             <button id="sdr-freq-stop" class="sdr-mode-pill sdr-tune-btn sdr-stop-btn" type="button" title="Stop audio">
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
                             </button>
+                            <button id="sdr-rec-btn" class="sdr-mode-pill sdr-tune-btn sdr-rec-btn" type="button" title="Record" disabled>
+                                <svg id="sdr-rec-icon" width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
+                            </button>
                         </div>
+                        <span id="sdr-rec-timer" class="sdr-rec-timer"></span>
                     </div>
 
                     <!-- Mode -->
@@ -139,7 +143,7 @@
                             <label class="sdr-field-label">VOLUME</label>
                             <span id="sdr-vol-val" class="sdr-slider-val">80%</span>
                         </div>
-                        <input id="sdr-vol-slider" class="sdr-panel-slider" type="range" min="0" max="200" step="1" value="80">
+                        <input id="sdr-vol-slider" class="sdr-panel-slider" type="range" min="0" max="100" step="1" value="80">
                     </div>
 
                     <!-- Squelch -->
@@ -151,14 +155,28 @@
                         <input id="sdr-sq-slider" class="sdr-panel-slider" type="range" min="-120" max="0" step="1" value="-120">
                     </div>
 
-                    <!-- Record -->
-                    <div class="sdr-radio-section sdr-rec-row">
-                        <button id="sdr-rec-btn" class="sdr-rec-btn" type="button" title="Start recording">
-                            <span class="sdr-rec-dot"></span>
-                            <span class="sdr-rec-label">REC</span>
-                        </button>
-                        <span id="sdr-rec-timer" class="sdr-rec-timer"></span>
+                </div>
+
+                <!-- ── Group 3: Recording / Clips ── -->
+                <button class="sdr-group-toggle sdr-group-toggle-expanded" id="sdr-recording-group-toggle">
+                    <div class="sdr-scanner-section-left">
+                        <span class="sdr-group-toggle-icon">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="sdr-group-toggle-label">RECORDING</span>
                     </div>
+                    <span id="sdr-clips-count" class="sdr-clips-count"></span>
+                </button>
+                <div class="sdr-group-body sdr-group-body-expanded" id="sdr-recording-group-body">
+
+                    <!-- Clips list -->
+                    <div class="sdr-clips-search-row">
+                        <input id="sdr-clips-search" class="sdr-panel-input sdr-clips-search-input" type="text" placeholder="Search clips…" autocomplete="off">
+                    </div>
+                    <div id="sdr-clips-list"></div>
+                    <div id="sdr-clips-empty" class="sdr-panel-empty" style="display:none">No recordings yet.<br>Use the REC button while listening.</div>
 
                 </div>
 
@@ -279,24 +297,7 @@
 
         </div>
 
-        <!-- ── CLIPS SECTION ── -->
-        <button class="sdr-scanner-main-toggle" id="sdr-clips-main-toggle">
-            <div class="sdr-scanner-section-left">
-                <span class="sdr-scanner-section-icon">
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </span>
-                <span class="sdr-scanner-section-label">CLIPS</span>
-            </div>
-            <span id="sdr-clips-count" class="sdr-clips-count"></span>
-        </button>
-        <div class="sdr-scanner-main-body" id="sdr-pane-clips">
-            <div class="sdr-clips-search-row">
-                <input id="sdr-clips-search" class="sdr-panel-input sdr-clips-search-input" type="text" placeholder="Search clips…" autocomplete="off">
-            </div>
-            <div id="sdr-clips-list"></div>
-            <div id="sdr-clips-empty" class="sdr-panel-empty" style="display:none">No recordings yet.<br>Use the REC button while listening.</div>
+        <div style="display:none" id="sdr-pane-clips">
         </div>
 
         <!-- ── GROUP RENAME MODAL ── -->
@@ -372,7 +373,6 @@
     }
     bindMainToggle('sdr-radio-main-toggle', 'sdr-pane-radio');
     const { toggle: scannerMainToggle, body: scannerMainBody } = bindMainToggle('sdr-scanner-main-toggle', 'sdr-pane-scanner');
-    bindMainToggle('sdr-clips-main-toggle', 'sdr-pane-clips');
     // ── Scanner section collapse ──────────────────────────────────────────────
     panel.querySelectorAll('.sdr-scanner-section-toggle').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -398,6 +398,7 @@
     }
     bindGroupToggle('sdr-device-group-toggle', 'sdr-device-group-body');
     bindGroupToggle('sdr-signal-group-toggle', 'sdr-signal-group-body');
+    bindGroupToggle('sdr-recording-group-toggle', 'sdr-recording-group-body');
     // ── Element refs ──────────────────────────────────────────────────────────
     const radioSelect = document.getElementById('sdr-radio-select');
     const freqInput = document.getElementById('sdr-freq-input');
@@ -521,10 +522,53 @@
     // ── Tune ──────────────────────────────────────────────────────────────────
     // Stop is disabled until play is clicked; they toggle each other
     freqStopBtn.disabled = true;
+    function _setRecBtnIcon(recording) {
+        const icon = document.getElementById('sdr-rec-icon');
+        if (!icon) return;
+        if (recording) {
+            // Stop-recording icon: filled square
+            icon.innerHTML = '<rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/>';
+        } else {
+            // Record icon: filled circle
+            icon.innerHTML = '<circle cx="5" cy="5" r="4" fill="currentColor"/>';
+        }
+    }
+    async function _stopRecordingIfActive() {
+        if (!_isRecording) return;
+        _isRecording = false;
+        if (_recTimerInterval) { clearInterval(_recTimerInterval); _recTimerInterval = null; }
+        recBtn.classList.remove('sdr-rec-btn--active');
+        _setRecBtnIcon(false);
+        recTimer.textContent = '';
+        if (!window._SdrAudio) return;
+        const radioId = getSelectedRadioId();
+        const radioName = radioId
+            ? (_knownRadios.find(r => r.id === radioId) || {}).name || ''
+            : '';
+        const metadata = {
+            radio_id: radioId || null,
+            radio_name: radioName,
+            frequency_hz: _sdrCurrentFreqHz || 0,
+            mode: _sdrCurrentMode || 'AM',
+            gain_db: _sdrCurrentGain || 30,
+            squelch_dbfs: _sdrCurrentSquelch || -60,
+            sample_rate: _sdrCurrentSampleRate || 2048000,
+        };
+        await window._SdrAudio.stopRecording(metadata);
+        await reloadClips();
+        const recGroupToggle = document.getElementById('sdr-recording-group-toggle');
+        const recGroupBody = document.getElementById('sdr-recording-group-body');
+        if (recGroupToggle && !recGroupToggle.classList.contains('sdr-group-toggle-expanded')) {
+            recGroupToggle.classList.add('sdr-group-toggle-expanded');
+            recGroupBody.classList.add('sdr-group-body-expanded');
+        }
+    }
     function setPlayingState(playing) {
         _sdrPlaying = playing;
         freqTuneBtn.disabled = playing;
         freqStopBtn.disabled = !playing;
+        recBtn.disabled = !playing;
+        if (!playing) _stopRecordingIfActive();
     }
     async function tune() {
         const hz = parseFreqMhz(freqInput.value);
@@ -1416,7 +1460,6 @@
     let _recStartEpoch = 0;
     recBtn.addEventListener('click', async () => {
         if (!_isRecording) {
-            // Gather current radio metadata
             const radioId = getSelectedRadioId();
             const radioName = radioId
                 ? (_knownRadios.find(r => r.id === radioId) || {}).name || ''
@@ -1436,43 +1479,14 @@
             _isRecording = true;
             _recStartEpoch = Date.now();
             recBtn.classList.add('sdr-rec-btn--active');
-            recBtn.querySelector('.sdr-rec-label').textContent = 'STOP';
+            _setRecBtnIcon(true);
             recTimer.textContent = '0:00';
             _recTimerInterval = setInterval(() => {
                 const s = Math.floor((Date.now() - _recStartEpoch) / 1000);
                 recTimer.textContent = _fmtDuration(s);
             }, 1000);
         } else {
-            _isRecording = false;
-            if (_recTimerInterval) { clearInterval(_recTimerInterval); _recTimerInterval = null; }
-            recBtn.classList.remove('sdr-rec-btn--active');
-            recBtn.querySelector('.sdr-rec-label').textContent = 'REC';
-            recTimer.textContent = '';
-            if (!window._SdrAudio) return;
-            const radioId = getSelectedRadioId();
-            const radioName = radioId
-                ? (_knownRadios.find(r => r.id === radioId) || {}).name || ''
-                : '';
-            const metadata = {
-                radio_id: radioId || null,
-                radio_name: radioName,
-                frequency_hz: _sdrCurrentFreqHz || 0,
-                mode: _sdrCurrentMode || 'AM',
-                gain_db: _sdrCurrentGain || 30,
-                squelch_dbfs: _sdrCurrentSquelch || -60,
-                sample_rate: _sdrCurrentSampleRate || 2048000,
-            };
-            const result = await window._SdrAudio.stopRecording(metadata);
-            if (result) {
-                await reloadClips();
-                // Expand CLIPS section if collapsed
-                const clipsToggle = document.getElementById('sdr-clips-main-toggle');
-                const clipsPane = document.getElementById('sdr-pane-clips');
-                if (clipsToggle && !clipsToggle.classList.contains('sdr-scanner-main-toggle-expanded')) {
-                    clipsToggle.classList.add('sdr-scanner-main-toggle-expanded');
-                    clipsPane.classList.add('sdr-scanner-main-body-expanded');
-                }
-            }
+            await _stopRecordingIfActive();
         }
     });
     // ── Data reload ───────────────────────────────────────────────────────────

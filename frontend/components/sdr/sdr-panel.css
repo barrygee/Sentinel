@@ -179,6 +179,11 @@
     margin-bottom: 8px;
 }
 
+#sdr-device-group-body .sdr-field-label,
+#sdr-signal-group-body .sdr-field-label {
+    color: rgba(255, 255, 255, 0.5);
+}
+
 /* ---- Device — custom dropdown matching tle-dropdown style ---- */
 .sdr-device-dropdown {
     position: relative;
@@ -409,7 +414,7 @@
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 10px;
     font-weight: 700;
-    color: #c8ff00;
+    color: rgba(255, 255, 255, 0.25);
     letter-spacing: 0.1em;
     min-width: 60px;
     text-align: right;
@@ -1224,73 +1229,34 @@
    RECORD BUTTON
    ============================================================ */
 
-.sdr-rec-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-top: 4px;
-    padding-bottom: 18px;
-}
-
 .sdr-rec-btn {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    background: rgba(255, 255, 255, 0.06);
-    border: none;
-    cursor: pointer;
-    padding: 0 14px;
-    height: 28px;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(255, 80, 80, 0.6);
-    transition: background 0.15s, color 0.15s;
+    color: rgba(255, 80, 80, 0.75);
 }
 
 .sdr-rec-btn:hover:not(:disabled) {
-    background: rgba(255, 80, 80, 0.1);
-    color: rgba(255, 80, 80, 0.9);
-}
-
-.sdr-rec-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+    background: rgba(255, 80, 80, 0.15) !important;
+    color: #ff5050;
 }
 
 .sdr-rec-btn--active {
     background: rgba(255, 80, 80, 0.14) !important;
     color: #ff5050 !important;
-}
-
-.sdr-rec-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: rgba(255, 80, 80, 0.55);
-    flex-shrink: 0;
-    transition: background 0.15s;
-}
-
-.sdr-rec-btn--active .sdr-rec-dot {
-    background: #ff5050;
     animation: sdr-rec-pulse 0.9s ease-in-out infinite;
 }
 
 @keyframes sdr-rec-pulse {
     0%, 100% { opacity: 1; }
-    50%       { opacity: 0.25; }
+    50%       { opacity: 0.45; }
 }
 
 .sdr-rec-timer {
     font-family: 'Barlow Condensed', 'Barlow', monospace, sans-serif;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 300;
     color: rgba(255, 80, 80, 0.7);
     letter-spacing: 0.05em;
-    min-width: 38px;
+    display: block;
+    margin-top: 3px;
 }
 
 /* ============================================================
