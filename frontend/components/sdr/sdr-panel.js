@@ -115,7 +115,6 @@
                                 <svg id="sdr-rec-icon" width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
                             </button>
                         </div>
-                        <span id="sdr-rec-timer" class="sdr-rec-timer"></span>
                     </div>
 
                     <!-- Mode -->
@@ -175,8 +174,15 @@
                     <div class="sdr-clips-search-row">
                         <input id="sdr-clips-search" class="sdr-panel-input sdr-clips-search-input" type="text" placeholder="Search clips…" autocomplete="off">
                     </div>
-                    <div id="sdr-clips-list"></div>
-                    <div id="sdr-clips-empty" class="sdr-panel-empty" style="display:none">No recordings yet.<br>Use the REC button while listening.</div>
+                    <div id="sdr-clips-list-wrap">
+                        <div id="sdr-clips-list"></div>
+                        <div id="sdr-clips-empty" class="sdr-panel-empty" style="display:none">No recordings yet.<br>Use the REC button while listening.</div>
+                    </div>
+                    <div id="sdr-clips-scroll-hint">MORE
+                        <svg id="sdr-clips-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none">
+                            <polyline points="1,2.5 4,5.5 7,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
 
                 </div>
 
@@ -295,6 +301,59 @@
 
             </div>
 
+            <!-- ── SETTINGS SECTION ── -->
+            <button class="sdr-scanner-main-toggle" id="sdr-settings-main-toggle">
+                <div class="sdr-scanner-section-left">
+                    <span class="sdr-scanner-section-icon">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="sdr-scanner-section-label">SETTINGS</span>
+                </div>
+            </button>
+            <div class="sdr-scanner-main-body" id="sdr-pane-settings">
+
+                <!-- WAV Recordings -->
+                <button class="sdr-group-toggle" id="sdr-mgmt-wav-toggle">
+                    <div class="sdr-scanner-section-left">
+                        <span class="sdr-group-toggle-icon">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="sdr-group-toggle-label">WAV RECORDINGS</span>
+                    </div>
+                    <span id="sdr-mgmt-wav-count" class="sdr-clips-count"></span>
+                </button>
+                <div class="sdr-group-body" id="sdr-mgmt-wav-body">
+                    <div id="sdr-mgmt-wav-list"></div>
+                    <div class="sdr-mgmt-actions-row">
+                        <button id="sdr-mgmt-wav-delete-all" class="sdr-panel-btn sdr-editfreq-del-btn">DELETE ALL</button>
+                    </div>
+                </div>
+
+                <!-- IQ Files -->
+                <button class="sdr-group-toggle" id="sdr-mgmt-iq-toggle">
+                    <div class="sdr-scanner-section-left">
+                        <span class="sdr-group-toggle-icon">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="sdr-group-toggle-label">IQ FILES</span>
+                    </div>
+                    <span id="sdr-mgmt-iq-count" class="sdr-clips-count"></span>
+                </button>
+                <div class="sdr-group-body" id="sdr-mgmt-iq-body">
+                    <div id="sdr-mgmt-iq-list"></div>
+                    <div class="sdr-mgmt-actions-row">
+                        <button id="sdr-mgmt-iq-delete-all" class="sdr-panel-btn sdr-editfreq-del-btn">DELETE ALL</button>
+                    </div>
+                </div>
+
+            </div>
+
         </div>
 
         <div style="display:none" id="sdr-pane-clips">
@@ -352,12 +411,14 @@
     let _freqs = [];
     let _knownRadios = [];
     let _visible = true;
+    let _sdrPlaying = false;
     let _editingFreqId = null;
     // ── Clips state ───────────────────────────────────────────────────────────
     let _clips = [];
     let _clipsFilter = '';
     let _isRecording = false;
     let _recTimerInterval = null;
+    let _liveRecRow = null;
     let _editingRecId = null;
     let _deletingRecId = null;
     // ── Radio / Scanner main section toggles ─────────────────────────────────
@@ -373,6 +434,7 @@
     }
     bindMainToggle('sdr-radio-main-toggle', 'sdr-pane-radio');
     const { toggle: scannerMainToggle, body: scannerMainBody } = bindMainToggle('sdr-scanner-main-toggle', 'sdr-pane-scanner');
+    bindMainToggle('sdr-settings-main-toggle', 'sdr-pane-settings');
     // ── Scanner section collapse ──────────────────────────────────────────────
     panel.querySelectorAll('.sdr-scanner-section-toggle').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -399,6 +461,8 @@
     bindGroupToggle('sdr-device-group-toggle', 'sdr-device-group-body');
     bindGroupToggle('sdr-signal-group-toggle', 'sdr-signal-group-body');
     bindGroupToggle('sdr-recording-group-toggle', 'sdr-recording-group-body');
+    bindGroupToggle('sdr-mgmt-wav-toggle', 'sdr-mgmt-wav-body');
+    bindGroupToggle('sdr-mgmt-iq-toggle', 'sdr-mgmt-iq-body');
     // ── Element refs ──────────────────────────────────────────────────────────
     const radioSelect = document.getElementById('sdr-radio-select');
     const freqInput = document.getElementById('sdr-freq-input');
@@ -434,12 +498,27 @@
     const efSave = document.getElementById('sdr-ef-save');
     const efDelete = document.getElementById('sdr-ef-delete');
     // Clips / recording refs
-    const recBtn        = document.getElementById('sdr-rec-btn');
-    const recTimer      = document.getElementById('sdr-rec-timer');
-    const clipsSearch   = document.getElementById('sdr-clips-search');
-    const clipsList     = document.getElementById('sdr-clips-list');
-    const clipsEmpty    = document.getElementById('sdr-clips-empty');
-    const clipsCount    = document.getElementById('sdr-clips-count');
+    const recBtn          = document.getElementById('sdr-rec-btn');
+    const recTimer        = document.getElementById('sdr-rec-timer');
+    const clipsSearch     = document.getElementById('sdr-clips-search');
+    const clipsList       = document.getElementById('sdr-clips-list');
+    const clipsEmpty      = document.getElementById('sdr-clips-empty');
+    const clipsCount      = document.getElementById('sdr-clips-count');
+    const clipsScrollHint = document.getElementById('sdr-clips-scroll-hint');
+    const clipsScrollArrow= document.getElementById('sdr-clips-scroll-arrow');
+    function _updateClipsScrollHint() {
+        if (!clipsScrollHint || !clipsScrollArrow) return;
+        const hiddenBelow = clipsList.scrollHeight - clipsList.clientHeight - clipsList.scrollTop;
+        const overflows   = clipsList.scrollHeight > clipsList.clientHeight + 1;
+        const enoughItems = _clips.length > 3;
+        if (!overflows || !enoughItems) {
+            clipsScrollHint.classList.remove('sdr-clips-hint-visible');
+        } else {
+            clipsScrollHint.classList.add('sdr-clips-hint-visible');
+            clipsScrollArrow.classList.toggle('sdr-clips-arrow-up', hiddenBelow <= 8);
+        }
+    }
+    clipsList.addEventListener('scroll', _updateClipsScrollHint);
     const recModal      = document.getElementById('sdr-rec-modal');
     const recmodName    = document.getElementById('sdr-recmod-name');
     const recmodNotes   = document.getElementById('sdr-recmod-notes');
@@ -452,8 +531,8 @@
     // ── Helpers ───────────────────────────────────────────────────────────────
     function setRadioControlsDisabled(disabled) {
         freqInput.disabled = disabled;
-        freqTuneBtn.disabled = disabled;
-        freqStopBtn.disabled = disabled;
+        freqTuneBtn.disabled = disabled || _sdrPlaying;
+        // freqStopBtn state is owned exclusively by setPlayingState — do not touch here
         gainSlider.disabled = disabled || _sdrCurrentGainAuto;
         agcCheck.disabled = disabled;
         volSlider.disabled = disabled;
@@ -539,7 +618,7 @@
         if (_recTimerInterval) { clearInterval(_recTimerInterval); _recTimerInterval = null; }
         recBtn.classList.remove('sdr-rec-btn--active');
         _setRecBtnIcon(false);
-        recTimer.textContent = '';
+        if (recTimer) recTimer.textContent = '';
         if (!window._SdrAudio) return;
         const radioId = getSelectedRadioId();
         const radioName = radioId
@@ -555,6 +634,7 @@
             sample_rate: _sdrCurrentSampleRate || 2048000,
         };
         await window._SdrAudio.stopRecording(metadata);
+        _removeLiveRecRow();
         await reloadClips();
         const recGroupToggle = document.getElementById('sdr-recording-group-toggle');
         const recGroupBody = document.getElementById('sdr-recording-group-body');
@@ -1325,6 +1405,39 @@
         if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
         return (b/1048576).toFixed(1) + ' MB';
     }
+    function _createLiveRecRow(metadata, startEpoch) {
+        const mhz = (metadata.frequency_hz / 1e6).toFixed(4);
+        const now = new Date(startEpoch);
+        const dt = now.toISOString().replace('T',' ').slice(0,16);
+        const row = document.createElement('div');
+        row.className = 'sdr-clip-row sdr-clip-live';
+        row.innerHTML = `
+            <div class="sdr-clip-header">
+                <span class="sdr-clip-live-dot"></span>
+                <span class="sdr-clip-name">Recording…</span>
+            </div>
+            <div class="sdr-clip-live-meta">
+                <span class="sdr-clip-live-mhz">${mhz} MHz</span>
+                &nbsp;·&nbsp;
+                <span class="sdr-clip-mode-inline">${_escHtml(metadata.mode)}</span>
+                &nbsp;·&nbsp;
+                <span class="sdr-clip-live-dur">0:00</span>
+                &nbsp;·&nbsp;
+                <span class="sdr-clip-live-sz">0 B</span>
+            </div>
+            <div class="sdr-clip-date">${dt}</div>
+        `;
+        return row;
+    }
+    function _updateLiveRecRow(elapsedS) {
+        if (!_liveRecRow) return;
+        _liveRecRow.querySelector('.sdr-clip-live-dur').textContent = _fmtDuration(elapsedS);
+        // 48 kHz mono int16 = 96000 bytes/s
+        _liveRecRow.querySelector('.sdr-clip-live-sz').textContent = _fmtBytes(elapsedS * 96000);
+    }
+    function _removeLiveRecRow() {
+        if (_liveRecRow) { _liveRecRow.remove(); _liveRecRow = null; }
+    }
     function renderClips() {
         const filter = _clipsFilter.toLowerCase();
         const visible = filter
@@ -1351,33 +1464,102 @@
             row.innerHTML = `
                 <div class="sdr-clip-header">
                     <span class="sdr-clip-name">${_escHtml(c.name)}</span>
-                    <span class="sdr-clip-mode">${_escHtml(c.mode)}</span>
                 </div>
-                <div class="sdr-clip-meta">${mhz} MHz &nbsp;·&nbsp; ${dur} &nbsp;·&nbsp; ${sz}</div>
-                ${c.notes ? `<div class="sdr-clip-notes">${_escHtml(c.notes)}</div>` : ''}
-                <div class="sdr-clip-date">${dt}</div>
-                <div class="sdr-clip-actions">
-                    <button class="sdr-clip-play-btn" data-id="${c.id}" title="Play">&#9654; PLAY</button>
-                    <button class="sdr-clip-edit-btn sdr-panel-btn" data-id="${c.id}" title="Edit">EDIT</button>
-                    <button class="sdr-clip-export-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Export WAV">WAV</button>
-                    ${c.has_iq_file ? `<button class="sdr-clip-iq-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Download IQ">IQ</button>` : ''}
-                    <button class="sdr-clip-del-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Delete">DEL</button>
+                <div class="sdr-clip-summary">${mhz} MHz &nbsp;·&nbsp; ${dur} &nbsp;·&nbsp; ${sz}</div>
+                <div class="sdr-clip-body">
+                    <div class="sdr-clip-meta">${mhz} MHz &nbsp;·&nbsp; ${dur} &nbsp;·&nbsp; ${sz}</div>
+                    <div class="sdr-clip-date">${dt}</div>
+                    ${c.notes ? `<div class="sdr-clip-notes">${_escHtml(c.notes)}</div>` : ''}
+                    <div class="sdr-clip-actions">
+                        <button class="sdr-clip-play-btn sdr-panel-btn" data-id="${c.id}" title="Play">
+                            <svg class="sdr-clip-btn-icon sdr-clip-play-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+                            <svg class="sdr-clip-btn-icon sdr-clip-stop-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="display:none"><rect x="1.5" y="1.5" width="3" height="7"/><rect x="5.5" y="1.5" width="3" height="7"/></svg>
+                        </button>
+                        <button class="sdr-clip-edit-btn sdr-panel-btn" data-id="${c.id}" title="Edit">
+                            <svg class="sdr-clip-btn-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z"/></svg>
+                        </button>
+                        <button class="sdr-clip-export-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Download WAV">
+                            <svg class="sdr-clip-btn-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1v6M2.5 7l3 3 3-3"/><line x1="1" y1="10" x2="10" y2="10"/></svg>
+                        </button>
+                        ${c.has_iq_file ? `<button class="sdr-clip-iq-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Download IQ">IQ</button>` : ''}
+                        <button class="sdr-clip-del-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Delete">
+                            <svg class="sdr-clip-btn-icon" width="10" height="11" viewBox="0 0 10 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h8M4 3V2h2v1M8 3l-.7 7H2.7L2 3"/></svg>
+                        </button>
+                    </div>
+                    <div id="sdr-clip-player-${c.id}" class="sdr-clip-player" style="display:none">
+                        <span class="sdr-clip-time-cur" id="sdr-clip-cur-${c.id}">00:00</span>
+                        <input type="range" class="sdr-clip-seek sdr-panel-slider" id="sdr-clip-seek-${c.id}" value="0" min="0" step="0.01">
+                        <span class="sdr-clip-time-dur" id="sdr-clip-dur-${c.id}">00:00</span>
+                    </div>
                 </div>
-                <audio id="sdr-clip-audio-${c.id}" class="sdr-clip-audio" controls style="display:none" src="/api/sdr/recordings/${c.id}/file"></audio>
+                <audio id="sdr-clip-audio-${c.id}" style="display:none" src="/api/sdr/recordings/${c.id}/file"></audio>
             `;
             clipsList.appendChild(row);
-            row.querySelector('.sdr-clip-play-btn').addEventListener('click', function() {
-                const audio = document.getElementById(`sdr-clip-audio-${c.id}`);
-                if (audio.style.display === 'none') {
-                    audio.style.display = 'block';
-                    audio.play();
-                    this.innerHTML = '&#9646;&#9646; STOP';
-                } else {
+            const headerEl  = row.querySelector('.sdr-clip-header');
+            const bodyEl    = row.querySelector('.sdr-clip-body');
+            function expandBody() {
+                row.classList.add('sdr-clip-expanded');
+                bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+                bodyEl.addEventListener('transitionend', function clear() {
+                    bodyEl.style.maxHeight = 'none';
+                    bodyEl.removeEventListener('transitionend', clear);
+                });
+            }
+            function collapseBody() {
+                // Pin to current rendered height first so transition starts from real value
+                bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+                requestAnimationFrame(() => {
+                    bodyEl.style.maxHeight = '0';
+                    row.classList.remove('sdr-clip-expanded');
+                });
+            }
+            // Start expanded
+            expandBody();
+            headerEl.addEventListener('click', () => {
+                if (row.classList.contains('sdr-clip-expanded')) collapseBody();
+                else expandBody();
+            });
+            const playBtn  = row.querySelector('.sdr-clip-play-btn');
+            const audio    = document.getElementById(`sdr-clip-audio-${c.id}`);
+            const player   = document.getElementById(`sdr-clip-player-${c.id}`);
+            const seekEl   = document.getElementById(`sdr-clip-seek-${c.id}`);
+            const curEl    = document.getElementById(`sdr-clip-cur-${c.id}`);
+            const durEl    = document.getElementById(`sdr-clip-dur-${c.id}`);
+            const playIcon = playBtn.querySelector('.sdr-clip-play-icon');
+            const stopIcon = playBtn.querySelector('.sdr-clip-stop-icon');
+            function fmtT(s) {
+                const m = Math.floor(s/60), sec = Math.floor(s%60);
+                return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+            }
+            function setPlaying(on) {
+                playIcon.style.display = on ? 'none' : '';
+                stopIcon.style.display = on ? '' : 'none';
+                player.style.display = on ? 'flex' : 'none';
+            }
+            playBtn.addEventListener('click', function() {
+                if (!audio.paused || (audio.currentTime > 0 && player.style.display !== 'none')) {
                     audio.pause();
                     audio.currentTime = 0;
-                    audio.style.display = 'none';
-                    this.innerHTML = '&#9654; PLAY';
+                    setPlaying(false);
+                } else {
+                    audio.play();
+                    setPlaying(true);
                 }
+            });
+            audio.addEventListener('loadedmetadata', () => {
+                seekEl.max = audio.duration || 0;
+                durEl.textContent = fmtT(audio.duration || 0);
+            });
+            audio.addEventListener('timeupdate', () => {
+                seekEl.value = audio.currentTime;
+                curEl.textContent = fmtT(audio.currentTime);
+            });
+            audio.addEventListener('ended', () => {
+                audio.currentTime = 0;
+                setPlaying(false);
+            });
+            seekEl.addEventListener('input', () => {
+                audio.currentTime = parseFloat(seekEl.value);
             });
             row.querySelector('.sdr-clip-edit-btn').addEventListener('click', () => openEditRecModal(c));
             row.querySelector('.sdr-clip-export-btn').addEventListener('click', () => {
@@ -1396,6 +1578,7 @@
             }
             row.querySelector('.sdr-clip-del-btn').addEventListener('click', () => openDeleteRecModal(c));
         });
+        setTimeout(_updateClipsScrollHint, 0);
     }
     async function reloadClips() {
         try {
@@ -1403,6 +1586,77 @@
             _clips = await res.json();
             renderClips();
         } catch(_) {}
+        renderMgmt();
+    }
+    // ── Settings / file management ────────────────────────────────────────────
+    function renderMgmt() {
+        const wavList  = document.getElementById('sdr-mgmt-wav-list');
+        const iqList   = document.getElementById('sdr-mgmt-iq-list');
+        const wavCount = document.getElementById('sdr-mgmt-wav-count');
+        const iqCount  = document.getElementById('sdr-mgmt-iq-count');
+        if (!wavList || !iqList) return;
+        const wavClips = _clips.slice();                   // all clips have a WAV
+        const iqClips  = _clips.filter(c => c.has_iq_file);
+        wavCount.textContent = wavClips.length || '';
+        iqCount.textContent  = iqClips.length  || '';
+        function buildMgmtRow(c, type) {
+            const mhz = (c.frequency_hz / 1e6).toFixed(4);
+            const dt  = c.started_at ? c.started_at.replace('T',' ').slice(0,16) : '';
+            const sz  = _fmtBytes(type === 'iq' ? (c.iq_file_size_bytes || 0) : (c.file_size_bytes || 0));
+            const row = document.createElement('div');
+            row.className = 'sdr-mgmt-row';
+            row.innerHTML = `
+                <div class="sdr-mgmt-row-main">
+                    <span class="sdr-mgmt-name">${_escHtml(c.name)}</span>
+                    <span class="sdr-mgmt-mode">${_escHtml(c.mode)}</span>
+                </div>
+                <div class="sdr-mgmt-row-sub">
+                    <span class="sdr-mgmt-meta">${mhz} MHz &nbsp;·&nbsp; ${sz}</span>
+                    <span class="sdr-mgmt-date">${dt}</span>
+                </div>
+                <div class="sdr-mgmt-actions">
+                    <button class="sdr-mgmt-edit-btn sdr-panel-btn" title="Edit">
+                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z"/></svg>
+                    </button>
+                    <button class="sdr-mgmt-dl-btn sdr-panel-btn" title="Download">
+                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1v6M2.5 7l3 3 3-3"/><line x1="1" y1="10" x2="10" y2="10"/></svg>
+                    </button>
+                    <button class="sdr-mgmt-del-btn sdr-panel-btn" title="Delete">
+                        <svg width="10" height="11" viewBox="0 0 10 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h8M4 3V2h2v1M8 3l-.7 7H2.7L2 3"/></svg>
+                    </button>
+                </div>
+            `;
+            row.querySelector('.sdr-mgmt-edit-btn').addEventListener('click', () => openEditRecModal(c));
+            row.querySelector('.sdr-mgmt-dl-btn').addEventListener('click', () => {
+                const a = document.createElement('a');
+                a.href = type === 'iq' ? `/api/sdr/recordings/${c.id}/iq` : `/api/sdr/recordings/${c.id}/file`;
+                a.download = type === 'iq' ? `${c.name}.u8` : `${c.name}.wav`;
+                a.click();
+            });
+            row.querySelector('.sdr-mgmt-del-btn').addEventListener('click', () => openDeleteRecModal(c));
+            return row;
+        }
+        wavList.innerHTML = '';
+        wavClips.forEach(c => wavList.appendChild(buildMgmtRow(c, 'wav')));
+        iqList.innerHTML = '';
+        iqClips.forEach(c => iqList.appendChild(buildMgmtRow(c, 'iq')));
+        // Delete all buttons
+        const wavDelAll = document.getElementById('sdr-mgmt-wav-delete-all');
+        const iqDelAll  = document.getElementById('sdr-mgmt-iq-delete-all');
+        if (wavDelAll) {
+            wavDelAll.onclick = async () => {
+                if (!confirm(`Delete all ${wavClips.length} WAV recording(s)?`)) return;
+                await Promise.all(wavClips.map(c => fetch(`/api/sdr/recordings/${c.id}`, { method: 'DELETE' })));
+                await reloadClips();
+            };
+        }
+        if (iqDelAll) {
+            iqDelAll.onclick = async () => {
+                if (!confirm(`Delete all ${iqClips.length} IQ file(s)?`)) return;
+                await Promise.all(iqClips.map(c => fetch(`/api/sdr/recordings/${c.id}/iq`, { method: 'DELETE' })));
+                await reloadClips();
+            };
+        }
     }
     // Edit recording modal
     function openEditRecModal(c) {
@@ -1478,12 +1732,18 @@
             if (!recId) return;
             _isRecording = true;
             _recStartEpoch = Date.now();
+            clipsCount.textContent = '';
             recBtn.classList.add('sdr-rec-btn--active');
             _setRecBtnIcon(true);
-            recTimer.textContent = '0:00';
+            if (recTimer) recTimer.textContent = '0:00';
+            _removeLiveRecRow();
+            _liveRecRow = _createLiveRecRow(metadata, _recStartEpoch);
+            clipsEmpty.style.display = 'none';
+            clipsList.insertBefore(_liveRecRow, clipsList.firstChild);
             _recTimerInterval = setInterval(() => {
                 const s = Math.floor((Date.now() - _recStartEpoch) / 1000);
-                recTimer.textContent = _fmtDuration(s);
+                if (recTimer) recTimer.textContent = _fmtDuration(s);
+                _updateLiveRecRow(s);
             }, 1000);
         } else {
             await _stopRecordingIfActive();
