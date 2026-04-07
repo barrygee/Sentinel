@@ -51,10 +51,13 @@
         this._recChunkSize=4800; // 0.1s at 48kHz
         this._recChunkBuf=new Float32Array(this._recChunkSize);
         this._recChunkPos=0;
+        // Squelch-gated recording: track open state + 300ms tail hold after squelch closes
+        this._squelchOpen=false;
+        this._squelchTail=0; // samples remaining in tail hold
         this.port.onmessage=(ev)=>{
             const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz}=ev.data;
             if(type==='reset'){this._pcmWr=0;this._pcmRd=0;this._pcmLen=0;this._buffering=true;return;}
-            if(type==='rec_start'){this._isRecording=true;this._recChunkPos=0;return;}
+            if(type==='rec_start'){this._isRecording=true;this._recChunkPos=0;this._squelchOpen=false;this._squelchTail=0;return;}
             if(type==='rec_stop'){
                 this._isRecording=false;
                 if(this._recChunkPos>0){
@@ -80,8 +83,8 @@
                 if(this._pcmLen<cap){this._pcmBuf[this._pcmWr]=audio[k];this._pcmWr=(this._pcmWr+1)%cap;this._pcmLen++;}
             }
             if(this._buffering&&this._pcmLen>=this._preroll)this._buffering=false;
-            // Recording: buffer demodulated PCM and flush to main thread in 0.1s chunks
-            if(this._isRecording){
+            // Recording: only capture when squelch is open (or within 300ms tail hold)
+            if(this._isRecording&&this._squelchOpen){
                 for(let k=0;k<audio.length;k++){
                     this._recChunkBuf[this._recChunkPos++]=audio[k];
                     if(this._recChunkPos>=this._recChunkSize){
@@ -134,7 +137,14 @@
         const dbfs=this._pwr(i,q);
         // Throttle power posts to ~4Hz to avoid cross-thread overhead
         if(++this._powerTick>=8){this._powerTick=0;this.port.postMessage({type:'power',dbfs});}
-        if(dbfs<this._squelch)return new Float32Array(Math.round(i.length*48000/this._sampleRate));
+        const open=dbfs>=this._squelch;
+        if(open){this._squelchOpen=true;this._squelchTail=Math.round(48000*0.3);}
+        else if(this._squelchOpen){
+            const tailSamples=Math.round(i.length*48000/this._sampleRate);
+            if(this._squelchTail>tailSamples){this._squelchTail-=tailSamples;}
+            else{this._squelchOpen=false;this._squelchTail=0;}
+        }
+        if(!open)return new Float32Array(Math.round(i.length*48000/this._sampleRate));
         if(this._mode==='AM')return this._am(i,q);
         if(this._mode==='USB')return this._ssb(i,q,1);
         if(this._mode==='LSB')return this._ssb(i,q,-1);
