@@ -45,18 +45,18 @@ window._SatInfoPanel = (() => {
 
     function _formatCountdown(ms: number): string {
         const totalSec = Math.max(0, Math.floor(ms / 1000));
-        const h = Math.floor(totalSec / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
-        if (h > 0) return `IN ${h}h ${m}m`;
-        if (m > 0) return `IN ${m}m ${s}s`;
-        return `IN ${s}s`;
+        const hours = Math.floor(totalSec / 3600);
+        const minutes = Math.floor((totalSec % 3600) / 60);
+        const seconds = totalSec % 60;
+        if (hours > 0) return `IN ${hours}h ${minutes}m`;
+        if (minutes > 0) return `IN ${minutes}m ${seconds}s`;
+        return `IN ${seconds}s`;
     }
 
     function _formatDuration(sec: number): string {
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return `${m}m ${s}s`;
+        const minutes = Math.floor(sec / 60);
+        const seconds = sec % 60;
+        return `${minutes}m ${seconds}s`;
     }
 
     function _formatTime(utc: string): string {
@@ -284,8 +284,8 @@ window._SatInfoPanel = (() => {
         const list = _getList();
         if (!list) return;
 
-        const d = new Date(computedAt);
-        _setStatus(`NEXT 24H · UPDATED ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, false);
+        const computedDate = new Date(computedAt);
+        _setStatus(`NEXT 24H · UPDATED ${computedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, false);
 
         list.innerHTML = '';
         if (!passes.length) {

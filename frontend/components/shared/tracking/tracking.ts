@@ -88,11 +88,11 @@ window._Tracking = ((): TrackingAPI => {
     }
 
     function _refreshBadge(): void {
-        const n  = _totalCount();
+        const totalCount  = _totalCount();
         const el = _getCount();
         if (el) {
-            el.textContent = n > 0 ? String(n) : '';
-            if (n > 0 && !_isPanelOpen()) {
+            el.textContent = totalCount > 0 ? String(totalCount) : '';
+            if (totalCount > 0 && !_isPanelOpen()) {
                 el.classList.add('tracking-count-active');
             } else {
                 el.classList.remove('tracking-count-active');

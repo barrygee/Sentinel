@@ -414,9 +414,9 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     }
 
     function parseFreqMhz(raw: string): number | null {
-        const v = parseFloat(raw.replace(/[^\d.]/g, ''));
-        if (isNaN(v) || v <= 0) return null;
-        return v > 30000 ? v : Math.round(v * 1e6);
+        const parsedValue = parseFloat(raw.replace(/[^\d.]/g, ''));
+        if (isNaN(parsedValue) || parsedValue <= 0) return null;
+        return parsedValue > 30000 ? parsedValue : Math.round(parsedValue * 1e6);
     }
 
     function displayFreq(hz: number) {
@@ -530,14 +530,14 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     let _gainDebounce: ReturnType<typeof setTimeout> | null = null;
 
     function applyGain() {
-        const g = parseFloat(gainSlider.value);
-        const auto = agcCheck.checked || g < 0;
+        const gainDb = parseFloat(gainSlider.value);
+        const auto = agcCheck.checked || gainDb < 0;
         if (auto) {
             gainVal.textContent = 'AUTO';
             _sdrCurrentGainAuto = true;
         } else {
-            gainVal.textContent = `${g.toFixed(1)} dB`;
-            _sdrCurrentGain = g;
+            gainVal.textContent = `${gainDb.toFixed(1)} dB`;
+            _sdrCurrentGain = gainDb;
             _sdrCurrentGainAuto = false;
         }
         if (_gainDebounce) clearTimeout(_gainDebounce);
@@ -556,9 +556,9 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     // ── Volume ────────────────────────────────────────────────────────────────
 
     volSlider.addEventListener('input', () => {
-        const v = parseInt(volSlider.value, 10);
-        volVal.textContent = `${v}%`;
-        if (window._SdrAudio) window._SdrAudio.setVolume(v / 100);
+        const volumeLevel = parseInt(volSlider.value, 10);
+        volVal.textContent = `${volumeLevel}%`;
+        if (window._SdrAudio) window._SdrAudio.setVolume(volumeLevel / 100);
     });
 
     // ── Squelch ───────────────────────────────────────────────────────────────
@@ -930,8 +930,8 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     }
 
     function getSelectedRadioId(): number | null {
-        const v = parseInt(radioSelect.value, 10);
-        return isNaN(v) || v <= 0 ? null : v;
+        const selectedId = parseInt(radioSelect.value, 10);
+        return isNaN(selectedId) || selectedId <= 0 ? null : selectedId;
     }
 
     // ── Custom device dropdown ────────────────────────────────────────────────
@@ -1214,9 +1214,9 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
 
     function doScanStep() {
         if (!_sdrScanActive || _sdrScanLocked || _scanQueue.length === 0) return;
-        const f = _scanQueue[_scanIdx % _scanQueue.length];
-        tuneToFreq(f);
-        setScanStatus(true, f.frequency_hz);
+        const nextFrequency = _scanQueue[_scanIdx % _scanQueue.length];
+        tuneToFreq(nextFrequency);
+        setScanStatus(true, nextFrequency.frequency_hz);
         _scanIdx++;
         _scanTimer = setTimeout(doScanStep, 2000);
     }

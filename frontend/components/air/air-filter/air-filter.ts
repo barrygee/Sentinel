@@ -34,8 +34,8 @@ window._FilterPanel = (() => {
         } else {
             // Fallback: sidebar not yet available — retry on DOMContentLoaded
             document.addEventListener('DOMContentLoaded', () => {
-                const p = document.getElementById('msb-pane-search');
-                if (p && !document.getElementById('filter-input-wrap')) p.insertAdjacentHTML('afterbegin', html);
+                const searchPane = document.getElementById('msb-pane-search');
+                if (searchPane && !document.getElementById('filter-input-wrap')) searchPane.insertAdjacentHTML('afterbegin', html);
             });
         }
     })();

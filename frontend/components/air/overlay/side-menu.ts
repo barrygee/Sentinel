@@ -224,16 +224,16 @@
             if (_tiltActive) {
                 _targetPitch = 45;
                 if (isFollowingAircraft) {
-                    const f = _getTrackedFeature();
-                    map.easeTo({ pitch: 45, ...(f ? { center: f.geometry.coordinates as maplibregl.LngLatLike } : {}), duration: 600 });
+                    const trackedFeature = _getTrackedFeature();
+                    map.easeTo({ pitch: 45, ...(trackedFeature ? { center: trackedFeature.geometry.coordinates as maplibregl.LngLatLike } : {}), duration: 600 });
                 } else {
                     map.easeTo({ pitch: 45, duration: 400 });
                 }
             } else {
                 _targetPitch = 0;
                 if (isFollowingAircraft) {
-                    const f = _getTrackedFeature();
-                    map.easeTo({ pitch: 0, bearing: 0, zoom: 14, ...(f ? { center: f.geometry.coordinates as maplibregl.LngLatLike } : {}), duration: 600 });
+                    const trackedFeature = _getTrackedFeature();
+                    map.easeTo({ pitch: 0, bearing: 0, zoom: 14, ...(trackedFeature ? { center: trackedFeature.geometry.coordinates as maplibregl.LngLatLike } : {}), duration: 600 });
                 } else {
                     map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
                 }
@@ -365,8 +365,8 @@
         const hidden = adsbControl ? adsbControl._allHidden : false;
         const mode   = adsbControl ? adsbControl._typeFilter : 'all';
         filterFlyout.querySelectorAll<HTMLElement>('[data-mode]').forEach(b => {
-            const m = b.dataset['mode']!;
-            b.classList.toggle('active', m === 'none' ? hidden : (!hidden && mode === m));
+            const filterMode = b.dataset['mode']!;
+            b.classList.toggle('active', filterMode === 'none' ? hidden : (!hidden && mode === filterMode));
         });
     }
 
@@ -442,9 +442,9 @@
 
     ctrl3d.appendChild(document.createElement('span'));
     ctrl3d.appendChild(make3dBtn('↑', 'TILT UP', () => {
-        const p = Math.min(map.getPitch() + 10, 85);
-        if (window._setTargetPitch) window._setTargetPitch(p);
-        map.easeTo({ pitch: p, duration: 300 });
+        const newPitch = Math.min(map.getPitch() + 10, 85);
+        if (window._setTargetPitch) window._setTargetPitch(newPitch);
+        map.easeTo({ pitch: newPitch, duration: 300 });
     }));
     ctrl3d.appendChild(document.createElement('span'));
 
@@ -454,9 +454,9 @@
 
     ctrl3d.appendChild(document.createElement('span'));
     ctrl3d.appendChild(make3dBtn('↓', 'TILT DOWN', () => {
-        const p = Math.max(map.getPitch() - 10, 0);
-        if (window._setTargetPitch) window._setTargetPitch(p);
-        map.easeTo({ pitch: p, duration: 300 });
+        const newPitch = Math.max(map.getPitch() - 10, 0);
+        if (window._setTargetPitch) window._setTargetPitch(newPitch);
+        map.easeTo({ pitch: newPitch, duration: 300 });
     }));
     ctrl3d.appendChild(document.createElement('span'));
 
