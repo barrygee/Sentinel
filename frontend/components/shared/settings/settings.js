@@ -489,14 +489,6 @@ window._SettingsPanel = (function () {
             desc: 'Configure RTL-SDR devices reachable via rtl_tcp',
             renderControl: _renderSdrDevicesControl,
         },
-        {
-            section: 'sdr',
-            sectionLabel: 'SDR',
-            id: 'sdr-record-raw-iq',
-            label: 'Record Raw IQ',
-            desc: 'Also save the raw IQ stream (.u8) alongside each WAV recording. WARNING: ~4 MB/sec · ~240 MB/min · ~14 GB/hr. Compatible with SDR#, GQRX, GNU Radio.',
-            renderControl: _renderRecordRawIqToggle,
-        },
         // CONFIG
         {
             section: 'app',
@@ -833,8 +825,8 @@ window._SettingsPanel = (function () {
         // placeholder-like values (http://localhost) as empty rather than real URLs.
         const noDefault = defaultUrl === '';
         function _isOfflinePlaceholder(url) {
-            const t = url.trim();
-            return !t || /^http:\/\/localhost\/?$/.test(t);
+            const trimmedUrl = url.trim();
+            return !trimmedUrl || /^http:\/\/localhost\/?$/.test(trimmedUrl);
         }
         // Load saved value
         try {
@@ -1082,42 +1074,6 @@ window._SettingsPanel = (function () {
         wrap.appendChild(labelLight);
         return wrap;
     }
-    // ── SDR raw IQ recording toggle ───────────────────────────
-    function _renderRecordRawIqToggle() {
-        const wrap = document.createElement('div');
-        let _enabled = false;
-        const group = document.createElement('div');
-        group.className = 'sdr-devices-enabled-group';
-        const onBtn = document.createElement('button');
-        onBtn.className = 'sdr-devices-enabled-btn';
-        onBtn.textContent = 'ENABLED';
-        const offBtn = document.createElement('button');
-        offBtn.className = 'sdr-devices-enabled-btn is-active';
-        offBtn.textContent = 'DISABLED';
-        function _apply(enabled) {
-            _enabled = enabled;
-            onBtn.classList.toggle('is-active', enabled);
-            offBtn.classList.toggle('is-active', !enabled);
-            if (window._SettingsAPI)
-                window._SettingsAPI.put('sdr', 'recordRawIq', enabled);
-        }
-        onBtn.addEventListener('click', function () { _apply(true); });
-        offBtn.addEventListener('click', function () { _apply(false); });
-        group.appendChild(onBtn);
-        group.appendChild(offBtn);
-        wrap.appendChild(group);
-        // Load persisted value
-        if (window._SettingsAPI) {
-            window._SettingsAPI.getNamespace('sdr').then(function (s) {
-                if (s && s.recordRawIq === true) {
-                    _enabled = true;
-                    onBtn.classList.add('is-active');
-                    offBtn.classList.remove('is-active');
-                }
-            });
-        }
-        return wrap;
-    }
     // ── Config controls ───────────────────────────────────────
     function _renderConfigCurrentControl() {
         const wrap = document.createElement('div');
@@ -1202,10 +1158,10 @@ window._SettingsPanel = (function () {
             // Fallback for browsers without File System Access API
             const blob = new Blob([content], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'sentinel_config.json';
-            a.click();
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = 'sentinel_config.json';
+            downloadLink.click();
             URL.revokeObjectURL(url);
         });
         fetch('/api/settings/config/preview')
@@ -1855,12 +1811,12 @@ window._SettingsPanel = (function () {
             countLine.textContent = `${sats.length} of ${_allSats.length} satellites`;
         }
         function _applyFilters() {
-            const q = searchInput.value.trim().toLowerCase();
+            const searchQuery = searchInput.value.trim().toLowerCase();
             _renderTable(_allSats.filter(function (s) {
-                if (!q)
+                if (!searchQuery)
                     return true;
                 const catLabel = s.category ? (_CAT_LABELS[s.category] ?? s.category) : '';
-                return s.name.toLowerCase().includes(q) || s.norad_id.includes(q) || catLabel.toLowerCase().includes(q);
+                return s.name.toLowerCase().includes(searchQuery) || s.norad_id.includes(searchQuery) || catLabel.toLowerCase().includes(searchQuery);
             }));
         }
         async function _load() {
@@ -2268,13 +2224,13 @@ window._SettingsPanel = (function () {
         });
     }
     function _search(query) {
-        const q = query.trim().toLowerCase();
-        if (!q)
+        const normalizedQuery = query.trim().toLowerCase();
+        if (!normalizedQuery)
             return null;
         return _settings.filter(function (s) {
-            return s.label.toLowerCase().indexOf(q) !== -1 ||
-                s.desc.toLowerCase().indexOf(q) !== -1 ||
-                s.sectionLabel.toLowerCase().indexOf(q) !== -1;
+            return s.label.toLowerCase().indexOf(normalizedQuery) !== -1 ||
+                s.desc.toLowerCase().indexOf(normalizedQuery) !== -1 ||
+                s.sectionLabel.toLowerCase().indexOf(normalizedQuery) !== -1;
         });
     }
     function _renderSearchResults(results) {
@@ -2387,10 +2343,10 @@ window._SettingsPanel = (function () {
         const clearBtn = document.getElementById('settings-search-clear');
         if (input) {
             input.addEventListener('input', function () {
-                const q = input.value;
+                const inputValue = input.value;
                 if (clearBtn)
-                    clearBtn.classList.toggle('settings-search-clear-visible', q.length > 0);
-                const results = _search(q);
+                    clearBtn.classList.toggle('settings-search-clear-visible', inputValue.length > 0);
+                const results = _search(inputValue);
                 if (results === null) {
                     _renderSection(_activeSection);
                 }

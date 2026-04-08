@@ -297,12 +297,12 @@ window._Notifications = (() => {
                     _stopBellPulse();
                     return;
                 }
-                const b = _getBtn();
-                if (!b)
+                const notificationButton = _getBtn();
+                if (!notificationButton)
                     return;
-                b.classList.remove('notif-btn-unread');
-                void b.offsetWidth;
-                b.classList.add('notif-btn-unread');
+                notificationButton.classList.remove('notif-btn-unread');
+                void notificationButton.offsetWidth;
+                notificationButton.classList.add('notif-btn-unread');
             }, 15000);
         }
     }

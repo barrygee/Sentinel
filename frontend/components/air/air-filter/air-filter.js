@@ -33,9 +33,9 @@ window._FilterPanel = (() => {
         else {
             // Fallback: sidebar not yet available — retry on DOMContentLoaded
             document.addEventListener('DOMContentLoaded', () => {
-                const p = document.getElementById('msb-pane-search');
-                if (p && !document.getElementById('filter-input-wrap'))
-                    p.insertAdjacentHTML('afterbegin', html);
+                const searchPane = document.getElementById('msb-pane-search');
+                if (searchPane && !document.getElementById('filter-input-wrap'))
+                    searchPane.insertAdjacentHTML('afterbegin', html);
             });
         }
     })();
@@ -190,7 +190,7 @@ window._FilterPanel = (() => {
             bellBtn.className = 'filter-action-btn filter-bell-btn';
             bellBtn.setAttribute('aria-label', 'Toggle notifications');
             bellBtn.dataset['hex'] = hex;
-            bellBtn.style.color = notifOn ? '#c8ff00' : 'rgba(255,255,255,0.3)';
+            bellBtn.classList.toggle('filter-bell-btn--active', !!notifOn);
             bellBtn.innerHTML =
                 `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
                     `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
@@ -236,7 +236,7 @@ window._FilterPanel = (() => {
                     });
                 }
                 const nowOn = adsbControl._notifEnabled.has(hex);
-                bellBtn.style.color = nowOn ? '#c8ff00' : 'rgba(255,255,255,0.3)';
+                bellBtn.classList.toggle('filter-bell-btn--active', nowOn);
                 bellBtn.innerHTML =
                     `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
                         `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
@@ -248,11 +248,7 @@ window._FilterPanel = (() => {
             item.appendChild(icon);
             item.appendChild(info);
             item.appendChild(bellBtn);
-            info.style.flex = '1';
-            info.style.minWidth = '0';
-            info.style.cursor = 'pointer';
             info.addEventListener('click', () => _selectPlane(r.feature));
-            icon.style.cursor = 'pointer';
             icon.addEventListener('click', () => _selectPlane(r.feature));
             item._selectAction = () => _selectPlane(r.feature);
             container.appendChild(item);
@@ -279,8 +275,6 @@ window._FilterPanel = (() => {
             item.appendChild(icon);
             item.appendChild(info);
             item.appendChild(badge);
-            info.style.cursor = 'pointer';
-            icon.style.cursor = 'pointer';
             info.addEventListener('click', () => _selectAirport(r.feature));
             icon.addEventListener('click', () => _selectAirport(r.feature));
             item._selectAction = () => _selectAirport(r.feature);
@@ -308,8 +302,6 @@ window._FilterPanel = (() => {
             item.appendChild(icon);
             item.appendChild(info);
             item.appendChild(badge);
-            info.style.cursor = 'pointer';
-            icon.style.cursor = 'pointer';
             info.addEventListener('click', () => _selectMil(r.feature));
             icon.addEventListener('click', () => _selectMil(r.feature));
             item._selectAction = () => _selectMil(r.feature);
