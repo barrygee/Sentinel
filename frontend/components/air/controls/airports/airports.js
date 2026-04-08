@@ -88,59 +88,52 @@ class AirportsToggleControl extends SentinelControlBase {
             `<span style="font-size:11px;font-weight:400;opacity:0.5;letter-spacing:.08em">${p.name.toUpperCase()}</span>` +
             `</div>${rowsHTML}</div>`;
     }
-    _buildAirportPanelHTML(p, coords) {
-        const lat = coords[1].toFixed(4);
-        const lng = coords[0].toFixed(4);
-        const fields = [
-            ['IATA', p.iata || '—'],
-            ['LAT', lat],
-            ['LON', lng],
-            ['TWR', p.freqs.tower || '—'],
-            ['RAD', p.freqs.radar || '—'],
-            ['APP', p.freqs.approach || '—'],
-            ['ATIS', p.freqs.atis || '—'],
+    _buildClickPanel(p) {
+        const rows = [
+            ['TWR', p.freqs.tower],
+            ['RAD', p.freqs.radar],
+            ['APP', p.freqs.approach],
+            ['ATIS', p.freqs.atis],
         ];
-        const fieldsHTML = fields.map(([lbl, val]) => `<div class="adsb-sb-field">` +
-            `<span class="adsb-sb-label">${lbl}</span>` +
-            `<span class="adsb-sb-value">${val}</span>` +
-            `</div>`).join('');
-        return `<div class="adsb-sb-header">` +
-            `<span class="adsb-sb-label-tag">AIRPORT</span>` +
-            `<button class="adsb-sb-untrack-btn" id="apt-panel-close">CLOSE</button>` +
-            `</div>` +
-            `<div class="adsb-sb-header" style="border-top:none;border-bottom:1px solid rgba(255,255,255,0.08);height:auto;padding:8px 14px 9px">` +
-            `<span class="adsb-sb-callsign" style="color:#ffffff">${p.icao}</span>` +
-            `<span style="font-size:10px;font-weight:400;letter-spacing:0.08em;color:rgba(255,255,255,0.4)">${p.name.toUpperCase()}</span>` +
-            `</div>` +
-            `<div class="adsb-sb-fields">${fieldsHTML}</div>`;
-    }
-    _showAirportPanel(p, coords, fromSearch = false) {
-        let bar = document.getElementById('adsb-status-bar');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'adsb-status-bar';
-            const trackingPanel = document.getElementById('tracking-panel');
-            if (trackingPanel)
-                trackingPanel.appendChild(bar);
-            else
-                document.body.appendChild(bar);
-        }
-        bar.dataset['apt'] = '1';
-        bar.innerHTML = this._buildAirportPanelHTML(p, coords);
-        bar.classList.add('adsb-sb-visible');
-        if (!fromSearch && typeof window._Tracking !== 'undefined') {
-            window._Tracking.setCount(1);
-            window._Tracking.openPanel();
-        }
-        bar.querySelector('#apt-panel-close').addEventListener('click', (e) => {
-            e.stopPropagation();
-            bar.classList.remove('adsb-sb-visible');
-            delete bar.dataset['apt'];
-            if (typeof window._Tracking !== 'undefined')
-                window._Tracking.setCount(0);
-            const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
-            this.map.flyTo({ center: [-4.4815, 54.1453], zoom: 6, pitch: is3D ? 45 : 0, bearing: 0, duration: 800 });
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:inline-block;background:rgba(0,0,0,0.85);color:#fff;' +
+            "font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;" +
+            'padding:6px 14px 9px;white-space:nowrap;user-select:none;pointer-events:auto;margin-top:4px;' +
+            'border:1px solid rgba(255,255,255,0.12);border-radius:2px;';
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:16px;' +
+            'font-weight:600;font-size:15px;letter-spacing:.12em;' +
+            'margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)';
+        header.innerHTML =
+            `<span style="font-size:13px;font-weight:600;letter-spacing:.12em;color:#c8ff00">${p.icao}</span>` +
+                `<span style="font-size:11px;font-weight:400;opacity:0.5;letter-spacing:.08em">${p.name.toUpperCase()}</span>`;
+        wrap.appendChild(header);
+        rows.forEach(([lbl, val]) => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:14px;line-height:1.8;align-items:center';
+            const lblEl = document.createElement('span');
+            lblEl.style.cssText = 'opacity:0.5;min-width:34px;letter-spacing:.05em';
+            lblEl.textContent = lbl;
+            row.appendChild(lblEl);
+            const valEl = document.createElement('span');
+            valEl.textContent = val;
+            if (window._SdrMiniPlayer) {
+                valEl.style.cssText = 'cursor:pointer';
+                valEl.title = `Tune to ${val}`;
+                valEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const first = val.split('/')[0].trim();
+                    const mhz = parseFloat(first);
+                    if (isNaN(mhz) || mhz <= 0)
+                        return;
+                    const hz = mhz > 30000 ? Math.round(mhz) : Math.round(mhz * 1e6);
+                    window._SdrMiniPlayer.tune(hz, 'AM', `${p.name} ${lbl}`);
+                });
+            }
+            row.appendChild(valEl);
+            wrap.appendChild(row);
         });
+        return wrap;
     }
     initLayers() {
         if (this.map.getSource('airports'))
@@ -159,28 +152,44 @@ class AirportsToggleControl extends SentinelControlBase {
                     `<span class="apt-icao" style="color:#c8ff00">${airportProperties.icao}</span>` +
                         `<br><span class="apt-name" style="opacity:0.7;font-weight:400">${airportProperties.name.toUpperCase()}</span>`;
                 el.appendChild(label);
+                let clickPanel = null;
+                let hoverPanel = null;
+                const closeClickPanel = () => {
+                    if (clickPanel) {
+                        clickPanel.remove();
+                        clickPanel = null;
+                    }
+                };
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const pitch = (typeof window._is3DActive === 'function' && window._is3DActive()) ? 45 : undefined;
-                    const easeOpts = { center: coords, zoom: 13, duration: 800 };
-                    if (pitch !== undefined)
-                        easeOpts.pitch = pitch;
-                    this.map.easeTo(easeOpts);
-                    this._showAirportPanel(airportProperties, coords);
+                    if (clickPanel) {
+                        closeClickPanel();
+                        return;
+                    }
+                    if (hoverPanel) {
+                        hoverPanel.remove();
+                        hoverPanel = null;
+                    }
+                    clickPanel = this._buildClickPanel(airportProperties);
+                    el.appendChild(clickPanel);
+                    // dismiss on next map click
+                    const onMapClick = () => { closeClickPanel(); this.map.off('click', onMapClick); };
+                    this.map.on('click', onMapClick);
                 });
-                let freqPanel = null;
                 el.addEventListener('mouseenter', () => {
-                    if (!freqPanel) {
-                        freqPanel = document.createElement('div');
-                        freqPanel.innerHTML = this._buildFreqPanel(airportProperties);
-                        freqPanel.style.cssText = 'pointer-events:none;margin-top:4px';
-                        el.appendChild(freqPanel);
+                    if (clickPanel)
+                        return;
+                    if (!hoverPanel) {
+                        hoverPanel = document.createElement('div');
+                        hoverPanel.innerHTML = this._buildFreqPanel(airportProperties);
+                        hoverPanel.style.cssText = 'pointer-events:none;margin-top:4px';
+                        el.appendChild(hoverPanel);
                     }
                 });
                 el.addEventListener('mouseleave', () => {
-                    if (freqPanel) {
-                        freqPanel.remove();
-                        freqPanel = null;
+                    if (hoverPanel) {
+                        hoverPanel.remove();
+                        hoverPanel = null;
                     }
                 });
                 return new maplibregl.Marker({ element: el, anchor: 'top-left', offset: [8, -6] })

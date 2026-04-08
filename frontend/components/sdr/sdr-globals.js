@@ -29,5 +29,3 @@ var _sdrCurrentBwHz = 10000;
 var _sdrScanActive = false;
 // @ts-ignore
 var _sdrScanLocked = false;
-// @ts-ignore
-var _sdrPlaying = false;

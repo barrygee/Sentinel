@@ -1,0 +1,278 @@
+/* ============================================================
+   SDR MINI PLAYER
+   Compact, draggable overlay player.
+   Reuses the SDR panel's visual language (colours, fonts, sliders).
+   ============================================================ */
+
+#sdr-mini-player {
+    position: fixed;
+    right: 18px;
+    bottom: calc(var(--footer-height, 36px) + 14px);
+    z-index: 1200;
+    width: 280px;
+    background: rgba(10, 13, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    box-shadow: 0 6px 32px rgba(0, 0, 0, 0.6);
+    user-select: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#sdr-mini-player.sdr-mini-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+}
+
+/* ---- Drag handle / title bar ---- */
+.sdr-mini-drag-handle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    height: 32px;
+    cursor: grab;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+}
+
+.sdr-mini-drag-handle:active {
+    cursor: grabbing;
+}
+
+.sdr-mini-title {
+    flex: 1;
+    min-width: 0;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sdr-mini-conn-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+.sdr-mini-dot-off {
+    background: rgba(255, 60, 60, 0.6);
+}
+
+.sdr-mini-dot-on {
+    background: #c8ff00;
+    box-shadow: 0 0 5px rgba(200, 255, 0, 0.5);
+}
+
+.sdr-mini-close-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 0;
+    border-radius: 2px;
+    transition: color 0.12s, background 0.12s;
+}
+
+.sdr-mini-close-btn:hover {
+    color: rgba(255, 80, 80, 0.9);
+    background: rgba(255, 80, 80, 0.1);
+}
+
+/* ---- Body ---- */
+.sdr-mini-body {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+/* ---- Frequency + Mode ---- */
+.sdr-mini-freq-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.sdr-mini-freq-display {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 20px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: #c8ff00;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sdr-mini-mode-badge {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(200, 255, 0, 0.75);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 3px 6px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* ---- Signal bar ---- */
+.sdr-mini-signal-bar {
+    display: flex;
+    gap: 2px;
+    width: 100%;
+    height: 6px;
+}
+
+.sdr-mini-seg {
+    flex: 1;
+    height: 100%;
+    border-radius: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    transition: background 0.08s ease;
+}
+
+.sdr-mini-seg--on {
+    background: #c8ff00;
+}
+
+/* ---- Controls row ---- */
+.sdr-mini-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ---- Slider groups ---- */
+.sdr-mini-slider-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sdr-mini-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sdr-mini-slider-val {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.3);
+    margin-left: auto;
+}
+
+/* Slider — same styling as .sdr-panel-slider */
+.sdr-mini-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: #c8ff00;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    display: block;
+    box-sizing: border-box;
+    border: none;
+}
+
+.sdr-mini-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.sdr-mini-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.sdr-mini-slider::-moz-range-track {
+    height: 3px;
+    border-radius: 2px;
+    background: #c8ff00;
+}
+
+/* ---- Play / Stop buttons ---- */
+.sdr-mini-play-btns {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.sdr-mini-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 2px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.sdr-mini-play-btn {
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.sdr-mini-play-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #c8ff00;
+}
+
+.sdr-mini-stop-btn {
+    color: rgba(255, 80, 80, 0.75);
+}
+
+.sdr-mini-stop-btn:hover {
+    background: rgba(255, 80, 80, 0.15);
+    color: #ff5050;
+}
+
+.sdr-mini-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+}
