@@ -1,8 +1,8 @@
-<svg width="302" height="60" viewBox="0 0 302 60" xmlns="http://www.w3.org/2000/svg">
-  <text x="12" y="43" font-family="'Barlow', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="36" letter-spacing="4" fill="white">SENTINEL </text>
-  <svg x="227" y="12" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="246" height="80" viewBox="0 0 246 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circle icon centered above the I, 24px (2/3 of original 36px) -->
+  <svg x="112" y="0" width="24" height="24" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="18" cy="18" r="16" fill="none" stroke="#c8ff00" stroke-width="3"/>
     <circle cx="18" cy="18" r="5.5" fill="white"/>
   </svg>
-  <text x="267" y="43" font-family="'Barlow', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="36" letter-spacing="4" fill="white">S</text>
+  <text x="12" y="63" font-family="'Barlow', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="36" letter-spacing="4" fill="white">SENTINEL</text>
 </svg>

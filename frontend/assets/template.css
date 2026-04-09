@@ -81,7 +81,7 @@ html {
 
 /* The logo image; height constrained to 24px */
 #logo-img {
-    height: 24px;
+    height: 32px;
     width: auto;
     display: block;
 }
