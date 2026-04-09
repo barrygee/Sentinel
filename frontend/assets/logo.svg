@@ -3,18 +3,18 @@
     <clipPath id="textClip">
       <path fill-rule="evenodd" d="
         M 0 0 H 246 V 80 H 0 Z
-        M 118 34
-        m -17 0
-        a 17 17 0 1 0 34 0
-        a 17 17 0 1 0 -34 0
+        M 117 32
+        m -14 0
+        a 14 14 0 1 0 28 0
+        a 14 14 0 1 0 -28 0
       "/>
     </clipPath>
   </defs>
 
   <!-- Circle icon -->
-  <svg x="104" y="20" width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="18" cy="18" r="16" fill="none" stroke="#c8ff00" stroke-width="4"/>
-    <circle cx="18" cy="18" r="5.5" fill="white"/>
+  <svg x="105" y="19" width="25" height="25" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="18" cy="18" r="14" fill="none" stroke="#c8ff00" stroke-width="5"/>
+    <circle cx="18" cy="18" r="4.5" fill="white"/>
   </svg>
 
   <text x="12" y="63" font-family="'Barlow', 'Helvetica Neue', Arial, sans-serif" font-weight="500" font-size="36" letter-spacing="2" fill="white" clip-path="url(#textClip)">SENTINEL</text>
