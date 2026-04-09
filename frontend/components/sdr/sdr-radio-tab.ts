@@ -23,11 +23,10 @@
             (window as any)._buildSdrPanel(pane);
         }
 
-        // sdr-mini-boot may have loaded radios before the panel was mounted;
-        // populate the newly-built dropdown with the cached list now.
-        const cached = (window as any)._sdrCachedRadios;
-        if (cached && typeof (window as any)._sdrPopulateRadios === 'function') {
-            (window as any)._sdrPopulateRadios(cached);
+        // Now that the panel is mounted and _sdrPopulateRadios is registered,
+        // fetch radios and auto-connect. This guarantees no race condition.
+        if (typeof (window as any)._sdrLoadRadios === 'function') {
+            (window as any)._sdrLoadRadios();
         }
     }
 

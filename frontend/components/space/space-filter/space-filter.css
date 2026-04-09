@@ -15,7 +15,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 13px 28px 13px 28px;
+    padding: 13px 28px 13px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -88,7 +88,7 @@
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-accent);
-    padding: 18px 28px 5px 28px;
+    padding: 18px 28px 5px 24px;
     text-transform: uppercase;
 }
 
@@ -100,7 +100,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 13px 28px 13px 28px;
+    padding: 13px 28px 13px 24px;
     border-bottom: none;
     transition: background 0.12s;
     cursor: pointer;

@@ -513,6 +513,72 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     // Disable controls until a radio is selected
     setRadioControlsDisabled(true);
 
+    // ── Persist / restore all SDR settings across page navigation ────────────
+
+    function _saveSettings() {
+        try {
+            sessionStorage.setItem('sdrSettings', JSON.stringify({
+                gainDb:    _sdrCurrentGain,
+                gainAuto:  _sdrCurrentGainAuto,
+                squelch:   _sdrCurrentSquelch,
+                bwHz:      _sdrCurrentBwHz,
+                vol:       volSlider ? parseInt(volSlider.value, 10) : 100,
+                mode:      _sdrCurrentMode,
+                freqHz:    _sdrCurrentFreqHz,
+            }));
+        } catch (_e) {}
+    }
+
+    function _restoreSettings() {
+        try {
+            const raw = sessionStorage.getItem('sdrSettings');
+            if (!raw) return;
+            const s = JSON.parse(raw) as {
+                gainDb: number; gainAuto: boolean; squelch: number;
+                bwHz: number; vol: number; mode: string; freqHz: number;
+            };
+            if (s.freqHz > 0) {
+                _sdrCurrentFreqHz = s.freqHz;
+                displayFreq(s.freqHz);
+            }
+            if (s.mode) {
+                _sdrCurrentMode = s.mode;
+                setModePill(modePillsEl, s.mode);
+            }
+            if (typeof s.gainDb === 'number') {
+                _sdrCurrentGain     = s.gainDb;
+                _sdrCurrentGainAuto = !!s.gainAuto;
+                gainSlider.value    = String(s.gainDb);
+                agcCheck.checked    = _sdrCurrentGainAuto;
+                gainVal.textContent = _sdrCurrentGainAuto ? 'AUTO' : `${s.gainDb.toFixed(1)} dB`;
+                gainSlider.disabled = _sdrCurrentGainAuto;
+            }
+            if (typeof s.squelch === 'number') {
+                _sdrCurrentSquelch  = s.squelch;
+                sqSlider.value      = String(s.squelch);
+                sqVal.textContent   = `${s.squelch} dBFS`;
+            }
+            if (typeof s.bwHz === 'number' && s.bwHz > 0) {
+                _sdrCurrentBwHz   = s.bwHz;
+                bwSlider.value    = String(s.bwHz);
+                bwVal.textContent = formatBwHz(s.bwHz);
+            }
+            if (typeof s.vol === 'number') {
+                volSlider.value    = String(s.vol);
+                volVal.textContent = `${s.vol}%`;
+                if (window._SdrAudio) window._SdrAudio.setVolume(s.vol / 100);
+            }
+        } catch (_e) {}
+    }
+
+    // Restore persisted settings on non-SDR pages (SDR page gets state from server).
+    // Pre-seed radioSelect.value so _sdrPopulateRadios can restore the dropdown label.
+    if (_tabMode) {
+        const savedRadioId = sessionStorage.getItem('sdrLastRadioId');
+        if (savedRadioId) radioSelect.value = savedRadioId;
+        _restoreSettings();
+    }
+
     function sendCmd(obj: object) {
         if (_sdrSocket && _sdrSocket.readyState === WebSocket.OPEN) {
             _sdrSocket.send(JSON.stringify(obj));
@@ -557,6 +623,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         const mode = btn.dataset.mode;
         setModePill(modePillsEl, mode);
         _sdrCurrentMode = mode;
+        _saveSettings();
         sendCmd({ cmd: 'mode', mode });
         if (window._SdrAudio) {
             window._SdrAudio.setMode(mode);
@@ -631,6 +698,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         // Always persist so reconnect restores the user's chosen frequency
         sessionStorage.setItem('sdrLastFreqHz', String(hz));
         sessionStorage.setItem('sdrLastMode', _sdrCurrentMode);
+        _saveSettings();
         if (!_sdrSocket || _sdrSocket.readyState !== WebSocket.OPEN) {
             // Only trigger a new connection if no socket exists or it's fully closed
             if (!_sdrSocket || _sdrSocket.readyState === WebSocket.CLOSED) {
@@ -686,6 +754,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
             _sdrCurrentGain = gainDb;
             _sdrCurrentGainAuto = false;
         }
+        _saveSettings();
         if (_gainDebounce) clearTimeout(_gainDebounce);
         _gainDebounce = setTimeout(() => {
             sendCmd({ cmd: 'gain', gain_db: auto ? null : gainDb });
@@ -704,6 +773,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     volSlider.addEventListener('input', () => {
         const volumeLevel = parseInt(volSlider.value, 10);
         volVal.textContent = `${volumeLevel}%`;
+        _saveSettings();
         if (window._SdrAudio) window._SdrAudio.setVolume(volumeLevel / 100);
     });
 
@@ -714,6 +784,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         const sq = parseInt(sqSlider.value, 10);
         sqVal.textContent = `${sq} dBFS`;
         _sdrCurrentSquelch = sq;
+        _saveSettings();
         if (_sqDebounce) clearTimeout(_sqDebounce);
         _sqDebounce = setTimeout(() => {
             sendCmd({ cmd: 'squelch', squelch_dbfs: sq });
@@ -751,6 +822,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         const hz = parseInt(bwSlider.value, 10);
         bwVal.textContent = formatBwHz(hz);
         _sdrCurrentBwHz   = hz;
+        _saveSettings();
         if (window._SdrAudio) window._SdrAudio.setBandwidthHz(hz);
         if (_bwDebounce) clearTimeout(_bwDebounce);
         _bwDebounce = setTimeout(() => {
@@ -1400,6 +1472,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
                 gainVal.textContent = `${msg.gain_db.toFixed(1)} dB`;
             }
 
+            _saveSettings();
         }
     }
 

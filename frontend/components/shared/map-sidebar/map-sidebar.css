@@ -162,9 +162,9 @@
     transform: translateX(-100%);
 }
 
-/* Space domain — same fixed width */
+/* Space domain — wider to accommodate the extra PASSES tab without crowding */
 body[data-domain="space"] #map-sidebar {
-    width: 380px;
+    width: 430px;
 }
 
 /* Hide PASSES tab on all domains except space */

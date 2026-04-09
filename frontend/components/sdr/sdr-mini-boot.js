@@ -40,16 +40,27 @@
         _activeRadioId = radioId;
         _sdrCurrentRadioId = radioId;
         sessionStorage.setItem('sdrLastRadioId', String(radioId));
+        // Prefer user-adjusted settings saved across navigation; fall back to device defaults
         const cfg = _radioCache.get(radioId);
+        let savedSettings = {};
+        try {
+            const raw = sessionStorage.getItem('sdrSettings');
+            if (raw)
+                savedSettings = JSON.parse(raw);
+        }
+        catch (_e) { }
+        const gainDb = savedSettings.gainDb ?? cfg?.rf_gain ?? 30.0;
+        const gainAuto = savedSettings.gainAuto ?? cfg?.agc ?? false;
+        const sampleRate = savedSettings.bwHz ?? cfg?.bandwidth ?? 2048000;
         try {
             await fetch('/api/sdr/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     radio_id: radioId,
-                    gain_db: cfg?.rf_gain ?? 30.0,
-                    gain_auto: cfg?.agc ?? false,
-                    sample_rate: cfg?.bandwidth ?? 2048000,
+                    gain_db: gainAuto ? null : gainDb,
+                    gain_auto: gainAuto,
+                    sample_rate: sampleRate,
                 }),
             });
         }
@@ -70,6 +81,7 @@
                 case 'status':
                     if (window._SdrAudio)
                         window._SdrAudio.setMode(msg.mode);
+                    // Only update sessionStorage freq/mode if user hasn't set their own
                     if (!sessionStorage.getItem('sdrLastFreqHz') || !_sdrCurrentFreqHz) {
                         sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz));
                     }
@@ -99,12 +111,16 @@
         ws.addEventListener('open', () => {
             if (window._SdrAudio)
                 window._SdrAudio.start(radioId);
-            const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
-            const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM';
-            if (lastFreqHz > 0) {
+            const lastFreqHz = savedSettings.freqHz || parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
+            const lastMode = savedSettings.mode || sessionStorage.getItem('sdrLastMode') || 'AM';
+            if (lastFreqHz > 0)
                 ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }));
-                ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
-            }
+            ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
+            ws.send(JSON.stringify({ cmd: 'gain', gain_db: gainAuto ? null : gainDb }));
+            if (savedSettings.squelch != null)
+                ws.send(JSON.stringify({ cmd: 'squelch', squelch_dbfs: savedSettings.squelch }));
+            if (savedSettings.bwHz != null)
+                ws.send(JSON.stringify({ cmd: 'sample_rate', rate_hz: savedSettings.bwHz }));
         });
         ws.addEventListener('close', () => {
             _sdrConnected = false;
@@ -152,39 +168,37 @@
             const radios = await res.json();
             _radioCache.clear();
             radios.forEach((r) => _radioCache.set(r.id, r));
-            // Auto-select last used radio so the mini player works immediately
+            // Populate dropdown — panel is guaranteed to be mounted before this is called
+            if (window._sdrPopulateRadios) {
+                window._sdrPopulateRadios(radios);
+            }
+            // Auto-connect to the last used radio
             const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
             if (savedId > 0) {
                 const match = radios.find(r => r.id === savedId && r.enabled);
                 if (match) {
-                    _radioCache.set(match.id, match);
-                    // Don't auto-connect — wait for user to press play
                     _sdrCurrentRadioId = match.id;
+                    void openControlSocket(match.id);
                 }
             }
             else if (radios.length > 0) {
-                // Fall back to first enabled radio
                 const first = radios.find(r => r.enabled);
                 if (first) {
                     _sdrCurrentRadioId = first.id;
                     _radioCache.set(first.id, first);
                 }
             }
-            // Cache radios so sdr-radio-tab can populate the dropdown after it mounts
-            window._sdrCachedRadios = radios;
-            if (window._sdrPopulateRadios) {
-                window._sdrPopulateRadios(radios);
-            }
         }
         catch (e) {
             console.warn('[SDR mini] Could not load radios:', e);
         }
     }
+    // Expose so sdr-radio-tab can call after the panel is mounted
+    window._sdrLoadRadios = loadRadios;
     // ── Reconnect on tab focus if socket dropped ──────────────────────────────
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && _sdrCurrentRadioId && !_sdrConnected) {
             void openControlSocket(_sdrCurrentRadioId);
         }
     });
-    loadRadios();
 })();
