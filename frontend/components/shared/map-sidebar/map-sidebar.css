@@ -134,8 +134,8 @@ body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
 }
 
 .msb-tab {
-    flex: 0 0 auto;
-    width: 108px;
+    flex: 1 1 0;
+    min-width: 0;
     background: none;
     border: none;
     border-bottom: 1px solid transparent;
@@ -150,8 +150,7 @@ body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
     transition: color 0.15s, border-color 0.15s;
     display: flex;
     align-items: center;
-    padding-left: 28px;
-    justify-content: flex-start;
+    justify-content: center;
     position: relative;
     z-index: 1; /* sits above the ::after divider line */
 }
@@ -321,3 +320,4 @@ body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
     color: rgba(255, 255, 255, 0.18);
     text-align: center;
 }
+

@@ -199,6 +199,22 @@ class AirportsToggleControl extends SentinelControlBase {
                 this._markers.forEach(m => m.addTo(this.map));
         }
     }
+    _showAirportPanel(props, coords, _fitMap) {
+        if (!this._markers)
+            return;
+        // Find the marker whose element contains the ICAO label and simulate a click
+        const idx = AIRPORTS_DATA.features.findIndex(f => f.properties.icao === props.icao);
+        if (idx < 0)
+            return;
+        const marker = this._markers[idx];
+        if (!marker)
+            return;
+        // Ensure the layer is visible so the marker is on the map
+        if (!this.visible)
+            this.toggle();
+        const markerEl = marker.getElement();
+        markerEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }
     toggle() {
         this.visible = !this.visible;
         if (this._markers) {

@@ -76,7 +76,7 @@ interface SdrControlsAPI {
     setStatus(connected: boolean): void;
     applyStatus(msg: SdrStatusMsg): void;
     getSelectedRadioId(): number | null;
-    updateSignalBar(dbfs: number): void;
+    updateSignalBar(dbfs: number, squelchOpen?: boolean): void;
 }
 
 interface SdrPanelAPI {
@@ -86,6 +86,18 @@ interface SdrPanelAPI {
     isVisible(): boolean;
     refresh(groups: SdrFrequencyGroup[], freqs: SdrStoredFrequency[]): void;
     setScanStatus(active: boolean, currentHz: number | null): void;
+    onSquelchChange(open: boolean): void;
+}
+
+interface SdrRecordingMetadata {
+    radio_id:     number | null;
+    radio_name:   string;
+    frequency_hz: number;
+    mode:         string;
+    gain_db:      number;
+    squelch_dbfs: number;
+    sample_rate:  number;
+    name?:        string;
 }
 
 interface SdrAudioAPI {
@@ -97,6 +109,8 @@ interface SdrAudioAPI {
     setSquelch(dbfs: number): void;
     setVolume(v: number): void;
     setBandwidthHz(hz: number): void;
+    startRecording(metadata: SdrRecordingMetadata): Promise<number | null>;
+    stopRecording(metadata: SdrRecordingMetadata): Promise<any>;
 }
 
 // ── Extend Window ─────────────────────────────────────────────────────────────

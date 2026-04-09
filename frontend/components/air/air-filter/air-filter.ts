@@ -178,7 +178,7 @@ window._FilterPanel = (() => {
     }
 
     function _renderResults(results: SearchResult[] | null, query: string): void {
-        const container = _getResults();
+        const container = _getResults()!;
         if (!container) return;
         container.innerHTML = '';
 

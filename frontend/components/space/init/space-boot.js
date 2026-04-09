@@ -58,12 +58,14 @@ map.once('load', function () {
 // ---- 3. Logo animation — loaded via shared/init/logo-animation.js ----
 // ---- 4. Starfield backdrop ----
 (function () {
-    const canvas = document.getElementById('space-starfield');
-    if (!canvas)
+    const canvasEl = document.getElementById('space-starfield');
+    if (!canvasEl)
         return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx)
+    const canvas = canvasEl;
+    const ctxOrNull = canvas.getContext('2d');
+    if (!ctxOrNull)
         return;
+    const ctx = ctxOrNull;
     const STAR_COUNT = 320;
     let stars = [];
     let canvasWidth = 0, canvasHeight = 0;

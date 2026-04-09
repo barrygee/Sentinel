@@ -115,7 +115,11 @@
                             <button id="sdr-freq-stop" class="sdr-mode-pill sdr-tune-btn sdr-stop-btn" type="button" title="Stop audio">
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
                             </button>
+                            <button id="sdr-rec-btn" class="sdr-mode-pill sdr-tune-btn sdr-rec-btn" type="button" title="Record" disabled>
+                                <svg id="sdr-rec-icon" width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
+                            </button>
                         </div>
+                        <span class="sdr-rec-timer" id="sdr-rec-timer"></span>
                     </div>
 
                     <!-- Mode -->
@@ -155,6 +159,33 @@
                         <input id="sdr-sq-slider" class="sdr-panel-slider" type="range" min="-120" max="0" step="1" value="-120">
                     </div>
 
+                </div>
+
+                <!-- ── Group 3: Recording / Clips ── -->
+                <button class="sdr-group-toggle sdr-group-toggle-expanded" id="sdr-recording-group-toggle">
+                    <div class="sdr-scanner-section-left">
+                        <span class="sdr-group-toggle-icon">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span class="sdr-group-toggle-label">RECORDING</span>
+                    </div>
+                    <span id="sdr-clips-count" class="sdr-clips-count"></span>
+                </button>
+                <div class="sdr-group-body sdr-group-body-expanded" id="sdr-recording-group-body">
+                    <div class="sdr-clips-search-row">
+                        <input id="sdr-clips-search" class="sdr-panel-input sdr-clips-search-input" type="text" placeholder="Search clips…" autocomplete="off">
+                    </div>
+                    <div id="sdr-clips-list-wrap">
+                        <div id="sdr-clips-list"></div>
+                        <div id="sdr-clips-empty" class="sdr-panel-empty" style="display:none">No recordings yet.<br>Use the REC button while listening.</div>
+                    </div>
+                    <div id="sdr-clips-scroll-hint">MORE
+                        <svg id="sdr-clips-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none">
+                            <polyline points="1,2.5 4,5.5 7,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                 </div>
 
             </div>
@@ -274,6 +305,37 @@
 
         </div>
 
+        <!-- ── EDIT RECORDING MODAL ── -->
+        <div id="sdr-rec-modal" class="sdr-modal-overlay" style="display:none">
+            <div class="sdr-modal">
+                <div class="sdr-modal-title">EDIT CLIP</div>
+                <div class="sdr-modal-field">
+                    <label class="sdr-field-label">NAME</label>
+                    <input id="sdr-recmod-name" class="sdr-panel-input sdr-modal-input" type="text" maxlength="120">
+                </div>
+                <div class="sdr-modal-field">
+                    <label class="sdr-field-label">NOTES</label>
+                    <textarea id="sdr-recmod-notes" class="sdr-panel-input sdr-modal-input sdr-recmod-notes" rows="3" maxlength="500" placeholder="Optional notes…"></textarea>
+                </div>
+                <div class="sdr-modal-actions">
+                    <button id="sdr-recmod-cancel" class="sdr-panel-btn">CANCEL</button>
+                    <button id="sdr-recmod-save" class="sdr-panel-btn sdr-editfreq-save-btn">SAVE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── DELETE RECORDING MODAL ── -->
+        <div id="sdr-rec-del-modal" class="sdr-modal-overlay" style="display:none">
+            <div class="sdr-modal">
+                <div class="sdr-modal-title">DELETE CLIP?</div>
+                <div id="sdr-recdelmod-msg" class="sdr-recdelmod-msg"></div>
+                <div class="sdr-modal-actions">
+                    <button id="sdr-recdelmod-cancel" class="sdr-panel-btn">CANCEL</button>
+                    <button id="sdr-recdelmod-confirm" class="sdr-panel-btn sdr-editfreq-del-btn">DELETE</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ── GROUP RENAME MODAL ── -->
         <div id="sdr-group-modal" class="sdr-modal-overlay" style="display:none">
             <div class="sdr-modal">
@@ -299,6 +361,19 @@
     let _knownRadios:  SdrRadio[]            = [];
     let _visible:      boolean = true;
     let _editingFreqId: number | null = null;
+
+    // ── Clips / recording state ───────────────────────────────────────────────
+    let _clips:            any[]         = [];
+    let _clipsFilter       = '';
+    let _isRecording       = false;
+    let _recTimerInterval: ReturnType<typeof setInterval> | null = null;
+    let _liveRecRow:       HTMLDivElement | null = null;
+    let _recPausedMs       = 0;
+    let _recPauseStart:    number | null = null;
+    let _recSquelchOpen    = true;
+    let _recStartEpoch     = 0;
+    let _editingRecId:     number | null = null;
+    let _deletingRecId:    number | null = null;
 
     // ── Radio / Scanner main section toggles ─────────────────────────────────
 
@@ -344,6 +419,7 @@
 
     bindGroupToggle('sdr-device-group-toggle', 'sdr-device-group-body');
     bindGroupToggle('sdr-signal-group-toggle', 'sdr-signal-group-body');
+    bindGroupToggle('sdr-recording-group-toggle', 'sdr-recording-group-body');
 
     // ── Element refs ──────────────────────────────────────────────────────────
 
@@ -370,6 +446,25 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     const radioScanFreq= document.getElementById('sdr-radio-scan-freq') as HTMLSpanElement;
     const addFreqBtn   = document.getElementById('sdr-radio-add-freq') as HTMLButtonElement;
     const lockBtn      = document.getElementById('sdr-radio-lock-btn') as HTMLButtonElement;
+
+    // Recording refs
+    const recBtn           = document.getElementById('sdr-rec-btn')           as HTMLButtonElement;
+    const recTimer         = document.getElementById('sdr-rec-timer')         as HTMLSpanElement;
+    const clipsSearch      = document.getElementById('sdr-clips-search')      as HTMLInputElement;
+    const clipsList        = document.getElementById('sdr-clips-list')        as HTMLDivElement;
+    const clipsEmpty       = document.getElementById('sdr-clips-empty')       as HTMLDivElement;
+    const clipsCount       = document.getElementById('sdr-clips-count')       as HTMLSpanElement;
+    const clipsScrollHint  = document.getElementById('sdr-clips-scroll-hint') as HTMLDivElement;
+    const clipsScrollArrow = document.getElementById('sdr-clips-scroll-arrow') as unknown as SVGElement;
+    const recModal         = document.getElementById('sdr-rec-modal')         as HTMLDivElement;
+    const recmodName       = document.getElementById('sdr-recmod-name')       as HTMLInputElement;
+    const recmodNotes      = document.getElementById('sdr-recmod-notes')      as HTMLTextAreaElement;
+    const recmodCancel     = document.getElementById('sdr-recmod-cancel')     as HTMLButtonElement;
+    const recmodSave       = document.getElementById('sdr-recmod-save')       as HTMLButtonElement;
+    const recDelModal      = document.getElementById('sdr-rec-del-modal')     as HTMLDivElement;
+    const recDelMsg        = document.getElementById('sdr-recdelmod-msg')     as HTMLDivElement;
+    const recDelCancel     = document.getElementById('sdr-recdelmod-cancel')  as HTMLButtonElement;
+    const recDelConfirm    = document.getElementById('sdr-recdelmod-confirm') as HTMLButtonElement;
 
     // Edit freq panel
     const efToggle    = document.getElementById('sdr-editfreq-toggle')! as HTMLButtonElement;
@@ -464,9 +559,50 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     // Stop is disabled until play is clicked; they toggle each other
     freqStopBtn.disabled = true;
 
+    function _setRecBtnIcon(recording: boolean) {
+        const icon = document.getElementById('sdr-rec-icon');
+        if (!icon) return;
+        icon.innerHTML = recording
+            ? '<rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/>'
+            : '<circle cx="5" cy="5" r="4" fill="currentColor"/>';
+    }
+
+    async function _stopRecordingIfActive() {
+        if (!_isRecording) return;
+        _isRecording = false;
+        if (_recTimerInterval) { clearInterval(_recTimerInterval); _recTimerInterval = null; }
+        recBtn.classList.remove('sdr-rec-btn--active');
+        _setRecBtnIcon(false);
+        recTimer.textContent = '';
+        if (!window._SdrAudio) return;
+        const radioId = getSelectedRadioId();
+        const radioName = radioId ? (_knownRadios.find(r => r.id === radioId) || {} as any).name || '' : '';
+        const metadata: SdrRecordingMetadata = {
+            radio_id:     radioId,
+            radio_name:   radioName,
+            frequency_hz: _sdrCurrentFreqHz || 0,
+            mode:         _sdrCurrentMode   || 'AM',
+            gain_db:      _sdrCurrentGain   || 30,
+            squelch_dbfs: _sdrCurrentSquelch || -60,
+            sample_rate:  _sdrCurrentSampleRate || 2048000,
+        };
+        await window._SdrAudio.stopRecording(metadata);
+        _removeLiveRecRow();
+        await reloadClips();
+        setTimeout(reloadClips, 2000);
+        const recGroupToggle = document.getElementById('sdr-recording-group-toggle');
+        const recGroupBody   = document.getElementById('sdr-recording-group-body');
+        if (recGroupToggle && !recGroupToggle.classList.contains('sdr-group-toggle-expanded')) {
+            recGroupToggle.classList.add('sdr-group-toggle-expanded');
+            recGroupBody!.classList.add('sdr-group-body-expanded');
+        }
+    }
+
     function setPlayingState(playing: boolean) {
         freqTuneBtn.disabled = playing;
         freqStopBtn.disabled = !playing;
+        recBtn.disabled = !playing;
+        if (!playing) _stopRecordingIfActive();
     }
 
     function tune() {
@@ -542,7 +678,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         }
         if (_gainDebounce) clearTimeout(_gainDebounce);
         _gainDebounce = setTimeout(() => {
-            sendCmd({ cmd: 'gain', gain_db: auto ? null : g });
+            sendCmd({ cmd: 'gain', gain_db: auto ? null : gainDb });
         }, 150);
     }
 
@@ -610,6 +746,327 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         _bwDebounce = setTimeout(() => {
             sendCmd({ cmd: 'sample_rate', rate_hz: snapToValidSampleRate(hz) });
         }, 150);
+    });
+
+    // ── Recording helpers ─────────────────────────────────────────────────────
+
+    function _escHtml(s: string): string {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function _fmtDuration(s: number): string {
+        const m = Math.floor(s / 60), sec = Math.round(s % 60);
+        return `${m}:${String(sec).padStart(2,'0')}`;
+    }
+    function _fmtBytes(b: number): string {
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+        return (b / 1048576).toFixed(1) + ' MB';
+    }
+
+    function _createLiveRecRow(metadata: SdrRecordingMetadata, startEpoch: number, squelchOpen = true): HTMLDivElement {
+        const mhz = (metadata.frequency_hz / 1e6).toFixed(4);
+        const now = new Date(startEpoch);
+        const dt = now.toISOString().replace('T',' ').slice(0,16);
+        const row = document.createElement('div');
+        row.className = 'sdr-clip-row sdr-clip-live';
+        row.innerHTML = `
+            <div class="sdr-clip-header">
+                <span class="sdr-clip-live-dot${squelchOpen ? '' : ' sdr-clip-live-dot--waiting'}"></span>
+                <span class="sdr-clip-name">${squelchOpen ? 'Recording…' : 'Waiting for signal…'}</span>
+            </div>
+            <div class="sdr-clip-live-meta">
+                <span class="sdr-clip-live-mhz">${mhz} MHz</span>
+                &nbsp;·&nbsp;
+                <span class="sdr-clip-mode-inline">${_escHtml(metadata.mode)}</span>
+                &nbsp;·&nbsp;
+                <span class="sdr-clip-live-dur">0:00</span>
+                &nbsp;·&nbsp;
+                <span class="sdr-clip-live-sz">0 B</span>
+            </div>
+            <div class="sdr-clip-date">${dt}</div>
+        `;
+        return row;
+    }
+
+    function _updateLiveRecRow(elapsedS: number) {
+        if (!_liveRecRow) return;
+        (_liveRecRow.querySelector('.sdr-clip-name') as HTMLElement).textContent = _recSquelchOpen ? 'Recording…' : 'Waiting for signal…';
+        (_liveRecRow.querySelector('.sdr-clip-live-dur') as HTMLElement).textContent = _fmtDuration(elapsedS);
+        (_liveRecRow.querySelector('.sdr-clip-live-sz') as HTMLElement).textContent = _fmtBytes(elapsedS * 96000);
+    }
+
+    function _removeLiveRecRow() {
+        if (_liveRecRow) { _liveRecRow.remove(); _liveRecRow = null; }
+    }
+
+    function _updateClipsScrollHint() {
+        if (!clipsScrollHint) return;
+        const wrap = document.getElementById('sdr-clips-list-wrap')!;
+        const hasOverflow = wrap.scrollHeight > wrap.clientHeight + 2;
+        const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 4;
+        clipsScrollHint.style.display = (hasOverflow && !atBottom) ? 'flex' : 'none';
+    }
+
+    document.getElementById('sdr-clips-list-wrap')!
+        .addEventListener('scroll', _updateClipsScrollHint);
+
+    function renderClips() {
+        const filter = _clipsFilter.toLowerCase();
+        const visible = filter
+            ? _clips.filter((c: any) =>
+                (c.name||'').toLowerCase().includes(filter) ||
+                (c.notes||'').toLowerCase().includes(filter) ||
+                (c.radio_name||'').toLowerCase().includes(filter) ||
+                (c.mode||'').toLowerCase().includes(filter))
+            : _clips;
+        clipsCount.textContent = _clips.length ? String(_clips.length) : '';
+        clipsList.innerHTML = '';
+        if (_liveRecRow) clipsList.appendChild(_liveRecRow);
+        if (visible.length === 0) {
+            clipsEmpty.style.display = _liveRecRow ? 'none' : 'block';
+            return;
+        }
+        clipsEmpty.style.display = 'none';
+        visible.forEach((c: any) => {
+            const row = document.createElement('div');
+            row.className = 'sdr-clip-row';
+            const mhz = (c.frequency_hz / 1e6).toFixed(4);
+            const dur = _fmtDuration(c.duration_s || 0);
+            const sz  = _fmtBytes(c.file_size_bytes || 0);
+            const dt  = c.started_at ? c.started_at.replace('T',' ').slice(0,16) : '';
+            row.innerHTML = `
+                <div class="sdr-clip-header">
+                    <span class="sdr-clip-name">${_escHtml(c.name)}</span>
+                </div>
+                <div class="sdr-clip-summary">${mhz} MHz &nbsp;·&nbsp; ${c.mode || ''} &nbsp;·&nbsp; ${dur} &nbsp;·&nbsp; ${sz}</div>
+                <div class="sdr-clip-body">
+                    <div class="sdr-clip-meta">${mhz} MHz &nbsp;·&nbsp; ${c.mode || ''} &nbsp;·&nbsp; ${dur} &nbsp;·&nbsp; ${sz}</div>
+                    <div class="sdr-clip-date">${dt}</div>
+                    ${c.notes ? `<div class="sdr-clip-notes">${_escHtml(c.notes)}</div>` : ''}
+                    <div class="sdr-clip-actions">
+                        <button class="sdr-clip-play-btn sdr-panel-btn" data-id="${c.id}" title="Play">
+                            <svg class="sdr-clip-btn-icon sdr-clip-play-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+                            <svg class="sdr-clip-btn-icon sdr-clip-stop-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="display:none"><rect x="1.5" y="1.5" width="3" height="7"/><rect x="5.5" y="1.5" width="3" height="7"/></svg>
+                        </button>
+                        <button class="sdr-clip-edit-btn sdr-panel-btn" data-id="${c.id}" title="Edit">
+                            <svg class="sdr-clip-btn-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z"/></svg>
+                        </button>
+                        <button class="sdr-clip-export-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Download WAV">
+                            <svg class="sdr-clip-btn-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1v6M2.5 7l3 3 3-3"/><line x1="1" y1="10" x2="10" y2="10"/></svg>
+                        </button>
+                        ${c.has_iq_file ? `<button class="sdr-clip-iq-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Download IQ">IQ</button>` : ''}
+                        <button class="sdr-clip-del-btn sdr-panel-btn" data-id="${c.id}" data-name="${_escHtml(c.name)}" title="Delete">
+                            <svg class="sdr-clip-btn-icon" width="10" height="11" viewBox="0 0 10 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h8M4 3V2h2v1M8 3l-.7 7H2.7L2 3"/></svg>
+                        </button>
+                    </div>
+                    <div id="sdr-clip-player-${c.id}" class="sdr-clip-player" style="display:none">
+                        <span class="sdr-clip-time-cur" id="sdr-clip-cur-${c.id}">00:00</span>
+                        <input type="range" class="sdr-clip-seek sdr-panel-slider" id="sdr-clip-seek-${c.id}" value="0" min="0" step="0.01">
+                        <span class="sdr-clip-time-dur" id="sdr-clip-dur-${c.id}">00:00</span>
+                    </div>
+                </div>
+                <audio id="sdr-clip-audio-${c.id}" style="display:none" src="/api/sdr/recordings/${c.id}/file"></audio>
+            `;
+            clipsList.appendChild(row);
+
+            const headerEl = row.querySelector('.sdr-clip-header')!;
+            const bodyEl   = row.querySelector('.sdr-clip-body') as HTMLElement;
+            function expandBody() {
+                row.classList.add('sdr-clip-expanded');
+                bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+                bodyEl.addEventListener('transitionend', function clear() {
+                    bodyEl.style.maxHeight = 'none';
+                    bodyEl.removeEventListener('transitionend', clear);
+                });
+            }
+            function collapseBody() {
+                bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+                requestAnimationFrame(() => {
+                    bodyEl.style.maxHeight = '0';
+                    row.classList.remove('sdr-clip-expanded');
+                });
+            }
+            expandBody();
+            headerEl.addEventListener('click', () => {
+                if (row.classList.contains('sdr-clip-expanded')) collapseBody();
+                else expandBody();
+            });
+
+            const playBtn  = row.querySelector('.sdr-clip-play-btn') as HTMLButtonElement;
+            const audio    = document.getElementById(`sdr-clip-audio-${c.id}`) as HTMLAudioElement;
+            const player   = document.getElementById(`sdr-clip-player-${c.id}`) as HTMLElement;
+            const seekEl   = document.getElementById(`sdr-clip-seek-${c.id}`) as HTMLInputElement;
+            const curEl    = document.getElementById(`sdr-clip-cur-${c.id}`) as HTMLElement;
+            const durEl    = document.getElementById(`sdr-clip-dur-${c.id}`) as HTMLElement;
+            const playIcon = playBtn.querySelector('.sdr-clip-play-icon') as HTMLElement;
+            const stopIcon = playBtn.querySelector('.sdr-clip-stop-icon') as HTMLElement;
+            function fmtT(s: number) {
+                const m = Math.floor(s/60), sec = Math.floor(s%60);
+                return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+            }
+            function setPlaying(on: boolean) {
+                playIcon.style.display = on ? 'none' : '';
+                stopIcon.style.display = on ? '' : 'none';
+                player.style.display = on ? 'flex' : 'none';
+            }
+            playBtn.addEventListener('click', function() {
+                if (!audio.paused || (audio.currentTime > 0 && player.style.display !== 'none')) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    setPlaying(false);
+                } else {
+                    audio.play();
+                    setPlaying(true);
+                }
+            });
+            audio.addEventListener('loadedmetadata', () => {
+                seekEl.max = String(audio.duration || 0);
+                durEl.textContent = fmtT(audio.duration || 0);
+            });
+            audio.addEventListener('timeupdate', () => {
+                seekEl.value = String(audio.currentTime);
+                curEl.textContent = fmtT(audio.currentTime);
+            });
+            audio.addEventListener('ended', () => {
+                audio.currentTime = 0;
+                setPlaying(false);
+            });
+            seekEl.addEventListener('input', () => {
+                audio.currentTime = parseFloat(seekEl.value);
+            });
+
+            (row.querySelector('.sdr-clip-edit-btn') as HTMLButtonElement)
+                .addEventListener('click', () => openEditRecModal(c));
+            (row.querySelector('.sdr-clip-export-btn') as HTMLButtonElement)
+                .addEventListener('click', () => {
+                    const a = document.createElement('a');
+                    a.href = `/api/sdr/recordings/${c.id}/file`;
+                    a.download = `${c.name}.wav`;
+                    a.click();
+                });
+            if (c.has_iq_file) {
+                (row.querySelector('.sdr-clip-iq-btn') as HTMLButtonElement)
+                    .addEventListener('click', () => {
+                        const a = document.createElement('a');
+                        a.href = `/api/sdr/recordings/${c.id}/iq`;
+                        a.download = `${c.name}.u8`;
+                        a.click();
+                    });
+            }
+            (row.querySelector('.sdr-clip-del-btn') as HTMLButtonElement)
+                .addEventListener('click', () => openDeleteRecModal(c));
+        });
+        setTimeout(_updateClipsScrollHint, 0);
+    }
+
+    async function reloadClips() {
+        try {
+            const res = await fetch('/api/sdr/recordings', { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            _clips = await res.json();
+        } catch(e) { console.error('[SDR] reloadClips failed:', e); }
+        renderClips();
+    }
+
+    // Edit recording modal
+    function openEditRecModal(c: any) {
+        _editingRecId = c.id;
+        recmodName.value = c.name || '';
+        recmodNotes.value = c.notes || '';
+        recModal.style.display = 'flex';
+        recmodName.focus();
+    }
+    function closeEditRecModal() {
+        recModal.style.display = 'none';
+        _editingRecId = null;
+    }
+    recmodCancel.addEventListener('click', closeEditRecModal);
+    recModal.addEventListener('click', (e) => { if (e.target === recModal) closeEditRecModal(); });
+    recmodSave.addEventListener('click', async () => {
+        const name = recmodName.value.trim();
+        if (!name || _editingRecId === null) return;
+        try {
+            await fetch(`/api/sdr/recordings/${_editingRecId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, notes: recmodNotes.value.trim() }),
+            });
+            closeEditRecModal();
+            await reloadClips();
+        } catch(_) {}
+    });
+
+    // Delete recording modal
+    function openDeleteRecModal(c: any) {
+        _deletingRecId = c.id;
+        recDelMsg.textContent = `Delete "${c.name}"? This cannot be undone.`;
+        recDelModal.style.display = 'flex';
+    }
+    function closeDeleteRecModal() {
+        recDelModal.style.display = 'none';
+        _deletingRecId = null;
+    }
+    recDelCancel.addEventListener('click', closeDeleteRecModal);
+    recDelModal.addEventListener('click', (e) => { if (e.target === recDelModal) closeDeleteRecModal(); });
+    recDelConfirm.addEventListener('click', async () => {
+        if (_deletingRecId === null) return;
+        try {
+            await fetch(`/api/sdr/recordings/${_deletingRecId}`, { method: 'DELETE' });
+            closeDeleteRecModal();
+            await reloadClips();
+        } catch(_) {}
+    });
+
+    // Clips search
+    clipsSearch.addEventListener('input', () => {
+        _clipsFilter = clipsSearch.value;
+        renderClips();
+    });
+
+    // Record button
+    recBtn.addEventListener('click', async () => {
+        if (!_isRecording) {
+            const radioId = getSelectedRadioId();
+            const radioName = radioId
+                ? (_knownRadios.find(r => r.id === radioId) || {} as any).name || ''
+                : '';
+            const metadata: SdrRecordingMetadata = {
+                radio_id:     radioId,
+                radio_name:   radioName,
+                frequency_hz: _sdrCurrentFreqHz   || 0,
+                mode:         _sdrCurrentMode      || 'AM',
+                gain_db:      _sdrCurrentGain      || 30,
+                squelch_dbfs: _sdrCurrentSquelch   || -60,
+                sample_rate:  _sdrCurrentSampleRate || 2048000,
+            };
+            if (!window._SdrAudio) return;
+            const recId = await window._SdrAudio.startRecording(metadata);
+            if (!recId) return;
+            _isRecording = true;
+            _recStartEpoch = Date.now();
+            _recPausedMs = 0;
+            const squelchActive = (metadata.squelch_dbfs ?? -120) > -119;
+            _recSquelchOpen = !squelchActive;
+            _recPauseStart = squelchActive ? Date.now() : null;
+            clipsCount.textContent = '';
+            recBtn.classList.add('sdr-rec-btn--active');
+            _setRecBtnIcon(true);
+            if (recTimer) recTimer.textContent = _recSquelchOpen ? '0:00' : '0:00 WAIT';
+            _removeLiveRecRow();
+            _liveRecRow = _createLiveRecRow(metadata, _recStartEpoch, _recSquelchOpen);
+            clipsEmpty.style.display = 'none';
+            clipsList.insertBefore(_liveRecRow, clipsList.firstChild);
+            _recTimerInterval = setInterval(() => {
+                const pausedSoFar = _recPauseStart != null
+                    ? _recPausedMs + (Date.now() - _recPauseStart)
+                    : _recPausedMs;
+                const s = Math.floor((Date.now() - _recStartEpoch - pausedSoFar) / 1000);
+                if (recTimer) recTimer.textContent = _recSquelchOpen ? _fmtDuration(s) : _fmtDuration(s) + ' WAIT';
+                _updateLiveRecRow(s);
+            }, 1000);
+        } else {
+            await _stopRecordingIfActive();
+        }
     });
 
     // ── Signal meter ──────────────────────────────────────────────────────────
@@ -1251,6 +1708,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
             renderFreqs();
             buildScanQueue();
         } catch (_) {}
+        await reloadClips();
     }
 
     // ── Visibility ────────────────────────────────────────────────────────────
@@ -1280,9 +1738,31 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
         buildScanQueue();
     }
 
+    function onSquelchChange(open: boolean) {
+        if (!_isRecording) return;
+        if (open && !_recSquelchOpen) {
+            if (_recPauseStart != null) {
+                _recPausedMs += Date.now() - _recPauseStart;
+                _recPauseStart = null;
+            }
+            _recSquelchOpen = true;
+            if (_liveRecRow) {
+                (_liveRecRow.querySelector('.sdr-clip-name') as HTMLElement).textContent = 'Recording…';
+                _liveRecRow.querySelector('.sdr-clip-live-dot')!.classList.remove('sdr-clip-live-dot--waiting');
+            }
+        } else if (!open && _recSquelchOpen) {
+            _recPauseStart = Date.now();
+            _recSquelchOpen = false;
+            if (_liveRecRow) {
+                (_liveRecRow.querySelector('.sdr-clip-name') as HTMLElement).textContent = 'Waiting for signal…';
+                _liveRecRow.querySelector('.sdr-clip-live-dot')!.classList.add('sdr-clip-live-dot--waiting');
+            }
+        }
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
 
-    window._SdrPanel = { show, hide, toggle, isVisible, refresh, setScanStatus };
+    window._SdrPanel = { show, hide, toggle, isVisible, refresh, setScanStatus, onSquelchChange };
     (window as any)._sdrPanelReload = reloadData;
 
     reloadData();

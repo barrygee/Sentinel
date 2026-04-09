@@ -11,6 +11,9 @@
 // ============================================================
 /// <reference path="./globals.d.ts" />
 (function sdrMiniBoot() {
+    // Skip on the SDR page — sdr-boot.js handles the full panel there
+    if (document.body.dataset['domain'] === 'sdr')
+        return;
     let _reconnectTimer = null;
     let _activeRadioId = null;
     let _radioCache = new Map();

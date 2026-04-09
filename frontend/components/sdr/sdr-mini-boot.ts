@@ -13,6 +13,9 @@
 
 (function sdrMiniBoot() {
 
+    // Skip on the SDR page — sdr-boot.js handles the full panel there
+    if (document.body.dataset['domain'] === 'sdr') return;
+
     let _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let _activeRadioId:  number | null = null;
     let _radioCache:     Map<number, SdrRadio> = new Map();

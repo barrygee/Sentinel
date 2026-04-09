@@ -66,11 +66,13 @@ map.once('load', function () {
 
 // ---- 4. Starfield backdrop ----
 (function () {
-    const canvas = document.getElementById('space-starfield') as HTMLCanvasElement | null;
-    if (!canvas) return;
+    const canvasEl = document.getElementById('space-starfield') as HTMLCanvasElement | null;
+    if (!canvasEl) return;
+    const canvas = canvasEl;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctxOrNull = canvas.getContext('2d');
+    if (!ctxOrNull) return;
+    const ctx = ctxOrNull;
 
     interface Star { x: number; y: number; r: number; a: number; }
 
@@ -117,7 +119,7 @@ map.once('load', function () {
 
     // Shift stars on map move/rotate for parallax effect
     let _lastBearing = 0;
-    let _lastCenter: maplibregl.LngLat | null = null;
+    let _lastCenter: { lng: number; lat: number } | null = null;
     map.on('move', () => {
         const bearing      = map.getBearing();
         const center       = map.getCenter();

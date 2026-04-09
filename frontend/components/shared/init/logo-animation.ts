@@ -22,8 +22,8 @@
         if (typeTimer)  clearTimeout(typeTimer);
         if (blinkTimer) clearInterval(blinkTimer);
         logoTextEl!.textContent = '';
-        (logoPinEl as SVGElement).setAttribute('opacity', '0');
-        (logoSEl as SVGElement).setAttribute('opacity', '0');
+        (logoPinEl as unknown as SVGElement).setAttribute('opacity', '0');
+        (logoSEl as unknown as SVGElement).setAttribute('opacity', '0');
         logoSEl!.textContent = '';
 
         const WORD = 'SENTINEL ';
@@ -36,9 +36,9 @@
             } else {
                 // Finish SENTINEL, reveal pin and S
                 logoTextEl!.textContent = WORD;
-                (logoPinEl as SVGElement).setAttribute('opacity', '1');
+                (logoPinEl as unknown as SVGElement).setAttribute('opacity', '1');
                 logoSEl!.textContent = 'S';
-                (logoSEl as SVGElement).setAttribute('opacity', '1');
+                (logoSEl as unknown as SVGElement).setAttribute('opacity', '1');
 
                 // Blink cursor after S
                 let blinks = 0;

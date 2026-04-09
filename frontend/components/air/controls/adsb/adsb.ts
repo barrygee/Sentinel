@@ -806,7 +806,7 @@ class AdsbLiveControl implements maplibregl.IControl {
                     const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates;
                     this.map.easeTo({ center: coords, zoom: 16, ...(is3D ? { pitch: 45 } : {}), duration: 600 });
                     const newEl = document.createElement('div');
-                    newEl.innerHTML = this._buildTagHTML(f.properties);
+                    newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties);
                     this._wireTagButton(newEl);
                     if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null; }
                     this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: 'left', offset: [14, 0] })
@@ -845,9 +845,9 @@ class AdsbLiveControl implements maplibregl.IControl {
                     this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
                         .setLngLat(coords).addTo(this.map);
                     if (this._followEnabled) {
-                        this._showStatusBar(f.properties);
+                        this._showStatusBar(taggedFeature.properties);
                         const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
-                        const trackCoords = this._interpolatedCoords(this._tagHex) || f.geometry.coordinates;
+                        const trackCoords = this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates;
                         this.map.easeTo({ center: trackCoords, zoom: 16, ...(is3D ? { pitch: 45 } : {}), duration: 600 });
                     } else {
                         this._hideStatusBar();
@@ -1607,17 +1607,17 @@ class AdsbLiveControl implements maplibregl.IControl {
                 }
                 if (restoredIds.length) window._Notifications.render(restoredIds);
             } catch(e) {}
-            const coords = this._interpolatedCoords(hex) || f.geometry.coordinates;
+            const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates;
             const newEl  = document.createElement('div');
-            newEl.innerHTML = this._buildTagHTML(f.properties);
+            newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties);
             this._wireTagButton(newEl);
             if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null; }
             this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: 'left', offset: [14, 0] })
                 .setLngLat(coords).addTo(this.map);
             this._tagHex = hex;
-            this._showStatusBar(f.properties);
+            this._showStatusBar(aircraftFeature.properties);
             const is3D = typeof window._is3DActive === 'function' && window._is3DActive();
-            this.map.easeTo({ center: f.geometry.coordinates, zoom: 16, ...(is3D ? { pitch: 45 } : {}), duration: 600 });
+            this.map.easeTo({ center: aircraftFeature.geometry.coordinates, zoom: 16, ...(is3D ? { pitch: 45 } : {}), duration: 600 });
             return true;
         } catch(e) { return false; }
     }
@@ -1689,6 +1689,7 @@ function _airEffectiveMode(): string {
 
 // Clear aircraft immediately when switching to offline mode.
 function _clearAdsbAircraft(): void {
+    if (!adsbControl) return;
     adsbControl['_stopPolling']();
     // Cancel pending timers.
     if (adsbControl['_hoverHideTimer']) { clearTimeout(adsbControl['_hoverHideTimer']); adsbControl['_hoverHideTimer'] = null; }
@@ -1719,6 +1720,7 @@ function _clearAdsbAircraft(): void {
 }
 
 function _handleAirConnectivityChange(): void {
+    if (!adsbControl) return;
     const mode = _airEffectiveMode();
     if (mode === 'offgrid') {
         _clearAdsbAircraft();
