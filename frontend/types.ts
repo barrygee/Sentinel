@@ -231,7 +231,8 @@ interface SatInfoPanelAPI {
 
 interface MapSidebarAPI {
     init(opts?: MapSidebarInitOptions): void;
-    switchTab(tab: 'search' | 'alerts' | 'tracking' | 'passes'): void;
+    switchTab(tab: 'search' | 'alerts' | 'tracking' | 'passes' | 'radio'): void;
+    openRadioTab(): void;
     setAlertCount(n: number): void;
     setTrackingCount(n: number): void;
     getSearchPane(): HTMLElement | null;

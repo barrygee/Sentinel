@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="/frontend/components/shared/tracking/tracking.css">
     <link rel="stylesheet" href="/frontend/components/shared/settings/settings.css">
     <link rel="stylesheet" href="/frontend/components/docs/docs.css">
-    <link rel="stylesheet" href="/frontend/components/sdr/sdr-mini-player.css">
+    <link rel="stylesheet" href="/frontend/components/sdr/sdr-panel.css">
     {% block head %}{% endblock %}
 </head>
 
@@ -175,30 +175,37 @@
     <!-- Map component -->
     <script src="/frontend/components/shared/map/map.js"></script>
 
-    <!-- SDR mini player (global — available on all pages except SDR which has the full panel) -->
+    <!-- SDR globals + audio (global — available on all pages) -->
     <script src="/frontend/components/sdr/sdr-globals.js"></script>
     <script src="/frontend/components/sdr/sdr-audio.js"></script>
     <script src="/frontend/components/sdr/sdr-mini-boot.js"></script>
-    <script src="/frontend/components/sdr/sdr-mini-player.js"></script>
+    <!-- SDR panel (loaded on all pages; auto-invokes on SDR page, exposes _buildSdrPanel on others) -->
+    <script src="/frontend/components/sdr/sdr-panel.js"></script>
+    <!-- SDR radio tab — mounts panel into map-sidebar RADIO pane on non-SDR pages -->
+    <script src="/frontend/components/sdr/sdr-radio-tab.js"></script>
     <script>
     (function () {
         "use strict";
         document.addEventListener('DOMContentLoaded', function () {
             var btn = document.getElementById('radio-mini-btn');
             if (!btn) return;
-            // Hide button on SDR page (full panel is used there)
+            // On SDR page the sidebar button controls the full sdr-panel
             if (document.body.getAttribute('data-domain') === 'sdr') {
                 btn.style.display = 'none';
                 return;
             }
+            // On other pages: open the map-sidebar and switch to the RADIO tab
             btn.addEventListener('click', function () {
-                if (window._SdrMiniPlayer) {
-                    window._SdrMiniPlayer.toggle();
+                if (window._MapSidebar) {
+                    window._MapSidebar.openRadioTab();
                 }
             });
-            // Keep button active state in sync with player visibility
-            document.addEventListener('sdr-mini:visibility', function (e) {
-                btn.classList.toggle('radio-mini-btn-active', e.detail);
+            // Keep button active state in sync with map-sidebar radio tab
+            document.addEventListener('msb-tab-switch', function (e) {
+                var tab = e.detail && e.detail.tab;
+                var sidebar = document.getElementById('map-sidebar');
+                var sidebarVisible = sidebar && !sidebar.classList.contains('msb-hidden');
+                btn.classList.toggle('radio-mini-btn-active', tab === 'radio' && sidebarVisible);
             });
         });
     })();

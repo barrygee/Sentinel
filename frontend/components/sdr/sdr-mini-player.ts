@@ -2,7 +2,8 @@
 // SDR MINI PLAYER
 // Inline footer bar player, available on all pages except SDR.
 // Injected into #footer-left, slides in next to the radio button.
-// Shows: freq display, mode button, signal bar, play/stop, conn dot.
+// Shows: device select, freq display, mode button, signal bar,
+//        volume slider, squelch slider, play/stop, conn dot.
 //
 // Frequency is read-only — tuning happens via map clicks
 // (calls _SdrMiniPlayer.tune()) or via the full SDR section.
@@ -19,8 +20,9 @@
 
     // ── Constants ────────────────────────────────────────────────────────────
 
-    const SIGNAL_SEGS = 16;
-    const DEFAULT_SQUELCH = -60;
+    const SIGNAL_SEGS    = 16;
+    const DEFAULT_SQUELCH = -120;
+    const DEFAULT_VOLUME  = 80;
     const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'];
 
     // ── DOM ──────────────────────────────────────────────────────────────────
@@ -30,9 +32,23 @@
     el.className = 'sdr-mini-hidden';
     el.innerHTML = `
         <div class="sdr-mini-divider"></div>
+        <div class="sdr-mini-device-dropdown" id="sdr-mini-device-dropdown" tabindex="0" title="Select radio">
+            <span class="sdr-mini-device-text" id="sdr-mini-device-text">—</span>
+            <span class="sdr-mini-device-arrow"></span>
+        </div>
         <span class="sdr-mini-freq-display" id="sdr-mini-freq-display">— MHz</span>
         <button class="sdr-mini-mode-btn" id="sdr-mini-mode-btn" title="Cycle mode">AM</button>
         <div class="sdr-mini-signal-bar" id="sdr-mini-signal-bar"></div>
+        <div class="sdr-mini-slider-group" id="sdr-mini-vol-group" title="Volume">
+            <span class="sdr-mini-slider-label">VOL</span>
+            <input class="sdr-mini-slider" id="sdr-mini-vol" type="range" min="0" max="200" step="1" value="${DEFAULT_VOLUME}">
+            <span class="sdr-mini-slider-val" id="sdr-mini-vol-val">${DEFAULT_VOLUME}%</span>
+        </div>
+        <div class="sdr-mini-slider-group" id="sdr-mini-sq-group" title="Squelch">
+            <span class="sdr-mini-slider-label">SQL</span>
+            <input class="sdr-mini-slider" id="sdr-mini-sq" type="range" min="-120" max="0" step="1" value="${DEFAULT_SQUELCH}">
+            <span class="sdr-mini-slider-val" id="sdr-mini-sq-val">${DEFAULT_SQUELCH}</span>
+        </div>
         <button class="sdr-mini-transport-btn sdr-mini-play-btn" id="sdr-mini-play" title="Play" disabled>
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
         </button>
@@ -42,7 +58,7 @@
         <div class="sdr-mini-conn-dot sdr-mini-dot-off" id="sdr-mini-dot" title="Disconnected"></div>
     `;
 
-    // Insert into footer-left after the radio button, or append to footer-left
+    // Insert into footer-left after the radio button
     const footerLeft = document.getElementById('footer-left');
     if (footerLeft) {
         const radioBtn = document.getElementById('radio-mini-btn');
@@ -64,16 +80,23 @@
     let _playing: boolean  = false;
     let _signalSmoothed    = -120;
     let _squelch: number   = DEFAULT_SQUELCH;
+    let _volume: number    = DEFAULT_VOLUME;
     let _visible: boolean  = false;
 
     // ── Element refs ─────────────────────────────────────────────────────────
 
-    const freqDisplay = document.getElementById('sdr-mini-freq-display')! as HTMLSpanElement;
-    const signalBar   = document.getElementById('sdr-mini-signal-bar')!   as HTMLDivElement;
-    const modeBtn     = document.getElementById('sdr-mini-mode-btn')!     as HTMLButtonElement;
-    const playBtn     = document.getElementById('sdr-mini-play')!         as HTMLButtonElement;
-    const stopBtn     = document.getElementById('sdr-mini-stop')!         as HTMLButtonElement;
-    const dotEl       = document.getElementById('sdr-mini-dot')!          as HTMLDivElement;
+    const freqDisplay    = document.getElementById('sdr-mini-freq-display')! as HTMLSpanElement;
+    const signalBar      = document.getElementById('sdr-mini-signal-bar')!   as HTMLDivElement;
+    const modeBtn        = document.getElementById('sdr-mini-mode-btn')!     as HTMLButtonElement;
+    const playBtn        = document.getElementById('sdr-mini-play')!         as HTMLButtonElement;
+    const stopBtn        = document.getElementById('sdr-mini-stop')!         as HTMLButtonElement;
+    const dotEl          = document.getElementById('sdr-mini-dot')!          as HTMLDivElement;
+    const deviceDropdown = document.getElementById('sdr-mini-device-dropdown')! as HTMLDivElement;
+    const deviceText     = document.getElementById('sdr-mini-device-text')!     as HTMLSpanElement;
+    const volSlider      = document.getElementById('sdr-mini-vol')!  as HTMLInputElement;
+    const volVal         = document.getElementById('sdr-mini-vol-val')! as HTMLSpanElement;
+    const sqSlider       = document.getElementById('sdr-mini-sq')!   as HTMLInputElement;
+    const sqVal          = document.getElementById('sdr-mini-sq-val')!  as HTMLSpanElement;
 
     // ── Signal bar ────────────────────────────────────────────────────────────
 
@@ -85,11 +108,13 @@
         _segEls.push(seg);
     }
 
-    function updateSignalBar(dbfs: number) {
+    function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
         if (!_playing) { resetSignalBar(); return; }
         const alpha = dbfs > _signalSmoothed ? 0.3 : 0.05;
         _signalSmoothed += alpha * (dbfs - _signalSmoothed);
-        const lit = _signalSmoothed > _squelch
+        // Use squelchOpen from the audio engine when provided; fall back to local squelch comparison
+        const open = squelchOpen !== undefined ? squelchOpen : (_signalSmoothed > _squelch);
+        const lit = open
             ? Math.round(Math.max(0, Math.min(SIGNAL_SEGS, ((_signalSmoothed + 120) / 120) * SIGNAL_SEGS)))
             : 0;
         for (let i = 0; i < SIGNAL_SEGS; i++) {
@@ -101,6 +126,117 @@
         _signalSmoothed = -120;
         _segEls.forEach(s => s.classList.remove('sdr-mini-seg--on'));
     }
+
+    // ── Volume slider ─────────────────────────────────────────────────────────
+
+    volSlider.addEventListener('input', () => {
+        _volume = parseInt(volSlider.value, 10);
+        volVal.textContent = `${_volume}%`;
+        if (window._SdrAudio) window._SdrAudio.setVolume(_volume / 100);
+        sessionStorage.setItem('sdrMiniVolume', String(_volume));
+    });
+
+    // ── Squelch slider ────────────────────────────────────────────────────────
+
+    let _sqDebounce: ReturnType<typeof setTimeout> | null = null;
+    sqSlider.addEventListener('input', () => {
+        _squelch = parseInt(sqSlider.value, 10);
+        sqVal.textContent = String(_squelch);
+        if (_sqDebounce) clearTimeout(_sqDebounce);
+        _sqDebounce = setTimeout(() => {
+            if (window._SdrAudio) window._SdrAudio.setSquelch(_squelch);
+            if (_sdrSocket && _sdrSocket.readyState === WebSocket.OPEN) {
+                _sdrSocket.send(JSON.stringify({ cmd: 'squelch', squelch_dbfs: _squelch }));
+            }
+            sessionStorage.setItem('sdrMiniSquelch', String(_squelch));
+        }, 150);
+    });
+
+    // ── Device dropdown ───────────────────────────────────────────────────────
+
+    let _deviceMenuEl: HTMLDivElement | null = null;
+    let _deviceMenuOpen = false;
+    let _knownRadios: SdrRadio[] = [];
+
+    function buildDeviceMenu(radios: SdrRadio[]) {
+        if (_deviceMenuEl) _deviceMenuEl.remove();
+        _deviceMenuEl = document.createElement('div');
+        _deviceMenuEl.className = 'sdr-device-menu sdr-device-menu--upward';
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'sdr-device-menu-item sdr-device-menu-placeholder';
+        placeholder.textContent = '— select radio —';
+        placeholder.addEventListener('click', () => {
+            deviceText.textContent = '— select radio —';
+            deviceText.classList.remove('sdr-device-dropdown-text--chosen');
+            closeDeviceMenu();
+            if (_playing) stop();
+            _sdrCurrentRadioId = null;
+            document.dispatchEvent(new CustomEvent('sdr-radio-deselected'));
+        });
+        _deviceMenuEl.appendChild(placeholder);
+
+        radios.filter(r => r.enabled).forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'sdr-device-menu-item';
+            if (r.id === _sdrCurrentRadioId) item.classList.add('sdr-device-menu-item--active');
+            item.textContent = r.name;
+            item.dataset.value = String(r.id);
+            item.addEventListener('click', () => {
+                const wasPlaying = _playing;
+                if (wasPlaying) stop();
+                _sdrCurrentRadioId = r.id;
+                sessionStorage.setItem('sdrLastRadioId', String(r.id));
+                deviceText.textContent = r.name;
+                deviceText.classList.add('sdr-device-dropdown-text--chosen');
+                // Rebuild to update active marker
+                buildDeviceMenu(_knownRadios);
+                closeDeviceMenu();
+                document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId: r.id } }));
+                if (wasPlaying && _freqHz) play();
+            });
+            _deviceMenuEl!.appendChild(item);
+        });
+
+        document.body.appendChild(_deviceMenuEl);
+    }
+
+    function positionDeviceMenu() {
+        if (!_deviceMenuEl) return;
+        const rect = deviceDropdown.getBoundingClientRect();
+        // Open upward — anchor bottom of menu to top of dropdown
+        _deviceMenuEl.style.left     = rect.left + 'px';
+        _deviceMenuEl.style.bottom   = (window.innerHeight - rect.top) + 'px';
+        _deviceMenuEl.style.top      = 'auto';
+        _deviceMenuEl.style.minWidth = rect.width + 'px';
+    }
+
+    function openDeviceMenu() {
+        if (!_deviceMenuEl) return;
+        positionDeviceMenu();
+        _deviceMenuEl.classList.add('sdr-device-menu--open');
+        deviceDropdown.classList.add('sdr-device-dropdown--open');
+        _deviceMenuOpen = true;
+    }
+
+    function closeDeviceMenu() {
+        if (!_deviceMenuEl) return;
+        _deviceMenuEl.classList.remove('sdr-device-menu--open');
+        deviceDropdown.classList.remove('sdr-device-dropdown--open');
+        _deviceMenuOpen = false;
+    }
+
+    deviceDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (_deviceMenuOpen) closeDeviceMenu(); else openDeviceMenu();
+    });
+
+    deviceDropdown.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (_deviceMenuOpen) closeDeviceMenu(); else openDeviceMenu(); }
+        if (e.key === 'Escape') closeDeviceMenu();
+    });
+
+    document.addEventListener('click', () => { if (_deviceMenuOpen) closeDeviceMenu(); });
 
     // ── Connection dot ────────────────────────────────────────────────────────
 
@@ -184,6 +320,7 @@
             window._SdrAudio.setMode(mode);
             window._SdrAudio.setBandwidthHz(defaultBwHz(mode));
             window._SdrAudio.setSquelch(_squelch);
+            window._SdrAudio.setVolume(_volume / 100);
         }
         if (_sdrSocket && _sdrSocket.readyState === WebSocket.OPEN) {
             _sdrSocket.send(JSON.stringify({ cmd: 'tune', frequency_hz: _freqHz }));
@@ -227,10 +364,21 @@
     // ── Populate radios (called by sdr-mini-boot) ─────────────────────────────
 
     function populateRadios(radios: SdrRadio[]) {
+        _knownRadios = radios;
         if (!_sdrCurrentRadioId) {
-            const first = radios.find(r => r.enabled);
+            const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
+            const match = savedId > 0 ? radios.find(r => r.id === savedId && r.enabled) : null;
+            const first = match || radios.find(r => r.enabled);
             if (first) _sdrCurrentRadioId = first.id;
         }
+        // Sync dropdown label
+        const selected = _sdrCurrentRadioId ? radios.find(r => r.id === _sdrCurrentRadioId) : null;
+        if (selected) {
+            deviceText.textContent = selected.name;
+            deviceText.classList.add('sdr-device-dropdown-text--chosen');
+        }
+        buildDeviceMenu(radios);
+
         const wasPlaying = sessionStorage.getItem('sdrPlaying') === '1';
         const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
         const lastMode   = sessionStorage.getItem('sdrLastMode') || 'AM';
@@ -250,6 +398,7 @@
                 window._SdrAudio.setMode(mode);
                 window._SdrAudio.setBandwidthHz(defaultBwHz(mode));
                 window._SdrAudio.setSquelch(_squelch);
+                window._SdrAudio.setVolume(_volume / 100);
             }
             document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId: _sdrCurrentRadioId } }));
         }
@@ -258,7 +407,10 @@
     // ── Signal / connection events from boot ─────────────────────────────────
 
     document.addEventListener('sdr-mini:signal', (e: Event) => {
-        if (_playing) updateSignalBar((e as CustomEvent<number>).detail);
+        const detail = (e as CustomEvent).detail;
+        const dbfs = typeof detail === 'number' ? detail : detail.dbfs;
+        const squelchOpen = typeof detail === 'object' ? detail.squelchOpen : undefined;
+        if (_playing) updateSignalBar(dbfs, squelchOpen);
     });
 
     document.addEventListener('sdr-mini:connected', (e: Event) => {
@@ -284,11 +436,23 @@
         const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
         const lastMode   = sessionStorage.getItem('sdrLastMode') || 'AM';
         const wasVisible = sessionStorage.getItem('sdrMiniVisible') === '1';
+        const savedVol   = sessionStorage.getItem('sdrMiniVolume');
+        const savedSq    = sessionStorage.getItem('sdrMiniSquelch');
         if (lastFreqHz > 0) {
             _freqHz = lastFreqHz;
             displayFreq(_freqHz);
             setModeByName(lastMode);
             playBtn.disabled = false;
+        }
+        if (savedVol !== null) {
+            _volume = parseInt(savedVol, 10);
+            volSlider.value = String(_volume);
+            volVal.textContent = `${_volume}%`;
+        }
+        if (savedSq !== null) {
+            _squelch = parseInt(savedSq, 10);
+            sqSlider.value = String(_squelch);
+            sqVal.textContent = String(_squelch);
         }
         if (wasVisible) show();
     })();
@@ -299,9 +463,9 @@
         (window as any)._SdrControls = {} as SdrControlsAPI;
     }
     const _prev = window._SdrControls.updateSignalBar;
-    window._SdrControls.updateSignalBar = (dbfs: number) => {
-        if (_prev) _prev(dbfs);
-        if (_playing) updateSignalBar(dbfs);
+    window._SdrControls.updateSignalBar = (dbfs: number, squelchOpen?: boolean) => {
+        if (_prev) _prev(dbfs, squelchOpen);
+        if (_playing) updateSignalBar(dbfs, squelchOpen);
     };
 
     // ── Public API ────────────────────────────────────────────────────────────

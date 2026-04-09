@@ -20,6 +20,63 @@
          .msb-pane#msb-pane-tracking
    ============================================================ */
 
+/* ---- Footer radio button ---- */
+#radio-mini-btn {
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 1;
+    transition: background 0.2s, opacity 0.2s, color 0.2s;
+    flex-shrink: 0;
+    margin: 4px 0;
+    position: relative;
+}
+
+#radio-mini-btn:hover {
+    background: var(--color-border);
+    border-radius: 6px;
+    opacity: 1;
+}
+
+#radio-mini-btn.radio-mini-btn-active {
+    opacity: 1;
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.08);
+    border-radius: 6px;
+}
+
+#radio-mini-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+#radio-mini-btn[data-tooltip]:hover::before { opacity: 1; }
+#radio-mini-btn.radio-mini-btn-active[data-tooltip]::before { opacity: 0 !important; }
+
 /* ---- Footer toggle button ---- */
 #map-sidebar-btn {
     height: 36px;
@@ -88,7 +145,7 @@
     top: var(--nav-height);       /* 68px — flush under header */
     bottom: var(--footer-height); /* 44px — flush above footer */
     left: 0;
-    width: 325px;
+    width: 380px;
     background: rgba(10, 13, 20, 0.92);
     border-right: none;
     z-index: 1002;
@@ -105,13 +162,29 @@
     transform: translateX(-100%);
 }
 
-/* Space domain — 4 tabs × 108px = 432px */
+/* Space domain — same fixed width */
 body[data-domain="space"] #map-sidebar {
-    width: 432px;
+    width: 380px;
 }
 
 /* Hide PASSES tab on all domains except space */
 body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
+    display: none;
+}
+
+/* Hide RADIO tab on SDR domain (full panel used there) */
+body[data-domain="sdr"] .msb-tab[data-tab="radio"] {
+    display: none;
+}
+
+/* Radio pane fills height and scrolls */
+#msb-pane-radio {
+    overflow-y: auto;
+    scrollbar-width: none;
+    flex-direction: column;
+}
+
+#msb-pane-radio::-webkit-scrollbar {
     display: none;
 }
 

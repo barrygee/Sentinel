@@ -11,7 +11,7 @@
     align-self: center;
     gap: 8px;
     overflow: hidden;
-    max-width: 320px;
+    max-width: 600px;
     opacity: 1;
     transition: max-width 0.2s ease, opacity 0.2s ease;
 }
@@ -28,6 +28,16 @@
     width: 1px;
     height: 20px;
     background: var(--color-border-mid);
+    flex-shrink: 0;
+}
+
+/* ── Device dropdown — reuses sdr-panel dropdown classes ─────── */
+/* The dropdown trigger in the mini player matches the panel exactly,
+   but is constrained to a compact height. The menu opens upward. */
+
+#sdr-mini-player .sdr-device-dropdown {
+    height: 24px;
+    max-width: 120px;
     flex-shrink: 0;
 }
 
@@ -88,6 +98,79 @@
 }
 
 .sdr-mini-seg--on { background: #c8ff00; }
+
+/* ── Slider group (volume / squelch) ─────────────────────────── */
+
+.sdr-mini-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.sdr-mini-slider-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.sdr-mini-slider-val {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.25);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 28px;
+    text-align: right;
+}
+
+/* Slider track — matches .sdr-panel-slider exactly */
+.sdr-mini-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 64px;
+    height: 3px;
+    background: #c8ff00;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: none;
+}
+
+.sdr-mini-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.sdr-mini-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.sdr-mini-slider::-moz-range-track {
+    height: 3px;
+    border-radius: 2px;
+    background: #c8ff00;
+}
 
 /* ── Transport buttons ───────────────────────────────────────── */
 

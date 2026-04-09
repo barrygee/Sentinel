@@ -2,17 +2,27 @@
 // ============================================================
 // SDR PANEL
 // SDR-specific left panel — replaces the shared map sidebar on the SDR page.
-// Contains two tabs: RADIO / SCANNER
+// Also reused as a tab pane in the shared map-sidebar on all other pages.
+//
+// Call signature:
+//   buildSdrPanel()            — SDR page: creates #sdr-panel, appends to body
+//   buildSdrPanel(mountTarget) — Other pages: injects panel content into mountTarget
 //
 // Exposes window._SdrPanel = { show, hide, toggle, isVisible, refresh, setScanStatus }
 // Exposes window._SdrControls = { setStatus, applyStatus, getSelectedRadioId }
 // Exposes window._sdrPopulateRadios
 // ============================================================
 /// <reference path="./globals.d.ts" />
-(function buildSdrPanel() {
+function buildSdrPanel(mountTarget) {
+    // ── Mode ──────────────────────────────────────────────────────────────────
+    // 'panel' = standalone fixed panel on SDR page
+    // 'tab'   = embedded inside map-sidebar radio pane on other pages
+    const _tabMode = !!mountTarget;
     // ── DOM ───────────────────────────────────────────────────────────────────
-    const panel = document.createElement('div');
-    panel.id = 'sdr-panel';
+    const panel = _tabMode ? mountTarget : document.createElement('div');
+    if (!_tabMode) {
+        panel.id = 'sdr-panel';
+    }
     panel.innerHTML = `
         <div id="sdr-panel-panes">
 
@@ -165,7 +175,7 @@
                                 <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </span>
-                        <span class="sdr-group-toggle-label">RECORDING</span>
+                        <span class="sdr-group-toggle-label">RECORDINGS</span>
                     </div>
                     <span id="sdr-clips-count" class="sdr-clips-count"></span>
                 </button>
@@ -347,7 +357,9 @@
             </div>
         </div>
     `;
-    document.body.appendChild(panel);
+    if (!_tabMode) {
+        document.body.appendChild(panel);
+    }
     // ── State ─────────────────────────────────────────────────────────────────
     let _groups = [];
     let _freqs = [];
@@ -1667,22 +1679,36 @@
     }
     // ── Visibility ────────────────────────────────────────────────────────────
     function show() {
+        if (_tabMode) {
+            // In tab mode, visibility is controlled by map-sidebar; open the radio tab
+            if (window._MapSidebar)
+                window._MapSidebar.openRadioTab();
+            return;
+        }
         _visible = true;
         panel.classList.remove('sdr-panel-hidden');
         document.body.classList.remove('sdr-panel-hidden');
         sessionStorage.setItem('sdrPanelOpen', '1');
     }
     function hide() {
+        if (_tabMode)
+            return; // Controlled by map-sidebar
         _visible = false;
         panel.classList.add('sdr-panel-hidden');
         document.body.classList.add('sdr-panel-hidden');
         sessionStorage.setItem('sdrPanelOpen', '0');
     }
-    function toggle() { if (_visible)
-        hide();
-    else
-        show(); }
-    function isVisible() { return _visible; }
+    function toggle() {
+        if (_tabMode) {
+            show();
+            return;
+        }
+        if (_visible)
+            hide();
+        else
+            show();
+    }
+    function isVisible() { return _tabMode ? true : _visible; }
     function refresh(groups, freqs) {
         _groups = groups;
         _freqs = freqs;
@@ -1717,4 +1743,12 @@
     window._SdrPanel = { show, hide, toggle, isVisible, refresh, setScanStatus, onSquelchChange };
     window._sdrPanelReload = reloadData;
     reloadData();
-})();
+}
+// ── Auto-invoke on the SDR page; expose for tab-mode use on other pages ────
+if (document.body.dataset['domain'] === 'sdr') {
+    buildSdrPanel();
+}
+else {
+    // Available for sdr-radio-tab to call with a mount target
+    window._buildSdrPanel = buildSdrPanel;
+}
