@@ -10,7 +10,7 @@
     top: var(--nav-height);
     bottom: var(--footer-height);
     left: 0;
-    width: 325px;
+    width: 380px;
     background: rgba(10, 13, 20, 0.92);
     border-right: none;
     z-index: 200;
@@ -37,6 +37,27 @@
 }
 
 #sdr-panel-panes::-webkit-scrollbar { display: none; }
+
+/* In tab mode (mounted inside map-sidebar), panes flow naturally — sidebar scrolls */
+#msb-pane-radio #sdr-panel-panes {
+    flex: none;
+    overflow-y: visible;
+}
+
+/* Hide the RADIO parent accordion toggle everywhere — context makes it redundant */
+#sdr-radio-main-toggle {
+    display: none;
+}
+
+/* Always show the radio body regardless of toggle state */
+#sdr-pane-radio {
+    display: block !important;
+}
+
+/* Modals inside tab mode should be scoped to the viewport */
+#msb-pane-radio .sdr-modal-overlay {
+    position: fixed;
+}
 
 .sdr-ppane-single {
     flex-shrink: 0;
@@ -261,6 +282,11 @@
     display: block;
 }
 
+.sdr-device-menu.sdr-device-menu--upward {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: none;
+}
+
 .sdr-device-menu-item {
     padding: 9px 12px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
@@ -345,7 +371,7 @@
     font-size: 18px;
     font-weight: 300;
     letter-spacing: 0.04em;
-    color: #c8ff00;
+    color: #ffffff;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 2px;
@@ -357,11 +383,11 @@
 }
 
 .sdr-freq-input-large:focus {
-    border-color: rgba(200, 255, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .sdr-freq-input-large::placeholder {
-    color: rgba(200, 255, 0, 0.2);
+    color: rgba(255, 255, 255, 0.2);
 }
 
 .sdr-freq-input-large:disabled {

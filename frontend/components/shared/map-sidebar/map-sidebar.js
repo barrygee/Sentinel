@@ -21,6 +21,7 @@ window._MapSidebar = (() => {
         `<button class="msb-tab" data-tab="alerts">ALERTS <span class="msb-tab-badge" id="msb-alerts-badge"></span></button>` +
         `<button class="msb-tab" data-tab="tracking">TRACKING <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
         `<button class="msb-tab" data-tab="passes">PASSES</button>` +
+        `<button class="msb-tab" data-tab="radio">RADIO</button>` +
         `</div>` +
         `<div id="map-sidebar-panes">` +
         `<div class="msb-pane msb-pane-active" id="msb-pane-search"></div>` +
@@ -31,6 +32,7 @@ window._MapSidebar = (() => {
         `<div id="msb-tracking-empty"></div>` +
         `</div>` +
         `<div class="msb-pane" id="msb-pane-passes"></div>` +
+        `<div class="msb-pane msb-pane-radio" id="msb-pane-radio"></div>` +
         `</div>` +
         `</div>`;
     // Inject sidebar HTML immediately so filter IIFEs (which run at script-load time)
@@ -142,5 +144,9 @@ window._MapSidebar = (() => {
             });
         });
     }
-    return { init, switchTab, setAlertCount, setTrackingCount, getSearchPane, show, hide, toggle };
+    function openRadioTab() {
+        show();
+        switchTab('radio');
+    }
+    return { init, switchTab, openRadioTab, setAlertCount, setTrackingCount, getSearchPane, show, hide, toggle };
 })();

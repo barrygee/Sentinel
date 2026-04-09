@@ -1,23 +1,12 @@
 {% extends "base.html" %}
 
-{% block head %}
-    <link rel="stylesheet" href="/frontend/components/sdr/sdr-panel.css">
-{% endblock %}
+{% block head %}{% endblock %}
 
 {% block content %}
     <div id="sdr-root"></div>
 {% endblock %}
 
 {% block scripts %}
-    <!-- SDR: global state variables (must load first) -->
-    <script src="/frontend/components/sdr/sdr-globals.js"></script>
-
-    <!-- SDR: panel (includes RADIO tab with all controls) -->
-    <script src="/frontend/components/sdr/sdr-panel.js"></script>
-
-    <!-- SDR: audio demodulator -->
-    <script src="/frontend/components/sdr/sdr-audio.js"></script>
-
     <!-- SDR: boot (wires everything, opens WebSocket) -->
     <script src="/frontend/components/sdr/sdr-boot.js"></script>
 {% endblock %}

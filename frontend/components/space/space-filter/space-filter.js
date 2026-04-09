@@ -52,9 +52,9 @@ window._SpaceFilterPanel = (() => {
         }
         else {
             document.addEventListener('DOMContentLoaded', () => {
-                const p = document.getElementById('msb-pane-search');
-                if (p && !document.getElementById('space-filter-input-wrap'))
-                    p.insertAdjacentHTML('afterbegin', html);
+                const searchPane = document.getElementById('msb-pane-search');
+                if (searchPane && !document.getElementById('space-filter-input-wrap'))
+                    searchPane.insertAdjacentHTML('afterbegin', html);
             });
         }
     })();
@@ -106,11 +106,11 @@ window._SpaceFilterPanel = (() => {
         return null;
     }
     function _search(query) {
-        const q = query.trim();
-        if (!q)
+        const searchQuery = query.trim();
+        if (!searchQuery)
             return null; // null = show all
-        const matchedCategory = _categoryForQuery(q);
-        return _satellites.filter(s => _matchesQuery(q, s.name, s.norad_id) ||
+        const matchedCategory = _categoryForQuery(searchQuery);
+        return _satellites.filter(s => _matchesQuery(searchQuery, s.name, s.norad_id) ||
             (matchedCategory !== null && s.category === matchedCategory));
     }
     const _CATEGORY_ORDER = [
@@ -155,11 +155,7 @@ window._SpaceFilterPanel = (() => {
         item.appendChild(icon);
         item.appendChild(info);
         item.appendChild(selectBtn);
-        info.style.flex = '1';
-        info.style.minWidth = '0';
-        info.style.cursor = 'pointer';
         info.addEventListener('click', doSelect);
-        icon.style.cursor = 'pointer';
         icon.addEventListener('click', doSelect);
         item._selectAction = doSelect;
         container.appendChild(item);

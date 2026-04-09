@@ -68,19 +68,19 @@ window._SpacePassesPanel = (() => {
     // ---- Helpers ----
     function _formatCountdown(msUntilAos) {
         const totalSec = Math.max(0, Math.floor(msUntilAos / 1000));
-        const h = Math.floor(totalSec / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
-        if (h > 0)
-            return `IN ${h}h ${m}m`;
-        if (m > 0)
-            return `IN ${m}m ${s}s`;
-        return `IN ${s}s`;
+        const hours = Math.floor(totalSec / 3600);
+        const minutes = Math.floor((totalSec % 3600) / 60);
+        const seconds = totalSec % 60;
+        if (hours > 0)
+            return `IN ${hours}h ${minutes}m`;
+        if (minutes > 0)
+            return `IN ${minutes}m ${seconds}s`;
+        return `IN ${seconds}s`;
     }
     function _formatDuration(sec) {
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return `${m}m ${s}s`;
+        const minutes = Math.floor(sec / 60);
+        const seconds = sec % 60;
+        return `${minutes}m ${seconds}s`;
     }
     // ---- Inject HTML into #msb-pane-passes ----
     function _injectHTML() {
@@ -329,8 +329,8 @@ window._SpacePassesPanel = (() => {
         const status = document.getElementById('spp-status-bar');
         if (!status)
             return;
-        const d = new Date(computedAt);
-        const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const computedDate = new Date(computedAt);
+        const timeStr = computedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         status.textContent = `${satCount} SATELLITES · UPDATED ${timeStr}`;
         status.classList.remove('spp-loading');
     }
@@ -487,8 +487,8 @@ window._SpacePassesPanel = (() => {
         }
         // Re-fetch whenever the PASSES tab is activated
         document.addEventListener('click', (e) => {
-            const t = e.target;
-            if (t && t.closest('.msb-tab') && t.closest('.msb-tab').dataset['tab'] === 'passes') {
+            const targetElement = e.target;
+            if (targetElement && targetElement.closest('.msb-tab') && targetElement.closest('.msb-tab').dataset['tab'] === 'passes') {
                 if (_injected)
                     void _fetchPasses();
             }

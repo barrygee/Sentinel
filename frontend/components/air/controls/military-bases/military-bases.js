@@ -119,15 +119,15 @@ class MilitaryBasesToggleControl extends SentinelControlBase {
         this.map.addSource('military-bases', { type: 'geojson', data: MILITARY_BASES_DATA });
         if (!this._markers) {
             this._markers = MILITARY_BASES_DATA.features.map(f => {
-                const p = f.properties;
+                const baseProperties = f.properties;
                 const coords = f.geometry.coordinates;
                 const el = document.createElement('div');
                 el.style.cssText = 'padding:6px 16px 6px 0;cursor:pointer;pointer-events:auto;user-select:none';
                 const label = document.createElement('div');
                 label.style.cssText = "color:#fff;font-family:'Barlow Condensed','Barlow',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none";
-                label.innerHTML = p.icao
-                    ? `<span style="color:#c8ff00">${p.icao}</span><br><span style="opacity:0.7;font-weight:400">${p.name.toUpperCase()}</span>`
-                    : `<span style="opacity:0.7;font-weight:400">${p.name.toUpperCase()}</span>`;
+                label.innerHTML = baseProperties.icao
+                    ? `<span style="color:#c8ff00">${baseProperties.icao}</span><br><span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`
+                    : `<span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`;
                 el.appendChild(label);
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -136,7 +136,7 @@ class MilitaryBasesToggleControl extends SentinelControlBase {
                     if (pitch !== undefined)
                         easeOpts.pitch = pitch;
                     this.map.easeTo(easeOpts);
-                    this._showMilitaryBasesPanel(p, coords);
+                    this._showMilitaryBasesPanel(baseProperties, coords);
                 });
                 let hintPanel = null;
                 el.addEventListener('mouseenter', () => {

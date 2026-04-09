@@ -77,7 +77,7 @@
             iconSpan.innerHTML = icon;
         else
             iconSpan.textContent = icon;
-        iconSpan.style.fontSize = iconFontSize;
+        iconSpan.style.setProperty('--sm-icon-size', iconFontSize);
         const labelSpan = document.createElement('span');
         labelSpan.className = 'sm-label';
         labelSpan.textContent = label;

@@ -58,19 +58,21 @@ map.once('load', function () {
 // ---- 3. Logo animation — loaded via shared/init/logo-animation.js ----
 // ---- 4. Starfield backdrop ----
 (function () {
-    const canvas = document.getElementById('space-starfield');
-    if (!canvas)
+    const canvasEl = document.getElementById('space-starfield');
+    if (!canvasEl)
         return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx)
+    const canvas = canvasEl;
+    const ctxOrNull = canvas.getContext('2d');
+    if (!ctxOrNull)
         return;
+    const ctx = ctxOrNull;
     const STAR_COUNT = 320;
     let stars = [];
     let canvasWidth = 0, canvasHeight = 0;
     // parallax offset driven by map bearing / pitch
     let offsetX = 0, offsetY = 0;
     function _resize() {
-        canvasWidth  = canvas.width  = window.innerWidth;
+        canvasWidth = canvas.width = window.innerWidth;
         canvasHeight = canvas.height = window.innerHeight;
     }
     function _seed() {
@@ -87,7 +89,7 @@ map.once('load', function () {
     function _draw() {
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         for (const s of stars) {
-            const px = ((s.x + offsetX) % canvasWidth  + canvasWidth)  % canvasWidth;
+            const px = ((s.x + offsetX) % canvasWidth + canvasWidth) % canvasWidth;
             const py = ((s.y + offsetY) % canvasHeight + canvasHeight) % canvasHeight;
             ctx.beginPath();
             ctx.arc(px, py, s.r, 0, Math.PI * 2);
@@ -103,11 +105,11 @@ map.once('load', function () {
     let _lastBearing = 0;
     let _lastCenter = null;
     map.on('move', () => {
-        const bearing      = map.getBearing();
-        const center       = map.getCenter();
+        const bearing = map.getBearing();
+        const center = map.getCenter();
         const deltaBearing = bearing - _lastBearing;
-        const deltaLng     = _lastCenter ? (center.lng - _lastCenter.lng) : 0;
-        const deltaLat     = _lastCenter ? (center.lat - _lastCenter.lat) : 0;
+        const deltaLng = _lastCenter ? (center.lng - _lastCenter.lng) : 0;
+        const deltaLat = _lastCenter ? (center.lat - _lastCenter.lat) : 0;
         // Bearing change → rotate star field; pan → translate gently
         offsetX += deltaBearing * 1.4 - deltaLng * 1.8;
         offsetY += deltaLat * 1.8;
