@@ -1477,6 +1477,10 @@ function buildSdrPanel(mountTarget) {
             const item = document.createElement('div');
             item.className = 'sdr-device-menu-item';
             item.textContent = r.name;
+            const hostEl = document.createElement('span');
+            hostEl.className = 'sdr-device-menu-item-host';
+            hostEl.textContent = r.host;
+            item.appendChild(hostEl);
             item.dataset.value = String(r.id);
             item.addEventListener('click', () => {
                 radioSelect.value = String(r.id);
