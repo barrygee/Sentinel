@@ -47,6 +47,10 @@
     let _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let _activeRadioId: number | null = null;
     let _radioCache: Map<number, SdrRadio> = new Map();
+    // Track whether this radio's backend session has been initialised.
+    // Stored in sessionStorage so it survives page navigations within the same tab.
+    function _markInitialised(radioId: number) { sessionStorage.setItem(`sdrInit_${radioId}`, '1'); }
+    function _isInitialised(radioId: number) { return sessionStorage.getItem(`sdrInit_${radioId}`) === '1'; }
 
     async function openControlSocket(radioId: number) {
         if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
@@ -63,18 +67,13 @@
         _sdrCurrentRadioId = radioId;
         sessionStorage.setItem('sdrLastRadioId', String(radioId));
 
-        // POST stored defaults to configure the backend connection before opening the WebSocket
-        const cfg = _radioCache.get(radioId);
+        // POST to ensure the backend TCP connection is open before the WebSocket.
+        // No settings are sent so the backend preserves whatever is currently configured.
         try {
             await fetch('/api/sdr/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    radio_id:    radioId,
-                    gain_db:     cfg?.rf_gain   ?? 30.0,
-                    gain_auto:   cfg?.agc       ?? false,
-                    sample_rate: cfg?.bandwidth ?? 2_048_000,
-                }),
+                body: JSON.stringify({ radio_id: radioId }),
             });
         } catch (_e) { /* non-fatal — WS will still attempt connection */ }
 
@@ -128,16 +127,21 @@
         ws.addEventListener('open', () => {
             const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
             const lastMode   = sessionStorage.getItem('sdrLastMode') || 'AM';
-            if (lastFreqHz > 0) {
-                ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }));
-                ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
+            // Only send radio commands on the very first connect in this browser session.
+            // Page navigations reuse the same backend session — sending tune/mode would reset the radio.
+            if (!_isInitialised(radioId)) {
+                _markInitialised(radioId);
+                if (lastFreqHz > 0) {
+                    ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }));
+                    ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
+                }
             }
             if (sessionStorage.getItem('sdrPlaying') === '1') {
                 _sdrPlaying = true;
                 if (window._SdrAudio) {
-                    window._SdrAudio.initAudio(radioId).then(() => {
-                        if (window._SdrAudio) window._SdrAudio.setMode(lastMode);
-                    }).catch(() => {
+                    // Set mode before audio starts so demodulation is correct from first frame
+                    window._SdrAudio.setMode(lastMode);
+                    window._SdrAudio.initAudio(radioId).catch(() => {
                         if (window._SdrAudio) window._SdrAudio.start(radioId);
                     });
                 }
@@ -199,6 +203,7 @@
     document.addEventListener('sdr-radio-deselected', () => {
         if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
         if (_sdrSocket)      { _sdrSocket.close(); _sdrSocket = null; }
+        if (_activeRadioId != null) sessionStorage.removeItem(`sdrInit_${_activeRadioId}`);
         _activeRadioId     = null;
         _sdrCurrentRadioId = null;
         sessionStorage.removeItem('sdrLastRadioId');

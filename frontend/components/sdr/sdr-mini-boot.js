@@ -18,6 +18,8 @@
     let _activeRadioId = null;
     let _radioCache = new Map();
     let _dataConfirmed = false;
+    function _markInitialised(radioId) { sessionStorage.setItem(`sdrInit_${radioId}`, '1'); }
+    function _isInitialised(radioId) { return sessionStorage.getItem(`sdrInit_${radioId}`) === '1'; }
     function dispatchSignal(dbfs) {
         document.dispatchEvent(new CustomEvent('sdr-mini:signal', { detail: dbfs }));
     }
@@ -40,8 +42,7 @@
         _activeRadioId = radioId;
         _sdrCurrentRadioId = radioId;
         sessionStorage.setItem('sdrLastRadioId', String(radioId));
-        // Prefer user-adjusted settings saved across navigation; fall back to device defaults
-        const cfg = _radioCache.get(radioId);
+        // Read saved settings — used for WS-level commands on first connect only
         let savedSettings = {};
         try {
             const raw = sessionStorage.getItem('sdrSettings');
@@ -49,19 +50,13 @@
                 savedSettings = JSON.parse(raw);
         }
         catch (_e) { }
-        const gainDb = savedSettings.gainDb ?? cfg?.rf_gain ?? 30.0;
-        const gainAuto = savedSettings.gainAuto ?? cfg?.agc ?? false;
-        const sampleRate = savedSettings.bwHz ?? cfg?.bandwidth ?? 2048000;
+        // POST to ensure the backend TCP connection is open before the WebSocket.
+        // No settings are sent so the backend preserves whatever is currently configured.
         try {
             await fetch('/api/sdr/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    radio_id: radioId,
-                    gain_db: gainAuto ? null : gainDb,
-                    gain_auto: gainAuto,
-                    sample_rate: sampleRate,
-                }),
+                body: JSON.stringify({ radio_id: radioId }),
             });
         }
         catch (_e) { /* non-fatal */ }
@@ -111,26 +106,32 @@
         ws.addEventListener('open', () => {
             const lastFreqHz = savedSettings.freqHz || parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
             const lastMode = savedSettings.mode || sessionStorage.getItem('sdrLastMode') || 'AM';
-            if (lastFreqHz > 0)
-                ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }));
-            ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
-            ws.send(JSON.stringify({ cmd: 'gain', gain_db: gainAuto ? null : gainDb }));
-            if (savedSettings.squelch != null)
-                ws.send(JSON.stringify({ cmd: 'squelch', squelch_dbfs: savedSettings.squelch }));
-            if (savedSettings.bwHz != null)
-                ws.send(JSON.stringify({ cmd: 'sample_rate', rate_hz: savedSettings.bwHz }));
+            const isFirstConnect = !_isInitialised(radioId);
+            if (isFirstConnect) {
+                _markInitialised(radioId);
+                if (lastFreqHz > 0)
+                    ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }));
+                ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }));
+                const gainAuto = savedSettings.gainAuto ?? false;
+                const gainDb = savedSettings.gainDb ?? 30.0;
+                ws.send(JSON.stringify({ cmd: 'gain', gain_db: gainAuto ? null : gainDb }));
+                if (savedSettings.squelch != null)
+                    ws.send(JSON.stringify({ cmd: 'squelch', squelch_dbfs: savedSettings.squelch }));
+                if (savedSettings.bwHz != null)
+                    ws.send(JSON.stringify({ cmd: 'sample_rate', rate_hz: savedSettings.bwHz }));
+            }
             if (sessionStorage.getItem('sdrPlaying') === '1') {
                 _sdrPlaying = true;
-                // Restoring an active session — init audio immediately (user already gave gesture on prior page)
                 if (window._SdrAudio) {
-                    window._SdrAudio.initAudio(radioId).then(() => {
-                        if (window._SdrAudio) {
-                            window._SdrAudio.setMode(lastMode);
-                            const bwHz = parseInt(savedSettings.bwHz || sessionStorage.getItem('sdrLastBwHz') || '200000', 10);
-                            window._SdrAudio.setBandwidthHz(bwHz);
-                        }
-                    }).catch(() => {
-                        // Autoplay blocked — audio will start on next user interaction
+                    // Set mode and squelch before audio starts so demodulation is correct from first frame
+                    window._SdrAudio.setMode(lastMode);
+                    const bwHz = savedSettings.bwHz ?? parseInt(sessionStorage.getItem('sdrSettings') && JSON.parse(sessionStorage.getItem('sdrSettings')).bwHz || '200000', 10);
+                    if (bwHz)
+                        window._SdrAudio.setBandwidthHz(bwHz);
+                    if (savedSettings.squelch != null)
+                        window._SdrAudio.setSquelch(savedSettings.squelch);
+                    window._SdrAudio.initAudio(radioId).catch(() => {
+                        // Autoplay blocked — IQ socket still opens, audio needs user gesture
                         if (window._SdrAudio)
                             window._SdrAudio.start(radioId);
                     });
@@ -173,6 +174,8 @@
             _sdrSocket.close();
             _sdrSocket = null;
         }
+        if (_activeRadioId != null)
+            sessionStorage.removeItem(`sdrInit_${_activeRadioId}`);
         _activeRadioId = null;
         _sdrCurrentRadioId = null;
         sessionStorage.removeItem('sdrLastRadioId');

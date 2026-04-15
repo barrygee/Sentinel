@@ -83,12 +83,12 @@ class FrequencyIn(BaseModel):
 
 class ConnectIn(BaseModel):
     radio_id: int
-    frequency_hz: int = 100_000_000
-    mode: str = "AM"
-    gain_db: float = 30.0
-    gain_auto: bool = False
+    frequency_hz: Optional[int] = None   # None = preserve current freq
+    mode: Optional[str] = None           # None = preserve current mode
+    gain_db: Optional[float] = None      # None = preserve current gain
+    gain_auto: Optional[bool] = None     # None = preserve current AGC state
     squelch_dbfs: float = -60.0
-    sample_rate: int = 2_048_000
+    sample_rate: Optional[int] = None    # None = preserve current sample rate
 
 
 class DisconnectIn(BaseModel):
@@ -528,13 +528,17 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Radio not found")
     try:
         conn = await sdr_svc.get_or_create_connection(radio["host"], radio["port"])
-        await conn.set_sample_rate(body.sample_rate)
-        await conn.set_frequency(body.frequency_hz)
-        if body.gain_auto:
-            await conn.set_gain_auto()
-        else:
-            await conn.set_gain_manual(body.gain_db)
-        conn.mode = body.mode
+        if body.sample_rate is not None:
+            await conn.set_sample_rate(body.sample_rate)
+        if body.frequency_hz is not None:
+            await conn.set_frequency(body.frequency_hz)
+        if body.gain_auto is not None:
+            if body.gain_auto:
+                await conn.set_gain_auto()
+            elif body.gain_db is not None:
+                await conn.set_gain_manual(body.gain_db)
+        if body.mode is not None:
+            conn.mode = body.mode
     except ConnectionError as exc:
         raise HTTPException(503, str(exc))
     return JSONResponse({"status": "connected", "radio_id": body.radio_id})
