@@ -113,9 +113,13 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
       - orbit1:   0..92   minutes  → properties.track = 'orbit1'  (current orbit)
       - orbit2:  92..184  minutes  → properties.track = 'orbit2'  (next orbit)
 
-    Coordinates are unwrapped (longitude accumulates past ±180°) so that
-    MapLibre renderWorldCopies can draw a continuous line across the antimeridian
-    without a gap or split.
+    Longitudes are unwrapped (allowed to exceed ±180°) so MapLibre can draw a
+    continuous line with renderWorldCopies and in globe projection.
+
+    Unwrapping uses the shortest-path difference between consecutive raw lons
+    (always in [-180, 180]) so it works correctly at all latitudes and
+    inclinations — polar passes, retrograde orbits, and antimeridian crossings
+    are all handled without special-case threshold logic.
     """
     sat = Satrec.twoline2rv(tle_line1, tle_line2)
     jd, fr = _jday_now()
@@ -131,8 +135,8 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
         ("orbit2",  92, 184),
     ]:
         coords: list[list[float]] = []
-        prev_lon: float | None = None
-        lon_offset: float = 0.0
+        prev_lon_raw: float | None = None
+        unwrapped_lon: float = 0.0
 
         t = start_min
         while t <= end_min + 1e-9:
@@ -146,17 +150,22 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
             t_propagated = now + timedelta(minutes=t)
             lat, lon, _ = _eci_to_geodetic(r, t_propagated)
 
-            # Accumulate a longitude offset to keep the track continuous across
-            # the antimeridian — avoids splitting the line and the resulting gap.
-            if prev_lon is not None:
-                diff = lon - prev_lon
-                if diff > 180:
-                    lon_offset -= 360
-                elif diff < -180:
-                    lon_offset += 360
+            if prev_lon_raw is None:
+                unwrapped_lon = lon
+            else:
+                # Shortest-path difference between consecutive raw longitudes,
+                # always in [-180, 180].  This correctly handles antimeridian
+                # crossings at any latitude: a satellite crossing from lon +179
+                # to -179 has a shortest-path diff of ~-2°, not -358°, so the
+                # unwrapped longitude advances by ~-2° as expected.  This also
+                # handles polar passes where longitude sweeps many degrees per
+                # step — those are real motion and the shortest-path diff
+                # captures them without any threshold logic.
+                diff = (lon - prev_lon_raw + 180) % 360 - 180
+                unwrapped_lon += diff
 
-            coords.append([round(lon + lon_offset, 4), round(lat, 4)])
-            prev_lon = lon
+            coords.append([round(unwrapped_lon, 4), round(lat, 4)])
+            prev_lon_raw = lon
             t += time_step_min
 
         if len(coords) >= 2:
@@ -319,6 +328,9 @@ def compute_footprint(lat: float, lon: float, alt_km: float) -> list[list[float]
     The footprint radius is determined by the satellite altitude:
       radius_rad = arccos(Re / (Re + alt_km))
     Returns 181 points forming a closed great-circle ring.
+
+    Longitudes are normalised to [-180, 180].  The frontend splits the ring at
+    antimeridian crossings as needed per projection mode.
     """
     radius_rad = math.acos(_RE_KM / (_RE_KM + alt_km))
     lat_rad = math.radians(lat)
@@ -331,10 +343,16 @@ def compute_footprint(lat: float, lon: float, alt_km: float) -> list[list[float]
             math.sin(lat_rad) * math.cos(radius_rad) +
             math.cos(lat_rad) * math.sin(radius_rad) * math.cos(bearing_rad)
         )
-        lon2 = lon_rad + math.atan2(
+        lon2_rad = lon_rad + math.atan2(
             math.sin(bearing_rad) * math.sin(radius_rad) * math.cos(lat_rad),
             math.cos(radius_rad) - math.sin(lat_rad) * math.sin(lat2)
         )
-        points.append([round(math.degrees(lon2), 4), round(math.degrees(lat2), 4)])
+        lon2_deg = (math.degrees(lon2_rad) + 180) % 360 - 180
+        points.append([round(lon2_deg, 4), round(math.degrees(lat2), 4)])
 
+    # GeoJSON exterior rings must be counter-clockwise so the Polygon fill
+    # covers the inside of the circle (the visibility footprint), not the
+    # complement (the rest of the world).  The bearing loop above produces a
+    # clockwise ring, so reverse it here.
+    points.reverse()
     return points
