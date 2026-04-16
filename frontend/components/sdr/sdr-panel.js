@@ -1146,13 +1146,7 @@ function buildSdrPanel(mountTarget) {
         _segEls.push(seg);
     }
     let _signalSmoothed = -120;
-    function updateSignalBar(dbfs, squelchOpen) {
-        if (squelchOpen === false) {
-            _signalSmoothed = -120;
-            for (let i = 0; i < SIGNAL_SEGS; i++)
-                _segEls[i].classList.remove('sdr-signal-seg--on');
-            return;
-        }
+    function updateSignalBar(dbfs, _squelchOpen) {
         const alpha = dbfs > _signalSmoothed ? 0.3 : 0.05;
         _signalSmoothed += alpha * (dbfs - _signalSmoothed);
         const lit = Math.round(Math.max(0, Math.min(SIGNAL_SEGS, ((_signalSmoothed + 120) / 120) * SIGNAL_SEGS)));

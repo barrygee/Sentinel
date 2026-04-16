@@ -1166,12 +1166,7 @@ const activeFreq   = document.getElementById('sdr-active-freq')    as HTMLSpanEl
     }
 
     let _signalSmoothed = -120;
-    function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
-        if (squelchOpen === false) {
-            _signalSmoothed = -120;
-            for (let i = 0; i < SIGNAL_SEGS; i++) _segEls[i].classList.remove('sdr-signal-seg--on');
-            return;
-        }
+    function updateSignalBar(dbfs: number, _squelchOpen?: boolean) {
         const alpha = dbfs > _signalSmoothed ? 0.3 : 0.05;
         _signalSmoothed += alpha * (dbfs - _signalSmoothed);
         const lit = Math.round(Math.max(0, Math.min(SIGNAL_SEGS, ((_signalSmoothed + 120) / 120) * SIGNAL_SEGS)));
