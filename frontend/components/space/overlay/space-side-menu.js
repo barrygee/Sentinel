@@ -163,6 +163,9 @@
         }
         if (spaceNamesControl)
             spaceNamesControl.applyNamesVisibility();
+        // Re-push track data so the projection helper re-normalises coords for the new mode
+        if (issControl)
+            issControl.refreshTrackSource();
     }
     const globeBtn = makeOverlayBtn(GLOBE_SVG, '15px', 'GLOBE', () => _spaceGlobeActive, _toggleGlobe, true);
     globeGroup.appendChild(globeBtn);

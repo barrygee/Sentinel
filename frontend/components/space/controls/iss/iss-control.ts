@@ -130,6 +130,76 @@ class IssControl extends SentinelControlBase {
 
     protected handleClick(): void { this.toggleIss(); }
 
+    // ---- Projection helpers ----
+    //
+    // The backend emits unwrapped longitudes (may exceed ±180°) for both the
+    // ground track and footprint ring so that MapLibre mercator + renderWorldCopies
+    // renders continuous lines without gaps.
+    // Globe projection does NOT support unwrapped longitudes — it requires
+    // coordinates in [-180, 180].  These helpers normalise coords for globe mode
+    // by splitting LineStrings/rings at antimeridian crossings.
+    // In mercator mode data is returned unchanged.
+
+    private static _normLon(lon: number): number {
+        return ((lon % 360) + 540) % 360 - 180;
+    }
+
+    private static _splitRingForGlobe(coords: [number, number][]): [number, number][][] {
+        const segments: [number, number][][] = [];
+        let seg: [number, number][] = [];
+        let prev: number | null = null;
+        for (const [lon, lat] of coords) {
+            const norm = IssControl._normLon(lon);
+            if (prev !== null && ((prev > 90 && norm < -90) || (prev < -90 && norm > 90))) {
+                segments.push(seg); seg = [];
+            }
+            seg.push([norm, lat]);
+            prev = norm;
+        }
+        if (seg.length) segments.push(seg);
+        return segments;
+    }
+
+    private _trackForProjection(track: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+        const isGlobe = typeof _spaceGlobeActive !== 'undefined' && _spaceGlobeActive;
+        if (!isGlobe) return track;
+
+        const out: GeoJSON.Feature[] = [];
+        for (const feat of track.features) {
+            if (feat.geometry.type !== 'LineString') { out.push(feat); continue; }
+            const segs = IssControl._splitRingForGlobe(feat.geometry.coordinates as [number, number][]);
+            for (const s of segs) {
+                if (s.length >= 2) out.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: s }, properties: feat.properties });
+            }
+        }
+        return { type: 'FeatureCollection', features: out };
+    }
+
+    private _footprintForProjection(fp: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+        const isGlobe = typeof _spaceGlobeActive !== 'undefined' && _spaceGlobeActive;
+        if (!isGlobe) return fp;
+
+        // In globe mode:
+        // - Polygon fill: pass unwrapped coords as-is — MapLibre globe handles
+        //   extended longitude ranges for fill layers correctly.  Normalising
+        //   each point independently to [-180,180] breaks the polygon winding
+        //   when the ring crosses ±180° and causes the visible notch/gap.
+        // - LineString outline: split at antimeridian crossings so the outline
+        //   ring renders correctly on the globe without a crossing line.
+        const out: GeoJSON.Feature[] = [];
+        for (const feat of fp.features) {
+            if (feat.geometry.type === 'LineString') {
+                const segs = IssControl._splitRingForGlobe(feat.geometry.coordinates as [number, number][]);
+                for (const s of segs) {
+                    if (s.length >= 2) out.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: s }, properties: feat.properties });
+                }
+            } else {
+                out.push(feat);
+            }
+        }
+        return { type: 'FeatureCollection', features: out };
+    }
+
     // ---- Canvas sprite factories ----
     private _createSatelliteIcon(): ImageData {
         const size = 96;
@@ -373,10 +443,10 @@ class IssControl extends SentinelControlBase {
                 if (issSource) issSource.setData(this._issGeojson);
 
                 const trackSource = this.map && this.map.getSource('iss-track-source') as maplibregl.GeoJSONSource | undefined;
-                if (trackSource) trackSource.setData(this._trackGeojson);
+                if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson));
 
                 const fpSource = this.map && this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined;
-                if (fpSource) fpSource.setData(this._footprintGeojson);
+                if (fpSource) fpSource.setData(this._footprintForProjection(this._footprintGeojson));
             }
 
             // Restore tracking state on first fetch after page load
@@ -899,8 +969,8 @@ class IssControl extends SentinelControlBase {
             const fpSource    = this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined;
 
             if (issSource)   issSource.setData(issGeo);
-            if (trackSource) trackSource.setData(ground_track);
-            if (fpSource)    fpSource.setData(footprintGeo);
+            if (trackSource) trackSource.setData(this._trackForProjection(ground_track));
+            if (fpSource)    fpSource.setData(this._footprintForProjection(footprintGeo));
 
             // Update the callsign label to show the previewed satellite's name and position.
             // If we're tracking a different sat, hide the TRACKING badge and show the preview name.
@@ -927,6 +997,14 @@ class IssControl extends SentinelControlBase {
         }
     }
 
+    refreshTrackSource(): void {
+        if (!this.map) return;
+        const trackSource = this.map.getSource('iss-track-source')     as maplibregl.GeoJSONSource | undefined;
+        const fpSource    = this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined;
+        if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson));
+        if (fpSource)    fpSource.setData(this._footprintForProjection(this._footprintGeojson));
+    }
+
     clearPreview(): void {
         if (!this._previewNoradId) return;
         if (this._previewAbort) { this._previewAbort.abort(); this._previewAbort = null; }
@@ -938,8 +1016,8 @@ class IssControl extends SentinelControlBase {
         const fpSource    = this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined;
 
         if (issSource)   issSource.setData(this._issGeojson);
-        if (trackSource) trackSource.setData(this._trackGeojson);
-        if (fpSource)    fpSource.setData(this._footprintGeojson);
+        if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson));
+        if (fpSource)    fpSource.setData(this._footprintForProjection(this._footprintGeojson));
 
         // Restore the callsign label to the active satellite's name and position
         if (this._labelMarker) {
