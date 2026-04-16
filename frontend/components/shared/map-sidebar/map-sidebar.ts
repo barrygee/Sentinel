@@ -19,34 +19,49 @@ type MapSidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'radio';
 
 window._MapSidebar = (() => {
 
-    const HTML =
-        `<div id="map-sidebar">` +
-            `<div id="map-sidebar-tabs">` +
-                `<button class="msb-tab msb-tab-active" data-tab="search">SEARCH</button>` +
-                `<button class="msb-tab" data-tab="alerts">ALERTS <span class="msb-tab-badge" id="msb-alerts-badge"></span></button>` +
-                `<button class="msb-tab" data-tab="tracking">TRACKING <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
-                `<button class="msb-tab" data-tab="passes">PASSES</button>` +
-                `<button class="msb-tab" data-tab="radio">RADIO</button>` +
-            `</div>` +
-            `<div id="map-sidebar-panes">` +
-                `<div class="msb-pane msb-pane-active" id="msb-pane-search"></div>` +
-                `<div class="msb-pane" id="msb-pane-alerts">` +
-                    `<div id="msb-alerts-empty">No alerts</div>` +
+    function HTML(activeTab: MapSidebarTab): string {
+        function tabCls(t: MapSidebarTab)  { return 'msb-tab' + (t === activeTab ? ' msb-tab-active' : ''); }
+        function paneCls(t: MapSidebarTab) { return 'msb-pane' + (t === activeTab ? ' msb-pane-active' : ''); }
+        return (
+            `<div id="map-sidebar">` +
+                `<div id="map-sidebar-tabs">` +
+                    `<button class="${tabCls('search')}" data-tab="search">SEARCH</button>` +
+                    `<button class="${tabCls('alerts')}" data-tab="alerts">ALERTS <span class="msb-tab-badge" id="msb-alerts-badge"></span></button>` +
+                    `<button class="${tabCls('tracking')}" data-tab="tracking">TRACKING <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
+                    `<button class="${tabCls('passes')}" data-tab="passes">PASSES</button>` +
+                    `<button class="${tabCls('radio')}" data-tab="radio">RADIO</button>` +
                 `</div>` +
-                `<div class="msb-pane" id="msb-pane-tracking">` +
-                    `<div id="msb-tracking-empty"></div>` +
+                `<div id="map-sidebar-panes">` +
+                    `<div class="${paneCls('search')}" id="msb-pane-search"></div>` +
+                    `<div class="${paneCls('alerts')}" id="msb-pane-alerts">` +
+                        `<div id="msb-alerts-empty">No alerts</div>` +
+                    `</div>` +
+                    `<div class="${paneCls('tracking')}" id="msb-pane-tracking">` +
+                        `<div id="msb-tracking-empty"></div>` +
+                    `</div>` +
+                    `<div class="${paneCls('passes')}" id="msb-pane-passes"></div>` +
+                    `<div class="msb-pane-radio ${paneCls('radio')}" id="msb-pane-radio"></div>` +
                 `</div>` +
-                `<div class="msb-pane" id="msb-pane-passes"></div>` +
-                `<div class="msb-pane msb-pane-radio" id="msb-pane-radio"></div>` +
-            `</div>` +
-        `</div>`;
+            `</div>`
+        );
+    }
+
+    const _SS_KEY     = 'sentinel_sidebar_open';
+    const _SS_TAB_KEY = 'sentinel_sidebar_tab';
 
     // Inject sidebar HTML immediately so filter IIFEs (which run at script-load time)
     // can find #msb-pane-search when their scripts are loaded after map-sidebar.js.
+    // Read the saved tab now so the correct tab is active from the first paint — no flash.
+    // Only restore 'radio' across sections — other tabs (e.g. passes) are domain-specific.
     (function _injectNow() {
         if (document.getElementById('map-sidebar')) return;
-        // Insert as first child of body so it renders behind overlays
-        document.body.insertAdjacentHTML('afterbegin', HTML);
+        let initialTab: MapSidebarTab = 'search';
+        try {
+            const saved = sessionStorage.getItem(_SS_TAB_KEY);
+            if (saved === 'radio') initialTab = 'radio';
+        } catch (_e) {}
+        const html = HTML(initialTab);
+        document.body.insertAdjacentHTML('afterbegin', html);
     })();
 
     // Wire the footer toggle button immediately — so it works on every page,
@@ -69,6 +84,11 @@ window._MapSidebar = (() => {
 
         tabs.forEach(t  => t.classList.toggle('msb-tab-active',  t.dataset['tab'] === tab));
         panes.forEach(p => p.classList.toggle('msb-pane-active', p.id === `msb-pane-${tab}`));
+
+        try {
+            if (tab === 'radio') sessionStorage.setItem(_SS_TAB_KEY, tab);
+            else sessionStorage.removeItem(_SS_TAB_KEY);
+        } catch (_e) {}
 
         document.dispatchEvent(new CustomEvent('msb-tab-switch', { detail: { tab } }));
     }
@@ -94,8 +114,6 @@ window._MapSidebar = (() => {
         const empty = document.getElementById('msb-tracking-empty');
         if (empty) empty.style.display = n > 0 ? 'none' : '';
     }
-
-    const _SS_KEY = 'sentinel_sidebar_open';
 
     function show(): void {
         const sidebar = document.getElementById('map-sidebar');
