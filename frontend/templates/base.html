@@ -28,6 +28,20 @@
     <link rel="stylesheet" href="/frontend/components/docs/docs.css">
     <link rel="stylesheet" href="/frontend/components/sdr/sdr-panel.css">
     {% block head %}{% endblock %}
+    <script>
+    // Earliest possible AudioContext creation — runs before any external scripts.
+    // When the user navigated here by clicking a nav link, Chrome transfers user
+    // activation to this page. Creating + resuming the AudioContext here, at the
+    // very first script execution, maximises the chance of capturing that activation
+    // before it expires. sdr-audio.js picks up window._sdrEarlyCtx when it loads.
+    if (sessionStorage && sessionStorage.getItem('sdrPlaying') === '1') {
+        try {
+            var _ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+            _ac.resume();
+            window._sdrEarlyCtx = _ac;
+        } catch(e) {}
+    }
+    </script>
 </head>
 
 <body data-domain="{{ domain }}">

@@ -167,23 +167,38 @@
 
     // ── Load radios and restore last selection ────────────────────────────────
 
+    const RADIOS_CACHE_KEY = 'sdrRadiosCache';
+
+    function _applyRadios(radios: SdrRadio[]) {
+        _radioCache.clear();
+        radios.forEach((r: SdrRadio) => _radioCache.set(r.id, r));
+        if ((window as any)._sdrPopulateRadios) {
+            (window as any)._sdrPopulateRadios(radios);
+        }
+        const savedRadioId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
+        if (savedRadioId > 0) {
+            const match = radios.find(r => r.id === savedRadioId && r.enabled);
+            if (match) {
+                document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId: match.id } }));
+            }
+        }
+    }
+
     async function loadRadios() {
+        // Use cached radio list immediately so the panel populates without a network wait.
+        try {
+            const cached = sessionStorage.getItem(RADIOS_CACHE_KEY);
+            if (cached) {
+                _applyRadios(JSON.parse(cached));
+            }
+        } catch (_e) {}
+
+        // Fetch fresh list in the background and update if anything changed.
         try {
             const res    = await fetch('/api/sdr/radios');
             const radios: SdrRadio[] = await res.json();
-            _radioCache.clear();
-            radios.forEach((r: SdrRadio) => _radioCache.set(r.id, r));
-            if ((window as any)._sdrPopulateRadios) {
-                (window as any)._sdrPopulateRadios(radios);
-            }
-            // Restore last selected radio from sessionStorage
-            const savedRadioId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
-            if (savedRadioId > 0) {
-                const match = radios.find(r => r.id === savedRadioId && r.enabled);
-                if (match) {
-                    document.dispatchEvent(new CustomEvent('sdr-radio-selected', { detail: { radioId: match.id } }));
-                }
-            }
+            sessionStorage.setItem(RADIOS_CACHE_KEY, JSON.stringify(radios));
+            _applyRadios(radios);
         } catch (e) {
             console.warn('[SDR] Could not load radios:', e);
         }

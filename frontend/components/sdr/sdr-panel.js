@@ -1378,6 +1378,11 @@ function buildSdrPanel(mountTarget) {
         connDot.className = 'sdr-conn-dot ' + (isOn ? 'sdr-dot-on' : 'sdr-dot-off');
         connDot.title = isOn ? 'Connected' : 'Disconnected';
         if (connected) {
+            // Restore playing state from sessionStorage in case _sdrPlaying was cleared
+            // by a transient disconnect (e.g. page navigation or WS drop/reconnect).
+            if (!_sdrPlaying && sessionStorage.getItem('sdrPlaying') === '1') {
+                _sdrPlaying = true;
+            }
             if (_sdrPlaying) {
                 freqTuneBtn.disabled = true;
                 freqStopBtn.disabled = false;
@@ -1388,7 +1393,14 @@ function buildSdrPanel(mountTarget) {
             }
         }
         else {
-            setPlayingState(false);
+            // On disconnect: update UI without clearing sessionStorage playing intent.
+            // The user may be navigating to another page — preserving sdrPlaying='1'
+            // lets the boot script on the next page restart audio automatically.
+            _sdrPlaying = false;
+            freqTuneBtn.disabled = false;
+            freqStopBtn.disabled = true;
+            recBtn.disabled = true;
+            _stopRecordingIfActive();
             setRadioControlsDisabled(true);
             activeFreq.textContent = '';
             _signalSmoothed = -120;
@@ -1450,6 +1462,11 @@ function buildSdrPanel(mountTarget) {
     const deviceDropdownText = document.getElementById('sdr-device-dropdown-text');
     let _deviceMenuEl = null;
     let _deviceMenuOpen = false;
+    // Always start in loading state — _sdrPopulateRadios removes it once radios are known.
+    // When the cache exists (page navigation), populate runs synchronously so this is
+    // invisible. On a fresh tab open (no cache), it shows until the network fetch returns.
+    deviceDropdown.classList.add('sdr-device-dropdown--loading');
+    deviceDropdownText.textContent = 'loading…';
     function buildDeviceMenu(radios) {
         if (_deviceMenuEl)
             _deviceMenuEl.remove();
@@ -1516,21 +1533,36 @@ function buildSdrPanel(mountTarget) {
         deviceDropdown.classList.remove('sdr-device-dropdown--open');
         _deviceMenuOpen = false;
     }
+    const _ONLINE_CACHE_KEY = 'sdrOnlineRadioIds';
     async function openDeviceMenuWithCheck() {
-        // Show the menu immediately with a loading state while we probe each radio
         if (!_deviceMenuEl)
             return;
         positionDeviceMenu();
         _deviceMenuEl.classList.add('sdr-device-menu--open');
         deviceDropdown.classList.add('sdr-device-dropdown--open');
         _deviceMenuOpen = true;
-        // Show a transient "checking..." item while probing
+        const enabledRadios = _knownRadios.filter(r => r.enabled);
+        // Use cached availability — only probe on first run or after settings change
+        let cachedIds = null;
+        try {
+            const raw = sessionStorage.getItem(_ONLINE_CACHE_KEY);
+            if (raw)
+                cachedIds = JSON.parse(raw);
+        }
+        catch (_e) { }
+        if (cachedIds !== null) {
+            const onlineRadios = enabledRadios.filter(r => cachedIds.includes(r.id));
+            buildDeviceMenu(onlineRadios);
+            positionDeviceMenu();
+            _deviceMenuEl.classList.add('sdr-device-menu--open');
+            return;
+        }
+        // No cache — probe each radio (first run or after settings change)
         const checkingItem = document.createElement('div');
         checkingItem.className = 'sdr-device-menu-item sdr-device-menu-placeholder';
         checkingItem.textContent = 'checking radios…';
         _deviceMenuEl.innerHTML = '';
         _deviceMenuEl.appendChild(checkingItem);
-        const enabledRadios = _knownRadios.filter(r => r.enabled);
         const results = await Promise.allSettled(enabledRadios.map(r => fetch(`/api/sdr/connect`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1541,11 +1573,15 @@ function buildSdrPanel(mountTarget) {
         const onlineRadios = results
             .map(r => (r.status === 'fulfilled' ? r.value : null))
             .filter((r) => r !== null);
+        // Cache the result so subsequent dropdown opens are instant
+        try {
+            sessionStorage.setItem(_ONLINE_CACHE_KEY, JSON.stringify(onlineRadios.map(r => r.id)));
+        }
+        catch (_e) { }
         // If the user closed the menu while we were checking, don't reopen it
         if (!_deviceMenuOpen)
             return;
         buildDeviceMenu(onlineRadios);
-        // Re-open after rebuild since buildDeviceMenu replaces the element
         positionDeviceMenu();
         _deviceMenuEl.classList.add('sdr-device-menu--open');
     }
@@ -1572,6 +1608,14 @@ function buildSdrPanel(mountTarget) {
     // ── Populate radio list ───────────────────────────────────────────────────
     window._sdrPopulateRadios = function (radios) {
         _knownRadios = radios;
+        // Remove loading state — radios are now known (from cache or fresh fetch)
+        deviceDropdown.classList.remove('sdr-device-dropdown--loading');
+        // Reveal the RADIO tab now that we know the device list
+        if (_tabMode) {
+            const radioTabBtn = document.querySelector('.msb-tab[data-tab="radio"]');
+            if (radioTabBtn)
+                radioTabBtn.classList.remove('msb-tab--pending');
+        }
         // Read the saved id from sessionStorage directly — radioSelect.value may be '' if
         // options hadn't been added yet when it was pre-seeded.
         const current = radioSelect.value || sessionStorage.getItem('sdrLastRadioId') || '';
@@ -1610,9 +1654,20 @@ function buildSdrPanel(mountTarget) {
                 setRadioControlsDisabled(true);
             }
         }
+        else {
+            // No saved radio — reset text from loading state to default placeholder
+            deviceDropdownText.textContent = '— select radio —';
+        }
         buildDeviceMenu(radios);
     };
     window._SdrControls = { setStatus, applyStatus, getSelectedRadioId, updateSignalBar };
+    // Clear the online-radio cache when settings change so the next dropdown open re-probes
+    document.addEventListener('sdr:radios-changed', () => {
+        try {
+            sessionStorage.removeItem(_ONLINE_CACHE_KEY);
+        }
+        catch (_e) { }
+    });
     // ── In tab mode, sdr-mini-boot drives connection/signal via custom events ──
     if (_tabMode) {
         document.addEventListener('sdr-mini:connected', (e) => {

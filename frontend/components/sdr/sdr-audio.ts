@@ -218,12 +218,28 @@
     }
 });`;
 
+    // Pick up any AudioContext pre-created by the inline <head> script.
+    // That script runs at the earliest possible moment, maximising the chance of
+    // capturing the transient user activation transferred from the nav-link click.
+    if ((window as any)._sdrEarlyCtx) {
+        _ctx = (window as any)._sdrEarlyCtx as AudioContext;
+        (window as any)._sdrEarlyCtx = null;
+        _watchContextState();
+    }
+
     async function _initAudio() {
-        if (_ctx) return;
+        if (_ctx && _ready) return;
         try {
             const blob    = new Blob([PROCESSOR_SRC], { type: 'application/javascript' });
             const blobUrl = URL.createObjectURL(blob);
-            _ctx = new AudioContext({ sampleRate: 48000 });
+            if (!_ctx) {
+                _ctx = new AudioContext({ sampleRate: 48000 });
+                _watchContextState();
+            }
+            // Do NOT await resume here — it blocks on Chrome until a user gesture.
+            // The worklet is set up regardless; audio plays as soon as the context
+            // resumes (either from the pending resume() call resolving on next gesture,
+            // or immediately if the context is already running).
             _ctx.resume().catch(() => {});
             await _ctx.audioWorklet.addModule(blobUrl);
             URL.revokeObjectURL(blobUrl);
@@ -324,16 +340,18 @@
         }
     }
 
-    // Call this from a user gesture (click/keydown) to init the AudioContext
+    // Call this from a user gesture (click/keydown) to init the AudioContext.
+    // Also called on page load to restore playing state — context may stay suspended
+    // until the user interacts; _resumeOnGesture handles that automatically.
     async function initAudio(radioId?: number) {
         if (radioId != null) _radioId = radioId;
+        const workletExistedBefore = _worklet !== null;
         await _initAudio();
-        if (_ctx && _ctx.state === 'suspended') {
-            await _ctx.resume();
-        }
+        // Open the IQ socket immediately — don't wait for context to resume.
+        // Data buffers in the worklet and plays as soon as the context unblocks.
         if (_radioId != null && !_iqSocket) {
             _openIqSocket(_radioId);
-        } else if (_iqSocket && _iqSocket.readyState === WebSocket.OPEN && _worklet) {
+        } else if (!workletExistedBefore && _iqSocket && _iqSocket.readyState === WebSocket.OPEN && _worklet) {
             // IQ socket was opened by start() before the worklet existed — send reset now
             _worklet.port.postMessage({ type: 'reset' });
         }
@@ -346,6 +364,8 @@
         if (_gain)    { _gain.disconnect();    _gain    = null; }
         if (_ctx)     { _ctx.close();          _ctx     = null; }
         if (window._SdrControls) window._SdrControls.setStatus(false);
+        // Re-arm gesture listeners so the next _initAudio() can resume on first touch
+        _addGestureListeners();
     }
 
     function setRadioId(id: number) {
@@ -487,6 +507,37 @@
             if (_radioId != null && !_iqSocket) _openIqSocket(_radioId);
         }
     });
+
+    // Resume a suspended AudioContext on the first user interaction.
+    // Browsers block autoplay on page load; when sdrPlaying is restored across
+    // navigation the AudioContext is created but stays suspended until a user gesture.
+    // We listen on pointerdown/touchend (fire before click) so audio resumes
+    // as soon as the user touches anything — not after the full click completes.
+    function _resumeOnGesture() {
+        if (!_ctx || _ctx.state !== 'suspended') return;
+        _ctx.resume().then(() => {
+            if (_worklet) _worklet.port.postMessage({ type: 'reset' });
+        }).catch(() => {});
+    }
+    const _gestureEvents = ['pointerdown', 'touchend', 'keydown'];
+    function _addGestureListeners() {
+        _gestureEvents.forEach(ev => window.addEventListener(ev, _resumeOnGesture, { capture: true, passive: true }));
+    }
+    function _removeGestureListeners() {
+        _gestureEvents.forEach(ev => window.removeEventListener(ev, _resumeOnGesture, { capture: true }));
+    }
+    _addGestureListeners();
+    // Once the context is running, remove the gesture listeners — no longer needed.
+    // Re-add them if stop() is called and a new context is created later.
+    function _watchContextState() {
+        if (!_ctx) return;
+        _ctx.addEventListener('statechange', function onStateChange() {
+            if (_ctx && _ctx.state === 'running') {
+                _removeGestureListeners();
+                (_ctx as AudioContext).removeEventListener('statechange', onStateChange);
+            }
+        });
+    }
 
     window._SdrAudio = { start, initAudio, stop, setRadioId, setMode, setSquelch, setVolume, setBandwidthHz, startRecording, stopRecording };
 })();

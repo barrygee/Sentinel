@@ -24,7 +24,7 @@ window._MapSidebar = (() => {
             `<button class="${tabCls('alerts')}" data-tab="alerts">ALERTS <span class="msb-tab-badge" id="msb-alerts-badge"></span></button>` +
             `<button class="${tabCls('tracking')}" data-tab="tracking">TRACKING <span class="msb-tab-badge" id="msb-tracking-badge"></span></button>` +
             `<button class="${tabCls('passes')}" data-tab="passes">PASSES</button>` +
-            `<button class="${tabCls('radio')}" data-tab="radio">RADIO</button>` +
+            `<button class="${tabCls('radio')} msb-tab--pending" data-tab="radio">RADIO</button>` +
             `</div>` +
             `<div id="map-sidebar-panes">` +
             `<div class="${paneCls('search')}" id="msb-pane-search"></div>` +

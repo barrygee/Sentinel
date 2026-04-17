@@ -171,33 +171,46 @@
 
     // ── Load radios and restore last selection ────────────────────────────────
 
+    const RADIOS_CACHE_KEY = 'sdrRadiosCache';
+
+    function _applyRadios(radios: SdrRadio[]) {
+        _radioCache.clear();
+        radios.forEach((r: SdrRadio) => _radioCache.set(r.id, r));
+        if ((window as any)._sdrPopulateRadios) {
+            (window as any)._sdrPopulateRadios(radios);
+        }
+        const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
+        if (savedId > 0) {
+            const match = radios.find(r => r.id === savedId && r.enabled);
+            if (match && _sdrCurrentRadioId !== match.id) {
+                _sdrCurrentRadioId = match.id;
+                void openControlSocket(match.id);
+            }
+        } else if (radios.length > 0) {
+            const first = radios.find(r => r.enabled);
+            if (first && !_sdrCurrentRadioId) {
+                _sdrCurrentRadioId = first.id;
+                _radioCache.set(first.id, first);
+            }
+        }
+    }
+
     async function loadRadios() {
+        // Use cached radio list immediately so the panel and connection start without
+        // waiting for a network round-trip on every page navigation.
+        try {
+            const cached = sessionStorage.getItem(RADIOS_CACHE_KEY);
+            if (cached) {
+                _applyRadios(JSON.parse(cached));
+            }
+        } catch (_e) {}
+
+        // Fetch fresh list in the background and update if anything changed.
         try {
             const res    = await fetch('/api/sdr/radios');
             const radios: SdrRadio[] = await res.json();
-            _radioCache.clear();
-            radios.forEach((r: SdrRadio) => _radioCache.set(r.id, r));
-
-            // Populate dropdown — panel is guaranteed to be mounted before this is called
-            if ((window as any)._sdrPopulateRadios) {
-                (window as any)._sdrPopulateRadios(radios);
-            }
-
-            // Auto-connect to the last used radio
-            const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '0', 10);
-            if (savedId > 0) {
-                const match = radios.find(r => r.id === savedId && r.enabled);
-                if (match) {
-                    _sdrCurrentRadioId = match.id;
-                    void openControlSocket(match.id);
-                }
-            } else if (radios.length > 0) {
-                const first = radios.find(r => r.enabled);
-                if (first) {
-                    _sdrCurrentRadioId = first.id;
-                    _radioCache.set(first.id, first);
-                }
-            }
+            sessionStorage.setItem(RADIOS_CACHE_KEY, JSON.stringify(radios));
+            _applyRadios(radios);
         } catch (e) {
             console.warn('[SDR mini] Could not load radios:', e);
         }

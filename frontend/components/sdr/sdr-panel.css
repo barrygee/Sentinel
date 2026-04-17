@@ -270,6 +270,12 @@
     transform: rotate(180deg);
 }
 
+.sdr-device-dropdown--loading {
+    opacity: 0.45;
+    pointer-events: none;
+    cursor: default;
+}
+
 .sdr-device-menu {
     display: none;
     position: fixed;

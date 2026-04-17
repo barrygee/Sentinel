@@ -228,6 +228,10 @@ body[data-domain="sdr"] .msb-tab[data-tab="radio"] {
     z-index: 1; /* sits above the ::after divider line */
 }
 
+.msb-tab--pending {
+    display: none;
+}
+
 .msb-tab:hover {
     color: var(--color-text-muted);
 }

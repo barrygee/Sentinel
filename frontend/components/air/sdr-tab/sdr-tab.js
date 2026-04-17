@@ -311,6 +311,7 @@
             playBtn.disabled = playing;
             stopBtn.disabled = !playing;
             recBtn.disabled = !playing;
+            sessionStorage.setItem('sdrPlaying', playing ? '1' : '0');
             if (!playing) {
                 resetSignalBar();
                 _stopRecordingIfActive();
@@ -948,6 +949,18 @@
                     deviceText.classList.add('sdr-mini-device-text--chosen');
                 }
             }
+            // Restore playing state so UI matches what sdr-mini-boot is doing
+            const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10);
+            const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM';
+            if (lastFreqHz > 0) {
+                _freqHz = lastFreqHz;
+                displayFreq(lastFreqHz);
+                _mode = lastMode;
+                setModePill(lastMode);
+            }
+            if (sessionStorage.getItem('sdrPlaying') === '1' && lastFreqHz > 0) {
+                setPlaying(true);
+            }
         }
         // ── Signal bar: chain onto _SdrControls ───────────────────────────────
         if (!window._SdrControls) {
@@ -961,9 +974,14 @@
                 updateSignalBar(dbfs);
         };
         document.addEventListener('sdr-mini:connected', (e) => {
-            setConnected(e.detail);
-            if (!e.detail)
+            const on = e.detail;
+            setConnected(on);
+            if (!on) {
                 setPlaying(false);
+            }
+            else if (sessionStorage.getItem('sdrPlaying') === '1' && _freqHz) {
+                setPlaying(true);
+            }
         });
         // ── Public API ─────────────────────────────────────────────────────────
         function show() {
@@ -978,6 +996,8 @@
             _mode = mode || 'AM';
             displayFreq(freqHz);
             setModePill(_mode);
+            if (_playing && window._SdrAudio)
+                window._SdrAudio.stop();
             setPlaying(false);
             show();
         }
