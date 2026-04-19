@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENTINEL</title>
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+  <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/assets/apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@100;300;400;500;600;700;900&family=Barlow+Condensed:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <script>
+    // Earliest possible AudioContext creation — captures user activation transferred
+    // from the previous page before it expires. useSdrAudio picks up window._sdrEarlyCtx.
+    if (sessionStorage && sessionStorage.getItem('sdrPlaying') === '1') {
+      try {
+        var _ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+        _ac.resume();
+        window._sdrEarlyCtx = _ac;
+      } catch(e) {}
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

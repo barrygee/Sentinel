@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import create_tables, get_db, migrate_sdr_radios_to_settings, seed_default_settings
 from backend.models import UserSettings
-from backend.routers import air, space, sea, land, settings as settings_router, sdr as sdr_router
+from backend.routers import air, space, settings as settings_router, sdr as sdr_router
 
 
 ROOT_DIR = Path(__file__).parent.parent
@@ -64,8 +64,6 @@ app = FastAPI(
 # Register routers for each surveillance domain
 app.include_router(air.router)
 app.include_router(space.router)
-app.include_router(sea.router)
-app.include_router(land.router)
 app.include_router(settings_router.router)
 app.include_router(sdr_router.router)
 
