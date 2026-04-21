@@ -13,6 +13,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function closePanel() {
     open.value = false
+    document.dispatchEvent(new CustomEvent('settings-panel-closed'))
   }
 
   function togglePanel() {

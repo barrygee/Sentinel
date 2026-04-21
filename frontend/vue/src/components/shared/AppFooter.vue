@@ -73,6 +73,8 @@ import { useSettingsStore } from '@/stores/settings'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
 
+const props = defineProps<{ sidebarOpen?: boolean }>()
+
 const emit = defineEmits<{
   'toggle-sidebar': []
   'toggle-notifications': []
@@ -90,7 +92,7 @@ const trackingStore = useTrackingStore()
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 const notifCount = computed(() => notificationsStore.unreadCount)
 const trackingCount = computed(() => trackingStore.count)
-const sidebarOpen = computed(() => false) // wired up via App.vue in later phase
+const sidebarOpen = computed(() => props.sidebarOpen ?? false)
 
 const connStatusClass = computed(() => {
   const mode = appStore.connectivityMode

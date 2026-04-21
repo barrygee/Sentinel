@@ -1,5 +1,6 @@
 <template>
   <div id="map-wrap" data-domain="sea">
+    <NoUrlOverlay domain="sea" />
     <MapLibreMap
       ref="mapRef"
       :style-url="styleUrl"
@@ -17,6 +18,7 @@ import type { Map } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useConnectivity } from '@/composables/useConnectivity'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
+import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 
 const appStore = useAppStore()
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)

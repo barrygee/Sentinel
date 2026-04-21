@@ -2,28 +2,27 @@
   <div id="docs-panel" :class="{ 'docs-panel-visible': open }">
     <div id="docs-sidebar">
       <nav id="docs-nav">
-        <a v-for="section in sections" :key="section.href"
-           :href="section.href" class="docs-nav-item"
-           :class="{ active: activeSection === section.href }"
-           @click.prevent="activeSection = section.href"
+        <a
+          v-for="section in SECTIONS"
+          :key="section.href"
+          :href="section.href"
+          class="docs-nav-item"
+          :class="{ active: activeSection === section.href }"
+          @click.prevent="scrollTo(section.href)"
         >{{ section.label }}</a>
       </nav>
     </div>
     <div id="docs-content">
-      <div id="docs-body" v-html="docsHtml" />
+      <div id="docs-body" ref="bodyRef" v-html="docsHtml" @scroll="updateActive"></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 
-const open = ref(false)
-const docsHtml = ref('')
-const activeSection = ref('#overview')
-
-const sections = [
-  { href: '#overview',        label: 'Overview'       },
+const SECTIONS = [
+  { href: '#overview',        label: 'Overview'        },
   { href: '#getting-started', label: 'Getting Started' },
   { href: '#configuration',   label: 'Configuration'   },
   { href: '#architecture',    label: 'Architecture'    },
@@ -34,24 +33,324 @@ const sections = [
   { href: '#deployment',      label: 'Deployment'      },
 ]
 
-onMounted(async () => {
+const open = ref(false)
+const docsHtml = ref('')
+const activeSection = ref(SECTIONS[0].href)
+const bodyRef = ref<HTMLElement | null>(null)
+
+async function loadContent(): Promise<void> {
+  if (docsHtml.value) return
   try {
     const res = await fetch('/assets/docs-content.html')
     if (res.ok) docsHtml.value = await res.text()
   } catch {}
+}
 
-  try {
-    const SS_KEY = 'sentinel_docs_open'
-    if (sessionStorage.getItem(SS_KEY) === '1') open.value = true
-  } catch {}
+function updateActive(): void {
+  const body = bodyRef.value
+  if (!body) return
+  const scrollTop = body.scrollTop
+  const offset = 32
+  let active = SECTIONS[0].href
+  for (const s of SECTIONS) {
+    const el = body.querySelector(s.href) as HTMLElement | null
+    if (el && el.offsetTop - body.offsetTop <= scrollTop + offset) {
+      active = s.href
+    }
+  }
+  activeSection.value = active
+}
+
+function scrollTo(href: string): void {
+  const body = bodyRef.value
+  if (!body) return
+  const target = body.querySelector(href) as HTMLElement | null
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+watch(open, (isOpen) => {
+  if (isOpen) {
+    loadContent().then(() => setTimeout(updateActive, 0))
+  }
 })
 
-function toggle() {
+function toggle(): void {
   open.value = !open.value
   try {
     open.value ? sessionStorage.setItem('sentinel_docs_open', '1') : sessionStorage.removeItem('sentinel_docs_open')
   } catch {}
 }
 
+try {
+  if (sessionStorage.getItem('sentinel_docs_open') === '1') {
+    open.value = true
+    loadContent()
+  }
+} catch {}
+
 defineExpose({ toggle, open })
 </script>
+
+<style>
+#docs-panel {
+    position: fixed;
+    top: var(--nav-height);
+    bottom: var(--footer-height);
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    display: none;
+    flex-direction: row;
+    background: #38435c;
+    overflow: hidden;
+}
+
+#docs-panel.docs-panel-visible {
+    display: flex;
+}
+
+#docs-sidebar {
+    width: 325px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.15);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 24px 0;
+    scrollbar-width: none;
+}
+
+#docs-sidebar::-webkit-scrollbar {
+    display: none;
+}
+
+#docs-nav {
+    display: flex;
+    flex-direction: column;
+}
+
+.docs-nav-item {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 11px 24px;
+    border-left: 2px solid transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    cursor: pointer;
+}
+
+.docs-nav-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-muted);
+}
+
+.docs-nav-item.active {
+    color: var(--color-accent);
+    border-left-color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.04);
+}
+
+#docs-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+#docs-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 48px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+#docs-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+#docs-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#docs-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.docs-section {
+    max-width: 720px;
+    padding-bottom: 72px;
+}
+
+.docs-section:last-child {
+    padding-bottom: 0;
+}
+
+.docs-section-label {
+    font-family: var(--font-primary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    padding-bottom: 24px;
+    display: block;
+}
+
+.docs-section-title {
+    font-family: var(--font-primary);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-text);
+    margin: 0 0 32px 0;
+}
+
+.docs-item {
+    padding-bottom: 48px;
+}
+
+.docs-item-label {
+    font-family: var(--font-primary);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin: 0 0 8px 0;
+}
+
+.docs-item-desc {
+    font-family: var(--font-primary);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.7;
+    margin: 0 0 16px 0;
+}
+
+.docs-item-desc + .docs-item-desc {
+    margin-top: -8px;
+}
+
+.docs-pre {
+    font-family: var(--font-condensed);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    padding: 16px 20px;
+    margin: 0 0 16px 0;
+    overflow-x: auto;
+    white-space: pre;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.docs-pre::-webkit-scrollbar {
+    height: 4px;
+}
+
+.docs-pre::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+code {
+    font-family: var(--font-condensed);
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    padding: 1px 5px;
+    color: var(--color-accent);
+}
+
+.docs-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-family: var(--font-primary);
+    font-size: 13px;
+}
+
+.docs-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: left;
+    padding: 8px 16px 8px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.docs-table td {
+    padding: 10px 16px 10px 0;
+    color: rgba(255, 255, 255, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    vertical-align: top;
+    line-height: 1.5;
+}
+
+.docs-table td:first-child {
+    font-family: var(--font-condensed);
+    color: var(--color-accent);
+    white-space: nowrap;
+}
+
+.docs-table tr:last-child td {
+    border-bottom: none;
+}
+
+.docs-method {
+    display: inline-block;
+    font-family: var(--font-condensed);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.docs-method--get    { background: rgba(80, 180, 255, 0.15); color: rgba(80, 180, 255, 0.9); border: 1px solid rgba(80, 180, 255, 0.2); }
+.docs-method--post   { background: rgba(80, 220, 120, 0.15); color: rgba(80, 220, 120, 0.9); border: 1px solid rgba(80, 220, 120, 0.2); }
+.docs-method--put    { background: rgba(255, 180, 60, 0.15);  color: rgba(255, 180, 60, 0.9);  border: 1px solid rgba(255, 180, 60, 0.2);  }
+.docs-method--delete { background: rgba(255, 80, 80, 0.15);  color: rgba(255, 80, 80, 0.9);  border: 1px solid rgba(255, 80, 80, 0.2);  }
+
+.docs-group-label {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.2);
+    padding: 20px 0 8px 0;
+    display: block;
+}
+
+.docs-group-label:first-child {
+    padding-top: 0;
+}
+
+.docs-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 0 0 48px 0;
+}
+</style>

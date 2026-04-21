@@ -24,6 +24,7 @@
   </MapSidebar>
 
   <AppFooter
+    :sidebar-open="sidebarOpen"
     @toggle-sidebar="sidebarRef?.toggle()"
     @toggle-notifications="sidebarRef?.switchTab('alerts')"
     @toggle-tracking="sidebarRef?.switchTab('tracking')"
@@ -36,20 +37,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
 import DocsPanel from '@/components/shared/DocsPanel.vue'
 import SdrTabPanel from '@/components/sdr/SdrTabPanel.vue'
+import { useUserLocation } from '@/composables/useUserLocation'
 
 const route = useRoute()
+const { start: startGps } = useUserLocation()
+
+onMounted(() => { startGps() })
 
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 
 const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)
 const docsRef    = ref<InstanceType<typeof DocsPanel>   | null>(null)
+
+const sidebarOpen = computed(() => sidebarRef.value?.open ?? false)
 
 const navDomains: [string, string][] = [
   ['air',   'AIR'],

@@ -6,12 +6,16 @@ const LS_OVERLAYS = 'sentinel_space_overlayStates'
 
 export interface SpaceOverlayStates {
   iss: boolean
+  groundTrack: boolean
+  footprint: boolean
   daynight: boolean
   names: boolean
 }
 
 const DEFAULTS: SpaceOverlayStates = {
   iss: true,
+  groundTrack: true,
+  footprint: true,
   daynight: true,
   names: false,
 }

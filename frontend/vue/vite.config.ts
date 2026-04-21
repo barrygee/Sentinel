@@ -47,5 +47,8 @@ export default defineConfig({
   build: {
     outDir: '../../frontend/spa-dist',
     emptyOutDir: true,
+    // Output JS/CSS bundles under /spa-assets/ to avoid clashing with the
+    // /assets/ static mount (map tiles, PMTiles, sprites) served by FastAPI.
+    assetsDir: 'spa-assets',
   },
 })

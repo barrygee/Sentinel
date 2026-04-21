@@ -9,7 +9,9 @@ export const useAppStore = defineStore('app', () => {
   const enabledDomains = ref<string[]>(['air', 'space', 'sea', 'land', 'sdr'])
 
   function setConnectivityMode(mode: ConnectivityMode) {
+    if (connectivityMode.value === mode) return
     connectivityMode.value = mode
+    window.dispatchEvent(new CustomEvent('sentinel:connectivityModeChanged', { detail: { mode } }))
   }
 
   function setOnline(online: boolean) {

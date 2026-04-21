@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -6,115 +5,81 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import create_tables, get_db, migrate_sdr_radios_to_settings, seed_default_settings
-from backend.models import UserSettings
 from backend.routers import air, space, settings as settings_router, sdr as sdr_router
 
 
 ROOT_DIR = Path(__file__).parent.parent
-TEMPLATES_DIR = ROOT_DIR / "frontend" / "templates"
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-
-_DOMAIN_ORDER = ("air", "space", "sea", "land", "sdr")
-
-
-async def _get_enabled_domains(db: AsyncSession) -> list[str]:
-    """Return an ordered list of domain names whose 'enabled' setting is truthy."""
-    result = await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace.in_(_DOMAIN_ORDER),
-            UserSettings.key == "enabled",
-        )
-    )
-    rows = result.scalars().all()
-    enabled_set: set[str] = set()
-    for row in rows:
-        try:
-            if json.loads(row.value):
-                enabled_set.add(row.namespace)
-        except (json.JSONDecodeError, TypeError):
-            pass
-    # Preserve display order; fall back to all domains if DB has no data yet
-    ordered = [d for d in _DOMAIN_ORDER if d in enabled_set]
-    return ordered if ordered else list(_DOMAIN_ORDER)
+SPA_DIR  = ROOT_DIR / "frontend" / "spa-dist"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler — runs create_tables once on startup."""
+    """Application lifespan handler — creates tables and seeds defaults on startup."""
     await create_tables()
     await migrate_sdr_radios_to_settings()
     await seed_default_settings()
-    yield  # application runs here; nothing needed on shutdown
+    yield
 
 
 app = FastAPI(
     title="SENTINEL API",
     version="1.0.0",
     lifespan=lifespan,
+    # Disable the built-in /docs and /redoc routes so they don't clash with the SPA.
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
-# Register routers for each surveillance domain
+# ── API routers ────────────────────────────────────────────────────────────────
 app.include_router(air.router)
 app.include_router(space.router)
 app.include_router(settings_router.router)
 app.include_router(sdr_router.router)
 
 
+# ── Health probe ───────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health_check():
-    """Simple liveness probe — returns status and current server timestamp."""
     return JSONResponse({"status": "ok", "timestamp": int(time.time() * 1000)})
 
 
-# ── Root-level static files ────────────────────────────────────────────────────
-
+# ── Favicon ────────────────────────────────────────────────────────────────────
 @app.get("/favicon.ico")
 async def favicon_ico():
-    return FileResponse(ROOT_DIR / "frontend" / "assets" / "favicon.ico", media_type="image/x-icon")
+    return FileResponse(
+        ROOT_DIR / "frontend" / "assets" / "favicon.ico",
+        media_type="image/x-icon",
+    )
 
 
-# ── Page routes ────────────────────────────────────────────────────────────────
+# ── Static mounts ──────────────────────────────────────────────────────────────
+# /assets — map tiles, PMTiles archives, sprites, fonts, favicons
+app.mount("/assets", StaticFiles(directory=str(ROOT_DIR / "frontend" / "assets")), name="assets")
 
-@app.get("/")
-async def root_redirect(db: AsyncSession = Depends(get_db)):
-    enabled = await _get_enabled_domains(db)
-    target = enabled[0] if enabled else "air"
-    return RedirectResponse(url=f"/{target}/", status_code=302)
-
-
-def _make_page_handler(domain: str):
-    """Return a route handler that renders the template for the given domain."""
-    async def handler(request: Request, db: AsyncSession = Depends(get_db)):
-        enabled = await _get_enabled_domains(db)
-        if domain not in enabled:
-            target = enabled[0] if enabled else "air"
-            return RedirectResponse(url=f"/{target}/", status_code=302)
-        return templates.TemplateResponse(
-            f"{domain}/index.html",
-            {"request": request, "domain": domain, "enabled_domains": enabled},
-        )
-    handler.__name__ = f"{domain}_page"
-    return handler
+# ── SPA static files ───────────────────────────────────────────────────────────
+# Serve the built Vue app's hashed JS/CSS bundles from /spa-assets/.
+# Vite is configured with assetsDir='spa-assets' so these never clash with
+# the map-tile /assets mount above.
+if SPA_DIR.exists():
+    app.mount("/spa-assets", StaticFiles(directory=str(SPA_DIR / "spa-assets")), name="spa-assets")
 
 
-for _domain in ("air", "sea", "space", "land", "sdr"):
-    app.add_api_route(f"/{_domain}/", _make_page_handler(_domain), methods=["GET"])
-
-
-@app.get("/docs/")
-async def docs_redirect():
-    return RedirectResponse(url="/air/", status_code=302)
-
-
-# ── Static files ───────────────────────────────────────────────────────────────
-# Mount specific directories rather than "/" so page routes are never shadowed.
-app.mount("/assets",   StaticFiles(directory=str(ROOT_DIR / "frontend" / "assets")),   name="assets")
-app.mount("/frontend", StaticFiles(directory=str(ROOT_DIR / "frontend")),  name="frontend")
+# ── SPA catch-all ─────────────────────────────────────────────────────────────
+# Any path that didn't match an API route or static mount above gets the SPA
+# index.html, allowing Vue Router to handle client-side routing.
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    index = SPA_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index, media_type="text/html")
+    # SPA not built yet — return a helpful message during development
+    return JSONResponse(
+        {"detail": "SPA not built. Run: cd frontend/vue && npm run build"},
+        status_code=503,
+    )

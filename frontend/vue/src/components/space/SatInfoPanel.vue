@@ -1,10 +1,369 @@
 <template>
-  <div id="sat-info-panel" v-if="visible">
-    <!-- Satellite detail panel — populated in Phase 4 -->
-  </div>
+  <!-- Sat info panel — hidden by CSS (superseded by inline accordions in filter/passes).
+       Kept for iss-position-update broadcast compatibility. -->
+  <div id="sat-info-panel" style="display:none" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-const visible = ref(false)
+import type { SatelliteControl } from './controls/satellite/SatelliteControl'
+import { useDocumentEvent } from '../../composables/useDocumentEvent'
+
+const props = defineProps<{ satelliteControl: SatelliteControl | null }>()
+
+const currentNoradId = ref<string | null>(null)
+
+function onSatelliteSelected(e: Event): void {
+  const { noradId } = (e as CustomEvent<{ noradId: string; name: string }>).detail
+  currentNoradId.value = noradId
+}
+
+function onIssPositionUpdate(e: Event): void {
+  const position = (e as CustomEvent<{
+    alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number
+  }>).detail
+  // Broadcast to inline accordions in search and passes panels
+  document.dispatchEvent(new CustomEvent('sat-position-update', {
+    detail: { noradId: currentNoradId.value, position },
+  }))
+}
+
+useDocumentEvent('satellite-selected', onSatelliteSelected)
+useDocumentEvent('iss-position-update', onIssPositionUpdate)
 </script>
+
+<style>
+.sip-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 18px 28px 18px 28px;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: background 0.12s;
+    box-sizing: border-box;
+}
+
+.sip-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sip-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+.sip-toggle-icon {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, color 0.15s;
+    flex-shrink: 0;
+    transform: rotate(-90deg);
+}
+
+.sip-toggle.sip-expanded .sip-toggle-icon {
+    transform: rotate(0deg);
+    color: var(--color-accent);
+}
+
+.sip-toggle-label {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    transition: color 0.15s;
+}
+
+.sip-toggle.sip-expanded .sip-toggle-label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.sip-toggle-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    min-width: 0;
+    overflow: hidden;
+    transition: opacity 0.15s;
+}
+
+.sip-toggle.sip-expanded .sip-toggle-right {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sip-sat-name {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.sip-sat-norad {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.22);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.sip-body {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+}
+
+.sip-body.sip-expanded {
+    max-height: 760px;
+    opacity: 1;
+}
+
+.sip-body-header {
+    flex-shrink: 0;
+    padding: 8px 28px 6px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sip-body-name {
+    font-family: var(--font-primary);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: #fff;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sip-body-norad {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.32);
+    text-transform: uppercase;
+}
+
+.sip-live-data {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 28px 12px 28px;
+    gap: 4px;
+}
+
+.sip-live-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    line-height: 1.8;
+}
+
+.sip-live-label {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    min-width: 28px;
+    flex-shrink: 0;
+}
+
+.sip-live-value {
+    font-family: var(--font-primary);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.sip-status {
+    display: none;
+}
+
+.sip-passes-title {
+    flex-shrink: 0;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    padding: 10px 28px 4px 28px;
+}
+
+.sip-list {
+    overflow-y: visible;
+}
+
+.sip-pass-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 28px 10px 28px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sip-pass-card:first-child {
+    padding-top: 12px;
+}
+
+.sip-pass-card:last-child {
+    border-bottom: none;
+    padding-bottom: 16px;
+}
+
+.sip-pass-num {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.18);
+    flex-shrink: 0;
+    min-width: 18px;
+}
+
+.sip-pass-times {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sip-pass-aos-row {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.sip-pass-date {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.sip-pass-time {
+    font-family: var(--font-primary);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #fff;
+}
+
+.sip-pass-los {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
+}
+
+.sip-pass-meta {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.sip-pass-countdown {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.sip-pass-countdown.sip-in-progress {
+    color: #ff9900;
+}
+
+.sip-pass-maxel {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+    color: rgba(255, 255, 255, 0.32);
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.sip-message {
+    padding: 14px 28px 18px 28px;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.6;
+}
+
+.sip-action-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 5px 10px;
+    text-transform: uppercase;
+    transition: color 0.12s, border-color 0.12s;
+}
+
+.sip-action-btn:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sip-toggle,
+.sip-body {
+    display: none !important;
+}
+
+body:not([data-domain="space"]) .sip-toggle,
+body:not([data-domain="space"]) .sip-body {
+    display: none;
+}
+</style>

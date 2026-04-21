@@ -66,6 +66,7 @@ function switchTab(tab: SidebarTab) {
   activeTab.value = tab
   if (!open.value) { open.value = true; _persistOpen(true) }
   _persistTab(tab)
+  document.dispatchEvent(new CustomEvent('msb-tab-switch', { detail: tab }))
 }
 
 function toggle() {
@@ -102,3 +103,349 @@ function _restoreTab(): SidebarTab {
 
 defineExpose({ switchTab, openRadioTab, show, hide, toggle, open, activeTab })
 </script>
+
+<style>
+#radio-mini-btn {
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 1;
+    transition: background 0.2s, opacity 0.2s, color 0.2s;
+    flex-shrink: 0;
+    margin: 4px 0;
+    position: relative;
+}
+
+#radio-mini-btn:hover {
+    background: var(--color-border);
+    border-radius: 6px;
+    opacity: 1;
+}
+
+#radio-mini-btn.radio-mini-btn-active {
+    opacity: 1;
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.08);
+    border-radius: 6px;
+}
+
+#radio-mini-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+#radio-mini-btn[data-tooltip]:hover::before { opacity: 1; }
+#radio-mini-btn.radio-mini-btn-active[data-tooltip]::before { opacity: 0 !important; }
+
+#map-sidebar-btn {
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0.6;
+    transition: background 0.2s, opacity 0.2s;
+    flex-shrink: 0;
+    margin: 4px 0;
+    position: relative;
+}
+
+#map-sidebar-btn:hover {
+    background: var(--color-border);
+    border-radius: 6px;
+    opacity: 1;
+}
+
+#map-sidebar-btn.msb-btn-active {
+    opacity: 1;
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.08);
+    border-radius: 6px;
+}
+
+#map-sidebar-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+#map-sidebar-btn[data-tooltip]:hover::before { opacity: 1; }
+#map-sidebar-btn.msb-btn-active[data-tooltip]::before { opacity: 0 !important; }
+
+#map-sidebar {
+    position: fixed;
+    top: var(--nav-height);
+    bottom: var(--footer-height);
+    left: 0;
+    width: 380px;
+    background: rgba(10, 13, 20, 0.92);
+    border-right: none;
+    z-index: 1002;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    transform: translateX(0);
+    transition: transform 0.2s ease;
+}
+
+#map-sidebar.msb-hidden {
+    transform: translateX(-100%);
+}
+
+body[data-domain="space"] #map-sidebar {
+    width: 430px;
+}
+
+body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
+    display: none;
+}
+
+body[data-domain="sdr"] .msb-tab[data-tab="radio"] {
+    display: none;
+}
+
+#msb-pane-radio {
+    overflow-y: auto;
+    scrollbar-width: none;
+    flex-direction: column;
+}
+
+#msb-pane-radio::-webkit-scrollbar {
+    display: none;
+}
+
+#map-sidebar-tabs {
+    display: flex;
+    flex-shrink: 0;
+    height: 52px;
+    position: relative;
+}
+
+#map-sidebar-tabs::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--color-border);
+}
+
+.msb-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+}
+
+.msb-tab--pending {
+    display: none;
+}
+
+.msb-tab:hover {
+    color: var(--color-text-muted);
+}
+
+.msb-tab.msb-tab-active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+}
+
+.msb-tab-badge {
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1;
+}
+
+.msb-tab-badge.msb-badge-active {
+    color: var(--color-accent);
+}
+
+#map-sidebar-panes {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.msb-pane {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.msb-pane.msb-pane-active {
+    display: flex;
+}
+
+#msb-pane-search {
+    overflow: hidden;
+}
+
+#msb-pane-search #filter-input-wrap,
+#msb-pane-search #space-filter-input-wrap {
+    flex-shrink: 0;
+}
+
+#msb-pane-search #filter-results,
+#msb-pane-search #space-filter-results {
+    flex: 1;
+    max-height: none;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+#msb-pane-search #filter-results::-webkit-scrollbar,
+#msb-pane-search #space-filter-results::-webkit-scrollbar {
+    display: none;
+}
+
+#msb-pane-alerts {
+    overflow: hidden;
+}
+
+#msb-pane-alerts #notif-footer {
+    flex-shrink: 0;
+    width: auto;
+    pointer-events: all;
+}
+
+#msb-pane-alerts #notif-list-wrap {
+    flex: 1;
+    min-height: 0;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: all;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+}
+
+#msb-pane-alerts #notif-list {
+    flex: 1;
+    width: auto;
+    max-height: none;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 0;
+    align-items: stretch;
+}
+
+#msb-pane-alerts #notif-list::-webkit-scrollbar {
+    display: none;
+}
+
+#msb-pane-alerts .notif-item {
+    width: 100%;
+}
+
+#msb-pane-alerts .notif-item:first-child {
+    margin-top: 16px;
+}
+
+#msb-pane-alerts #notif-scroll-hint {
+    flex-shrink: 0;
+    flex: 1;
+}
+
+#msb-alerts-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.18);
+}
+
+#msb-pane-tracking {
+    flex-direction: column;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding-top: 13px;
+}
+
+#msb-pane-tracking::-webkit-scrollbar {
+    display: none;
+}
+
+#msb-tracking-empty {
+    padding: 20px 14px;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.18);
+    text-align: center;
+}
+</style>
