@@ -28,7 +28,6 @@
     @toggle-sidebar="sidebarRef?.toggle()"
     @toggle-notifications="sidebarRef?.switchTab('alerts')"
     @toggle-tracking="sidebarRef?.switchTab('tracking')"
-    @open-radio-tab="sidebarRef?.openRadioTab()"
     @toggle-docs="docsRef?.toggle()"
   />
 

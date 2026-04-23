@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "build:spa": "npm run build --prefix frontend/vue",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "jest",

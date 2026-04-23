@@ -246,7 +246,7 @@ body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
     display: none;
 }
 
-body[data-domain="sdr"] .msb-tab[data-tab="radio"] {
+body:not([data-domain="sdr"]) .msb-tab[data-tab="radio"] {
     display: none;
 }
 

@@ -29,17 +29,7 @@
         </svg>
         <span id="tracking-count">{{ trackingCount || '' }}</span>
       </button>
-      <button id="radio-mini-btn" aria-label="Toggle radio player" data-tooltip="RADIO"
-        @click="emit('open-radio-tab')">
-        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="1" y="5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.1"/>
-          <circle cx="5" cy="9.5" r="1.8" stroke="currentColor" stroke-width="1.1"/>
-          <line x1="8.5" y1="7.5" x2="12.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <line x1="8.5" y1="10" x2="11" y2="10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <line x1="9" y1="5" x2="11" y2="1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <line x1="6" y1="5" x2="7" y2="1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-        </svg>
-      </button>
+
     </div>
     <div id="footer-center">
       <span id="conn-status" :class="connStatusClass">{{ connStatusText }}</span>
@@ -78,7 +68,6 @@ const emit = defineEmits<{
   'toggle-sidebar': []
   'toggle-notifications': []
   'toggle-tracking': []
-  'open-radio-tab': []
   'toggle-docs': []
 }>()
 
