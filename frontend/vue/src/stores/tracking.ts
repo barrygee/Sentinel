@@ -36,10 +36,13 @@ function _persist(live: Map<string, TrackingItem>): void {
 export const useTrackingStore = defineStore('tracking', () => {
   // Live items: have active onUntrack callback from the current domain
   const _live = ref<Map<string, TrackingItem>>(new Map())
+  // Bumped whenever localStorage changes so allItems re-evaluates for read-only items
+  const _storedVersion = ref(0)
   // All items including read-only ones from other domains
   const panelOpen = ref(false)
 
   const allItems = computed<StoredItem[]>(() => {
+    void _storedVersion.value
     const stored = _loadStored()
     const liveIds = new Set(_live.value.keys())
     const readOnly = stored.filter(i => !liveIds.has(i.id))
@@ -65,9 +68,13 @@ export const useTrackingStore = defineStore('tracking', () => {
   }
 
   function unregister(id: string): void {
+    const wasLive = _live.value.has(id)
     _live.value.delete(id)
     const stored = _loadStored().filter(i => i.id !== id)
     try { localStorage.setItem(LS_KEY, JSON.stringify(stored)) } catch {}
+    // If the item was only in localStorage (not live), _live.value.delete is a no-op
+    // and Vue won't trigger reactivity, so bump _storedVersion to force allItems to re-evaluate.
+    if (!wasLive) _storedVersion.value++
   }
 
   function updateFields(id: string, fields: TrackingField[]): void {
@@ -76,6 +83,14 @@ export const useTrackingStore = defineStore('tracking', () => {
       item.fields = fields
       _persist(_live.value)
     }
+  }
+
+  // Remove the live callback so the item becomes read-only in the panel,
+  // but keep it in localStorage so it stays visible across domains.
+  function deactivate(id: string): void {
+    const item = _live.value.get(id)
+    if (item) delete item.onUntrack
+    _live.value.delete(id)
   }
 
   function untrackItem(id: string): void {
@@ -88,5 +103,5 @@ export const useTrackingStore = defineStore('tracking', () => {
     panelOpen.value = !panelOpen.value
   }
 
-  return { panelOpen, allItems, count, isLive, getLiveItem, register, unregister, updateFields, untrackItem, togglePanel }
+  return { panelOpen, allItems, count, isLive, getLiveItem, register, unregister, updateFields, untrackItem, deactivate, togglePanel }
 })

@@ -228,6 +228,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     onRemove(): void {
         this._stopPolling()
+        this._trackingStore.deactivate('air')
         if (this.container && this.container.parentNode) this.container.parentNode.removeChild(this.container)
         ;(this.map as unknown) = undefined
     }
@@ -485,7 +486,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     }
 
     private _updateStatusBar(): void {
-        if (!this._followEnabled || !this._selectedHex) return
+        if (!this._selectedHex) return
         const aircraftFeature = this._geojson.features.find(f => f.properties.hex === this._selectedHex)
         if (aircraftFeature) this._trackingStore.updateFields('air', this._buildTrackingFields(aircraftFeature.properties))
     }
@@ -499,7 +500,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             }
         }
         if (this._tagHex) this._notifEnabled.delete(this._tagHex)
-        if (this._tagHex) {
+        if (this._tagHex && this.map) {
             const taggedFeature = this._geojson.features.find(f => f.properties.hex === this._tagHex)
             if (taggedFeature) {
                 const coords = this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
@@ -514,7 +515,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._hideStatusBar()
         this._saveTrackingState()
         const is3D = this._is3DActive()
-        if (!is3D) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
+        if (!is3D && this.map) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
     }
 
     // ---- Tag button wiring ----
@@ -686,6 +687,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             .setLngLat(coords).addTo(this.map)
         if (this._allHidden) el.style.visibility = 'hidden'
         this._tagHex = feature.properties.hex
+        this._showStatusBar(feature.properties)
     }
 
     private _hideSelectedTag(): void {
