@@ -25,7 +25,7 @@
 
   <div id="filter-results" ref="resultsRef">
     <template v-if="!results.length">
-      <div class="filter-no-results">{{ query ? 'No results' : 'No aircraft in range' }}</div>
+      <div class="filter-no-results">No results</div>
     </template>
     <template v-else>
       <!-- Aircraft section -->
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { AIRPORTS_DATA, type AirportProperties } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
@@ -178,12 +178,10 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
     }
   }
 
-  if (!q) return out // when query is empty, only show aircraft
-
   // Airports
   for (const f of AIRPORTS_DATA.features) {
     const p = f.properties
-    if ([p.icao, p.iata, p.name].some(v => v?.toLowerCase().includes(q))) {
+    if (!q || [p.icao, p.iata, p.name].some(v => v?.toLowerCase().includes(q))) {
       out.push({ kind: 'airport', icao: p.icao, iata: p.iata, name: p.name, bounds: p.bounds, coords: f.geometry.coordinates as [number, number] })
     }
   }
@@ -191,7 +189,7 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
   // Military bases
   for (const f of MILITARY_BASES_DATA.features) {
     const p = f.properties
-    if ([p.icao, p.name].some(v => v?.toLowerCase().includes(q))) {
+    if (!q || [p.icao, p.name].some(v => v?.toLowerCase().includes(q))) {
       out.push({ kind: 'mil', icao: p.icao, name: p.name, bounds: p.bounds, coords: f.geometry.coordinates as [number, number] })
     }
   }
@@ -368,10 +366,15 @@ function toggleNotif(hex: string) {
   c._rebuildTagForHex(hex)
 }
 
-// Sync notifEnabled when adsbControl changes (e.g. after map loads)
+// Sync notifEnabled and aircraft data when adsbControl becomes available
 watch(() => props.adsbControl, (ctrl) => {
-  if (ctrl) notifEnabled.value = new Set(ctrl._notifEnabled)
-})
+  if (ctrl) {
+    notifEnabled.value = new Set(ctrl._notifEnabled)
+    refreshAircraft()
+  }
+}, { immediate: true })
+
+onMounted(refreshAircraft)
 
 // Expose focus method for keyboard shortcut
 defineExpose({

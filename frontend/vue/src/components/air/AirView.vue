@@ -5,9 +5,9 @@
     <NoUrlOverlay domain="air" />
     <Teleport to="#msb-pane-search">
       <AirFilter
-        :adsb-control="airMapRef?.getAdsbControl?.() ?? null"
-        :airports-control="airMapRef?.getAirports?.() ?? null"
-        :military-bases-control="airMapRef?.getMilBases?.() ?? null"
+        :adsb-control="adsbControlRef"
+        :airports-control="airportsControlRef"
+        :military-bases-control="milBasesControlRef"
         :get-map="() => airMapRef?.getMap?.() ?? null"
         ref="airFilterRef"
       />
@@ -16,15 +16,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 import AirMap from './AirMap.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import AirSideMenu from './AirSideMenu.vue'
 import AirFilter from './AirFilter.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
+import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
+import type { AirportsToggleControl } from './controls/airports/AirportsControl'
+import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
 
 const airMapRef    = ref<InstanceType<typeof AirMap> | null>(null)
 const airFilterRef = ref<InstanceType<typeof AirFilter> | null>(null)
+
+// Reactive refs for controls — updated once the map signals data is ready
+
+const adsbControlRef     = shallowRef<AdsbLiveControl | null>(null)
+const airportsControlRef = shallowRef<AirportsToggleControl | null>(null)
+const milBasesControlRef = shallowRef<MilitaryBasesToggleControl | null>(null)
+
+function syncControls() {
+  adsbControlRef.value     = airMapRef.value?.getAdsbControl?.() ?? null
+  airportsControlRef.value = airMapRef.value?.getAirports?.() ?? null
+  milBasesControlRef.value = airMapRef.value?.getMilBases?.() ?? null
+}
+
+useDocumentEvent('adsb-data-update', syncControls)
 
 // Ctrl+F / Cmd+F → focus filter input
 function onKeydown(e: KeyboardEvent) {
