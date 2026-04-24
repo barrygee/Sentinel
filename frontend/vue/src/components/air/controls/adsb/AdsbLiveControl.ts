@@ -228,7 +228,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     onRemove(): void {
         this._stopPolling()
-        this._trackingStore.deactivate('air')
+        // Don't deactivate — keep the onUntrack callback so untracking from another
+        // section clears adsbTracking in localStorage. _handleUntrack guards all map ops.
         if (this.container && this.container.parentNode) this.container.parentNode.removeChild(this.container)
         ;(this.map as unknown) = undefined
     }
