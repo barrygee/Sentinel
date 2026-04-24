@@ -17,7 +17,7 @@
 
   <RouterView />
 
-  <MapSidebar ref="sidebarRef">
+  <MapSidebar ref="sidebarRef" :hide-tabs="isSdrRoute">
     <template #radio>
       <SdrTabPanel />
     </template>

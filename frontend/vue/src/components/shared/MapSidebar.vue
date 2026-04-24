@@ -1,6 +1,6 @@
 <template>
   <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
-    <div id="map-sidebar-tabs">
+    <div v-if="!hideTabs" id="map-sidebar-tabs">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -17,19 +17,21 @@
       </button>
     </div>
     <div id="map-sidebar-panes">
-      <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'search' }" id="msb-pane-search">
-        <slot name="search" />
-      </div>
-      <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'alerts' }" id="msb-pane-alerts">
-        <NotificationsPanel />
-      </div>
-      <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'tracking' }" id="msb-pane-tracking">
-        <TrackingPanel />
-      </div>
-      <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'passes' }" id="msb-pane-passes">
-        <slot name="passes" />
-      </div>
-      <div class="msb-pane msb-pane-radio" :class="{ 'msb-pane-active': activeTab === 'radio' }" id="msb-pane-radio">
+      <template v-if="!hideTabs">
+        <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'search' }" id="msb-pane-search">
+          <slot name="search" />
+        </div>
+        <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'alerts' }" id="msb-pane-alerts">
+          <NotificationsPanel />
+        </div>
+        <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'tracking' }" id="msb-pane-tracking">
+          <TrackingPanel />
+        </div>
+        <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'passes' }" id="msb-pane-passes">
+          <slot name="passes" />
+        </div>
+      </template>
+      <div class="msb-pane msb-pane-radio" :class="{ 'msb-pane-active': hideTabs || activeTab === 'radio' }" id="msb-pane-radio">
         <slot name="radio" />
       </div>
     </div>
@@ -42,6 +44,8 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
+
+const props = withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
 
 type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'radio'
 
@@ -254,6 +258,14 @@ body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
 
 body:not([data-domain="sdr"]) .msb-tab[data-tab="radio"] {
     display: none;
+}
+
+body[data-domain="sdr"] #map-sidebar-tabs {
+    display: none;
+}
+
+body[data-domain="sdr"] #msb-pane-radio {
+    display: flex;
 }
 
 #msb-pane-radio {
