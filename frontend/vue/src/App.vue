@@ -53,7 +53,11 @@ onMounted(() => { startGps() })
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 
 watch(isSdrRoute, (isSdr) => {
-  if (isSdr) sidebarRef.value?.openRadioTab()
+  if (isSdr) {
+    sidebarRef.value?.openRadioTab()
+  } else {
+    sidebarRef.value?.closeRadioTab()
+  }
 })
 
 const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)

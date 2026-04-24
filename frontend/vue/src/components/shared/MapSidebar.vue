@@ -78,6 +78,12 @@ function show() { open.value = true; _persistOpen(true) }
 function hide() { open.value = false; _persistOpen(false) }
 
 function openRadioTab() { show(); switchTab('radio') }
+function closeRadioTab() {
+  if (activeTab.value === 'radio') {
+    switchTab('search')
+    hide()
+  }
+}
 
 function _persistOpen(val: boolean) {
   try { val ? sessionStorage.setItem(SS_KEY, '1') : sessionStorage.removeItem(SS_KEY) } catch {}
@@ -101,7 +107,7 @@ function _restoreTab(): SidebarTab {
   return 'search'
 }
 
-defineExpose({ switchTab, openRadioTab, show, hide, toggle, open, activeTab })
+defineExpose({ switchTab, openRadioTab, closeRadioTab, show, hide, toggle, open, activeTab })
 </script>
 
 <style>
