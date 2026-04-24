@@ -10,6 +10,14 @@
       >
         <div class="sdr-device-row">
           <span class="sdr-device-info" :style="confirmId === r.id ? 'opacity:0.4' : ''">
+            <span
+              class="sdr-status-dot"
+              :class="{
+                'sdr-status-dot--connected': statusMap[r.id] === true,
+                'sdr-status-dot--disconnected': statusMap[r.id] === false
+              }"
+              :title="statusMap[r.id] === true ? 'Connected' : statusMap[r.id] === false ? 'Not connected' : 'Checking…'"
+            ></span>
             {{ r.name }}&nbsp;&nbsp;{{ r.host }}:{{ r.port }}
           </span>
           <button
@@ -72,6 +80,20 @@ interface SdrRadioData {
 const radios = ref<SdrRadioData[]>([])
 const openId = ref<number | 'new' | null>(null)
 const confirmId = ref<number | null>(null)
+const statusMap = ref<Record<number, boolean | null>>({})
+
+async function checkStatuses(ids: number[]): Promise<void> {
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const res = await fetch(`/api/sdr/status/${id}`)
+      if (!res.ok) { statusMap.value[id] = false; return }
+      const data = await res.json()
+      statusMap.value[id] = data.connected === true
+    } catch {
+      statusMap.value[id] = false
+    }
+  }))
+}
 
 async function load(): Promise<void> {
   try {
@@ -79,6 +101,7 @@ async function load(): Promise<void> {
     if (!res.ok) return
     const raw = await res.json()
     radios.value = (raw as SdrRadioData[]).map(r => ({ ...r, id: Number(r.id) }))
+    await checkStatuses(radios.value.map(r => r.id))
   } catch {}
 }
 
@@ -115,3 +138,24 @@ async function onSave(): Promise<void> {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.sdr-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: #555;
+  flex-shrink: 0;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+}
+.sdr-status-dot--connected {
+  background: #22c55e;
+}
+.sdr-status-dot--disconnected {
+  background: #ef4444;
+}
+</style>

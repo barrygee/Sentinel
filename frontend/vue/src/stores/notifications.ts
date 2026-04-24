@@ -143,10 +143,12 @@ export const useNotificationsStore = defineStore('notifications', () => {
       if (!res.ok) return
       const rows = await res.json() as Array<{ msg_id: string; type: string; title: string; detail: string; ts: number }>
       if (!Array.isArray(rows) || !rows.length) return
-      const fromBackend: NotificationItem[] = rows.map(r => ({
-        id: r.msg_id, type: r.type as NotificationType,
-        title: r.title, detail: r.detail ?? '', ts: r.ts,
-      }))
+      const fromBackend: NotificationItem[] = rows
+        .filter(r => r.type !== 'tracking' && r.type !== 'track')
+        .map(r => ({
+          id: r.msg_id, type: r.type as NotificationType,
+          title: r.title, detail: r.detail ?? '', ts: r.ts,
+        }))
       const backendIds = new Set(fromBackend.map(i => i.id))
       const localOnly = items.value.filter(i => !backendIds.has(i.id))
       items.value = [...fromBackend, ...localOnly].sort((a, b) => a.ts - b.ts)

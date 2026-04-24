@@ -771,7 +771,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         nameSpan.style.cssText = isEmerg ? 'color:#ff4040 !important' : 'color:#ffffff !important'
         box.appendChild(nameSpan)
         if (props.military) {
-            const isTracked = this._notifEnabled.has(props.hex)
+            const isTracked = this._followEnabled && props.hex === this._tagHex
             const hasBadge  = !!props.t
             if (hasBadge || isTracked) box.style.paddingRight = '0'
             if (hasBadge) {
@@ -884,7 +884,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 nameSpan.textContent = raw || 'UNKNOWN'
                 nameSpan.style.cssText = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important'
                 if (isMil) {
-                    const isTracked = this._notifEnabled.has(hex)
+                    const isTracked = this._followEnabled && hex === this._tagHex
                     const hasBadge  = !!f.properties.t
                     if (hasBadge || isTracked) box.style.paddingRight = '0'
                     else                        box.style.paddingRight = '8px'

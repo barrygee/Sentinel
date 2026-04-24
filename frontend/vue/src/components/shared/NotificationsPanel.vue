@@ -1,4 +1,5 @@
 <template>
+  <div v-if="store.visible.length === 0" id="msb-alerts-empty">No alerts</div>
   <div id="notif-list-wrap">
     <div id="notif-list" ref="listRef">
       <TransitionGroup name="notif">
@@ -190,15 +191,17 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 0;
     padding: 13px 26px 13px 28px;
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: opacity 0.2s ease, transform 0.2s ease, background 0.12s;
+    transition: background 0.12s;
     flex-shrink: 0;
 }
 
-.notif-item.notif-visible {
-    opacity: 1;
-    transform: translateX(0);
+.notif-enter-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.notif-enter-from {
+    opacity: 0;
+    transform: translateX(-10px);
 }
 
 .notif-item:hover {
