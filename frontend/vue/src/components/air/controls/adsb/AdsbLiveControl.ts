@@ -407,13 +407,18 @@ export class AdsbLiveControl implements maplibregl.IControl {
             `</svg></button>`
 
         if (isTracked) {
+            const isEmerg  = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
+            const isMil    = !!props.military
+            const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
+            const trackDeg = props.track ?? 0
+            const arrowSvg = `<span style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;background:#000;flex-shrink:0"><svg width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${trackDeg}deg);transform-origin:center;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
             const milTypeBadge = (props.military && props.t)
                 ? `<span style="background:#4d6600;color:#c8ff00;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 4px;">${props.t.toUpperCase()}</span>`
                 : ''
             const hasBadge = !!(props.military && props.t)
-            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 8px;white-space:nowrap;user-select:none">` +
+            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 0;white-space:nowrap;user-select:none">` +
                 `<div style="display:flex;align-items:stretch;gap:4px">` +
-                `<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>` +
+                `${arrowSvg}<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>` +
                 `${milTypeBadge}${trkBtn}</div></div>`
         }
 
