@@ -623,6 +623,11 @@ export class SatelliteControl extends SentinelControlBase {
         })
     }
 
+    get isFollowing(): boolean { return this._followEnabled }
+    get followedNoradId(): string | null { return this._followEnabled ? this._activeNoradId : null }
+
+    stopFollowing(): void { this._stopFollowing() }
+
     // ---- Following ----
     private _startFollowing(_restoring = false): void {
         if (!this._lastPosition) return
@@ -637,6 +642,7 @@ export class SatelliteControl extends SentinelControlBase {
         this.map.easeTo({ center: coords, duration: 600 })
         this._showStatusBar(pos)
         if (this._trackingNotifId) { this._notificationsStore.dismiss(this._trackingNotifId); this._trackingNotifId = null }
+        document.dispatchEvent(new CustomEvent('satellite-follow-changed', { detail: { noradId: this._activeNoradId, following: true } }))
     }
 
     private _stopFollowing(): void {
@@ -650,6 +656,7 @@ export class SatelliteControl extends SentinelControlBase {
         if (this._trackingNotifId) { this._notificationsStore.dismiss(this._trackingNotifId); this._trackingNotifId = null }
         this._hideStatusBar()
         this.map.easeTo({ center: [12, 20], zoom: 2, duration: 600 })
+        document.dispatchEvent(new CustomEvent('satellite-follow-changed', { detail: { noradId: this._activeNoradId, following: false } }))
     }
 
     // ---- Status bar ----

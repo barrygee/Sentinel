@@ -530,7 +530,7 @@ try {
     color: var(--color-accent);
 }
 
-.sm-btn {
+#side-menu .sm-btn {
     width: 100%;
     height: 36px;
     background: #000;
@@ -550,25 +550,25 @@ try {
     padding: 0;
 }
 
-.sm-btn:hover {
+#side-menu .sm-btn:hover {
     background: #111;
 }
 
-.sm-btn.active {
+#side-menu .sm-btn.active {
     opacity: 1;
     color: rgba(200, 255, 0, 0.75);
 }
 
-.sm-btn.enabled {
+#side-menu .sm-btn.enabled {
     opacity: 1;
 }
 
-.sm-btn.sm-planes-off {
+#side-menu .sm-btn.sm-planes-off {
     opacity: 0.1;
     pointer-events: none;
 }
 
-.sm-btn .sm-icon {
+#side-menu .sm-btn .sm-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -577,14 +577,14 @@ try {
     font-size: var(--sm-icon-size, 14px);
 }
 
-.sm-btn .sm-icon svg {
+#side-menu .sm-btn .sm-icon svg {
     display: block;
     flex-shrink: 0;
     width: auto;
     height: 15px;
 }
 
-.sm-btn .sm-label {
+#side-menu .sm-btn .sm-label {
     display: none;
     font-size: 9px;
     font-weight: 700;
@@ -604,7 +604,7 @@ try {
     display: flex;
 }
 
-.sm-btn.sm-expanded-only {
+#side-menu .sm-btn.sm-expanded-only {
     display: none;
 }
 #side-menu.expanded .sm-btn.sm-expanded-only {

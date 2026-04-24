@@ -169,18 +169,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
     awacs:         awacsControl,
   })
 
-  // Add to map top-right — order matches original
-  m.addControl(new ResetViewControl(),  'top-right')
-  m.addControl(adsbControl,             'top-right')
-  m.addControl(adsbLabelsControl,       'top-right')
-  m.addControl(rangeRingsControl,       'top-right')
-  m.addControl(aaraControl,             'top-right')
-  m.addControl(awacsControl,            'top-right')
-  m.addControl(airportsControl,         'top-right')
-  m.addControl(militaryBasesControl,    'top-right')
-  m.addControl(namesControl,            'top-right')
-  m.addControl(roadsControl,            'top-right')
-  m.addControl(clearControl,            'top-right')
+  // Controls are driven via AirSideMenu — no map UI buttons needed
 
   // Restore 3D pitch after initial load
   if (_tiltActive) m.easeTo({ pitch: 45, duration: 400 })

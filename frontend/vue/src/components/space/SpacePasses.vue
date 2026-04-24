@@ -40,7 +40,7 @@
               <span class="spp-acc-live-value">{{ liveTelemetry[field.id] ?? '—' }}</span>
             </div>
           </div>
-          <button class="spp-acc-track-btn" @click.stop="trackSat(pass)">TRACK SATELLITE</button>
+          <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
           <div class="spp-acc-status" :class="{ 'spp-acc-status-loading': accLoading }">{{ accStatus }}</div>
           <div class="spp-acc-pass-list">
             <div v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')" class="spp-acc-no-passes">
@@ -136,6 +136,7 @@ const accStatus  = ref('COMPUTING PASSES…')
 const accPasses  = ref<AccPass[]>([])
 
 const now = ref(Date.now())
+const followedNoradId = ref<string | null>(props.satelliteControl?.followedNoradId ?? null)
 
 let fetchAbort: AbortController | null = null
 let accFetchAbort: AbortController | null = null
@@ -276,7 +277,11 @@ async function fetchAccordionPasses(noradId: string): Promise<void> {
 }
 
 function trackSat(pass: SatPass): void {
-  props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id, true)
+  if (followedNoradId.value === pass.norad_id) {
+    props.satelliteControl?.stopFollowing()
+  } else {
+    props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id, true)
+  }
 }
 
 function onMouseEnter(pass: SatPass): void {
@@ -327,6 +332,10 @@ onUnmounted(() => {
 })
 
 useDocumentEvent('sat-position-update', onSatPositionUpdate)
+useDocumentEvent('satellite-follow-changed', (e: Event) => {
+  const { noradId, following } = (e as CustomEvent<{ noradId: string; following: boolean }>).detail
+  followedNoradId.value = following ? noradId : null
+})
 
 defineExpose({ fetchPasses, selectedCategories, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })
 </script>

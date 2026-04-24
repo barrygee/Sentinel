@@ -55,7 +55,7 @@
                 <span class="sfr-acc-live-value">{{ liveTelemetry[field.id] ?? '—' }}</span>
               </div>
             </div>
-            <button class="sfr-acc-track-btn" @click.stop="trackSat(sat)">TRACK SATELLITE</button>
+            <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
             <div class="sfr-acc-status" :class="{ 'sfr-acc-status-loading': accordionLoading }">{{ accordionStatus }}</div>
             <div class="sfr-acc-pass-list">
               <template v-if="accordionPasses.length === 0 && !accordionLoading">
@@ -139,6 +139,7 @@ const accordionLoading = ref(false)
 const accordionStatus  = ref('COMPUTING PASSES…')
 const accordionPasses  = ref<SatPass[]>([])
 const liveTelemetry    = ref<Record<string, string>>({})
+const followedNoradId  = ref<string | null>(props.satelliteControl?.followedNoradId ?? null)
 
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
 let itemFetchAbort: AbortController | null = null
@@ -281,7 +282,11 @@ function startItemTick(): void {
 }
 
 function trackSat(sat: SatEntry): void {
-  props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id, true)
+  if (followedNoradId.value === sat.norad_id) {
+    props.satelliteControl?.stopFollowing()
+  } else {
+    props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id, true)
+  }
 }
 
 function clearQuery(): void {
@@ -369,6 +374,10 @@ onUnmounted(() => {
 
 useDocumentEvent('sat-position-update', onSatPositionUpdate)
 useDocumentEvent('settings-panel-closed', onSettingsPanelClosed)
+useDocumentEvent('satellite-follow-changed', (e: Event) => {
+  const { noradId, following } = (e as CustomEvent<{ noradId: string; following: boolean }>).detail
+  followedNoradId.value = following ? noradId : null
+})
 
 defineExpose({ focus: () => inputRef.value?.focus() })
 </script>
