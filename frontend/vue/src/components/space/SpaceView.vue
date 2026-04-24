@@ -4,17 +4,17 @@
     <SpaceMap ref="spaceMapRef" />
     <SpaceSideMenu :map-ref="spaceMapRef" />
     <NoUrlOverlay domain="space" />
-    <SatInfoPanel :satellite-control="spaceMapRef?.getSatelliteControl?.() ?? null" />
+    <SatInfoPanel :satellite-control="satelliteControl" />
     <Teleport to="#msb-pane-search">
       <SpaceFilter
-        :satellite-control="spaceMapRef?.getSatelliteControl?.() ?? null"
+        :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
         ref="spaceFilterRef"
       />
     </Teleport>
     <Teleport to="#msb-pane-passes">
       <SpacePasses
-        :satellite-control="spaceMapRef?.getSatelliteControl?.() ?? null"
+        :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
         :is-visible="true"
         ref="spacePassesRef"
@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SpaceStarfield from './SpaceStarfield.vue'
@@ -38,6 +38,8 @@ import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 const spaceMapRef    = ref<InstanceType<typeof SpaceMap> | null>(null)
 const spaceFilterRef = ref<InstanceType<typeof SpaceFilter> | null>(null)
 const spacePassesRef = ref<InstanceType<typeof SpacePasses> | null>(null)
+
+const satelliteControl = computed(() => spaceMapRef.value?.satelliteControlReactive ?? null)
 
 const { location: userLocation } = useUserLocation()
 

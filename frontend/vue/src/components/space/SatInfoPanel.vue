@@ -5,30 +5,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 
-const props = defineProps<{ satelliteControl: SatelliteControl | null }>()
-
-const currentNoradId = ref<string | null>(null)
-
-function onSatelliteSelected(e: Event): void {
-  const { noradId } = (e as CustomEvent<{ noradId: string; name: string }>).detail
-  currentNoradId.value = noradId
-}
+defineProps<{ satelliteControl: SatelliteControl | null }>()
 
 function onIssPositionUpdate(e: Event): void {
-  const position = (e as CustomEvent<{
-    alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number
+  const detail = (e as CustomEvent<{
+    noradId: string; alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number
   }>).detail
-  // Broadcast to inline accordions in search and passes panels
-  document.dispatchEvent(new CustomEvent('sat-position-update', {
-    detail: { noradId: currentNoradId.value, position },
-  }))
+  const { noradId, ...position } = detail
+  document.dispatchEvent(new CustomEvent('sat-position-update', { detail: { noradId, position } }))
 }
 
-useDocumentEvent('satellite-selected', onSatelliteSelected)
 useDocumentEvent('iss-position-update', onIssPositionUpdate)
 </script>
 

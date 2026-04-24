@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, computed, watch, onBeforeUnmount } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
@@ -38,6 +38,7 @@ const STYLE_OFFLINE = '/assets/fiord.json'
 
 const styleUrl = computed(() => appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE)
 
+const satelliteControlRef = shallowRef<SatelliteControl | null>(null)
 let satelliteControl: SatelliteControl | null = null
 let daynightControl: DaynightControl | null = null
 let namesControl: SpaceNamesToggleControl | null = null
@@ -95,6 +96,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
     getUserLocation,
     null,
   )
+  satelliteControlRef.value = satelliteControl
   daynightControl = new DaynightControl(spaceStore)
   namesControl    = new SpaceNamesToggleControl(spaceStore, is3DActive)
 
@@ -137,6 +139,7 @@ onBeforeUnmount(() => {
 
 defineExpose({
   getSatelliteControl:     () => satelliteControl,
+  get satelliteControlReactive() { return satelliteControlRef.value },
   getDaynightControl:() => daynightControl,
   getNamesControl:   () => namesControl,
   isGlobeActive:     () => globeActiveLocal.value,

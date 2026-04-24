@@ -358,8 +358,8 @@ export class SatelliteControl extends SentinelControlBase {
                 this._updateStatusBar(position)
             }
 
-            // Emit for SatInfoPanel
-            document.dispatchEvent(new CustomEvent('iss-position-update', { detail: position }))
+            // Emit for SatInfoPanel — include noradId so accordions can match without tracking satellite-selected
+            document.dispatchEvent(new CustomEvent('iss-position-update', { detail: { ...position, noradId: this._activeNoradId } }))
 
         } catch {}
     }
@@ -700,6 +700,16 @@ export class SatelliteControl extends SentinelControlBase {
             if (trackSource) trackSource.setData(this._trackForProjection(ground_track))
             if (fpSource)    fpSource.setData(this._footprintForProjection(footprintGeo))
 
+            // Ensure layers are visible for the preview even if the overlay was toggled off
+            try {
+                this.map.setLayoutProperty('iss-icon',    'visibility', 'visible')
+                this.map.setLayoutProperty('iss-bracket', 'visibility', 'visible')
+                this.map.setLayoutProperty('iss-track-orbit1', 'visibility', 'visible')
+                this.map.setLayoutProperty('iss-track-orbit2', 'visibility', 'visible')
+                this.map.setLayoutProperty('iss-footprint-fill', 'visibility', 'visible')
+                this.map.setLayoutProperty('iss-footprint',      'visibility', 'visible')
+            } catch {}
+
             if (this._labelMarker) {
                 if (noradId !== this._activeNoradId) {
                     this._labelMarker.setLngLat([position.lon, position.lat])
@@ -728,6 +738,19 @@ export class SatelliteControl extends SentinelControlBase {
         if (issSource)   issSource.setData(this._issGeojson)
         if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson))
         if (fpSource)    fpSource.setData(this._footprintForProjection(this._footprintGeojson))
+
+        // Restore layer visibility to match actual toggle state
+        try {
+            const issVis   = this.issVisible ? 'visible' : 'none'
+            const trackVis = (this.issVisible && this.trackVisible)    ? 'visible' : 'none'
+            const fpVis    = (this.issVisible && this.footprintVisible) ? 'visible' : 'none'
+            this.map.setLayoutProperty('iss-icon',    'visibility', issVis)
+            this.map.setLayoutProperty('iss-bracket', 'visibility', issVis)
+            this.map.setLayoutProperty('iss-track-orbit1', 'visibility', trackVis)
+            this.map.setLayoutProperty('iss-track-orbit2', 'visibility', trackVis)
+            this.map.setLayoutProperty('iss-footprint-fill', 'visibility', fpVis)
+            this.map.setLayoutProperty('iss-footprint',      'visibility', fpVis)
+        } catch {}
 
         if (this._labelMarker) {
             const spans = this._labelMarker.getElement().querySelectorAll('span')
