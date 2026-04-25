@@ -953,7 +953,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
         const arrowWrap = document.createElement('span')
         arrowWrap.className = 'adsb-arrow-wrap'
-        arrowWrap.style.cssText = 'display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0'
+        arrowWrap.style.cssText = 'display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0;margin-right:16px'
         arrowWrap.innerHTML = `<svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg>`
         el.appendChild(arrowWrap)
 
