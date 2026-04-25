@@ -452,28 +452,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
         this.map.addLayer({
             id: 'adsb-bracket', type: 'symbol', source: 'adsb-live',
-            filter: ['all',
-                ['!', ['match', ['get', 'category'], ['A0', 'B0', 'C0'], true, false]],
-                ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]],
-            ] as maplibregl.FilterSpecification,
-            layout: {
-                visibility: layerVisibility,
-                'icon-image': ['case',
-                    ['==', ['get', 'squawkEmerg'], 1], 'adsb-bracket-emerg',
-                    ['boolean', ['get', 'military'], false], 'adsb-bracket-mil',
-                    ['==', ['get', 'category'], 'C1'], 'adsb-bracket-emerg-gnd',
-                    'adsb-bracket',
-                ] as maplibregl.ExpressionSpecification,
-                'icon-size': 0.75,
-                'icon-rotation-alignment': 'viewport',
-                'icon-pitch-alignment':    'viewport',
-                'icon-allow-overlap':      true,
-                'icon-ignore-placement':   true,
-            },
-            paint: {
-                'icon-opacity': ['case', ['==', ['get', 'stale'], 1], 0.3, 1] as maplibregl.ExpressionSpecification,
-                'icon-opacity-transition': { duration: 0 },
-            } as Record<string, unknown>,
+            filter: ['==', ['get', 'hex'], ''] as maplibregl.FilterSpecification,
+            layout: { visibility: 'none' },
+            paint: {},
         })
 
         this.map.addLayer({
@@ -566,6 +547,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
         this._raiseLayers()
         this._applyTypeFilter()
+        if (this.labelsVisible && this.map.getLayer('adsb-icons')) this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
         if (this._geojson.features.length) this._interpolate()
         if (this.visible && !this._pollInterval && this._effectiveMode() !== 'offgrid') this._startPolling()
     }
@@ -610,18 +592,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
             `</svg></button>`
 
         if (isTracked) {
-            const isEmerg  = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
-            const isMil    = !!props.military
-            const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
-            const trackDeg = props.track ?? 0
-            const arrowSvg = `<span style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;background:#000;flex-shrink:0"><svg width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${trackDeg}deg);transform-origin:center;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
             const milTypeBadge = (props.military && props.t)
                 ? `<span style="background:#4d6600;color:#c8ff00;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 4px;">${props.t.toUpperCase()}</span>`
                 : ''
             const hasBadge = !!(props.military && props.t)
-            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 0;white-space:nowrap;user-select:none">` +
+            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 8px;white-space:nowrap;user-select:none">` +
                 `<div style="display:flex;align-items:stretch;gap:4px">` +
-                `${arrowSvg}<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>` +
+                `<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>` +
                 `${milTypeBadge}${trkBtn}</div></div>`
         }
 
@@ -968,13 +945,17 @@ export class AdsbLiveControl implements maplibregl.IControl {
             'color:#ffffff', "font-family:'Barlow Condensed','Barlow',sans-serif",
             'font-size:13px', 'font-weight:400', 'letter-spacing:.12em',
             'text-transform:uppercase', 'box-sizing:border-box',
-            'display:flex', 'align-items:center', 'gap:8px',
+            'display:flex', 'align-items:center', 'gap:0',
             'padding:1px 6px 1px 0', 'cursor:pointer', 'white-space:nowrap', 'user-select:none',
         ].join(';')
 
-        el.innerHTML = this._makeArrowSvg(arrowColor, track)
-
         const box = el
+
+        const arrowWrap = document.createElement('span')
+        arrowWrap.className = 'adsb-arrow-wrap'
+        arrowWrap.style.cssText = 'display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0'
+        arrowWrap.innerHTML = `<svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg>`
+        el.appendChild(arrowWrap)
 
         const nameSpan = document.createElement('span')
         nameSpan.className = 'adsb-label-name'
@@ -1032,8 +1013,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     setLabelsVisible(v: boolean): void {
         this.labelsVisible = v
-        if (!v) { this._clearCallsignMarkers() }
-        else    { this._updateCallsignMarkers() }
+        if (!v) {
+            this._clearCallsignMarkers()
+            if (this.map?.getLayer('adsb-icons')) this.map.setLayoutProperty('adsb-icons', 'visibility', 'visible')
+        } else {
+            this._updateCallsignMarkers()
+            if (this.map?.getLayer('adsb-icons')) this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
+        }
     }
 
     private _updateCallsignMarkers(): void {
