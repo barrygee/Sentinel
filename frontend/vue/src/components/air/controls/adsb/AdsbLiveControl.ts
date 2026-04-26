@@ -988,6 +988,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     // ---- Callsign label markers ----
 
+    private _isLeftFacing(track: number): boolean {
+        const t = ((track % 360) + 360) % 360
+        return t >= 1 && t <= 189
+    }
+
     private _makeArrowSvg(color: string, track: number): string {
         return `<span class="adsb-arrow-wrap" style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;background:#000;flex-shrink:0"><svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
     }
@@ -1004,6 +1009,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const showType = has('typ')
         const showAlt  = has('alt')
 
+        const leftFacing = this._isLeftFacing(track)
+
         const el = document.createElement('div')
         el.style.cssText = [
             isEmerg ? 'background:rgba(180,0,0,0.85)' : 'background:rgba(0,0,0,0.5)',
@@ -1011,132 +1018,117 @@ export class AdsbLiveControl implements maplibregl.IControl {
             'font-size:13px', 'font-weight:400', 'letter-spacing:.12em',
             'text-transform:uppercase', 'box-sizing:border-box',
             'display:flex', 'align-items:center', 'gap:0',
-            'padding:1px 6px 1px 0', 'cursor:pointer', 'white-space:nowrap', 'user-select:none',
+            leftFacing ? 'padding:1px 0 1px 6px' : 'padding:1px 6px 1px 0', 'cursor:pointer', 'white-space:nowrap', 'user-select:none',
         ].join(';')
+        el.dataset.dir = leftFacing ? 'left' : 'right'
 
         const box = el
 
         const arrowWrap = document.createElement('span')
         arrowWrap.className = 'adsb-arrow-wrap'
-        arrowWrap.style.cssText = 'display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0;margin-right:4px'
+        arrowWrap.style.cssText = leftFacing
+            ? 'display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0;margin-left:4px'
+            : 'display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0;margin-right:4px'
         arrowWrap.innerHTML = `<svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg>`
-        el.appendChild(arrowWrap)
+        const badgeColor  = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
+        const nameColor   = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : '#ffffff'
+        const typeBg      = isMil ? '#4d6600' : '#002244'
+        const typeColor   = isMil ? '#c8ff00' : '#00aaff'
+        const catLbl      = this._categoryLabel(props.category)
+        const isTracked   = isMil && this._followEnabled && props.hex === this._tagHex
 
-        const dimBadge = (label: string, value: string, color: string) => {
+        const dimBadge = (label: string, value: string) => {
             const b = document.createElement('span')
-            b.style.cssText = `background:rgba(0,0,0,0.5);color:${color} !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;`
+            b.style.cssText = `background:rgba(0,0,0,0.5);color:${badgeColor} !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;`
             b.innerHTML = `<span style="opacity:0.45;font-weight:600;font-size:9px;letter-spacing:.12em">${label}</span><span>${value}</span>`
             return b
         }
 
-        if (!isMil) {
-            const nameSpan = document.createElement('span')
-            nameSpan.className = 'adsb-label-name'
-            nameSpan.textContent = callsign
-            nameSpan.style.cssText = isEmerg ? 'color:#ff4040 !important;padding-right:6px' : 'color:#ffffff !important;padding-right:6px'
-            box.appendChild(nameSpan)
-            if (showType && props.t) {
-                box.style.paddingRight = '0'
-                const civilBadge = document.createElement('span')
-                civilBadge.className = 'civil-model-badge'
-                civilBadge.textContent = props.t.toUpperCase()
-                civilBadge.style.cssText = 'background:#002244;color:#00aaff !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
-                box.insertBefore(civilBadge, box.querySelector('.sqk-badge') || null)
-            }
-            if (showAlt && props.alt_baro && props.alt_baro !== 0) {
-                box.style.paddingRight = '0'
-                const altBadge = dimBadge('ALT', this._formatAltBadge(props.alt_baro as number), 'rgba(255,255,255,0.7)')
-                altBadge.className = 'civil-alt-badge'
-                box.insertBefore(altBadge, box.querySelector('.sqk-badge') || null)
-            }
-            if (has('spd') && props.gs != null) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('SPD', Math.round(props.gs) + 'kt', 'rgba(255,255,255,0.7)'), box.querySelector('.sqk-badge') || null)
-            }
-            if (has('hdg') && props.track != null) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('HDG', Math.round(props.track) + '°', 'rgba(255,255,255,0.7)'), box.querySelector('.sqk-badge') || null)
-            }
-            if (has('reg') && props.r) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('REG', props.r, 'rgba(255,255,255,0.7)'), box.querySelector('.sqk-badge') || null)
-            }
-            if (has('sqk') && props.squawk) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('SQK', props.squawk, 'rgba(255,255,255,0.7)'), box.querySelector('.sqk-badge') || null)
-            }
-            const catLbl = this._categoryLabel(props.category)
-            if (has('cat') && catLbl) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('CAT', catLbl, 'rgba(255,255,255,0.7)'), box.querySelector('.sqk-badge') || null)
-            }
+        const makeCallsign = (side: 'left' | 'right') => {
+            const s = document.createElement('span')
+            s.className = 'adsb-label-name'
+            s.textContent = callsign
+            s.style.cssText = side === 'left'
+                ? `color:${nameColor} !important;padding-right:6px`
+                : `color:${nameColor} !important;padding-left:6px`
+            return s
+        }
+
+        const makeType = () => {
+            if (!showType || !props.t) return null
+            const b = document.createElement('span')
+            b.className = isMil ? 'mil-model-badge' : 'civil-model-badge'
+            b.textContent = props.t.toUpperCase()
+            b.style.cssText = `background:${typeBg};color:${typeColor} !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
+            return b
+        }
+
+        const makeAlt = () => {
+            if (!showAlt || !props.alt_baro || props.alt_baro === 0) return null
+            const b = dimBadge('ALT', this._formatAltBadge(props.alt_baro as number))
+            b.className = isMil ? 'mil-alt-badge' : 'civil-alt-badge'
+            return b
+        }
+
+        const makeSqk = () => {
+            if (!has('sqk') || !props.squawk) return null
+            return dimBadge('SQK', props.squawk)
+        }
+
+        const makeEmergSqk = () => {
+            const b = document.createElement('span')
+            b.className = 'sqk-badge'
+            b.textContent = props.squawk
+            b.style.cssText = `background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
+            return b
+        }
+
+        const makeTrackBtn = () => {
+            if (!isTracked) return null
+            const btn = document.createElement('button')
+            btn.className = 'mil-trk-btn'
+            btn.textContent = 'TRACKING'
+            btn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 6px;color:#c8ff00;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
+            btn.addEventListener('mouseenter', () => { btn.textContent = 'UNTRACK' })
+            btn.addEventListener('mouseleave', () => { btn.textContent = 'TRACKING' })
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation()
+                this._notifEnabled.delete(props.hex)
+                this._updateCallsignMarkers()
+            })
+            return btn
+        }
+
+        const append = (...nodes: (HTMLElement | null)[]) => {
+            for (const n of nodes) if (n) el.appendChild(n)
+        }
+
+        if (leftFacing) {
+            // 1–189°: cat, reg, spd, hdg, alt, sqk, type, callsign, arrow
+            if (has('cat') && catLbl)          append(dimBadge('CAT', catLbl))
+            if (has('reg') && props.r)         append(dimBadge('REG', props.r))
+            if (has('spd') && props.gs != null) append(dimBadge('SPD', Math.round(props.gs) + 'kt'))
+            if (has('hdg') && props.track != null) append(dimBadge('HDG', Math.round(props.track) + '°'))
+            append(makeAlt())
+            if (isEmerg)                       append(makeEmergSqk())
+            else                               append(makeSqk())
+            append(makeType())
+            append(makeCallsign('left'))
+            el.appendChild(arrowWrap)
         } else {
-            const nameSpan = document.createElement('span')
-            nameSpan.className = 'adsb-label-name'
-            nameSpan.textContent = callsign
-            nameSpan.style.cssText = isEmerg ? 'color:#ff4040 !important;padding-right:6px' : 'color:#ffffff !important;padding-right:6px'
-            box.appendChild(nameSpan)
-            const isTracked = this._followEnabled && props.hex === this._tagHex
-            const hasBadge  = showType && !!props.t
-            if (hasBadge || isTracked) box.style.paddingRight = '0'
-            if (hasBadge) {
-                const modelBadge = document.createElement('span')
-                modelBadge.className = 'mil-model-badge'
-                modelBadge.textContent = props.t.toUpperCase()
-                modelBadge.style.cssText = 'background:#4d6600;color:#c8ff00 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
-                box.insertBefore(modelBadge, box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            if (showAlt && props.alt_baro && props.alt_baro !== 0) {
-                box.style.paddingRight = '0'
-                const altBadge = dimBadge('ALT', this._formatAltBadge(props.alt_baro as number), '#c8ff00')
-                altBadge.className = 'mil-alt-badge'
-                box.insertBefore(altBadge, box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            if (has('spd') && props.gs != null) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('SPD', Math.round(props.gs) + 'kt', '#c8ff00'), box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            if (has('hdg') && props.track != null) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('HDG', Math.round(props.track) + '°', '#c8ff00'), box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            if (has('reg') && props.r) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('REG', props.r, '#c8ff00'), box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            if (has('sqk') && props.squawk) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('SQK', props.squawk, '#c8ff00'), box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            const catLbl = this._categoryLabel(props.category)
-            if (has('cat') && catLbl) {
-                box.style.paddingRight = '0'
-                box.insertBefore(dimBadge('CAT', catLbl, '#c8ff00'), box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
-            }
-            if (isTracked) {
-                const trkBtn = document.createElement('button')
-                trkBtn.className = 'mil-trk-btn'
-                trkBtn.textContent = 'TRACKING'
-                trkBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 6px;color:#c8ff00;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
-                trkBtn.addEventListener('mouseenter', () => { trkBtn.textContent = 'UNTRACK' })
-                trkBtn.addEventListener('mouseleave', () => { trkBtn.textContent = 'TRACKING' })
-                trkBtn.addEventListener('click', (e) => {
-                    e.stopPropagation()
-                    this._notifEnabled.delete(props.hex)
-                    this._updateCallsignMarkers()
-                })
-                box.appendChild(trkBtn)
-            }
+            // 190–360/0°: arrow, callsign, type, sqk, alt, hdg, spd, reg, cat
+            el.appendChild(arrowWrap)
+            append(makeCallsign('right'))
+            append(makeType())
+            if (isEmerg)                       append(makeEmergSqk())
+            else                               append(makeSqk())
+            append(makeAlt())
+            if (has('hdg') && props.track != null) append(dimBadge('HDG', Math.round(props.track) + '°'))
+            if (has('spd') && props.gs != null) append(dimBadge('SPD', Math.round(props.gs) + 'kt'))
+            if (has('reg') && props.r)         append(dimBadge('REG', props.r))
+            if (has('cat') && catLbl)          append(dimBadge('CAT', catLbl))
         }
-        if (isEmerg) {
-            box.style.paddingRight = '0'; box.style.gap = '0'
-            const badge = document.createElement('span')
-            badge.className = 'sqk-badge'
-            badge.textContent = props.squawk
-            const hasTypeBadge = showType && props.t
-            badge.style.cssText = `background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px ${hasTypeBadge ? '0' : '8px'};`
-            box.appendChild(badge)
-        }
+        append(makeTrackBtn())
         el.addEventListener('mouseenter', () => {
             const hoveredFeature = this._geojson.features.find(f => f.properties.hex === props.hex)
             if (hoveredFeature) this._showHoverTag(hoveredFeature, true)
@@ -1219,6 +1211,26 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     arrowSvg.style.transform = `rotate(${f.properties.track ?? 0}deg)`
                     const poly = arrowSvg.querySelector('polygon')
                     if (poly) poly.setAttribute('stroke', arrowColor)
+                }
+                const newDir = this._isLeftFacing(f.properties.track ?? 0) ? 'left' : 'right'
+                if (box.dataset.dir !== newDir) {
+                    box.dataset.dir = newDir
+                    const arrowWrap = box.querySelector('.adsb-arrow-wrap') as HTMLElement | null
+                    if (arrowWrap) {
+                        if (newDir === 'left') {
+                            arrowWrap.style.marginRight = ''
+                            arrowWrap.style.marginLeft = '4px'
+                            box.appendChild(arrowWrap)
+                            box.style.paddingLeft = '6px'
+                            box.style.paddingRight = '0'
+                        } else {
+                            arrowWrap.style.marginLeft = ''
+                            arrowWrap.style.marginRight = '4px'
+                            box.insertBefore(arrowWrap, box.firstChild)
+                            box.style.paddingLeft = '0'
+                            box.style.paddingRight = '6px'
+                        }
+                    }
                 }
                 const nameSpan = box.querySelector('.adsb-label-name') as HTMLElement || box
                 nameSpan.textContent = raw || 'UNKNOWN'
