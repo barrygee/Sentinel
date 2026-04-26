@@ -1233,10 +1233,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
                         if (!altBadge) {
                             altBadge = document.createElement('span')
                             altBadge.className = 'mil-alt-badge'
-                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:#c8ff00 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
+                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:#c8ff00 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
+                            altBadge.innerHTML = '<span style="opacity:0.45;font-weight:600;font-size:9px;letter-spacing:.12em">ALT</span><span></span>'
                             box.insertBefore(altBadge, box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
                         }
-                        altBadge.textContent = this._formatAltBadge(f.properties.alt_baro)
+                        ;(altBadge.querySelector('span:last-child') as HTMLElement).textContent = this._formatAltBadge(f.properties.alt_baro)
                     } else if (altBadge) { altBadge.remove() }
                     box.style.paddingRight = '0'
                     let modelBadge = box.querySelector('.mil-model-badge') as HTMLElement | null
@@ -1282,10 +1283,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
                         if (!altBadge) {
                             altBadge = document.createElement('span')
                             altBadge.className = 'civil-alt-badge'
-                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.7) !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
+                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.7) !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
+                            altBadge.innerHTML = '<span style="opacity:0.45;font-weight:600;font-size:9px;letter-spacing:.12em">ALT</span><span></span>'
                             box.insertBefore(altBadge, box.querySelector('.sqk-badge') || null)
                         }
-                        altBadge.textContent = this._formatAltBadge(f.properties.alt_baro)
+                        ;(altBadge.querySelector('span:last-child') as HTMLElement).textContent = this._formatAltBadge(f.properties.alt_baro)
                         box.style.paddingRight = '0'
                     } else {
                         altBadge?.remove()
