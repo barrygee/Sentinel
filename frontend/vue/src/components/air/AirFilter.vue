@@ -284,8 +284,6 @@ function activateResult(r: PlaneResult | AirportResult | MilResult) {
 function selectPlane(r: PlaneResult) {
   const c = props.adsbControl
   if (!c) return
-  c._selectedHex = r.hex
-  c._applySelection()
   const coords = c._interpolatedCoords(r.hex) ?? r.coords
   const m = props.getMap()
   if (m) m.easeTo({ center: coords, zoom: Math.max(m.getZoom(), 10), duration: 600 })
