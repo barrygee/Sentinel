@@ -40,9 +40,7 @@ window.addEventListener('sentinel:setUserLocation', (e: Event) => {
   _saveToStorage(loc, true)
 })
 
-function startGps(): void {
-  if (_watchId !== null) return
-  if (!navigator.geolocation) return
+function _startWatch(highAccuracy: boolean): void {
   _watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const loc: UserLocation = {
@@ -53,9 +51,23 @@ function startGps(): void {
       sharedLocation.value = loc
       _saveToStorage(loc, false)
     },
-    (err) => { console.warn('[useUserLocation] GPS error:', err.message) },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+    (err) => {
+      if (err.code === err.TIMEOUT && highAccuracy) {
+        // High-accuracy GPS timed out (common on desktop) — retry with network location.
+        if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null }
+        _startWatch(false)
+      } else {
+        console.warn('[useUserLocation] GPS error:', err.message)
+      }
+    },
+    { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 30000, maximumAge: 5000 },
   )
+}
+
+function startGps(): void {
+  if (_watchId !== null) return
+  if (!navigator.geolocation) return
+  _startWatch(true)
 }
 
 export function useUserLocation() {

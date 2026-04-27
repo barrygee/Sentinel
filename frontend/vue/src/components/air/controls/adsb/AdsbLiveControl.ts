@@ -317,23 +317,18 @@ export class AdsbLiveControl implements maplibregl.IControl {
     // ---- Canvas sprite factories ----
 
     private _createRadarBlip(color = '#ffffff', scale = 1): ImageData {
-        const canvasSize = 64, centerX = canvasSize / 2, centerY = canvasSize / 2
+        const canvasSize = 64, cx = canvasSize / 2, cy = canvasSize / 2
         const canvas = document.createElement('canvas')
         canvas.width = canvas.height = canvasSize
         const ctx = canvas.getContext('2d')!
-        const apexVertex        = { x: centerX,     y: centerY - 13 }
-        const bottomRightVertex = { x: centerX + 9, y: centerY + 10 }
-        const bottomLeftVertex  = { x: centerX - 9, y: centerY + 10 }
-        const triangleCentroidX = (apexVertex.x + bottomRightVertex.x + bottomLeftVertex.x) / 3
-        const triangleCentroidY = (apexVertex.y + bottomRightVertex.y + bottomLeftVertex.y) / 3
-        const scaleFromCentroid = (v: { x: number; y: number }) => ({
-            x: triangleCentroidX + (v.x - triangleCentroidX) * scale,
-            y: triangleCentroidY + (v.y - triangleCentroidY) * scale,
-        })
-        const scaledApex        = scaleFromCentroid(apexVertex)
-        const scaledBottomRight = scaleFromCentroid(bottomRightVertex)
-        const scaledBottomLeft  = scaleFromCentroid(bottomLeftVertex)
-        ctx.beginPath(); ctx.moveTo(scaledApex.x, scaledApex.y); ctx.lineTo(scaledBottomRight.x, scaledBottomRight.y); ctx.lineTo(scaledBottomLeft.x, scaledBottomLeft.y)
+        // Apex at canvas center so the coordinate pin is exactly at the arrow tip.
+        // Base extends downward; scale applied around canvas center.
+        const h = 23, halfW = 9
+        const s = (p: { x: number; y: number }) => ({ x: cx + (p.x - cx) * scale, y: cy + (p.y - cy) * scale })
+        const apex        = s({ x: cx,         y: cy          })
+        const bottomRight = s({ x: cx + halfW, y: cy + h      })
+        const bottomLeft  = s({ x: cx - halfW, y: cy + h      })
+        ctx.beginPath(); ctx.moveTo(apex.x, apex.y); ctx.lineTo(bottomRight.x, bottomRight.y); ctx.lineTo(bottomLeft.x, bottomLeft.y)
         ctx.closePath(); ctx.fillStyle = color; ctx.fill()
         return ctx.getImageData(0, 0, canvasSize, canvasSize)
     }
@@ -478,9 +473,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const _savedSeenOnGround   = this._seenOnGround
         const _savedLandedAt       = this._landedAt
         const _savedPrevSquawk     = this._prevSquawk
-        this._geojson           = { type: 'FeatureCollection', features: [] }
-        this._trailsGeojson     = { type: 'FeatureCollection', features: [] }
-        this._trails            = {}
+        this._geojson        = { type: 'FeatureCollection', features: [] }
+        this._trailsGeojson  = { type: 'FeatureCollection', features: [] }
+        this._trails         = {}
         this._lastPositions     = {}
         this._interpolatedFeatures = []
         this._prevAlt           = {}
@@ -596,6 +591,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 this.map.getCanvas().style.cursor = ''
                 this._hideHoverTag()
             }
+
+            this.map.on('mouseenter', 'adsb-icons', handleHoverEnter)
+            this.map.on('mouseleave', 'adsb-icons', handleHoverLeave)
 
             this.map.on('zoomend', () => this._updateCallsignMarkers())
         }
@@ -1059,8 +1057,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         arrowWrap.innerHTML = `<svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg>`
         const badgeColor  = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
         const nameColor   = isEmerg ? '#ff4040' : '#ffffff'
-        const typeBg      = isMil ? '#4d6600' : '#002244'
-        const typeColor   = isMil ? '#c8ff00' : '#00aaff'
+        const typeBg      = isEmerg ? '#4d0000' : isMil ? '#4d6600' : '#002244'
+        const typeColor   = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
         const catLbl      = this._categoryLabel(props.category)
         const isTracked   = isMil && this._followEnabled && props.hex === this._tagHex
 
@@ -1297,9 +1295,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
                         if (!modelBadge) {
                             modelBadge = document.createElement('span')
                             modelBadge.className = 'mil-model-badge'
-                            modelBadge.style.cssText = 'background:#4d6600;color:#c8ff00 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
                             box.insertBefore(modelBadge, box.querySelector('.mil-alt-badge') || box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
                         }
+                        modelBadge.style.cssText = `background:${isEmerg ? '#4d0000' : '#4d6600'};color:${isEmerg ? '#ff2222' : '#c8ff00'} !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
                         modelBadge.textContent = f.properties.t.toUpperCase()
                     } else if (modelBadge) { modelBadge.remove() }
                     let trkBtn = box.querySelector('.mil-trk-btn') as HTMLElement | null
@@ -1321,9 +1319,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
                         if (!civilBadge) {
                             civilBadge = document.createElement('span')
                             civilBadge.className = 'civil-model-badge'
-                            civilBadge.style.cssText = 'background:#002244;color:#00aaff !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
                             box.insertBefore(civilBadge, box.querySelector('.civil-alt-badge') || box.querySelector('.sqk-badge') || null)
                         }
+                        civilBadge.style.cssText = `background:${isEmerg ? '#4d0000' : '#002244'};color:${isEmerg ? '#ff2222' : '#00aaff'} !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
                         civilBadge.textContent = f.properties.t.toUpperCase()
                     } else {
                         civilBadge?.remove()
@@ -1472,12 +1470,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             let coords: [number, number]
 
             if (pos) {
-                const elapsedSec = (now - pos.lastSeen) / 1000
-                if (pos.track != null && pos.gs > 0) {
-                    coords = this._deadReckon(pos.lon, pos.lat, pos.track, pos.gs, elapsedSec)
-                } else {
-                    coords = [pos.lon, pos.lat]
-                }
+                coords = [pos.lon, pos.lat]
             } else {
                 coords = f.geometry.coordinates
             }
@@ -1590,12 +1583,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     if (!existing) {
                         this._lastPositions[hex] = { lon: a.lon!, lat: a.lat!, gs: a.gs ?? 0, track: a.track ?? null, lastSeen, prevLon: a.lon!, prevLat: a.lat!, prevSeen: lastSeen, interpLon: a.lon!, interpLat: a.lat! }
                     } else {
-                        const prevElapsed = (lastSeen - existing.lastSeen) / 1000
-                        const [curLon, curLat] = (existing.track != null && existing.gs > 0)
-                            ? this._deadReckon(existing.lon, existing.lat, existing.track, existing.gs, prevElapsed)
-                            : [existing.lon, existing.lat]
-                        existing.lon      = curLon
-                        existing.lat      = curLat
+                        existing.lon      = a.lon!
+                        existing.lat      = a.lat!
                         existing.gs       = a.gs ?? 0
                         existing.track    = a.track ?? null
                         existing.lastSeen = lastSeen
@@ -1767,9 +1756,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
     private _raiseLayers(): void {
         if (!this.map) return
         try {
-            if (this.map.getLayer('adsb-trails'))   this.map.moveLayer('adsb-trails')
-            if (this.map.getLayer('adsb-bracket'))  this.map.moveLayer('adsb-bracket')
-            if (this.map.getLayer('adsb-icons'))    this.map.moveLayer('adsb-icons')
+            if (this.map.getLayer('adsb-trails'))  this.map.moveLayer('adsb-trails')
+            if (this.map.getLayer('adsb-bracket')) this.map.moveLayer('adsb-bracket')
+            if (this.map.getLayer('adsb-icons'))   this.map.moveLayer('adsb-icons')
         } catch(_) {}
     }
 
