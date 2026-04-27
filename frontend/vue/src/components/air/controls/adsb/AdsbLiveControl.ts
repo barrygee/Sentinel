@@ -646,21 +646,25 @@ export class AdsbLiveControl implements maplibregl.IControl {
             `</svg></button>`
 
         if (isTracked) {
-            const typeBadge = props.t
+            const isEmerg  = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
+            const isMil    = !!props.military
+            const tfields  = isMil ? this._tagFields.mil : this._tagFields.civil
+            const showType = tfields.includes('typ')
+            const typeBadge = showType && props.t
                 ? props.military
                     ? `<span style="background:#4d6600;color:#c8ff00;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 4px;">${props.t.toUpperCase()}</span>`
                     : `<span style="background:#002244;color:#00aaff;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 4px;">${props.t.toUpperCase()}</span>`
                 : ''
-            const isEmerg  = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
-            const isMil    = !!props.military
             const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
             const track    = props.track ?? 0
             const arrowSvg = `<span class="adsb-arrow-wrap" style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;background:#000;flex-shrink:0"><svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
-            const hasBadge = !!props.t
-            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px ${hasBadge ? '0' : '8px'} 1px 0;white-space:nowrap;user-select:none">` +
-                `<div style="display:flex;align-items:stretch;gap:4px">` +
-                `${arrowSvg}<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>` +
-                `${typeBadge}${trkBtn}</div></div>`
+            const callsignSpan = `<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>`
+            const leftFacing = this._isLeftFacing(track)
+            const inner = leftFacing
+                ? `${trkBtn}${typeBadge}${callsignSpan}${arrowSvg}`
+                : `${arrowSvg}${callsignSpan}${typeBadge}${trkBtn}`
+            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px 0;white-space:nowrap;user-select:none">` +
+                `<div style="display:flex;align-items:stretch;gap:4px">${inner}</div></div>`
         }
 
         const alt    = props.alt_baro ?? 0
@@ -699,9 +703,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
             : alt.toLocaleString() + ' ft'
         const vrtArrow = vrt > 200 ? ' ↑' : vrt < -200 ? ' ↓' : ''
         const isEmergency = !!(props.emergency && props.emergency !== 'none')
+        const isMil    = !!props.military
+        const tfields  = isMil ? this._tagFields.mil : this._tagFields.civil
         const fields: TrackingField[] = []
-        if (props.r)       fields.push({ label: 'REG',      value: props.r })
-        if (props.t)       fields.push({ label: 'TYPE',     value: props.t })
+        if (props.r)                           fields.push({ label: 'REG',  value: props.r })
+        if (tfields.includes('typ') && props.t) fields.push({ label: 'TYPE', value: props.t })
         fields.push({ label: 'ALT',  value: altStr + vrtArrow })
         fields.push({ label: 'GS',   value: Math.round(props.gs ?? 0) + ' kt' })
         fields.push({ label: 'HDG',  value: Math.round(props.track ?? 0) + '°' })
@@ -845,7 +851,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
                     this._wireTagButton(newEl)
                     if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
-                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: 'left', offset: [14, 0] })
+                    const trkLeft1 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
+                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft1 ? 'right' : 'left', offset: trkLeft1 ? [-14, 0] : [14, 0] })
                         .setLngLat(coords).addTo(this.map)
                 }
                 this._saveTrackingState()
@@ -876,8 +883,16 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
                     this._wireTagButton(newEl)
                     if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
-                    const anchor = this._followEnabled ? 'left'  : 'top-left'
-                    const offset: [number, number] = this._followEnabled ? [14, 0] : [14, -13]
+                    let anchor: 'left' | 'right' | 'top-left'
+                    let offset: [number, number]
+                    if (this._followEnabled) {
+                        const trkLeft2 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
+                        anchor = trkLeft2 ? 'right' : 'left'
+                        offset = trkLeft2 ? [-14, 0] : [14, 0]
+                    } else {
+                        anchor = 'top-left'
+                        offset = [14, -13]
+                    }
                     this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
                         .setLngLat(coords).addTo(this.map)
                     if (this._followEnabled) {
@@ -913,8 +928,16 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._wireTagButton(newEl)
         if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
         const isTracked = this._followEnabled && hex === this._tagHex
-        const anchor    = isTracked ? 'left'  : 'top-left'
-        const offset: [number, number] = isTracked ? [14, 0] : [14, -13]
+        let anchor: 'left' | 'right' | 'top-left'
+        let offset: [number, number]
+        if (isTracked) {
+            const trkLeft3 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
+            anchor = trkLeft3 ? 'right' : 'left'
+            offset = trkLeft3 ? [-14, 0] : [14, 0]
+        } else {
+            anchor = 'top-left'
+            offset = [14, -13]
+        }
         this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
             .setLngLat(coords).addTo(this.map)
     }
@@ -1102,7 +1125,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         }
 
         if (leftFacing) {
-            // 1–189°: cat, reg, spd, hdg, alt, sqk, type, callsign, arrow
+            // 1–189°: trk, cat, reg, spd, hdg, alt, sqk, type, callsign, arrow
+            append(makeTrackBtn())
             if (has('cat') && catLbl)          append(dimBadge('CAT', catLbl))
             if (has('reg') && props.r)         append(dimBadge('REG', props.r))
             if (has('spd') && props.gs != null) append(dimBadge('SPD', Math.round(props.gs) + 'kt'))
@@ -1114,7 +1138,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             append(makeCallsign('left'))
             el.appendChild(arrowWrap)
         } else {
-            // 190–360/0°: arrow, callsign, type, sqk, alt, hdg, spd, reg, cat
+            // 190–360/0°: arrow, callsign, type, sqk, alt, hdg, spd, reg, cat, trk
             el.appendChild(arrowWrap)
             append(makeCallsign('right'))
             append(makeType())
@@ -1125,8 +1149,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
             if (has('spd') && props.gs != null) append(dimBadge('SPD', Math.round(props.gs) + 'kt'))
             if (has('reg') && props.r)         append(dimBadge('REG', props.r))
             if (has('cat') && catLbl)          append(dimBadge('CAT', catLbl))
+            append(makeTrackBtn())
         }
-        append(makeTrackBtn())
         el.addEventListener('mouseenter', () => {
             const hoveredFeature = this._geojson.features.find(f => f.properties.hex === props.hex)
             if (hoveredFeature) this._showHoverTag(hoveredFeature, true)
@@ -1799,7 +1823,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
             newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
             this._wireTagButton(newEl)
             if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
-            this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: 'left', offset: [14, 0] })
+            const trkLeft4 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
+            this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft4 ? 'right' : 'left', offset: trkLeft4 ? [-14, 0] : [14, 0] })
                 .setLngLat(coords).addTo(this.map)
             this._tagHex = hex
             this._showStatusBar(aircraftFeature.properties)
