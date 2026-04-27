@@ -10,7 +10,6 @@
         aria-label="Toggle connectivity mode"
         @click="toggle"
       ><span class="settings-connectivity-thumb"></span></button>
-      <span class="settings-connectivity-label">ONLINE</span>
     </div>
     <div v-if="overrideConflicts.length > 0" class="settings-connectivity-override-summary">
       <div class="settings-conn-override-heading">SECTION OVERRIDES</div>
