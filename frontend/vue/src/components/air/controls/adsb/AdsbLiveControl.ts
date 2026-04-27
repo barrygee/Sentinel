@@ -636,10 +636,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const notifOn       = this._notifEnabled.has(props.hex)
         const trkColor      = isTracked ? '#c8ff00' : 'rgba(255,255,255,0.3)'
         const trkBtnText    = isTracked ? 'TRACKING' : 'TRACK'
-        const trkBtn = `<button class="tag-follow-btn" style="background:none;border:none;cursor:pointer;padding:5px 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkBtnText}</button>`
+        const trkBtn = `<button class="tag-follow-btn" style="background:none;border:none;cursor:pointer;padding:0 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkBtnText}</button>`
         const bellColor = notifOn ? '#c8ff00' : 'rgba(255,255,255,0.3)'
-        const bellBtn = `<button class="tag-notif-btn" data-hex="${props.hex}" style="background:none;border:none;cursor:pointer;padding:5px 6px;color:${bellColor};line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle notifications">` +
-            `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
+        const bellBtn = `<button class="tag-notif-btn" data-hex="${props.hex}" style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle notifications">` +
+            `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">` +
             `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
             `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
             (notifOn ? '' : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
@@ -667,32 +667,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 `<div style="display:flex;align-items:stretch;gap:4px">${inner}</div></div>`
         }
 
-        const alt    = props.alt_baro ?? 0
-        const vrt    = props.baro_rate ?? 0
-        const altStr = alt === 0 ? 'GND'
-            : alt >= 18000 ? 'FL' + String(Math.round(alt / 100)).padStart(3, '0')
-            : alt.toLocaleString() + ' ft'
-        const vrtArrow = vrt > 200 ? ' ↑' : vrt < -200 ? ' ↓' : ''
-        const rows: [string, string][] = [
-            ['ALT', altStr + vrtArrow],
-            ['SPD', Math.round(props.gs ?? 0) + ' kt'],
-            ['HDG', Math.round(props.track ?? 0) + '°'],
-        ]
-        if (props.t)      rows.push(['TYP', props.t])
-        if (props.r)      rows.push(['REG', props.r])
-        if (props.squawk) rows.push(['SQK', props.squawk])
-        const catLabel = this._categoryLabel(props.category)
-        if (catLabel)     rows.push(['CAT', catLabel])
-        const rowsHTML = rows.map(([lbl, val]) =>
-            `<div style="display:flex;gap:14px;line-height:1.8">` +
-            `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
-            `<span>${val}</span></div>`
-        ).join('')
-        return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;padding:4px 14px 7px;white-space:nowrap;user-select:none">` +
-            `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;font-size:15px;letter-spacing:.12em;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
-            `<span style="font-size:13px;font-weight:400;pointer-events:none;color:${callsignColor}">${callsign}</span>` +
-            `<div style="display:flex;align-items:center;gap:0">${bellBtn}${trkBtn}</div></div>` +
-            `<div style="pointer-events:none">` + rowsHTML + `</div></div>`
+        const isEmerg    = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
+        const isMil      = !!props.military
+        const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
+        const heading    = props.track ?? 0
+        const arrowSvg   = `<span class="adsb-arrow-wrap" style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0"><svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${heading}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
+        const callsignSpan = `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:3px 6px;display:flex;align-items:center;">${callsign}</span>`
+        return `<div style="background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer">` +
+            `${arrowSvg}${callsignSpan}${bellBtn}${trkBtn}</div>`
     }
 
     private _buildTrackingFields(props: AircraftProperties): TrackingField[] {
