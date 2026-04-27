@@ -657,14 +657,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 : ''
             const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
             const track    = props.track ?? 0
-            const arrowSvg = `<span class="adsb-arrow-wrap" style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;background:#000;flex-shrink:0"><svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
-            const callsignSpan = `<span style="font-size:13px;font-weight:400;letter-spacing:.12em;color:${callsignColor};pointer-events:none;align-self:center">${callsign}</span>`
+            const arrowSvg = `<span class="adsb-arrow-wrap" style="display:flex;align-items:center;justify-content:center;width:22px;align-self:stretch;flex-shrink:0"><svg class="adsb-arrow" width="11" height="11" viewBox="0 0 12 12" style="transform:rotate(${track}deg);transform-origin:center;transform-box:fill-box;display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><polygon points="6,1 10,11 6,8.5 2,11" fill="none" stroke="${arrowColor}" stroke-width="1.5" stroke-linejoin="round"/></svg></span>`
+            const callsignSpan = `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:3px 6px;display:flex;align-items:center;">${callsign}</span>`
             const leftFacing = this._isLeftFacing(track)
             const inner = leftFacing
                 ? `${trkBtn}${typeBadge}${callsignSpan}${arrowSvg}`
                 : `${arrowSvg}${callsignSpan}${typeBadge}${trkBtn}`
-            return `<div style="background:rgb(10,13,20);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:13px;font-weight:400;padding:1px 0;white-space:nowrap;user-select:none">` +
-                `<div style="display:flex;align-items:stretch;gap:4px">${inner}</div></div>`
+            return `<div style="background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer">${inner}</div>`
         }
 
         const isEmerg    = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
