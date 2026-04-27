@@ -1015,10 +1015,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
         el.style.cssText = [
             isEmerg ? 'background:rgba(180,0,0,0.85)' : 'background:rgba(0,0,0,0.5)',
             'color:#ffffff', "font-family:'Barlow Condensed','Barlow',sans-serif",
-            'font-size:13px', 'font-weight:400', 'letter-spacing:.12em',
+            'font-size:14px', 'font-weight:400', 'letter-spacing:.12em',
             'text-transform:uppercase', 'box-sizing:border-box',
-            'display:flex', 'align-items:center', 'gap:0',
-            'padding:1px 0', 'cursor:pointer', 'white-space:nowrap', 'user-select:none',
+            'display:flex', 'align-items:stretch', 'gap:0',
+            'padding:0', 'cursor:pointer', 'white-space:nowrap', 'user-select:none',
         ].join(';')
         el.dataset.dir = leftFacing ? 'left' : 'right'
 
@@ -1039,8 +1039,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
         const dimBadge = (label: string, value: string) => {
             const b = document.createElement('span')
-            b.style.cssText = `background:rgba(0,0,0,0.5);color:${badgeColor} !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;`
-            b.innerHTML = `<span style="opacity:0.45;font-weight:600;font-size:9px;letter-spacing:.12em">${label}</span><span>${value}</span>`
+            b.style.cssText = `background:rgba(0,0,0,0.5);color:${badgeColor} !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;`
+            b.innerHTML = `<span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${value}</span>`
             return b
         }
 
@@ -1048,7 +1048,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             const s = document.createElement('span')
             s.className = 'adsb-label-name'
             s.textContent = callsign
-            s.style.cssText = `color:${nameColor} !important;padding:0 6px`
+            s.style.cssText = `color:${nameColor} !important;padding:3px 6px;display:flex;align-items:center;`
             return s
         }
 
@@ -1057,7 +1057,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             const b = document.createElement('span')
             b.className = isMil ? 'mil-model-badge' : 'civil-model-badge'
             b.textContent = props.t.toUpperCase()
-            b.style.cssText = `background:${typeBg};color:${typeColor} !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
+            b.style.cssText = `background:${typeBg};color:${typeColor} !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
             return b
         }
 
@@ -1077,7 +1077,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             const b = document.createElement('span')
             b.className = 'sqk-badge'
             b.textContent = props.squawk
-            b.style.cssText = `background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
+            b.style.cssText = `background:#000;color:#ff2222 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
             return b
         }
 
@@ -1086,7 +1086,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             const btn = document.createElement('button')
             btn.className = 'mil-trk-btn'
             btn.textContent = 'TRACKING'
-            btn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 6px;color:#c8ff00;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
+            btn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 8px;color:#c8ff00;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
             btn.addEventListener('mouseenter', () => { btn.textContent = 'UNTRACK' })
             btn.addEventListener('mouseleave', () => { btn.textContent = 'TRACKING' })
             btn.addEventListener('click', (e) => {
@@ -1227,9 +1227,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 const nameSpan = box.querySelector('.adsb-label-name') as HTMLElement || box
                 nameSpan.textContent = raw || 'UNKNOWN'
                 if (isMil) {
-                    const dimColor = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important'
-                    const namePad = ';padding:0 6px 0 3px'
-                    nameSpan.style.cssText = dimColor + namePad
+                    const dimColor = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#c8ff00 !important'
+                    nameSpan.style.cssText = dimColor + ';padding:3px 6px;display:flex;align-items:center;'
                     const isTracked = this._followEnabled && hex === this._tagHex
                     const hasBadge  = showType && !!f.properties.t
                     // alt badge
@@ -1238,19 +1237,18 @@ export class AdsbLiveControl implements maplibregl.IControl {
                         if (!altBadge) {
                             altBadge = document.createElement('span')
                             altBadge.className = 'mil-alt-badge'
-                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:#c8ff00 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
-                            altBadge.innerHTML = '<span style="opacity:0.45;font-weight:600;font-size:9px;letter-spacing:.12em">ALT</span><span></span>'
+                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:#c8ff00 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
+                            altBadge.innerHTML = '<span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">ALT</span><span></span>'
                             box.insertBefore(altBadge, box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
                         }
                         ;(altBadge.querySelector('span:last-child') as HTMLElement).textContent = this._formatAltBadge(f.properties.alt_baro)
                     } else if (altBadge) { altBadge.remove() }
-                    box.style.paddingRight = '0'
                     let modelBadge = box.querySelector('.mil-model-badge') as HTMLElement | null
                     if (hasBadge) {
                         if (!modelBadge) {
                             modelBadge = document.createElement('span')
                             modelBadge.className = 'mil-model-badge'
-                            modelBadge.style.cssText = 'background:#4d6600;color:#c8ff00 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
+                            modelBadge.style.cssText = 'background:#4d6600;color:#c8ff00 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
                             box.insertBefore(modelBadge, box.querySelector('.mil-alt-badge') || box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null)
                         }
                         modelBadge.textContent = f.properties.t.toUpperCase()
@@ -1260,7 +1258,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                         trkBtn = document.createElement('button')
                         trkBtn.className = 'mil-trk-btn'
                         trkBtn.textContent = 'TRACKING'
-                        trkBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 6px;color:#c8ff00;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
+                        trkBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 8px;color:#c8ff00;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
                         trkBtn.addEventListener('mouseenter', () => { (trkBtn as HTMLElement).textContent = 'UNTRACK' })
                         trkBtn.addEventListener('mouseleave', () => { (trkBtn as HTMLElement).textContent = 'TRACKING' })
                         trkBtn.addEventListener('click', (e) => { e.stopPropagation(); this._notifEnabled.delete(hex); this._updateCallsignMarkers() })
@@ -1268,45 +1266,40 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     } else if (!isTracked && trkBtn) { trkBtn.remove() }
                 } else {
                     const dimColor = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important'
-                    const namePad = ';padding:0 6px 0 3px'
-                    nameSpan.style.cssText = dimColor + namePad
+                    nameSpan.style.cssText = dimColor + ';padding:3px 6px;display:flex;align-items:center;'
                     let civilBadge = box.querySelector('.civil-model-badge') as HTMLElement | null
                     if (showType && f.properties.t) {
                         if (!civilBadge) {
                             civilBadge = document.createElement('span')
                             civilBadge.className = 'civil-model-badge'
-                            civilBadge.style.cssText = 'background:#002244;color:#00aaff !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
+                            civilBadge.style.cssText = 'background:#002244;color:#00aaff !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
                             box.insertBefore(civilBadge, box.querySelector('.civil-alt-badge') || box.querySelector('.sqk-badge') || null)
                         }
                         civilBadge.textContent = f.properties.t.toUpperCase()
-                        box.style.paddingRight = '0'
                     } else {
                         civilBadge?.remove()
-                        box.style.paddingRight = '0'
                     }
                     let altBadge = box.querySelector('.civil-alt-badge') as HTMLElement | null
                     if (showAlt && f.properties.alt_baro && f.properties.alt_baro !== 0) {
                         if (!altBadge) {
                             altBadge = document.createElement('span')
                             altBadge.className = 'civil-alt-badge'
-                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.7) !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
-                            altBadge.innerHTML = '<span style="opacity:0.45;font-weight:600;font-size:9px;letter-spacing:.12em">ALT</span><span></span>'
+                            altBadge.style.cssText = 'background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.7) !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
+                            altBadge.innerHTML = '<span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">ALT</span><span></span>'
                             box.insertBefore(altBadge, box.querySelector('.sqk-badge') || null)
                         }
                         ;(altBadge.querySelector('span:last-child') as HTMLElement).textContent = this._formatAltBadge(f.properties.alt_baro)
-                        box.style.paddingRight = '0'
                     } else {
                         altBadge?.remove()
-                        box.style.paddingRight = '0'
                     }
                 }
                 let badge = box.querySelector('.sqk-badge') as HTMLElement | null
                 if (isEmerg) {
-                    box.style.paddingRight = '0'; box.style.gap = '0'
+                    box.style.gap = '0'
                     if (!badge) {
                         badge = document.createElement('span')
                         badge.className = 'sqk-badge'
-                        badge.style.cssText = 'background:#000;color:#ff2222 !important;font-size:11px;font-weight:700;padding:0 6px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;margin:-1px 0 -1px 8px;'
+                        badge.style.cssText = 'background:#000;color:#ff2222 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
                         box.appendChild(badge)
                     }
                     badge.textContent = f.properties.squawk
