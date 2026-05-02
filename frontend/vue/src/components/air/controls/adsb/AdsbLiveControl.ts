@@ -36,7 +36,7 @@ interface AircraftGeoFeature {
 interface TrailGeoFeature {
     type: 'Feature';
     geometry: { type: 'Point'; coordinates: [number, number] };
-    properties: { alt: number; opacity: number; emerg: 0 | 1 };
+    properties: { alt: number; opacity: number; emerg: 0 | 1; military: 0 | 1 };
 }
 
 interface LastPosition {
@@ -65,8 +65,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     _geojson:       { type: 'FeatureCollection'; features: AircraftGeoFeature[] }
     private _trailsGeojson: { type: 'FeatureCollection'; features: TrailGeoFeature[] }
+    private _trailLineGeojson: { type: 'FeatureCollection'; features: GeoJSON.Feature<GeoJSON.LineString, { emerg: 0 | 1; military: 0 | 1 }>[] }
 
     private _trails:       Record<string, TrailEntry[]> = {}
+    private _trailHex:     string | null = null
     private _MAX_TRAIL     = 100
     private _lastPositions: Record<string, LastPosition> = {}
     private _interpolatedFeatures: AircraftGeoFeature[] | null = null
@@ -127,8 +129,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._onAdsbLabelsSync   = onAdsbLabelsSync
         this.visible       = airStore.overlayStates.adsb
         this.labelsVisible = airStore.overlayStates.adsbLabels ?? true
-        this._geojson       = { type: 'FeatureCollection', features: [] }
-        this._trailsGeojson = { type: 'FeatureCollection', features: [] }
+        this._geojson          = { type: 'FeatureCollection', features: [] }
+        this._trailsGeojson    = { type: 'FeatureCollection', features: [] }
+        this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
         this._labelFields   = this._loadLabelFields()
         this._tagFields     = { civil: { ...airStore.adsbTagFields.civil }, mil: { ...airStore.adsbTagFields.mil } }
     }
@@ -166,7 +169,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (tagEl)  tagEl.style.visibility  = (hidden && !isTracking) ? 'hidden' : ''
         const hoverEl = this._hoverMarker ? this._hoverMarker.getElement() : null
         if (hoverEl) hoverEl.style.visibility = hidden ? 'hidden' : ''
-        if (this.map.getLayer('adsb-trails')) this.map.setLayoutProperty('adsb-trails', 'visibility', (!hidden || isTracking) ? 'visible' : 'none')
+        ;['adsb-trail-line', 'adsb-trail-dots'].forEach(id => {
+            if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', (!hidden || isTracking) && !!this._trailHex ? 'visible' : 'none')
+        })
     }
 
     setHideGroundVehicles(hide: boolean): void {
@@ -206,12 +211,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     this.map.setLayoutProperty(id, 'visibility', 'none')
                 }
             })
+            if (this.map.getLayer('adsb-hit')) this.map.setLayoutProperty('adsb-hit', 'visibility', isTracking ? 'visible' : 'none')
             return
         }
 
         ;['adsb-bracket', 'adsb-icons'].forEach(id => {
             if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', 'visible')
         })
+        if (this.map.getLayer('adsb-hit')) this.map.setLayoutProperty('adsb-hit', 'visibility', this.visible ? 'visible' : 'none')
 
         const typeFiltering = this._typeFilter !== 'all'
         const showGnd    = this.visible && !typeFiltering && !this._hideGroundVehicles
@@ -443,7 +450,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     initLayers(): void {
         const layerVisibility = this.visible ? 'visible' : 'none'
 
-        ;['adsb-icons', 'adsb-bracket', 'adsb-trails'].forEach(id => {
+        ;['adsb-icons', 'adsb-hit', 'adsb-bracket', 'adsb-trail-dots', 'adsb-trail-line'].forEach(id => {
             if (this.map.getLayer(id)) this.map.removeLayer(id)
         })
 
@@ -460,7 +467,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._selectedHex  = null
         this._followEnabled = false
 
-        ;['adsb-live', 'adsb-trails-source'].forEach(id => {
+        ;['adsb-live', 'adsb-trails-source', 'adsb-trail-line-source'].forEach(id => {
             if (this.map.getSource(id)) this.map.removeSource(id)
         })
 
@@ -485,15 +492,33 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._landedAt          = {}
         this._prevSquawk        = {}
 
-        this.map.addSource('adsb-trails-source', { type: 'geojson', data: this._trailsGeojson as GeoJSON.GeoJSON })
+        this.map.addSource('adsb-trails-source',      { type: 'geojson', data: this._trailsGeojson    as GeoJSON.GeoJSON })
+        this.map.addSource('adsb-trail-line-source', { type: 'geojson', data: this._trailLineGeojson as GeoJSON.GeoJSON })
         this.map.addLayer({
-            id: 'adsb-trails', type: 'circle', source: 'adsb-trails-source',
-            layout: { visibility: layerVisibility },
+            id: 'adsb-trail-line', type: 'line', source: 'adsb-trail-line-source',
+            layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' },
+            paint: {
+                'line-width': 4,
+                'line-opacity': 0.35,
+                'line-color': ['case',
+                    ['==', ['get', 'emerg'], 1],     '#ff2222',
+                    ['==', ['get', 'military'], 1],  '#c8ff00',
+                    '#00aaff',
+                ] as maplibregl.ExpressionSpecification,
+            },
+        })
+        this.map.addLayer({
+            id: 'adsb-trail-dots', type: 'circle', source: 'adsb-trails-source',
+            layout: { visibility: 'none' },
             paint: {
                 'circle-radius': 2.5,
                 'circle-opacity': ['get', 'opacity'],
                 'circle-stroke-width': 0,
-                'circle-color': ['case', ['==', ['get', 'emerg'], 1], '#ff2222', '#c8ff00'],
+                'circle-color': ['case',
+                    ['==', ['get', 'emerg'], 1],     '#ff2222',
+                    ['==', ['get', 'military'], 1],  '#c8ff00',
+                    '#00aaff',
+                ] as maplibregl.ExpressionSpecification,
             },
         })
 
@@ -543,6 +568,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
             } as Record<string, unknown>,
         })
 
+        // Transparent hit-test layer on top of adsb-icons so hover/click events fire
+        // even when adsb-icons is hidden (labelsVisible mode hides the symbol layer).
+        this.map.addLayer({
+            id: 'adsb-hit', type: 'circle', source: 'adsb-live',
+            layout: { visibility: layerVisibility },
+            paint: { 'circle-radius': 14, 'circle-opacity': 0, 'circle-stroke-width': 0 },
+        })
+
         this._geojson              = _savedGeojson
         this._trailsGeojson        = _savedTrailsGeojson
         this._trails               = _savedTrails
@@ -558,7 +591,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 ? { type: 'FeatureCollection' as const, features: this._interpolatedFeatures }
                 : this._geojson
             ;(this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)?.setData(renderData as GeoJSON.GeoJSON)
-            ;(this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource)?.setData(this._trailsGeojson as GeoJSON.GeoJSON)
         } catch(e) {}
 
         if (!this._eventsAdded) {
@@ -591,14 +623,24 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 const hex = (e.features[0].properties as AircraftProperties).hex
                 const hoveredFeature = this._geojson.features.find(f => f.properties.hex === hex)
                 if (hoveredFeature) this._showHoverTag(hoveredFeature)
+                // Show trail on hover if no aircraft is currently selected
+                if (!this._selectedHex && hex) {
+                    this._trailHex = hex
+                    this._rebuildTrails()
+                }
             }
             const handleHoverLeave = () => {
                 this.map.getCanvas().style.cursor = ''
                 this._hideHoverTag()
+                // Hide trail on hover-leave unless an aircraft is selected
+                if (!this._selectedHex) {
+                    this._trailHex = null
+                    this._rebuildTrails()
+                }
             }
 
-            this.map.on('mouseenter', 'adsb-icons', handleHoverEnter)
-            this.map.on('mouseleave', 'adsb-icons', handleHoverLeave)
+            this.map.on('mouseenter', 'adsb-hit', handleHoverEnter)
+            this.map.on('mouseleave', 'adsb-hit', handleHoverLeave)
 
             this.map.on('zoomend', () => this._updateCallsignMarkers())
         }
@@ -758,7 +800,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
                 const untrackLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
                 const untrackAnchor = (untrackLeft ? 'right' : 'left') as 'right' | 'left'
-                const untrackOffset: [number, number] = untrackLeft ? [-14, 0] : [14, 0]
+                const untrackOffset: [number, number] = untrackLeft ? [13, 0] : [-13, 0]
                 this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: untrackAnchor, offset: untrackOffset })
                     .setLngLat(coords).addTo(this.map)
             }
@@ -852,7 +894,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     this._wireTagButton(newEl)
                     if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
                     const trkLeft1 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
-                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft1 ? 'right' : 'left', offset: trkLeft1 ? [-14, 0] : [14, 0] })
+                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft1 ? 'right' : 'left', offset: trkLeft1 ? [13, 0] : [-13, 0] })
                         .setLngLat(coords).addTo(this.map)
                 }
                 this._saveTrackingState()
@@ -888,11 +930,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     if (this._followEnabled) {
                         const trkLeft2 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
                         anchor = trkLeft2 ? 'right' : 'left'
-                        offset = trkLeft2 ? [-14, 0] : [14, 0]
+                        offset = trkLeft2 ? [13, 0] : [-13, 0]
                     } else {
                         const unfollowLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
                         anchor = unfollowLeft ? 'right' : 'left'
-                        offset = unfollowLeft ? [-14, 0] : [14, 0]
+                        offset = unfollowLeft ? [13, 0] : [-13, 0]
                     }
                     this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
                         .setLngLat(coords).addTo(this.map)
@@ -913,7 +955,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 const isTracking = this._followEnabled && this._selectedHex
                 const tagEl = this._tagMarker ? this._tagMarker.getElement() : null
                 if (tagEl) tagEl.style.visibility = isTracking ? '' : 'hidden'
-                if (this.map.getLayer('adsb-trails')) this.map.setLayoutProperty('adsb-trails', 'visibility', isTracking ? 'visible' : 'none')
+                ;['adsb-trail-line', 'adsb-trail-dots'].forEach(id => {
+                    if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', isTracking && !!this._trailHex ? 'visible' : 'none')
+                })
             }
             this._saveTrackingState()
         })
@@ -934,11 +978,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (isTracked) {
             const trkLeft3 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
             anchor = trkLeft3 ? 'right' : 'left'
-            offset = trkLeft3 ? [-14, 0] : [14, 0]
+            offset = trkLeft3 ? [13, 0] : [-13, 0]
         } else {
             const rebuildLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
             anchor = rebuildLeft ? 'right' : 'left'
-            offset = rebuildLeft ? [-14, 0] : [14, 0]
+            offset = rebuildLeft ? [13, 0] : [-13, 0]
         }
         this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
             .setLngLat(coords).addTo(this.map)
@@ -957,7 +1001,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const coords = this._interpolatedCoords(feature.properties.hex) || feature.geometry.coordinates
         const selLeft = this._isLeftFacing(feature.properties.track ?? 0)
         const selAnchor = (selLeft ? 'right' : 'left') as 'right' | 'left'
-        const selOffset: [number, number] = selLeft ? [-14, 0] : [14, 0]
+        const selOffset: [number, number] = selLeft ? [13, 0] : [-13, 0]
         this._tagMarker = new maplibregl.Marker({ element: el, anchor: selAnchor, offset: selOffset })
             .setLngLat(coords).addTo(this.map)
         if (this._allHidden) el.style.visibility = 'hidden'
@@ -996,7 +1040,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         el.addEventListener('mouseleave', () => this._hideHoverTag())
         this._wireTagButton(el, hex)
         const hoverAnchor = fromLabel ? (hoverLeftFacing ? 'right' : 'left') as 'right' | 'left' : 'top-left' as 'top-left'
-        const hoverOffset: [number, number] = fromLabel ? (hoverLeftFacing ? [-14, 0] : [14, 0]) : [14, -13]
+        const hoverOffset: [number, number] = fromLabel ? (hoverLeftFacing ? [13, 0] : [-13, 0]) : [14, -13]
         this._hoverMarker = new maplibregl.Marker({ element: el, anchor: hoverAnchor, offset: hoverOffset })
             .setLngLat(coords).addTo(this.map)
         this._hoverHex       = hex
@@ -1210,8 +1254,18 @@ export class AdsbLiveControl implements maplibregl.IControl {
         el.addEventListener('mouseenter', () => {
             const feature = this._geojson.features.find(f => f.properties.hex === props.hex)
             if (feature) this._showHoverTag(feature, true, el, el.dataset.dir as 'left' | 'right' | undefined)
+            if (!this._selectedHex && props.hex) {
+                this._trailHex = props.hex
+                this._rebuildTrails()
+            }
         })
-        el.addEventListener('mouseleave', () => this._hideHoverTag())
+        el.addEventListener('mouseleave', () => {
+            this._hideHoverTag()
+            if (!this._selectedHex) {
+                this._trailHex = null
+                this._rebuildTrails()
+            }
+        })
         el.addEventListener('click', (e) => {
             e.stopPropagation()
             this._selectedHex = (props.hex === this._selectedHex) ? null : props.hex
@@ -1314,7 +1368,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     }
                     const isLeftFacing2 = this._isLeftFacing(f.properties.track ?? 0)
                     const anchor2 = (isLeftFacing2 ? 'right' : 'left') as 'right' | 'left'
-                    const offset2: [number, number] = isLeftFacing2 ? [-14, 0] : [14, 0]
+                    const offset2: [number, number] = isLeftFacing2 ? [13, 0] : [-13, 0]
                     this._callsignMarkers[hex] = new maplibregl.Marker({ element: labelEl2, anchor: anchor2, offset: offset2 })
                         .setLngLat(lngLat).addTo(this.map)
                     continue
@@ -1413,7 +1467,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 }
                 const isLeftFacing = this._isLeftFacing(f.properties.track ?? 0)
                 const anchor = (isLeftFacing ? 'right' : 'left') as 'right' | 'left'
-                const markerOffset: [number, number] = isLeftFacing ? [-14, 0] : [14, 0]
+                const markerOffset: [number, number] = isLeftFacing ? [13, 0] : [-13, 0]
                 const marker = new maplibregl.Marker({ element: labelEl, anchor, offset: markerOffset })
                     .setLngLat(lngLat).addTo(this.map)
                 this._callsignMarkers[hex] = marker
@@ -1438,39 +1492,70 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (this._selectedHex) {
             const selectedFeature = this._geojson.features.find(f => f.properties.hex === this._selectedHex)
             this._showSelectedTag(selectedFeature || null)
+            this._trailHex = this._selectedHex
         } else {
             this._hideSelectedTag()
             this._hideStatusBar()
+            this._trailHex = null
         }
         this._rebuildTrails()
     }
 
     private _rebuildTrails(): void {
         if (!this.map) return
+        const hex = this._trailHex
         const trailFeatures: TrailGeoFeature[] = []
-        if (this._selectedHex && this._trails[this._selectedHex]) {
-            const points = this._trails[this._selectedHex]
+        const lineFeatures: GeoJSON.Feature<GeoJSON.LineString, { emerg: 0 | 1; military: 0 | 1 }>[] = []
+        const showTrail = !!(hex && this._trails[hex])
+
+        if (showTrail && hex) {
+            const points     = this._trails[hex]
             const pointCount = points.length
-            const selFeature = this._geojson.features.find(f => f.properties.hex === this._selectedHex)
-            const isEmerg = selFeature && (
+            const selFeature = this._geojson.features.find(f => f.properties.hex === hex)
+            const isEmerg: 0 | 1 = (selFeature && (
                 selFeature.properties.squawkEmerg === 1 ||
                 (selFeature.properties.emergency && selFeature.properties.emergency !== 'none')
-            ) ? 1 : 0
+            )) ? 1 : 0
+            const isMil: 0 | 1 = (selFeature && selFeature.properties.military) ? 1 : 0
+
+            // Build dot features (oldest → newest)
             for (let i = 0; i < pointCount; i++) {
-                const trailPoint = points[i]
+                const tp = points[i]
                 trailFeatures.push({
                     type: 'Feature',
-                    geometry:   { type: 'Point', coordinates: [trailPoint.lon, trailPoint.lat] },
-                    properties: { alt: trailPoint.alt, opacity: (i + 1) / pointCount, emerg: isEmerg as 0 | 1 },
+                    geometry:   { type: 'Point', coordinates: [tp.lon, tp.lat] },
+                    properties: { alt: tp.alt, opacity: (i + 1) / pointCount, emerg: isEmerg, military: isMil },
+                })
+            }
+
+            // Build LineString: historical points + current interpolated position as last coord
+            const lineCoords: [number, number][] = points.map(p => [p.lon, p.lat])
+            const interpCoords = this._interpolatedCoords(hex)
+            if (interpCoords) lineCoords.push(interpCoords)
+            if (lineCoords.length >= 2) {
+                lineFeatures.push({
+                    type: 'Feature',
+                    geometry:   { type: 'LineString', coordinates: lineCoords },
+                    properties: { emerg: isEmerg, military: isMil },
                 })
             }
         }
-        this._trailsGeojson = { type: 'FeatureCollection', features: trailFeatures }
+
+        this._trailsGeojson    = { type: 'FeatureCollection', features: trailFeatures }
+        this._trailLineGeojson = { type: 'FeatureCollection', features: lineFeatures }
+
+        // Toggle layer visibility based on whether we have trail data
+        const vis = showTrail ? 'visible' : 'none'
         try {
-            if (this.map && this.map.getSource('adsb-trails-source')) {
+            if (this.map.getLayer('adsb-trail-line')) this.map.setLayoutProperty('adsb-trail-line', 'visibility', vis)
+            if (this.map.getLayer('adsb-trail-dots')) this.map.setLayoutProperty('adsb-trail-dots', 'visibility', vis)
+        } catch(_) {}
+        try {
+            if (this.map.getSource('adsb-trails-source'))
                 (this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource).setData(this._trailsGeojson as GeoJSON.GeoJSON)
-            }
-        } catch(e) {}
+            if (this.map.getSource('adsb-trail-line-source'))
+                (this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource).setData(this._trailLineGeojson as GeoJSON.GeoJSON)
+        } catch(_) {}
     }
 
     // ---- Position hold / stale removal ----
@@ -1816,9 +1901,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
     private _raiseLayers(): void {
         if (!this.map) return
         try {
-            if (this.map.getLayer('adsb-trails'))  this.map.moveLayer('adsb-trails')
-            if (this.map.getLayer('adsb-bracket')) this.map.moveLayer('adsb-bracket')
-            if (this.map.getLayer('adsb-icons'))   this.map.moveLayer('adsb-icons')
+            if (this.map.getLayer('adsb-trail-line')) this.map.moveLayer('adsb-trail-line')
+            if (this.map.getLayer('adsb-trail-dots')) this.map.moveLayer('adsb-trail-dots')
+            if (this.map.getLayer('adsb-bracket'))    this.map.moveLayer('adsb-bracket')
+            if (this.map.getLayer('adsb-icons'))      this.map.moveLayer('adsb-icons')
+            if (this.map.getLayer('adsb-hit'))        this.map.moveLayer('adsb-hit')
         } catch(_) {}
     }
 
@@ -1894,7 +1981,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             this._wireTagButton(newEl)
             if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
             const trkLeft4 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
-            this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft4 ? 'right' : 'left', offset: trkLeft4 ? [-14, 0] : [14, 0] })
+            this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft4 ? 'right' : 'left', offset: trkLeft4 ? [13, 0] : [-13, 0] })
                 .setLngLat(coords).addTo(this.map)
             this._tagHex = hex
             this._showStatusBar(aircraftFeature.properties)
@@ -1951,18 +2038,21 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._hideStatusBar()
         this._selectedHex = null
         this._followEnabled = false
-        this._geojson = { type: 'FeatureCollection', features: [] }
-        this._trailsGeojson = { type: 'FeatureCollection', features: [] }
-        this._trails = {}
-        this._lastPositions = {}
+        this._geojson          = { type: 'FeatureCollection', features: [] }
+        this._trailsGeojson    = { type: 'FeatureCollection', features: [] }
+        this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
+        this._trailHex         = null
+        this._trails           = {}
+        this._lastPositions    = {}
         this._interpolatedFeatures = []
-        this._prevAlt = {}
-        this._hasDeparted = {}
+        this._prevAlt      = {}
+        this._hasDeparted  = {}
         this._seenOnGround = {}
-        this._landedAt = {}
-        this._prevSquawk = {}
+        this._landedAt     = {}
+        this._prevSquawk   = {}
         try { (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)?.setData(this._geojson as GeoJSON.GeoJSON) } catch(e) {}
         try { (this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource)?.setData(this._trailsGeojson as GeoJSON.GeoJSON) } catch(e) {}
+        try { (this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource)?.setData(this._trailLineGeojson as GeoJSON.GeoJSON) } catch(e) {}
     }
 
     handleConnectivityChange(): void {
@@ -1997,7 +2087,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 if (!isGnd && !isTower) { marker.remove(); delete this._callsignMarkers[hex] }
             }
         }
-        if (this.map.getLayer('adsb-trails')) this.map.setLayoutProperty('adsb-trails', 'visibility', this.visible ? 'visible' : 'none')
+        // Trail layers: hide when control is toggled off; when toggled on, _rebuildTrails will manage visibility
+        if (!this.visible) {
+            ;['adsb-trail-line', 'adsb-trail-dots'].forEach(id => {
+                if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', 'none')
+            })
+        }
         this._applyTypeFilter()
         if (this.button) {
             this.button.style.opacity = this.visible ? '1'       : '0.3'
