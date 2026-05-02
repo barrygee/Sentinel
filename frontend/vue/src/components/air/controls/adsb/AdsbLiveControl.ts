@@ -788,25 +788,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 this._notificationsStore.update({ id: this._trackingNotifIds[this._tagHex], type: 'untrack', action: null })
                 delete this._trackingNotifIds[this._tagHex]
             }
+            this._notifEnabled.delete(this._tagHex)
         }
-        if (this._tagHex) this._notifEnabled.delete(this._tagHex)
-        if (this._tagHex && this.map) {
-            const taggedFeature = this._geojson.features.find(f => f.properties.hex === this._tagHex)
-            if (taggedFeature) {
-                const coords = this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
-                const newEl = document.createElement('div')
-                newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
-                this._wireTagButton(newEl)
-                if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
-                const untrackLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-                const untrackAnchor = (untrackLeft ? 'right' : 'left') as 'right' | 'left'
-                const untrackOffset: [number, number] = untrackLeft ? [13, 0] : [-13, 0]
-                this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: untrackAnchor, offset: untrackOffset })
-                    .setLngLat(coords).addTo(this.map)
-            }
-        }
-        this._hideStatusBar()
+        if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
+        this._tagHex = null
+        this._selectedHex = null
+        this._trailHex = null
         this._saveTrackingState()
+        this._applySelection()
         const is3D = this._is3DActive()
         if (!is3D && this.map) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
     }
@@ -902,22 +891,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
             }
 
             this._followEnabled = !this._followEnabled
-            if (!this._followEnabled && this._tagHex) {
-                this._notifEnabled.delete(this._tagHex)
-                if (this._trackingNotifIds && this._trackingNotifIds[this._tagHex]) {
-                    this._notificationsStore.update({ id: this._trackingNotifIds[this._tagHex], type: 'untrack', action: null })
-                    delete this._trackingNotifIds[this._tagHex]
-                }
-            }
             if (this._followEnabled && this._tagHex) {
+                // Toggling ON: start tracking
                 this._notifEnabled.add(this._tagHex)
                 const trkF  = this._geojson.features.find(f => f.properties.hex === this._tagHex)
                 const trkCs = trkF ? ((trkF.properties.flight || '').trim() || (trkF.properties.r || '').trim() || this._tagHex) : this._tagHex!
                 if (!this._trackingNotifIds) this._trackingNotifIds = {}
                 if (this._trackingNotifIds[this._tagHex]) this._notificationsStore.dismiss(this._trackingNotifIds[this._tagHex])
                 this._trackingNotifIds[this._tagHex] = this._notificationsStore.add({ type: 'track', title: trkCs })
-            }
-            if (this._tagHex) {
                 const taggedFeature = this._geojson.features.find(f => f.properties.hex === this._tagHex)
                 if (taggedFeature) {
                     const coords = this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
@@ -925,41 +906,28 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
                     this._wireTagButton(newEl)
                     if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
-                    let anchor: 'left' | 'right' | 'top-left'
-                    let offset: [number, number]
-                    if (this._followEnabled) {
-                        const trkLeft2 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-                        anchor = trkLeft2 ? 'right' : 'left'
-                        offset = trkLeft2 ? [13, 0] : [-13, 0]
-                    } else {
-                        const unfollowLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-                        anchor = unfollowLeft ? 'right' : 'left'
-                        offset = unfollowLeft ? [13, 0] : [-13, 0]
-                    }
-                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
+                    const trkLeft2 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
+                    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor: trkLeft2 ? 'right' : 'left', offset: trkLeft2 ? [13, 0] : [-13, 0] })
                         .setLngLat(coords).addTo(this.map)
-                    if (this._followEnabled) {
-                        this._showStatusBar(taggedFeature.properties)
-                        const is3D = this._is3DActive()
-                        const trackCoords = this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
-                        this.map.easeTo({ center: trackCoords, zoom: 16, ...(is3D ? { pitch: 45 } : {}), duration: 600 })
-                    } else {
-                        this._hideStatusBar()
-                        const is3D = this._is3DActive()
-                        if (!is3D) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
-                    }
+                    this._showStatusBar(taggedFeature.properties)
+                    const is3D = this._is3DActive()
+                    const trackCoords = this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
+                    this.map.easeTo({ center: trackCoords, zoom: 16, ...(is3D ? { pitch: 45 } : {}), duration: 600 })
                 }
+                if (this._allHidden) {
+                    this._applyTypeFilter()
+                    const tagEl = this._tagMarker ? this._tagMarker.getElement() : null
+                    if (tagEl) tagEl.style.visibility = ''
+                    ;['adsb-trail-line', 'adsb-trail-dots'].forEach(id => {
+                        if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', !!this._trailHex ? 'visible' : 'none')
+                    })
+                }
+                this._saveTrackingState()
+            } else {
+                // Toggling OFF: full cleanup via _handleUntrack
+                this._followEnabled = false
+                this._handleUntrack()
             }
-            if (this._allHidden) {
-                this._applyTypeFilter()
-                const isTracking = this._followEnabled && this._selectedHex
-                const tagEl = this._tagMarker ? this._tagMarker.getElement() : null
-                if (tagEl) tagEl.style.visibility = isTracking ? '' : 'hidden'
-                ;['adsb-trail-line', 'adsb-trail-dots'].forEach(id => {
-                    if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', isTracking && !!this._trailHex ? 'visible' : 'none')
-                })
-            }
-            this._saveTrackingState()
         })
     }
 
