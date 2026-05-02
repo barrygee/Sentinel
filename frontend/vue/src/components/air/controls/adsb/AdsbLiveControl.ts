@@ -1024,7 +1024,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (hex === this._selectedHex) return
         if (this._hoverHideTimer) { clearTimeout(this._hoverHideTimer); this._hoverHideTimer = null }
         const coords = this._interpolatedCoords(hex) || feature.geometry.coordinates
-        if (this._hoverHex === hex && this._hoverMarker) { this._hoverMarker.setLngLat(coords); return }
+        if (this._hoverHex === hex && this._hoverMarker) {
+            this._hoverMarker.setLngLat(coords)
+            if (fromLabel && labelEl && labelEl !== this._hoverLabelEl) {
+                if (this._hoverLabelEl) { this._hoverLabelEl.style.visibility = this._allHidden ? 'hidden' : ''; this._hoverLabelEl.style.pointerEvents = '' }
+                this._hoverLabelEl = labelEl
+                labelEl.style.visibility = 'hidden'; labelEl.style.pointerEvents = 'none'
+            }
+            return
+        }
         this._hideHoverTagNow()
         const wrapper = document.createElement('div')
         // When showing hover tag from a label, use the label's rendered direction to avoid
@@ -1046,7 +1054,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._hoverHex       = hex
         this._hoverFromLabel = fromLabel
         this._hoverLabelEl   = labelEl
-        if (labelEl) labelEl.style.visibility = 'hidden'
+        if (labelEl) { labelEl.style.visibility = 'hidden'; labelEl.style.pointerEvents = 'none' }
     }
 
     private _hideHoverTag(): void {
@@ -1059,7 +1067,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     private _hideHoverTagNow(): void {
         if (this._hoverMarker) { this._hoverMarker.remove(); this._hoverMarker = null }
-        if (this._hoverLabelEl) { this._hoverLabelEl.style.visibility = this._allHidden ? 'hidden' : ''; this._hoverLabelEl = null }
+        if (this._hoverLabelEl) {
+            this._hoverLabelEl.style.visibility = this._allHidden ? 'hidden' : ''
+            this._hoverLabelEl.style.pointerEvents = ''
+            this._hoverLabelEl = null
+        }
         this._hoverHex       = null
         this._hoverFromLabel = false
     }
@@ -1371,6 +1383,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     const offset2: [number, number] = isLeftFacing2 ? [13, 0] : [-13, 0]
                     this._callsignMarkers[hex] = new maplibregl.Marker({ element: labelEl2, anchor: anchor2, offset: offset2 })
                         .setLngLat(lngLat).addTo(this.map)
+                    if (this._hoverHex === hex && this._hoverMarker) {
+                        labelEl2.style.visibility = 'hidden'; labelEl2.style.pointerEvents = 'none'
+                        this._hoverLabelEl = labelEl2
+                    }
                     continue
                 }
                 const nameSpan = box.querySelector('.adsb-label-name') as HTMLElement | null
@@ -1471,6 +1487,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 const marker = new maplibregl.Marker({ element: labelEl, anchor, offset: markerOffset })
                     .setLngLat(lngLat).addTo(this.map)
                 this._callsignMarkers[hex] = marker
+                if (this._hoverHex === hex && this._hoverMarker) {
+                    labelEl.style.visibility = 'hidden'; labelEl.style.pointerEvents = 'none'
+                    this._hoverLabelEl = labelEl
+                }
             }
         }
         for (const hex of Object.keys(this._callsignMarkers)) {
