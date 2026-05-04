@@ -28,6 +28,7 @@
     @toggle-sidebar="sidebarRef?.toggle()"
     @toggle-notifications="sidebarRef?.switchTab('alerts')"
     @toggle-tracking="sidebarRef?.switchTab('tracking')"
+    @toggle-playback="sidebarRef?.openPlaybackTab()"
     @toggle-docs="docsRef?.toggle()"
   />
 

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -11,10 +12,21 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.database import create_tables, get_db, migrate_sdr_radios_to_settings, seed_default_settings
 from backend.routers import air, space, settings as settings_router, sdr as sdr_router
+from backend.services.flight_history import cleanup_old_snapshots
 
 
 ROOT_DIR = Path(__file__).parent.parent
 SPA_DIR  = ROOT_DIR / "frontend" / "spa-dist"
+
+
+async def _daily_cleanup_loop() -> None:
+    """Run flight history cleanup once at startup and then every 24 hours."""
+    while True:
+        try:
+            await cleanup_old_snapshots()
+        except Exception:
+            logging.getLogger(__name__).exception("Flight history cleanup failed")
+        await asyncio.sleep(24 * 60 * 60)
 
 
 @asynccontextmanager
@@ -23,7 +35,9 @@ async def lifespan(app: FastAPI):
     await create_tables()
     await migrate_sdr_radios_to_settings()
     await seed_default_settings()
+    cleanup_task = asyncio.create_task(_daily_cleanup_loop())
     yield
+    cleanup_task.cancel()
 
 
 app = FastAPI(

@@ -30,6 +30,9 @@
         <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'passes' }" id="msb-pane-passes">
           <slot name="passes" />
         </div>
+        <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'playback' }" id="msb-pane-playback">
+          <slot name="playback" />
+        </div>
       </template>
       <div class="msb-pane msb-pane-radio" :class="{ 'msb-pane-active': hideTabs || activeTab === 'radio' }" id="msb-pane-radio">
         <slot name="radio" />
@@ -45,7 +48,7 @@ import TrackingPanel from './TrackingPanel.vue'
 
 const props = withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
 
-type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'radio'
+type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'playback' | 'radio'
 
 const SS_KEY = 'sentinel_sidebar_open'
 const SS_TAB_KEY = 'sentinel_sidebar_tab'
@@ -57,8 +60,9 @@ const tabs = computed(() => [
   { id: 'search' as SidebarTab,   label: 'SEARCH',   badge: undefined },
   { id: 'alerts' as SidebarTab,   label: 'ALERTS',   badge: undefined },
   { id: 'tracking' as SidebarTab, label: 'TRACKING', badge: undefined },
-  { id: 'passes' as SidebarTab,   label: 'PASSES',   badge: undefined },
-  { id: 'radio' as SidebarTab,    label: 'RADIO',    badge: undefined },
+  { id: 'passes' as SidebarTab,    label: 'PASSES',    badge: undefined },
+  { id: 'playback' as SidebarTab, label: 'PLAYBACK',  badge: undefined },
+  { id: 'radio' as SidebarTab,    label: 'RADIO',     badge: undefined },
 ])
 
 function switchTab(tab: SidebarTab) {
@@ -76,6 +80,7 @@ function toggle() {
 function show() { open.value = true; _persistOpen(true) }
 function hide() { open.value = false; _persistOpen(false) }
 
+function openPlaybackTab() { show(); switchTab('playback') }
 function openRadioTab() { show(); switchTab('radio') }
 function closeRadioTab() {
   if (activeTab.value === 'radio') {
@@ -106,7 +111,7 @@ function _restoreTab(): SidebarTab {
   return 'search'
 }
 
-defineExpose({ switchTab, openRadioTab, closeRadioTab, show, hide, toggle, open, activeTab })
+defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hide, toggle, open, activeTab })
 </script>
 
 <style>
@@ -251,6 +256,10 @@ body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
     display: none;
 }
 
+body:not([data-domain="air"]) .msb-tab[data-tab="playback"] {
+    display: none;
+}
+
 body:not([data-domain="sdr"]) .msb-tab[data-tab="radio"] {
     display: none;
 }
@@ -261,6 +270,16 @@ body[data-domain="sdr"] #map-sidebar-tabs {
 
 body[data-domain="sdr"] #msb-pane-radio {
     display: flex;
+}
+
+#msb-pane-playback {
+    overflow-y: auto;
+    scrollbar-width: none;
+    flex-direction: column;
+}
+
+#msb-pane-playback::-webkit-scrollbar {
+    display: none;
 }
 
 #msb-pane-radio {

@@ -54,6 +54,14 @@ async def create_tables():
                 await conn.execute(sa_text(col_sql))
             except OperationalError:
                 pass
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS ix_air_flights_registration ON air_flights (registration)",
+            "CREATE INDEX IF NOT EXISTS ix_air_snapshots_flight_id_ts ON air_snapshots (flight_id, ts)",
+            "CREATE INDEX IF NOT EXISTS ix_air_aircraft_last_seen ON air_aircraft (last_seen DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_air_snapshots_ts ON air_snapshots (ts)",
+            "CREATE INDEX IF NOT EXISTS ix_air_flights_started_last ON air_flights (started_at, last_active_at)",
+        ]:
+            await conn.execute(sa_text(idx_sql))
     # Ensure recordings directory exists inside the data volume
     recordings_dir = Path(settings.db_path).parent / "recordings"
     recordings_dir.mkdir(parents=True, exist_ok=True)

@@ -29,10 +29,19 @@
         </svg>
         <span id="tracking-count">{{ trackingCount || '' }}</span>
       </button>
+      <button id="playback-toggle-btn" aria-label="Toggle playback" data-tooltip="PLAYBACK"
+        :class="{ 'playback-btn-active': playbackStore.isActive }"
+        @click="emit('toggle-playback')">
+        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+          <polyline points="7.5,4.5 7.5,7.5 10,9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M4 2.5 L2 1 M4 2.5 L4 1 M4 2.5 L2 2.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
 
-    </div>
-    <div id="footer-center">
-    </div>
+    <div id="footer-center"></div>
+
     <div id="footer-right">
       <button id="docs-btn" aria-label="Documentation" data-tooltip="DOCUMENTATION"
         @click="emit('toggle-docs')">
@@ -59,6 +68,7 @@ import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
+import { usePlaybackStore } from '@/stores/playback'
 
 const props = defineProps<{ sidebarOpen?: boolean }>()
 
@@ -66,15 +76,16 @@ const emit = defineEmits<{
   'toggle-sidebar': []
   'toggle-notifications': []
   'toggle-tracking': []
+  'toggle-playback': []
   'toggle-docs': []
 }>()
 
-const settingsStore = useSettingsStore()
+const settingsStore      = useSettingsStore()
 const notificationsStore = useNotificationsStore()
-const trackingStore = useTrackingStore()
+const trackingStore      = useTrackingStore()
+const playbackStore      = usePlaybackStore()
 
-const notifCount = computed(() => notificationsStore.unreadCount)
+const notifCount    = computed(() => notificationsStore.unreadCount)
 const trackingCount = computed(() => trackingStore.count)
-const sidebarOpen = computed(() => props.sidebarOpen ?? false)
-
+const sidebarOpen   = computed(() => props.sidebarOpen ?? false)
 </script>

@@ -19,6 +19,7 @@ import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
+import { useSettingsStore } from '@/stores/settings'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
@@ -35,11 +36,15 @@ import { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBa
 import { AaraToggleControl }          from './controls/aara/AaraControl'
 import { AwacToggleControl }          from './controls/awacs/AwacControl'
 import { AdsbLiveControl }            from './controls/adsb/AdsbLiveControl'
+import { AirMultiPlaybackControl }    from './controls/adsb/AirMultiPlaybackControl'
+import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
 
 const appStore           = useAppStore()
 const airStore           = useAirStore()
 const notificationsStore = useNotificationsStore()
 const trackingStore      = useTrackingStore()
+const settingsStore      = useSettingsStore()
+const playbackStore      = usePlaybackStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
@@ -127,6 +132,8 @@ function _showCtxMenu(e: MapMouseEvent): void {
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
 let _currentStyleUrl: string | null = null
+let _multiPlaybackControl: AirMultiPlaybackControl | null = null
+let _playbackTimer: ReturnType<typeof setTimeout> | null = null
 
 // Control instances — plain variables, initialised in onStyleLoaded
 let adsbControl:         AdsbLiveControl | null            = null
@@ -286,15 +293,95 @@ function onStyleLoaded(m: MapLibreGlMap) {
 
 }
 
+async function _loadMultiPlayback(): Promise<void> {
+  if (!adsbControl || !_map || !playbackStore.pendingStartMs || !playbackStore.pendingEndMs) {
+    playbackStore.exit()
+    return
+  }
+  try {
+    const resp = await fetch(`/api/air/snapshots?start_ms=${playbackStore.pendingStartMs}&end_ms=${playbackStore.pendingEndMs}`)
+    if (!resp.ok) { playbackStore.exit(); return }
+    const data = await resp.json()
+    playbackStore.setData(data)
+    settingsStore.closePanel()
+    _multiPlaybackControl?.destroy()
+    _multiPlaybackControl = new AirMultiPlaybackControl(_map, adsbControl)
+    _multiPlaybackControl.renderAtTime(playbackStore.cursorMs!, playbackStore.aircraft)
+    playbackStore.play()
+    // status watcher fires _schedulePlaybackTick when status becomes 'playing'
+  } catch { playbackStore.exit() }
+}
+
+function _schedulePlaybackTick(): void {
+  _stopPlaybackTimer()
+  if (playbackStore.status !== 'playing') return
+  const cursor = playbackStore.cursorMs!
+  const end    = playbackStore.windowEndMs!
+  if (cursor >= end) { playbackStore.pause(); return }
+
+  let nextTs = cursor + 1000
+  for (const ac of Object.values(playbackStore.aircraft)) {
+    const idx = _bisectAfter(ac.snapshots, cursor)
+    if (idx >= 0 && ac.snapshots[idx].ts < nextTs) nextTs = ac.snapshots[idx].ts
+  }
+  const delay = Math.max(50, (nextTs - cursor) / PLAYBACK_SPEEDS[playbackStore.speedIdx])
+  _playbackTimer = setTimeout(() => {
+    playbackStore.seek(nextTs)
+    if (playbackStore.status === 'playing') _schedulePlaybackTick()
+  }, delay)
+}
+
+function _stopPlaybackTimer(): void {
+  if (_playbackTimer) { clearTimeout(_playbackTimer); _playbackTimer = null }
+}
+
+function _bisectAfter(snapshots: { ts: number }[], ts: number): number {
+  let lo = 0, hi = snapshots.length - 1, result = -1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (snapshots[mid].ts > ts) { result = mid; hi = mid - 1 }
+    else lo = mid + 1
+  }
+  return result
+}
+
 onMounted(() => {
   watch(userLocation, (loc) => {
     if (!loc) return
     rangeRingsControl?.updateCenter(loc.lon, loc.lat)
     _locationMarker.update(loc.lon, loc.lat)
   }, { immediate: true })
+
+  watch(() => playbackStore.pendingStartMs, async (ms) => {
+    if (ms !== null && playbackStore.status === 'loading') {
+      await _loadMultiPlayback()
+    }
+  })
+
+  watch(() => playbackStore.status, async (status) => {
+    if (status === 'loading') {
+      // Wait for the user to fill in date/time and click LOAD (pendingStartMs watcher handles the fetch)
+    } else if (status === 'idle') {
+      _stopPlaybackTimer()
+      _multiPlaybackControl?.destroy()
+      _multiPlaybackControl = null
+    } else if (status === 'playing') {
+      _schedulePlaybackTick()
+    } else if (status === 'paused') {
+      _stopPlaybackTimer()
+    }
+  })
+
+  watch(() => playbackStore.cursorMs, (ms) => {
+    if (ms !== null && _multiPlaybackControl)
+      _multiPlaybackControl.renderAtTime(ms, playbackStore.aircraft)
+  })
 })
 
 onBeforeUnmount(() => {
+  _stopPlaybackTimer()
+  _multiPlaybackControl?.destroy()
+  _multiPlaybackControl = null
   _removeCtxMenu()
   const m = _map
   document.removeEventListener('keydown', _onDocKeydown, { capture: true })

@@ -2029,6 +2029,18 @@ export class AdsbLiveControl implements maplibregl.IControl {
         } catch(e) { return false }
     }
 
+    // ---- Public playback hooks ----
+
+    pauseLive(): void {
+        this._stopPolling()
+        if (this._fetchAbort) { this._fetchAbort.abort(); this._fetchAbort = null }
+        this._isFetching = false
+    }
+
+    resumeLive(): void {
+        if (this.visible && !this._pollInterval) this._startPolling()
+    }
+
     // ---- Polling control ----
 
     private _startPolling(): void {

@@ -152,6 +152,55 @@ class SdrRecording(Base):
     created_at         = Column(Integer, nullable=False)              # Unix ms
 
 
+class AirAircraft(Base):
+    """Identity registry for observed aircraft, keyed by registration (tail number).
+
+    Uses the ADS-B 'r' field as the primary key; falls back to ICAO hex when 'r' is absent.
+    Persists across sessions so history accumulates even when an aircraft reappears later.
+    """
+    __tablename__ = "air_aircraft"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    registration = Column(Text, nullable=False, unique=True)  # 'r' field or 'hex' as fallback
+    hex          = Column(Text, nullable=False, default="")   # most recent ICAO hex seen
+    type_code    = Column(Text, nullable=False, default="")   # most recent 't' field
+    first_seen   = Column(Integer, nullable=False)            # Unix ms
+    last_seen    = Column(Integer, nullable=False)            # Unix ms
+    flight_count = Column(Integer, nullable=False, default=0)
+
+
+class AirFlight(Base):
+    """A continuous flight session for one aircraft.
+
+    A new row is created when the aircraft reappears after a gap of FLIGHT_GAP_MS.
+    """
+    __tablename__ = "air_flights"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    aircraft_id    = Column(Integer, nullable=False)          # FK → air_aircraft.id
+    registration   = Column(Text, nullable=False)             # denormalised for fast lookup
+    callsign       = Column(Text, nullable=False, default="")
+    started_at     = Column(Integer, nullable=False)          # Unix ms of first snapshot
+    last_active_at = Column(Integer, nullable=False)          # Unix ms of most recent observation
+    snapshot_count = Column(Integer, nullable=False, default=0)
+
+
+class AirSnapshot(Base):
+    """Time-series position record for one aircraft at one point in time."""
+    __tablename__ = "air_snapshots"
+
+    id        = Column(Integer, primary_key=True, autoincrement=True)
+    flight_id = Column(Integer, nullable=False)               # FK → air_flights.id
+    ts        = Column(Integer, nullable=False)               # Unix ms
+    lat       = Column(Float,   nullable=False)
+    lon       = Column(Float,   nullable=False)
+    alt_baro  = Column(Integer, nullable=True)                # ft; NULL when on ground
+    gs        = Column(Float,   nullable=True)                # knots
+    track     = Column(Float,   nullable=True)                # degrees
+    baro_rate = Column(Integer, nullable=True)                # ft/min
+    squawk    = Column(Text,    nullable=True)
+
+
 class UserSettings(Base):
     """User preferences and overlay toggle states, persisted across browser sessions.
 
