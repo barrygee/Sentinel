@@ -22,7 +22,7 @@ export interface PlaybackAircraft {
   snapshots: MultiSnapshot[]
 }
 
-export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16]
+export const PLAYBACK_SPEEDS = [1, 2, 8, 16]
 
 export const usePlaybackStore = defineStore('playback', () => {
   const status        = ref<PlaybackStatus>('idle')
@@ -30,7 +30,7 @@ export const usePlaybackStore = defineStore('playback', () => {
   const windowStartMs = ref<number | null>(null)
   const windowEndMs   = ref<number | null>(null)
   const cursorMs      = ref<number | null>(null)
-  const speedIdx      = ref(2) // default 1×
+  const speedIdx      = ref(0) // default 1×
 
   // Set by the user in the footer before data is fetched
   const pendingStartMs = ref<number | null>(null)

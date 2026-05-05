@@ -4,7 +4,7 @@
       <div class="sdr-group-body sdr-group-body-expanded">
 
         <!-- ── Setup: date + time fields ── -->
-        <div class="sdr-radio-section" :class="{ 'apb-section--locked': isActive }">
+        <div class="sdr-radio-section apb-section--start-date" :class="{ 'apb-section--locked': isActive }">
 
           <!-- Start date picker -->
           <label class="sdr-field-label">START DATE</label>
@@ -169,30 +169,15 @@
 
         <!-- ── Timeline group (shown but disabled until active) ── -->
         <div class="sdr-radio-section" :class="{ 'apb-section--locked': !isActive }">
-          <!-- Play/Pause + transport row -->
-          <div class="apb-transport-row">
+          <!-- Speed buttons -->
+          <div class="apb-speed-group">
             <button
-              class="apb-transport-btn"
+              v-for="(s, i) in PLAYBACK_SPEEDS" :key="i"
+              class="apb-speed-btn"
+              :class="{ 'apb-speed-btn--active': i === playbackStore.speedIdx }"
               :disabled="!isActive"
-              @click="playbackStore.status === 'playing' ? playbackStore.pause() : playbackStore.play()"
-            >
-              <svg v-if="playbackStore.status === 'playing'" width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <rect x="1" y="1" width="3" height="8" rx="0.5" fill="currentColor"/>
-                <rect x="6" y="1" width="3" height="8" rx="0.5" fill="currentColor"/>
-              </svg>
-              <svg v-else width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <polygon points="2,1 9,5 2,9" fill="currentColor"/>
-              </svg>
-            </button>
-            <div class="apb-speed-group">
-              <button
-                v-for="(s, i) in PLAYBACK_SPEEDS" :key="i"
-                class="apb-speed-btn"
-                :class="{ 'apb-speed-btn--active': i === playbackStore.speedIdx }"
-                :disabled="!isActive"
-                @click="playbackStore.speedIdx = i"
-              >{{ s }}×</button>
-            </div>
+              @click="playbackStore.speedIdx = i"
+            >{{ s }}×</button>
           </div>
         </div>
 
@@ -544,6 +529,7 @@ const timelineWrap   = ref<HTMLDivElement | null>(null)
 const timelineCanvas = ref<HTMLCanvasElement | null>(null)
 let   _hoverMs: number | null = null
 let   _isDragging = false
+let   _wasPlaying = false
 let   _ro: ResizeObserver | null = null
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -662,37 +648,30 @@ function _drawTimeline(): void {
     ctx.setLineDash([])
   }
 
-  // Cursor needle
+  // Cursor dot
   ctx.beginPath()
-  ctx.moveTo(cursorX, 0)
-  ctx.lineTo(cursorX, trackY + 2)
-  ctx.strokeStyle = '#c8ff00'
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  // Cursor diamond
-  ctx.beginPath()
-  ctx.moveTo(cursorX,     2)
-  ctx.lineTo(cursorX + 4, 8)
-  ctx.lineTo(cursorX,     14)
-  ctx.lineTo(cursorX - 4, 8)
-  ctx.closePath()
-  ctx.fillStyle = '#c8ff00'
+  ctx.arc(cursorX, trackY, 5, 0, Math.PI * 2)
+  ctx.fillStyle = '#ffffff'
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'
+  ctx.shadowBlur = 4
   ctx.fill()
+  ctx.shadowBlur = 0
 
   // Date + time labels
   ctx.font = "700 12px 'Barlow Condensed', 'Barlow', sans-serif"
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const dateLabelX = Math.min(Math.max(cursorX, 60), W - 100)
+  const dateLabelX = Math.min(Math.max(cursorX, 100), W - 100)
+  ctx.textAlign = 'right'
   ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.fillText(_fmtDateTime(cursor), dateLabelX - 46, H * 0.22)
+  ctx.fillText(_fmtDateTime(cursor), dateLabelX - 8, H * 0.22)
+  ctx.textAlign = 'left'
   ctx.fillStyle = 'rgba(200,255,0,0.9)'
-  ctx.fillText(_fmtHMS(cursor) + ' UTC', dateLabelX + 54, H * 0.22)
+  ctx.fillText(_fmtHMS(cursor) + ' UTC', dateLabelX + 8, H * 0.22)
 
   ctx.beginPath()
-  ctx.moveTo(dateLabelX + 6, H * 0.12)
-  ctx.lineTo(dateLabelX + 6, H * 0.34)
+  ctx.moveTo(dateLabelX, H * 0.12)
+  ctx.lineTo(dateLabelX, H * 0.34)
   ctx.strokeStyle = 'rgba(255,255,255,0.2)'
   ctx.lineWidth = 1
   ctx.stroke()
@@ -709,9 +688,10 @@ function _xToMs(x: number): number {
 
 function onTimelineMousedown(e: MouseEvent): void {
   _isDragging = true
+  _wasPlaying = playbackStore.status === 'playing'
+  if (_wasPlaying) playbackStore.pause()
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
   playbackStore.seek(_xToMs(e.clientX - rect.left))
-  if (playbackStore.status === 'playing') playbackStore.pause()
 }
 
 function onTimelineMousemove(e: MouseEvent): void {
@@ -723,12 +703,17 @@ function onTimelineMousemove(e: MouseEvent): void {
 }
 
 function onTimelineMouseleave(): void {
-  _hoverMs    = null
-  _isDragging = false
+  _hoverMs = null
   _drawTimeline()
 }
 
-function _onMouseup(): void { _isDragging = false }
+function _onMouseup(): void {
+  if (_isDragging) {
+    _isDragging = false
+    if (_wasPlaying) playbackStore.play()
+    _wasPlaying = false
+  }
+}
 
 watch([() => playbackStore.cursorMs, () => playbackStore.status, () => playbackStore.windowStartMs], () => {
   nextTick(_drawTimeline)
@@ -789,6 +774,11 @@ onBeforeUnmount(() => {
 
 #air-playback-panel .sdr-field-label {
     color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Extra top spacing on first (START DATE) section to match AIRCRAFT gap ---- */
+.apb-section--start-date {
+    padding-top: 28px;
 }
 
 /* ---- Locked/disabled section overlay ---- */
@@ -1123,61 +1113,44 @@ onBeforeUnmount(() => {
 }
 
 /* ---- Transport ---- */
-.apb-transport-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.apb-transport-btn {
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.65);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.15s, border-color 0.15s;
-}
-
-.apb-transport-btn:hover {
-    color: #c8ff00;
-    border-color: rgba(200, 255, 0, 0.4);
-}
-
 .apb-speed-group {
     display: flex;
-    gap: 3px;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-wrap: nowrap;
 }
 
 .apb-speed-btn {
-    height: 24px;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.28);
+    flex: 1;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    padding: 0 7px;
-    font-family: 'Barlow Condensed', monospace, sans-serif;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    transition: color 0.12s, border-color 0.12s;
+    padding: 0;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
 }
 
 .apb-speed-btn:hover {
-    color: rgba(255, 255, 255, 0.6);
-    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
 }
 
 .apb-speed-btn--active {
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.apb-speed-btn--active:hover {
     color: #c8ff00;
-    border-color: rgba(200, 255, 0, 0.35);
-    background: rgba(200, 255, 0, 0.05);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 /* ---- Timeline canvas ---- */
