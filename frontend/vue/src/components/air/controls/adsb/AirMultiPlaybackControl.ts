@@ -37,12 +37,16 @@ export class AirMultiPlaybackControl {
       }
     }
 
-    if (this._map.getLayer('adsb-icons') && this._map.getLayoutProperty('adsb-icons', 'visibility') === 'none')
-      this._map.setLayoutProperty('adsb-icons', 'visibility', 'visible')
+    if (!this._adsbControl.labelsVisible)
+      if (this._map.getLayer('adsb-icons') && this._map.getLayoutProperty('adsb-icons', 'visibility') === 'none')
+        this._map.setLayoutProperty('adsb-icons', 'visibility', 'visible')
     const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
-    this._setSource('adsb-live',             features.length      ? { type: 'FeatureCollection', features }      : empty)
-    this._setSource('adsb-trails-source',    trailDots.length     ? { type: 'FeatureCollection', features: trailDots }  : empty)
-    this._setSource('adsb-trail-line-source',trailLines.length    ? { type: 'FeatureCollection', features: trailLines } : empty)
+    this._setSource('adsb-live',              features.length   ? { type: 'FeatureCollection', features }               : empty)
+    this._setSource('adsb-trails-source',     trailDots.length  ? { type: 'FeatureCollection', features: trailDots }    : empty)
+    this._setSource('adsb-trail-line-source', trailLines.length ? { type: 'FeatureCollection', features: trailLines }   : empty)
+
+    // Sync feature cache so AdsbLiveControl click/hover tag handlers work during playback
+    this._adsbControl.setPlaybackFeatures(features)
   }
 
   destroy(): void {
@@ -81,7 +85,7 @@ export class AirMultiPlaybackControl {
         baro_rate:    snap.baro_rate  ?? 0,
         nav_altitude: null,
         nav_heading:  null,
-        category:     'A0',
+        category:     '',
         emergency:    'none',
         squawk:       snap.squawk     ?? '',
         squawkEmerg:  0,

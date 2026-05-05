@@ -2035,10 +2035,31 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._stopPolling()
         if (this._fetchAbort) { this._fetchAbort.abort(); this._fetchAbort = null }
         this._isFetching = false
+        // Hide live aircraft visually while playback is active
+        const empty = { type: 'FeatureCollection' as const, features: [] }
+        try { (this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)?.setData(empty as GeoJSON.GeoJSON) } catch(e) {}
+        try { (this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource)?.setData(empty as GeoJSON.GeoJSON) } catch(e) {}
+        try { (this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource)?.setData(empty as GeoJSON.GeoJSON) } catch(e) {}
+        this._clearCallsignMarkers()
+        if (this._tagMarker) { this._tagMarker.remove(); this._tagMarker = null }
+        this._tagHex = null
+        this._hideHoverTagNow()
+        this._hideStatusBar()
     }
 
     resumeLive(): void {
+        this._geojson = { type: 'FeatureCollection', features: [] }
+        this._selectedHex = null
+        this._tagHex = null
         if (this.visible && !this._pollInterval) this._startPolling()
+    }
+
+    // Called by AirMultiPlaybackControl each render so click/hover handlers can find features
+    setPlaybackFeatures(features: GeoJSON.Feature[]): void {
+        this._geojson = { type: 'FeatureCollection', features: features as AircraftGeoFeature[] }
+        if (this.labelsVisible) {
+            this._updateCallsignMarkers()
+        }
     }
 
     // ---- Polling control ----
