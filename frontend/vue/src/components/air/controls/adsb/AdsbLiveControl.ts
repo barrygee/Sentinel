@@ -62,6 +62,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     private _pollInterval:        ReturnType<typeof setInterval> | null = null
     private _interpolateInterval: ReturnType<typeof setInterval> | null = null
+    private _isPlayback = false
 
     _geojson:       { type: 'FeatureCollection'; features: AircraftGeoFeature[] }
     private _trailsGeojson: { type: 'FeatureCollection'; features: TrailGeoFeature[] }
@@ -1609,6 +1610,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
             }
         }
 
+        // In playback mode the AirMultiPlaybackControl owns the trail sources — don't clobber them.
+        // Just ensure layers are visible if a selection is active.
+        if (this._isPlayback) {
+            // Trail visibility in playback is managed by AirMultiPlaybackControl.renderAtTime.
+            return
+        }
+
         this._trailsGeojson    = { type: 'FeatureCollection', features: trailFeatures }
         this._trailLineGeojson = { type: 'FeatureCollection', features: lineFeatures }
 
@@ -2062,6 +2070,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     // ---- Public playback hooks ----
 
     pauseLive(): void {
+        this._isPlayback = true
         this._stopPolling()
         if (this._fetchAbort) { this._fetchAbort.abort(); this._fetchAbort = null }
         this._isFetching = false
@@ -2078,6 +2087,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     }
 
     resumeLive(): void {
+        this._isPlayback = false
         this._geojson = { type: 'FeatureCollection', features: [] }
         this._selectedHex = null
         this._isolatedHex = null
