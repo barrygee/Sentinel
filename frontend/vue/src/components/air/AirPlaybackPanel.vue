@@ -153,36 +153,46 @@
           </div>
         </div>
 
-        <!-- ── START PLAYBACK button (only when not yet active) ── -->
-        <div v-if="!isActive" class="sdr-radio-section sdr-radio-section--tight">
-          <button
-            class="apb-load-btn"
-            :disabled="!canLoad || isLoading"
-            @click="loadPlayback"
-          >
-            <svg v-if="isLoading" class="apb-spin" width="11" height="11" viewBox="0 0 12 12" fill="none">
-              <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="20 12" stroke-linecap="round"/>
-            </svg>
-            <span>{{ isLoading ? 'LOADING…' : 'START REPLAY' }}</span>
-          </button>
-        </div>
-
-        <!-- ── Timeline group (shown but disabled until active) ── -->
-        <div class="sdr-radio-section" :class="{ 'apb-section--locked': !isActive }">
-          <!-- Speed buttons -->
-          <div class="apb-speed-group">
+        <!-- ── Transport + speed inline ── -->
+        <div class="sdr-radio-section sdr-radio-section--tight apb-section--transport">
+          <label class="sdr-field-label">PLAYBACK</label>
+          <div class="apb-transport-row">
+            <!-- Play button (start replay) -->
             <button
-              v-for="(s, i) in PLAYBACK_SPEEDS" :key="i"
-              class="apb-speed-btn"
-              :class="{ 'apb-speed-btn--active': i === playbackStore.speedIdx }"
+              class="apb-transport-btn apb-transport-btn--play"
+              :disabled="isActive || !canLoad || isLoading"
+              @click="loadPlayback"
+              title="Start replay"
+            >
+              <svg v-if="isLoading" class="apb-spin" width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="20 12" stroke-linecap="round"/>
+              </svg>
+              <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+            </button>
+            <!-- Stop button (exit replay) -->
+            <button
+              class="apb-transport-btn apb-transport-btn--stop"
               :disabled="!isActive"
-              @click="playbackStore.speedIdx = i"
-            >{{ s }}×</button>
+              @click="playbackStore.exit()"
+              title="Stop replay"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
+            </button>
+            <!-- Speed buttons right-aligned -->
+            <div class="apb-speed-group apb-speed-group--right" :class="{ 'apb-section--locked': !isActive }">
+              <button
+                v-for="(s, i) in PLAYBACK_SPEEDS" :key="i"
+                class="apb-speed-btn"
+                :class="{ 'apb-speed-btn--active': i === playbackStore.speedIdx }"
+                :disabled="!isActive"
+                @click="playbackStore.speedIdx = i"
+              >{{ s }}×</button>
+            </div>
           </div>
         </div>
 
-        <div class="sdr-radio-section sdr-radio-section--tight" :class="{ 'apb-section--locked': !isActive }">
-          <!-- Timeline canvas -->
+        <!-- ── Timeline canvas ── -->
+        <div class="sdr-radio-section sdr-radio-section--tight apb-section--timeline" :class="{ 'apb-section--locked': !isActive }">
           <div class="apb-timeline-wrap" ref="timelineWrap">
             <canvas ref="timelineCanvas" class="apb-timeline-canvas"
               @mousedown="isActive && onTimelineMousedown($event)"
@@ -190,11 +200,6 @@
               @mouseleave="isActive && onTimelineMouseleave()"
             />
           </div>
-        </div>
-
-        <!-- ── STOP PLAYBACK button (only when active) ── -->
-        <div v-if="isActive" class="sdr-radio-section sdr-radio-section--tight">
-          <button class="apb-exit-btn" @click="playbackStore.exit()">STOP REPLAY</button>
         </div>
 
       </div>
@@ -771,8 +776,8 @@ onBeforeUnmount(() => {
     flex-direction: column;
 }
 
-#air-playback-panel .sdr-field-label {
-    color: rgba(255, 255, 255, 0.4);
+#air-playback-panel :deep(.sdr-field-label) {
+    color: rgba(200, 255, 0, 0.6);
     font-size: 9px;
     letter-spacing: 0.14em;
     margin-bottom: 8px;
@@ -1082,55 +1087,77 @@ onBeforeUnmount(() => {
     flex-shrink: 0;
 }
 
-/* ---- Load button ---- */
-.apb-load-btn {
-    width: 100%;
+/* ---- Transport section extra top spacing ---- */
+.apb-section--transport {
+    padding-top: 20px;
+}
+
+/* ---- Transport play/stop buttons ---- */
+.apb-transport-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.apb-speed-group--right {
+    margin-left: auto;
+}
+
+.apb-transport-btn {
+    flex-shrink: 0;
+    width: 36px;
     height: 36px;
-    background: rgba(200, 255, 0, 0.06);
-    border: 1px solid rgba(200, 255, 0, 0.45);
-    border-radius: 2px;
-    color: #c8ff00;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 0;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    transition: background 0.15s, border-color 0.15s;
-    box-sizing: border-box;
+    padding: 0;
+    transition: background 0.15s, color 0.15s;
 }
 
-.apb-load-btn:hover:not(:disabled) {
-    background: rgba(200, 255, 0, 0.12);
-    border-color: #c8ff00;
+.apb-transport-btn--play {
+    color: rgba(200, 255, 0, 0.75);
 }
 
-.apb-load-btn:disabled {
-    opacity: 0.45;
+.apb-transport-btn--play:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    color: #c8ff00;
+}
+
+.apb-transport-btn--stop {
+    color: rgba(255, 80, 80, 0.75);
+}
+
+.apb-transport-btn--stop:hover:not(:disabled) {
+    background: rgba(255, 80, 80, 0.15);
+    color: #ff5050;
+}
+
+.apb-transport-btn:disabled {
+    opacity: 0.25;
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* ---- Transport ---- */
 .apb-speed-group {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 4px;
-    flex-wrap: nowrap;
 }
 
 .apb-speed-btn {
-    flex: 1;
-    height: 28px;
+    height: 36px;
     background: rgba(255, 255, 255, 0.08);
     border: none;
     color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    padding: 0;
+    padding: 0 12px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -1155,6 +1182,12 @@ onBeforeUnmount(() => {
     background: rgba(255, 255, 255, 0.15);
 }
 
+/* ---- Timeline section reduced top gap ---- */
+.apb-section--timeline {
+    padding-top: 0;
+    margin-top: -11px;
+}
+
 /* ---- Timeline canvas ---- */
 .apb-timeline-wrap {
     width: 100%;
@@ -1169,32 +1202,6 @@ onBeforeUnmount(() => {
     height: 100%;
 }
 
-/* ---- Exit button ---- */
-.apb-exit-btn {
-    width: 100%;
-    height: 36px;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.25);
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
-    box-sizing: border-box;
-}
-
-.apb-exit-btn:hover {
-    color: rgba(255, 70, 70, 0.9);
-    border-color: rgba(255, 70, 70, 0.35);
-    background: rgba(255, 70, 70, 0.05);
-}
 
 @keyframes apb-spin {
     to { transform: rotate(360deg); }
