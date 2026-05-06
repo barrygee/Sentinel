@@ -2060,6 +2060,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (this.labelsVisible) {
             this._updateCallsignMarkers()
         }
+        // Reposition the selected-aircraft tag marker as the plane moves through the playback timeline.
+        // _interpolate() is stopped during playback so we must update it here instead.
+        if (this._tagMarker && this._tagHex) {
+            const f = (features as AircraftGeoFeature[]).find(f => f.properties.hex === this._tagHex)
+            if (f) this._tagMarker.setLngLat(f.geometry.coordinates)
+        }
     }
 
     // ---- Polling control ----
