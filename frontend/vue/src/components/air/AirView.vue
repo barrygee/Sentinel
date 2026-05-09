@@ -13,7 +13,7 @@
       />
     </Teleport>
     <Teleport v-if="teleportReady" to="#msb-pane-playback">
-      <AirPlaybackPanel />
+      <AirReplayPanel />
     </Teleport>
   </div>
 </template>
@@ -24,7 +24,7 @@ import AirMap from './AirMap.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import AirSideMenu from './AirSideMenu.vue'
 import AirFilter from './AirFilter.vue'
-import AirPlaybackPanel from './AirPlaybackPanel.vue'
+import AirReplayPanel from './AirReplayPanel.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import type { AirportsToggleControl } from './controls/airports/AirportsControl'
