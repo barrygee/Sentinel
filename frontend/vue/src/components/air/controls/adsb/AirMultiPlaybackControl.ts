@@ -23,11 +23,9 @@ export class AirMultiPlaybackControl {
   renderAtTime(cursorMs: number, aircraft: Record<string, PlaybackAircraft>): void {
     this._lastCursorMs = cursorMs
     this._lastAircraft = aircraft
-    const features: Feature[]   = []
-    const trailDots: Feature[]  = []
+    const features: Feature[] = []
+    const trailDots: Feature[] = []
     const trailLines: Feature[] = []
-    // Use _trailHex ?? _selectedHex for trail building — mirrors live _rebuildTrails exactly.
-    // _trailHex is set on hover; _selectedHex is set on click. _isolatedHex is for icon isolation only.
     const trailHex    = this._adsbControl._trailHex ?? this._adsbControl._selectedHex
     const isolatedHex = this._adsbControl._isolatedHex
 
@@ -44,7 +42,6 @@ export class AirMultiPlaybackControl {
       const lastSnap = ac.snapshots[ac.snapshots.length - 1]
       if (cursorMs > lastSnap.ts) continue
 
-      // Dead-reckon from this snapshot to the current cursor position
       const elapsedSec = (cursorMs - snap.ts) / 1000
       let coords: [number, number]
       if (snap.track != null && snap.gs != null && snap.gs > 0 && elapsedSec > 0) {
@@ -55,7 +52,6 @@ export class AirMultiPlaybackControl {
 
       features.push(this._makeAircraftFeature(ac, snap, coords))
 
-      // Build trail only for the hovered/selected aircraft — mirrors live _rebuildTrails behaviour.
       const acHex = ac.hex || ac.registration
       if (!trailHex || acHex !== trailHex) continue
 
@@ -71,16 +67,10 @@ export class AirMultiPlaybackControl {
     }
 
     const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
-    this._setSource('adsb-live',              features.length   ? { type: 'FeatureCollection', features }               : empty)
-    this._setSource('adsb-trails-source',     trailDots.length  ? { type: 'FeatureCollection', features: trailDots }    : empty)
-    this._setSource('adsb-trail-line-source', trailLines.length ? { type: 'FeatureCollection', features: trailLines }   : empty)
+    this._setSource('adsb-live', features.length ? { type: 'FeatureCollection', features } : empty)
+    this._setSource('adsb-trails-source', trailDots.length ? { type: 'FeatureCollection', features: trailDots } : empty)
+    this._setSource('adsb-trail-line-source', trailLines.length ? { type: 'FeatureCollection', features: trailLines } : empty)
 
-    // Show trail layers when there is a hover/selection and data — same as live mode.
-    const showTrails = !!trailHex && (trailDots.length > 0 || trailLines.length > 0)
-    if (this._map.getLayer('adsb-trail-dots')) this._map.setLayoutProperty('adsb-trail-dots', 'visibility', showTrails ? 'visible' : 'none')
-    if (this._map.getLayer('adsb-trail-line')) this._map.setLayoutProperty('adsb-trail-line', 'visibility', showTrails ? 'visible' : 'none')
-
-    // Mirror live isolation: hide all icons except the selected one.
     if (isolatedHex) {
       const isolateFilter = ['==', ['get', 'hex'], isolatedHex]
       if (this._map.getLayer('adsb-bracket')) this._map.setFilter('adsb-bracket', isolateFilter as any)

@@ -30,7 +30,7 @@ export const usePlaybackStore = defineStore('playback', () => {
   const windowStartMs = ref<number | null>(null)
   const windowEndMs   = ref<number | null>(null)
   const cursorMs      = ref<number | null>(null)
-  const speedIdx      = ref(0) // default 1×
+  const speedIdx        = ref(0) // default 1×
 
   // Set by the user in the footer before data is fetched
   const pendingStartMs = ref<number | null>(null)
@@ -68,13 +68,13 @@ export const usePlaybackStore = defineStore('playback', () => {
   }
 
   function exit(): void {
-    status.value        = 'idle'
-    aircraft.value      = {}
-    cursorMs.value      = null
-    windowStartMs.value = null
-    windowEndMs.value   = null
-    pendingStartMs.value = null
-    pendingEndMs.value   = null
+    status.value          = 'idle'
+    aircraft.value        = {}
+    cursorMs.value        = null
+    windowStartMs.value   = null
+    windowEndMs.value     = null
+    pendingStartMs.value  = null
+    pendingEndMs.value    = null
   }
 
   return {
