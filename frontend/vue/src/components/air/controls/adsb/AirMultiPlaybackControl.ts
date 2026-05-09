@@ -8,17 +8,27 @@ type Feature = GeoJSON.Feature
 export class AirMultiPlaybackControl {
   private _map: MapLibreGlMap
   private _adsbControl: AdsbLiveControl
+  private _lastCursorMs: number = 0
+  private _lastAircraft: Record<string, PlaybackAircraft> = {}
 
   constructor(map: MapLibreGlMap, adsbControl: AdsbLiveControl) {
     this._map = map
     this._adsbControl = adsbControl
     adsbControl.pauseLive()
+    adsbControl._onPlaybackSelectionChange = () => {
+      this.renderAtTime(this._lastCursorMs, this._lastAircraft)
+    }
   }
 
   renderAtTime(cursorMs: number, aircraft: Record<string, PlaybackAircraft>): void {
+    this._lastCursorMs = cursorMs
+    this._lastAircraft = aircraft
     const features: Feature[]   = []
     const trailDots: Feature[]  = []
     const trailLines: Feature[] = []
+    // Use _trailHex ?? _selectedHex for trail building — mirrors live _rebuildTrails exactly.
+    // _trailHex is set on hover; _selectedHex is set on click. _isolatedHex is for icon isolation only.
+    const trailHex    = this._adsbControl._trailHex ?? this._adsbControl._selectedHex
     const isolatedHex = this._adsbControl._isolatedHex
 
     for (const ac of Object.values(aircraft)) {
@@ -45,15 +55,12 @@ export class AirMultiPlaybackControl {
 
       features.push(this._makeAircraftFeature(ac, snap, coords))
 
-      // Only build trails for the selected aircraft (mirrors live isolation mode).
-      // When nothing is selected build trails for all aircraft so they're ready.
+      // Build trail only for the hovered/selected aircraft — mirrors live _rebuildTrails behaviour.
       const acHex = ac.hex || ac.registration
-      if (isolatedHex && acHex !== isolatedHex) continue
+      if (!trailHex || acHex !== trailHex) continue
 
-      const TRAIL_MS = 5 * 60 * 1000
-      const trailCutoff = snap.ts - TRAIL_MS
-      let trailStart = idx
-      while (trailStart > 0 && ac.snapshots[trailStart - 1].ts >= trailCutoff) trailStart--
+      const TRAIL_COUNT = 100
+      const trailStart = Math.max(0, idx - TRAIL_COUNT + 1)
       const trail = ac.snapshots.slice(trailStart, idx + 1)
       trail.forEach((s, i) => {
         trailDots.push(this._makeTrailDot(acHex, s, i, trail.length))
@@ -68,26 +75,21 @@ export class AirMultiPlaybackControl {
     this._setSource('adsb-trails-source',     trailDots.length  ? { type: 'FeatureCollection', features: trailDots }    : empty)
     this._setSource('adsb-trail-line-source', trailLines.length ? { type: 'FeatureCollection', features: trailLines }   : empty)
 
-    // Show/hide trail layers. When isolated, always show if we have data.
-    // When not isolated, hide trails (nothing selected yet).
-    const showTrails = !!isolatedHex && (trailDots.length > 0 || trailLines.length > 0)
-    if (this._map.getLayer('adsb-trail-dots')) this._map.setLayoutProperty('adsb-trail-dots', 'visibility', (showTrails && trailDots.length)  ? 'visible' : 'none')
-    if (this._map.getLayer('adsb-trail-line')) this._map.setLayoutProperty('adsb-trail-line', 'visibility', (showTrails && trailLines.length) ? 'visible' : 'none')
+    // Show trail layers when there is a hover/selection and data — same as live mode.
+    const showTrails = !!trailHex && (trailDots.length > 0 || trailLines.length > 0)
+    if (this._map.getLayer('adsb-trail-dots')) this._map.setLayoutProperty('adsb-trail-dots', 'visibility', showTrails ? 'visible' : 'none')
+    if (this._map.getLayer('adsb-trail-line')) this._map.setLayoutProperty('adsb-trail-line', 'visibility', showTrails ? 'visible' : 'none')
 
     // Mirror live isolation: hide all icons except the selected one.
-    // _applyTypeFilter already set the layer filter on click; re-apply each tick
-    // so it survives any style/source refresh that might reset it.
     if (isolatedHex) {
       const isolateFilter = ['==', ['get', 'hex'], isolatedHex]
       if (this._map.getLayer('adsb-bracket')) this._map.setFilter('adsb-bracket', isolateFilter as any)
       if (this._map.getLayer('adsb-hit'))     this._map.setFilter('adsb-hit',     isolateFilter as any)
-      // Force the icon visible for the isolated aircraft even when labelsVisible hides the symbol layer
       if (this._map.getLayer('adsb-icons')) {
         this._map.setFilter('adsb-icons', isolateFilter as any)
         this._map.setLayoutProperty('adsb-icons', 'visibility', 'visible')
       }
     } else {
-      // No selection — clear hit filter only; _applyTypeFilter owns icons/bracket filters
       if (this._map.getLayer('adsb-hit')) this._map.setFilter('adsb-hit', null)
     }
 
@@ -95,6 +97,7 @@ export class AirMultiPlaybackControl {
   }
 
   destroy(): void {
+    this._adsbControl._onPlaybackSelectionChange = null
     const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
     this._setSource('adsb-live', empty)
     this._setSource('adsb-trails-source', empty)

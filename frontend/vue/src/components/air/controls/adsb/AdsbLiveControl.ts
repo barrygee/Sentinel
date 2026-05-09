@@ -69,7 +69,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     private _trailLineGeojson: { type: 'FeatureCollection'; features: GeoJSON.Feature<GeoJSON.LineString, { emerg: 0 | 1; military: 0 | 1 }>[] }
 
     private _trails:       Record<string, TrailEntry[]> = {}
-    private _trailHex:     string | null = null
+    _trailHex:     string | null = null
     private _MAX_TRAIL     = 100
     private _lastPositions: Record<string, LastPosition> = {}
     private _interpolatedFeatures: AircraftGeoFeature[] | null = null
@@ -98,6 +98,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
     private _tagClickHandled   = false
     private _trackingRestored  = false
     _trackingNotifIds: Record<string, string> | null = null
+
+    _onPlaybackSelectionChange: (() => void) | null = null
 
     private _lastFetchTime   = 0
     private _isFetching      = false
@@ -630,6 +632,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
             this.map.on('click', (e: maplibregl.MapMouseEvent) => {
                 if (_clickHandled) { _clickHandled = false; return }
                 if (this._tagClickHandled) { this._tagClickHandled = false; return }
+                const dbgHits = this.map.queryRenderedFeatures(e.point, { layers: ['adsb-hit', 'adsb-icons', 'adsb-trail-dots', 'adsb-trail-line'] })
+                console.error('[CLICK] map click — hit layers: %s, adsb-hit visible: %s', dbgHits.map(f => f.layer.id + ':' + (f.properties?.hex || '?')).join(',') || 'none', this.map.getLayoutProperty('adsb-hit', 'visibility'))
                 if (this._followEnabled) return
                 if (this._selectedHex) {
                     const hits = this.map.queryRenderedFeatures(e.point, { layers: ['adsb-hit', 'adsb-icons'] })
@@ -650,7 +654,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 // Show trail on hover (overrides selected trail temporarily)
                 if (hex) {
                     this._trailHex = hex
-                    this._rebuildTrails()
+                    if (this._isPlayback) this._onPlaybackSelectionChange?.()
+                    else this._rebuildTrails()
                 }
             }
             const handleHoverLeave = () => {
@@ -658,7 +663,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 this._hideHoverTag()
                 // Restore selected aircraft trail on hover-leave, or clear if none selected
                 this._trailHex = this._selectedHex ?? null
-                this._rebuildTrails()
+                if (this._isPlayback) this._onPlaybackSelectionChange?.()
+                else this._rebuildTrails()
             }
 
             this.map.on('mouseenter', 'adsb-hit', handleHoverEnter)
@@ -1566,6 +1572,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
             this._trailHex = null
         }
         this._rebuildTrails()
+        if (this._isPlayback) this._onPlaybackSelectionChange?.()
     }
 
     private _rebuildTrails(): void {
