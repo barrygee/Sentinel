@@ -322,37 +322,177 @@ def compute_passes(
     return passes
 
 
-def compute_footprint(lat: float, lon: float, alt_km: float) -> list[list[float]]:
-    """Compute the ISS visibility footprint (horizon circle) as a list of [lon, lat] points.
+def compute_footprint(lat: float, lon: float, alt_km: float) -> dict:
+    """Compute the satellite visibility footprint as a GeoJSON Polygon or MultiPolygon.
 
     The footprint radius is determined by the satellite altitude:
       radius_rad = arccos(Re / (Re + alt_km))
-    Returns 181 points forming a closed great-circle ring.
 
-    Longitudes are normalised to [-180, 180].  The frontend splits the ring at
-    antimeridian crossings as needed per projection mode.
+    Antimeridian crossings and polar enclosures are handled here so the
+    frontend can render the returned geometry directly without further
+    coordinate-system gymnastics.  Returned coordinates are always in
+    [-180, 180] x [-90, 90], with explicit ±180 vertices on each side of any
+    antimeridian split.  Exterior rings are counter-clockwise (per RFC 7946
+    §3.1.6) so MapLibre fills the interior of the visibility region.
     """
     radius_rad = math.acos(_RE_KM / (_RE_KM + alt_km))
     lat_rad = math.radians(lat)
     lon_rad = math.radians(lon)
 
-    points = []
+    # 1. Generate the horizon ring at 2° bearing spacing.  Each point's
+    #    longitude is normalised to [-180, 180]; we'll re-thread it into a
+    #    continuous unwrapped longitude in step 2.
+    raw: list[tuple[float, float]] = []
     for i in range(181):
         bearing_rad = math.radians(i * 2)
         lat2 = math.asin(
-            math.sin(lat_rad) * math.cos(radius_rad) +
-            math.cos(lat_rad) * math.sin(radius_rad) * math.cos(bearing_rad)
+            math.sin(lat_rad) * math.cos(radius_rad)
+            + math.cos(lat_rad) * math.sin(radius_rad) * math.cos(bearing_rad)
         )
         lon2_rad = lon_rad + math.atan2(
             math.sin(bearing_rad) * math.sin(radius_rad) * math.cos(lat_rad),
-            math.cos(radius_rad) - math.sin(lat_rad) * math.sin(lat2)
+            math.cos(radius_rad) - math.sin(lat_rad) * math.sin(lat2),
         )
-        lon2_deg = (math.degrees(lon2_rad) + 180) % 360 - 180
-        points.append([round(lon2_deg, 4), round(math.degrees(lat2), 4)])
+        lon2_norm = (math.degrees(lon2_rad) + 180) % 360 - 180
+        raw.append((lon2_norm, math.degrees(lat2)))
 
-    # GeoJSON exterior rings must be counter-clockwise so the Polygon fill
-    # covers the inside of the circle (the visibility footprint), not the
-    # complement (the rest of the world).  The bearing loop above produces a
-    # clockwise ring, so reverse it here.
-    points.reverse()
-    return points
+    # 2. Unwrap into continuous longitudes.  Python's % is true modulo so the
+    #    shortest-path delta is always in [-180, 180] without sign-handling.
+    unwrapped: list[tuple[float, float]] = []
+    prev_lon: float | None = None
+    acc = 0.0
+    for lon_n, lat_n in raw:
+        if prev_lon is None:
+            acc = lon_n
+        else:
+            acc += (lon_n - prev_lon + 180) % 360 - 180
+        unwrapped.append((acc, lat_n))
+        prev_lon = lon_n
+
+    def _norm(L: float) -> float:
+        return (L + 180) % 360 - 180
+
+    def _round(L: float, A: float) -> list[float]:
+        return [round(L, 4), round(A, 4)]
+
+    def _ring_signed_area(ring: list[list[float]]) -> float:
+        return sum(
+            (ring[i + 1][0] - ring[i][0]) * (ring[i + 1][1] + ring[i][1])
+            for i in range(len(ring) - 1)
+        ) / 2
+
+    def _ensure_ccw(ring: list[list[float]]) -> list[list[float]]:
+        # Positive shoelace area (in lon=x, lat=y coords) means clockwise; reverse.
+        if _ring_signed_area(ring) > 0:
+            ring.reverse()
+        return ring
+
+    def _world_of(L: float) -> int:
+        return math.floor((L + 180) / 360)
+
+    # 3. Polar enclosure: net longitude change of a full revolution.  Build a
+    #    single polygon that detours over the appropriate pole at each
+    #    antimeridian crossing, so the fill correctly covers the polar cap.
+    winding = unwrapped[-1][0] - unwrapped[0][0]
+    if abs(winding) > 270:
+        mean_lat = sum(p[1] for p in unwrapped) / len(unwrapped)
+        pole = 90.0 if mean_lat >= 0 else -90.0
+        ring: list[list[float]] = []
+        for i, (L, A) in enumerate(unwrapped):
+            if i == 0:
+                ring.append(_round(_norm(L), A))
+                continue
+            pL, pA = unwrapped[i - 1]
+            w_prev = _world_of(pL)
+            w_cur = _world_of(L)
+            if w_prev != w_cur:
+                step = 1 if w_cur > w_prev else -1
+                w = w_prev
+                while w != w_cur:
+                    boundary = (w + 1) * 360 - 180 if step > 0 else w * 360 - 180
+                    t = (boundary - pL) / (L - pL)
+                    cross_lat = pA + t * (A - pA)
+                    exit_side = 180.0 if step > 0 else -180.0
+                    entry_side = -exit_side
+                    ring.append(_round(exit_side, cross_lat))
+                    ring.append(_round(exit_side, pole))
+                    ring.append(_round(entry_side, pole))
+                    ring.append(_round(entry_side, cross_lat))
+                    w += step
+            ring.append(_round(_norm(L), A))
+        if ring[0] != ring[-1]:
+            ring.append(list(ring[0]))
+        _ensure_ccw(ring)
+        return {"type": "Polygon", "coordinates": [ring]}
+
+    # 4. Antimeridian split: walk the unwrapped ring, break at each ±180°
+    #    world boundary, and stitch the trailing fragment back onto the first
+    #    sub-ring (since the input ring is closed, the walk's start and end
+    #    belong to the same sub-ring).
+    sub_rings: list[list[list[float]]] = []
+    current: list[list[float]] = []
+    pending_first = False
+    for i, (L, A) in enumerate(unwrapped):
+        if i == 0:
+            current.append([L, A])
+            continue
+        pL, pA = unwrapped[i - 1]
+        w_prev = _world_of(pL)
+        w_cur = _world_of(L)
+        if w_prev != w_cur:
+            step = 1 if w_cur > w_prev else -1
+            w = w_prev
+            while w != w_cur:
+                boundary = (w + 1) * 360 - 180 if step > 0 else w * 360 - 180
+                t = (boundary - pL) / (L - pL)
+                cross_lat = pA + t * (A - pA)
+                exit_lon = 180.0 if step > 0 else -180.0
+                entry_lon = -exit_lon
+                current.append([exit_lon, cross_lat])
+                if not pending_first:
+                    sub_rings.append(current)
+                    pending_first = True
+                else:
+                    current.append([current[0][0], current[0][1]])
+                    sub_rings.append(current)
+                current = [[entry_lon, cross_lat]]
+                w += step
+        current.append([L, A])
+    if current:
+        if pending_first and sub_rings:
+            first = sub_rings[0]
+            sub_rings[0] = current + first[1:]
+        else:
+            sub_rings.append(current)
+
+    # 5. Normalise lons; preserve ±180 boundary markers on the side that
+    #    matches the sub-ring's hemisphere (otherwise %-based normalisation
+    #    silently flips +180 to -180, placing them on the wrong map edge).
+    out_rings: list[list[list[float]]] = []
+    for ring_pts in sub_rings:
+        east_votes = 0
+        west_votes = 0
+        for L, _ in ring_pts:
+            if L == 180.0 or L == -180.0:
+                continue
+            n = _norm(L)
+            if n > 0:
+                east_votes += 1
+            elif n < 0:
+                west_votes += 1
+        boundary_lon = 180.0 if east_votes >= west_votes else -180.0
+        norm_ring: list[list[float]] = []
+        for L, A in ring_pts:
+            if L == 180.0 or L == -180.0:
+                norm_ring.append(_round(boundary_lon, A))
+            else:
+                norm_ring.append(_round(_norm(L), A))
+        if len(norm_ring) >= 2 and norm_ring[0] != norm_ring[-1]:
+            norm_ring.append(list(norm_ring[0]))
+        if len(norm_ring) >= 4:
+            _ensure_ccw(norm_ring)
+            out_rings.append(norm_ring)
+
+    if len(out_rings) == 1:
+        return {"type": "Polygon", "coordinates": out_rings}
+    return {"type": "MultiPolygon", "coordinates": [[r] for r in out_rings]}

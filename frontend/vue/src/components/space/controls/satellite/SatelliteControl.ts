@@ -15,7 +15,9 @@ interface IssApiResponse {
     error?: string
     position: IssPosition
     ground_track: GeoJSON.FeatureCollection
-    footprint: [number, number][]
+    // Backend now returns a fully-formed Polygon or MultiPolygon with
+    // antimeridian splits and polar enclosures already handled.
+    footprint: GeoJSON.Polygon | GeoJSON.MultiPolygon
 }
 interface IssPass {
     aos_utc: string; los_utc: string
@@ -140,15 +142,27 @@ export class SatelliteControl extends SentinelControlBase {
         return ((lon % 360) + 540) % 360 - 180
     }
 
-    private static _unwrapRing(coords: [number, number][]): [number, number][] {
-        const out: [number, number][] = []
-        let prev: number | null = null; let acc = 0
-        for (const [lon, lat] of coords) {
-            if (prev === null) { acc = lon } else { acc += ((lon - prev + 180) % 360 - 180) }
-            out.push([acc, lat])
-            prev = lon
+    // Build the FeatureCollection used by the footprint source: one fill
+    // feature for the (Multi)Polygon plus one LineString outline per ring.
+    // The backend has already split antimeridian crossings and handled polar
+    // enclosures, so the geometry can be rendered as-is with no further math.
+    private static _buildFootprintFeatures(
+        geom: GeoJSON.Polygon | GeoJSON.MultiPolygon,
+    ): GeoJSON.FeatureCollection {
+        const rings: GeoJSON.Position[][] = geom.type === 'Polygon'
+            ? [geom.coordinates[0]]
+            : geom.coordinates.map(p => p[0])
+        const features: GeoJSON.Feature[] = [
+            { type: 'Feature', geometry: geom, properties: {} },
+        ]
+        for (const ring of rings) {
+            features.push({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: ring },
+                properties: {},
+            })
         }
-        return out
+        return { type: 'FeatureCollection', features }
     }
 
     private static _splitRingForGlobe(coords: [number, number][]): [number, number][][] {
@@ -187,19 +201,11 @@ export class SatelliteControl extends SentinelControlBase {
     }
 
     private _footprintForProjection(fp: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-        if (!this._isGlobeActive()) return fp
-        const out: GeoJSON.Feature[] = []
-        for (const feat of fp.features) {
-            if (feat.geometry.type === 'LineString') {
-                const segs = SatelliteControl._splitRingForGlobe(feat.geometry.coordinates as [number, number][])
-                for (const s of segs) {
-                    if (s.length >= 2) out.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: s }, properties: feat.properties })
-                }
-            } else {
-                out.push(feat)
-            }
-        }
-        return { type: 'FeatureCollection', features: out }
+        // The backend's compute_footprint already splits antimeridian-crossing
+        // footprints into a MultiPolygon and handles polar enclosure with a
+        // pole-detour, so the geometry is renderable as-is in both Mercator
+        // and globe projections — no further processing required.
+        return fp
     }
 
     // ---- Canvas sprite factories ----
@@ -270,7 +276,11 @@ export class SatelliteControl extends SentinelControlBase {
         })
         this.map.addLayer({
             id: 'iss-footprint-fill', type: 'fill', source: 'iss-footprint-source',
-            filter: ['==', ['geometry-type'], 'Polygon'],
+            // Backend may emit a Polygon (no antimeridian split) or a
+            // MultiPolygon (split into east/west halves). Accept both — the
+            // fill layer needs every polygon-like feature, the line layer
+            // below picks up the LineString outlines we synthesise.
+            filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
             layout: { visibility: fpVis },
             paint: { 'fill-color': 'rgba(0,0,0,0.22)' },
         })
@@ -340,13 +350,13 @@ export class SatelliteControl extends SentinelControlBase {
             }
             this._trackGeojson = ground_track
 
-            const fpUnwrapped = SatelliteControl._unwrapRing(footprint as [number, number][])
-            this._footprintGeojson = {
-                type: 'FeatureCollection',
-                features: [
-                    { type: 'Feature', geometry: { type: 'LineString', coordinates: fpUnwrapped }, properties: {} },
-                    { type: 'Feature', geometry: { type: 'Polygon',    coordinates: [fpUnwrapped] }, properties: {} },
-                ],
+            // Build the footprint FeatureCollection in isolation — if the
+            // response shape is unexpected we still want the satellite icon
+            // and ground track to update on this poll cycle.
+            try {
+                this._footprintGeojson = SatelliteControl._buildFootprintFeatures(footprint)
+            } catch (err) {
+                console.warn('[SatelliteControl] footprint build failed:', err)
             }
 
             if (!this._previewNoradId) {
@@ -715,13 +725,11 @@ export class SatelliteControl extends SentinelControlBase {
 
             const { position, ground_track, footprint } = data
             this._previewPositions.set(noradId, position)
-            const fpUnwrapped2 = SatelliteControl._unwrapRing(footprint as [number, number][])
-            const footprintGeo: GeoJSON.FeatureCollection = {
-                type: 'FeatureCollection',
-                features: [
-                    { type: 'Feature', geometry: { type: 'LineString', coordinates: fpUnwrapped2 }, properties: {} },
-                    { type: 'Feature', geometry: { type: 'Polygon',    coordinates: [fpUnwrapped2] }, properties: {} },
-                ],
+            let footprintGeo: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+            try {
+                footprintGeo = SatelliteControl._buildFootprintFeatures(footprint)
+            } catch (err) {
+                console.warn('[SatelliteControl] preview footprint build failed:', err)
             }
             const issGeo: GeoJSON.FeatureCollection = {
                 type: 'FeatureCollection',
