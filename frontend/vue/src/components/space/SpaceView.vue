@@ -5,14 +5,14 @@
     <SpaceSideMenu :map-ref="spaceMapProxy" />
     <NoUrlOverlay domain="space" />
     <SatInfoPanel :satellite-control="satelliteControl" />
-    <Teleport to="#msb-pane-search" :disabled="!teleportReady">
+    <Teleport v-if="teleportReady" to="#msb-pane-search">
       <SpaceFilter
         :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
         ref="spaceFilterRef"
       />
     </Teleport>
-    <Teleport to="#msb-pane-passes" :disabled="!teleportReady">
+    <Teleport v-if="teleportReady" to="#msb-pane-passes">
       <SpacePasses
         :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
