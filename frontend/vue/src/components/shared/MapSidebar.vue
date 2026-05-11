@@ -47,6 +47,17 @@ import { ref, computed, watch } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
 import { useAppStore } from '@/stores/app'
+import { useDocumentEvent } from '@/composables/useDocumentEvent'
+
+// Tabs that are only visible while in a specific domain. When the user switches
+// domains, any active tab from this map that doesn't match the new domain is
+// CSS-hidden but still selected, leaving the sidebar showing an empty pane.
+// Reset to 'search' in that case.
+const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
+  passes:   'space',
+  playback: 'air',
+  radio:    'sdr',
+}
 
 const appStore = useAppStore()
 
@@ -114,6 +125,14 @@ function _restoreTab(): SidebarTab {
   } catch {}
   return 'search'
 }
+
+useDocumentEvent('sentinel:domain-changed', (e: Event) => {
+  const { domain } = (e as CustomEvent<{ domain: string; prev: string }>).detail
+  const required = DOMAIN_SPECIFIC_TABS[activeTab.value]
+  if (required && required !== domain) {
+    switchTab('search')
+  }
+})
 
 defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hide, toggle, open, activeTab })
 </script>

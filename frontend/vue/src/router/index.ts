@@ -32,7 +32,11 @@ router.beforeEach((to) => {
 
 router.afterEach((to) => {
   const domain = (to.meta?.domain as string) ?? ''
+  const prev = document.body.dataset.domain ?? ''
   document.body.dataset.domain = domain
+  if (prev && prev !== domain) {
+    document.dispatchEvent(new CustomEvent('sentinel:domain-changed', { detail: { domain, prev } }))
+  }
 })
 
 export default router
