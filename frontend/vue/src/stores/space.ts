@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { usePersistedObject } from './_persist'
 
 const LS_OVERLAYS = 'sentinel_space_overlayStates'
 
@@ -22,7 +23,7 @@ const DEFAULTS: SpaceOverlayStates = {
 }
 
 export const useSpaceStore = defineStore('space', () => {
-  const overlayStates = ref<SpaceOverlayStates>(_loadOverlayStates())
+  const overlayStates = usePersistedObject<SpaceOverlayStates>(LS_OVERLAYS, DEFAULTS)
   const filterQuery = ref('')
   const filterOpen = ref(false)
   const mapCenter = ref<[number, number] | null>(null)
@@ -30,7 +31,6 @@ export const useSpaceStore = defineStore('space', () => {
 
   function setOverlay(key: keyof SpaceOverlayStates, visible: boolean) {
     overlayStates.value[key] = visible
-    _persist()
   }
 
   function setFilter(query: string) {
@@ -46,16 +46,5 @@ export const useSpaceStore = defineStore('space', () => {
     mapZoom.value = zoom
   }
 
-  function _persist() {
-    try { localStorage.setItem(LS_OVERLAYS, JSON.stringify(overlayStates.value)) } catch {}
-  }
-
   return { overlayStates, filterQuery, filterOpen, mapCenter, mapZoom, setOverlay, setFilter, toggleFilter, saveMapState }
 })
-
-function _loadOverlayStates(): SpaceOverlayStates {
-  try {
-    const raw = localStorage.getItem(LS_OVERLAYS)
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS }
-  } catch { return { ...DEFAULTS } }
-}

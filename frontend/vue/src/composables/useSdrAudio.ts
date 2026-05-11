@@ -177,7 +177,7 @@ function _openIqSocket(radioId: number) {
     _iqSocket = null
     _iqReconnectTimer = setTimeout(() => { if (_radioId === radioId) _openIqSocket(radioId) }, 500)
   })
-  ws.addEventListener('error', () => { console.warn('[SdrAudio] IQ WebSocket error') })
+  ws.addEventListener('error', () => {})
 }
 
 // ── Audio init ────────────────────────────────────────────────────────────────
@@ -209,8 +209,7 @@ async function _initAudio() {
       if (msg.type === 'pcm_chunk') _onRecChunk?.(new Float32Array(msg.samples))
     }
     _ready = true
-  } catch (e) {
-    console.warn('[SdrAudio] AudioWorklet init failed:', e)
+  } catch {
     _ctx = null
   }
 }
@@ -299,7 +298,7 @@ export function useSdrAudio() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json() as { id: number }
       _recId = data.id
-    } catch (e) { console.error('[SdrAudio] Failed to start recording:', e); return null }
+    } catch { return null }
     _isRecording = true; _collectingChunks = true; _recChunks = []; _recStartTime = new Date()
     _worklet.port.postMessage({ type: 'rec_start' })
     return _recId
@@ -339,8 +338,7 @@ export function useSdrAudio() {
       const res = await fetch('/api/sdr/recordings/stop', { method: 'POST', body: form })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
-    } catch (e) {
-      console.error('[SdrAudio] Recording upload failed:', e)
+    } catch {
       try { await fetch(`/api/sdr/recordings/${recId}`, { method: 'DELETE' }) } catch {}
       return null
     }

@@ -316,9 +316,7 @@ export class SatelliteControl extends SentinelControlBase {
             // and ground track to update on this poll cycle.
             try {
                 this._footprintGeojson = SatelliteControl._buildFootprintFeatures(footprint)
-            } catch (err) {
-                console.warn('[SatelliteControl] footprint build failed:', err)
-            }
+            } catch {}
 
             if (!this._previewNoradId) {
                 const issSource   = this.map?.getSource('iss-live')             as maplibregl.GeoJSONSource | undefined
@@ -689,9 +687,7 @@ export class SatelliteControl extends SentinelControlBase {
             let footprintGeo: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
             try {
                 footprintGeo = SatelliteControl._buildFootprintFeatures(footprint)
-            } catch (err) {
-                console.warn('[SatelliteControl] preview footprint build failed:', err)
-            }
+            } catch {}
             const issGeo: GeoJSON.FeatureCollection = {
                 type: 'FeatureCollection',
                 features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [position.lon, position.lat] },

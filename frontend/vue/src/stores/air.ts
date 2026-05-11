@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { usePersistedObject } from './_persist'
 
 export interface OverlayStates {
   adsb: boolean
@@ -62,10 +63,42 @@ const DEFAULTS: OverlayStates = {
   overheadAlertsMil: false,
 }
 
+function migrateOverlays(parsed: unknown): Partial<OverlayStates> {
+  const obj = parsed as Partial<OverlayStates> & { overheadAlerts?: boolean }
+  if (typeof obj.overheadAlerts === 'boolean'
+      && obj.overheadAlertsCivil === undefined
+      && obj.overheadAlertsMil === undefined) {
+    obj.overheadAlertsCivil = obj.overheadAlerts
+    obj.overheadAlertsMil = obj.overheadAlerts
+  }
+  delete obj.overheadAlerts
+  return obj
+}
+
+function migrateLabelFields(parsed: unknown): Partial<AdsbLabelFields> {
+  const obj = parsed as Partial<AdsbLabelFields>
+  return {
+    civil: Array.isArray(obj.civil) ? obj.civil : DEFAULT_LABEL_FIELDS.civil,
+    mil:   Array.isArray(obj.mil)   ? obj.mil   : DEFAULT_LABEL_FIELDS.mil,
+  }
+}
+
+function isTagFieldMap(v: unknown): v is AdsbTagFieldMap {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
+  const obj = parsed as Partial<AdsbTagFields>
+  return {
+    civil: isTagFieldMap(obj.civil) ? { ...DEFAULT_TAG_FIELDS.civil, ...obj.civil } : { ...DEFAULT_TAG_FIELDS.civil },
+    mil:   isTagFieldMap(obj.mil)   ? { ...DEFAULT_TAG_FIELDS.mil,   ...obj.mil   } : { ...DEFAULT_TAG_FIELDS.mil },
+  }
+}
+
 export const useAirStore = defineStore('air', () => {
-  const overlayStates = ref<OverlayStates>(_loadOverlayStates())
-  const adsbLabelFields = ref<AdsbLabelFields>(_loadLabelFields())
-  const adsbTagFields = ref<AdsbTagFields>(_loadTagFields())
+  const overlayStates = usePersistedObject<OverlayStates>(LS_KEY, DEFAULTS, migrateOverlays)
+  const adsbLabelFields = usePersistedObject<AdsbLabelFields>(LS_LABEL_FIELDS_KEY, DEFAULT_LABEL_FIELDS, migrateLabelFields)
+  const adsbTagFields = usePersistedObject<AdsbTagFields>(LS_TAG_FIELDS_KEY, DEFAULT_TAG_FIELDS, migrateTagFields)
   const filterQuery = ref('')
   const filterOpen = ref(false)
   const mapCenter = ref<[number, number] | null>(null)
@@ -74,17 +107,14 @@ export const useAirStore = defineStore('air', () => {
 
   function setOverlay(key: keyof OverlayStates, visible: boolean) {
     overlayStates.value[key] = visible
-    _persist()
   }
 
   function setAdsbLabelFields(fields: AdsbLabelFields) {
     adsbLabelFields.value = fields
-    try { localStorage.setItem(LS_LABEL_FIELDS_KEY, JSON.stringify(fields)) } catch {}
   }
 
   function setAdsbTagFields(fields: AdsbTagFields) {
     adsbTagFields.value = fields
-    try { localStorage.setItem(LS_TAG_FIELDS_KEY, JSON.stringify(fields)) } catch {}
   }
 
   function setFilter(query: string) {
@@ -101,62 +131,5 @@ export const useAirStore = defineStore('air', () => {
     pitch.value = currentPitch
   }
 
-  function _persist() {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(overlayStates.value)) } catch {}
-  }
-
   return { overlayStates, adsbLabelFields, adsbTagFields, filterQuery, filterOpen, mapCenter, mapZoom, pitch, setOverlay, setAdsbLabelFields, setAdsbTagFields, setFilter, toggleFilter, saveMapState }
 })
-
-function _loadOverlayStates(): OverlayStates {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return { ...DEFAULTS }
-    const parsed = JSON.parse(raw) as Partial<OverlayStates> & { overheadAlerts?: boolean }
-    if (typeof parsed.overheadAlerts === 'boolean'
-        && parsed.overheadAlertsCivil === undefined
-        && parsed.overheadAlertsMil === undefined) {
-      parsed.overheadAlertsCivil = parsed.overheadAlerts
-      parsed.overheadAlertsMil = parsed.overheadAlerts
-    }
-    delete parsed.overheadAlerts
-    return { ...DEFAULTS, ...parsed }
-  } catch {
-    return { ...DEFAULTS }
-  }
-}
-
-function _loadLabelFields(): AdsbLabelFields {
-  try {
-    const raw = localStorage.getItem(LS_LABEL_FIELDS_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return {
-          civil: Array.isArray(parsed.civil) ? parsed.civil : DEFAULT_LABEL_FIELDS.civil,
-          mil:   Array.isArray(parsed.mil)   ? parsed.mil   : DEFAULT_LABEL_FIELDS.mil,
-        }
-      }
-    }
-  } catch {}
-  return { ...DEFAULT_LABEL_FIELDS }
-}
-
-function _isTagFieldMap(v: unknown): v is AdsbTagFieldMap {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
-function _loadTagFields(): AdsbTagFields {
-  try {
-    const raw = localStorage.getItem(LS_TAG_FIELDS_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const civil = _isTagFieldMap(parsed.civil) ? { ...DEFAULT_TAG_FIELDS.civil, ...parsed.civil } : { ...DEFAULT_TAG_FIELDS.civil }
-        const mil   = _isTagFieldMap(parsed.mil)   ? { ...DEFAULT_TAG_FIELDS.mil,   ...parsed.mil   } : { ...DEFAULT_TAG_FIELDS.mil }
-        return { civil, mil }
-      }
-    }
-  } catch {}
-  return { civil: { ...DEFAULT_TAG_FIELDS.civil }, mil: { ...DEFAULT_TAG_FIELDS.mil } }
-}

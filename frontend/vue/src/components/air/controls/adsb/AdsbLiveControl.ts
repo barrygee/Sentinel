@@ -197,7 +197,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     private _applyTypeFilter(): void {
         if (!this.map) return
-        console.debug('[adsb] _applyTypeFilter allHidden=%s selectedHex=%s isolatedHex=%s labelsVisible=%s visible=%s', this._allHidden, this._selectedHex, this._isolatedHex, this.labelsVisible, this.visible)
 
         const baseFilter  = ['any', ['>', ['get', 'alt_baro'], 0], ['>=', ['zoom'], 10]]
         const isGndExpr   = ['match', ['get', 'category'], ['C1', 'C2'], true, false]
@@ -223,7 +222,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
         // Isolation mode: show only the selected aircraft
         if (this._isolatedHex) {
-            console.warn('[adsb] ISOLATING to hex=%s', this._isolatedHex)
             const isolateFilter = ['==', ['get', 'hex'], this._isolatedHex]
             if (this.map.getLayer('adsb-bracket')) this.map.setFilter('adsb-bracket', isolateFilter as maplibregl.FilterSpecification)
             if (this.map.getLayer('adsb-icons')) {
@@ -451,7 +449,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         _addOrUpdate('adsb-bracket-mil',       this._createMilBracket(),                      { pixelRatio: 2, sdf: false })
         _addOrUpdate('adsb-bracket-emerg',     this._createBracket('#ff2222'),                { pixelRatio: 2, sdf: false })
         _addOrUpdate('adsb-bracket-emerg-gnd', this._createBracket('#ff2222'),                { pixelRatio: 2, sdf: false })
-        _addOrUpdate('adsb-blip',              this._createRadarBlip('#ffffff',         1.1), { pixelRatio: 2, sdf: false })
+        _addOrUpdate('adsb-blip',              this._createRadarBlip('#00aaff',         1.1), { pixelRatio: 2, sdf: false })
         _addOrUpdate('adsb-blip-mil',          this._createRadarBlip('#c8ff00',         1.1), { pixelRatio: 2, sdf: false })
         _addOrUpdate('adsb-blip-emerg',        this._createRadarBlip('#ff2222',         1.1), { pixelRatio: 2, sdf: false })
         _addOrUpdate('adsb-blip-uav',          this._createUAVBlip('#ffffff',           1.1), { pixelRatio: 2, sdf: false })
@@ -618,7 +616,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 if (!e.features || !e.features.length) return
                 _clickHandled = true
                 const hex = (e.features[0].properties as AircraftProperties).hex
-                console.warn('[adsb] aircraft clicked hex=%s layer=%s', hex, e.type)
                 this._selectedHex = hex
                 this._isolatedHex = hex
                 this._hideHoverTag()
@@ -632,8 +629,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
             this.map.on('click', (e: maplibregl.MapMouseEvent) => {
                 if (_clickHandled) { _clickHandled = false; return }
                 if (this._tagClickHandled) { this._tagClickHandled = false; return }
-                const dbgHits = this.map.queryRenderedFeatures(e.point, { layers: ['adsb-hit', 'adsb-icons', 'adsb-trail-dots', 'adsb-trail-line'] })
-                console.error('[CLICK] map click — hit layers: %s, adsb-hit visible: %s', dbgHits.map(f => f.layer.id + ':' + (f.properties?.hex || '?')).join(',') || 'none', this.map.getLayoutProperty('adsb-hit', 'visibility'))
                 if (this._followEnabled) return
                 if (this._selectedHex) {
                     const hits = this.map.queryRenderedFeatures(e.point, { layers: ['adsb-hit', 'adsb-icons'] })
@@ -776,7 +771,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (isTracked) {
             const isEmerg  = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
             const isMil    = !!props.military
-            const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
+            const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
             const track    = props.track ?? 0
             const arrowSvg = this._makeArrowSvg(arrowColor, track, props.category, props.t)
             const callsignSpan = showCallsign ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:3px 6px;display:flex;align-items:center;">${callsign}</span>` : ''
@@ -790,7 +785,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
         const isEmerg    = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
         const isMil      = !!props.military
-        const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
+        const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
         const heading    = props.track ?? 0
         const leftFacing = forceLeftFacing !== undefined ? forceLeftFacing : this._isLeftFacing(heading)
         const arrowSvg   = this._makeArrowSvg(arrowColor, heading, props.category, props.t)
@@ -1153,7 +1148,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const callsign = raw || 'UNKNOWN'
         const isEmerg  = props.squawkEmerg === 1
         const isMil    = !!props.military
-        const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
+        const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
         const track    = props.track ?? 0
         const fields   = isMil ? this._tagFields.mil : this._tagFields.civil
         const has      = (f: keyof typeof fields) => !!fields[f]
@@ -1404,7 +1399,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 labelEl.style.opacity = isDim ? '0.3' : '1'
                 const arrowSvg = box.querySelector('.adsb-arrow') as SVGElement | null
                 if (arrowSvg) {
-                    const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#ffffff'
+                    const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
                     const cat = (f.properties.category || '').toUpperCase()
                     const isTwr = (f.properties.t || '').toUpperCase() === 'TWR'
                     const isSolidCircle = cat === 'C3' || cat === 'C4' || cat === 'C5' || isTwr
@@ -1972,7 +1967,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 setTimeout(() => { if (this.visible) this._startPolling() }, 30000)
                 return
             }
-            console.warn('ADS-B fetch error:', e)
         } finally {
             this._fetchAbort = null
             this._isFetching = false

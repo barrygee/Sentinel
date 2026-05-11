@@ -56,8 +56,6 @@ function _startWatch(highAccuracy: boolean): void {
         // High-accuracy GPS timed out (common on desktop) — retry with network location.
         if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null }
         _startWatch(false)
-      } else {
-        console.warn('[useUserLocation] GPS error:', err.message)
       }
     },
     { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 30000, maximumAge: 5000 },
