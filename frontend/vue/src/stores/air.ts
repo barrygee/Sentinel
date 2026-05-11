@@ -11,7 +11,8 @@ export interface OverlayStates {
   rangeRings: boolean
   aara: boolean
   awacs: boolean
-  overheadAlerts: boolean
+  overheadAlertsCivil: boolean
+  overheadAlertsMil: boolean
 }
 
 export type AdsbLabelField = 'type' | 'alt'
@@ -57,7 +58,8 @@ const DEFAULTS: OverlayStates = {
   rangeRings: false,
   aara: true,
   awacs: true,
-  overheadAlerts: false,
+  overheadAlertsCivil: false,
+  overheadAlertsMil: false,
 }
 
 export const useAirStore = defineStore('air', () => {
@@ -109,7 +111,16 @@ export const useAirStore = defineStore('air', () => {
 function _loadOverlayStates(): OverlayStates {
   try {
     const raw = localStorage.getItem(LS_KEY)
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS }
+    if (!raw) return { ...DEFAULTS }
+    const parsed = JSON.parse(raw) as Partial<OverlayStates> & { overheadAlerts?: boolean }
+    if (typeof parsed.overheadAlerts === 'boolean'
+        && parsed.overheadAlertsCivil === undefined
+        && parsed.overheadAlertsMil === undefined) {
+      parsed.overheadAlertsCivil = parsed.overheadAlerts
+      parsed.overheadAlertsMil = parsed.overheadAlerts
+    }
+    delete parsed.overheadAlerts
+    return { ...DEFAULTS, ...parsed }
   } catch {
     return { ...DEFAULTS }
   }

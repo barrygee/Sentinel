@@ -244,7 +244,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   rangeRingsControl    = new RangeRingsControl(airStore, getUserLocation)
   const initialLoc = getUserLocation()
   overheadZoneControl = new OverheadZoneControl(
-    airStore.overlayStates.overheadAlerts,
+    airStore.overlayStates.overheadAlertsCivil || airStore.overlayStates.overheadAlertsMil,
     initialLoc,
   )
   overheadAlertsTracker = new OverheadAlertsTracker(
@@ -257,7 +257,10 @@ function onStyleLoaded(m: MapLibreGlMap) {
     (hex: string) => { adsbControl?.selectByHex(hex) },
   )
   registerAircraftClickHandler((hex: string) => { adsbControl?.selectByHex(hex) })
-  overheadAlertsTracker.setEnabled(airStore.overlayStates.overheadAlerts)
+  overheadAlertsTracker.setEnabled({
+    civil: airStore.overlayStates.overheadAlertsCivil,
+    mil:   airStore.overlayStates.overheadAlertsMil,
+  })
   roadsControl         = new RoadsToggleControl(airStore)
   namesControl         = new NamesToggleControl(airStore)
   airportsControl      = new AirportsToggleControl(airStore)
@@ -364,10 +367,13 @@ onMounted(() => {
     _locationMarker.update(loc.lon, loc.lat)
   }, { immediate: true })
 
-  watch(() => airStore.overlayStates.overheadAlerts, (enabled) => {
-    overheadZoneControl?.setVisible(enabled)
-    overheadAlertsTracker?.setEnabled(enabled)
-  })
+  watch(
+    () => [airStore.overlayStates.overheadAlertsCivil, airStore.overlayStates.overheadAlertsMil] as const,
+    ([civil, mil]) => {
+      overheadZoneControl?.setVisible(civil || mil)
+      overheadAlertsTracker?.setEnabled({ civil, mil })
+    },
+  )
 
   watch(() => playbackStore.status, async (status) => {
     if (status === 'loading') {

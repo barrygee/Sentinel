@@ -6,11 +6,16 @@ type NotificationsStore = ReturnType<typeof useNotificationsStore>
 
 interface AircraftFeature {
     geometry: { type: 'Point'; coordinates: [number, number] }
-    properties: { hex: string; flight?: string; r?: string; alt_baro?: number; gs?: number }
+    properties: { hex: string; flight?: string; r?: string; alt_baro?: number; gs?: number; military?: boolean }
 }
 
 interface FeatureCollection {
     features: AircraftFeature[]
+}
+
+export interface OverheadAlertsEnabled {
+    civil: boolean
+    mil: boolean
 }
 
 const POLL_MS = 2000
@@ -20,9 +25,10 @@ export class OverheadAlertsTracker {
     private _getFeatures: () => FeatureCollection | null
     private _getUserLocation: () => { lon: number; lat: number } | null
     private _onAlertClick: ((hex: string) => void) | null
-    private _tracked = new Map<string, string>() // hex -> notification id
+    private _tracked = new Map<string, { id: string; military: boolean }>()
     private _timer: ReturnType<typeof setInterval> | null = null
-    private _enabled = false
+    private _civilEnabled = false
+    private _milEnabled = false
 
     constructor(
         notifications: NotificationsStore,
@@ -36,13 +42,28 @@ export class OverheadAlertsTracker {
         this._onAlertClick = onAlertClick
     }
 
-    setEnabled(enabled: boolean): void {
-        if (enabled === this._enabled) return
-        this._enabled = enabled
-        if (enabled) {
-            this._purgeOrphans()
-            this._tick()
-            this._timer = setInterval(() => this._tick(), POLL_MS)
+    setEnabled(enabled: OverheadAlertsEnabled): void {
+        const civil = enabled.civil
+        const mil = enabled.mil
+        if (civil === this._civilEnabled && mil === this._milEnabled) return
+        this._civilEnabled = civil
+        this._milEnabled = mil
+        const anyOn = civil || mil
+
+        // Drop notifications whose type is no longer enabled.
+        for (const [hex, entry] of this._tracked) {
+            const stillAllowed = entry.military ? mil : civil
+            if (!stillAllowed) {
+                this._notifications.dismiss(entry.id)
+                this._tracked.delete(hex)
+            }
+        }
+
+        if (anyOn) {
+            if (!this._timer) {
+                this._tick()
+                this._timer = setInterval(() => this._tick(), POLL_MS)
+            }
         } else {
             if (this._timer) { clearInterval(this._timer); this._timer = null }
             this._dismissAllOverhead()
@@ -52,7 +73,8 @@ export class OverheadAlertsTracker {
     destroy(): void {
         if (this._timer) { clearInterval(this._timer); this._timer = null }
         this._tracked.clear()
-        this._enabled = false
+        this._civilEnabled = false
+        this._milEnabled = false
     }
 
     private _tick(): void {
@@ -69,6 +91,9 @@ export class OverheadAlertsTracker {
             if (typeof lon !== 'number' || typeof lat !== 'number') continue
             const alt = f.properties?.alt_baro ?? 0
             if (alt <= 0) continue
+            const isMil = f.properties?.military === true
+            if (isMil && !this._milEnabled) continue
+            if (!isMil && !this._civilEnabled) continue
             const dist = haversineNm(loc.lat, loc.lon, lat, lon)
             if (dist > OVERHEAD_ZONE_RADIUS_NM) continue
 
@@ -80,34 +105,26 @@ export class OverheadAlertsTracker {
             const existing = this._tracked.get(hex)
             const title = (f.properties.flight || '').trim() || (f.properties.r || '').trim() || hex
             if (existing) {
-                this._notifications.update({ id: existing, detail })
+                this._notifications.update({ id: existing.id, detail })
             } else {
                 const cb = this._onAlertClick
                 const id = this._notifications.add({
                     type: 'overhead', title, detail, hex,
                     clickAction: cb ? () => cb(hex) : undefined,
                 })
-                this._tracked.set(hex, id)
+                this._tracked.set(hex, { id, military: isMil })
             }
         }
 
-        for (const [hex, id] of this._tracked) {
+        for (const [hex, entry] of this._tracked) {
             if (!seen.has(hex)) {
-                this._notifications.dismiss(id)
+                this._notifications.dismiss(entry.id)
                 this._tracked.delete(hex)
             }
         }
     }
 
     private _dismissAllOverhead(): void {
-        const ids = this._notifications.items
-            .filter(i => i.type === 'overhead')
-            .map(i => i.id)
-        for (const id of ids) this._notifications.dismiss(id)
-        this._tracked.clear()
-    }
-
-    private _purgeOrphans(): void {
         const ids = this._notifications.items
             .filter(i => i.type === 'overhead')
             .map(i => i.id)

@@ -75,14 +75,14 @@ export class OverheadZoneControl {
             type: 'fill',
             source: SOURCE_ID,
             layout: { visibility: vis },
-            paint: { 'fill-color': 'rgba(200, 255, 0, 0.06)' },
+            paint: { 'fill-color': 'rgba(0, 0, 0, 0.12)' },
         })
         m.addLayer({
             id: LINE_ID,
             type: 'line',
             source: SOURCE_ID,
             layout: { visibility: vis },
-            paint: { 'line-color': 'rgba(200, 255, 0, 0.25)', 'line-width': 1 },
+            paint: { 'line-color': 'rgba(0, 0, 0, 0.35)', 'line-width': 0.6 },
         })
     }
 }
