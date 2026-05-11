@@ -49,10 +49,34 @@
           </span>
           <!-- Expanded accordion body -->
           <div v-if="expandedNoradId === sat.norad_id" class="sfr-accordion-body">
-            <div class="sfr-acc-live">
-              <div class="sfr-acc-live-row" v-for="field in liveFields" :key="field.id">
-                <span class="sfr-acc-live-label">{{ field.label }}</span>
-                <span class="sfr-acc-live-value">{{ liveTelemetry[field.id] ?? '—' }}</span>
+            <div class="sfr-acc-section">
+              <div class="sfr-acc-section-title">POSITION DATA</div>
+              <div class="sfr-acc-grid sfr-acc-grid--three">
+                <div class="sfr-acc-cell sfr-acc-cell--lat">
+                  <div class="sfr-acc-cell-label">LATITUDE</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--lat">{{ liveTelemetry['lat'] ?? '—' }}</div>
+                </div>
+                <div class="sfr-acc-cell sfr-acc-cell--lon">
+                  <div class="sfr-acc-cell-label">LONGITUDE</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--lon">{{ liveTelemetry['lon'] ?? '—' }}</div>
+                </div>
+                <div class="sfr-acc-cell sfr-acc-cell--hdg">
+                  <div class="sfr-acc-cell-label">HEADING</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--hdg">{{ liveTelemetry['hdg'] ?? '—' }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="sfr-acc-section">
+              <div class="sfr-acc-section-title">ORBITAL DATA</div>
+              <div class="sfr-acc-grid sfr-acc-grid--three">
+                <div class="sfr-acc-cell sfr-acc-cell--alt">
+                  <div class="sfr-acc-cell-label">ALTITUDE</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--alt">{{ liveTelemetry['alt'] ?? '—' }}</div>
+                </div>
+                <div class="sfr-acc-cell sfr-acc-cell--vel">
+                  <div class="sfr-acc-cell-label">VELOCITY</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--vel">{{ liveTelemetry['vel'] ?? '—' }}</div>
+                </div>
               </div>
             </div>
             <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
@@ -145,14 +169,6 @@ let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
 let itemFetchAbort: AbortController | null = null
 let itemTickInterval: ReturnType<typeof setInterval> | null = null
 let countdownTick: ReturnType<typeof setInterval> | null = null
-
-const liveFields = [
-  { id: 'alt', label: 'ALT' },
-  { id: 'vel', label: 'VEL' },
-  { id: 'hdg', label: 'HDG' },
-  { id: 'lat', label: 'LAT' },
-  { id: 'lon', label: 'LON' },
-]
 
 const CATEGORY_ALIASES: Record<string, string[]> = {
   space_station: ['space station', 'station', 'iss'],
@@ -557,38 +573,63 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.sfr-acc-live {
+.sfr-acc-section {
+    padding: 14px 24px 12px 24px;
     display: flex;
     flex-direction: column;
-    padding: 10px 28px 10px 24px;
-    gap: 2px;
+    gap: 10px;
 }
 
-.sfr-acc-live-row {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    line-height: 1.6;
-}
-
-.sfr-acc-live-label {
+.sfr-acc-section-title {
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.35);
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
     text-transform: uppercase;
-    min-width: 28px;
-    flex-shrink: 0;
 }
 
-.sfr-acc-live-value {
-    font-family: var(--font-primary);
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.85);
+.sfr-acc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 12px;
 }
+
+.sfr-acc-grid.sfr-acc-grid--three {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.sfr-acc-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.sfr-acc-cell-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+}
+
+.sfr-acc-cell-value {
+    font-family: var(--font-primary);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 
 .sfr-acc-track-btn {
     margin: 10px 24px 10px 24px;

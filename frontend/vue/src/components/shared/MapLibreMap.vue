@@ -68,6 +68,9 @@ defineExpose({ getMap })
   right: 0;
   bottom: 0;
   z-index: 1;
+  /* Match the filtered map background colour so any sub-pixel seams between
+     world copies blend in instead of showing the page's black behind the canvas. */
+  background-color: #2d3548;
 }
 
 #map {
