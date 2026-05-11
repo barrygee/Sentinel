@@ -79,9 +79,15 @@
                 </div>
               </div>
             </div>
-            <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
-            <div class="sfr-acc-status" :class="{ 'sfr-acc-status-loading': accordionLoading }">{{ accordionStatus }}</div>
-            <div class="sfr-acc-pass-list">
+            <div class="sfr-acc-section sfr-acc-section--track">
+              <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+            </div>
+            <div class="sfr-acc-section sfr-acc-section--passes">
+              <div class="sfr-acc-section-title sfr-acc-passes-title">
+                <span>UPCOMING PASSES</span>
+                <span class="sfr-acc-status" :class="{ 'sfr-acc-status-loading': accordionLoading }">{{ accordionStatus }}</span>
+              </div>
+              <div class="sfr-acc-pass-list">
               <template v-if="accordionPasses.length === 0 && !accordionLoading">
                 <div v-if="accordionStatus.startsWith('NEXT')" class="sfr-acc-no-passes">No passes in the next 24 hours.</div>
               </template>
@@ -105,6 +111,7 @@
                   </div>
                   <div class="sfr-acc-pass-maxel">MAX {{ pass.max_elevation_deg.toFixed(1) }}°</div>
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -631,34 +638,56 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 
+.sfr-acc-section--track {
+    padding-top: 16px;
+    padding-bottom: 24px;
+}
+
 .sfr-acc-track-btn {
-    margin: 10px 24px 10px 24px;
+    width: 100%;
     background: none;
     border: 1px solid rgba(255, 255, 255, 0.15);
     cursor: pointer;
     font-family: var(--font-primary);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.14em;
-    color: rgba(255, 255, 255, 0.45);
-    padding: 6px 12px;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 11px 12px;
     text-transform: uppercase;
-    transition: color 0.12s, border-color 0.12s;
-    align-self: flex-start;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 
 .sfr-acc-track-btn:hover {
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.45);
+    color: var(--color-accent);
+    border-color: rgba(200, 255, 0, 0.4);
+    background: rgba(200, 255, 0, 0.04);
+}
+
+.sfr-acc-track-btn.sfr-acc-track-btn--active {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.sfr-acc-section--passes {
+    padding-top: 6px;
+    padding-bottom: 4px;
+    gap: 6px;
+}
+
+.sfr-acc-passes-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .sfr-acc-status {
-    padding: 8px 24px 4px 24px;
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.14em;
-    color: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.28);
     text-transform: uppercase;
 }
 
@@ -667,29 +696,30 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .sfr-acc-no-passes {
-    padding: 8px 24px 12px 24px;
+    padding: 4px 0 8px 0;
     font-family: var(--font-primary);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 400;
     letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.28);
     text-transform: uppercase;
 }
 
 .sfr-acc-pass-list {
     display: flex;
     flex-direction: column;
+    margin: 0 -24px;
 }
 
 .sfr-acc-pass-card {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 13px 24px;
+    padding: 12px 24px;
 }
 
 .sfr-acc-pass-card:last-child {
-    padding-bottom: 14px;
+    padding-bottom: 16px;
 }
 
 .sfr-acc-pass-num {

@@ -38,7 +38,7 @@
       </button>
     </div>
 
-    <!-- Group 4: day/night (expanded only) -->
+    <!-- Group 4: day/night + locations (expanded only) -->
     <div class="sm-group" id="ssm-group-daynight">
       <button class="sm-btn" data-tooltip="DAY / NIGHT"
         :class="{ active: daynightActive }"
@@ -46,6 +46,13 @@
       >
         <span class="sm-icon" v-html="MOON_SVG" />
         <span class="sm-label">DAY / NIGHT</span>
+      </button>
+      <button class="sm-btn" data-tooltip="LOCATIONS"
+        :class="{ active: namesActive }"
+        @click="toggleNames"
+      >
+        <span class="sm-icon" style="--sm-icon-size:14px">N</span>
+        <span class="sm-label">LOCATIONS</span>
       </button>
     </div>
 
@@ -81,6 +88,7 @@ const locActive = computed(() => userLocation.value !== null)
 const trackActive    = computed(() => spaceStore.overlayStates.groundTrack)
 const footprintActive= computed(() => spaceStore.overlayStates.footprint)
 const daynightActive = computed(() => spaceStore.overlayStates.daynight)
+const namesActive    = computed(() => spaceStore.overlayStates.names)
 
 const SAT_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="10" y="10" width="4" height="4" fill="#c8ff00"/>
@@ -123,6 +131,10 @@ function toggleFootprint(): void {
 
 function toggleDaynight(): void {
   mapRef.value?.getDaynightControl()?.toggleDaynight()
+}
+
+function toggleNames(): void {
+  mapRef.value?.getNamesControl()?.handleClickPublic()
 }
 
 function openSearch(): void {

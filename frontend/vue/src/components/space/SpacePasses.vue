@@ -34,35 +34,66 @@
         </div>
         <!-- Expanded accordion -->
         <div v-if="expandedKey === passKey(pass)" class="spp-acc-body">
-          <div class="spp-acc-live">
-            <div v-for="field in liveFields" :key="field.id" class="spp-acc-live-row">
-              <span class="spp-acc-live-label">{{ field.label }}</span>
-              <span class="spp-acc-live-value">{{ liveTelemetry[field.id] ?? '—' }}</span>
+          <div class="spp-acc-section">
+            <div class="spp-acc-section-title">POSITION DATA</div>
+            <div class="spp-acc-grid spp-acc-grid--three">
+              <div class="spp-acc-cell">
+                <div class="spp-acc-cell-label">LATITUDE</div>
+                <div class="spp-acc-cell-value">{{ liveTelemetry['lat'] ?? '—' }}</div>
+              </div>
+              <div class="spp-acc-cell">
+                <div class="spp-acc-cell-label">LONGITUDE</div>
+                <div class="spp-acc-cell-value">{{ liveTelemetry['lon'] ?? '—' }}</div>
+              </div>
+              <div class="spp-acc-cell">
+                <div class="spp-acc-cell-label">HEADING</div>
+                <div class="spp-acc-cell-value">{{ liveTelemetry['hdg'] ?? '—' }}</div>
+              </div>
             </div>
           </div>
-          <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
-          <div class="spp-acc-status" :class="{ 'spp-acc-status-loading': accLoading }">{{ accStatus }}</div>
-          <div class="spp-acc-pass-list">
-            <div v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')" class="spp-acc-no-passes">
-              No passes in the next 24 hours.
-            </div>
-            <div
-              v-for="(ap, i) in accPasses"
-              :key="i"
-              class="spp-acc-pass-card"
-            >
-              <div class="spp-acc-pass-times">
-                <div class="spp-acc-pass-aos-row">
-                  <span class="spp-acc-pass-date">{{ formatPassDate(ap.aos_utc) }}</span>
-                  <span class="spp-acc-pass-time">{{ formatPassTime(ap.aos_utc) }}</span>
-                </div>
-                <div class="spp-acc-pass-los">LOS {{ formatPassTime(ap.los_utc) }} · {{ formatPassDuration(ap.duration_s) }}</div>
+          <div class="spp-acc-section">
+            <div class="spp-acc-section-title">ORBITAL DATA</div>
+            <div class="spp-acc-grid spp-acc-grid--three">
+              <div class="spp-acc-cell">
+                <div class="spp-acc-cell-label">ALTITUDE</div>
+                <div class="spp-acc-cell-value">{{ liveTelemetry['alt'] ?? '—' }}</div>
               </div>
-              <div class="spp-acc-pass-meta">
-                <div class="spp-acc-pass-countdown" :class="{ 'spp-in-progress': accPassIsNow(ap) }">
-                  {{ accPassIsNow(ap) ? 'NOW' : formatPassCountdown(ap.aos_unix_ms - now) }}
+              <div class="spp-acc-cell">
+                <div class="spp-acc-cell-label">VELOCITY</div>
+                <div class="spp-acc-cell-value">{{ liveTelemetry['vel'] ?? '—' }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="spp-acc-section spp-acc-section--track">
+            <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+          </div>
+          <div class="spp-acc-section spp-acc-section--passes">
+            <div class="spp-acc-section-title spp-acc-passes-title">
+              <span>UPCOMING PASSES</span>
+              <span class="spp-acc-status" :class="{ 'spp-acc-status-loading': accLoading }">{{ accStatus }}</span>
+            </div>
+            <div class="spp-acc-pass-list">
+              <div v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')" class="spp-acc-no-passes">
+                No passes in the next 24 hours.
+              </div>
+              <div
+                v-for="(ap, i) in accPasses"
+                :key="i"
+                class="spp-acc-pass-card"
+              >
+                <div class="spp-acc-pass-times">
+                  <div class="spp-acc-pass-aos-row">
+                    <span class="spp-acc-pass-date">{{ formatPassDate(ap.aos_utc) }}</span>
+                    <span class="spp-acc-pass-time">{{ formatPassTime(ap.aos_utc) }}</span>
+                  </div>
+                  <div class="spp-acc-pass-los">LOS {{ formatPassTime(ap.los_utc) }} · {{ formatPassDuration(ap.duration_s) }}</div>
                 </div>
-                <div class="spp-acc-pass-maxel">MAX {{ ap.max_elevation_deg.toFixed(1) }}°</div>
+                <div class="spp-acc-pass-meta">
+                  <div class="spp-acc-pass-countdown" :class="{ 'spp-in-progress': accPassIsNow(ap) }">
+                    {{ accPassIsNow(ap) ? 'NOW' : formatPassCountdown(ap.aos_unix_ms - now) }}
+                  </div>
+                  <div class="spp-acc-pass-maxel">MAX {{ ap.max_elevation_deg.toFixed(1) }}°</div>
+                </div>
               </div>
             </div>
           </div>
@@ -144,14 +175,6 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 let tickInterval: ReturnType<typeof setInterval> | null = null
 let locationPoll: ReturnType<typeof setInterval> | null = null
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
-
-const liveFields = [
-  { id: 'alt', label: 'ALT' },
-  { id: 'vel', label: 'VEL' },
-  { id: 'hdg', label: 'HDG' },
-  { id: 'lat', label: 'LAT' },
-  { id: 'lon', label: 'LON' },
-]
 
 function passKey(p: SatPass): string { return `${p.norad_id}_${p.aos_unix_ms}` }
 
@@ -746,67 +769,113 @@ defineExpose({ fetchPasses, selectedCategories, minEl, hours, SATELLITE_CATEGORY
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.spp-acc-live {
+.spp-acc-section {
+    padding: 14px 28px 12px 28px;
     display: flex;
     flex-direction: column;
-    padding: 10px 28px 10px 28px;
-    gap: 2px;
+    gap: 10px;
 }
 
-.spp-acc-live-row {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    line-height: 1.6;
-}
-
-.spp-acc-live-label {
+.spp-acc-section-title {
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.35);
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
     text-transform: uppercase;
-    min-width: 28px;
-    flex-shrink: 0;
 }
 
-.spp-acc-live-value {
+.spp-acc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 12px;
+}
+
+.spp-acc-grid.spp-acc-grid--three {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.spp-acc-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.spp-acc-cell-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-family: var(--font-primary);
-    font-size: 11px;
-    font-weight: 400;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+}
+
+.spp-acc-cell-value {
+    font-family: var(--font-primary);
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.85);
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spp-acc-section--track {
+    padding-top: 16px;
+    padding-bottom: 24px;
 }
 
 .spp-acc-track-btn {
-    margin: 10px 28px 10px 28px;
+    width: 100%;
     background: none;
     border: 1px solid rgba(255, 255, 255, 0.15);
     cursor: pointer;
     font-family: var(--font-primary);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.14em;
-    color: rgba(255, 255, 255, 0.45);
-    padding: 6px 12px;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 11px 12px;
     text-transform: uppercase;
-    transition: color 0.12s, border-color 0.12s;
-    align-self: flex-start;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 
 .spp-acc-track-btn:hover {
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.45);
+    color: var(--color-accent);
+    border-color: rgba(200, 255, 0, 0.4);
+    background: rgba(200, 255, 0, 0.04);
+}
+
+.spp-acc-track-btn.spp-acc-track-btn--active {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.spp-acc-section--passes {
+    padding-top: 6px;
+    padding-bottom: 4px;
+    gap: 6px;
+}
+
+.spp-acc-passes-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .spp-acc-status {
-    padding: 8px 28px 4px 28px;
     font-family: var(--font-primary);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.14em;
-    color: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.28);
     text-transform: uppercase;
 }
 
@@ -815,29 +884,30 @@ defineExpose({ fetchPasses, selectedCategories, minEl, hours, SATELLITE_CATEGORY
 }
 
 .spp-acc-no-passes {
-    padding: 8px 28px 12px 28px;
+    padding: 4px 0 8px 0;
     font-family: var(--font-primary);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 400;
     letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.28);
     text-transform: uppercase;
 }
 
 .spp-acc-pass-list {
     display: flex;
     flex-direction: column;
+    margin: 0 -28px;
 }
 
 .spp-acc-pass-card {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 13px 28px;
+    padding: 12px 28px;
 }
 
 .spp-acc-pass-card:last-child {
-    padding-bottom: 14px;
+    padding-bottom: 16px;
 }
 
 .spp-acc-pass-num {
