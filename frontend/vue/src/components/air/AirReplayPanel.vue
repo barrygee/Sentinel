@@ -210,8 +210,16 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
-
-const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+import {
+  CAL_MONTHS,
+  toIso,
+  formatDisplayDate,
+  buildCalCells,
+  prevMonth,
+  nextMonth,
+  type CalCell,
+} from './airReplayCalendar'
+import './AirReplayPanel.css'
 
 const playbackStore = usePlaybackStore()
 
@@ -365,48 +373,20 @@ const endCalOpen      = ref(false)
 const endCalViewMonth = ref(now.getMonth())
 const endCalViewYear  = ref(now.getFullYear())
 
-function formatDisplayDate(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return `${d} / ${m} / ${y}`
-}
-
-interface CalCell { key: string; day: number; iso: string; other: boolean; today: boolean; selected: boolean; disabled: boolean }
-
-const calCells = computed<CalCell[]>(() => {
-  const y = calViewYear.value, m = calViewMonth.value
-  const first = new Date(y, m, 1)
-  const startDow = (first.getDay() + 6) % 7
-  const cells: CalCell[] = []
-  const todayIso = toIso(new Date())
-  for (let i = 0; i < startDow; i++) {
-    const d = new Date(y, m, 1 - (startDow - i))
-    const iso = toIso(d)
-    cells.push({ key: 'p' + i, day: d.getDate(), iso, other: true, today: iso === todayIso, selected: iso === pendingDate.value, disabled: !availableDateSet.value.has(iso) })
-  }
-  const daysInMonth = new Date(y, m + 1, 0).getDate()
-  for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    cells.push({ key: 'c' + d, day: d, iso, other: false, today: iso === todayIso, selected: iso === pendingDate.value, disabled: !availableDateSet.value.has(iso) })
-  }
-  const remaining = 42 - cells.length
-  for (let i = 1; i <= remaining; i++) {
-    const iso = toIso(new Date(y, m + 1, i))
-    cells.push({ key: 'n' + i, day: i, iso, other: true, today: iso === todayIso, selected: iso === pendingDate.value, disabled: !availableDateSet.value.has(iso) })
-  }
-  return cells
-})
-
-function toIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
+const calCells = computed<CalCell[]>(() => buildCalCells({
+  year: calViewYear.value,
+  month: calViewMonth.value,
+  selectedIso: pendingDate.value,
+  availableSet: availableDateSet.value,
+}))
 
 function calPrevMonth(): void {
-  if (calViewMonth.value === 0) { calViewMonth.value = 11; calViewYear.value-- }
-  else calViewMonth.value--
+  const next = prevMonth(calViewMonth.value, calViewYear.value)
+  calViewMonth.value = next.month; calViewYear.value = next.year
 }
 function calNextMonth(): void {
-  if (calViewMonth.value === 11) { calViewMonth.value = 0; calViewYear.value++ }
-  else calViewMonth.value++
+  const next = nextMonth(calViewMonth.value, calViewYear.value)
+  calViewMonth.value = next.month; calViewYear.value = next.year
 }
 function selectCalDate(cell: CalCell): void {
   if (cell.disabled) return
@@ -420,40 +400,21 @@ function selectCalDate(cell: CalCell): void {
   calOpen.value = false
 }
 
-const endCalCells = computed<CalCell[]>(() => {
-  const y = endCalViewYear.value, m = endCalViewMonth.value
-  const first = new Date(y, m, 1)
-  const startDow = (first.getDay() + 6) % 7
-  const cells: CalCell[] = []
-  const todayIso = toIso(new Date())
-  for (let i = 0; i < startDow; i++) {
-    const d = new Date(y, m, 1 - (startDow - i))
-    const iso = toIso(d)
-    const beforeStart = !!pendingDate.value && iso < pendingDate.value
-    cells.push({ key: 'p' + i, day: d.getDate(), iso, other: true, today: iso === todayIso, selected: iso === pendingEndDate.value, disabled: !availableDateSet.value.has(iso) || beforeStart })
-  }
-  const daysInMonth = new Date(y, m + 1, 0).getDate()
-  for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    const beforeStart = !!pendingDate.value && iso < pendingDate.value
-    cells.push({ key: 'c' + d, day: d, iso, other: false, today: iso === todayIso, selected: iso === pendingEndDate.value, disabled: !availableDateSet.value.has(iso) || beforeStart })
-  }
-  const remaining = 42 - cells.length
-  for (let i = 1; i <= remaining; i++) {
-    const iso = toIso(new Date(y, m + 1, i))
-    const beforeStart = !!pendingDate.value && iso < pendingDate.value
-    cells.push({ key: 'n' + i, day: i, iso, other: true, today: iso === todayIso, selected: iso === pendingEndDate.value, disabled: !availableDateSet.value.has(iso) || beforeStart })
-  }
-  return cells
-})
+const endCalCells = computed<CalCell[]>(() => buildCalCells({
+  year: endCalViewYear.value,
+  month: endCalViewMonth.value,
+  selectedIso: pendingEndDate.value,
+  availableSet: availableDateSet.value,
+  minIso: pendingDate.value || undefined,
+}))
 
 function endCalPrevMonth(): void {
-  if (endCalViewMonth.value === 0) { endCalViewMonth.value = 11; endCalViewYear.value-- }
-  else endCalViewMonth.value--
+  const next = prevMonth(endCalViewMonth.value, endCalViewYear.value)
+  endCalViewMonth.value = next.month; endCalViewYear.value = next.year
 }
 function endCalNextMonth(): void {
-  if (endCalViewMonth.value === 11) { endCalViewMonth.value = 0; endCalViewYear.value++ }
-  else endCalViewMonth.value++
+  const next = nextMonth(endCalViewMonth.value, endCalViewYear.value)
+  endCalViewMonth.value = next.month; endCalViewYear.value = next.year
 }
 function selectEndCalDate(cell: CalCell): void {
   if (cell.disabled) return
@@ -778,444 +739,3 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
-#air-playback-panel {
-    display: flex;
-    flex-direction: column;
-}
-
-#air-playback-panel :deep(.sdr-field-label) {
-    color: rgba(200, 255, 0, 0.6);
-    font-size: 9px;
-    letter-spacing: 0.14em;
-    margin-bottom: 8px;
-}
-
-/* ---- Extra top spacing on first (START DATE) section to match AIRCRAFT gap ---- */
-.apb-section--start-date {
-    padding-top: 32px;
-}
-
-/* ---- Locked/disabled section overlay ---- */
-.apb-section--locked {
-    opacity: 0.35;
-    pointer-events: none;
-    user-select: none;
-}
-
-/* ---- Calendar ---- */
-.apb-cal-wrap {
-    position: relative;
-    margin-bottom: 6px;
-}
-
-.apb-date-btn {
-    width: 100%;
-    height: 36px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.55);
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 0 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-sizing: border-box;
-    transition: border-color 0.15s;
-    user-select: none;
-    outline: none;
-}
-
-.apb-date-btn--chosen {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.apb-date-btn:hover,
-.apb-date-btn:focus {
-    border-color: rgba(200, 255, 0, 0.35);
-}
-
-.apb-date-btn svg {
-    flex-shrink: 0;
-    opacity: 0.3;
-}
-
-.apb-cal-popup {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    background: #13171f;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-top: none;
-    padding: 10px;
-    box-sizing: border-box;
-    overflow-y: auto;
-    max-height: 260px;
-}
-
-.apb-cal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.apb-cal-nav {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.4);
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    padding: 0 4px;
-    transition: color 0.12s;
-}
-
-.apb-cal-nav:hover { color: #c8ff00; }
-
-.apb-cal-month-label {
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.6);
-    text-transform: uppercase;
-}
-
-.apb-cal-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-}
-
-.apb-cal-dow {
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.25);
-    text-align: center;
-    padding-bottom: 4px;
-    text-transform: uppercase;
-}
-
-.apb-cal-cell {
-    background: none;
-    border: 1px solid transparent;
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.6);
-    cursor: pointer;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    padding: 4px 0;
-    text-align: center;
-    transition: background 0.1s, color 0.1s;
-}
-
-.apb-cal-cell:hover {
-    background: rgba(255, 255, 255, 0.07);
-    color: #fff;
-}
-
-.apb-cal-cell--other    { color: rgba(255, 255, 255, 0.2); }
-.apb-cal-cell--today    { color: rgba(200, 255, 0, 0.8); }
-.apb-cal-cell--sel      { background: rgba(255, 255, 255, 0.07); color: #c8ff00; }
-.apb-cal-cell--disabled { color: rgba(255, 255, 255, 0.12); cursor: not-allowed; pointer-events: none; }
-
-/* ---- Time error ---- */
-.apb-time-error {
-    display: block;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: rgba(255, 80, 80, 0.85);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-}
-
-/* ---- Time selects ---- */
-.apb-time-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.apb-dd-wrap {
-    flex: 1;
-    position: relative;
-}
-
-.apb-time-select {
-    width: 100%;
-    height: 36px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.55);
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 0 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-sizing: border-box;
-    transition: border-color 0.15s;
-    user-select: none;
-    outline: none;
-}
-
-.apb-time-select svg {
-    flex-shrink: 0;
-    opacity: 0.35;
-}
-
-.apb-time-select--chosen {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.apb-time-select:hover,
-.apb-time-select:focus {
-    border-color: rgba(200, 255, 0, 0.35);
-}
-
-.apb-dd-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    background: #13171f;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-top: none;
-    max-height: 200px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    box-sizing: border-box;
-}
-
-.apb-dd-list::-webkit-scrollbar { display: none; }
-
-:global(.apb-dd-list--fixed) {
-    position: fixed !important;
-    z-index: 99999;
-    background: #13171f;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    max-height: 200px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    box-sizing: border-box;
-}
-
-:global(.apb-dd-list--fixed::-webkit-scrollbar) { display: none; }
-
-:global(.apb-dd-list--fixed .apb-dd-item) {
-    display: block;
-    width: 100%;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.65);
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-align: left;
-    padding: 7px 10px;
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s;
-    box-sizing: border-box;
-}
-
-:global(.apb-dd-list--fixed .apb-dd-item:hover) {
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
-}
-
-:global(.apb-dd-list--fixed .apb-dd-item--sel) { color: #c8ff00; }
-
-:global(.apb-dd-list--fixed .apb-dd-item--disabled) {
-    color: rgba(255, 255, 255, 0.12);
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.apb-dd-item {
-    display: block;
-    width: 100%;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.65);
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-align: left;
-    padding: 7px 10px;
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s;
-    box-sizing: border-box;
-}
-
-.apb-dd-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
-}
-
-.apb-dd-item--sel {
-    color: #c8ff00;
-}
-
-.apb-dd-item--disabled {
-    color: rgba(255, 255, 255, 0.12);
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.apb-time-colon {
-    color: rgba(255, 255, 255, 0.2);
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1;
-    user-select: none;
-    flex-shrink: 0;
-}
-
-/* ---- Transport section extra top spacing ---- */
-.apb-section--transport {
-    padding-top: 20px;
-}
-
-/* ---- Transport play/stop buttons ---- */
-.apb-transport-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.apb-speed-group--right {
-    margin-left: auto;
-}
-
-.apb-transport-btn {
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    border-radius: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition: background 0.15s, color 0.15s;
-}
-
-.apb-transport-btn--play {
-    color: rgba(200, 255, 0, 0.75);
-}
-
-.apb-transport-btn--play:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
-    color: #c8ff00;
-}
-
-.apb-transport-btn--stop {
-    color: rgba(255, 80, 80, 0.75);
-}
-
-.apb-transport-btn--stop:hover:not(:disabled) {
-    background: rgba(255, 80, 80, 0.15);
-    color: #ff5050;
-}
-
-.apb-transport-btn:disabled {
-    opacity: 0.25;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-/* ---- Transport ---- */
-.apb-speed-group {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-}
-
-.apb-speed-btn {
-    height: 36px;
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    color: rgba(255, 255, 255, 0.5);
-    cursor: pointer;
-    padding: 0 12px;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background 0.15s, color 0.15s;
-}
-
-.apb-speed-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-}
-
-.apb-speed-btn--active {
-    color: rgba(200, 255, 0, 0.75);
-}
-
-.apb-speed-btn--active:hover {
-    color: #c8ff00;
-    background: rgba(255, 255, 255, 0.15);
-}
-
-/* ---- Timeline section reduced top gap ---- */
-.apb-section--timeline {
-    padding-top: 0;
-    margin-top: -11px;
-}
-
-/* ---- Timeline canvas ---- */
-.apb-timeline-wrap {
-    width: 100%;
-    height: 96px;
-    position: relative;
-    cursor: crosshair;
-}
-
-.apb-timeline-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-}
-
-
-@keyframes apb-spin {
-    to { transform: rotate(360deg); }
-}
-
-.apb-spin {
-    animation: apb-spin 0.8s linear infinite;
-}
-</style>

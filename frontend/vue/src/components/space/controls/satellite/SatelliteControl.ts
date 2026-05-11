@@ -3,6 +3,8 @@ import { SentinelControlBase } from '../../../air/controls/sentinel-control-base
 import type { useSpaceStore } from '@/stores/space'
 import type { useNotificationsStore } from '@/stores/notifications'
 import type { useTrackingStore } from '@/stores/tracking'
+import { createSatelliteIcon, createSatBracket, buildFootprintFeatures } from './satelliteSprites'
+import { SatellitePassNotifier } from './SatellitePassNotifier'
 
 type SpaceStore        = ReturnType<typeof useSpaceStore>
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
@@ -18,15 +20,6 @@ interface IssApiResponse {
     // Backend now returns a fully-formed Polygon or MultiPolygon with
     // antimeridian splits and polar enclosures already handled.
     footprint: GeoJSON.Polygon | GeoJSON.MultiPolygon
-}
-interface IssPass {
-    aos_utc: string; los_utc: string
-    aos_unix_ms: number; los_unix_ms: number
-    duration_s: number; max_elevation_deg: number; max_el_utc: string
-}
-interface IssPassesApiResponse {
-    passes: IssPass[]; obs_lat: number; obs_lon: number
-    lookahead_hours: number; computed_at: string; error?: string
 }
 
 export class SatelliteControl extends SentinelControlBase {
@@ -55,12 +48,9 @@ export class SatelliteControl extends SentinelControlBase {
     private _trackGeojson:     GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     private _footprintGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
-    private _passNotifEnabled   = false
     private _trackingNotifId:   string | null = null
     private _onShowTracksChanged: ((e: Event) => void) | null = null
-    private _passNotifTimeout:  ReturnType<typeof setTimeout> | null = null
-    private _passRefreshInterval: ReturnType<typeof setInterval> | null = null
-    private _lastFiredPassAos   = 0
+    private _passNotifier!:     SatellitePassNotifier
     _previewNoradId:            string | null = null
     private _previewAbort:      AbortController | null = null
     private _previewPositions:  Map<string, IssPosition> = new Map()
@@ -82,7 +72,12 @@ export class SatelliteControl extends SentinelControlBase {
         // ground track and footprint are not stored separately in the new store, default to true
         this.trackVisible        = true
         this.footprintVisible    = true
-        this._restorePassNotifState()
+        this._passNotifier       = new SatellitePassNotifier({
+            notificationsStore,
+            getUserLocation,
+            getActiveNoradId: () => this._activeNoradId,
+            getActiveSatName: () => this._activeSatName,
+        })
     }
 
     get buttonLabel(): string {
@@ -125,68 +120,12 @@ export class SatelliteControl extends SentinelControlBase {
         }
         this._hideHoverTagNow()
         this._hideLabel()
-        if (this._passNotifTimeout)    { clearTimeout(this._passNotifTimeout);     this._passNotifTimeout = null }
-        if (this._passRefreshInterval) { clearInterval(this._passRefreshInterval); this._passRefreshInterval = null }
+        this._passNotifier.stop()
         if (this._onShowTracksChanged) {
             window.removeEventListener('sentinel:showTracksChanged', this._onShowTracksChanged)
             this._onShowTracksChanged = null
         }
         super.onRemove()
-    }
-
-    // Build the FeatureCollection used by the footprint source: one fill
-    // feature for the (Multi)Polygon plus one LineString outline per ring.
-    // The backend has already split antimeridian crossings and handled polar
-    // enclosures, so the geometry can be rendered as-is with no further math.
-    private static _buildFootprintFeatures(
-        geom: GeoJSON.Polygon | GeoJSON.MultiPolygon,
-    ): GeoJSON.FeatureCollection {
-        const rings: GeoJSON.Position[][] = geom.type === 'Polygon'
-            ? [geom.coordinates[0]]
-            : geom.coordinates.map(p => p[0])
-        const features: GeoJSON.Feature[] = [
-            { type: 'Feature', geometry: geom, properties: {} },
-        ]
-        for (const ring of rings) {
-            features.push({
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: ring },
-                properties: {},
-            })
-        }
-        return { type: 'FeatureCollection', features }
-    }
-
-    // ---- Canvas sprite factories ----
-    private _createSatelliteIcon(): ImageData {
-        const size = 96; const canvas = document.createElement('canvas')
-        canvas.width = canvas.height = size
-        const ctx = canvas.getContext('2d')!
-        const cx = size / 2, cy = size / 2
-        ctx.beginPath(); ctx.moveTo(cx, cy - 11); ctx.lineTo(cx + 9, cy)
-        ctx.lineTo(cx, cy + 11); ctx.lineTo(cx - 9, cy); ctx.closePath()
-        ctx.fillStyle = '#ffffff'; ctx.fill()
-        ctx.fillStyle = 'rgba(255,255,255,0.6)'
-        ctx.fillRect(cx - 28, cy - 4, 15, 8); ctx.fillRect(cx + 13, cy - 4, 15, 8)
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2
-        ctx.beginPath(); ctx.moveTo(cx, cy - 11); ctx.lineTo(cx, cy - 21); ctx.stroke()
-        return ctx.getImageData(0, 0, size, size)
-    }
-
-    private _createSatBracket(): ImageData {
-        const size = 96; const canvas = document.createElement('canvas')
-        canvas.width = canvas.height = size
-        const ctx = canvas.getContext('2d')!
-        const left = 8, top = 8, right = 88, bottom = 88, arm = 14
-        ctx.fillStyle = 'rgba(0,0,0,0.10)'; ctx.fillRect(left, top, right - left, bottom - top)
-        ctx.strokeStyle = '#c8ff00'; ctx.lineWidth = 2.5; ctx.lineCap = 'square'
-        ;([
-            [left, top, 1, 1], [right, top, -1, 1],
-            [left, bottom, 1, -1], [right, bottom, -1, -1],
-        ] as [number, number, number, number][]).forEach(([x, y, dx, dy]) => {
-            ctx.beginPath(); ctx.moveTo(x + dx * arm, y); ctx.lineTo(x, y); ctx.lineTo(x, y + dy * arm); ctx.stroke()
-        })
-        return ctx.getImageData(0, 0, size, size)
     }
 
     // ---- Layer init ----
@@ -200,8 +139,8 @@ export class SatelliteControl extends SentinelControlBase {
         ;['iss-icon-sprite', 'iss-bracket-sprite'].forEach(n => {
             if (this.map.hasImage(n)) this.map.removeImage(n)
         })
-        this.map.addImage('iss-icon-sprite',    this._createSatelliteIcon(), { pixelRatio: 2, sdf: false })
-        this.map.addImage('iss-bracket-sprite', this._createSatBracket(),    { pixelRatio: 2, sdf: false })
+        this.map.addImage('iss-icon-sprite',    createSatelliteIcon(), { pixelRatio: 2, sdf: false })
+        this.map.addImage('iss-bracket-sprite', createSatBracket(),    { pixelRatio: 2, sdf: false })
 
         const trackVis = (this.issVisible && this.trackVisible)     ? 'visible' : 'none'
         const fpVis    = (this.issVisible && this.footprintVisible)  ? 'visible' : 'none'
@@ -315,7 +254,7 @@ export class SatelliteControl extends SentinelControlBase {
             // response shape is unexpected we still want the satellite icon
             // and ground track to update on this poll cycle.
             try {
-                this._footprintGeojson = SatelliteControl._buildFootprintFeatures(footprint)
+                this._footprintGeojson = buildFootprintFeatures(footprint)
             } catch {}
 
             if (!this._previewNoradId) {
@@ -329,7 +268,7 @@ export class SatelliteControl extends SentinelControlBase {
 
             if (!this._trackingRestored) {
                 this._trackingRestored = true
-                if (this._passNotifEnabled) this._startPassNotifPolling()
+                this._passNotifier.onActivated()
             }
 
             if (!this._previewNoradId) {
@@ -402,9 +341,9 @@ export class SatelliteControl extends SentinelControlBase {
     private _tagHTML(p: IssPosition, isTracking: boolean): string {
         const trkText  = isTracking ? 'TRACKING' : 'TRACK'
         const trkClass = isTracking ? 'iss-track-btn iss-track-btn--active' : 'iss-track-btn'
-        const bellSlash = this._passNotifEnabled ? '' :
+        const bellSlash = this._passNotifier.enabled ? '' :
             `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`
-        const bellClass = this._passNotifEnabled ? 'iss-notif-btn iss-notif-btn--active' : 'iss-notif-btn'
+        const bellClass = this._passNotifier.enabled ? 'iss-notif-btn iss-notif-btn--active' : 'iss-notif-btn'
         const rows: [string, string][] = [
             ['ALT', `${p.alt_km} km`], ['VEL', `${p.velocity_kms} km/s`],
             ['HDG', `${p.track_deg}°`], ['LAT', `${p.lat}°`], ['LON', `${p.lon}°`],
@@ -442,7 +381,7 @@ export class SatelliteControl extends SentinelControlBase {
         el.addEventListener('mouseenter', () => { if (this._hoverHideTimer) { clearTimeout(this._hoverHideTimer); this._hoverHideTimer = null } })
         el.addEventListener('mouseleave', () => this._scheduleHideHoverTag())
         this._wireTrackButton(el, props)
-        this._wireNotifButton(el)
+        this._passNotifier.wireButton(el)
 
         const markerCoords: [number, number] = this._lastPosition
             ? [this._lastPosition.lon, this._lastPosition.lat] : coords
@@ -480,131 +419,6 @@ export class SatelliteControl extends SentinelControlBase {
         if (!btn) return
         btn.addEventListener('mousedown', (e) => e.stopPropagation())
         btn.addEventListener('click', (e) => { e.stopPropagation(); this._hideHoverTagNow(); this._startFollowing() })
-    }
-
-    // ---- Pass notifications ----
-    private _passNotifKey(): string { return `passNotifEnabled_${this._activeNoradId}` }
-
-    private _restorePassNotifState(): void {
-        try { this._passNotifEnabled = localStorage.getItem(this._passNotifKey()) === '1' } catch {}
-    }
-
-    private _savePassNotifState(): void {
-        try {
-            if (this._passNotifEnabled) localStorage.setItem(this._passNotifKey(), '1')
-            else localStorage.removeItem(this._passNotifKey())
-        } catch {}
-    }
-
-    private _wireNotifButton(el: HTMLElement): void {
-        const btn = el.querySelector('.iss-notif-btn')
-        if (!btn) return
-        btn.addEventListener('mousedown', (e) => e.stopPropagation())
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation()
-            this._togglePassNotif()
-            const svg = btn.querySelector('svg')
-            if (svg) {
-                ;(btn as HTMLElement).classList.toggle('iss-notif-btn--active', this._passNotifEnabled)
-                const existingSlash = svg.querySelector('line')
-                if (this._passNotifEnabled && existingSlash) existingSlash.remove()
-                else if (!this._passNotifEnabled && !existingSlash) {
-                    const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-                    slash.setAttribute('x1', '1.5'); slash.setAttribute('y1', '1.5')
-                    slash.setAttribute('x2', '11.5'); slash.setAttribute('y2', '11.5')
-                    slash.setAttribute('stroke', 'currentColor'); slash.setAttribute('stroke-width', '1.5')
-                    slash.setAttribute('stroke-linecap', 'square')
-                    svg.appendChild(slash)
-                }
-            }
-        })
-    }
-
-    private _togglePassNotif(): void {
-        if (this._passNotifEnabled) {
-            this._passNotifEnabled = false; this._lastFiredPassAos = 0
-            if (this._passNotifTimeout)    { clearTimeout(this._passNotifTimeout);     this._passNotifTimeout = null }
-            if (this._passRefreshInterval) { clearInterval(this._passRefreshInterval); this._passRefreshInterval = null }
-            this._savePassNotifState()
-            this._notificationsStore.add({ type: 'notif-off', title: this._activeSatName, detail: 'Pass notifications disabled' })
-        } else {
-            const loc = this._getUserLocation()
-            if (!loc) {
-                const poller = setInterval(() => {
-                    const l = this._getUserLocation()
-                    if (l) {
-                        clearInterval(poller); this._passNotifEnabled = true
-                        this._savePassNotifState(); this._startPassNotifPolling()
-                    }
-                }, 500)
-                setTimeout(() => clearInterval(poller), 30000)
-                return
-            }
-            this._passNotifEnabled = true; this._savePassNotifState(); this._startPassNotifPolling()
-            this._notificationsStore.add({
-                type: 'tracking', title: this._activeSatName, detail: 'Pass notifications enabled',
-                action: { label: 'DISABLE NOTIFICATIONS', callback: () => {
-                    this._passNotifEnabled = true; this._togglePassNotif()
-                }},
-            })
-        }
-    }
-
-    private _startPassNotifPolling(): void {
-        this._fetchAndSchedulePasses()
-        if (this._passRefreshInterval) clearInterval(this._passRefreshInterval)
-        this._passRefreshInterval = setInterval(() => this._fetchAndSchedulePasses(), 5 * 60 * 1000)
-    }
-
-    private async _fetchAndSchedulePasses(): Promise<void> {
-        const loc = this._getUserLocation()
-        if (!loc) return
-        const [lon, lat] = loc
-        try {
-            const endpoint = this._activeNoradId === '25544'
-                ? `/api/space/iss/passes?lat=${lat}&lon=${lon}&hours=24`
-                : `/api/space/satellite/${this._activeNoradId}/passes?lat=${lat}&lon=${lon}&hours=24`
-            const resp = await fetch(endpoint)
-            if (!resp.ok) return
-            const data = await resp.json() as IssPassesApiResponse
-            if (data.error || !data.passes) return
-            this._schedulePassNotification(data.passes)
-        } catch {}
-    }
-
-    private _schedulePassNotification(passes: IssPass[]): void {
-        if (this._passNotifTimeout) { clearTimeout(this._passNotifTimeout); this._passNotifTimeout = null }
-        if (!this._passNotifEnabled) return
-        const now = Date.now(); const leadMs = 10 * 60 * 1000
-        const next = passes.find(p => p.aos_unix_ms > now)
-        if (!next) return
-        const delay = (next.aos_unix_ms - leadMs) - now
-        if (delay < 0) {
-            if (this._lastFiredPassAos !== next.aos_unix_ms) {
-                this._lastFiredPassAos = next.aos_unix_ms; this._firePassNotification(next)
-            }
-            const remaining = passes.filter(p => p.aos_unix_ms > now + 60000)
-            if (remaining.length > 0) this._schedulePassNotification(remaining)
-            return
-        }
-        this._passNotifTimeout = setTimeout(() => {
-            this._passNotifTimeout = null
-            if (!this._passNotifEnabled) return
-            this._lastFiredPassAos = next.aos_unix_ms; this._firePassNotification(next)
-            const remaining = passes.filter(p => p.aos_unix_ms > next.aos_unix_ms + 60000)
-            if (remaining.length > 0) this._schedulePassNotification(remaining)
-            else this._fetchAndSchedulePasses()
-        }, delay)
-    }
-
-    private _firePassNotification(pass: IssPass): void {
-        const aosDate = new Date(pass.aos_unix_ms)
-        const aosTime = aosDate.toUTCString().slice(17, 22) + ' UTC'
-        this._notificationsStore.add({
-            type: 'tracking', title: `${this._activeSatName} PASS`,
-            detail: `AOS ~10 min — max ${pass.max_elevation_deg}° elev at ${aosTime}`,
-            action: { label: 'DISABLE', callback: () => { this._passNotifEnabled = true; this._togglePassNotif() } },
-        })
     }
 
     get isFollowing(): boolean { return this._followEnabled }
@@ -686,7 +500,7 @@ export class SatelliteControl extends SentinelControlBase {
             this._previewPositions.set(noradId, position)
             let footprintGeo: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
             try {
-                footprintGeo = SatelliteControl._buildFootprintFeatures(footprint)
+                footprintGeo = buildFootprintFeatures(footprint)
             } catch {}
             const issGeo: GeoJSON.FeatureCollection = {
                 type: 'FeatureCollection',
@@ -774,9 +588,7 @@ export class SatelliteControl extends SentinelControlBase {
         if (this._followEnabled) this._stopFollowing()
         this._hideHoverTagNow(); this._hideLabel()
         if (follow) this._followEnabled = true
-        if (this._passNotifTimeout)    { clearTimeout(this._passNotifTimeout);     this._passNotifTimeout = null }
-        if (this._passRefreshInterval) { clearInterval(this._passRefreshInterval); this._passRefreshInterval = null }
-        this._passNotifEnabled = false; this._lastFiredPassAos = 0
+        this._passNotifier.stop()
 
         const isSameSat = this._activeNoradId === noradId
         this._activeNoradId = noradId; this._activeSatName = name
@@ -792,8 +604,14 @@ export class SatelliteControl extends SentinelControlBase {
             this._spaceStore.setOverlay('iss', true)
         }
 
-        this._restorePassNotifState()
-        if (this._passNotifEnabled) this._startPassNotifPolling()
+        // Re-build the notifier so it re-reads persistence for the newly-selected satellite
+        this._passNotifier = new SatellitePassNotifier({
+            notificationsStore: this._notificationsStore,
+            getUserLocation: this._getUserLocation,
+            getActiveNoradId: () => this._activeNoradId,
+            getActiveSatName: () => this._activeSatName,
+        })
+        this._passNotifier.onActivated()
         if (follow && this._lastPosition) {
             this._startFollowing()
         }

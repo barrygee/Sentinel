@@ -1,0 +1,661 @@
+#msb-pane-passes {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+#msb-pane-passes.msb-pane-active {
+    display: flex;
+}
+
+.spp-filter-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 18px 28px 18px 28px;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    cursor: pointer;
+    transition: background 0.12s;
+    box-sizing: border-box;
+}
+
+.spp-filter-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.spp-filter-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.spp-filter-toggle-icon {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease, color 0.15s;
+    flex-shrink: 0;
+    transform: rotate(-90deg);
+}
+
+.spp-filter-toggle.expanded .spp-filter-toggle-icon {
+    transform: rotate(0deg);
+    color: var(--color-accent);
+}
+
+.spp-filter-toggle-left > span:last-child {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    transition: color 0.15s;
+}
+
+.spp-filter-toggle.expanded .spp-filter-toggle-left > span:last-child {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.spp-filter-summary {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.spp-filter-toggle.expanded .spp-filter-summary {
+    opacity: 0;
+}
+
+.spp-filter-body {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 0 28px 0 28px;
+    border-bottom: none;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.2s ease, opacity 0.2s ease, padding 0.2s ease;
+}
+
+.spp-filter-body.expanded {
+    max-height: 400px;
+    opacity: 1;
+    padding: 20px 28px 22px 28px;
+}
+
+.spp-section-label {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+}
+
+#spp-category-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.spp-cat-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0 10px;
+    height: 28px;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.spp-cat-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.spp-cat-btn.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.spp-cat-btn.active:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--color-accent);
+}
+
+.spp-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.spp-filter-label {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    min-width: 90px;
+}
+
+#spp-elevation-slider {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-accent);
+    outline: none;
+    border: none;
+}
+
+#spp-elevation-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+#spp-elevation-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+#spp-elevation-slider::-moz-range-track {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-accent);
+}
+
+.spp-filter-value {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    min-width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.spp-seg-btns {
+    display: flex;
+    gap: 4px;
+}
+
+.spp-seg-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0 10px;
+    height: 28px;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.spp-seg-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.spp-seg-btn.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.spp-seg-btn.active:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--color-accent);
+}
+
+#spp-status-bar {
+    flex-shrink: 0;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.22);
+    text-transform: uppercase;
+    padding: 32px 28px 8px 28px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+}
+
+#spp-status-bar.spp-loading {
+    color: var(--color-accent);
+}
+
+#spp-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+#spp-list::-webkit-scrollbar {
+    display: none;
+}
+
+.spp-pass-card {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.spp-pass-card:last-child {
+    border-bottom: none;
+}
+
+.spp-pass-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 52px 13px 28px;
+}
+
+.spp-pass-card:first-child .spp-pass-card-header {
+    padding-top: 18px;
+}
+
+.spp-pass-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.spp-pass-card.spp-expanded {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.spp-pass-chevron {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 44px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.25);
+    transition: transform 0.2s ease, color 0.15s;
+    transform: rotate(-90deg);
+    pointer-events: none;
+}
+
+.spp-pass-card.spp-expanded .spp-pass-chevron {
+    transform: rotate(0deg);
+    color: var(--color-accent);
+}
+
+.spp-pass-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.spp-pass-primary {
+    font-family: var(--font-primary);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spp-pass-secondary {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spp-pass-meta {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.spp-pass-aos {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.spp-pass-aos.spp-in-progress {
+    color: #ff9900;
+}
+
+.spp-pass-detail {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.4);
+    white-space: nowrap;
+}
+
+.spp-acc-body {
+    display: flex;
+    flex-direction: column;
+    animation: spp-expand 0.18s ease;
+}
+
+@keyframes spp-expand {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.spp-acc-section {
+    padding: 14px 28px 12px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.spp-acc-section-title {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
+    text-transform: uppercase;
+}
+
+.spp-acc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 12px;
+}
+
+.spp-acc-grid.spp-acc-grid--three {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.spp-acc-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.spp-acc-cell-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+}
+
+.spp-acc-cell-value {
+    font-family: var(--font-primary);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spp-acc-section--track {
+    padding-top: 16px;
+    padding-bottom: 24px;
+}
+
+.spp-acc-track-btn {
+    width: 100%;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 11px 12px;
+    text-transform: uppercase;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+
+.spp-acc-track-btn:hover {
+    color: var(--color-accent);
+    border-color: rgba(200, 255, 0, 0.4);
+    background: rgba(200, 255, 0, 0.04);
+}
+
+.spp-acc-track-btn.spp-acc-track-btn--active {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.spp-acc-section--passes {
+    padding-top: 6px;
+    padding-bottom: 4px;
+    gap: 6px;
+}
+
+.spp-acc-passes-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.spp-acc-status {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
+}
+
+.spp-acc-status.spp-acc-status-loading {
+    color: var(--color-accent);
+}
+
+.spp-acc-no-passes {
+    padding: 4px 0 8px 0;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
+}
+
+.spp-acc-pass-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0 -28px;
+}
+
+.spp-acc-pass-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 28px;
+}
+
+.spp-acc-pass-card:last-child {
+    padding-bottom: 16px;
+}
+
+.spp-acc-pass-num {
+    display: none;
+}
+
+.spp-acc-pass-times {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.spp-acc-pass-aos-row {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.spp-acc-pass-date {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.spp-acc-pass-time {
+    font-family: var(--font-primary);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #fff;
+}
+
+.spp-acc-pass-los {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
+}
+
+.spp-acc-pass-meta {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.spp-acc-pass-countdown {
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.spp-acc-pass-countdown.spp-in-progress {
+    color: #ff9900;
+}
+
+.spp-acc-pass-maxel {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+    color: rgba(255, 255, 255, 0.32);
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.spp-message {
+    padding: 24px 28px;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    line-height: 1.6;
+}
+
+.spp-action-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 5px 10px;
+    text-transform: uppercase;
+    transition: color 0.12s, border-color 0.12s;
+}
+
+.spp-action-btn:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+body:not([data-domain="space"]) .spp-filter-toggle,
+body:not([data-domain="space"]) .spp-filter-body {
+    display: none;
+}

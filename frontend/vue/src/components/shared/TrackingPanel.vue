@@ -176,7 +176,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 .tracking-card .sfr-acc-cell-value {
     font-size: 13px;
     color: #ffffff;
-    font-weight: 700;
+    font-weight: 400;
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
@@ -191,6 +191,21 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 .tracking-card .sfr-acc-cell-label {
     font-size: 9px;
     color: rgba(255, 255, 255, 0.55);
+}
+
+.tracking-card .sfr-acc-section {
+    gap: 6px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+}
+
+.tracking-card .sfr-acc-grid {
+    column-gap: 10px;
+    row-gap: 6px;
+}
+
+.tracking-card .sfr-acc-cell {
+    gap: 2px;
 }
 
 .sfr-acc-cell-value--emrg {
