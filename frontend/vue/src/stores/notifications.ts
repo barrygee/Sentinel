@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 
 export type NotificationType =
   | 'flight' | 'departure' | 'track' | 'untrack' | 'tracking'
-  | 'notif-off' | 'system' | 'message' | 'emergency' | 'squawk-clr'
+  | 'notif-off' | 'system' | 'message' | 'emergency' | 'squawk-clr' | 'overhead'
 
 export interface NotificationAction {
   label: string
@@ -63,6 +63,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       flight: 'LANDED', departure: 'DEPARTED', track: 'TRACKING',
       untrack: 'UNTRACKED', tracking: 'NOTIFICATIONS ON', 'notif-off': 'NOTIFICATIONS OFF',
       system: 'SYSTEM', message: 'MESSAGE', emergency: '⚠ EMERGENCY', 'squawk-clr': 'SQUAWK CLEARED',
+      overhead: 'OVERHEAD NOTIFICATION',
     }
     return map[type] ?? 'NOTICE'
   }
@@ -94,12 +95,17 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   function update(opts: UpdateOptions): void {
-    const item = items.value.find(i => i.id === opts.id)
-    if (!item) return
-    if (opts.type !== undefined) item.type = opts.type
-    if (opts.title !== undefined) item.title = opts.title
-    if (opts.detail !== undefined) item.detail = opts.detail
-    if (opts.action !== undefined) item.action = opts.action ?? undefined
+    const idx = items.value.findIndex(i => i.id === opts.id)
+    if (idx === -1) return
+    const prev = items.value[idx]
+    const next: NotificationItem = {
+      ...prev,
+      type:   opts.type   !== undefined ? opts.type   : prev.type,
+      title:  opts.title  !== undefined ? opts.title  : prev.title,
+      detail: opts.detail !== undefined ? opts.detail : prev.detail,
+      action: opts.action !== undefined ? (opts.action ?? undefined) : prev.action,
+    }
+    items.value.splice(idx, 1, next)
     _save(items.value)
   }
 

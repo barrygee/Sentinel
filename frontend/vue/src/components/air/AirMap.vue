@@ -29,6 +29,8 @@ import { ResetViewControl }          from './controls/reset-view/ResetViewContro
 import { NamesToggleControl }         from './controls/names/NamesToggleControl'
 import { RoadsToggleControl }         from './controls/roads/RoadsToggleControl'
 import { RangeRingsControl }          from './controls/range-rings/RangeRingsControl'
+import { OverheadZoneControl }        from './controls/overhead-zone/OverheadZoneControl'
+import { OverheadAlertsTracker }      from './controls/overhead-zone/OverheadAlertsTracker'
 import { AdsbLabelsToggleControl }    from './controls/adsb-labels/AdsbLabelsToggleControl'
 import { ClearOverlaysControl }       from './controls/clear-overlays/ClearOverlaysControl'
 import { AirportsToggleControl }      from './controls/airports/AirportsControl'
@@ -139,6 +141,8 @@ let _playbackTimer: ReturnType<typeof setTimeout> | null = null
 let adsbControl:         AdsbLiveControl | null            = null
 let adsbLabelsControl:   AdsbLabelsToggleControl | null    = null
 let rangeRingsControl:   RangeRingsControl | null          = null
+let overheadZoneControl: OverheadZoneControl | null        = null
+let overheadAlertsTracker: OverheadAlertsTracker | null    = null
 let roadsControl:        RoadsToggleControl | null         = null
 let namesControl:        NamesToggleControl | null         = null
 let airportsControl:     AirportsToggleControl | null      = null
@@ -198,6 +202,7 @@ useConnectivity((online) => {
     roadsControl?._applyVisibility()
     namesControl?._applyVisibility()
     rangeRingsControl?._initRings()
+    overheadZoneControl?.reinit()
     airportsControl?.initLayers()
     militaryBasesControl?.initLayers()
     aaraControl?.initLayers()
@@ -237,6 +242,20 @@ function onStyleLoaded(m: MapLibreGlMap) {
   ;(adsbLabelsControl as unknown as { _adsbControl: AdsbLiveControl | null })._adsbControl = adsbControl
 
   rangeRingsControl    = new RangeRingsControl(airStore, getUserLocation)
+  const initialLoc = getUserLocation()
+  overheadZoneControl = new OverheadZoneControl(
+    airStore.overlayStates.overheadAlerts,
+    initialLoc,
+  )
+  overheadAlertsTracker = new OverheadAlertsTracker(
+    notificationsStore,
+    () => adsbControl?._geojson ?? null,
+    () => {
+      const l = userLocation.value
+      return l ? { lon: l.lon, lat: l.lat } : null
+    },
+  )
+  overheadAlertsTracker.setEnabled(airStore.overlayStates.overheadAlerts)
   roadsControl         = new RoadsToggleControl(airStore)
   namesControl         = new NamesToggleControl(airStore)
   airportsControl      = new AirportsToggleControl(airStore)
@@ -267,6 +286,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   militaryBasesControl.onAdd(m)
   aaraControl.onAdd(m)
   awacsControl.onAdd(m)
+  overheadZoneControl.onAdd(m)
 
   // Restore 3D pitch after initial load
   if (_tiltActive) m.easeTo({ pitch: 45, duration: 400 })
@@ -338,8 +358,14 @@ onMounted(() => {
   watch(userLocation, (loc) => {
     if (!loc) return
     rangeRingsControl?.updateCenter(loc.lon, loc.lat)
+    overheadZoneControl?.updateCenter(loc.lon, loc.lat)
     _locationMarker.update(loc.lon, loc.lat)
   }, { immediate: true })
+
+  watch(() => airStore.overlayStates.overheadAlerts, (enabled) => {
+    overheadZoneControl?.setVisible(enabled)
+    overheadAlertsTracker?.setEnabled(enabled)
+  })
 
   watch(() => playbackStore.status, async (status) => {
     if (status === 'loading') {
@@ -390,9 +416,13 @@ onBeforeUnmount(() => {
   militaryBasesControl?.onRemove()
   aaraControl?.onRemove()
   awacsControl?.onRemove()
+  overheadZoneControl?.onRemove()
+  overheadAlertsTracker?.destroy()
   adsbControl         = null
   adsbLabelsControl   = null
   rangeRingsControl   = null
+  overheadZoneControl = null
+  overheadAlertsTracker = null
   roadsControl        = null
   namesControl        = null
   airportsControl     = null

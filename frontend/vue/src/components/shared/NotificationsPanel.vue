@@ -232,6 +232,7 @@ onUnmounted(() => {
 .notif-item[data-type="departure"]  .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="track"]      .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="tracking"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
+.notif-item[data-type="overhead"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="notif-off"]  .notif-label { color: rgba(255, 255, 255, 0.45); }
 .notif-item[data-type="system"]     .notif-label { color: rgba(255, 255, 255, 0.45); }
 .notif-item[data-type="message"]    .notif-label { color: rgba(100, 160, 255, 0.8); }

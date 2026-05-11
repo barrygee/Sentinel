@@ -11,6 +11,7 @@ export interface OverlayStates {
   rangeRings: boolean
   aara: boolean
   awacs: boolean
+  overheadAlerts: boolean
 }
 
 export type AdsbLabelField = 'type' | 'alt'
@@ -56,6 +57,7 @@ const DEFAULTS: OverlayStates = {
   rangeRings: false,
   aara: true,
   awacs: true,
+  overheadAlerts: false,
 }
 
 export const useAirStore = defineStore('air', () => {

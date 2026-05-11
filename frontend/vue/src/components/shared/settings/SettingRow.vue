@@ -5,6 +5,7 @@
       <div v-if="item.desc" class="settings-item-desc">{{ item.desc }}</div>
     </div>
     <ConnectivityToggle v-if="item.type === 'connectivity-toggle'" @stage="emit('stage', item.id, $event)" />
+    <OverheadAlertsToggleControl v-else-if="item.type === 'overhead-alerts-toggle'" @stage="emit('stage', item.id, $event)" />
     <ProbeUrlControl v-else-if="item.type === 'probe-url'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <LocationControl v-else-if="item.type === 'location'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <SourceOverrideControl v-else-if="item.type === 'source-override'" :ns="item.ns!" @stage="emit('stage', item.id, $event)" />
@@ -26,6 +27,7 @@
 <script setup lang="ts">
 import type { SettingItem } from '../SettingsPanel.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
+import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
