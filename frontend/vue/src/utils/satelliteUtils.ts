@@ -52,14 +52,14 @@ export const SATELLITE_CATEGORY_SECTION_LABELS: Record<string, string> = {
 }
 
 /**
- * Formats milliseconds until a satellite pass AOS as "IN Xh Ym", "IN Xm Ys", or "IN Xs".
+ * Formats milliseconds until a satellite pass AOS as "IN Xh Ym Zs", "IN Xm Ys", or "IN Xs".
  */
 export function formatPassCountdown(milliseconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000))
   const hours   = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
-  if (hours > 0)   return `IN ${hours}h ${minutes}m`
+  if (hours > 0)   return `IN ${hours}h ${minutes}m ${seconds}s`
   if (minutes > 0) return `IN ${minutes}m ${seconds}s`
   return `IN ${seconds}s`
 }
