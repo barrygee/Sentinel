@@ -8,8 +8,8 @@
           :key="item.id"
           class="notif-item"
           :data-type="item.type"
-          :style="item.clickAction ? 'cursor:pointer' : ''"
-          @click="item.clickAction?.() "
+          :style="(item.clickAction || item.hex) ? 'cursor:pointer' : ''"
+          @click="handleItemClick(item)"
         >
           <div class="notif-header">
             <span class="notif-label">
@@ -54,9 +54,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore, getAircraftClickHandler, type NotificationItem } from '@/stores/notifications'
 
 const store = useNotificationsStore()
+
+function handleItemClick(item: NotificationItem): void {
+  if (item.clickAction) { item.clickAction(); return }
+  if (item.hex) {
+    const handler = getAircraftClickHandler()
+    if (handler) handler(item.hex)
+  }
+}
 const listRef = ref<HTMLElement | null>(null)
 const showScrollHint = ref(false)
 

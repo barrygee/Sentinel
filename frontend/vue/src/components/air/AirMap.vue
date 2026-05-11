@@ -17,7 +17,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap, MapMouseEvent } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore, registerAircraftClickHandler } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
 import { useSettingsStore } from '@/stores/settings'
 import { useConnectivity } from '@/composables/useConnectivity'
@@ -254,7 +254,9 @@ function onStyleLoaded(m: MapLibreGlMap) {
       const l = userLocation.value
       return l ? { lon: l.lon, lat: l.lat } : null
     },
+    (hex: string) => { adsbControl?.selectByHex(hex) },
   )
+  registerAircraftClickHandler((hex: string) => { adsbControl?.selectByHex(hex) })
   overheadAlertsTracker.setEnabled(airStore.overlayStates.overheadAlerts)
   roadsControl         = new RoadsToggleControl(airStore)
   namesControl         = new NamesToggleControl(airStore)

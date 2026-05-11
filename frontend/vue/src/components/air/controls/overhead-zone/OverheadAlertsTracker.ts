@@ -19,6 +19,7 @@ export class OverheadAlertsTracker {
     private _notifications: NotificationsStore
     private _getFeatures: () => FeatureCollection | null
     private _getUserLocation: () => { lon: number; lat: number } | null
+    private _onAlertClick: ((hex: string) => void) | null
     private _tracked = new Map<string, string>() // hex -> notification id
     private _timer: ReturnType<typeof setInterval> | null = null
     private _enabled = false
@@ -27,10 +28,12 @@ export class OverheadAlertsTracker {
         notifications: NotificationsStore,
         getFeatures: () => FeatureCollection | null,
         getUserLocation: () => { lon: number; lat: number } | null,
+        onAlertClick: ((hex: string) => void) | null = null,
     ) {
         this._notifications = notifications
         this._getFeatures = getFeatures
         this._getUserLocation = getUserLocation
+        this._onAlertClick = onAlertClick
     }
 
     setEnabled(enabled: boolean): void {
@@ -79,7 +82,11 @@ export class OverheadAlertsTracker {
             if (existing) {
                 this._notifications.update({ id: existing, detail })
             } else {
-                const id = this._notifications.add({ type: 'overhead', title, detail })
+                const cb = this._onAlertClick
+                const id = this._notifications.add({
+                    type: 'overhead', title, detail, hex,
+                    clickAction: cb ? () => cb(hex) : undefined,
+                })
                 this._tracked.set(hex, id)
             }
         }

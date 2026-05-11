@@ -18,6 +18,7 @@ export interface NotificationItem {
   ts: number
   action?: NotificationAction
   clickAction?: () => void
+  hex?: string
 }
 
 export interface AddOptions {
@@ -26,6 +27,7 @@ export interface AddOptions {
   detail?: string
   action?: NotificationAction
   clickAction?: () => void
+  hex?: string
 }
 
 export interface UpdateOptions {
@@ -47,6 +49,14 @@ function _load(): NotificationItem[] {
 
 function _save(items: NotificationItem[]): void {
   try { localStorage.setItem(LS_KEY, JSON.stringify(items.map(i => ({ ...i, action: undefined, clickAction: undefined })))) } catch {}
+}
+
+let _aircraftClickHandler: ((hex: string) => void) | null = null
+export function registerAircraftClickHandler(fn: (hex: string) => void): void {
+  _aircraftClickHandler = fn
+}
+export function getAircraftClickHandler(): ((hex: string) => void) | null {
+  return _aircraftClickHandler
 }
 
 export const useNotificationsStore = defineStore('notifications', () => {
@@ -77,6 +87,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       ts: Date.now(),
       action: opts.action,
       clickAction: opts.clickAction,
+      hex: opts.hex,
     }
     items.value.unshift(item)
     _save(items.value)
@@ -149,12 +160,17 @@ export const useNotificationsStore = defineStore('notifications', () => {
       if (!res.ok) return
       const rows = await res.json() as Array<{ msg_id: string; type: string; title: string; detail: string; ts: number }>
       if (!Array.isArray(rows) || !rows.length) return
+      const localById = new Map(items.value.map(i => [i.id, i]))
       const fromBackend: NotificationItem[] = rows
         .filter(r => r.type !== 'tracking' && r.type !== 'track')
-        .map(r => ({
-          id: r.msg_id, type: r.type as NotificationType,
-          title: r.title, detail: r.detail ?? '', ts: r.ts,
-        }))
+        .map(r => {
+          const prev = localById.get(r.msg_id)
+          return {
+            id: r.msg_id, type: r.type as NotificationType,
+            title: r.title, detail: r.detail ?? '', ts: r.ts,
+            hex: prev?.hex, clickAction: prev?.clickAction, action: prev?.action,
+          }
+        })
       const backendIds = new Set(fromBackend.map(i => i.id))
       const localOnly = items.value.filter(i => !backendIds.has(i.id))
       items.value = [...fromBackend, ...localOnly].sort((a, b) => a.ts - b.ts)

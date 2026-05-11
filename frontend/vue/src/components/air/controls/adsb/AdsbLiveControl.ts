@@ -2074,6 +2074,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
         } catch(e) { return false }
     }
 
+    selectByHex(hex: string): boolean {
+        if (!this.map || !hex) return false
+        const aircraftFeature = this._geojson.features.find(f => f.properties.hex === hex)
+        if (!aircraftFeature) return false
+        const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
+        this.map.easeTo({ center: coords, zoom: Math.max(this.map.getZoom(), 10), duration: 600 })
+        return true
+    }
+
     // ---- Public playback hooks ----
 
     pauseLive(): void {
