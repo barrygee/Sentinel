@@ -107,13 +107,15 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
 
 
 def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
-    """Compute current and next orbit as a GeoJSON FeatureCollection.
+    """Compute previous, current, and next two orbits as a GeoJSON FeatureCollection.
 
     The orbital period is derived from the TLE mean motion so the track length
     adapts to each satellite — LEO (~92 min), GPS (~720 min), GEO (~1436 min),
-    Molniya (~720 min), etc. Two consecutive orbits are emitted:
-      - orbit1:   0..T      minutes  → properties.track = 'orbit1'  (current orbit)
-      - orbit2:   T..2T     minutes  → properties.track = 'orbit2'  (next orbit)
+    Molniya (~720 min), etc. Four consecutive orbits are emitted:
+      - orbit0:  -T..0       minutes  → properties.track = 'orbit0'  (previous orbit)
+      - orbit1:   0..T       minutes  → properties.track = 'orbit1'  (current orbit)
+      - orbit2:   T..2T      minutes  → properties.track = 'orbit2'  (next orbit)
+      - orbit3:  2T..3T      minutes  → properties.track = 'orbit3'  (orbit after next)
 
     Longitudes are unwrapped (allowed to exceed ±180°) so MapLibre can draw a
     continuous line with renderWorldCopies and in globe projection.
@@ -138,8 +140,10 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     time_step_min = period_min / 360.0
 
     for track_type, start_min, end_min in [
-        ("orbit1",         0.0,     period_min),
-        ("orbit2",  period_min, 2 * period_min),
+        ("orbit0",   -period_min,             0.0),
+        ("orbit1",          0.0,       period_min),
+        ("orbit2",   period_min,   2 * period_min),
+        ("orbit3", 2 * period_min, 3 * period_min),
     ]:
         coords: list[list[float]] = []
         prev_lon_raw: float | None = None

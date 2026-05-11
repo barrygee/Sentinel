@@ -105,7 +105,7 @@ export class SatelliteControl extends SentinelControlBase {
             const show = (e as CustomEvent<{ show: boolean }>).detail.show
             this.trackVisible = show
             const trackVis = (this.issVisible && this.trackVisible) ? 'visible' : 'none'
-            ;['iss-track-orbit1', 'iss-track-orbit2'].forEach(id => {
+            ;['iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3'].forEach(id => {
                 try { this.map.setLayoutProperty(id, 'visibility', trackVis) } catch {}
             })
         }
@@ -191,7 +191,7 @@ export class SatelliteControl extends SentinelControlBase {
 
     // ---- Layer init ----
     initLayers(): void {
-        ;['iss-track-past', 'iss-track-future', 'iss-track-orbit1', 'iss-track-orbit2',
+        ;['iss-track-past', 'iss-track-future', 'iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3',
           'iss-footprint-fill-outer', 'iss-footprint-fill-mid', 'iss-footprint-fill-inner', 'iss-footprint-fill-core',
           'iss-footprint-fill', 'iss-footprint', 'iss-bracket', 'iss-icon'].forEach(id => { if (this.map.getLayer(id)) this.map.removeLayer(id) })
         ;['iss-track-source', 'iss-footprint-source', 'iss-live'].forEach(id => {
@@ -212,6 +212,12 @@ export class SatelliteControl extends SentinelControlBase {
         this.map.addSource('iss-live',             { type: 'geojson', data: this._issGeojson })
 
         this.map.addLayer({
+            id: 'iss-track-orbit0', type: 'line', source: 'iss-track-source',
+            filter: ['==', ['get', 'track'], 'orbit0'],
+            layout: { visibility: trackVis },
+            paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.35, 'line-dasharray': [1, 2] },
+        })
+        this.map.addLayer({
             id: 'iss-track-orbit1', type: 'line', source: 'iss-track-source',
             filter: ['==', ['get', 'track'], 'orbit1'],
             layout: { visibility: trackVis },
@@ -221,7 +227,13 @@ export class SatelliteControl extends SentinelControlBase {
             id: 'iss-track-orbit2', type: 'line', source: 'iss-track-source',
             filter: ['==', ['get', 'track'], 'orbit2'],
             layout: { visibility: trackVis },
-            paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.45 },
+            paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.55 },
+        })
+        this.map.addLayer({
+            id: 'iss-track-orbit3', type: 'line', source: 'iss-track-source',
+            filter: ['==', ['get', 'track'], 'orbit3'],
+            layout: { visibility: trackVis },
+            paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.30 },
         })
         this.map.addLayer({
             id: 'iss-footprint-fill', type: 'fill', source: 'iss-footprint-source',
@@ -778,7 +790,7 @@ export class SatelliteControl extends SentinelControlBase {
         if (!this.issVisible) {
             this.issVisible = true
             ;['iss-icon', 'iss-bracket'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', 'visible') } catch {} })
-            ;['iss-track-orbit1', 'iss-track-orbit2'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', this.trackVisible ? 'visible' : 'none') } catch {} })
+            ;['iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', this.trackVisible ? 'visible' : 'none') } catch {} })
             ;['iss-footprint-fill', 'iss-footprint'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', this.footprintVisible ? 'visible' : 'none') } catch {} })
             this.setButtonActive(true)
             this._spaceStore.setOverlay('iss', true)
