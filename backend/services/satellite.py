@@ -109,9 +109,11 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
 def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     """Compute current and next orbit as a GeoJSON FeatureCollection.
 
-    ISS orbital period ~92 minutes, so:
-      - orbit1:   0..92   minutes  → properties.track = 'orbit1'  (current orbit)
-      - orbit2:  92..184  minutes  → properties.track = 'orbit2'  (next orbit)
+    The orbital period is derived from the TLE mean motion so the track length
+    adapts to each satellite — LEO (~92 min), GPS (~720 min), GEO (~1436 min),
+    Molniya (~720 min), etc. Two consecutive orbits are emitted:
+      - orbit1:   0..T      minutes  → properties.track = 'orbit1'  (current orbit)
+      - orbit2:   T..2T     minutes  → properties.track = 'orbit2'  (next orbit)
 
     Longitudes are unwrapped (allowed to exceed ±180°) so MapLibre can draw a
     continuous line with renderWorldCopies and in globe projection.
@@ -125,14 +127,19 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     jd, fr = _jday_now()
     now = datetime.now(timezone.utc)
 
+    # Orbital period (minutes) from SGP4 mean motion (rad/min). Fall back to
+    # ~92 min for degenerate TLEs where no_kozai is non-positive.
+    period_min = (2 * math.pi / sat.no_kozai) if getattr(sat, "no_kozai", 0) > 0 else 92.0
+
     features = []
 
-    # 10-second steps (~0.167 min) for smoother track lines
-    time_step_min = 1 / 6
+    # Use ~360 samples per orbit so step size scales with period: dense enough
+    # for LEO's fast motion, sparse enough that GEO doesn't bloat the payload.
+    time_step_min = period_min / 360.0
 
     for track_type, start_min, end_min in [
-        ("orbit1",   0,  92),
-        ("orbit2",  92, 184),
+        ("orbit1",         0.0,     period_min),
+        ("orbit2",  period_min, 2 * period_min),
     ]:
         coords: list[list[float]] = []
         prev_lon_raw: float | None = None
