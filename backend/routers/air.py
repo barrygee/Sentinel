@@ -279,9 +279,9 @@ async def get_snapshots_window(
     end_ms: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Return all snapshots across all aircraft within a time window (max 3 hours)."""
-    if end_ms - start_ms > 3 * 3600 * 1000:
-        raise HTTPException(status_code=400, detail="Window exceeds 3 hours")
+    """Return all snapshots across all aircraft within a time window (max 24 hours)."""
+    if end_ms - start_ms > 24 * 3600 * 1000:
+        raise HTTPException(status_code=400, detail="Window exceeds 24 hours")
     result = await db.execute(sa_text("""
         SELECT s.ts, s.lat, s.lon, s.alt_baro, s.gs, s.track, s.baro_rate, s.squawk,
                f.registration, f.callsign, ac.type_code, ac.hex

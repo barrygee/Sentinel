@@ -179,7 +179,7 @@
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
             </button>
             <!-- Speed buttons right-aligned -->
-            <div class="apb-speed-group apb-speed-group--right" :class="{ 'apb-section--locked': !isActive }">
+            <div class="apb-speed-group apb-speed-group--right">
               <button
                 v-for="(s, i) in PLAYBACK_SPEEDS" :key="i"
                 class="apb-speed-btn"
@@ -606,22 +606,30 @@ function _drawTimeline(): void {
   ctx.lineWidth = 2
   ctx.stroke()
 
-  // Ticks
-  const FIVE_MIN = 5  * 60 * 1000
-  const THIRTY   = 30 * 60 * 1000
-  const TEN_MIN  = 10 * 60 * 1000
-  const tickStart = Math.ceil(start / FIVE_MIN) * FIVE_MIN
+  // Ticks — dynamic step based on visible span so labels never collide.
+  // Pick the smallest "nice" major step (in ms) such that pixels-per-major >= ~70.
+  const MIN_LABEL_PX = 70
+  const NICE_STEPS_MS = [
+    1*60_000, 2*60_000, 5*60_000, 10*60_000, 15*60_000, 30*60_000,
+    60*60_000, 2*60*60_000, 3*60*60_000, 6*60*60_000, 12*60*60_000, 24*60*60_000,
+  ]
+  const pxPerMs = trackW / span
+  let majorStep = NICE_STEPS_MS[NICE_STEPS_MS.length - 1]
+  for (const s of NICE_STEPS_MS) {
+    if (s * pxPerMs >= MIN_LABEL_PX) { majorStep = s; break }
+  }
+  const minorStep = majorStep / 5
+  const tickStart = Math.ceil(start / minorStep) * minorStep
   const labelFont = "600 10px 'Barlow Condensed', 'Barlow', sans-serif"
 
   ctx.font = labelFont
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
 
-  for (let ts = tickStart; ts <= end; ts += FIVE_MIN) {
+  for (let ts = tickStart; ts <= end; ts += minorStep) {
     const x = msToX(ts)
-    const isMajor = ts % THIRTY === 0
-    const isMed   = ts % TEN_MIN === 0
-    const h       = isMajor ? tickBaseH : isMed ? 5 : tickMinorH
+    const isMajor = ts % majorStep === 0
+    const h       = isMajor ? tickBaseH : tickMinorH
     const isPast  = ts <= cursor
 
     ctx.strokeStyle = isPast

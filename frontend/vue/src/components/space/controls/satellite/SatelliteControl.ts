@@ -165,25 +165,38 @@ export class SatelliteControl extends SentinelControlBase {
         return { type: 'FeatureCollection', features }
     }
 
+    // Split a polyline of UNWRAPPED (lon, lat) samples — the backend integrates
+    // the shortest-path step every ~10 s and lets lon exceed ±180° so MapLibre
+    // can draw a continuous track on Mercator with renderWorldCopies.  For the
+    // globe projection we need each segment to live within one world copy.
+    // A 10 s sample step is well under one revolution, so each pair of samples
+    // crosses at most one ±180+360k boundary.  We detect that crossing in
+    // unwrapped space (via floor((lon+180)/360)), interpolate the latitude
+    // linearly, and emit paired endpoints at ±180.  Vertices are normalized to
+    // [-180, 180] only on emit so the boundary-detection math stays unambiguous.
     private static _splitRingForGlobe(coords: [number, number][]): [number, number][][] {
         const segments: [number, number][][] = []
         let seg: [number, number][] = []
-        let prevNorm: number | null = null; let prevLat: number | null = null
+        let prevLon: number | null = null; let prevLat: number | null = null
         for (const [lon, lat] of coords) {
-            const norm = SatelliteControl._normLon(lon)
-            if (prevNorm !== null && prevLat !== null &&
-                ((prevNorm > 90 && norm < -90) || (prevNorm < -90 && norm > 90))) {
-                const crossLon = prevNorm > 0 ? 180 : -180
-                const t = (crossLon - prevNorm) / (norm + (prevNorm > 0 ? 360 : -360) - prevNorm)
-                const crossLat = prevLat + t * (lat - prevLat)
-                seg.push([crossLon, crossLat])
-                segments.push(seg)
-                seg = [[-crossLon, crossLat]]
+            if (prevLon !== null && prevLat !== null) {
+                const kPrev = Math.floor((prevLon + 180) / 360)
+                const kCurr = Math.floor((lon + 180) / 360)
+                if (kPrev !== kCurr) {
+                    const goingEast = kCurr > kPrev
+                    const boundary = 180 + 360 * (goingEast ? kPrev : kPrev - 1)
+                    const t = (boundary - prevLon) / (lon - prevLon)
+                    const crossLat = prevLat + t * (lat - prevLat)
+                    const exitLon = goingEast ? 180 : -180
+                    seg.push([exitLon, crossLat])
+                    segments.push(seg)
+                    seg = [[-exitLon, crossLat]]
+                }
             }
-            seg.push([norm, lat])
-            prevNorm = norm; prevLat = lat
+            seg.push([SatelliteControl._normLon(lon), lat])
+            prevLon = lon; prevLat = lat
         }
-        if (seg.length) segments.push(seg)
+        if (seg.length >= 2) segments.push(seg)
         return segments
     }
 
