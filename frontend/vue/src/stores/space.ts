@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const LS_GLOBE = 'sentinel_space_globeProjection'
 const LS_OVERLAYS = 'sentinel_space_overlayStates'
+
+try { localStorage.removeItem('sentinel_space_globeProjection') } catch {}
 
 export interface SpaceOverlayStates {
   iss: boolean
@@ -21,17 +22,11 @@ const DEFAULTS: SpaceOverlayStates = {
 }
 
 export const useSpaceStore = defineStore('space', () => {
-  const globeActive = ref(_loadBool(LS_GLOBE, false))
   const overlayStates = ref<SpaceOverlayStates>(_loadOverlayStates())
   const filterQuery = ref('')
   const filterOpen = ref(false)
   const mapCenter = ref<[number, number] | null>(null)
   const mapZoom = ref<number | null>(null)
-
-  function setGlobe(val: boolean) {
-    globeActive.value = val
-    try { localStorage.setItem(LS_GLOBE, JSON.stringify(val)) } catch {}
-  }
 
   function setOverlay(key: keyof SpaceOverlayStates, visible: boolean) {
     overlayStates.value[key] = visible
@@ -55,15 +50,8 @@ export const useSpaceStore = defineStore('space', () => {
     try { localStorage.setItem(LS_OVERLAYS, JSON.stringify(overlayStates.value)) } catch {}
   }
 
-  return { globeActive, overlayStates, filterQuery, filterOpen, mapCenter, mapZoom, setGlobe, setOverlay, setFilter, toggleFilter, saveMapState }
+  return { overlayStates, filterQuery, filterOpen, mapCenter, mapZoom, setOverlay, setFilter, toggleFilter, saveMapState }
 })
-
-function _loadBool(key: string, fallback: boolean): boolean {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw !== null ? JSON.parse(raw) : fallback
-  } catch { return fallback }
-}
 
 function _loadOverlayStates(): SpaceOverlayStates {
   try {

@@ -37,7 +37,6 @@ export class SatelliteControl extends SentinelControlBase {
     private _spaceStore:         SpaceStore
     private _notificationsStore: NotificationsStore
     private _trackingStore:      TrackingStore
-    private _isGlobeActive:      () => boolean
     private _getUserLocation:    () => [number, number] | null
     private _onSwitchSat:        ((noradId: string, name: string) => void) | null
 
@@ -70,7 +69,6 @@ export class SatelliteControl extends SentinelControlBase {
         spaceStore: SpaceStore,
         notificationsStore: NotificationsStore,
         trackingStore: TrackingStore,
-        isGlobeActive: () => boolean,
         getUserLocation: () => [number, number] | null,
         onSwitchSat: ((noradId: string, name: string) => void) | null = null,
     ) {
@@ -78,7 +76,6 @@ export class SatelliteControl extends SentinelControlBase {
         this._spaceStore         = spaceStore
         this._notificationsStore = notificationsStore
         this._trackingStore      = trackingStore
-        this._isGlobeActive      = isGlobeActive
         this._getUserLocation    = getUserLocation
         this._onSwitchSat        = onSwitchSat
         this.issVisible          = spaceStore.overlayStates.iss
@@ -137,11 +134,6 @@ export class SatelliteControl extends SentinelControlBase {
         super.onRemove()
     }
 
-    // ---- Projection helpers ----
-    private static _normLon(lon: number): number {
-        return ((lon % 360) + 540) % 360 - 180
-    }
-
     // Build the FeatureCollection used by the footprint source: one fill
     // feature for the (Multi)Polygon plus one LineString outline per ring.
     // The backend has already split antimeridian crossings and handled polar
@@ -163,62 +155,6 @@ export class SatelliteControl extends SentinelControlBase {
             })
         }
         return { type: 'FeatureCollection', features }
-    }
-
-    // Split a polyline of UNWRAPPED (lon, lat) samples — the backend integrates
-    // the shortest-path step every ~10 s and lets lon exceed ±180° so MapLibre
-    // can draw a continuous track on Mercator with renderWorldCopies.  For the
-    // globe projection we need each segment to live within one world copy.
-    // A 10 s sample step is well under one revolution, so each pair of samples
-    // crosses at most one ±180+360k boundary.  We detect that crossing in
-    // unwrapped space (via floor((lon+180)/360)), interpolate the latitude
-    // linearly, and emit paired endpoints at ±180.  Vertices are normalized to
-    // [-180, 180] only on emit so the boundary-detection math stays unambiguous.
-    private static _splitRingForGlobe(coords: [number, number][]): [number, number][][] {
-        const segments: [number, number][][] = []
-        let seg: [number, number][] = []
-        let prevLon: number | null = null; let prevLat: number | null = null
-        for (const [lon, lat] of coords) {
-            if (prevLon !== null && prevLat !== null) {
-                const kPrev = Math.floor((prevLon + 180) / 360)
-                const kCurr = Math.floor((lon + 180) / 360)
-                if (kPrev !== kCurr) {
-                    const goingEast = kCurr > kPrev
-                    const boundary = 180 + 360 * (goingEast ? kPrev : kPrev - 1)
-                    const t = (boundary - prevLon) / (lon - prevLon)
-                    const crossLat = prevLat + t * (lat - prevLat)
-                    const exitLon = goingEast ? 180 : -180
-                    seg.push([exitLon, crossLat])
-                    segments.push(seg)
-                    seg = [[-exitLon, crossLat]]
-                }
-            }
-            seg.push([SatelliteControl._normLon(lon), lat])
-            prevLon = lon; prevLat = lat
-        }
-        if (seg.length >= 2) segments.push(seg)
-        return segments
-    }
-
-    private _trackForProjection(track: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-        if (!this._isGlobeActive()) return track
-        const out: GeoJSON.Feature[] = []
-        for (const feat of track.features) {
-            if (feat.geometry.type !== 'LineString') { out.push(feat); continue }
-            const segs = SatelliteControl._splitRingForGlobe(feat.geometry.coordinates as [number, number][])
-            for (const s of segs) {
-                if (s.length >= 2) out.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: s }, properties: feat.properties })
-            }
-        }
-        return { type: 'FeatureCollection', features: out }
-    }
-
-    private _footprintForProjection(fp: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-        // The backend's compute_footprint already splits antimeridian-crossing
-        // footprints into a MultiPolygon and handles polar enclosure with a
-        // pole-detour, so the geometry is renderable as-is in both Mercator
-        // and globe projections — no further processing required.
-        return fp
     }
 
     // ---- Canvas sprite factories ----
@@ -377,8 +313,8 @@ export class SatelliteControl extends SentinelControlBase {
                 const trackSource = this.map?.getSource('iss-track-source')     as maplibregl.GeoJSONSource | undefined
                 const fpSource    = this.map?.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined
                 if (issSource)   issSource.setData(this._issGeojson)
-                if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson))
-                if (fpSource)    fpSource.setData(this._footprintForProjection(this._footprintGeojson))
+                if (trackSource) trackSource.setData(this._trackGeojson)
+                if (fpSource)    fpSource.setData(this._footprintGeojson)
             }
 
             if (!this._trackingRestored) {
@@ -754,8 +690,8 @@ export class SatelliteControl extends SentinelControlBase {
             const trackSource = this.map.getSource('iss-track-source')     as maplibregl.GeoJSONSource | undefined
             const fpSource    = this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined
             if (issSource)   issSource.setData(issGeo)
-            if (trackSource) trackSource.setData(this._trackForProjection(ground_track))
-            if (fpSource)    fpSource.setData(this._footprintForProjection(footprintGeo))
+            if (trackSource) trackSource.setData(ground_track)
+            if (fpSource)    fpSource.setData(footprintGeo)
 
             // Ensure layers are visible for the preview even if the overlay was toggled off
             try {
@@ -793,8 +729,8 @@ export class SatelliteControl extends SentinelControlBase {
         const trackSource = this.map.getSource('iss-track-source')     as maplibregl.GeoJSONSource | undefined
         const fpSource    = this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined
         if (issSource)   issSource.setData(this._issGeojson)
-        if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson))
-        if (fpSource)    fpSource.setData(this._footprintForProjection(this._footprintGeojson))
+        if (trackSource) trackSource.setData(this._trackGeojson)
+        if (fpSource)    fpSource.setData(this._footprintGeojson)
 
         // Restore layer visibility to match actual toggle state
         try {
@@ -858,14 +794,6 @@ export class SatelliteControl extends SentinelControlBase {
         // Notify filter/passes panels
         document.dispatchEvent(new CustomEvent('satellite-selected', { detail: { noradId, name } }))
         this._onSwitchSat?.(noradId, name)
-    }
-
-    refreshTrackSource(): void {
-        if (!this.map) return
-        const trackSource = this.map.getSource('iss-track-source')     as maplibregl.GeoJSONSource | undefined
-        const fpSource    = this.map.getSource('iss-footprint-source') as maplibregl.GeoJSONSource | undefined
-        if (trackSource) trackSource.setData(this._trackForProjection(this._trackGeojson))
-        if (fpSource)    fpSource.setData(this._footprintForProjection(this._footprintGeojson))
     }
 
     // ---- Visibility toggles ----

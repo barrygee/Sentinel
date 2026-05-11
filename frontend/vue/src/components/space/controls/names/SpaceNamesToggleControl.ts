@@ -6,12 +6,10 @@ type SpaceStore = ReturnType<typeof useSpaceStore>
 export class SpaceNamesToggleControl extends SentinelControlBase {
     namesVisible: boolean
     private _spaceStore: SpaceStore
-    private _isGlobeActive: () => boolean
 
-    constructor(spaceStore: SpaceStore, isGlobeActive: () => boolean) {
+    constructor(spaceStore: SpaceStore) {
         super()
         this._spaceStore   = spaceStore
-        this._isGlobeActive = isGlobeActive
         this.namesVisible = spaceStore.overlayStates.names
     }
 
@@ -27,13 +25,9 @@ export class SpaceNamesToggleControl extends SentinelControlBase {
     protected handleClick(): void { this.toggleNames() }
 
     applyNamesVisibility(): void {
-        const globeMode = this._isGlobeActive()
-        const countryLayers = ['place_country', 'place_country_other']
-        const detailLayers  = ['place_suburb', 'place_village', 'place_town', 'place_city', 'place_state', 'water_name']
-        const countryVis = this.namesVisible ? 'visible' : 'none'
-        const detailVis  = (this.namesVisible && !globeMode) ? 'visible' : 'none'
-        countryLayers.forEach(id => { if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', countryVis) })
-        detailLayers.forEach(id  => { if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', detailVis) })
+        const layers = ['place_country', 'place_country_other', 'place_suburb', 'place_village', 'place_town', 'place_city', 'place_state', 'water_name']
+        const vis = this.namesVisible ? 'visible' : 'none'
+        layers.forEach(id => { if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', vis) })
         this.setButtonActive(this.namesVisible)
     }
 

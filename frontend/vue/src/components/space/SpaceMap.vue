@@ -47,10 +47,6 @@ let daynightControl: DaynightControl | null = null
 let namesControl: SpaceNamesToggleControl | null = null
 const _locationMarker = new UserLocationMarker('space-user-location-marker')
 
-const globeActiveLocal = ref(spaceStore.globeActive)
-
-function is3DActive() { return globeActiveLocal.value }
-
 function getUserLocation(): [number, number] | null {
   const loc = userLocation.value
   return loc ? [loc.lon, loc.lat] : null
@@ -86,11 +82,7 @@ function onGoToLocation(): void {
   const m = _map
   const loc = userLocation.value
   if (!m || !loc) return
-  if (globeActiveLocal.value) {
-    m.easeTo({ center: [loc.lon, loc.lat], duration: 800 })
-  } else {
-    m.flyTo({ center: [loc.lon, loc.lat], zoom: Math.max(m.getZoom(), 5) })
-  }
+  m.flyTo({ center: [loc.lon, loc.lat], zoom: Math.max(m.getZoom(), 5) })
 }
 
 useDocumentEvent('space-go-to-location', onGoToLocation)
@@ -102,13 +94,12 @@ function onStyleLoaded(m: MapLibreGlMap) {
     spaceStore,
     notificationsStore,
     trackingStore,
-    is3DActive,
     getUserLocation,
     null,
   )
   void nextTick(() => { satelliteControlRef.value = satelliteControl })
   daynightControl = new DaynightControl(spaceStore)
-  namesControl    = new SpaceNamesToggleControl(spaceStore, is3DActive)
+  namesControl    = new SpaceNamesToggleControl(spaceStore)
 
   m.addControl(satelliteControl,     'top-right')
   m.addControl(daynightControl,'top-right')
@@ -117,12 +108,6 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // Hide the MapLibre native top-right control container — space side menu replaces it
   const ctrlEl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (ctrlEl) ctrlEl.style.display = 'none'
-
-  // Apply persisted globe projection
-  if (spaceStore.globeActive) {
-    document.body.classList.add('globe-active')
-    try { (m as unknown as { setProjection: (p: object) => void }).setProjection({ type: 'globe' }) } catch {}
-  }
 
   // If connectivity mode changed between map creation and style load, apply the correct style now.
   const desiredStyle = styleUrl.value
@@ -137,19 +122,6 @@ function onStyleLoaded(m: MapLibreGlMap) {
   _initialStyleUrl = null
 }
 
-function toggleGlobe(): void {
-  const newVal = !globeActiveLocal.value
-  globeActiveLocal.value = newVal
-  spaceStore.setGlobe(newVal)
-  document.body.classList.toggle('globe-active', newVal)
-  const m = _map
-  if (m) {
-    try { (m as unknown as { setProjection: (p: object) => void }).setProjection({ type: newVal ? 'globe' : 'mercator' }) } catch {}
-  }
-  namesControl?.applyNamesVisibility()
-  satelliteControl?.refreshTrackSource()
-}
-
 onBeforeUnmount(() => {
   const m = _map
   if (m) {
@@ -161,7 +133,6 @@ onBeforeUnmount(() => {
   daynightControl  = null
   namesControl     = null
   satelliteControlRef.value = null
-  document.body.classList.remove('globe-active')
 })
 
 defineExpose({
@@ -169,8 +140,6 @@ defineExpose({
   get satelliteControlReactive() { return satelliteControlRef.value },
   getDaynightControl:() => daynightControl,
   getNamesControl:   () => namesControl,
-  isGlobeActive:     () => globeActiveLocal.value,
-  toggleGlobe,
   getMap:            () => _map,
 })
 </script>

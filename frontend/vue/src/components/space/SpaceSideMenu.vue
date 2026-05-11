@@ -49,18 +49,7 @@
       </button>
     </div>
 
-    <!-- Group 5: globe projection -->
-    <div class="sm-group" id="ssm-group-globe">
-      <button class="sm-btn" data-tooltip="GLOBE"
-        :class="{ active: globeActive }"
-        @click="mapRef.value?.toggleGlobe()"
-      >
-        <span class="sm-icon" v-html="GLOBE_SVG" />
-        <span class="sm-label">GLOBE</span>
-      </button>
-    </div>
-
-    <!-- Group 6: satellite search -->
+    <!-- Group 5: satellite search -->
     <div class="sm-group" id="ssm-group-filter">
       <button class="sm-btn enabled" id="ssm-filter-btn" data-tooltip="SEARCH"
         @click="openSearch"
@@ -92,7 +81,6 @@ const locActive = computed(() => userLocation.value !== null)
 const trackActive    = computed(() => spaceStore.overlayStates.groundTrack)
 const footprintActive= computed(() => spaceStore.overlayStates.footprint)
 const daynightActive = computed(() => spaceStore.overlayStates.daynight)
-const globeActive    = computed(() => spaceStore.globeActive)
 
 const SAT_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="10" y="10" width="4" height="4" fill="#c8ff00"/>
@@ -117,14 +105,6 @@ const MOON_SVG = `<svg width="13" height="14" viewBox="0 0 20 22" fill="none" xm
 </svg>`
 
 const LOC_SVG = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`
-
-const GLOBE_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
-  <ellipse cx="12" cy="12" rx="4.5" ry="9" stroke="currentColor" stroke-width="1.4"/>
-  <line x1="3"   y1="12" x2="21"  y2="12" stroke="currentColor" stroke-width="1.4"/>
-  <line x1="5.5" y1="6.5" x2="18.5" y2="6.5" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-  <line x1="5.5" y1="17.5" x2="18.5" y2="17.5" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-</svg>`
 
 const FILTER_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
 
@@ -305,24 +285,6 @@ function openSearch(): void {
 #space-side-menu:not(.expanded) #ssm-group-iss,
 #space-side-menu:not(.expanded) #ssm-group-daynight {
     display: none;
-}
-
-body.globe-active #map,
-body.globe-active #map .maplibregl-canvas-container,
-body.globe-active #map .maplibregl-canvas {
-    background: transparent !important;
-}
-
-body.globe-active #space-side-menu .sm-btn,
-body.globe-active #space-side-menu .sm-nav-btn,
-body.globe-active #space-side-menu-toggle {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-body.globe-active #space-side-menu .sm-btn:hover,
-body.globe-active #space-side-menu .sm-nav-btn:hover,
-body.globe-active #space-side-menu-toggle:hover {
-    background: rgba(255, 255, 255, 0.15);
 }
 
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip],
