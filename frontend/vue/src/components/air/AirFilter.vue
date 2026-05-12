@@ -1,9 +1,5 @@
 <template>
   <div id="filter-input-wrap">
-    <svg id="filter-icon" width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.3"/>
-      <line x1="8.5" y1="8.5" x2="12" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-    </svg>
     <input
       ref="inputRef"
       id="filter-input"
@@ -372,8 +368,10 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 13px 20px 13px 24px;
+    height: 40px;
+    padding: 0 20px 0 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
 }
 
 #filter-icon {
