@@ -23,6 +23,13 @@ function _loadFromStorage(): UserLocation | null {
 // Module-level shared state — all callers see the same location.
 const sharedLocation = ref<UserLocation | null>(_loadFromStorage())
 let _watchId: number | null = null
+let _manualOverride = (() => {
+  try {
+    const raw = localStorage.getItem(LOCATION_LS_KEY)
+    if (!raw) return false
+    return (JSON.parse(raw) as { manual?: boolean }).manual === true
+  } catch { return false }
+})()
 
 function _saveToStorage(loc: UserLocation, manual: boolean): void {
   try {
@@ -34,15 +41,25 @@ function _saveToStorage(loc: UserLocation, manual: boolean): void {
 }
 
 window.addEventListener('sentinel:setUserLocation', (e: Event) => {
-  const { longitude, latitude } = (e as CustomEvent).detail as { longitude: number; latitude: number }
+  const { longitude, latitude, persist } = (e as CustomEvent).detail as { longitude: number; latitude: number; persist?: boolean }
   const loc: UserLocation = { lon: longitude, lat: latitude, accuracy: 0 }
   sharedLocation.value = loc
   _saveToStorage(loc, true)
+  _manualOverride = true
+  if (persist !== false) {
+    // Persist to backend so opening Settings later doesn't overwrite with stale server value.
+    fetch('/api/settings/app/location', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: { latitude, longitude } }),
+    }).catch(() => {})
+  }
 })
 
 function _startWatch(highAccuracy: boolean): void {
   _watchId = navigator.geolocation.watchPosition(
     (pos) => {
+      if (_manualOverride) return
       const loc: UserLocation = {
         lat: pos.coords.latitude,
         lon: pos.coords.longitude,

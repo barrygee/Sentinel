@@ -52,6 +52,18 @@ try {
 } catch {}
 
 onMounted(async () => {
+  // If localStorage already has a manually-set location, that's the source of truth —
+  // don't overwrite it with a stale server value (right-click set-location bypasses the backend).
+  let hasManual = false
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const saved = JSON.parse(raw) as { manual?: boolean }
+      hasManual = saved.manual === true
+    }
+  } catch {}
+  if (hasManual) return
+
   const data = await settingsApi.getNamespace('app')
   if (data?.location) {
     const loc = data.location as { latitude?: number; longitude?: number }
@@ -59,7 +71,7 @@ onMounted(async () => {
     if (!lonValue.value && loc.longitude != null) lonValue.value = loc.longitude.toFixed(5)
     if (loc.latitude != null && loc.longitude != null) {
       window.dispatchEvent(new CustomEvent('sentinel:setUserLocation', {
-        detail: { longitude: loc.longitude, latitude: loc.latitude },
+        detail: { longitude: loc.longitude, latitude: loc.latitude, persist: false },
       }))
     }
   }
