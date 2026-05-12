@@ -14,13 +14,12 @@ TTL rules:
 """
 
 import httpx
-from sgp4.api import Satrec
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.models import SatelliteCatalogue, TleCache
+from sgp4.api import Satrec
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Well-known NORAD IDs → (category, category_source) for auto-classification
 # when a satellite is fetched individually rather than via a categorised group feed.
@@ -89,6 +88,11 @@ def _category_beats(new_cat: str | None, new_src: str | None,
 
 # ── TLE validation ───────────────────────────────────────────────────────────
 
+def _nonblank_lines(tle_text: str) -> list[str]:
+    """Strip whitespace and drop blank lines from a TLE text block."""
+    return [ln.strip() for ln in tle_text.strip().splitlines() if ln.strip()]
+
+
 def validate_tle_text(tle_text: str) -> list[tuple[str, str, str]]:
     """Parse and SGP4-validate a block of TLE text.
 
@@ -97,7 +101,7 @@ def validate_tle_text(tle_text: str) -> list[tuple[str, str, str]]:
     Raises ValueError if the text is completely unparseable.
     Silently skips malformed individual entries (logged via return count).
     """
-    lines = [ln.strip() for ln in tle_text.strip().splitlines() if ln.strip()]
+    lines = _nonblank_lines(tle_text)
     if len(lines) < 3:
         raise ValueError("TLE text must contain at least one 3-line entry")
 
@@ -138,7 +142,7 @@ def parse_tle_lines(tle_text: str) -> tuple[str, str, str]:
     Used by the space router before propagating a satellite's position or passes.
     Raises ValueError if the text does not contain 3 lines.
     """
-    lines = [ln.strip() for ln in tle_text.strip().splitlines() if ln.strip()]
+    lines = _nonblank_lines(tle_text)
     if len(lines) < 3:
         raise ValueError(f"Expected 3 TLE lines, got {len(lines)}")
     return lines[0], lines[1], lines[2]
