@@ -25,12 +25,8 @@
       </svg>
       <!-- tracking -->
       <svg v-else-if="tab.id === 'tracking'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="12" cy="12" r="2.2" fill="currentColor"/>
-        <line x1="12" y1="1.5" x2="12" y2="4.5" stroke="currentColor" stroke-width="1.8"/>
-        <line x1="12" y1="19.5" x2="12" y2="22.5" stroke="currentColor" stroke-width="1.8"/>
-        <line x1="1.5" y1="12" x2="4.5" y2="12" stroke="currentColor" stroke-width="1.8"/>
-        <line x1="19.5" y1="12" x2="22.5" y2="12" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+        <circle cx="12" cy="9" r="2.2" fill="currentColor"/>
       </svg>
       <!-- passes -->
       <svg v-else-if="tab.id === 'passes'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linecap="round">
