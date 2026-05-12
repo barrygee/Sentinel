@@ -1,7 +1,7 @@
 <template>
   <div class="oa-wrap">
     <div class="oa-row">
-      <span class="oa-label oa-label--civil">CIVIL</span>
+      <span class="oa-label">CIVIL</span>
       <button
         class="oa-track oa-track--civil"
         :class="{ 'is-on': civil }"
@@ -12,7 +12,7 @@
       ><span class="oa-thumb"></span></button>
     </div>
     <div class="oa-row">
-      <span class="oa-label oa-label--mil">MIL</span>
+      <span class="oa-label">MILITARY</span>
       <button
         class="oa-track oa-track--mil"
         :class="{ 'is-on': mil }"
@@ -38,21 +38,25 @@ const mil   = ref<boolean>(airStore.overlayStates.overheadAlertsMil)
 function toggle(kind: 'civil' | 'mil'): void {
   if (kind === 'civil') {
     civil.value = !civil.value
-    const next = civil.value
-    emit('stage', () => { airStore.setOverlay('overheadAlertsCivil', next) })
   } else {
     mil.value = !mil.value
-    const next = mil.value
-    emit('stage', () => { airStore.setOverlay('overheadAlertsMil', next) })
   }
+  const nextCivil = civil.value
+  const nextMil = mil.value
+  emit('stage', () => {
+    airStore.setOverlay('overheadAlertsCivil', nextCivil)
+    airStore.setOverlay('overheadAlertsMil', nextMil)
+  })
 }
 </script>
 
 <style scoped>
 .oa-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 .oa-row {
   display: flex;
@@ -65,10 +69,8 @@ function toggle(kind: 'civil' | 'mil'): void {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  min-width: 44px;
+  color: rgba(255, 255, 255, 0.55);
 }
-.oa-label--civil { color: rgba(0, 170, 255, 0.7); }
-.oa-label--mil   { color: rgba(200, 255, 0, 0.7); }
 .oa-track {
   position: relative;
   width: 36px;
