@@ -19,6 +19,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
+import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { SatelliteControl } from './controls/satellite/SatelliteControl'
@@ -46,6 +47,7 @@ let satelliteControl: SatelliteControl | null = null
 let daynightControl: DaynightControl | null = null
 let namesControl: SpaceNamesToggleControl | null = null
 const _locationMarker = new UserLocationMarker('space-user-location-marker')
+const ctxMenu = useMapContextMenu()
 
 function getUserLocation(): [number, number] | null {
   const loc = userLocation.value
@@ -70,6 +72,7 @@ function onMapCreated(m: MapLibreGlMap) {
   _initialStyleUrl = styleUrl.value
   startLocation()
   _locationMarker.addTo(m)
+  ctxMenu.attach(m)
 }
 
 onMounted(() => {
@@ -124,6 +127,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
 
 onBeforeUnmount(() => {
   const m = _map
+  ctxMenu.detach(m)
   if (m) {
     const center = m.getCenter()
     spaceStore.saveMapState([center.lng, center.lat], m.getZoom())
