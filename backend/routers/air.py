@@ -185,11 +185,11 @@ async def create_air_message(body: MessageIn, db: AsyncSession = Depends(get_db)
 
 @router.delete("/messages/{msg_id}", status_code=200)
 async def dismiss_air_message(msg_id: str, db: AsyncSession = Depends(get_db)):
-    """Soft-delete a single message by msg_id (sets dismissed=True)."""
+    """Soft-delete a single message by msg_id (sets dismissed=True). Idempotent: missing row returns 200."""
     result = await db.execute(select(AirMessage).where(AirMessage.msg_id == msg_id))
     row = result.scalar_one_or_none()
     if not row:
-        raise HTTPException(status_code=404, detail="Message not found")
+        return JSONResponse({"status": "absent"})
     row.dismissed = True
     await db.commit()
     return JSONResponse({"status": "dismissed"})

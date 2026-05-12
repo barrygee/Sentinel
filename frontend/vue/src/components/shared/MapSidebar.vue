@@ -7,7 +7,10 @@
       v-for="tab in tabs"
       :key="tab.id"
       class="msb-rail-btn"
-      :class="{ 'msb-rail-btn-active': activeTab === tab.id && open }"
+      :class="{
+        'msb-rail-btn-active': activeTab === tab.id && open,
+        'msb-rail-btn-pulse': tab.id === 'alerts' && hasUnread,
+      }"
       :data-tab="tab.id"
       :data-tooltip="tab.label"
       :aria-label="tab.label"
@@ -74,6 +77,10 @@ import { ref, computed } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useNotificationsStore } from '@/stores/notifications'
+
+const notifStore = useNotificationsStore()
+const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
   passes:   'space',
@@ -103,6 +110,7 @@ function switchTab(tab: SidebarTab) {
   activeTab.value = tab
   if (!open.value) { open.value = true; _persistOpen(true) }
   _persistTab(tab)
+  tab === 'alerts' ? notifStore.openPanel() : notifStore.closePanel()
   document.dispatchEvent(new CustomEvent('msb-tab-switch', { detail: tab }))
 }
 
@@ -337,6 +345,16 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
     color: var(--color-accent);
     background: rgba(200, 255, 0, 0.08);
     border-left-color: var(--color-accent);
+}
+
+@keyframes msb-alert-pulse {
+    0%   { color: #fff; }
+    50%  { color: var(--color-accent); }
+    100% { color: #fff; }
+}
+
+.msb-rail-btn.msb-rail-btn-pulse:not(.msb-rail-btn-active) {
+    animation: msb-alert-pulse 1.2s ease-in-out infinite;
 }
 
 .msb-rail-btn[data-tooltip]::before {
