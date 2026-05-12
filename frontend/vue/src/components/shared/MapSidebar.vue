@@ -1,22 +1,52 @@
 <template>
-  <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
-    <div v-if="!hideTabs" id="map-sidebar-tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        class="msb-tab"
-        :class="{ 'msb-tab-active': activeTab === tab.id }"
-        :data-tab="tab.id"
-        @click="switchTab(tab.id)"
-      >
-        {{ tab.label }}
-        <span
-          v-if="tab.badge !== undefined && tab.badge > 0"
-          class="msb-tab-badge msb-badge-active"
-        >{{ tab.badge }}</span>
-      </button>
-    </div>
+  <div
+    v-if="!hideTabs"
+    id="map-sidebar-rail"
+  >
+    <button
+      v-for="tab in tabs"
+      :key="tab.id"
+      class="msb-rail-btn"
+      :class="{ 'msb-rail-btn-active': activeTab === tab.id && open }"
+      :data-tab="tab.id"
+      :data-tooltip="tab.label"
+      :aria-label="tab.label"
+      @click="switchTab(tab.id)"
+    >
+      <!-- search -->
+      <svg v-if="tab.id === 'search'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.8"/>
+      </svg>
+      <!-- alerts -->
+      <svg v-else-if="tab.id === 'alerts'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 2C8 2 5 5 5 9v6H3v2h18v-2h-2V9c0-4-3-7-7-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+        <path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" fill="none"/>
+      </svg>
+      <!-- tracking -->
+      <svg v-else-if="tab.id === 'tracking'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="2.2" fill="currentColor"/>
+        <line x1="12" y1="1.5" x2="12" y2="4.5" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="12" y1="19.5" x2="12" y2="22.5" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="1.5" y1="12" x2="4.5" y2="12" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="19.5" y1="12" x2="22.5" y2="12" stroke="currentColor" stroke-width="1.8"/>
+      </svg>
+      <!-- passes -->
+      <svg v-else-if="tab.id === 'passes'" width="19" height="19" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4" stroke="currentColor" stroke-width="2" stroke-dasharray="3,2" fill="none" opacity="0.55"/>
+        <path d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4" stroke="currentColor" stroke-width="2" fill="none" stroke-dashoffset="5" stroke-dasharray="3,20"/>
+      </svg>
+      <!-- playback / replay -->
+      <svg v-else-if="tab.id === 'playback'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="13" cy="13" r="8.5" stroke="currentColor" stroke-width="1.8"/>
+        <polyline points="13,7.5 13,13 17,15" stroke="currentColor" stroke-width="1.8" fill="none"/>
+        <path d="M6.5 3.5 L3 1.5 M6.5 3.5 L6.5 1.5 M6.5 3.5 L3 3.5" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </button>
+  </div>
 
+  <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
     <div id="map-sidebar-panes">
       <template v-if="!hideTabs">
         <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'search' }" id="msb-pane-search">
@@ -43,25 +73,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
-import { useAppStore } from '@/stores/app'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 
-// Tabs that are only visible while in a specific domain. When the user switches
-// domains, any active tab from this map that doesn't match the new domain is
-// CSS-hidden but still selected, leaving the sidebar showing an empty pane.
-// Reset to 'search' in that case.
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
   passes:   'space',
   playback: 'air',
   radio:    'sdr',
 }
 
-const appStore = useAppStore()
-
-const props = withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
+withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
 
 type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'playback' | 'radio'
 
@@ -72,12 +95,11 @@ const open = ref(_restoreOpen())
 const activeTab = ref<SidebarTab>(_restoreTab())
 
 const tabs = computed(() => [
-  { id: 'search' as SidebarTab,   label: 'SEARCH',   badge: undefined },
-  { id: 'alerts' as SidebarTab,   label: 'ALERTS',   badge: undefined },
-  { id: 'tracking' as SidebarTab, label: 'TRACKING', badge: undefined },
-  { id: 'passes' as SidebarTab,    label: 'PASSES',    badge: undefined },
-  { id: 'playback' as SidebarTab, label: 'REPLAY',    badge: undefined },
-  { id: 'radio' as SidebarTab,    label: 'RADIO',     badge: undefined },
+  { id: 'search' as SidebarTab,   label: 'SEARCH' },
+  { id: 'alerts' as SidebarTab,   label: 'ALERTS' },
+  { id: 'tracking' as SidebarTab, label: 'TRACKING' },
+  { id: 'passes' as SidebarTab,   label: 'PASSES' },
+  { id: 'playback' as SidebarTab, label: 'REPLAY' },
 ])
 
 function switchTab(tab: SidebarTab) {
@@ -250,12 +272,120 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
 #map-sidebar-btn[data-tooltip]:hover::before { opacity: 1; }
 #map-sidebar-btn.msb-btn-active[data-tooltip]::before { opacity: 0 !important; }
 
-#map-sidebar {
+/* Align footer side-panel button with the vertical rail column */
+#footer {
+    padding-left: 0;
+}
+
+#footer-left {
+    gap: 0;
+}
+
+#footer-left > #map-sidebar-btn {
+    width: 44px;
+    height: 28px;
+    margin: 0;
+    border-radius: 0;
+    opacity: 1;
+}
+
+#footer-left > #map-sidebar-btn:hover {
+    border-radius: 0;
+    background: var(--color-border);
+}
+
+#footer-left > #map-sidebar-btn.msb-btn-active {
+    border-radius: 0;
+}
+
+#map-sidebar-rail {
     position: fixed;
     top: var(--nav-height);
     bottom: var(--footer-height);
     left: 0;
-    width: 380px;
+    width: 44px;
+    background: rgba(10, 13, 20, 0.92);
+    border-right: 1px solid var(--color-border);
+    z-index: 1003;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.msb-rail-btn {
+    height: 40px;
+    width: 100%;
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.45);
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.msb-rail-btn:hover {
+    color: var(--color-text-muted);
+    background: var(--color-border);
+}
+
+.msb-rail-btn.msb-rail-btn-active {
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.08);
+    border-left-color: var(--color-accent);
+}
+
+.msb-rail-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+.msb-rail-btn[data-tooltip]:hover::before { opacity: 1; }
+
+body:not([data-domain="space"]) #map-sidebar-rail .msb-rail-btn[data-tab="passes"] {
+    display: none;
+}
+
+body:not([data-domain="air"]) #map-sidebar-rail .msb-rail-btn[data-tab="playback"] {
+    display: none;
+}
+
+body[data-domain="sdr"] #map-sidebar-rail {
+    display: none;
+}
+
+#map-sidebar {
+    position: fixed;
+    top: var(--nav-height);
+    bottom: var(--footer-height);
+    left: 44px;
+    width: 386px;
     background: rgba(10, 13, 20, 0.92);
     border-right: none;
     z-index: 1002;
@@ -268,31 +398,11 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
 }
 
 #map-sidebar.msb-hidden {
-    transform: translateX(-100%);
+    transform: translateX(calc(-100% - 44px));
 }
 
-body[data-domain="space"] #map-sidebar {
-    width: 430px;
-}
-
-body:not([data-domain="space"]) .msb-tab[data-tab="passes"] {
-    display: none;
-}
-
-body:not([data-domain="air"]) .msb-tab[data-tab="playback"] {
-    display: none;
-}
-
-body:not([data-domain="sdr"]) .msb-tab[data-tab="radio"] {
-    display: none;
-}
-
-body[data-domain="sdr"] #map-sidebar-tabs {
-    display: none;
-}
-
-body[data-domain="sdr"] #msb-pane-radio {
-    display: flex;
+body[data-domain="sdr"] #map-sidebar {
+    left: 0;
 }
 
 #msb-pane-playback {
@@ -313,70 +423,6 @@ body[data-domain="sdr"] #msb-pane-radio {
 
 #msb-pane-radio::-webkit-scrollbar {
     display: none;
-}
-
-#map-sidebar-tabs {
-    display: flex;
-    flex-shrink: 0;
-    height: 52px;
-    position: relative;
-}
-
-#map-sidebar-tabs::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--color-border);
-}
-
-.msb-tab {
-    flex: 1 1 0;
-    min-width: 0;
-    background: none;
-    border: none;
-    border-bottom: 1px solid transparent;
-    color: rgba(255, 255, 255, 0.3);
-    font-family: var(--font-primary);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    cursor: pointer;
-    padding: 0;
-    transition: color 0.15s, border-color 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    z-index: 1;
-}
-
-.msb-tab--pending {
-    display: none;
-}
-
-.msb-tab:hover {
-    color: var(--color-text-muted);
-}
-
-.msb-tab.msb-tab-active {
-    color: var(--color-accent);
-    border-bottom-color: var(--color-accent);
-}
-
-.msb-tab-badge {
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.35);
-    line-height: 1;
-}
-
-.msb-tab-badge.msb-badge-active {
-    color: var(--color-accent);
 }
 
 #map-sidebar-panes {

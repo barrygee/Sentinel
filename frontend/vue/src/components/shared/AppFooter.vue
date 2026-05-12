@@ -4,38 +4,9 @@
       <button id="map-sidebar-btn" aria-label="Toggle map sidebar" data-tooltip="SIDE PANEL"
         :class="{ 'msb-btn-active': sidebarOpen }"
         @click="emit('toggle-sidebar')">
-        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <rect x="1.5" y="1.5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/>
           <line x1="5.5" y1="1.5" x2="5.5" y2="13.5" stroke="currentColor" stroke-width="1.1"/>
-        </svg>
-      </button>
-      <button id="notif-toggle-btn" aria-label="Toggle notifications" data-tooltip="NOTIFICATIONS"
-        @click="emit('toggle-notifications')">
-        <svg id="notif-icon" width="17" height="17" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor" fill-opacity="1"/>
-          <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
-        </svg>
-        <span id="notif-count">{{ notifCount || '' }}</span>
-      </button>
-      <button id="tracking-toggle-btn" aria-label="Toggle tracking" data-tooltip="TRACKING"
-        @click="emit('toggle-tracking')">
-        <svg id="tracking-icon" width="17" height="17" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4"/>
-          <circle cx="6.5" cy="6.5" r="2" fill="currentColor"/>
-          <line x1="6.5" y1="1" x2="6.5" y2="2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
-          <line x1="6.5" y1="10.5" x2="6.5" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
-          <line x1="1" y1="6.5" x2="2.5" y2="6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
-          <line x1="10.5" y1="6.5" x2="12" y2="6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
-        </svg>
-        <span id="tracking-count">{{ trackingCount || '' }}</span>
-      </button>
-      <button id="playback-toggle-btn" aria-label="Toggle playback" data-tooltip="PLAYBACK"
-        :class="{ 'playback-btn-active': playbackStore.isActive }"
-        @click="emit('toggle-playback')">
-        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.2"/>
-          <polyline points="7.5,4.5 7.5,7.5 10,9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <path d="M4 2.5 L2 1 M4 2.5 L4 1 M4 2.5 L2 2.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
         </svg>
       </button>
     </div>
@@ -66,26 +37,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useTrackingStore } from '@/stores/tracking'
-import { usePlaybackStore } from '@/stores/playback'
 
 const props = defineProps<{ sidebarOpen?: boolean }>()
 
 const emit = defineEmits<{
   'toggle-sidebar': []
-  'toggle-notifications': []
-  'toggle-tracking': []
-  'toggle-playback': []
   'toggle-docs': []
 }>()
 
-const settingsStore      = useSettingsStore()
-const notificationsStore = useNotificationsStore()
-const trackingStore      = useTrackingStore()
-const playbackStore      = usePlaybackStore()
+const settingsStore = useSettingsStore()
 
-const notifCount    = computed(() => notificationsStore.unreadCount)
-const trackingCount = computed(() => trackingStore.count)
-const sidebarOpen   = computed(() => props.sidebarOpen ?? false)
+const sidebarOpen = computed(() => props.sidebarOpen ?? false)
 </script>
