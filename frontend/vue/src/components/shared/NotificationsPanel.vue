@@ -1,8 +1,8 @@
 <template>
   <div id="notif-list-wrap">
     <div id="notif-list" ref="listRef">
-      <div v-if="store.visible.length === 0" id="msb-alerts-empty">No alerts</div>
-      <TransitionGroup name="notif">
+      <div v-if="store.visible.length === 0 && !leavingCount" id="msb-alerts-empty">No alerts</div>
+      <TransitionGroup name="notif" @before-leave="onBeforeLeave" @after-leave="onAfterLeave">
         <div
           v-for="item in store.visible"
           :key="item.id"
@@ -67,6 +67,14 @@ function handleItemClick(item: NotificationItem): void {
 }
 const listRef = ref<HTMLElement | null>(null)
 const showScrollHint = ref(false)
+const leavingCount = ref(0)
+
+function onBeforeLeave(): void {
+  leavingCount.value++
+}
+function onAfterLeave(): void {
+  leavingCount.value = Math.max(0, leavingCount.value - 1)
+}
 
 function formatTime(ts: number): string {
   const d = new Date(ts)
@@ -203,11 +211,17 @@ onUnmounted(() => {
     flex-shrink: 0;
 }
 
-.notif-enter-active {
+.notif-enter-active,
+.notif-leave-active {
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .notif-enter-from {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+.notif-leave-to {
     opacity: 0;
     transform: translateX(-10px);
 }
