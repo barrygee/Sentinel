@@ -485,7 +485,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .space-filter-section-label:first-child {
-    padding-top: 14px;
+    padding-top: 24px;
 }
 
 .space-filter-result-item {

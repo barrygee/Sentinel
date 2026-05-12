@@ -447,7 +447,7 @@ defineExpose({
 }
 
 .filter-section-label:first-child {
-    padding-top: 14px;
+    padding-top: 24px;
 }
 
 .filter-result-item {
