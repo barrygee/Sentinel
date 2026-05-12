@@ -24,6 +24,7 @@
               v-for="cell in section.cells"
               :key="cell.label"
               class="sfr-acc-cell"
+              :class="{ 'sfr-acc-cell--wide': cell.label === 'CATEGORY' }"
             >
               <div class="sfr-acc-cell-label">{{ cell.label }}</div>
               <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-cell-value--emrg': cell.emrg }">{{ cell.value }}</div>
@@ -88,7 +89,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 }
 
 .tracking-card-readonly {
-    opacity: 0.7;
+    opacity: 1;
 }
 
 .tracking-card-header {
@@ -143,7 +144,8 @@ function sectionsFor(fields: TrackingField[]): Section[] {
     line-height: 1;
     transition: color 0.2s;
     flex-shrink: 0;
-    margin-top: 4px;
+    align-self: flex-start;
+    margin-top: -1px;
 }
 
 .tracking-card-close:hover {
@@ -180,7 +182,8 @@ function sectionsFor(fields: TrackingField[]): Section[] {
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: break-word;
     line-height: 1.25;
 }
 
@@ -195,17 +198,21 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 
 .tracking-card .sfr-acc-section {
     gap: 6px;
-    padding-top: 10px;
+    padding-top: 18px;
     padding-bottom: 8px;
 }
 
 .tracking-card .sfr-acc-grid {
     column-gap: 10px;
-    row-gap: 6px;
+    row-gap: 14px;
 }
 
 .tracking-card .sfr-acc-cell {
     gap: 2px;
+}
+
+.tracking-card .sfr-acc-cell--wide {
+    grid-column: span 2;
 }
 
 .sfr-acc-cell-value--emrg {
