@@ -39,9 +39,9 @@
       </svg>
       <!-- playback / replay -->
       <svg v-else-if="tab.id === 'playback'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="13" cy="13" r="8.5" stroke="currentColor" stroke-width="1.8"/>
-        <polyline points="13,7.5 13,13 17,15" stroke="currentColor" stroke-width="1.8" fill="none"/>
-        <path d="M6.5 3.5 L3 1.5 M6.5 3.5 L6.5 1.5 M6.5 3.5 L3 3.5" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M20 12 A8 8 0 1 1 16.5 5.4" stroke="currentColor" stroke-width="1.8" fill="none"/>
+        <polyline points="20,2 20,6 16,6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="miter"/>
+        <polygon points="9.5,8 9.5,16 16,12" fill="currentColor"/>
       </svg>
     </button>
   </div>
