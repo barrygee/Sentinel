@@ -42,6 +42,9 @@ export interface AdsbTagFieldMap {
 const LS_KEY = 'overlayStates'
 const LS_LABEL_FIELDS_KEY = 'adsbLabelFields'
 const LS_TAG_FIELDS_KEY = 'adsbTagFields_v3'
+const LS_OVERHEAD_RADIUS_KEY = 'overheadAlertRadiusNm'
+
+export const DEFAULT_OVERHEAD_ALERT_RADIUS_NM = 10
 
 const DEFAULT_LABEL_FIELDS: AdsbLabelFields = { civil: ['type'], mil: ['type'] }
 const DEFAULT_TAG_FIELDS: AdsbTagFields = {
@@ -95,10 +98,22 @@ function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
   }
 }
 
+function readPersistedRadius(): number {
+  try {
+    const raw = localStorage.getItem(LS_OVERHEAD_RADIUS_KEY)
+    if (!raw) return DEFAULT_OVERHEAD_ALERT_RADIUS_NM
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_OVERHEAD_ALERT_RADIUS_NM
+  } catch {
+    return DEFAULT_OVERHEAD_ALERT_RADIUS_NM
+  }
+}
+
 export const useAirStore = defineStore('air', () => {
   const overlayStates = usePersistedObject<OverlayStates>(LS_KEY, DEFAULTS, migrateOverlays)
   const adsbLabelFields = usePersistedObject<AdsbLabelFields>(LS_LABEL_FIELDS_KEY, DEFAULT_LABEL_FIELDS, migrateLabelFields)
   const adsbTagFields = usePersistedObject<AdsbTagFields>(LS_TAG_FIELDS_KEY, DEFAULT_TAG_FIELDS, migrateTagFields)
+  const overheadAlertRadiusNm = ref<number>(readPersistedRadius())
   const filterQuery = ref('')
   const filterOpen = ref(false)
   const mapCenter = ref<[number, number] | null>(null)
@@ -117,6 +132,12 @@ export const useAirStore = defineStore('air', () => {
     adsbTagFields.value = fields
   }
 
+  function setOverheadAlertRadiusNm(nm: number) {
+    if (!Number.isFinite(nm) || nm <= 0) return
+    overheadAlertRadiusNm.value = nm
+    try { localStorage.setItem(LS_OVERHEAD_RADIUS_KEY, String(nm)) } catch {}
+  }
+
   function setFilter(query: string) {
     filterQuery.value = query
   }
@@ -131,5 +152,5 @@ export const useAirStore = defineStore('air', () => {
     pitch.value = currentPitch
   }
 
-  return { overlayStates, adsbLabelFields, adsbTagFields, filterQuery, filterOpen, mapCenter, mapZoom, pitch, setOverlay, setAdsbLabelFields, setAdsbTagFields, setFilter, toggleFilter, saveMapState }
+  return { overlayStates, adsbLabelFields, adsbTagFields, overheadAlertRadiusNm, filterQuery, filterOpen, mapCenter, mapZoom, pitch, setOverlay, setAdsbLabelFields, setAdsbTagFields, setOverheadAlertRadiusNm, setFilter, toggleFilter, saveMapState }
 })

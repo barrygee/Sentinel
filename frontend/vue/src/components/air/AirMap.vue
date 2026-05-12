@@ -183,6 +183,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   overheadZoneControl = new OverheadZoneControl(
     airStore.overlayStates.overheadAlertsCivil || airStore.overlayStates.overheadAlertsMil,
     initialLoc,
+    airStore.overheadAlertRadiusNm,
   )
   overheadAlertsTracker = new OverheadAlertsTracker(
     notificationsStore,
@@ -192,6 +193,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
       return l ? { lon: l.lon, lat: l.lat } : null
     },
     (hex: string) => { adsbControl?.selectByHex(hex) },
+    airStore.overheadAlertRadiusNm,
   )
   registerAircraftClickHandler((hex: string) => { adsbControl?.selectByHex(hex) })
   overheadAlertsTracker.setEnabled({
@@ -309,6 +311,14 @@ onMounted(() => {
     ([civil, mil]) => {
       overheadZoneControl?.setVisible(civil || mil)
       overheadAlertsTracker?.setEnabled({ civil, mil })
+    },
+  )
+
+  watch(
+    () => airStore.overheadAlertRadiusNm,
+    (nm) => {
+      overheadZoneControl?.setRadiusNm(nm)
+      overheadAlertsTracker?.setRadiusNm(nm)
     },
   )
 

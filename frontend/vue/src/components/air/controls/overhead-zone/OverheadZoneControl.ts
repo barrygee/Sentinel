@@ -11,10 +11,22 @@ export class OverheadZoneControl {
     private _map: maplibregl.Map | null = null
     private _visible: boolean
     private _center: [number, number] | null
+    private _radiusNm: number
 
-    constructor(visible: boolean, initialCenter: [number, number] | null = null) {
+    constructor(visible: boolean, initialCenter: [number, number] | null = null, radiusNm: number = OVERHEAD_ZONE_RADIUS_NM) {
         this._visible = visible
         this._center = initialCenter
+        this._radiusNm = radiusNm
+    }
+
+    setRadiusNm(radiusNm: number): void {
+        if (!Number.isFinite(radiusNm) || radiusNm <= 0) return
+        this._radiusNm = radiusNm
+        const m = this._map
+        if (!m || !this._center) return
+        const src = m.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+        if (!src) { this._init(); return }
+        src.setData(buildCirclePolygon(this._center[0], this._center[1], this._radiusNm) as GeoJSON.Feature)
     }
 
     onAdd(map: maplibregl.Map): void {
@@ -51,7 +63,7 @@ export class OverheadZoneControl {
         if (!m) return
         const src = m.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined
         if (!src) { this._init(); return }
-        src.setData(buildCirclePolygon(lng, lat, OVERHEAD_ZONE_RADIUS_NM) as GeoJSON.Feature)
+        src.setData(buildCirclePolygon(lng, lat, this._radiusNm) as GeoJSON.Feature)
     }
 
     private _init(): void {
@@ -61,7 +73,7 @@ export class OverheadZoneControl {
             const c = m.getCenter()
             this._center = [c.lng, c.lat]
         }
-        const data = buildCirclePolygon(this._center[0], this._center[1], OVERHEAD_ZONE_RADIUS_NM)
+        const data = buildCirclePolygon(this._center[0], this._center[1], this._radiusNm)
 
         if (m.getLayer(LINE_ID))   m.removeLayer(LINE_ID)
         if (m.getLayer(FILL_ID))   m.removeLayer(FILL_ID)

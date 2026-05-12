@@ -19,7 +19,7 @@ from backend.models import UserSettings
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # ── Request body schemas ───────────────────────────────────────────────────────
@@ -150,4 +150,21 @@ async def upsert_setting_endpoint(
 ):
     """Upsert a single user setting. Creates the row if it doesn't exist."""
     await upsert_setting(db, namespace, key, body.value)
+    return JSONResponse({"status": "ok"})
+
+
+@router.delete("/{namespace}/{key}", status_code=200)
+async def delete_setting_endpoint(
+    namespace: str,
+    key: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a single user setting. No-op if the row doesn't exist."""
+    await db.execute(
+        delete(UserSettings).where(
+            UserSettings.namespace == namespace,
+            UserSettings.key == key,
+        )
+    )
+    await db.commit()
     return JSONResponse({"status": "ok"})

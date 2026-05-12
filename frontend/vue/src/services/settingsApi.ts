@@ -20,6 +20,12 @@ export async function put(ns: string, key: string, value: unknown): Promise<void
   } catch {}
 }
 
+export async function del(ns: string, key: string): Promise<void> {
+  try {
+    await fetch(`${BASE}/${ns}/${key}`, { method: 'DELETE' })
+  } catch {}
+}
+
 export async function getAll(): Promise<Record<string, Record<string, unknown>> | null> {
   try {
     const res = await fetch(BASE)

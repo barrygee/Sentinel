@@ -6,6 +6,7 @@
     </div>
     <ConnectivityToggle v-if="item.type === 'connectivity-toggle'" @stage="emit('stage', item.id, $event)" />
     <OverheadAlertsToggleControl v-else-if="item.type === 'overhead-alerts-toggle'" @stage="emit('stage', item.id, $event)" />
+    <OverheadAlertRadiusControl v-else-if="item.type === 'overhead-alert-radius'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <ProbeUrlControl v-else-if="item.type === 'probe-url'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <LocationControl v-else-if="item.type === 'location'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <SourceOverrideControl v-else-if="item.type === 'source-override'" :ns="item.ns!" @stage="emit('stage', item.id, $event)" />
@@ -28,6 +29,7 @@
 import type { SettingItem } from '../SettingsPanel.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
+import OverheadAlertRadiusControl from './OverheadAlertRadiusControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'

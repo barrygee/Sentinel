@@ -29,17 +29,25 @@ export class OverheadAlertsTracker {
     private _timer: ReturnType<typeof setInterval> | null = null
     private _civilEnabled = false
     private _milEnabled = false
+    private _radiusNm: number = OVERHEAD_ZONE_RADIUS_NM
 
     constructor(
         notifications: NotificationsStore,
         getFeatures: () => FeatureCollection | null,
         getUserLocation: () => { lon: number; lat: number } | null,
         onAlertClick: ((hex: string) => void) | null = null,
+        radiusNm: number = OVERHEAD_ZONE_RADIUS_NM,
     ) {
         this._notifications = notifications
         this._getFeatures = getFeatures
         this._getUserLocation = getUserLocation
         this._onAlertClick = onAlertClick
+        this._radiusNm = radiusNm
+    }
+
+    setRadiusNm(radiusNm: number): void {
+        if (!Number.isFinite(radiusNm) || radiusNm <= 0) return
+        this._radiusNm = radiusNm
     }
 
     setEnabled(enabled: OverheadAlertsEnabled): void {
@@ -95,7 +103,7 @@ export class OverheadAlertsTracker {
             if (isMil && !this._milEnabled) continue
             if (!isMil && !this._civilEnabled) continue
             const dist = haversineNm(loc.lat, loc.lon, lat, lon)
-            if (dist > OVERHEAD_ZONE_RADIUS_NM) continue
+            if (dist > this._radiusNm) continue
 
             seen.add(hex)
             const gs = f.properties?.gs
