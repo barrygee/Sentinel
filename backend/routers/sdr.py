@@ -30,21 +30,19 @@ import asyncio
 import datetime
 import json
 import logging
-import time
 from pathlib import Path
-from typing import Optional
 
+from backend.cache import now_ms
+from backend.config import settings
+from backend.database import get_db
+from backend.db_helpers import get_setting, upsert_setting
+from backend.models import SdrFrequencyGroup, SdrRecording, SdrStoredFrequency
+from backend.services import sdr as sdr_svc
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.cache import now_ms
-from backend.config import settings
-from backend.database import get_db
-from backend.models import SdrFrequencyGroup, SdrRecording, SdrStoredFrequency, UserSettings
-from backend.services import sdr as sdr_svc
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +57,9 @@ class RadioIn(BaseModel):
     port: int = 1234
     description: str = ""
     enabled: bool = True
-    bandwidth: Optional[int]   = None
-    rf_gain:   Optional[float] = None
-    agc:       Optional[bool]  = None
+    bandwidth: int | None   = None
+    rf_gain:   float | None = None
+    agc:       bool | None  = None
 
 
 class GroupIn(BaseModel):
@@ -71,7 +69,7 @@ class GroupIn(BaseModel):
 
 
 class FrequencyIn(BaseModel):
-    group_id: Optional[int] = None
+    group_id: int | None = None
     label: str
     frequency_hz: int
     mode: str = "AM"
@@ -83,12 +81,12 @@ class FrequencyIn(BaseModel):
 
 class ConnectIn(BaseModel):
     radio_id: int
-    frequency_hz: Optional[int] = None   # None = preserve current freq
-    mode: Optional[str] = None           # None = preserve current mode
-    gain_db: Optional[float] = None      # None = preserve current gain
-    gain_auto: Optional[bool] = None     # None = preserve current AGC state
+    frequency_hz: int | None = None   # None = preserve current freq
+    mode: str | None = None           # None = preserve current mode
+    gain_db: float | None = None      # None = preserve current gain
+    gain_auto: bool | None = None     # None = preserve current AGC state
     squelch_dbfs: float = -60.0
-    sample_rate: Optional[int] = None    # None = preserve current sample rate
+    sample_rate: int | None = None    # None = preserve current sample rate
 
 
 class DisconnectIn(BaseModel):
@@ -96,7 +94,7 @@ class DisconnectIn(BaseModel):
 
 
 class RecordingStartIn(BaseModel):
-    radio_id: Optional[int] = None
+    radio_id: int | None = None
     radio_name: str = ""
     frequency_hz: int
     mode: str = "AM"
@@ -106,45 +104,21 @@ class RecordingStartIn(BaseModel):
 
 
 class RecordingPatchIn(BaseModel):
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 # ── Radio helpers — read/write sdr.radios from UserSettings ──────────────────
 
 async def _get_radios(db: AsyncSession) -> list[dict]:
     """Read the sdr.radios array from UserSettings. Returns [] if not set."""
-    row = (await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "radios",
-        )
-    )).scalar_one_or_none()
-    if row is None:
-        return []
-    try:
-        val = json.loads(row.value)
-        return val if isinstance(val, list) else []
-    except (json.JSONDecodeError, TypeError):
-        return []
+    val = await get_setting(db, "sdr", "radios", default=[])
+    return val if isinstance(val, list) else []
 
 
 async def _save_radios(db: AsyncSession, radios: list[dict]) -> None:
     """Write the sdr.radios array back to UserSettings (upsert)."""
-    row = (await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "radios",
-        )
-    )).scalar_one_or_none()
-    ts = now_ms()
-    value_str = json.dumps(radios)
-    if row:
-        row.value = value_str
-        row.updated_at = ts
-    else:
-        db.add(UserSettings(namespace="sdr", key="radios", value=value_str, updated_at=ts))
-    await db.commit()
+    await upsert_setting(db, "sdr", "radios", radios)
 
 
 def _group_to_dict(g: SdrFrequencyGroup) -> dict:
@@ -340,7 +314,7 @@ async def list_recordings(db: AsyncSession = Depends(get_db)):
 @router.post("/api/sdr/recordings/start", status_code=201)
 async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get_db)):
     """Create a pending recording row and (optionally) start server-side IQ capture."""
-    started_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    started_at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     rec = SdrRecording(
         name=f"Recording {started_at[:16].replace('T', ' ')}",
         notes="",
@@ -365,18 +339,7 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
     await db.refresh(rec)
 
     # Check if raw IQ recording is enabled in settings
-    sdr_settings_row = (await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "recordRawIq",
-        )
-    )).scalar_one_or_none()
-    record_iq = False
-    if sdr_settings_row:
-        try:
-            record_iq = json.loads(sdr_settings_row.value) is True
-        except Exception:
-            pass
+    record_iq = await get_setting(db, "sdr", "recordRawIq", default=False) is True
 
     if record_iq and body.radio_id is not None:
         # Look up the radio's host/port so we can find its broadcaster
@@ -445,7 +408,7 @@ async def stop_recording(
             iq_file_size = iq_path.stat().st_size
 
     if not ended_at:
-        ended_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        ended_at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     row.name = name or row.name
     row.ended_at = ended_at
@@ -540,7 +503,7 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
         if body.mode is not None:
             conn.mode = body.mode
     except ConnectionError as exc:
-        raise HTTPException(503, str(exc))
+        raise HTTPException(503, str(exc)) from exc
     return JSONResponse({"status": "connected", "radio_id": body.radio_id})
 
 
@@ -571,7 +534,7 @@ async def radio_status(radio_id: int, db: AsyncSession = Depends(get_db)):
 async def _resolve_broadcaster(
     radio_id: int,
     websocket: WebSocket,
-) -> "tuple[sdr_svc.RadioBroadcaster, dict] | tuple[None, None]":
+) -> tuple[sdr_svc.RadioBroadcaster, dict] | tuple[None, None]:
     """Look up a radio by id and return a running broadcaster for it.
 
     Sends an error frame and closes the WebSocket on failure.

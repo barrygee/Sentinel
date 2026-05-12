@@ -10,18 +10,17 @@ Endpoints:
 """
 
 import json
-
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Any
 
 from backend.cache import now_ms
 from backend.database import get_db
+from backend.db_helpers import upsert_setting
 from backend.models import UserSettings
-
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # ── Request body schemas ───────────────────────────────────────────────────────
 
@@ -88,7 +87,7 @@ async def config_upload(
         content = await file.read()
         config = json.loads(content)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
 
     if not isinstance(config, dict):
         raise HTTPException(status_code=400, detail="Config must be a JSON object")
@@ -143,33 +142,12 @@ async def get_namespace_settings(namespace: str, db: AsyncSession = Depends(get_
 
 
 @router.put("/{namespace}/{key}", status_code=200)
-async def upsert_setting(
+async def upsert_setting_endpoint(
     namespace: str,
     key: str,
     body: SettingValueIn,
     db: AsyncSession = Depends(get_db),
 ):
     """Upsert a single user setting. Creates the row if it doesn't exist."""
-    result = await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == namespace,
-            UserSettings.key == key,
-        )
-    )
-    row = result.scalar_one_or_none()
-    value_str = json.dumps(body.value)
-    ts = now_ms()
-
-    if row:
-        row.value = value_str
-        row.updated_at = ts
-    else:
-        db.add(UserSettings(
-            namespace=namespace,
-            key=key,
-            value=value_str,
-            updated_at=ts,
-        ))
-
-    await db.commit()
+    await upsert_setting(db, namespace, key, body.value)
     return JSONResponse({"status": "ok"})
