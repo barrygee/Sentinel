@@ -325,7 +325,7 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.45);
+    color: #fff;
     transition: color 0.15s, background 0.15s, border-color 0.15s;
     position: relative;
     flex-shrink: 0;
