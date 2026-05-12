@@ -301,7 +301,7 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
     bottom: var(--footer-height);
     left: 0;
     width: 44px;
-    background: rgba(10, 13, 20, 0.92);
+    background: rgba(10, 13, 20, 0.98);
     border-right: 1px solid var(--color-border);
     z-index: 1003;
     display: flex;
@@ -383,7 +383,7 @@ body[data-domain="sdr"] #map-sidebar-rail {
     bottom: var(--footer-height);
     left: 44px;
     width: 386px;
-    background: rgba(10, 13, 20, 0.92);
+    background: rgba(10, 13, 20, 0.98);
     border-right: none;
     z-index: 1002;
     display: flex;

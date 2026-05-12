@@ -685,8 +685,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
             const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
             const track    = props.track ?? 0
             const arrowSvg = this._makeArrowSvg(arrowColor, track, props.category, props.t)
-            const callsignSpan = showCallsign ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:3px 6px;display:flex;align-items:center;">${callsign}</span>` : ''
             const leftFacing = this._isLeftFacing(track)
+            const callsignPad = leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+            const callsignSpan = showCallsign ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPad};display:flex;align-items:center;">${callsign}</span>` : ''
             const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
             const inner = leftFacing
                 ? `${trkBtn}${dataBadges}${callsignSpan}${arrowSvg}`
@@ -700,7 +701,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const heading    = props.track ?? 0
         const leftFacing = forceLeftFacing !== undefined ? forceLeftFacing : this._isLeftFacing(heading)
         const arrowSvg   = this._makeArrowSvg(arrowColor, heading, props.category, props.t)
-        const callsignSpan = showCallsign ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:3px 6px;display:flex;align-items:center;">${callsign}</span>` : ''
+        const callsignPad = leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+        const callsignSpan = showCallsign ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPad};display:flex;align-items:center;">${callsign}</span>` : ''
         const showBell = forHover ? !isTracked : (notifOn && !isTracked)
         const activeBell = showBell ? bellBtn : ''
         const activeTrack = (isTracked || forHover) ? trkBtn : ''
@@ -1119,12 +1121,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
             return b
         }
 
-        const makeCallsign = (_side: 'left' | 'right') => {
+        const makeCallsign = (side: 'left' | 'right') => {
             if (!showCallsign) return null
             const s = document.createElement('span')
             s.className = 'adsb-label-name'
             s.textContent = callsign
-            s.style.cssText = `color:${nameColor} !important;padding:3px 6px;display:flex;align-items:center;`
+            const pad = side === 'left' ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+            s.style.cssText = `color:${nameColor} !important;padding:${pad};display:flex;align-items:center;`
             return s
         }
 
@@ -1350,9 +1353,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 }
                 const nameSpan = box.querySelector('.adsb-label-name') as HTMLElement | null
                 if (nameSpan) nameSpan.textContent = raw || 'UNKNOWN'
+                const namePad = box.dataset.dir === 'left' ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
                 if (isMil) {
                     const dimColor = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important'
-                    if (nameSpan) nameSpan.style.cssText = dimColor + ';padding:3px 6px;display:flex;align-items:center;'
+                    if (nameSpan) nameSpan.style.cssText = dimColor + `;padding:${namePad};display:flex;align-items:center;`
                     const isTracked = this._followEnabled && hex === this._tagHex
                     const hasBadge  = showType && !!f.properties.t
                     // alt badge
@@ -1390,7 +1394,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                     } else if (!isTracked && trkBtn) { trkBtn.remove() }
                 } else {
                     const dimColor = isDim ? 'color:rgba(255,255,255,0.45) !important' : 'color:#ffffff !important'
-                    if (nameSpan) nameSpan.style.cssText = dimColor + ';padding:3px 6px;display:flex;align-items:center;'
+                    if (nameSpan) nameSpan.style.cssText = dimColor + `;padding:${namePad};display:flex;align-items:center;`
                     let civilBadge = box.querySelector('.civil-model-badge') as HTMLElement | null
                     if (showType && f.properties.t) {
                         if (!civilBadge) {
