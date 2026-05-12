@@ -68,14 +68,18 @@ html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px 0 18px;
+    padding: 0 24px 0 10px;
     z-index: 1000;
 }
 
-/* Left side of the nav bar — wraps the SVG logo element */
+/* Left side of the nav bar — wraps the SVG logo element.
+   The logo SVG has ~6px of internal left padding before the "S";
+   combined with #nav padding-left, the "S" lands at x ≈ 15.5px,
+   matching the left edge of the search icon glyph in the rail. */
 #nav-logo {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 /* The logo image; height constrained to 46px */

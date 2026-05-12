@@ -485,20 +485,15 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .space-filter-section-label:first-child {
-    padding-top: 34px;
+    padding-top: 14px;
 }
 
 .space-filter-result-item {
     display: flex;
     flex-direction: column;
     position: relative;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     cursor: pointer;
     transition: background 0.12s;
-}
-
-.space-filter-result-item:last-child {
-    border-bottom: none;
 }
 
 .space-filter-result-item > .space-filter-result-info {
