@@ -4,7 +4,7 @@
 }
 
 #air-playback-panel .sdr-field-label {
-    color: rgba(200, 255, 0, 0.6);
+    color: #c8ff00;
     font-size: 9px;
     letter-spacing: 0.14em;
     margin-bottom: 8px;
@@ -31,10 +31,10 @@
 .apb-date-btn {
     width: 100%;
     height: 36px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 2px;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.85);
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 11px;
     font-weight: 500;
@@ -52,17 +52,17 @@
 }
 
 .apb-date-btn--chosen {
-    color: rgba(255, 255, 255, 0.75);
+    color: #fff;
 }
 
 .apb-date-btn:hover,
 .apb-date-btn:focus {
-    border-color: rgba(200, 255, 0, 0.35);
+    border-color: rgba(200, 255, 0, 0.55);
 }
 
 .apb-date-btn svg {
     flex-shrink: 0;
-    opacity: 0.3;
+    opacity: 0.7;
 }
 
 .apb-cal-popup {
@@ -178,10 +178,10 @@
 .apb-time-select {
     width: 100%;
     height: 36px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 2px;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.85);
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 11px;
     font-weight: 500;
@@ -200,16 +200,16 @@
 
 .apb-time-select svg {
     flex-shrink: 0;
-    opacity: 0.35;
+    opacity: 0.7;
 }
 
 .apb-time-select--chosen {
-    color: rgba(255, 255, 255, 0.85);
+    color: #fff;
 }
 
 .apb-time-select:hover,
 .apb-time-select:focus {
-    border-color: rgba(200, 255, 0, 0.35);
+    border-color: rgba(200, 255, 0, 0.55);
 }
 
 .apb-dd-list {
@@ -305,7 +305,7 @@
 }
 
 .apb-time-colon {
-    color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.5);
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 15px;
     font-weight: 600;
@@ -334,7 +334,7 @@
     flex-shrink: 0;
     width: 36px;
     height: 36px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.12);
     border: none;
     border-radius: 0;
     cursor: pointer;
@@ -346,25 +346,31 @@
 }
 
 .apb-transport-btn--play {
-    color: rgba(200, 255, 0, 0.75);
+    color: #c8ff00;
 }
 
 .apb-transport-btn--play:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(200, 255, 0, 0.18);
     color: #c8ff00;
 }
 
 .apb-transport-btn--stop {
-    color: rgba(255, 80, 80, 0.75);
+    color: #ff5050;
 }
 
 .apb-transport-btn--stop:hover:not(:disabled) {
-    background: rgba(255, 80, 80, 0.15);
+    background: rgba(255, 80, 80, 0.2);
     color: #ff5050;
 }
 
 .apb-transport-btn:disabled {
-    opacity: 0.25;
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.apb-speed-btn:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
     pointer-events: none;
 }
@@ -378,9 +384,9 @@
 
 .apb-speed-btn {
     height: 36px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.12);
     border: none;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.85);
     cursor: pointer;
     padding: 0 12px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
@@ -401,7 +407,7 @@
 }
 
 .apb-speed-btn--active {
-    color: rgba(200, 255, 0, 0.75);
+    color: #c8ff00;
 }
 
 .apb-speed-btn--active:hover {
