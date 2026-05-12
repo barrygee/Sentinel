@@ -778,6 +778,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._isolatedHex = null
         this._trailHex = null
         this._saveTrackingState()
+        this._hideStatusBar()
         this._applySelection()
         const is3D = this._is3DActive()
         if (!is3D && this.map) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
