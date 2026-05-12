@@ -1,6 +1,5 @@
-from sqlalchemy import Boolean, Column, Float, Integer, Text, UniqueConstraint
-
 from backend.database import Base
+from sqlalchemy import Boolean, Column, Float, Integer, Text, UniqueConstraint
 
 
 class AdsbCache(Base):

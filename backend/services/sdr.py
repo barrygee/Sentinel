@@ -22,7 +22,6 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -36,17 +35,17 @@ READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz
 READ_CHUNK_BYTES    = READ_CHUNK_SAMPLES * 2  # 2 bytes per IQ pair
 
 # Connection cache: key = "host:port"
-_connections: dict[str, "RtlTcpConnection"] = {}
+_connections: dict[str, RtlTcpConnection] = {}
 # Broadcaster cache: key = "host:port"
-_broadcasters: dict[str, "RadioBroadcaster"] = {}
+_broadcasters: dict[str, RadioBroadcaster] = {}
 
 
 @dataclass
 class RtlTcpConnection:
     host: str
     port: int
-    reader: Optional[asyncio.StreamReader] = field(default=None, repr=False)
-    writer: Optional[asyncio.StreamWriter] = field(default=None, repr=False)
+    reader: asyncio.StreamReader | None = field(default=None, repr=False)
+    writer: asyncio.StreamWriter | None = field(default=None, repr=False)
     connected: bool = False
     center_hz: int = 100_000_000
     sample_rate: int = DEFAULT_SAMPLE_RATE
@@ -134,7 +133,7 @@ class RadioBroadcaster:
         self._conn = conn
         self._subscribers:    list[asyncio.Queue] = []   # FFT JSON frames
         self._iq_subscribers: list[asyncio.Queue] = []   # raw IQ bytes
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
 
     def subscribe(self) -> asyncio.Queue:
@@ -305,7 +304,7 @@ def compute_fft_frame(
 
 # ── Connection cache helpers ──────────────────────────────────────────────────
 
-def get_connection(host: str, port: int) -> Optional[RtlTcpConnection]:
+def get_connection(host: str, port: int) -> RtlTcpConnection | None:
     return _connections.get(f"{host}:{port}")
 
 
@@ -344,7 +343,7 @@ def connection_status(host: str, port: int) -> dict:
     }
 
 
-def get_broadcaster(host: str, port: int) -> "RadioBroadcaster | None":
+def get_broadcaster(host: str, port: int) -> RadioBroadcaster | None:
     """Return the existing broadcaster for this radio, or None if not running."""
     return _broadcasters.get(f"{host}:{port}")
 

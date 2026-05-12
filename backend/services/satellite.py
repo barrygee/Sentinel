@@ -6,10 +6,9 @@ All outputs use [longitude, latitude] coordinate order (GeoJSON convention).
 """
 
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sgp4.api import Satrec, jday
-
 
 # Earth radius in km
 _RE_KM = 6371.0
@@ -17,7 +16,7 @@ _RE_KM = 6371.0
 
 def _jday_now() -> tuple[int, float]:
     """Return the current Julian date as (jd_int, jd_frac)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     jd, fr = jday(now.year, now.month, now.day, now.hour, now.minute, now.second + now.microsecond / 1e6)
     return jd, fr
 
@@ -29,7 +28,7 @@ def _eci_to_geodetic(r_km: list[float], t: datetime | None = None) -> tuple[floa
     Uses a simplified spherical Earth model — sufficient for display purposes.
     """
     if t is None:
-        t = datetime.now(timezone.utc)
+        t = datetime.now(UTC)
     # Greenwich Mean Sidereal Time (radians) — simple approximation.
     # tzinfo is stripped so both sides of the subtraction are naive UTC datetimes;
     # the J2000.0 epoch (2000-01-01 12:00 UTC) is defined in UTC so no precision is lost.
@@ -78,7 +77,7 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
         raise RuntimeError("SGP4 propagation error at current time")
 
     r, v = result
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     lat, lon, alt_km = _eci_to_geodetic(r, now)
     velocity_kms = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
 
@@ -89,7 +88,6 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
     if result_ahead:
         r_ahead, _ = result_ahead
         lat_ahead, lon_ahead, _ = _eci_to_geodetic(r_ahead, now + timedelta(seconds=10))
-        dlat_rad = math.radians(lat_ahead - lat)
         dlon_rad = math.radians(lon_ahead - lon)
         lat_rad  = math.radians(lat)
         lat_ahead_rad = math.radians(lat_ahead)
@@ -127,7 +125,7 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     """
     sat = Satrec.twoline2rv(tle_line1, tle_line2)
     jd, fr = _jday_now()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Orbital period (minutes) from SGP4 mean motion (rad/min). Fall back to
     # ~92 min for degenerate TLEs where no_kozai is non-positive.
@@ -242,7 +240,7 @@ def compute_passes(
     """
     sat = Satrec.twoline2rv(tle_line1, tle_line2)
     jd, fr = _jday_now()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     total_minutes = lookahead_hours * 60
     passes: list[dict] = []

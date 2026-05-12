@@ -8,7 +8,7 @@ Uses only the Python standard library (math, datetime) — no extra dependencies
 """
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def _solar_position(dt: datetime) -> tuple[float, float]:
@@ -86,7 +86,7 @@ def compute_terminator() -> dict:
 
     clamped to ±180° and split at the antimeridian if needed.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sun_lat, sun_lon = _solar_position(now)
 
     EQUINOX_THRESH = 0.001  # degrees — treat as equinox below this declination

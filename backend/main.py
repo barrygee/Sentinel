@@ -6,14 +6,14 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
+from backend.database import create_tables, migrate_sdr_radios_to_settings, seed_default_settings
+from backend.routers import air, space
+from backend.routers import sdr as sdr_router
+from backend.routers import settings as settings_router
+from backend.services.flight_history import cleanup_old_snapshots
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-
-from backend.database import create_tables, get_db, migrate_sdr_radios_to_settings, seed_default_settings
-from backend.routers import air, space, settings as settings_router, sdr as sdr_router
-from backend.services.flight_history import cleanup_old_snapshots
-
 
 ROOT_DIR = Path(__file__).parent.parent
 SPA_DIR  = ROOT_DIR / "frontend" / "spa-dist"

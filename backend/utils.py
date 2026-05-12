@@ -4,10 +4,9 @@ Shared utilities used across multiple routers.
 
 import json
 
+from backend.models import UserSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.models import UserSettings
 
 
 def _valid_url(url: object) -> str | None:

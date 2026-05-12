@@ -4,11 +4,10 @@ Called as a FastAPI BackgroundTask after each successful upstream ADS-B fetch.
 Aircraft are keyed by registration ('r' field) with ICAO hex as fallback.
 """
 
-from sqlalchemy import select, delete
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.database import AsyncSessionLocal
 from backend.models import AirAircraft, AirFlight, AirSnapshot
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 FLIGHT_GAP_MS       = 10 * 60 * 1000   # 10-min absence → new flight session
 SNAPSHOT_INTERVAL_MS = 10 * 1000        # max one snapshot per aircraft per 10s

@@ -2,12 +2,12 @@ import json
 import time
 from pathlib import Path
 
-from sqlalchemy import select, text as sa_text
+from backend.config import settings
+from sqlalchemy import select
+from sqlalchemy import text as sa_text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-
-from backend.config import settings
 
 # Path to the bundled default config — used to seed the DB on first startup.
 _CONFIG_PATH = Path(__file__).parent / "default_config.json"

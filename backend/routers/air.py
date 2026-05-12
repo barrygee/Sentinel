@@ -15,12 +15,6 @@ Endpoints:
 import json
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from sqlalchemy import select, text as sa_text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal, get_db
@@ -28,7 +22,12 @@ from backend.models import AdsbCache, AirAircraft, AirFlight, AirMessage, AirSna
 from backend.services import adsb as adsb_service
 from backend.services.flight_history import record_aircraft_batch
 from backend.utils import resolve_domain_urls
-
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy import text as sa_text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # ── Request body schemas ───────────────────────────────────────────────────────
 
