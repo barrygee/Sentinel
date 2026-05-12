@@ -19,7 +19,7 @@ const DEFAULTS: SpaceOverlayStates = {
   groundTrack: true,
   footprint: true,
   daynight: true,
-  names: false,
+  names: true,
 }
 
 export const useSpaceStore = defineStore('space', () => {
