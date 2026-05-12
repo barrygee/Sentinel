@@ -36,7 +36,7 @@ export function useMapContextMenu() {
       `<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" overflow="visible" style="flex-shrink:0">` +
       `<circle cx="30" cy="30" r="14" fill="none" stroke="#c8ff00" stroke-width="2" stroke-dasharray="87.96" stroke-dashoffset="87.96" style="animation: marker-circle-draw 0.6s ease forwards" />` +
       `<circle cx="30" cy="30" r="4" fill="white" style="animation: marker-dot-pulse 2s ease-in-out 0.6s infinite" />` +
-      `</svg><span style="position:relative;margin-left:-30px;display:inline-flex;flex-direction:column;justify-content:center;align-items:flex-start;min-height:42px;padding:4px 12px 4px 24px;color:rgba(255,255,255,0.7);-webkit-mask-image:radial-gradient(circle 16px at 0px 50%, transparent 16px, black 16.5px);mask-image:radial-gradient(circle 16px at 0px 50%, transparent 16px, black 16.5px);background:rgba(0,0,0,0.6);border-radius:6px"><span style="line-height:1.2">SET LOCATION</span><span style="line-height:1.2;font-size:9px;font-weight:400;letter-spacing:.12em;color:rgba(255,255,255,0.45);margin-top:2px">${latStr}  ${lonStr}</span></span>`
+      `</svg><span style="position:relative;margin-left:-30px;display:inline-flex;flex-direction:column;justify-content:center;align-items:flex-start;min-height:42px;padding:4px 12px 4px 24px;color:rgba(255,255,255,0.7);-webkit-mask-image:radial-gradient(circle 16px at 0px 50%, transparent 16px, black 16.5px);mask-image:radial-gradient(circle 16px at 0px 50%, transparent 16px, black 16.5px);background:#000;border-radius:6px"><span style="line-height:1.2">SET LOCATION</span><span style="line-height:1.2;font-size:9px;font-weight:400;letter-spacing:.12em;color:rgba(255,255,255,0.45);margin-top:2px">${latStr}  ${lonStr}</span></span>`
     setLocBtn.addEventListener('mouseenter', () => { setLocBtn.style.opacity = '0.85' })
     setLocBtn.addEventListener('mouseleave', () => { setLocBtn.style.opacity = '' })
     setLocBtn.addEventListener('click', (ev) => {
@@ -60,6 +60,8 @@ export function useMapContextMenu() {
   function attach(m: MapLibreGlMap): void {
     m.on('contextmenu', show)
     m.on('click', remove)
+    m.on('movestart', remove)
+    m.on('zoomstart', remove)
     document.addEventListener('keydown', _onDocKeydown, { capture: true })
   }
 
@@ -69,6 +71,8 @@ export function useMapContextMenu() {
     if (m) {
       m.off('contextmenu', show)
       m.off('click', remove)
+      m.off('movestart', remove)
+      m.off('zoomstart', remove)
     }
   }
 
