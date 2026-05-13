@@ -127,6 +127,14 @@ class SdrStoredFrequency(Base):
     created_at   = Column(Integer, nullable=False)           # Unix ms
 
 
+class SdrFrequencyGroupLink(Base):
+    """Junction table — many-to-many between stored frequencies and groups."""
+    __tablename__ = "sdr_frequency_group_links"
+
+    frequency_id = Column(Integer, primary_key=True)
+    group_id     = Column(Integer, primary_key=True)
+
+
 class SdrRecording(Base):
     """A recorded audio clip captured from the SDR demodulator."""
     __tablename__ = "sdr_recordings"

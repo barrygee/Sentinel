@@ -299,39 +299,6 @@
         </div>
       </div>
 
-      <!-- GROUPS -->
-      <div class="sdr-scanner-section-label-row">
-        <span class="sdr-scanner-section-label">GROUPS</span>
-      </div>
-      <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
-        <div id="sdr-group-list">
-          <div class="sdr-group-pills">
-            <div class="sdr-group-pill sdr-group-pill-default">
-              <span class="sdr-group-pill-dot" style="background:rgba(255,255,255,0.2)"></span>
-              <span class="sdr-group-pill-name">Default</span>
-            </div>
-            <div v-for="g in groups" :key="g.id" class="sdr-group-pill">
-              <span class="sdr-group-pill-dot" :style="{ background: g.color }"></span>
-              <span class="sdr-group-pill-name">{{ g.name }}</span>
-              <button class="sdr-group-pill-edit" title="Rename group" @click.stop="openEditGroupModal(g)">&#x270E;</button>
-              <button class="sdr-group-pill-del" title="Delete group" @click.stop="deleteGroup(g.id)">&#x2715;</button>
-            </div>
-          </div>
-        </div>
-        <div class="sdr-panel-add-row">
-          <input
-            ref="newGroupNameRef"
-            class="sdr-panel-input"
-            type="text"
-            placeholder="Group name…"
-            maxlength="40"
-            v-model="newGroupName"
-            @keydown.enter="addGroup"
-          >
-          <button class="sdr-panel-btn" @click="addGroup">ADD</button>
-        </div>
-      </div>
-
       </div>
 
       <!-- ───────────── MEMORY TAB (saved frequencies) ───────────── -->
@@ -339,40 +306,53 @@
 
       <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
 
-        <div class="sdr-scan-btns-row" style="padding: 24px 28px 0;">
-          <button
-            id="sdr-radio-add-freq"
-            class="sdr-scan-action-btn sdr-add-freq-btn sdr-scan-action-btn--bg"
-            @click="openAddFreqPanel"
-          >+ ADD FREQ</button>
-        </div>
-
         <div id="sdr-freq-list">
-          <template v-for="group in groupedFreqs" :key="group.id">
-            <div class="sdr-freq-group-header">
-              <span class="sdr-freq-group-dot" :style="{ '--dot-color': group.color }"></span>
-              {{ group.name }}
+          <div
+            v-for="f in freqs"
+            :key="f.id"
+            class="sdr-freq-row-item"
+            :class="{ 'sdr-freq-editing': editingFreqId === f.id }"
+            :data-id="f.id"
+            @click="onFreqRowClick(f)"
+          >
+            <div class="sdr-freq-row-main">
+              <span class="sdr-freq-row-label">{{ f.label }}</span>
             </div>
-            <div
-              v-for="f in group.items"
-              :key="f.id"
-              class="sdr-freq-row-item"
-              :class="{ 'sdr-freq-editing': editingFreqId === f.id }"
-              :data-id="f.id"
-              @click="onFreqRowClick(f)"
-            >
-              <div class="sdr-freq-row-main">
-                <span class="sdr-freq-row-label">{{ f.label }}</span>
+            <div class="sdr-freq-row-sub">
+              <span class="sdr-freq-row-hz">{{ (f.frequency_hz / 1e6).toFixed(4) }} MHz</span>
+              <template v-if="f.mode">
+                <span class="sdr-freq-row-sep">·</span>
                 <span class="sdr-freq-row-mode">{{ f.mode }}</span>
-              </div>
-              <div class="sdr-freq-row-sub">
-                <span class="sdr-freq-row-hz">{{ (f.frequency_hz / 1e6).toFixed(4) }} <span>MHz</span></span>
-              </div>
+              </template>
             </div>
-          </template>
+            <div class="sdr-freq-row-groups">
+              <template v-if="freqGroupsFor(f).length">
+                <span
+                  v-for="g in freqGroupsFor(f)"
+                  :key="g.id"
+                  class="sdr-freq-row-group-chip"
+                >
+                  <span class="sdr-freq-row-group-dot" :style="{ '--dot-color': g.color }"></span>
+                  {{ g.name }}
+                </span>
+              </template>
+              <span v-else class="sdr-freq-row-group-chip">
+                <span class="sdr-freq-row-group-dot" :style="{ '--dot-color': 'rgba(255,255,255,0.35)' }"></span>
+                Default
+              </span>
+            </div>
+          </div>
         </div>
         <div id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
-          No saved frequencies.<br>Tune to a frequency and use + ADD FREQ to save it.
+          No saved frequencies.<br>Tune to a frequency and use Add Frequency to save it.
+        </div>
+
+        <div class="sdr-memory-add-freq-row">
+          <button
+            id="sdr-radio-add-freq"
+            class="sdr-add-freq-btn"
+            @click="openAddFreqPanel"
+          >+ Add Frequency</button>
         </div>
 
         <!-- Edit frequency panel -->
@@ -414,7 +394,7 @@
                 type="button"
                 @click="toggleEfGroup(g.id)"
               >
-                <span class="sdr-ef-gpill-dot" :style="{ '--dot-color': g.color }"></span>{{ g.name }}
+                {{ g.name }}
               </button>
             </div>
           </div>
@@ -425,6 +405,35 @@
               <button id="sdr-ef-save" class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveFreq">SAVE</button>
             </div>
           </div>
+        </div>
+
+        <!-- GROUPS -->
+        <div class="sdr-scanner-section-label-row sdr-memory-groups-label-row">
+          <span class="sdr-scanner-section-label">GROUPS</span>
+        </div>
+        <div id="sdr-group-list">
+          <div class="sdr-group-pills">
+            <div v-for="g in groups" :key="g.id" class="sdr-group-pill">
+              <span class="sdr-group-pill-dot" :style="{ background: g.color }"></span>
+              <span class="sdr-group-pill-name">{{ g.name }}</span>
+              <button class="sdr-group-pill-edit" title="Rename group" @click.stop="startEditGroupRow(g)">&#x270E;</button>
+              <button class="sdr-group-pill-del" title="Delete group" @click.stop="deleteGroup(g.id)">&#x2715;</button>
+            </div>
+          </div>
+        </div>
+        <div class="sdr-panel-add-row sdr-memory-group-add-row">
+          <input
+            ref="newGroupNameRef"
+            class="sdr-panel-input"
+            type="text"
+            placeholder="Group name…"
+            maxlength="40"
+            v-model="newGroupName"
+            @keydown.enter="submitGroupRow"
+            @keydown.escape="cancelEditGroupRow"
+          >
+          <button v-if="editingGroupId !== null" class="sdr-panel-btn" @click="cancelEditGroupRow">CANCEL</button>
+          <button class="sdr-panel-btn" @click="submitGroupRow">{{ editingGroupId !== null ? 'SAVE' : 'ADD' }}</button>
         </div>
       </div>
 
@@ -573,6 +582,12 @@ const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const newGroupName = ref('')
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
+
+function freqGroupsFor(f: SdrStoredFrequency): SdrFrequencyGroup[] {
+  const ids = new Set<number>((f.group_ids || []).filter(id => id !== 0))
+  if (f.group_id != null && f.group_id !== 0) ids.add(f.group_id)
+  return groups.value.filter(g => ids.has(g.id))
+}
 
 const groupedFreqs = computed(() => {
   const result: Array<{ id: number | string; name: string; color: string; items: SdrStoredFrequency[] }> = []
@@ -1086,6 +1101,35 @@ async function addGroup() {
   } catch (_) {}
 }
 
+function startEditGroupRow(g: SdrFrequencyGroup) {
+  editingGroupId.value = g.id
+  newGroupName.value = g.name
+  nextTick(() => newGroupNameRef.value?.focus())
+}
+
+function cancelEditGroupRow() {
+  editingGroupId.value = null
+  newGroupName.value = ''
+}
+
+async function submitGroupRow() {
+  if (editingGroupId.value !== null) {
+    const name = newGroupName.value.trim()
+    if (!name) return
+    try {
+      await fetch(`/api/sdr/groups/${editingGroupId.value}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      editingGroupId.value = null
+      newGroupName.value = ''
+      await reloadData()
+    } catch (_) {}
+  } else {
+    await addGroup()
+  }
+}
+
 async function deleteGroup(id: number) {
   try { await fetch(`/api/sdr/groups/${id}`, { method: 'DELETE' }); await reloadData() } catch (_) {}
 }
@@ -1158,7 +1202,7 @@ async function saveFreq() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           label, frequency_hz: hz, mode: efMode.value,
-          group_id: efGroupIds.value[0] ?? null,
+          group_ids: efGroupIds.value,
           squelch: existing?.squelch ?? squelch.value,
           gain: existing?.gain ?? gainDb.value,
           scannable: existing?.scannable ?? true,
@@ -1168,7 +1212,7 @@ async function saveFreq() {
     } else {
       await fetch('/api/sdr/frequencies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_id: efGroupIds.value[0] ?? null }),
+        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_ids: efGroupIds.value }),
       })
     }
     editingFreqId.value = null

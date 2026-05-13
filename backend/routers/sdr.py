@@ -36,7 +36,7 @@ from backend.cache import now_ms
 from backend.config import settings
 from backend.database import get_db
 from backend.db_helpers import get_setting, upsert_setting
-from backend.models import SdrFrequencyGroup, SdrRecording, SdrStoredFrequency
+from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
@@ -70,6 +70,7 @@ class GroupIn(BaseModel):
 
 class FrequencyIn(BaseModel):
     group_id: int | None = None
+    group_ids: list[int] | None = None
     label: str
     frequency_hz: int
     mode: str = "AM"
@@ -131,10 +132,11 @@ def _group_to_dict(g: SdrFrequencyGroup) -> dict:
     }
 
 
-def _freq_to_dict(f: SdrStoredFrequency) -> dict:
+def _freq_to_dict(f: SdrStoredFrequency, group_ids: list[int] | None = None) -> dict:
     return {
         "id": f.id,
         "group_id": f.group_id,
+        "group_ids": group_ids if group_ids is not None else [],
         "label": f.label,
         "frequency_hz": f.frequency_hz,
         "mode": f.mode,
@@ -144,6 +146,28 @@ def _freq_to_dict(f: SdrStoredFrequency) -> dict:
         "notes": f.notes,
         "created_at": f.created_at,
     }
+
+
+async def _load_freq_group_map(db: AsyncSession) -> dict[int, list[int]]:
+    rows = (await db.execute(select(SdrFrequencyGroupLink))).scalars().all()
+    out: dict[int, list[int]] = {}
+    for link in rows:
+        out.setdefault(link.frequency_id, []).append(link.group_id)
+    return out
+
+
+async def _set_freq_groups(db: AsyncSession, freq_id: int, group_ids: list[int]) -> None:
+    existing = (await db.execute(
+        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)
+    )).scalars().all()
+    for link in existing:
+        await db.delete(link)
+    seen: set[int] = set()
+    for gid in group_ids:
+        if gid is None or gid in seen:
+            continue
+        seen.add(gid)
+        db.add(SdrFrequencyGroupLink(frequency_id=freq_id, group_id=gid))
 
 
 def _recording_to_dict(r: SdrRecording) -> dict:
@@ -257,25 +281,44 @@ async def delete_group(group_id: int, db: AsyncSession = Depends(get_db)):
     freqs = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.group_id == group_id))).scalars().all()
     for freq in freqs:
         freq.group_id = None
+    links = (await db.execute(
+        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.group_id == group_id)
+    )).scalars().all()
+    for link in links:
+        await db.delete(link)
     await db.delete(row)
     await db.commit()
 
 
 # ── Frequency CRUD ────────────────────────────────────────────────────────────
 
+def _resolve_group_ids(body: FrequencyIn) -> list[int]:
+    if body.group_ids is not None:
+        return [g for g in body.group_ids if g is not None]
+    if body.group_id is not None:
+        return [body.group_id]
+    return []
+
+
 @router.get("/api/sdr/frequencies")
 async def list_frequencies(db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(select(SdrStoredFrequency).order_by(SdrStoredFrequency.group_id, SdrStoredFrequency.frequency_hz))).scalars().all()
-    return JSONResponse([_freq_to_dict(freq) for freq in rows])
+    group_map = await _load_freq_group_map(db)
+    return JSONResponse([_freq_to_dict(freq, group_map.get(freq.id, [])) for freq in rows])
 
 
 @router.post("/api/sdr/frequencies", status_code=201)
 async def create_frequency(body: FrequencyIn, db: AsyncSession = Depends(get_db)):
-    freq = SdrStoredFrequency(**body.model_dump(), created_at=now_ms())
+    gids = _resolve_group_ids(body)
+    payload = body.model_dump(exclude={"group_ids"})
+    payload["group_id"] = gids[0] if gids else None
+    freq = SdrStoredFrequency(**payload, created_at=now_ms())
     db.add(freq)
+    await db.flush()
+    await _set_freq_groups(db, freq.id, gids)
     await db.commit()
     await db.refresh(freq)
-    return JSONResponse(_freq_to_dict(freq), status_code=201)
+    return JSONResponse(_freq_to_dict(freq, gids), status_code=201)
 
 
 @router.put("/api/sdr/frequencies/{freq_id}")
@@ -283,11 +326,15 @@ async def update_frequency(freq_id: int, body: FrequencyIn, db: AsyncSession = D
     row = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.id == freq_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Frequency not found")
-    for k, v in body.model_dump().items():
+    gids = _resolve_group_ids(body)
+    payload = body.model_dump(exclude={"group_ids"})
+    payload["group_id"] = gids[0] if gids else None
+    for k, v in payload.items():
         setattr(row, k, v)
+    await _set_freq_groups(db, freq_id, gids)
     await db.commit()
     await db.refresh(row)
-    return JSONResponse(_freq_to_dict(row))
+    return JSONResponse(_freq_to_dict(row, gids))
 
 
 @router.delete("/api/sdr/frequencies/{freq_id}", status_code=204)
@@ -295,6 +342,11 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.id == freq_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Frequency not found")
+    links = (await db.execute(
+        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)
+    )).scalars().all()
+    for link in links:
+        await db.delete(link)
     await db.delete(row)
     await db.commit()
 

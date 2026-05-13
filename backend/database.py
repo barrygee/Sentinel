@@ -55,6 +55,13 @@ async def create_tables():
                 await conn.execute(sa_text(col_sql))
             except OperationalError:
                 pass
+        try:
+            await conn.execute(sa_text(
+                "INSERT OR IGNORE INTO sdr_frequency_group_links (frequency_id, group_id) "
+                "SELECT id, group_id FROM sdr_stored_frequencies WHERE group_id IS NOT NULL"
+            ))
+        except OperationalError:
+            pass
         for idx_sql in [
             "CREATE INDEX IF NOT EXISTS ix_air_flights_registration ON air_flights (registration)",
             "CREATE INDEX IF NOT EXISTS ix_air_snapshots_flight_id_ts ON air_snapshots (flight_id, ts)",
