@@ -633,11 +633,20 @@
 }
 
 .sdr-add-freq-btn {
-    color: rgba(200, 255, 0, 0.45);
+    height: 36px;
+    padding: 0 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    border-radius: 2px;
+    color: rgba(200, 255, 0, 0.85);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    transition: background 0.15s, color 0.15s;
 }
 
 .sdr-add-freq-btn:hover {
     color: #c8ff00;
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .sdr-scan-action-btn.sdr-scan-active-btn {
@@ -730,6 +739,69 @@
 
 .sdr-editfreq-field .sdr-field-label {
     margin-bottom: 6px;
+    color: #c8ff00;
+}
+
+.sdr-editfreq-body .sdr-panel-input {
+    height: 36px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 0 12px;
+}
+
+.sdr-editfreq-body .sdr-panel-input:focus {
+    border-color: rgba(200, 255, 0, 0.55);
+}
+
+.sdr-editfreq-body .sdr-panel-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.sdr-editfreq-body .sdr-mode-pill {
+    height: 36px;
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    border-radius: 2px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
+
+.sdr-editfreq-body .sdr-mode-pill:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.sdr-editfreq-body .sdr-mode-pill.active {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c8ff00;
+}
+
+.sdr-editfreq-body .sdr-mode-pill.active:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c8ff00;
+}
+
+.sdr-editfreq-body .sdr-mode-pills {
+    gap: 4px;
+}
+
+.sdr-editfreq-body .sdr-fmod-groups {
+    gap: 4px;
+}
+
+.sdr-editfreq-body .sdr-editfreq-actions {
+    margin-top: 8px;
+}
+
+.sdr-editfreq-body .sdr-panel-btn {
+    height: 36px;
+    padding: 0 16px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
 }
 
 .sdr-editfreq-field .sdr-mode-pills {
@@ -1833,3 +1905,155 @@
 
 #radio-mini-btn[data-tooltip]:hover::before { opacity: 1; }
 #radio-mini-btn.radio-mini-btn-active[data-tooltip]::before { opacity: 0 !important; }
+
+/* ── SDR side rail (teleported, fixed to viewport — persists when panel hides) ── */
+
+#sdr-sidebar-rail {
+    position: fixed;
+    top: var(--nav-height);
+    bottom: var(--footer-height);
+    left: 0;
+    width: 44px;
+    background: rgba(10, 13, 20, 0.98);
+    border-right: 1px solid var(--color-border);
+    z-index: 1003;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.sdr-tab-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sdr-rail-btn {
+    width: 100%;
+    height: 40px;
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.sdr-rail-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.sdr-rail-btn-active {
+    color: rgba(200, 255, 0, 0.95);
+    border-left-color: rgba(200, 255, 0, 0.75);
+    background: rgba(200, 255, 0, 0.06);
+}
+
+.sdr-rail-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(10, 13, 20, 0.96);
+    color: #fff;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 10px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+.sdr-rail-btn:hover[data-tooltip]::before { opacity: 1; }
+.sdr-rail-btn-active[data-tooltip]::before { opacity: 0 !important; }
+
+.sdr-tab-panes {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.sdr-tab-panes::-webkit-scrollbar { display: none; }
+
+.sdr-tab-pane {
+    display: none;
+    flex-direction: column;
+}
+
+.sdr-tab-pane.active {
+    display: flex;
+}
+
+.sdr-tab-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sdr-tab-title {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.sdr-conn-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+.sdr-conn-label-on  { color: rgba(200, 255, 0, 0.85); }
+.sdr-conn-label-off { color: rgba(255, 90, 90, 0.85); }
+
+.sdr-tab-header .sdr-active-freq {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(200, 255, 0, 0.85);
+}
+
+.sdr-scanner-section-label-row {
+    padding: 10px 20px 4px;
+}
+
+.sdr-scanner-section-label-row .sdr-scanner-section-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+#msb-pane-radio .sdr-tab-panes {
+    overflow-y: visible;
+}

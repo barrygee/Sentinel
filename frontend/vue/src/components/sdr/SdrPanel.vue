@@ -1,47 +1,64 @@
 <template>
+  <!-- ── LEFT RAIL (teleported so it persists when the side panel hides) ── -->
+  <Teleport to="body">
+    <div id="sdr-sidebar-rail" v-show="isSdrRoute">
+      <button
+        v-for="tab in sdrTabs"
+        :key="tab.id"
+        type="button"
+        class="sdr-rail-btn"
+        :class="{ 'sdr-rail-btn-active': activeSdrTab === tab.id && sidebarOpen }"
+        :data-tab="tab.id"
+        :data-tooltip="tab.label"
+        :aria-label="tab.label"
+        @click="onSdrTabClick(tab.id)"
+      >
+        <!-- radio (receiver with antenna and dial) -->
+        <svg v-if="tab.id === 'radio'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linecap="round">
+          <line x1="6" y1="9" x2="18" y2="3" stroke="currentColor" stroke-width="1.6"/>
+          <rect x="3" y="9" width="18" height="12" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+          <circle cx="16" cy="15" r="2.6" stroke="currentColor" stroke-width="1.6"/>
+          <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6"/>
+          <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+        <!-- scanner -->
+        <svg v-else-if="tab.id === 'scanner'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linecap="round">
+          <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+          <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.6"/>
+          <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+        <!-- memory (bookmark) -->
+        <svg v-else-if="tab.id === 'memory'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M6 3h12v18l-6-4-6 4V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+        </svg>
+        <!-- recordings -->
+        <svg v-else-if="tab.id === 'recordings'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="4" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </Teleport>
+
   <div id="sdr-panel-panes">
 
-    <!-- ── RADIO SECTION ── -->
-    <button
-      class="sdr-scanner-main-toggle"
-      :class="{ 'sdr-scanner-main-toggle-expanded': radioExpanded }"
-      @click="radioExpanded = !radioExpanded"
-    >
-      <div class="sdr-scanner-section-left">
-        <span class="sdr-scanner-section-icon">
-          <ChevronIcon :stroke-width="1.5" />
-        </span>
-        <span class="sdr-scanner-section-label">RADIO</span>
-      </div>
-      <div class="sdr-radio-toggle-status">
-        <div
-          class="sdr-conn-dot"
-          :class="connected ? 'sdr-dot-on' : 'sdr-dot-off'"
-          :title="connected ? 'Connected' : 'Disconnected'"
-        ></div>
-        <span class="sdr-active-freq">{{ activeFreqDisplay }}</span>
-      </div>
-    </button>
+    <!-- ── TAB PANES ── -->
+    <div class="sdr-tab-panes">
 
-    <div
-      class="sdr-scanner-main-body"
-      :class="{ 'sdr-scanner-main-body-expanded': radioExpanded }"
-    >
-
-      <!-- ── Group 1: Device ── -->
-      <button
-        class="sdr-group-toggle"
-        :class="{ 'sdr-group-toggle-expanded': deviceExpanded }"
-        @click="deviceExpanded = !deviceExpanded"
-      >
-        <div class="sdr-scanner-section-left">
-          <span class="sdr-group-toggle-icon">
-            <ChevronIcon :stroke-width="1.5" />
-          </span>
-          <span class="sdr-group-toggle-label">DEVICE</span>
+      <!-- ───────────── RADIO TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'radio' }">
+        <div class="sdr-tab-header">
+          <div class="sdr-tab-header-left">
+            <div
+              class="sdr-conn-dot"
+              :class="connected ? 'sdr-dot-on' : 'sdr-dot-off'"
+            ></div>
+            <span class="sdr-conn-label" :class="connected ? 'sdr-conn-label-on' : 'sdr-conn-label-off'">
+              {{ connected ? 'CONNECTED' : 'DISCONNECTED' }}
+            </span>
+          </div>
+          <span class="sdr-active-freq">{{ activeFreqDisplay }}</span>
         </div>
-      </button>
-      <div class="sdr-group-body" :class="{ 'sdr-group-body-expanded': deviceExpanded }">
 
         <!-- Device dropdown -->
         <div class="sdr-radio-section">
@@ -137,23 +154,6 @@
             <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
           </label>
         </div>
-
-      </div>
-
-      <!-- ── Group 2: Signal ── -->
-      <button
-        class="sdr-group-toggle"
-        :class="{ 'sdr-group-toggle-expanded': signalExpanded }"
-        @click="signalExpanded = !signalExpanded"
-      >
-        <div class="sdr-scanner-section-left">
-          <span class="sdr-group-toggle-icon">
-            <ChevronIcon :stroke-width="1.5" />
-          </span>
-          <span class="sdr-group-toggle-label">SIGNAL</span>
-        </div>
-      </button>
-      <div class="sdr-group-body" :class="{ 'sdr-group-body-expanded': signalExpanded }">
 
         <!-- Frequency -->
         <div class="sdr-radio-section">
@@ -269,31 +269,13 @@
 
       </div>
 
-      <!-- ── Group 3: Recordings (extracted to SdrClipsSection) ── -->
-      <SdrClipsSection
-        ref="clipsSectionRef"
-        :live-recording="liveRecording"
-        :rec-squelch-open="recSquelchOpen"
-        :live-elapsed-s="liveElapsedS"
-      />
-    </div>
+      <!-- ───────────── SCANNER TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'scanner' }">
+        <div class="sdr-tab-header">
+          <span class="sdr-tab-title">SCANNER</span>
+        </div>
 
-    <!-- ── SCANNER SECTION ── -->
-    <button
-      class="sdr-scanner-main-toggle"
-      :class="{ 'sdr-scanner-main-toggle-expanded': scannerExpanded }"
-      @click="scannerExpanded = !scannerExpanded"
-    >
-      <div class="sdr-scanner-section-left">
-        <span class="sdr-scanner-section-icon">
-          <ChevronIcon :stroke-width="1.5" />
-        </span>
-        <span class="sdr-scanner-section-label">SCANNER</span>
-      </div>
-    </button>
-    <div class="sdr-scanner-main-body" :class="{ 'sdr-scanner-main-body-expanded': scannerExpanded }">
-
-      <!-- Scan controls -->
+        <!-- Scan controls -->
       <div class="sdr-scan-controls">
         <div class="sdr-scan-state-row">
           <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
@@ -318,20 +300,10 @@
       </div>
 
       <!-- GROUPS -->
-      <button
-        class="sdr-scanner-section-toggle"
-        :class="{ 'sdr-scanner-section-toggle-expanded': groupsExpanded }"
-        @click="groupsExpanded = !groupsExpanded"
-        data-section="groups"
-      >
-        <div class="sdr-scanner-section-left">
-          <span class="sdr-scanner-section-icon">
-            <ChevronIcon :stroke-width="1.5" />
-          </span>
-          <span class="sdr-scanner-section-label">GROUPS</span>
-        </div>
-      </button>
-      <div class="sdr-scanner-section-body" :class="{ 'sdr-scanner-section-body-expanded': groupsExpanded }">
+      <div class="sdr-scanner-section-label-row">
+        <span class="sdr-scanner-section-label">GROUPS</span>
+      </div>
+      <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
         <div id="sdr-group-list">
           <div class="sdr-group-pills">
             <div class="sdr-group-pill sdr-group-pill-default">
@@ -360,27 +332,17 @@
         </div>
       </div>
 
-      <!-- FREQUENCIES -->
-      <button
-        class="sdr-scanner-section-toggle"
-        :class="{ 'sdr-scanner-section-toggle-expanded': freqsExpanded }"
-        @click="freqsExpanded = !freqsExpanded"
-        data-section="freqs"
-      >
-        <div class="sdr-scanner-section-left">
-          <span class="sdr-scanner-section-icon">
-            <ChevronIcon :stroke-width="1.5" />
-          </span>
-          <span class="sdr-scanner-section-label">FREQUENCIES</span>
-        </div>
-      </button>
-      <div class="sdr-scanner-section-body" :class="{ 'sdr-scanner-section-body-expanded': freqsExpanded }">
+      </div>
 
-        <div class="sdr-scan-btns-row" style="padding: 10px 28px 0;">
+      <!-- ───────────── MEMORY TAB (saved frequencies) ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'memory' }">
+
+      <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
+
+        <div class="sdr-scan-btns-row" style="padding: 24px 28px 0;">
           <button
             id="sdr-radio-add-freq"
             class="sdr-scan-action-btn sdr-add-freq-btn sdr-scan-action-btn--bg"
-            :disabled="controlsDisabled"
             @click="openAddFreqPanel"
           >+ ADD FREQ</button>
         </div>
@@ -414,21 +376,7 @@
         </div>
 
         <!-- Edit frequency panel -->
-        <button
-          ref="efToggleRef"
-          id="sdr-editfreq-toggle"
-          class="sdr-editfreq-toggle"
-          :class="{ expanded: efOpen }"
-          @click="onEfToggleClick"
-        >
-          <div class="sdr-editfreq-toggle-left">
-            <span class="sdr-editfreq-toggle-icon">
-              <ChevronIcon :stroke-width="1.5" />
-            </span>
-            <span class="sdr-editfreq-toggle-label">EDIT FREQUENCY</span>
-          </div>
-        </button>
-        <div id="sdr-editfreq-body" class="sdr-editfreq-body" :class="{ expanded: efOpen }">
+        <div v-if="efOpen" id="sdr-editfreq-body" class="sdr-editfreq-body expanded">
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">LABEL</label>
             <input id="sdr-ef-label" class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
@@ -480,6 +428,21 @@
         </div>
       </div>
 
+      </div>
+
+      <!-- ───────────── RECORDINGS TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'recordings' }">
+        <div class="sdr-tab-header">
+          <span class="sdr-tab-title">RECORDINGS</span>
+        </div>
+        <SdrClipsSection
+          ref="clipsSectionRef"
+          :live-recording="liveRecording"
+          :rec-squelch-open="recSquelchOpen"
+          :live-elapsed-s="liveElapsedS"
+        />
+      </div>
+
     </div>
 
   </div>
@@ -503,9 +466,9 @@
 <script setup lang="ts">
 import './SdrPanel.css'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import SdrClipsSection from './SdrClipsSection.vue'
 import type { SdrMode } from '@/stores/sdr'
 
@@ -513,7 +476,8 @@ interface SdrRadio { id: number; name: string; host: string; enabled: boolean }
 interface SdrFrequencyGroup { id: number; name: string; color: string; sort_order: number }
 interface SdrStoredFrequency {
   id: number; label: string; frequency_hz: number; mode: string;
-  scannable: boolean; group_ids: number[]
+  scannable: boolean; group_ids: number[]; group_id?: number | null;
+  squelch?: number; gain?: number; notes?: string
 }
 defineProps<{ fullPage: boolean }>()
 
@@ -523,13 +487,47 @@ const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
 
-// ── Section expand state ──────────────────────────────────────────────────────
-const radioExpanded      = ref(true)
-const deviceExpanded     = ref(true)
-const signalExpanded     = ref(true)
-const scannerExpanded    = ref(true)
-const groupsExpanded     = ref(true)
-const freqsExpanded      = ref(true)
+// ── Active tab ────────────────────────────────────────────────────────────────
+type SdrTab = 'radio' | 'scanner' | 'memory' | 'recordings'
+const SDR_TAB_KEY = 'sentinel_sdr_tab'
+const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
+  { id: 'radio',      label: 'RADIO' },
+  { id: 'scanner',    label: 'SCANNER' },
+  { id: 'memory',     label: 'MEMORY' },
+  { id: 'recordings', label: 'RECORDINGS' },
+]
+function _restoreSdrTab(): SdrTab {
+  try {
+    const v = sessionStorage.getItem(SDR_TAB_KEY) as SdrTab | null
+    if (v && sdrTabs.some(t => t.id === v)) return v
+  } catch {}
+  return 'radio'
+}
+const activeSdrTab = ref<SdrTab>(_restoreSdrTab())
+function switchSdrTab(tab: SdrTab) {
+  activeSdrTab.value = tab
+  try { sessionStorage.setItem(SDR_TAB_KEY, tab) } catch {}
+}
+
+const route = useRoute()
+const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
+const sidebarOpen = ref<boolean>(_readSidebarOpen())
+function _readSidebarOpen(): boolean {
+  try { return sessionStorage.getItem('sentinel_sidebar_open') === '1' } catch { return false }
+}
+function onSdrTabClick(tab: SdrTab) {
+  if (activeSdrTab.value === tab && sidebarOpen.value) {
+    document.dispatchEvent(new CustomEvent('sentinel:sdr-toggle-panel'))
+    return
+  }
+  switchSdrTab(tab)
+  if (!sidebarOpen.value) {
+    document.dispatchEvent(new CustomEvent('sentinel:sdr-open-panel'))
+  }
+}
+useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
+  sidebarOpen.value = !!(e as CustomEvent<{ open: boolean }>).detail?.open
+})
 
 const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
 
@@ -594,7 +592,6 @@ const groupedFreqs = computed(() => {
 
 // ── Edit frequency panel ──────────────────────────────────────────────────────
 const efOpen        = ref(false)
-const efToggleRef   = ref<HTMLElement | null>(null)
 const editingFreqId = ref<number | null>(null)
 const efLabel       = ref('')
 const efFreq        = ref('')
@@ -1117,12 +1114,6 @@ async function saveGroupModal() {
 
 // ── Frequency CRUD ────────────────────────────────────────────────────────────
 
-function onEfToggleClick() {
-  const willOpen = !efOpen.value
-  efOpen.value = willOpen
-  if (!willOpen) editingFreqId.value = null
-}
-
 function openAddFreqPanel() {
   editingFreqId.value = null
   efLabel.value = ''
@@ -1130,9 +1121,7 @@ function openAddFreqPanel() {
   efMode.value = currentMode.value || 'AM'
   efGroupIds.value = []
   efOpen.value = true
-  scannerExpanded.value = true
-  freqsExpanded.value   = true
-  nextTick(() => efToggleRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  switchSdrTab('memory')
 }
 
 function onFreqRowClick(f: SdrStoredFrequency) {
@@ -1147,9 +1136,7 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efMode.value  = f.mode
   efGroupIds.value = (f.group_ids || []).filter(id => id !== 0)
   efOpen.value = true
-  scannerExpanded.value = true
-  freqsExpanded.value   = true
-  nextTick(() => efToggleRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  switchSdrTab('memory')
 }
 
 function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }
@@ -1166,14 +1153,22 @@ async function saveFreq() {
   if (!label || !hz) return
   try {
     if (editingFreqId.value !== null) {
+      const existing = freqs.value.find(x => x.id === editingFreqId.value)
       await fetch(`/api/sdr/frequencies/${editingFreqId.value}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, group_ids: efGroupIds.value }),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label, frequency_hz: hz, mode: efMode.value,
+          group_id: efGroupIds.value[0] ?? null,
+          squelch: existing?.squelch ?? squelch.value,
+          gain: existing?.gain ?? gainDb.value,
+          scannable: existing?.scannable ?? true,
+          notes: existing?.notes ?? '',
+        }),
       })
     } else {
       await fetch('/api/sdr/frequencies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_ids: efGroupIds.value }),
+        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_id: efGroupIds.value[0] ?? null }),
       })
     }
     editingFreqId.value = null

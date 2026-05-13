@@ -133,6 +133,7 @@ function closeRadioTab() {
 
 function _persistOpen(val: boolean) {
   try { val ? sessionStorage.setItem(SS_KEY, '1') : sessionStorage.removeItem(SS_KEY) } catch {}
+  document.dispatchEvent(new CustomEvent('sentinel:sidebar-state', { detail: { open: val } }))
 }
 
 function _persistTab(tab: SidebarTab) {
@@ -152,6 +153,9 @@ function _restoreTab(): SidebarTab {
   } catch {}
   return 'search'
 }
+
+useDocumentEvent('sentinel:sdr-open-panel', () => { show() })
+useDocumentEvent('sentinel:sdr-toggle-panel', () => { toggle() })
 
 useDocumentEvent('sentinel:domain-changed', (e: Event) => {
   const { domain } = (e as CustomEvent<{ domain: string; prev: string }>).detail
@@ -417,7 +421,7 @@ body[data-domain="sdr"] #map-sidebar-rail {
 }
 
 body[data-domain="sdr"] #map-sidebar {
-    left: 0;
+    left: 44px;
 }
 
 #msb-pane-playback {
