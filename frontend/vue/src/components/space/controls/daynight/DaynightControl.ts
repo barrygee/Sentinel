@@ -47,7 +47,7 @@ export class DaynightControl extends SentinelControlBase {
         this.map.addLayer({
             id: 'daynight-fill', type: 'fill', source: 'daynight-source',
             layout: { visibility: this.dnVisible ? 'visible' : 'none' },
-            paint: { 'fill-color': 'rgba(10, 10, 60, 0.18)', 'fill-outline-color': 'rgba(10, 10, 60, 0.18)', 'fill-opacity': 1 },
+            paint: { 'fill-color': 'rgba(10, 10, 60, 0.18)', 'fill-outline-color': 'rgba(0,0,0,0)', 'fill-antialias': false, 'fill-opacity': 1 },
         })
     }
 

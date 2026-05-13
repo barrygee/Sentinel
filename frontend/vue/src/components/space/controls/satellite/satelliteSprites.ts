@@ -48,11 +48,35 @@ export function buildFootprintFeatures(
         { type: 'Feature', geometry: geom, properties: {} },
     ]
     for (const ring of rings) {
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: ring },
-            properties: {},
-        })
+        for (const seg of splitRingAtAntimeridian(ring)) {
+            features.push({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: seg },
+                properties: {},
+            })
+        }
     }
     return { type: 'FeatureCollection', features }
+}
+
+// Break a ring into sub-segments wherever it runs along the antimeridian
+// (consecutive points at lon ≈ ±180). Those segments are the seam where
+// the backend split the polygon — drawing them produces a vertical line.
+function splitRingAtAntimeridian(ring: GeoJSON.Position[]): GeoJSON.Position[][] {
+    const EPS = 1e-6
+    const onAm = (p: GeoJSON.Position) => Math.abs(Math.abs(p[0]) - 180) < EPS
+    const segments: GeoJSON.Position[][] = []
+    let current: GeoJSON.Position[] = []
+    for (let i = 0; i < ring.length; i++) {
+        const p = ring[i]
+        const prev = ring[i - 1]
+        if (prev && onAm(prev) && onAm(p)) {
+            if (current.length > 1) segments.push(current)
+            current = [p]
+        } else {
+            current.push(p)
+        }
+    }
+    if (current.length > 1) segments.push(current)
+    return segments
 }

@@ -182,7 +182,7 @@ export class SatelliteControl extends SentinelControlBase {
             // below picks up the LineString outlines we synthesise.
             filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
             layout: { visibility: fpVis },
-            paint: { 'fill-color': 'rgba(0,0,0,0.22)' },
+            paint: { 'fill-color': 'rgba(0,0,0,0.22)', 'fill-outline-color': 'rgba(0,0,0,0)', 'fill-antialias': false },
         })
         this.map.addLayer({
             id: 'iss-footprint', type: 'line', source: 'iss-footprint-source',

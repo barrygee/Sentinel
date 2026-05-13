@@ -45,6 +45,7 @@ onMounted(() => {
   })
 
   emit('map-created', map)
+  ;(window as unknown as { map?: maplibregl.Map }).map = map
 })
 
 onUnmounted(() => {

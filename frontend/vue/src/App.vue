@@ -1,7 +1,7 @@
 <template>
   <header id="nav">
     <div id="nav-logo">
-      <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL OS">
+      <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL">
     </div>
     <nav id="nav-right">
       <RouterLink
