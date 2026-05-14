@@ -214,6 +214,8 @@
               @keydown.enter="tune"
               @input="onFreqInputChange"
             >
+          </div>
+          <div class="sdr-freq-actions-row">
             <button
               class="sdr-mode-pill sdr-tune-btn"
               type="button"

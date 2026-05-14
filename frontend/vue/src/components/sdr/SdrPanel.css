@@ -424,6 +424,18 @@
     pointer-events: none;
 }
 
+.sdr-freq-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.sdr-freq-actions-row .sdr-tune-btn {
+    flex: 1;
+    height: 28px;
+}
+
 .sdr-slider-header {
     display: flex;
     align-items: center;
