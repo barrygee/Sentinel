@@ -354,12 +354,12 @@
 }
 
 .sdr-mode-pill.active {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(200, 255, 0, 0.75);
+    background: rgba(200, 255, 0, 0.12);
+    color: #c8ff00;
 }
 
 .sdr-mode-pill.active:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(200, 255, 0, 0.12);
     color: #c8ff00;
 }
 
@@ -617,7 +617,7 @@
 }
 
 .sdr-scan-controls {
-    padding: 0 20px 14px;
+    padding: 0 20px 0;
 }
 
 .sdr-settings-controls {
@@ -1134,12 +1134,12 @@
 }
 
 .sdr-editfreq-body .sdr-mode-pill.active {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(200, 255, 0, 0.75);
+    background: rgba(200, 255, 0, 0.12);
+    color: #c8ff00;
 }
 
 .sdr-editfreq-body .sdr-mode-pill.active:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(200, 255, 0, 0.12);
     color: #c8ff00;
 }
 
@@ -1181,12 +1181,12 @@
 }
 
 .sdr-editfreq-body .sdr-ef-gpill.active {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(200, 255, 0, 0.12);
     color: #c8ff00;
 }
 
 .sdr-editfreq-body .sdr-ef-gpill.active:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(200, 255, 0, 0.12);
     color: #c8ff00;
 }
 
