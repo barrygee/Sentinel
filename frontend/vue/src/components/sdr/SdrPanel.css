@@ -618,7 +618,7 @@
 
 .sdr-scan-controls {
     padding: 0 20px 0;
-    margin-top: 14px;
+    margin-top: 1px;
     transition: background 0.12s;
 }
 
@@ -632,6 +632,10 @@
 .sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
     background: transparent;
     padding-bottom: 16px;
+}
+
+.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
+    padding-bottom: 0;
 }
 
 .sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded,
@@ -652,7 +656,7 @@
 }
 
 .sdr-settings-controls .sdr-radio-section.sdr-agc-row {
-    padding-bottom: 10px;
+    padding-bottom: 20px;
 }
 
 .sdr-scan-groups-row {

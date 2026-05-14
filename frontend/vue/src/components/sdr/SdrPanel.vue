@@ -185,68 +185,6 @@
           </div>
         </div>
 
-        <!-- Scan controls -->
-        <div class="sdr-radio-section sdr-scan-controls">
-          <button
-            type="button"
-            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': scannerSectionExpanded }"
-            @click="scannerSectionExpanded = !scannerSectionExpanded"
-          >
-            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SCANNER</label>
-            <div class="sdr-scan-state-row" v-show="scanActive">
-              <span class="sdr-scan-state-label">{{ scanLocked ? 'SCANNING PAUSED' : 'SCANNING' }}</span>
-              <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive && !scanLocked, 'sdr-scan-holding': scanLocked }"></div>
-            </div>
-            <span class="sdr-frequency-manager-accordion-chevron">
-              <ChevronIcon />
-            </span>
-          </button>
-          <div v-show="scannerSectionExpanded">
-          <div class="sdr-scan-subsection-label">GROUPS</div>
-          <div class="sdr-scan-groups-row">
-            <button
-              type="button"
-              class="sdr-scan-group-chip"
-              :class="{ 'sdr-scan-group-chip-active': scanAllSelected }"
-              :disabled="controlsDisabled"
-              @click="toggleScanAll"
-            >All</button>
-            <button
-              v-for="g in groupsWithFreqs"
-              :key="g.id"
-              type="button"
-              class="sdr-scan-group-chip"
-              :class="{ 'sdr-scan-group-chip-active': !scanAllSelected && scanSelectedGroupIds.includes(g.id) }"
-              :disabled="controlsDisabled"
-              @click="toggleScanGroup(g.id)"
-            >{{ g.name }}</button>
-          </div>
-          <div class="sdr-scan-subsection-label">CONTROLS</div>
-          <div class="sdr-scan-btns-row">
-            <button
-              class="sdr-panel-btn sdr-scan-btn"
-              :class="{ 'sdr-scan-active-btn': scanActive && !scanLocked }"
-              :disabled="controlsDisabled"
-              :aria-label="scanActive && !scanLocked ? 'Stop' : 'Scan'"
-              @click="onScanPrimaryClick"
-            >
-              <svg v-if="scanActive && !scanLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
-              <template v-else>SCAN</template>
-            </button>
-            <button
-              class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
-              :disabled="controlsDisabled || !scanActive || scanLocked"
-              title="Hold scanner on current frequency"
-              aria-label="Hold"
-              @click="toggleScanLock"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
-            </button>
-          </div>
-          </div>
-        </div>
-
         <!-- Settings accordion -->
         <div class="sdr-radio-section sdr-settings-controls">
           <button
@@ -336,6 +274,68 @@
                 <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
               </label>
             </div>
+          </div>
+        </div>
+
+        <!-- Scan controls -->
+        <div class="sdr-radio-section sdr-scan-controls">
+          <button
+            type="button"
+            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': scannerSectionExpanded }"
+            @click="scannerSectionExpanded = !scannerSectionExpanded"
+          >
+            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SCANNER</label>
+            <div class="sdr-scan-state-row" v-show="scanActive">
+              <span class="sdr-scan-state-label">{{ scanLocked ? 'SCANNING PAUSED' : 'SCANNING' }}</span>
+              <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive && !scanLocked, 'sdr-scan-holding': scanLocked }"></div>
+            </div>
+            <span class="sdr-frequency-manager-accordion-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          <div v-show="scannerSectionExpanded">
+          <div class="sdr-scan-subsection-label">GROUPS</div>
+          <div class="sdr-scan-groups-row">
+            <button
+              type="button"
+              class="sdr-scan-group-chip"
+              :class="{ 'sdr-scan-group-chip-active': scanAllSelected }"
+              :disabled="controlsDisabled"
+              @click="toggleScanAll"
+            >All</button>
+            <button
+              v-for="g in groupsWithFreqs"
+              :key="g.id"
+              type="button"
+              class="sdr-scan-group-chip"
+              :class="{ 'sdr-scan-group-chip-active': !scanAllSelected && scanSelectedGroupIds.includes(g.id) }"
+              :disabled="controlsDisabled"
+              @click="toggleScanGroup(g.id)"
+            >{{ g.name }}</button>
+          </div>
+          <div class="sdr-scan-subsection-label">CONTROLS</div>
+          <div class="sdr-scan-btns-row">
+            <button
+              class="sdr-panel-btn sdr-scan-btn"
+              :class="{ 'sdr-scan-active-btn': scanActive && !scanLocked }"
+              :disabled="controlsDisabled"
+              :aria-label="scanActive && !scanLocked ? 'Stop' : 'Scan'"
+              @click="onScanPrimaryClick"
+            >
+              <svg v-if="scanActive && !scanLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
+              <template v-else>SCAN</template>
+            </button>
+            <button
+              class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
+              :disabled="controlsDisabled || !scanActive || scanLocked"
+              title="Hold scanner on current frequency"
+              aria-label="Hold"
+              @click="toggleScanLock"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
+            </button>
+          </div>
           </div>
         </div>
 
