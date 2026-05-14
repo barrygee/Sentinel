@@ -109,6 +109,7 @@
               autocomplete="off"
               spellcheck="false"
               :disabled="controlsDisabled"
+              :readonly="scanActive"
               v-model="freqInputVal"
               @keydown.enter="tune"
               @input="onFreqInputChange"
