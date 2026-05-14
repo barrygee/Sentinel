@@ -250,9 +250,24 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
 
 #map-sidebar-btn.msb-btn-active {
     opacity: 1;
-    color: var(--color-accent);
-    background: rgba(200, 255, 0, 0.08);
+    color: #fff;
+    background: var(--color-border);
     border-radius: 6px;
+}
+
+/* Align footer side-panel button with the vertical rail column */
+#footer {
+    padding-left: 0;
+}
+
+#footer-left {
+    gap: 0;
+}
+
+#footer-left > #map-sidebar-btn {
+    width: 44px;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 #map-sidebar-btn[data-tooltip]::before {
@@ -280,32 +295,6 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
 
 #map-sidebar-btn[data-tooltip]:hover::before { opacity: 1; }
 #map-sidebar-btn.msb-btn-active[data-tooltip]::before { opacity: 0 !important; }
-
-/* Align footer side-panel button with the vertical rail column */
-#footer {
-    padding-left: 0;
-}
-
-#footer-left {
-    gap: 0;
-}
-
-#footer-left > #map-sidebar-btn {
-    width: 44px;
-    height: 28px;
-    margin: 0;
-    border-radius: 0;
-    opacity: 1;
-}
-
-#footer-left > #map-sidebar-btn:hover {
-    border-radius: 0;
-    background: var(--color-border);
-}
-
-#footer-left > #map-sidebar-btn.msb-btn-active {
-    border-radius: 0;
-}
 
 #map-sidebar-rail {
     position: fixed;

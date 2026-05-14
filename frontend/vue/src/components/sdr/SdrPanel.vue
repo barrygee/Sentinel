@@ -43,7 +43,7 @@
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'radio' }">
 
         <!-- Device dropdown -->
-        <div class="sdr-radio-section">
+        <div class="sdr-radio-section sdr-radio-section--device">
           <div
             ref="deviceDropdownRef"
             class="sdr-device-dropdown"
@@ -121,7 +121,7 @@
               class="sdr-mode-pill sdr-tune-btn"
               type="button"
               title="Tune"
-              :disabled="controlsDisabled || playing"
+              :disabled="controlsDisabled || playing || scanActive"
               @click="tune"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
@@ -264,7 +264,7 @@
           <div class="sdr-scan-state-row">
             <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
             <span class="sdr-scan-state-label">{{ scanActive ? 'SCANNING' : 'IDLE' }}</span>
-            <span class="sdr-scan-state-freq">{{ scanActive && scanCurrentHz ? `→ ${(scanCurrentHz / 1e6).toFixed(4)} MHz` : '' }}</span>
+            <span class="sdr-scan-state-freq"></span>
           </div>
           <div class="sdr-scan-btns-row">
             <button
@@ -276,7 +276,7 @@
             <button
               class="sdr-panel-btn sdr-scan-btn"
               :class="{ 'sdr-btn-active': scanLocked }"
-              :disabled="controlsDisabled"
+              :disabled="controlsDisabled || !scanActive"
               title="Hold scanner on current frequency"
               @click="toggleScanLock"
             >{{ scanLocked ? 'RESUME' : 'HOLD' }}</button>
@@ -1102,6 +1102,7 @@ function startScan() {
 
 function stopScan() {
   scanActive.value = false
+  scanLocked.value = false
   scanCurrentHz.value = null
   if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
 }
