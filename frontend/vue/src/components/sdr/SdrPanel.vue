@@ -919,6 +919,8 @@ function tune() {
 function stop() {
   sdrAudio.stop()
   setPlayingState(false)
+  signalSmoothed.value = -120
+  signalLit.value = 0
 }
 
 function formatFreqInput() {
@@ -1178,18 +1180,33 @@ function onScanPrimaryClick() {
 function toggleScanAll() {
   scanAllSelected.value = true
   scanSelectedGroupIds.value = []
+  refreshScanQueue()
 }
 
 function toggleScanGroup(id: number) {
   if (scanAllSelected.value) {
     scanAllSelected.value = false
     scanSelectedGroupIds.value = [id]
+    refreshScanQueue()
     return
   }
   const idx = scanSelectedGroupIds.value.indexOf(id)
   if (idx >= 0) scanSelectedGroupIds.value.splice(idx, 1)
   else scanSelectedGroupIds.value.push(id)
   if (scanSelectedGroupIds.value.length === 0) scanAllSelected.value = true
+  refreshScanQueue()
+}
+
+function refreshScanQueue() {
+  if (!scanActive.value) return
+  const next = buildScanQueue()
+  if (next.length === 0) { stopScan(); return }
+  _scanQueue = next
+  _scanIdx = 0
+  if (!scanLocked.value) {
+    if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
+    doScanStep()
+  }
 }
 
 function buildScanQueue(): SdrStoredFrequency[] {

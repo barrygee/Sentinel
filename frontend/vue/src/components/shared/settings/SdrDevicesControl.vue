@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 
 interface SdrRadioData {
@@ -136,7 +136,22 @@ async function onSave(): Promise<void> {
   document.dispatchEvent(new CustomEvent('sdr:radios-changed'))
 }
 
-onMounted(load)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function onRadiosChanged(): void { void load() }
+
+onMounted(() => {
+  void load()
+  pollTimer = setInterval(() => {
+    if (radios.value.length > 0) void checkStatuses(radios.value.map(r => r.id))
+  }, 3000)
+  document.addEventListener('sdr:radios-changed', onRadiosChanged)
+})
+
+onBeforeUnmount(() => {
+  if (pollTimer !== null) { clearInterval(pollTimer); pollTimer = null }
+  document.removeEventListener('sdr:radios-changed', onRadiosChanged)
+})
 </script>
 
 <style scoped>
