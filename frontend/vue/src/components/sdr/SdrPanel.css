@@ -608,6 +608,47 @@
     padding: 18px 20px 14px;
 }
 
+.sdr-scan-groups-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.sdr-scan-group-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid transparent;
+    border-radius: 2px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.sdr-scan-group-chip:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    color: #c8ff00;
+}
+
+.sdr-scan-group-chip.sdr-scan-group-chip-active {
+    color: #c8ff00;
+    background: rgba(200, 255, 0, 0.12);
+    border-color: rgba(200, 255, 0, 0.5);
+}
+
+.sdr-scan-group-chip:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .sdr-scan-state-row {
     display: flex;
     align-items: center;

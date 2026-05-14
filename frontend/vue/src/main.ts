@@ -4,6 +4,7 @@ import maplibregl from 'maplibre-gl'
 import * as pmtiles from 'pmtiles'
 
 import 'maplibre-gl/dist/maplibre-gl.css'
+import './assets/fonts.css'
 import './assets/styles.css'
 
 import App from './App.vue'

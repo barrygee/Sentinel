@@ -261,6 +261,24 @@
         <!-- Scan controls -->
         <div class="sdr-radio-section sdr-scan-controls">
           <label class="sdr-field-label sdr-memory-scanner-title">SCANNER</label>
+          <div class="sdr-scan-groups-row">
+            <button
+              type="button"
+              class="sdr-scan-group-chip"
+              :class="{ 'sdr-scan-group-chip-active': scanAllSelected }"
+              :disabled="controlsDisabled"
+              @click="toggleScanAll"
+            >All</button>
+            <button
+              v-for="g in groups"
+              :key="g.id"
+              type="button"
+              class="sdr-scan-group-chip"
+              :class="{ 'sdr-scan-group-chip-active': !scanAllSelected && scanSelectedGroupIds.includes(g.id) }"
+              :disabled="controlsDisabled"
+              @click="toggleScanGroup(g.id)"
+            >{{ g.name }}</button>
+          </div>
           <div class="sdr-scan-state-row">
             <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
             <span class="sdr-scan-state-label">{{ scanActive ? 'SCANNING' : 'IDLE' }}</span>
@@ -606,6 +624,8 @@ const deviceDropdownLabel = ref('loading…')
 const scanActive    = ref(false)
 const scanLocked    = ref(false)
 const scanCurrentHz = ref<number | null>(null)
+const scanSelectedGroupIds = ref<number[]>([])
+const scanAllSelected = ref(true)
 let _scanQueue: SdrStoredFrequency[] = []
 let _scanIdx   = 0
 let _scanTimer: ReturnType<typeof setTimeout> | null = null
@@ -1091,9 +1111,38 @@ async function loadRadios() {
 
 function toggleScan() { if (scanActive.value) stopScan(); else startScan() }
 
+function toggleScanAll() {
+  scanAllSelected.value = true
+  scanSelectedGroupIds.value = []
+}
+
+function toggleScanGroup(id: number) {
+  if (scanAllSelected.value) {
+    scanAllSelected.value = false
+    scanSelectedGroupIds.value = [id]
+    return
+  }
+  const idx = scanSelectedGroupIds.value.indexOf(id)
+  if (idx >= 0) scanSelectedGroupIds.value.splice(idx, 1)
+  else scanSelectedGroupIds.value.push(id)
+  if (scanSelectedGroupIds.value.length === 0) scanAllSelected.value = true
+}
+
+function buildScanQueue(): SdrStoredFrequency[] {
+  const scannable = freqs.value.filter(f => f.scannable)
+  if (scanAllSelected.value || scanSelectedGroupIds.value.length === 0) return scannable
+  const selected = new Set(scanSelectedGroupIds.value)
+  return scannable.filter(f => {
+    const ids = new Set<number>((f.group_ids || []).filter(id => id !== 0))
+    if (f.group_id != null && f.group_id !== 0) ids.add(f.group_id)
+    for (const id of ids) if (selected.has(id)) return true
+    return false
+  })
+}
+
 function startScan() {
   if (scanLocked.value) return
-  _scanQueue = freqs.value.filter(f => f.scannable)
+  _scanQueue = buildScanQueue()
   if (_scanQueue.length === 0) return
   scanActive.value = true
   _scanIdx = 0
@@ -1134,7 +1183,7 @@ async function reloadData() {
     const [gRes, fRes] = await Promise.all([fetch('/api/sdr/groups'), fetch('/api/sdr/frequencies')])
     groups.value = await gRes.json()
     freqs.value  = await fRes.json()
-    _scanQueue = freqs.value.filter(f => f.scannable)
+    _scanQueue = buildScanQueue()
   } catch (_) {}
   await clipsSectionRef.value?.reload()
 }
