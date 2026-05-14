@@ -21,12 +21,6 @@
           <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6"/>
           <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6"/>
         </svg>
-        <!-- scanner -->
-        <svg v-else-if="tab.id === 'scanner'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linecap="round">
-          <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
-          <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.6"/>
-          <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.8"/>
-        </svg>
         <!-- memory (bookmark) -->
         <svg v-else-if="tab.id === 'memory'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M6 3h12v18l-6-4-6 4V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
@@ -264,37 +258,30 @@
           </label>
         </div>
 
-      </div>
-
-      <!-- ───────────── SCANNER TAB ───────────── -->
-      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'scanner' }">
-        <div class="sdr-tab-header">
-          <span class="sdr-tab-title">SCANNER</span>
-        </div>
-
         <!-- Scan controls -->
-      <div class="sdr-scan-controls">
-        <div class="sdr-scan-state-row">
-          <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
-          <span class="sdr-scan-state-label">{{ scanActive ? 'SCANNING' : 'IDLE' }}</span>
-          <span class="sdr-scan-state-freq">{{ scanActive && scanCurrentHz ? `→ ${(scanCurrentHz / 1e6).toFixed(4)} MHz` : '' }}</span>
+        <div class="sdr-radio-section sdr-scan-controls">
+          <label class="sdr-field-label sdr-memory-scanner-title">MEMORY SCANNER</label>
+          <div class="sdr-scan-state-row">
+            <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
+            <span class="sdr-scan-state-label">{{ scanActive ? 'SCANNING' : 'IDLE' }}</span>
+            <span class="sdr-scan-state-freq">{{ scanActive && scanCurrentHz ? `→ ${(scanCurrentHz / 1e6).toFixed(4)} MHz` : '' }}</span>
+          </div>
+          <div class="sdr-scan-btns-row">
+            <button
+              class="sdr-scan-action-btn sdr-scan-action-btn--bg"
+              :class="{ 'sdr-scan-active-btn': scanActive }"
+              :disabled="controlsDisabled"
+              @click="toggleScan"
+            >{{ scanActive ? 'STOP SCANNING' : 'START SCANNING' }}</button>
+            <button
+              class="sdr-scan-action-btn sdr-scan-action-btn--bg"
+              :class="{ 'sdr-btn-active': scanLocked }"
+              :disabled="controlsDisabled"
+              title="Hold scanner on current frequency"
+              @click="toggleScanLock"
+            >{{ scanLocked ? 'RESUME SCAN' : 'HOLD SCAN' }}</button>
+          </div>
         </div>
-        <div class="sdr-scan-btns-row">
-          <button
-            class="sdr-scan-action-btn sdr-scan-action-btn--bg"
-            :class="{ 'sdr-scan-active-btn': scanActive }"
-            :disabled="controlsDisabled"
-            @click="toggleScan"
-          >{{ scanActive ? 'STOP SCANNING' : 'START SCANNING' }}</button>
-          <button
-            class="sdr-scan-action-btn sdr-scan-action-btn--bg"
-            :class="{ 'sdr-btn-active': scanLocked }"
-            :disabled="controlsDisabled"
-            title="Hold scanner on current frequency"
-            @click="toggleScanLock"
-          >{{ scanLocked ? 'RESUME SCAN' : 'HOLD SCAN' }}</button>
-        </div>
-      </div>
 
       </div>
 
@@ -539,11 +526,10 @@ const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
-type SdrTab = 'radio' | 'scanner' | 'memory' | 'recordings'
+type SdrTab = 'radio' | 'memory' | 'recordings'
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio',      label: 'RADIO' },
-  { id: 'scanner',    label: 'SCANNER' },
   { id: 'memory',     label: 'MEMORY' },
   { id: 'recordings', label: 'RECORDINGS' },
 ]
