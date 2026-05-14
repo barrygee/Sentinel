@@ -369,7 +369,7 @@ defineExpose({
     align-items: center;
     gap: 12px;
     height: 48px;
-    padding: 0 20px 0 16px;
+    padding: 0 20px 0 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-sizing: border-box;
 }

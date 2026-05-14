@@ -407,7 +407,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     align-items: center;
     gap: 12px;
     height: 48px;
-    padding: 0 28px 0 16px;
+    padding: 0 20px 0 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-sizing: border-box;
 }
@@ -479,7 +479,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-accent);
-    padding: 18px 28px 5px 24px;
+    padding: 18px 20px 5px 24px;
     text-transform: uppercase;
     flex-shrink: 0;
 }
