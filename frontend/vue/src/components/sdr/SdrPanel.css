@@ -388,7 +388,7 @@
     background: rgba(10, 13, 20, 0.92);
     border: none;
     border-radius: 2px;
-    padding: 0 0 0 8px;
+    padding: 0;
     height: 48px;
     text-align: left;
     outline: none;
@@ -410,12 +410,23 @@
 
 .sdr-freq-unit {
     flex-shrink: 0;
-    margin-left: 8px;
+    margin-left: 2px;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 18px;
     font-weight: 300;
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.6);
+}
+
+.sdr-freq-name {
+    margin-top: 4px;
+    margin-bottom: 20px;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .sdr-tune-btn {

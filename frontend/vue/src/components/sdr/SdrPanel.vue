@@ -117,6 +117,7 @@
             >
             <span class="sdr-freq-unit">MHz</span>
           </div>
+          <div v-if="currentFreqLabel" class="sdr-freq-name">{{ currentFreqLabel }}</div>
           <div class="sdr-freq-actions-row">
             <button
               class="sdr-mode-pill sdr-tune-btn"
@@ -658,6 +659,13 @@ const freqsSectionExpanded = ref(true)
 const groupsSectionExpanded = ref(true)
 const scannerSectionExpanded = ref(true)
 const newGroupName = ref('')
+
+const currentFreqLabel = computed<string>(() => {
+  const hz = currentFreqHz.value
+  if (!hz) return ''
+  const match = freqs.value.find(f => f.frequency_hz === hz)
+  return match?.label || ''
+})
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
   const q = memorySearchQuery.value.trim().toLowerCase()
