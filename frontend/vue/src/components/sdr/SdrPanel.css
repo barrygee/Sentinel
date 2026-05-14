@@ -665,6 +665,10 @@
     box-sizing: border-box;
 }
 
+.sdr-memory-freqs-label-row {
+    padding-top: 32px;
+}
+
 .sdr-scanner-section-label-row.sdr-memory-groups-label-row,
 .sdr-scanner-section-label-row.sdr-memory-freqs-label-row {
     padding-left: 24px;
@@ -1369,7 +1373,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    padding: 14px 24px 10px;
+    padding: 4px 24px 10px;
 }
 
 .sdr-group-pill {
