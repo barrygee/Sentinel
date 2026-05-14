@@ -414,6 +414,12 @@
               </div>
             </div>
             <button
+              class="sdr-freq-row-edit"
+              aria-label="Edit frequency"
+              title="Edit"
+              @click.stop="openEditFreqPanel(f)"
+            >&#x270E;</button>
+            <button
               class="sdr-freq-row-del"
               aria-label="Delete frequency"
               title="Delete"
@@ -1385,7 +1391,6 @@ function openAddFreqPanel() {
 
 function onFreqRowClick(f: SdrStoredFrequency) {
   tuneToFreq(f)
-  openEditFreqPanel(f)
 }
 
 function openEditFreqPanel(f: SdrStoredFrequency) {
