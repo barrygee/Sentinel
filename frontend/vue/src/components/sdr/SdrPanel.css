@@ -714,7 +714,7 @@
 
 .sdr-scanner-section-label-row.sdr-memory-groups-label-row .sdr-scanner-section-label,
 .sdr-scanner-section-label-row.sdr-memory-freqs-label-row .sdr-scanner-section-label {
-    color: var(--color-accent);
+    color: #fff;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;
@@ -884,7 +884,7 @@
 
 .sdr-editfreq-field .sdr-field-label {
     margin-bottom: 10px;
-    color: #c8ff00;
+    color: #fff;
 }
 
 .sdr-editfreq-body .sdr-panel-input {
@@ -906,27 +906,27 @@
 }
 
 .sdr-editfreq-body .sdr-mode-pill {
-    height: 36px;
-    background: rgba(255, 255, 255, 0.06);
+    height: 28px;
+    background: rgba(255, 255, 255, 0.08);
     border: none;
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 10px;
-    letter-spacing: 0.08em;
+    border-radius: 0;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 9px;
+    letter-spacing: 0.14em;
 }
 
 .sdr-editfreq-body .sdr-mode-pill:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.15);
     color: #fff;
 }
 
 .sdr-editfreq-body .sdr-mode-pill.active {
-    background: rgba(255, 255, 255, 0.06);
-    color: #c8ff00;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(200, 255, 0, 0.75);
 }
 
 .sdr-editfreq-body .sdr-mode-pill.active:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.15);
     color: #c8ff00;
 }
 
@@ -952,9 +952,29 @@
 }
 
 .sdr-editfreq-body .sdr-ef-gpill {
+    height: 36px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    color: rgba(255, 255, 255, 0.85);
     font-size: 10px;
+    letter-spacing: 0.08em;
     flex: 0 0 auto;
     padding: 0 16px;
+}
+
+.sdr-editfreq-body .sdr-ef-gpill:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.sdr-editfreq-body .sdr-ef-gpill.active {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c8ff00;
+}
+
+.sdr-editfreq-body .sdr-ef-gpill.active:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c8ff00;
 }
 
 .sdr-editfreq-field .sdr-mode-pills {
