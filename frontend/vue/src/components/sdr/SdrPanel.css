@@ -806,7 +806,7 @@
     border-radius: 2px;
 }
 
-.sdr-scan-btn:hover {
+.sdr-scan-btn:not(:disabled):hover {
     color: #c8ff00;
     background: rgba(255, 255, 255, 0.15);
 }
@@ -817,8 +817,8 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
-.sdr-scan-btn.sdr-btn-active:hover,
-.sdr-scan-btn.sdr-scan-active-btn:hover {
+.sdr-scan-btn.sdr-btn-active:not(:disabled):hover,
+.sdr-scan-btn.sdr-scan-active-btn:not(:disabled):hover {
     color: #c8ff00;
     background: rgba(255, 255, 255, 0.15);
 }
