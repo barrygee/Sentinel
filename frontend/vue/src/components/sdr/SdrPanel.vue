@@ -110,6 +110,19 @@
           </Teleport>
         </div>
 
+        <!-- Signal meter -->
+        <div class="sdr-radio-section">
+          <span class="sdr-field-label">SIGNAL</span>
+          <div class="sdr-signal-segments" :class="{ 'sdr-signal-segments--muted': !signalAudible }">
+            <div
+              v-for="i in SIGNAL_SEGS"
+              :key="i"
+              class="sdr-signal-seg"
+              :class="{ 'sdr-signal-seg--on': i <= signalLit }"
+            ></div>
+          </div>
+        </div>
+
         <!-- Volume -->
         <div class="sdr-radio-section">
           <div class="sdr-slider-header">
@@ -251,19 +264,6 @@
               :disabled="controlsDisabled"
               @click="setMode(m)"
             >{{ m }}</button>
-          </div>
-        </div>
-
-        <!-- Signal meter -->
-        <div class="sdr-radio-section">
-          <span class="sdr-field-label">SIGNAL</span>
-          <div class="sdr-signal-segments">
-            <div
-              v-for="i in SIGNAL_SEGS"
-              :key="i"
-              class="sdr-signal-seg"
-              :class="{ 'sdr-signal-seg--on': i <= signalLit }"
-            ></div>
           </div>
         </div>
 
@@ -603,6 +603,10 @@ const bwMax             = ref(2048000)
 const activeFreqDisplay = ref('')
 const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
+
+const signalAudible = computed(() =>
+  playing.value && (squelch.value <= -119 || signalSmoothed.value >= squelch.value)
+)
 
 // ── Device dropdown ───────────────────────────────────────────────────────────
 const deviceDropdownRef  = ref<HTMLElement | null>(null)
