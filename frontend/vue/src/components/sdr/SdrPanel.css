@@ -217,6 +217,11 @@
     justify-content: space-between;
     height: 100%;
     padding: 0 10px;
+    gap: 8px;
+}
+
+.sdr-device-dropdown-selected .sdr-conn-dot {
+    flex-shrink: 0;
 }
 
 .sdr-device-dropdown-text {

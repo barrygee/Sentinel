@@ -47,18 +47,6 @@
 
       <!-- ───────────── RADIO TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'radio' }">
-        <div class="sdr-tab-header">
-          <div class="sdr-tab-header-left">
-            <div
-              class="sdr-conn-dot"
-              :class="connected ? 'sdr-dot-on' : 'sdr-dot-off'"
-            ></div>
-            <span class="sdr-conn-label" :class="connected ? 'sdr-conn-label-on' : 'sdr-conn-label-off'">
-              {{ connected ? 'CONNECTED' : 'DISCONNECTED' }}
-            </span>
-          </div>
-          <span class="sdr-active-freq">{{ activeFreqDisplay }}</span>
-        </div>
 
         <!-- Device dropdown -->
         <div class="sdr-radio-section">
@@ -74,6 +62,11 @@
             @keydown="onDeviceDropdownKey"
           >
             <div class="sdr-device-dropdown-selected">
+              <div
+                class="sdr-conn-dot"
+                :class="connected ? 'sdr-dot-on' : 'sdr-dot-off'"
+                :title="connected ? 'CONNECTED' : 'DISCONNECTED'"
+              ></div>
               <span
                 class="sdr-device-dropdown-text"
                 :class="{ 'sdr-device-dropdown-text--chosen': selectedRadioId !== null }"
