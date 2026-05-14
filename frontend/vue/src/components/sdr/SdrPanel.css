@@ -617,7 +617,27 @@
 }
 
 .sdr-scan-controls {
-    padding: 18px 20px 14px;
+    padding: 6px 20px 14px;
+}
+
+.sdr-settings-controls {
+    padding: 0 20px 10px;
+}
+
+.sdr-settings-controls > .sdr-scanner-header-row:not(.sdr-memory-accordion-toggle-expanded) {
+    margin-bottom: 0;
+}
+
+.sdr-settings-controls .sdr-radio-section {
+    padding: 10px 0;
+}
+
+.sdr-settings-controls .sdr-radio-section:first-of-type {
+    padding-top: 0;
+}
+
+.sdr-settings-controls .sdr-radio-section.sdr-agc-row {
+    padding-bottom: 0;
 }
 
 .sdr-scan-groups-row {
@@ -668,7 +688,7 @@
     gap: 10px;
     width: 100%;
     height: 44px;
-    margin: 0 0 16px;
+    margin: 0 0 4px;
     padding: 0 24px 0 0;
     background: none;
     border: none;
@@ -679,9 +699,12 @@
 }
 
 .sdr-scanner-header-row,
-.sdr-scanner-header-row:hover,
 .sdr-scanner-header-row.sdr-memory-accordion-toggle-expanded {
-    background: none !important;
+    background: none;
+}
+
+.sdr-scanner-header-row:hover {
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .sdr-scanner-header-row .sdr-field-label.sdr-memory-scanner-title {

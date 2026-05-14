@@ -185,79 +185,96 @@
           </div>
         </div>
 
-        <!-- Volume -->
-        <div class="sdr-radio-section">
-          <div class="sdr-slider-header">
-            <label class="sdr-field-label">VOLUME</label>
-            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ volume }}%</span>
-          </div>
-          <input
-            class="sdr-panel-slider"
-            type="range" min="0" max="200" step="1"
-            :value="volume"
-            :disabled="controlsDisabled"
-            @input="onVolumeInput"
+        <!-- Settings accordion -->
+        <div class="sdr-radio-section sdr-settings-controls">
+          <button
+            type="button"
+            class="sdr-scanner-header-row sdr-memory-accordion-toggle"
+            :class="{ 'sdr-memory-accordion-toggle-expanded': settingsSectionExpanded }"
+            @click="settingsSectionExpanded = !settingsSectionExpanded"
           >
-        </div>
+            <label class="sdr-field-label sdr-memory-scanner-title">SETTINGS</label>
+            <span class="sdr-memory-accordion-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          <div v-show="settingsSectionExpanded">
 
-        <!-- Squelch -->
-        <div class="sdr-radio-section">
-          <div class="sdr-slider-header">
-            <label class="sdr-field-label">SQUELCH</label>
-            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ squelch }} dBFS</span>
+            <!-- Volume -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">VOLUME</label>
+                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ volume }}%</span>
+              </div>
+              <input
+                class="sdr-panel-slider"
+                type="range" min="0" max="200" step="1"
+                :value="volume"
+                :disabled="controlsDisabled"
+                @input="onVolumeInput"
+              >
+            </div>
+
+            <!-- Squelch -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">SQUELCH</label>
+                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ squelch }} dBFS</span>
+              </div>
+              <input
+                class="sdr-panel-slider"
+                type="range" min="-120" max="0" step="1"
+                :value="squelch"
+                :disabled="controlsDisabled"
+                @input="onSquelchInput"
+              >
+            </div>
+
+            <!-- Bandwidth -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">BANDWIDTH</label>
+                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ formatBwHz(bwHz) }}</span>
+              </div>
+              <input
+                class="sdr-panel-slider"
+                type="range" min="1000" :max="bwMax" step="500"
+                :value="bwHz"
+                :disabled="controlsDisabled"
+                @input="onBwInput"
+              >
+            </div>
+
+            <!-- RF Gain -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">RF GAIN</label>
+                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB` }}</span>
+              </div>
+              <input
+                class="sdr-panel-slider"
+                type="range" min="-1" max="49" step="0.5"
+                :value="gainDb"
+                :disabled="controlsDisabled || gainAuto"
+                @input="onGainInput"
+              >
+            </div>
+
+            <!-- AGC -->
+            <div class="sdr-radio-section sdr-agc-row">
+              <label class="sdr-checkbox-label">
+                <input
+                  type="checkbox"
+                  class="sdr-checkbox"
+                  :checked="gainAuto"
+                  :disabled="controlsDisabled"
+                  @change="onAgcChange"
+                >
+                <span class="sdr-checkbox-custom"></span>
+                <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
+              </label>
+            </div>
           </div>
-          <input
-            class="sdr-panel-slider"
-            type="range" min="-120" max="0" step="1"
-            :value="squelch"
-            :disabled="controlsDisabled"
-            @input="onSquelchInput"
-          >
-        </div>
-
-        <!-- Bandwidth -->
-        <div class="sdr-radio-section">
-          <div class="sdr-slider-header">
-            <label class="sdr-field-label">BANDWIDTH</label>
-            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ formatBwHz(bwHz) }}</span>
-          </div>
-          <input
-            class="sdr-panel-slider"
-            type="range" min="1000" :max="bwMax" step="500"
-            :value="bwHz"
-            :disabled="controlsDisabled"
-            @input="onBwInput"
-          >
-        </div>
-
-        <!-- RF Gain -->
-        <div class="sdr-radio-section">
-          <div class="sdr-slider-header">
-            <label class="sdr-field-label">RF GAIN</label>
-            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB` }}</span>
-          </div>
-          <input
-            class="sdr-panel-slider"
-            type="range" min="-1" max="49" step="0.5"
-            :value="gainDb"
-            :disabled="controlsDisabled || gainAuto"
-            @input="onGainInput"
-          >
-        </div>
-
-        <!-- AGC -->
-        <div class="sdr-radio-section sdr-agc-row">
-          <label class="sdr-checkbox-label">
-            <input
-              type="checkbox"
-              class="sdr-checkbox"
-              :checked="gainAuto"
-              :disabled="controlsDisabled"
-              @change="onAgcChange"
-            >
-            <span class="sdr-checkbox-custom"></span>
-            <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
-          </label>
         </div>
 
         <!-- Scan controls -->
@@ -658,6 +675,7 @@ const memorySearchQuery = ref('')
 const freqsSectionExpanded = ref(true)
 const groupsSectionExpanded = ref(true)
 const scannerSectionExpanded = ref(true)
+const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
 
 const currentFreqLabel = computed<string>(() => {
