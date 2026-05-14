@@ -110,6 +110,78 @@
           </Teleport>
         </div>
 
+        <!-- Frequency -->
+        <div class="sdr-radio-section">
+          <div class="sdr-freq-row">
+            <input
+              ref="freqInputRef"
+              class="sdr-freq-input-large"
+              type="text"
+              size="9"
+              placeholder="100.0000"
+              autocomplete="off"
+              spellcheck="false"
+              :disabled="controlsDisabled"
+              v-model="freqInputVal"
+              @keydown.enter="tune"
+              @input="onFreqInputChange"
+            >
+            <span class="sdr-freq-unit">MHz</span>
+          </div>
+          <div class="sdr-freq-actions-row">
+            <button
+              class="sdr-mode-pill sdr-tune-btn"
+              type="button"
+              title="Tune"
+              :disabled="controlsDisabled || playing"
+              @click="tune"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+            </button>
+            <button
+              class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
+              type="button"
+              title="Stop audio"
+              :disabled="!playing"
+              @click="stop"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
+            </button>
+            <button
+              class="sdr-mode-pill sdr-tune-btn sdr-rec-btn"
+              :class="{ 'sdr-rec-btn--active': isRecording }"
+              type="button"
+              title="Record"
+              :disabled="!playing"
+              @click="toggleRecording"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <template v-if="isRecording">
+                  <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/>
+                </template>
+                <template v-else>
+                  <circle cx="5" cy="5" r="4" fill="currentColor"/>
+                </template>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode pills -->
+        <div class="sdr-radio-section">
+          <label class="sdr-field-label">MODE</label>
+          <div class="sdr-mode-pills">
+            <button
+              v-for="m in MODES"
+              :key="m"
+              class="sdr-mode-pill"
+              :class="{ active: currentMode === m }"
+              :disabled="controlsDisabled"
+              @click="setMode(m)"
+            >{{ m }}</button>
+          </div>
+        </div>
+
         <!-- Signal meter -->
         <div class="sdr-radio-section">
           <span class="sdr-field-label">SIGNAL</span>
@@ -196,77 +268,6 @@
             <span class="sdr-checkbox-custom"></span>
             <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
           </label>
-        </div>
-
-        <!-- Frequency -->
-        <div class="sdr-radio-section">
-          <label class="sdr-field-label">FREQUENCY MHz</label>
-          <div class="sdr-freq-row">
-            <input
-              ref="freqInputRef"
-              class="sdr-freq-input-large"
-              type="text"
-              placeholder="100.000"
-              autocomplete="off"
-              spellcheck="false"
-              :disabled="controlsDisabled"
-              v-model="freqInputVal"
-              @keydown.enter="tune"
-              @input="onFreqInputChange"
-            >
-          </div>
-          <div class="sdr-freq-actions-row">
-            <button
-              class="sdr-mode-pill sdr-tune-btn"
-              type="button"
-              title="Tune"
-              :disabled="controlsDisabled || playing"
-              @click="tune"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
-            </button>
-            <button
-              class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
-              type="button"
-              title="Stop audio"
-              :disabled="!playing"
-              @click="stop"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
-            </button>
-            <button
-              class="sdr-mode-pill sdr-tune-btn sdr-rec-btn"
-              :class="{ 'sdr-rec-btn--active': isRecording }"
-              type="button"
-              title="Record"
-              :disabled="!playing"
-              @click="toggleRecording"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <template v-if="isRecording">
-                  <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/>
-                </template>
-                <template v-else>
-                  <circle cx="5" cy="5" r="4" fill="currentColor"/>
-                </template>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Mode pills -->
-        <div class="sdr-radio-section">
-          <label class="sdr-field-label">MODE</label>
-          <div class="sdr-mode-pills">
-            <button
-              v-for="m in MODES"
-              :key="m"
-              class="sdr-mode-pill"
-              :class="{ active: currentMode === m }"
-              :disabled="controlsDisabled"
-              @click="setMode(m)"
-            >{{ m }}</button>
-          </div>
         </div>
 
       </div>
@@ -724,7 +725,7 @@ function restoreSettings() {
     const s = JSON.parse(raw)
     if (s.freqHz > 0) {
       currentFreqHz.value = s.freqHz
-      freqInputVal.value = (s.freqHz / 1e6).toFixed(3)
+      freqInputVal.value = (s.freqHz / 1e6).toFixed(4)
       activeFreqDisplay.value = (s.freqHz / 1e6).toFixed(3) + ' MHz'
     }
     if (s.mode) currentMode.value = s.mode
@@ -975,7 +976,7 @@ function applyStatus(msg: {
   const hadUserFreq = currentFreqHz.value && currentFreqHz.value !== msg.center_hz
   if (!hadUserFreq) {
     currentFreqHz.value = msg.center_hz
-    freqInputVal.value = (msg.center_hz / 1e6).toFixed(3)
+    freqInputVal.value = (msg.center_hz / 1e6).toFixed(4)
     activeFreqDisplay.value = (msg.center_hz / 1e6).toFixed(3) + ' MHz'
   }
   currentMode.value = msg.mode
@@ -1128,7 +1129,7 @@ function toggleScanLock() { scanLocked.value = !scanLocked.value }
 function tuneToFreq(f: SdrStoredFrequency) {
   currentFreqHz.value = f.frequency_hz
   currentMode.value   = f.mode
-  freqInputVal.value  = (f.frequency_hz / 1e6).toFixed(3)
+  freqInputVal.value  = (f.frequency_hz / 1e6).toFixed(4)
   activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
   sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
   sendCmd({ cmd: 'mode', mode: f.mode })
