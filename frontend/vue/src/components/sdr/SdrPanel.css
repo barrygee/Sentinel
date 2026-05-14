@@ -324,7 +324,7 @@
     cursor: pointer;
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
-    font-weight: 700;
+    font-weight: 400;
     letter-spacing: 0.14em;
     color: rgba(255, 255, 255, 0.5);
     padding: 0;
@@ -655,19 +655,62 @@
 .sdr-memory-add-freq-row {
     display: flex;
     justify-content: flex-start;
-    padding: 18px 28px 4px;
+    padding: 18px 28px;
 }
 
-.sdr-memory-groups-label-row {
-    padding: 40px 28px 14px 28px;
-    margin-top: 16px;
+.sdr-memory-groups-label-row,
+.sdr-memory-freqs-label-row {
+    padding: 10px 28px 10px 28px;
+    margin-top: 0;
+    min-height: 48px;
+    box-sizing: border-box;
 }
 
-.sdr-scanner-section-label-row.sdr-memory-groups-label-row {
+.sdr-scanner-section-label-row.sdr-memory-groups-label-row,
+.sdr-scanner-section-label-row.sdr-memory-freqs-label-row {
     padding-left: 28px;
 }
 
-.sdr-scanner-section-label-row.sdr-memory-groups-label-row .sdr-scanner-section-label {
+.sdr-memory-accordion-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    transition: background 0.12s;
+}
+
+.sdr-memory-accordion-toggle:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sdr-memory-accordion-chevron {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.25);
+    transition: transform 0.2s ease, color 0.15s;
+    transform: rotate(-90deg);
+    pointer-events: none;
+}
+
+.sdr-memory-accordion-toggle-expanded .sdr-memory-accordion-chevron {
+    transform: rotate(0deg);
+    color: var(--color-accent);
+}
+
+.sdr-scanner-section-label-row.sdr-memory-groups-label-row .sdr-scanner-section-label,
+.sdr-scanner-section-label-row.sdr-memory-freqs-label-row .sdr-scanner-section-label {
     color: var(--color-accent);
     font-size: 9px;
     font-weight: 700;
@@ -861,7 +904,12 @@
     height: 36px;
     padding: 0 16px;
     font-size: 11px;
+    font-weight: 400;
     letter-spacing: 0.08em;
+}
+
+.sdr-editfreq-body .sdr-ef-gpill {
+    font-size: 8px;
 }
 
 .sdr-editfreq-field .sdr-mode-pills {
@@ -935,6 +983,63 @@
 
 .sdr-panel-input::placeholder {
     color: rgba(255, 255, 255, 0.2);
+}
+
+.sdr-memory-search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 0 20px 0 16px;
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+}
+
+.sdr-memory-search-input.sdr-panel-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    caret-color: var(--color-accent);
+    min-width: 0;
+    padding: 0;
+    border-radius: 0;
+}
+
+.sdr-memory-search-input.sdr-panel-input:focus {
+    border-color: transparent;
+}
+
+.sdr-memory-search-input.sdr-panel-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+}
+
+.sdr-memory-search-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Barlow', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0;
+    margin-right: 6px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.sdr-memory-search-clear:hover {
+    color: var(--color-text-muted);
 }
 
 .sdr-panel-btn {
@@ -1120,7 +1225,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 16px 28px 16px 28px;
+    padding: 10px 28px 10px 28px;
     cursor: pointer;
     transition: background 0.12s;
 }
@@ -1214,7 +1319,7 @@
 .sdr-group-pill-name {
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
-    font-weight: 700;
+    font-weight: 400;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.5);

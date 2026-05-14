@@ -306,9 +306,38 @@
 
       <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
 
-        <div id="sdr-freq-list">
+        <div class="sdr-memory-search-row">
+          <input
+            class="sdr-panel-input sdr-memory-search-input"
+            type="text"
+            placeholder="NAME · FREQ · GROUP"
+            autocomplete="off"
+            spellcheck="false"
+            v-model="memorySearchQuery"
+          />
+          <button
+            v-if="memorySearchQuery.length > 0"
+            class="sdr-memory-search-clear"
+            aria-label="Clear filter"
+            @click="memorySearchQuery = ''"
+          >✕</button>
+        </div>
+
+        <button
+          type="button"
+          class="sdr-scanner-section-label-row sdr-memory-freqs-label-row sdr-memory-accordion-toggle"
+          :class="{ 'sdr-memory-accordion-toggle-expanded': freqsSectionExpanded }"
+          @click="freqsSectionExpanded = !freqsSectionExpanded"
+        >
+          <span class="sdr-scanner-section-label">FREQUENCIES</span>
+          <span class="sdr-memory-accordion-chevron">
+            <ChevronIcon />
+          </span>
+        </button>
+
+        <div v-show="freqsSectionExpanded" id="sdr-freq-list">
           <div
-            v-for="f in freqs"
+            v-for="f in filteredFreqs"
             :key="f.id"
             class="sdr-freq-row-item"
             :class="{ 'sdr-freq-editing': editingFreqId === f.id }"
@@ -343,16 +372,19 @@
             </div>
           </div>
         </div>
-        <div id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
+        <div v-show="freqsSectionExpanded" id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
           No saved frequencies.<br>Tune to a frequency and use Add Frequency to save it.
         </div>
+        <div v-if="freqsSectionExpanded && freqs.length > 0 && filteredFreqs.length === 0" class="sdr-panel-empty">
+          No matches.
+        </div>
 
-        <div class="sdr-memory-add-freq-row">
+        <div v-show="freqsSectionExpanded" class="sdr-memory-add-freq-row">
           <button
             id="sdr-radio-add-freq"
             class="sdr-add-freq-btn"
             @click="openAddFreqPanel"
-          >+ Add Frequency</button>
+          >Add Frequency</button>
         </div>
 
         <!-- Edit frequency panel -->
@@ -408,20 +440,27 @@
         </div>
 
         <!-- GROUPS -->
-        <div class="sdr-scanner-section-label-row sdr-memory-groups-label-row">
+        <button
+          type="button"
+          class="sdr-scanner-section-label-row sdr-memory-groups-label-row sdr-memory-accordion-toggle"
+          :class="{ 'sdr-memory-accordion-toggle-expanded': groupsSectionExpanded }"
+          @click="groupsSectionExpanded = !groupsSectionExpanded"
+        >
           <span class="sdr-scanner-section-label">GROUPS</span>
-        </div>
-        <div id="sdr-group-list">
+          <span class="sdr-memory-accordion-chevron">
+            <ChevronIcon />
+          </span>
+        </button>
+        <div v-show="groupsSectionExpanded" id="sdr-group-list">
           <div class="sdr-group-pills">
             <div v-for="g in groups" :key="g.id" class="sdr-group-pill">
-              <span class="sdr-group-pill-dot" :style="{ background: g.color }"></span>
               <span class="sdr-group-pill-name">{{ g.name }}</span>
               <button class="sdr-group-pill-edit" title="Rename group" @click.stop="startEditGroupRow(g)">&#x270E;</button>
               <button class="sdr-group-pill-del" title="Delete group" @click.stop="deleteGroup(g.id)">&#x2715;</button>
             </div>
           </div>
         </div>
-        <div class="sdr-panel-add-row sdr-memory-group-add-row">
+        <div v-show="groupsSectionExpanded" class="sdr-panel-add-row sdr-memory-group-add-row">
           <input
             ref="newGroupNameRef"
             class="sdr-panel-input"
@@ -479,6 +518,7 @@ import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SdrClipsSection from './SdrClipsSection.vue'
+import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import type { SdrMode } from '@/stores/sdr'
 
 interface SdrRadio { id: number; name: string; host: string; enabled: boolean }
@@ -580,7 +620,30 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 // ── Groups + frequencies ──────────────────────────────────────────────────────
 const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
+const memorySearchQuery = ref('')
+const freqsSectionExpanded = ref(true)
+const groupsSectionExpanded = ref(true)
 const newGroupName = ref('')
+
+const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
+  const q = memorySearchQuery.value.trim().toLowerCase()
+  if (!q) return freqs.value
+  return freqs.value.filter(f => {
+    const label = (f.label || '').toLowerCase()
+    const freqMhz = (f.frequency_hz / 1e6).toFixed(4)
+    const freqHz = String(f.frequency_hz)
+    const fGroups = freqGroupsFor(f)
+    const groupNames = fGroups.length
+      ? fGroups.map(g => g.name.toLowerCase())
+      : ['default']
+    return (
+      label.includes(q) ||
+      freqMhz.includes(q) ||
+      freqHz.includes(q) ||
+      groupNames.some(n => n.includes(q))
+    )
+  })
+})
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
 function freqGroupsFor(f: SdrStoredFrequency): SdrFrequencyGroup[] {
