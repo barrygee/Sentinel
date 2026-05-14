@@ -869,11 +869,6 @@ function tune() {
 function stop() {
   sdrAudio.stop()
   setPlayingState(false)
-  selectedRadioId.value = null
-  deviceDropdownLabel.value = '— select radio —'
-  controlsDisabled.value = true
-  closeControlSocket()
-  sessionStorage.removeItem('sdrLastRadioId')
 }
 
 function onFreqInputChange() {
