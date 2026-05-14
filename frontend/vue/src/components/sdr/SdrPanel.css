@@ -618,11 +618,25 @@
 
 .sdr-scan-controls {
     padding: 0 20px 0;
+    margin-top: 14px;
+    transition: background 0.12s;
 }
 
 .sdr-settings-controls {
     padding: 0 20px 0;
-    margin-top: 10px;
+    margin-top: 1px;
+    transition: background 0.12s;
+}
+
+.sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded),
+.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
+    background: transparent;
+    padding-bottom: 16px;
+}
+
+.sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded,
+.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded {
+    background: transparent;
 }
 
 .sdr-settings-controls > .sdr-scanner-header-row:not(.sdr-frequency-manager-accordion-toggle-expanded) {
@@ -699,13 +713,12 @@
     transition: background 0.12s;
 }
 
-.sdr-scanner-header-row,
-.sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded {
+.sdr-scanner-header-row {
     background: none;
 }
 
 .sdr-scanner-header-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .sdr-scanner-header-row .sdr-field-label.sdr-frequency-manager-scanner-title {
@@ -2458,7 +2471,7 @@
     height: 24px;
     display: flex;
     align-items: center;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: none;
     border-radius: 3px;
     pointer-events: none;
     opacity: 0;
