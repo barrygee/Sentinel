@@ -359,7 +359,6 @@
         </button>
 
         <div v-show="freqsSectionExpanded && groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
-          <div class="sdr-frequency-manager-groups-filter-title">Filter by group</div>
           <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
             <button
               type="button"

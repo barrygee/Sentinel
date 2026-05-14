@@ -1650,8 +1650,8 @@
     background: rgba(255, 255, 255, 0.06);
     border: none;
     border-radius: 2px;
-    height: 36px;
-    padding: 0 8px 0 16px;
+    height: 28px;
+    padding: 0 6px 0 14px;
     cursor: default;
     transition: background 0.15s;
 }
