@@ -260,7 +260,7 @@
 
         <!-- Scan controls -->
         <div class="sdr-radio-section sdr-scan-controls">
-          <label class="sdr-field-label sdr-memory-scanner-title">MEMORY SCANNER</label>
+          <label class="sdr-field-label sdr-memory-scanner-title">SCANNER</label>
           <div class="sdr-scan-state-row">
             <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
             <span class="sdr-scan-state-label">{{ scanActive ? 'SCANNING' : 'IDLE' }}</span>
@@ -268,18 +268,18 @@
           </div>
           <div class="sdr-scan-btns-row">
             <button
-              class="sdr-scan-action-btn sdr-scan-action-btn--bg"
+              class="sdr-panel-btn sdr-scan-btn"
               :class="{ 'sdr-scan-active-btn': scanActive }"
               :disabled="controlsDisabled"
               @click="toggleScan"
-            >{{ scanActive ? 'STOP SCANNING' : 'START SCANNING' }}</button>
+            >{{ scanActive ? 'STOP' : 'SCAN' }}</button>
             <button
-              class="sdr-scan-action-btn sdr-scan-action-btn--bg"
+              class="sdr-panel-btn sdr-scan-btn"
               :class="{ 'sdr-btn-active': scanLocked }"
               :disabled="controlsDisabled"
               title="Hold scanner on current frequency"
               @click="toggleScanLock"
-            >{{ scanLocked ? 'RESUME SCAN' : 'HOLD SCAN' }}</button>
+            >{{ scanLocked ? 'RESUME' : 'HOLD' }}</button>
           </div>
         </div>
 
