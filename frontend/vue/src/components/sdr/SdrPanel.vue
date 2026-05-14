@@ -1185,9 +1185,14 @@ async function submitGroupRow() {
     const name = newGroupName.value.trim()
     if (!name) return
     try {
+      const existing = groups.value.find(g => g.id === editingGroupId.value)
       await fetch(`/api/sdr/groups/${editingGroupId.value}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          color: existing?.color ?? '#c8ff00',
+          sort_order: existing?.sort_order ?? 0,
+        }),
       })
       editingGroupId.value = null
       newGroupName.value = ''
@@ -1215,9 +1220,14 @@ async function saveGroupModal() {
   const name = gmodName.value.trim()
   if (!name || editingGroupId.value === null) return
   try {
+    const existing = groups.value.find(g => g.id === editingGroupId.value)
     await fetch(`/api/sdr/groups/${editingGroupId.value}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        color: existing?.color ?? '#c8ff00',
+        sort_order: existing?.sort_order ?? 0,
+      }),
     })
     closeGroupModal()
     await reloadData()
