@@ -618,15 +618,15 @@
 .sdr-scan-group-chip {
     display: inline-flex;
     align-items: center;
-    height: 22px;
-    padding: 0 10px;
+    height: 28px;
+    padding: 0 14px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid transparent;
     border-radius: 2px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    font-weight: 400;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
@@ -641,7 +641,7 @@
 .sdr-scan-group-chip.sdr-scan-group-chip-active {
     color: #c8ff00;
     background: rgba(200, 255, 0, 0.12);
-    border-color: rgba(200, 255, 0, 0.5);
+    border-color: transparent;
 }
 
 .sdr-scan-group-chip:disabled {
