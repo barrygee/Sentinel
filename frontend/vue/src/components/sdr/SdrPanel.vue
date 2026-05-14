@@ -375,6 +375,26 @@
           </span>
         </button>
 
+        <div v-show="freqsSectionExpanded && groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
+          <div class="sdr-frequency-manager-groups-filter-title">Filter by group</div>
+          <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
+            <button
+              type="button"
+              class="sdr-scan-group-chip"
+              :class="{ 'sdr-scan-group-chip-active': freqFilterAllSelected }"
+              @click="toggleFreqFilterAll"
+            >All</button>
+            <button
+              v-for="g in groupsWithFreqs"
+              :key="g.id"
+              type="button"
+              class="sdr-scan-group-chip"
+              :class="{ 'sdr-scan-group-chip-active': !freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id) }"
+              @click="toggleFreqFilterGroup(g.id)"
+            >{{ g.name }}</button>
+          </div>
+        </div>
+
         <div v-show="freqsSectionExpanded" id="sdr-freq-list">
           <div
             v-for="f in filteredFreqs"
@@ -558,7 +578,7 @@
 
 <script setup lang="ts">
 import './SdrPanel.css'
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -672,6 +692,8 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const frequencyManagerSearchQuery = ref('')
+const freqFilterSelectedGroupIds = ref<number[]>([])
+const freqFilterAllSelected = ref(true)
 const freqsSectionExpanded = ref(true)
 const groupsSectionExpanded = ref(true)
 const scannerSectionExpanded = ref(true)
@@ -686,6 +708,10 @@ const currentFreqLabel = computed<string>(() => {
 })
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
+  if (!freqFilterAllSelected.value && freqFilterSelectedGroupIds.value.length > 0) {
+    const selected = new Set(freqFilterSelectedGroupIds.value)
+    return freqs.value.filter(f => freqGroupsFor(f).some(g => selected.has(g.id)))
+  }
   const q = frequencyManagerSearchQuery.value.trim().toLowerCase()
   if (!q) return freqs.value
   return freqs.value.filter(f => {
@@ -703,6 +729,33 @@ const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
       groupNames.some(n => n.includes(q))
     )
   })
+})
+
+function toggleFreqFilterAll() {
+  freqFilterAllSelected.value = true
+  freqFilterSelectedGroupIds.value = []
+}
+
+function toggleFreqFilterGroup(id: number) {
+  if (frequencyManagerSearchQuery.value.length > 0) {
+    frequencyManagerSearchQuery.value = ''
+  }
+  if (freqFilterAllSelected.value) {
+    freqFilterAllSelected.value = false
+    freqFilterSelectedGroupIds.value = [id]
+    return
+  }
+  const idx = freqFilterSelectedGroupIds.value.indexOf(id)
+  if (idx >= 0) freqFilterSelectedGroupIds.value.splice(idx, 1)
+  else freqFilterSelectedGroupIds.value.push(id)
+  if (freqFilterSelectedGroupIds.value.length === 0) freqFilterAllSelected.value = true
+}
+
+watch(frequencyManagerSearchQuery, (val) => {
+  if (val.length > 0 && !freqFilterAllSelected.value) {
+    freqFilterAllSelected.value = true
+    freqFilterSelectedGroupIds.value = []
+  }
 })
 const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => {
   const idsWithFreqs = new Set<number>()

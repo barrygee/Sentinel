@@ -666,6 +666,23 @@
     margin-bottom: 12px;
 }
 
+.sdr-frequency-manager-groups-filter {
+    padding: 12px 24px 16px;
+}
+
+.sdr-frequency-manager-groups-filter-title {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.sdr-frequency-manager-groups-filter-row {
+    margin-bottom: 4px;
+}
+
 .sdr-scan-group-chip {
     display: inline-flex;
     align-items: center;
