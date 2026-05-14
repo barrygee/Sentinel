@@ -373,17 +373,16 @@
     letter-spacing: 0.04em;
     color: #ffffff;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: none;
     border-radius: 2px;
     padding: 0 8px;
     height: 28px;
     outline: none;
     box-sizing: border-box;
-    transition: border-color 0.15s;
 }
 
 .sdr-freq-input-large:focus {
-    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .sdr-freq-input-large::placeholder {
@@ -848,7 +847,7 @@
 .sdr-editfreq-body .sdr-panel-input {
     height: 36px;
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: none;
     color: #fff;
     font-size: 11px;
     letter-spacing: 0.08em;
@@ -856,7 +855,7 @@
 }
 
 .sdr-editfreq-body .sdr-panel-input:focus {
-    border-color: rgba(200, 255, 0, 0.55);
+    border: none;
 }
 
 .sdr-editfreq-body .sdr-panel-input::placeholder {
@@ -869,7 +868,7 @@
     border: none;
     border-radius: 2px;
     color: rgba(255, 255, 255, 0.85);
-    font-size: 11px;
+    font-size: 8px;
     letter-spacing: 0.08em;
 }
 

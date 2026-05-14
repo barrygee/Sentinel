@@ -327,7 +327,7 @@
           type="button"
           class="sdr-scanner-section-label-row sdr-memory-freqs-label-row sdr-memory-accordion-toggle"
           :class="{ 'sdr-memory-accordion-toggle-expanded': freqsSectionExpanded }"
-          @click="freqsSectionExpanded = !freqsSectionExpanded"
+          @click="toggleFreqsSection"
         >
           <span class="sdr-scanner-section-label">FREQUENCIES</span>
           <span class="sdr-memory-accordion-chevron">
@@ -379,7 +379,7 @@
           No matches.
         </div>
 
-        <div v-show="freqsSectionExpanded" class="sdr-memory-add-freq-row">
+        <div v-show="freqsSectionExpanded && !efOpen" class="sdr-memory-add-freq-row">
           <button
             id="sdr-radio-add-freq"
             class="sdr-add-freq-btn"
@@ -431,7 +431,11 @@
             </div>
           </div>
           <div class="sdr-editfreq-actions">
-            <button id="sdr-ef-delete" v-if="editingFreqId !== null" class="sdr-panel-btn sdr-editfreq-del-btn" @click="deleteFreq">DELETE</button>
+            <button id="sdr-ef-delete" v-if="editingFreqId !== null" class="sdr-panel-btn sdr-editfreq-del-btn" title="Delete" aria-label="Delete" @click="deleteFreq">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
             <div class="sdr-editfreq-actions-right">
               <button id="sdr-ef-cancel" class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
               <button id="sdr-ef-save" class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveFreq">SAVE</button>
@@ -1247,6 +1251,14 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
 }
 
 function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }
+
+function toggleFreqsSection() {
+  freqsSectionExpanded.value = !freqsSectionExpanded.value
+  if (!freqsSectionExpanded.value && efOpen.value) {
+    efOpen.value = false
+    editingFreqId.value = null
+  }
+}
 
 function toggleEfGroup(id: number) {
   const idx = efGroupIds.value.indexOf(id)
