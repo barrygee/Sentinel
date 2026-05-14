@@ -985,14 +985,21 @@
     margin-left: auto;
 }
 
-.sdr-editfreq-del-btn {
+.sdr-editfreq-del-x {
     background: none;
-    color: #ff5050;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.35);
+    font-family: var(--font-primary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1;
+    transition: color 0.2s;
 }
 
-.sdr-editfreq-del-btn:hover {
-    background: rgba(255, 80, 80, 0.1);
-    color: #ff5050;
+.sdr-editfreq-del-x:hover {
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .sdr-editfreq-save-btn,
@@ -1340,10 +1347,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     border: none;
-    height: 28px;
-    padding: 0 4px 0 10px;
+    border-radius: 2px;
+    height: 36px;
+    padding: 0 8px 0 16px;
     cursor: default;
     transition: background 0.15s;
 }
@@ -1361,11 +1369,11 @@
 
 .sdr-group-pill-name {
     font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 400;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.85);
     white-space: nowrap;
 }
 
