@@ -672,7 +672,7 @@
 
 .sdr-frequency-manager-groups-filter-title {
     color: #fff;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -957,7 +957,7 @@
 
 .sdr-scanner-section-label-row.sdr-frequency-manager-groups-label-row .sdr-scanner-section-label,
 .sdr-scanner-section-label-row.sdr-frequency-manager-freqs-label-row .sdr-scanner-section-label {
-    color: var(--color-accent);
+    color: #fff;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;

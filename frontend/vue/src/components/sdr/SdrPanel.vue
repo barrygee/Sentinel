@@ -518,7 +518,7 @@
         </button>
         <div v-show="groupsSectionExpanded" id="sdr-group-list">
           <div class="sdr-group-pills">
-            <div v-for="g in groups" :key="g.id" class="sdr-group-pill">
+            <div v-for="g in sortedGroups" :key="g.id" class="sdr-group-pill">
               <span class="sdr-group-pill-name">{{ g.name }}</span>
               <button class="sdr-group-pill-edit" title="Rename group" @click.stop="startEditGroupRow(g)">&#x270E;</button>
               <button class="sdr-group-pill-del" title="Delete group" @click.stop="deleteGroup(g.id)">&#x2715;</button>
@@ -763,8 +763,15 @@ const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => {
     ;(f.group_ids || []).forEach(id => { if (id !== 0) idsWithFreqs.add(id) })
     if (f.group_id != null && f.group_id !== 0) idsWithFreqs.add(f.group_id)
   })
-  return groups.value.filter(g => idsWithFreqs.has(g.id))
+  return groups.value
+    .filter(g => idsWithFreqs.has(g.id))
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 })
+
+const sortedGroups = computed<SdrFrequencyGroup[]>(() =>
+  groups.value.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+)
 
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
