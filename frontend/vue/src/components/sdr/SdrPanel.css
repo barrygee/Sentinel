@@ -625,7 +625,7 @@
     margin-top: 10px;
 }
 
-.sdr-settings-controls > .sdr-scanner-header-row:not(.sdr-memory-accordion-toggle-expanded) {
+.sdr-settings-controls > .sdr-scanner-header-row:not(.sdr-frequency-manager-accordion-toggle-expanded) {
     margin-bottom: 0;
 }
 
@@ -682,7 +682,7 @@
     cursor: not-allowed;
 }
 
-.sdr-scanner-header-row.sdr-memory-accordion-toggle {
+.sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
     position: relative;
     display: flex;
     align-items: center;
@@ -700,7 +700,7 @@
 }
 
 .sdr-scanner-header-row,
-.sdr-scanner-header-row.sdr-memory-accordion-toggle-expanded {
+.sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded {
     background: none;
 }
 
@@ -708,7 +708,7 @@
     background: rgba(255, 255, 255, 0.03);
 }
 
-.sdr-scanner-header-row .sdr-field-label.sdr-memory-scanner-title {
+.sdr-scanner-header-row .sdr-field-label.sdr-frequency-manager-scanner-title {
     margin-bottom: 0;
     font-size: 9px;
     font-weight: 700;
@@ -721,7 +721,7 @@
     margin-left: auto;
 }
 
-.sdr-scanner-header-row .sdr-memory-accordion-chevron {
+.sdr-scanner-header-row .sdr-frequency-manager-accordion-chevron {
     position: absolute;
     right: 20px;
     top: 0;
@@ -860,30 +860,30 @@
     background: rgba(255, 255, 255, 0.12);
 }
 
-.sdr-memory-add-freq-row {
+.sdr-frequency-manager-add-freq-row {
     display: flex;
     justify-content: flex-start;
     padding: 18px 24px;
 }
 
-.sdr-memory-groups-label-row,
-.sdr-memory-freqs-label-row {
+.sdr-frequency-manager-groups-label-row,
+.sdr-frequency-manager-freqs-label-row {
     padding: 18px 20px 10px 24px;
     margin-top: 0;
     min-height: 48px;
     box-sizing: border-box;
 }
 
-.sdr-memory-freqs-label-row {
+.sdr-frequency-manager-freqs-label-row {
     padding-top: 32px;
 }
 
-.sdr-scanner-section-label-row.sdr-memory-groups-label-row,
-.sdr-scanner-section-label-row.sdr-memory-freqs-label-row {
+.sdr-scanner-section-label-row.sdr-frequency-manager-groups-label-row,
+.sdr-scanner-section-label-row.sdr-frequency-manager-freqs-label-row {
     padding-left: 24px;
 }
 
-.sdr-memory-accordion-toggle {
+.sdr-frequency-manager-accordion-toggle {
     position: relative;
     display: flex;
     align-items: center;
@@ -897,11 +897,11 @@
     transition: background 0.12s;
 }
 
-.sdr-memory-accordion-toggle:hover {
+.sdr-frequency-manager-accordion-toggle:hover {
     background: rgba(255, 255, 255, 0.03);
 }
 
-.sdr-memory-accordion-chevron {
+.sdr-frequency-manager-accordion-chevron {
     position: absolute;
     right: 0;
     top: 0;
@@ -916,31 +916,31 @@
     pointer-events: none;
 }
 
-.sdr-memory-accordion-toggle-expanded .sdr-memory-accordion-chevron {
+.sdr-frequency-manager-accordion-toggle-expanded .sdr-frequency-manager-accordion-chevron {
     transform: rotate(0deg);
     color: var(--color-accent);
 }
 
-.sdr-scanner-section-label-row.sdr-memory-groups-label-row .sdr-scanner-section-label,
-.sdr-scanner-section-label-row.sdr-memory-freqs-label-row .sdr-scanner-section-label {
+.sdr-scanner-section-label-row.sdr-frequency-manager-groups-label-row .sdr-scanner-section-label,
+.sdr-scanner-section-label-row.sdr-frequency-manager-freqs-label-row .sdr-scanner-section-label {
     color: var(--color-accent);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;
 }
 
-.sdr-field-label.sdr-memory-scanner-title {
+.sdr-field-label.sdr-frequency-manager-scanner-title {
     margin-bottom: 16px;
 }
 
-.sdr-memory-group-add-row {
+.sdr-frequency-manager-group-add-row {
     padding: 10px 20px 24px 24px;
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
-.sdr-memory-group-add-row .sdr-panel-input {
+.sdr-frequency-manager-group-add-row .sdr-panel-input {
     flex: 1;
     height: 36px;
     background: rgba(255, 255, 255, 0.06);
@@ -953,15 +953,15 @@
     padding: 0 12px;
 }
 
-.sdr-memory-group-add-row .sdr-panel-input:focus {
+.sdr-frequency-manager-group-add-row .sdr-panel-input:focus {
     border: none;
 }
 
-.sdr-memory-group-add-row .sdr-panel-input::placeholder {
+.sdr-frequency-manager-group-add-row .sdr-panel-input::placeholder {
     color: rgba(255, 255, 255, 0.4);
 }
 
-.sdr-memory-group-add-row .sdr-panel-btn {
+.sdr-frequency-manager-group-add-row .sdr-panel-btn {
     height: 36px;
     padding: 0 16px;
     font-size: 10px;
@@ -971,7 +971,7 @@
     color: #fff;
 }
 
-.sdr-memory-group-add-row .sdr-panel-btn:hover {
+.sdr-frequency-manager-group-add-row .sdr-panel-btn:hover {
     background: rgba(255, 255, 255, 0.14);
     color: #fff;
 }
@@ -1272,7 +1272,7 @@
     color: rgba(255, 255, 255, 0.2);
 }
 
-.sdr-memory-search-row {
+.sdr-frequency-manager-search-row {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1283,7 +1283,7 @@
     box-sizing: border-box;
 }
 
-.sdr-memory-search-input.sdr-panel-input {
+.sdr-frequency-manager-search-input.sdr-panel-input {
     flex: 1;
     background: none;
     border: none;
@@ -1300,17 +1300,17 @@
     border-radius: 0;
 }
 
-.sdr-memory-search-input.sdr-panel-input:focus {
+.sdr-frequency-manager-search-input.sdr-panel-input:focus {
     border-color: transparent;
 }
 
-.sdr-memory-search-input.sdr-panel-input::placeholder {
+.sdr-frequency-manager-search-input.sdr-panel-input::placeholder {
     color: rgba(255, 255, 255, 0.2);
     font-size: 11px;
     letter-spacing: 0.14em;
 }
 
-.sdr-memory-search-clear {
+.sdr-frequency-manager-search-clear {
     background: none;
     border: none;
     cursor: pointer;
@@ -1325,7 +1325,7 @@
     line-height: 1;
 }
 
-.sdr-memory-search-clear:hover {
+.sdr-frequency-manager-search-clear:hover {
     color: var(--color-text-muted);
 }
 

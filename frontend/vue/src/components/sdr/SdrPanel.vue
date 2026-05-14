@@ -21,8 +21,8 @@
           <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6"/>
           <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6"/>
         </svg>
-        <!-- memory (bookmark) -->
-        <svg v-else-if="tab.id === 'memory'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- frequency manager (bookmark) -->
+        <svg v-else-if="tab.id === 'frequency-manager'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M6 3h12v18l-6-4-6 4V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
         </svg>
         <!-- recordings -->
@@ -189,16 +189,16 @@
         <div class="sdr-radio-section sdr-scan-controls">
           <button
             type="button"
-            class="sdr-scanner-header-row sdr-memory-accordion-toggle"
-            :class="{ 'sdr-memory-accordion-toggle-expanded': scannerSectionExpanded }"
+            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': scannerSectionExpanded }"
             @click="scannerSectionExpanded = !scannerSectionExpanded"
           >
-            <label class="sdr-field-label sdr-memory-scanner-title">SCANNER</label>
+            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SCANNER</label>
             <div class="sdr-scan-state-row" v-show="scanActive">
               <span class="sdr-scan-state-label">{{ scanLocked ? 'SCANNING PAUSED' : 'SCANNING' }}</span>
               <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive && !scanLocked, 'sdr-scan-holding': scanLocked }"></div>
             </div>
-            <span class="sdr-memory-accordion-chevron">
+            <span class="sdr-frequency-manager-accordion-chevron">
               <ChevronIcon />
             </span>
           </button>
@@ -251,12 +251,12 @@
         <div class="sdr-radio-section sdr-settings-controls">
           <button
             type="button"
-            class="sdr-scanner-header-row sdr-memory-accordion-toggle"
-            :class="{ 'sdr-memory-accordion-toggle-expanded': settingsSectionExpanded }"
+            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': settingsSectionExpanded }"
             @click="settingsSectionExpanded = !settingsSectionExpanded"
           >
-            <label class="sdr-field-label sdr-memory-scanner-title">SETTINGS</label>
-            <span class="sdr-memory-accordion-chevron">
+            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SETTINGS</label>
+            <span class="sdr-frequency-manager-accordion-chevron">
               <ChevronIcon />
             </span>
           </button>
@@ -341,36 +341,36 @@
 
       </div>
 
-      <!-- ───────────── MEMORY TAB (saved frequencies) ───────────── -->
-      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'memory' }">
+      <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'frequency-manager' }">
 
       <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
 
-        <div class="sdr-memory-search-row">
+        <div class="sdr-frequency-manager-search-row">
           <input
-            class="sdr-panel-input sdr-memory-search-input"
+            class="sdr-panel-input sdr-frequency-manager-search-input"
             type="text"
             placeholder="NAME · FREQ · GROUP"
             autocomplete="off"
             spellcheck="false"
-            v-model="memorySearchQuery"
+            v-model="frequencyManagerSearchQuery"
           />
           <button
-            v-if="memorySearchQuery.length > 0"
-            class="sdr-memory-search-clear"
+            v-if="frequencyManagerSearchQuery.length > 0"
+            class="sdr-frequency-manager-search-clear"
             aria-label="Clear filter"
-            @click="memorySearchQuery = ''"
+            @click="frequencyManagerSearchQuery = ''"
           >✕</button>
         </div>
 
         <button
           type="button"
-          class="sdr-scanner-section-label-row sdr-memory-freqs-label-row sdr-memory-accordion-toggle"
-          :class="{ 'sdr-memory-accordion-toggle-expanded': freqsSectionExpanded }"
+          class="sdr-scanner-section-label-row sdr-frequency-manager-freqs-label-row sdr-frequency-manager-accordion-toggle"
+          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': freqsSectionExpanded }"
           @click="toggleFreqsSection"
         >
           <span class="sdr-scanner-section-label">FREQUENCIES</span>
-          <span class="sdr-memory-accordion-chevron">
+          <span class="sdr-frequency-manager-accordion-chevron">
             <ChevronIcon />
           </span>
         </button>
@@ -425,7 +425,7 @@
           No matches.
         </div>
 
-        <div v-show="freqsSectionExpanded && !efOpen" class="sdr-memory-add-freq-row">
+        <div v-show="freqsSectionExpanded && !efOpen" class="sdr-frequency-manager-add-freq-row">
           <button
             id="sdr-radio-add-freq"
             class="sdr-add-freq-btn"
@@ -487,12 +487,12 @@
         <!-- GROUPS -->
         <button
           type="button"
-          class="sdr-scanner-section-label-row sdr-memory-groups-label-row sdr-memory-accordion-toggle"
-          :class="{ 'sdr-memory-accordion-toggle-expanded': groupsSectionExpanded }"
+          class="sdr-scanner-section-label-row sdr-frequency-manager-groups-label-row sdr-frequency-manager-accordion-toggle"
+          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': groupsSectionExpanded }"
           @click="groupsSectionExpanded = !groupsSectionExpanded"
         >
           <span class="sdr-scanner-section-label">GROUPS</span>
-          <span class="sdr-memory-accordion-chevron">
+          <span class="sdr-frequency-manager-accordion-chevron">
             <ChevronIcon />
           </span>
         </button>
@@ -505,7 +505,7 @@
             </div>
           </div>
         </div>
-        <div v-show="groupsSectionExpanded" class="sdr-panel-add-row sdr-memory-group-add-row">
+        <div v-show="groupsSectionExpanded" class="sdr-panel-add-row sdr-frequency-manager-group-add-row">
           <input
             ref="newGroupNameRef"
             class="sdr-panel-input"
@@ -582,11 +582,11 @@ const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
-type SdrTab = 'radio' | 'memory' | 'recordings'
+type SdrTab = 'radio' | 'frequency-manager' | 'recordings'
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio',      label: 'RADIO' },
-  { id: 'memory',     label: 'MEMORY' },
+  { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
   { id: 'recordings', label: 'RECORDINGS' },
 ]
 function _restoreSdrTab(): SdrTab {
@@ -671,7 +671,7 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 // ── Groups + frequencies ──────────────────────────────────────────────────────
 const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
-const memorySearchQuery = ref('')
+const frequencyManagerSearchQuery = ref('')
 const freqsSectionExpanded = ref(true)
 const groupsSectionExpanded = ref(true)
 const scannerSectionExpanded = ref(true)
@@ -686,7 +686,7 @@ const currentFreqLabel = computed<string>(() => {
 })
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
-  const q = memorySearchQuery.value.trim().toLowerCase()
+  const q = frequencyManagerSearchQuery.value.trim().toLowerCase()
   if (!q) return freqs.value
   return freqs.value.filter(f => {
     const label = (f.label || '').toLowerCase()
@@ -1346,7 +1346,7 @@ function openAddFreqPanel() {
   efMode.value = currentMode.value || 'AM'
   efGroupIds.value = []
   efOpen.value = true
-  switchSdrTab('memory')
+  switchSdrTab('frequency-manager')
 }
 
 function onFreqRowClick(f: SdrStoredFrequency) {
@@ -1361,7 +1361,7 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efMode.value  = f.mode
   efGroupIds.value = (f.group_ids || []).filter(id => id !== 0)
   efOpen.value = true
-  switchSdrTab('memory')
+  switchSdrTab('frequency-manager')
 }
 
 function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }
