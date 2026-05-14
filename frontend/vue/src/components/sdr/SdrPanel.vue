@@ -117,7 +117,7 @@
               ref="freqInputRef"
               class="sdr-freq-input-large"
               type="text"
-              size="9"
+              size="8"
               placeholder="100.0000"
               autocomplete="off"
               spellcheck="false"
@@ -226,7 +226,7 @@
         </div>
 
         <!-- Bandwidth -->
-        <div class="sdr-radio-section sdr-radio-section--tight">
+        <div class="sdr-radio-section">
           <div class="sdr-slider-header">
             <label class="sdr-field-label">BANDWIDTH</label>
             <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ formatBwHz(bwHz) }}</span>
@@ -241,7 +241,7 @@
         </div>
 
         <!-- RF Gain -->
-        <div class="sdr-radio-section sdr-radio-section--tight">
+        <div class="sdr-radio-section">
           <div class="sdr-slider-header">
             <label class="sdr-field-label">RF GAIN</label>
             <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB` }}</span>
@@ -606,9 +606,10 @@ const bwMax             = ref(2048000)
 const activeFreqDisplay = ref('')
 const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
+const worklestSquelchOpen = ref(true)
 
 const signalAudible = computed(() =>
-  playing.value && (squelch.value <= -119 || signalSmoothed.value >= squelch.value)
+  playing.value && (squelch.value <= -119 || worklestSquelchOpen.value)
 )
 
 // ── Device dropdown ───────────────────────────────────────────────────────────
@@ -942,6 +943,7 @@ function setMode(m: string) {
 // ── Signal meter ──────────────────────────────────────────────────────────────
 
 function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
+  if (squelchOpen !== undefined) worklestSquelchOpen.value = squelchOpen
   if (squelchOpen === false) {
     signalSmoothed.value = -120
     signalLit.value = 0
