@@ -714,7 +714,7 @@
 
 .sdr-scanner-section-label-row.sdr-memory-groups-label-row .sdr-scanner-section-label,
 .sdr-scanner-section-label-row.sdr-memory-freqs-label-row .sdr-scanner-section-label {
-    color: #fff;
+    color: var(--color-accent);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;
@@ -884,7 +884,7 @@
 
 .sdr-editfreq-field .sdr-field-label {
     margin-bottom: 10px;
-    color: #fff;
+    color: #c8ff00;
 }
 
 .sdr-editfreq-body .sdr-panel-input {
