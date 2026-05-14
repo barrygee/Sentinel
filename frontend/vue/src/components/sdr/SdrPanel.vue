@@ -118,6 +118,7 @@
               v-model="freqInputVal"
               @keydown.enter="tune"
               @input="onFreqInputChange"
+              @blur="formatFreqInput"
             >
             <span class="sdr-freq-unit">MHz</span>
           </div>
@@ -836,6 +837,7 @@ let _retuneDebounce: ReturnType<typeof setTimeout> | null = null
 
 function tune() {
   if (!selectedRadioId.value) return
+  formatFreqInput()
   const hz = parseFreqMhz(freqInputVal.value)
   if (!hz) return
   currentFreqHz.value = hz
@@ -855,6 +857,14 @@ function tune() {
 function stop() {
   sdrAudio.stop()
   setPlayingState(false)
+}
+
+function formatFreqInput() {
+  const raw = freqInputVal.value.trim()
+  if (!raw) return
+  const n = parseFloat(raw)
+  if (!isFinite(n)) return
+  freqInputVal.value = n.toFixed(4)
 }
 
 function onFreqInputChange() {
