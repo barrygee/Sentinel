@@ -720,6 +720,21 @@
     padding: 10px 28px 24px;
 }
 
+.sdr-memory-group-add-row .sdr-panel-btn {
+    height: 36px;
+    padding: 0 16px;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.sdr-memory-group-add-row .sdr-panel-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
 .sdr-freq-row-groups {
     display: flex;
     flex-wrap: wrap;
@@ -868,7 +883,7 @@
     border: none;
     border-radius: 2px;
     color: rgba(255, 255, 255, 0.85);
-    font-size: 8px;
+    font-size: 10px;
     letter-spacing: 0.08em;
 }
 
@@ -902,13 +917,14 @@
 .sdr-editfreq-body .sdr-panel-btn {
     height: 36px;
     padding: 0 16px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 400;
     letter-spacing: 0.08em;
+    color: #fff;
 }
 
 .sdr-editfreq-body .sdr-ef-gpill {
-    font-size: 8px;
+    font-size: 10px;
 }
 
 .sdr-editfreq-field .sdr-mode-pills {
@@ -945,22 +961,24 @@
 
 .sdr-editfreq-del-btn {
     background: none;
-    color: rgba(255, 80, 80, 0.5);
+    color: #ff5050;
 }
 
 .sdr-editfreq-del-btn:hover {
     background: rgba(255, 80, 80, 0.1);
-    color: rgba(255, 80, 80, 0.9);
+    color: #ff5050;
 }
 
-.sdr-editfreq-save-btn {
-    background: rgba(200, 255, 0, 0.08);
-    color: rgba(200, 255, 0, 0.75);
+.sdr-editfreq-save-btn,
+.sdr-editfreq-body .sdr-editfreq-save-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
 }
 
-.sdr-editfreq-save-btn:hover {
-    background: rgba(200, 255, 0, 0.14);
-    color: #c8ff00;
+.sdr-editfreq-save-btn:hover,
+.sdr-editfreq-body .sdr-editfreq-save-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
 }
 
 .sdr-panel-input {
