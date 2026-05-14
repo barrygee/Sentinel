@@ -770,20 +770,11 @@ async function openControlSocket(radioId: number) {
   _ctrlSocket = ws
 
   ws.addEventListener('open', () => {
-    const lastFreqHz = parseInt(sessionStorage.getItem('sdrLastFreqHz') || '0', 10)
-    const lastMode   = sessionStorage.getItem('sdrLastMode') || 'AM'
-    if (!_isInitialised(radioId)) {
-      _markInitialised(radioId)
-      if (lastFreqHz > 0) {
-        ws.send(JSON.stringify({ cmd: 'tune', frequency_hz: lastFreqHz }))
-        ws.send(JSON.stringify({ cmd: 'mode', mode: lastMode }))
-      }
-    }
+    const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
+    if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
       playing.value = true
       sdrAudio.setMode(lastMode as SdrMode)
-      sdrAudio.initAudio(radioId)
-    } else {
       sdrAudio.initAudio(radioId)
     }
   })
@@ -804,12 +795,6 @@ async function openControlSocket(radioId: number) {
         if (!_ctrlDataConfirmed) {
           _ctrlDataConfirmed = true
           setStatus(true)
-        }
-        if (playing.value && msg.bins?.length) {
-          let peak = -120
-          const bins = msg.bins as number[]
-          for (let i = 0; i < bins.length; i++) if (bins[i] > peak) peak = bins[i]
-          updateSignalBar(peak)
         }
         break
       case 'error':
@@ -953,7 +938,12 @@ function setMode(m: string) {
 
 // ── Signal meter ──────────────────────────────────────────────────────────────
 
-function updateSignalBar(dbfs: number) {
+function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
+  if (squelchOpen === false) {
+    signalSmoothed.value = -120
+    signalLit.value = 0
+    return
+  }
   const alpha = dbfs > signalSmoothed.value ? 0.3 : 0.05
   signalSmoothed.value += alpha * (dbfs - signalSmoothed.value)
   signalLit.value = Math.round(Math.max(0, Math.min(SIGNAL_SEGS, ((signalSmoothed.value + 120) / 120) * SIGNAL_SEGS)))
