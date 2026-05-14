@@ -286,7 +286,7 @@
               @click="toggleScanAll"
             >All</button>
             <button
-              v-for="g in groups"
+              v-for="g in groupsWithFreqs"
               :key="g.id"
               type="button"
               class="sdr-scan-group-chip"
@@ -677,6 +677,15 @@ const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
     )
   })
 })
+const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => {
+  const idsWithFreqs = new Set<number>()
+  freqs.value.forEach(f => {
+    ;(f.group_ids || []).forEach(id => { if (id !== 0) idsWithFreqs.add(id) })
+    if (f.group_id != null && f.group_id !== 0) idsWithFreqs.add(f.group_id)
+  })
+  return groups.value.filter(g => idsWithFreqs.has(g.id))
+})
+
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
 function freqGroupsFor(f: SdrStoredFrequency): SdrFrequencyGroup[] {
