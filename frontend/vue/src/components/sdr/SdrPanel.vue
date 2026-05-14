@@ -260,7 +260,13 @@
 
         <!-- Scan controls -->
         <div class="sdr-radio-section sdr-scan-controls">
-          <label class="sdr-field-label sdr-memory-scanner-title">SCANNER</label>
+          <div class="sdr-scanner-header-row">
+            <label class="sdr-field-label sdr-memory-scanner-title">SCANNER</label>
+            <div class="sdr-scan-state-row" v-show="scanActive">
+              <span class="sdr-scan-state-label">{{ scanLocked ? 'SCANNING PAUSED' : 'SCANNING' }}</span>
+              <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive && !scanLocked, 'sdr-scan-holding': scanLocked }"></div>
+            </div>
+          </div>
           <div class="sdr-scan-groups-row">
             <button
               type="button"
@@ -279,25 +285,31 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
-          <div class="sdr-scan-state-row">
-            <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive }"></div>
-            <span class="sdr-scan-state-label">{{ scanActive ? 'SCANNING' : 'IDLE' }}</span>
-            <span class="sdr-scan-state-freq"></span>
-          </div>
           <div class="sdr-scan-btns-row">
             <button
               class="sdr-panel-btn sdr-scan-btn"
               :class="{ 'sdr-scan-active-btn': scanActive }"
               :disabled="controlsDisabled"
+              :aria-label="scanActive ? 'Stop' : 'Scan'"
               @click="toggleScan"
-            >{{ scanActive ? 'STOP' : 'SCAN' }}</button>
+            >
+              <svg v-if="scanActive" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
+              <template v-else>SCAN</template>
+            </button>
             <button
-              class="sdr-panel-btn sdr-scan-btn"
+              class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
               :class="{ 'sdr-btn-active': scanLocked }"
               :disabled="controlsDisabled || !scanActive"
-              title="Hold scanner on current frequency"
+              :title="scanLocked ? 'Resume scanning' : 'Hold scanner on current frequency'"
+              :aria-label="scanLocked ? 'Resume' : 'Hold'"
               @click="toggleScanLock"
-            >{{ scanLocked ? 'RESUME' : 'HOLD' }}</button>
+            >
+              <template v-if="scanLocked">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                <span>RESUME</span>
+              </template>
+              <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
+            </button>
           </div>
         </div>
 
