@@ -110,6 +110,36 @@
           </Teleport>
         </div>
 
+        <!-- Volume -->
+        <div class="sdr-radio-section">
+          <div class="sdr-slider-header">
+            <label class="sdr-field-label">VOLUME</label>
+            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ volume }}%</span>
+          </div>
+          <input
+            class="sdr-panel-slider"
+            type="range" min="0" max="200" step="1"
+            :value="volume"
+            :disabled="controlsDisabled"
+            @input="onVolumeInput"
+          >
+        </div>
+
+        <!-- Squelch -->
+        <div class="sdr-radio-section">
+          <div class="sdr-slider-header">
+            <label class="sdr-field-label">SQUELCH</label>
+            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ squelch }} dBFS</span>
+          </div>
+          <input
+            class="sdr-panel-slider"
+            type="range" min="-120" max="0" step="1"
+            :value="squelch"
+            :disabled="controlsDisabled"
+            @input="onSquelchInput"
+          >
+        </div>
+
         <!-- Bandwidth -->
         <div class="sdr-radio-section sdr-radio-section--tight">
           <div class="sdr-slider-header">
@@ -235,36 +265,6 @@
               :class="{ 'sdr-signal-seg--on': i <= signalLit }"
             ></div>
           </div>
-        </div>
-
-        <!-- Volume -->
-        <div class="sdr-radio-section">
-          <div class="sdr-slider-header">
-            <label class="sdr-field-label">VOLUME</label>
-            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ volume }}%</span>
-          </div>
-          <input
-            class="sdr-panel-slider"
-            type="range" min="0" max="200" step="1"
-            :value="volume"
-            :disabled="controlsDisabled"
-            @input="onVolumeInput"
-          >
-        </div>
-
-        <!-- Squelch -->
-        <div class="sdr-radio-section">
-          <div class="sdr-slider-header">
-            <label class="sdr-field-label">SQUELCH</label>
-            <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ squelch }} dBFS</span>
-          </div>
-          <input
-            class="sdr-panel-slider"
-            type="range" min="-120" max="0" step="1"
-            :value="squelch"
-            :disabled="controlsDisabled"
-            @input="onSquelchInput"
-          >
         </div>
 
       </div>
