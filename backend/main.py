@@ -80,11 +80,12 @@ app.mount("/assets", StaticFiles(directory=str(ROOT_DIR / "frontend" / "assets")
 # Serve the built Vue app's hashed JS/CSS bundles from /spa-assets/.
 # Vite is configured with assetsDir='spa-assets' so these never clash with
 # the map-tile /assets mount above.
+fonts_dir = SPA_DIR / "fonts"
+if fonts_dir.exists():
+    app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
+
 if SPA_DIR.exists():
     app.mount("/spa-assets", StaticFiles(directory=str(SPA_DIR / "spa-assets")), name="spa-assets")
-    fonts_dir = SPA_DIR / "fonts"
-    if fonts_dir.exists():
-        app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
 
 
 # ── SPA catch-all ─────────────────────────────────────────────────────────────
