@@ -142,7 +142,7 @@
               :class="{ 'sdr-rec-btn--active': isRecording }"
               type="button"
               title="Record"
-              :disabled="!playing"
+              :disabled="!playing && !scanActive"
               @click="toggleRecording"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
