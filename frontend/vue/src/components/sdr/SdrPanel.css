@@ -650,15 +650,64 @@
 }
 
 .sdr-scanner-header-row {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
-    margin-bottom: 16px;
+    width: 100%;
+    height: 44px;
+    margin: 0 0 16px;
+    padding: 0 24px 0 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    transition: background 0.12s;
+}
+
+.sdr-scanner-header-row,
+.sdr-scanner-header-row:hover,
+.sdr-scanner-header-row.sdr-memory-accordion-toggle-expanded {
+    background: none !important;
 }
 
 .sdr-scanner-header-row .sdr-field-label.sdr-memory-scanner-title {
     margin-bottom: 0;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.sdr-scanner-header-row .sdr-scan-state-row {
+    margin-left: auto;
+}
+
+.sdr-scanner-header-row .sdr-memory-accordion-chevron {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.sdr-scan-subsection-label {
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.sdr-scan-groups-row + .sdr-scan-subsection-label {
+    margin-top: 20px;
 }
 
 .sdr-scan-state-row {

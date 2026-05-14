@@ -260,13 +260,23 @@
 
         <!-- Scan controls -->
         <div class="sdr-radio-section sdr-scan-controls">
-          <div class="sdr-scanner-header-row">
+          <button
+            type="button"
+            class="sdr-scanner-header-row sdr-memory-accordion-toggle"
+            :class="{ 'sdr-memory-accordion-toggle-expanded': scannerSectionExpanded }"
+            @click="scannerSectionExpanded = !scannerSectionExpanded"
+          >
             <label class="sdr-field-label sdr-memory-scanner-title">SCANNER</label>
             <div class="sdr-scan-state-row" v-show="scanActive">
               <span class="sdr-scan-state-label">{{ scanLocked ? 'SCANNING PAUSED' : 'SCANNING' }}</span>
               <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': scanActive && !scanLocked, 'sdr-scan-holding': scanLocked }"></div>
             </div>
-          </div>
+            <span class="sdr-memory-accordion-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          <div v-show="scannerSectionExpanded">
+          <div class="sdr-scan-subsection-label">GROUPS</div>
           <div class="sdr-scan-groups-row">
             <button
               type="button"
@@ -285,31 +295,28 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
+          <div class="sdr-scan-subsection-label">CONTROLS</div>
           <div class="sdr-scan-btns-row">
             <button
               class="sdr-panel-btn sdr-scan-btn"
-              :class="{ 'sdr-scan-active-btn': scanActive }"
+              :class="{ 'sdr-scan-active-btn': scanActive && !scanLocked }"
               :disabled="controlsDisabled"
-              :aria-label="scanActive ? 'Stop' : 'Scan'"
-              @click="toggleScan"
+              :aria-label="scanActive && !scanLocked ? 'Stop' : 'Scan'"
+              @click="onScanPrimaryClick"
             >
-              <svg v-if="scanActive" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
+              <svg v-if="scanActive && !scanLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
               <template v-else>SCAN</template>
             </button>
             <button
               class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
-              :class="{ 'sdr-btn-active': scanLocked }"
-              :disabled="controlsDisabled || !scanActive"
-              :title="scanLocked ? 'Resume scanning' : 'Hold scanner on current frequency'"
-              :aria-label="scanLocked ? 'Resume' : 'Hold'"
+              :disabled="controlsDisabled || !scanActive || scanLocked"
+              title="Hold scanner on current frequency"
+              aria-label="Hold"
               @click="toggleScanLock"
             >
-              <template v-if="scanLocked">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
-                <span>RESUME</span>
-              </template>
-              <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
             </button>
+          </div>
           </div>
         </div>
 
@@ -648,6 +655,7 @@ const freqs        = ref<SdrStoredFrequency[]>([])
 const memorySearchQuery = ref('')
 const freqsSectionExpanded = ref(true)
 const groupsSectionExpanded = ref(true)
+const scannerSectionExpanded = ref(true)
 const newGroupName = ref('')
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
@@ -1123,6 +1131,14 @@ async function loadRadios() {
 
 function toggleScan() { if (scanActive.value) stopScan(); else startScan() }
 
+function onScanPrimaryClick() {
+  if (scanActive.value && scanLocked.value) {
+    toggleScanLock()
+  } else {
+    toggleScan()
+  }
+}
+
 function toggleScanAll() {
   scanAllSelected.value = true
   scanSelectedGroupIds.value = []
@@ -1177,7 +1193,13 @@ function doScanStep() {
   _scanTimer = setTimeout(doScanStep, 2000)
 }
 
-function toggleScanLock() { scanLocked.value = !scanLocked.value }
+function toggleScanLock() {
+  scanLocked.value = !scanLocked.value
+  if (!scanLocked.value && scanActive.value) {
+    if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
+    doScanStep()
+  }
+}
 
 function tuneToFreq(f: SdrStoredFrequency) {
   currentFreqHz.value = f.frequency_hz
