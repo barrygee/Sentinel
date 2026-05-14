@@ -344,32 +344,38 @@
             :data-id="f.id"
             @click="onFreqRowClick(f)"
           >
-            <div class="sdr-freq-row-main">
-              <span class="sdr-freq-row-label">{{ f.label }}</span>
-            </div>
-            <div class="sdr-freq-row-sub">
-              <span class="sdr-freq-row-hz">{{ (f.frequency_hz / 1e6).toFixed(4) }} MHz</span>
-              <template v-if="f.mode">
-                <span class="sdr-freq-row-sep">·</span>
-                <span class="sdr-freq-row-mode">{{ f.mode }}</span>
-              </template>
-            </div>
-            <div class="sdr-freq-row-groups">
-              <template v-if="freqGroupsFor(f).length">
-                <span
-                  v-for="g in freqGroupsFor(f)"
-                  :key="g.id"
-                  class="sdr-freq-row-group-chip"
-                >
-                  <span class="sdr-freq-row-group-dot" :style="{ '--dot-color': g.color }"></span>
-                  {{ g.name }}
+            <div class="sdr-freq-row-body">
+              <div class="sdr-freq-row-main">
+                <span class="sdr-freq-row-label">{{ f.label }}</span>
+              </div>
+              <div class="sdr-freq-row-sub">
+                <span class="sdr-freq-row-hz">{{ (f.frequency_hz / 1e6).toFixed(4) }} MHz</span>
+                <template v-if="f.mode">
+                  <span class="sdr-freq-row-sep">·</span>
+                  <span class="sdr-freq-row-mode">{{ f.mode }}</span>
+                </template>
+              </div>
+              <div class="sdr-freq-row-groups">
+                <template v-if="freqGroupsFor(f).length">
+                  <span
+                    v-for="g in freqGroupsFor(f)"
+                    :key="g.id"
+                    class="sdr-freq-row-group-chip"
+                  >
+                    {{ g.name }}
+                  </span>
+                </template>
+                <span v-else class="sdr-freq-row-group-chip">
+                  Default
                 </span>
-              </template>
-              <span v-else class="sdr-freq-row-group-chip">
-                <span class="sdr-freq-row-group-dot" :style="{ '--dot-color': 'rgba(255,255,255,0.35)' }"></span>
-                Default
-              </span>
+              </div>
             </div>
+            <button
+              class="sdr-freq-row-del"
+              aria-label="Delete frequency"
+              title="Delete"
+              @click.stop="deleteFreq(f.id)"
+            >&#x2715;</button>
           </div>
         </div>
         <div v-show="freqsSectionExpanded" id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
@@ -431,7 +437,6 @@
             </div>
           </div>
           <div class="sdr-editfreq-actions">
-            <button id="sdr-ef-delete" v-if="editingFreqId !== null" class="sdr-editfreq-del-x" title="Delete" aria-label="Delete" @click="deleteFreq">&#x2715;</button>
             <div class="sdr-editfreq-actions-right">
               <button id="sdr-ef-cancel" class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
               <button id="sdr-ef-save" class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveFreq">SAVE</button>
@@ -1292,12 +1297,15 @@ async function saveFreq() {
   } catch (_) {}
 }
 
-async function deleteFreq() {
-  if (editingFreqId.value === null) return
+async function deleteFreq(id?: number) {
+  const targetId = id ?? editingFreqId.value
+  if (targetId === null || targetId === undefined) return
   try {
-    await fetch(`/api/sdr/frequencies/${editingFreqId.value}`, { method: 'DELETE' })
-    editingFreqId.value = null
-    efOpen.value = false
+    await fetch(`/api/sdr/frequencies/${targetId}`, { method: 'DELETE' })
+    if (editingFreqId.value === targetId) {
+      editingFreqId.value = null
+      efOpen.value = false
+    }
     await reloadData()
   } catch (_) {}
 }
