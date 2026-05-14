@@ -774,8 +774,8 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    height: 18px;
-    padding: 0 8px;
+    height: 22px;
+    padding: 0 10px;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 2px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
@@ -883,7 +883,7 @@
 }
 
 .sdr-editfreq-field .sdr-field-label {
-    margin-bottom: 6px;
+    margin-bottom: 10px;
     color: #c8ff00;
 }
 
@@ -1361,7 +1361,7 @@
 }
 
 .sdr-freq-row-item.sdr-freq-editing {
-    background: rgba(200, 255, 0, 0.04);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 #sdr-scanner-groups-body {
