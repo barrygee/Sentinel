@@ -15,6 +15,7 @@ REST endpoints:
   POST   /api/sdr/frequencies             — save a frequency
   PUT    /api/sdr/frequencies/{id}        — update a frequency
   DELETE /api/sdr/frequencies/{id}        — delete a frequency
+  POST   /api/sdr/frequencies/import      — bulk-import frequencies (CHIRP CSV / JSON)
 
   POST   /api/sdr/connect                 — open TCP connection to a radio
   POST   /api/sdr/disconnect              — close TCP connection to a radio
@@ -78,6 +79,18 @@ class FrequencyIn(BaseModel):
     gain: float = 30.0
     scannable: bool = True
     notes: str = ""
+
+
+class ImportFrequencyIn(BaseModel):
+    label: str
+    frequency_hz: int
+    mode: str = "AM"
+    notes: str = ""
+
+
+class FrequencyImportIn(BaseModel):
+    group: str | None = None              # target group name; created if it doesn't exist
+    frequencies: list[ImportFrequencyIn]
 
 
 class ConnectIn(BaseModel):
@@ -352,6 +365,80 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
         await db.delete(link)
     await db.delete(row)
     await db.commit()
+
+
+_VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
+
+
+@router.post("/api/sdr/frequencies/import")
+async def import_frequencies(body: FrequencyImportIn, db: AsyncSession = Depends(get_db)):
+    """Bulk-import frequencies (parsed from a CHIRP CSV or JSON file on the client).
+
+    All imported frequencies are assigned to a single target group (created if it
+    does not already exist). Records whose frequency_hz + mode already exist in the
+    database are skipped so re-importing the same file is safe.
+    """
+    if not body.frequencies:
+        raise HTTPException(400, "No frequencies to import")
+
+    # Resolve / create the target group
+    group_id: int | None = None
+    group_name = (body.group or "").strip()
+    if group_name:
+        existing = (await db.execute(
+            select(SdrFrequencyGroup).where(SdrFrequencyGroup.name == group_name)
+        )).scalar_one_or_none()
+        if existing:
+            group_id = existing.id
+        else:
+            count = len((await db.execute(select(SdrFrequencyGroup))).scalars().all())
+            group = SdrFrequencyGroup(name=group_name, color="#c8ff00",
+                                      sort_order=count, created_at=now_ms())
+            db.add(group)
+            await db.flush()
+            group_id = group.id
+
+    # Existing (frequency_hz, mode) pairs for duplicate detection
+    existing_rows = (await db.execute(select(SdrStoredFrequency))).scalars().all()
+    seen: set[tuple[int, str]] = {(r.frequency_hz, r.mode) for r in existing_rows}
+
+    inserted = 0
+    skipped = 0
+    invalid = 0
+    for item in body.frequencies:
+        mode = (item.mode or "AM").upper()
+        if mode not in _VALID_MODES or item.frequency_hz <= 0 or not item.label.strip():
+            invalid += 1
+            continue
+        key = (item.frequency_hz, mode)
+        if key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
+        freq = SdrStoredFrequency(
+            group_id=group_id,
+            label=item.label.strip()[:60],
+            frequency_hz=item.frequency_hz,
+            mode=mode,
+            notes=item.notes[:500],
+            created_at=now_ms(),
+        )
+        db.add(freq)
+        await db.flush()
+        if group_id is not None:
+            db.add(SdrFrequencyGroupLink(frequency_id=freq.id, group_id=group_id))
+        inserted += 1
+
+    await db.commit()
+    if group_name:
+        await sync_sdr_groups_to_config(db)
+    return JSONResponse({
+        "inserted": inserted,
+        "skipped": skipped,
+        "invalid": invalid,
+        "total": len(body.frequencies),
+        "group": group_name or None,
+    })
 
 
 # ── Recording CRUD + file serving ────────────────────────────────────────────

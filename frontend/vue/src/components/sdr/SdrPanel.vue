@@ -1352,6 +1352,9 @@ async function reloadData() {
   await clipsSectionRef.value?.reload()
 }
 
+// Refresh the list when frequencies are imported from the settings panel
+useDocumentEvent('sdr:frequenciesImported', () => { reloadData() })
+
 // ── Groups CRUD ───────────────────────────────────────────────────────────────
 
 async function addGroup() {

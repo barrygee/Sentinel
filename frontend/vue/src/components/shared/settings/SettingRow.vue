@@ -21,6 +21,7 @@
     <AdsbLabelFieldsControl v-else-if="item.type === 'air-label-fields'" @stage="emit('stage', item.id, $event)" />
     <AdsbTagFieldsControl v-else-if="item.type === 'air-tag-fields'" @stage="emit('stage', item.id, $event)" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
+    <SdrChirpImportControl v-else-if="item.type === 'sdr-chirp-import'" />
     <ConfigCurrentControl v-else-if="item.type === 'config-current'" @stage="emit('stage', item.id, $event)" />
   </div>
 </template>
@@ -44,6 +45,7 @@ import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
+import SdrChirpImportControl from './SdrChirpImportControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 
 const props = defineProps<{ item: SettingItem; pending: Map<string, () => Promise<unknown> | void> }>()
@@ -52,6 +54,6 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'config-current'])
+const WIDE_TYPES = new Set(['sdr-devices', 'sdr-chirp-import', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'config-current'])
 const isWide = WIDE_TYPES.has(props.item.type)
 </script>
