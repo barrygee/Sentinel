@@ -251,7 +251,6 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
 #map-sidebar-btn.msb-btn-active {
     opacity: 1;
     color: #fff;
-    background: var(--color-border);
     border-radius: 6px;
 }
 

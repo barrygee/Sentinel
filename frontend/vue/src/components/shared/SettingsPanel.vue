@@ -159,7 +159,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'land', sectionLabel: 'LAND', id: 'land-online-source', label: 'Online Data Source', desc: 'URL for live land data feed', type: 'online-source', ns: 'land', defaultUrl: '' },
   { section: 'land', sectionLabel: 'LAND', id: 'land-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for land data', type: 'offline-source', ns: 'land', defaultUrl: '' },
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-devices', label: 'SDR Devices', desc: 'Configure RTL-SDR devices reachable via rtl_tcp', type: 'sdr-devices' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-chirp-import', label: 'Frequency Import', desc: 'Drop a CHIRP .csv or Sentinel .json file to populate the frequency manager', type: 'sdr-chirp-import' },
+  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-chirp-import', label: 'Frequency Import', desc: 'Drop a Sentinel .json file to populate the frequency manager', type: 'sdr-chirp-import' },
   { section: 'app', sectionLabel: 'App Settings', id: 'config-current', label: 'Application Config', desc: 'Settings currently stored in the database', type: 'config-current' },
 ]
 

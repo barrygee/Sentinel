@@ -216,6 +216,12 @@ class RadioBroadcaster:
         logger.info("Broadcaster started for %s:%d", conn.host, conn.port)
         try:
             while True:
+                # Yield to the event loop every iteration. rtl_tcp streams
+                # continuously and TCP backlog can make read_iq_chunk return
+                # with no real suspension, letting this loop monopolise the
+                # loop and starve HTTP/WS handlers (even /health). sleep(0)
+                # guarantees other tasks get scheduled each pass.
+                await asyncio.sleep(0)
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
@@ -229,8 +235,13 @@ class RadioBroadcaster:
                     self._broadcast(err_frame)
                     break
 
-                # FFT uses only the first fft_size samples from the chunk
-                frame = compute_fft_frame(raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz)
+                # FFT uses only the first fft_size samples from the chunk.
+                # compute_fft_frame is CPU-bound NumPy + a per-bin Python loop;
+                # run it in a worker thread so it never blocks the event loop
+                # (a blocked loop stalls all HTTP/WS handling).
+                frame = await asyncio.to_thread(
+                    compute_fft_frame, raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz
+                )
                 self._broadcast(frame)
                 self._broadcast_iq(raw_iq, conn.sample_rate, conn.center_hz)
         except asyncio.CancelledError:
