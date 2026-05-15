@@ -1120,7 +1120,7 @@
 .sdr-editfreq-body.expanded {
     max-height: 600px;
     opacity: 1;
-    padding: 20px 28px 28px;
+    padding: 20px 28px 12px;
 }
 
 .sdr-editfreq-field {
@@ -1199,14 +1199,14 @@
 }
 
 .sdr-editfreq-body .sdr-ef-gpill {
-    height: 36px;
+    height: 28px;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 2px;
     color: rgba(255, 255, 255, 0.85);
-    font-size: 10px;
-    letter-spacing: 0.08em;
+    font-size: 9px;
+    letter-spacing: 0.14em;
     flex: 0 0 auto;
-    padding: 0 16px;
+    padding: 0 14px;
 }
 
 .sdr-editfreq-body .sdr-ef-gpill:hover {
