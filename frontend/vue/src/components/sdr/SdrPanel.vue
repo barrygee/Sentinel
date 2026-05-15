@@ -384,46 +384,98 @@
             class="sdr-freq-row-item"
             :class="{ 'sdr-freq-editing': editingFreqId === f.id }"
             :data-id="f.id"
-            @click="onFreqRowClick(f)"
           >
-            <div class="sdr-freq-row-body">
-              <div class="sdr-freq-row-main">
-                <span class="sdr-freq-row-label">{{ f.label }}</span>
+            <div class="sdr-freq-row-top" @click="onFreqRowClick(f)">
+              <div class="sdr-freq-row-body">
+                <div class="sdr-freq-row-main">
+                  <span class="sdr-freq-row-label">{{ f.label }}</span>
+                </div>
+                <div class="sdr-freq-row-sub">
+                  <span class="sdr-freq-row-hz">{{ (f.frequency_hz / 1e6).toFixed(4) }} MHz</span>
+                  <template v-if="f.mode">
+                    <span class="sdr-freq-row-sep">·</span>
+                    <span class="sdr-freq-row-mode">{{ f.mode }}</span>
+                  </template>
+                </div>
+                <div class="sdr-freq-row-groups">
+                  <template v-if="freqGroupsFor(f).length">
+                    <span
+                      v-for="g in freqGroupsFor(f)"
+                      :key="g.id"
+                      class="sdr-freq-row-group-chip"
+                    >
+                      {{ g.name }}
+                    </span>
+                  </template>
+                  <span v-else class="sdr-freq-row-group-chip">
+                    Default
+                  </span>
+                </div>
               </div>
-              <div class="sdr-freq-row-sub">
-                <span class="sdr-freq-row-hz">{{ (f.frequency_hz / 1e6).toFixed(4) }} MHz</span>
-                <template v-if="f.mode">
-                  <span class="sdr-freq-row-sep">·</span>
-                  <span class="sdr-freq-row-mode">{{ f.mode }}</span>
-                </template>
+              <button
+                class="sdr-freq-row-edit"
+                aria-label="Edit frequency"
+                title="Edit"
+                @click.stop="toggleEditFreqPanel(f)"
+              >&#x270E;</button>
+              <button
+                class="sdr-freq-row-del"
+                aria-label="Delete frequency"
+                title="Delete"
+                @click.stop="deleteFreq(f.id)"
+              >&#x2715;</button>
+            </div>
+
+            <!-- Inline edit form (accordion body) -->
+            <div v-if="efOpen && editingFreqId === f.id" class="sdr-editfreq-body expanded" @click.stop>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">LABEL</label>
+                <input class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
               </div>
-              <div class="sdr-freq-row-groups">
-                <template v-if="freqGroupsFor(f).length">
-                  <span
-                    v-for="g in freqGroupsFor(f)"
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">FREQ (MHz)</label>
+                <input class="sdr-panel-input" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+              </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">MODE</label>
+                <div class="sdr-mode-pills">
+                  <button
+                    v-for="m in MODES"
+                    :key="m"
+                    class="sdr-mode-pill"
+                    :class="{ active: efMode === m }"
+                    @click="efMode = m"
+                  >{{ m }}</button>
+                </div>
+              </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">GROUPS</label>
+                <div class="sdr-fmod-groups">
+                  <button
+                    class="sdr-mode-pill sdr-ef-gpill"
+                    :class="{ active: efGroupIds.length === 0 }"
+                    type="button"
+                    @click="efGroupIds = []"
+                  >Default</button>
+                  <button
+                    v-for="g in groups"
                     :key="g.id"
-                    class="sdr-freq-row-group-chip"
+                    class="sdr-mode-pill sdr-ef-gpill"
+                    :class="{ active: efGroupIds.includes(g.id) }"
+                    type="button"
+                    @click="toggleEfGroup(g.id)"
                   >
                     {{ g.name }}
-                  </span>
-                </template>
-                <span v-else class="sdr-freq-row-group-chip">
-                  Default
-                </span>
+                  </button>
+                </div>
+              </div>
+              <div class="sdr-editfreq-actions">
+                <div class="sdr-editfreq-actions-right">
+                  <button class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
+                  <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveFreq">SAVE</button>
+                </div>
               </div>
             </div>
-            <button
-              class="sdr-freq-row-edit"
-              aria-label="Edit frequency"
-              title="Edit"
-              @click.stop="openEditFreqPanel(f)"
-            >&#x270E;</button>
-            <button
-              class="sdr-freq-row-del"
-              aria-label="Delete frequency"
-              title="Delete"
-              @click.stop="deleteFreq(f.id)"
-            >&#x2715;</button>
           </div>
         </div>
         <div v-show="freqsSectionExpanded" id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
@@ -433,7 +485,7 @@
           No matches.
         </div>
 
-        <div v-show="freqsSectionExpanded && !efOpen" class="sdr-frequency-manager-add-freq-row">
+        <div v-show="freqsSectionExpanded && !(efOpen && editingFreqId === null)" class="sdr-frequency-manager-add-freq-row">
           <button
             id="sdr-radio-add-freq"
             class="sdr-add-freq-btn"
@@ -441,8 +493,8 @@
           >Add Frequency</button>
         </div>
 
-        <!-- Edit frequency panel -->
-        <div v-if="efOpen" id="sdr-editfreq-body" class="sdr-editfreq-body expanded">
+        <!-- Add frequency panel (only when adding, not editing) -->
+        <div v-if="efOpen && editingFreqId === null" id="sdr-editfreq-body" class="sdr-editfreq-body expanded">
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">LABEL</label>
             <input id="sdr-ef-label" class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
@@ -1400,6 +1452,14 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efGroupIds.value = (f.group_ids || []).filter(id => id !== 0)
   efOpen.value = true
   switchSdrTab('frequency-manager')
+}
+
+function toggleEditFreqPanel(f: SdrStoredFrequency) {
+  if (efOpen.value && editingFreqId.value === f.id) {
+    cancelEditFreq()
+  } else {
+    openEditFreqPanel(f)
+  }
 }
 
 function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }

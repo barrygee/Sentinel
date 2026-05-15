@@ -1544,6 +1544,12 @@
 
 .sdr-freq-row-item {
     display: flex;
+    flex-direction: column;
+    transition: background 0.12s;
+}
+
+.sdr-freq-row-top {
+    display: flex;
     flex-direction: row;
     align-items: flex-start;
     gap: 12px;
@@ -1552,7 +1558,7 @@
     transition: background 0.12s;
 }
 
-.sdr-freq-row-item:hover {
+.sdr-freq-row-top:hover {
     background: rgba(255, 255, 255, 0.06);
 }
 
