@@ -6,7 +6,7 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from backend.database import create_tables, migrate_sdr_radios_to_settings, seed_default_settings
+from backend.database import create_tables, migrate_sdr_radios_to_settings, seed_default_sdr_groups, seed_default_settings
 from backend.routers import air, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     await create_tables()
     await migrate_sdr_radios_to_settings()
     await seed_default_settings()
+    await seed_default_sdr_groups()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
     yield
     cleanup_task.cancel()

@@ -34,7 +34,7 @@ from pathlib import Path
 
 from backend.cache import now_ms
 from backend.config import settings
-from backend.database import get_db
+from backend.database import get_db, sync_sdr_groups_to_config
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
@@ -257,6 +257,7 @@ async def create_group(body: GroupIn, db: AsyncSession = Depends(get_db)):
     db.add(group)
     await db.commit()
     await db.refresh(group)
+    await sync_sdr_groups_to_config(db)
     return JSONResponse(_group_to_dict(group), status_code=201)
 
 
@@ -269,6 +270,7 @@ async def update_group(group_id: int, body: GroupIn, db: AsyncSession = Depends(
         setattr(row, k, v)
     await db.commit()
     await db.refresh(row)
+    await sync_sdr_groups_to_config(db)
     return JSONResponse(_group_to_dict(row))
 
 
@@ -288,6 +290,7 @@ async def delete_group(group_id: int, db: AsyncSession = Depends(get_db)):
         await db.delete(link)
     await db.delete(row)
     await db.commit()
+    await sync_sdr_groups_to_config(db)
 
 
 # ── Frequency CRUD ────────────────────────────────────────────────────────────

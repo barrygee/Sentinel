@@ -1,5 +1,5 @@
 {
-  "_comment": "Default application configuration — loaded on first startup to seed the database. Upload a modified copy via Settings > Config to override all settings at once.",
+  "_comment": "Default application configuration \u2014 loaded on first startup to seed the database. Upload a modified copy via Settings > Config to override all settings at once.",
   "app": {
     "connectivityMode": "online",
     "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico"
@@ -12,8 +12,26 @@
       "url": ""
     },
     "labelDataPoints": {
-      "civil": { "callsign": true, "altitude": false, "speed": false, "heading": false, "aircraftType": false, "registration": false, "squawk": false, "category": false },
-      "mil":   { "callsign": true, "altitude": false, "speed": false, "heading": false, "aircraftType": true,  "registration": false, "squawk": false, "category": false }
+      "civil": {
+        "callsign": true,
+        "altitude": false,
+        "speed": false,
+        "heading": false,
+        "aircraftType": false,
+        "registration": false,
+        "squawk": false,
+        "category": false
+      },
+      "mil": {
+        "callsign": true,
+        "altitude": false,
+        "speed": false,
+        "heading": false,
+        "aircraftType": true,
+        "registration": false,
+        "squawk": false,
+        "category": false
+      }
     },
     "overheadAlerts": {
       "civil": false,
@@ -28,14 +46,14 @@
     "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
     "onlineUrls": {
       "space_station": "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
-      "amateur":       "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
-      "weather":       "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle",
-      "military":      "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
-      "navigation":    "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
-      "science":       "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
-      "cubesat":       "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
-      "active":        "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
-      "unknown":       "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
+      "amateur": "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
+      "weather": "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle",
+      "military": "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
+      "navigation": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
+      "science": "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
+      "cubesat": "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
+      "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+      "unknown": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
     }
   },
   "sea": {
@@ -55,6 +73,15 @@
     "defaultSampleRate": 2048000,
     "defaultGain": 30,
     "defaultSquelch": -60,
-    "radios": []
+    "radios": [],
+    "initialGroups": [
+      { "name": "Air to Air Refueling", "color": "#c8ff00" },
+      { "name": "AWACS",                "color": "#c8ff00" },
+      { "name": "Airband",              "color": "#c8ff00" },
+      { "name": "Amateur Radio",        "color": "#c8ff00" },
+      { "name": "Maritime",             "color": "#c8ff00" },
+      { "name": "MilAir",               "color": "#c8ff00" },
+      { "name": "Weather Satellite",    "color": "#c8ff00" }
+    ]
   }
 }

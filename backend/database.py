@@ -170,6 +170,52 @@ async def migrate_sdr_radios_to_settings() -> None:
         await session.commit()
 
 
+async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
+    """Mirror the current sdr_frequency_groups table into UserSettings
+    (namespace='sdr', key='groups'). Called after every group create/update/delete
+    so the persisted settings snapshot always reflects live state."""
+    from backend.db_helpers import upsert_setting  # avoid circular import
+    from backend.models import SdrFrequencyGroup  # avoid circular import
+
+    rows = (await session.execute(
+        select(SdrFrequencyGroup).order_by(SdrFrequencyGroup.sort_order, SdrFrequencyGroup.id)
+    )).scalars().all()
+    groups_payload = [{"name": g.name, "color": g.color} for g in rows]
+    await upsert_setting(session, "sdr", "groups", groups_payload)
+
+
+async def seed_default_sdr_groups() -> None:
+    """Insert SDR frequency groups from default_config.json — only if the
+    sdr_frequency_groups table is currently empty. Users can rename/delete
+    afterwards without re-seeding."""
+    from backend.models import SdrFrequencyGroup  # avoid circular import
+
+    async with AsyncSessionLocal() as session:
+        existing = await session.execute(select(SdrFrequencyGroup).limit(1))
+        if existing.scalar_one_or_none() is not None:
+            return
+
+        try:
+            raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return
+        initial = raw.get("sdr", {}).get("initialGroups", [])
+        if not isinstance(initial, list) or not initial:
+            return
+
+        ts = int(time.time() * 1000)
+        for idx, item in enumerate(initial):
+            if not isinstance(item, dict) or "name" not in item:
+                continue
+            session.add(SdrFrequencyGroup(
+                name=item["name"],
+                color=item.get("color", "#c8ff00"),
+                sort_order=idx,
+                created_at=ts,
+            ))
+        await session.commit()
+
+
 async def seed_default_settings() -> None:
     """Insert default URL settings on startup — only if a row does not already exist."""
     from backend.models import UserSettings  # avoid circular import
