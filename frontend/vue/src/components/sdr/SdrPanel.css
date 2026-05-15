@@ -976,15 +976,15 @@
 
 .sdr-frequency-manager-group-add-row .sdr-panel-input {
     flex: 1;
-    height: 36px;
+    height: 28px;
     background: rgba(255, 255, 255, 0.06);
     border: none;
     border-radius: 2px;
     color: #fff;
     font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 0.08em;
-    padding: 0 12px;
+    padding: 0 10px;
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-input:focus {
@@ -996,9 +996,9 @@
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-btn {
-    height: 36px;
-    padding: 0 16px;
-    font-size: 10px;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 9px;
     font-weight: 400;
     letter-spacing: 0.08em;
     background: rgba(255, 255, 255, 0.08);
@@ -1190,12 +1190,20 @@
 }
 
 .sdr-editfreq-body .sdr-panel-btn {
-    height: 36px;
-    padding: 0 16px;
-    font-size: 10px;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 9px;
     font-weight: 400;
     letter-spacing: 0.08em;
     color: #fff;
+}
+
+.sdr-addfreq-title-row {
+    padding: 0 0 4px;
+}
+
+.sdr-addfreq-title-row .sdr-scanner-section-label {
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .sdr-editfreq-body .sdr-ef-gpill {

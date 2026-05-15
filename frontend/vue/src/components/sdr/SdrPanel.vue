@@ -494,7 +494,10 @@
         </div>
 
         <!-- Add frequency panel (only when adding, not editing) -->
-        <div v-if="efOpen && editingFreqId === null" id="sdr-editfreq-body" class="sdr-editfreq-body expanded">
+        <div v-if="efOpen && editingFreqId === null" id="sdr-editfreq-body" class="sdr-editfreq-body sdr-addfreq-body expanded">
+          <div class="sdr-addfreq-title-row">
+            <span class="sdr-scanner-section-label">ADD FREQUENCY</span>
+          </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">LABEL</label>
             <input id="sdr-ef-label" class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
