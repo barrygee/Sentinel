@@ -203,6 +203,18 @@ class RadioBroadcaster:
 
     async def stop(self) -> None:
         async with self._lock:
+            # Unblock every subscriber that's parked on `await queue.get()`
+            # (WS stream loops and IQ recording drains) with a None sentinel,
+            # so those handlers exit promptly. Without this they block forever
+            # and uvicorn's graceful shutdown hangs ("Waiting for background
+            # tasks to complete").
+            for q in [*self._subscribers, *self._iq_subscribers]:
+                try:
+                    q.put_nowait(None)
+                except asyncio.QueueFull:
+                    pass
+            self._subscribers.clear()
+            self._iq_subscribers.clear()
             if self._task:
                 self._task.cancel()
                 try:
@@ -369,3 +381,37 @@ async def get_or_create_broadcaster(host: str, port: int) -> RadioBroadcaster:
         _broadcasters[key] = broadcaster
     await broadcaster.start()
     return broadcaster
+
+
+def wake_all_subscribers() -> None:
+    """Synchronously push the None sentinel to every subscriber queue.
+
+    Safe to call from an asyncio signal handler (no awaiting). This unblocks
+    WS stream loops / IQ drains parked on `await queue.get()` the instant the
+    shutdown signal arrives — before uvicorn starts waiting for in-flight
+    tasks to drain. Without this, those handlers never return and uvicorn's
+    graceful shutdown hangs at "Waiting for background tasks to complete",
+    so the lifespan shutdown (which would call shutdown_all) never even runs.
+    """
+    for b in list(_broadcasters.values()):
+        for q in [*b._subscribers, *b._iq_subscribers]:
+            try:
+                q.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
+
+
+async def shutdown_all() -> None:
+    """Stop every broadcaster and close every connection.
+
+    Called from the app lifespan on shutdown so the long-lived broadcaster
+    tasks are cancelled and awaited; otherwise uvicorn's graceful shutdown
+    hangs waiting on them ("Waiting for background tasks to complete").
+    Resilient per radio so one failure doesn't strand the rest.
+    """
+    for key in list({*_broadcasters, *_connections}):
+        host, _, port = key.rpartition(":")
+        try:
+            await close_connection(host, int(port))
+        except Exception:
+            logger.exception("Error shutting down SDR %s", key)

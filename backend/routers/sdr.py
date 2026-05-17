@@ -660,6 +660,8 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
     try:
         while True:
             payload = await queue.get()
+            if payload is None:      # recording stopped / broadcaster shutdown
+                break
             try:
                 await websocket.send_bytes(payload)
             except WebSocketDisconnect:
@@ -754,6 +756,8 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     try:
         while True:
             frame = await queue.get()
+            if frame is None:        # broadcaster stopped (server shutdown)
+                break
             try:
                 await websocket.send_text(json.dumps(frame))
             except (WebSocketDisconnect, RuntimeError):

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,6 +11,7 @@ from backend.database import create_tables, migrate_sdr_radios_to_settings, norm
 from backend.routers import air, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
+from backend.services import sdr as sdr_service
 from backend.services.flight_history import cleanup_old_snapshots
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -38,8 +40,41 @@ async def lifespan(app: FastAPI):
     await seed_default_sdr_groups()
     await normalize_sdr_frequencies_config()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
+
+    # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
+    # signal arrives so blocked WS stream loops exit immediately, THEN run
+    # uvicorn's original handler to start its graceful shutdown. Without the
+    # pre-wake, uvicorn waits on those never-returning WS tasks before it
+    # invokes lifespan shutdown — a deadlock that hangs `--reload`.
+    _orig_handlers: dict[int, object] = {}
+
+    def _chain(signum, frame):
+        try:
+            sdr_service.wake_all_subscribers()
+        except Exception:
+            logging.getLogger(__name__).exception("wake_all_subscribers failed")
+        prev = _orig_handlers.get(signum)
+        if callable(prev):
+            prev(signum, frame)
+
+    for _sig in (signal.SIGTERM, signal.SIGINT):
+        _orig_handlers[_sig] = signal.getsignal(_sig)
+        signal.signal(_sig, _chain)
+
     yield
+    # Shutdown: cancel the cleanup loop and await it so uvicorn's graceful
+    # shutdown doesn't hang waiting on a still-cancelling task. Then stop all
+    # SDR broadcasters/connections (their long-lived tasks would otherwise
+    # block shutdown indefinitely).
+    for _sig, _prev in _orig_handlers.items():
+        if callable(_prev) or _prev in (signal.SIG_DFL, signal.SIG_IGN):
+            signal.signal(_sig, _prev)
     cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+    await sdr_service.shutdown_all()
 
 
 app = FastAPI(
