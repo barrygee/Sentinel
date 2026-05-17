@@ -45,6 +45,99 @@ def _rows_to_namespace_dict(rows) -> dict:
     return result
 
 
+_VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
+
+
+async def _reconcile_sdr_frequencies(
+    db: AsyncSession, payload: list, keep_names: list | None = None
+) -> None:
+    """Rebuild SDR groups + stored frequencies to match the flat config
+    payload (a list of {label, frequency_hz, mode, notes, groups:[name, ...]}).
+
+    Each frequency carries its own `groups` (never duplicated). Groups are
+    matched by name so existing colours / sort order survive a round-trip (the
+    config representation deliberately omits colour); groups named in the
+    payload but not yet present are created. `keep_names` lists default/empty
+    group names that must exist and must never be pruned. Groups neither
+    referenced by a frequency nor in `keep_names`, and all existing
+    frequencies, are removed so the config is authoritative."""
+    from backend.models import (
+        SdrFrequencyGroup,
+        SdrFrequencyGroupLink,
+        SdrStoredFrequency,
+    )
+
+    existing_groups = (await db.execute(select(SdrFrequencyGroup))).scalars().all()
+    by_name: dict[str, SdrFrequencyGroup] = {g.name: g for g in existing_groups}
+
+    # Frequencies are fully rebuilt from the payload.
+    await db.execute(delete(SdrStoredFrequency))
+    await db.execute(delete(SdrFrequencyGroupLink))
+
+    ts = now_ms()
+    next_sort = max((g.sort_order for g in existing_groups), default=-1) + 1
+    keep_group_ids: set[int] = set()
+
+    async def _resolve_group(name: str) -> int:
+        nonlocal next_sort
+        group = by_name.get(name)
+        if group is None:
+            group = SdrFrequencyGroup(
+                name=name, color="#c8ff00",
+                sort_order=next_sort, created_at=ts,
+            )
+            next_sort += 1
+            db.add(group)
+            await db.flush()
+            by_name[name] = group
+        return group.id
+
+    # Default/empty groups must exist and survive pruning even with no freqs.
+    for raw_name in keep_names or []:
+        if isinstance(raw_name, str) and raw_name.strip():
+            keep_group_ids.add(await _resolve_group(raw_name.strip()))
+
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        try:
+            hz = int(item.get("frequency_hz", 0))
+        except (TypeError, ValueError):
+            continue
+        mode = str(item.get("mode", "AM")).upper().strip()
+        label = str(item.get("label", "")).strip()
+        if hz <= 0 or mode not in _VALID_MODES or not label:
+            continue
+
+        # Resolve this frequency's group memberships (de-duplicated, ordered).
+        gids: list[int] = []
+        for raw_name in item.get("groups", []):
+            if not isinstance(raw_name, str) or not raw_name.strip():
+                continue
+            gid = await _resolve_group(raw_name.strip())
+            if gid not in gids:
+                gids.append(gid)
+        keep_group_ids.update(gids)
+
+        freq = SdrStoredFrequency(
+            group_id=gids[0] if gids else None,
+            label=label[:60],
+            frequency_hz=hz,
+            mode=mode,
+            notes=str(item.get("notes", ""))[:500],
+            created_at=ts,
+        )
+        db.add(freq)
+        await db.flush()
+        for gid in gids:
+            db.add(SdrFrequencyGroupLink(frequency_id=freq.id, group_id=gid))
+
+    # Drop groups no longer referenced by any frequency.
+    for group in existing_groups:
+        if group.id not in keep_group_ids:
+            await db.delete(group)
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.get("")
@@ -100,6 +193,19 @@ async def config_upload(
             if isinstance(r, dict) and not isinstance(r.get("id"), int):
                 r["id"] = next_id
                 next_id += 1
+
+    # Reconcile SDR frequency groups + frequencies from the flat config
+    # representation back into their dedicated tables, so editing them in the
+    # app config JSON actually takes effect. The `sdr.groups` name list
+    # protects empty groups from being pruned for having no frequencies.
+    sdr_ns = config.get("sdr")
+    if isinstance(sdr_ns, dict) and isinstance(sdr_ns.get("frequencies"), list):
+        keep_names = sdr_ns.get("groups")
+        await _reconcile_sdr_frequencies(
+            db,
+            sdr_ns["frequencies"],
+            keep_names if isinstance(keep_names, list) else [],
+        )
 
     ts = now_ms()
     for namespace, keys in config.items():

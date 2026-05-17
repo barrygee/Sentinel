@@ -74,14 +74,15 @@
     "defaultGain": 30,
     "defaultSquelch": -60,
     "radios": [],
-    "initialGroups": [
-      { "name": "Air to Air Refueling", "color": "#c8ff00" },
-      { "name": "AWACS",                "color": "#c8ff00" },
-      { "name": "Airband",              "color": "#c8ff00" },
-      { "name": "Amateur Radio",        "color": "#c8ff00" },
-      { "name": "Maritime",             "color": "#c8ff00" },
-      { "name": "MilAir",               "color": "#c8ff00" },
-      { "name": "Weather Satellite",    "color": "#c8ff00" }
-    ]
+    "groups": [
+      "Air to Air Refueling",
+      "AWACS",
+      "Airband",
+      "Amateur Radio",
+      "Maritime",
+      "MilAir",
+      "Weather Satellite"
+    ],
+    "frequencies": []
   }
 }

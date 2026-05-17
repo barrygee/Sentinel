@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from backend.config import settings
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy import text as sa_text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -171,23 +171,73 @@ async def migrate_sdr_radios_to_settings() -> None:
 
 
 async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
-    """Mirror the current sdr_frequency_groups table into UserSettings
-    (namespace='sdr', key='groups'). Called after every group create/update/delete
-    so the persisted settings snapshot always reflects live state."""
-    from backend.db_helpers import upsert_setting  # avoid circular import
-    from backend.models import SdrFrequencyGroup  # avoid circular import
+    """Mirror the live SDR stored frequencies into UserSettings
+    (namespace='sdr', key='frequencies') so the persisted app config JSON
+    always reflects current state.
 
-    rows = (await session.execute(
+    The config representation is a flat list of frequencies, each carrying its
+    own `groups` array (group names). Frequencies are never duplicated, even
+    when a frequency belongs to multiple groups. Group colours are
+    intentionally omitted — the `color` column still exists on the table for
+    UI use."""
+    from backend.db_helpers import upsert_setting  # avoid circular import
+    from backend.models import (  # avoid circular import
+        SdrFrequencyGroup,
+        SdrFrequencyGroupLink,
+        SdrStoredFrequency,
+    )
+
+    groups = (await session.execute(
         select(SdrFrequencyGroup).order_by(SdrFrequencyGroup.sort_order, SdrFrequencyGroup.id)
     )).scalars().all()
-    groups_payload = [{"name": g.name, "color": g.color} for g in rows]
-    await upsert_setting(session, "sdr", "groups", groups_payload)
+    name_by_id = {g.id: g.name for g in groups}
+
+    links = (await session.execute(select(SdrFrequencyGroupLink))).scalars().all()
+    group_ids_by_freq: dict[int, list[int]] = {}
+    for link in links:
+        group_ids_by_freq.setdefault(link.frequency_id, []).append(link.group_id)
+
+    freqs = (await session.execute(
+        select(SdrStoredFrequency).order_by(SdrStoredFrequency.frequency_hz)
+    )).scalars().all()
+
+    payload = []
+    for f in freqs:
+        # Union the many-to-many links with the legacy single group_id so no
+        # membership is lost; preserve group sort order, drop unknown ids.
+        gids = list(group_ids_by_freq.get(f.id, []))
+        if f.group_id is not None and f.group_id not in gids:
+            gids.append(f.group_id)
+        names = [name_by_id[gid] for gid in name_by_id if gid in gids]
+        payload.append({
+            "label": f.label,
+            "frequency_hz": f.frequency_hz,
+            "mode": f.mode,
+            "notes": f.notes,
+            "groups": names,
+        })
+
+    await upsert_setting(session, "sdr", "frequencies", payload)
+
+    # Drop the dead legacy key. `sdr.groups` is no longer purged here: it now
+    # holds the names-only default-group list (seeded from default_config.json),
+    # alongside the flat `sdr.frequencies` written above.
+    from backend.models import UserSettings  # avoid circular import
+    await session.execute(
+        delete(UserSettings).where(
+            UserSettings.namespace == "sdr",
+            UserSettings.key == "initialGroups",
+        )
+    )
+    await session.commit()
 
 
 async def seed_default_sdr_groups() -> None:
-    """Insert SDR frequency groups from default_config.json — only if the
+    """Insert the default (empty) SDR frequency groups from
+    default_config.json's `sdr.groups` name list — only if the
     sdr_frequency_groups table is currently empty. Users can rename/delete
-    afterwards without re-seeding."""
+    afterwards without re-seeding. Frequencies are not seeded; they are managed
+    at runtime and mirrored into the flat `sdr.frequencies` config key."""
     from backend.models import SdrFrequencyGroup  # avoid circular import
 
     async with AsyncSessionLocal() as session:
@@ -199,21 +249,23 @@ async def seed_default_sdr_groups() -> None:
             raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
         except Exception:
             return
-        initial = raw.get("sdr", {}).get("initialGroups", [])
-        if not isinstance(initial, list) or not initial:
+        names = raw.get("sdr", {}).get("groups", [])
+        if not isinstance(names, list) or not names:
             return
 
         ts = int(time.time() * 1000)
-        for idx, item in enumerate(initial):
-            if not isinstance(item, dict) or "name" not in item:
+        for idx, name in enumerate(names):
+            if not isinstance(name, str) or not name.strip():
                 continue
             session.add(SdrFrequencyGroup(
-                name=item["name"],
-                color=item.get("color", "#c8ff00"),
+                name=name.strip(),
+                color="#c8ff00",
                 sort_order=idx,
                 created_at=ts,
             ))
         await session.commit()
+        # Reflect the freshly seeded (empty) groups in the config snapshot.
+        await sync_sdr_groups_to_config(session)
 
 
 async def seed_default_settings() -> None:
@@ -248,14 +300,19 @@ async def seed_default_settings() -> None:
                 await session.delete(old_row)
         await session.commit()
 
-    # Remove stale placeholder URL rows that were seeded in earlier versions.
-    # sea/land have no built-in default URLs; users must configure them.
+    # Remove stale rows seeded by earlier versions.
+    #   sea/land: no built-in default URLs; users must configure them.
+    #   sdr.initialGroups: dead key, superseded by sdr.groups + sdr.frequencies.
+    #   sdr.groups: drop any legacy grouped [{name,color}] value so the seeding
+    #     pass below re-inserts the current names-only list from the config file.
     _OBSOLETE_KEYS = [
         ("space", "offgridSource"),
         ("sea",   "onlineUrl"),
         ("sea",   "offgridSource"),
         ("land",  "onlineUrl"),
         ("land",  "offgridSource"),
+        ("sdr",   "initialGroups"),
+        ("sdr",   "groups"),
     ]
     async with AsyncSessionLocal() as session:
         for namespace, key in _OBSOLETE_KEYS:
