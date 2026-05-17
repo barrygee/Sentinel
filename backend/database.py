@@ -232,6 +232,18 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     await session.commit()
 
 
+async def normalize_sdr_frequencies_config() -> None:
+    """One-shot startup normalization: rewrite the persisted sdr.frequencies
+    config into the current flat shape regardless of recent mutations.
+
+    sync_sdr_groups_to_config only fires on a frequency/group mutation, so a
+    long-idle install upgraded in place would otherwise keep the old grouped
+    representation until the first edit. Running it once on boot guarantees the
+    config always reflects the current schema."""
+    async with AsyncSessionLocal() as session:
+        await sync_sdr_groups_to_config(session)
+
+
 async def seed_default_sdr_groups() -> None:
     """Insert the default (empty) SDR frequency groups from
     default_config.json's `sdr.groups` name list — only if the
