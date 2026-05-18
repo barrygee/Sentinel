@@ -298,12 +298,34 @@ function _stopPlaybackTimer(): void {
 }
 
 
+// Drop the marker + hide the location-anchored overlays. Bound both to the
+// userLocation watcher (null transition) and to sentinel:userLocationCleared
+// so a config-clear is deterministic even if the watcher already ran with a
+// stale localStorage seed on reload (ordering-independent).
+function _clearLocationVisuals(): void {
+  _locationMarker.remove()
+  rangeRingsControl?.setLocationAvailable(false)
+  overheadZoneControl?.setVisible(false)
+}
+
 onMounted(() => {
+  window.addEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
   watch(userLocation, (loc) => {
-    if (!loc) return
+    if (!loc) {
+      // Location was cleared (e.g. config emptied). Drop the marker AND hide
+      // the range rings / overhead zone — otherwise they linger at the old
+      // centre (or snap to map-centre) until GPS provides a new fix.
+      _clearLocationVisuals()
+      return
+    }
     rangeRingsControl?.updateCenter(loc.lon, loc.lat)
     overheadZoneControl?.updateCenter(loc.lon, loc.lat)
     _locationMarker.update(loc.lon, loc.lat)
+    // Location is back — restore overlays per the user's own toggles.
+    rangeRingsControl?.setLocationAvailable(true)
+    overheadZoneControl?.setVisible(
+      airStore.overlayStates.overheadAlertsCivil || airStore.overlayStates.overheadAlertsMil,
+    )
   }, { immediate: true })
 
   watch(
@@ -349,6 +371,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
   _stopPlaybackTimer()
   _multiPlaybackControl?.destroy()
   _multiPlaybackControl = null

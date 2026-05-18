@@ -34,6 +34,48 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def _validated_location(value: Any) -> dict:
+    """Normalise/validate an app.location value.
+
+    Returns {"latitude": "", "longitude": ""} for an empty/unset location
+    (signals "use browser geolocation"), or {"latitude": float,
+    "longitude": float} for a valid pair. Raises HTTPException(400) for an
+    invalid partial or out-of-range pair so a bad coordinate can't poison
+    the persisted config.
+    """
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=400, detail="location must be an object")
+
+    lat_raw = value.get("latitude")
+    lon_raw = value.get("longitude")
+
+    def _is_empty(v: Any) -> bool:
+        return v is None or (isinstance(v, str) and v.strip() == "")
+
+    lat_empty, lon_empty = _is_empty(lat_raw), _is_empty(lon_raw)
+    if lat_empty and lon_empty:
+        return {"latitude": "", "longitude": ""}
+    if lat_empty != lon_empty:
+        raise HTTPException(
+            status_code=400,
+            detail="location requires both latitude and longitude, or neither",
+        )
+
+    try:
+        lat = float(lat_raw)
+        lon = float(lon_raw)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400, detail="latitude/longitude must be numbers"
+        ) from exc
+
+    if not (-90 <= lat <= 90):
+        raise HTTPException(status_code=400, detail="latitude out of range [-90, 90]")
+    if not (-180 <= lon <= 180):
+        raise HTTPException(status_code=400, detail="longitude out of range [-180, 180]")
+
+    return {"latitude": lat, "longitude": lon}
+
 def _rows_to_namespace_dict(rows) -> dict:
     """Convert a list of UserSettings rows to { key: parsed_value }."""
     result = {}
@@ -261,6 +303,12 @@ async def config_upload(
             catalogue if isinstance(catalogue, list) else [],
         )
 
+    # Validate app.location up front so a bad coordinate rejects the whole
+    # upload rather than being persisted (raises HTTPException(400)).
+    app_ns = config.get("app")
+    if isinstance(app_ns, dict) and "location" in app_ns:
+        app_ns["location"] = _validated_location(app_ns["location"])
+
     ts = now_ms()
     for namespace, keys in config.items():
         if not isinstance(keys, dict):
@@ -320,7 +368,10 @@ async def upsert_setting_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Upsert a single user setting. Creates the row if it doesn't exist."""
-    await upsert_setting(db, namespace, key, body.value)
+    value = body.value
+    if namespace == "app" and key == "location":
+        value = _validated_location(value)
+    await upsert_setting(db, namespace, key, value)
     return JSONResponse({"status": "ok"})
 
 

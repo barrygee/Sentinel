@@ -41,9 +41,19 @@ export class UserLocationMarker {
         }
     }
 
+    /**
+     * Remove the rendered marker but keep the map reference, so a later
+     * update() (e.g. a GPS fix after the config location was cleared) can
+     * re-create it. Use destroy() for teardown that also drops the map.
+     */
     remove(): void {
         this._marker?.remove()
         this._marker = null
+    }
+
+    /** Full teardown — removes the marker and releases the map reference. */
+    destroy(): void {
+        this.remove()
         this._map = null
     }
 }

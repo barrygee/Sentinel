@@ -2,7 +2,8 @@
   "_comment": "Default application configuration \u2014 loaded on first startup to seed the database. Upload a modified copy via Settings > Config to override all settings at once.",
   "app": {
     "connectivityMode": "online",
-    "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico"
+    "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico",
+    "location": { "latitude": "", "longitude": "" }
   },
   "air": {
     "enabled": true,

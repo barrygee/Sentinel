@@ -44,12 +44,38 @@ import SdrTabPanel from '@/components/sdr/SdrTabPanel.vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useAppStore } from '@/stores/app'
+import { useNotificationsStore } from '@/stores/notifications'
 
 const route = useRoute()
 const appStore = useAppStore()
-const { start: startGps } = useUserLocation()
+const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocation()
+const notificationsStore = useNotificationsStore()
 
-onMounted(() => { startGps() })
+onMounted(async () => {
+  // Reconcile with the config first: a valid config location seeds the
+  // marker, an explicitly-cleared one drops any stale manual override so
+  // GPS (started next) can reposition rather than pinning the old marker.
+  await hydrateFromConfig()
+  startGps()
+})
+
+// Surface the "no location available" state as a single app-wide alerts-panel
+// notification (consistent across Air/Space/SDR — App.vue is always mounted).
+// Added when geolocation can't provide a fix and none is set; auto-dismissed
+// the moment a location is obtained (right-click, Settings, or a GPS fix).
+let _locNotifId: string | null = null
+watch(locationUnavailable, (unavailable) => {
+  if (unavailable && !_locNotifId) {
+    _locNotifId = notificationsStore.add({
+      type: 'system',
+      title: 'LOCATION UNAVAILABLE',
+      detail: 'No location is set and the browser could not provide one. Right-click the map to set a location, or enable location access.',
+    })
+  } else if (!unavailable && _locNotifId) {
+    notificationsStore.dismiss(_locNotifId)
+    _locNotifId = null
+  }
+}, { immediate: true })
 
 useDocumentEvent('air-open-search', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('open-space-search', () => sidebarRef.value?.switchTab('search'))

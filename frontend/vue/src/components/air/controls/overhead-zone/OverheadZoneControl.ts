@@ -46,9 +46,19 @@ export class OverheadZoneControl {
 
     setVisible(visible: boolean): void {
         this._visible = visible
+        this._applyVisibility()
+    }
+
+    /**
+     * Single source of truth for layer visibility. The zone marks the area
+     * overhead the user's location, so it only shows when the toggle is on
+     * AND a location exists — toggling overhead alerts on with no location
+     * must not draw a map-centred zone.
+     */
+    private _applyVisibility(): void {
         const m = this._map
         if (!m) return
-        const vis = visible ? 'visible' : 'none'
+        const vis = this._visible && this._center !== null ? 'visible' : 'none'
         if (m.getLayer(FILL_ID)) m.setLayoutProperty(FILL_ID, 'visibility', vis)
         if (m.getLayer(LINE_ID)) m.setLayoutProperty(LINE_ID, 'visibility', vis)
     }
@@ -58,43 +68,47 @@ export class OverheadZoneControl {
     }
 
     updateCenter(lng: number, lat: number): void {
+        const hadCenter = this._center !== null
         this._center = [lng, lat]
         const m = this._map
         if (!m) return
         const src = m.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined
         if (!src) { this._init(); return }
         src.setData(buildCirclePolygon(lng, lat, this._radiusNm) as GeoJSON.Feature)
+        // Gaining a centre (null → set) changes the visibility gate.
+        if (!hadCenter) this._applyVisibility()
     }
 
     private _init(): void {
         const m = this._map
         if (!m) return
-        if (!this._center) {
-            const c = m.getCenter()
-            this._center = [c.lng, c.lat]
-        }
-        const data = buildCirclePolygon(this._center[0], this._center[1], this._radiusNm)
+        // No map-centre fallback: the zone is centred on the user's location.
+        // With none, build an empty source (kept hidden by _applyVisibility)
+        // so a later updateCenter() can populate it.
+        const data: GeoJSON.Feature | GeoJSON.FeatureCollection = this._center
+            ? buildCirclePolygon(this._center[0], this._center[1], this._radiusNm) as GeoJSON.Feature
+            : { type: 'FeatureCollection', features: [] }
 
         if (m.getLayer(LINE_ID))   m.removeLayer(LINE_ID)
         if (m.getLayer(FILL_ID))   m.removeLayer(FILL_ID)
         if (m.getSource(SOURCE_ID)) m.removeSource(SOURCE_ID)
 
-        m.addSource(SOURCE_ID, { type: 'geojson', data: data as GeoJSON.Feature })
+        m.addSource(SOURCE_ID, { type: 'geojson', data })
 
-        const vis = this._visible ? 'visible' : 'none'
         m.addLayer({
             id: FILL_ID,
             type: 'fill',
             source: SOURCE_ID,
-            layout: { visibility: vis },
+            layout: { visibility: 'none' },
             paint: { 'fill-color': 'rgba(0, 0, 0, 0.12)' },
         })
         m.addLayer({
             id: LINE_ID,
             type: 'line',
             source: SOURCE_ID,
-            layout: { visibility: vis },
+            layout: { visibility: 'none' },
             paint: { 'line-color': 'rgba(0, 0, 0, 0.35)', 'line-width': 0.6 },
         })
+        this._applyVisibility()
     }
 }

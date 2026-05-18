@@ -277,11 +277,13 @@ watch(() => store.open, (isOpen) => {
   }
 })
 
-window.addEventListener('sentinel:locationChanged', (e: Event) => {
+// A location set elsewhere (right-click, config hydration) supersedes any
+// typed-but-unapplied LAT/LON, so drop the staged 'location' edit. The field
+// sync itself is handled by LocationControl listening for this same event;
+// don't re-dispatch it here (would loop).
+window.addEventListener('settings:locationSynced', () => {
   if (!store.open || activeSection.value !== 'app') return
-  const detail = (e as CustomEvent).detail as { longitude: number; latitude: number }
   pending.value.delete('location')
-  window.dispatchEvent(new CustomEvent('settings:locationSynced', { detail }))
 })
 </script>
 

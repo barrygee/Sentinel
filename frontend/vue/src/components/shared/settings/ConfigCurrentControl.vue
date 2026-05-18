@@ -20,6 +20,12 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { isValidLatLon } from '@/utils/locationUtils'
+
+// Same key useUserLocation seeds sharedLocation from on reload. Clearing it
+// here when the config location is emptied keeps the post-reload seed correct
+// from frame 0 (otherwise a stale manual entry redraws the old marker).
+const LOCATION_LS_KEY = 'sentinel_user_location'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
@@ -103,7 +109,16 @@ function onTab(e: KeyboardEvent): void {
 function onEdit(): void {
   dirty.value = true
   emit('stage', () => {
-    JSON.parse(configText.value)
+    const parsed = JSON.parse(configText.value)
+    // If the user emptied/invalidated app.location in the JSON, drop the
+    // stale localStorage entry now so the post-reload seed is correct and
+    // the old marker is never redrawn (belt-and-braces with hydrateFromConfig).
+    const cfgLoc = parsed?.app?.location
+    const lat = parseFloat(String(cfgLoc?.latitude))
+    const lon = parseFloat(String(cfgLoc?.longitude))
+    if (!cfgLoc || !isValidLatLon(lat, lon)) {
+      try { localStorage.removeItem(LOCATION_LS_KEY) } catch {}
+    }
     const blob = new Blob([configText.value], { type: 'application/json' })
     const file = new File([blob], 'sentinel_config.json', { type: 'application/json' })
     const fd = new FormData()

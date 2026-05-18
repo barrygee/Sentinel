@@ -85,6 +85,79 @@ class TestUpsertSetting:
         assert client.get("/api/settings/air").json() == {"flag": True}
 
 
+# ── app.location validation (PUT + config upload) ─────────────────────────────
+
+class TestAppLocationValidation:
+    def test_valid_pair_is_stored(self, client):
+        resp = client.put(
+            "/api/settings/app/location",
+            json={"value": {"latitude": 54.97, "longitude": -1.6}},
+        )
+        assert resp.status_code == 200
+        assert client.get("/api/settings/app").json() == {
+            "location": {"latitude": 54.97, "longitude": -1.6}
+        }
+
+    def test_empty_pair_stored_as_unset(self, client):
+        resp = client.put(
+            "/api/settings/app/location",
+            json={"value": {"latitude": "", "longitude": ""}},
+        )
+        assert resp.status_code == 200
+        assert client.get("/api/settings/app").json() == {
+            "location": {"latitude": "", "longitude": ""}
+        }
+
+    def test_out_of_range_latitude_returns_400(self, client):
+        resp = client.put(
+            "/api/settings/app/location",
+            json={"value": {"latitude": 200, "longitude": 0}},
+        )
+        assert resp.status_code == 400
+
+    def test_partial_pair_returns_400(self, client):
+        resp = client.put(
+            "/api/settings/app/location",
+            json={"value": {"latitude": 54.97, "longitude": ""}},
+        )
+        assert resp.status_code == 400
+
+    def test_non_numeric_returns_400(self, client):
+        resp = client.put(
+            "/api/settings/app/location",
+            json={"value": {"latitude": "abc", "longitude": "def"}},
+        )
+        assert resp.status_code == 400
+
+    def test_location_round_trips_through_preview(self, client):
+        client.put(
+            "/api/settings/app/location",
+            json={"value": {"latitude": 54.97, "longitude": -1.6}},
+        )
+        body = json.loads(client.get("/api/settings/config/preview").content)
+        assert body["app"]["location"] == {"latitude": 54.97, "longitude": -1.6}
+
+    def test_upload_with_invalid_location_returns_400(self, client):
+        resp = client.post(
+            "/api/settings/config/upload",
+            files={"file": ("config.json", io.BytesIO(
+                json.dumps({"app": {"location": {"latitude": 999, "longitude": 0}}}).encode()
+            ), "application/json")},
+        )
+        assert resp.status_code == 400
+
+    def test_upload_with_valid_location_persists(self, client):
+        client.post(
+            "/api/settings/config/upload",
+            files={"file": ("config.json", io.BytesIO(
+                json.dumps({"app": {"location": {"latitude": 1.5, "longitude": 2.5}}}).encode()
+            ), "application/json")},
+        )
+        assert client.get("/api/settings/app").json() == {
+            "location": {"latitude": 1.5, "longitude": 2.5}
+        }
+
+
 # ── GET /api/settings/config/preview ──────────────────────────────────────────
 
 class TestConfigPreview:

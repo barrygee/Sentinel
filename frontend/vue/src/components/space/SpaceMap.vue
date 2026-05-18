@@ -75,9 +75,20 @@ function onMapCreated(m: MapLibreGlMap) {
   ctxMenu.attach(m)
 }
 
+// Bound both to the watcher (null transition) and sentinel:userLocationCleared
+// so a config-clear drops the marker even if the watcher already ran with a
+// stale localStorage seed on reload (ordering-independent).
+function _clearLocationMarker(): void {
+  _locationMarker.remove()
+}
+
 onMounted(() => {
+  window.addEventListener('sentinel:userLocationCleared', _clearLocationMarker)
   watch(userLocation, (loc) => {
+    // Drop the marker when the location is cleared (config emptied) so a
+    // stale pin doesn't linger until GPS provides a new fix.
     if (loc) _locationMarker.update(loc.lon, loc.lat)
+    else _clearLocationMarker()
   }, { immediate: true })
 })
 
@@ -126,6 +137,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener('sentinel:userLocationCleared', _clearLocationMarker)
   const m = _map
   ctxMenu.detach(m)
   if (m) {
