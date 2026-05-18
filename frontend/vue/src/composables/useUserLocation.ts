@@ -10,6 +10,10 @@ export interface UserLocation {
 
 const LOCATION_LS_KEY = 'sentinel_user_location'
 const GPS_EXPIRY_MS   = 5 * 60 * 1000
+// watchPosition fires every few seconds; persist the GPS fix to the config
+// DB at most once per minute (the fields still update live every tick).
+const GPS_PERSIST_INTERVAL_MS = 60 * 1000
+let _lastGpsPersistMs = 0
 
 function _loadFromStorage(): UserLocation | null {
   try {
@@ -102,6 +106,22 @@ function _startWatch(highAccuracy: boolean): void {
       sharedLocation.value = loc
       locationUnavailable.value = false
       _saveToStorage(loc, false)
+      // Keep the Settings > My Location LAT/LON inputs in sync on every tick
+      // (cheap, local — LocationControl listens for this).
+      window.dispatchEvent(new CustomEvent('settings:locationSynced', {
+        detail: { longitude: loc.lon, latitude: loc.lat },
+      }))
+      // Persist the GPS fix to the config DB, throttled to once per minute so
+      // watchPosition's frequent ticks don't spam the backend.
+      const nowMs = Date.now()
+      if (nowMs - _lastGpsPersistMs >= GPS_PERSIST_INTERVAL_MS) {
+        _lastGpsPersistMs = nowMs
+        fetch('/api/settings/app/location', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: { latitude: loc.lat, longitude: loc.lon } }),
+        }).catch(() => {})
+      }
     },
     (err) => {
       if (err.code === err.TIMEOUT && highAccuracy) {
