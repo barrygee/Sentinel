@@ -60,9 +60,16 @@ async def _reconcile_sdr_frequencies(
     name for each slug plus the set of default/empty groups that must exist and
     must never be pruned. Groups are matched by slug so a renamed group still
     resolves and existing colours / sort order survive a round-trip (the config
-    omits colour). Slugs referenced but absent are created. Groups neither
-    referenced by a frequency nor in the catalogue, and all existing
-    frequencies, are removed so the config is authoritative."""
+    omits colour).
+
+    Catalogue authority: when a non-empty catalogue is supplied, `sdr.groups`
+    is the source of truth. A frequency slug not present in the catalogue is
+    dropped from that frequency (the removed group is NOT resurrected), and any
+    DB group neither in the catalogue nor referenced by a surviving frequency
+    is deleted by the prune below. When the catalogue is empty/absent (legacy
+    or hand-written config that omits sdr.groups) this is relaxed: slugs
+    referenced by a frequency are auto-created so such imports are not wiped.
+    All existing frequencies are always rebuilt from the payload."""
     from backend.models import (
         SdrFrequencyGroup,
         SdrFrequencyGroupLink,
@@ -97,6 +104,15 @@ async def _reconcile_sdr_frequencies(
         name_by_slug.setdefault(sl, nm)
         keep_slugs.append(sl)
 
+    # When a usable catalogue is supplied, `sdr.groups` is authoritative: a
+    # frequency may only reference groups listed there, and groups absent from
+    # it are pruned (the existing prune loop handles deletion). When the
+    # catalogue is empty/absent (legacy or hand-written config that omits
+    # sdr.groups), fall back to the historical behaviour of auto-creating
+    # groups from frequency refs so such imports are not silently wiped.
+    catalogue_authoritative = bool(keep_slugs)
+    allowed_slugs = set(keep_slugs)
+
     # Frequencies are fully rebuilt from the payload.
     await db.execute(delete(SdrStoredFrequency))
     await db.execute(delete(SdrFrequencyGroupLink))
@@ -106,6 +122,11 @@ async def _reconcile_sdr_frequencies(
     keep_group_ids: set[int] = set()
 
     async def _resolve_group(slug: str) -> int:
+        # Invariant: when catalogue_authoritative, callers only pass slugs in
+        # `allowed_slugs` (the frequency loop filters first; the keep-slugs
+        # pre-pass iterates the catalogue itself). So the create branch below
+        # can only ever mint in-catalogue groups — a removed group is never
+        # resurrected here.
         nonlocal next_sort
         group = by_slug.get(slug)
         if group is None:
@@ -140,7 +161,13 @@ async def _reconcile_sdr_frequencies(
         for raw_slug in item.get("groups", []):
             if not isinstance(raw_slug, str) or not raw_slug.strip():
                 continue
-            gid = await _resolve_group(slugify(raw_slug.strip()))
+            sl = slugify(raw_slug.strip())
+            # Catalogue is authoritative: a slug the user removed from
+            # sdr.groups is dropped from the frequency rather than resurrecting
+            # the group. (Legacy empty-catalogue imports keep auto-create.)
+            if catalogue_authoritative and sl not in allowed_slugs:
+                continue
+            gid = await _resolve_group(sl)
             if gid not in gids:
                 gids.append(gid)
         keep_group_ids.update(gids)
@@ -259,6 +286,17 @@ async def config_upload(
                 ))
 
     await db.commit()
+
+    # The generic loop above persisted the *raw uploaded* sdr.groups /
+    # sdr.frequencies verbatim, which would defeat _reconcile_sdr_frequencies
+    # (e.g. a dangling group ref the reconcile dropped would still appear in
+    # the stored config, and on the next export). Re-derive both keys from the
+    # authoritative reconciled DB state so the persisted config and the tables
+    # always agree. Same helper every SDR mutation endpoint uses.
+    if isinstance(sdr_ns, dict) and isinstance(sdr_ns.get("frequencies"), list):
+        from backend.database import sync_sdr_groups_to_config
+        await sync_sdr_groups_to_config(db)
+
     return JSONResponse({"status": "ok"})
 
 

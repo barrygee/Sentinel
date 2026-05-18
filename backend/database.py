@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from backend.config import settings
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy import text as sa_text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -240,16 +240,6 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     await upsert_setting(session, "sdr", "groups", [
         {"name": g.name, "slug": g.slug} for g in groups
     ])
-
-    # Drop the dead legacy key. `sdr.groups` is rewritten above as the
-    # {name, slug} catalogue, alongside the flat `sdr.frequencies`.
-    from backend.models import UserSettings  # avoid circular import
-    await session.execute(
-        delete(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "initialGroups",
-        )
-    )
     await session.commit()
 
 
@@ -353,7 +343,6 @@ async def seed_default_settings() -> None:
 
     # Remove stale rows seeded by earlier versions.
     #   sea/land: no built-in default URLs; users must configure them.
-    #   sdr.initialGroups: dead key, superseded by sdr.groups + sdr.frequencies.
     # sdr.groups is intentionally NOT purged here: it is the live {name, slug}
     # catalogue, owned by the sdr_frequency_groups table and rewritten by
     # sync_sdr_groups_to_config. Deleting it each boot would drop user renames
@@ -364,7 +353,6 @@ async def seed_default_settings() -> None:
         ("sea",   "offgridSource"),
         ("land",  "onlineUrl"),
         ("land",  "offgridSource"),
-        ("sdr",   "initialGroups"),
     ]
     async with AsyncSessionLocal() as session:
         for namespace, key in _OBSOLETE_KEYS:

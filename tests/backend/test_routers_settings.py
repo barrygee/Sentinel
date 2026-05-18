@@ -149,3 +149,83 @@ class TestConfigUpload:
         # `b` already had id=5; `a` and `c` must have integer ids and not collide with each other.
         assert all(isinstance(i, int) for i in ids)
         assert len(set(ids)) == 3
+
+    # ── sdr.groups authority on import ────────────────────────────────────────
+
+    def test_dangling_group_ref_dropped_when_catalogue_authoritative(self, client):
+        # Frequency references "maritime" but it is NOT in sdr.groups → the
+        # ref is dropped and the group is never created/resurrected.
+        payload = {
+            "sdr": {
+                "groups": [{"name": "Airband", "slug": "airband"}],
+                "frequencies": [
+                    {
+                        "label": "EGNT Tower",
+                        "frequency_hz": 119700000,
+                        "mode": "AM",
+                        "notes": "",
+                        "groups": ["airband", "maritime"],
+                    },
+                ],
+            },
+        }
+        assert self._upload(client, payload).status_code == 200
+
+        group_slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
+        assert group_slugs == {"airband"}
+        assert "maritime" not in group_slugs
+
+        freqs = client.get("/api/sdr/frequencies").json()
+        assert len(freqs) == 1
+        # The frequency keeps only the in-catalogue group.
+        group_ids = freqs[0].get("group_ids") or []
+        gid_to_slug = {g["id"]: g["slug"] for g in client.get("/api/sdr/groups").json()}
+        assert [gid_to_slug[i] for i in group_ids if i] == ["airband"]
+
+        sdr_cfg = json.loads(client.get("/api/settings/config/preview").content)["sdr"]
+        assert {g["slug"] for g in sdr_cfg["groups"]} == {"airband"}
+        for f in sdr_cfg["frequencies"]:
+            assert "maritime" not in f["groups"]
+
+    def test_in_catalogue_empty_group_preserved(self, client):
+        # "empty" is in sdr.groups but referenced by no frequency → kept.
+        payload = {
+            "sdr": {
+                "groups": [
+                    {"name": "Airband", "slug": "airband"},
+                    {"name": "Empty", "slug": "empty"},
+                ],
+                "frequencies": [
+                    {
+                        "label": "EGNT Tower",
+                        "frequency_hz": 119700000,
+                        "mode": "AM",
+                        "notes": "",
+                        "groups": ["airband"],
+                    },
+                ],
+            },
+        }
+        assert self._upload(client, payload).status_code == 200
+        slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
+        assert slugs == {"airband", "empty"}
+
+    def test_legacy_empty_catalogue_auto_creates_group(self, client):
+        # No sdr.groups key at all → relaxed (legacy) mode: a slug referenced
+        # by a frequency is auto-created so the import is not silently wiped.
+        payload = {
+            "sdr": {
+                "frequencies": [
+                    {
+                        "label": "EGNT Tower",
+                        "frequency_hz": 119700000,
+                        "mode": "AM",
+                        "notes": "",
+                        "groups": ["foo"],
+                    },
+                ],
+            },
+        }
+        assert self._upload(client, payload).status_code == 200
+        slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
+        assert "foo" in slugs

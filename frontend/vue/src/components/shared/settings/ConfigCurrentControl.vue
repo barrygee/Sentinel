@@ -16,17 +16,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, watch } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
+
+const store = useSettingsStore()
 
 const SS_KEY = 'sentinel_config_preview_visible'
 const configText = ref('Loading…')
 const visible = ref(false)
+// Set once the user manually edits the JSON (EDIT mode). While dirty we never
+// auto-refresh — that would silently discard their unsaved changes.
+const dirty = ref(false)
 
 try { visible.value = sessionStorage.getItem(SS_KEY) === '1' } catch {}
 
-onMounted(async () => {
+// Single source of truth for fetching the live config. Re-invoked on panel
+// open and before export so the preview/export always reflect current state
+// (e.g. SDR groups/frequencies added while the panel stayed open).
+async function loadPreview(): Promise<void> {
+  if (dirty.value) return
   try {
     const res = await fetch('/api/settings/config/preview')
     if (!res.ok) throw new Error(res.status.toString())
@@ -35,6 +45,14 @@ onMounted(async () => {
   } catch (err) {
     configText.value = 'Failed to load config: ' + (err as Error).message
   }
+}
+
+onMounted(loadPreview)
+
+// Settings panel stays mounted (CSS toggle); refetch each time it reopens so
+// a config changed elsewhere (SDR panel) is reflected without a remount.
+watch(() => store.open, (isOpen) => {
+  if (isOpen) loadPreview()
 })
 
 function toggleVisible(): void {
@@ -43,6 +61,7 @@ function toggleVisible(): void {
 }
 
 function onEdit(): void {
+  dirty.value = true
   emit('stage', () => {
     JSON.parse(configText.value)
     const blob = new Blob([configText.value], { type: 'application/json' })
@@ -54,6 +73,10 @@ function onEdit(): void {
 }
 
 async function exportConfig(): Promise<void> {
+  // Pull the latest server state first so the downloaded file is never stale,
+  // however long the panel has been open. Skipped when the user has unsaved
+  // edits (loadPreview no-ops on dirty) — we export their text as-is.
+  await loadPreview()
   const content = configText.value
   if ('showSaveFilePicker' in window) {
     try {
