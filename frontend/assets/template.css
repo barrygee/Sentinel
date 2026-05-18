@@ -68,14 +68,18 @@ html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px 0 18px;
+    padding: 0 24px 0 10px;
     z-index: 1000;
 }
 
-/* Left side of the nav bar — wraps the SVG logo element */
+/* Left side of the nav bar — wraps the SVG logo element.
+   The logo SVG has ~6px of internal left padding before the "S";
+   combined with #nav padding-left, the "S" lands at x ≈ 15.5px,
+   matching the left edge of the search icon glyph in the rail. */
 #nav-logo {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 /* The logo image; height constrained to 46px */
@@ -182,6 +186,70 @@ html {
 #footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active)) #notif-toggle-btn[data-tooltip]:hover::before,
 #footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active)) #tracking-toggle-btn[data-tooltip]:hover::before {
     opacity: 1;
+}
+
+/* ---- Playback toggle button (footer-left) ---- */
+#playback-toggle-btn {
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.6);
+    transition: color 0.2s;
+    position: relative;
+    flex-shrink: 0;
+}
+
+#playback-toggle-btn:hover {
+    color: #fff;
+}
+
+#playback-toggle-btn.playback-btn-active {
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.08);
+    border-radius: 6px;
+}
+
+#playback-toggle-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+#playback-toggle-btn[data-tooltip]:hover::before {
+    opacity: 1;
+}
+
+#playback-toggle-btn.playback-btn-active[data-tooltip]::before {
+    opacity: 0 !important;
+}
+
+/* ---- Footer center ---- */
+#footer-center {
+    flex: 1;
+    min-width: 0;
 }
 
 /* ---- Documentation link (footer-right) ---- */

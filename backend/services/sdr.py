@@ -22,7 +22,6 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -36,17 +35,17 @@ READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz
 READ_CHUNK_BYTES    = READ_CHUNK_SAMPLES * 2  # 2 bytes per IQ pair
 
 # Connection cache: key = "host:port"
-_connections: dict[str, "RtlTcpConnection"] = {}
+_connections: dict[str, RtlTcpConnection] = {}
 # Broadcaster cache: key = "host:port"
-_broadcasters: dict[str, "RadioBroadcaster"] = {}
+_broadcasters: dict[str, RadioBroadcaster] = {}
 
 
 @dataclass
 class RtlTcpConnection:
     host: str
     port: int
-    reader: Optional[asyncio.StreamReader] = field(default=None, repr=False)
-    writer: Optional[asyncio.StreamWriter] = field(default=None, repr=False)
+    reader: asyncio.StreamReader | None = field(default=None, repr=False)
+    writer: asyncio.StreamWriter | None = field(default=None, repr=False)
     connected: bool = False
     center_hz: int = 100_000_000
     sample_rate: int = DEFAULT_SAMPLE_RATE
@@ -134,7 +133,7 @@ class RadioBroadcaster:
         self._conn = conn
         self._subscribers:    list[asyncio.Queue] = []   # FFT JSON frames
         self._iq_subscribers: list[asyncio.Queue] = []   # raw IQ bytes
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
 
     def subscribe(self) -> asyncio.Queue:
@@ -204,6 +203,18 @@ class RadioBroadcaster:
 
     async def stop(self) -> None:
         async with self._lock:
+            # Unblock every subscriber that's parked on `await queue.get()`
+            # (WS stream loops and IQ recording drains) with a None sentinel,
+            # so those handlers exit promptly. Without this they block forever
+            # and uvicorn's graceful shutdown hangs ("Waiting for background
+            # tasks to complete").
+            for q in [*self._subscribers, *self._iq_subscribers]:
+                try:
+                    q.put_nowait(None)
+                except asyncio.QueueFull:
+                    pass
+            self._subscribers.clear()
+            self._iq_subscribers.clear()
             if self._task:
                 self._task.cancel()
                 try:
@@ -217,6 +228,12 @@ class RadioBroadcaster:
         logger.info("Broadcaster started for %s:%d", conn.host, conn.port)
         try:
             while True:
+                # Yield to the event loop every iteration. rtl_tcp streams
+                # continuously and TCP backlog can make read_iq_chunk return
+                # with no real suspension, letting this loop monopolise the
+                # loop and starve HTTP/WS handlers (even /health). sleep(0)
+                # guarantees other tasks get scheduled each pass.
+                await asyncio.sleep(0)
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
@@ -230,8 +247,13 @@ class RadioBroadcaster:
                     self._broadcast(err_frame)
                     break
 
-                # FFT uses only the first fft_size samples from the chunk
-                frame = compute_fft_frame(raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz)
+                # FFT uses only the first fft_size samples from the chunk.
+                # compute_fft_frame is CPU-bound NumPy + a per-bin Python loop;
+                # run it in a worker thread so it never blocks the event loop
+                # (a blocked loop stalls all HTTP/WS handling).
+                frame = await asyncio.to_thread(
+                    compute_fft_frame, raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz
+                )
                 self._broadcast(frame)
                 self._broadcast_iq(raw_iq, conn.sample_rate, conn.center_hz)
         except asyncio.CancelledError:
@@ -305,7 +327,7 @@ def compute_fft_frame(
 
 # ── Connection cache helpers ──────────────────────────────────────────────────
 
-def get_connection(host: str, port: int) -> Optional[RtlTcpConnection]:
+def get_connection(host: str, port: int) -> RtlTcpConnection | None:
     return _connections.get(f"{host}:{port}")
 
 
@@ -344,7 +366,7 @@ def connection_status(host: str, port: int) -> dict:
     }
 
 
-def get_broadcaster(host: str, port: int) -> "RadioBroadcaster | None":
+def get_broadcaster(host: str, port: int) -> RadioBroadcaster | None:
     """Return the existing broadcaster for this radio, or None if not running."""
     return _broadcasters.get(f"{host}:{port}")
 
@@ -359,3 +381,37 @@ async def get_or_create_broadcaster(host: str, port: int) -> RadioBroadcaster:
         _broadcasters[key] = broadcaster
     await broadcaster.start()
     return broadcaster
+
+
+def wake_all_subscribers() -> None:
+    """Synchronously push the None sentinel to every subscriber queue.
+
+    Safe to call from an asyncio signal handler (no awaiting). This unblocks
+    WS stream loops / IQ drains parked on `await queue.get()` the instant the
+    shutdown signal arrives — before uvicorn starts waiting for in-flight
+    tasks to drain. Without this, those handlers never return and uvicorn's
+    graceful shutdown hangs at "Waiting for background tasks to complete",
+    so the lifespan shutdown (which would call shutdown_all) never even runs.
+    """
+    for b in list(_broadcasters.values()):
+        for q in [*b._subscribers, *b._iq_subscribers]:
+            try:
+                q.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
+
+
+async def shutdown_all() -> None:
+    """Stop every broadcaster and close every connection.
+
+    Called from the app lifespan on shutdown so the long-lived broadcaster
+    tasks are cancelled and awaited; otherwise uvicorn's graceful shutdown
+    hangs waiting on them ("Waiting for background tasks to complete").
+    Resilient per radio so one failure doesn't strand the rest.
+    """
+    for key in list({*_broadcasters, *_connections}):
+        host, _, port = key.rpartition(":")
+        try:
+            await close_connection(host, int(port))
+        except Exception:
+            logger.exception("Error shutting down SDR %s", key)

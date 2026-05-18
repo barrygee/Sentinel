@@ -1,122 +1,140 @@
-import json
+import asyncio
 import logging
+import signal
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from backend.database import create_tables, migrate_sdr_radios_to_settings, normalize_sdr_frequencies_config, seed_default_sdr_groups, seed_default_settings
+from backend.routers import air, space
+from backend.routers import sdr as sdr_router
+from backend.routers import settings as settings_router
+from backend.services import sdr as sdr_service
+from backend.services.flight_history import cleanup_old_snapshots
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.database import create_tables, get_db, migrate_sdr_radios_to_settings, seed_default_settings
-from backend.models import UserSettings
-from backend.routers import air, space, sea, land, settings as settings_router, sdr as sdr_router
-
 
 ROOT_DIR = Path(__file__).parent.parent
-TEMPLATES_DIR = ROOT_DIR / "frontend" / "templates"
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-
-_DOMAIN_ORDER = ("air", "space", "sea", "land", "sdr")
+SPA_DIR  = ROOT_DIR / "frontend" / "spa-dist"
 
 
-async def _get_enabled_domains(db: AsyncSession) -> list[str]:
-    """Return an ordered list of domain names whose 'enabled' setting is truthy."""
-    result = await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace.in_(_DOMAIN_ORDER),
-            UserSettings.key == "enabled",
-        )
-    )
-    rows = result.scalars().all()
-    enabled_set: set[str] = set()
-    for row in rows:
+async def _daily_cleanup_loop() -> None:
+    """Run flight history cleanup once at startup and then every 24 hours."""
+    while True:
         try:
-            if json.loads(row.value):
-                enabled_set.add(row.namespace)
-        except (json.JSONDecodeError, TypeError):
-            pass
-    # Preserve display order; fall back to all domains if DB has no data yet
-    ordered = [d for d in _DOMAIN_ORDER if d in enabled_set]
-    return ordered if ordered else list(_DOMAIN_ORDER)
+            await cleanup_old_snapshots()
+        except Exception:
+            logging.getLogger(__name__).exception("Flight history cleanup failed")
+        await asyncio.sleep(24 * 60 * 60)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler — runs create_tables once on startup."""
+    """Application lifespan handler — creates tables and seeds defaults on startup."""
     await create_tables()
     await migrate_sdr_radios_to_settings()
     await seed_default_settings()
-    yield  # application runs here; nothing needed on shutdown
+    await seed_default_sdr_groups()
+    await normalize_sdr_frequencies_config()
+    cleanup_task = asyncio.create_task(_daily_cleanup_loop())
+
+    # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
+    # signal arrives so blocked WS stream loops exit immediately, THEN run
+    # uvicorn's original handler to start its graceful shutdown. Without the
+    # pre-wake, uvicorn waits on those never-returning WS tasks before it
+    # invokes lifespan shutdown — a deadlock that hangs `--reload`.
+    _orig_handlers: dict[int, object] = {}
+
+    def _chain(signum, frame):
+        try:
+            sdr_service.wake_all_subscribers()
+        except Exception:
+            logging.getLogger(__name__).exception("wake_all_subscribers failed")
+        prev = _orig_handlers.get(signum)
+        if callable(prev):
+            prev(signum, frame)
+
+    for _sig in (signal.SIGTERM, signal.SIGINT):
+        _orig_handlers[_sig] = signal.getsignal(_sig)
+        signal.signal(_sig, _chain)
+
+    yield
+    # Shutdown: cancel the cleanup loop and await it so uvicorn's graceful
+    # shutdown doesn't hang waiting on a still-cancelling task. Then stop all
+    # SDR broadcasters/connections (their long-lived tasks would otherwise
+    # block shutdown indefinitely).
+    for _sig, _prev in _orig_handlers.items():
+        if callable(_prev) or _prev in (signal.SIG_DFL, signal.SIG_IGN):
+            signal.signal(_sig, _prev)
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+    await sdr_service.shutdown_all()
 
 
 app = FastAPI(
     title="SENTINEL API",
     version="1.0.0",
     lifespan=lifespan,
+    # Disable the built-in /docs and /redoc routes so they don't clash with the SPA.
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
-# Register routers for each surveillance domain
+# ── API routers ────────────────────────────────────────────────────────────────
 app.include_router(air.router)
 app.include_router(space.router)
-app.include_router(sea.router)
-app.include_router(land.router)
 app.include_router(settings_router.router)
 app.include_router(sdr_router.router)
 
 
+# ── Health probe ───────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health_check():
-    """Simple liveness probe — returns status and current server timestamp."""
     return JSONResponse({"status": "ok", "timestamp": int(time.time() * 1000)})
 
 
-# ── Root-level static files ────────────────────────────────────────────────────
-
+# ── Favicon ────────────────────────────────────────────────────────────────────
 @app.get("/favicon.ico")
 async def favicon_ico():
-    return FileResponse(ROOT_DIR / "frontend" / "assets" / "favicon.ico", media_type="image/x-icon")
+    return FileResponse(
+        ROOT_DIR / "frontend" / "assets" / "favicon.ico",
+        media_type="image/x-icon",
+    )
 
 
-# ── Page routes ────────────────────────────────────────────────────────────────
+# ── Static mounts ──────────────────────────────────────────────────────────────
+# /assets — map tiles, PMTiles archives, sprites, fonts, favicons
+app.mount("/assets", StaticFiles(directory=str(ROOT_DIR / "frontend" / "assets")), name="assets")
 
-@app.get("/")
-async def root_redirect(db: AsyncSession = Depends(get_db)):
-    enabled = await _get_enabled_domains(db)
-    target = enabled[0] if enabled else "air"
-    return RedirectResponse(url=f"/{target}/", status_code=302)
+# ── SPA static files ───────────────────────────────────────────────────────────
+# Serve the built Vue app's hashed JS/CSS bundles from /spa-assets/.
+# Vite is configured with assetsDir='spa-assets' so these never clash with
+# the map-tile /assets mount above.
+fonts_dir = SPA_DIR / "fonts"
+if fonts_dir.exists():
+    app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
 
-
-def _make_page_handler(domain: str):
-    """Return a route handler that renders the template for the given domain."""
-    async def handler(request: Request, db: AsyncSession = Depends(get_db)):
-        enabled = await _get_enabled_domains(db)
-        if domain not in enabled:
-            target = enabled[0] if enabled else "air"
-            return RedirectResponse(url=f"/{target}/", status_code=302)
-        return templates.TemplateResponse(
-            f"{domain}/index.html",
-            {"request": request, "domain": domain, "enabled_domains": enabled},
-        )
-    handler.__name__ = f"{domain}_page"
-    return handler
+if SPA_DIR.exists():
+    app.mount("/spa-assets", StaticFiles(directory=str(SPA_DIR / "spa-assets")), name="spa-assets")
 
 
-for _domain in ("air", "sea", "space", "land", "sdr"):
-    app.add_api_route(f"/{_domain}/", _make_page_handler(_domain), methods=["GET"])
-
-
-@app.get("/docs/")
-async def docs_redirect():
-    return RedirectResponse(url="/air/", status_code=302)
-
-
-# ── Static files ───────────────────────────────────────────────────────────────
-# Mount specific directories rather than "/" so page routes are never shadowed.
-app.mount("/assets",   StaticFiles(directory=str(ROOT_DIR / "frontend" / "assets")),   name="assets")
-app.mount("/frontend", StaticFiles(directory=str(ROOT_DIR / "frontend")),  name="frontend")
+# ── SPA catch-all ─────────────────────────────────────────────────────────────
+# Any path that didn't match an API route or static mount above gets the SPA
+# index.html, allowing Vue Router to handle client-side routing.
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    index = SPA_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index, media_type="text/html")
+    # SPA not built yet — return a helpful message during development
+    return JSONResponse(
+        {"detail": "SPA not built. Run: cd frontend/vue && npm run build"},
+        status_code=503,
+    )

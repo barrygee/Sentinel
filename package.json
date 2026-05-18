@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "build:spa": "npm run build --prefix frontend/vue",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "jest",
@@ -15,8 +16,5 @@
     "maplibre-gl": "^4.5.0",
     "ts-jest": "^29.4.6",
     "typescript": "^5.4.0"
-  },
-  "dependencies": {
-    "sigplot": "^3.1.7"
   }
 }

@@ -1,49 +1,30 @@
+# ── Stage 1: Build Vue SPA ────────────────────────────────────────────────────
+FROM node:20-alpine AS spa-builder
+WORKDIR /repo/frontend/vue
+COPY frontend/vue/package.json frontend/vue/package-lock.json ./
+RUN npm ci
+COPY frontend/vue/ ./
+# template.css is imported via ../../../../frontend/assets/template.css
+COPY frontend/assets/ /repo/frontend/assets/
+# outDir is ../../frontend/spa-dist — resolves to /repo/frontend/spa-dist
+RUN npm run build
+
+# ── Stage 2: Python backend ───────────────────────────────────────────────────
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Increase HTTP timeout for slow/flaky network in Docker Desktop on macOS
 ENV UV_HTTP_TIMEOUT=120
 
-# Install dependencies
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --no-install-project
 
-# We still COPY for production-readiness, 
-# but the Compose Volume will override this during dev
 COPY backend/ ./backend/
-COPY frontend/ ./frontend/
+COPY frontend/assets/ ./frontend/assets/
+COPY --from=spa-builder /repo/frontend/spa-dist/ ./frontend/spa-dist/
 
 RUN mkdir -p /app/data
 
-# Default command (no --reload here to keep production safe, 
-# we override this in docker-compose.yml for dev)
 CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-
-
-# NO HOT RELOAD
-
-# FROM python:3.12-slim
-
-# WORKDIR /app
-
-# # Install uv
-# COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# # Install dependencies via uv sync (uses lockfile for reproducible builds)
-# COPY backend/pyproject.toml backend/uv.lock ./
-# RUN uv sync --no-dev --no-install-project
-
-# # Copy backend code
-# COPY backend/ ./backend/
-
-# # Copy static files so FastAPI can serve them
-# COPY frontend/ ./frontend/
-
-# RUN mkdir -p /app/data
-
-# CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

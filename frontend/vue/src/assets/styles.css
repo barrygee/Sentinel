@@ -1,0 +1,5 @@
+/* All existing app styles — imported in main.ts and bundled by Vite */
+
+/* ── Core template ─────────────────────────────────────────────────── */
+@import '../../../../frontend/assets/template.css';
+

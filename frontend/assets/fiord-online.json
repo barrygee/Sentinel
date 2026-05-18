@@ -3,7 +3,9 @@
   "sources": {
     "openmaptiles": {
       "type": "vector",
-      "url": "https://tiles.openfreemap.org/planet"
+      "tiles": ["https://tiles.openfreemap.org/planet/20260506_001001_pt/{z}/{x}/{y}.pbf"],
+      "minzoom": 0,
+      "maxzoom": 14
     }
   },
   "sprite": "/assets/sprites/ofm",

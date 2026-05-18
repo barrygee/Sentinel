@@ -22,4 +22,41 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
+    "ruff>=0.7",
+    "mypy>=1.13",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [".venv", "__pycache__", ".pytest_cache"]
+
+[tool.ruff.lint]
+# Conservative ruleset — pyflakes + isort + a few high-signal pyupgrade checks.
+# Skip rules that would force a large diff (formatting, naming style).
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",   # line length handled by formatter, not enforced strictly
+    "B008",   # FastAPI Depends() and Query() are explicit by design
+    "E701",   # compact one-line while/if loops are clearer in some DSP/math contexts
+    "UP047",  # PEP 695 generic-function syntax — cosmetic, defer
+]
+
+[tool.ruff.lint.per-file-ignores]
+# main.py intentionally configures logging before importing modules that may
+# emit log messages during their own initialisation.
+"main.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+exclude = ["\\.venv", "__pycache__"]
+explicit_package_bases = true
+mypy_path = ".."
+# Currently emits ~90 errors, mostly from SQLAlchemy 2.0 Column[T] vs unwrapped
+# Python values on `row.field` access. Fixing requires annotating every ORM
+# model with `Mapped[T]` (see models.py) — left for a follow-up. Settings below
+# are the eventual target; mypy is wired up but not yet gating CI.
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true

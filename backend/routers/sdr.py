@@ -30,21 +30,19 @@ import asyncio
 import datetime
 import json
 import logging
-import time
 from pathlib import Path
-from typing import Optional
-
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.cache import now_ms
 from backend.config import settings
-from backend.database import get_db
-from backend.models import SdrFrequencyGroup, SdrRecording, SdrStoredFrequency, UserSettings
+from backend.database import get_db, sync_sdr_groups_to_config
+from backend.db_helpers import get_setting, upsert_setting
+from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, field_validator
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +57,9 @@ class RadioIn(BaseModel):
     port: int = 1234
     description: str = ""
     enabled: bool = True
-    bandwidth: Optional[int]   = None
-    rf_gain:   Optional[float] = None
-    agc:       Optional[bool]  = None
+    bandwidth: int | None   = None
+    rf_gain:   float | None = None
+    agc:       bool | None  = None
 
 
 class GroupIn(BaseModel):
@@ -69,9 +67,19 @@ class GroupIn(BaseModel):
     color: str = "#c8ff00"
     sort_order: int = 0
 
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, v: str) -> str:
+        from backend.utils import InvalidGroupName, clean_group_name
+        try:
+            return clean_group_name(v)
+        except InvalidGroupName as exc:
+            raise ValueError(str(exc)) from exc
+
 
 class FrequencyIn(BaseModel):
-    group_id: Optional[int] = None
+    group_id: int | None = None
+    group_ids: list[int] | None = None
     label: str
     frequency_hz: int
     mode: str = "AM"
@@ -83,12 +91,12 @@ class FrequencyIn(BaseModel):
 
 class ConnectIn(BaseModel):
     radio_id: int
-    frequency_hz: Optional[int] = None   # None = preserve current freq
-    mode: Optional[str] = None           # None = preserve current mode
-    gain_db: Optional[float] = None      # None = preserve current gain
-    gain_auto: Optional[bool] = None     # None = preserve current AGC state
+    frequency_hz: int | None = None   # None = preserve current freq
+    mode: str | None = None           # None = preserve current mode
+    gain_db: float | None = None      # None = preserve current gain
+    gain_auto: bool | None = None     # None = preserve current AGC state
     squelch_dbfs: float = -60.0
-    sample_rate: Optional[int] = None    # None = preserve current sample rate
+    sample_rate: int | None = None    # None = preserve current sample rate
 
 
 class DisconnectIn(BaseModel):
@@ -96,7 +104,7 @@ class DisconnectIn(BaseModel):
 
 
 class RecordingStartIn(BaseModel):
-    radio_id: Optional[int] = None
+    radio_id: int | None = None
     radio_name: str = ""
     frequency_hz: int
     mode: str = "AM"
@@ -106,61 +114,39 @@ class RecordingStartIn(BaseModel):
 
 
 class RecordingPatchIn(BaseModel):
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 # ── Radio helpers — read/write sdr.radios from UserSettings ──────────────────
 
 async def _get_radios(db: AsyncSession) -> list[dict]:
     """Read the sdr.radios array from UserSettings. Returns [] if not set."""
-    row = (await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "radios",
-        )
-    )).scalar_one_or_none()
-    if row is None:
-        return []
-    try:
-        val = json.loads(row.value)
-        return val if isinstance(val, list) else []
-    except (json.JSONDecodeError, TypeError):
-        return []
+    val = await get_setting(db, "sdr", "radios", default=[])
+    return val if isinstance(val, list) else []
 
 
 async def _save_radios(db: AsyncSession, radios: list[dict]) -> None:
     """Write the sdr.radios array back to UserSettings (upsert)."""
-    row = (await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "radios",
-        )
-    )).scalar_one_or_none()
-    ts = now_ms()
-    value_str = json.dumps(radios)
-    if row:
-        row.value = value_str
-        row.updated_at = ts
-    else:
-        db.add(UserSettings(namespace="sdr", key="radios", value=value_str, updated_at=ts))
-    await db.commit()
+    await upsert_setting(db, "sdr", "radios", radios)
 
 
 def _group_to_dict(g: SdrFrequencyGroup) -> dict:
     return {
         "id": g.id,
         "name": g.name,
+        "slug": g.slug,
         "color": g.color,
         "sort_order": g.sort_order,
         "created_at": g.created_at,
     }
 
 
-def _freq_to_dict(f: SdrStoredFrequency) -> dict:
+def _freq_to_dict(f: SdrStoredFrequency, group_ids: list[int] | None = None) -> dict:
     return {
         "id": f.id,
         "group_id": f.group_id,
+        "group_ids": group_ids if group_ids is not None else [],
         "label": f.label,
         "frequency_hz": f.frequency_hz,
         "mode": f.mode,
@@ -170,6 +156,28 @@ def _freq_to_dict(f: SdrStoredFrequency) -> dict:
         "notes": f.notes,
         "created_at": f.created_at,
     }
+
+
+async def _load_freq_group_map(db: AsyncSession) -> dict[int, list[int]]:
+    rows = (await db.execute(select(SdrFrequencyGroupLink))).scalars().all()
+    out: dict[int, list[int]] = {}
+    for link in rows:
+        out.setdefault(link.frequency_id, []).append(link.group_id)
+    return out
+
+
+async def _set_freq_groups(db: AsyncSession, freq_id: int, group_ids: list[int]) -> None:
+    existing = (await db.execute(
+        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)
+    )).scalars().all()
+    for link in existing:
+        await db.delete(link)
+    seen: set[int] = set()
+    for gid in group_ids:
+        if gid is None or gid in seen:
+            continue
+        seen.add(gid)
+        db.add(SdrFrequencyGroupLink(frequency_id=freq_id, group_id=gid))
 
 
 def _recording_to_dict(r: SdrRecording) -> dict:
@@ -255,10 +263,18 @@ async def list_groups(db: AsyncSession = Depends(get_db)):
 
 @router.post("/api/sdr/groups", status_code=201)
 async def create_group(body: GroupIn, db: AsyncSession = Depends(get_db)):
-    group = SdrFrequencyGroup(**body.model_dump(), created_at=now_ms())
+    from backend.utils import slugify
+    # Slug is derived once from the name and stays stable across later renames.
+    existing = set((await db.execute(select(SdrFrequencyGroup.slug))).scalars().all())
+    base = slugify(body.name) or "group"
+    slug, n = base, 2
+    while slug in existing:
+        slug, n = f"{base}-{n}", n + 1
+    group = SdrFrequencyGroup(**body.model_dump(), slug=slug, created_at=now_ms())
     db.add(group)
     await db.commit()
     await db.refresh(group)
+    await sync_sdr_groups_to_config(db)
     return JSONResponse(_group_to_dict(group), status_code=201)
 
 
@@ -271,6 +287,7 @@ async def update_group(group_id: int, body: GroupIn, db: AsyncSession = Depends(
         setattr(row, k, v)
     await db.commit()
     await db.refresh(row)
+    await sync_sdr_groups_to_config(db)
     return JSONResponse(_group_to_dict(row))
 
 
@@ -283,25 +300,46 @@ async def delete_group(group_id: int, db: AsyncSession = Depends(get_db)):
     freqs = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.group_id == group_id))).scalars().all()
     for freq in freqs:
         freq.group_id = None
+    links = (await db.execute(
+        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.group_id == group_id)
+    )).scalars().all()
+    for link in links:
+        await db.delete(link)
     await db.delete(row)
     await db.commit()
+    await sync_sdr_groups_to_config(db)
 
 
 # ── Frequency CRUD ────────────────────────────────────────────────────────────
 
+def _resolve_group_ids(body: FrequencyIn) -> list[int]:
+    if body.group_ids is not None:
+        return [g for g in body.group_ids if g is not None]
+    if body.group_id is not None:
+        return [body.group_id]
+    return []
+
+
 @router.get("/api/sdr/frequencies")
 async def list_frequencies(db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(select(SdrStoredFrequency).order_by(SdrStoredFrequency.group_id, SdrStoredFrequency.frequency_hz))).scalars().all()
-    return JSONResponse([_freq_to_dict(freq) for freq in rows])
+    group_map = await _load_freq_group_map(db)
+    return JSONResponse([_freq_to_dict(freq, group_map.get(freq.id, [])) for freq in rows])
 
 
 @router.post("/api/sdr/frequencies", status_code=201)
 async def create_frequency(body: FrequencyIn, db: AsyncSession = Depends(get_db)):
-    freq = SdrStoredFrequency(**body.model_dump(), created_at=now_ms())
+    gids = _resolve_group_ids(body)
+    payload = body.model_dump(exclude={"group_ids"})
+    payload["group_id"] = gids[0] if gids else None
+    freq = SdrStoredFrequency(**payload, created_at=now_ms())
     db.add(freq)
+    await db.flush()
+    await _set_freq_groups(db, freq.id, gids)
     await db.commit()
+    await sync_sdr_groups_to_config(db)
     await db.refresh(freq)
-    return JSONResponse(_freq_to_dict(freq), status_code=201)
+    return JSONResponse(_freq_to_dict(freq, gids), status_code=201)
 
 
 @router.put("/api/sdr/frequencies/{freq_id}")
@@ -309,11 +347,16 @@ async def update_frequency(freq_id: int, body: FrequencyIn, db: AsyncSession = D
     row = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.id == freq_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Frequency not found")
-    for k, v in body.model_dump().items():
+    gids = _resolve_group_ids(body)
+    payload = body.model_dump(exclude={"group_ids"})
+    payload["group_id"] = gids[0] if gids else None
+    for k, v in payload.items():
         setattr(row, k, v)
+    await _set_freq_groups(db, freq_id, gids)
     await db.commit()
+    await sync_sdr_groups_to_config(db)
     await db.refresh(row)
-    return JSONResponse(_freq_to_dict(row))
+    return JSONResponse(_freq_to_dict(row, gids))
 
 
 @router.delete("/api/sdr/frequencies/{freq_id}", status_code=204)
@@ -321,8 +364,14 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.id == freq_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Frequency not found")
+    links = (await db.execute(
+        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)
+    )).scalars().all()
+    for link in links:
+        await db.delete(link)
     await db.delete(row)
     await db.commit()
+    await sync_sdr_groups_to_config(db)
 
 
 # ── Recording CRUD + file serving ────────────────────────────────────────────
@@ -340,7 +389,7 @@ async def list_recordings(db: AsyncSession = Depends(get_db)):
 @router.post("/api/sdr/recordings/start", status_code=201)
 async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get_db)):
     """Create a pending recording row and (optionally) start server-side IQ capture."""
-    started_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    started_at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     rec = SdrRecording(
         name=f"Recording {started_at[:16].replace('T', ' ')}",
         notes="",
@@ -365,18 +414,7 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
     await db.refresh(rec)
 
     # Check if raw IQ recording is enabled in settings
-    sdr_settings_row = (await db.execute(
-        select(UserSettings).where(
-            UserSettings.namespace == "sdr",
-            UserSettings.key == "recordRawIq",
-        )
-    )).scalar_one_or_none()
-    record_iq = False
-    if sdr_settings_row:
-        try:
-            record_iq = json.loads(sdr_settings_row.value) is True
-        except Exception:
-            pass
+    record_iq = await get_setting(db, "sdr", "recordRawIq", default=False) is True
 
     if record_iq and body.radio_id is not None:
         # Look up the radio's host/port so we can find its broadcaster
@@ -445,7 +483,7 @@ async def stop_recording(
             iq_file_size = iq_path.stat().st_size
 
     if not ended_at:
-        ended_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        ended_at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     row.name = name or row.name
     row.ended_at = ended_at
@@ -540,7 +578,7 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
         if body.mode is not None:
             conn.mode = body.mode
     except ConnectionError as exc:
-        raise HTTPException(503, str(exc))
+        raise HTTPException(503, str(exc)) from exc
     return JSONResponse({"status": "connected", "radio_id": body.radio_id})
 
 
@@ -571,7 +609,7 @@ async def radio_status(radio_id: int, db: AsyncSession = Depends(get_db)):
 async def _resolve_broadcaster(
     radio_id: int,
     websocket: WebSocket,
-) -> "tuple[sdr_svc.RadioBroadcaster, dict] | tuple[None, None]":
+) -> tuple[sdr_svc.RadioBroadcaster, dict] | tuple[None, None]:
     """Look up a radio by id and return a running broadcaster for it.
 
     Sends an error frame and closes the WebSocket on failure.
@@ -639,6 +677,8 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
     try:
         while True:
             payload = await queue.get()
+            if payload is None:      # recording stopped / broadcaster shutdown
+                break
             try:
                 await websocket.send_bytes(payload)
             except WebSocketDisconnect:
@@ -733,6 +773,8 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     try:
         while True:
             frame = await queue.get()
+            if frame is None:        # broadcaster stopped (server shutdown)
+                break
             try:
                 await websocket.send_text(json.dumps(frame))
             except (WebSocketDisconnect, RuntimeError):

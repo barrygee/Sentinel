@@ -19,7 +19,5 @@ module.exports = {
     // Collect coverage from the TypeScript source files under frontend/
     collectCoverageFrom: [
         'frontend/**/*.ts',
-        '!frontend/globals.d.ts',
-        '!frontend/types.ts',
     ],
 };
