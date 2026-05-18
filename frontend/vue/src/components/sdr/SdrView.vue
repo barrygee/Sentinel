@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import SdrWaterfall from './SdrWaterfall.vue'
+</script>
+
 <template>
-  <div id="sdr-page" data-domain="sdr"></div>
+  <div id="sdr-page" data-domain="sdr">
+    <SdrWaterfall />
+  </div>
 </template>

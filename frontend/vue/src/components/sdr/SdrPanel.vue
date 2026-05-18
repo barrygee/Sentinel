@@ -627,6 +627,7 @@ import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SdrClipsSection from './SdrClipsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode } from '@/stores/sdr'
 
 interface SdrRadio { id: number; name: string; host: string; enabled: boolean }
@@ -877,6 +878,14 @@ let _ctrlRadioId:      number | null    = null
 let _ctrlReconnect:    ReturnType<typeof setTimeout> | null = null
 let _ctrlDataConfirmed = false
 
+// Lazy store accessor — the control socket lives at module scope, but Pinia is
+// always active by the time a WS message arrives. Cached after first use.
+let _spectrumStore: ReturnType<typeof useSdrStore> | null = null
+function _sdrStore() {
+  if (!_spectrumStore) _spectrumStore = useSdrStore()
+  return _spectrumStore
+}
+
 function _markInitialised(id: number) { sessionStorage.setItem(`sdrInit_${id}`, '1') }
 function _isInitialised(id: number)   { return sessionStorage.getItem(`sdrInit_${id}`) === '1' }
 
@@ -910,7 +919,7 @@ async function openControlSocket(radioId: number) {
     const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
     if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
-      playing.value = true
+      setPlayingState(true)
       sdrAudio.setMode(lastMode as SdrMode)
       sdrAudio.initAudio(radioId)
     }
@@ -932,6 +941,14 @@ async function openControlSocket(radioId: number) {
         if (!_ctrlDataConfirmed) {
           _ctrlDataConfirmed = true
           setStatus(true)
+        }
+        if (Array.isArray(msg.bins)) {
+          _sdrStore().setSpectrum({
+            bins: msg.bins,
+            center_hz: msg.center_hz,
+            sample_rate: msg.sample_rate,
+            ts: msg.timestamp_ms,
+          })
         }
         break
       case 'error':
@@ -967,6 +984,8 @@ function closeControlSocket() {
 function setPlayingState(on: boolean) {
   playing.value = on
   sessionStorage.setItem('sdrPlaying', on ? '1' : '0')
+  // Mirror into the store so SdrWaterfall can gate its rendering on Play.
+  _sdrStore().setPlaying(on)
   if (!on) stopRecordingIfActive()
 }
 
@@ -1103,10 +1122,9 @@ function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
 function setStatus(isConnected: boolean) {
   connected.value = isConnected
   if (isConnected) {
-    if (!playing.value && sessionStorage.getItem('sdrPlaying') === '1') playing.value = true
+    if (!playing.value && sessionStorage.getItem('sdrPlaying') === '1') setPlayingState(true)
   } else {
-    playing.value = false
-    stopRecordingIfActive()
+    setPlayingState(false)   // also stops any active recording
     controlsDisabled.value = true
     activeFreqDisplay.value = ''
     signalSmoothed.value = -120

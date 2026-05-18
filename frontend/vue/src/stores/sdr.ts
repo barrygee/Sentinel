@@ -27,6 +27,13 @@ export interface SdrStoredFrequency {
 
 export type SdrMode = 'NFM' | 'WFM' | 'AM' | 'USB' | 'LSB' | 'CW'
 
+export interface SdrSpectrumFrame {
+  bins: number[]
+  center_hz: number
+  sample_rate: number
+  ts: number
+}
+
 export const useSdrStore = defineStore('sdr', () => {
   const radios = ref<SdrRadio[]>([])
   const groups = ref<SdrFrequencyGroup[]>([])
@@ -40,6 +47,15 @@ export const useSdrStore = defineStore('sdr', () => {
   const currentSquelch = ref(-60)
   const panelOpen = ref(false)
   const sampleRate = ref(2_048_000)
+
+  // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
+  // single ref (the bins array is NOT deep-tracked — consumers read it
+  // imperatively in their render/push loop). See SdrWaterfall.vue.
+  const lastSpectrum = ref<SdrSpectrumFrame | null>(null)
+
+  function setSpectrum(frame: SdrSpectrumFrame) {
+    lastSpectrum.value = frame
+  }
 
   function _restoreSession() {
     try {
@@ -108,7 +124,8 @@ export const useSdrStore = defineStore('sdr', () => {
   return {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    setRadio, setFrequency, setMode, setPlaying,
+    lastSpectrum,
+    setRadio, setFrequency, setMode, setPlaying, setSpectrum,
     loadRadios, loadGroups, loadFrequencies,
   }
 })
