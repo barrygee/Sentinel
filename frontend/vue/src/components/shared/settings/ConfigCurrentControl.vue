@@ -1,12 +1,14 @@
 <template>
   <div class="settings-config-wrap">
     <textarea
+      ref="taRef"
       v-model="configText"
       class="settings-config-preview settings-config-preview--textarea"
       :class="{ 'settings-config-preview--hidden': !visible }"
       spellcheck="false"
       autocomplete="off"
       @input="onEdit"
+      @keydown.tab="onTab"
     ></textarea>
     <div class="settings-config-action-row">
       <button class="settings-config-btn" @click="toggleVisible">{{ visible ? 'HIDE' : 'EDIT' }}</button>
@@ -24,6 +26,8 @@ const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const store = useSettingsStore()
 
 const SS_KEY = 'sentinel_config_preview_visible'
+const INDENT = '  ' // 2 spaces, matching JSON.stringify(data, null, 2)
+const taRef = ref<HTMLTextAreaElement | null>(null)
 const configText = ref('Loading…')
 const visible = ref(false)
 // Set once the user manually edits the JSON (EDIT mode). While dirty we never
@@ -58,6 +62,42 @@ watch(() => store.open, (isOpen) => {
 function toggleVisible(): void {
   visible.value = !visible.value
   try { sessionStorage.setItem(SS_KEY, visible.value ? '1' : '0') } catch {}
+}
+
+// Trap Tab so it indents the JSON instead of moving focus out of the editor.
+// Shift+Tab outdents. Multi-line selections are indented/outdented as a block.
+function onTab(e: KeyboardEvent): void {
+  const ta = taRef.value
+  if (!ta) return
+  e.preventDefault()
+  const { selectionStart: start, selectionEnd: end, value } = ta
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1
+  const multiline = value.slice(start, end).includes('\n')
+
+  if (e.shiftKey) {
+    // Outdent every line touched by the selection.
+    const block = value.slice(lineStart, end)
+    const outdented = block.replace(/^( {1,2}|\t)/gm, '')
+    const removedFirst = block.length - block.split('\n')[0].length === 0
+      ? block.split('\n')[0].length - outdented.split('\n')[0].length
+      : 0
+    ta.value = value.slice(0, lineStart) + outdented + value.slice(end)
+    ta.selectionStart = Math.max(lineStart, start - removedFirst)
+    ta.selectionEnd = lineStart + outdented.length
+  } else if (multiline) {
+    // Indent every line touched by the selection.
+    const block = value.slice(lineStart, end)
+    const indented = block.replace(/^/gm, INDENT)
+    ta.value = value.slice(0, lineStart) + indented + value.slice(end)
+    ta.selectionStart = start + INDENT.length
+    ta.selectionEnd = end + (indented.length - block.length)
+  } else {
+    // Plain caret: insert an indent at the cursor.
+    ta.value = value.slice(0, start) + INDENT + value.slice(end)
+    ta.selectionStart = ta.selectionEnd = start + INDENT.length
+  }
+  configText.value = ta.value
+  onEdit()
 }
 
 function onEdit(): void {
