@@ -88,6 +88,60 @@ class TestGroupsCRUD:
         resp = client.delete(f"/api/sdr/groups/{created['id']}")
         assert resp.status_code == 204
 
+    def test_slug_derived_from_name(self, client):
+        body = client.post(
+            "/api/sdr/groups", json={"name": "Air to Air Refueling"}
+        ).json()
+        assert body["slug"] == "air-to-air-refueling"
+
+    def test_slug_uniquified_on_collision(self, client):
+        a = client.post("/api/sdr/groups", json={"name": "Marine"}).json()
+        b = client.post("/api/sdr/groups", json={"name": "Marine"}).json()
+        assert a["slug"] == "marine"
+        assert b["slug"] == "marine-2"
+
+    def test_slug_stable_across_rename(self, client):
+        g = client.post("/api/sdr/groups", json={"name": "Old Name"}).json()
+        renamed = client.put(
+            f"/api/sdr/groups/{g['id']}", json={"name": "New Name"}
+        ).json()
+        assert renamed["name"] == "New Name"
+        assert renamed["slug"] == g["slug"] == "old-name"
+
+    def test_slug_latin_accents_folded(self, client):
+        body = client.post("/api/sdr/groups", json={"name": "Café Naïve"}).json()
+        assert body["slug"] == "cafe-naive"
+
+    def test_slug_preserves_non_latin_scripts(self, client):
+        cyr = client.post("/api/sdr/groups", json={"name": "Москва радио"}).json()
+        cjk = client.post("/api/sdr/groups", json={"name": "東京タワー"}).json()
+        assert cyr["slug"] == "москва-радио"
+        assert cjk["slug"] == "東京タワー"
+
+    def test_name_rejected_empty(self, client):
+        assert client.post("/api/sdr/groups", json={"name": "   "}).status_code == 422
+
+    def test_name_rejected_too_long(self, client):
+        resp = client.post("/api/sdr/groups", json={"name": "x" * 61})
+        assert resp.status_code == 422
+
+    def test_name_control_chars_stripped(self, client):
+        # Null byte + zero-width space + bidi override are removed; the
+        # surrounding text and slug stay clean.
+        body = client.post(
+            "/api/sdr/groups",
+            json={"name": "Ma\x00ri​ne‮"},
+        ).json()
+        assert body["name"] == "Marine"
+        assert body["slug"] == "marine"
+
+    def test_name_internal_whitespace_collapsed(self, client):
+        body = client.post(
+            "/api/sdr/groups", json={"name": "  Air\t\tto   Air \n Refuel  "}
+        ).json()
+        assert body["name"] == "Air to Air Refuel"
+        assert body["slug"] == "air-to-air-refuel"
+
 
 # ── Frequencies CRUD ─────────────────────────────────────────────────────────
 

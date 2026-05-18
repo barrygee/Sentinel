@@ -49,26 +49,53 @@ _VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
 
 
 async def _reconcile_sdr_frequencies(
-    db: AsyncSession, payload: list, keep_names: list | None = None
+    db: AsyncSession, payload: list, catalogue: list | None = None
 ) -> None:
     """Rebuild SDR groups + stored frequencies to match the flat config
-    payload (a list of {label, frequency_hz, mode, notes, groups:[name, ...]}).
+    payload (a list of {label, frequency_hz, mode, notes, groups:[slug, ...]}).
 
-    Each frequency carries its own `groups` (never duplicated). Groups are
-    matched by name so existing colours / sort order survive a round-trip (the
-    config representation deliberately omits colour); groups named in the
-    payload but not yet present are created. `keep_names` lists default/empty
-    group names that must exist and must never be pruned. Groups neither
-    referenced by a frequency nor in `keep_names`, and all existing
+    Each frequency carries its own `groups` as group *slugs* (never
+    duplicated). `catalogue` is the `sdr.groups` list — {name, slug} objects
+    (current shape) or bare name strings (legacy) — and supplies the readable
+    name for each slug plus the set of default/empty groups that must exist and
+    must never be pruned. Groups are matched by slug so a renamed group still
+    resolves and existing colours / sort order survive a round-trip (the config
+    omits colour). Slugs referenced but absent are created. Groups neither
+    referenced by a frequency nor in the catalogue, and all existing
     frequencies, are removed so the config is authoritative."""
     from backend.models import (
         SdrFrequencyGroup,
         SdrFrequencyGroupLink,
         SdrStoredFrequency,
     )
+    from backend.utils import InvalidGroupName, clean_group_name, slugify
 
     existing_groups = (await db.execute(select(SdrFrequencyGroup))).scalars().all()
-    by_name: dict[str, SdrFrequencyGroup] = {g.name: g for g in existing_groups}
+    by_slug: dict[str, SdrFrequencyGroup] = {g.slug: g for g in existing_groups if g.slug}
+
+    # Build slug -> display name from the catalogue, accepting {name, slug}
+    # objects or legacy bare strings. A missing slug is derived from the name.
+    # Names from an uploaded config bypass the GroupIn validator, so sanitise
+    # here too; a malformed entry is skipped rather than aborting the import.
+    name_by_slug: dict[str, str] = {}
+    keep_slugs: list[str] = []
+    for entry in catalogue or []:
+        if isinstance(entry, dict):
+            raw_name = str(entry.get("name", ""))
+            raw_slug = str(entry.get("slug", "")).strip()
+        elif isinstance(entry, str):
+            raw_name, raw_slug = entry, ""
+        else:
+            continue
+        try:
+            nm = clean_group_name(raw_name)
+        except InvalidGroupName:
+            continue
+        sl = slugify(raw_slug or nm)
+        if not sl:
+            continue
+        name_by_slug.setdefault(sl, nm)
+        keep_slugs.append(sl)
 
     # Frequencies are fully rebuilt from the payload.
     await db.execute(delete(SdrStoredFrequency))
@@ -78,24 +105,23 @@ async def _reconcile_sdr_frequencies(
     next_sort = max((g.sort_order for g in existing_groups), default=-1) + 1
     keep_group_ids: set[int] = set()
 
-    async def _resolve_group(name: str) -> int:
+    async def _resolve_group(slug: str) -> int:
         nonlocal next_sort
-        group = by_name.get(name)
+        group = by_slug.get(slug)
         if group is None:
             group = SdrFrequencyGroup(
-                name=name, color="#c8ff00",
+                name=name_by_slug.get(slug, slug), slug=slug, color="#c8ff00",
                 sort_order=next_sort, created_at=ts,
             )
             next_sort += 1
             db.add(group)
             await db.flush()
-            by_name[name] = group
+            by_slug[slug] = group
         return group.id
 
     # Default/empty groups must exist and survive pruning even with no freqs.
-    for raw_name in keep_names or []:
-        if isinstance(raw_name, str) and raw_name.strip():
-            keep_group_ids.add(await _resolve_group(raw_name.strip()))
+    for slug in keep_slugs:
+        keep_group_ids.add(await _resolve_group(slug))
 
     for item in payload:
         if not isinstance(item, dict):
@@ -111,10 +137,10 @@ async def _reconcile_sdr_frequencies(
 
         # Resolve this frequency's group memberships (de-duplicated, ordered).
         gids: list[int] = []
-        for raw_name in item.get("groups", []):
-            if not isinstance(raw_name, str) or not raw_name.strip():
+        for raw_slug in item.get("groups", []):
+            if not isinstance(raw_slug, str) or not raw_slug.strip():
                 continue
-            gid = await _resolve_group(raw_name.strip())
+            gid = await _resolve_group(slugify(raw_slug.strip()))
             if gid not in gids:
                 gids.append(gid)
         keep_group_ids.update(gids)
@@ -196,15 +222,16 @@ async def config_upload(
 
     # Reconcile SDR frequency groups + frequencies from the flat config
     # representation back into their dedicated tables, so editing them in the
-    # app config JSON actually takes effect. The `sdr.groups` name list
-    # protects empty groups from being pruned for having no frequencies.
+    # app config JSON actually takes effect. The `sdr.groups` catalogue
+    # ({name, slug} objects) supplies slug→name and protects empty groups
+    # from being pruned for having no frequencies.
     sdr_ns = config.get("sdr")
     if isinstance(sdr_ns, dict) and isinstance(sdr_ns.get("frequencies"), list):
-        keep_names = sdr_ns.get("groups")
+        catalogue = sdr_ns.get("groups")
         await _reconcile_sdr_frequencies(
             db,
             sdr_ns["frequencies"],
-            keep_names if isinstance(keep_names, list) else [],
+            catalogue if isinstance(catalogue, list) else [],
         )
 
     ts = now_ms()

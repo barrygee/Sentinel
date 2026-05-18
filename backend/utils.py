@@ -3,10 +3,84 @@ Shared utilities used across multiple routers.
 """
 
 import json
+import re
+import unicodedata
 
 from backend.models import UserSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def slugify(value: str) -> str:
+    """Derive a config-safe slug from a display name, Unicode-aware.
+
+    'Air to Air Refueling' -> 'air-to-air-refueling'.
+    Latin accents fold to ASCII so 'Café Naïve' -> 'cafe-naive', while
+    non-Latin scripts are preserved rather than dropped:
+    'Москва радио' -> 'москва-радио', '東京タワー' -> '東京タワー'.
+
+    Lowercases, NFKC-normalises, strips combining marks, collapses any run of
+    non-(letter/number) — including '_' — to a single hyphen, and trims
+    leading/trailing hyphens. Returns '' when the input has no slug-able
+    characters; callers fall back to the row id (e.g. f'group-{id}')."""
+    s = unicodedata.normalize("NFKC", value or "").strip().lower()
+    # Decompose, drop combining marks (café -> cafe), recompose. This only
+    # affects characters that *have* a canonical decomposition, so scripts
+    # without separable diacritics (Cyrillic, CJK, Arabic, …) pass through.
+    s = "".join(c for c in unicodedata.normalize("NFKD", s)
+                if not unicodedata.combining(c))
+    s = unicodedata.normalize("NFKC", s)
+    # \w is Unicode-aware (letters/digits/underscore in any script); turn
+    # everything else into hyphens, then treat underscore as a separator too.
+    s = re.sub(r"[^\w]+", "-", s, flags=re.UNICODE)
+    s = re.sub(r"_+", "-", s)
+    return s.strip("-")
+
+
+GROUP_NAME_MAX_LEN = 60
+
+
+class InvalidGroupName(ValueError):
+    """Raised when a group name fails validation."""
+
+
+def clean_group_name(value: object) -> str:
+    """Validate and normalise a user-supplied frequency-group name.
+
+    SQL injection is already structurally prevented — every query uses the
+    SQLAlchemy ORM or bound `:params`, never string interpolation — so this
+    guards the *other* free-text risks: control/zero-width/bidi characters
+    that corrupt JSON config, logs or the UI; oversized input; and
+    empty/whitespace-only names.
+
+    Returns the cleaned name. Raises InvalidGroupName on reject so the API can
+    surface a 422 and the config-import path can skip the entry."""
+    if not isinstance(value, str):
+        raise InvalidGroupName("name must be a string")
+    # NFKC first so width/compatibility variants normalise before length check.
+    s = unicodedata.normalize("NFKC", value)
+    # Map whitespace controls (tab/newline/CR/FF/VT) to a space *before*
+    # stripping so "a\tb" -> "a b", not "ab". str.split() handles the rest.
+    s = "".join(" " if ch in "\t\n\r\f\v" else ch for ch in s)
+    # Strip remaining C0/C1 controls, zero-width, and Unicode bidi-override
+    # characters. Cf = format chars (zero-width, joiners); Cc = control; bidi
+    # overrides (U+202A–202E, U+2066–2069) are Cf and thus covered, but list
+    # them explicitly for clarity / defence in depth.
+    _BIDI = {"‪", "‫", "‬", "‭", "‮",
+             "⁦", "⁧", "⁨", "⁩"}
+    s = "".join(
+        ch for ch in s
+        if ch not in _BIDI and unicodedata.category(ch) not in ("Cc", "Cf")
+    )
+    # Collapse internal whitespace runs to single spaces; trim ends.
+    s = " ".join(s.split())
+    if not s:
+        raise InvalidGroupName("name must not be empty or whitespace-only")
+    if len(s) > GROUP_NAME_MAX_LEN:
+        raise InvalidGroupName(
+            f"name must be at most {GROUP_NAME_MAX_LEN} characters"
+        )
+    return s
 
 
 def _valid_url(url: object) -> str | None:

@@ -630,7 +630,7 @@ import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import type { SdrMode } from '@/stores/sdr'
 
 interface SdrRadio { id: number; name: string; host: string; enabled: boolean }
-interface SdrFrequencyGroup { id: number; name: string; color: string; sort_order: number }
+interface SdrFrequencyGroup { id: number; name: string; slug: string; color: string; sort_order: number }
 interface SdrStoredFrequency {
   id: number; label: string; frequency_hz: number; mode: string;
   scannable: boolean; group_ids: number[]; group_id?: number | null;

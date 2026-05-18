@@ -13,6 +13,7 @@ export interface SdrRadio {
 export interface SdrFrequencyGroup {
   id: number
   name: string
+  slug: string
   sort_order: number
 }
 

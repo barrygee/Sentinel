@@ -50,11 +50,26 @@ async def create_tables():
             "ALTER TABLE sdr_radios ADD COLUMN rf_gain REAL",
             "ALTER TABLE sdr_radios ADD COLUMN agc INTEGER",
             "ALTER TABLE air_aircraft ADD COLUMN callsign TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE sdr_frequency_groups ADD COLUMN slug TEXT NOT NULL DEFAULT ''",
         ]:
             try:
                 await conn.execute(sa_text(col_sql))
             except OperationalError:
                 pass
+        # Backfill slugs for groups created before the column existed (or seeded
+        # empty). Slug is rename-stable, so only populate where still blank.
+        try:
+            from backend.utils import slugify
+            rows = (await conn.execute(sa_text(
+                "SELECT id, name FROM sdr_frequency_groups WHERE slug = '' OR slug IS NULL"
+            ))).all()
+            for gid, name in rows:
+                await conn.execute(
+                    sa_text("UPDATE sdr_frequency_groups SET slug = :s WHERE id = :i"),
+                    {"s": slugify(name or "") or f"group-{gid}", "i": gid},
+                )
+        except OperationalError:
+            pass
         try:
             await conn.execute(sa_text(
                 "INSERT OR IGNORE INTO sdr_frequency_group_links (frequency_id, group_id) "
@@ -176,10 +191,12 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     always reflects current state.
 
     The config representation is a flat list of frequencies, each carrying its
-    own `groups` array (group names). Frequencies are never duplicated, even
-    when a frequency belongs to multiple groups. Group colours are
-    intentionally omitted — the `color` column still exists on the table for
-    UI use."""
+    own `groups` array of group slugs (the rename-stable key). The companion
+    `sdr.groups` key holds the group catalogue as {name, slug} objects so the
+    config is self-contained and slugs resolve to readable names. Frequencies
+    are never duplicated, even when a frequency belongs to multiple groups.
+    Group colours are intentionally omitted — the `color` column still exists
+    on the table for UI use."""
     from backend.db_helpers import upsert_setting  # avoid circular import
     from backend.models import (  # avoid circular import
         SdrFrequencyGroup,
@@ -190,7 +207,7 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     groups = (await session.execute(
         select(SdrFrequencyGroup).order_by(SdrFrequencyGroup.sort_order, SdrFrequencyGroup.id)
     )).scalars().all()
-    name_by_id = {g.id: g.name for g in groups}
+    slug_by_id = {g.id: g.slug for g in groups}
 
     links = (await session.execute(select(SdrFrequencyGroupLink))).scalars().all()
     group_ids_by_freq: dict[int, list[int]] = {}
@@ -208,20 +225,24 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
         gids = list(group_ids_by_freq.get(f.id, []))
         if f.group_id is not None and f.group_id not in gids:
             gids.append(f.group_id)
-        names = [name_by_id[gid] for gid in name_by_id if gid in gids]
+        slugs = [slug_by_id[gid] for gid in slug_by_id if gid in gids]
         payload.append({
             "label": f.label,
             "frequency_hz": f.frequency_hz,
             "mode": f.mode,
             "notes": f.notes,
-            "groups": names,
+            "groups": slugs,
         })
 
     await upsert_setting(session, "sdr", "frequencies", payload)
+    # Mirror the group catalogue as {name, slug} so the config is self-contained
+    # and frequency slug refs resolve to readable names on re-import.
+    await upsert_setting(session, "sdr", "groups", [
+        {"name": g.name, "slug": g.slug} for g in groups
+    ])
 
-    # Drop the dead legacy key. `sdr.groups` is no longer purged here: it now
-    # holds the names-only default-group list (seeded from default_config.json),
-    # alongside the flat `sdr.frequencies` written above.
+    # Drop the dead legacy key. `sdr.groups` is rewritten above as the
+    # {name, slug} catalogue, alongside the flat `sdr.frequencies`.
     from backend.models import UserSettings  # avoid circular import
     await session.execute(
         delete(UserSettings).where(
@@ -246,11 +267,14 @@ async def normalize_sdr_frequencies_config() -> None:
 
 async def seed_default_sdr_groups() -> None:
     """Insert the default (empty) SDR frequency groups from
-    default_config.json's `sdr.groups` name list — only if the
-    sdr_frequency_groups table is currently empty. Users can rename/delete
-    afterwards without re-seeding. Frequencies are not seeded; they are managed
-    at runtime and mirrored into the flat `sdr.frequencies` config key."""
+    default_config.json's `sdr.groups` — only if the sdr_frequency_groups
+    table is currently empty. Accepts either {name, slug} objects (current
+    shape) or bare name strings (legacy / hand-written default_config); a
+    missing slug is derived from the name. Users can rename/delete afterwards
+    without re-seeding. Frequencies are not seeded; they are managed at runtime
+    and mirrored into the flat `sdr.frequencies` config key."""
     from backend.models import SdrFrequencyGroup  # avoid circular import
+    from backend.utils import InvalidGroupName, clean_group_name, slugify
 
     async with AsyncSessionLocal() as session:
         existing = await session.execute(select(SdrFrequencyGroup).limit(1))
@@ -261,16 +285,31 @@ async def seed_default_sdr_groups() -> None:
             raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
         except Exception:
             return
-        names = raw.get("sdr", {}).get("groups", [])
-        if not isinstance(names, list) or not names:
+        entries = raw.get("sdr", {}).get("groups", [])
+        if not isinstance(entries, list) or not entries:
             return
 
         ts = int(time.time() * 1000)
-        for idx, name in enumerate(names):
-            if not isinstance(name, str) or not name.strip():
+        seen_slugs: set[str] = set()
+        for idx, entry in enumerate(entries):
+            if isinstance(entry, dict):
+                raw_name = str(entry.get("name", ""))
+                raw_slug = str(entry.get("slug", "")).strip()
+            elif isinstance(entry, str):
+                raw_name, raw_slug = entry, ""
+            else:
                 continue
+            try:
+                name = clean_group_name(raw_name)
+            except InvalidGroupName:
+                continue
+            slug = slugify(raw_slug or name) or f"group-{idx}"
+            if slug in seen_slugs:  # keep slugs unique within the catalogue
+                slug = f"{slug}-{idx}"
+            seen_slugs.add(slug)
             session.add(SdrFrequencyGroup(
-                name=name.strip(),
+                name=name,
+                slug=slug,
                 color="#c8ff00",
                 sort_order=idx,
                 created_at=ts,
@@ -315,8 +354,10 @@ async def seed_default_settings() -> None:
     # Remove stale rows seeded by earlier versions.
     #   sea/land: no built-in default URLs; users must configure them.
     #   sdr.initialGroups: dead key, superseded by sdr.groups + sdr.frequencies.
-    #   sdr.groups: drop any legacy grouped [{name,color}] value so the seeding
-    #     pass below re-inserts the current names-only list from the config file.
+    # sdr.groups is intentionally NOT purged here: it is the live {name, slug}
+    # catalogue, owned by the sdr_frequency_groups table and rewritten by
+    # sync_sdr_groups_to_config. Deleting it each boot would drop user renames
+    # until the next frequency/group mutation re-synced it.
     _OBSOLETE_KEYS = [
         ("space", "offgridSource"),
         ("sea",   "onlineUrl"),
@@ -324,7 +365,6 @@ async def seed_default_settings() -> None:
         ("land",  "onlineUrl"),
         ("land",  "offgridSource"),
         ("sdr",   "initialGroups"),
-        ("sdr",   "groups"),
     ]
     async with AsyncSessionLocal() as session:
         for namespace, key in _OBSOLETE_KEYS:

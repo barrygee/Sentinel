@@ -42,9 +42,12 @@ class TestAirMessages:
         msg = client.get("/api/air/messages").json()[0]
         assert set(msg.keys()) == {"msg_id", "type", "title", "detail", "ts"}
 
-    def test_dismiss_unknown_returns_404(self, client):
+    def test_dismiss_unknown_is_idempotent(self, client):
+        # The endpoint is intentionally idempotent: dismissing a missing
+        # message returns 200 {"status": "absent"}, not 404 (see docstring).
         resp = client.delete("/api/air/messages/does_not_exist")
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "absent"}
 
     def test_dismiss_hides_from_list(self, client):
         client.post(

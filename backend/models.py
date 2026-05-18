@@ -106,6 +106,7 @@ class SdrFrequencyGroup(Base):
 
     id         = Column(Integer, primary_key=True, autoincrement=True)
     name       = Column(Text, nullable=False)
+    slug       = Column(Text, nullable=False, default="")    # rename-stable key, e.g. "air-to-air-refueling"
     color      = Column(Text, nullable=False, default="#c8ff00")
     sort_order = Column(Integer, nullable=False, default=0)
     created_at = Column(Integer, nullable=False)             # Unix ms

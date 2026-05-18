@@ -75,13 +75,13 @@
     "defaultSquelch": -60,
     "radios": [],
     "groups": [
-      "Air to Air Refueling",
-      "AWACS",
-      "Airband",
-      "Amateur Radio",
-      "Maritime",
-      "MilAir",
-      "Weather Satellite"
+      { "name": "Air to Air Refueling", "slug": "air-to-air-refueling" },
+      { "name": "AWACS", "slug": "awacs" },
+      { "name": "Airband", "slug": "airband" },
+      { "name": "Amateur Radio", "slug": "amateur-radio" },
+      { "name": "Maritime", "slug": "maritime" },
+      { "name": "MilAir", "slug": "milair" },
+      { "name": "Weather Satellite", "slug": "weather-satellite" }
     ],
     "frequencies": []
   }

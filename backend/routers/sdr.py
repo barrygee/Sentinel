@@ -40,7 +40,7 @@ from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecordin
 from backend.services import sdr as sdr_svc
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,6 +66,15 @@ class GroupIn(BaseModel):
     name: str
     color: str = "#c8ff00"
     sort_order: int = 0
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, v: str) -> str:
+        from backend.utils import InvalidGroupName, clean_group_name
+        try:
+            return clean_group_name(v)
+        except InvalidGroupName as exc:
+            raise ValueError(str(exc)) from exc
 
 
 class FrequencyIn(BaseModel):
@@ -126,6 +135,7 @@ def _group_to_dict(g: SdrFrequencyGroup) -> dict:
     return {
         "id": g.id,
         "name": g.name,
+        "slug": g.slug,
         "color": g.color,
         "sort_order": g.sort_order,
         "created_at": g.created_at,
@@ -253,7 +263,14 @@ async def list_groups(db: AsyncSession = Depends(get_db)):
 
 @router.post("/api/sdr/groups", status_code=201)
 async def create_group(body: GroupIn, db: AsyncSession = Depends(get_db)):
-    group = SdrFrequencyGroup(**body.model_dump(), created_at=now_ms())
+    from backend.utils import slugify
+    # Slug is derived once from the name and stays stable across later renames.
+    existing = set((await db.execute(select(SdrFrequencyGroup.slug))).scalars().all())
+    base = slugify(body.name) or "group"
+    slug, n = base, 2
+    while slug in existing:
+        slug, n = f"{base}-{n}", n + 1
+    group = SdrFrequencyGroup(**body.model_dump(), slug=slug, created_at=now_ms())
     db.add(group)
     await db.commit()
     await db.refresh(group)
