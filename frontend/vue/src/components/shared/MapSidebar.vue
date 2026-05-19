@@ -302,7 +302,6 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
     left: 0;
     width: 44px;
     background: rgba(10, 13, 20, 0.98);
-    border-right: 1px solid var(--color-border);
     z-index: 1003;
     display: flex;
     flex-direction: column;
