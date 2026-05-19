@@ -1,15 +1,15 @@
 /* SDR spectrum + waterfall display.
  *
  * Sits to the right of the SDR side panel. When the panel is open it starts at
- * its right edge (380px); when closed it expands left to the 44px tab rail
- * (the rail stays visible on the /sdr/ route). */
+ * its right edge (44px tab rail + 386px panel = 430px); when closed it expands
+ * left to the 44px tab rail (the rail stays visible on the /sdr/ route). */
 
 #sdr-waterfall {
   position: fixed;
   top: var(--nav-height);
   bottom: var(--footer-height);
   right: 0;
-  left: 380px;
+  left: 430px;
   transition: left 0.2s ease;
   display: flex;
   flex-direction: column;
