@@ -202,6 +202,10 @@ function initPlots() {
   // interactive chrome (menu/pan/drag/legend) is suppressed. fg drives the
   // axis lines, ticks and labels; the trace itself is coloured separately via
   // the layer's `color`/`fillStyle` options in buildPipes().
+  // noreadout: hide the x:/y:/dx:/dy: cursor panel. xlabel/ylabel are left
+  // unset (null) so SigPlot does NOT render the "<ylabel> vs <xlabel>" title
+  // strip — the axis tics already make the units obvious. Both are independent
+  // of show_x_axis/show_y_axis, so the grid + scale remain.
   specPlot = new sigplot.Plot(specEl.value, {
     autol: 5,
     nomenu: true,
@@ -210,11 +214,10 @@ function initPlots() {
     nokeypress: true,
     no_legend_button: true,
     legend: false,
+    noreadout: true,
     hide_note: true,
     autohide_panbars: true,
     xunits: 3,
-    xlabel: 'Frequency',
-    ylabel: 'dB',
     colors: { bg: BG, fg: '#8b97a8' },
   })
   wfPlot = new sigplot.Plot(wfEl.value, {
