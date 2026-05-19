@@ -170,6 +170,11 @@ let dragActive = false
 // (applyMarker / post-drag re-sync) so our own writes aren't read back as a
 // user drag.
 let suppressAccEvents = false
+// True while the cursor is hovering an accordion edge (the resize zone). Drives
+// a cursor: ew-resize override so the user sees a resize affordance instead of
+// the plot's default crosshair. sigplot computes this hit-test for us and
+// stores it on properties.edge_highlight during its own _onMouseMove.
+const nearEdge = ref(false)
 const MIN_BW_HZ = 200
 
 // Push the store's tuned freq + demod bandwidth onto BOTH accordions, each in
@@ -332,6 +337,50 @@ useDocumentEvent('mousemove', () => {
   } finally {
     suppressAccEvents = false
   }
+})
+
+// Cursor affordance: show ew-resize when the pointer is over an accordion edge
+// (the bandwidth resize zone). We can't piggyback on sigplot's edge_highlight:
+// sigplot's mousemove handler is rate-throttled (throttledOnMouseMove), so when
+// a raw document mousemove fires, edge_highlight is stale/lagging. Instead we
+// replicate sigplot's own hit-test (_onMouseDown, sigplot.accordion.js:488):
+// vertical accordion → mouse x within (edge_line_width + 5) px of loc_1/loc_2.
+// loc_1/loc_2 are canvas-pixel edge positions, refreshed every draw (not
+// throttled), and the plot's Mx gives the data-area bounds. The plot's
+// internal canvas is absolutely positioned at (0,0) inside the plot element,
+// so the element's client rect maps clientX→xpos exactly like sigplot does.
+type AccGeom = {
+  edge_dragging?: boolean
+  properties?: { loc_1?: number; loc_2?: number; edge_line_style?: { lineWidth?: number } }
+}
+type PlotMx = { l: number; r: number; t: number; b: number }
+function nearAccEdge(
+  acc: AccordionPlugin | null,
+  plot: Plot | null,
+  el: HTMLElement | null,
+  clientX: number,
+  clientY: number,
+): boolean {
+  const a = acc as unknown as AccGeom | null
+  if (!a || !el) return false
+  if (a.edge_dragging) return true // mid-resize: hold the cursor for the whole drag
+  const p = a.properties
+  if (!p || p.loc_1 === undefined || p.loc_2 === undefined) return false
+  const mx = (plot as unknown as { _Mx?: PlotMx } | null)?._Mx
+  if (!mx) return false
+  const rect = el.getBoundingClientRect()
+  const xpos = clientX - rect.left
+  const ypos = clientY - rect.top
+  if (xpos < mx.l || xpos > mx.r || ypos < mx.t || ypos > mx.b) return false
+  const elw = p.edge_line_style?.lineWidth ?? 1
+  const tol = elw + 5
+  return Math.abs(p.loc_1 - xpos) < tol || Math.abs(p.loc_2 - xpos) < tol
+}
+useDocumentEvent('mousemove', (e: Event) => {
+  const me = e as MouseEvent
+  nearEdge.value =
+    nearAccEdge(specAcc, specPlot, specEl.value, me.clientX, me.clientY) ||
+    nearAccEdge(wfAcc, wfPlot, wfEl.value, me.clientX, me.clientY)
 })
 
 // Drag-commit. sigplot's Accordion never fires its 'change'/'accordiontag'
@@ -726,7 +775,7 @@ onBeforeUnmount(() => {
   <div
     id="sdr-waterfall"
     ref="rootEl"
-    :class="{ 'panel-closed': !panelOpen }"
+    :class="{ 'panel-closed': !panelOpen, 'edge-resize': nearEdge }"
   >
     <div class="sdr-wf-controls" ref="controlsEl">
       <div class="sdr-wf-ctl">

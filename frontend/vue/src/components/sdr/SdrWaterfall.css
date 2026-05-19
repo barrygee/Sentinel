@@ -196,3 +196,12 @@
   /* Click anywhere to tune to that frequency (onPlotClick). */
   cursor: crosshair;
 }
+
+/* Hovering an accordion edge = bandwidth resize zone. The ID+class selector
+ * outranks the plain .sdr-wf-spectrum/.sdr-wf-raster crosshair rules above, so
+ * the resize cursor wins while nearEdge is set (toggled from the mousemove
+ * edge hit-test in SdrWaterfall.vue). */
+#sdr-waterfall.edge-resize .sdr-wf-spectrum,
+#sdr-waterfall.edge-resize .sdr-wf-raster {
+  cursor: ew-resize;
+}
