@@ -38,6 +38,7 @@ const DEFAULT_BANDS: RfBand[] = [
   { name: 'Air Band', startHz: 108000000, endHz: 137000000 },
   { name: '2m Amateur', startHz: 144000000, endHz: 148000000 },
   { name: 'Marine VHF', startHz: 156000000, endHz: 162025000 },
+  { name: 'MilAir', startHz: 225000000, endHz: 400000000 },
   { name: '70cm Amateur', startHz: 430000000, endHz: 440000000 },
 ]
 const bandPlan = computed<RfBand[]>(() =>

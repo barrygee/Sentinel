@@ -347,8 +347,14 @@ async def seed_default_settings() -> None:
     # catalogue, owned by the sdr_frequency_groups table and rewritten by
     # sync_sdr_groups_to_config. Deleting it each boot would drop user renames
     # until the next frequency/group mutation re-synced it.
+    #   sdr/space.offlineSource: pre-offgridSource spelling, no longer read.
+    #   sdr.initialGroups: old {name,color} list, superseded by the
+    #     code-maintained sdr.groups {name,slug} catalogue.
     _OBSOLETE_KEYS = [
         ("space", "offgridSource"),
+        ("space", "offlineSource"),
+        ("sdr",   "offlineSource"),
+        ("sdr",   "initialGroups"),
         ("sea",   "onlineUrl"),
         ("sea",   "offgridSource"),
         ("land",  "onlineUrl"),

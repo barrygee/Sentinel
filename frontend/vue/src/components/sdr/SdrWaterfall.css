@@ -82,18 +82,16 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(33, 64, 154, 0.85);
-  border-left: 1px solid rgba(140, 170, 255, 0.45);
-  border-right: 1px solid rgba(140, 170, 255, 0.45);
+  background: rgba(200, 255, 0, 0.4);
   box-sizing: border-box;
 }
 
 .sdr-wf-band span {
   font: 11px/1 system-ui, sans-serif;
-  color: #cdd8ff;
+  color: #eaffb0;
   white-space: nowrap;
   padding: 0 6px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Waterfall raster (fills the rest). */
