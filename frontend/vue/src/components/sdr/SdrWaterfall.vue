@@ -202,6 +202,77 @@ function applyMarker() {
   lastCommittedBwHz = bHz
 }
 
+// Click-to-tune. Clicking the spectrum or waterfall data area retunes the
+// radio to the frequency under the cursor (the marker then follows via the
+// store → applyMarker path, same as drag).
+//
+// We can't use a plain `click` listener: sigplot's canvas mousedown handler
+// calls event.preventDefault() (sigplot.js:488), which suppresses the browser's
+// synthetic `click`. So detect the click ourselves — record the mousedown
+// position, and on mouseup over the same plot with negligible movement (i.e.
+// not a marker drag), treat it as a click-to-tune. Capture phase so we read
+// the event before sigplot's own handlers.
+let mdownX = 0
+let mdownY = 0
+let mdownEl: HTMLElement | null = null
+const CLICK_SLOP_PX = 4
+
+function onPlotMouseDown(e: MouseEvent) {
+  console.log('[tune] mousedown', { button: e.button, target: (e.target as HTMLElement)?.tagName })
+  if (e.button !== 0) return
+  mdownEl = e.currentTarget as HTMLElement
+  mdownX = e.clientX
+  mdownY = e.clientY
+}
+
+function onPlotMouseUp(e: MouseEvent) {
+  const el = mdownEl
+  mdownEl = null
+  console.log('[tune] mouseup', {
+    button: e.button,
+    haveEl: !!el,
+    sameTarget: el === e.currentTarget,
+    dragActive,
+    specDrag: accIsDragging(specAcc),
+    wfDrag: accIsDragging(wfAcc),
+    dx: Math.abs(e.clientX - mdownX),
+    dy: Math.abs(e.clientY - mdownY),
+    playing: store.playing,
+  })
+  if (e.button !== 0 || !el || el !== e.currentTarget) return
+  // A marker drag also ends with a mouseup over the plot — ignore it.
+  if (dragActive || accIsDragging(specAcc) || accIsDragging(wfAcc)) return
+  // Moved more than the slop? It was a drag/pan, not a click.
+  if (
+    Math.abs(e.clientX - mdownX) > CLICK_SLOP_PX ||
+    Math.abs(e.clientY - mdownY) > CLICK_SLOP_PX
+  ) return
+  if (!store.playing) return
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return
+  const rect = el.getBoundingClientRect()
+  const dataLeft = rect.left + bandInsetLeftPx.value
+  const dataWidth = rect.width - bandInsetLeftPx.value - bandInsetRightPx.value
+  if (dataWidth <= 0) return
+  let frac = (e.clientX - dataLeft) / dataWidth
+  frac = Math.min(1, Math.max(0, frac))
+  // Account for an active horizontal zoom: the visible window is the full span
+  // / zoom, centred on the tuned frequency. Map the fraction within that
+  // window, not the full span, so a click lands on what the user sees.
+  let winLo = lo
+  let winHi = hi
+  if (zoom.value > ZOOM_MIN) {
+    const center = (lo + hi) / 2
+    const halfWin = (hi - lo) / (2 * zoom.value)
+    winLo = center - halfWin
+    winHi = center + halfWin
+  }
+  const freqHz = Math.round(winLo + frac * (winHi - winLo))
+  console.log('[tune] requestTune', { freqHz, frac, lo, hi })
+  store.requestTune(freqHz)
+}
+
 // Read the spectrum plot's real data-area margins (Mx.l / Mx.r) and drive the
 // HTML band strip's inset from them so it lines up with both plots' data area.
 // Mx is sigplot-internal (no public accessor); the plugin base reads it the
@@ -699,7 +770,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-    <div ref="specEl" class="sdr-wf-spectrum"></div>
+    <div
+      ref="specEl"
+      class="sdr-wf-spectrum"
+      @mousedown.capture="onPlotMouseDown"
+      @mouseup.capture="onPlotMouseUp"
+    ></div>
     <div class="sdr-wf-bands" :style="bandStripStyle">
       <div
         v-for="b in visibleBands"
@@ -711,6 +787,11 @@ onBeforeUnmount(() => {
         <span>{{ b.name }}</span>
       </div>
     </div>
-    <div ref="wfEl" class="sdr-wf-raster"></div>
+    <div
+      ref="wfEl"
+      class="sdr-wf-raster"
+      @mousedown.capture="onPlotMouseDown"
+      @mouseup.capture="onPlotMouseUp"
+    ></div>
   </div>
 </template>

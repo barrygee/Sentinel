@@ -154,6 +154,8 @@
   flex: 0 0 28%;
   min-height: 0;
   width: 100%;
+  /* Click anywhere to tune to that frequency (onPlotClick). */
+  cursor: crosshair;
 }
 
 /* Band-allocation strip between the spectrum and the waterfall — mirrors the
@@ -191,4 +193,6 @@
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
+  /* Click anywhere to tune to that frequency (onPlotClick). */
+  cursor: crosshair;
 }
