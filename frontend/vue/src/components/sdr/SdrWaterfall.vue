@@ -85,6 +85,35 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 const zmin = ref(0)
 const zmax = ref(80)
 const autoScale = ref(true)
+
+// ── Zoom — horizontal (frequency) zoom into the centre of the span ───────────
+// 1 = full span (no zoom); ZOOM_MAX = tightest. The visible window is the full
+// span / zoom, centred on the tuned frequency, applied to BOTH plots so the
+// spectrum and waterfall stay aligned. SigPlot's zoom({x},{x}, continuous:true)
+// updates the current zoom level in place (no zoom-stack growth); zoom === 1
+// calls unzoom() to restore the natural full-span view.
+const ZOOM_MIN = 1
+const ZOOM_MAX = 50
+const zoom = ref(ZOOM_MIN)
+
+function applyZoom() {
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return
+  if (zoom.value <= ZOOM_MIN) {
+    try { specPlot?.unzoom() } catch { /* noop */ }
+    try { wfPlot?.unzoom() } catch { /* noop */ }
+    return
+  }
+  // Window centred on the tuned centre frequency (midpoint of the span).
+  const center = (lo + hi) / 2
+  const halfWin = (hi - lo) / (2 * zoom.value)
+  const x1 = center - halfWin
+  const x2 = center + halfWin
+  // y left undefined => keep the full vertical (dB / history) range.
+  try { specPlot?.zoom({ x: x1 }, { x: x2 }, true) } catch { /* noop */ }
+  try { wfPlot?.zoom({ x: x1 }, { x: x2 }, true) } catch { /* noop */ }
+}
 // Waterfall colour auto-scale window (frames). sigplot's autol:N recomputes
 // the z colour range every ~N frames. A small N (was 5) chases the noise
 // floor at LOW bandwidth/sample-rate — where most of the span is random
@@ -108,6 +137,20 @@ let ro: ResizeObserver | null = null
 const rootEl = ref<HTMLElement | null>(null)
 const specEl = ref<HTMLElement | null>(null)
 const wfEl = ref<HTMLElement | null>(null)
+const controlsEl = ref<HTMLElement | null>(null)
+
+// The Zoom/Max/Min sliders are rotated -90deg, so each slider's CSS `width`
+// must equal its wrapper's pixel HEIGHT for it to span the column. Measure the
+// wrappers and push the length into a per-slider CSS var.
+let controlsRo: ResizeObserver | null = null
+function sizeSliders() {
+  const root = controlsEl.value
+  if (!root) return
+  root.querySelectorAll<HTMLElement>('.sdr-wf-slider-wrap').forEach((wrap) => {
+    const slider = wrap.querySelector<HTMLElement>('.sdr-wf-slider')
+    if (slider) slider.style.setProperty('--wf-slider-len', `${wrap.clientHeight}px`)
+  })
+}
 
 const BG = '#0a0d14'
 
@@ -264,6 +307,13 @@ onMounted(() => {
   rafId = requestAnimationFrame(() => {
     rafId = requestAnimationFrame(initPlots)
   })
+  // Size the rotated sliders once layout settles, then keep them in sync as
+  // the column height changes (panel toggle, window resize, footer/nav).
+  requestAnimationFrame(sizeSliders)
+  if (controlsEl.value) {
+    controlsRo = new ResizeObserver(sizeSliders)
+    controlsRo.observe(controlsEl.value)
+  }
 })
 
 // KNOWN-GOOD baseline (the "working great, only occasional minor jumpy"
@@ -313,6 +363,9 @@ watch(
       xstartMHz = xstartHz / HZ_PER_MHZ
       xdeltaMHz = xdeltaHz / HZ_PER_MHZ
       buildPipes(frame.bins.length)
+      // buildPipes rebuilds the layers and resets the zoom level — reapply the
+      // current zoom window around the new centre so it survives retuning.
+      applyZoom()
     }
 
     // Waterfall: one raster row per frame, rate-capped to WF_ROW_HZ.
@@ -363,12 +416,17 @@ watch([zmin, zmax], ([lo, hi]) => {
   wfPlot?.change_settings({ autol: -1, zmin: lo, zmax: hi })
 })
 
+// Moving the Zoom slider re-windows both plots around the tuned centre.
+watch(zoom, applyZoom)
+
 onBeforeUnmount(() => {
   if (rafId) cancelAnimationFrame(rafId)
   if (drawRaf) cancelAnimationFrame(drawRaf)
   pendingFrame = null
   ro?.disconnect()
   ro = null
+  controlsRo?.disconnect()
+  controlsRo = null
   try { specPlot?.remove_layer(specUuid) } catch { /* noop */ }
   try { wfPlot?.remove_layer(wfUuid) } catch { /* noop */ }
   try { specPlot?.disable_listeners() } catch { /* noop */ }
@@ -384,17 +442,49 @@ onBeforeUnmount(() => {
     ref="rootEl"
     :class="{ 'panel-closed': !panelOpen }"
   >
-    <div class="sdr-wf-controls">
-      <label>
-        Max
-        <input type="range" min="-120" max="20" step="1" v-model.number="zmax" />
-        <span>{{ zmax }}</span>
-      </label>
-      <label>
-        Min
-        <input type="range" min="-120" max="20" step="1" v-model.number="zmin" />
-        <span>{{ zmin }}</span>
-      </label>
+    <div class="sdr-wf-controls" ref="controlsEl">
+      <div class="sdr-wf-ctl">
+        <span class="sdr-wf-ctl-label">Zoom</span>
+        <div class="sdr-wf-slider-wrap">
+          <input
+            class="sdr-wf-slider"
+            type="range"
+            :min="ZOOM_MIN"
+            :max="ZOOM_MAX"
+            step="0.5"
+            v-model.number="zoom"
+            :aria-label="`Zoom ${zoom}x`"
+          />
+        </div>
+      </div>
+      <div class="sdr-wf-ctl">
+        <span class="sdr-wf-ctl-label">Max</span>
+        <div class="sdr-wf-slider-wrap">
+          <input
+            class="sdr-wf-slider"
+            type="range"
+            min="-120"
+            max="20"
+            step="1"
+            v-model.number="zmax"
+            :aria-label="`Max ${zmax} dB`"
+          />
+        </div>
+      </div>
+      <div class="sdr-wf-ctl">
+        <span class="sdr-wf-ctl-label">Min</span>
+        <div class="sdr-wf-slider-wrap">
+          <input
+            class="sdr-wf-slider"
+            type="range"
+            min="-120"
+            max="20"
+            step="1"
+            v-model.number="zmin"
+            :aria-label="`Min ${zmin} dB`"
+          />
+        </div>
+      </div>
     </div>
     <div ref="specEl" class="sdr-wf-spectrum"></div>
     <div class="sdr-wf-bands">

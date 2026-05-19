@@ -16,45 +16,137 @@
   background: #0a0d14;
   overflow: hidden;
   z-index: 1;
+  /* Reserve a gutter on the right for the Zoom/Max/Min slider column so the
+   * spectrum + waterfall sit beside the controls rather than under them.
+   * Must match .sdr-wf-controls width. */
+  padding-right: 44px;
+  box-sizing: border-box;
 }
 
 #sdr-waterfall.panel-closed {
   left: 44px;
 }
 
-/* Intensity (Min/Max) controls — top-right, like the reference UI. */
+/* Zoom / Max / Min controls — vertical sliders stacked on the right edge,
+ * spanning the spectrum + waterfall. Matches the reference screenshot: a
+ * narrow dark rounded-capsule track with a small blue rounded-rect handle and
+ * a bold label centred above each.
+ *
+ * Implementation note: vertical <input type=range> via `slider-vertical`
+ * cannot be reliably custom-styled in Chrome (it ignores ::-webkit thumb/track
+ * sizes). Instead the slider is styled HORIZONTALLY then rotated -90deg inside
+ * a fixed-size wrapper — this keeps full control of the track and thumb in all
+ * browsers. */
 .sdr-wf-controls {
   position: absolute;
-  top: 8px;
-  right: 12px;
+  top: 0;
+  right: 0;
+  width: 44px;
   z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  background: rgba(10, 13, 20, 0.7);
-  border: 1px solid rgba(120, 130, 150, 0.25);
-  border-radius: 4px;
-  font: 11px/1.2 var(--font-primary, 'Barlow', sans-serif);
-  color: #9aa4b2;
-}
-
-.sdr-wf-controls label {
-  display: flex;
   align-items: center;
-  gap: 6px;
+  /* Stacked from the top of the spectrum, content-sized, with a suitable gap
+   * between each control (not stretched down the full height). */
+  gap: 28px;
+  padding: 4px 0 14px;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
-.sdr-wf-controls input[type='range'] {
-  width: 110px;
-  accent-color: #c8ff00;
+.sdr-wf-ctl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  pointer-events: auto;
 }
 
-.sdr-wf-controls span {
-  width: 30px;
-  text-align: right;
-  color: #c8d2e0;
-  font-variant-numeric: tabular-nums;
+.sdr-wf-ctl-label {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* The slider is rotated into this wrapper; its rendered width = the wrapper's
+ * pixel HEIGHT. Fixed short height so each track is compact and the stack sits
+ * near the top of the spectrum. */
+.sdr-wf-slider-wrap {
+  position: relative;
+  flex: none;
+  height: 142px;
+  /* Wide enough for the 16px round thumb; height unchanged. */
+  width: 20px;
+  overflow: visible;
+}
+
+/* Styled as a horizontal slider, then rotated. `width` is set to the wrapper's
+ * pixel HEIGHT at runtime via a CSS var so the rotated slider exactly spans the
+ * available vertical space. Matches the app's .sdr-panel-slider: 3px green
+ * (#c8ff00) track, 16px round white thumb with shadow. */
+.sdr-wf-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* Pre-rotation the slider is `--wf-slider-len` wide x 3px tall, anchored at
+   * the wrapper centre; translate back by half each dimension, then rotate so
+   * it stands vertical and centred within the wrapper. */
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  width: var(--wf-slider-len, 200px);
+  height: 3px;
+  background: #c8ff00;
+  border: none;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.sdr-wf-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: #c8ff00;
+  border-radius: 2px;
+}
+
+.sdr-wf-slider::-moz-range-track {
+  height: 3px;
+  background: #c8ff00;
+  border-radius: 2px;
+}
+
+.sdr-wf-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  /* Centre the 16px thumb on the 3px track ((3 - 16) / 2 = -6.5). */
+  margin-top: -6.5px;
+}
+
+.sdr-wf-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* Spectrum line strip (top). */

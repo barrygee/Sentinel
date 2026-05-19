@@ -74,6 +74,17 @@ declare module 'sigplot' {
     /** Change plot-wide settings (cmap, zmin, zmax, etc.). */
     change_settings(settings: SigPlotOptions): void
 
+    /** Zoom to a data-coordinate box. Omit x/y to keep that axis full-range;
+     *  continuous=true updates the current zoom level in place. */
+    zoom(
+      ul: { x?: number; y?: number },
+      lr: { x?: number; y?: number },
+      continuous?: boolean,
+    ): void
+
+    /** Unzoom one or more levels (all if omitted). */
+    unzoom(levels?: number): void
+
     /** Recompute layout after the container element resizes. */
     checkresize(): void
 
