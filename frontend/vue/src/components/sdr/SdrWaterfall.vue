@@ -149,6 +149,14 @@ const WF_ROWS = 400
 // x-axis render real tuned frequencies instead of a 0..N bin index.
 let xstartHz = 0
 let xdeltaHz = 1
+// Same scaling expressed in MHz. The spectrum axis is fed these so SigPlot
+// renders frequency labels directly in MHz (e.g. 100.5000) to match the
+// radio's MHz frequency display, instead of auto-scaling raw Hz to its own
+// "100.5M" form. At ~100 magnitude SigPlot's mx.mult() returns 1.0 (no extra
+// unit scaling), so the tick text is the plain MHz value.
+const HZ_PER_MHZ = 1e6
+let xstartMHz = 0
+let xdeltaMHz = 1 / HZ_PER_MHZ
 
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
@@ -165,7 +173,7 @@ function buildPipes(n: number) {
   // fill under it. NOT plot colors.fg, which only drives axis/text chrome.
   specUuid = specPlot.overlay_array(
     null,
-    { type: 1000, xunits: 3, yunits: 26, size: n, xstart: xstartHz, xdelta: xdeltaHz },
+    { type: 1000, xunits: 3, yunits: 26, size: n, xstart: xstartMHz, xdelta: xdeltaMHz },
     { color: '#ffffff', fillStyle: 'rgba(255,255,255,0.35)' },
   )
   // Waterfall: 2-D raster via overlay_pipe + push (the documented scrolling-2D
@@ -218,6 +226,10 @@ function initPlots() {
     hide_note: true,
     autohide_panbars: true,
     xunits: 3,
+    // SigPlot draws axis tick labels onto the canvas with this font (default
+    // is "Courier New, monospace"). Match the app font (Barlow) so the
+    // spectrum frequency scale matches the radio's frequency readout.
+    font_family: "'Barlow', sans-serif",
     colors: { bg: BG, fg: '#8b97a8' },
   })
   wfPlot = new sigplot.Plot(wfEl.value, {
@@ -298,6 +310,8 @@ watch(
       lastSampleRate = frame.sample_rate
       xstartHz = spanStartHz.value
       xdeltaHz = frame.sample_rate / Math.max(1, frame.bins.length)
+      xstartMHz = xstartHz / HZ_PER_MHZ
+      xdeltaMHz = xdeltaHz / HZ_PER_MHZ
       buildPipes(frame.bins.length)
     }
 

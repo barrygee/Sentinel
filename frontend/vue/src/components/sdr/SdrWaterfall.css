@@ -35,7 +35,7 @@
   background: rgba(10, 13, 20, 0.7);
   border: 1px solid rgba(120, 130, 150, 0.25);
   border-radius: 4px;
-  font: 11px/1.2 system-ui, sans-serif;
+  font: 11px/1.2 var(--font-primary, 'Barlow', sans-serif);
   color: #9aa4b2;
 }
 
@@ -87,7 +87,7 @@
 }
 
 .sdr-wf-band span {
-  font: 11px/1 system-ui, sans-serif;
+  font: 11px/1 var(--font-primary, 'Barlow', sans-serif);
   color: #eaffb0;
   white-space: nowrap;
   padding: 0 6px;
