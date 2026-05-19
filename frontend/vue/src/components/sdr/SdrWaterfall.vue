@@ -766,6 +766,13 @@ watch(
       xdeltaHz = frame.sample_rate / Math.max(1, frame.bins.length)
       xstartMHz = xstartHz / HZ_PER_MHZ
       xdeltaMHz = xdeltaHz / HZ_PER_MHZ
+      // Drive freq tick spacing in 0.1 MHz steps regardless of the device's
+      // sample-rate span. xdiv == (span in MHz) / 0.1. change_settings() does
+      // not handle xdiv, so write to _Gx directly.
+      const spanMHz = frame.sample_rate / HZ_PER_MHZ
+      const xdiv = Math.max(2, Math.round(spanMHz / 0.1))
+      ;(specPlot as unknown as { _Gx: { xdiv: number } })._Gx.xdiv = xdiv
+      ;(wfPlot as unknown as { _Gx: { xdiv: number } })._Gx.xdiv = xdiv
       buildPipes(frame.bins.length)
       // buildPipes rebuilds the layers and resets the zoom level — reapply the
       // current zoom window around the new centre so it survives retuning.
