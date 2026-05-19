@@ -621,7 +621,7 @@
 
 <script setup lang="ts">
 import './SdrPanel.css'
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -691,6 +691,11 @@ const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
 // ── Radio state ───────────────────────────────────────────────────────────────
 const connected         = ref(false)
 const playing           = ref(false)
+// Mirror play state into the store so SdrWaterfall can gate its rendering.
+// A single passive watch — deliberately does NOT alter any existing
+// play-state logic (avoids the regression that earlier setPlayingState
+// substitutions risked).
+watch(playing, (v) => { _sdrStore().setPlaying(v) })
 const controlsDisabled  = ref(true)
 const selectedRadioId   = ref<number | null>(null)
 const knownRadios       = ref<SdrRadio[]>([])
@@ -919,7 +924,7 @@ async function openControlSocket(radioId: number) {
     const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
     if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
-      setPlayingState(true)
+      playing.value = true
       sdrAudio.setMode(lastMode as SdrMode)
       sdrAudio.initAudio(radioId)
     }
@@ -984,8 +989,6 @@ function closeControlSocket() {
 function setPlayingState(on: boolean) {
   playing.value = on
   sessionStorage.setItem('sdrPlaying', on ? '1' : '0')
-  // Mirror into the store so SdrWaterfall can gate its rendering on Play.
-  _sdrStore().setPlaying(on)
   if (!on) stopRecordingIfActive()
 }
 
@@ -1122,9 +1125,10 @@ function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
 function setStatus(isConnected: boolean) {
   connected.value = isConnected
   if (isConnected) {
-    if (!playing.value && sessionStorage.getItem('sdrPlaying') === '1') setPlayingState(true)
+    if (!playing.value && sessionStorage.getItem('sdrPlaying') === '1') playing.value = true
   } else {
-    setPlayingState(false)   // also stops any active recording
+    playing.value = false
+    stopRecordingIfActive()
     controlsDisabled.value = true
     activeFreqDisplay.value = ''
     signalSmoothed.value = -120

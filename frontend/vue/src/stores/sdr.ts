@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 export interface SdrRadio {
   id: number
@@ -51,7 +51,10 @@ export const useSdrStore = defineStore('sdr', () => {
   // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
   // single ref (the bins array is NOT deep-tracked — consumers read it
   // imperatively in their render/push loop). See SdrWaterfall.vue.
-  const lastSpectrum = ref<SdrSpectrumFrame | null>(null)
+  // shallowRef: a fresh frame (with a 1024-number array) arrives ~12x/sec.
+  // A deep `ref` would proxy that array every frame; shallowRef makes the
+  // assignment O(1) while the watch still fires on identity change.
+  const lastSpectrum = shallowRef<SdrSpectrumFrame | null>(null)
 
   function setSpectrum(frame: SdrSpectrumFrame) {
     lastSpectrum.value = frame

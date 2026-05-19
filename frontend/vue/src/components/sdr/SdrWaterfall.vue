@@ -7,6 +7,18 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 
 const store = useSdrStore()
 
+// Kill-switch: when false the component is fully inert (no plots, no frame
+// subscription, no canvas work). Kept as a fast diagnostic toggle.
+//
+// DIAGNOSTIC URL OVERRIDES (audio-vs-waterfall contention bisect):
+//   ?wf=off    → fully inert (baseline: audio only)
+//   ?wf=nodraw → frames still flow through store/watch, but NO sigplot draw
+//                (isolates data-wiring cost from canvas-render cost)
+//   (default)  → full waterfall
+const _wfParam = new URLSearchParams(location.search).get('wf')
+const WATERFALL_ENABLED = _wfParam !== 'off'
+const DRAW_ENABLED = _wfParam !== 'nodraw'
+
 // ── Layout: track the SDR side panel open/closed state ───────────────────────
 function _readSidebarOpen(): boolean {
   try { return sessionStorage.getItem('sentinel_sidebar_open') === '1' } catch { return false }
@@ -70,7 +82,11 @@ const CLEAN: Record<string, unknown> = {
 // layer2d computes lps once at init from `hcb.lps || (Mx.b - Mx.t)`, so without
 // this an early/zero-height mount permanently yields a single moving line
 // instead of a filled scrolling waterfall.
-const WF_ROWS = 1200
+// History rows in the waterfall raster. Lower = each incoming frame is a
+// thicker band => faster, smoother visual scroll (and less per-frame raster
+// work). 1200 packed ~50-100s of history into the panel making the scroll
+// crawl; ~400 (~15-30s) gives a responsive scroll closer to the reference.
+const WF_ROWS = 400
 
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
@@ -147,6 +163,7 @@ function initPlots() {
 }
 
 onMounted(() => {
+  if (!WATERFALL_ENABLED) return   // BISECT: stay fully inert
   // Defer until the fixed/flex container has resolved its real pixel size.
   // layer2d derives the waterfall geometry once at init from the plot height,
   // so creating the plots before layout settles breaks the raster.
@@ -155,18 +172,58 @@ onMounted(() => {
   })
 })
 
-// Each new spectrum frame: reload() the 1-D spectrum array, push() a row into
-// the 2-D waterfall pipe. Read imperatively — bins is not deep-tracked by Vue.
-// Gated on store.playing: the spectrum stream is always-on once a radio is
-// connected, but the user only wants the display live while Play is active.
+// Render every backend frame (~12-24/sec), coalesced to one draw per animation
+// frame so the scroll stays smooth and never falls behind if frames briefly
+// outrun paint. Audio no longer depends on starving this (the real fix was
+// backend-side broadcaster self-heal), so no artificial fps cap — an earlier
+// 10fps throttle made the waterfall visibly jumpy.
+let pendingFrame: { bins: number[] } | null = null
+let drawRaf = 0
+
+// DIAGNOSTIC FPS PROBE — counts frames at watch-fire vs actual-draw, logs 1/s.
+// Tells us exactly where the backend's ~18/sec collapses. Remove after.
+const _fps = { watch: 0, draw: 0, specMs: 0, wfMs: 0, lastTs: 0 }
+function _fpsTick(stage: 'watch' | 'draw') {
+  _fps[stage]++
+  const now = performance.now()
+  if (now - _fps.lastTs >= 1000) {
+    const d = _fps.draw || 1
+    // eslint-disable-next-line no-console
+    console.log(`[wf-fps] watch=${_fps.watch}/s draw=${_fps.draw}/s ` +
+      `spec=${(_fps.specMs / d).toFixed(1)}ms/f wf=${(_fps.wfMs / d).toFixed(1)}ms/f`)
+    _fps.watch = 0; _fps.draw = 0; _fps.specMs = 0; _fps.wfMs = 0; _fps.lastTs = now
+  }
+}
+
+// Spectrum line: only the latest frame matters, so coalesce to one rAF.
+function drawLoop() {
+  drawRaf = 0
+  const frame = pendingFrame
+  pendingFrame = null
+  if (frame && store.playing && specPlot) {
+    if (!DRAW_ENABLED) return
+    specPlot.reload(specUuid, frame.bins)
+  }
+}
+
 watch(
   () => store.lastSpectrum,
   (frame) => {
-    if (!store.playing) return
-    if (!frame || !specPlot || !wfPlot) return
+    if (!WATERFALL_ENABLED) return
+    if (!store.playing || !frame || !specPlot || !wfPlot) return
+    _fpsTick('watch')
     if (frame.bins.length !== subsize) buildPipes(frame.bins.length)
-    specPlot.reload(specUuid, frame.bins)
-    wfPlot.push(wfUuid, frame.bins)
+    // Waterfall: EVERY frame is a distinct raster row. push() measured ~0ms,
+    // so push immediately — coalescing to one-per-rAF (which fires slower than
+    // the 24/s frame rate in this tab) silently dropped ~half the rows and
+    // made the scroll skip/stutter. Only the spectrum LINE is rAF-coalesced
+    // (its latest value is all that matters).
+    if (DRAW_ENABLED) {
+      wfPlot.push(wfUuid, frame.bins)
+      _fpsTick('draw')
+    }
+    pendingFrame = frame
+    if (!drawRaf) drawRaf = requestAnimationFrame(drawLoop)
   },
 )
 
@@ -176,6 +233,9 @@ watch(
   () => store.playing,
   (isPlaying) => {
     if (isPlaying || !specPlot || !wfPlot || !subsize) return
+    // Drop any frame queued for the next paint so it can't draw post-stop.
+    if (drawRaf) { cancelAnimationFrame(drawRaf); drawRaf = 0 }
+    pendingFrame = null
     const blank = new Float32Array(subsize)
     try { specPlot.reload(specUuid, blank) } catch { /* noop */ }
     // Rebuild the waterfall pipe to clear its scroll history.
@@ -204,6 +264,8 @@ watch([zmin, zmax], ([lo, hi]) => {
 
 onBeforeUnmount(() => {
   if (rafId) cancelAnimationFrame(rafId)
+  if (drawRaf) cancelAnimationFrame(drawRaf)
+  pendingFrame = null
   ro?.disconnect()
   ro = null
   try { specPlot?.remove_layer(specUuid) } catch { /* noop */ }

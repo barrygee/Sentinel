@@ -30,9 +30,15 @@ logger = logging.getLogger(__name__)
 # Default FFT parameters
 DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
 DEFAULT_SAMPLE_RATE = 2_048_000
-# Read ~85ms worth of IQ per chunk (174080 bytes @ 2.048MHz).
-READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz
+# Audio demodulation needs large contiguous IQ blocks; shrinking the read
+# chunk to speed up the spectrum broke audio (fast, garbled bursts). So the IQ
+# read stays at the audio-safe size, and spectrum frame rate is DECOUPLED from
+# it: each chunk is sliced into SPECTRUM_SLICES sub-windows, one FFT each, so
+# the waterfall/spectrum updates ~SPECTRUM_SLICES× more often while IQ audio
+# gets the full contiguous chunk exactly as before.
+READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz — audio-safe (unchanged)
 READ_CHUNK_BYTES    = READ_CHUNK_SAMPLES * 2  # 2 bytes per IQ pair
+SPECTRUM_SLICES     = 8       # FFT sub-windows per chunk => ~8x spectrum rate
 
 # Connection cache: key = "host:port"
 _connections: dict[str, RtlTcpConnection] = {}
@@ -135,9 +141,15 @@ class RadioBroadcaster:
         self._iq_subscribers: list[asyncio.Queue] = []   # raw IQ bytes
         self._task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
+        # True while an _emit_spectrum task is running; lets the read loop skip
+        # FFT work for a chunk rather than block, keeping IQ pacing regular.
+        self._spectrum_inflight = False
 
     def subscribe(self) -> asyncio.Queue:
-        q: asyncio.Queue = asyncio.Queue(maxsize=4)
+        # Spectrum frames now arrive in bursts of SPECTRUM_SLICES per chunk.
+        # Size the queue to hold a few bursts so a brief WS-send hiccup doesn't
+        # drop-oldest and reintroduce waterfall row-skips.
+        q: asyncio.Queue = asyncio.Queue(maxsize=SPECTRUM_SLICES * 3)
         self._subscribers.append(q)
         return q
 
@@ -223,6 +235,38 @@ class RadioBroadcaster:
                     pass
                 self._task = None
 
+    async def _emit_spectrum(
+        self, raw_iq: bytes, fft_size: int, sample_rate: int, center_hz: int,
+    ) -> None:
+        """Compute SPECTRUM_SLICES FFT frames from one chunk, off the read loop.
+
+        Runs as an independent task so FFT cost never delays IQ reads (which
+        would burst the audio). Slicing the chunk into sub-windows gives a
+        higher waterfall update rate than one-FFT-per-chunk.
+        """
+        try:
+            fft_bytes = fft_size * 2  # 2 bytes per IQ sample pair
+            slice_bytes = (len(raw_iq) // SPECTRUM_SLICES) & ~1
+            if slice_bytes >= fft_bytes:
+                for s in range(SPECTRUM_SLICES):
+                    start = s * slice_bytes
+                    sub = raw_iq[start:start + fft_bytes]
+                    if len(sub) < fft_bytes:
+                        break
+                    frame = await asyncio.to_thread(
+                        compute_fft_frame, sub, fft_size, sample_rate, center_hz
+                    )
+                    self._broadcast(frame)
+            else:
+                frame = await asyncio.to_thread(
+                    compute_fft_frame, raw_iq, fft_size, sample_rate, center_hz
+                )
+                self._broadcast(frame)
+        except Exception as exc:
+            logger.debug("spectrum emit error: %s", exc)
+        finally:
+            self._spectrum_inflight = False
+
     async def _run(self) -> None:
         conn = self._conn
         logger.info("Broadcaster started for %s:%d", conn.host, conn.port)
@@ -241,21 +285,62 @@ class RadioBroadcaster:
                     logger.debug("rtl_tcp incomplete read during retune, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
-                    logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
+                    # A transient rtl_tcp drop (USB hiccup, brief network blip)
+                    # must NOT kill the broadcaster: doing so closes every
+                    # subscriber socket and the frontend then hammers
+                    # /api/sdr/connect, thrashing the single-client rtl_tcp and
+                    # never recovering (permanent no-audio). Instead, self-heal:
+                    # reconnect the TCP socket in-place and resume the same loop
+                    # so subscribers (spectrum + IQ) survive the blip.
+                    logger.warning("rtl_tcp read error (%s:%d): %s — reconnecting",
+                                    conn.host, conn.port, exc)
                     conn.connected = False
+                    reconnected = False
+                    for attempt in range(1, 6):
+                        await asyncio.sleep(min(2 ** (attempt - 1), 10))
+                        try:
+                            await conn.disconnect()
+                        except Exception:
+                            pass
+                        try:
+                            await conn.connect()
+                            logger.info("rtl_tcp reconnected (%s:%d) after %d attempt(s)",
+                                        conn.host, conn.port, attempt)
+                            reconnected = True
+                            break
+                        except Exception as rexc:
+                            logger.warning("rtl_tcp reconnect attempt %d failed (%s:%d): %s",
+                                            attempt, conn.host, conn.port, rexc)
+                    if reconnected:
+                        continue
+                    # Exhausted retries — only now surface the error and stop.
+                    logger.error("rtl_tcp reconnect gave up (%s:%d)", conn.host, conn.port)
                     err_frame = {"type": "error", "code": "READ_ERROR", "message": str(exc)}
                     self._broadcast(err_frame)
                     break
 
-                # FFT uses only the first fft_size samples from the chunk.
-                # compute_fft_frame is CPU-bound NumPy + a per-bin Python loop;
-                # run it in a worker thread so it never blocks the event loop
-                # (a blocked loop stalls all HTTP/WS handling).
-                frame = await asyncio.to_thread(
-                    compute_fft_frame, raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz
-                )
-                self._broadcast(frame)
+                # Audio: broadcast the full contiguous chunk immediately, as
+                # the original working code did. IQ pacing must NOT be gated by
+                # FFT work — an earlier slicing loop did 8 sequential
+                # `await to_thread` FFTs between reads, which stalled the next
+                # read and delivered IQ to the worklet in bursts (garbled
+                # audio). So: broadcast IQ first, then hand the raw chunk to a
+                # SEPARATE spectrum task and immediately continue reading.
                 self._broadcast_iq(raw_iq, conn.sample_rate, conn.center_hz)
+
+                # Spectrum: offload all FFT work to an independent task so the
+                # read loop returns to read_iq_chunk() without waiting. The
+                # spectrum task slices the chunk for a higher waterfall rate;
+                # if it falls behind, _spectrum_inflight skips a chunk rather
+                # than backing up the read loop.
+                if not self._spectrum_inflight:
+                    self._spectrum_inflight = True
+                    asyncio.create_task(
+                        self._emit_spectrum(
+                            raw_iq, conn.fft_size,
+                            conn.sample_rate, conn.center_hz,
+                        )
+                    )
         except asyncio.CancelledError:
             pass
         finally:
