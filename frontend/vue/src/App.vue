@@ -26,11 +26,9 @@
   <AppFooter
     :sidebar-open="sidebarOpen"
     @toggle-sidebar="sidebarRef?.toggle()"
-    @toggle-docs="docsRef?.toggle()"
   />
 
   <SettingsPanel />
-  <DocsPanel ref="docsRef" />
 </template>
 
 <script setup lang="ts">
@@ -39,7 +37,6 @@ import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
-import DocsPanel from '@/components/shared/DocsPanel.vue'
 import SdrTabPanel from '@/components/sdr/SdrTabPanel.vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -91,7 +88,6 @@ watch(isSdrRoute, (isSdr) => {
 })
 
 const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)
-const docsRef    = ref<InstanceType<typeof DocsPanel>   | null>(null)
 
 const sidebarOpen = computed(() => sidebarRef.value?.open ?? false)
 

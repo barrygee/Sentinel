@@ -15,7 +15,6 @@ const router = createRouter({
     { path: '/sea/',   component: SeaView,   meta: { domain: 'sea'   } },
     { path: '/land/',  component: LandView,  meta: { domain: 'land'  } },
     { path: '/sdr/',   component: SdrView,   meta: { domain: 'sdr'   } },
-    { path: '/docs/',  redirect: '/air/'    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
