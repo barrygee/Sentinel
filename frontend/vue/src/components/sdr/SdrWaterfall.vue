@@ -137,6 +137,33 @@ function applyZoom() {
 // only the raster colour-map needs to be steady.)
 const WF_AUTOL = 100
 
+// ── Spectrum dB axis — STATIC like SDR++, per-device ─────────────────────────
+// The backend emits raw 10*log10(|FFT|^2 + 1e-12) (see backend/services/sdr.py).
+// The -120 dB floor is the FFT epsilon and is device-independent; the ceiling
+// scales with the IQ sample width (≈ +6 dB per extra bit). Pinning the spectrum
+// Y-axis to this range stops the left dB ruler from breathing every few frames
+// (the SDR++ behaviour: signals slide vertically against a fixed scale).
+//
+// Encoding the range per device id means switching front-ends later is one
+// entry in this table, not a refactor — cross-references the data-range
+// comment at the top of this file (zmin/zmax intensity defaults).
+//
+// FUTURE: when the backend starts reporting the active device (e.g. a `device`
+// field on the spectrum frame, or a `deviceType` ref on the SDR store), make
+// ACTIVE_DEVICE reactive and watch it to call
+// `specPlot.change_settings({ ymin, ymax })` (sigplot supports this at
+// runtime; see node_modules/sigplot/js/sigplot.js lines 2039-2074).
+type SdrDeviceId = 'rtl_tcp' | 'hackrf' | 'airspy' | 'sdrplay'
+const DEVICE_DB_RANGE: Record<SdrDeviceId, { ymin: number; ymax: number }> = {
+  rtl_tcp:  { ymin: -120, ymax:  90 }, // 8-bit IQ (only device wired today)
+  hackrf:   { ymin: -120, ymax:  90 }, // 8-bit IQ  — placeholder
+  airspy:   { ymin: -120, ymax: 120 }, // 12-bit IQ — placeholder
+  sdrplay:  { ymin: -120, ymax: 130 }, // 14-bit IQ — placeholder
+}
+const ACTIVE_DEVICE: SdrDeviceId = 'rtl_tcp'
+const SPEC_YMIN_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymin
+const SPEC_YMAX_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymax
+
 // ── Plot instances & layer uuids — deliberately NON-reactive ─────────────────
 // sigplot mutates the Plot object heavily; wrapping it in Vue reactivity breaks
 // it and tanks performance. Keep these as plain module-of-component bindings.
@@ -528,7 +555,12 @@ function initPlots() {
   // strip — the axis tics already make the units obvious. Both are independent
   // of show_x_axis/show_y_axis, so the grid + scale remain.
   specPlot = new sigplot.Plot(specEl.value, {
-    autol: 5,
+    // Static dB ruler (SDR++ behaviour): autoy:0 = Fix mode, no Y auto-scaling.
+    // ymin/ymax come from the per-device range table above so signals slide
+    // against a fixed scale instead of the scale chasing the signals.
+    autoy: 0,
+    ymin: SPEC_YMIN_DB,
+    ymax: SPEC_YMAX_DB,
     nomenu: true,
     nopan: true,
     nodragdrop: true,
@@ -566,6 +598,17 @@ function initPlots() {
     xunits: 3,
     font_family: "'Barlow', sans-serif",
     colors: { bg: BG, fg: BG },
+  })
+
+  // Debug: expose the spectrum plot's Y-axis state for live verification.
+  // In DevTools console: `__specYAxis()` → { ymin, ymax, autoy, autol }.
+  // Remove once the static-ruler change is verified.
+  ;(window as unknown as { __specYAxis?: () => unknown }).__specYAxis = () => ({
+    ymin: (specPlot as unknown as { _Gx: { ymin: number } })?._Gx?.ymin,
+    ymax: (specPlot as unknown as { _Gx: { ymax: number } })?._Gx?.ymax,
+    autoy: (specPlot as unknown as { _Gx: { autoy: number } })?._Gx?.autoy,
+    autol: (specPlot as unknown as { _Gx: { autol: number } })?._Gx?.autol,
+    stk0: (specPlot as unknown as { _Mx: { stk: Array<{ ymin: number; ymax: number }> } })?._Mx?.stk?.[0],
   })
 
   buildPipes(1024)
