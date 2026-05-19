@@ -1,11 +1,69 @@
 <script setup lang="ts">
 import './SdrWaterfall.css'
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import sigplot, { type Plot } from 'sigplot'
 import { useSdrStore } from '@/stores/sdr'
+import { useSettingsStore } from '@/stores/settings'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 
 const store = useSdrStore()
+const settings = useSettingsStore()
+
+// ── RF band plan ─────────────────────────────────────────────────────────────
+// Reference allocations used to label the spectrum (e.g. "Medium Wave"). Comes
+// from the sdr.bandPlan config setting (seeded from backend/default_config.json);
+// this built-in list is the fallback so the overlay works even before the DB
+// has the row (existing installs were seeded before bandPlan was added).
+interface RfBand { name: string; startHz: number; endHz: number }
+const DEFAULT_BANDS: RfBand[] = [
+  { name: 'Longwave', startHz: 148500, endHz: 283500 },
+  { name: 'Medium Wave', startHz: 526500, endHz: 1606500 },
+  { name: '120m', startHz: 2300000, endHz: 2495000 },
+  { name: '90m', startHz: 3200000, endHz: 3400000 },
+  { name: '75m', startHz: 3900000, endHz: 4000000 },
+  { name: '60m', startHz: 4750000, endHz: 4995000 },
+  { name: '49m', startHz: 5900000, endHz: 6200000 },
+  { name: '40m', startHz: 7200000, endHz: 7450000 },
+  { name: '31m', startHz: 9400000, endHz: 9900000 },
+  { name: '25m', startHz: 11600000, endHz: 12100000 },
+  { name: '22m', startHz: 13570000, endHz: 13870000 },
+  { name: '19m', startHz: 15100000, endHz: 15800000 },
+  { name: '16m', startHz: 17480000, endHz: 17900000 },
+  { name: '13m', startHz: 21450000, endHz: 21850000 },
+  { name: '11m', startHz: 25670000, endHz: 26100000 },
+  { name: 'CB', startHz: 26965000, endHz: 27405000 },
+  { name: '10m Amateur', startHz: 28000000, endHz: 29700000 },
+  { name: '6m Amateur', startHz: 50000000, endHz: 54000000 },
+  { name: 'FM Broadcast', startHz: 87500000, endHz: 108000000 },
+  { name: 'Air Band', startHz: 108000000, endHz: 137000000 },
+  { name: '2m Amateur', startHz: 144000000, endHz: 148000000 },
+  { name: 'Marine VHF', startHz: 156000000, endHz: 162025000 },
+  { name: '70cm Amateur', startHz: 430000000, endHz: 440000000 },
+]
+const bandPlan = computed<RfBand[]>(() =>
+  settings.getSetting<RfBand[]>('sdr', 'bandPlan', DEFAULT_BANDS),
+)
+
+// Live frequency span of the current spectrum frame (center ± sample_rate/2),
+// tracked so the axis scaling and the band overlay follow tuning.
+const spanStartHz = ref(0)
+const spanEndHz = ref(0)
+
+// Bands that intersect the visible span, with their position as a 0..1 fraction
+// across the plot — consumed by the band strip overlay in the template.
+const visibleBands = computed(() => {
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  const w = hi - lo
+  if (w <= 0) return []
+  return bandPlan.value
+    .filter((b) => b.endHz > lo && b.startHz < hi)
+    .map((b) => {
+      const left = Math.max(0, (b.startHz - lo) / w)
+      const right = Math.min(1, (b.endHz - lo) / w)
+      return { name: b.name, leftPct: left * 100, widthPct: (right - left) * 100 }
+    })
+})
 
 // ── Layout: track the SDR side panel open/closed state ───────────────────────
 function _readSidebarOpen(): boolean {
@@ -85,6 +143,12 @@ const CLEAN: Record<string, unknown> = {
 // crawl; ~400 (~15-30s) gives a responsive scroll closer to the reference.
 const WF_ROWS = 400
 
+// Frequency scaling for the current frame. xstart = left-edge Hz, xdelta =
+// Hz per FFT bin. Passing these (with xunits:3 = Hz) makes SigPlot's own
+// x-axis render real tuned frequencies instead of a 0..N bin index.
+let xstartHz = 0
+let xdeltaHz = 1
+
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
   if (subsize) {
@@ -94,10 +158,14 @@ function buildPipes(n: number) {
   subsize = n
   // Spectrum: 1-D line trace. Per the SigPlot developer-tips guidance for
   // real-time 1-D, use overlay_array(null, …) and reload() each frame rather
-  // than a pipe (avoids pipe-buffer artifacts).
+  // than a pipe (avoids pipe-buffer artifacts). xstart/xdelta give the axis
+  // real Hz scaling; `color`/`fillStyle` are layer options (overlay_array's
+  // 3rd arg, == change_settings params) — the white line + translucent white
+  // fill under it. NOT plot colors.fg, which only drives axis/text chrome.
   specUuid = specPlot.overlay_array(
     null,
-    { type: 1000, xunits: 3, yunits: 26, size: n },
+    { type: 1000, xunits: 3, yunits: 26, size: n, xstart: xstartHz, xdelta: xdeltaHz },
+    { color: '#ffffff', fillStyle: 'rgba(255,255,255,0.35)' },
   )
   // Waterfall: 2-D raster via overlay_pipe + push (the documented scrolling-2D
   // pattern). `drawmode:'falling'` => newest row enters at the top and the
@@ -108,6 +176,8 @@ function buildPipes(n: number) {
       type: 2000,
       subsize: n,
       xunits: 3,
+      xstart: xstartHz,
+      xdelta: xdeltaHz,
       lps: WF_ROWS,
       pipesize: WF_ROWS * n * 2,
     },
@@ -127,12 +197,24 @@ let rafId = 0
 function initPlots() {
   if (!specEl.value || !wfEl.value || !rootEl.value) return
 
-  // Both plots get the no-chrome treatment. The spectrum is still a 1-D line
-  // trace (just unlabelled); the waterfall is the raster.
+  // Spectrum keeps the SigPlot axes (frequency grid + dB scale) — only the
+  // interactive chrome (menu/pan/drag/legend) is suppressed. fg drives the
+  // axis lines, ticks and labels; the trace itself is coloured separately via
+  // the layer's `color`/`fillStyle` options in buildPipes().
   specPlot = new sigplot.Plot(specEl.value, {
-    ...CLEAN,
     autol: 5,
-    colors: { bg: BG, fg: '#7fd4ff' },
+    nomenu: true,
+    nopan: true,
+    nodragdrop: true,
+    nokeypress: true,
+    no_legend_button: true,
+    legend: false,
+    hide_note: true,
+    autohide_panbars: true,
+    xunits: 3,
+    xlabel: 'Frequency',
+    ylabel: 'dB',
+    colors: { bg: BG, fg: '#8b97a8' },
   })
   wfPlot = new sigplot.Plot(wfEl.value, {
     ...CLEAN,
@@ -189,11 +271,31 @@ function drawLoop() {
   }
 }
 
+let lastCenterHz = 0
+let lastSampleRate = 0
+
 watch(
   () => store.lastSpectrum,
   (frame) => {
     if (!store.playing || !frame || !specPlot || !wfPlot) return
-    if (frame.bins.length !== subsize) buildPipes(frame.bins.length)
+
+    // Update the frequency span (drives the axis scaling + band overlay).
+    // sample_rate spans the full FFT; bin 0 sits at center - rate/2.
+    const half = frame.sample_rate / 2
+    spanStartHz.value = frame.center_hz - half
+    spanEndHz.value = frame.center_hz + half
+
+    // Rebuild the layers when the bin count OR the tuning/scale changes so the
+    // axis and waterfall stay aligned to the real frequencies.
+    const scaleChanged =
+      frame.center_hz !== lastCenterHz || frame.sample_rate !== lastSampleRate
+    if (frame.bins.length !== subsize || scaleChanged) {
+      lastCenterHz = frame.center_hz
+      lastSampleRate = frame.sample_rate
+      xstartHz = spanStartHz.value
+      xdeltaHz = frame.sample_rate / Math.max(1, frame.bins.length)
+      buildPipes(frame.bins.length)
+    }
 
     // Waterfall: one raster row per frame, rate-capped to WF_ROW_HZ.
     const now = performance.now()
@@ -277,6 +379,17 @@ onBeforeUnmount(() => {
       </label>
     </div>
     <div ref="specEl" class="sdr-wf-spectrum"></div>
+    <div class="sdr-wf-bands">
+      <div
+        v-for="b in visibleBands"
+        :key="b.name"
+        class="sdr-wf-band"
+        :style="{ left: b.leftPct + '%', width: b.widthPct + '%' }"
+        :title="b.name"
+      >
+        <span>{{ b.name }}</span>
+      </div>
+    </div>
     <div ref="wfEl" class="sdr-wf-raster"></div>
   </div>
 </template>
