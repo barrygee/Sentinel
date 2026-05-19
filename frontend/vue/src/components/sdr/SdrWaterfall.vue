@@ -64,7 +64,7 @@ mx.text = function (
     typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
     y > Mx.b && y < Mx.b + Mx.text_h * 2
   ) {
-    y += Mx.text_h * 0.5
+    y += Mx.text_h * 0.8
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
