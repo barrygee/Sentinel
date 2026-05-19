@@ -16,7 +16,7 @@ export function parseFreqMhz(raw: string): number | null {
 
 export function defaultBwHz(mode: string): number {
     switch (mode) {
-        case 'WFM':            return 200_000
+        case 'WFM':            return 500_000  // broadcast FM: ~±75kHz dev + stereo/RDS sidebands; 200k was too narrow → garbled audio
         case 'NFM':            return 12_500
         case 'AM':             return 10_000
         case 'USB': case 'LSB': return 3_000
@@ -27,9 +27,15 @@ export function defaultBwHz(mode: string): number {
 
 // rtl_tcp accepts a fixed list of sample rates; round the input up to the
 // nearest valid rate.
+//
+// FLOOR at 1_024_000: the remote Pi's rtl_tcp delivers the 250k/300k tiers in
+// a stuttering pattern — MEASURED ~2 stalls/sec of ~400-470ms (p99≈470ms) at
+// 250k and 300k, vs ZERO stalls and p99≈136ms at 1.024MHz. Low bandwidths
+// (esp. WFM dragged narrow) snapped to 250k → the "jumpy at low bandwidth"
+// symptom. The only cost of the floor is a wider waterfall span at narrow
+// bandwidths (cosmetic; the audio demod bandwidth is applied separately in
+// the worklet, unaffected). Strictly better than a stuttering display.
 export function snapToValidSampleRate(hz: number): number {
-    if (hz <= 262500)  return 250000
-    if (hz <= 600000)  return 300000
     if (hz <= 1474000) return 1024000
     if (hz <= 1761000) return 1536000
     if (hz <= 1921000) return 1792000

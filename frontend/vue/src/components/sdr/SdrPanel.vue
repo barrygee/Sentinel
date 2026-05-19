@@ -1085,13 +1085,26 @@ function onSquelchInput(e: Event) {
 }
 
 let _bwDebounce: ReturnType<typeof setTimeout> | null = null
+let _lastSentRate = 0
 function onBwInput(e: Event) {
   const v = parseInt((e.target as HTMLInputElement).value, 10)
   bwHz.value = v
   saveSettings()
+  // Audio demod bandwidth can change freely client-side — keep immediate.
   sdrAudio.setBandwidthHz(v)
+  // The rtl_tcp sample_rate command, however, RECONFIGURES the device (it
+  // tears down/re-inits the stream → a visible stall). Dragging the slider
+  // across sample-rate tiers fired one reconfigure per step → sustained
+  // jumpiness while dragging (esp. WFM, a wide drag). So: (1) only act after
+  // the user STOPS moving (longer debounce), and (2) skip the command if the
+  // snapped rate is unchanged (nudging within a tier shouldn't reconfigure).
   if (_bwDebounce) clearTimeout(_bwDebounce)
-  _bwDebounce = setTimeout(() => sendCmd({ cmd: 'sample_rate', rate_hz: snapToValidSampleRate(v) }), 150)
+  _bwDebounce = setTimeout(() => {
+    const rate = snapToValidSampleRate(v)
+    if (rate === _lastSentRate) return
+    _lastSentRate = rate
+    sendCmd({ cmd: 'sample_rate', rate_hz: rate })
+  }, 500)
 }
 
 // ── Mode ──────────────────────────────────────────────────────────────────────

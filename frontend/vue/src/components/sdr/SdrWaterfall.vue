@@ -7,18 +7,6 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 
 const store = useSdrStore()
 
-// Kill-switch: when false the component is fully inert (no plots, no frame
-// subscription, no canvas work). Kept as a fast diagnostic toggle.
-//
-// DIAGNOSTIC URL OVERRIDES (audio-vs-waterfall contention bisect):
-//   ?wf=off    → fully inert (baseline: audio only)
-//   ?wf=nodraw → frames still flow through store/watch, but NO sigplot draw
-//                (isolates data-wiring cost from canvas-render cost)
-//   (default)  → full waterfall
-const _wfParam = new URLSearchParams(location.search).get('wf')
-const WATERFALL_ENABLED = _wfParam !== 'off'
-const DRAW_ENABLED = _wfParam !== 'nodraw'
-
 // ── Layout: track the SDR side panel open/closed state ───────────────────────
 function _readSidebarOpen(): boolean {
   try { return sessionStorage.getItem('sentinel_sidebar_open') === '1' } catch { return false }
@@ -38,6 +26,15 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 const zmin = ref(0)
 const zmax = ref(80)
 const autoScale = ref(true)
+// Waterfall colour auto-scale window (frames). sigplot's autol:N recomputes
+// the z colour range every ~N frames. A small N (was 5) chases the noise
+// floor at LOW bandwidth/sample-rate — where most of the span is random
+// noise — re-mapping the whole raster's colours every few frames => the
+// "jumpy at 10kHz, fine at wide bandwidth" symptom. A long window (~100
+// frames ≈ 4s) keeps colours stable while still adapting to real signal
+// level changes over seconds. (Spectrum LINE keeps a responsive autol;
+// only the raster colour-map needs to be steady.)
+const WF_AUTOL = 100
 
 // ── Plot instances & layer uuids — deliberately NON-reactive ─────────────────
 // sigplot mutates the Plot object heavily; wrapping it in Vue reactivity breaks
@@ -119,7 +116,7 @@ function buildPipes(n: number) {
   // cmap 1 = the blue→red ramp. Start auto-scaling z to the live data so the
   // raster always has contrast; the Min/Max sliders switch to a fixed range.
   if (autoScale.value) {
-    wfPlot.change_settings({ cmap: 1, autol: 5 })
+    wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
   } else {
     wfPlot.change_settings({ cmap: 1, autol: -1, zmin: zmin.value, zmax: zmax.value })
   }
@@ -163,7 +160,6 @@ function initPlots() {
 }
 
 onMounted(() => {
-  if (!WATERFALL_ENABLED) return   // BISECT: stay fully inert
   // Defer until the fixed/flex container has resolved its real pixel size.
   // layer2d derives the waterfall geometry once at init from the plot height,
   // so creating the plots before layout settles breaks the raster.
@@ -172,36 +168,23 @@ onMounted(() => {
   })
 })
 
-// Render every backend frame (~12-24/sec), coalesced to one draw per animation
-// frame so the scroll stays smooth and never falls behind if frames briefly
-// outrun paint. Audio no longer depends on starving this (the real fix was
-// backend-side broadcaster self-heal), so no artificial fps cap — an earlier
-// 10fps throttle made the waterfall visibly jumpy.
+// KNOWN-GOOD baseline (the "working great, only occasional minor jumpy"
+// build): waterfall pushed per frame but rate-capped to WF_ROW_HZ; spectrum
+// line redrawn once per animation frame via pendingFrame/drawLoop. Not
+// further "optimised" — earlier attempts to add a spectrum cap or an
+// rAF-driven rewrite regressed it.
+const WF_ROW_HZ = 25
+const WF_ROW_MIN_MS = 1000 / WF_ROW_HZ
 let pendingFrame: { bins: number[] } | null = null
 let drawRaf = 0
+let lastRowMs = 0
 
-// DIAGNOSTIC FPS PROBE — counts frames at watch-fire vs actual-draw, logs 1/s.
-// Tells us exactly where the backend's ~18/sec collapses. Remove after.
-const _fps = { watch: 0, draw: 0, specMs: 0, wfMs: 0, lastTs: 0 }
-function _fpsTick(stage: 'watch' | 'draw') {
-  _fps[stage]++
-  const now = performance.now()
-  if (now - _fps.lastTs >= 1000) {
-    const d = _fps.draw || 1
-    // eslint-disable-next-line no-console
-    console.log(`[wf-fps] watch=${_fps.watch}/s draw=${_fps.draw}/s ` +
-      `spec=${(_fps.specMs / d).toFixed(1)}ms/f wf=${(_fps.wfMs / d).toFixed(1)}ms/f`)
-    _fps.watch = 0; _fps.draw = 0; _fps.specMs = 0; _fps.wfMs = 0; _fps.lastTs = now
-  }
-}
 
-// Spectrum line: only the latest frame matters, so coalesce to one rAF.
 function drawLoop() {
   drawRaf = 0
   const frame = pendingFrame
   pendingFrame = null
   if (frame && store.playing && specPlot) {
-    if (!DRAW_ENABLED) return
     specPlot.reload(specUuid, frame.bins)
   }
 }
@@ -209,19 +192,17 @@ function drawLoop() {
 watch(
   () => store.lastSpectrum,
   (frame) => {
-    if (!WATERFALL_ENABLED) return
     if (!store.playing || !frame || !specPlot || !wfPlot) return
-    _fpsTick('watch')
     if (frame.bins.length !== subsize) buildPipes(frame.bins.length)
-    // Waterfall: EVERY frame is a distinct raster row. push() measured ~0ms,
-    // so push immediately — coalescing to one-per-rAF (which fires slower than
-    // the 24/s frame rate in this tab) silently dropped ~half the rows and
-    // made the scroll skip/stutter. Only the spectrum LINE is rAF-coalesced
-    // (its latest value is all that matters).
-    if (DRAW_ENABLED) {
+
+    // Waterfall: one raster row per frame, rate-capped to WF_ROW_HZ.
+    const now = performance.now()
+    if (now - lastRowMs >= WF_ROW_MIN_MS) {
+      lastRowMs = now
       wfPlot.push(wfUuid, frame.bins)
-      _fpsTick('draw')
     }
+
+    // Spectrum line: keep the latest frame, redraw once per animation frame.
     pendingFrame = frame
     if (!drawRaf) drawRaf = requestAnimationFrame(drawLoop)
   },
@@ -251,7 +232,7 @@ watch(
         },
         { drawmode: 'falling', framesize: subsize },
       )
-      wfPlot.change_settings({ cmap: 1, autol: 5 })
+      wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
     } catch { /* noop */ }
   },
 )
