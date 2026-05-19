@@ -157,12 +157,12 @@
 }
 
 /* Band-allocation strip between the spectrum and the waterfall — mirrors the
- * reference UI's "Medium Wave" bar. The inset left/right match SigPlot's axis
- * gutters so a band lines up with its frequency range on the plot above. */
+ * reference UI's "Medium Wave" bar. The left/right inset is set inline from the
+ * spectrum plot's real Mx margins (syncBandInset) so a band lines up with its
+ * frequency range on both plots regardless of font-scaled gutter width. */
 .sdr-wf-bands {
   position: relative;
   flex: 0 0 22px;
-  margin: 0 12px 0 56px;
   background: rgba(10, 13, 20, 0.6);
 }
 

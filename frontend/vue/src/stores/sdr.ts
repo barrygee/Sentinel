@@ -48,6 +48,23 @@ export const useSdrStore = defineStore('sdr', () => {
   const panelOpen = ref(false)
   const sampleRate = ref(2_048_000)
 
+  // Demod (audio filter) bandwidth mirror. The authoritative copy is the local
+  // `bwHz` ref in SdrPanel.vue; the panel pushes it here so the spectrum/
+  // waterfall marker (a sibling component) can read it. NOT the device
+  // sample_rate / FFT span.
+  const bwHz = ref(10000)
+
+  // Marker → panel request channel. SdrWaterfall and SdrPanel are siblings;
+  // only the panel owns the control websocket. When the user drags the marker,
+  // the waterfall calls requestTune/requestBandwidth and the panel (which
+  // watches these) runs its existing debounced sendCmd path. The nonce makes an
+  // identical repeat value (e.g. nudge back to the same freq) still fire the
+  // watcher — a plain ref would not re-trigger on an unchanged value.
+  const tuneRequest = shallowRef<{ hz: number; nonce: number } | null>(null)
+  const bwRequest = shallowRef<{ hz: number; nonce: number } | null>(null)
+  let _tuneNonce = 0
+  let _bwNonce = 0
+
   // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
   // single ref (the bins array is NOT deep-tracked — consumers read it
   // imperatively in their render/push loop). See SdrWaterfall.vue.
@@ -101,6 +118,21 @@ export const useSdrStore = defineStore('sdr', () => {
     _persistSession()
   }
 
+  // Panel → store mirror of the demod bandwidth.
+  function setBandwidthHz(hz: number) {
+    bwHz.value = hz
+  }
+
+  // Marker → panel: request a device retune (panel applies it, debounced).
+  function requestTune(hz: number) {
+    tuneRequest.value = { hz, nonce: ++_tuneNonce }
+  }
+
+  // Marker → panel: request a demod-bandwidth change (audio filter only).
+  function requestBandwidth(hz: number) {
+    bwRequest.value = { hz, nonce: ++_bwNonce }
+  }
+
   async function loadRadios() {
     try {
       const res = await fetch('/api/sdr/radios')
@@ -127,8 +159,9 @@ export const useSdrStore = defineStore('sdr', () => {
   return {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    lastSpectrum,
+    lastSpectrum, bwHz, tuneRequest, bwRequest,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
+    setBandwidthHz, requestTune, requestBandwidth,
     loadRadios, loadGroups, loadFrequencies,
   }
 })

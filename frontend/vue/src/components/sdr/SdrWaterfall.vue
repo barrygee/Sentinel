@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import './SdrWaterfall.css'
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
-import sigplot, { type Plot } from 'sigplot'
+import sigplot, { type Plot, type AccordionPlugin } from 'sigplot'
 import { useSdrStore } from '@/stores/sdr'
 import { useSettingsStore } from '@/stores/settings'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -49,6 +49,19 @@ const bandPlan = computed<RfBand[]>(() =>
 // tracked so the axis scaling and the band overlay follow tuning.
 const spanStartHz = ref(0)
 const spanEndHz = ref(0)
+
+// The plots reserve a left/right gutter for the (now shared) axis spec —
+// Mx.l ≈ text_w*6 on the left, ~5px on the right (sigplot.js:3806). The HTML
+// band strip sits between the two plots and is positioned 0..100% across the
+// DATA area, so it must use the SAME inset or it drifts off the plots. Measured
+// from the spectrum plot's real Mx after layout (not a hardcoded px guess) so
+// it tracks the font-scaled gutter on resize.
+const bandInsetLeftPx = ref(56)
+const bandInsetRightPx = ref(12)
+const bandStripStyle = computed(() => ({
+  marginLeft: `${bandInsetLeftPx.value}px`,
+  marginRight: `${bandInsetRightPx.value}px`,
+}))
 
 // Bands that intersect the visible span, with their position as a 0..1 fraction
 // across the plot — consumed by the band strip overlay in the template.
@@ -134,6 +147,145 @@ let wfUuid = ''
 let subsize = 0
 let ro: ResizeObserver | null = null
 
+// ── Tuned-frequency marker (SigPlot Accordion plugin) ────────────────────────
+// Two instances because the two plots use different x-axis units (verified):
+// the SPECTRUM layer x is in MHz (xstartMHz/xdeltaMHz) while the WATERFALL
+// layer x is in raw Hz. With mode:'absolute' the accordion positions itself in
+// the plot's x data units, so each instance gets its centre/width in that
+// plot's units. Single source of truth is the store (currentFreqHz + bwHz).
+let specAcc: AccordionPlugin | null = null   // MHz spectrum plot
+let wfAcc: AccordionPlugin | null = null     // Hz waterfall plot
+let lastCommittedFreqHz = 0
+let lastCommittedBwHz = 0
+// Guards the document mouseup handler while WE set centre/width programmatically
+// (applyMarker / post-drag re-sync) so our own writes aren't read back as a
+// user drag.
+let suppressAccEvents = false
+const MIN_BW_HZ = 200
+
+// Push the store's tuned freq + demod bandwidth onto BOTH accordions, each in
+// its plot's x units (spectrum=MHz, waterfall=Hz). Also refreshes the drag
+// limits to the current span and the visible/hidden state from play status.
+// Cheap to call repeatedly — the fluent setter no-ops on unchanged values.
+function applyMarker() {
+  if (!specAcc || !wfAcc) return
+  const fHz = store.currentFreqHz
+  const bHz = Math.max(MIN_BW_HZ, store.bwHz || 10000)
+  const span =
+    store.sampleRate || (spanEndHz.value - spanStartHz.value) || bHz
+  suppressAccEvents = true
+  try {
+    specAcc.center(fHz / HZ_PER_MHZ)
+    specAcc.width(bHz / HZ_PER_MHZ)
+    specAcc.min_width(MIN_BW_HZ / HZ_PER_MHZ)
+    specAcc.max_width(span / HZ_PER_MHZ)
+    wfAcc.center(fHz)
+    wfAcc.width(bHz)
+    wfAcc.min_width(MIN_BW_HZ)
+    wfAcc.max_width(span)
+    const vis = store.playing
+    specAcc.display(vis)
+    wfAcc.display(vis)
+  } finally {
+    suppressAccEvents = false
+  }
+  lastCommittedFreqHz = fHz
+  lastCommittedBwHz = bHz
+}
+
+// Read the spectrum plot's real data-area margins (Mx.l / Mx.r) and drive the
+// HTML band strip's inset from them so it lines up with both plots' data area.
+// Mx is sigplot-internal (no public accessor); the plugin base reads it the
+// same way (this._plot._Mx), so this is the supported-by-precedent path.
+function syncBandInset() {
+  const mx = (specPlot as unknown as { _Mx?: { l: number; r: number; width: number } } | null)?._Mx
+  if (!mx || !mx.width) return
+  bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
+  bandInsetRightPx.value = Math.max(0, Math.ceil(mx.width - mx.r))
+}
+
+// Type for poking the plugin's internal drag flags (no public accessor).
+type AccDragState = { dragging?: boolean; edge_dragging?: boolean }
+function accIsDragging(a: AccordionPlugin | null): boolean {
+  const s = a as unknown as AccDragState | null
+  return !!s && (!!s.dragging || !!s.edge_dragging)
+}
+
+// Live mirror: while the user drags one plot's accordion, sigplot's
+// _onMouseMove updates ONLY that plot (and refreshes only it). Mirror its live
+// centre/width onto the OTHER plot every mousemove so both move together
+// instead of the other one snapping only on release. Units differ (spectrum =
+// MHz, waterfall = Hz), so convert per direction. suppressAccEvents stops the
+// mirrored setter from being read back as a second drag.
+useDocumentEvent('mousemove', () => {
+  if (suppressAccEvents || !specAcc || !wfAcc) return
+  const specDragging = accIsDragging(specAcc)
+  const wfDragging = accIsDragging(wfAcc)
+  if (!specDragging && !wfDragging) return
+  suppressAccEvents = true
+  try {
+    if (specDragging) {
+      // Spectrum is in MHz → push Hz onto the waterfall.
+      wfAcc.center(specAcc.center() * HZ_PER_MHZ)
+      wfAcc.width(specAcc.width() * HZ_PER_MHZ)
+    } else {
+      // Waterfall is in Hz → push MHz onto the spectrum.
+      specAcc.center(wfAcc.center() / HZ_PER_MHZ)
+      specAcc.width(wfAcc.width() / HZ_PER_MHZ)
+    }
+  } finally {
+    suppressAccEvents = false
+  }
+})
+
+// Drag-commit. sigplot's Accordion never fires its 'change'/'accordiontag'
+// events on drag-end (its _onDocMouseUp is dead code: `!dragging ||
+// !edge_dragging` is always true since mousedown sets exactly one of them).
+// So we detect a user drag ourselves on document mouseup by reading the live
+// centre/width sigplot writes during _onMouseMove. useDocumentEvent must be
+// called synchronously in setup (it registers onMounted/onUnmounted); the
+// accordions are null until initPlots() runs, hence the guard.
+useDocumentEvent('mouseup', () => {
+  if (suppressAccEvents || !specAcc || !wfAcc) return
+  const sF = specAcc.center() * HZ_PER_MHZ
+  const sB = specAcc.width() * HZ_PER_MHZ
+  const wF = wfAcc.center()
+  const wB = wfAcc.width()
+  let freqHz = lastCommittedFreqHz
+  let bw = lastCommittedBwHz
+  if (Math.abs(sF - lastCommittedFreqHz) > 1 || Math.abs(sB - lastCommittedBwHz) > 1) {
+    freqHz = sF
+    bw = sB
+  } else if (Math.abs(wF - lastCommittedFreqHz) > 1 || Math.abs(wB - lastCommittedBwHz) > 1) {
+    freqHz = wF
+    bw = wB
+  } else {
+    return // nothing was dragged
+  }
+  if (Math.abs(freqHz - lastCommittedFreqHz) > 1) store.requestTune(Math.round(freqHz))
+  if (Math.abs(bw - lastCommittedBwHz) > 1) store.requestBandwidth(Math.round(bw))
+  lastCommittedFreqHz = freqHz
+  lastCommittedBwHz = bw
+  // Re-sync both plots immediately so the un-dragged plot follows now (don't
+  // wait for the debounced backend echo).
+  suppressAccEvents = true
+  try {
+    specAcc.center(freqHz / HZ_PER_MHZ)
+    specAcc.width(bw / HZ_PER_MHZ)
+    wfAcc.center(freqHz)
+    wfAcc.width(bw)
+  } finally {
+    suppressAccEvents = false
+  }
+  // Drag-bug mitigation: _onDocMouseUp never resets these (dead code), so a
+  // stray later mousemove over the plot could re-drag the marker (and our
+  // mousemove mirror would chase it). Force-reset on every commit.
+  for (const s of [specAcc, wfAcc] as unknown as AccDragState[]) {
+    s.dragging = false
+    s.edge_dragging = false
+  }
+})
+
 const rootEl = ref<HTMLElement | null>(null)
 const specEl = ref<HTMLElement | null>(null)
 const wfEl = ref<HTMLElement | null>(null)
@@ -153,28 +305,6 @@ function sizeSliders() {
 }
 
 const BG = '#0a0d14'
-
-// Shared "no chrome" options. Option names verified against the installed
-// sigplot v3.1.7 constructor (node_modules/sigplot/js/sigplot.js:7314-7359).
-// NOTE: the option is `nospecs` (with an 's') — `Gx.specs = !o.nospecs`. When
-// false it forces show_x_axis / show_y_axis / show_readout all off, which
-// removes the axes, the readout/title strip and the spec area in one shot.
-const CLEAN: Record<string, unknown> = {
-  nospecs: true,           // <- the key one in v3.1.7: Gx.specs = !o.nospecs
-  nospec: true,            // older sigplot 2.x spelling — harmless if ignored
-  nogrid: true,
-  noxaxis: true,
-  noyaxis: true,
-  noreadout: true,
-  nomenu: true,
-  nopan: true,
-  nodragdrop: true,
-  nokeypress: true,
-  no_legend_button: true,
-  legend: false,
-  hide_note: true,
-  autohide_panbars: true,
-}
 
 // Number of history rows the waterfall keeps. Set explicitly via `lps` so the
 // raster depth does NOT depend on the container's pixel height at mount time —
@@ -275,12 +405,51 @@ function initPlots() {
     font_family: "'Barlow', sans-serif",
     colors: { bg: BG, fg: '#8b97a8' },
   })
+  // The waterfall MUST use the SAME axis spec as the spectrum, otherwise the
+  // two plots compute different left/right margins (sigplot.js:3806 — with a
+  // y-axis Mx.l = text_w*6 for the dB label gutter; without one Mx.l = 1).
+  // Different Mx.l/Mx.r => the same frequency lands at a different screen-x on
+  // each plot, so the trace, the band strip and the marker are all misaligned.
+  // Keep the axes/grid here but draw them in the BACKGROUND colour (fg: BG) so
+  // they reserve the identical gutter while staying visually invisible.
   wfPlot = new sigplot.Plot(wfEl.value, {
-    ...CLEAN,
+    autol: 5,
+    nomenu: true,
+    nopan: true,
+    nodragdrop: true,
+    nokeypress: true,
+    no_legend_button: true,
+    legend: false,
+    noreadout: true,
+    hide_note: true,
+    autohide_panbars: true,
+    xunits: 3,
+    font_family: "'Barlow', sans-serif",
     colors: { bg: BG, fg: BG },
   })
 
   buildPipes(1024)
+
+  // Tuned-frequency marker. Two AccordionPlugin instances (one per plot) — see
+  // the unit-split note at their declaration. Plugins live on _Gx.plugins with
+  // an independent canvas, so they survive buildPipes() layer rebuilds; we just
+  // re-assert centre/width after a rebuild via applyMarker().
+  const Acc = sigplot.plugins.AccordionPlugin
+  const accCommon = {
+    mode: 'absolute' as const,
+    direction: 'vertical' as const,
+    draw_center_line: true,
+    draw_edge_lines: true,
+    shade_area: true,
+    fill_style: { fillStyle: '#c8ff00', opacity: 0.14 },
+    center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1.5, lineCap: 'butt' },
+    edge_line_style: { strokeStyle: 'rgba(200,255,0,0.6)', lineWidth: 1, lineCap: 'butt' },
+  }
+  specAcc = new Acc({ ...accCommon })
+  wfAcc = new Acc({ ...accCommon })
+  specPlot.add_plugin(specAcc, 1)
+  wfPlot.add_plugin(wfAcc, 1)
+  applyMarker()
 
   // sigplot sizes its canvas to the element's clientHeight at creation time and
   // only resizes on checkresize(). The flex children settle their final height
@@ -290,6 +459,7 @@ function initPlots() {
   ro = new ResizeObserver(() => {
     specPlot?.checkresize()
     wfPlot?.checkresize()
+    syncBandInset()
   })
   ro.observe(specEl.value as HTMLElement)
   ro.observe(wfEl.value as HTMLElement)
@@ -297,6 +467,7 @@ function initPlots() {
   requestAnimationFrame(() => {
     specPlot?.checkresize()
     wfPlot?.checkresize()
+    syncBandInset()
   })
 }
 
@@ -366,6 +537,10 @@ watch(
       // buildPipes rebuilds the layers and resets the zoom level — reapply the
       // current zoom window around the new centre so it survives retuning.
       applyZoom()
+      // Re-pin the marker (and refresh its min/max_width to the new span). The
+      // plugin instances persist across the rebuild; only the values need
+      // re-asserting since xstart/xdelta changed.
+      applyMarker()
     }
 
     // Waterfall: one raster row per frame, rate-capped to WF_ROW_HZ.
@@ -400,6 +575,11 @@ watch(
           type: 2000,
           subsize,
           xunits: 3,
+          // Same Hz scaling as buildPipes — without xstart/xdelta the axis
+          // defaults to a 0..N bin index, which after a stop/play cycle leaves
+          // the waterfall (and its marker) misaligned with the spectrum.
+          xstart: xstartHz,
+          xdelta: xdeltaHz,
           lps: WF_ROWS,
           pipesize: WF_ROWS * subsize * 2,
         },
@@ -407,7 +587,18 @@ watch(
       )
       wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
     } catch { /* noop */ }
+    // Hide the marker while stopped (the pipe rebuild dropped its canvas draw
+    // anyway); applyMarker reads store.playing for visibility.
+    applyMarker()
   },
+)
+
+// Track external tuning (typed freq, saved-freq click, mode change, backend
+// status reconcile — all flow into the store) and play/stop visibility. Skip
+// while WE are mid programmatic write to avoid feeding our own change back.
+watch(
+  () => [store.currentFreqHz, store.bwHz, store.sampleRate, store.playing] as const,
+  () => { if (!suppressAccEvents) applyMarker() },
 )
 
 // Moving a slider switches the waterfall from auto-scale to the fixed range.
@@ -427,6 +618,10 @@ onBeforeUnmount(() => {
   ro = null
   controlsRo?.disconnect()
   controlsRo = null
+  try { if (specAcc) specPlot?.remove_plugin(specAcc) } catch { /* noop */ }
+  try { if (wfAcc) wfPlot?.remove_plugin(wfAcc) } catch { /* noop */ }
+  specAcc = null
+  wfAcc = null
   try { specPlot?.remove_layer(specUuid) } catch { /* noop */ }
   try { wfPlot?.remove_layer(wfUuid) } catch { /* noop */ }
   try { specPlot?.disable_listeners() } catch { /* noop */ }
@@ -487,7 +682,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <div ref="specEl" class="sdr-wf-spectrum"></div>
-    <div class="sdr-wf-bands">
+    <div class="sdr-wf-bands" :style="bandStripStyle">
       <div
         v-for="b in visibleBands"
         :key="b.name"

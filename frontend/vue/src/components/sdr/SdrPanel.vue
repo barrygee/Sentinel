@@ -713,6 +713,42 @@ const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
 const worklestSquelchOpen = ref(true)
 
+// ── Store mirrors / marker bridge ─────────────────────────────────────────────
+// Passive mirrors so the spectrum/waterfall marker (SdrWaterfall, a sibling)
+// can read the authoritative tuned freq + demod bandwidth. These fire on EVERY
+// existing path that mutates the local refs (tune, onFreqInputChange,
+// tuneToFreq, setMode, onBwInput, applyStatus) — no changes to those functions.
+watch(currentFreqHz, (v) => { if (v) _sdrStore().setFrequency(v) }, { immediate: true })
+watch(bwHz,          (v) => { _sdrStore().setBandwidthHz(v) },       { immediate: true })
+
+// Marker retune request — mirrors onFreqInputChange (600ms debounce, session,
+// sendCmd). The marker calls store.requestTune(); we own the websocket.
+watch(() => _sdrStore().tuneRequest, (req) => {
+  if (!req || !playing.value || !selectedRadioId.value) return
+  const hz = Math.round(req.hz)
+  if (!hz || hz === currentFreqHz.value) return
+  if (_retuneDebounce) clearTimeout(_retuneDebounce)
+  _retuneDebounce = setTimeout(() => {
+    currentFreqHz.value = hz
+    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
+    freqInputVal.value = (hz / 1e6).toFixed(4)
+    sessionStorage.setItem('sdrLastFreqHz', String(hz))
+    saveSettings()
+    sendCmd({ cmd: 'tune', frequency_hz: hz })
+  }, 600)
+})
+
+// Marker bandwidth request — demod audio filter ONLY (no sample_rate command;
+// matches SDR++/SDR#/GQRX and avoids the rtl_tcp reconfigure stall).
+watch(() => _sdrStore().bwRequest, (req) => {
+  if (!req || !playing.value) return
+  const v = Math.round(req.hz)
+  if (!v || v === bwHz.value) return
+  bwHz.value = v               // re-mirrors to the store via the watch above
+  saveSettings()
+  sdrAudio.setBandwidthHz(v)
+})
+
 const signalAudible = computed(() =>
   playing.value && (squelch.value <= -119 || worklestSquelchOpen.value)
 )
