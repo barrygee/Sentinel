@@ -16,6 +16,10 @@ let _radioId: number | null = null
 let _ready = false
 let _mode = 'AM'
 let _squelch = -120
+// Demod frequency offset from the hardware centre (Hz). Non-zero only when
+// auto-centre is OFF and the user has clicked away from centre. Sent with every
+// IQ block (like _mode) so it survives worklet recreation.
+let _offsetHz = 0
 let _iqReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 // Recording state
@@ -42,6 +46,14 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
         this._wfmPrevI=1; this._wfmPrevQ=0; this._amDc=0;
         this._bwHz=0;
         this._deemphY=0;
+        // NCO frequency shift. When the user tunes off the hardware centre with
+        // auto-centre OFF, the wanted signal sits _offsetHz away from DC in the
+        // IQ stream. Mixing by e^(-j2πf n / sr) shifts it down to baseband so
+        // the existing demodulators (which assume the signal is at DC) work
+        // unchanged. _ncoPhase is a continuous accumulator (radians) carried
+        // across blocks so there is no phase discontinuity at block edges.
+        this._offsetHz=0;
+        this._ncoPhase=0;
         this._lpfTaps=null; this._lpfBw=0; this._lpfSr=0;
         this._lpfDelayI=null; this._lpfDelayQ=null; this._lpfPos=0;
         this._isRecording=false;
@@ -51,7 +63,7 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
         this._squelchOpen=false;
         this._squelchTail=0;
         this.port.onmessage=(ev)=>{
-            const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz}=ev.data;
+            const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz,offset_hz}=ev.data;
             if(type==='reset'){this._pcmWr=0;this._pcmRd=0;this._pcmLen=0;this._buffering=true;return;}
             if(type==='rec_start'){this._isRecording=true;this._recChunkPos=0;this._squelchOpen=false;this._squelchTail=0;this._squelchStateLast=false;return;}
             if(type==='rec_stop'){
@@ -63,11 +75,14 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
                 return;
             }
             if(type==='bw'){if(bandwidth_hz!==undefined)this._bwHz=bandwidth_hz;return;}
+            if(type==='offset'){if(offset_hz!==undefined)this._offsetHz=offset_hz;return;}
             if(type!=='iq')return;
             if(mode!==undefined)this._mode=mode;
             if(squelch_dbfs!==undefined)this._squelch=squelch_dbfs;
             if(sample_rate!==undefined)this._sampleRate=sample_rate;
+            if(offset_hz!==undefined)this._offsetHz=offset_hz;
             const iA=new Float32Array(i),qA=new Float32Array(q);
+            if(this._offsetHz!==0)this._mix(iA,qA);
             const bwRatio=this._bwHz>0?this._bwHz/this._sampleRate:1;
             const{iF,qF}=bwRatio>0&&bwRatio<0.35?this._lpf(iA,qA):{iF:iA,qF:qA};
             const audio=this._demod(iF,qF);
@@ -89,6 +104,7 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
     }
     _buildLpf(cutHz,sr){const M=64,fc=cutHz/sr;const taps=new Float32Array(M+1);let sum=0;for(let n=0;n<=M;n++){const h=n===M/2?2*Math.PI*fc:Math.sin(2*Math.PI*fc*(n-M/2))/(n-M/2);const w=0.54-0.46*Math.cos(2*Math.PI*n/M);taps[n]=h*w;sum+=taps[n];}for(let n=0;n<=M;n++)taps[n]/=sum;return taps;}
     _lpf(i,q){const sr=this._sampleRate,bw=this._bwHz;if(this._lpfTaps===null||this._lpfBw!==bw||this._lpfSr!==sr){this._lpfTaps=this._buildLpf(bw/2,sr);const M=this._lpfTaps.length;this._lpfDelayI=new Float32Array(M);this._lpfDelayQ=new Float32Array(M);this._lpfPos=0;this._lpfBw=bw;this._lpfSr=sr;}const taps=this._lpfTaps,M=taps.length;const dI=this._lpfDelayI,dQ=this._lpfDelayQ;const oI=new Float32Array(i.length),oQ=new Float32Array(q.length);let pos=this._lpfPos;for(let k=0;k<i.length;k++){dI[pos]=i[k];dQ[pos]=q[k];let sI=0,sQ=0;for(let j=0;j<M;j++){const p=(pos-j+M)%M;sI+=taps[j]*dI[p];sQ+=taps[j]*dQ[p];}oI[k]=sI;oQ[k]=sQ;pos=(pos+1)%M;}this._lpfPos=pos;return{iF:oI,qF:oQ};}
+    _mix(i,q){const n=i.length,sr=this._sampleRate;const dPh=-2*Math.PI*this._offsetHz/sr;let ph=this._ncoPhase;for(let k=0;k<n;k++){const c=Math.cos(ph),s=Math.sin(ph);const re=i[k]*c-q[k]*s,im=i[k]*s+q[k]*c;i[k]=re;q[k]=im;ph+=dPh;if(ph>Math.PI)ph-=2*Math.PI;else if(ph<-Math.PI)ph+=2*Math.PI;}this._ncoPhase=ph;}
     _pwr(i,q){let s=0;for(let k=0;k<i.length;k++)s+=i[k]*i[k]+q[k]*q[k];return 10*Math.log10(s/i.length+1e-20);}
     _demod(i,q){const dbfs=this._pwr(i,q);if(++this._powerTick>=8){this._powerTick=0;this.port.postMessage({type:'power',dbfs,squelchOpen:this._squelchOpen});}const open=dbfs>=this._squelch;if(open){this._squelchOpen=true;this._squelchTail=Math.round(48000*1.5);}else if(this._squelchOpen){const tailSamples=Math.round(i.length*48000/this._sampleRate);if(this._squelchTail>tailSamples){this._squelchTail-=tailSamples;}else{this._squelchOpen=false;this._squelchTail=0;}}if(this._squelchOpen!==this._squelchStateLast){this._squelchStateLast=this._squelchOpen;this.port.postMessage({type:'squelch_change',open:this._squelchOpen});}if(!open)return new Float32Array(Math.round(i.length*48000/this._sampleRate));if(this._mode==='AM')return this._am(i,q);if(this._mode==='USB')return this._ssb(i,q,1);if(this._mode==='LSB')return this._ssb(i,q,-1);if(this._mode==='WFM')return this._wfm(i,q);return this._fm(i,q);}
     _fm(i,q){const n=i.length,d=new Float32Array(n);let pI=this._wfmPrevI,pQ=this._wfmPrevQ;for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}this._wfmPrevI=pI;this._wfmPrevQ=pQ;return this._decimate(d,this._sampleRate,48000);}
@@ -171,7 +187,7 @@ function _openIqSocket(radioId: number) {
       i[k] = (iqBytes[k * 2]     - 127.5) / 127.5
       q[k] = (iqBytes[k * 2 + 1] - 127.5) / 127.5
     }
-    _worklet!.port.postMessage({ type: 'iq', i: i.buffer, q: q.buffer, mode: _mode, squelch_dbfs: _squelch, sample_rate: sampleRate }, [i.buffer, q.buffer])
+    _worklet!.port.postMessage({ type: 'iq', i: i.buffer, q: q.buffer, mode: _mode, squelch_dbfs: _squelch, sample_rate: sampleRate, offset_hz: _offsetHz }, [i.buffer, q.buffer])
   })
   ws.addEventListener('close', () => {
     _iqSocket = null
@@ -272,6 +288,16 @@ export function useSdrAudio() {
     if (_worklet) _worklet.port.postMessage({ type: 'bw', bandwidth_hz: hz })
   }
 
+  // Demod offset from the hardware centre frequency (Hz). 0 = demod at centre
+  // (auto-centre ON, or marker at centre). Non-zero shifts the demodulator to a
+  // signal that is off-centre in the IQ stream WITHOUT retuning the hardware,
+  // so the spectrum/waterfall display stays put. Persisted at module scope and
+  // re-sent with every IQ block so it survives a worklet recreation.
+  function setOffsetHz(hz: number) {
+    _offsetHz = hz
+    if (_worklet) _worklet.port.postMessage({ type: 'offset', offset_hz: hz })
+  }
+
   function onPower(cb: (dbfs: number, squelchOpen: boolean) => void) { _onPower = cb }
   function onSquelchChange(cb: (open: boolean) => void) { _onSquelchChange = cb }
 
@@ -349,6 +375,7 @@ export function useSdrAudio() {
 
   return {
     initAudio, stop, setRadioId, setMode, setSquelch, setVolume, setBandwidthHz,
+    setOffsetHz,
     startRecording, stopRecording, onPower, onSquelchChange, isReady, isPlaying,
   }
 }

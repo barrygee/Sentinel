@@ -124,6 +124,15 @@ function onEdit(): void {
     const fd = new FormData()
     fd.append('file', file)
     return fetch('/api/settings/config/upload', { method: 'POST', body: fd })
+      .then((res) => {
+        // The upload replaced DB settings, but running stores still hold their
+        // own cached copies (e.g. the sdr store's autoCenterWaterfallOnTune
+        // localStorage fast-path). Broadcast so they re-hydrate from the DB —
+        // otherwise editing a setting via this JSON editor has no effect on the
+        // live UI until reload. Listeners refetch their namespace.
+        if (res.ok) document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+        return res
+      })
   })
 }
 

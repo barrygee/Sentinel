@@ -65,6 +65,59 @@ export const useSdrStore = defineStore('sdr', () => {
   let _tuneNonce = 0
   let _bwNonce = 0
 
+  // Auto-centre toggle (user preference; lives in the `sdr` settings namespace,
+  // edited from Settings → SDR → WATERFALL). localStorage is a fast-path cache
+  // so the very first click after load behaves correctly before the async
+  // settings fetch resolves; SdrAutoCenterControl reconciles it with the DB.
+  //  ON  → clicking the spectrum/waterfall retunes the hardware so the clicked
+  //        freq becomes the new span centre (display recenters).
+  //  OFF → clicking moves the demod target (tuning bar) to the clicked freq
+  //        WITHOUT retuning the hardware; the display stays put and the audio
+  //        follows via an NCO offset (see useSdrAudio.setOffsetHz).
+  function _readAutoCenterWaterfallOnTune(): boolean {
+    try { return localStorage.getItem('sdrAutoCenterWaterfallOnTune') !== '0' } catch { return true }
+  }
+  const autoCenterWaterfallOnTune = ref<boolean>(_readAutoCenterWaterfallOnTune())
+  // Set the toggle. When turning it ON while the demod sits off-centre, retune
+  // the hardware to the current demod freq so the display recenters on it and
+  // the NCO offset clears (otherwise the bar would stay off-centre with a stale
+  // offset). Pure cache write here — DB persistence is the control's job.
+  function setAutoCenterWaterfallOnTune(on: boolean) {
+    autoCenterWaterfallOnTune.value = on
+    try { localStorage.setItem('sdrAutoCenterWaterfallOnTune', on ? '1' : '0') } catch {}
+    if (on && tuningOffsetHz.value !== 0) {
+      tuningOffsetHz.value = 0
+      requestTune(currentFreqHz.value)
+    }
+  }
+  // Re-read autoCenterWaterfallOnTune from the persisted DB config and apply it
+  // to this live store. Called when the config JSON editor (Settings → App
+  // Settings → Application Config) uploads a new config: that replaces the DB
+  // settings, but this store still holds its localStorage-cached value, so
+  // without this the running SDR UI would ignore the edit until reload. Keeps
+  // the JSON editor, the WATERFALL toggle and the live behaviour in sync.
+  async function hydrateAutoCenterFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.autoCenterWaterfallOnTune
+      if (typeof v === 'boolean' && v !== autoCenterWaterfallOnTune.value) {
+        setAutoCenterWaterfallOnTune(v)
+      }
+    } catch { /* offline / transient — keep current value */ }
+  }
+
+  // Current demod offset from the hardware centre frequency (Hz). 0 when
+  // auto-centre is ON or the marker sits at centre. The waterfall reads this to
+  // place the tuning bar at currentFreqHz + tuningOffsetHz; the panel pushes it
+  // into the audio NCO. Plain ref — only changes on a click/retune, not per
+  // frame.
+  const tuningOffsetHz = ref(0)
+  function setTuningOffsetHz(hz: number) {
+    tuningOffsetHz.value = hz
+  }
+
   // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
   // single ref (the bins array is NOT deep-tracked — consumers read it
   // imperatively in their render/push loop). See SdrWaterfall.vue.
@@ -160,6 +213,8 @@ export const useSdrStore = defineStore('sdr', () => {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
     lastSpectrum, bwHz, tuneRequest, bwRequest,
+    autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
+    tuningOffsetHz, setTuningOffsetHz,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
     setBandwidthHz, requestTune, requestBandwidth,
     loadRadios, loadGroups, loadFrequencies,

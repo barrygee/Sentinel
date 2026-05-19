@@ -76,15 +76,52 @@ def _validated_location(value: Any) -> dict:
 
     return {"latitude": lat, "longitude": lon}
 
-def _rows_to_namespace_dict(rows) -> dict:
-    """Convert a list of UserSettings rows to { key: parsed_value }."""
-    result = {}
+from functools import lru_cache
+
+
+@lru_cache(maxsize=1)
+def _canonical_key_order() -> dict[str, list[str]]:
+    """Per-namespace canonical key order, read from default_config.json.
+
+    UserSettings rows have no inherent order — a key seeded later (e.g. a new
+    setting added in a release) lands wherever its row was inserted, so the
+    served / exported config drifts from the template's readable layout. We
+    re-order each namespace dict to match default_config.json; keys not in the
+    template keep their original relative order, appended after the known ones.
+    """
+    from backend.database import _CONFIG_PATH  # avoid import cycle at module load
+
+    try:
+        raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {
+        ns: list(entries.keys())
+        for ns, entries in raw.items()
+        if isinstance(entries, dict)
+    }
+
+
+def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
+    """Convert a list of UserSettings rows to { key: parsed_value }, ordered to
+    match default_config.json for that namespace (unknown keys kept last in
+    their original order)."""
+    parsed: dict = {}
     for row in rows:
         try:
-            result[row.key] = json.loads(row.value)
+            parsed[row.key] = json.loads(row.value)
         except (json.JSONDecodeError, TypeError):
-            result[row.key] = row.value
-    return result
+            parsed[row.key] = row.value
+
+    order = _canonical_key_order().get(namespace or "", [])
+    if not order:
+        return parsed
+    rank = {k: i for i, k in enumerate(order)}
+    # Stable sort: known keys by template position, unknown keys after, each
+    # group preserving the row order they came in with.
+    return dict(
+        sorted(parsed.items(), key=lambda kv: rank.get(kv[0], len(order)))
+    )
 
 
 _VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
@@ -245,7 +282,7 @@ async def get_all_settings(db: AsyncSession = Depends(get_db)):
     for row in rows:
         grouped.setdefault(row.namespace, []).append(row)
 
-    return JSONResponse({ns: _rows_to_namespace_dict(ns_rows) for ns, ns_rows in grouped.items()})
+    return JSONResponse({ns: _rows_to_namespace_dict(ns_rows, ns) for ns, ns_rows in grouped.items()})
 
 
 # ── Config preview (must be registered before /{namespace}) ─────────────────
@@ -260,7 +297,7 @@ async def config_preview(db: AsyncSession = Depends(get_db)):
     for row in rows:
         grouped.setdefault(row.namespace, []).append(row)
 
-    config = {ns: _rows_to_namespace_dict(ns_rows) for ns, ns_rows in grouped.items()}
+    config = {ns: _rows_to_namespace_dict(ns_rows, ns) for ns, ns_rows in grouped.items()}
     payload = json.dumps(config, indent=2, ensure_ascii=False)
     return Response(content=payload, media_type="application/json")
 
@@ -357,7 +394,7 @@ async def get_namespace_settings(namespace: str, db: AsyncSession = Depends(get_
         select(UserSettings).where(UserSettings.namespace == namespace)
     )
     rows = result.scalars().all()
-    return JSONResponse(_rows_to_namespace_dict(rows))
+    return JSONResponse(_rows_to_namespace_dict(rows, namespace))
 
 
 @router.put("/{namespace}/{key}", status_code=200)

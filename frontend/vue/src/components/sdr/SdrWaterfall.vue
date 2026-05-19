@@ -218,7 +218,6 @@ let mdownEl: HTMLElement | null = null
 const CLICK_SLOP_PX = 4
 
 function onPlotMouseDown(e: MouseEvent) {
-  console.log('[tune] mousedown', { button: e.button, target: (e.target as HTMLElement)?.tagName })
   if (e.button !== 0) return
   mdownEl = e.currentTarget as HTMLElement
   mdownX = e.clientX
@@ -228,17 +227,6 @@ function onPlotMouseDown(e: MouseEvent) {
 function onPlotMouseUp(e: MouseEvent) {
   const el = mdownEl
   mdownEl = null
-  console.log('[tune] mouseup', {
-    button: e.button,
-    haveEl: !!el,
-    sameTarget: el === e.currentTarget,
-    dragActive,
-    specDrag: accIsDragging(specAcc),
-    wfDrag: accIsDragging(wfAcc),
-    dx: Math.abs(e.clientX - mdownX),
-    dy: Math.abs(e.clientY - mdownY),
-    playing: store.playing,
-  })
   if (e.button !== 0 || !el || el !== e.currentTarget) return
   // A marker drag also ends with a mouseup over the plot — ignore it.
   if (dragActive || accIsDragging(specAcc) || accIsDragging(wfAcc)) return
@@ -269,7 +257,21 @@ function onPlotMouseUp(e: MouseEvent) {
     winHi = center + halfWin
   }
   const freqHz = Math.round(winLo + frac * (winHi - winLo))
-  console.log('[tune] requestTune', { freqHz, frac, lo, hi })
+  if (store.autoCenterWaterfallOnTune) {
+    // Auto-centre ON: retune the hardware so the clicked freq becomes the new
+    // span centre. Clear any prior demod offset — the bar returns to centre.
+    store.setTuningOffsetHz(0)
+  } else {
+    // Auto-centre OFF: keep the hardware where it is; the audio NCO offset
+    // (clicked − hardware centre) demodulates the clicked freq instead. The
+    // hardware centre is the live frame centre (midpoint of the full span),
+    // NOT currentFreqHz (the demod target, which may already be off-centre).
+    const hwCenter = (lo + hi) / 2
+    store.setTuningOffsetHz(Math.round(freqHz - hwCenter))
+  }
+  // Both paths go through requestTune so the panel updates the displayed freq
+  // (currentFreqHz / readout / input) and the marker follows. The panel skips
+  // the hardware retune when auto-centre is OFF (offset handles the audio).
   store.requestTune(freqHz)
 }
 

@@ -74,6 +74,7 @@
     "defaultSampleRate": 2048000,
     "defaultGain": 30,
     "defaultSquelch": -60,
+    "autoCenterWaterfallOnTune": true,
     "radios": [],
     "groups": [
       { "name": "Air to Air Refueling", "slug": "air-to-air-refueling" },

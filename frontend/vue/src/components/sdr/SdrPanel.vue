@@ -700,6 +700,15 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
   sidebarOpen.value = !!(e as CustomEvent<{ open: boolean }>).detail?.open
 })
 
+// The config JSON editor (Settings → App Settings → Application Config) just
+// replaced the DB settings. Re-hydrate the sdr store's cached
+// autoCenterWaterfallOnTune so a change made there takes effect on the live
+// waterfall immediately — SdrPanel is mounted for the whole SDR session, so
+// this stays in sync even when the Settings SDR control isn't mounted.
+useDocumentEvent('sentinel:config-uploaded', () => {
+  void _sdrStore().hydrateAutoCenterFromDb()
+})
+
 const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
 
 // ── Radio state ───────────────────────────────────────────────────────────────
@@ -735,6 +744,15 @@ const worklestSquelchOpen = ref(true)
 watch(currentFreqHz, (v) => { if (v) _sdrStore().setFrequency(v) }, { immediate: true })
 watch(bwHz,          (v) => { _sdrStore().setBandwidthHz(v) },       { immediate: true })
 
+// Demod NCO offset bridge. The store is the single source of truth for the
+// offset from the hardware centre (set by the waterfall click handler when
+// auto-centre is OFF, cleared to 0 by the ON path / toggle). Push every change
+// into the audio worklet. immediate so a restored 0 is asserted on mount.
+watch(() => _sdrStore().tuningOffsetHz,
+  (hz) => { sdrAudio.setOffsetHz(hz || 0) },
+  { immediate: true },
+)
+
 // Marker retune request — mirrors onFreqInputChange (600ms debounce, session,
 // sendCmd). The marker calls store.requestTune(); we own the websocket.
 watch(() => _sdrStore().tuneRequest, (req) => {
@@ -748,7 +766,15 @@ watch(() => _sdrStore().tuneRequest, (req) => {
     freqInputVal.value = (hz / 1e6).toFixed(4)
     sessionStorage.setItem('sdrLastFreqHz', String(hz))
     saveSettings()
-    sendCmd({ cmd: 'tune', frequency_hz: hz })
+    // Auto-centre OFF: do NOT retune the hardware — the demod NCO offset
+    // (already set in the store by the waterfall click) tunes the audio while
+    // the display stays put. Calling sendCmd('tune') here would both recenter
+    // the hardware AND clear the offset (sendCmd zeroes it on any tune), so
+    // skip it. The display/readout above still updates so the UI reflects the
+    // clicked freq.
+    if (_sdrStore().autoCenterWaterfallOnTune) {
+      sendCmd({ cmd: 'tune', frequency_hz: hz })
+    }
   }, 600)
 })
 
@@ -937,6 +963,14 @@ function _markInitialised(id: number) { sessionStorage.setItem(`sdrInit_${id}`, 
 function _isInitialised(id: number)   { return sessionStorage.getItem(`sdrInit_${id}`) === '1' }
 
 function sendCmd(obj: object) {
+  // A hardware tune always recenters the SDR on the new freq, so any prior
+  // demod NCO offset (auto-centre OFF) is no longer valid — clear it here, the
+  // single chokepoint for every retune path (typed, saved, marker, restore).
+  // The auto-centre-OFF click path deliberately does NOT call sendCmd('tune'),
+  // so it keeps its offset.
+  if ((obj as { cmd?: string }).cmd === 'tune' && _sdrStore().tuningOffsetHz !== 0) {
+    _sdrStore().setTuningOffsetHz(0)
+  }
   if (_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN) {
     _ctrlSocket.send(JSON.stringify(obj))
   }

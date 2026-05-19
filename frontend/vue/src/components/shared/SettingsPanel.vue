@@ -87,7 +87,7 @@
         </template>
       </div>
 
-      <div id="settings-footer" v-show="activeSection !== 'sdr' && !searchQuery.trim()">
+      <div id="settings-footer" v-show="!searchQuery.trim()">
         <span id="settings-apply-status" :class="applyStatusClass">{{ applyStatusMsg }}</span>
         <button id="settings-apply-btn" @click="commitAll">APPLY CHANGES</button>
       </div>
@@ -158,7 +158,8 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'land', sectionLabel: 'LAND', id: 'land-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'land' },
   { section: 'land', sectionLabel: 'LAND', id: 'land-online-source', label: 'Online Data Source', desc: 'URL for live land data feed', type: 'online-source', ns: 'land', defaultUrl: '' },
   { section: 'land', sectionLabel: 'LAND', id: 'land-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for land data', type: 'offline-source', ns: 'land', defaultUrl: '' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-devices', label: 'SDR Devices', desc: 'Configure RTL-SDR devices reachable via rtl_tcp', type: 'sdr-devices' },
+  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-devices', label: 'SDR Devices', desc: 'Configure RTL-SDR devices reachable via rtl_tcp', type: 'sdr-devices', groupLabel: 'DEVICES' },
+  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-autocenter', label: 'Auto-center on Tune', desc: 'When ON, clicking the spectrum/waterfall re-centers the display on the new frequency. When OFF, the display stays put and the radio tunes to the clicked frequency where you clicked it.', type: 'sdr-autocenter', groupLabel: 'WATERFALL' },
   { section: 'app', sectionLabel: 'App Settings', id: 'config-current', label: 'Application Config', desc: 'Settings currently stored in the database', type: 'config-current' },
 ]
 

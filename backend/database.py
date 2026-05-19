@@ -350,11 +350,14 @@ async def seed_default_settings() -> None:
     #   sdr/space.offlineSource: pre-offgridSource spelling, no longer read.
     #   sdr.initialGroups: old {name,color} list, superseded by the
     #     code-maintained sdr.groups {name,slug} catalogue.
+    #   sdr.autoCenter: renamed to sdr.autoCenterWaterfallOnTune; drop the old
+    #     row so it doesn't linger in the persisted config snapshot.
     _OBSOLETE_KEYS = [
         ("space", "offgridSource"),
         ("space", "offlineSource"),
         ("sdr",   "offlineSource"),
         ("sdr",   "initialGroups"),
+        ("sdr",   "autoCenter"),
         ("sea",   "onlineUrl"),
         ("sea",   "offgridSource"),
         ("land",  "onlineUrl"),
