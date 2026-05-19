@@ -9,9 +9,25 @@ import sigplot, { type Plot, type AccordionPlugin } from 'sigplot'
 // @ts-expect-error – sigplot has no published .d.ts for its internal mx module.
 import mx from 'sigplot/js/mx'
 const _origMxText = mx.text
-mx.text = function (Mx: unknown, x: number, y: number, lbl: string, color?: string) {
+mx.text = function (
+  Mx: { b: number; text_h: number },
+  x: number,
+  y: number,
+  lbl: string,
+  color?: string,
+) {
+  // sigplot's trimlabel() appends a trailing "." to integer tick labels.
   if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
     lbl = lbl.replace(/\.$/, '')
+  }
+  // Push x-axis tick labels (numeric, drawn just below the data box) down so
+  // they don't crowd the trace.
+  if (
+    typeof lbl === 'string' && /^-?\d+(?:\.\d+)?$/.test(lbl.trim()) &&
+    typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
+    y > Mx.b && y < Mx.b + Mx.text_h * 2
+  ) {
+    y += Mx.text_h * 0.5
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
@@ -589,7 +605,7 @@ function initPlots() {
     // is "Courier New, monospace"). Match the app font (Barlow) so the
     // spectrum frequency scale matches the radio's frequency readout.
     font_family: "'Barlow', sans-serif",
-    colors: { bg: BG, fg: '#8b97a8' },
+    colors: { bg: BG, fg: '#ffffff' },
   })
   // The waterfall MUST use the SAME axis spec as the spectrum, otherwise the
   // two plots compute different left/right margins (sigplot.js:3806 — with a
@@ -647,6 +663,26 @@ function initPlots() {
   specPlot.add_plugin(specAcc, 1)
   wfPlot.add_plugin(wfAcc, 1)
   applyMarker()
+
+  // sigplot hard-codes the left gutter at `text_w * 6` (sigplot.js:3807) which
+  // leaves a wide gap between dB tick labels and the trace. Our labels are at
+  // most 4 chars wide ("-120"), so shrink the gutter via a setter on _Mx.l.
+  // BOTH plots must use the same factor — see the note at wfPlot creation
+  // about Mx.l alignment between spectrum and waterfall.
+  const installMxLShrink = (plot: Plot) => {
+    const Mx = (plot as unknown as { _Mx: { l: number; text_w: number } })._Mx
+    let _l = Mx.l
+    Object.defineProperty(Mx, 'l', {
+      configurable: true,
+      get() { return _l },
+      set(v: number) {
+        const tw = Mx.text_w || 1
+        _l = v > 1 && Math.abs(v - tw * 6) < tw ? tw * 4.5 : v
+      },
+    })
+  }
+  installMxLShrink(specPlot)
+  installMxLShrink(wfPlot)
 
   // sigplot sizes its canvas to the element's clientHeight at creation time and
   // only resizes on checkresize(). The flex children settle their final height
