@@ -20,6 +20,9 @@
    * spectrum + waterfall sit beside the controls rather than under them.
    * Must match .sdr-wf-controls width. */
   padding-right: 44px;
+  /* Align spectrum top with the SDR device select in the side panel
+   * (SdrPanel uses .sdr-radio-section--device { padding-top: 20px }). */
+  padding-top: 9px;
   box-sizing: border-box;
 }
 

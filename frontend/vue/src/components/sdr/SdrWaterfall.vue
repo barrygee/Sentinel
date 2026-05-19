@@ -8,6 +8,43 @@ import sigplot, { type Plot, type AccordionPlugin } from 'sigplot'
 // label is an integer-with-dot (e.g. "-30." → "-30").
 // @ts-expect-error – sigplot has no published .d.ts for its internal mx module.
 import mx from 'sigplot/js/mx'
+
+// Hide the top + right edges of the plot's axis box by suppressing the
+// outer box draw (`noaxisbox: true`) and redrawing only the bottom + left
+// edges after sigplot's original drawaxis finishes.
+const _origDrawaxis = mx.drawaxis
+mx.drawaxis = function (
+  Gx: unknown,
+  Mx: { stk: Array<{ x1: number; y1: number; x2: number; y2: number }>; level: number; active_canvas: HTMLCanvasElement; fg: string; width: number; height: number },
+  xdiv: number,
+  ydiv: number,
+  xlab: number,
+  ylab: number,
+  flags: { noaxisbox?: boolean; exactbox?: boolean },
+) {
+  const userWantsBox = !flags.noaxisbox
+  flags.noaxisbox = true
+  const ret = _origDrawaxis.call(this, Gx, Mx, xdiv, ydiv, xlab, ylab, flags)
+  if (userWantsBox) {
+    const stk1 = Mx.stk[Mx.level]
+    let iscl: number, isct: number, iscr: number, iscb: number
+    if (flags.exactbox) {
+      iscl = Math.floor(stk1.x1)
+      isct = Math.floor(stk1.y1)
+      iscr = Math.floor(stk1.x2)
+      iscb = Math.floor(stk1.y2)
+    } else {
+      iscl = Math.max(Math.floor(stk1.x1) - 2, 0)
+      isct = Math.max(Math.floor(stk1.y1) - 2, 0)
+      iscr = Math.min(Math.floor(stk1.x2) + 2, Mx.width)
+      iscb = Math.min(Math.floor(stk1.y2) + 2, Mx.height)
+    }
+    // Bottom + left only — top + right are intentionally skipped.
+    mx.textline(Mx, iscr, iscb, iscl, iscb)
+    mx.textline(Mx, iscl, iscb, iscl, isct)
+  }
+  return ret
+}
 const _origMxText = mx.text
 mx.text = function (
   Mx: { b: number; text_h: number },
@@ -669,8 +706,10 @@ function initPlots() {
   // most 4 chars wide ("-120"), so shrink the gutter via a setter on _Mx.l.
   // BOTH plots must use the same factor — see the note at wfPlot creation
   // about Mx.l alignment between spectrum and waterfall.
-  const installMxLShrink = (plot: Plot) => {
-    const Mx = (plot as unknown as { _Mx: { l: number; text_w: number } })._Mx
+  const installMarginTweaks = (plot: Plot) => {
+    const Mx = (plot as unknown as {
+      _Mx: { l: number; r: number; t: number; text_w: number; text_h: number; width: number }
+    })._Mx
     let _l = Mx.l
     Object.defineProperty(Mx, 'l', {
       configurable: true,
@@ -680,9 +719,29 @@ function initPlots() {
         _l = v > 1 && Math.abs(v - tw * 6) < tw ? tw * 4.5 : v
       },
     })
+    // Push the data box top down a bit so the trace doesn't kiss the canvas
+    // edge. sigplot defaults Mx.t = 1 when no readout/pan; bump to ~1 text-h.
+    let _t = Mx.t
+    Object.defineProperty(Mx, 't', {
+      configurable: true,
+      get() { return _t },
+      set(v: number) {
+        const th = Mx.text_h || 12
+        _t = Math.max(v, Math.round(th * 1.2))
+      },
+    })
+    // Extend Mx.r to the canvas right edge so there's no visible right gutter.
+    let _r = Mx.r
+    Object.defineProperty(Mx, 'r', {
+      configurable: true,
+      get() { return _r },
+      set(v: number) {
+        _r = Math.max(v, Mx.width - 1)
+      },
+    })
   }
-  installMxLShrink(specPlot)
-  installMxLShrink(wfPlot)
+  installMarginTweaks(specPlot)
+  installMarginTweaks(wfPlot)
 
   // sigplot sizes its canvas to the element's clientHeight at creation time and
   // only resizes on checkresize(). The flex children settle their final height
