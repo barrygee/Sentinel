@@ -157,6 +157,15 @@ let specAcc: AccordionPlugin | null = null   // MHz spectrum plot
 let wfAcc: AccordionPlugin | null = null     // Hz waterfall plot
 let lastCommittedFreqHz = 0
 let lastCommittedBwHz = 0
+// Independent drag baseline, snapshotted on mousedown over an accordion. The
+// mouseup handler diffs the live centre/width against THIS — not against
+// lastCommitted*, which applyMarker() overwrites on every store change (and a
+// reactive bwHz round-trip can fire applyMarker mid-drag, resetting the
+// baseline to the dragged value → mouseup sees zero delta → "nothing dragged"
+// and the change is lost before it ever reaches the panel).
+let dragBaseFreqHz = 0
+let dragBaseBwHz = 0
+let dragActive = false
 // Guards the document mouseup handler while WE set centre/width programmatically
 // (applyMarker / post-drag re-sync) so our own writes aren't read back as a
 // user drag.
@@ -217,6 +226,20 @@ function accIsDragging(a: AccordionPlugin | null): boolean {
 // instead of the other one snapping only on release. Units differ (spectrum =
 // MHz, waterfall = Hz), so convert per direction. suppressAccEvents stops the
 // mirrored setter from being read back as a second drag.
+// Snapshot the pre-drag baseline the instant the user grabs an accordion. The
+// sigplot accordion sets its dragging/edge_dragging flag in its own mousedown
+// (fired via the plot's internal 'mdown' before this document-level handler on
+// the same native event), so by the time we run accIsDragging() it's already
+// true. We capture the CURRENT live centre/width as the baseline — this is the
+// value before the user moves the mouse — and freeze it for the whole drag.
+useDocumentEvent('mousedown', () => {
+  if (!specAcc || !wfAcc) return
+  if (!accIsDragging(specAcc) && !accIsDragging(wfAcc)) return
+  dragBaseFreqHz = wfAcc.center()
+  dragBaseBwHz = wfAcc.width()
+  dragActive = true
+})
+
 useDocumentEvent('mousemove', () => {
   if (suppressAccEvents || !specAcc || !wfAcc) return
   const specDragging = accIsDragging(specAcc)
@@ -247,23 +270,18 @@ useDocumentEvent('mousemove', () => {
 // accordions are null until initPlots() runs, hence the guard.
 useDocumentEvent('mouseup', () => {
   if (suppressAccEvents || !specAcc || !wfAcc) return
-  const sF = specAcc.center() * HZ_PER_MHZ
-  const sB = specAcc.width() * HZ_PER_MHZ
-  const wF = wfAcc.center()
-  const wB = wfAcc.width()
-  let freqHz = lastCommittedFreqHz
-  let bw = lastCommittedBwHz
-  if (Math.abs(sF - lastCommittedFreqHz) > 1 || Math.abs(sB - lastCommittedBwHz) > 1) {
-    freqHz = sF
-    bw = sB
-  } else if (Math.abs(wF - lastCommittedFreqHz) > 1 || Math.abs(wB - lastCommittedBwHz) > 1) {
-    freqHz = wF
-    bw = wB
-  } else {
-    return // nothing was dragged
-  }
-  if (Math.abs(freqHz - lastCommittedFreqHz) > 1) store.requestTune(Math.round(freqHz))
-  if (Math.abs(bw - lastCommittedBwHz) > 1) store.requestBandwidth(Math.round(bw))
+  if (!dragActive) return // mouseup without a drag we initiated
+  dragActive = false
+  // Read the final geometry from the WATERFALL accordion (Hz, no MHz rounding
+  // loss). The mousemove mirror keeps both accordions in lock-step, so either
+  // is authoritative; we pick Hz to avoid a float round-trip through MHz.
+  const freqHz = wfAcc.center()
+  const bw = wfAcc.width()
+  const freqMoved = Math.abs(freqHz - dragBaseFreqHz) > 1
+  const bwMoved = Math.abs(bw - dragBaseBwHz) > 1
+  if (!freqMoved && !bwMoved) return
+  if (freqMoved) store.requestTune(Math.round(freqHz))
+  if (bwMoved) store.requestBandwidth(Math.round(bw))
   lastCommittedFreqHz = freqHz
   lastCommittedBwHz = bw
   // Re-sync both plots immediately so the un-dragged plot follows now (don't

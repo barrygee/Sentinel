@@ -641,6 +641,20 @@ defineProps<{ fullPage: boolean }>()
 
 const sdrAudio = useSdrAudio()
 
+// Lazy store accessor. MUST be declared here — above every watcher that calls
+// it — not lower in the file. `_sdrStore` is a hoisted function so it is
+// *callable* early, but its body closes over the `let _spectrumStore` binding.
+// The `{ immediate: true }` watchers below fire synchronously during setup and
+// call _sdrStore(); if `let _spectrumStore` is declared further down it is
+// still in its temporal dead zone at that point → "ReferenceError: Cannot
+// access '_spectrumStore' before initialization" (the crash on every SDR page
+// load). Keeping the declaration before the watchers is load-bearing.
+let _spectrumStore: ReturnType<typeof useSdrStore> | null = null
+function _sdrStore() {
+  if (!_spectrumStore) _spectrumStore = useSdrStore()
+  return _spectrumStore
+}
+
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
@@ -918,14 +932,6 @@ let _ctrlSocket:       WebSocket | null = null
 let _ctrlRadioId:      number | null    = null
 let _ctrlReconnect:    ReturnType<typeof setTimeout> | null = null
 let _ctrlDataConfirmed = false
-
-// Lazy store accessor — the control socket lives at module scope, but Pinia is
-// always active by the time a WS message arrives. Cached after first use.
-let _spectrumStore: ReturnType<typeof useSdrStore> | null = null
-function _sdrStore() {
-  if (!_spectrumStore) _spectrumStore = useSdrStore()
-  return _spectrumStore
-}
 
 function _markInitialised(id: number) { sessionStorage.setItem(`sdrInit_${id}`, '1') }
 function _isInitialised(id: number)   { return sessionStorage.getItem(`sdrInit_${id}`) === '1' }
