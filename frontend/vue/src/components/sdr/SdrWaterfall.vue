@@ -2,6 +2,19 @@
 import './SdrWaterfall.css'
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import sigplot, { type Plot, type AccordionPlugin } from 'sigplot'
+// sigplot's trimlabel() appends a trailing "." to integer tick labels (mx.js
+// ~line 4248). It's a private closure-scoped function, so the only seam is to
+// patch the shared mx.text() draw function and strip the trailing dot when the
+// label is an integer-with-dot (e.g. "-30." → "-30").
+// @ts-expect-error – sigplot has no published .d.ts for its internal mx module.
+import mx from 'sigplot/js/mx'
+const _origMxText = mx.text
+mx.text = function (Mx: unknown, x: number, y: number, lbl: string, color?: string) {
+  if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
+    lbl = lbl.replace(/\.$/, '')
+  }
+  return _origMxText.call(this, Mx, x, y, lbl, color)
+}
 import { useSdrStore } from '@/stores/sdr'
 import { useSettingsStore } from '@/stores/settings'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -561,6 +574,7 @@ function initPlots() {
     autoy: 0,
     ymin: SPEC_YMIN_DB,
     ymax: SPEC_YMAX_DB,
+    ydiv: Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20),
     nomenu: true,
     nopan: true,
     nodragdrop: true,
