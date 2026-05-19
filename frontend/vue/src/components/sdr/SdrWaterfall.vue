@@ -691,9 +691,9 @@ function initPlots() {
     draw_center_line: true,
     draw_edge_lines: true,
     shade_area: true,
-    fill_style: { fillStyle: '#ffffff', opacity: 0.14 },
+    fill_style: { fillStyle: '#000000', opacity: 0.35 },
     center_line_style: { strokeStyle: '#ffffff', lineWidth: 1.5, lineCap: 'butt' },
-    edge_line_style: { strokeStyle: 'rgba(255,255,255,0.6)', lineWidth: 1, lineCap: 'butt' },
+    edge_line_style: { strokeStyle: '#ffffff', lineWidth: 1, lineCap: 'butt' },
   }
   specAcc = new Acc({ ...accCommon })
   wfAcc = new Acc({ ...accCommon })
