@@ -701,6 +701,15 @@ function initPlots() {
   wfPlot.add_plugin(wfAcc, 1)
   applyMarker()
 
+  // The axis/tick `fg` colour is also used by default for the grid lines.
+  // Override the grid stroke independently so the grid stays dark while
+  // tick labels remain white.
+  // Preserve sigplot's default dashed grid pattern (`on:1, off:3`); only swap
+  // the colour so labels stay white but the grid is black.
+  const gridStyle = { color: '#202632', mode: 'dashed', on: 1, off: 3 }
+  specPlot.change_settings({ gridStyle })
+  wfPlot.change_settings({ gridStyle })
+
   // sigplot hard-codes the left gutter at `text_w * 6` (sigplot.js:3807) which
   // leaves a wide gap between dB tick labels and the trace. Our labels are at
   // most 4 chars wide ("-120"), so shrink the gutter via a setter on _Mx.l.
