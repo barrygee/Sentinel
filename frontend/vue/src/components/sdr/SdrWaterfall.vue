@@ -514,7 +514,7 @@ function buildPipes(n: number) {
   specUuid = specPlot.overlay_array(
     null,
     { type: 1000, xunits: 3, yunits: 26, size: n, xstart: xstartMHz, xdelta: xdeltaMHz },
-    { color: '#ffffff', fillStyle: 'rgba(255,255,255,0.35)' },
+    { color: '#00aaff', fillStyle: 'rgba(0,170,255,0.14)' },
   )
   // Waterfall: 2-D raster via overlay_pipe + push (the documented scrolling-2D
   // pattern). `drawmode:'falling'` => newest row enters at the top and the
@@ -624,9 +624,9 @@ function initPlots() {
     draw_center_line: true,
     draw_edge_lines: true,
     shade_area: true,
-    fill_style: { fillStyle: '#c8ff00', opacity: 0.14 },
-    center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1.5, lineCap: 'butt' },
-    edge_line_style: { strokeStyle: 'rgba(200,255,0,0.6)', lineWidth: 1, lineCap: 'butt' },
+    fill_style: { fillStyle: '#ffffff', opacity: 0.14 },
+    center_line_style: { strokeStyle: '#ffffff', lineWidth: 1.5, lineCap: 'butt' },
+    edge_line_style: { strokeStyle: 'rgba(255,255,255,0.6)', lineWidth: 1, lineCap: 'butt' },
   }
   specAcc = new Acc({ ...accCommon })
   wfAcc = new Acc({ ...accCommon })
