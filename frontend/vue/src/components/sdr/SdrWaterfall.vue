@@ -131,6 +131,9 @@ const bandInsetBottomPx = ref(0)
 // Style for the band-plan overlay (absolute-positioned div sitting on top of
 // the spectrum canvas). Insets follow the live data-box rectangle so the
 // strip always aligns with the plot's tick labels regardless of font scaling.
+// The strip is opaque enough to hide the sigplot-drawn tuning marker where
+// they overlap — that intentional "gap" in the marker, only across the
+// bandplan's own height, is the desired UI.
 const bandOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
@@ -733,11 +736,11 @@ function initPlots() {
     mode: 'absolute' as const,
     direction: 'vertical' as const,
     draw_center_line: true,
-    draw_edge_lines: true,
+    draw_edge_lines: false,
     shade_area: true,
     fill_style: { fillStyle: '#000000', opacity: 0.35 },
-    center_line_style: { strokeStyle: 'rgba(255,255,255,0.6)', lineWidth: 1, lineCap: 'butt' },
-    edge_line_style: { strokeStyle: '#000000', lineWidth: 0.5, lineCap: 'butt' },
+    center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1, lineCap: 'butt' },
+    edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
   specAcc = new Acc({ ...accCommon })
   wfAcc = new Acc({ ...accCommon })
