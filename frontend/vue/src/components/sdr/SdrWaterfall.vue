@@ -47,7 +47,7 @@ mx.drawaxis = function (
 }
 const _origMxText = mx.text
 mx.text = function (
-  Mx: { b: number; text_h: number },
+  Mx: { b: number; l: number; text_h: number },
   x: number,
   y: number,
   lbl: string,
@@ -58,10 +58,14 @@ mx.text = function (
     lbl = lbl.replace(/\.$/, '')
   }
   // Push x-axis tick labels (numeric, drawn just below the data box) down so
-  // they don't crowd the trace.
+  // they don't crowd the trace. Y-axis labels also land near y=Mx.b for the
+  // BOTTOMMOST tick (the label baseline clamps to iscb = Mx.b + 2), so gate
+  // on x as well: x-axis labels sit in the column (x >= Mx.l), y-axis labels
+  // in the left gutter (x < Mx.l).
   if (
     typeof lbl === 'string' && /^-?\d+(?:\.\d+)?$/.test(lbl.trim()) &&
     typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
+    typeof Mx?.l === 'number' && x >= Mx.l &&
     y > Mx.b && y < Mx.b + Mx.text_h * 2
   ) {
     y += Mx.text_h * 0.8
@@ -225,10 +229,13 @@ const WF_AUTOL = 100
 // runtime; see node_modules/sigplot/js/sigplot.js lines 2039-2074).
 type SdrDeviceId = 'rtl_tcp' | 'hackrf' | 'airspy' | 'sdrplay'
 const DEVICE_DB_RANGE: Record<SdrDeviceId, { ymin: number; ymax: number }> = {
-  rtl_tcp:  { ymin: -120, ymax:  90 }, // 8-bit IQ (only device wired today)
-  hackrf:   { ymin: -120, ymax:  90 }, // 8-bit IQ  — placeholder
+  // Ranges must divide cleanly by 20 dB so sigplot's tick steps land on the
+  // ymax/ymin endpoints — otherwise the bottom label sits below the data box
+  // (uneven gap between the lowest two labels).
+  rtl_tcp:  { ymin: -120, ymax:  80 }, // 8-bit IQ (only device wired today)
+  hackrf:   { ymin: -120, ymax:  80 }, // 8-bit IQ  — placeholder
   airspy:   { ymin: -120, ymax: 120 }, // 12-bit IQ — placeholder
-  sdrplay:  { ymin: -120, ymax: 130 }, // 14-bit IQ — placeholder
+  sdrplay:  { ymin: -120, ymax: 140 }, // 14-bit IQ — placeholder
 }
 const ACTIVE_DEVICE: SdrDeviceId = 'rtl_tcp'
 const SPEC_YMIN_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymin
@@ -674,7 +681,11 @@ function initPlots() {
     autoy: 0,
     ymin: SPEC_YMIN_DB,
     ymax: SPEC_YMAX_DB,
-    ydiv: Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20),
+    // Negative ydiv bypasses sigplot's mx.tics() "nice number" rounding (which
+    // can place the first tick BELOW ymin, leaving the bottom label visually
+    // outside the data box). With ydiv<0, sigplot pins dtic1 = ymin exactly and
+    // dtic = (ymin-ymax)/ydiv, so ticks land precisely on ymin..ymax in N steps.
+    ydiv: -Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20),
     nomenu: true,
     nopan: true,
     nodragdrop: true,
