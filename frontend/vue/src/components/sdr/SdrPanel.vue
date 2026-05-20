@@ -246,6 +246,49 @@
               >
             </div>
 
+            <!-- Sample Rate (hardware) — sets the spectrum/waterfall span -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">SAMPLE RATE</label>
+                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ formatBwHz(sampleRateHz) }}</span>
+              </div>
+              <!-- Custom dropdown (NOT native <select>): native option lists
+                   can't be styled (UA popup), and we want the menu to match
+                   the device dropdown above. Built off the same primitives. -->
+              <div
+                ref="sampleRateDropdownRef"
+                class="sdr-device-dropdown"
+                :class="{ 'sdr-device-dropdown--open': sampleRateMenuOpen, 'sdr-device-dropdown--loading': controlsDisabled }"
+                tabindex="0"
+                @click.stop="toggleSampleRateMenu"
+                @keydown="onSampleRateDropdownKey"
+              >
+                <div class="sdr-device-dropdown-selected">
+                  <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ formatBwHz(sampleRateHz) }}</span>
+                  <span class="sdr-device-dropdown-arrow"></span>
+                </div>
+              </div>
+              <Teleport to="body">
+                <div
+                  v-if="sampleRateMenuOpen"
+                  ref="sampleRateMenuRef"
+                  class="sdr-device-menu sdr-device-menu--open"
+                  :style="sampleRateMenuStyle"
+                  @click.stop
+                >
+                  <div
+                    v-for="r in SAMPLE_RATE_OPTIONS"
+                    :key="r"
+                    class="sdr-device-menu-item"
+                    :class="{ 'sdr-device-menu-item--selected': r === sampleRateHz }"
+                    @click="pickSampleRate(r)"
+                  >
+                    {{ formatBwHz(r) }}
+                  </div>
+                </div>
+              </Teleport>
+            </div>
+
             <!-- RF Gain -->
             <div class="sdr-radio-section">
               <div class="sdr-slider-header">
@@ -734,6 +777,12 @@ const volume            = ref(80)
 const squelch           = ref(-120)
 const bwHz              = ref(10000)
 const bwMax             = ref(2048000)
+// Hardware sample rate (rtl_tcp): governs the spectrum/waterfall x-axis span
+// and is fully independent of the demod-filter Bandwidth slider above. Tiers
+// match snapToValidSampleRate() in sdrPanelUtils.ts — the 1.024 MHz floor
+// avoids the stuttering 250k/300k tiers measured on the remote Pi.
+const SAMPLE_RATE_OPTIONS = [1024000, 1536000, 1792000, 2048000] as const
+const sampleRateHz      = ref<number>(2048000)
 const activeFreqDisplay = ref('')
 const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
@@ -936,13 +985,14 @@ const editingGroupId = ref<number | null>(null)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-import { formatBwHz, parseFreqMhz, defaultBwHz, snapToValidSampleRate } from './sdrPanelUtils'
+import { formatBwHz, parseFreqMhz, defaultBwHz } from './sdrPanelUtils'
 
 function saveSettings() {
   try {
     sessionStorage.setItem('sdrSettings', JSON.stringify({
       gainDb: gainDb.value, gainAuto: gainAuto.value, squelch: squelch.value,
       bwHz: bwHz.value, vol: volume.value, mode: currentMode.value, freqHz: currentFreqHz.value,
+      sampleRateHz: sampleRateHz.value,
     }))
   } catch (_) {}
 }
@@ -962,6 +1012,11 @@ function restoreSettings() {
     if (typeof s.squelch === 'number') squelch.value = s.squelch
     if (typeof s.bwHz === 'number' && s.bwHz > 0) bwHz.value = s.bwHz
     if (typeof s.vol === 'number') { volume.value = s.vol; sdrAudio.setVolume(s.vol / 100) }
+    if (typeof s.sampleRateHz === 'number' &&
+        SAMPLE_RATE_OPTIONS.includes(s.sampleRateHz as typeof SAMPLE_RATE_OPTIONS[number])) {
+      sampleRateHz.value = s.sampleRateHz
+      bwMax.value = s.sampleRateHz
+    }
   } catch (_) {}
 }
 
@@ -1022,6 +1077,9 @@ async function openControlSocket(radioId: number) {
     // before this socket opened (sendCmd silently drops while CONNECTING).
     const fftReq = _sdrStore().fftSizeRequest
     if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
+    // Push the restored hardware sample rate so the backend's span matches
+    // what the user last picked, instead of whatever the device default is.
+    sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
   })
 
   ws.addEventListener('message', (ev: MessageEvent) => {
@@ -1184,27 +1242,56 @@ function onSquelchInput(e: Event) {
   }, 150)
 }
 
-let _bwDebounce: ReturnType<typeof setTimeout> | null = null
-let _lastSentRate = 0
 function onBwInput(e: Event) {
   const v = parseInt((e.target as HTMLInputElement).value, 10)
   bwHz.value = v
   saveSettings()
-  // Audio demod bandwidth can change freely client-side — keep immediate.
+  // Demod audio filter only — the spectrum/FFT span is governed by the
+  // hardware sample rate (separate Sample Rate selector below), matching
+  // SDR# / SDR++ / GQRX where Bandwidth never reconfigures the device.
   sdrAudio.setBandwidthHz(v)
-  // The rtl_tcp sample_rate command, however, RECONFIGURES the device (it
-  // tears down/re-inits the stream → a visible stall). Dragging the slider
-  // across sample-rate tiers fired one reconfigure per step → sustained
-  // jumpiness while dragging (esp. WFM, a wide drag). So: (1) only act after
-  // the user STOPS moving (longer debounce), and (2) skip the command if the
-  // snapped rate is unchanged (nudging within a tier shouldn't reconfigure).
-  if (_bwDebounce) clearTimeout(_bwDebounce)
-  _bwDebounce = setTimeout(() => {
-    const rate = snapToValidSampleRate(v)
-    if (rate === _lastSentRate) return
-    _lastSentRate = rate
-    sendCmd({ cmd: 'sample_rate', rate_hz: rate })
-  }, 500)
+}
+
+const sampleRateDropdownRef = ref<HTMLElement | null>(null)
+const sampleRateMenuRef     = ref<HTMLElement | null>(null)
+const sampleRateMenuOpen    = ref(false)
+const sampleRateMenuStyle   = ref<Record<string, string>>({})
+
+function positionSampleRateMenu() {
+  const el = sampleRateDropdownRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  sampleRateMenuStyle.value = { left: rect.left + 'px', top: rect.bottom + 'px', width: rect.width + 'px' }
+}
+
+function toggleSampleRateMenu() {
+  if (controlsDisabled.value) return
+  if (sampleRateMenuOpen.value) { closeSampleRateMenu(); return }
+  positionSampleRateMenu()
+  sampleRateMenuOpen.value = true
+}
+
+function closeSampleRateMenu() { sampleRateMenuOpen.value = false }
+
+function onSampleRateDropdownKey(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSampleRateMenu() }
+  if (e.key === 'Escape') closeSampleRateMenu()
+}
+
+function pickSampleRate(v: number) {
+  closeSampleRateMenu()
+  if (!SAMPLE_RATE_OPTIONS.includes(v as typeof SAMPLE_RATE_OPTIONS[number])) return
+  if (v === sampleRateHz.value) return
+  sampleRateHz.value = v
+  // Update the BW slider ceiling synchronously so the UI doesn't wait for the
+  // backend's status echo, and clamp the current bwHz down if it now exceeds.
+  bwMax.value = v
+  if (bwHz.value > v) {
+    bwHz.value = v
+    sdrAudio.setBandwidthHz(v)
+  }
+  saveSettings()
+  sendCmd({ cmd: 'sample_rate', rate_hz: v })
 }
 
 // ── Mode ──────────────────────────────────────────────────────────────────────
@@ -1264,6 +1351,9 @@ function applyStatus(msg: {
   gainDb.value = msg.gain_db
   gainAuto.value = msg.gain_auto
   bwMax.value = msg.sample_rate
+  if (SAMPLE_RATE_OPTIONS.includes(msg.sample_rate as typeof SAMPLE_RATE_OPTIONS[number])) {
+    sampleRateHz.value = msg.sample_rate
+  }
   const clampedBw = Math.min(bwHz.value, msg.sample_rate)
   bwHz.value = clampedBw
   sdrAudio.setBandwidthHz(clampedBw)
@@ -1337,7 +1427,10 @@ function onDeviceDropdownKey(e: KeyboardEvent) {
   if (e.key === 'Escape') closeDeviceMenu()
 }
 
-function onDocumentClick() { if (deviceMenuOpen.value) closeDeviceMenu() }
+function onDocumentClick() {
+  if (deviceMenuOpen.value) closeDeviceMenu()
+  if (sampleRateMenuOpen.value) closeSampleRateMenu()
+}
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
 

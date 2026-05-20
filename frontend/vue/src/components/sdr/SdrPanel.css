@@ -543,6 +543,11 @@
     background: #c8ff00;
 }
 
+/* Highlight the currently chosen sample rate in the menu. */
+.sdr-device-menu-item--selected {
+    color: #c8ff00;
+}
+
 .sdr-agc-row {
     padding-top: 14px;
     padding-bottom: 14px;
