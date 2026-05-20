@@ -153,6 +153,9 @@ const bandInsetRightPx = ref(12)
 // (i.e. the height of sigplot's x-axis tick-label gutter). Without this the
 // overlay sits over the freq labels instead of over the trace.
 const bandInsetBottomPx = ref(0)
+// Height of the band overlay in pixels. Set so the top of the strip aligns
+// with the -100 dB horizontal gridline in the spectrum (data-box-relative).
+const bandHeightPx = ref(0)
 
 // Style for the band-plan overlay (absolute-positioned div sitting on top of
 // the spectrum canvas). Insets follow the live data-box rectangle so the
@@ -164,6 +167,7 @@ const bandOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
   bottom: `${bandInsetBottomPx.value}px`,
+  height: bandHeightPx.value > 0 ? `${bandHeightPx.value}px` : undefined,
 }))
 
 // The waterfall flex sibling sits flush against .sdr-wf-spectrum's bottom
@@ -450,7 +454,7 @@ function onPlotMouseUp(e: MouseEvent) {
 // supported-by-precedent path.
 function syncBandInset() {
   const mx = (specPlot as unknown as {
-    _Mx?: { l: number; r: number; b: number; width: number; height: number }
+    _Mx?: { l: number; r: number; t: number; b: number; width: number; height: number }
   } | null)?._Mx
   if (!mx || !mx.width) return
   bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
@@ -458,6 +462,15 @@ function syncBandInset() {
   // mx.b is the pixel y of the data-box BOTTOM (sigplot draws ticks/labels
   // below it). Distance from the canvas/element bottom = height − b.
   bandInsetBottomPx.value = Math.max(0, Math.ceil(mx.height - mx.b))
+  // Band overlay grows up from the data-box bottom to the -100 dB gridline.
+  // mx.t..mx.b span the y-axis range SPEC_YMAX_DB..SPEC_YMIN_DB.
+  const dataBoxHeightPx = mx.b - mx.t
+  const yRangeDb = SPEC_YMAX_DB - SPEC_YMIN_DB
+  if (dataBoxHeightPx > 0 && yRangeDb > 0) {
+    const TARGET_DB = -100
+    const dbFromBottom = TARGET_DB - SPEC_YMIN_DB
+    bandHeightPx.value = Math.max(0, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx))
+  }
 }
 
 // Type for poking the plugin's internal drag flags (no public accessor).
