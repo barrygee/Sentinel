@@ -47,7 +47,7 @@ mx.drawaxis = function (
 }
 const _origMxText = mx.text
 mx.text = function (
-  Mx: { b: number; l: number; text_h: number },
+  Mx: { b: number; l: number; text_h: number; text_w: number },
   x: number,
   y: number,
   lbl: string,
@@ -57,18 +57,22 @@ mx.text = function (
   if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
     lbl = lbl.replace(/\.$/, '')
   }
-  // Push x-axis tick labels (numeric, drawn just below the data box) down so
-  // they don't crowd the trace. Y-axis labels also land near y=Mx.b for the
-  // BOTTOMMOST tick (the label baseline clamps to iscb = Mx.b + 2), so gate
-  // on x as well: x-axis labels sit in the column (x >= Mx.l), y-axis labels
-  // in the left gutter (x < Mx.l).
+  // X-axis numeric tick labels: (a) nudge down so the gap between the data
+  // box and the digits matches the y-axis label gap (the Mx.b setter in
+  // installMarginTweaks reserves the extra room), (b) correct for sigplot's
+  // half-character rounding (mx.js:3186 uses Math.round(len/2)*text_w which
+  // mis-centres odd-length labels by 0.5*text_w to the left). Gate on
+  // x >= Mx.l so y-axis labels (left gutter) are untouched.
   if (
     typeof lbl === 'string' && /^-?\d+(?:\.\d+)?$/.test(lbl.trim()) &&
     typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
     typeof Mx?.l === 'number' && x >= Mx.l &&
     y > Mx.b && y < Mx.b + Mx.text_h * 2
   ) {
-    y += Mx.text_h * 0.8
+    y += Mx.text_h * 1.0
+    if (lbl.length % 2 === 1 && typeof Mx?.text_w === 'number') {
+      x += Mx.text_w * 0.5
+    }
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
@@ -804,6 +808,22 @@ function initPlots() {
       get() { return _r },
       set(v: number) {
         _r = Math.max(v, Mx.width - 1)
+      },
+    })
+    // Pull the data-box bottom up so there's a wider gutter for the x-axis
+    // tick labels. Sigplot reserves only 1.5*text_h (sigplot.js:3861); bump
+    // to 2.5*text_h so the gap above the labels matches the y-axis label
+    // gap (the mx.text override below shifts label baselines into the extra
+    // room). The bigger gutter is propagated to the band overlay and the
+    // waterfall margin automatically via syncBandInset (reads height - b).
+    let _b = (Mx as unknown as { b: number }).b
+    Object.defineProperty(Mx, 'b', {
+      configurable: true,
+      get() { return _b },
+      set(v: number) {
+        const th = Mx.text_h || 12
+        const desired = ((plot as unknown as { _Mx: { height: number } })._Mx.height) - Math.round(th * 2.5)
+        _b = Math.min(v, desired)
       },
     })
   }
