@@ -47,7 +47,10 @@ mx.drawaxis = function (
 }
 const _origMxText = mx.text
 mx.text = function (
-  Mx: { b: number; l: number; text_h: number; text_w: number },
+  Mx: {
+    b: number; l: number; text_h: number; text_w: number
+    canvas?: HTMLCanvasElement
+  },
   x: number,
   y: number,
   lbl: string,
@@ -57,12 +60,14 @@ mx.text = function (
   if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
     lbl = lbl.replace(/\.$/, '')
   }
-  // X-axis numeric tick labels: (a) nudge down so the gap between the data
-  // box and the digits matches the y-axis label gap (the Mx.b setter in
-  // installMarginTweaks reserves the extra room), (b) correct for sigplot's
-  // half-character rounding (mx.js:3186 uses Math.round(len/2)*text_w which
-  // mis-centres odd-length labels by 0.5*text_w to the left). Gate on
-  // x >= Mx.l so y-axis labels (left gutter) are untouched.
+  // X-axis numeric tick labels: (a) nudge down so the gap matches the
+  // y-axis label gap (Mx.b setter in installMarginTweaks reserves the room),
+  // (b) re-centre on the tick. Sigplot positions labels assuming monospace
+  // (mx.js:3186: x = tick − round(len/2)*text_w, where text_w = width of 'M')
+  // but we use Barlow (proportional), so digit widths ≠ text_w and labels
+  // drift left of their ticks. Measure the actual label width and centre.
+  // The tick x = caller's x + round(lbl.length / 2) * text_w (inverse of
+  // sigplot's offset).
   if (
     typeof lbl === 'string' && /^-?\d+(?:\.\d+)?$/.test(lbl.trim()) &&
     typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
@@ -70,8 +75,11 @@ mx.text = function (
     y > Mx.b && y < Mx.b + Mx.text_h * 2
   ) {
     y += Mx.text_h * 1.0
-    if (lbl.length % 2 === 1 && typeof Mx?.text_w === 'number') {
-      x += Mx.text_w * 0.5
+    const ctx = Mx.canvas?.getContext('2d')
+    if (ctx && typeof Mx.text_w === 'number') {
+      const tickX = x + Math.round(lbl.length / 2) * Mx.text_w
+      const measuredW = ctx.measureText(lbl).width
+      x = tickX - measuredW / 2
     }
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
