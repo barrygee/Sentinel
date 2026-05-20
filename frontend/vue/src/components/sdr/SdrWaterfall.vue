@@ -56,10 +56,6 @@ mx.text = function (
   lbl: string,
   color?: string,
 ) {
-  // sigplot's trimlabel() appends a trailing "." to integer tick labels.
-  if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
-    lbl = lbl.replace(/\.$/, '')
-  }
   // X-axis numeric tick labels: (a) nudge down so the gap matches the
   // y-axis label gap (Mx.b setter in installMarginTweaks reserves the room),
   // (b) re-centre on the tick. Sigplot positions labels assuming monospace
@@ -68,12 +64,26 @@ mx.text = function (
   // drift left of their ticks. Measure the actual label width and centre.
   // The tick x = caller's x + round(lbl.length / 2) * text_w (inverse of
   // sigplot's offset).
-  if (
-    typeof lbl === 'string' && /^-?\d+(?:\.\d+)?$/.test(lbl.trim()) &&
+  // Identify x-axis tick labels by their y position (drawn in the gutter below
+  // the data box at Mx.b). DON'T gate on x >= Mx.l: sigplot offsets the label
+  // x leftward by half-text-width from the tick, so the leftmost tick's label
+  // x is just outside Mx.l — excluding it would leave the first label
+  // un-centered (drifts to the left edge of the data box).
+  const isXAxisLabel =
+    typeof lbl === 'string' && /^-?\d+\.?\d*$/.test(lbl.trim()) &&
     typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
-    typeof Mx?.l === 'number' && x >= Mx.l &&
-    y > Mx.b && y < Mx.b + Mx.text_h * 2
-  ) {
+    y > Mx.b + Mx.text_h * 0.5 && y < Mx.b + Mx.text_h * 2
+  if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
+    // sigplot's trimlabel() appends a trailing "." to integer tick labels.
+    // On the x-axis (MHz) keep one decimal place ("344." → "344.0") so labels
+    // read consistently as MHz; elsewhere (y-axis dB) strip the dot.
+    lbl = isXAxisLabel ? lbl.replace(/\.$/, '.0') : lbl.replace(/\.$/, '')
+  } else if (isXAxisLabel && typeof lbl === 'string' && /^-?\d+$/.test(lbl.trim())) {
+    // The first x-axis tick (xTIC.dtic1) bypasses trimlabel() and arrives as a
+    // bare integer like "433". Pad it to "433.0" for consistency with the rest.
+    lbl = lbl + '.0'
+  }
+  if (isXAxisLabel) {
     y += Mx.text_h * 1.0
     const ctx = Mx.canvas?.getContext('2d')
     if (ctx && typeof Mx.text_w === 'number') {
