@@ -89,10 +89,10 @@ declare module 'sigplot' {
     checkresize(): void
 
     /** Add a plugin (e.g. AccordionPlugin); higher zorder renders on top. */
-    add_plugin(plugin: AccordionPlugin, zorder?: number): void
+    add_plugin(plugin: AccordionPlugin | BoxesPlugin | AnnotationPlugin, zorder?: number): void
 
     /** Remove a previously added plugin instance. */
-    remove_plugin(plugin: AccordionPlugin): void
+    remove_plugin(plugin: AccordionPlugin | BoxesPlugin | AnnotationPlugin): void
 
     /** Force a full redraw (re-runs plugin rendering). */
     redraw(): void
@@ -176,8 +176,89 @@ declare module 'sigplot' {
     off(type: string, fn?: (...args: unknown[]) => void): void
   }
 
+  /** Constructor properties for the Boxes plugin (subset used here). */
+  export interface BoxesPluginOptions {
+    display?: boolean
+    enableSelect?: boolean
+    enableMove?: boolean
+    enableResize?: boolean
+    lineWidth?: number
+    alpha?: number
+    font?: string
+    fill?: boolean
+    strokeStyle?: string
+    fillStyle?: string
+    absolutePlacement?: boolean
+  }
+
+  /** Per-box spec passed to BoxesPlugin.add_box(). */
+  export interface BoxSpec {
+    /** Upper-left x in plot data units (origin 1: top-left of the box). */
+    x: number
+    /** Upper-left y in plot data units. */
+    y: number
+    /** Width along x (data units). */
+    w: number
+    /** Height along y (data units). */
+    h: number
+    text?: string
+    fill?: boolean
+    fillStyle?: string
+    strokeStyle?: string
+    alpha?: number
+    lineWidth?: number
+    font?: string
+    absolutePlacement?: boolean
+  }
+
+  /**
+   * SigPlot Boxes plugin: draws rectangular overlays in plot data coordinates
+   * (or absolute pixels). Used here for the static RF band-plan overlay so
+   * boxes pan/zoom with the spectrum trace.
+   */
+  export class BoxesPlugin {
+    constructor(options?: BoxesPluginOptions)
+    add_box(box: BoxSpec): string
+    remove_box(id: string): void
+    clear_boxes(): void
+  }
+
+  /** Per-annotation spec passed to AnnotationPlugin.add_annotation(). */
+  export interface AnnotationSpec {
+    /** Position in plot data units (x). */
+    x: number
+    /** Position in plot data units (y). */
+    y: number
+    /** Text to render (or an HTMLImageElement / HTMLCanvasElement). */
+    value: string
+    font?: string
+    color?: string
+    textAlign?: 'left' | 'center' | 'right' | 'start' | 'end'
+    textBaseline?: 'top' | 'middle' | 'bottom' | 'alphabetic' | 'hanging' | 'ideographic'
+  }
+
+  /** AnnotationPlugin constructor options (subset used here). */
+  export interface AnnotationPluginOptions {
+    display?: boolean
+    textAlign?: 'left' | 'center' | 'right' | 'start' | 'end'
+    textBaseline?: 'top' | 'middle' | 'bottom' | 'alphabetic' | 'hanging' | 'ideographic'
+  }
+
+  /**
+   * SigPlot Annotation plugin: draws text labels at plot data coordinates.
+   * Used here for band-plan labels (BoxesPlugin's own text rendering puts the
+   * label outside the box's left edge, which is wrong for full-width bands).
+   */
+  export class AnnotationPlugin {
+    constructor(options?: AnnotationPluginOptions)
+    add_annotation(annotation: AnnotationSpec): void
+    clear_annotations(): void
+  }
+
   export interface SigPlotPlugins {
     AccordionPlugin: typeof AccordionPlugin
+    BoxesPlugin: typeof BoxesPlugin
+    AnnotationPlugin: typeof AnnotationPlugin
     [key: string]: unknown
   }
 

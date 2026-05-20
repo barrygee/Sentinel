@@ -116,34 +116,35 @@ const bandPlan = computed<RfBand[]>(() =>
 const spanStartHz = ref(0)
 const spanEndHz = ref(0)
 
-// The plots reserve a left/right gutter for the (now shared) axis spec —
-// Mx.l ≈ text_w*6 on the left, ~5px on the right (sigplot.js:3806). The HTML
-// band strip sits between the two plots and is positioned 0..100% across the
-// DATA area, so it must use the SAME inset or it drifts off the plots. Measured
-// from the spectrum plot's real Mx after layout (not a hardcoded px guess) so
-// it tracks the font-scaled gutter on resize.
+// Spectrum plot's real data-area margins (Mx.l / Mx.r / Mx.b). Used by the
+// click-to-tune handler to map a clientX to a frequency within the plot's
+// DATA box, AND by the band overlay below to align its left/right/bottom
+// edges with the plot's data box (not the canvas's full element). Must be
+// measured after layout (the gutter scales with the font/canvas size).
 const bandInsetLeftPx = ref(56)
 const bandInsetRightPx = ref(12)
-const bandStripStyle = computed(() => ({
-  marginLeft: `${bandInsetLeftPx.value}px`,
-  marginRight: `${bandInsetRightPx.value}px`,
+// Distance from the BOTTOM of .sdr-wf-spectrum to the bottom of the data box
+// (i.e. the height of sigplot's x-axis tick-label gutter). Without this the
+// overlay sits over the freq labels instead of over the trace.
+const bandInsetBottomPx = ref(0)
+
+// Style for the band-plan overlay (absolute-positioned div sitting on top of
+// the spectrum canvas). Insets follow the live data-box rectangle so the
+// strip always aligns with the plot's tick labels regardless of font scaling.
+const bandOverlayStyle = computed(() => ({
+  left: `${bandInsetLeftPx.value}px`,
+  right: `${bandInsetRightPx.value}px`,
+  bottom: `${bandInsetBottomPx.value}px`,
 }))
 
-// Bands that intersect the visible span, with their position as a 0..1 fraction
-// across the plot — consumed by the band strip overlay in the template.
-const visibleBands = computed(() => {
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  const w = hi - lo
-  if (w <= 0) return []
-  return bandPlan.value
-    .filter((b) => b.endHz > lo && b.startHz < hi)
-    .map((b) => {
-      const left = Math.max(0, (b.startHz - lo) / w)
-      const right = Math.min(1, (b.endHz - lo) / w)
-      return { name: b.name, leftPct: left * 100, widthPct: (right - left) * 100 }
-    })
-})
+// The waterfall flex sibling sits flush against .sdr-wf-spectrum's bottom
+// edge — sigplot draws the spectrum's x-axis frequency labels in the bottom
+// gutter of its canvas, so without margin the waterfall covers them. Margin
+// matches the live label-gutter height (height − Mx.b, same value used for
+// the band overlay's bottom inset) so the gap is always exactly enough.
+const spectrumStyle = computed(() => ({
+  marginBottom: `${bandInsetBottomPx.value}px`,
+}))
 
 // ── Layout: track the SDR side panel open/closed state ───────────────────────
 function _readSidebarOpen(): boolean {
@@ -300,6 +301,42 @@ function applyMarker() {
   lastCommittedBwHz = bHz
 }
 
+// Bands that intersect the visible (zoom-aware) frequency window, each with
+// its position as a 0..100% fraction across the plot's data area. Consumed
+// by the HTML band overlay in the template — coloured rectangles sit on the
+// bottom of the spectrum canvas with the band name centred inside.
+//
+// Zoom handling mirrors applyZoom() / onPlotMouseUp(): the visible window is
+// the full span / zoom, centred on the tuned centre. Mapping bands against
+// that window (not the full span) keeps the strip aligned with the trace at
+// every zoom level.
+const visibleBands = computed(() => {
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return []
+  let winLo = lo
+  let winHi = hi
+  if (zoom.value > ZOOM_MIN) {
+    const center = (lo + hi) / 2
+    const halfWin = (hi - lo) / (2 * zoom.value)
+    winLo = center - halfWin
+    winHi = center + halfWin
+  }
+  const w = winHi - winLo
+  return bandPlan.value
+    .filter((b) => b.endHz > winLo && b.startHz < winHi)
+    .map((b, i) => {
+      const leftFrac = Math.max(0, (b.startHz - winLo) / w)
+      const rightFrac = Math.min(1, (b.endHz - winLo) / w)
+      return {
+        key: `${b.name}-${i}`,
+        name: b.name,
+        leftPct: leftFrac * 100,
+        widthPct: (rightFrac - leftFrac) * 100,
+      }
+    })
+})
+
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
 // radio to the frequency under the cursor (the marker then follows via the
 // store → applyMarker path, same as drag).
@@ -373,15 +410,22 @@ function onPlotMouseUp(e: MouseEvent) {
   store.requestTune(freqHz)
 }
 
-// Read the spectrum plot's real data-area margins (Mx.l / Mx.r) and drive the
-// HTML band strip's inset from them so it lines up with both plots' data area.
-// Mx is sigplot-internal (no public accessor); the plugin base reads it the
-// same way (this._plot._Mx), so this is the supported-by-precedent path.
+// Read the spectrum plot's real data-area margins (Mx.l / Mx.r / Mx.b) and
+// drive the HTML band overlay's inset from them so it lines up with the data
+// area on all three edges (top is intentionally open — the strip grows up
+// from the data-box bottom). Mx is sigplot-internal (no public accessor); the
+// plugin base reads it the same way (this._plot._Mx), so this is the
+// supported-by-precedent path.
 function syncBandInset() {
-  const mx = (specPlot as unknown as { _Mx?: { l: number; r: number; width: number } } | null)?._Mx
+  const mx = (specPlot as unknown as {
+    _Mx?: { l: number; r: number; b: number; width: number; height: number }
+  } | null)?._Mx
   if (!mx || !mx.width) return
   bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
   bandInsetRightPx.value = Math.max(0, Math.ceil(mx.width - mx.r))
+  // mx.b is the pixel y of the data-box BOTTOM (sigplot draws ticks/labels
+  // below it). Distance from the canvas/element bottom = height − b.
+  bandInsetBottomPx.value = Math.max(0, Math.ceil(mx.height - mx.b))
 }
 
 // Type for poking the plugin's internal drag flags (no public accessor).
@@ -692,8 +736,8 @@ function initPlots() {
     draw_edge_lines: true,
     shade_area: true,
     fill_style: { fillStyle: '#000000', opacity: 0.35 },
-    center_line_style: { strokeStyle: '#ffffff', lineWidth: 1.5, lineCap: 'butt' },
-    edge_line_style: { strokeStyle: '#ffffff', lineWidth: 1, lineCap: 'butt' },
+    center_line_style: { strokeStyle: 'rgba(255,255,255,0.6)', lineWidth: 1, lineCap: 'butt' },
+    edge_line_style: { strokeStyle: '#000000', lineWidth: 0.5, lineCap: 'butt' },
   }
   specAcc = new Acc({ ...accCommon })
   wfAcc = new Acc({ ...accCommon })
@@ -806,6 +850,12 @@ function drawLoop() {
   pendingFrame = null
   if (frame && store.playing && specPlot) {
     specPlot.reload(specUuid, frame.bins)
+    // Mx.l / Mx.r / Mx.b are computed by sigplot during its draw pass — the
+    // ResizeObserver fires on layout changes, not on draws, so without this
+    // call the band-overlay insets and spectrum bottom margin stay at their
+    // pre-draw defaults (Mx.b = Mx.height ⇒ bandInsetBottomPx = 0 ⇒ waterfall
+    // covers the freq labels). Cheap (just reads four fields).
+    syncBandInset()
   }
 }
 
@@ -992,18 +1042,20 @@ onBeforeUnmount(() => {
     <div
       ref="specEl"
       class="sdr-wf-spectrum"
+      :style="spectrumStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
-    ></div>
-    <div class="sdr-wf-bands" :style="bandStripStyle">
-      <div
-        v-for="b in visibleBands"
-        :key="b.name"
-        class="sdr-wf-band"
-        :style="{ left: b.leftPct + '%', width: b.widthPct + '%' }"
-        :title="b.name"
-      >
-        <span>{{ b.name }}</span>
+    >
+      <div class="sdr-wf-band-overlay" :style="bandOverlayStyle">
+        <div
+          v-for="b in visibleBands"
+          :key="b.key"
+          class="sdr-wf-band"
+          :style="{ left: b.leftPct + '%', width: b.widthPct + '%' }"
+          :title="b.name"
+        >
+          <span>{{ b.name }}</span>
+        </div>
       </div>
     </div>
     <div

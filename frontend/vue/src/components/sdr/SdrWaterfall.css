@@ -152,23 +152,42 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* Spectrum line strip (top). */
+/* Spectrum line strip (top). position:relative so the absolute band overlay
+ * below anchors to this element rather than the page. */
 .sdr-wf-spectrum {
-  flex: 0 0 28%;
-  min-height: 0;
+  position: relative;
+  /* Fixed height (not flex %): sigplot sizes its canvas from clientHeight, so
+   * a viewport-relative spectrum reflows the canvas on every window resize.
+   * Pinning to a constant keeps the FFT view stable at any browser size; the
+   * waterfall (flex: 1 1 auto) absorbs any remaining vertical space. */
+  flex: 0 0 350px;
+  min-height: 350px;
   width: 100%;
+  /* Bottom margin is set inline from spectrumStyle (= bandInsetBottomPx) so
+   * the gap between spectrum and waterfall auto-matches sigplot's freq-label
+   * gutter at any font/canvas size. See SdrWaterfall.vue. */
   /* Click anywhere to tune to that frequency (onPlotClick). */
   cursor: crosshair;
 }
 
-/* Band-allocation strip between the spectrum and the waterfall — mirrors the
- * reference UI's "Medium Wave" bar. The left/right inset is set inline from the
- * spectrum plot's real Mx margins (syncBandInset) so a band lines up with its
- * frequency range on both plots regardless of font-scaled gutter width. */
-.sdr-wf-bands {
-  position: relative;
-  flex: 0 0 22px;
-  background: rgba(10, 13, 20, 0.6);
+/* RF band-plan overlay: translucent coloured strip across the bottom of the
+ * spectrum canvas (matches the reference UI's "Medium Wave" / "FM Broadcast"
+ * bars). The left/right insets bind to bandInsetLeftPx/Px (driven by
+ * syncBandInset from sigplot's _Mx.l/r) so the strip aligns with the plot's
+ * DATA box, not its full element width — bands then line up with the freq
+ * tick labels regardless of font scaling. pointer-events:none so clicks pass
+ * through to the canvas underneath (click-to-tune keeps working). */
+/* Band strip sits on TOP of the sigplot canvas (translucent so the trace
+ * still reads through). Sigplot's wrapper div (mx.js:192) is the only other
+ * child of .sdr-wf-spectrum and has no z-index, so a positive z-index here
+ * is enough to float the strip above it. pointer-events:none so click-to-tune
+ * still falls through to the canvas. */
+.sdr-wf-band-overlay {
+  position: absolute;
+  bottom: 0;
+  height: 10%;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .sdr-wf-band {
@@ -179,16 +198,17 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(200, 255, 0, 0.4);
+  background: rgba(46, 108, 255, 0.55);
+  border-left: 1px solid rgba(140, 170, 255, 0.7);
+  border-right: 1px solid rgba(140, 170, 255, 0.7);
   box-sizing: border-box;
 }
 
 .sdr-wf-band span {
   font: 11px/1 var(--font-primary, 'Barlow', sans-serif);
-  color: #eaffb0;
+  color: #ffffff;
   white-space: nowrap;
   padding: 0 6px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Waterfall raster (fills the rest). */
