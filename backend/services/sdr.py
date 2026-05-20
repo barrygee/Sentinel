@@ -137,8 +137,15 @@ class RtlTcpConnection:
             n = MIN_FFT_SIZE
         elif n > MAX_FFT_SIZE:
             n = MAX_FFT_SIZE
-        # Round down to nearest power of two — power-of-two FFTs are the fast path.
-        p = 1 << (n.bit_length() - 1)
+        # Round UP to next power of two so canvas-derived requests aren't halved
+        # (frontend already rounds up to ensure ≥1 device-px per bin; rounding
+        # down here would undo that and produce a chunky raster on wide displays).
+        if n & (n - 1):
+            p = 1 << n.bit_length()
+        else:
+            p = n
+        if p > MAX_FFT_SIZE:
+            p = MAX_FFT_SIZE
         self.fft_size = p
 
     async def read_iq_chunk(self) -> bytes:
@@ -348,16 +355,29 @@ def compute_fft_frame(
     sample_rate: int,
     center_hz: int,
 ) -> dict:
-    """Compute a spectrum frame from raw IQ bytes."""
-    iq = _iq_bytes_to_complex(raw_iq[:n_fft * 2])
-    windowed = iq * _hann_window(len(iq))
-    spectrum = np.fft.fftshift(np.fft.fft(windowed, n=n_fft))
+    """Compute a spectrum frame from raw IQ bytes.
+
+    Uses Welch-style averaging: the IQ chunk is split into as many length-n_fft
+    segments as fit, each is windowed and FFT'd, and the per-bin powers are
+    averaged. Averaging N segments drops noise variance by ~1/N (≈ 10·log10(N)
+    dB of smoothing) while leaving real signals where they are, matching SDR++
+    / GQRX behaviour and turning the grainy noise floor into a smooth band.
+    """
+    iq_all = _iq_bytes_to_complex(raw_iq)
+    n_avg = max(1, len(iq_all) // n_fft)
+    window = _hann_window(n_fft)
+    power_sum = np.zeros(n_fft, dtype=np.float64)
+    for k in range(n_avg):
+        seg = iq_all[k * n_fft:(k + 1) * n_fft] * window
+        spectrum = np.fft.fftshift(np.fft.fft(seg, n=n_fft))
+        power_sum += np.abs(spectrum) ** 2
+    power_avg = power_sum / n_avg
     # Convert to dBFS: 0 dB = full-scale sine wave. With IQ normalised to ±1.0
     # and a Hann window (coherent gain 0.5), a full-scale tone produces a bin
     # magnitude of N/4, i.e. power N²/16. Subtract that to anchor 0 dBFS at
     # the ADC ceiling, matching SDR#/SDR++/GQRX conventions.
     fs_power_db = 10.0 * np.log10((n_fft ** 2) / 16.0)
-    power_db = 10.0 * np.log10(np.abs(spectrum) ** 2 + 1e-12) - fs_power_db
+    power_db = 10.0 * np.log10(power_avg + 1e-12) - fs_power_db
     return {
         "type": "spectrum",
         "center_hz": center_hz,
