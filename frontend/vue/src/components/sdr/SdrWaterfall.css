@@ -156,6 +156,7 @@
  * below anchors to this element rather than the page. */
 .sdr-wf-spectrum {
   position: relative;
+  z-index: 2;
   /* Fixed height (not flex %): sigplot sizes its canvas from clientHeight, so
    * a viewport-relative spectrum reflows the canvas on every window resize.
    * Pinning to a constant keeps the FFT view stable at any browser size; the

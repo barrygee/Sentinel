@@ -753,25 +753,26 @@ watch(() => _sdrStore().tuningOffsetHz,
   { immediate: true },
 )
 
-// Marker retune request — mirrors onFreqInputChange (600ms debounce, session,
-// sendCmd). The marker calls store.requestTune(); we own the websocket.
+// Marker retune request. The bar/marker only moves once currentFreqHz updates
+// (the waterfall watches it via applyMarker), so update the display state
+// immediately for snappy click-to-tune — only debounce the hardware sendCmd
+// and the persistent saves so rapid drags still coalesce.
 watch(() => _sdrStore().tuneRequest, (req) => {
   if (!req || !playing.value || !selectedRadioId.value) return
   const hz = Math.round(req.hz)
   if (!hz || hz === currentFreqHz.value) return
+  currentFreqHz.value = hz
+  activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
+  freqInputVal.value = (hz / 1e6).toFixed(4)
   if (_retuneDebounce) clearTimeout(_retuneDebounce)
   _retuneDebounce = setTimeout(() => {
-    currentFreqHz.value = hz
-    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
-    freqInputVal.value = (hz / 1e6).toFixed(4)
     sessionStorage.setItem('sdrLastFreqHz', String(hz))
     saveSettings()
     // Auto-centre OFF: do NOT retune the hardware — the demod NCO offset
     // (already set in the store by the waterfall click) tunes the audio while
     // the display stays put. Calling sendCmd('tune') here would both recenter
     // the hardware AND clear the offset (sendCmd zeroes it on any tune), so
-    // skip it. The display/readout above still updates so the UI reflects the
-    // clicked freq.
+    // skip it.
     if (_sdrStore().autoCenterWaterfallOnTune) {
       sendCmd({ cmd: 'tune', frequency_hz: hz })
     }
