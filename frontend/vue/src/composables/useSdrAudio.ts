@@ -54,6 +54,16 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
         this._wfmPrevI=1; this._wfmPrevQ=0; this._amDc=0;
         this._bwHz=0;
         this._deemphY=0;
+        // Fractional resampler state. Output rate is fixed at 48000 Hz; input
+        // rate (this._sampleRate) is whatever the dongle delivers — typically
+        // 1.024M / 1.536M / 1.792M / 2.048M, none integer multiples of 48000.
+        // Integer-D decimation produced a ~1.5% rate mismatch (e.g. 2.048M/43
+        // = 47628 Hz), so the playback ring buffer slowly over/underflowed and
+        // periodically dropped samples or re-prerolled — audible as jumpy
+        // WFM. _resPhase is a per-input-sample phase accumulator carried
+        // across blocks; _resPrev holds the last input sample for the linear
+        // interpolation that straddles block boundaries.
+        this._resPhase=0; this._resPrev=0;
         // NCO frequency shift. When the user tunes off the hardware centre with
         // auto-centre OFF, the wanted signal sits _offsetHz away from DC in the
         // IQ stream. Mixing by e^(-j2πf n / sr) shifts it down to baseband so
@@ -72,7 +82,7 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
         this._squelchTail=0;
         this.port.onmessage=(ev)=>{
             const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz,offset_hz}=ev.data;
-            if(type==='reset'){this._pcmWr=0;this._pcmRd=0;this._pcmLen=0;this._buffering=true;return;}
+            if(type==='reset'){this._pcmWr=0;this._pcmRd=0;this._pcmLen=0;this._buffering=true;this._resPhase=0;this._resPrev=0;return;}
             if(type==='rec_start'){this._isRecording=true;this._recChunkPos=0;this._squelchOpen=false;this._squelchTail=0;this._squelchStateLast=false;return;}
             if(type==='rec_stop'){
                 this._isRecording=false;
@@ -121,7 +131,7 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
     _wfm(i,q){const n=i.length,d=new Float32Array(n);let pI=this._wfmPrevI,pQ=this._wfmPrevQ;for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}this._wfmPrevI=pI;this._wfmPrevQ=pQ;const pcm=this._decimate(d,this._sampleRate,48000);const alpha=Math.exp(-1/(48000*75e-6));const beta=1-alpha;let y=this._deemphY;for(let k=0;k<pcm.length;k++){y=alpha*y+beta*pcm[k];pcm[k]=y;}this._deemphY=y;return pcm;}
     _am(i,q){const n=i.length,e=new Float32Array(n);const a=1/(this._sampleRate*0.05);let dc=this._amDc;for(let k=0;k<n;k++){const m=Math.sqrt(i[k]*i[k]+q[k]*q[k]);dc+=a*(m-dc);e[k]=m-dc;}this._amDc=dc;return this._decimate(e,this._sampleRate,48000);}
     _ssb(i,q,s){const o=new Float32Array(i.length);for(let k=0;k<i.length;k++)o[k]=i[k]+s*q[k];return this._decimate(o,this._sampleRate,48000);}
-    _decimate(inp,inR,outR){const D=Math.round(inR/outR);if(D<=1)return inp;const n=Math.floor(inp.length/D),o=new Float32Array(n);const inv=1/D;for(let k=0;k<n;k++){let s=0,base=k*D;for(let j=0;j<D;j++)s+=inp[base+j];o[k]=s*inv;}return o;}
+    _decimate(inp,inR,outR){const step=inR/outR;if(step<=1)return inp;const n=inp.length;const est=Math.ceil((n-this._resPhase)/step)+1;const o=new Float32Array(est);let oi=0,ph=this._resPhase;const prev=this._resPrev;while(ph<n){const idx=Math.floor(ph),frac=ph-idx;const a=idx===0?prev:inp[idx-1];const b=inp[idx];o[oi++]=a+(b-a)*frac;ph+=step;}this._resPhase=ph-n;this._resPrev=inp[n-1];return oi===est?o:o.subarray(0,oi);}
     process(_,outputs){const out=outputs[0][0];if(!out)return true;const need=out.length;if(this._buffering||this._pcmLen<need){out.fill(0);return true;}const cap=this._pcmBuf.length;for(let k=0;k<need;k++){out[k]=this._pcmBuf[this._pcmRd];this._pcmRd=(this._pcmRd+1)%cap;}this._pcmLen-=need;if(this._pcmLen===0)this._buffering=true;return true;}
 });`
 
