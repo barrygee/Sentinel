@@ -199,16 +199,20 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.45);
   box-sizing: border-box;
+  line-height: 1;
 }
 
 .sdr-wf-band span {
-  font: 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
   color: #ffffff;
   white-space: nowrap;
   padding: 0 6px;
   text-transform: uppercase;
+  display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Waterfall raster (fills the rest). */
