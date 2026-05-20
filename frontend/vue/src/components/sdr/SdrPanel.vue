@@ -105,15 +105,16 @@
               class="sdr-freq-input-large"
               type="text"
               size="8"
-              placeholder="100.0000"
+              placeholder=""
               autocomplete="off"
               spellcheck="false"
               :disabled="controlsDisabled"
               :readonly="scanActive"
               v-model="freqInputVal"
               @keydown.enter="tune"
-              @input="onFreqInputChange"
-              @blur="formatFreqInput"
+              @focus="onFreqInputFocus"
+              @click="onFreqInputFocus"
+              @blur="onFreqInputBlur"
             >
             <span class="sdr-freq-unit">MHz</span>
           </div>
@@ -724,6 +725,8 @@ const selectedRadioId   = ref<number | null>(null)
 const knownRadios       = ref<SdrRadio[]>([])
 const currentMode       = ref('AM')
 const freqInputVal      = ref('')
+const freqInputPrev     = ref('')
+const freqInputRef      = ref<HTMLInputElement | null>(null)
 const currentFreqHz     = ref(0)
 const gainDb            = ref(30)
 const gainAuto          = ref(false)
@@ -739,8 +742,8 @@ const worklestSquelchOpen = ref(true)
 // ── Store mirrors / marker bridge ─────────────────────────────────────────────
 // Passive mirrors so the spectrum/waterfall marker (SdrWaterfall, a sibling)
 // can read the authoritative tuned freq + demod bandwidth. These fire on EVERY
-// existing path that mutates the local refs (tune, onFreqInputChange,
-// tuneToFreq, setMode, onBwInput, applyStatus) — no changes to those functions.
+// existing path that mutates the local refs (tune, tuneToFreq, setMode,
+// onBwInput, applyStatus) — no changes to those functions.
 watch(currentFreqHz, (v) => { if (v) _sdrStore().setFrequency(v) }, { immediate: true })
 watch(bwHz,          (v) => { _sdrStore().setBandwidthHz(v) },       { immediate: true })
 
@@ -1121,17 +1124,23 @@ function formatFreqInput() {
   freqInputVal.value = n.toFixed(4)
 }
 
-function onFreqInputChange() {
-  if (!playing.value) return
-  const hz = parseFreqMhz(freqInputVal.value)
-  if (!hz) return
-  if (_retuneDebounce) clearTimeout(_retuneDebounce)
-  _retuneDebounce = setTimeout(() => {
-    currentFreqHz.value = hz
-    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
-    sessionStorage.setItem('sdrLastFreqHz', String(hz))
-    sendCmd({ cmd: 'tune', frequency_hz: hz })
-  }, 600)
+function onFreqInputFocus() {
+  if (freqInputVal.value !== '') {
+    freqInputPrev.value = freqInputVal.value
+    const el = freqInputRef.value
+    if (el) el.style.minWidth = `${el.getBoundingClientRect().width}px`
+  }
+  freqInputVal.value = ''
+}
+
+function onFreqInputBlur() {
+  if (!freqInputVal.value.trim()) {
+    freqInputVal.value = freqInputPrev.value
+  } else {
+    formatFreqInput()
+  }
+  const el = freqInputRef.value
+  if (el) el.style.minWidth = ''
 }
 
 // ── Gain ──────────────────────────────────────────────────────────────────────

@@ -385,6 +385,7 @@
     font-size: 36px;
     font-weight: 300;
     letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
     color: #ffffff;
     background: rgba(10, 13, 20, 0.92);
     border: none;
