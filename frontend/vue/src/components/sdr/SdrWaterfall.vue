@@ -373,6 +373,40 @@ const visibleBands = computed(() => {
     })
 })
 
+// Vertical tick lines drawn in the bottom label gutter, one per frequency
+// label (every 0.1 MHz — matches the xdiv we push to sigplot in the spectrum
+// watch). Positions are 0..100% across the data box, same window math as
+// visibleBands so zoom keeps them aligned with the labels sigplot draws.
+const freqTicks = computed(() => {
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return []
+  let winLo = lo
+  let winHi = hi
+  if (zoom.value > ZOOM_MIN) {
+    const center = (lo + hi) / 2
+    const halfWin = (hi - lo) / (2 * zoom.value)
+    winLo = center - halfWin
+    winHi = center + halfWin
+  }
+  const w = winHi - winLo
+  const stepHz = 0.1 * HZ_PER_MHZ
+  const first = Math.ceil(winLo / stepHz) * stepHz
+  const ticks: { key: string; leftPct: number }[] = []
+  for (let f = first; f <= winHi; f += stepHz) {
+    ticks.push({ key: `t-${f}`, leftPct: ((f - winLo) / w) * 100 })
+  }
+  return ticks
+})
+
+// Inline style for the tick gutter overlay — spans the data box horizontally
+// (same insets as the band overlay) and the freq-label gutter vertically.
+const tickGutterStyle = computed(() => ({
+  left: `${bandInsetLeftPx.value}px`,
+  right: `${bandInsetRightPx.value}px`,
+  height: `${bandInsetBottomPx.value}px`,
+}))
+
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
 // radio to the frequency under the cursor (the marker then follows via the
 // store → applyMarker path, same as drag).
@@ -1157,6 +1191,14 @@ onBeforeUnmount(() => {
         >
           <span>{{ b.name }}</span>
         </div>
+      </div>
+      <div class="sdr-wf-tick-gutter" :style="tickGutterStyle">
+        <div
+          v-for="t in freqTicks"
+          :key="t.key"
+          class="sdr-wf-tick"
+          :style="{ left: t.leftPct + '%' }"
+        ></div>
       </div>
     </div>
     <div

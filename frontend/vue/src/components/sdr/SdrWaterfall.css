@@ -217,6 +217,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Vertical tick lines in the freq-label gutter — one line per 0.1 MHz, lined
+ * up with the labels sigplot draws below the data box. Sits over the gutter
+ * area (left/right/height pushed in from tickGutterStyle); pointer-events:none
+ * so click-to-tune still passes through. */
+.sdr-wf-tick-gutter {
+  position: absolute;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.sdr-wf-tick {
+  position: absolute;
+  /* Start just below the FFT axis line so the tick never overlaps the trace. */
+  top: 2px;
+  height: 25%;
+  width: 2px;
+  background: #ffffff;
+  opacity: 0.55;
+  transform: translateX(-1px);
+}
+
 /* Waterfall raster (fills the rest). */
 .sdr-wf-raster {
   flex: 1 1 auto;
