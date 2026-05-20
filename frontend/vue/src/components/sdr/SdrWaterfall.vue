@@ -764,7 +764,7 @@ function initPlots() {
   // tick labels remain white.
   // Preserve sigplot's default dashed grid pattern (`on:1, off:3`); only swap
   // the colour so labels stay white but the grid is black.
-  const gridStyle = { color: '#202632', mode: 'dashed', on: 1, off: 3 }
+  const gridStyle = { color: '#888888', mode: 'dashed', on: 1, off: 3 }
   specPlot.change_settings({ gridStyle })
   wfPlot.change_settings({ gridStyle })
 

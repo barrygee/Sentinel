@@ -199,9 +199,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(46, 108, 255, 0.55);
-  border-left: 1px solid rgba(140, 170, 255, 0.7);
-  border-right: 1px solid rgba(140, 170, 255, 0.7);
+  background: rgba(0, 0, 0, 0.2);
   box-sizing: border-box;
 }
 
@@ -210,6 +208,7 @@
   color: #ffffff;
   white-space: nowrap;
   padding: 0 6px;
+  text-transform: uppercase;
 }
 
 /* Waterfall raster (fills the rest). */

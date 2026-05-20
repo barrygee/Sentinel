@@ -39,8 +39,16 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
     constructor() {
         super();
         this._mode='AM'; this._squelch=-120; this._sampleRate=2048000;
-        this._pcmBuf=new Float32Array(48000*8); this._pcmWr=0; this._pcmRd=0; this._pcmLen=0;
-        this._preroll=Math.round(48000*0.4); this._buffering=true;
+        // Small ring + tight latency cap. IQ arrives over a WebSocket whose
+        // effective sample rate can drift slightly off the AudioContext's
+        // 48kHz output, so without a cap any net inflow > outflow grows the
+        // buffered audio without bound — the symptom is audio drifting
+        // seconds behind the waterfall. _maxBuffered is the target ceiling
+        // (≈150 ms); on overflow the read pointer is fast-forwarded to drop
+        // the oldest samples so playback stays close to real-time.
+        this._pcmBuf=new Float32Array(48000*1); this._pcmWr=0; this._pcmRd=0; this._pcmLen=0;
+        this._preroll=Math.round(48000*0.08); this._buffering=true;
+        this._maxBuffered=Math.round(48000*0.15);
         this._powerTick=0;
         this._squelchStateLast=false;
         this._wfmPrevI=1; this._wfmPrevQ=0; this._amDc=0;
@@ -88,8 +96,10 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
             const audio=this._demod(iF,qF);
             const cap=this._pcmBuf.length;
             for(let k=0;k<audio.length;k++){
-                if(this._pcmLen<cap){this._pcmBuf[this._pcmWr]=audio[k];this._pcmWr=(this._pcmWr+1)%cap;this._pcmLen++;}
+                this._pcmBuf[this._pcmWr]=audio[k];this._pcmWr=(this._pcmWr+1)%cap;
+                if(this._pcmLen<cap)this._pcmLen++;else this._pcmRd=(this._pcmRd+1)%cap;
             }
+            if(this._pcmLen>this._maxBuffered){const drop=this._pcmLen-this._maxBuffered;this._pcmRd=(this._pcmRd+drop)%cap;this._pcmLen=this._maxBuffered;}
             if(this._buffering&&this._pcmLen>=this._preroll)this._buffering=false;
             if(this._isRecording&&this._squelchOpen){
                 for(let k=0;k<audio.length;k++){
