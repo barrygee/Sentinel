@@ -352,7 +352,12 @@ def compute_fft_frame(
     iq = _iq_bytes_to_complex(raw_iq[:n_fft * 2])
     windowed = iq * _hann_window(len(iq))
     spectrum = np.fft.fftshift(np.fft.fft(windowed, n=n_fft))
-    power_db = 10.0 * np.log10(np.abs(spectrum) ** 2 + 1e-12)
+    # Convert to dBFS: 0 dB = full-scale sine wave. With IQ normalised to ±1.0
+    # and a Hann window (coherent gain 0.5), a full-scale tone produces a bin
+    # magnitude of N/4, i.e. power N²/16. Subtract that to anchor 0 dBFS at
+    # the ADC ceiling, matching SDR#/SDR++/GQRX conventions.
+    fs_power_db = 10.0 * np.log10((n_fft ** 2) / 16.0)
+    power_db = 10.0 * np.log10(np.abs(spectrum) ** 2 + 1e-12) - fs_power_db
     return {
         "type": "spectrum",
         "center_hz": center_hz,

@@ -189,14 +189,13 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 })
 
 // ── Intensity (Min/Max) — drives sigplot zmin/zmax on the waterfall ──────────
-// The backend sends raw FFT power: 10*log10(|FFT|^2), NOT normalised, so the
-// real range is roughly 0..80 dB (int8 IQ), not the -110..-20 a normalised
-// receiver would show. Defaults must bracket the real data or the colormap
-// pins everything to one colour (the "solid red" symptom). The waterfall also
-// starts in auto-scale (autol) so it always has contrast regardless; the
-// sliders then act as a manual override.
-const zmin = ref(0)
-const zmax = ref(80)
+// The backend emits dBFS (0 dB = full-scale tone), so values are negative and
+// the noise floor sits around -70..-100 for an 8-bit RTL-SDR. Defaults must
+// bracket the real data or the colormap pins everything to one colour (the
+// "solid red" symptom). The waterfall also starts in auto-scale (autol) so it
+// always has contrast regardless; the sliders then act as a manual override.
+const zmin = ref(-100)
+const zmax = ref(0)
 const autoScale = ref(true)
 
 // ── Zoom — horizontal (frequency) zoom into the centre of the span ───────────
@@ -238,15 +237,12 @@ function applyZoom() {
 const WF_AUTOL = 100
 
 // ── Spectrum dB axis — STATIC like SDR++, per-device ─────────────────────────
-// The backend emits raw 10*log10(|FFT|^2 + 1e-12) (see backend/services/sdr.py).
-// The -120 dB floor is the FFT epsilon and is device-independent; the ceiling
-// scales with the IQ sample width (≈ +6 dB per extra bit). Pinning the spectrum
-// Y-axis to this range stops the left dB ruler from breathing every few frames
-// (the SDR++ behaviour: signals slide vertically against a fixed scale).
-//
-// Encoding the range per device id means switching front-ends later is one
-// entry in this table, not a refactor — cross-references the data-range
-// comment at the top of this file (zmin/zmax intensity defaults).
+// The backend emits dBFS (0 dB = full-scale tone — see backend/services/sdr.py).
+// The ceiling is therefore 0 for every device; the floor is set by the ADC's
+// dynamic range (≈ +6 dB per extra bit of resolution beyond 8). Pinning the
+// spectrum Y-axis to this range stops the left dB ruler from breathing every
+// few frames (the SDR++ behaviour: signals slide vertically against a fixed
+// scale).
 //
 // FUTURE: when the backend starts reporting the active device (e.g. a `device`
 // field on the spectrum frame, or a `deviceType` ref on the SDR store), make
@@ -258,10 +254,10 @@ const DEVICE_DB_RANGE: Record<SdrDeviceId, { ymin: number; ymax: number }> = {
   // Ranges must divide cleanly by 20 dB so sigplot's tick steps land on the
   // ymax/ymin endpoints — otherwise the bottom label sits below the data box
   // (uneven gap between the lowest two labels).
-  rtl_tcp:  { ymin: -120, ymax:  80 }, // 8-bit IQ (only device wired today)
-  hackrf:   { ymin: -120, ymax:  80 }, // 8-bit IQ  — placeholder
-  airspy:   { ymin: -120, ymax: 120 }, // 12-bit IQ — placeholder
-  sdrplay:  { ymin: -120, ymax: 140 }, // 14-bit IQ — placeholder
+  rtl_tcp:  { ymin: -100, ymax: 0 }, // 8-bit IQ (only device wired today)
+  hackrf:   { ymin: -100, ymax: 0 }, // 8-bit IQ  — placeholder
+  airspy:   { ymin: -120, ymax: 0 }, // 12-bit IQ — placeholder
+  sdrplay:  { ymin: -140, ymax: 0 }, // 14-bit IQ — placeholder
 }
 const ACTIVE_DEVICE: SdrDeviceId = 'rtl_tcp'
 const SPEC_YMIN_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymin
