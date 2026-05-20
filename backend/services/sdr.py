@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 # Default FFT parameters
 DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
+MIN_FFT_SIZE        = 1024   # client-requested floor (one bin / ~1 device px on small displays)
+MAX_FFT_SIZE        = 8192   # ceiling: CPU cost grows with FFT size
 DEFAULT_SAMPLE_RATE = 2_048_000
 # One spectrum frame is produced per IQ read. Sizing the read by a fixed
 # SAMPLE COUNT made the frame rate collapse whenever the sample rate dropped:
@@ -129,6 +131,16 @@ class RtlTcpConnection:
         self.gain_db = gain_db
         self.gain_auto = False
 
+    def set_fft_size(self, n: int) -> None:
+        """Snap n to a power of two within [MIN_FFT_SIZE, MAX_FFT_SIZE]."""
+        if n < MIN_FFT_SIZE:
+            n = MIN_FFT_SIZE
+        elif n > MAX_FFT_SIZE:
+            n = MAX_FFT_SIZE
+        # Round down to nearest power of two — power-of-two FFTs are the fast path.
+        p = 1 << (n.bit_length() - 1)
+        self.fft_size = p
+
     async def read_iq_chunk(self) -> bytes:
         """Read ~READ_CHUNK_TARGET_MS of IQ, sized by the CURRENT sample rate.
 
@@ -139,7 +151,9 @@ class RtlTcpConnection:
             raise ConnectionError("Not connected")
         sr = self.sample_rate or DEFAULT_SAMPLE_RATE
         n = int(sr * READ_CHUNK_TARGET_MS / 1000)
-        n = max(READ_CHUNK_MIN_SAMPLES, min(READ_CHUNK_MAX_SAMPLES, n))
+        n = min(READ_CHUNK_MAX_SAMPLES, n)
+        # Floor must stay ≥ fft_size so compute_fft_frame has enough samples.
+        n = max(READ_CHUNK_MIN_SAMPLES, self.fft_size, n)
         data = await asyncio.wait_for(
             self.reader.readexactly(n * 2),  # 2 bytes per IQ pair
             timeout=10.0,

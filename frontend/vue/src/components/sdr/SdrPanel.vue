@@ -779,6 +779,15 @@ watch(() => _sdrStore().tuneRequest, (req) => {
   }, 600)
 })
 
+// Waterfall FFT-size request. The waterfall sizes its desired bin count to the
+// canvas's device-pixel width so each bin maps to ~1 px (no blur from upsampling
+// a 1024-bin FFT into a 2600+ px canvas). Forwarded straight to the backend; it
+// clamps to a power of two in [MIN_FFT_SIZE, MAX_FFT_SIZE].
+watch(() => _sdrStore().fftSizeRequest, (req) => {
+  if (!req) return
+  sendCmd({ cmd: 'fft_size', bins: req.bins })
+})
+
 // Marker bandwidth request — demod audio filter ONLY (no sample_rate command;
 // matches SDR++/SDR#/GQRX and avoids the rtl_tcp reconfigure stall).
 watch(() => _sdrStore().bwRequest, (req) => {
@@ -1005,6 +1014,11 @@ async function openControlSocket(radioId: number) {
       sdrAudio.setMode(lastMode as SdrMode)
       sdrAudio.initAudio(radioId)
     }
+    // Replay the most recent waterfall-driven FFT size request, if any. The
+    // waterfall publishes its target bin count on mount, which may have fired
+    // before this socket opened (sendCmd silently drops while CONNECTING).
+    const fftReq = _sdrStore().fftSizeRequest
+    if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
   })
 
   ws.addEventListener('message', (ev: MessageEvent) => {

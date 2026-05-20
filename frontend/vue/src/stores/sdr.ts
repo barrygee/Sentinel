@@ -62,8 +62,12 @@ export const useSdrStore = defineStore('sdr', () => {
   // watcher — a plain ref would not re-trigger on an unchanged value.
   const tuneRequest = shallowRef<{ hz: number; nonce: number } | null>(null)
   const bwRequest = shallowRef<{ hz: number; nonce: number } | null>(null)
+  // Waterfall → panel: request a backend FFT bin count (matches the canvas's
+  // device-pixel width so the waterfall isn't blurry on HiDPI / wide displays).
+  const fftSizeRequest = shallowRef<{ bins: number; nonce: number } | null>(null)
   let _tuneNonce = 0
   let _bwNonce = 0
+  let _fftNonce = 0
 
   // Auto-centre toggle (user preference; lives in the `sdr` settings namespace,
   // edited from Settings → SDR → WATERFALL). localStorage is a fast-path cache
@@ -186,6 +190,11 @@ export const useSdrStore = defineStore('sdr', () => {
     bwRequest.value = { hz, nonce: ++_bwNonce }
   }
 
+  // Waterfall → panel: ask the backend to switch FFT size.
+  function requestFftSize(bins: number) {
+    fftSizeRequest.value = { bins, nonce: ++_fftNonce }
+  }
+
   async function loadRadios() {
     try {
       const res = await fetch('/api/sdr/radios')
@@ -212,11 +221,11 @@ export const useSdrStore = defineStore('sdr', () => {
   return {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    lastSpectrum, bwHz, tuneRequest, bwRequest,
+    lastSpectrum, bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
     tuningOffsetHz, setTuningOffsetHz,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
-    setBandwidthHz, requestTune, requestBandwidth,
+    setBandwidthHz, requestTune, requestBandwidth, requestFftSize,
     loadRadios, loadGroups, loadFrequencies,
   }
 })

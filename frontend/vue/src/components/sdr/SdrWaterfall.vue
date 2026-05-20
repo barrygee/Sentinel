@@ -640,6 +640,36 @@ const HZ_PER_MHZ = 1e6
 let xstartMHz = 0
 let xdeltaMHz = 1 / HZ_PER_MHZ
 
+// Target FFT bin count for the current canvas, in device pixels. The backend
+// snaps this to a power of two in [1024, 8192]. Without this the backend stays
+// at 1024 bins regardless of canvas width, so on wide / HiDPI displays each bin
+// occupies multiple pixels and the waterfall looks blocky.
+const MIN_BINS = 1024
+const MAX_BINS = 8192
+function computeDesiredBins(): number {
+  const el = wfEl.value
+  if (!el) return MIN_BINS
+  const dpr = window.devicePixelRatio || 1
+  const px = Math.max(1, Math.round(el.clientWidth * dpr))
+  if (px <= MIN_BINS) return MIN_BINS
+  if (px >= MAX_BINS) return MAX_BINS
+  // Round UP to the next power of two so each FFT bin is at most ~1 device px
+  // (downscaling looks sharp; upscaling is what causes blockiness).
+  return 1 << Math.ceil(Math.log2(px))
+}
+let lastRequestedBins = 0
+let _fftSizeDebounce: ReturnType<typeof setTimeout> | null = null
+function publishDesiredBins() {
+  const n = computeDesiredBins()
+  if (n === lastRequestedBins) return
+  lastRequestedBins = n
+  store.requestFftSize(n)
+}
+function scheduleDesiredBins() {
+  if (_fftSizeDebounce) clearTimeout(_fftSizeDebounce)
+  _fftSizeDebounce = setTimeout(publishDesiredBins, 250)
+}
+
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
   if (subsize) {
@@ -758,7 +788,10 @@ function initPlots() {
     stk0: (specPlot as unknown as { _Mx: { stk: Array<{ ymin: number; ymax: number }> } })?._Mx?.stk?.[0],
   })
 
-  buildPipes(1024)
+  // Publish the canvas-sized FFT bin target now so the backend can switch as
+  // soon as the WS is up (SdrPanel forwards on socket open if it fires early).
+  publishDesiredBins()
+  buildPipes(lastRequestedBins || MIN_BINS)
 
   // Tuned-frequency marker. Two AccordionPlugin instances (one per plot) — see
   // the unit-split note at their declaration. Plugins live on _Gx.plugins with
@@ -857,6 +890,9 @@ function initPlots() {
     specPlot?.checkresize()
     wfPlot?.checkresize()
     syncBandInset()
+    // Canvas width changed (or DPR — observed via clientWidth on layout) →
+    // recompute the desired FFT bin count and (debounced) ask the backend.
+    scheduleDesiredBins()
   })
   ro.observe(specEl.value as HTMLElement)
   ro.observe(wfEl.value as HTMLElement)
