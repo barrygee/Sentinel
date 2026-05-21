@@ -15,14 +15,30 @@ import mx from 'sigplot/js/mx'
 const _origDrawaxis = mx.drawaxis
 mx.drawaxis = function (
   Gx: unknown,
-  Mx: { stk: Array<{ x1: number; y1: number; x2: number; y2: number }>; level: number; active_canvas: HTMLCanvasElement; fg: string; width: number; height: number },
+  Mx: { stk: Array<{ x1: number; y1: number; x2: number; y2: number }>; level: number; active_canvas: HTMLCanvasElement; fg: string; bg: string; width: number; height: number },
   xdiv: number,
   ydiv: number,
   xlab: number,
   ylab: number,
-  flags: { noaxisbox?: boolean; exactbox?: boolean },
+  flags: { noaxisbox?: boolean; exactbox?: boolean; grid?: boolean | string; noxtics?: boolean; noytics?: boolean; noxtlab?: boolean; noytlab?: boolean; noxplab?: boolean; noyplab?: boolean },
 ) {
-  const userWantsBox = !flags.noaxisbox
+  // Waterfall identifier: fg == bg (we set both to BG so axis chrome is
+  // invisible while still reserving the gutter for layout alignment with the
+  // spectrum). Suppress grid AND tick stubs on it — the spectrum carries the
+  // freq labels and grid; the waterfall just needs the raster painted.
+  // change_settings({ grid: false, gridStyle }) doesn't reach mx.tics' tick-
+  // stub path (it draws stubs in Mx.fg regardless), so we patch at the source.
+  const isWaterfall = typeof Mx?.fg === 'string' && Mx.fg === Mx.bg
+  if (isWaterfall) {
+    flags.noxtics = true
+    flags.noytics = true
+    flags.noxtlab = true
+    flags.noytlab = true
+    flags.noxplab = true
+    flags.noyplab = true
+    flags.grid = false
+  }
+  const userWantsBox = !flags.noaxisbox && !isWaterfall
   flags.noaxisbox = true
   const ret = _origDrawaxis.call(this, Gx, Mx, xdiv, ydiv, xlab, ylab, flags)
   if (userWantsBox) {
@@ -864,7 +880,14 @@ function initPlots() {
   // the colour so labels stay white but the grid is black.
   const gridStyle = { color: '#888888', mode: 'dashed', on: 1, off: 3 }
   specPlot.change_settings({ gridStyle })
-  wfPlot.change_settings({ gridStyle })
+  // Waterfall keeps grid drawn in the BG colour so it stays invisible. Visible
+  // grid lines bleed through the unfilled portion of the raster (rows that
+  // haven't received pipe data yet — drawmode 'falling' fills top-down, so on
+  // fresh start the bottom of the canvas exposes the grid until lps rows arrive).
+  // Grid + tick suppression for the waterfall is handled at the mx.drawaxis
+  // patch site (top of file) — it short-circuits all tick/label/grid drawing
+  // when Mx.fg === Mx.bg (true only for the waterfall plot). Settings-level
+  // change_settings({ grid: false }) leaves Mx.tics' tick-stub draws untouched.
 
   // sigplot hard-codes the left gutter at `text_w * 6` (sigplot.js:3807) which
   // leaves a wide gap between dB tick labels and the trace. Our labels are at
