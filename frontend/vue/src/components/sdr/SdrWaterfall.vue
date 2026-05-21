@@ -248,14 +248,9 @@ function applyZoom() {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return
-  // SDR++ "Full waterfall update" (User Guide v1.1 p. 34): when ON, clear the
-  // waterfall history on every zoom change so new rows fill the new viewport
-  // cleanly instead of historical rows staying horizontally-stretched. We do
-  // this by rebuilding the pipe (cheap — sigplot just drops the layer and
-  // re-creates it; the spectrum layer rebuild is harmless overhead).
-  if (store.fullWaterfallUpdate && subsize > 0) {
-    buildPipes(subsize)
-  }
+  // Zoom is a pure viewport change — sigplot.zoom() re-windows the existing
+  // raster in place. Do NOT rebuild the pipe here: that would wipe the
+  // waterfall history. Historical rows simply stretch across the new viewport.
   if (zoom.value <= ZOOM_MIN) {
     try { specPlot?.unzoom() } catch { /* noop */ }
     try { wfPlot?.unzoom() } catch { /* noop */ }
@@ -793,18 +788,12 @@ function computeDesiredBins(): number {
   return 1 << Math.ceil(Math.log2(target))
 }
 let lastRequestedBins = 0
-let _fftSizeDebounce: ReturnType<typeof setTimeout> | null = null
 function publishDesiredBins() {
   const n = computeDesiredBins()
   if (n === lastRequestedBins) return
   lastRequestedBins = n
   store.requestFftSize(n)
 }
-function scheduleDesiredBins() {
-  if (_fftSizeDebounce) clearTimeout(_fftSizeDebounce)
-  _fftSizeDebounce = setTimeout(publishDesiredBins, 250)
-}
-
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
   if (subsize) {
@@ -1049,9 +1038,10 @@ function initPlots() {
     specPlot?.checkresize()
     wfPlot?.checkresize()
     syncBandInset()
-    // Canvas width changed (or DPR — observed via clientWidth on layout) →
-    // recompute the desired FFT bin count and (debounced) ask the backend.
-    scheduleDesiredBins()
+    // Deliberately NOT calling scheduleDesiredBins() here: a container resize
+    // (side-panel toggle, window resize, browser zoom) that changed the FFT
+    // bin count would force a buildPipes() on the next frame, wiping the
+    // waterfall history. Bin count is fixed at mount time.
   })
   ro.observe(specEl.value as HTMLElement)
   ro.observe(wfEl.value as HTMLElement)
@@ -1248,14 +1238,13 @@ watch([zmin, zmax], ([lo, hi]) => {
   applySpecRange(lo, hi)
 })
 
-// Moving the Zoom slider re-windows both plots around the tuned centre and
-// asks the backend for more FFT bins so the visible window keeps ~1 bin per
-// device px (otherwise the waterfall blocks up at high zoom). The bins request
-// is debounced (250 ms) in scheduleDesiredBins, so dragging the slider doesn't
-// thrash the backend.
+// Moving the Zoom slider re-windows both plots around the tuned centre.
+// Bin count is intentionally NOT refreshed — asking the backend for more bins
+// changes the spectrum frame's bins.length, which triggers buildPipes() and
+// wipes the waterfall history. At high zoom the raster becomes pixelated, but
+// the trace stays sharp and the history is preserved.
 watch(zoom, () => {
   applyZoom()
-  scheduleDesiredBins()
 })
 
 onBeforeUnmount(() => {
