@@ -733,18 +733,31 @@ let xdeltaMHz = 1 / HZ_PER_MHZ
 // snaps this to a power of two in [1024, 8192]. Without this the backend stays
 // at 1024 bins regardless of canvas width, so on wide / HiDPI displays each bin
 // occupies multiple pixels and the waterfall looks blocky.
+//
+// Zoom-aware: the visible window is full-span / zoom, but the FFT covers the
+// FULL span, so to land ~1 bin per device px INSIDE the visible window we need
+// px * zoom bins across the full span. SDR++ has the same arithmetic — see
+// drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize in
+// core/src/gui/widgets/waterfall.cpp:614. At extreme zoom we clamp to MAX_BINS
+// (8192) and accept the blockiness past that — going higher costs Pi CPU on
+// every frame.
 const MIN_BINS = 1024
-const MAX_BINS = 8192
+// Keep in sync with MAX_FFT_SIZE in backend/services/sdr.py — the backend
+// snaps any request above this back down to the cap, so asking for more than
+// MAX_BINS just wastes the frontend's per-zoom math.
+const MAX_BINS = 32768
 function computeDesiredBins(): number {
   const el = wfEl.value
   if (!el) return MIN_BINS
   const dpr = window.devicePixelRatio || 1
   const px = Math.max(1, Math.round(el.clientWidth * dpr))
-  if (px <= MIN_BINS) return MIN_BINS
-  if (px >= MAX_BINS) return MAX_BINS
+  const z = Math.max(1, zoom.value)
+  const target = px * z
+  if (target <= MIN_BINS) return MIN_BINS
+  if (target >= MAX_BINS) return MAX_BINS
   // Round UP to the next power of two so each FFT bin is at most ~1 device px
   // (downscaling looks sharp; upscaling is what causes blockiness).
-  return 1 << Math.ceil(Math.log2(px))
+  return 1 << Math.ceil(Math.log2(target))
 }
 let lastRequestedBins = 0
 let _fftSizeDebounce: ReturnType<typeof setTimeout> | null = null
@@ -1186,8 +1199,15 @@ watch([zmin, zmax], ([lo, hi]) => {
   applySpecRange(lo, hi)
 })
 
-// Moving the Zoom slider re-windows both plots around the tuned centre.
-watch(zoom, applyZoom)
+// Moving the Zoom slider re-windows both plots around the tuned centre and
+// asks the backend for more FFT bins so the visible window keeps ~1 bin per
+// device px (otherwise the waterfall blocks up at high zoom). The bins request
+// is debounced (250 ms) in scheduleDesiredBins, so dragging the slider doesn't
+// thrash the backend.
+watch(zoom, () => {
+  applyZoom()
+  scheduleDesiredBins()
+})
 
 onBeforeUnmount(() => {
   if (rafId) cancelAnimationFrame(rafId)

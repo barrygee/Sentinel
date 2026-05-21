@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 # Default FFT parameters
 DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
 MIN_FFT_SIZE        = 1024   # client-requested floor (one bin / ~1 device px on small displays)
-MAX_FFT_SIZE        = 8192   # ceiling: CPU cost grows with FFT size
+MAX_FFT_SIZE        = 32768  # ceiling: CPU cost grows with FFT size. 32k keeps
+                             # the waterfall crisp out to ~20x zoom on a 1500-px
+                             # canvas; SDR++ uses 65k+, but 32k is the sweet
+                             # spot between Pi CPU load and visual fidelity.
 DEFAULT_SAMPLE_RATE = 2_048_000
 # One spectrum frame is produced per IQ read. Sizing the read by a fixed
 # SAMPLE COUNT made the frame rate collapse whenever the sample rate dropped:
