@@ -185,7 +185,7 @@
  * still falls through to the canvas. */
 .sdr-wf-band-overlay {
   position: absolute;
-  bottom: 0;
+  top: 0;
   height: 10%;
   pointer-events: none;
   z-index: 10;
@@ -239,36 +239,40 @@
   transform: translateX(-1px);
 }
 
-/* Known-frequency label overlay — HTML twin of the band-plan strip, pinned to
- * the top of the spectrum data box. Vertical line is drawn on the spectrum
- * canvas via sigplot AnnotationPlugin; only the label text lives here so it
- * renders with the same DOM text pipeline as the band-plan tags (identical
- * sharpness). pointer-events:none so click-to-tune still passes through. */
+/* Known-frequency label overlay — matches the map's "SET LOCATION" pop-up:
+ * a green SVG ring with a white dot, "punching through" the left edge of a
+ * dark rounded box via a radial CSS mask. Same colour, weight, letter-spacing
+ * and rhythm as the map control so the SDR view feels of a piece with it. */
 .sdr-wf-known-overlay {
   position: absolute;
+  height: 10%;
   pointer-events: none;
   z-index: 11;
+  background: rgba(0, 0, 0, 0.45);
 }
 
-.sdr-wf-known-label {
+.sdr-wf-known-marker {
   position: absolute;
-  /* Left edge of the label box sits exactly on the vertical line — the
-   * canvas-drawn line then visually merges with the green left-edge accent. */
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
-  background: rgba(15, 17, 19, 0.92);
-  border-left: 3px solid #c8ff00;
-  height: 24px;
-  line-height: 1;
+  /* Centre the ring on the frequency (`left` is the freq pixel). */
+  transform: translate(-7px, 0);
 }
 
-.sdr-wf-known-label span {
+.sdr-wf-known-marker-ring {
+  flex-shrink: 0;
+}
+
+.sdr-wf-known-marker-label {
+  position: relative;
+  margin-left: 4px;
+  padding: 0;
   font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  text-transform: uppercase;
   color: #ffffff;
   white-space: nowrap;
-  padding: 0 10px;
-  text-transform: uppercase;
-  display: block;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

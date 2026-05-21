@@ -175,6 +175,9 @@ const bandInsetRightPx = ref(12)
 // (i.e. the height of sigplot's x-axis tick-label gutter). Without this the
 // overlay sits over the freq labels instead of over the trace.
 const bandInsetBottomPx = ref(0)
+// Distance from the TOP of .sdr-wf-spectrum to the top of the data box (mx.t).
+// Used to anchor the band-plan strip to the data-box top.
+const bandInsetTopPx = ref(0)
 // Height of the band overlay in pixels. Set so the top of the strip aligns
 // with the -100 dB horizontal gridline in the spectrum (data-box-relative).
 const bandHeightPx = ref(0)
@@ -188,7 +191,7 @@ const bandHeightPx = ref(0)
 const bandOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `${bandInsetBottomPx.value}px`,
+  top: '0',
   height: bandHeightPx.value > 0 ? `${bandHeightPx.value}px` : undefined,
 }))
 
@@ -378,29 +381,23 @@ const MIN_BW_HZ = 200
 // with the vertical line dead-centre horizontally — the line then lands exactly
 // on the frequency pixel. The label sits on the right of the line. `rowOffset`
 // shifts the canvas vertically by N×rowHeight so clustered labels stagger.
-// Known-frequency markers. Label TEXT is rendered as HTML divs in the template
-// (identical typography pipeline to the band-plan tags → identical sharpness).
-// The vertical LINE is drawn into the canvas via AnnotationPlugin — sigplot
-// handles Hz→pixel mapping and auto-clipping for it. The HTML labels mirror
-// the same Hz→pixel math used by visibleBands.
-const KNOWN_FREQ_LINE_COLOR = '#c8ff00'
-const KNOWN_FREQ_ROW_PX = 22   // pill height + gap (matches HTML row stride)
+// Known-frequency markers — rendered as HTML in the template (SVG ring +
+// label box), matching the map's "SET LOCATION" pop-up style. AnnotationPlugin
+// is kept attached but empty (vertical line removed; the SVG ring is the
+// frequency indicator).
 const KNOWN_FREQ_MAX_ROWS = 3
 
-function buildKnownFreqLineCanvas(lineHeightPx: number): HTMLCanvasElement {
-  const w = 2
-  const h = Math.max(2, lineHeightPx)
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d')!
-  ctx.strokeStyle = KNOWN_FREQ_LINE_COLOR
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.moveTo(w / 2 + 0.5, 0)
-  ctx.lineTo(w / 2 + 0.5, h)
-  ctx.stroke()
-  return canvas
+// Shared off-screen 2D context used to measure the rendered pixel width of
+// label text. Created lazily so SSR/jsdom paths never touch document. Cheap to
+// keep around — the canvas isn't attached anywhere.
+let _labelMeasureCtx: CanvasRenderingContext2D | null = null
+function labelMeasureCtx(): CanvasRenderingContext2D {
+  if (!_labelMeasureCtx) {
+    const c = document.createElement('canvas')
+    _labelMeasureCtx = c.getContext('2d')!
+    _labelMeasureCtx.font = '700 11px "Barlow", sans-serif'
+  }
+  return _labelMeasureCtx
 }
 
 // Visible known frequencies for the HTML label overlay: zoom-aware leftPct
@@ -427,53 +424,31 @@ const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
     winHi = center + halfWin
   }
   const w = winHi - winLo
-  // Sort by frequency so row staggering compares adjacent entries.
-  const sorted = [...store.frequencies].sort((a, b) => a.frequency_hz - b.frequency_hz)
-  // Stagger rule: any two labels within MIN_GAP_HZ get bumped to the next row.
-  // Approx pixel-width budget for one label: 100px → minGapHz in current window.
-  const containerW = specEl.value?.clientWidth || 0
-  const dataBoxPx = Math.max(1, containerW - bandInsetLeftPx.value - bandInsetRightPx.value)
-  const minGapHz = (100 / dataBoxPx) * w
-  const lastHzInRow: number[] = []
+  // All markers sit on a single row by default. The CSS uses `flex-end` and
+  // `flex-wrap` on the overlay so when labels would overlap, the browser wraps
+  // them to additional rows automatically — no manual stagger math required.
   const out: KnownFreqEntry[] = []
-  for (const f of sorted) {
+  for (const f of store.frequencies) {
     if (f.frequency_hz < winLo || f.frequency_hz > winHi) continue
-    let row = 0
-    for (; row < KNOWN_FREQ_MAX_ROWS; row++) {
-      if (lastHzInRow[row] === undefined || f.frequency_hz - lastHzInRow[row] >= minGapHz) break
-    }
-    if (row >= KNOWN_FREQ_MAX_ROWS) row = out.length % KNOWN_FREQ_MAX_ROWS
-    lastHzInRow[row] = f.frequency_hz
     out.push({
       key: String(f.id),
       label: f.label,
       frequencyHz: f.frequency_hz,
       leftPct: ((f.frequency_hz - winLo) / w) * 100,
-      row,
+      row: 0,
     })
   }
   return out
 })
 
-// Rebuild the AnnotationPlugin's vertical-line annotations. One thin canvas per
-// visible frequency; sigplot positions them via real_to_pixel and auto-clips at
-// the data box. The HTML overlay handles the text (rendered separately).
+// No-op kept for the existing watchers — the HTML overlay (visibleKnownFreqs)
+// drives all rendering now. The AnnotationPlugin was previously used for the
+// vertical canvas line, which has been replaced by the SVG ring on the HTML
+// marker. Leave the plugin attached but empty (cheap; harmless).
 function syncKnownFrequencies() {
-  if (!knownFreqPlugin || !specPlot) return
+  if (!knownFreqPlugin) return
   knownFreqPlugin.clear_annotations()
-  const Mx = (specPlot as unknown as {
-    _Mx: { l: number; r: number; t: number; b: number }
-  })._Mx
-  const lineHeightPx = Math.max(20, Mx.b - Mx.t - 4)
-  const lineCanvas = buildKnownFreqLineCanvas(lineHeightPx)
-  for (const f of store.frequencies) {
-    knownFreqPlugin.add_annotation({
-      x: f.frequency_hz / HZ_PER_MHZ,
-      pxl_y: Mx.t + lineCanvas.height / 2,
-      value: lineCanvas,
-    })
-  }
-  try { specPlot.redraw() } catch { /* noop */ }
+  try { specPlot?.redraw() } catch { /* noop */ }
 }
 
 // Push the store's tuned freq + demod bandwidth onto BOTH accordions, each in
@@ -598,13 +573,13 @@ const tickGutterStyle = computed(() => ({
   height: `${bandInsetBottomPx.value}px`,
 }))
 
-// Inline style for the known-frequency label overlay — spans the data box
-// horizontally (same insets as band overlay), pinned near the top of the
-// spectrum so labels don't overlap the band-plan strip at the bottom.
+// Inline style for the known-frequency label overlay — sits at the bottom of
+// the spectrum data box, just above sigplot's x-axis label gutter (the
+// band-plan strip lives at the TOP of the spectrum now, not the bottom).
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  top: '18px',
+  bottom: `${bandInsetBottomPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -714,6 +689,7 @@ function syncBandInset() {
   // mx.b is the pixel y of the data-box BOTTOM (sigplot draws ticks/labels
   // below it). Distance from the canvas/element bottom = height − b.
   bandInsetBottomPx.value = Math.max(0, Math.ceil(mx.height - mx.b))
+  bandInsetTopPx.value = Math.max(0, Math.floor(mx.t))
   // Band overlay grows up from the data-box bottom to the -100 dB gridline.
   // mx.t..mx.b span the y-axis range SPEC_YMAX_DB..SPEC_YMIN_DB.
   const dataBoxHeightPx = mx.b - mx.t
@@ -1559,15 +1535,23 @@ onBeforeUnmount(() => {
           :style="{ left: t.leftPct + '%' }"
         ></div>
       </div>
-      <div class="sdr-wf-known-overlay" :style="knownFreqOverlayStyle">
+      <div
+        v-if="visibleKnownFreqs.length > 0"
+        class="sdr-wf-known-overlay"
+        :style="knownFreqOverlayStyle"
+      >
         <div
           v-for="f in visibleKnownFreqs"
           :key="f.key"
-          class="sdr-wf-known-label"
-          :style="{ left: f.leftPct + '%', top: (f.row * 28) + 'px' }"
+          class="sdr-wf-known-marker"
+          :style="{ left: f.leftPct + '%' }"
           :title="f.label"
         >
-          <span>{{ f.label }}</span>
+          <svg class="sdr-wf-known-marker-ring" width="14" height="14" viewBox="0 0 14 14" overflow="visible" aria-hidden="true">
+            <circle cx="7" cy="7" r="5" fill="none" stroke="#c8ff00" stroke-width="1.5" />
+            <circle cx="7" cy="7" r="1.5" fill="#ffffff" />
+          </svg>
+          <span class="sdr-wf-known-marker-label">{{ f.label }}</span>
         </div>
       </div>
     </div>
