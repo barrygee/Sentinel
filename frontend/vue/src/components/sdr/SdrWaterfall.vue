@@ -343,6 +343,14 @@ let ro: ResizeObserver | null = null
 // plot's units. Single source of truth is the store (currentFreqHz + bwHz).
 let specAcc: AccordionPlugin | null = null   // MHz spectrum plot
 let wfAcc: AccordionPlugin | null = null     // Hz waterfall plot
+
+// Known-frequency labels (from the frequency manager). Sigplot AnnotationPlugin
+// renders text/images on the spectrum canvas with native Hz→pixel mapping and
+// auto-clipping at the data box. Each annotation's `value` is a pre-rendered
+// off-screen canvas with a vertical line + label text, so sigplot handles
+// positioning under zoom/tune for free.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let knownFreqPlugin: any = null
 let lastCommittedFreqHz = 0
 let lastCommittedBwHz = 0
 // Independent drag baseline, snapshotted on mousedown over an accordion. The
@@ -364,6 +372,109 @@ let suppressAccEvents = false
 // stores it on properties.edge_highlight during its own _onMouseMove.
 const nearEdge = ref(false)
 const MIN_BW_HZ = 200
+
+// Render one known-frequency marker (line + label) onto an off-screen canvas.
+// AnnotationPlugin draws it centred on (pxl.x, pxl.y), so we build the marker
+// with the vertical line dead-centre horizontally — the line then lands exactly
+// on the frequency pixel. The label sits on the right of the line. `rowOffset`
+// shifts the canvas vertically by N×rowHeight so clustered labels stagger.
+// Known-frequency markers. Label TEXT is rendered as HTML divs in the template
+// (identical typography pipeline to the band-plan tags → identical sharpness).
+// The vertical LINE is drawn into the canvas via AnnotationPlugin — sigplot
+// handles Hz→pixel mapping and auto-clipping for it. The HTML labels mirror
+// the same Hz→pixel math used by visibleBands.
+const KNOWN_FREQ_LINE_COLOR = '#c8ff00'
+const KNOWN_FREQ_ROW_PX = 22   // pill height + gap (matches HTML row stride)
+const KNOWN_FREQ_MAX_ROWS = 3
+
+function buildKnownFreqLineCanvas(lineHeightPx: number): HTMLCanvasElement {
+  const w = 2
+  const h = Math.max(2, lineHeightPx)
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')!
+  ctx.strokeStyle = KNOWN_FREQ_LINE_COLOR
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(w / 2 + 0.5, 0)
+  ctx.lineTo(w / 2 + 0.5, h)
+  ctx.stroke()
+  return canvas
+}
+
+// Visible known frequencies for the HTML label overlay: zoom-aware leftPct
+// matching visibleBands math, plus a staggered `row` index so clustered labels
+// don't overlap. Returns the same data set used to drive the canvas annotations
+// (kept consistent so the line + label always pair up).
+interface KnownFreqEntry {
+  key: string
+  label: string
+  frequencyHz: number
+  leftPct: number
+  row: number
+}
+const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return []
+  let winLo = lo
+  let winHi = hi
+  if (zoom.value > ZOOM_MIN) {
+    const center = (lo + hi) / 2
+    const halfWin = (hi - lo) / (2 * zoom.value)
+    winLo = center - halfWin
+    winHi = center + halfWin
+  }
+  const w = winHi - winLo
+  // Sort by frequency so row staggering compares adjacent entries.
+  const sorted = [...store.frequencies].sort((a, b) => a.frequency_hz - b.frequency_hz)
+  // Stagger rule: any two labels within MIN_GAP_HZ get bumped to the next row.
+  // Approx pixel-width budget for one label: 100px → minGapHz in current window.
+  const containerW = specEl.value?.clientWidth || 0
+  const dataBoxPx = Math.max(1, containerW - bandInsetLeftPx.value - bandInsetRightPx.value)
+  const minGapHz = (100 / dataBoxPx) * w
+  const lastHzInRow: number[] = []
+  const out: KnownFreqEntry[] = []
+  for (const f of sorted) {
+    if (f.frequency_hz < winLo || f.frequency_hz > winHi) continue
+    let row = 0
+    for (; row < KNOWN_FREQ_MAX_ROWS; row++) {
+      if (lastHzInRow[row] === undefined || f.frequency_hz - lastHzInRow[row] >= minGapHz) break
+    }
+    if (row >= KNOWN_FREQ_MAX_ROWS) row = out.length % KNOWN_FREQ_MAX_ROWS
+    lastHzInRow[row] = f.frequency_hz
+    out.push({
+      key: String(f.id),
+      label: f.label,
+      frequencyHz: f.frequency_hz,
+      leftPct: ((f.frequency_hz - winLo) / w) * 100,
+      row,
+    })
+  }
+  return out
+})
+
+// Rebuild the AnnotationPlugin's vertical-line annotations. One thin canvas per
+// visible frequency; sigplot positions them via real_to_pixel and auto-clips at
+// the data box. The HTML overlay handles the text (rendered separately).
+function syncKnownFrequencies() {
+  if (!knownFreqPlugin || !specPlot) return
+  knownFreqPlugin.clear_annotations()
+  const Mx = (specPlot as unknown as {
+    _Mx: { l: number; r: number; t: number; b: number }
+  })._Mx
+  const lineHeightPx = Math.max(20, Mx.b - Mx.t - 4)
+  const lineCanvas = buildKnownFreqLineCanvas(lineHeightPx)
+  for (const f of store.frequencies) {
+    knownFreqPlugin.add_annotation({
+      x: f.frequency_hz / HZ_PER_MHZ,
+      pxl_y: Mx.t + lineCanvas.height / 2,
+      value: lineCanvas,
+    })
+  }
+  try { specPlot.redraw() } catch { /* noop */ }
+}
 
 // Push the store's tuned freq + demod bandwidth onto BOTH accordions, each in
 // its plot's x units (spectrum=MHz, waterfall=Hz). Also refreshes the drag
@@ -485,6 +596,15 @@ const tickGutterStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
   height: `${bandInsetBottomPx.value}px`,
+}))
+
+// Inline style for the known-frequency label overlay — spans the data box
+// horizontally (same insets as band overlay), pinned near the top of the
+// spectrum so labels don't overlap the band-plan strip at the bottom.
+const knownFreqOverlayStyle = computed(() => ({
+  left: `${bandInsetLeftPx.value}px`,
+  right: `${bandInsetRightPx.value}px`,
+  top: '18px',
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -997,6 +1117,17 @@ function initPlots() {
   wfPlot.add_plugin(wfAcc, 1)
   applyMarker()
 
+  // Known-frequency labels on the spectrum. AnnotationPlugin draws each
+  // annotation's `value` (text OR a canvas image) at real-coordinate `x`,
+  // auto-clipped to the data box. Spectrum x is in MHz, so annotation.x is
+  // frequency_hz / 1e6. We rebuild the annotation list whenever store.frequencies
+  // changes; pan/zoom are handled natively by sigplot.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const AnnotationPlugin = (sigplot.plugins as unknown as { AnnotationPlugin: any }).AnnotationPlugin
+  knownFreqPlugin = new AnnotationPlugin({ display: true })
+  specPlot.add_plugin(knownFreqPlugin, 2)
+  syncKnownFrequencies()
+
   // The axis/tick `fg` colour is also used by default for the grid lines.
   // Override the grid stroke independently so the grid stays dark while
   // tick labels remain white.
@@ -1320,6 +1451,14 @@ watch(() => store.fullWaterfallUpdate, (on) => {
   if (on) scheduleDesiredBins()
 })
 
+// Rebuild known-frequency annotations when the manager list changes. Pan/zoom
+// don't need a rebuild — sigplot re-runs the plugin's draw on every redraw and
+// maps annotation.x (MHz) through the live coordinate system. The watch on
+// spanStartHz keeps the stagger-row calculation in step with span/zoom changes
+// (so labels re-distribute across rows when the visible range changes).
+watch(() => store.frequencies, syncKnownFrequencies, { deep: true })
+watch([spanStartHz, spanEndHz], syncKnownFrequencies)
+
 onBeforeUnmount(() => {
   if (rafId) cancelAnimationFrame(rafId)
   if (drawRaf) cancelAnimationFrame(drawRaf)
@@ -1330,8 +1469,10 @@ onBeforeUnmount(() => {
   controlsRo = null
   try { if (specAcc) specPlot?.remove_plugin(specAcc) } catch { /* noop */ }
   try { if (wfAcc) wfPlot?.remove_plugin(wfAcc) } catch { /* noop */ }
+  try { if (knownFreqPlugin) specPlot?.remove_plugin(knownFreqPlugin) } catch { /* noop */ }
   specAcc = null
   wfAcc = null
+  knownFreqPlugin = null
   try { specPlot?.remove_layer(specUuid) } catch { /* noop */ }
   try { wfPlot?.remove_layer(wfUuid) } catch { /* noop */ }
   try { specPlot?.disable_listeners() } catch { /* noop */ }
@@ -1417,6 +1558,17 @@ onBeforeUnmount(() => {
           class="sdr-wf-tick"
           :style="{ left: t.leftPct + '%' }"
         ></div>
+      </div>
+      <div class="sdr-wf-known-overlay" :style="knownFreqOverlayStyle">
+        <div
+          v-for="f in visibleKnownFreqs"
+          :key="f.key"
+          class="sdr-wf-known-label"
+          :style="{ left: f.leftPct + '%', top: (f.row * 28) + 'px' }"
+          :title="f.label"
+        >
+          <span>{{ f.label }}</span>
+        </div>
       </div>
     </div>
     <div

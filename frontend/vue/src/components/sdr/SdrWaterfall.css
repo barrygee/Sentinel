@@ -239,6 +239,40 @@
   transform: translateX(-1px);
 }
 
+/* Known-frequency label overlay — HTML twin of the band-plan strip, pinned to
+ * the top of the spectrum data box. Vertical line is drawn on the spectrum
+ * canvas via sigplot AnnotationPlugin; only the label text lives here so it
+ * renders with the same DOM text pipeline as the band-plan tags (identical
+ * sharpness). pointer-events:none so click-to-tune still passes through. */
+.sdr-wf-known-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.sdr-wf-known-label {
+  position: absolute;
+  /* Left edge of the label box sits exactly on the vertical line — the
+   * canvas-drawn line then visually merges with the green left-edge accent. */
+  display: flex;
+  align-items: center;
+  background: rgba(15, 17, 19, 0.92);
+  border-left: 3px solid #c8ff00;
+  height: 24px;
+  line-height: 1;
+}
+
+.sdr-wf-known-label span {
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  color: #ffffff;
+  white-space: nowrap;
+  padding: 0 10px;
+  text-transform: uppercase;
+  display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Waterfall raster (fills the rest). */
 .sdr-wf-raster {
   flex: 1 1 auto;

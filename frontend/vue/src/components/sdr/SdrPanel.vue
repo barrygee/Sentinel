@@ -1575,6 +1575,13 @@ async function reloadData() {
     const [gRes, fRes] = await Promise.all([fetch('/api/sdr/groups'), fetch('/api/sdr/frequencies')])
     groups.value = await gRes.json()
     freqs.value  = await fRes.json()
+    // Mirror into the SDR store so SdrWaterfall can render label markers on the
+    // FFT. SdrPanel owns the fetch; the store keeps the slimmer shape consumed
+    // by other components.
+    _sdrStore().frequencies = freqs.value.map(f => ({
+      id: f.id, group_id: f.group_id ?? null, label: f.label,
+      frequency_hz: f.frequency_hz, mode: f.mode,
+    }))
     _scanQueue = buildScanQueue()
   } catch (_) {}
   await clipsSectionRef.value?.reload()
