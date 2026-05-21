@@ -204,13 +204,18 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
   panelOpen.value = !!(e as CustomEvent<{ open: boolean }>).detail?.open
 })
 
-// ── Intensity (Min/Max) — drives sigplot zmin/zmax on the waterfall ──────────
-// The backend emits dBFS (0 dB = full-scale tone), so values are negative and
-// the noise floor sits around -70..-100 for an 8-bit RTL-SDR. Defaults must
-// bracket the real data or the colormap pins everything to one colour (the
-// "solid red" symptom). The waterfall also starts in auto-scale (autol) so it
-// always has contrast regardless; the sliders then act as a manual override.
-const zmin = ref(-100)
+// ── Min / Max (SDR++ semantics) ──────────────────────────────────────────────
+// Per the SDR++ User Guide v1.1 (Dec 2022) pages 30-31, Min and Max "select
+// the high and low points for the signal strength shown on the spectrum —
+// effectively the top and bottom range" AND drive the waterfall colour map.
+// So both sliders move the spectrum trace y-axis (specPlot.ymin/ymax) and the
+// waterfall z-axis (wfPlot.zmin/zmax) in lockstep.
+//
+// Defaults come from the per-device DEVICE_DB_RANGE table below (e.g. -100..0
+// for an 8-bit RTL-SDR — the dBFS dynamic range of the ADC). The waterfall
+// starts in auto-scale (autol) so it always has contrast on first frame; the
+// first slider drag switches it to the fixed range.
+const zmin = ref(0)  // seeded from DEVICE_DB_RANGE below
 const zmax = ref(0)
 const autoScale = ref(true)
 
@@ -252,24 +257,19 @@ function applyZoom() {
 // only the raster colour-map needs to be steady.)
 const WF_AUTOL = 100
 
-// ── Spectrum dB axis — STATIC like SDR++, per-device ─────────────────────────
+// ── Spectrum dB axis — driven live by the Min/Max sliders (SDR++ behaviour) ──
 // The backend emits dBFS (0 dB = full-scale tone — see backend/services/sdr.py).
-// The ceiling is therefore 0 for every device; the floor is set by the ADC's
-// dynamic range (≈ +6 dB per extra bit of resolution beyond 8). Pinning the
-// spectrum Y-axis to this range stops the left dB ruler from breathing every
-// few frames (the SDR++ behaviour: signals slide vertically against a fixed
-// scale).
+// SDR++ Min/Max move both the spectrum y-axis AND the waterfall colour range
+// (User Guide v1.1, pp. 30-31); the per-device range below only seeds the
+// initial slider values. The watcher on [zmin, zmax] calls
+// specPlot.change_settings({ ymin, ymax }) at runtime — sigplot supports this
+// (see node_modules/sigplot/js/sigplot.js lines 2039-2074).
 //
-// FUTURE: when the backend starts reporting the active device (e.g. a `device`
-// field on the spectrum frame, or a `deviceType` ref on the SDR store), make
-// ACTIVE_DEVICE reactive and watch it to call
-// `specPlot.change_settings({ ymin, ymax })` (sigplot supports this at
-// runtime; see node_modules/sigplot/js/sigplot.js lines 2039-2074).
+// Ranges should divide cleanly by 20 dB so sigplot's tick steps land on the
+// ymax/ymin endpoints (otherwise the bottom label sits outside the data box).
+// ydiv is recomputed live from (max - min) / 20 in applySpecRange().
 type SdrDeviceId = 'rtl_tcp' | 'hackrf' | 'airspy' | 'sdrplay'
 const DEVICE_DB_RANGE: Record<SdrDeviceId, { ymin: number; ymax: number }> = {
-  // Ranges must divide cleanly by 20 dB so sigplot's tick steps land on the
-  // ymax/ymin endpoints — otherwise the bottom label sits below the data box
-  // (uneven gap between the lowest two labels).
   rtl_tcp:  { ymin: -100, ymax: 0 }, // 8-bit IQ (only device wired today)
   hackrf:   { ymin: -100, ymax: 0 }, // 8-bit IQ  — placeholder
   airspy:   { ymin: -120, ymax: 0 }, // 12-bit IQ — placeholder
@@ -278,6 +278,22 @@ const DEVICE_DB_RANGE: Record<SdrDeviceId, { ymin: number; ymax: number }> = {
 const ACTIVE_DEVICE: SdrDeviceId = 'rtl_tcp'
 const SPEC_YMIN_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymin
 const SPEC_YMAX_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymax
+// Seed the sliders with the device's default range — must happen after both
+// the refs (above) and the DEVICE_DB_RANGE constants are declared.
+zmin.value = SPEC_YMIN_DB
+zmax.value = SPEC_YMAX_DB
+
+// Apply a (min, max) dB range to BOTH plots: spectrum trace y-axis and
+// waterfall colour map. ydiv is recomputed so tick steps land on endpoints
+// (sigplot pins dtic1 = ymin when ydiv is negative — see plot init for the
+// rationale). Called from the [zmin, zmax] watcher.
+function applySpecRange(lo: number, hi: number) {
+  if (!(hi > lo)) return
+  const span = hi - lo
+  const ydiv = -Math.max(1, Math.round(span / 20))
+  try { specPlot?.change_settings({ ymin: lo, ymax: hi, ydiv }) } catch { /* noop */ }
+  try { wfPlot?.change_settings({ autol: -1, zmin: lo, zmax: hi }) } catch { /* noop */ }
+}
 
 // ── Plot instances & layer uuids — deliberately NON-reactive ─────────────────
 // sigplot mutates the Plot object heavily; wrapping it in Vue reactivity breaks
@@ -786,17 +802,18 @@ function initPlots() {
   // strip — the axis tics already make the units obvious. Both are independent
   // of show_x_axis/show_y_axis, so the grid + scale remain.
   specPlot = new sigplot.Plot(specEl.value, {
-    // Static dB ruler (SDR++ behaviour): autoy:0 = Fix mode, no Y auto-scaling.
-    // ymin/ymax come from the per-device range table above so signals slide
-    // against a fixed scale instead of the scale chasing the signals.
+    // dB ruler driven by the Min/Max sliders (SDR++ behaviour, manual pp. 30-31).
+    // autoy:0 = Fix mode, no Y auto-scaling — sigplot stays on whatever ymin/ymax
+    // we last set via change_settings(). Initial values come from the slider
+    // refs, which were seeded from the per-device DEVICE_DB_RANGE above.
     autoy: 0,
-    ymin: SPEC_YMIN_DB,
-    ymax: SPEC_YMAX_DB,
+    ymin: zmin.value,
+    ymax: zmax.value,
     // Negative ydiv bypasses sigplot's mx.tics() "nice number" rounding (which
     // can place the first tick BELOW ymin, leaving the bottom label visually
     // outside the data box). With ydiv<0, sigplot pins dtic1 = ymin exactly and
     // dtic = (ymin-ymax)/ydiv, so ticks land precisely on ymin..ymax in N steps.
-    ydiv: -Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20),
+    ydiv: -Math.max(1, Math.round((zmax.value - zmin.value) / 20)),
     nomenu: true,
     nopan: true,
     nodragdrop: true,
@@ -1099,6 +1116,22 @@ watch(
       )
       wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
     } catch { /* noop */ }
+    // Reset Min/Max to device defaults and re-enable waterfall auto-scale, so
+    // the next play starts with a fresh canvas. The watcher on [zmin, zmax]
+    // would re-disable auto-scale, so suppress it for this programmatic reset
+    // by setting autoScale AFTER the refs.
+    if (zmin.value !== SPEC_YMIN_DB || zmax.value !== SPEC_YMAX_DB) {
+      zmin.value = SPEC_YMIN_DB
+      zmax.value = SPEC_YMAX_DB
+    }
+    autoScale.value = true
+    try {
+      specPlot.change_settings({
+        ymin: SPEC_YMIN_DB,
+        ymax: SPEC_YMAX_DB,
+        ydiv: -Math.max(1, Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20)),
+      })
+    } catch { /* noop */ }
     // Hide the marker while stopped (the pipe rebuild dropped its canvas draw
     // anyway); applyMarker reads store.playing for visibility.
     applyMarker()
@@ -1113,10 +1146,19 @@ watch(
   () => { if (!suppressAccEvents) applyMarker() },
 )
 
-// Moving a slider switches the waterfall from auto-scale to the fixed range.
+// Moving Min or Max retargets BOTH the spectrum y-axis and the waterfall
+// colour range (SDR++ User Guide v1.1 pp. 30-31). Also switches the waterfall
+// out of auto-scale; once a slider is touched it stays under manual control
+// until play/stop resets the component.
 watch([zmin, zmax], ([lo, hi]) => {
+  // Guard against the user dragging Min above Max (or vice-versa): keep a 6 dB
+  // floor between them so the spectrum y-axis never collapses to a single tick.
+  if (hi <= lo) {
+    if (zmax.value === hi) { zmax.value = lo + 6; return }
+    if (zmin.value === lo) { zmin.value = hi - 6; return }
+  }
   autoScale.value = false
-  wfPlot?.change_settings({ autol: -1, zmin: lo, zmax: hi })
+  applySpecRange(lo, hi)
 })
 
 // Moving the Zoom slider re-windows both plots around the tuned centre.
@@ -1170,8 +1212,8 @@ onBeforeUnmount(() => {
           <input
             class="sdr-wf-slider"
             type="range"
-            min="-120"
-            max="20"
+            min="-80"
+            max="0"
             step="1"
             v-model.number="zmax"
             :aria-label="`Max ${zmax} dB`"
@@ -1185,7 +1227,7 @@ onBeforeUnmount(() => {
             class="sdr-wf-slider"
             type="range"
             min="-120"
-            max="20"
+            max="-20"
             step="1"
             v-model.number="zmin"
             :aria-label="`Min ${zmin} dB`"
