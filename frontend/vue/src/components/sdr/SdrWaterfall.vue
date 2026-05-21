@@ -465,6 +465,16 @@ let mdownEl: HTMLElement | null = null
 const CLICK_SLOP_PX = 4
 
 function onPlotMouseDown(e: MouseEvent) {
+  // Suppress sigplot's hard-coded right-click unzoom (sigplot.js:1062-1069):
+  // continuous-mode programmatic zooms still push exactly one level onto its
+  // stack, so a right-click would unzoom the spectrum while our `zoom` ref,
+  // the slider and the waterfall all stay put. The Zoom slider is the only
+  // input — kill the event before sigplot's mouseup handler runs.
+  if (e.button === 2) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    return
+  }
   if (e.button !== 0) return
   mdownEl = e.currentTarget as HTMLElement
   mdownX = e.clientX
@@ -472,6 +482,14 @@ function onPlotMouseDown(e: MouseEvent) {
 }
 
 function onPlotMouseUp(e: MouseEvent) {
+  // Match the right-button suppression in onPlotMouseDown: sigplot's
+  // hard-coded unzoom triggers on mouseup, so swallow that too before its
+  // canvas-level listener runs.
+  if (e.button === 2) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    return
+  }
   const el = mdownEl
   mdownEl = null
   if (e.button !== 0 || !el || el !== e.currentTarget) return
@@ -850,6 +868,14 @@ function initPlots() {
     noreadout: true,
     hide_note: true,
     autohide_panbars: true,
+    // Disable sigplot's built-in marquee zoom: click-drag on the canvas
+    // natively zooms to the selected rect and right-click pops the zoom stack,
+    // both bypassing our `zoom` ref so the plot would drift out of sync with
+    // the slider and waterfall. The Zoom slider is the single source of truth
+    // — sigplot strict-equals these against "zoom"/"select" so any other value
+    // disables both (sigplot.js:696-714).
+    rubberbox_action: 'disabled',
+    rightclick_rubberbox_action: 'disabled',
     xunits: 3,
     // SigPlot draws axis tick labels onto the canvas with this font (default
     // is "Courier New, monospace"). Match the app font (Barlow) so the
@@ -875,6 +901,14 @@ function initPlots() {
     noreadout: true,
     hide_note: true,
     autohide_panbars: true,
+    // Disable sigplot's built-in marquee zoom: click-drag on the canvas
+    // natively zooms to the selected rect and right-click pops the zoom stack,
+    // both bypassing our `zoom` ref so the plot would drift out of sync with
+    // the slider and waterfall. The Zoom slider is the single source of truth
+    // — sigplot strict-equals these against "zoom"/"select" so any other value
+    // disables both (sigplot.js:696-714).
+    rubberbox_action: 'disabled',
+    rightclick_rubberbox_action: 'disabled',
     xunits: 3,
     font_family: "'Barlow', sans-serif",
     colors: { bg: BG, fg: BG },
@@ -1286,6 +1320,7 @@ onBeforeUnmount(() => {
       :style="spectrumStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @contextmenu.prevent
     >
       <div class="sdr-wf-band-overlay" :style="bandOverlayStyle">
         <div
@@ -1312,6 +1347,7 @@ onBeforeUnmount(() => {
       class="sdr-wf-raster"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @contextmenu.prevent
     ></div>
   </div>
 </template>
