@@ -52,7 +52,7 @@
   /* Stacked from the top of the spectrum, content-sized, with a suitable gap
    * between each control (not stretched down the full height). */
   gap: 28px;
-  padding: 4px 0 14px;
+  padding: 20px 0 14px;
   box-sizing: border-box;
   pointer-events: none;
 }
@@ -75,6 +75,7 @@
   color: #fff;
   flex-shrink: 0;
 }
+
 
 /* The slider is rotated into this wrapper; its rendered width = the wrapper's
  * pixel HEIGHT. Fixed short height so each track is compact and the stack sits
