@@ -1156,12 +1156,23 @@ watch(
 // colour range (SDR++ User Guide v1.1 pp. 30-31). Also switches the waterfall
 // out of auto-scale; once a slider is touched it stays under manual control
 // until play/stop resets the component.
+// Track which slider the user moved last so the collision guard below knows
+// which one to clamp. SDR++ keeps the stationary slider fixed and stops the
+// moving one short of it (Min raised into Max stops at Max-1, not bumping Max
+// upward).
+let lastTouched: 'min' | 'max' | null = null
+watch(zmin, () => { lastTouched = 'min' })
+watch(zmax, () => { lastTouched = 'max' })
+
 watch([zmin, zmax], ([lo, hi]) => {
-  // Guard against the user dragging Min above Max (or vice-versa): keep a 6 dB
-  // floor between them so the spectrum y-axis never collapses to a single tick.
+  // Guard against the user dragging one slider past the other: clamp the
+  // moving slider to leave a 1 dB gap, leaving the stationary one untouched.
+  // SDR++ behaviour — see User Guide v1.1 p. 31 (Min/Max are independent
+  // endpoints; raising Min into Max does not push Max).
   if (hi <= lo) {
-    if (zmax.value === hi) { zmax.value = lo + 6; return }
-    if (zmin.value === lo) { zmin.value = hi - 6; return }
+    if (lastTouched === 'min') { zmin.value = hi - 1; return }
+    if (lastTouched === 'max') { zmax.value = lo + 1; return }
+    return  // unknown source — bail out without thrashing either slider
   }
   autoScale.value = false
   applySpecRange(lo, hi)
