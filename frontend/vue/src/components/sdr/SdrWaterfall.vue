@@ -947,6 +947,14 @@ function initPlots() {
     // disables both (sigplot.js:696-714).
     rubberbox_action: 'disabled',
     rightclick_rubberbox_action: 'disabled',
+    // Smooth the raster when the visible source rect is smaller than the
+    // canvas (upscaling at high zoom). Without this, sigplot uses
+    // nearest-neighbour and the upscaled rows look blocky once visible bins
+    // < canvas px — happens past ~16x zoom on a ~2000-px canvas given the
+    // backend MAX_FFT_SIZE=32768 cap. Bilinear filtering trades a tiny bit
+    // of bin-edge sharpness for a much less distracting raster at high zoom.
+    // (sigplot toggles imageSmoothingEnabled based on this; cheap.)
+    rasterSmoothing: true,
     xunits: 3,
     font_family: "'Barlow', sans-serif",
     colors: { bg: BG, fg: BG },
@@ -1072,11 +1080,10 @@ function initPlots() {
     specPlot?.checkresize()
     wfPlot?.checkresize()
     syncBandInset()
-    // Deliberately NOT calling scheduleDesiredBins() here: a container resize
-    // (side-panel toggle, window resize, browser zoom) that changed the FFT
-    // bin count would force a buildPipes() on the next frame, wiping the
-    // waterfall history. Bin count is fixed at mount time.
-    // (Reverted from d9964d3 — see commit 10baf9b for the rationale.)
+    // Canvas resize: only refresh the bin target when Full Waterfall Update
+    // is ON. Otherwise the bin count is pinned to its mount-time value so a
+    // side-panel toggle / browser zoom doesn't wipe the waterfall history.
+    if (store.fullWaterfallUpdate) scheduleDesiredBins()
   })
   ro.observe(specEl.value as HTMLElement)
   ro.observe(wfEl.value as HTMLElement)
@@ -1293,14 +1300,24 @@ watch([zmin, zmax], ([lo, hi]) => {
   applySpecRange(lo, hi)
 })
 
-// Moving the Zoom slider re-windows both plots around the tuned centre.
-// Bin count is intentionally NOT refreshed — asking the backend for more bins
-// changes the spectrum frame's bins.length, which triggers buildPipes() and
-// wipes the waterfall history. At high zoom the raster becomes pixelated, but
-// the trace stays sharp and the history is preserved. (Reverted from
-// d9964d3 — see commit 10baf9b for the rationale.)
+// Moving the Zoom slider re-windows both plots around the tuned centre. When
+// the "Full Waterfall Update" setting is ON (SDR++ User Guide v1.1 p. 34) we
+// also ask the backend for more FFT bins so the visible window keeps ~1 bin
+// per device px — sharp raster at any zoom level, at the cost of wiping the
+// waterfall history every time the bin count changes (the new bin count
+// triggers buildPipes() in the frame watcher). When OFF, bins are fixed at
+// mount time: the raster gets pixelated when zoomed in, but history is
+// preserved across zoom changes.
 watch(zoom, () => {
   applyZoom()
+  if (store.fullWaterfallUpdate) scheduleDesiredBins()
+})
+
+// Toggling Full Waterfall Update ON mid-session: refresh the bin target
+// immediately so the raster snaps to sharp at the current zoom without
+// waiting for the next zoom action.
+watch(() => store.fullWaterfallUpdate, (on) => {
+  if (on) scheduleDesiredBins()
 })
 
 onBeforeUnmount(() => {
