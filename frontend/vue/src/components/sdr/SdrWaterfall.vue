@@ -241,11 +241,17 @@ function applyZoom() {
   // Window centred on the tuned centre frequency (midpoint of the span).
   const center = (lo + hi) / 2
   const halfWin = (hi - lo) / (2 * zoom.value)
-  const x1 = center - halfWin
-  const x2 = center + halfWin
+  const x1Hz = center - halfWin
+  const x2Hz = center + halfWin
+  // The two plots are in DIFFERENT x-units (see comment near specAcc/wfAcc):
+  // spectrum layer x is MHz (xstart=xstartMHz), waterfall layer x is Hz. Pass
+  // each plot its own units — otherwise the spectrum zooms to a window outside
+  // its data range and renders blank.
+  const x1MHz = x1Hz / HZ_PER_MHZ
+  const x2MHz = x2Hz / HZ_PER_MHZ
   // y left undefined => keep the full vertical (dB / history) range.
-  try { specPlot?.zoom({ x: x1 }, { x: x2 }, true) } catch { /* noop */ }
-  try { wfPlot?.zoom({ x: x1 }, { x: x2 }, true) } catch { /* noop */ }
+  try { specPlot?.zoom({ x: x1MHz }, { x: x2MHz }, true) } catch { /* noop */ }
+  try { wfPlot?.zoom({ x: x1Hz }, { x: x2Hz }, true) } catch { /* noop */ }
 }
 // Waterfall colour auto-scale window (frames). sigplot's autol:N recomputes
 // the z colour range every ~N frames. A small N (was 5) chases the noise
