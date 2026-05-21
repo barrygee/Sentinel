@@ -112,6 +112,33 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch { /* offline / transient — keep current value */ }
   }
 
+  // "Full waterfall update" toggle (matches SDR++ User Guide v1.1 p. 34). When
+  // ON, the waterfall history is reset whenever a viewing parameter (Zoom)
+  // changes, so new rows fill the narrower viewport cleanly instead of the
+  // pre-zoom rows staying horizontally-stretched. Default ON in Sentinel
+  // (SDR++'s own default is OFF, but Sentinel users see a cleaner zoom UX).
+  function _readFullWaterfallUpdate(): boolean {
+    try { return localStorage.getItem('sdrFullWaterfallUpdate') !== '0' } catch { return true }
+  }
+  const fullWaterfallUpdate = ref<boolean>(_readFullWaterfallUpdate())
+  function setFullWaterfallUpdate(on: boolean) {
+    fullWaterfallUpdate.value = on
+    try { localStorage.setItem('sdrFullWaterfallUpdate', on ? '1' : '0') } catch {}
+  }
+  // Mirror of hydrateAutoCenterFromDb — keeps the live toggle in sync after a
+  // config JSON upload replaces the DB row.
+  async function hydrateFullWaterfallUpdateFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.fullWaterfallUpdate
+      if (typeof v === 'boolean' && v !== fullWaterfallUpdate.value) {
+        setFullWaterfallUpdate(v)
+      }
+    } catch { /* offline / transient — keep current value */ }
+  }
+
   // Current demod offset from the hardware centre frequency (Hz). 0 when
   // auto-centre is ON or the marker sits at centre. The waterfall reads this to
   // place the tuning bar at currentFreqHz + tuningOffsetHz; the panel pushes it
@@ -223,6 +250,7 @@ export const useSdrStore = defineStore('sdr', () => {
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
     lastSpectrum, bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
+    fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,
     tuningOffsetHz, setTuningOffsetHz,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
     setBandwidthHz, requestTune, requestBandwidth, requestFftSize,

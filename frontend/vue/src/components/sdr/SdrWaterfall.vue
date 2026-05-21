@@ -233,6 +233,14 @@ function applyZoom() {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return
+  // SDR++ "Full waterfall update" (User Guide v1.1 p. 34): when ON, clear the
+  // waterfall history on every zoom change so new rows fill the new viewport
+  // cleanly instead of historical rows staying horizontally-stretched. We do
+  // this by rebuilding the pipe (cheap — sigplot just drops the layer and
+  // re-creates it; the spectrum layer rebuild is harmless overhead).
+  if (store.fullWaterfallUpdate && subsize > 0) {
+    buildPipes(subsize)
+  }
   if (zoom.value <= ZOOM_MIN) {
     try { specPlot?.unzoom() } catch { /* noop */ }
     try { wfPlot?.unzoom() } catch { /* noop */ }

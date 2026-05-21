@@ -22,6 +22,7 @@
     <AdsbTagFieldsControl v-else-if="item.type === 'air-tag-fields'" @stage="emit('stage', item.id, $event)" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
     <SdrAutoCenterControl v-else-if="item.type === 'sdr-autocenter'" @stage="emit('stage', item.id, $event)" />
+    <SdrFullWaterfallUpdateControl v-else-if="item.type === 'sdr-full-waterfall-update'" @stage="emit('stage', item.id, $event)" />
     <ConfigCurrentControl v-else-if="item.type === 'config-current'" @stage="emit('stage', item.id, $event)" />
   </div>
 </template>
@@ -46,6 +47,7 @@ import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrAutoCenterControl from './SdrAutoCenterControl.vue'
+import SdrFullWaterfallUpdateControl from './SdrFullWaterfallUpdateControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 
 const props = defineProps<{ item: SettingItem; pending: Map<string, () => Promise<unknown> | void> }>()
