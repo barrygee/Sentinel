@@ -139,6 +139,45 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch { /* offline / transient — keep current value */ }
   }
 
+  // Waterfall overlay visibility toggles (bandplan strip and known-frequency
+  // labels). Same persistence pattern as fullWaterfallUpdate: localStorage for
+  // instant restore, DB hydrate on config upload. Default ON.
+  function _readShowBandPlan(): boolean {
+    try { return localStorage.getItem('sdrShowBandPlan') !== '0' } catch { return true }
+  }
+  const showBandPlan = ref<boolean>(_readShowBandPlan())
+  function setShowBandPlan(on: boolean) {
+    showBandPlan.value = on
+    try { localStorage.setItem('sdrShowBandPlan', on ? '1' : '0') } catch {}
+  }
+  async function hydrateShowBandPlanFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.showBandPlan
+      if (typeof v === 'boolean' && v !== showBandPlan.value) setShowBandPlan(v)
+    } catch { /* offline / transient */ }
+  }
+
+  function _readShowKnownFreqs(): boolean {
+    try { return localStorage.getItem('sdrShowKnownFreqs') !== '0' } catch { return true }
+  }
+  const showKnownFreqs = ref<boolean>(_readShowKnownFreqs())
+  function setShowKnownFreqs(on: boolean) {
+    showKnownFreqs.value = on
+    try { localStorage.setItem('sdrShowKnownFreqs', on ? '1' : '0') } catch {}
+  }
+  async function hydrateShowKnownFreqsFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.showKnownFreqs
+      if (typeof v === 'boolean' && v !== showKnownFreqs.value) setShowKnownFreqs(v)
+    } catch { /* offline / transient */ }
+  }
+
   // Current demod offset from the hardware centre frequency (Hz). 0 when
   // auto-centre is ON or the marker sits at centre. The waterfall reads this to
   // place the tuning bar at currentFreqHz + tuningOffsetHz; the panel pushes it
@@ -251,6 +290,8 @@ export const useSdrStore = defineStore('sdr', () => {
     lastSpectrum, bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
     fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,
+    showBandPlan, setShowBandPlan, hydrateShowBandPlanFromDb,
+    showKnownFreqs, setShowKnownFreqs, hydrateShowKnownFreqsFromDb,
     tuningOffsetHz, setTuningOffsetHz,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
     setBandwidthHz, requestTune, requestBandwidth, requestFftSize,

@@ -579,7 +579,7 @@ const tickGutterStyle = computed(() => ({
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `${bandInsetBottomPx.value + bandHeightPx.value}px`,
+  bottom: `${bandInsetBottomPx.value + (store.showBandPlan && visibleBands.value.length > 0 ? bandHeightPx.value : 0)}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -697,7 +697,7 @@ function syncBandInset() {
   if (dataBoxHeightPx > 0 && yRangeDb > 0) {
     const TARGET_DB = -100
     const dbFromBottom = TARGET_DB - SPEC_YMIN_DB
-    bandHeightPx.value = Math.max(18, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 2)
+    bandHeightPx.value = Math.max(20, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 4)
   }
 }
 
@@ -1516,7 +1516,7 @@ onBeforeUnmount(() => {
       @mouseup.capture="onPlotMouseUp"
       @contextmenu.prevent
     >
-      <div class="sdr-wf-band-overlay" :style="bandOverlayStyle">
+      <div v-if="store.showBandPlan && visibleBands.length > 0" class="sdr-wf-band-overlay" :style="bandOverlayStyle">
         <div
           v-for="b in visibleBands"
           :key="b.key"
@@ -1536,7 +1536,7 @@ onBeforeUnmount(() => {
         ></div>
       </div>
       <div
-        v-if="visibleKnownFreqs.length > 0"
+        v-if="store.showKnownFreqs && visibleKnownFreqs.length > 0"
         class="sdr-wf-known-overlay"
         :style="knownFreqOverlayStyle"
       >

@@ -23,6 +23,8 @@
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
     <SdrAutoCenterControl v-else-if="item.type === 'sdr-autocenter'" @stage="emit('stage', item.id, $event)" />
     <SdrFullWaterfallUpdateControl v-else-if="item.type === 'sdr-full-waterfall-update'" @stage="emit('stage', item.id, $event)" />
+    <SdrShowBandPlanControl v-else-if="item.type === 'sdr-show-bandplan'" @stage="emit('stage', item.id, $event)" />
+    <SdrShowKnownFreqsControl v-else-if="item.type === 'sdr-show-known-freqs'" @stage="emit('stage', item.id, $event)" />
     <ConfigCurrentControl v-else-if="item.type === 'config-current'" @stage="emit('stage', item.id, $event)" />
   </div>
 </template>
@@ -48,6 +50,8 @@ import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrAutoCenterControl from './SdrAutoCenterControl.vue'
 import SdrFullWaterfallUpdateControl from './SdrFullWaterfallUpdateControl.vue'
+import SdrShowBandPlanControl from './SdrShowBandPlanControl.vue'
+import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 
 const props = defineProps<{ item: SettingItem; pending: Map<string, () => Promise<unknown> | void> }>()
