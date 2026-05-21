@@ -219,6 +219,21 @@ const zmin = ref(0)  // seeded from DEVICE_DB_RANGE below
 const zmax = ref(0)
 const autoScale = ref(true)
 
+// The Max/Min sliders are rotated -90deg, which puts the slider's native `min`
+// attribute at the TOP and `max` at the BOTTOM of the visual track. To make
+// "thumb DOWN = more negative dB" feel natural, bind each slider to the
+// negated value via a computed proxy: the slider stores a positive magnitude
+// (0..80 for Max, 20..120 for Min), negated on read/write so the underlying
+// zmin/zmax refs still carry the actual dB values.
+const zmaxSlider = computed({
+  get: () => -zmax.value,
+  set: (v: number) => { zmax.value = -v },
+})
+const zminSlider = computed({
+  get: () => -zmin.value,
+  set: (v: number) => { zmin.value = -v },
+})
+
 // ── Zoom — horizontal (frequency) zoom into the centre of the span ───────────
 // 1 = full span (no zoom); ZOOM_MAX = tightest. The visible window is the full
 // span / zoom, centred on the tuned frequency, applied to BOTH plots so the
@@ -1291,10 +1306,10 @@ onBeforeUnmount(() => {
           <input
             class="sdr-wf-slider"
             type="range"
-            min="-80"
-            max="0"
+            min="0"
+            max="80"
             step="1"
-            v-model.number="zmax"
+            v-model.number="zmaxSlider"
             :aria-label="`Max ${zmax} dB`"
           />
         </div>
@@ -1305,10 +1320,10 @@ onBeforeUnmount(() => {
           <input
             class="sdr-wf-slider"
             type="range"
-            min="-120"
-            max="-20"
+            min="20"
+            max="120"
             step="1"
-            v-model.number="zmin"
+            v-model.number="zminSlider"
             :aria-label="`Min ${zmin} dB`"
           />
         </div>
