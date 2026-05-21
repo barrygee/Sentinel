@@ -191,7 +191,7 @@ const bandHeightPx = ref(0)
 const bandOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  top: '0',
+  bottom: `${bandInsetBottomPx.value}px`,
   height: bandHeightPx.value > 0 ? `${bandHeightPx.value}px` : undefined,
 }))
 
@@ -579,7 +579,7 @@ const tickGutterStyle = computed(() => ({
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `${bandInsetBottomPx.value}px`,
+  bottom: `${bandInsetBottomPx.value + bandHeightPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -689,7 +689,7 @@ function syncBandInset() {
   // mx.b is the pixel y of the data-box BOTTOM (sigplot draws ticks/labels
   // below it). Distance from the canvas/element bottom = height − b.
   bandInsetBottomPx.value = Math.max(0, Math.ceil(mx.height - mx.b))
-  bandInsetTopPx.value = Math.max(0, Math.floor(mx.t))
+  bandInsetTopPx.value = Math.max(0, Math.ceil(mx.t) - 1)
   // Band overlay grows up from the data-box bottom to the -100 dB gridline.
   // mx.t..mx.b span the y-axis range SPEC_YMAX_DB..SPEC_YMIN_DB.
   const dataBoxHeightPx = mx.b - mx.t
@@ -697,7 +697,7 @@ function syncBandInset() {
   if (dataBoxHeightPx > 0 && yRangeDb > 0) {
     const TARGET_DB = -100
     const dbFromBottom = TARGET_DB - SPEC_YMIN_DB
-    bandHeightPx.value = Math.max(0, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx))
+    bandHeightPx.value = Math.max(18, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 2)
   }
 }
 

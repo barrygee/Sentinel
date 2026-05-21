@@ -185,8 +185,6 @@
  * still falls through to the canvas. */
 .sdr-wf-band-overlay {
   position: absolute;
-  top: 0;
-  height: 10%;
   pointer-events: none;
   z-index: 10;
   display: flex;
@@ -201,7 +199,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.75);
   box-sizing: border-box;
   line-height: 1;
 }
@@ -245,7 +243,9 @@
  * and rhythm as the map control so the SDR view feels of a piece with it. */
 .sdr-wf-known-overlay {
   position: absolute;
-  height: 10%;
+  height: 18px;
+  padding: 6px 0;
+  box-sizing: content-box;
   pointer-events: none;
   z-index: 11;
   background: rgba(0, 0, 0, 0.45);
