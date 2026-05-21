@@ -76,6 +76,8 @@
     "defaultSquelch": -60,
     "autoCenterWaterfallOnTune": true,
     "fullWaterfallUpdate": true,
+    "showBandPlan": true,
+    "showKnownFreqs": true,
     "radios": [],
     "groups": [
       { "name": "Air to Air Refueling", "slug": "air-to-air-refueling" },

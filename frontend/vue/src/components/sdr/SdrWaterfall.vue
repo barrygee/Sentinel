@@ -213,6 +213,14 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
   panelOpen.value = !!(e as CustomEvent<{ open: boolean }>).detail?.open
 })
 
+// Pull the overlay-visibility flags from the DB whenever a config JSON upload
+// replaces them, so the waterfall reacts even when the settings panel isn't
+// mounted (the toggle controls also subscribe, but only while rendered).
+useDocumentEvent('sentinel:config-uploaded', () => {
+  void store.hydrateShowBandPlanFromDb()
+  void store.hydrateShowKnownFreqsFromDb()
+})
+
 // ── Min / Max (SDR++ semantics) ──────────────────────────────────────────────
 // Per the SDR++ User Guide v1.1 (Dec 2022) pages 30-31, Min and Max "select
 // the high and low points for the signal strength shown on the spectrum —
@@ -1203,6 +1211,11 @@ function initPlots() {
 }
 
 onMounted(() => {
+  // Pull overlay-visibility flags from the DB so the live spectrum reflects
+  // the persisted config on first paint (localStorage is the fallback, not
+  // the source of truth across machines).
+  void store.hydrateShowBandPlanFromDb()
+  void store.hydrateShowKnownFreqsFromDb()
   // Defer until the fixed/flex container has resolved its real pixel size.
   // layer2d derives the waterfall geometry once at init from the plot height,
   // so creating the plots before layout settles breaks the raster.
