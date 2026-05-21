@@ -89,6 +89,12 @@ mx.text = function (
     typeof lbl === 'string' && /^-?\d+\.?\d*$/.test(lbl.trim()) &&
     typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
     y > Mx.b + Mx.text_h * 0.5 && y < Mx.b + Mx.text_h * 2
+  // Capture the ORIGINAL label length before any rewrite — sigplot used this
+  // length to compute the x it passed in (x = tick − round(origLen/2)*text_w),
+  // so recovering the tick position must use the same length. Rewriting first
+  // and then using lbl.length here would offset the tick by ±text_w whenever
+  // the rewrite changes the character count (e.g. "124." → "124.0").
+  const origLen = typeof lbl === 'string' ? lbl.length : 0
   if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
     // sigplot's trimlabel() appends a trailing "." to integer tick labels.
     // On the x-axis (MHz) keep one decimal place ("344." → "344.0") so labels
@@ -103,7 +109,7 @@ mx.text = function (
     y += Mx.text_h * 1.0
     const ctx = Mx.canvas?.getContext('2d')
     if (ctx && typeof Mx.text_w === 'number') {
-      const tickX = x + Math.round(lbl.length / 2) * Mx.text_w
+      const tickX = x + Math.round(origLen / 2) * Mx.text_w
       const measuredW = ctx.measureText(lbl).width
       x = tickX - measuredW / 2
     }
@@ -426,9 +432,15 @@ const visibleBands = computed(() => {
 })
 
 // Vertical tick lines drawn in the bottom label gutter, one per frequency
-// label (every 0.1 MHz — matches the xdiv we push to sigplot in the spectrum
-// watch). Positions are 0..100% across the data box, same window math as
-// visibleBands so zoom keeps them aligned with the labels sigplot draws.
+// label drawn by sigplot. Positions are 0..100% across the data box, same
+// window math as visibleBands.
+//
+// Step size mirrors sigplot's mx.tics() nice-number selection (mx.js:2834-2889)
+// applied to the VISIBLE (zoom-aware) window with the SAME xdiv we pushed to
+// sigplot in the spectrum watch — full-span / 0.1 MHz. At full zoom that
+// produces 0.1 MHz steps; when zoomed in, sigplot picks a finer nice number
+// (0.05, 0.02, 0.01…) for its labels, and we must match so every label gets a
+// tick (not just the labels that happen to land on 0.1 MHz multiples).
 const freqTicks = computed(() => {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
@@ -442,7 +454,23 @@ const freqTicks = computed(() => {
     winHi = center + halfWin
   }
   const w = winHi - winLo
-  const stepHz = 0.1 * HZ_PER_MHZ
+  const fullSpanMHz = (hi - lo) / HZ_PER_MHZ
+  const ndiv = Math.max(2, Math.round(fullSpanMHz / 0.1))
+  const winMHz = w / HZ_PER_MHZ
+  // mx.tics nice-number pick: sig = 10^floor(log10(winMHz/ndiv)); ddf =
+  // (winMHz/ndiv)/sig; dtic = {1, 2, 2.5, 5, 10} * sig based on ddf bands.
+  const df = winMHz / ndiv
+  const nsig = df < 1 ? Math.ceil(Math.log10(Math.max(df, 1e-36))) - 1
+                      : Math.floor(Math.log10(Math.max(df, 1e-36)))
+  const sig = Math.pow(10, nsig)
+  const ddf = df / sig
+  let dticMHz: number
+  if (ddf < 1.75) dticMHz = sig
+  else if (ddf < 2.25) dticMHz = 2.0 * sig
+  else if (ddf < 3.5) dticMHz = 2.5 * sig
+  else if (ddf < 7.0) dticMHz = 5.0 * sig
+  else dticMHz = 10.0 * sig
+  const stepHz = dticMHz * HZ_PER_MHZ
   const first = Math.ceil(winLo / stepHz) * stepHz
   const ticks: { key: string; leftPct: number }[] = []
   for (let f = first; f <= winHi; f += stepHz) {
@@ -788,12 +816,18 @@ function computeDesiredBins(): number {
   return 1 << Math.ceil(Math.log2(target))
 }
 let lastRequestedBins = 0
+let _fftSizeDebounce: ReturnType<typeof setTimeout> | null = null
 function publishDesiredBins() {
   const n = computeDesiredBins()
   if (n === lastRequestedBins) return
   lastRequestedBins = n
   store.requestFftSize(n)
 }
+function scheduleDesiredBins() {
+  if (_fftSizeDebounce) clearTimeout(_fftSizeDebounce)
+  _fftSizeDebounce = setTimeout(publishDesiredBins, 250)
+}
+
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
   if (subsize) {
@@ -1042,6 +1076,7 @@ function initPlots() {
     // (side-panel toggle, window resize, browser zoom) that changed the FFT
     // bin count would force a buildPipes() on the next frame, wiping the
     // waterfall history. Bin count is fixed at mount time.
+    // (Reverted from d9964d3 — see commit 10baf9b for the rationale.)
   })
   ro.observe(specEl.value as HTMLElement)
   ro.observe(wfEl.value as HTMLElement)
@@ -1143,6 +1178,26 @@ watch(
     if (now - lastRowMs >= WF_ROW_MIN_MS) {
       lastRowMs = now
       wfPlot.push(wfUuid, frame.bins)
+      // sigplot's Layer2D push only writes the layer's advancing time-window
+      // (this.ymin/this.ymax) back into Mx.stk when Mx.level === 0
+      // (sigplot.layer2d.js:409-414). When the user has zoomed, Mx.level > 0
+      // and the stack entry stays pinned to the y-window captured at zoom
+      // time. As new rows come in, the layer's effective time-window drifts
+      // forward, but the zoom level keeps showing the old window — visible
+      // symptom is an empty band growing up from the bottom of the
+      // waterfall. Mirror the stk[0] update into the active level so the zoom
+      // window tracks live data.
+      const wfMx = (wfPlot as unknown as {
+        _Mx: { level: number; stk: Array<{ ymin: number; ymax: number }> }
+        _Gx: { lyr: Array<{ ymin: number; ymax: number }> }
+      })._Mx
+      const wfGx = (wfPlot as unknown as {
+        _Gx: { lyr: Array<{ ymin: number; ymax: number }> }
+      })._Gx
+      if (wfMx.level > 0 && wfGx.lyr.length > 0 && wfMx.stk[wfMx.level]) {
+        wfMx.stk[wfMx.level].ymin = wfGx.lyr[0].ymin
+        wfMx.stk[wfMx.level].ymax = wfGx.lyr[0].ymax
+      }
     }
 
     // Spectrum line: keep the latest frame, redraw once per animation frame.
@@ -1242,7 +1297,8 @@ watch([zmin, zmax], ([lo, hi]) => {
 // Bin count is intentionally NOT refreshed — asking the backend for more bins
 // changes the spectrum frame's bins.length, which triggers buildPipes() and
 // wipes the waterfall history. At high zoom the raster becomes pixelated, but
-// the trace stays sharp and the history is preserved.
+// the trace stays sharp and the history is preserved. (Reverted from
+// d9964d3 — see commit 10baf9b for the rationale.)
 watch(zoom, () => {
   applyZoom()
 })
