@@ -119,8 +119,8 @@
   -webkit-appearance: none;
   appearance: none;
   height: 3px;
-  background: #c8ff00;
-  border-radius: 2px;
+  background: transparent;
+  border: none;
 }
 
 .sdr-wf-slider::-moz-range-track {
