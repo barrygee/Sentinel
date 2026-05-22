@@ -599,9 +599,10 @@ const tickGutterStyle = computed(() => ({
 }))
 
 // Inline style for the known-frequency label overlay — a zero-height strip
-// whose bottom edge sits ON the first dB gridline above the floor; each marker
-// is centred vertically on that line (translateY(50%) in CSS). Horizontal
-// insets match the data box.
+// whose bottom edge sits one division up from the data-box floor; each marker
+// is centred vertically on that line (translateY(50%) in CSS). The vertical
+// anchor is a fixed fraction of the data box (see syncBandInset) so the labels
+// stay put when the Min/Max sliders move. Horizontal insets match the data box.
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
@@ -719,17 +720,18 @@ function syncBandInset() {
     const dbFromBottom = TARGET_DB - SPEC_YMIN_DB
     bandHeightPx.value = Math.max(20, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 4)
   }
-  // Freq labels are centred on the first horizontal dB gridline above the
-  // floor. Gridlines step by (zmax-zmin)/|ydiv| dB — the SAME ydiv we push to
-  // sigplot in applySpecRange(). The data box spans zmax..zmin over mx.t..mx.b,
-  // so a gridline `dbAboveFloor` above zmin sits that fraction of the box up
-  // from mx.b; convert to a distance from the element bottom (+ height−b gutter).
-  const liveSpanDb = zmax.value - zmin.value
-  if (dataBoxHeightPx > 0 && liveSpanDb > 0) {
-    const ndiv = Math.max(1, Math.round(liveSpanDb / 20))
-    const stepDb = liveSpanDb / ndiv
-    const pxPerDb = dataBoxHeightPx / liveSpanDb
-    const gridlineFromBoxBottomPx = stepDb * pxPerDb
+  // Known-freq labels (TRANSATLANTIC etc.) anchor one division up from the
+  // data-box floor. This MUST be pinned to a FIXED fraction of the data box,
+  // NOT the live (zmax-zmin) slider span: the data box is a fixed pixel
+  // rectangle that always maps onto whatever range the Min/Max sliders set, so
+  // deriving the anchor from the live span makes the labels slide up/down as
+  // the user drags the sliders. Use the STATIC device dB range (same constants
+  // the band overlay uses) so the labels hold their vertical position.
+  if (dataBoxHeightPx > 0) {
+    const staticSpanDb = SPEC_YMAX_DB - SPEC_YMIN_DB
+    const ndiv = Math.max(1, Math.round(staticSpanDb / 20))
+    // One division above the floor = 1/ndiv of the data-box height.
+    const gridlineFromBoxBottomPx = dataBoxHeightPx / ndiv
     firstGridlineFromBottomPx.value =
       Math.max(0, Math.round(gridlineFromBoxBottomPx + (mx.height - mx.b)))
   }
