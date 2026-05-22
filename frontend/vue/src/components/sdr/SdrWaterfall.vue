@@ -252,15 +252,34 @@ const zminSlider = computed({
   set: (v: number) => { zmin.value = -v },
 })
 
-// ── Zoom — horizontal (frequency) zoom into the centre of the span ───────────
+// ── Zoom — horizontal (frequency) zoom into the selected frequency ───────────
 // 1 = full span (no zoom); ZOOM_MAX = tightest. The visible window is the full
-// span / zoom, centred on the tuned frequency, applied to BOTH plots so the
-// spectrum and waterfall stay aligned. SigPlot's zoom({x},{x}, continuous:true)
-// updates the current zoom level in place (no zoom-stack growth); zoom === 1
-// calls unzoom() to restore the natural full-span view.
+// span / zoom, centred on the SELECTED (tuned) frequency — store.currentFreqHz,
+// which may sit anywhere in the span when auto-centre is off — and applied to
+// BOTH plots so the spectrum and waterfall stay aligned. SigPlot's
+// zoom({x},{x}, continuous:true) updates the current zoom level in place (no
+// zoom-stack growth); zoom === 1 calls unzoom() to restore the full-span view.
 const ZOOM_MIN = 1
 const ZOOM_MAX = 50
 const zoom = ref(ZOOM_MIN)
+
+// The visible (zoom-aware) frequency window for the current span. Centred on
+// the selected frequency, then clamped so the window never extends past the
+// span edges (zooming into a near-edge frequency slides the window inward
+// rather than showing empty space outside the data). At zoom <= 1 this is the
+// full span. Single source of truth for applyZoom() AND every overlay computed
+// (visibleBands / freqTicks / visibleKnownFreqs / onPlotMouseUp) so the trace
+// and overlays always agree on what's on screen.
+function zoomWindowHz(lo: number, hi: number): { winLo: number; winHi: number } {
+  if (zoom.value <= ZOOM_MIN || hi <= lo) return { winLo: lo, winHi: hi }
+  const win = (hi - lo) / zoom.value
+  const halfWin = win / 2
+  // Selected frequency; fall back to the span midpoint if not yet known.
+  const sel = store.currentFreqHz || (lo + hi) / 2
+  // Clamp the centre so [centre-halfWin, centre+halfWin] stays inside [lo, hi].
+  const center = Math.min(hi - halfWin, Math.max(lo + halfWin, sel))
+  return { winLo: center - halfWin, winHi: center + halfWin }
+}
 
 function applyZoom() {
   const lo = spanStartHz.value
@@ -274,20 +293,31 @@ function applyZoom() {
     try { wfPlot?.unzoom() } catch { /* noop */ }
     return
   }
-  // Window centred on the tuned centre frequency (midpoint of the span).
-  const center = (lo + hi) / 2
-  const halfWin = (hi - lo) / (2 * zoom.value)
-  const x1Hz = center - halfWin
-  const x2Hz = center + halfWin
+  // Window centred on the selected frequency, clamped to the span edges.
+  const { winLo: x1Hz, winHi: x2Hz } = zoomWindowHz(lo, hi)
   // The two plots are in DIFFERENT x-units (see comment near specAcc/wfAcc):
   // spectrum layer x is MHz (xstart=xstartMHz), waterfall layer x is Hz. Pass
   // each plot its own units — otherwise the spectrum zooms to a window outside
   // its data range and renders blank.
   const x1MHz = x1Hz / HZ_PER_MHZ
   const x2MHz = x2Hz / HZ_PER_MHZ
+  // The zoomed window MUST live on a zoom level ABOVE the base (Mx.level >= 1).
+  // sigplot's reload() (spectrum, every animation frame) and push() (waterfall,
+  // every frame) re-run scale_base() — which overwrites stk[Mx.level] with the
+  // full data span — but ONLY when Mx.level === 0 (sigplot.js:2225 / :2326). If
+  // we zoom in continuous mode while still at level 0, our off-centre window is
+  // written into stk[0] and the very next frame flattens it back to the full
+  // span: the visible symptom is the view snapping to the span centre.
+  //
+  // So: unzoom to the base level first, then do a NON-continuous zoom. With
+  // continuous:false sigplot PUSHES a new level (sigplot.js:3304-3312), leaving
+  // Mx.level >= 1 where reload()/push() won't touch the window. Re-running this
+  // on every slider tick keeps the stack one level deep (unzoom pops back to 0).
   // y left undefined => keep the full vertical (dB / history) range.
-  try { specPlot?.zoom({ x: x1MHz }, { x: x2MHz }, true) } catch { /* noop */ }
-  try { wfPlot?.zoom({ x: x1Hz }, { x: x2Hz }, true) } catch { /* noop */ }
+  try { specPlot?.unzoom() } catch { /* noop */ }
+  try { wfPlot?.unzoom() } catch { /* noop */ }
+  try { specPlot?.zoom({ x: x1MHz }, { x: x2MHz }, false) } catch { /* noop */ }
+  try { wfPlot?.zoom({ x: x1Hz }, { x: x2Hz }, false) } catch { /* noop */ }
 }
 // Waterfall colour auto-scale window (frames). sigplot's autol:N recomputes
 // the z colour range every ~N frames. A small N (was 5) chases the noise
@@ -424,14 +454,7 @@ const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return []
-  let winLo = lo
-  let winHi = hi
-  if (zoom.value > ZOOM_MIN) {
-    const center = (lo + hi) / 2
-    const halfWin = (hi - lo) / (2 * zoom.value)
-    winLo = center - halfWin
-    winHi = center + halfWin
-  }
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
   const w = winHi - winLo
   // All markers sit on a single row by default. The CSS uses `flex-end` and
   // `flex-wrap` on the overlay so when labels would overlap, the browser wraps
@@ -503,14 +526,7 @@ const visibleBands = computed(() => {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return []
-  let winLo = lo
-  let winHi = hi
-  if (zoom.value > ZOOM_MIN) {
-    const center = (lo + hi) / 2
-    const halfWin = (hi - lo) / (2 * zoom.value)
-    winLo = center - halfWin
-    winHi = center + halfWin
-  }
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
   const w = winHi - winLo
   return bandPlan.value
     .filter((b) => b.endHz > winLo && b.startHz < winHi)
@@ -540,14 +556,7 @@ const freqTicks = computed(() => {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return []
-  let winLo = lo
-  let winHi = hi
-  if (zoom.value > ZOOM_MIN) {
-    const center = (lo + hi) / 2
-    const halfWin = (hi - lo) / (2 * zoom.value)
-    winLo = center - halfWin
-    winHi = center + halfWin
-  }
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
   const w = winHi - winLo
   const fullSpanMHz = (hi - lo) / HZ_PER_MHZ
   const ndiv = Math.max(2, Math.round(fullSpanMHz / 0.1))
@@ -661,16 +670,10 @@ function onPlotMouseUp(e: MouseEvent) {
   let frac = (e.clientX - dataLeft) / dataWidth
   frac = Math.min(1, Math.max(0, frac))
   // Account for an active horizontal zoom: the visible window is the full span
-  // / zoom, centred on the tuned frequency. Map the fraction within that
-  // window, not the full span, so a click lands on what the user sees.
-  let winLo = lo
-  let winHi = hi
-  if (zoom.value > ZOOM_MIN) {
-    const center = (lo + hi) / 2
-    const halfWin = (hi - lo) / (2 * zoom.value)
-    winLo = center - halfWin
-    winHi = center + halfWin
-  }
+  // / zoom, centred on the selected frequency and clamped to the span. Map the
+  // fraction within that window, not the full span, so a click lands on what
+  // the user sees.
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
   const freqHz = Math.round(winLo + frac * (winHi - winLo))
   if (store.autoCenterWaterfallOnTune) {
     // Auto-centre ON: retune the hardware so the clicked freq becomes the new
@@ -1456,6 +1459,17 @@ watch([zmin, zmax], ([lo, hi]) => {
 watch(zoom, () => {
   applyZoom()
   if (store.fullWaterfallUpdate) scheduleDesiredBins()
+})
+
+// Re-window when the selected frequency moves while zoomed in. Retuning with
+// auto-centre ON changes the span centre, which rebuilds the layers (frame
+// watcher → buildPipes → applyZoom). But with auto-centre OFF the span centre
+// is unchanged — only the demod target (currentFreqHz) moves — so without this
+// the zoom viewport would stay pinned to the previous frequency. No-op at
+// zoom <= 1 (applyZoom takes the unzoom path). The overlay computeds already
+// track currentFreqHz reactively via zoomWindowHz().
+watch(() => store.currentFreqHz, () => {
+  if (zoom.value > ZOOM_MIN) applyZoom()
 })
 
 // Toggling Full Waterfall Update ON mid-session: refresh the bin target
