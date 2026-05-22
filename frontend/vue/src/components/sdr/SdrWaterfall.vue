@@ -106,13 +106,9 @@ mx.text = function (
     lbl = lbl + '.0'
   }
   if (isXAxisLabel) {
-    y += Mx.text_h * 1.0
-    const ctx = Mx.canvas?.getContext('2d')
-    if (ctx && typeof Mx.text_w === 'number') {
-      const tickX = x + Math.round(origLen / 2) * Mx.text_w
-      const measuredW = ctx.measureText(lbl).width
-      x = tickX - measuredW / 2
-    }
+    // X-axis freq labels are rendered as HTML in the template (.sdr-wf-freq-label)
+    // so each label gets its own background box. Skip the canvas draw entirely.
+    return
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
@@ -566,9 +562,16 @@ const freqTicks = computed(() => {
   else dticMHz = 10.0 * sig
   const stepHz = dticMHz * HZ_PER_MHZ
   const first = Math.ceil(winLo / stepHz) * stepHz
-  const ticks: { key: string; leftPct: number }[] = []
+  // Decimal places needed to render dticMHz without rounding (e.g. 0.025 → 3).
+  const decimals = Math.max(1, Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)))
+  const ticks: { key: string; leftPct: number; label: string }[] = []
   for (let f = first; f <= winHi; f += stepHz) {
-    ticks.push({ key: `t-${f}`, leftPct: ((f - winLo) / w) * 100 })
+    const mhz = f / HZ_PER_MHZ
+    ticks.push({
+      key: `t-${f}`,
+      leftPct: ((f - winLo) / w) * 100,
+      label: mhz.toFixed(decimals),
+    })
   }
   return ticks
 })
@@ -1547,6 +1550,12 @@ onBeforeUnmount(() => {
           class="sdr-wf-tick"
           :style="{ left: t.leftPct + '%' }"
         ></div>
+        <span
+          v-for="t in freqTicks"
+          :key="`l-${t.key}`"
+          class="sdr-wf-freq-label"
+          :style="{ left: t.leftPct + '%' }"
+        >{{ t.label }}</span>
       </div>
       <div
         v-if="store.showKnownFreqs && visibleKnownFreqs.length > 0"

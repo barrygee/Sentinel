@@ -238,6 +238,24 @@
   transform: translateX(-1px);
 }
 
+/* Per-tick frequency label rendered as an individual HTML element so each one
+ * gets its own dark background box (matches the band-plan strip's background).
+ * Sits at the bottom of the freq-label gutter with a small top offset to
+ * create a visible gap between the band-plan strip and the labels. */
+.sdr-wf-freq-label {
+  position: absolute;
+  bottom: 2px;
+  transform: translateX(-50%);
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 5px 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Known-frequency label overlay — matches the map's "SET LOCATION" pop-up:
  * a green SVG ring with a white dot, "punching through" the left edge of a
  * dark rounded box via a radial CSS mask. Same colour, weight, letter-spacing
@@ -249,7 +267,6 @@
   box-sizing: content-box;
   pointer-events: none;
   z-index: 11;
-  background: rgba(0, 0, 0, 0.45);
 }
 
 .sdr-wf-known-marker {
@@ -268,12 +285,18 @@
 
 .sdr-wf-known-marker-label {
   position: relative;
-  margin-left: 4px;
-  padding: 0;
+  /* Pull the pill left so the ring overlaps its left edge (SET LOCATION style).
+   * The radial mask below cuts a 7px hole at the left edge so the ring shows
+   * through cleanly instead of being covered by the pill. */
+  margin-left: -7px;
+  padding: 6px 8px 6px 12px;
   font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
   text-transform: uppercase;
   color: #ffffff;
   white-space: nowrap;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-mask-image: radial-gradient(circle 7px at 0 50%, transparent 7px, black 7.5px);
+  mask-image: radial-gradient(circle 7px at 0 50%, transparent 7px, black 7.5px);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
