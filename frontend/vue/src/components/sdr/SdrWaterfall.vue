@@ -178,6 +178,11 @@ const bandInsetTopPx = ref(0)
 // with the -100 dB horizontal gridline in the spectrum (data-box-relative).
 const bandHeightPx = ref(0)
 
+// Pixel distance from the BOTTOM of .sdr-wf-spectrum up to the first horizontal
+// dB gridline above the floor (one ydiv step above zmin). The freq labels are
+// centred on this line.
+const firstGridlineFromBottomPx = ref(0)
+
 // Style for the band-plan overlay (absolute-positioned div sitting on top of
 // the spectrum canvas). Insets follow the live data-box rectangle so the
 // strip always aligns with the plot's tick labels regardless of font scaling.
@@ -584,13 +589,14 @@ const tickGutterStyle = computed(() => ({
   height: `${bandInsetBottomPx.value}px`,
 }))
 
-// Inline style for the known-frequency label overlay — sits at the bottom of
-// the spectrum data box, just above sigplot's x-axis label gutter (the
-// band-plan strip lives at the TOP of the spectrum now, not the bottom).
+// Inline style for the known-frequency label overlay — a zero-height strip
+// whose bottom edge sits ON the first dB gridline above the floor; each marker
+// is centred vertically on that line (translateY(50%) in CSS). Horizontal
+// insets match the data box.
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `${bandInsetBottomPx.value + (store.showBandPlan && visibleBands.value.length > 0 ? bandHeightPx.value : 0)}px`,
+  bottom: `${firstGridlineFromBottomPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -709,6 +715,20 @@ function syncBandInset() {
     const TARGET_DB = -100
     const dbFromBottom = TARGET_DB - SPEC_YMIN_DB
     bandHeightPx.value = Math.max(20, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 4)
+  }
+  // Freq labels are centred on the first horizontal dB gridline above the
+  // floor. Gridlines step by (zmax-zmin)/|ydiv| dB — the SAME ydiv we push to
+  // sigplot in applySpecRange(). The data box spans zmax..zmin over mx.t..mx.b,
+  // so a gridline `dbAboveFloor` above zmin sits that fraction of the box up
+  // from mx.b; convert to a distance from the element bottom (+ height−b gutter).
+  const liveSpanDb = zmax.value - zmin.value
+  if (dataBoxHeightPx > 0 && liveSpanDb > 0) {
+    const ndiv = Math.max(1, Math.round(liveSpanDb / 20))
+    const stepDb = liveSpanDb / ndiv
+    const pxPerDb = dataBoxHeightPx / liveSpanDb
+    const gridlineFromBoxBottomPx = stepDb * pxPerDb
+    firstGridlineFromBottomPx.value =
+      Math.max(0, Math.round(gridlineFromBoxBottomPx + (mx.height - mx.b)))
   }
 }
 
@@ -1181,7 +1201,7 @@ function initPlots() {
       get() { return _b },
       set(v: number) {
         const th = Mx.text_h || 12
-        const desired = ((plot as unknown as { _Mx: { height: number } })._Mx.height) - Math.round(th * 2.5)
+        const desired = ((plot as unknown as { _Mx: { height: number } })._Mx.height) - Math.round(th * 3.2)
         _b = Math.min(v, desired)
       },
     })
@@ -1421,6 +1441,8 @@ watch([zmin, zmax], ([lo, hi]) => {
   }
   autoScale.value = false
   applySpecRange(lo, hi)
+  // Re-measure: the freq-label gridline position depends on the live dB range.
+  syncBandInset()
 })
 
 // Moving the Zoom slider re-windows both plots around the tuned centre. When

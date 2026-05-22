@@ -239,16 +239,15 @@
 }
 
 /* Per-tick frequency label rendered as an individual HTML element so each one
- * gets its own dark background box (matches the band-plan strip's background).
- * Sits at the bottom of the freq-label gutter with a small top offset to
- * create a visible gap between the band-plan strip and the labels. */
+ * gets its own opaque background box. Sits at the bottom of the freq-label
+ * gutter, centred horizontally on the tick. */
 .sdr-wf-freq-label {
   position: absolute;
-  bottom: 2px;
+  bottom: 0;
   transform: translateX(-50%);
   font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
   color: #ffffff;
-  background: rgba(0, 0, 0, 0.75);
+  background: #0a0d14;
   padding: 5px 9px;
   white-space: nowrap;
   pointer-events: none;
@@ -259,24 +258,25 @@
 /* Known-frequency label overlay — matches the map's "SET LOCATION" pop-up:
  * a green SVG ring with a white dot, "punching through" the left edge of a
  * dark rounded box via a radial CSS mask. Same colour, weight, letter-spacing
- * and rhythm as the map control so the SDR view feels of a piece with it. */
+ * and rhythm as the map control so the SDR view feels of a piece with it.
+ * Zero-height strip: its bottom edge sits ON the first dB gridline above the
+ * floor (knownFreqOverlayStyle pushes `bottom` in); each marker is centred
+ * vertically on that edge. */
 .sdr-wf-known-overlay {
   position: absolute;
-  height: 18px;
-  padding: 6px 0;
-  box-sizing: content-box;
+  height: 0;
   pointer-events: none;
   z-index: 11;
 }
 
 .sdr-wf-known-marker {
   position: absolute;
-  top: 0;
   bottom: 0;
   display: flex;
   align-items: center;
-  /* Centre the ring on the frequency (`left` is the freq pixel). */
-  transform: translate(-7px, 0);
+  /* Centre the ring on the frequency (`left` is the freq pixel) and centre the
+   * marker vertically on the gridline (the overlay's bottom edge). */
+  transform: translate(-7px, 50%);
 }
 
 .sdr-wf-known-marker-ring {
