@@ -703,8 +703,16 @@ uniform ${le} ${ce} u_${Se};
             this._effectiveSr=this._sampleRate/decim;
             if(decim>1){const r=this._decIq(iA,qA,decim);iA=r.iD;qA=r.qD;}
             if(this._offsetHz!==0)this._mix(iA,qA);
+            // Channel low-pass filter — isolates the selected frequency to the
+            // tuning-bar span. It MUST run whenever the bar is narrower than the
+            // IQ stream; skipping it lets the demodulator see the whole FFT span
+            // so every signal in range plays at once. (A former bwRatio<0.35
+            // skip — a CPU shortcut — caused exactly that for wide bars.) The
+            // pre-LPF integer decimator already caps the FIR's input rate, so
+            // running it unconditionally is affordable. Only skip when the bar
+            // genuinely covers the whole stream (bwRatio>=~1, nothing to filter).
             const bwRatio=this._bwHz>0?this._bwHz/this._effectiveSr:1;
-            const{iF,qF}=bwRatio>0&&bwRatio<0.35?this._lpf(iA,qA):{iF:iA,qF:qA};
+            const{iF,qF}=bwRatio>0&&bwRatio<0.95?this._lpf(iA,qA):{iF:iA,qF:qA};
             const audio=this._demod(iF,qF);
             const cap=this._pcmBuf.length;
             for(let k=0;k<audio.length;k++){
