@@ -120,39 +120,11 @@ const store = useSdrStore()
 const settings = useSettingsStore()
 
 // ── RF band plan ─────────────────────────────────────────────────────────────
-// Reference allocations used to label the spectrum (e.g. "Medium Wave"). Comes
-// from the sdr.bandPlan config setting (seeded from backend/default_config.json);
-// this built-in list is the fallback so the overlay works even before the DB
-// has the row (existing installs were seeded before bandPlan was added).
+// Reference allocations used to label the spectrum (e.g. "Medium Wave"). Sourced
+// from the sdr.bandPlan config setting (seeded from backend/default_config.json).
 interface RfBand { name: string; startHz: number; endHz: number }
-const DEFAULT_BANDS: RfBand[] = [
-  { name: 'Longwave', startHz: 148500, endHz: 283500 },
-  { name: 'Medium Wave', startHz: 526500, endHz: 1606500 },
-  { name: '120m', startHz: 2300000, endHz: 2495000 },
-  { name: '90m', startHz: 3200000, endHz: 3400000 },
-  { name: '75m', startHz: 3900000, endHz: 4000000 },
-  { name: '60m', startHz: 4750000, endHz: 4995000 },
-  { name: '49m', startHz: 5900000, endHz: 6200000 },
-  { name: '40m', startHz: 7200000, endHz: 7450000 },
-  { name: '31m', startHz: 9400000, endHz: 9900000 },
-  { name: '25m', startHz: 11600000, endHz: 12100000 },
-  { name: '22m', startHz: 13570000, endHz: 13870000 },
-  { name: '19m', startHz: 15100000, endHz: 15800000 },
-  { name: '16m', startHz: 17480000, endHz: 17900000 },
-  { name: '13m', startHz: 21450000, endHz: 21850000 },
-  { name: '11m', startHz: 25670000, endHz: 26100000 },
-  { name: 'CB', startHz: 26965000, endHz: 27405000 },
-  { name: '10m Amateur', startHz: 28000000, endHz: 29700000 },
-  { name: '6m Amateur', startHz: 50000000, endHz: 54000000 },
-  { name: 'FM Broadcast', startHz: 87500000, endHz: 108000000 },
-  { name: 'Air Band', startHz: 108000000, endHz: 137000000 },
-  { name: '2m Amateur', startHz: 144000000, endHz: 148000000 },
-  { name: 'Marine VHF', startHz: 156000000, endHz: 162025000 },
-  { name: 'MilAir', startHz: 225000000, endHz: 400000000 },
-  { name: '70cm Amateur', startHz: 430000000, endHz: 440000000 },
-]
 const bandPlan = computed<RfBand[]>(() =>
-  settings.getSetting<RfBand[]>('sdr', 'bandPlan', DEFAULT_BANDS),
+  settings.getSetting<RfBand[]>('sdr', 'bandPlan', []),
 )
 
 // Live frequency span of the current spectrum frame (center ± sample_rate/2),
