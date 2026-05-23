@@ -29,10 +29,24 @@ logger = logging.getLogger(__name__)
 
 # Default FFT parameters
 DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
+MIN_FFT_SIZE        = 1024   # client-requested floor (one bin / ~1 device px on small displays)
+MAX_FFT_SIZE        = 32768  # ceiling: CPU cost grows with FFT size. 32k keeps
+                             # the waterfall crisp out to ~16x zoom on a 2000-px
+                             # canvas; SDR++ uses 65k+, but 32k is the sweet
+                             # spot between Pi CPU load and visual fidelity.
+                             # Tried 65536 — Pi can't keep up: FFT frames drop
+                             # and audio chops on wide bandwidths.
 DEFAULT_SAMPLE_RATE = 2_048_000
-# Read ~85ms worth of IQ per chunk (174080 bytes @ 2.048MHz).
-READ_CHUNK_SAMPLES  = 87040  # ~85ms @ 2.048MHz
-READ_CHUNK_BYTES    = READ_CHUNK_SAMPLES * 2  # 2 bytes per IQ pair
+# One spectrum frame is produced per IQ read. Sizing the read by a fixed
+# SAMPLE COUNT made the frame rate collapse whenever the sample rate dropped:
+# changing bandwidth snaps the rtl_tcp sample rate down (e.g. 500k BW → 300k
+# Hz), so a fixed 87040-sample read spanned ~290ms instead of ~42ms → ~3 fps
+# → jumpy waterfall ("it broke when I changed the bandwidth"). Instead, size
+# the read by TIME so the frame rate stays ~constant regardless of sample
+# rate. ~40ms ≈ 25 fps, matching the client's waterfall cap.
+READ_CHUNK_TARGET_MS = 40
+READ_CHUNK_MIN_SAMPLES = 4096       # floor: must stay ≥ fft_size and efficient
+READ_CHUNK_MAX_SAMPLES = 131072     # ceiling: bound latency / memory
 
 # Connection cache: key = "host:port"
 _connections: dict[str, RtlTcpConnection] = {}
@@ -68,6 +82,15 @@ class RtlTcpConnection:
                 logger.info("Connected to rtl_tcp at %s:%d", self.host, self.port)
                 # rtl_tcp sends a 12-byte magic header on connect — discard it
                 await asyncio.wait_for(self.reader.read(12), timeout=3.0)
+                # ALWAYS configure the device immediately. rtl_tcp otherwise
+                # streams at its own default rate (which this Pi can't sustain
+                # over USB/network → ~3 fps, jumpy) until the client happens to
+                # send a sample_rate command. Pushing our defaults here makes
+                # every connect path produce a healthy stream from the start.
+                # (_send_command needs connected+writer, both set above; we're
+                # inside _lock but _send_command doesn't take it — safe.)
+                await self._send_command(0x02, self.sample_rate)   # set sample rate
+                await self._send_command(0x01, self.center_hz)     # set frequency
             except Exception as exc:
                 self.connected = False
                 raise ConnectionError(f"Cannot connect to rtl_tcp at {self.host}:{self.port}: {exc}") from exc
@@ -113,12 +136,38 @@ class RtlTcpConnection:
         self.gain_db = gain_db
         self.gain_auto = False
 
+    def set_fft_size(self, n: int) -> None:
+        """Snap n to a power of two within [MIN_FFT_SIZE, MAX_FFT_SIZE]."""
+        if n < MIN_FFT_SIZE:
+            n = MIN_FFT_SIZE
+        elif n > MAX_FFT_SIZE:
+            n = MAX_FFT_SIZE
+        # Round UP to next power of two so canvas-derived requests aren't halved
+        # (frontend already rounds up to ensure ≥1 device-px per bin; rounding
+        # down here would undo that and produce a chunky raster on wide displays).
+        if n & (n - 1):
+            p = 1 << n.bit_length()
+        else:
+            p = n
+        if p > MAX_FFT_SIZE:
+            p = MAX_FFT_SIZE
+        self.fft_size = p
+
     async def read_iq_chunk(self) -> bytes:
-        """Read one chunk of IQ pairs (2 bytes each) from rtl_tcp."""
+        """Read ~READ_CHUNK_TARGET_MS of IQ, sized by the CURRENT sample rate.
+
+        Sizing by time (not a fixed sample count) keeps the spectrum frame
+        rate ~constant when the sample rate changes with bandwidth.
+        """
         if not self.connected or not self.reader:
             raise ConnectionError("Not connected")
+        sr = self.sample_rate or DEFAULT_SAMPLE_RATE
+        n = int(sr * READ_CHUNK_TARGET_MS / 1000)
+        n = min(READ_CHUNK_MAX_SAMPLES, n)
+        # Floor must stay ≥ fft_size so compute_fft_frame has enough samples.
+        n = max(READ_CHUNK_MIN_SAMPLES, self.fft_size, n)
         data = await asyncio.wait_for(
-            self.reader.readexactly(READ_CHUNK_BYTES),
+            self.reader.readexactly(n * 2),  # 2 bytes per IQ pair
             timeout=10.0,
         )
         return data
@@ -311,11 +360,29 @@ def compute_fft_frame(
     sample_rate: int,
     center_hz: int,
 ) -> dict:
-    """Compute a spectrum frame from raw IQ bytes."""
-    iq = _iq_bytes_to_complex(raw_iq[:n_fft * 2])
-    windowed = iq * _hann_window(len(iq))
-    spectrum = np.fft.fftshift(np.fft.fft(windowed, n=n_fft))
-    power_db = 10.0 * np.log10(np.abs(spectrum) ** 2 + 1e-12)
+    """Compute a spectrum frame from raw IQ bytes.
+
+    Uses Welch-style averaging: the IQ chunk is split into as many length-n_fft
+    segments as fit, each is windowed and FFT'd, and the per-bin powers are
+    averaged. Averaging N segments drops noise variance by ~1/N (≈ 10·log10(N)
+    dB of smoothing) while leaving real signals where they are, matching SDR++
+    / GQRX behaviour and turning the grainy noise floor into a smooth band.
+    """
+    iq_all = _iq_bytes_to_complex(raw_iq)
+    n_avg = max(1, len(iq_all) // n_fft)
+    window = _hann_window(n_fft)
+    power_sum = np.zeros(n_fft, dtype=np.float64)
+    for k in range(n_avg):
+        seg = iq_all[k * n_fft:(k + 1) * n_fft] * window
+        spectrum = np.fft.fftshift(np.fft.fft(seg, n=n_fft))
+        power_sum += np.abs(spectrum) ** 2
+    power_avg = power_sum / n_avg
+    # Convert to dBFS: 0 dB = full-scale sine wave. With IQ normalised to ±1.0
+    # and a Hann window (coherent gain 0.5), a full-scale tone produces a bin
+    # magnitude of N/4, i.e. power N²/16. Subtract that to anchor 0 dBFS at
+    # the ADC ceiling, matching SDR#/SDR++/GQRX conventions.
+    fs_power_db = 10.0 * np.log10((n_fft ** 2) / 16.0)
+    power_db = 10.0 * np.log10(power_avg + 1e-12) - fs_power_db
     return {
         "type": "spectrum",
         "center_hz": center_hz,

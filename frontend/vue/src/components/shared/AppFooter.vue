@@ -1,7 +1,7 @@
 <template>
   <footer id="footer">
     <div id="footer-left">
-      <button id="map-sidebar-btn" aria-label="Toggle map sidebar" data-tooltip="SIDE PANEL"
+      <button v-show="!settingsStore.open" id="map-sidebar-btn" aria-label="Toggle map sidebar" data-tooltip="SIDE PANEL"
         :class="{ 'msb-btn-active': sidebarOpen }"
         @click="emit('toggle-sidebar')">
         <svg width="14" height="14" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -14,15 +14,6 @@
     <div id="footer-center"></div>
 
     <div id="footer-right">
-      <button id="docs-btn" aria-label="Documentation" data-tooltip="DOCUMENTATION"
-        @click="emit('toggle-docs')">
-        <svg width="17" height="17" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="2.5" y="1.5" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/>
-          <line x1="5" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <line x1="5" y1="7.5" x2="10" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-          <line x1="5" y1="10" x2="8" y2="10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-        </svg>
-      </button>
       <button id="settings-btn" aria-label="Settings" data-tooltip="SETTINGS"
         @click="settingsStore.togglePanel()">
         <svg width="18" height="18" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -42,7 +33,6 @@ const props = defineProps<{ sidebarOpen?: boolean }>()
 
 const emit = defineEmits<{
   'toggle-sidebar': []
-  'toggle-docs': []
 }>()
 
 const settingsStore = useSettingsStore()

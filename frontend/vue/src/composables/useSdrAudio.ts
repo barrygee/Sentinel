@@ -16,6 +16,10 @@ let _radioId: number | null = null
 let _ready = false
 let _mode = 'AM'
 let _squelch = -120
+// Demod frequency offset from the hardware centre (Hz). Non-zero only when
+// auto-centre is OFF and the user has clicked away from centre. Sent with every
+// IQ block (like _mode) so it survives worklet recreation.
+let _offsetHz = 0
 let _iqReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 // Recording state
@@ -35,15 +39,51 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
     constructor() {
         super();
         this._mode='AM'; this._squelch=-120; this._sampleRate=2048000;
-        this._pcmBuf=new Float32Array(48000*8); this._pcmWr=0; this._pcmRd=0; this._pcmLen=0;
-        this._preroll=Math.round(48000*0.4); this._buffering=true;
+        // Small ring + tight latency cap. IQ arrives over a WebSocket whose
+        // effective sample rate can drift slightly off the AudioContext's
+        // 48kHz output, so without a cap any net inflow > outflow grows the
+        // buffered audio without bound — the symptom is audio drifting
+        // seconds behind the waterfall. _maxBuffered is the target ceiling
+        // (≈150 ms); on overflow the read pointer is fast-forwarded to drop
+        // the oldest samples so playback stays close to real-time.
+        this._pcmBuf=new Float32Array(48000*1); this._pcmWr=0; this._pcmRd=0; this._pcmLen=0;
+        this._preroll=Math.round(48000*0.08); this._buffering=true;
+        this._maxBuffered=Math.round(48000*0.15);
         this._powerTick=0;
         this._squelchStateLast=false;
         this._wfmPrevI=1; this._wfmPrevQ=0; this._amDc=0;
         this._bwHz=0;
         this._deemphY=0;
+        // Fractional resampler state. Output rate is fixed at 48000 Hz; input
+        // rate (this._sampleRate) is whatever the dongle delivers — typically
+        // 1.024M / 1.536M / 1.792M / 2.048M, none integer multiples of 48000.
+        // Integer-D decimation produced a ~1.5% rate mismatch (e.g. 2.048M/43
+        // = 47628 Hz), so the playback ring buffer slowly over/underflowed and
+        // periodically dropped samples or re-prerolled — audible as jumpy
+        // WFM. _resPhase is a per-input-sample phase accumulator carried
+        // across blocks; _resPrev holds the last input sample for the linear
+        // interpolation that straddles block boundaries.
+        this._resPhase=0; this._resPrev=0;
+        // NCO frequency shift. When the user tunes off the hardware centre with
+        // auto-centre OFF, the wanted signal sits _offsetHz away from DC in the
+        // IQ stream. Mixing by e^(-j2πf n / sr) shifts it down to baseband so
+        // the existing demodulators (which assume the signal is at DC) work
+        // unchanged. _ncoPhase is a continuous accumulator (radians) carried
+        // across blocks so there is no phase discontinuity at block edges.
+        this._offsetHz=0;
+        this._ncoPhase=0;
         this._lpfTaps=null; this._lpfBw=0; this._lpfSr=0;
         this._lpfDelayI=null; this._lpfDelayQ=null; this._lpfPos=0;
+        // Pre-LPF integer IQ decimator. The 64-tap FIR in _lpf is O(64·N) per
+        // block — at 2.048 Msps that's ~262 M mul-adds/sec on the audio thread,
+        // enough to glitch WFM (wide BW → LPF active → full-rate FIR). Boxcar-
+        // decimating IQ by an integer factor F first reduces N by F and brings
+        // the bwRatio back above the LPF-skip threshold for wide modes like
+        // WFM. _effectiveSr is the rate AFTER this decimation; mix/LPF/demod
+        // and the post-demod fractional resample all use it instead of the raw
+        // hardware sample rate so timing stays correct.
+        this._iqDecim=1; this._effectiveSr=2048000;
+        this._iqDecimAccI=0; this._iqDecimAccQ=0; this._iqDecimCount=0;
         this._isRecording=false;
         this._recChunkSize=4800;
         this._recChunkBuf=new Float32Array(this._recChunkSize);
@@ -51,8 +91,8 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
         this._squelchOpen=false;
         this._squelchTail=0;
         this.port.onmessage=(ev)=>{
-            const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz}=ev.data;
-            if(type==='reset'){this._pcmWr=0;this._pcmRd=0;this._pcmLen=0;this._buffering=true;return;}
+            const{type,i,q,mode,squelch_dbfs,sample_rate,bandwidth_hz,offset_hz}=ev.data;
+            if(type==='reset'){this._pcmWr=0;this._pcmRd=0;this._pcmLen=0;this._buffering=true;this._resPhase=0;this._resPrev=0;this._iqDecimAccI=0;this._iqDecimAccQ=0;this._iqDecimCount=0;return;}
             if(type==='rec_start'){this._isRecording=true;this._recChunkPos=0;this._squelchOpen=false;this._squelchTail=0;this._squelchStateLast=false;return;}
             if(type==='rec_stop'){
                 this._isRecording=false;
@@ -63,18 +103,48 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
                 return;
             }
             if(type==='bw'){if(bandwidth_hz!==undefined)this._bwHz=bandwidth_hz;return;}
+            if(type==='offset'){if(offset_hz!==undefined)this._offsetHz=offset_hz;return;}
             if(type!=='iq')return;
             if(mode!==undefined)this._mode=mode;
             if(squelch_dbfs!==undefined)this._squelch=squelch_dbfs;
             if(sample_rate!==undefined)this._sampleRate=sample_rate;
-            const iA=new Float32Array(i),qA=new Float32Array(q);
-            const bwRatio=this._bwHz>0?this._bwHz/this._sampleRate:1;
-            const{iF,qF}=bwRatio>0&&bwRatio<0.35?this._lpf(iA,qA):{iF:iA,qF:qA};
+            if(offset_hz!==undefined)this._offsetHz=offset_hz;
+            let iA=new Float32Array(i),qA=new Float32Array(q);
+            // Choose integer IQ decimation so the LPF (if needed) runs over
+            // ≤~1 Msps and bwRatio stays in the cheap "skip LPF" zone for wide
+            // modes. Floor of 1.0 Msps keeps NFM/AM sharp; ceiling = factor 8.
+            const targetMaxSr=Math.max(this._bwHz*2.2, 1024000);
+            let decim=1;
+            while(decim<8 && this._sampleRate/(decim*2) >= targetMaxSr) decim*=2;
+            // Decimation factor changed mid-stream → drop carried partial
+            // accumulator and re-prime the fractional resampler so the audio
+            // ring doesn't see a sample-rate discontinuity.
+            if(decim!==this._iqDecim){
+                this._iqDecim=decim;
+                this._iqDecimAccI=0;this._iqDecimAccQ=0;this._iqDecimCount=0;
+                this._resPhase=0;this._resPrev=0;
+                this._lpfTaps=null; // force rebuild at new rate
+            }
+            this._effectiveSr=this._sampleRate/decim;
+            if(decim>1){const r=this._decIq(iA,qA,decim);iA=r.iD;qA=r.qD;}
+            if(this._offsetHz!==0)this._mix(iA,qA);
+            // Channel low-pass filter — isolates the selected frequency to the
+            // tuning-bar span. It MUST run whenever the bar is narrower than the
+            // IQ stream; skipping it lets the demodulator see the whole FFT span
+            // so every signal in range plays at once. (A former bwRatio<0.35
+            // skip — a CPU shortcut — caused exactly that for wide bars.) The
+            // pre-LPF integer decimator already caps the FIR's input rate, so
+            // running it unconditionally is affordable. Only skip when the bar
+            // genuinely covers the whole stream (bwRatio>=~1, nothing to filter).
+            const bwRatio=this._bwHz>0?this._bwHz/this._effectiveSr:1;
+            const{iF,qF}=bwRatio>0&&bwRatio<0.95?this._lpf(iA,qA):{iF:iA,qF:qA};
             const audio=this._demod(iF,qF);
             const cap=this._pcmBuf.length;
             for(let k=0;k<audio.length;k++){
-                if(this._pcmLen<cap){this._pcmBuf[this._pcmWr]=audio[k];this._pcmWr=(this._pcmWr+1)%cap;this._pcmLen++;}
+                this._pcmBuf[this._pcmWr]=audio[k];this._pcmWr=(this._pcmWr+1)%cap;
+                if(this._pcmLen<cap)this._pcmLen++;else this._pcmRd=(this._pcmRd+1)%cap;
             }
+            if(this._pcmLen>this._maxBuffered){const drop=this._pcmLen-this._maxBuffered;this._pcmRd=(this._pcmRd+drop)%cap;this._pcmLen=this._maxBuffered;}
             if(this._buffering&&this._pcmLen>=this._preroll)this._buffering=false;
             if(this._isRecording&&this._squelchOpen){
                 for(let k=0;k<audio.length;k++){
@@ -88,14 +158,21 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
         };
     }
     _buildLpf(cutHz,sr){const M=64,fc=cutHz/sr;const taps=new Float32Array(M+1);let sum=0;for(let n=0;n<=M;n++){const h=n===M/2?2*Math.PI*fc:Math.sin(2*Math.PI*fc*(n-M/2))/(n-M/2);const w=0.54-0.46*Math.cos(2*Math.PI*n/M);taps[n]=h*w;sum+=taps[n];}for(let n=0;n<=M;n++)taps[n]/=sum;return taps;}
-    _lpf(i,q){const sr=this._sampleRate,bw=this._bwHz;if(this._lpfTaps===null||this._lpfBw!==bw||this._lpfSr!==sr){this._lpfTaps=this._buildLpf(bw/2,sr);const M=this._lpfTaps.length;this._lpfDelayI=new Float32Array(M);this._lpfDelayQ=new Float32Array(M);this._lpfPos=0;this._lpfBw=bw;this._lpfSr=sr;}const taps=this._lpfTaps,M=taps.length;const dI=this._lpfDelayI,dQ=this._lpfDelayQ;const oI=new Float32Array(i.length),oQ=new Float32Array(q.length);let pos=this._lpfPos;for(let k=0;k<i.length;k++){dI[pos]=i[k];dQ[pos]=q[k];let sI=0,sQ=0;for(let j=0;j<M;j++){const p=(pos-j+M)%M;sI+=taps[j]*dI[p];sQ+=taps[j]*dQ[p];}oI[k]=sI;oQ[k]=sQ;pos=(pos+1)%M;}this._lpfPos=pos;return{iF:oI,qF:oQ};}
+    _lpf(i,q){const sr=this._effectiveSr,bw=this._bwHz;if(this._lpfTaps===null||this._lpfBw!==bw||this._lpfSr!==sr){this._lpfTaps=this._buildLpf(bw/2,sr);const M=this._lpfTaps.length;this._lpfDelayI=new Float32Array(M);this._lpfDelayQ=new Float32Array(M);this._lpfPos=0;this._lpfBw=bw;this._lpfSr=sr;}const taps=this._lpfTaps,M=taps.length;const dI=this._lpfDelayI,dQ=this._lpfDelayQ;const oI=new Float32Array(i.length),oQ=new Float32Array(q.length);let pos=this._lpfPos;for(let k=0;k<i.length;k++){dI[pos]=i[k];dQ[pos]=q[k];let sI=0,sQ=0;for(let j=0;j<M;j++){const p=(pos-j+M)%M;sI+=taps[j]*dI[p];sQ+=taps[j]*dQ[p];}oI[k]=sI;oQ[k]=sQ;pos=(pos+1)%M;}this._lpfPos=pos;return{iF:oI,qF:oQ};}
+    _mix(i,q){const n=i.length,sr=this._effectiveSr;const dPh=-2*Math.PI*this._offsetHz/sr;let ph=this._ncoPhase;for(let k=0;k<n;k++){const c=Math.cos(ph),s=Math.sin(ph);const re=i[k]*c-q[k]*s,im=i[k]*s+q[k]*c;i[k]=re;q[k]=im;ph+=dPh;if(ph>Math.PI)ph-=2*Math.PI;else if(ph<-Math.PI)ph+=2*Math.PI;}this._ncoPhase=ph;}
+    // Boxcar IQ decimator by integer F. Sums F input samples → 1 output. State
+    // (_iqDecimAccI/Q, _iqDecimCount) carries a partial sum across blocks so
+    // any input length works. Cheap (1 add per input sample, no FIR), and its
+    // sinc-shaped magnitude response has its first null at sr/F — well outside
+    // any demod bandwidth we'd allow given the targetMaxSr=bw*2.2 ceiling.
+    _decIq(iIn,qIn,F){const n=iIn.length;const outLen=Math.floor((this._iqDecimCount+n)/F);const iD=new Float32Array(outLen);const qD=new Float32Array(outLen);let aI=this._iqDecimAccI,aQ=this._iqDecimAccQ,c=this._iqDecimCount,oi=0,inv=1/F;for(let k=0;k<n;k++){aI+=iIn[k];aQ+=qIn[k];if(++c===F){iD[oi]=aI*inv;qD[oi]=aQ*inv;oi++;aI=0;aQ=0;c=0;}}this._iqDecimAccI=aI;this._iqDecimAccQ=aQ;this._iqDecimCount=c;return{iD:oi===outLen?iD:iD.subarray(0,oi),qD:oi===outLen?qD:qD.subarray(0,oi)};}
     _pwr(i,q){let s=0;for(let k=0;k<i.length;k++)s+=i[k]*i[k]+q[k]*q[k];return 10*Math.log10(s/i.length+1e-20);}
-    _demod(i,q){const dbfs=this._pwr(i,q);if(++this._powerTick>=8){this._powerTick=0;this.port.postMessage({type:'power',dbfs,squelchOpen:this._squelchOpen});}const open=dbfs>=this._squelch;if(open){this._squelchOpen=true;this._squelchTail=Math.round(48000*1.5);}else if(this._squelchOpen){const tailSamples=Math.round(i.length*48000/this._sampleRate);if(this._squelchTail>tailSamples){this._squelchTail-=tailSamples;}else{this._squelchOpen=false;this._squelchTail=0;}}if(this._squelchOpen!==this._squelchStateLast){this._squelchStateLast=this._squelchOpen;this.port.postMessage({type:'squelch_change',open:this._squelchOpen});}if(!open)return new Float32Array(Math.round(i.length*48000/this._sampleRate));if(this._mode==='AM')return this._am(i,q);if(this._mode==='USB')return this._ssb(i,q,1);if(this._mode==='LSB')return this._ssb(i,q,-1);if(this._mode==='WFM')return this._wfm(i,q);return this._fm(i,q);}
-    _fm(i,q){const n=i.length,d=new Float32Array(n);let pI=this._wfmPrevI,pQ=this._wfmPrevQ;for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}this._wfmPrevI=pI;this._wfmPrevQ=pQ;return this._decimate(d,this._sampleRate,48000);}
-    _wfm(i,q){const n=i.length,d=new Float32Array(n);let pI=this._wfmPrevI,pQ=this._wfmPrevQ;for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}this._wfmPrevI=pI;this._wfmPrevQ=pQ;const pcm=this._decimate(d,this._sampleRate,48000);const alpha=Math.exp(-1/(48000*75e-6));const beta=1-alpha;let y=this._deemphY;for(let k=0;k<pcm.length;k++){y=alpha*y+beta*pcm[k];pcm[k]=y;}this._deemphY=y;return pcm;}
-    _am(i,q){const n=i.length,e=new Float32Array(n);const a=1/(this._sampleRate*0.05);let dc=this._amDc;for(let k=0;k<n;k++){const m=Math.sqrt(i[k]*i[k]+q[k]*q[k]);dc+=a*(m-dc);e[k]=m-dc;}this._amDc=dc;return this._decimate(e,this._sampleRate,48000);}
-    _ssb(i,q,s){const o=new Float32Array(i.length);for(let k=0;k<i.length;k++)o[k]=i[k]+s*q[k];return this._decimate(o,this._sampleRate,48000);}
-    _decimate(inp,inR,outR){const D=Math.round(inR/outR);if(D<=1)return inp;const n=Math.floor(inp.length/D),o=new Float32Array(n);const inv=1/D;for(let k=0;k<n;k++){let s=0,base=k*D;for(let j=0;j<D;j++)s+=inp[base+j];o[k]=s*inv;}return o;}
+    _demod(i,q){const dbfs=this._pwr(i,q);if(++this._powerTick>=8){this._powerTick=0;this.port.postMessage({type:'power',dbfs,squelchOpen:this._squelchOpen});}const open=dbfs>=this._squelch;if(open){this._squelchOpen=true;this._squelchTail=Math.round(48000*1.5);}else if(this._squelchOpen){const tailSamples=Math.round(i.length*48000/this._effectiveSr);if(this._squelchTail>tailSamples){this._squelchTail-=tailSamples;}else{this._squelchOpen=false;this._squelchTail=0;}}if(this._squelchOpen!==this._squelchStateLast){this._squelchStateLast=this._squelchOpen;this.port.postMessage({type:'squelch_change',open:this._squelchOpen});}if(!open)return new Float32Array(Math.round(i.length*48000/this._effectiveSr));if(this._mode==='AM')return this._am(i,q);if(this._mode==='USB')return this._ssb(i,q,1);if(this._mode==='LSB')return this._ssb(i,q,-1);if(this._mode==='WFM')return this._wfm(i,q);return this._fm(i,q);}
+    _fm(i,q){const n=i.length,d=new Float32Array(n);let pI=this._wfmPrevI,pQ=this._wfmPrevQ;for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}this._wfmPrevI=pI;this._wfmPrevQ=pQ;return this._decimate(d,this._effectiveSr,48000);}
+    _wfm(i,q){const n=i.length,d=new Float32Array(n);let pI=this._wfmPrevI,pQ=this._wfmPrevQ;for(let k=0;k<n;k++){const re=i[k]*pI+q[k]*pQ,im=q[k]*pI-i[k]*pQ;d[k]=Math.atan2(im,re);pI=i[k];pQ=q[k];}this._wfmPrevI=pI;this._wfmPrevQ=pQ;const pcm=this._decimate(d,this._effectiveSr,48000);const alpha=Math.exp(-1/(48000*75e-6));const beta=1-alpha;let y=this._deemphY;for(let k=0;k<pcm.length;k++){y=alpha*y+beta*pcm[k];pcm[k]=y;}this._deemphY=y;return pcm;}
+    _am(i,q){const n=i.length,e=new Float32Array(n);const a=1/(this._effectiveSr*0.05);let dc=this._amDc;for(let k=0;k<n;k++){const m=Math.sqrt(i[k]*i[k]+q[k]*q[k]);dc+=a*(m-dc);e[k]=m-dc;}this._amDc=dc;return this._decimate(e,this._effectiveSr,48000);}
+    _ssb(i,q,s){const o=new Float32Array(i.length);for(let k=0;k<i.length;k++)o[k]=i[k]+s*q[k];return this._decimate(o,this._effectiveSr,48000);}
+    _decimate(inp,inR,outR){const step=inR/outR;if(step<=1)return inp;const n=inp.length;const est=Math.ceil((n-this._resPhase)/step)+1;const o=new Float32Array(est);let oi=0,ph=this._resPhase;const prev=this._resPrev;while(ph<n){const idx=Math.floor(ph),frac=ph-idx;const a=idx===0?prev:inp[idx-1];const b=inp[idx];o[oi++]=a+(b-a)*frac;ph+=step;}this._resPhase=ph-n;this._resPrev=inp[n-1];return oi===est?o:o.subarray(0,oi);}
     process(_,outputs){const out=outputs[0][0];if(!out)return true;const need=out.length;if(this._buffering||this._pcmLen<need){out.fill(0);return true;}const cap=this._pcmBuf.length;for(let k=0;k<need;k++){out[k]=this._pcmBuf[this._pcmRd];this._pcmRd=(this._pcmRd+1)%cap;}this._pcmLen-=need;if(this._pcmLen===0)this._buffering=true;return true;}
 });`
 
@@ -171,7 +248,7 @@ function _openIqSocket(radioId: number) {
       i[k] = (iqBytes[k * 2]     - 127.5) / 127.5
       q[k] = (iqBytes[k * 2 + 1] - 127.5) / 127.5
     }
-    _worklet!.port.postMessage({ type: 'iq', i: i.buffer, q: q.buffer, mode: _mode, squelch_dbfs: _squelch, sample_rate: sampleRate }, [i.buffer, q.buffer])
+    _worklet!.port.postMessage({ type: 'iq', i: i.buffer, q: q.buffer, mode: _mode, squelch_dbfs: _squelch, sample_rate: sampleRate, offset_hz: _offsetHz }, [i.buffer, q.buffer])
   })
   ws.addEventListener('close', () => {
     _iqSocket = null
@@ -272,6 +349,16 @@ export function useSdrAudio() {
     if (_worklet) _worklet.port.postMessage({ type: 'bw', bandwidth_hz: hz })
   }
 
+  // Demod offset from the hardware centre frequency (Hz). 0 = demod at centre
+  // (auto-centre ON, or marker at centre). Non-zero shifts the demodulator to a
+  // signal that is off-centre in the IQ stream WITHOUT retuning the hardware,
+  // so the spectrum/waterfall display stays put. Persisted at module scope and
+  // re-sent with every IQ block so it survives a worklet recreation.
+  function setOffsetHz(hz: number) {
+    _offsetHz = hz
+    if (_worklet) _worklet.port.postMessage({ type: 'offset', offset_hz: hz })
+  }
+
   function onPower(cb: (dbfs: number, squelchOpen: boolean) => void) { _onPower = cb }
   function onSquelchChange(cb: (open: boolean) => void) { _onSquelchChange = cb }
 
@@ -349,6 +436,7 @@ export function useSdrAudio() {
 
   return {
     initAudio, stop, setRadioId, setMode, setSquelch, setVolume, setBandwidthHz,
+    setOffsetHz,
     startRecording, stopRecording, onPower, onSquelchChange, isReady, isPlaying,
   }
 }

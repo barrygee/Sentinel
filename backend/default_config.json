@@ -74,6 +74,10 @@
     "defaultSampleRate": 2048000,
     "defaultGain": 30,
     "defaultSquelch": -60,
+    "autoCenterWaterfallOnTune": true,
+    "fullWaterfallUpdate": true,
+    "showBandPlan": true,
+    "showKnownFreqs": true,
     "radios": [],
     "groups": [
       { "name": "Air to Air Refueling", "slug": "air-to-air-refueling" },
@@ -83,6 +87,32 @@
       { "name": "Maritime", "slug": "maritime" },
       { "name": "MilAir", "slug": "milair" },
       { "name": "Weather Satellite", "slug": "weather-satellite" }
+    ],
+    "bandPlan": [
+      { "name": "Longwave", "startHz": 148500, "endHz": 283500 },
+      { "name": "Medium Wave", "startHz": 526500, "endHz": 1606500 },
+      { "name": "120m", "startHz": 2300000, "endHz": 2495000 },
+      { "name": "90m", "startHz": 3200000, "endHz": 3400000 },
+      { "name": "75m", "startHz": 3900000, "endHz": 4000000 },
+      { "name": "60m", "startHz": 4750000, "endHz": 4995000 },
+      { "name": "49m", "startHz": 5900000, "endHz": 6200000 },
+      { "name": "40m", "startHz": 7200000, "endHz": 7450000 },
+      { "name": "31m", "startHz": 9400000, "endHz": 9900000 },
+      { "name": "25m", "startHz": 11600000, "endHz": 12100000 },
+      { "name": "22m", "startHz": 13570000, "endHz": 13870000 },
+      { "name": "19m", "startHz": 15100000, "endHz": 15800000 },
+      { "name": "16m", "startHz": 17480000, "endHz": 17900000 },
+      { "name": "13m", "startHz": 21450000, "endHz": 21850000 },
+      { "name": "11m", "startHz": 25670000, "endHz": 26100000 },
+      { "name": "CB", "startHz": 26965000, "endHz": 27405000 },
+      { "name": "10m Amateur", "startHz": 28000000, "endHz": 29700000 },
+      { "name": "6m Amateur", "startHz": 50000000, "endHz": 54000000 },
+      { "name": "Air Band", "startHz": 108000000, "endHz": 137000000 },
+      { "name": "FM Broadcast", "startHz": 87500000, "endHz": 108000000 },
+      { "name": "2m Amateur", "startHz": 144000000, "endHz": 148000000 },
+      { "name": "Marine VHF", "startHz": 156000000, "endHz": 162025000 },
+      { "name": "MilAir", "startHz": 225000000, "endHz": 400000000 },
+      { "name": "70cm Amateur", "startHz": 430000000, "endHz": 440000000 }
     ],
     "frequencies": []
   }

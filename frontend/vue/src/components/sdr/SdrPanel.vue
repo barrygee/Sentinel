@@ -105,15 +105,16 @@
               class="sdr-freq-input-large"
               type="text"
               size="8"
-              placeholder="100.0000"
+              placeholder=""
               autocomplete="off"
               spellcheck="false"
               :disabled="controlsDisabled"
               :readonly="scanActive"
               v-model="freqInputVal"
               @keydown.enter="tune"
-              @input="onFreqInputChange"
-              @blur="formatFreqInput"
+              @focus="onFreqInputFocus"
+              @click="onFreqInputFocus"
+              @blur="onFreqInputBlur"
             >
             <span class="sdr-freq-unit">MHz</span>
           </div>
@@ -243,6 +244,49 @@
                 :disabled="controlsDisabled"
                 @input="onBwInput"
               >
+            </div>
+
+            <!-- Sample Rate (hardware) — sets the spectrum/waterfall span -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">SAMPLE RATE</label>
+                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{ formatBwHz(sampleRateHz) }}</span>
+              </div>
+              <!-- Custom dropdown (NOT native <select>): native option lists
+                   can't be styled (UA popup), and we want the menu to match
+                   the device dropdown above. Built off the same primitives. -->
+              <div
+                ref="sampleRateDropdownRef"
+                class="sdr-device-dropdown"
+                :class="{ 'sdr-device-dropdown--open': sampleRateMenuOpen, 'sdr-device-dropdown--loading': controlsDisabled }"
+                tabindex="0"
+                @click.stop="toggleSampleRateMenu"
+                @keydown="onSampleRateDropdownKey"
+              >
+                <div class="sdr-device-dropdown-selected">
+                  <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ formatBwHz(sampleRateHz) }}</span>
+                  <span class="sdr-device-dropdown-arrow"></span>
+                </div>
+              </div>
+              <Teleport to="body">
+                <div
+                  v-if="sampleRateMenuOpen"
+                  ref="sampleRateMenuRef"
+                  class="sdr-device-menu sdr-device-menu--open"
+                  :style="sampleRateMenuStyle"
+                  @click.stop
+                >
+                  <div
+                    v-for="r in SAMPLE_RATE_OPTIONS"
+                    :key="r"
+                    class="sdr-device-menu-item"
+                    :class="{ 'sdr-device-menu-item--selected': r === sampleRateHz }"
+                    @click="pickSampleRate(r)"
+                  >
+                    {{ formatBwHz(r) }}
+                  </div>
+                </div>
+              </Teleport>
             </div>
 
             <!-- RF Gain -->
@@ -621,12 +665,13 @@
 
 <script setup lang="ts">
 import './SdrPanel.css'
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SdrClipsSection from './SdrClipsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode } from '@/stores/sdr'
 
 interface SdrRadio { id: number; name: string; host: string; enabled: boolean }
@@ -639,6 +684,20 @@ interface SdrStoredFrequency {
 defineProps<{ fullPage: boolean }>()
 
 const sdrAudio = useSdrAudio()
+
+// Lazy store accessor. MUST be declared here — above every watcher that calls
+// it — not lower in the file. `_sdrStore` is a hoisted function so it is
+// *callable* early, but its body closes over the `let _spectrumStore` binding.
+// The `{ immediate: true }` watchers below fire synchronously during setup and
+// call _sdrStore(); if `let _spectrumStore` is declared further down it is
+// still in its temporal dead zone at that point → "ReferenceError: Cannot
+// access '_spectrumStore' before initialization" (the crash on every SDR page
+// load). Keeping the declaration before the watchers is load-bearing.
+let _spectrumStore: ReturnType<typeof useSdrStore> | null = null
+function _sdrStore() {
+  if (!_spectrumStore) _spectrumStore = useSdrStore()
+  return _spectrumStore
+}
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
@@ -685,16 +744,32 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
   sidebarOpen.value = !!(e as CustomEvent<{ open: boolean }>).detail?.open
 })
 
+// The config JSON editor (Settings → App Settings → Application Config) just
+// replaced the DB settings. Re-hydrate the sdr store's cached
+// autoCenterWaterfallOnTune so a change made there takes effect on the live
+// waterfall immediately — SdrPanel is mounted for the whole SDR session, so
+// this stays in sync even when the Settings SDR control isn't mounted.
+useDocumentEvent('sentinel:config-uploaded', () => {
+  void _sdrStore().hydrateAutoCenterFromDb()
+})
+
 const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
 
 // ── Radio state ───────────────────────────────────────────────────────────────
 const connected         = ref(false)
 const playing           = ref(false)
+// Mirror play state into the store so SdrWaterfall can gate its rendering.
+// A single passive watch — deliberately does NOT alter any existing
+// play-state logic (avoids the regression that earlier setPlayingState
+// substitutions risked).
+watch(playing, (v) => { _sdrStore().setPlaying(v) })
 const controlsDisabled  = ref(true)
 const selectedRadioId   = ref<number | null>(null)
 const knownRadios       = ref<SdrRadio[]>([])
 const currentMode       = ref('AM')
 const freqInputVal      = ref('')
+const freqInputPrev     = ref('')
+const freqInputRef      = ref<HTMLInputElement | null>(null)
 const currentFreqHz     = ref(0)
 const gainDb            = ref(30)
 const gainAuto          = ref(false)
@@ -702,10 +777,79 @@ const volume            = ref(80)
 const squelch           = ref(-120)
 const bwHz              = ref(10000)
 const bwMax             = ref(2048000)
+// Hardware sample rate (rtl_tcp): governs the spectrum/waterfall x-axis span
+// and is fully independent of the demod-filter Bandwidth slider above. Tiers
+// match snapToValidSampleRate() in sdrPanelUtils.ts — the 1.024 MHz floor
+// avoids the stuttering 250k/300k tiers measured on the remote Pi.
+const SAMPLE_RATE_OPTIONS = [1024000, 1536000, 1792000, 2048000] as const
+const sampleRateHz      = ref<number>(2048000)
 const activeFreqDisplay = ref('')
 const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
 const worklestSquelchOpen = ref(true)
+
+// ── Store mirrors / marker bridge ─────────────────────────────────────────────
+// Passive mirrors so the spectrum/waterfall marker (SdrWaterfall, a sibling)
+// can read the authoritative tuned freq + demod bandwidth. These fire on EVERY
+// existing path that mutates the local refs (tune, tuneToFreq, setMode,
+// onBwInput, applyStatus) — no changes to those functions.
+watch(currentFreqHz, (v) => { if (v) _sdrStore().setFrequency(v) }, { immediate: true })
+watch(bwHz,          (v) => { _sdrStore().setBandwidthHz(v) },       { immediate: true })
+
+// Demod NCO offset bridge. The store is the single source of truth for the
+// offset from the hardware centre (set by the waterfall click handler when
+// auto-centre is OFF, cleared to 0 by the ON path / toggle). Push every change
+// into the audio worklet. immediate so a restored 0 is asserted on mount.
+watch(() => _sdrStore().tuningOffsetHz,
+  (hz) => { sdrAudio.setOffsetHz(hz || 0) },
+  { immediate: true },
+)
+
+// Marker retune request. The bar/marker only moves once currentFreqHz updates
+// (the waterfall watches it via applyMarker), so update the display state
+// immediately for snappy click-to-tune — only debounce the hardware sendCmd
+// and the persistent saves so rapid drags still coalesce.
+watch(() => _sdrStore().tuneRequest, (req) => {
+  if (!req || !playing.value || !selectedRadioId.value) return
+  const hz = Math.round(req.hz)
+  if (!hz || hz === currentFreqHz.value) return
+  currentFreqHz.value = hz
+  activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
+  freqInputVal.value = (hz / 1e6).toFixed(4)
+  if (_retuneDebounce) clearTimeout(_retuneDebounce)
+  _retuneDebounce = setTimeout(() => {
+    sessionStorage.setItem('sdrLastFreqHz', String(hz))
+    saveSettings()
+    // Auto-centre OFF: do NOT retune the hardware — the demod NCO offset
+    // (already set in the store by the waterfall click) tunes the audio while
+    // the display stays put. Calling sendCmd('tune') here would both recenter
+    // the hardware AND clear the offset (sendCmd zeroes it on any tune), so
+    // skip it.
+    if (_sdrStore().autoCenterWaterfallOnTune) {
+      sendCmd({ cmd: 'tune', frequency_hz: hz })
+    }
+  }, 600)
+})
+
+// Waterfall FFT-size request. The waterfall sizes its desired bin count to the
+// canvas's device-pixel width so each bin maps to ~1 px (no blur from upsampling
+// a 1024-bin FFT into a 2600+ px canvas). Forwarded straight to the backend; it
+// clamps to a power of two in [MIN_FFT_SIZE, MAX_FFT_SIZE].
+watch(() => _sdrStore().fftSizeRequest, (req) => {
+  if (!req) return
+  sendCmd({ cmd: 'fft_size', bins: req.bins })
+})
+
+// Marker bandwidth request — demod audio filter ONLY (no sample_rate command;
+// matches SDR++/SDR#/GQRX and avoids the rtl_tcp reconfigure stall).
+watch(() => _sdrStore().bwRequest, (req) => {
+  if (!req || !playing.value) return
+  const v = Math.round(req.hz)
+  if (!v || v === bwHz.value) return
+  bwHz.value = v               // re-mirrors to the store via the watch above
+  saveSettings()
+  sdrAudio.setBandwidthHz(v)
+})
 
 const signalAudible = computed(() =>
   playing.value && (squelch.value <= -119 || worklestSquelchOpen.value)
@@ -841,13 +985,14 @@ const editingGroupId = ref<number | null>(null)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-import { formatBwHz, parseFreqMhz, defaultBwHz, snapToValidSampleRate } from './sdrPanelUtils'
+import { formatBwHz, parseFreqMhz, defaultBwHz } from './sdrPanelUtils'
 
 function saveSettings() {
   try {
     sessionStorage.setItem('sdrSettings', JSON.stringify({
       gainDb: gainDb.value, gainAuto: gainAuto.value, squelch: squelch.value,
       bwHz: bwHz.value, vol: volume.value, mode: currentMode.value, freqHz: currentFreqHz.value,
+      sampleRateHz: sampleRateHz.value,
     }))
   } catch (_) {}
 }
@@ -867,6 +1012,11 @@ function restoreSettings() {
     if (typeof s.squelch === 'number') squelch.value = s.squelch
     if (typeof s.bwHz === 'number' && s.bwHz > 0) bwHz.value = s.bwHz
     if (typeof s.vol === 'number') { volume.value = s.vol; sdrAudio.setVolume(s.vol / 100) }
+    if (typeof s.sampleRateHz === 'number' &&
+        SAMPLE_RATE_OPTIONS.includes(s.sampleRateHz as typeof SAMPLE_RATE_OPTIONS[number])) {
+      sampleRateHz.value = s.sampleRateHz
+      bwMax.value = s.sampleRateHz
+    }
   } catch (_) {}
 }
 
@@ -881,6 +1031,14 @@ function _markInitialised(id: number) { sessionStorage.setItem(`sdrInit_${id}`, 
 function _isInitialised(id: number)   { return sessionStorage.getItem(`sdrInit_${id}`) === '1' }
 
 function sendCmd(obj: object) {
+  // A hardware tune always recenters the SDR on the new freq, so any prior
+  // demod NCO offset (auto-centre OFF) is no longer valid — clear it here, the
+  // single chokepoint for every retune path (typed, saved, marker, restore).
+  // The auto-centre-OFF click path deliberately does NOT call sendCmd('tune'),
+  // so it keeps its offset.
+  if ((obj as { cmd?: string }).cmd === 'tune' && _sdrStore().tuningOffsetHz !== 0) {
+    _sdrStore().setTuningOffsetHz(0)
+  }
   if (_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN) {
     _ctrlSocket.send(JSON.stringify(obj))
   }
@@ -914,6 +1072,14 @@ async function openControlSocket(radioId: number) {
       sdrAudio.setMode(lastMode as SdrMode)
       sdrAudio.initAudio(radioId)
     }
+    // Replay the most recent waterfall-driven FFT size request, if any. The
+    // waterfall publishes its target bin count on mount, which may have fired
+    // before this socket opened (sendCmd silently drops while CONNECTING).
+    const fftReq = _sdrStore().fftSizeRequest
+    if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
+    // Push the restored hardware sample rate so the backend's span matches
+    // what the user last picked, instead of whatever the device default is.
+    sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
   })
 
   ws.addEventListener('message', (ev: MessageEvent) => {
@@ -932,6 +1098,14 @@ async function openControlSocket(radioId: number) {
         if (!_ctrlDataConfirmed) {
           _ctrlDataConfirmed = true
           setStatus(true)
+        }
+        if (Array.isArray(msg.bins)) {
+          _sdrStore().setSpectrum({
+            bins: msg.bins,
+            center_hz: msg.center_hz,
+            sample_rate: msg.sample_rate,
+            ts: msg.timestamp_ms,
+          })
         }
         break
       case 'error':
@@ -1008,17 +1182,23 @@ function formatFreqInput() {
   freqInputVal.value = n.toFixed(4)
 }
 
-function onFreqInputChange() {
-  if (!playing.value) return
-  const hz = parseFreqMhz(freqInputVal.value)
-  if (!hz) return
-  if (_retuneDebounce) clearTimeout(_retuneDebounce)
-  _retuneDebounce = setTimeout(() => {
-    currentFreqHz.value = hz
-    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
-    sessionStorage.setItem('sdrLastFreqHz', String(hz))
-    sendCmd({ cmd: 'tune', frequency_hz: hz })
-  }, 600)
+function onFreqInputFocus() {
+  if (freqInputVal.value !== '') {
+    freqInputPrev.value = freqInputVal.value
+    const el = freqInputRef.value
+    if (el) el.style.minWidth = `${el.getBoundingClientRect().width}px`
+  }
+  freqInputVal.value = ''
+}
+
+function onFreqInputBlur() {
+  if (!freqInputVal.value.trim()) {
+    freqInputVal.value = freqInputPrev.value
+  } else {
+    formatFreqInput()
+  }
+  const el = freqInputRef.value
+  if (el) el.style.minWidth = ''
 }
 
 // ── Gain ──────────────────────────────────────────────────────────────────────
@@ -1062,14 +1242,56 @@ function onSquelchInput(e: Event) {
   }, 150)
 }
 
-let _bwDebounce: ReturnType<typeof setTimeout> | null = null
 function onBwInput(e: Event) {
   const v = parseInt((e.target as HTMLInputElement).value, 10)
   bwHz.value = v
   saveSettings()
+  // Demod audio filter only — the spectrum/FFT span is governed by the
+  // hardware sample rate (separate Sample Rate selector below), matching
+  // SDR# / SDR++ / GQRX where Bandwidth never reconfigures the device.
   sdrAudio.setBandwidthHz(v)
-  if (_bwDebounce) clearTimeout(_bwDebounce)
-  _bwDebounce = setTimeout(() => sendCmd({ cmd: 'sample_rate', rate_hz: snapToValidSampleRate(v) }), 150)
+}
+
+const sampleRateDropdownRef = ref<HTMLElement | null>(null)
+const sampleRateMenuRef     = ref<HTMLElement | null>(null)
+const sampleRateMenuOpen    = ref(false)
+const sampleRateMenuStyle   = ref<Record<string, string>>({})
+
+function positionSampleRateMenu() {
+  const el = sampleRateDropdownRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  sampleRateMenuStyle.value = { left: rect.left + 'px', top: rect.bottom + 'px', width: rect.width + 'px' }
+}
+
+function toggleSampleRateMenu() {
+  if (controlsDisabled.value) return
+  if (sampleRateMenuOpen.value) { closeSampleRateMenu(); return }
+  positionSampleRateMenu()
+  sampleRateMenuOpen.value = true
+}
+
+function closeSampleRateMenu() { sampleRateMenuOpen.value = false }
+
+function onSampleRateDropdownKey(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSampleRateMenu() }
+  if (e.key === 'Escape') closeSampleRateMenu()
+}
+
+function pickSampleRate(v: number) {
+  closeSampleRateMenu()
+  if (!SAMPLE_RATE_OPTIONS.includes(v as typeof SAMPLE_RATE_OPTIONS[number])) return
+  if (v === sampleRateHz.value) return
+  sampleRateHz.value = v
+  // Update the BW slider ceiling synchronously so the UI doesn't wait for the
+  // backend's status echo, and clamp the current bwHz down if it now exceeds.
+  bwMax.value = v
+  if (bwHz.value > v) {
+    bwHz.value = v
+    sdrAudio.setBandwidthHz(v)
+  }
+  saveSettings()
+  sendCmd({ cmd: 'sample_rate', rate_hz: v })
 }
 
 // ── Mode ──────────────────────────────────────────────────────────────────────
@@ -1129,6 +1351,9 @@ function applyStatus(msg: {
   gainDb.value = msg.gain_db
   gainAuto.value = msg.gain_auto
   bwMax.value = msg.sample_rate
+  if (SAMPLE_RATE_OPTIONS.includes(msg.sample_rate as typeof SAMPLE_RATE_OPTIONS[number])) {
+    sampleRateHz.value = msg.sample_rate
+  }
   const clampedBw = Math.min(bwHz.value, msg.sample_rate)
   bwHz.value = clampedBw
   sdrAudio.setBandwidthHz(clampedBw)
@@ -1202,7 +1427,10 @@ function onDeviceDropdownKey(e: KeyboardEvent) {
   if (e.key === 'Escape') closeDeviceMenu()
 }
 
-function onDocumentClick() { if (deviceMenuOpen.value) closeDeviceMenu() }
+function onDocumentClick() {
+  if (deviceMenuOpen.value) closeDeviceMenu()
+  if (sampleRateMenuOpen.value) closeSampleRateMenu()
+}
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
 
@@ -1347,6 +1575,13 @@ async function reloadData() {
     const [gRes, fRes] = await Promise.all([fetch('/api/sdr/groups'), fetch('/api/sdr/frequencies')])
     groups.value = await gRes.json()
     freqs.value  = await fRes.json()
+    // Mirror into the SDR store so SdrWaterfall can render label markers on the
+    // FFT. SdrPanel owns the fetch; the store keeps the slimmer shape consumed
+    // by other components.
+    _sdrStore().frequencies = freqs.value.map(f => ({
+      id: f.id, group_id: f.group_id ?? null, label: f.label,
+      frequency_hz: f.frequency_hz, mode: f.mode,
+    }))
     _scanQueue = buildScanQueue()
   } catch (_) {}
   await clipsSectionRef.value?.reload()

@@ -707,6 +707,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
       { cmd: "gain",        gain_db }   — null/omit for auto
       { cmd: "squelch",     squelch_dbfs }
       { cmd: "sample_rate", rate_hz }
+      { cmd: "fft_size",    bins }       — desired spectrum bin count; backend clamps to a power of two in [1024, 8192]. Shared across subscribers (last writer wins).
       { cmd: "ping" }
     """
     await websocket.accept()
@@ -760,6 +761,8 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                             await conn.set_gain_manual(float(gval))
                     elif cmd == "sample_rate":
                         await conn.set_sample_rate(int(msg["rate_hz"]))
+                    elif cmd == "fft_size":
+                        conn.set_fft_size(int(msg["bins"]))
                     elif cmd == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
                 except Exception as exc:

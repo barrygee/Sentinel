@@ -1,0 +1,320 @@
+/* SDR spectrum + waterfall display.
+ *
+ * Sits to the right of the SDR side panel. When the panel is open it starts at
+ * its right edge (44px tab rail + 386px panel = 430px); when closed it expands
+ * left to the 44px tab rail (the rail stays visible on the /sdr/ route). */
+
+#sdr-waterfall {
+  position: fixed;
+  top: var(--nav-height);
+  bottom: var(--footer-height);
+  right: 0;
+  left: 430px;
+  transition: left 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  background: #0a0d14;
+  overflow: hidden;
+  z-index: 1;
+  /* Reserve a gutter on the right for the Zoom/Max/Min slider column so the
+   * spectrum + waterfall sit beside the controls rather than under them.
+   * Must match .sdr-wf-controls width. */
+  padding-right: 44px;
+  /* Align spectrum top with the SDR device select in the side panel
+   * (SdrPanel uses .sdr-radio-section--device { padding-top: 20px }). */
+  padding-top: 9px;
+  box-sizing: border-box;
+}
+
+#sdr-waterfall.panel-closed {
+  left: 44px;
+}
+
+/* Zoom / Max / Min controls — vertical sliders stacked on the right edge,
+ * spanning the spectrum + waterfall. Matches the reference screenshot: a
+ * narrow dark rounded-capsule track with a small blue rounded-rect handle and
+ * a bold label centred above each.
+ *
+ * Implementation note: vertical <input type=range> via `slider-vertical`
+ * cannot be reliably custom-styled in Chrome (it ignores ::-webkit thumb/track
+ * sizes). Instead the slider is styled HORIZONTALLY then rotated -90deg inside
+ * a fixed-size wrapper — this keeps full control of the track and thumb in all
+ * browsers. */
+.sdr-wf-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Stacked from the top of the spectrum, content-sized, with a suitable gap
+   * between each control (not stretched down the full height). */
+  gap: 28px;
+  padding: 20px 0 14px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.sdr-wf-ctl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  pointer-events: auto;
+}
+
+.sdr-wf-ctl-label {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+
+/* The slider is rotated into this wrapper; its rendered width = the wrapper's
+ * pixel HEIGHT. Fixed short height so each track is compact and the stack sits
+ * near the top of the spectrum. */
+.sdr-wf-slider-wrap {
+  position: relative;
+  flex: none;
+  height: 142px;
+  /* Wide enough for the 16px round thumb; height unchanged. */
+  width: 20px;
+  overflow: visible;
+}
+
+/* Styled as a horizontal slider, then rotated. `width` is set to the wrapper's
+ * pixel HEIGHT at runtime via a CSS var so the rotated slider exactly spans the
+ * available vertical space. Matches the app's .sdr-panel-slider: 3px green
+ * (#c8ff00) track, 16px round white thumb with shadow. */
+.sdr-wf-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* Pre-rotation the slider is `--wf-slider-len` wide x 3px tall, anchored at
+   * the wrapper centre; translate back by half each dimension, then rotate so
+   * it stands vertical and centred within the wrapper. */
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  width: var(--wf-slider-len, 200px);
+  height: 3px;
+  background: #c8ff00;
+  border: none;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.sdr-wf-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: transparent;
+  border: none;
+}
+
+.sdr-wf-slider::-moz-range-track {
+  height: 3px;
+  background: #c8ff00;
+  border-radius: 2px;
+}
+
+.sdr-wf-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  /* Centre the 16px thumb on the 3px track ((3 - 16) / 2 = -6.5). */
+  margin-top: -6.5px;
+}
+
+.sdr-wf-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Spectrum line strip (top). position:relative so the absolute band overlay
+ * below anchors to this element rather than the page. */
+.sdr-wf-spectrum {
+  position: relative;
+  z-index: 2;
+  /* Fixed height (not flex %): sigplot sizes its canvas from clientHeight, so
+   * a viewport-relative spectrum reflows the canvas on every window resize.
+   * Pinning to a constant keeps the FFT view stable at any browser size; the
+   * waterfall (flex: 1 1 auto) absorbs any remaining vertical space. */
+  flex: 0 0 350px;
+  min-height: 350px;
+  width: 100%;
+  /* Bottom margin is set inline from spectrumStyle (= bandInsetBottomPx) so
+   * the gap between spectrum and waterfall auto-matches sigplot's freq-label
+   * gutter at any font/canvas size. See SdrWaterfall.vue. */
+  /* Click anywhere to tune to that frequency (onPlotClick). */
+  cursor: crosshair;
+}
+
+/* RF band-plan overlay: translucent coloured strip across the bottom of the
+ * spectrum canvas (matches the reference UI's "Medium Wave" / "FM Broadcast"
+ * bars). The left/right insets bind to bandInsetLeftPx/Px (driven by
+ * syncBandInset from sigplot's _Mx.l/r) so the strip aligns with the plot's
+ * DATA box, not its full element width — bands then line up with the freq
+ * tick labels regardless of font scaling. pointer-events:none so clicks pass
+ * through to the canvas underneath (click-to-tune keeps working). */
+/* Band strip sits on TOP of the sigplot canvas (translucent so the trace
+ * still reads through). Sigplot's wrapper div (mx.js:192) is the only other
+ * child of .sdr-wf-spectrum and has no z-index, so a positive z-index here
+ * is enough to float the strip above it. pointer-events:none so click-to-tune
+ * still falls through to the canvas. */
+.sdr-wf-band-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  align-items: stretch;
+}
+
+.sdr-wf-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.75);
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+.sdr-wf-band span {
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  color: #ffffff;
+  white-space: nowrap;
+  padding: 0 6px;
+  text-transform: uppercase;
+  display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Vertical tick lines in the freq-label gutter — one line per 0.1 MHz, lined
+ * up with the labels sigplot draws below the data box. Sits over the gutter
+ * area (left/right/height pushed in from tickGutterStyle); pointer-events:none
+ * so click-to-tune still passes through. */
+.sdr-wf-tick-gutter {
+  position: absolute;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.sdr-wf-tick {
+  position: absolute;
+  /* Start just below the FFT axis line so the tick never overlaps the trace. */
+  top: 2px;
+  height: 25%;
+  width: 2px;
+  background: #ffffff;
+  opacity: 0.55;
+  transform: translateX(-1px);
+}
+
+/* Per-tick frequency label rendered as an individual HTML element so each one
+ * gets its own opaque background box. Sits at the bottom of the freq-label
+ * gutter, centred horizontally on the tick. */
+.sdr-wf-freq-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  color: #ffffff;
+  background: #0a0d14;
+  padding: 5px 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Known-frequency label overlay — matches the map's "SET LOCATION" pop-up:
+ * a green SVG ring with a white dot, "punching through" the left edge of a
+ * dark rounded box via a radial CSS mask. Same colour, weight, letter-spacing
+ * and rhythm as the map control so the SDR view feels of a piece with it.
+ * Zero-height strip: its bottom edge sits ON the first dB gridline above the
+ * floor (knownFreqOverlayStyle pushes `bottom` in); each marker is centred
+ * vertically on that edge. */
+.sdr-wf-known-overlay {
+  position: absolute;
+  height: 0;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.sdr-wf-known-marker {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  /* Centre the ring on the frequency (`left` is the freq pixel) and centre the
+   * marker vertically on the gridline (the overlay's bottom edge). */
+  transform: translate(-7px, 50%);
+}
+
+.sdr-wf-known-marker-ring {
+  flex-shrink: 0;
+}
+
+.sdr-wf-known-marker-label {
+  position: relative;
+  /* Pull the pill left so the ring overlaps its left edge (SET LOCATION style).
+   * The radial mask below cuts a 7px hole at the left edge so the ring shows
+   * through cleanly instead of being covered by the pill. */
+  margin-left: -7px;
+  padding: 6px 8px 6px 12px;
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-mask-image: radial-gradient(circle 7px at 0 50%, transparent 7px, black 7.5px);
+  mask-image: radial-gradient(circle 7px at 0 50%, transparent 7px, black 7.5px);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Waterfall raster (fills the rest). */
+.sdr-wf-raster {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  /* Click anywhere to tune to that frequency (onPlotClick). */
+  cursor: crosshair;
+}
+
+/* Hovering an accordion edge = bandwidth resize zone. The ID+class selector
+ * outranks the plain .sdr-wf-spectrum/.sdr-wf-raster crosshair rules above, so
+ * the resize cursor wins while nearEdge is set (toggled from the mousemove
+ * edge hit-test in SdrWaterfall.vue). */
+#sdr-waterfall.edge-resize .sdr-wf-spectrum,
+#sdr-waterfall.edge-resize .sdr-wf-raster {
+  cursor: ew-resize;
+}

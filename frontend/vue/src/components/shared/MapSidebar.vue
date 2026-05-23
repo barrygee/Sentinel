@@ -106,12 +106,17 @@ const tabs = computed(() => [
   { id: 'playback' as SidebarTab, label: 'REPLAY' },
 ])
 
-function switchTab(tab: SidebarTab) {
+// Change the active tab without altering the panel's open/closed state.
+function setTab(tab: SidebarTab) {
   activeTab.value = tab
-  if (!open.value) { open.value = true; _persistOpen(true) }
   _persistTab(tab)
   tab === 'alerts' ? notifStore.openPanel() : notifStore.closePanel()
   document.dispatchEvent(new CustomEvent('msb-tab-switch', { detail: tab }))
+}
+
+function switchTab(tab: SidebarTab) {
+  if (!open.value) { open.value = true; _persistOpen(true) }
+  setTab(tab)
 }
 
 function toggle() {
@@ -124,11 +129,13 @@ function hide() { open.value = false; _persistOpen(false) }
 
 function openPlaybackTab() { show(); switchTab('playback') }
 function openRadioTab() { show(); switchTab('radio') }
+// Called when navigating away from the SDR route. Reset the SDR-only 'radio'
+// tab and close the panel. Note: this can race with the 'sentinel:domain-changed'
+// handler, which may have already reset activeTab to 'search' — so we hide()
+// unconditionally rather than gating on activeTab still being 'radio'.
 function closeRadioTab() {
-  if (activeTab.value === 'radio') {
-    switchTab('search')
-    hide()
-  }
+  setTab('search')
+  hide()
 }
 
 function _persistOpen(val: boolean) {
@@ -161,7 +168,10 @@ useDocumentEvent('sentinel:domain-changed', (e: Event) => {
   const { domain } = (e as CustomEvent<{ domain: string; prev: string }>).detail
   const required = DOMAIN_SPECIFIC_TABS[activeTab.value]
   if (required && required !== domain) {
-    switchTab('search')
+    // Reset the now-invalid domain-specific tab back to 'search' without
+    // touching the panel's open/closed state — navigating away from a section
+    // shouldn't auto-open the side panel.
+    setTab('search')
   }
 })
 
@@ -302,7 +312,6 @@ defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hi
     left: 0;
     width: 44px;
     background: rgba(10, 13, 20, 0.98);
-    border-right: 1px solid var(--color-border);
     z-index: 1003;
     display: flex;
     flex-direction: column;
