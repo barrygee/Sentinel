@@ -25,6 +25,11 @@
         <svg v-else-if="tab.id === 'frequency-manager'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M6 3h12v18l-6-4-6 4V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
         </svg>
+        <!-- groups (stacked tags) -->
+        <svg v-else-if="tab.id === 'groups'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linejoin="miter">
+          <path d="M4 7h10l4 4-4 4H4V7Z" stroke="currentColor" stroke-width="1.8" fill="none"/>
+          <circle cx="7" cy="11" r="1.1" fill="currentColor"/>
+        </svg>
         <!-- recordings -->
         <svg v-else-if="tab.id === 'recordings'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
@@ -388,21 +393,13 @@
       <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'frequency-manager' }">
 
-      <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
+      <div class="sdr-frequency-manager-freqs-body">
 
-<button
-          type="button"
-          class="sdr-scanner-section-label-row sdr-frequency-manager-freqs-label-row sdr-frequency-manager-accordion-toggle"
-          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': freqsSectionExpanded }"
-          @click="toggleFreqsSection"
-        >
-          <span class="sdr-scanner-section-label">FREQUENCIES</span>
-          <span class="sdr-frequency-manager-accordion-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
+        <div class="sdr-tab-header">
+          <span class="sdr-tab-title">FREQUENCIES</span>
+        </div>
 
-        <div v-show="freqsSectionExpanded && groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
+        <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
           <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
             <button
               type="button"
@@ -421,7 +418,7 @@
           </div>
         </div>
 
-        <div v-show="freqsSectionExpanded" id="sdr-freq-list">
+        <div id="sdr-freq-list">
           <div
             v-for="f in filteredFreqs"
             :key="f.id"
@@ -522,14 +519,14 @@
             </div>
           </div>
         </div>
-        <div v-show="freqsSectionExpanded" id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
+        <div id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
           No saved frequencies.<br>Tune to a frequency and use Add Frequency to save it.
         </div>
-        <div v-if="freqsSectionExpanded && freqs.length > 0 && filteredFreqs.length === 0" class="sdr-panel-empty">
+        <div v-if="freqs.length > 0 && filteredFreqs.length === 0" class="sdr-panel-empty">
           No matches.
         </div>
 
-        <div v-show="freqsSectionExpanded && !(efOpen && editingFreqId === null)" class="sdr-frequency-manager-add-freq-row">
+        <div v-show="!(efOpen && editingFreqId === null)" class="sdr-frequency-manager-add-freq-row">
           <button
             id="sdr-radio-add-freq"
             class="sdr-add-freq-btn"
@@ -591,19 +588,16 @@
           </div>
         </div>
 
-        <!-- GROUPS -->
-        <button
-          type="button"
-          class="sdr-scanner-section-label-row sdr-frequency-manager-groups-label-row sdr-frequency-manager-accordion-toggle"
-          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': groupsSectionExpanded }"
-          @click="groupsSectionExpanded = !groupsSectionExpanded"
-        >
-          <span class="sdr-scanner-section-label">GROUPS</span>
-          <span class="sdr-frequency-manager-accordion-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
-        <div v-show="groupsSectionExpanded" id="sdr-group-list">
+      </div>
+
+      </div>
+
+      <!-- ───────────── GROUPS TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'groups' }">
+        <div class="sdr-tab-header">
+          <span class="sdr-tab-title">GROUPS</span>
+        </div>
+        <div id="sdr-group-list">
           <div class="sdr-group-pills">
             <div v-for="g in sortedGroups" :key="g.id" class="sdr-group-pill">
               <span class="sdr-group-pill-name">{{ g.name }}</span>
@@ -612,7 +606,7 @@
             </div>
           </div>
         </div>
-        <div v-show="groupsSectionExpanded" class="sdr-panel-add-row sdr-frequency-manager-group-add-row">
+        <div class="sdr-panel-add-row sdr-frequency-manager-group-add-row">
           <input
             ref="newGroupNameRef"
             class="sdr-panel-input"
@@ -626,8 +620,6 @@
           <button v-if="editingGroupId !== null" class="sdr-panel-btn" @click="cancelEditGroupRow">CANCEL</button>
           <button class="sdr-panel-btn" @click="submitGroupRow">{{ editingGroupId !== null ? 'SAVE' : 'ADD' }}</button>
         </div>
-      </div>
-
       </div>
 
       <!-- ───────────── RECORDINGS TAB ───────────── -->
@@ -704,11 +696,12 @@ const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
-type SdrTab = 'radio' | 'frequency-manager' | 'recordings'
+type SdrTab = 'radio' | 'frequency-manager' | 'groups' | 'recordings'
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio',      label: 'RADIO' },
   { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
+  { id: 'groups',     label: 'GROUPS' },
   { id: 'recordings', label: 'RECORDINGS' },
 ]
 function _restoreSdrTab(): SdrTab {
@@ -880,8 +873,6 @@ const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
-const freqsSectionExpanded = ref(true)
-const groupsSectionExpanded = ref(true)
 const scannerSectionExpanded = ref(true)
 const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
@@ -1023,6 +1014,8 @@ function restoreSettings() {
 // ── Control WebSocket ─────────────────────────────────────────────────────────
 
 let _ctrlSocket:       WebSocket | null = null
+let _ctrlReconnectDelay = 500
+const CTRL_RECONNECT_MAX = 30000
 let _ctrlRadioId:      number | null    = null
 let _ctrlReconnect:    ReturnType<typeof setTimeout> | null = null
 let _ctrlDataConfirmed = false
@@ -1065,6 +1058,7 @@ async function openControlSocket(radioId: number) {
   _ctrlSocket = ws
 
   ws.addEventListener('open', () => {
+    _ctrlReconnectDelay = 500
     const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
     if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
@@ -1120,15 +1114,18 @@ async function openControlSocket(radioId: number) {
   ws.addEventListener('close', () => {
     setStatus(false)
     if (_ctrlReconnect) clearTimeout(_ctrlReconnect)
+    const delay = _ctrlReconnectDelay
+    _ctrlReconnectDelay = Math.min(_ctrlReconnectDelay * 2, CTRL_RECONNECT_MAX)
     _ctrlReconnect = setTimeout(() => {
       if (_ctrlRadioId === radioId) void openControlSocket(radioId)
-    }, 500)
+    }, delay)
   })
 
   ws.addEventListener('error', () => { setStatus(false) })
 }
 
 function closeControlSocket() {
+  _ctrlReconnectDelay = 500
   if (_ctrlReconnect) { clearTimeout(_ctrlReconnect); _ctrlReconnect = null }
   if (_ctrlSocket)    { _ctrlSocket.close(); _ctrlSocket = null }
   if (_ctrlRadioId != null) sessionStorage.removeItem(`sdrInit_${_ctrlRadioId}`)
@@ -1704,14 +1701,6 @@ function toggleEditFreqPanel(f: SdrStoredFrequency) {
 }
 
 function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }
-
-function toggleFreqsSection() {
-  freqsSectionExpanded.value = !freqsSectionExpanded.value
-  if (!freqsSectionExpanded.value && efOpen.value) {
-    efOpen.value = false
-    editingFreqId.value = null
-  }
-}
 
 function toggleEfGroup(id: number) {
   const idx = efGroupIds.value.indexOf(id)

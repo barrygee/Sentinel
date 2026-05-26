@@ -1539,6 +1539,72 @@
     max-height: 2000px;
 }
 
+/* Frequency manager pane: list scrolls inside the pane; the
+   Add Frequency / inline add form stay pinned below. */
+.sdr-frequency-manager-freqs-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
+.sdr-frequency-manager-freqs-body > .sdr-tab-header,
+.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
+.sdr-frequency-manager-freqs-body > .sdr-panel-empty {
+    flex: 0 0 auto;
+}
+
+/* Add Frequency button and inline add form stay pinned at the bottom
+   of the pane and never overflow past it. The add form scrolls
+   internally if its content exceeds available space. */
+.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-add-freq-row {
+    flex: 0 0 auto;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body {
+    flex: 0 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar {
+    width: 6px;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 255, 0, 0.28);
+}
+
+#sdr-freq-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+
+#sdr-freq-list::-webkit-scrollbar {
+    width: 6px;
+}
+#sdr-freq-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+#sdr-freq-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+}
+#sdr-freq-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 255, 0, 0.28);
+}
+
 .sdr-freq-group-header {
     display: flex;
     align-items: center;
@@ -2556,6 +2622,37 @@
 
 .sdr-tab-pane.active {
     display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* When the frequency-manager pane is active, the panes container must
+   clip vertically so the inner #sdr-freq-list — not the panes container
+   or the page — owns the scroll. Overrides the #msb-pane-radio
+   `overflow-y: visible` and the base `overflow-y: auto`. */
+.sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+    overflow-y: hidden !important;
+    min-height: 0;
+}
+#sdr-panel-panes:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+    overflow-y: hidden;
+    min-height: 0;
+}
+
+/* In the map-sidebar (tab) mount, `#msb-pane-radio #sdr-panel-panes` is
+   forced to `flex: none; overflow-y: visible` so the radio tab can scroll
+   as a whole. When the frequency-manager pane is active, we need the
+   opposite: the pane chain must be height-constrained so only the inner
+   `#sdr-freq-list` scrolls — keeping the filter chips and Add Frequency
+   button pinned. */
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+    overflow-y: hidden;
+    min-height: 0;
+}
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) #sdr-panel-panes {
+    flex: 1;
+    overflow-y: hidden;
+    min-height: 0;
 }
 
 .sdr-tab-header {
