@@ -1162,6 +1162,17 @@
     color: rgba(255, 255, 255, 0.4);
 }
 
+.sdr-editfreq-body .sdr-panel-textarea {
+    height: auto;
+    min-height: 96px;
+    padding: 10px 12px;
+    resize: none;
+    overflow-y: auto;
+    font-family: inherit;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
 .sdr-editfreq-body .sdr-mode-pill {
     height: 28px;
     background: rgba(255, 255, 255, 0.08);

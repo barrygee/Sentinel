@@ -510,6 +510,16 @@
                   </button>
                 </div>
               </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">NOTES</label>
+                <textarea
+                  class="sdr-panel-input sdr-panel-textarea"
+                  placeholder="Notes…"
+                  rows="4"
+                  style="width:100%"
+                  v-model="efNotes"
+                ></textarea>
+              </div>
               <div class="sdr-editfreq-actions">
                 <div class="sdr-editfreq-actions-right">
                   <button class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
@@ -579,6 +589,17 @@
                 {{ g.name }}
               </button>
             </div>
+          </div>
+          <div class="sdr-editfreq-field">
+            <label class="sdr-field-label">NOTES</label>
+            <textarea
+              id="sdr-ef-notes"
+              class="sdr-panel-input sdr-panel-textarea"
+              placeholder="Notes…"
+              rows="4"
+              style="width:100%"
+              v-model="efNotes"
+            ></textarea>
           </div>
           <div class="sdr-editfreq-actions">
             <div class="sdr-editfreq-actions-right">
@@ -956,6 +977,7 @@ const efLabel       = ref('')
 const efFreq        = ref('')
 const efMode        = ref('AM')
 const efGroupIds    = ref<number[]>([])
+const efNotes       = ref('')
 
 // ── Recording state (live recording props passed to SdrClipsSection) ──────────
 
@@ -1674,6 +1696,7 @@ function openAddFreqPanel() {
   efFreq.value = currentFreqHz.value ? (currentFreqHz.value / 1e6).toFixed(4) : ''
   efMode.value = currentMode.value || 'AM'
   efGroupIds.value = []
+  efNotes.value = ''
   efOpen.value = true
   switchSdrTab('frequency-manager')
 }
@@ -1688,6 +1711,7 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efFreq.value  = (f.frequency_hz / 1e6).toFixed(4)
   efMode.value  = f.mode
   efGroupIds.value = (f.group_ids || []).filter(id => id !== 0)
+  efNotes.value = f.notes ?? ''
   efOpen.value = true
   switchSdrTab('frequency-manager')
 }
@@ -1723,13 +1747,13 @@ async function saveFreq() {
           squelch: existing?.squelch ?? squelch.value,
           gain: existing?.gain ?? gainDb.value,
           scannable: existing?.scannable ?? true,
-          notes: existing?.notes ?? '',
+          notes: efNotes.value,
         }),
       })
     } else {
       await fetch('/api/sdr/frequencies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_ids: efGroupIds.value }),
+        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_ids: efGroupIds.value, notes: efNotes.value }),
       })
     }
     editingFreqId.value = null
