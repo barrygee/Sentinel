@@ -471,15 +471,17 @@
             <div v-if="efOpen && editingFreqId === f.id" class="sdr-editfreq-body expanded" @click.stop>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">LABEL</label>
-                <input class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+                <input class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.label }" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+                <div v-if="efErrors.label" class="sdr-field-error">{{ efErrors.label }}</div>
               </div>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">FREQ (MHz)</label>
-                <input class="sdr-panel-input" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+                <input class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.freq }" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+                <div v-if="efErrors.freq" class="sdr-field-error">{{ efErrors.freq }}</div>
               </div>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">MODE</label>
-                <div class="sdr-mode-pills">
+                <div class="sdr-mode-pills" :class="{ 'sdr-input-error': efErrors.mode }">
                   <button
                     v-for="m in MODES"
                     :key="m"
@@ -488,6 +490,7 @@
                     @click="efMode = m"
                   >{{ m }}</button>
                 </div>
+                <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
               </div>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">GROUPS</label>
@@ -514,11 +517,13 @@
                 <label class="sdr-field-label">NOTES</label>
                 <textarea
                   class="sdr-panel-input sdr-panel-textarea"
+                  :class="{ 'sdr-input-error': efErrors.notes }"
                   placeholder="Notes…"
                   rows="4"
                   style="width:100%"
                   v-model="efNotes"
                 ></textarea>
+                <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
               </div>
               <div class="sdr-editfreq-actions">
                 <div class="sdr-editfreq-actions-right">
@@ -551,15 +556,17 @@
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">LABEL</label>
-            <input id="sdr-ef-label" class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+            <input id="sdr-ef-label" class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.label }" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+            <div v-if="efErrors.label" class="sdr-field-error">{{ efErrors.label }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">FREQ (MHz)</label>
-            <input id="sdr-ef-freq" class="sdr-panel-input" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+            <input id="sdr-ef-freq" class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.freq }" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+            <div v-if="efErrors.freq" class="sdr-field-error">{{ efErrors.freq }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">MODE</label>
-            <div id="sdr-ef-mode-pills" class="sdr-mode-pills">
+            <div id="sdr-ef-mode-pills" class="sdr-mode-pills" :class="{ 'sdr-input-error': efErrors.mode }">
               <button
                 v-for="m in MODES"
                 :key="m"
@@ -568,6 +575,7 @@
                 @click="efMode = m"
               >{{ m }}</button>
             </div>
+            <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">GROUPS</label>
@@ -595,11 +603,13 @@
             <textarea
               id="sdr-ef-notes"
               class="sdr-panel-input sdr-panel-textarea"
+              :class="{ 'sdr-input-error': efErrors.notes }"
               placeholder="Notes…"
               rows="4"
               style="width:100%"
               v-model="efNotes"
             ></textarea>
+            <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
           </div>
           <div class="sdr-editfreq-actions">
             <div class="sdr-editfreq-actions-right">
@@ -978,6 +988,12 @@ const efFreq        = ref('')
 const efMode        = ref('AM')
 const efGroupIds    = ref<number[]>([])
 const efNotes       = ref('')
+const efErrors      = ref<{ label?: string; freq?: string; mode?: string; notes?: string }>({})
+const NOTES_ALLOWED = /^[A-Za-z0-9\s.,!?\-_():;/@]*$/
+watch(efLabel, () => { if (efErrors.value.label) efErrors.value = { ...efErrors.value, label: undefined } })
+watch(efFreq,  () => { if (efErrors.value.freq)  efErrors.value = { ...efErrors.value, freq:  undefined } })
+watch(efMode,  () => { if (efErrors.value.mode)  efErrors.value = { ...efErrors.value, mode:  undefined } })
+watch(efNotes, () => { if (efErrors.value.notes) efErrors.value = { ...efErrors.value, notes: undefined } })
 
 // ── Recording state (live recording props passed to SdrClipsSection) ──────────
 
@@ -1697,6 +1713,7 @@ function openAddFreqPanel() {
   efMode.value = currentMode.value || 'AM'
   efGroupIds.value = []
   efNotes.value = ''
+  efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
 }
@@ -1712,6 +1729,7 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efMode.value  = f.mode
   efGroupIds.value = (f.group_ids || []).filter(id => id !== 0)
   efNotes.value = f.notes ?? ''
+  efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
 }
@@ -1724,7 +1742,20 @@ function toggleEditFreqPanel(f: SdrStoredFrequency) {
   }
 }
 
-function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }
+function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false; efErrors.value = {} }
+
+function validateFreqForm(): boolean {
+  const errs: { label?: string; freq?: string; mode?: string; notes?: string } = {}
+  const label = efLabel.value.trim()
+  if (!label) errs.label = 'Label is required'
+  else if (label.length > 60) errs.label = 'Label must be 60 characters or fewer'
+  const hz = parseFreqMhz(efFreq.value)
+  if (!hz) errs.freq = 'Enter a valid frequency in MHz'
+  if (!efMode.value || !(MODES as readonly string[]).includes(efMode.value)) errs.mode = 'Select a mode'
+  if (efNotes.value && !NOTES_ALLOWED.test(efNotes.value)) errs.notes = 'Notes contain disallowed characters'
+  efErrors.value = errs
+  return Object.keys(errs).length === 0
+}
 
 function toggleEfGroup(id: number) {
   const idx = efGroupIds.value.indexOf(id)
@@ -1733,6 +1764,7 @@ function toggleEfGroup(id: number) {
 }
 
 async function saveFreq() {
+  if (!validateFreqForm()) return
   const label = efLabel.value.trim()
   const hz    = parseFreqMhz(efFreq.value)
   if (!label || !hz) return
