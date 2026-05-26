@@ -426,7 +426,7 @@
             :class="{ 'sdr-freq-editing': editingFreqId === f.id }"
             :data-id="f.id"
           >
-            <div class="sdr-freq-row-top" @click="onFreqRowClick(f)">
+            <div class="sdr-freq-row-top">
               <div class="sdr-freq-row-body">
                 <div class="sdr-freq-row-main">
                   <span class="sdr-freq-row-label">{{ f.label }}</span>
@@ -453,6 +453,14 @@
                   </span>
                 </div>
               </div>
+              <button
+                class="sdr-freq-row-play"
+                aria-label="Play frequency"
+                title="Play"
+                @click.stop="tuneToFreq(f)"
+              >
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+              </button>
               <button
                 class="sdr-freq-row-edit"
                 aria-label="Edit frequency"
@@ -1716,10 +1724,6 @@ function openAddFreqPanel() {
   efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
-}
-
-function onFreqRowClick(f: SdrStoredFrequency) {
-  tuneToFreq(f)
 }
 
 function openEditFreqPanel(f: SdrStoredFrequency) {
