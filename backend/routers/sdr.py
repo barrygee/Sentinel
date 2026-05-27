@@ -34,9 +34,9 @@ from pathlib import Path
 
 from backend.cache import now_ms
 from backend.config import settings
-from backend.database import get_db, sync_sdr_groups_to_config
+from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from backend.db_helpers import get_setting, upsert_setting
-from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrStoredFrequency
+from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
@@ -87,6 +87,20 @@ class FrequencyIn(BaseModel):
     gain: float = 30.0
     scannable: bool = True
     notes: str = ""
+
+
+class SearchRangeIn(BaseModel):
+    label: str
+    low_hz: int
+    high_hz: int
+    step_hz: int = 12_500
+    mode: str = "NFM"
+    threshold_dbfs: float = -70.0
+    dwell_ms: int = 250
+    band_name: str = ""
+    enabled: bool = True
+    notes: str = ""
+    sort_order: int = 0
 
 
 class ConnectIn(BaseModel):
@@ -372,6 +386,75 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
     await db.delete(row)
     await db.commit()
     await sync_sdr_groups_to_config(db)
+
+
+# ── Search Range CRUD ─────────────────────────────────────────────────────────
+
+def _search_range_to_dict(r: SdrSearchRange) -> dict:
+    return {
+        "id":             r.id,
+        "label":          r.label,
+        "low_hz":         r.low_hz,
+        "high_hz":        r.high_hz,
+        "step_hz":        r.step_hz,
+        "mode":           r.mode,
+        "threshold_dbfs": r.threshold_dbfs,
+        "dwell_ms":       r.dwell_ms,
+        "band_name":      r.band_name,
+        "enabled":        r.enabled,
+        "notes":          r.notes,
+        "sort_order":     r.sort_order,
+        "created_at":     r.created_at,
+    }
+
+
+@router.get("/api/sdr/search-ranges")
+async def list_search_ranges(db: AsyncSession = Depends(get_db)):
+    rows = (await db.execute(
+        select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)
+    )).scalars().all()
+    return JSONResponse([_search_range_to_dict(r) for r in rows])
+
+
+@router.post("/api/sdr/search-ranges", status_code=201)
+async def create_search_range(body: SearchRangeIn, db: AsyncSession = Depends(get_db)):
+    if body.low_hz >= body.high_hz:
+        raise HTTPException(400, "low_hz must be less than high_hz")
+    if body.step_hz <= 0:
+        raise HTTPException(400, "step_hz must be positive")
+    row = SdrSearchRange(**body.model_dump(), created_at=now_ms())
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    await sync_sdr_search_ranges_to_config(db)
+    return JSONResponse(_search_range_to_dict(row), status_code=201)
+
+
+@router.put("/api/sdr/search-ranges/{range_id}")
+async def update_search_range(range_id: int, body: SearchRangeIn, db: AsyncSession = Depends(get_db)):
+    row = (await db.execute(select(SdrSearchRange).where(SdrSearchRange.id == range_id))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Search range not found")
+    if body.low_hz >= body.high_hz:
+        raise HTTPException(400, "low_hz must be less than high_hz")
+    if body.step_hz <= 0:
+        raise HTTPException(400, "step_hz must be positive")
+    for k, v in body.model_dump().items():
+        setattr(row, k, v)
+    await db.commit()
+    await db.refresh(row)
+    await sync_sdr_search_ranges_to_config(db)
+    return JSONResponse(_search_range_to_dict(row))
+
+
+@router.delete("/api/sdr/search-ranges/{range_id}", status_code=204)
+async def delete_search_range(range_id: int, db: AsyncSession = Depends(get_db)):
+    row = (await db.execute(select(SdrSearchRange).where(SdrSearchRange.id == range_id))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Search range not found")
+    await db.delete(row)
+    await db.commit()
+    await sync_sdr_search_ranges_to_config(db)
 
 
 # ── Recording CRUD + file serving ────────────────────────────────────────────

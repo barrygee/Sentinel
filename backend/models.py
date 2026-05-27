@@ -136,6 +136,26 @@ class SdrFrequencyGroupLink(Base):
     group_id     = Column(Integer, primary_key=True)
 
 
+class SdrSearchRange(Base):
+    """A named low/high frequency range with a step size, used by the SDR
+    Search feature to sweep a band and stop on signals."""
+    __tablename__ = "sdr_search_ranges"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    label          = Column(Text,    nullable=False)                       # e.g. "Air Band"
+    low_hz         = Column(Integer, nullable=False)                       # inclusive sweep start
+    high_hz        = Column(Integer, nullable=False)                       # inclusive sweep end
+    step_hz        = Column(Integer, nullable=False, default=12500)        # channel spacing
+    mode           = Column(Text,    nullable=False, default="NFM")        # AM|NFM|WFM|USB|LSB|CW
+    threshold_dbfs = Column(Float,   nullable=False, default=-70.0)        # stop-on-signal threshold
+    dwell_ms       = Column(Integer, nullable=False, default=250)          # ms per step
+    band_name      = Column(Text,    nullable=False, default="")           # optional sdr.bandPlan ref
+    enabled        = Column(Boolean, nullable=False, default=True)
+    notes          = Column(Text,    nullable=False, default="")
+    sort_order     = Column(Integer, nullable=False, default=0)
+    created_at     = Column(Integer, nullable=False)                       # Unix ms
+
+
 class SdrRecording(Base):
     """A recorded audio clip captured from the SDR demodulator."""
     __tablename__ = "sdr_recordings"

@@ -2780,3 +2780,94 @@
 #msb-pane-radio .sdr-tab-panes {
     overflow-y: visible;
 }
+
+/* ── Search Ranges sub-section (Frequency Manager tab) ────────────────────── */
+
+/* Sub-section sits below the Frequencies body inside the Frequency Manager
+   tab pane. The parent pane is `display: flex; flex-direction: column` with
+   the Frequencies body claiming `flex: 1`, so this section needs its own
+   share of the height and its own scroll container — otherwise its inline
+   edit form gets clipped at the bottom of the panel. */
+.sdr-search-ranges-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 40%;
+    min-height: 0;
+    margin-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 6px;
+}
+
+.sdr-search-ranges-body > .sdr-scanner-section-label-row,
+.sdr-search-ranges-body > .sdr-panel-empty,
+.sdr-search-ranges-body > .sdr-frequency-manager-add-freq-row {
+    flex: 0 0 auto;
+}
+
+#sdr-search-range-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+
+#sdr-search-range-list::-webkit-scrollbar { width: 6px; }
+#sdr-search-range-list::-webkit-scrollbar-track { background: transparent; }
+#sdr-search-range-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+}
+#sdr-search-range-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 255, 0, 0.28);
+}
+
+.sdr-search-range-row-body {
+    cursor: pointer;
+}
+
+/* The range add-panel (when adding, not editing) needs its own scroll, same as
+   the frequency add-panel does. */
+.sdr-search-ranges-body > .sdr-editfreq-body.sdr-addfreq-body {
+    flex: 0 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+
+/* The range editor has more fields than the frequency editor, so the shared
+   600px max-height clips it. Allow it to grow. */
+.sdr-search-ranges-body .sdr-editfreq-body.expanded {
+    max-height: none;
+}
+
+.sdr-editfreq-body .sdr-range-row {
+    flex-direction: row;
+    gap: 10px;
+}
+
+.sdr-editfreq-body .sdr-range-row .sdr-range-col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.sdr-editfreq-body .sdr-range-row .sdr-range-col .sdr-panel-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Hide the native number-input spinner arrows in the Search Range editor. */
+.sdr-search-ranges-body input[type="number"]::-webkit-outer-spin-button,
+.sdr-search-ranges-body input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.sdr-search-ranges-body input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
