@@ -687,11 +687,19 @@
 
       <!-- ── Search Ranges sub-section ── -->
       <div class="sdr-search-ranges-body">
-        <div class="sdr-scanner-section-label-row sdr-frequency-manager-freqs-label-row">
-          <span class="sdr-scanner-section-label">SEARCH RANGES</span>
-        </div>
+        <button
+          type="button"
+          class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle sdr-search-ranges-header"
+          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': rangesSectionExpanded }"
+          @click="rangesSectionExpanded = !rangesSectionExpanded"
+        >
+          <label class="sdr-field-label sdr-frequency-manager-scanner-title">SEARCH RANGES</label>
+          <span class="sdr-frequency-manager-accordion-chevron">
+            <ChevronIcon />
+          </span>
+        </button>
 
-        <div id="sdr-search-range-list">
+        <div v-show="rangesSectionExpanded" id="sdr-search-range-list">
           <div
             v-for="r in searchRanges"
             :key="r.id"
@@ -713,14 +721,14 @@
                 </div>
                 <div class="sdr-freq-row-sub">
                   <span class="sdr-freq-row-hz">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
-                  <span class="sdr-freq-row-sep">·</span>
+                </div>
+                <div class="sdr-freq-row-sub">
                   <span>step {{ (r.step_hz/1000).toFixed(2) }} kHz</span>
                   <span class="sdr-freq-row-sep">·</span>
                   <span class="sdr-freq-row-mode">{{ r.mode }}</span>
-                  <span class="sdr-freq-row-sep">·</span>
-                  <span>thr {{ r.threshold_dbfs }} dBFS · dwell {{ r.dwell_ms }} ms</span>
                 </div>
               </div>
+              <span class="sdr-freq-row-play-spacer" aria-hidden="true"></span>
               <button v-if="!(rangeEditorOpen && editingRangeId === r.id)" class="sdr-freq-row-edit" aria-label="Edit range" title="Edit" @click.stop="toggleEditRange(r)">&#x270E;</button>
               <button class="sdr-freq-row-del"  aria-label="Delete range" title="Delete" @click.stop="deleteRange(r.id)">&#x2715;</button>
             </div>
@@ -1132,6 +1140,7 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 
 // ── Search (high/low frequency range sweep) ──────────────────────────────────
 const searchSectionExpanded = ref(false)
+const rangesSectionExpanded = ref(false)
 const searchRanges          = ref<SdrSearchRange[]>([])
 const searchActive          = ref(false)
 const searchLocked          = ref(false)

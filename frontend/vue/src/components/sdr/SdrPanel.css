@@ -2793,15 +2793,21 @@
     flex-direction: column;
     flex: 1 1 40%;
     min-height: 0;
-    margin-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    padding-top: 6px;
 }
 
-.sdr-search-ranges-body > .sdr-scanner-section-label-row,
+.sdr-search-ranges-body > .sdr-search-ranges-header,
 .sdr-search-ranges-body > .sdr-panel-empty,
 .sdr-search-ranges-body > .sdr-frequency-manager-add-freq-row {
     flex: 0 0 auto;
+}
+
+/* Spacer matches the .sdr-freq-row-play footprint (10px svg + 4px left/right
+   padding) so the delete X on Search Range rows lines up with the X on
+   Frequency rows, which sit beside an extra play button. */
+.sdr-freq-row-play-spacer {
+    display: inline-block;
+    width: 18px;
+    flex-shrink: 0;
 }
 
 #sdr-search-range-list {
