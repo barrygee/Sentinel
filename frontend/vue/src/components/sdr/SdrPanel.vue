@@ -395,10 +395,6 @@
 
       <div class="sdr-frequency-manager-freqs-body">
 
-        <div class="sdr-tab-header">
-          <span class="sdr-tab-title">FREQUENCIES</span>
-        </div>
-
         <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
           <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
             <button
@@ -633,9 +629,6 @@
 
       <!-- ───────────── GROUPS TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'groups' }">
-        <div class="sdr-tab-header">
-          <span class="sdr-tab-title">GROUPS</span>
-        </div>
         <div id="sdr-group-list">
           <div class="sdr-group-pills">
             <div v-for="g in sortedGroups" :key="g.id" class="sdr-group-pill">
@@ -663,9 +656,6 @@
 
       <!-- ───────────── RECORDINGS TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'recordings' }">
-        <div class="sdr-tab-header">
-          <span class="sdr-tab-title">RECORDINGS</span>
-        </div>
         <SdrClipsSection
           ref="clipsSectionRef"
           :live-recording="liveRecording"
@@ -1840,7 +1830,6 @@ async function toggleRecording() {
     startedAt:    now.toISOString().replace('T', ' ').slice(0, 16),
   }
   liveElapsedS.value = 0
-  if (clipsSectionRef.value) clipsSectionRef.value.recordingsExpanded = true
   _recTimerInterval = setInterval(() => {
     const pausedSoFar = _recPauseStart != null ? _recPausedMs + (Date.now() - _recPauseStart) : _recPausedMs
     liveElapsedS.value = Math.floor((Date.now() - _recStartEpoch - pausedSoFar) / 1000)
@@ -1859,7 +1848,6 @@ async function stopRecordingIfActive() {
   liveRecording.value = null
   await clipsSectionRef.value?.reload()
   setTimeout(() => clipsSectionRef.value?.reload(), 2000)
-  clipsSectionRef.value && (clipsSectionRef.value.recordingsExpanded = true)
 }
 
 function onSquelchChangeCallback(open: boolean) {
