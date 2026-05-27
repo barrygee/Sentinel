@@ -1661,7 +1661,7 @@
     flex-direction: row;
     align-items: flex-start;
     gap: 12px;
-    padding: 7px 24px;
+    padding: 11px 24px;
     transition: background 0.12s;
 }
 
