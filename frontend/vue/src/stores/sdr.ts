@@ -204,6 +204,11 @@ export const useSdrStore = defineStore('sdr', () => {
   // waterfall reads this to freeze rendering while the centre frequency is
   // jumping every dwell_ms — painting those frames produces meaningless noise.
   const searchSweeping = ref(false)
+  // Range bounds + current step for the search overlay shown by SdrWaterfall.
+  // Panel writes these as the sweep advances; null when not searching.
+  const searchLowHz = ref<number | null>(null)
+  const searchHighHz = ref<number | null>(null)
+  const searchCurrentHz = ref<number | null>(null)
 
   function _restoreSession() {
     try {
@@ -292,7 +297,8 @@ export const useSdrStore = defineStore('sdr', () => {
   return {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    lastSpectrum, searchSweeping, bwHz, tuneRequest, bwRequest, fftSizeRequest,
+    lastSpectrum, searchSweeping, searchLowHz, searchHighHz, searchCurrentHz,
+    bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
     fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,
     showBandPlan, setShowBandPlan, hydrateShowBandPlanFromDb,

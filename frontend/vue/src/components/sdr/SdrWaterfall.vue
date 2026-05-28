@@ -119,6 +119,29 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 const store = useSdrStore()
 const settings = useSettingsStore()
 
+// ── Search-overlay readouts ──────────────────────────────────────────────────
+// The waterfall freezes during a range sweep; these computeds shape the panel's
+// search state into the strings + progress fraction the overlay renders.
+const searchOverlayLowMHz = computed(() =>
+  store.searchLowHz != null ? (store.searchLowHz / 1e6).toFixed(4) : '—',
+)
+const searchOverlayHighMHz = computed(() =>
+  store.searchHighHz != null ? (store.searchHighHz / 1e6).toFixed(4) : '—',
+)
+const searchOverlayActiveMHz = computed(() =>
+  store.searchCurrentHz != null
+    ? (store.searchCurrentHz / 1e6).toFixed(4) + ' MHz'
+    : '— MHz',
+)
+const searchOverlayProgressPct = computed(() => {
+  const lo = store.searchLowHz
+  const hi = store.searchHighHz
+  const cur = store.searchCurrentHz
+  if (lo == null || hi == null || cur == null || hi <= lo) return 0
+  const pct = ((cur - lo) / (hi - lo)) * 100
+  return Math.max(0, Math.min(100, pct))
+})
+
 // ── RF band plan ─────────────────────────────────────────────────────────────
 // Reference allocations used to label the spectrum (e.g. "Medium Wave"). Sourced
 // from the sdr.bandPlan config setting (seeded from backend/default_config.json).
@@ -1604,7 +1627,22 @@ onBeforeUnmount(() => {
     :class="{ 'panel-closed': !panelOpen, 'edge-resize': nearEdge }"
   >
     <div v-if="store.searchSweeping" class="sdr-wf-search-overlay">
-      <span class="sdr-wf-search-overlay-label">WATERFALL PAUSED — SEARCHING</span>
+      <div class="sdr-wf-search-overlay-inner">
+        <div class="sdr-wf-search-overlay-stack">
+          <div class="sdr-wf-search-overlay-headline">
+            Spectrum and waterfall paused during active search.
+          </div>
+          <div class="sdr-wf-search-overlay-progress" :aria-valuenow="searchOverlayProgressPct" aria-valuemin="0" aria-valuemax="100" role="progressbar">
+            <div class="sdr-wf-search-overlay-progress-fill" :style="{ width: searchOverlayProgressPct + '%' }"></div>
+          </div>
+          <div class="sdr-wf-search-overlay-range">
+            <span class="sdr-wf-search-overlay-range-val">{{ searchOverlayLowMHz }}</span>
+            <span class="sdr-wf-search-overlay-range-sep">→</span>
+            <span class="sdr-wf-search-overlay-range-val">{{ searchOverlayHighMHz }}</span>
+            <span class="sdr-wf-search-overlay-range-unit">MHz</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="sdr-wf-controls" ref="controlsEl">
       <div class="sdr-wf-ctl">

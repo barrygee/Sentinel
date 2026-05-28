@@ -135,7 +135,7 @@
               class="sdr-mode-pill sdr-tune-btn"
               type="button"
               title="Tune"
-              :disabled="controlsDisabled || playing || scanActive"
+              :disabled="controlsDisabled || playing || scanActive || searchActive"
               @click="tune"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
@@ -144,7 +144,7 @@
               class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
               type="button"
               title="Stop audio"
-              :disabled="!playing"
+              :disabled="!playing && !scanActive && !searchActive"
               @click="stop"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
@@ -154,7 +154,7 @@
               :class="{ 'sdr-rec-btn--active': isRecording }"
               type="button"
               title="Record"
-              :disabled="!playing && !scanActive"
+              :disabled="!playing && !scanActive && !searchActive"
               @click="toggleRecording"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -448,9 +448,6 @@
                 <svg v-if="searchLocked" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
                 <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
               </button>
-            </div>
-            <div v-show="searchActive && searchCurrentHz != null" class="sdr-scan-subsection-label" style="margin-top:6px">
-              Now: {{ ((searchCurrentHz || 0) / 1e6).toFixed(4) }} MHz
             </div>
           </div>
         </div>
@@ -1100,6 +1097,15 @@ const worklestSquelchOpen = ref(true)
 watch(currentFreqHz, (v) => { if (v) _sdrStore().setFrequency(v) }, { immediate: true })
 watch(bwHz,          (v) => { _sdrStore().setBandwidthHz(v) },       { immediate: true })
 
+// Collapse the Scanner + Search accordions whenever the side panel opens,
+// so the user starts from a clean state instead of inheriting prior expansion.
+watch(() => _sdrStore().panelOpen, (open) => {
+  if (open) {
+    scannerSectionExpanded.value = false
+    searchSectionExpanded.value = false
+  }
+})
+
 // Demod NCO offset bridge. The store is the single source of truth for the
 // offset from the hardware centre (set by the waterfall click handler when
 // auto-centre is OFF, cleared to 0 by the ON path / toggle). Push every change
@@ -1200,7 +1206,7 @@ const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
-const scannerSectionExpanded = ref(true)
+const scannerSectionExpanded = ref(false)
 const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
 
@@ -1504,6 +1510,8 @@ function tune() {
 }
 
 function stop() {
+  if (scanActive.value) stopScan()
+  if (searchActive.value) stopSearch()
   sdrAudio.stop()
   setPlayingState(false)
   signalSmoothed.value = -120
@@ -1953,7 +1961,11 @@ function startSearch() {
   if (scanActive.value) stopScan()
   searchActive.value = true
   searchLocked.value = false
-  _sdrStore().searchSweeping = true
+  const _ss = _sdrStore()
+  _ss.searchSweeping = true
+  _ss.searchLowHz = r.low_hz
+  _ss.searchHighHz = r.high_hz
+  _ss.searchCurrentHz = r.low_hz
   _searchHz = r.low_hz
   // Invalidate any stale spectrum frame so the first step waits for fresh data.
   _lastSpectrum = null
@@ -1963,7 +1975,11 @@ function startSearch() {
 function stopSearch() {
   searchActive.value = false
   searchLocked.value = false
-  _sdrStore().searchSweeping = false
+  const _ss = _sdrStore()
+  _ss.searchSweeping = false
+  _ss.searchLowHz = null
+  _ss.searchHighHz = null
+  _ss.searchCurrentHz = null
   searchCurrentHz.value = null
   if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
 }
@@ -1997,6 +2013,7 @@ function doSearchStep() {
   if (!r) { stopSearch(); return }
   tuneToHzMode(_searchHz, r.mode)
   searchCurrentHz.value = _searchHz
+  _sdrStore().searchCurrentHz = _searchHz
   // Invalidate any pre-tune frame so the threshold decision is made on a
   // spectrum produced after the retune lands.
   _lastSpectrum = null
