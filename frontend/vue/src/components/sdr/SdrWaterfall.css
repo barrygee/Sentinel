@@ -318,3 +318,26 @@
 #sdr-waterfall.edge-resize .sdr-wf-raster {
   cursor: ew-resize;
 }
+
+.sdr-wf-search-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.sdr-wf-search-overlay-label {
+  font: 700 12px/1 var(--font-primary, 'Barlow', sans-serif);
+  color: #c8ff00;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(200, 255, 0, 0.35);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

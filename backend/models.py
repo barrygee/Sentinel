@@ -147,7 +147,7 @@ class SdrSearchRange(Base):
     high_hz        = Column(Integer, nullable=False)                       # inclusive sweep end
     step_hz        = Column(Integer, nullable=False, default=12500)        # channel spacing
     mode           = Column(Text,    nullable=False, default="NFM")        # AM|NFM|WFM|USB|LSB|CW
-    threshold_dbfs = Column(Float,   nullable=False, default=-70.0)        # stop-on-signal threshold
+    threshold_dbfs = Column(Float,   nullable=False, default=-35.0)        # stop-on-signal threshold
     dwell_ms       = Column(Integer, nullable=False, default=250)          # ms per step
     band_name      = Column(Text,    nullable=False, default="")           # optional sdr.bandPlan ref
     enabled        = Column(Boolean, nullable=False, default=True)

@@ -95,7 +95,7 @@ class SearchRangeIn(BaseModel):
     high_hz: int
     step_hz: int = 12_500
     mode: str = "NFM"
-    threshold_dbfs: float = -70.0
+    threshold_dbfs: float = -35.0
     dwell_ms: int = 250
     band_name: str = ""
     enabled: bool = True

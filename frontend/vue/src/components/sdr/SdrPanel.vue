@@ -440,12 +440,13 @@
               </button>
               <button
                 class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
-                :disabled="controlsDisabled || !searchActive || searchLocked"
-                title="Hold search on current frequency"
-                aria-label="Hold"
+                :disabled="controlsDisabled || !searchActive"
+                :title="searchLocked ? 'Resume search' : 'Hold search on current frequency'"
+                :aria-label="searchLocked ? 'Resume' : 'Hold'"
                 @click="toggleSearchLock"
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
+                <svg v-if="searchLocked" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
               </button>
             </div>
             <div v-show="searchActive && searchCurrentHz != null" class="sdr-scan-subsection-label" style="margin-top:6px">
@@ -1914,13 +1915,25 @@ function currentSearchRange(): SdrSearchRange | null {
   return searchRanges.value.find(r => r.id === id) ?? null
 }
 
-function sampleCenterBinDb(): number {
+function sampleChannelDb(): number {
   const s = _lastSpectrum
   if (!s || !s.bins || s.bins.length === 0) return -120
-  // Centre bin = middle of the FFT array (rtl_tcp FFT is centred on center_hz).
-  const idx = Math.floor(s.bins.length / 2)
-  const v = s.bins[idx]
-  return typeof v === 'number' && isFinite(v) ? v : -120
+  // Mean dB of a narrow band around the tuner, skipping the centre DC spike
+  // (centre bin ± 2). A wide window would pick up adjacent channels; the
+  // single centre bin always reads the LO/DC artifact. Bins ±3..±5 around
+  // centre approximate the demod channel without the spike.
+  const n = s.bins.length
+  const mid = Math.floor(n / 2)
+  const lo = Math.max(0, mid - 5)
+  const hi = Math.min(n - 1, mid + 5)
+  let sum = 0
+  let count = 0
+  for (let i = lo; i <= hi; i++) {
+    if (i >= mid - 2 && i <= mid + 2) continue
+    const v = s.bins[i]
+    if (typeof v === 'number' && isFinite(v)) { sum += v; count++ }
+  }
+  return count > 0 ? sum / count : -120
 }
 
 function tuneToHzMode(hz: number, mode: string) {
@@ -1940,6 +1953,7 @@ function startSearch() {
   if (scanActive.value) stopScan()
   searchActive.value = true
   searchLocked.value = false
+  _sdrStore().searchSweeping = true
   _searchHz = r.low_hz
   // Invalidate any stale spectrum frame so the first step waits for fresh data.
   _lastSpectrum = null
@@ -1949,6 +1963,7 @@ function startSearch() {
 function stopSearch() {
   searchActive.value = false
   searchLocked.value = false
+  _sdrStore().searchSweeping = false
   searchCurrentHz.value = null
   if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
 }
@@ -1963,6 +1978,7 @@ function onSearchPrimaryClick() {
 function toggleSearchLock() {
   if (!searchActive.value) return
   searchLocked.value = !searchLocked.value
+  _sdrStore().searchSweeping = searchActive.value && !searchLocked.value
   if (!searchLocked.value) {
     if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
     // Advance past the current freq so we don't immediately re-hold on the same signal.
@@ -1981,13 +1997,21 @@ function doSearchStep() {
   if (!r) { stopSearch(); return }
   tuneToHzMode(_searchHz, r.mode)
   searchCurrentHz.value = _searchHz
+  // Invalidate any pre-tune frame so the threshold decision is made on a
+  // spectrum produced after the retune lands.
+  _lastSpectrum = null
+  const stepHz = _searchHz
   _searchTimer = setTimeout(() => {
     if (!searchActive.value || searchLocked.value) return
-    const db = sampleCenterBinDb()
-    if (db >= r.threshold_dbfs) {
-      // Hold on signal — same UX as scanner HOLD.
-      searchLocked.value = true
-      return
+    const fresh = _lastSpectrum && _lastSpectrum.center_hz === stepHz
+    if (fresh) {
+      const db = sampleChannelDb()
+      if (db >= r.threshold_dbfs) {
+        // Hold on signal — same UX as scanner HOLD.
+        searchLocked.value = true
+        _sdrStore().searchSweeping = false
+        return
+      }
     }
     _searchHz += r.step_hz
     if (_searchHz > r.high_hz) _searchHz = r.low_hz

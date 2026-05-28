@@ -200,6 +200,11 @@ export const useSdrStore = defineStore('sdr', () => {
     lastSpectrum.value = frame
   }
 
+  // True only while a range search is actively stepping (sweeping). The
+  // waterfall reads this to freeze rendering while the centre frequency is
+  // jumping every dwell_ms — painting those frames produces meaningless noise.
+  const searchSweeping = ref(false)
+
   function _restoreSession() {
     try {
       const id = sessionStorage.getItem('sdrLastRadioId')
@@ -287,7 +292,7 @@ export const useSdrStore = defineStore('sdr', () => {
   return {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    lastSpectrum, bwHz, tuneRequest, bwRequest, fftSizeRequest,
+    lastSpectrum, searchSweeping, bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
     fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,
     showBandPlan, setShowBandPlan, hydrateShowBandPlanFromDb,

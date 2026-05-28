@@ -178,11 +178,11 @@
       { "label": "23cm FM Calling", "frequency_hz": 1297500000, "mode": "NFM", "notes": "FM calling", "groups": ["amateur-radio"] }
     ],
     "searchRanges": [
-      { "label": "Air Band",     "low_hz": 108000000, "high_hz": 137000000, "step_hz": 25000, "mode": "AM",  "threshold_dbfs": -65, "dwell_ms": 200, "band_name": "Air Band" },
-      { "label": "Marine VHF",   "low_hz": 156000000, "high_hz": 162025000, "step_hz": 25000, "mode": "NFM", "threshold_dbfs": -65, "dwell_ms": 200, "band_name": "Marine VHF" },
-      { "label": "MilAir UHF",   "low_hz": 225000000, "high_hz": 400000000, "step_hz": 25000, "mode": "AM",  "threshold_dbfs": -65, "dwell_ms": 200, "band_name": "MilAir" },
-      { "label": "2m Amateur",   "low_hz": 144000000, "high_hz": 146000000, "step_hz": 12500, "mode": "NFM", "threshold_dbfs": -70, "dwell_ms": 200, "band_name": "2m Amateur" },
-      { "label": "70cm Amateur", "low_hz": 430000000, "high_hz": 440000000, "step_hz": 12500, "mode": "NFM", "threshold_dbfs": -70, "dwell_ms": 200, "band_name": "70cm Amateur" }
+      { "label": "Air Band",     "low_hz": 108000000, "high_hz": 137000000, "step_hz": 25000, "mode": "AM",  "threshold_dbfs": -35, "dwell_ms": 200, "band_name": "Air Band" },
+      { "label": "Marine VHF",   "low_hz": 156000000, "high_hz": 162025000, "step_hz": 25000, "mode": "NFM", "threshold_dbfs": -35, "dwell_ms": 200, "band_name": "Marine VHF" },
+      { "label": "MilAir UHF",   "low_hz": 225000000, "high_hz": 400000000, "step_hz": 25000, "mode": "AM",  "threshold_dbfs": -35, "dwell_ms": 200, "band_name": "MilAir" },
+      { "label": "2m Amateur",   "low_hz": 144000000, "high_hz": 146000000, "step_hz": 12500, "mode": "NFM", "threshold_dbfs": -35, "dwell_ms": 200, "band_name": "2m Amateur" },
+      { "label": "70cm Amateur", "low_hz": 430000000, "high_hz": 440000000, "step_hz": 12500, "mode": "NFM", "threshold_dbfs": -35, "dwell_ms": 200, "band_name": "70cm Amateur" }
     ]
   }
 }

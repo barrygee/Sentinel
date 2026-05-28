@@ -1356,7 +1356,7 @@ function drawLoop() {
   drawRaf = 0
   const frame = pendingFrame
   pendingFrame = null
-  if (frame && store.playing && specPlot) {
+  if (frame && store.playing && !store.searchSweeping && specPlot) {
     specPlot.reload(specUuid, frame.bins)
     // Mx.l / Mx.r / Mx.b are computed by sigplot during its draw pass — the
     // ResizeObserver fires on layout changes, not on draws, so without this
@@ -1373,7 +1373,7 @@ let lastSampleRate = 0
 watch(
   () => store.lastSpectrum,
   (frame) => {
-    if (!store.playing || !frame || !specPlot || !wfPlot) return
+    if (!store.playing || store.searchSweeping || !frame || !specPlot || !wfPlot) return
 
     // Update the frequency span (drives the axis scaling + band overlay).
     // sample_rate spans the full FFT; bin 0 sits at center - rate/2.
@@ -1603,6 +1603,9 @@ onBeforeUnmount(() => {
     ref="rootEl"
     :class="{ 'panel-closed': !panelOpen, 'edge-resize': nearEdge }"
   >
+    <div v-if="store.searchSweeping" class="sdr-wf-search-overlay">
+      <span class="sdr-wf-search-overlay-label">WATERFALL PAUSED — SEARCHING</span>
+    </div>
     <div class="sdr-wf-controls" ref="controlsEl">
       <div class="sdr-wf-ctl">
         <span class="sdr-wf-ctl-label">Zoom</span>
