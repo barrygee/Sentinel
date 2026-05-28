@@ -461,28 +461,6 @@
 
       <div class="sdr-frequency-manager-freqs-body">
 
-        <div class="sdr-search-row">
-          <svg class="sdr-search-row-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/>
-            <line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-          <input
-            class="sdr-search-row-input"
-            type="text"
-            placeholder="LABEL · MHz · MODE"
-            autocomplete="off"
-            spellcheck="false"
-            v-model="freqSearchQuery"
-          >
-          <button
-            v-if="freqSearchQuery.length > 0"
-            type="button"
-            class="sdr-search-row-clear"
-            aria-label="Clear search"
-            @click="freqSearchQuery = ''"
-          >&#x2715;</button>
-        </div>
-
         <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
           <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
             <button
@@ -718,27 +696,6 @@
       <!-- ───────────── SEARCH RANGES TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'search-ranges' }">
       <div class="sdr-search-ranges-body">
-        <div class="sdr-search-row sdr-search-ranges-filter">
-          <svg class="sdr-search-row-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/>
-            <line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-          <input
-            class="sdr-search-row-input"
-            type="text"
-            placeholder="LABEL · MHz"
-            autocomplete="off"
-            spellcheck="false"
-            v-model="rangeSearchQuery"
-          >
-          <button
-            v-if="rangeSearchQuery.length > 0"
-            type="button"
-            class="sdr-search-row-clear"
-            aria-label="Clear search"
-            @click="rangeSearchQuery = ''"
-          >&#x2715;</button>
-        </div>
         <div id="sdr-search-range-list">
           <div
             v-for="r in filteredSearchRanges"
@@ -1180,21 +1137,7 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 const searchSectionExpanded = ref(false)
 const rangesSectionExpanded = ref(false)
 const searchRanges          = ref<SdrSearchRange[]>([])
-const rangeSearchQuery      = ref('')
-const filteredSearchRanges = computed<SdrSearchRange[]>(() => {
-  const q = rangeSearchQuery.value.trim().toLowerCase()
-  if (!q) return searchRanges.value
-  const qNum = Number(q)
-  const qIsNum = q !== '' && Number.isFinite(qNum)
-  return searchRanges.value.filter(r => {
-    if ((r.label ?? '').toLowerCase().includes(q)) return true
-    if (qIsNum) {
-      const qHz = qNum * 1e6
-      if (qHz >= r.low_hz && qHz <= r.high_hz) return true
-    }
-    return false
-  })
-})
+const filteredSearchRanges = computed<SdrSearchRange[]>(() => searchRanges.value)
 const searchActive          = ref(false)
 const searchLocked          = ref(false)
 const searchSelectedRangeId = ref<number | null>(null)
@@ -1211,7 +1154,6 @@ const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
-const freqSearchQuery = ref('')
 const scannerSectionExpanded = ref(true)
 const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
@@ -1224,21 +1166,11 @@ const currentFreqLabel = computed<string>(() => {
 })
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
-  let list = freqs.value
   if (!freqFilterAllSelected.value && freqFilterSelectedGroupIds.value.length > 0) {
     const selected = new Set(freqFilterSelectedGroupIds.value)
-    list = list.filter(f => freqGroupsFor(f).some(g => selected.has(g.id)))
+    return freqs.value.filter(f => freqGroupsFor(f).some(g => selected.has(g.id)))
   }
-  const q = freqSearchQuery.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter(f => {
-      if ((f.label ?? '').toLowerCase().includes(q)) return true
-      if ((f.mode ?? '').toLowerCase().includes(q)) return true
-      const mhz = (f.frequency_hz / 1e6).toFixed(4)
-      return mhz.includes(q)
-    })
-  }
-  return list
+  return freqs.value
 })
 
 function toggleFreqFilterAll() {
