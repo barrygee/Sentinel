@@ -369,7 +369,6 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
-          <div class="sdr-scan-subsection-label">CONTROLS</div>
           <div class="sdr-scan-btns-row">
             <button
               class="sdr-panel-btn sdr-scan-btn"
@@ -412,21 +411,22 @@
             </span>
           </button>
           <div v-show="searchSectionExpanded">
-            <div class="sdr-scan-subsection-label">RANGE</div>
-            <div class="sdr-scan-groups-row" v-if="searchRanges.length > 0">
+            <div class="sdr-search-range-list" v-if="searchRanges.length > 0">
               <button
                 v-for="r in searchRanges"
                 :key="r.id"
                 type="button"
-                class="sdr-scan-group-chip"
-                :class="{ 'sdr-scan-group-chip-active': searchSelectedRangeId === r.id }"
+                class="sdr-search-range-item"
+                :class="{ 'sdr-search-range-item-active': searchSelectedRangeId === r.id }"
                 :disabled="controlsDisabled"
                 :title="`step ${(r.step_hz/1000).toFixed(2)} kHz · ${r.mode}`"
                 @click="selectSearchRange(r.id)"
-              >{{ r.label }} ({{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz)</button>
+              >
+                <span class="sdr-search-range-primary">{{ r.label }}</span>
+                <span class="sdr-search-range-secondary">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
+              </button>
             </div>
             <div v-else class="sdr-scan-subsection-label" style="opacity:0.6">No ranges defined — add some in Frequency Manager.</div>
-            <div class="sdr-scan-subsection-label">CONTROLS</div>
             <div class="sdr-scan-btns-row">
               <button
                 class="sdr-panel-btn sdr-scan-btn"

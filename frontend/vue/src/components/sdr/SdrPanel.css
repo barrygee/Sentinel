@@ -740,6 +740,70 @@
     cursor: not-allowed;
 }
 
+.sdr-search-range-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0 -20px 12px;
+}
+
+.sdr-search-range-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    width: 100%;
+    padding: 13px 20px 13px 24px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.sdr-search-range-item:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.sdr-search-range-item-active {
+    background: rgba(200, 255, 0, 0.12);
+    color: #c8ff00;
+}
+
+.sdr-search-range-item-active:hover:not(:disabled) {
+    background: rgba(200, 255, 0, 0.16);
+}
+
+.sdr-search-range-item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sdr-search-range-primary {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: inherit;
+}
+
+.sdr-search-range-item:not(.sdr-search-range-item-active) .sdr-search-range-primary {
+    color: #fff;
+}
+
+.sdr-search-range-secondary {
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.sdr-search-range-item-active .sdr-search-range-secondary {
+    color: rgba(200, 255, 0, 0.7);
+}
+
 .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
     position: relative;
     display: flex;
@@ -829,6 +893,7 @@
 .sdr-scan-btns-row {
     display: flex;
     gap: 8px;
+    margin-top: 12px;
 }
 
 .sdr-panel-btn.sdr-scan-btn {
