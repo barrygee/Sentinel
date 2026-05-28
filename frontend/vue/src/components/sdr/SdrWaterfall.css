@@ -356,6 +356,8 @@
   gap: 14px;
   width: max-content;
   max-width: 100%;
+  background: #000;
+  padding: 28px 44px;
 }
 
 .sdr-wf-search-overlay-headline {
@@ -363,7 +365,7 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.2;
-  color: #a0a8b8;
+  color: #fff;
   letter-spacing: 0.04em;
   text-align: center;
   white-space: nowrap;
@@ -392,6 +394,7 @@
 .sdr-wf-search-overlay-range-val {
   font-size: 14px;
   line-height: 1;
+  color: #fff;
 }
 
 .sdr-wf-search-overlay-range-sep {

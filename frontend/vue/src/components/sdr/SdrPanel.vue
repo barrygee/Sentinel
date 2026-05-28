@@ -1959,6 +1959,14 @@ function startSearch() {
   if (r.low_hz >= r.high_hz || r.step_hz <= 0) return
   // Mutual exclusion with scanner — both drive `tune`.
   if (scanActive.value) stopScan()
+  if (selectedRadioId.value) {
+    sdrAudio.initAudio(selectedRadioId.value)
+    sdrAudio.setMode(r.mode as SdrMode)
+    const bw = defaultBwHz(r.mode)
+    sdrAudio.setBandwidthHz(bw)
+    bwHz.value = bw
+    setPlayingState(true)
+  }
   searchActive.value = true
   searchLocked.value = false
   const _ss = _sdrStore()
