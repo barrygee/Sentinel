@@ -743,8 +743,20 @@
               </div>
               <div class="sdr-editfreq-field sdr-range-row">
                 <div class="sdr-range-col">
-                  <label class="sdr-field-label">STEP (kHz)</label>
-                  <input class="sdr-panel-input" type="number" step="0.01" style="width:100%" v-model="rangeEditor.step_khz">
+                  <label class="sdr-field-label">STEP</label>
+                  <div
+                    :ref="setStepDropdownRef"
+                    class="sdr-device-dropdown sdr-step-dropdown"
+                    :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
+                    tabindex="0"
+                    @click.stop="toggleStepMenu"
+                    @keydown="onStepDropdownKey"
+                  >
+                    <div class="sdr-device-dropdown-selected">
+                      <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ stepMenuLabel }}</span>
+                      <span class="sdr-device-dropdown-arrow"></span>
+                    </div>
+                  </div>
                 </div>
                 <div class="sdr-range-col">
                   <label class="sdr-field-label">DWELL (ms)</label>
@@ -815,8 +827,20 @@
           </div>
           <div class="sdr-editfreq-field sdr-range-row">
             <div class="sdr-range-col">
-              <label class="sdr-field-label">STEP (kHz)</label>
-              <input class="sdr-panel-input" type="number" step="0.01" style="width:100%" v-model="rangeEditor.step_khz">
+              <label class="sdr-field-label">STEP</label>
+              <div
+                :ref="setStepDropdownRef"
+                class="sdr-device-dropdown sdr-step-dropdown"
+                :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
+                tabindex="0"
+                @click.stop="toggleStepMenu"
+                @keydown="onStepDropdownKey"
+              >
+                <div class="sdr-device-dropdown-selected">
+                  <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ stepMenuLabel }}</span>
+                  <span class="sdr-device-dropdown-arrow"></span>
+                </div>
+              </div>
             </div>
             <div class="sdr-range-col">
               <label class="sdr-field-label">DWELL (ms)</label>
@@ -895,6 +919,27 @@
     </div>
 
   </div>
+
+  <!-- Step dropdown menu (teleported so it overlays the side panel) -->
+  <Teleport to="body">
+    <div
+      v-if="stepMenuOpen"
+      ref="stepMenuRef"
+      class="sdr-device-menu sdr-device-menu--open sdr-step-menu"
+      :style="stepMenuStyle"
+      @click.stop
+    >
+      <div
+        v-for="s in STEP_OPTIONS_KHZ"
+        :key="s"
+        class="sdr-device-menu-item"
+        :class="{ 'sdr-device-menu-item--selected': parseFloat(rangeEditor.step_khz) === s }"
+        @click="pickStep(s)"
+      >
+        {{ formatStepKhz(s) }}
+      </div>
+    </div>
+  </Teleport>
 
   <!-- ── GROUP RENAME MODAL ── -->
   <div id="sdr-group-modal" class="sdr-modal-overlay" :style="{ display: groupModalOpen ? 'flex' : 'none' }" @click.self="closeGroupModal">
@@ -1720,6 +1765,7 @@ function onDeviceDropdownKey(e: KeyboardEvent) {
 function onDocumentClick() {
   if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
+  if (stepMenuOpen.value) closeStepMenu()
 }
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
@@ -1970,6 +2016,19 @@ function selectSearchRange(id: number) {
 
 const SEARCH_MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW']
 
+// Common channel step sizes (kHz) used by scanners / SDR apps. Covers HF fine
+// tuning (0.1–2.5), HF/CB (5), digital voice (6.25), 8.33 air band (EU),
+// 9 kHz MW (EU/AS), 10 kHz MW (US), 12.5 NFM PMR/marine, 25 NFM, and FM
+// broadcast (100/200).
+const STEP_OPTIONS_KHZ = [
+  0.1, 0.25, 0.5, 1, 2.5, 5, 6.25, 7.5, 8.33, 9, 10,
+  12.5, 15, 20, 25, 30, 50, 100, 200,
+] as const
+
+function formatStepKhz(v: number): string {
+  return `${v} kHz`
+}
+
 interface RangeEditorState {
   id: number | null
   label: string
@@ -1986,6 +2045,54 @@ const rangeEditorOpen = ref(false)
 const editingRangeId  = ref<number | null>(null)
 const rangeEditor = ref<RangeEditorState>(blankRangeEditor())
 const rangeEditorError = ref<string>('')
+
+// Step dropdown (custom — matches sample-rate dropdown). Only one range form
+// renders at a time (edit vs add), so a single ref/state is sufficient.
+const stepDropdownRef = ref<HTMLElement | null>(null)
+const stepMenuRef     = ref<HTMLElement | null>(null)
+// Function ref: the edit form and add form both render a step dropdown (only
+// one at a time), so a plain template ref would be set/unset by both. Capture
+// only the live element here.
+function setStepDropdownRef(el: Element | null | { $el?: Element }) {
+  if (el && (el as HTMLElement).getBoundingClientRect) {
+    stepDropdownRef.value = el as HTMLElement
+  } else if (el == null) {
+    // ignore unmounts from the *other* form — only clear if it was ours
+  }
+}
+const stepMenuOpen    = ref(false)
+const stepMenuStyle   = ref<Record<string, string>>({})
+
+function positionStepMenu() {
+  const el = stepDropdownRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  stepMenuStyle.value = { left: rect.left + 'px', top: rect.bottom + 'px', width: rect.width + 'px' }
+}
+
+function toggleStepMenu() {
+  if (stepMenuOpen.value) { closeStepMenu(); return }
+  positionStepMenu()
+  stepMenuOpen.value = true
+}
+
+function closeStepMenu() { stepMenuOpen.value = false }
+
+function onStepDropdownKey(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStepMenu() }
+  if (e.key === 'Escape') closeStepMenu()
+}
+
+function pickStep(v: number) {
+  closeStepMenu()
+  rangeEditor.value.step_khz = v.toString()
+}
+
+const stepMenuLabel = computed(() => {
+  const v = parseFloat(rangeEditor.value.step_khz)
+  if (!isFinite(v) || v <= 0) return '— select step —'
+  return formatStepKhz(v)
+})
 
 function blankRangeEditor(): RangeEditorState {
   return {
