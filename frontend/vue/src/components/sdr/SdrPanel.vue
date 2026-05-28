@@ -25,6 +25,12 @@
         <svg v-else-if="tab.id === 'frequency-manager'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M6 3h12v18l-6-4-6 4V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
         </svg>
+        <!-- search ranges (range brackets with sweep) -->
+        <svg v-else-if="tab.id === 'search-ranges'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linecap="round">
+          <path d="M5 7v10M5 7h3M5 17h3" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M19 7v10M19 7h-3M19 17h-3" stroke="currentColor" stroke-width="1.8"/>
+          <line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
         <!-- groups (stacked tags) -->
         <svg v-else-if="tab.id === 'groups'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linejoin="miter">
           <path d="M4 7h10l4 4-4 4H4V7Z" stroke="currentColor" stroke-width="1.8" fill="none"/>
@@ -455,6 +461,28 @@
 
       <div class="sdr-frequency-manager-freqs-body">
 
+        <div class="sdr-search-row">
+          <svg class="sdr-search-row-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/>
+            <line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <input
+            class="sdr-search-row-input"
+            type="text"
+            placeholder="LABEL · MHz · MODE"
+            autocomplete="off"
+            spellcheck="false"
+            v-model="freqSearchQuery"
+          >
+          <button
+            v-if="freqSearchQuery.length > 0"
+            type="button"
+            class="sdr-search-row-clear"
+            aria-label="Clear search"
+            @click="freqSearchQuery = ''"
+          >&#x2715;</button>
+        </div>
+
         <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
           <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
             <button
@@ -685,23 +713,35 @@
 
       </div>
 
-      <!-- ── Search Ranges sub-section ── -->
-      <div class="sdr-search-ranges-body">
-        <button
-          type="button"
-          class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle sdr-search-ranges-header"
-          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': rangesSectionExpanded }"
-          @click="rangesSectionExpanded = !rangesSectionExpanded"
-        >
-          <label class="sdr-field-label sdr-frequency-manager-scanner-title">SEARCH RANGES</label>
-          <span class="sdr-frequency-manager-accordion-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
+      </div>
 
-        <div v-show="rangesSectionExpanded" id="sdr-search-range-list">
+      <!-- ───────────── SEARCH RANGES TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'search-ranges' }">
+      <div class="sdr-search-ranges-body">
+        <div class="sdr-search-row sdr-search-ranges-filter">
+          <svg class="sdr-search-row-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/>
+            <line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <input
+            class="sdr-search-row-input"
+            type="text"
+            placeholder="LABEL · MHz"
+            autocomplete="off"
+            spellcheck="false"
+            v-model="rangeSearchQuery"
+          >
+          <button
+            v-if="rangeSearchQuery.length > 0"
+            type="button"
+            class="sdr-search-row-clear"
+            aria-label="Clear search"
+            @click="rangeSearchQuery = ''"
+          >&#x2715;</button>
+        </div>
+        <div id="sdr-search-range-list">
           <div
-            v-for="r in searchRanges"
+            v-for="r in filteredSearchRanges"
             :key="r.id"
             class="sdr-freq-row-item"
             :class="{ 'sdr-freq-editing': editingRangeId === r.id }"
@@ -721,11 +761,6 @@
                 </div>
                 <div class="sdr-freq-row-sub">
                   <span class="sdr-freq-row-hz">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
-                </div>
-                <div class="sdr-freq-row-sub">
-                  <span>step {{ (r.step_hz/1000).toFixed(2) }} kHz</span>
-                  <span class="sdr-freq-row-sep">·</span>
-                  <span class="sdr-freq-row-mode">{{ r.mode }}</span>
                 </div>
               </div>
               <span class="sdr-freq-row-play-spacer" aria-hidden="true"></span>
@@ -794,6 +829,9 @@
         <div v-if="searchRanges.length === 0" class="sdr-panel-empty">
           No search ranges defined.
         </div>
+        <div v-else-if="filteredSearchRanges.length === 0" class="sdr-panel-empty">
+          No ranges match your search.
+        </div>
 
         <div v-show="!(rangeEditorOpen && editingRangeId === null)" class="sdr-frequency-manager-add-freq-row">
           <button class="sdr-add-freq-btn" @click="openAddRange">Add Range</button>
@@ -858,7 +896,6 @@
           </div>
         </div>
       </div>
-
       </div>
 
       <!-- ───────────── GROUPS TAB ───────────── -->
@@ -966,11 +1003,12 @@ const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
-type SdrTab = 'radio' | 'frequency-manager' | 'groups' | 'recordings'
+type SdrTab = 'radio' | 'frequency-manager' | 'search-ranges' | 'groups' | 'recordings'
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio',      label: 'RADIO' },
   { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
+  { id: 'search-ranges', label: 'SEARCH RANGES' },
   { id: 'groups',     label: 'GROUPS' },
   { id: 'recordings', label: 'RECORDINGS' },
 ]
@@ -1142,6 +1180,21 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 const searchSectionExpanded = ref(false)
 const rangesSectionExpanded = ref(false)
 const searchRanges          = ref<SdrSearchRange[]>([])
+const rangeSearchQuery      = ref('')
+const filteredSearchRanges = computed<SdrSearchRange[]>(() => {
+  const q = rangeSearchQuery.value.trim().toLowerCase()
+  if (!q) return searchRanges.value
+  const qNum = Number(q)
+  const qIsNum = q !== '' && Number.isFinite(qNum)
+  return searchRanges.value.filter(r => {
+    if ((r.label ?? '').toLowerCase().includes(q)) return true
+    if (qIsNum) {
+      const qHz = qNum * 1e6
+      if (qHz >= r.low_hz && qHz <= r.high_hz) return true
+    }
+    return false
+  })
+})
 const searchActive          = ref(false)
 const searchLocked          = ref(false)
 const searchSelectedRangeId = ref<number | null>(null)
@@ -1158,6 +1211,7 @@ const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
+const freqSearchQuery = ref('')
 const scannerSectionExpanded = ref(true)
 const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
@@ -1170,11 +1224,21 @@ const currentFreqLabel = computed<string>(() => {
 })
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
+  let list = freqs.value
   if (!freqFilterAllSelected.value && freqFilterSelectedGroupIds.value.length > 0) {
     const selected = new Set(freqFilterSelectedGroupIds.value)
-    return freqs.value.filter(f => freqGroupsFor(f).some(g => selected.has(g.id)))
+    list = list.filter(f => freqGroupsFor(f).some(g => selected.has(g.id)))
   }
-  return freqs.value
+  const q = freqSearchQuery.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(f => {
+      if ((f.label ?? '').toLowerCase().includes(q)) return true
+      if ((f.mode ?? '').toLowerCase().includes(q)) return true
+      const mhz = (f.frequency_hz / 1e6).toFixed(4)
+      return mhz.includes(q)
+    })
+  }
+  return list
 })
 
 function toggleFreqFilterAll() {

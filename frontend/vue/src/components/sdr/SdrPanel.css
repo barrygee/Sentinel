@@ -1574,6 +1574,7 @@
 
 /* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
 .sdr-frequency-manager-freqs-body > .sdr-tab-header,
+.sdr-frequency-manager-freqs-body > .sdr-search-row,
 .sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
 .sdr-frequency-manager-freqs-body > .sdr-panel-empty {
     flex: 0 0 auto;
@@ -1611,22 +1612,13 @@
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+    scrollbar-width: none;
 }
 
 #sdr-freq-list::-webkit-scrollbar {
-    width: 6px;
-}
-#sdr-freq-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-#sdr-freq-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.10);
-    border-radius: 3px;
-}
-#sdr-freq-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(200, 255, 0, 0.28);
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .sdr-freq-group-header {
@@ -1663,6 +1655,10 @@
     gap: 12px;
     padding: 11px 24px;
     transition: background 0.12s;
+}
+
+.sdr-freq-row-top:hover {
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .sdr-freq-row-body {
@@ -2791,14 +2787,86 @@
 .sdr-search-ranges-body {
     display: flex;
     flex-direction: column;
-    flex: 1 1 40%;
+    flex: 1;
     min-height: 0;
 }
 
 .sdr-search-ranges-body > .sdr-search-ranges-header,
+.sdr-search-ranges-body > .sdr-search-ranges-filter,
 .sdr-search-ranges-body > .sdr-panel-empty,
 .sdr-search-ranges-body > .sdr-frequency-manager-add-freq-row {
     flex: 0 0 auto;
+}
+
+/* Shared search row — matches the AirFilter style. */
+.sdr-search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    margin: 0 -20px 8px;
+    padding: 0 20px 0 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    flex: 0 0 auto;
+}
+
+.sdr-search-row-icon {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.35);
+    display: block;
+}
+
+.sdr-search-row-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    caret-color: var(--color-accent);
+    min-width: 0;
+    padding: 0;
+}
+
+.sdr-search-row-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+}
+
+.sdr-search-row-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+    margin-right: 6px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+
+.sdr-search-row-clear:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Align the SEARCH RANGES header title with the list item title and the
+   chevron with the row's delete X. The header bleeds to the panel edge
+   (margin: 0 -20px), while rows sit inside the parent's 20px padding and add
+   their own 24px — net 44px from the panel edge on both sides. */
+.sdr-search-ranges-body > .sdr-search-ranges-header.sdr-frequency-manager-accordion-toggle {
+    padding-left: 44px;
+    padding-right: 68px;
+}
+.sdr-search-ranges-body > .sdr-search-ranges-header .sdr-frequency-manager-accordion-chevron {
+    right: 44px;
 }
 
 /* Spacer matches the .sdr-freq-row-play footprint (10px svg + 4px left/right
