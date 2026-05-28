@@ -403,11 +403,11 @@ html {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 28px;
-    max-width: 880px;
-    width: 100%;
+    gap: 18px;
+    max-width: 640px;
+    width: auto;
     text-align: center;
-    padding: 48px 32px;
+    padding: 28px 40px;
     background: #000;
 }
 
@@ -422,7 +422,7 @@ html {
 .no-url-overlay-title-accent {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-weight: 300;
-    font-size: clamp(34px, 5.2vw, 72px);
+    font-size: clamp(26px, 3.6vw, 48px);
     color: var(--color-accent);
     letter-spacing: -0.01em;
 }
@@ -430,7 +430,7 @@ html {
 .no-url-overlay-title-main {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-weight: 400;
-    font-size: clamp(24px, 3.4vw, 48px);
+    font-size: clamp(18px, 2.2vw, 30px);
     color: #fff;
     letter-spacing: -0.01em;
     white-space: nowrap;
@@ -438,28 +438,28 @@ html {
 
 .no-url-overlay-msg {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
     letter-spacing: 0.02em;
     color: #fff;
-    line-height: 1.7;
-    max-width: 620px;
-    margin-top: 4px;
+    line-height: 1.55;
+    max-width: 480px;
+    margin-top: 0;
 }
 
 .no-url-overlay-btn {
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    margin-top: 12px;
+    margin-top: 4px;
     background: var(--color-accent);
     border: none;
     border-radius: 999px;
-    padding: 10px 24px;
+    padding: 9px 20px;
     color: #0a0f1a;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
-    font-weight: 400;
+    font-weight: 700;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     cursor: pointer;

@@ -3,7 +3,7 @@
     <div class="no-url-overlay-box">
       <div class="no-url-overlay-title">
         <span class="no-url-overlay-title-accent">{{ domain.toUpperCase() }}</span>
-        <span class="no-url-overlay-title-main">No data source configured</span>
+        <span class="no-url-overlay-title-main">No data source configured.</span>
       </div>
       <div class="no-url-overlay-msg">{{ message }}</div>
       <button class="no-url-overlay-btn" @click="openSettings">
