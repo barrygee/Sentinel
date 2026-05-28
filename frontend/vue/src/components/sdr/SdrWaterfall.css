@@ -328,11 +328,20 @@
   align-items: center;
   justify-content: center;
   background-color: #070d1f;
+  overflow: hidden;
+}
+
+.sdr-wf-search-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background-image: url('/assets/sentinel-contour-background.svg');
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
-  overflow: hidden;
+  filter: blur(0.6px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .sdr-wf-search-overlay-inner {
