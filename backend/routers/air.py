@@ -27,6 +27,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy import text as sa_text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # ── Request body schemas ───────────────────────────────────────────────────────
@@ -130,7 +131,15 @@ async def get_aircraft_near_point(
                 fetched_at=ts,
                 expires_at=ts + settings.adsb_ttl_ms,
             ))
-        await db.commit()
+        # Best-effort cache write: if SQLite is locked beyond busy_timeout we
+        # still have fresh upstream data, so serve it rather than 500.
+        try:
+            await db.commit()
+        except OperationalError:
+            await db.rollback()
+            if background_tasks is not None:
+                background_tasks.add_task(_record_history_bg, data.get("ac", []))
+            return JSONResponse(content=data, headers={"X-Cache": "BYPASS"})
 
         if background_tasks is not None:
             background_tasks.add_task(_record_history_bg, data.get("ac", []))

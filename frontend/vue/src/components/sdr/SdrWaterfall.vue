@@ -1605,6 +1605,15 @@ onBeforeUnmount(() => {
   try { if (wfAcc) wfPlot?.remove_plugin(wfAcc) } catch { /* noop */ }
   try { if (specCar) specPlot?.remove_plugin(specCar) } catch { /* noop */ }
   try { if (wfCar) wfPlot?.remove_plugin(wfCar) } catch { /* noop */ }
+  // sigplot's AnnotationPlugin registers a document `mouseup` listener in init
+  // but never removes it in dispose() — after remove_plugin() zeroes its
+  // `annotations` array, the stale listener throws on the next mouseup. Detach
+  // it ourselves before disposing.
+  try {
+    if (knownFreqPlugin?.onmouseup) {
+      document.removeEventListener('mouseup', knownFreqPlugin.onmouseup, false)
+    }
+  } catch { /* noop */ }
   try { if (knownFreqPlugin) specPlot?.remove_plugin(knownFreqPlugin) } catch { /* noop */ }
   specAcc = null
   wfAcc = null

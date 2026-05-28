@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from backend.config import settings
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy import text as sa_text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -17,6 +17,20 @@ engine = create_async_engine(
     f"sqlite+aiosqlite:///{settings.db_path}",
     connect_args={"check_same_thread": False},  # required for SQLite async usage
 )
+
+
+# SQLite serialises writes on a single file lock. Concurrent endpoints (e.g.
+# multiple ADS-B cache upserts plus a background flight-history writer) can
+# collide and raise "database is locked" — surfaced as a 500. WAL lets readers
+# proceed during writes, and busy_timeout makes new writers wait up to N ms for
+# the lock instead of failing immediately.
+@event.listens_for(engine.sync_engine, "connect")
+def _sqlite_pragmas(dbapi_conn, _record):  # pragma: no cover — driver-level hook
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA busy_timeout=5000")
+    cur.execute("PRAGMA synchronous=NORMAL")
+    cur.close()
 
 # Session factory used by all request handlers via Depends(get_db)
 AsyncSessionLocal = sessionmaker(
