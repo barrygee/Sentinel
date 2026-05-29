@@ -411,6 +411,46 @@
             </span>
           </button>
           <div v-show="searchSectionExpanded">
+            <div class="sdr-search-adhoc-row">
+              <div class="sdr-search-adhoc-col">
+                <label class="sdr-field-label">LOW (MHz)</label>
+                <input
+                  class="sdr-panel-input sdr-search-adhoc-input"
+                  type="number"
+                  step="0.0001"
+                  required
+                  :disabled="controlsDisabled || searchActive"
+                  v-model="adhocLowMhz"
+                >
+              </div>
+              <div class="sdr-search-adhoc-col">
+                <label class="sdr-field-label">HIGH (MHz)</label>
+                <input
+                  class="sdr-panel-input sdr-search-adhoc-input"
+                  type="number"
+                  step="0.0001"
+                  required
+                  :disabled="controlsDisabled || searchActive"
+                  v-model="adhocHighMhz"
+                >
+              </div>
+              <div class="sdr-search-adhoc-col">
+                <label class="sdr-field-label">STEP</label>
+                <div
+                  :ref="setAdhocStepDropdownRef"
+                  class="sdr-device-dropdown sdr-step-dropdown"
+                  :class="{ 'sdr-device-dropdown--open': stepMenuOpen && stepMenuTarget === 'adhoc', 'sdr-device-dropdown--loading': controlsDisabled || searchActive }"
+                  tabindex="0"
+                  @click.stop="(controlsDisabled || searchActive) ? null : toggleStepMenu('adhoc')"
+                  @keydown="onStepDropdownKey($event, 'adhoc')"
+                >
+                  <div class="sdr-device-dropdown-selected">
+                    <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ adhocStepLabel }}</span>
+                    <span class="sdr-device-dropdown-arrow"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="sdr-search-range-list" v-if="searchRanges.length > 0">
               <button
                 v-for="r in searchRanges"
@@ -431,7 +471,7 @@
               <button
                 class="sdr-panel-btn sdr-scan-btn"
                 :class="{ 'sdr-scan-active-btn': searchActive && !searchLocked }"
-                :disabled="controlsDisabled || searchSelectedRangeId == null"
+                :disabled="controlsDisabled || (!adhocSearchValid && searchSelectedRangeId == null)"
                 :aria-label="searchActive && !searchLocked ? 'Stop' : 'Search'"
                 @click="onSearchPrimaryClick"
               >
@@ -747,8 +787,8 @@
                     class="sdr-device-dropdown sdr-step-dropdown"
                     :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
                     tabindex="0"
-                    @click.stop="toggleStepMenu"
-                    @keydown="onStepDropdownKey"
+                    @click.stop="toggleStepMenu('range')"
+                    @keydown="onStepDropdownKey($event, 'range')"
                   >
                     <div class="sdr-device-dropdown-selected">
                       <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ stepMenuLabel }}</span>
@@ -831,8 +871,8 @@
                 class="sdr-device-dropdown sdr-step-dropdown"
                 :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
                 tabindex="0"
-                @click.stop="toggleStepMenu"
-                @keydown="onStepDropdownKey"
+                @click.stop="toggleStepMenu('range')"
+                @keydown="onStepDropdownKey($event, 'range')"
               >
                 <div class="sdr-device-dropdown-selected">
                   <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ stepMenuLabel }}</span>
@@ -931,7 +971,7 @@
         v-for="s in STEP_OPTIONS_KHZ"
         :key="s"
         class="sdr-device-menu-item"
-        :class="{ 'sdr-device-menu-item--selected': parseFloat(rangeEditor.step_khz) === s }"
+        :class="{ 'sdr-device-menu-item--selected': parseFloat(stepMenuTarget === 'adhoc' ? adhocStepKhz : rangeEditor.step_khz) === s }"
         @click="pickStep(s)"
       >
         {{ formatStepKhz(s) }}
@@ -1194,6 +1234,19 @@ const searchActive          = ref(false)
 const searchLocked          = ref(false)
 const searchSelectedRangeId = ref<number | null>(null)
 const searchCurrentHz       = ref<number | null>(null)
+
+// Ad-hoc search inputs (low/high MHz, step kHz) — required fields shown
+// above the saved ranges list. When all three are valid, SEARCH uses these
+// instead of a saved range.
+const adhocLowMhz  = ref<string>('')
+const adhocHighMhz = ref<string>('')
+const adhocStepKhz = ref<string>('12.5')
+const adhocSearchValid = computed(() => {
+  const lo = parseFloat(adhocLowMhz.value)
+  const hi = parseFloat(adhocHighMhz.value)
+  const st = parseFloat(adhocStepKhz.value)
+  return isFinite(lo) && isFinite(hi) && isFinite(st) && lo < hi && st > 0
+})
 let _searchHz = 0
 let _searchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -1918,6 +1971,25 @@ function tuneToFreq(f: SdrStoredFrequency) {
 // ── Search engine (low/high range sweep with stop-on-signal) ─────────────────
 
 function currentSearchRange(): SdrSearchRange | null {
+  if (adhocSearchValid.value) {
+    const lo = parseFloat(adhocLowMhz.value)
+    const hi = parseFloat(adhocHighMhz.value)
+    const st = parseFloat(adhocStepKhz.value)
+    return {
+      id: -1,
+      label: 'Ad-hoc',
+      low_hz: Math.round(lo * 1e6),
+      high_hz: Math.round(hi * 1e6),
+      step_hz: Math.round(st * 1000),
+      mode: currentMode.value || 'NFM',
+      threshold_dbfs: -60,
+      dwell_ms: 150,
+      band_name: '',
+      enabled: true,
+      notes: '',
+      sort_order: 0,
+    }
+  }
   const id = searchSelectedRangeId.value
   if (id == null) return null
   return searchRanges.value.find(r => r.id === id) ?? null
@@ -2109,37 +2181,59 @@ function setStepDropdownRef(el: Element | null | { $el?: Element }) {
     // ignore unmounts from the *other* form — only clear if it was ours
   }
 }
+const adhocStepDropdownRef = ref<HTMLElement | null>(null)
+function setAdhocStepDropdownRef(el: Element | null | { $el?: Element }) {
+  if (el && (el as HTMLElement).getBoundingClientRect) {
+    adhocStepDropdownRef.value = el as HTMLElement
+  } else if (el == null) {
+    adhocStepDropdownRef.value = null
+  }
+}
 const stepMenuOpen    = ref(false)
 const stepMenuStyle   = ref<Record<string, string>>({})
+const stepMenuTarget  = ref<'range' | 'adhoc'>('range')
 
 function positionStepMenu() {
-  const el = stepDropdownRef.value
+  const el = stepMenuTarget.value === 'adhoc' ? adhocStepDropdownRef.value : stepDropdownRef.value
   if (!el) return
   const rect = el.getBoundingClientRect()
   stepMenuStyle.value = { left: rect.left + 'px', top: rect.bottom + 'px', width: rect.width + 'px' }
 }
 
-function toggleStepMenu() {
-  if (stepMenuOpen.value) { closeStepMenu(); return }
+function toggleStepMenu(target: 'range' | 'adhoc' = 'range') {
+  if (stepMenuOpen.value && stepMenuTarget.value === target) { closeStepMenu(); return }
+  stepMenuTarget.value = target
   positionStepMenu()
   stepMenuOpen.value = true
 }
 
 function closeStepMenu() { stepMenuOpen.value = false }
 
-function onStepDropdownKey(e: KeyboardEvent) {
-  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStepMenu() }
+function onStepDropdownKey(e: KeyboardEvent, target: 'range' | 'adhoc' = 'range') {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStepMenu(target) }
   if (e.key === 'Escape') closeStepMenu()
 }
 
 function pickStep(v: number) {
+  const target = stepMenuTarget.value
   closeStepMenu()
-  rangeEditor.value.step_khz = v.toString()
+  if (target === 'adhoc') {
+    adhocStepKhz.value = v.toString()
+  } else {
+    rangeEditor.value.step_khz = v.toString()
+  }
 }
 
 const stepMenuLabel = computed(() => {
-  const v = parseFloat(rangeEditor.value.step_khz)
+  const raw = stepMenuTarget.value === 'adhoc' ? adhocStepKhz.value : rangeEditor.value.step_khz
+  const v = parseFloat(raw)
   if (!isFinite(v) || v <= 0) return '— select step —'
+  return formatStepKhz(v)
+})
+
+const adhocStepLabel = computed(() => {
+  const v = parseFloat(adhocStepKhz.value)
+  if (!isFinite(v) || v <= 0) return 'Select…'
   return formatStepKhz(v)
 })
 
