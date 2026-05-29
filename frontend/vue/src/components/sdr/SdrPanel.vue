@@ -451,22 +451,37 @@
                 </div>
               </div>
             </div>
-            <div class="sdr-search-range-list" v-if="searchRanges.length > 0">
+            <div class="sdr-search-saved-ranges">
               <button
-                v-for="r in searchRanges"
-                :key="r.id"
                 type="button"
-                class="sdr-search-range-item"
-                :class="{ 'sdr-search-range-item-active': searchSelectedRangeId === r.id }"
-                :disabled="controlsDisabled"
-                :title="`step ${(r.step_hz/1000).toFixed(2)} kHz · ${r.mode}`"
-                @click="selectSearchRange(r.id)"
+                class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+                :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': savedRangesExpanded }"
+                @click="savedRangesExpanded = !savedRangesExpanded"
               >
-                <span class="sdr-search-range-primary">{{ r.label }}</span>
-                <span class="sdr-search-range-secondary">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
+                <label class="sdr-field-label sdr-frequency-manager-scanner-title">SAVED RANGES</label>
+                <span class="sdr-frequency-manager-accordion-chevron">
+                  <ChevronIcon />
+                </span>
               </button>
+              <div v-show="savedRangesExpanded">
+                <div class="sdr-search-range-list" v-if="searchRanges.length > 0">
+                  <button
+                    v-for="r in searchRanges"
+                    :key="r.id"
+                    type="button"
+                    class="sdr-search-range-item"
+                    :class="{ 'sdr-search-range-item-active': searchSelectedRangeId === r.id }"
+                    :disabled="controlsDisabled"
+                    :title="`step ${(r.step_hz/1000).toFixed(2)} kHz · ${r.mode}`"
+                    @click="selectSearchRange(r.id)"
+                  >
+                    <span class="sdr-search-range-primary">{{ r.label }}</span>
+                    <span class="sdr-search-range-secondary">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
+                  </button>
+                </div>
+                <div v-else class="sdr-scan-subsection-label" style="opacity:0.6">No ranges defined — add some in Frequency Manager.</div>
+              </div>
             </div>
-            <div v-else class="sdr-scan-subsection-label" style="opacity:0.6">No ranges defined — add some in Frequency Manager.</div>
             <div class="sdr-scan-btns-row">
               <button
                 class="sdr-panel-btn sdr-scan-btn"
@@ -1143,6 +1158,7 @@ watch(() => _sdrStore().panelOpen, (open) => {
   if (open) {
     scannerSectionExpanded.value = false
     searchSectionExpanded.value = false
+    savedRangesExpanded.value = false
   }
 })
 
@@ -1227,6 +1243,7 @@ let _scanTimer: ReturnType<typeof setTimeout> | null = null
 
 // ── Search (high/low frequency range sweep) ──────────────────────────────────
 const searchSectionExpanded = ref(false)
+const savedRangesExpanded = ref(false)
 const rangesSectionExpanded = ref(false)
 const searchRanges          = ref<SdrSearchRange[]>([])
 const filteredSearchRanges = computed<SdrSearchRange[]>(() => searchRanges.value)
