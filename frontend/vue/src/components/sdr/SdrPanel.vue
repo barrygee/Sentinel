@@ -329,6 +329,7 @@
                 <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
               </label>
             </div>
+
           </div>
         </div>
 
@@ -1097,6 +1098,7 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 // this stays in sync even when the Settings SDR control isn't mounted.
 useDocumentEvent('sentinel:config-uploaded', () => {
   void _sdrStore().hydrateAutoCenterFromDb()
+  void _sdrStore().hydrateResumeDelaySecFromDb()
 })
 
 const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
@@ -1129,6 +1131,10 @@ const bwMax             = ref(2048000)
 // avoids the stuttering 250k/300k tiers measured on the remote Pi.
 const SAMPLE_RATE_OPTIONS = [1024000, 1536000, 1792000, 2048000] as const
 const sampleRateHz      = ref<number>(2048000)
+// Resume delay is owned by the SDR store (Settings → SDR → SCAN & SEARCH).
+// Wrapped in a computed so the existing watcher code keeps using
+// `resumeDelaySec.value` unchanged.
+const resumeDelaySec    = computed<number>(() => _sdrStore().resumeDelaySec)
 const activeFreqDisplay = ref('')
 const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
@@ -1964,7 +1970,11 @@ function stopScan() {
   scanLocked.value = false
   scanCurrentHz.value = null
   if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
+  stopResumeWatcher()
 }
+
+const SCAN_DWELL_MS = 250
+const SCAN_MAX_RECHECKS = 12
 
 function doScanStep() {
   if (!scanActive.value || scanLocked.value || _scanQueue.length === 0) return
@@ -1972,11 +1982,53 @@ function doScanStep() {
   tuneToFreq(f)
   scanCurrentHz.value = f.frequency_hz
   _scanIdx++
-  _scanTimer = setTimeout(doScanStep, 2000)
+
+  // Reuse the search engine's post-tune race guard so we don't sample
+  // pre-retune IQ.
+  _lastSpectrum = null
+  _expectedCenterHz = f.frequency_hz
+  _postTuneFrameCount = 0
+  _tuneAtMs = performance.now()
+
+  const thresholdDb = (typeof f.squelch === 'number' && isFinite(f.squelch))
+    ? f.squelch
+    : squelch.value
+
+  let rechecks = 0
+  const evaluate = () => {
+    _scanTimer = null
+    if (!scanActive.value || scanLocked.value) return
+    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
+    const frameOk = _postTuneFrameCount >= 2
+        && _lastSpectrum != null
+        && _lastSpectrum.center_hz === f.frequency_hz
+    if (!(settled && frameOk)) {
+      if (rechecks < SCAN_MAX_RECHECKS) {
+        rechecks++
+        _scanTimer = setTimeout(evaluate, SEARCH_RECHECK_MS)
+        return
+      }
+      // Couldn't get a clean frame — advance.
+      doScanStep()
+      return
+    }
+    const db = sampleChannelDb()
+    if (db >= thresholdDb) {
+      scanLocked.value = true
+      startResumeWatcher(thresholdDb, () => {
+        if (!scanActive.value || !scanLocked.value) return
+        toggleScanLock()
+      })
+      return
+    }
+    doScanStep()
+  }
+  _scanTimer = setTimeout(evaluate, SCAN_DWELL_MS)
 }
 
 function toggleScanLock() {
   scanLocked.value = !scanLocked.value
+  stopResumeWatcher()
   if (!scanLocked.value && scanActive.value) {
     if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
     doScanStep()
@@ -2088,6 +2140,7 @@ function stopSearch() {
   _expectedCenterHz = null
   _postTuneFrameCount = 0
   if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
+  stopResumeWatcher()
 }
 
 function toggleSearch() { if (searchActive.value) stopSearch(); else startSearch() }
@@ -2101,6 +2154,7 @@ function toggleSearchLock() {
   if (!searchActive.value) return
   searchLocked.value = !searchLocked.value
   _sdrStore().searchSweeping = searchActive.value && !searchLocked.value
+  stopResumeWatcher()
   if (!searchLocked.value) {
     if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
     // Advance past the current freq so we don't immediately re-hold on the same signal.
@@ -2111,6 +2165,41 @@ function toggleSearchLock() {
     }
     doSearchStep()
   }
+}
+
+// Shared auto-resume watcher used by both search and scan. When a freq is
+// locked on a signal, poll sampleChannelDb() and only call onResume() once the
+// channel has been below `thresholdDb` continuously for `delaySec` seconds.
+// delaySec == 0 → resume on the next poll where the signal is gone.
+const RESUME_POLL_MS = 200
+let _resumeTimer: ReturnType<typeof setTimeout> | null = null
+let _quietSinceMs: number | null = null
+
+function stopResumeWatcher() {
+  if (_resumeTimer) { clearTimeout(_resumeTimer); _resumeTimer = null }
+  _quietSinceMs = null
+}
+
+function startResumeWatcher(thresholdDb: number, onResume: () => void) {
+  stopResumeWatcher()
+  const delayMs = Math.max(0, resumeDelaySec.value) * 1000
+  const tick = () => {
+    _resumeTimer = null
+    const db = sampleChannelDb()
+    const active = db >= thresholdDb
+    if (active) {
+      _quietSinceMs = null
+    } else {
+      if (_quietSinceMs == null) _quietSinceMs = performance.now()
+      if (performance.now() - _quietSinceMs >= delayMs) {
+        _quietSinceMs = null
+        onResume()
+        return
+      }
+    }
+    _resumeTimer = setTimeout(tick, RESUME_POLL_MS)
+  }
+  _resumeTimer = setTimeout(tick, RESUME_POLL_MS)
 }
 
 function doSearchStep() {
@@ -2152,9 +2241,15 @@ function doSearchStep() {
     }
     const db = sampleChannelDb()
     if (db >= r.threshold_dbfs) {
-      // Hold on signal — same UX as scanner HOLD.
+      // Lock on signal. A watcher will auto-advance once the signal
+      // drops and the user-configured RESUME DELAY has elapsed; until then
+      // the user can also press HOLD/RESUME to force-continue.
       searchLocked.value = true
       _sdrStore().searchSweeping = false
+      startResumeWatcher(r.threshold_dbfs, () => {
+        if (!searchActive.value || !searchLocked.value) return
+        toggleSearchLock()
+      })
       return
     }
     _searchHz += r.step_hz
@@ -2654,6 +2749,10 @@ function onRadiosChanged() {
 onMounted(() => {
   restoreSettings()
 
+  // Hydrate the resume delay from the DB so the scan/search watcher uses the
+  // user's persisted value even if the Settings SDR panel hasn't been opened
+  // yet in this session.
+  void _sdrStore().hydrateResumeDelaySecFromDb()
 
   sdrAudio.onSquelchChange(onSquelchChangeCallback)
   sdrAudio.onPower(updateSignalBar)
