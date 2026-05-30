@@ -1267,6 +1267,20 @@ const adhocSearchValid = computed(() => {
 let _searchHz = 0
 let _searchTimer: ReturnType<typeof setTimeout> | null = null
 
+// Post-tune race guard for the search engine. The backend tags FFT frames with
+// `conn.center_hz` at FFT time, not at IQ-read time — so a frame can be labelled
+// with the new frequency while its IQ samples were captured at the previous
+// one. We track how many frames have arrived bearing the expected center_hz
+// since the last retune, and only sample after a minimum settle window has
+// elapsed *and* at least one matching frame has been seen (we discard the
+// first one as a race-window guard).
+let _expectedCenterHz: number | null = null
+let _postTuneFrameCount = 0
+let _tuneAtMs = 0
+const SEARCH_MIN_SETTLE_MS = 250
+const SEARCH_RECHECK_MS = 80
+const SEARCH_MAX_RECHECKS = 6
+
 // Latest spectrum frame stash — used by the search engine to read the centre
 // bin's dBFS power after the dwell interval to decide hold-on-signal.
 let _lastSpectrum: { bins: number[]; center_hz: number; sample_rate: number } | null = null
@@ -1514,6 +1528,9 @@ async function openControlSocket(radioId: number) {
             bins: msg.bins as number[],
             center_hz: msg.center_hz as number,
             sample_rate: msg.sample_rate as number,
+          }
+          if (_expectedCenterHz !== null && msg.center_hz === _expectedCenterHz) {
+            _postTuneFrameCount++
           }
         }
         break
@@ -1999,8 +2016,8 @@ function currentSearchRange(): SdrSearchRange | null {
       high_hz: Math.round(hi * 1e6),
       step_hz: Math.round(st * 1000),
       mode: currentMode.value || 'NFM',
-      threshold_dbfs: -60,
-      dwell_ms: 150,
+      threshold_dbfs: -30,
+      dwell_ms: 250,
       band_name: '',
       enabled: true,
       notes: '',
@@ -2078,6 +2095,8 @@ function stopSearch() {
   _ss.searchHighHz = null
   _ss.searchCurrentHz = null
   searchCurrentHz.value = null
+  _expectedCenterHz = null
+  _postTuneFrameCount = 0
   if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
 }
 
@@ -2108,29 +2127,51 @@ function doSearchStep() {
   if (!searchActive.value || searchLocked.value) return
   const r = currentSearchRange()
   if (!r) { stopSearch(); return }
-  tuneToHzMode(_searchHz, r.mode)
-  searchCurrentHz.value = _searchHz
-  _sdrStore().searchCurrentHz = _searchHz
-  // Invalidate any pre-tune frame so the threshold decision is made on a
-  // spectrum produced after the retune lands.
-  _lastSpectrum = null
   const stepHz = _searchHz
-  _searchTimer = setTimeout(() => {
+  tuneToHzMode(stepHz, r.mode)
+  searchCurrentHz.value = stepHz
+  _sdrStore().searchCurrentHz = stepHz
+  // Reset the post-tune race guard. Frames bearing the new expected center_hz
+  // are counted by the WS handler; we discard the first one because the backend
+  // labels frames with conn.center_hz at FFT time, not at IQ-read time — so the
+  // first label-matching frame can still contain pre-retune IQ.
+  _lastSpectrum = null
+  _expectedCenterHz = stepHz
+  _postTuneFrameCount = 0
+  _tuneAtMs = performance.now()
+  const dwellMs = Math.max(50, r.dwell_ms)
+
+  let rechecks = 0
+  const evaluate = () => {
     if (!searchActive.value || searchLocked.value) return
-    const fresh = _lastSpectrum && _lastSpectrum.center_hz === stepHz
-    if (fresh) {
-      const db = sampleChannelDb()
-      if (db >= r.threshold_dbfs) {
-        // Hold on signal — same UX as scanner HOLD.
-        searchLocked.value = true
-        _sdrStore().searchSweeping = false
+    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
+    const frameOk = _postTuneFrameCount >= 2
+        && _lastSpectrum != null
+        && _lastSpectrum.center_hz === stepHz
+    if (!(settled && frameOk)) {
+      if (rechecks < SEARCH_MAX_RECHECKS) {
+        rechecks++
+        _searchTimer = setTimeout(evaluate, SEARCH_RECHECK_MS)
         return
       }
+      // Give up waiting for a clean frame and advance without sampling.
+      _searchHz += r.step_hz
+      if (_searchHz > r.high_hz) _searchHz = r.low_hz
+      doSearchStep()
+      return
+    }
+    const db = sampleChannelDb()
+    if (db >= r.threshold_dbfs) {
+      // Hold on signal — same UX as scanner HOLD.
+      searchLocked.value = true
+      _sdrStore().searchSweeping = false
+      return
     }
     _searchHz += r.step_hz
     if (_searchHz > r.high_hz) _searchHz = r.low_hz
     doSearchStep()
-  }, Math.max(50, r.dwell_ms))
+  }
+  _searchTimer = setTimeout(evaluate, dwellMs)
 }
 
 async function reloadSearchRanges() {
