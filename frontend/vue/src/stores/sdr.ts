@@ -240,6 +240,13 @@ export const useSdrStore = defineStore('sdr', () => {
   const searchHighHz = ref<number | null>(null)
   const searchCurrentHz = ref<number | null>(null)
 
+  // True while the scanner is actively stepping between saved frequencies and
+  // has not yet locked on an active signal. Drives the same paused/holding
+  // overlay used during search sweeps. Group names label which groups are in
+  // the scan queue (or a single "All" entry when every scannable freq is in).
+  const scanSweeping = ref(false)
+  const scanGroupNames = ref<string[]>([])
+
   function _restoreSession() {
     try {
       const id = sessionStorage.getItem('sdrLastRadioId')
@@ -328,6 +335,7 @@ export const useSdrStore = defineStore('sdr', () => {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
     lastSpectrum, searchSweeping, searchLowHz, searchHighHz, searchCurrentHz,
+    scanSweeping, scanGroupNames,
     bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
     fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,

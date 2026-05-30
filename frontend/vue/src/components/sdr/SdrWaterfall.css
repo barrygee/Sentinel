@@ -434,3 +434,19 @@
   border-radius: 2px;
   transition: width 180ms linear;
 }
+
+.sdr-wf-search-overlay-stack:has(.sdr-wf-scan-overlay-groups) {
+  width: 640px;
+  max-width: 100%;
+}
+.sdr-wf-search-overlay-stack:has(.sdr-wf-scan-overlay-groups) .sdr-wf-search-overlay-headline {
+  white-space: normal;
+}
+
+.sdr-wf-scan-overlay-groups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}

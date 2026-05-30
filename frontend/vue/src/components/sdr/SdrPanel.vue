@@ -1353,6 +1353,27 @@ const sortedGroups = computed<SdrFrequencyGroup[]>(() =>
   groups.value.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 )
 
+// Mirror scanner sweep state + selected group labels into the store. The
+// waterfall component reads these to show the same paused/holding overlay
+// used during a range search whenever the scanner is stepping between
+// frequencies (but not when it has locked onto an active signal).
+watch(
+  [scanActive, scanLocked, scanAllSelected, scanSelectedGroupIds, groupsWithFreqs],
+  ([active, locked, allSel, selIds, groupsList]) => {
+    const _ss = _sdrStore()
+    _ss.scanSweeping = !!active && !locked
+    if (allSel || (selIds as number[]).length === 0) {
+      _ss.scanGroupNames = ['All']
+    } else {
+      const sel = new Set(selIds as number[])
+      _ss.scanGroupNames = (groupsList as SdrFrequencyGroup[])
+        .filter(g => sel.has(g.id))
+        .map(g => g.name)
+    }
+  },
+  { immediate: true, deep: true },
+)
+
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
 function freqGroupsFor(f: SdrStoredFrequency): SdrFrequencyGroup[] {

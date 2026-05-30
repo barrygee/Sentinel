@@ -1379,7 +1379,7 @@ function drawLoop() {
   drawRaf = 0
   const frame = pendingFrame
   pendingFrame = null
-  if (frame && store.playing && !store.searchSweeping && specPlot) {
+  if (frame && store.playing && !(store.searchSweeping || store.scanSweeping) && specPlot) {
     specPlot.reload(specUuid, frame.bins)
     // Mx.l / Mx.r / Mx.b are computed by sigplot during its draw pass — the
     // ResizeObserver fires on layout changes, not on draws, so without this
@@ -1396,7 +1396,7 @@ let lastSampleRate = 0
 watch(
   () => store.lastSpectrum,
   (frame) => {
-    if (!store.playing || store.searchSweeping || !frame || !specPlot || !wfPlot) return
+    if (!store.playing || (store.searchSweeping || store.scanSweeping) || !frame || !specPlot || !wfPlot) return
 
     // Update the frequency span (drives the axis scaling + band overlay).
     // sample_rate spans the full FFT; bin 0 sits at center - rate/2.
@@ -1649,6 +1649,22 @@ onBeforeUnmount(() => {
             <span class="sdr-wf-search-overlay-range-sep">→</span>
             <span class="sdr-wf-search-overlay-range-val">{{ searchOverlayHighMHz }}</span>
             <span class="sdr-wf-search-overlay-range-unit">MHz</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="store.scanSweeping" class="sdr-wf-search-overlay">
+      <div class="sdr-wf-search-overlay-inner">
+        <div class="sdr-wf-search-overlay-stack">
+          <div class="sdr-wf-search-overlay-headline">
+            Spectrum and waterfall paused during active group scan.
+          </div>
+          <div class="sdr-wf-scan-overlay-groups">
+            <span
+              v-for="(name, idx) in store.scanGroupNames"
+              :key="name + idx"
+              class="sdr-scan-group-chip sdr-scan-group-chip-active"
+            >{{ name }}</span>
           </div>
         </div>
       </div>
