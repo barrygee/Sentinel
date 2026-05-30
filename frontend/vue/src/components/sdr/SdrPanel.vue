@@ -370,25 +370,18 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
-          <div class="sdr-scan-btns-row">
+          <div class="sdr-scan-btns-row sdr-scan-btns-row--right">
             <button
-              class="sdr-panel-btn sdr-scan-btn"
-              :class="{ 'sdr-scan-active-btn': scanActive && !scanLocked }"
+              type="button"
+              class="sdr-search-adhoc-play"
+              :class="{ 'sdr-search-adhoc-play--active': scanActive }"
               :disabled="controlsDisabled"
-              :aria-label="scanActive && !scanLocked ? 'Stop' : 'Scan'"
+              :aria-label="scanActive ? 'Stop scan' : 'Start scan'"
+              :title="scanActive ? 'Stop scan' : 'Start scan'"
               @click="onScanPrimaryClick"
             >
-              <svg v-if="scanActive && !scanLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
-              <template v-else>SCAN</template>
-            </button>
-            <button
-              class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
-              :disabled="controlsDisabled || !scanActive || scanLocked"
-              title="Hold scanner on current frequency"
-              aria-label="Hold"
-              @click="toggleScanLock"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
+              <svg v-if="scanActive" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
+              <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
             </button>
           </div>
           </div>
@@ -512,18 +505,6 @@
                 </div>
                 <div v-else class="sdr-scan-subsection-label" style="opacity:0.6">No ranges defined — add some in Frequency Manager.</div>
               </div>
-            </div>
-            <div class="sdr-scan-btns-row">
-              <button
-                class="sdr-panel-btn sdr-scan-btn"
-                :class="{ 'sdr-scan-active-btn': searchActive && !searchLocked }"
-                :disabled="controlsDisabled || (!adhocSearchValid && searchSelectedRangeId == null)"
-                :aria-label="searchActive && !searchLocked ? 'Stop' : 'Search'"
-                @click="onSearchPrimaryClick"
-              >
-                <svg v-if="searchActive && !searchLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
-                <template v-else>SEARCH</template>
-              </button>
             </div>
           </div>
         </div>
@@ -1152,7 +1133,7 @@ const currentFreqHz     = ref(0)
 const gainDb            = ref(30)
 const gainAuto          = ref(false)
 const volume            = ref(80)
-const squelch           = ref(-120)
+const squelch           = ref(-30)
 const bwHz              = ref(10000)
 const bwMax             = ref(2048000)
 // Hardware sample rate (rtl_tcp): governs the spectrum/waterfall x-axis span
@@ -2024,9 +2005,7 @@ function doScanStep() {
   _postTuneFrameCount = 0
   _tuneAtMs = performance.now()
 
-  const thresholdDb = (typeof f.squelch === 'number' && isFinite(f.squelch))
-    ? f.squelch
-    : squelch.value
+  const thresholdDb = squelch.value
 
   let rechecks = 0
   const evaluate = () => {

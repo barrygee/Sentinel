@@ -1030,6 +1030,10 @@
     margin-top: 12px;
 }
 
+.sdr-scan-btns-row--right {
+    justify-content: flex-end;
+}
+
 .sdr-panel-btn.sdr-scan-btn {
     justify-content: center;
     align-items: center;
