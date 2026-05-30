@@ -493,16 +493,6 @@
                 <svg v-if="searchActive && !searchLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
                 <template v-else>SEARCH</template>
               </button>
-              <button
-                class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
-                :disabled="controlsDisabled || !searchActive"
-                :title="searchLocked ? 'Resume search' : 'Hold search on current frequency'"
-                :aria-label="searchLocked ? 'Resume' : 'Hold'"
-                @click="toggleSearchLock"
-              >
-                <svg v-if="searchLocked" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
-                <svg v-else width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
-              </button>
             </div>
           </div>
         </div>
@@ -2189,6 +2179,8 @@ async function reloadSearchRanges() {
 function selectSearchRange(id: number) {
   if (searchActive.value) stopSearch()
   searchSelectedRangeId.value = id
+  adhocLowMhz.value = ''
+  adhocHighMhz.value = ''
 }
 
 // ── Search range editor (Frequency Manager tab) ──────────────────────────────
