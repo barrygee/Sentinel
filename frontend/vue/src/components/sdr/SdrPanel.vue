@@ -451,6 +451,20 @@
                   </div>
                 </div>
               </div>
+              <div class="sdr-search-adhoc-col sdr-search-adhoc-col--play">
+                <button
+                  type="button"
+                  class="sdr-search-adhoc-play"
+                  :class="{ 'sdr-search-adhoc-play--active': isAdhocSearching }"
+                  :disabled="controlsDisabled || (!adhocSearchValid && !isAdhocSearching)"
+                  :aria-label="isAdhocSearching ? 'Stop search' : 'Start search'"
+                  :title="isAdhocSearching ? 'Stop search' : 'Start search'"
+                  @click="onAdhocPlayClick"
+                >
+                  <svg v-if="isAdhocSearching" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
+                  <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                </button>
+              </div>
             </div>
             <div class="sdr-search-saved-ranges">
               <button
@@ -466,19 +480,35 @@
               </button>
               <div v-show="savedRangesExpanded">
                 <div class="sdr-search-range-list" v-if="searchRanges.length > 0">
-                  <button
+                  <div
                     v-for="r in searchRanges"
                     :key="r.id"
-                    type="button"
                     class="sdr-search-range-item"
                     :class="{ 'sdr-search-range-item-active': searchSelectedRangeId === r.id }"
-                    :disabled="controlsDisabled"
                     :title="`step ${(r.step_hz/1000).toFixed(2)} kHz · ${r.mode}`"
-                    @click="selectSearchRange(r.id)"
                   >
-                    <span class="sdr-search-range-primary">{{ r.label }}</span>
-                    <span class="sdr-search-range-secondary">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
-                  </button>
+                    <button
+                      type="button"
+                      class="sdr-search-range-item-body"
+                      :disabled="controlsDisabled"
+                      @click="selectSearchRange(r.id)"
+                    >
+                      <span class="sdr-search-range-primary">{{ r.label }}</span>
+                      <span class="sdr-search-range-secondary">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="sdr-search-range-item-play"
+                      :class="{ 'sdr-search-range-item-play--active': isSavedRangeSearching(r.id) }"
+                      :disabled="controlsDisabled"
+                      :aria-label="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
+                      :title="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
+                      @click.stop="onSavedRangePlayClick(r.id)"
+                    >
+                      <svg v-if="isSavedRangeSearching(r.id)" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
+                      <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                    </button>
+                  </div>
                 </div>
                 <div v-else class="sdr-scan-subsection-label" style="opacity:0.6">No ranges defined — add some in Frequency Manager.</div>
               </div>
@@ -1246,6 +1276,10 @@ const filteredSearchRanges = computed<SdrSearchRange[]>(() => searchRanges.value
 const searchActive          = ref(false)
 const searchLocked          = ref(false)
 const searchSelectedRangeId = ref<number | null>(null)
+// Tracks whether the running search was started from the ad-hoc inputs or a
+// saved range list item — needed so per-item play/stop buttons can show the
+// correct icon and toggle the correct sweep.
+const searchActiveSource    = ref<'adhoc' | 'saved' | null>(null)
 const searchCurrentHz       = ref<number | null>(null)
 
 // Ad-hoc search inputs (low/high MHz, step kHz) — required fields shown
@@ -2046,50 +2080,76 @@ function tuneToFreq(f: SdrStoredFrequency) {
 
 // ── Search engine (low/high range sweep with stop-on-signal) ─────────────────
 
-function currentSearchRange(): SdrSearchRange | null {
-  if (adhocSearchValid.value) {
-    const lo = parseFloat(adhocLowMhz.value)
-    const hi = parseFloat(adhocHighMhz.value)
-    const st = parseFloat(adhocStepKhz.value)
-    return {
-      id: -1,
-      label: 'Ad-hoc',
-      low_hz: Math.round(lo * 1e6),
-      high_hz: Math.round(hi * 1e6),
-      step_hz: Math.round(st * 1000),
-      mode: currentMode.value || 'NFM',
-      threshold_dbfs: -30,
-      dwell_ms: 250,
-      band_name: '',
-      enabled: true,
-      notes: '',
-      sort_order: 0,
-    }
+function adhocRange(): SdrSearchRange | null {
+  if (!adhocSearchValid.value) return null
+  const lo = parseFloat(adhocLowMhz.value)
+  const hi = parseFloat(adhocHighMhz.value)
+  const st = parseFloat(adhocStepKhz.value)
+  return {
+    id: -1,
+    label: 'Ad-hoc',
+    low_hz: Math.round(lo * 1e6),
+    high_hz: Math.round(hi * 1e6),
+    step_hz: Math.round(st * 1000),
+    mode: currentMode.value || 'NFM',
+    threshold_dbfs: -30,
+    dwell_ms: 250,
+    band_name: '',
+    enabled: true,
+    notes: '',
+    sort_order: 0,
   }
-  const id = searchSelectedRangeId.value
+}
+
+function savedRange(id: number | null): SdrSearchRange | null {
   if (id == null) return null
   return searchRanges.value.find(r => r.id === id) ?? null
+}
+
+// Returns the range currently being searched (or that would be searched if the
+// main SEARCH button were pressed now). When a search is active, the source is
+// pinned by searchActiveSource so the per-item buttons stay accurate even if
+// ad-hoc inputs change mid-sweep.
+function currentSearchRange(): SdrSearchRange | null {
+  if (searchActive.value) {
+    if (searchActiveSource.value === 'adhoc') return adhocRange()
+    if (searchActiveSource.value === 'saved') return savedRange(searchSelectedRangeId.value)
+  }
+  return adhocRange() ?? savedRange(searchSelectedRangeId.value)
+}
+
+const isAdhocSearching = computed(() =>
+  searchActive.value && searchActiveSource.value === 'adhoc'
+)
+function isSavedRangeSearching(id: number): boolean {
+  return searchActive.value
+    && searchActiveSource.value === 'saved'
+    && searchSelectedRangeId.value === id
 }
 
 function sampleChannelDb(): number {
   const s = _lastSpectrum
   if (!s || !s.bins || s.bins.length === 0) return -120
-  // Mean dB of a narrow band around the tuner, skipping the centre DC spike
-  // (centre bin ± 2). A wide window would pick up adjacent channels; the
-  // single centre bin always reads the LO/DC artifact. Bins ±3..±5 around
-  // centre approximate the demod channel without the spike.
+  // Peak dB across the demod channel around the tuner, skipping only the
+  // single centre DC spike. Mean across a narrow ±3..±5 window underreports
+  // narrow signals — the audio worklet (which sees the full demod channel)
+  // opened squelch but this sampler missed the peak. Sizing the window to
+  // the demod bandwidth (with a sensible floor) and taking the max matches
+  // what the user hears.
   const n = s.bins.length
   const mid = Math.floor(n / 2)
-  const lo = Math.max(0, mid - 5)
-  const hi = Math.min(n - 1, mid + 5)
-  let sum = 0
-  let count = 0
+  const binHz = (s.sample_rate || 2_048_000) / n
+  // Half-width: at least 4 bins, otherwise the demod bandwidth in bins.
+  const halfBins = Math.max(4, Math.ceil((bwHz.value / 2) / binHz))
+  const lo = Math.max(0, mid - halfBins)
+  const hi = Math.min(n - 1, mid + halfBins)
+  let peak = -Infinity
   for (let i = lo; i <= hi; i++) {
-    if (i >= mid - 2 && i <= mid + 2) continue
+    if (i === mid) continue // skip LO/DC spike
     const v = s.bins[i]
-    if (typeof v === 'number' && isFinite(v)) { sum += v; count++ }
+    if (typeof v === 'number' && isFinite(v) && v > peak) peak = v
   }
-  return count > 0 ? sum / count : -120
+  return peak === -Infinity ? -120 : peak
 }
 
 function tuneToHzMode(hz: number, mode: string) {
@@ -2101,8 +2161,13 @@ function tuneToHzMode(hz: number, mode: string) {
   sendCmd({ cmd: 'mode', mode })
 }
 
-function startSearch() {
-  const r = currentSearchRange()
+function startSearch(source?: 'adhoc' | 'saved') {
+  // Resolve which source to run if not explicitly chosen: ad-hoc takes
+  // priority when its inputs are valid, otherwise the selected saved range.
+  const resolved: 'adhoc' | 'saved' | null = source
+    ?? (adhocSearchValid.value ? 'adhoc' : (searchSelectedRangeId.value != null ? 'saved' : null))
+  if (!resolved) return
+  const r = resolved === 'adhoc' ? adhocRange() : savedRange(searchSelectedRangeId.value)
   if (!r) return
   if (r.low_hz >= r.high_hz || r.step_hz <= 0) return
   // Mutual exclusion with scanner — both drive `tune`.
@@ -2116,6 +2181,7 @@ function startSearch() {
     setPlayingState(true)
   }
   searchActive.value = true
+  searchActiveSource.value = resolved
   searchLocked.value = false
   const _ss = _sdrStore()
   _ss.searchSweeping = true
@@ -2130,6 +2196,7 @@ function startSearch() {
 
 function stopSearch() {
   searchActive.value = false
+  searchActiveSource.value = null
   searchLocked.value = false
   const _ss = _sdrStore()
   _ss.searchSweeping = false
@@ -2148,6 +2215,19 @@ function toggleSearch() { if (searchActive.value) stopSearch(); else startSearch
 function onSearchPrimaryClick() {
   if (searchActive.value && searchLocked.value) toggleSearchLock()
   else toggleSearch()
+}
+
+function onAdhocPlayClick() {
+  if (isAdhocSearching.value) { stopSearch(); return }
+  if (searchActive.value) stopSearch()
+  startSearch('adhoc')
+}
+
+function onSavedRangePlayClick(id: number) {
+  if (isSavedRangeSearching(id)) { stopSearch(); return }
+  if (searchActive.value) stopSearch()
+  searchSelectedRangeId.value = id
+  startSearch('saved')
 }
 
 function toggleSearchLock() {
@@ -2239,14 +2319,17 @@ function doSearchStep() {
       doSearchStep()
       return
     }
+    // Use the SQUELCH slider as the activity threshold so "audible" lines up
+    // with "lock here" — same gate the audio path uses. Range threshold_dbfs
+    // is intentionally ignored.
     const db = sampleChannelDb()
-    if (db >= r.threshold_dbfs) {
+    if (db >= squelch.value) {
       // Lock on signal. A watcher will auto-advance once the signal
       // drops and the user-configured RESUME DELAY has elapsed; until then
       // the user can also press HOLD/RESUME to force-continue.
       searchLocked.value = true
       _sdrStore().searchSweeping = false
-      startResumeWatcher(r.threshold_dbfs, () => {
+      startResumeWatcher(squelch.value, () => {
         if (!searchActive.value || !searchLocked.value) return
         toggleSearchLock()
       })
