@@ -47,6 +47,11 @@
   </div>
 
   <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
+    <button
+      class="msb-mobile-close"
+      aria-label="Close panel"
+      @click="hide"
+    >×</button>
     <div id="map-sidebar-panes">
       <template v-if="!hideTabs">
         <div class="msb-pane" :class="{ 'msb-pane-active': activeTab === 'search' }" id="msb-pane-search">
@@ -601,5 +606,75 @@ body[data-domain="sdr"] #map-sidebar {
     color: var(--color-accent);
     border-color: rgba(200, 255, 0, 0.3);
     background: rgba(200, 255, 0, 0.06);
+}
+
+/* ---- Mobile-only close affordance — hidden on desktop ---- */
+.msb-mobile-close {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 5;
+    padding: 0;
+}
+.msb-mobile-close:hover { color: #fff; }
+
+/* ---- ≤768px: panel becomes full-width drawer ---- */
+@media (max-width: 768px) {
+    #map-sidebar {
+        left: 44px;
+        width: auto;
+        right: 0;
+    }
+    .msb-mobile-close { display: flex; align-items: center; justify-content: center; }
+}
+
+/* ---- ≤480px: rail moves to bottom, sidebar fills above it ---- */
+@media (max-width: 480px) {
+    #map-sidebar-rail {
+        top: auto;
+        bottom: var(--footer-height);
+        left: 0;
+        right: 0;
+        width: auto;
+        height: 44px;
+        flex-direction: row;
+        border-top: 1px solid var(--color-border);
+        justify-content: space-around;
+    }
+    .msb-rail-btn {
+        height: 100%;
+        width: auto;
+        flex: 1;
+        border-left: none;
+        border-top: 2px solid transparent;
+    }
+    .msb-rail-btn.msb-rail-btn-active {
+        border-left-color: transparent;
+        border-top-color: var(--color-accent);
+    }
+    #map-sidebar {
+        left: 0;
+        right: 0;
+        width: auto;
+        bottom: calc(var(--footer-height) + 44px);
+    }
+    #map-sidebar.msb-hidden {
+        transform: translateY(100%);
+    }
+    body[data-domain="sdr"] #map-sidebar {
+        left: 0;
+        bottom: var(--footer-height);
+    }
 }
 </style>

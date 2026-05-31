@@ -803,4 +803,42 @@ try {
 .map-3d-btn[data-tooltip]:hover::before {
     opacity: 1;
 }
+
+/* ---- ≤768px: shrink the side menu, suppress hover tooltips ---- */
+@media (max-width: 768px) {
+    #side-menu {
+        top: auto;
+        bottom: calc(var(--footer-height) + 8px);
+        right: 8px;
+        gap: 3px;
+    }
+    /* When user explicitly expands, allow it to grow; otherwise stay compact */
+    #side-menu:not(.expanded) .sm-group {
+        width: 36px;
+    }
+    #side-menu:not(.expanded) #sm-group-toggle {
+        width: 36px;
+    }
+    #side-menu .sm-btn,
+    #side-menu .sm-nav-btn,
+    #side-menu-toggle {
+        height: 32px;
+    }
+    /* Hover-only tooltips are not useful on touch — hide them */
+    #side-menu [data-tooltip]::before {
+        display: none !important;
+    }
+    /* Map-3d button if it leaks outside the menu */
+    .map-3d-btn[data-tooltip]::before { display: none !important; }
+}
+
+/* ---- ≤480px: hide labels/menu in expanded mode would overflow; keep compact ---- */
+@media (max-width: 480px) {
+    #side-menu.expanded .sm-group {
+        width: 120px;
+    }
+    #side-menu .sm-btn {
+        font-size: 11px;
+    }
+}
 </style>
