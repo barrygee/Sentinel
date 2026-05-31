@@ -75,6 +75,55 @@
                 </div>
               </div>
             </div>
+            <div v-if="hasRadioInfo(sat)" class="sfr-acc-section sfr-acc-section--radio">
+              <div class="sfr-acc-section-title">RADIO</div>
+              <div class="sfr-acc-radio-grid">
+                <template v-if="sat.uplink_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--uplink">
+                    <div class="sfr-acc-cell-label">UPLINK</div>
+                    <div class="sfr-acc-cell-value">{{ formatHz(sat.uplink_hz) }}<span v-if="sat.uplink_mode" class="sfr-acc-cell-mode"> · {{ sat.uplink_mode }}</span></div>
+                  </div>
+                </template>
+                <template v-if="sat.downlink_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--downlink">
+                    <div class="sfr-acc-cell-label">DOWNLINK</div>
+                    <div class="sfr-acc-cell-value">{{ formatHz(sat.downlink_hz) }}<span v-if="sat.downlink_mode" class="sfr-acc-cell-mode"> · {{ sat.downlink_mode }}</span></div>
+                  </div>
+                </template>
+                <template v-if="sat.ctcss_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--ctcss">
+                    <div class="sfr-acc-cell-label">CTCSS</div>
+                    <div class="sfr-acc-cell-value">{{ sat.ctcss_hz.toFixed(1) }} Hz</div>
+                  </div>
+                </template>
+                <template v-if="sat.transponder_type">
+                  <div class="sfr-acc-cell sfr-acc-cell--transponder">
+                    <div class="sfr-acc-cell-label">TRANSPONDER</div>
+                    <div class="sfr-acc-cell-value">{{ sat.transponder_type }}</div>
+                  </div>
+                </template>
+                <template v-if="sat.beacon_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--beacon">
+                    <div class="sfr-acc-cell-label">BEACON</div>
+                    <div class="sfr-acc-cell-value">{{ formatHz(sat.beacon_hz) }}</div>
+                  </div>
+                </template>
+                <template v-if="sat.radio_status">
+                  <div class="sfr-acc-cell sfr-acc-cell--status">
+                    <div class="sfr-acc-cell-label">STATUS</div>
+                    <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-status-active': sat.radio_status === 'active', 'sfr-acc-status-silent': sat.radio_status === 'silent' || sat.radio_status === 'inactive' }">{{ sat.radio_status.toUpperCase() }}</div>
+                  </div>
+                </template>
+              </div>
+              <div v-if="sat.packet_info" class="sfr-acc-radio-line">
+                <div class="sfr-acc-cell-label">PACKET / DIGITAL</div>
+                <div class="sfr-acc-radio-text">{{ sat.packet_info }}</div>
+              </div>
+              <div v-if="sat.radio_notes" class="sfr-acc-radio-line">
+                <div class="sfr-acc-cell-label">NOTES</div>
+                <div class="sfr-acc-radio-text">{{ sat.radio_notes }}</div>
+              </div>
+            </div>
             <div class="sfr-acc-section sfr-acc-section--track">
               <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
             </div>
@@ -133,10 +182,33 @@ import {
 } from '../../utils/satelliteUtils'
 
 interface SatEntry {
-  norad_id:   string
-  name:       string
-  category:   string | null
-  updated_at: number | null
+  norad_id:         string
+  name:             string
+  category:         string | null
+  updated_at:       number | null
+  uplink_hz?:        number | null
+  uplink_mode?:      string | null
+  downlink_hz?:      number | null
+  downlink_mode?:    string | null
+  ctcss_hz?:         number | null
+  transponder_type?: string | null
+  beacon_hz?:        number | null
+  packet_info?:      string | null
+  radio_status?:     string | null
+  radio_notes?:      string | null
+}
+
+function formatHz(hz: number | null | undefined): string {
+  if (hz == null) return '—'
+  if (hz >= 1_000_000_000) return (hz / 1_000_000_000).toFixed(3) + ' GHz'
+  if (hz >= 1_000_000) return (hz / 1_000_000).toFixed(3) + ' MHz'
+  if (hz >= 1_000) return (hz / 1_000).toFixed(3) + ' kHz'
+  return String(hz) + ' Hz'
+}
+
+function hasRadioInfo(sat: SatEntry): boolean {
+  return !!(sat.uplink_hz || sat.downlink_hz || sat.beacon_hz ||
+    sat.transponder_type || sat.packet_info || sat.radio_status || sat.radio_notes)
 }
 
 interface SatPass {
@@ -800,5 +872,50 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     color: rgba(255, 255, 255, 0.25);
     text-align: center;
     text-transform: uppercase;
+}
+
+/* ---- RADIO section ---- */
+.sfr-acc-section--radio {
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+}
+.sfr-acc-radio-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    margin-top: 6px;
+}
+.sfr-acc-radio-grid .sfr-acc-cell {
+    align-items: flex-start;
+    text-align: left;
+}
+.sfr-acc-cell-mode {
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 400;
+    margin-left: 2px;
+}
+.sfr-acc-status-active {
+    color: var(--color-accent);
+}
+.sfr-acc-status-silent {
+    color: rgba(255, 130, 130, 0.85);
+}
+.sfr-acc-radio-line {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.sfr-acc-radio-text {
+    font-family: var(--font-primary);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.7);
+}
+@media (max-width: 480px) {
+    .sfr-acc-radio-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

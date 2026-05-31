@@ -57,6 +57,18 @@ class SatelliteCatalogue(Base):
     category_source = Column(Text, nullable=True)       # 'celestrak_group'|'user'|'active'|NULL
     name_source     = Column(Text, nullable=True)       # NULL | 'user' — 'user' locks name against TLE updates
     updated_at      = Column(Integer, nullable=False)   # Unix ms of last TLE update for this sat
+    # Radio info — used for amateur satellites, but the columns are generic and any sat may have them.
+    # Frequencies stored as integer Hz. Modes are free text (FM|SSB|CW|FSK|GMSK|APRS|SSTV|DIGITAL etc.).
+    uplink_hz        = Column(Integer, nullable=True)   # uplink frequency in Hz, or NULL
+    uplink_mode      = Column(Text,    nullable=True)   # uplink modulation e.g. "FM"
+    downlink_hz      = Column(Integer, nullable=True)   # downlink frequency in Hz, or NULL
+    downlink_mode    = Column(Text,    nullable=True)   # downlink modulation e.g. "FM"
+    ctcss_hz         = Column(Float,   nullable=True)   # CTCSS sub-audible tone in Hz (e.g. 67.0), if required to access an FM repeater
+    transponder_type = Column(Text,    nullable=True)   # 'FM'|'Linear'|'Digital'|'SSTV'|'Telemetry'|'APRS' etc.
+    beacon_hz        = Column(Integer, nullable=True)   # beacon frequency in Hz (often CW or telemetry), or NULL
+    packet_info      = Column(Text,    nullable=True)   # short free text describing packet/APRS/digital details
+    radio_status     = Column(Text,    nullable=True)   # 'active'|'inactive'|'silent'|'reentered'|'partial' — operational status of the radio payload
+    radio_notes      = Column(Text,    nullable=True)   # free-form notes / description for the radio payload
 
 
 class AirMessage(Base):

@@ -65,6 +65,16 @@ async def create_tables():
             "ALTER TABLE sdr_radios ADD COLUMN agc INTEGER",
             "ALTER TABLE air_aircraft ADD COLUMN callsign TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE sdr_frequency_groups ADD COLUMN slug TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE satellite_catalogue ADD COLUMN uplink_hz INTEGER",
+            "ALTER TABLE satellite_catalogue ADD COLUMN uplink_mode TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN downlink_hz INTEGER",
+            "ALTER TABLE satellite_catalogue ADD COLUMN downlink_mode TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN ctcss_hz REAL",
+            "ALTER TABLE satellite_catalogue ADD COLUMN transponder_type TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN beacon_hz INTEGER",
+            "ALTER TABLE satellite_catalogue ADD COLUMN packet_info TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN radio_status TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
         ]:
             try:
                 await conn.execute(sa_text(col_sql))

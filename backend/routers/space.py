@@ -329,11 +329,21 @@ async def get_tle_list(db: AsyncSession = Depends(get_db)):
     return JSONResponse({
         "satellites": [
             {
-                "norad_id":    r.norad_id,
-                "name":        r.name,
-                "category":    r.category,
-                "name_source": r.name_source,
-                "updated_at":  r.updated_at,
+                "norad_id":         r.norad_id,
+                "name":             r.name,
+                "category":         r.category,
+                "name_source":      r.name_source,
+                "updated_at":       r.updated_at,
+                "uplink_hz":        r.uplink_hz,
+                "uplink_mode":      r.uplink_mode,
+                "downlink_hz":      r.downlink_hz,
+                "downlink_mode":    r.downlink_mode,
+                "ctcss_hz":         r.ctcss_hz,
+                "transponder_type": r.transponder_type,
+                "beacon_hz":        r.beacon_hz,
+                "packet_info":      r.packet_info,
+                "radio_status":     r.radio_status,
+                "radio_notes":      r.radio_notes,
             }
             for r in rows
         ]
@@ -564,6 +574,59 @@ async def patch_tle_satellite(
         "norad_id": row.norad_id,
         "name":     row.name,
         "category": row.category,
+    })
+
+
+_RADIO_FIELDS = (
+    "uplink_hz", "uplink_mode", "downlink_hz", "downlink_mode",
+    "ctcss_hz", "transponder_type", "beacon_hz", "packet_info",
+    "radio_status", "radio_notes",
+)
+
+
+@router.patch("/tle/radio")
+@handle_unexpected_errors
+async def patch_tle_radio(
+    body: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update radio-payload metadata for a single satellite.
+
+    Body: { "norad_id": str, "<field>": value, ... }
+    Valid fields: uplink_hz, uplink_mode, downlink_hz, downlink_mode, ctcss_hz,
+    transponder_type, beacon_hz, packet_info, radio_status, radio_notes.
+    Pass an explicit null to clear a field. Unspecified fields are left untouched.
+    """
+    norad_id = str(body.get("norad_id") or "").strip()
+    if not norad_id:
+        return JSONResponse({"error": "norad_id is required"}, status_code=400)
+
+    result = await db.execute(
+        select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id == norad_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        return JSONResponse({"error": "Satellite not found"}, status_code=404)
+
+    for field in _RADIO_FIELDS:
+        if field in body:
+            setattr(row, field, body[field])
+
+    row.updated_at = now_ms()
+    await db.commit()
+
+    return JSONResponse({
+        "norad_id":         row.norad_id,
+        "uplink_hz":        row.uplink_hz,
+        "uplink_mode":      row.uplink_mode,
+        "downlink_hz":      row.downlink_hz,
+        "downlink_mode":    row.downlink_mode,
+        "ctcss_hz":         row.ctcss_hz,
+        "transponder_type": row.transponder_type,
+        "beacon_hz":        row.beacon_hz,
+        "packet_info":      row.packet_info,
+        "radio_status":     row.radio_status,
+        "radio_notes":      row.radio_notes,
     })
 
 
