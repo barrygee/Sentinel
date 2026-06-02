@@ -881,7 +881,6 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     padding-top: 14px;
     padding-bottom: 6px;
     gap: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sfr-acc-polar-title {
