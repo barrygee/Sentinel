@@ -146,6 +146,20 @@
                 </button>
               </div>
             </div>
+            <div class="sfr-acc-section sfr-acc-section--polar">
+              <div class="sfr-acc-section-title sfr-acc-polar-title">
+                <span>{{ polarTitle }}</span>
+                <span v-if="polarPass" class="sfr-acc-polar-maxel">MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span>
+              </div>
+              <SatPolarPlot
+                v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
+                :track="polarPass.sky_track"
+                :live="polarLive"
+              />
+              <div v-else class="sfr-acc-polar-empty">
+                {{ accordionLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
+              </div>
+            </div>
             <div class="sfr-acc-section sfr-acc-section--passes">
               <div class="sfr-acc-section-title sfr-acc-passes-title">
                 <span>UPCOMING PASSES</span>
@@ -190,6 +204,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
+import SatPolarPlot from './SatPolarPlot.vue'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
   SATELLITE_CATEGORY_ORDER,
@@ -240,6 +255,11 @@ function formatStatus(s: string | null | undefined): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
+interface SkyPoint {
+  az: number
+  el: number
+}
+
 interface SatPass {
   aos_utc:           string
   los_utc:           string
@@ -248,6 +268,7 @@ interface SatPass {
   duration_s:        number
   max_elevation_deg: number
   max_el_utc:        string
+  sky_track?:        SkyPoint[]
 }
 
 const props = defineProps<{
@@ -271,6 +292,34 @@ const followedNoradId  = ref<string | null>(props.satelliteControl?.followedNora
 const notifNoradId     = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
+
+const now = ref(Date.now())
+
+// Exact observer-relative look-angles for the live satellite, supplied by the
+// backend on each position poll. Null until the first annotated update arrives.
+const liveAzEl = ref<SkyPoint | null>(null)
+
+// The pass to plot: the active (in-progress) pass if there is one, else the next.
+const polarPass = computed<SatPass | null>(() => {
+  if (!accordionPasses.value.length) return null
+  const active = accordionPasses.value.find(p => isNow(p))
+  if (active) return active
+  return accordionPasses.value.find(p => p.aos_unix_ms > now.value) ?? null
+})
+
+const polarTitle = computed(() => {
+  const p = polarPass.value
+  if (!p) return 'NEXT PASS'
+  const label = isNow(p) ? 'CURRENT PASS' : 'NEXT PASS'
+  return `${label} · ${formatPassDate(p.aos_utc)} ${formatPassTime(p.aos_utc)}`
+})
+
+// Show the live marker only while the plotted pass is actually in progress.
+const polarLive = computed<SkyPoint | null>(() => {
+  const p = polarPass.value
+  if (!p || !isNow(p)) return null
+  return liveAzEl.value
+})
 
 function readPassNotifState(noradId: string): boolean {
   try { return localStorage.getItem(`passNotifEnabled_${noradId}`) === '1' } catch { return false }
@@ -362,6 +411,7 @@ function onItemClick(sat: SatEntry): void {
     accordionStatus.value = 'COMPUTING PASSES…'
     accordionLoading.value = true
     liveTelemetry.value = {}
+    liveAzEl.value = null
     props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
     notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
     void fetchAccordionPasses(sat.norad_id)
@@ -459,7 +509,7 @@ function onSatPositionUpdate(e: Event): void {
   if (!expandedNoradId.value) return
   const { noradId, position } = (e as CustomEvent<{
     noradId: string
-    position: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number }
+    position: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number; az?: number; el?: number }
   }>).detail
   if (noradId !== expandedNoradId.value) return
   liveTelemetry.value = {
@@ -469,6 +519,11 @@ function onSatPositionUpdate(e: Event): void {
     lat: `${position.lat}°`,
     lon: `${position.lon}°`,
   }
+  // Use the backend-computed look-angles when present (exact); otherwise leave
+  // the live marker off rather than guessing.
+  liveAzEl.value = (position.az != null && position.el != null)
+    ? { az: position.az, el: position.el }
+    : null
 }
 
 async function loadSatellites(): Promise<void> {
@@ -498,6 +553,7 @@ function onSettingsPanelClosed(): void {
 onMounted(() => {
   void loadSatellites()
   countdownTick = setInterval(() => {
+    now.value = Date.now()
     if (accordionPasses.value.length) accordionPasses.value = [...accordionPasses.value]
   }, 1000)
 })
@@ -819,6 +875,40 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 
 .sfr-acc-notif-btn.sfr-acc-notif-btn--active:hover {
     background: rgba(200, 255, 0, 0.18);
+}
+
+.sfr-acc-section--polar {
+    padding-top: 14px;
+    padding-bottom: 6px;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sfr-acc-polar-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sfr-acc-polar-maxel {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.32);
+    text-transform: uppercase;
+}
+
+.sfr-acc-polar-empty {
+    padding: 18px 0;
+    text-align: center;
+    font-family: var(--font-primary);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.28);
+    text-transform: uppercase;
 }
 
 .sfr-acc-section--passes {

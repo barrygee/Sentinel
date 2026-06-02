@@ -135,6 +135,20 @@
               </button>
             </div>
           </div>
+          <div class="spp-acc-section spp-acc-section--polar">
+            <div class="spp-acc-section-title spp-acc-polar-title">
+              <span>{{ polarTitle }}</span>
+              <span v-if="polarPass" class="spp-acc-polar-maxel">MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span>
+            </div>
+            <SatPolarPlot
+              v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
+              :track="polarPass.sky_track"
+              :live="polarLive"
+            />
+            <div v-else class="spp-acc-polar-empty">
+              {{ accLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
+            </div>
+          </div>
           <div class="spp-acc-section spp-acc-section--passes">
             <div class="spp-acc-section-title spp-acc-passes-title">
               <span>UPCOMING PASSES</span>
@@ -172,10 +186,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
+import SatPolarPlot from './SatPolarPlot.vue'
 import {
   SATELLITE_CATEGORY_ORDER,
   SATELLITE_CATEGORY_DISPLAY_NAMES,
@@ -192,6 +207,7 @@ import {
   accPassIsNow,
   type SatPass,
   type AccPass,
+  type SkyPoint,
 } from './spacePassesUtils'
 import './SpacePasses.css'
 
@@ -229,6 +245,32 @@ const notifNoradId    = ref<string | null>(
 function readPassNotifState(noradId: string): boolean {
   try { return localStorage.getItem(`passNotifEnabled_${noradId}`) === '1' } catch { return false }
 }
+
+// Exact observer-relative look-angles for the live satellite, supplied by the
+// backend on each position poll. Null until the first annotated update arrives.
+const liveAzEl = ref<SkyPoint | null>(null)
+
+// The pass to plot: the active (in-progress) pass if there is one, else the next.
+const polarPass = computed<AccPass | null>(() => {
+  if (!accPasses.value.length) return null
+  const active = accPasses.value.find(ap => accPassIsNow(ap, now.value))
+  if (active) return active
+  return accPasses.value.find(ap => ap.aos_unix_ms > now.value) ?? null
+})
+
+const polarTitle = computed(() => {
+  const p = polarPass.value
+  if (!p) return 'NEXT PASS'
+  const label = accPassIsNow(p, now.value) ? 'CURRENT PASS' : 'NEXT PASS'
+  return `${label} · ${formatPassDate(p.aos_utc)} ${formatPassTime(p.aos_utc)}`
+})
+
+// Show the live marker only while the plotted pass is actually in progress.
+const polarLive = computed<SkyPoint | null>(() => {
+  const p = polarPass.value
+  if (!p || !accPassIsNow(p, now.value)) return null
+  return liveAzEl.value
+})
 
 function formatHz(hz: number | null | undefined): string {
   if (hz == null) return '—'
@@ -332,6 +374,7 @@ function onCardClick(pass: SatPass): void {
     accStatus.value = 'COMPUTING PASSES…'
     accLoading.value = true
     liveTelemetry.value = {}
+    liveAzEl.value = null
     props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
     notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
     void fetchAccordionPasses(pass.norad_id)
@@ -393,7 +436,7 @@ function onSatPositionUpdate(e: Event): void {
   if (!expandedKey.value) return
   const { noradId, position } = (e as CustomEvent<{
     noradId: string
-    position: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number }
+    position: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number; az?: number; el?: number }
   }>).detail
   if (!expandedKey.value.startsWith(noradId)) return
   liveTelemetry.value = {
@@ -403,6 +446,11 @@ function onSatPositionUpdate(e: Event): void {
     lat: `${position.lat}°`,
     lon: `${position.lon}°`,
   }
+  // Use the backend-computed look-angles when present (exact); otherwise leave
+  // the live marker off rather than guessing.
+  liveAzEl.value = (position.az != null && position.el != null)
+    ? { az: position.az, el: position.el }
+    : null
 }
 
 onMounted(() => {

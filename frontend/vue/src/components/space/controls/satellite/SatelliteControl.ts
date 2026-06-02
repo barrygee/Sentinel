@@ -12,6 +12,7 @@ type TrackingStore     = ReturnType<typeof useTrackingStore>
 
 interface IssPosition {
     lon: number; lat: number; alt_km: number; velocity_kms: number; track_deg: number
+    az?: number; el?: number
 }
 interface IssApiResponse {
     error?: string
@@ -225,11 +226,21 @@ export class SatelliteControl extends SentinelControlBase {
     private _hideNoTleOverlay(): void { document.getElementById('no-tle-overlay')?.classList.add('hidden') }
 
     // ---- Data fetch ----
+    /** `?lat=&lon=` for the observer location, or '' when unknown. Lets the
+     *  backend annotate the live position with exact look-angles (az/el). */
+    private _obsQuery(): string {
+        const loc = this._getUserLocation()
+        if (!loc) return ''
+        const [lon, lat] = loc
+        return `?lat=${lat}&lon=${lon}`
+    }
+
     async _fetch(): Promise<void> {
         try {
-            const url = this._activeNoradId === '25544'
+            const base = this._activeNoradId === '25544'
                 ? '/api/space/iss'
                 : `/api/space/satellite/${this._activeNoradId}`
+            const url = base + this._obsQuery()
             const resp = await fetch(url)
             if (!resp.ok) {
                 const body = await resp.json().catch(() => ({})) as { no_tle_data?: boolean }
@@ -514,7 +525,7 @@ export class SatelliteControl extends SentinelControlBase {
         const abort = new AbortController()
         this._previewAbort = abort
         try {
-            const endpoint = noradId === '25544' ? '/api/space/iss' : `/api/space/satellite/${noradId}`
+            const endpoint = (noradId === '25544' ? '/api/space/iss' : `/api/space/satellite/${noradId}`) + this._obsQuery()
             const resp = await fetch(endpoint, { signal: abort.signal })
             if (!resp.ok || abort.signal.aborted) return
             const data = await resp.json() as IssApiResponse

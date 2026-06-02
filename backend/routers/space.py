@@ -50,8 +50,16 @@ async def _tle_database_is_empty(db: AsyncSession) -> bool:
     return result.scalar() == 0
 
 
-async def _get_satellite_data(norad_id: str, db: AsyncSession) -> dict:
+async def _get_satellite_data(
+    norad_id: str,
+    db: AsyncSession,
+    obs_lat: float | None = None,
+    obs_lon: float | None = None,
+) -> dict:
     """Fetch TLE, propagate position/track/footprint for any satellite.
+
+    When an observer location is supplied, the live position is annotated with
+    observer-relative look angles (az/el) so the sky-plot marker is exact.
 
     Raises RuntimeError if TLE is unavailable, or re-raises other exceptions.
     """
@@ -64,16 +72,25 @@ async def _get_satellite_data(norad_id: str, db: AsyncSession) -> dict:
     footprint   = sat_service.compute_footprint(
         position["lat"], position["lon"], position["alt_km"]
     )
+    if obs_lat is not None and obs_lon is not None:
+        position.update(sat_service.compute_look_angles(
+            position["lat"], position["lon"], position["alt_km"], obs_lat, obs_lon,
+        ))
     return {"position": position, "ground_track": ground_track, "footprint": footprint}
 
 
 @router.get("/iss")
 @handle_service_errors
-async def get_iss(db: AsyncSession = Depends(get_db)):
+async def get_iss(
+    lat: float | None = Query(None, description="Observer latitude for live look-angles"),
+    lon: float | None = Query(None, description="Observer longitude for live look-angles"),
+    db: AsyncSession = Depends(get_db),
+):
     """Return the current ISS position, ground track (±2 orbits), and visibility footprint.
 
     Position is propagated fresh on each request using the cached TLE.
     TLE is refreshed from the configured upstream URL at most once per hour.
+    When lat/lon are supplied, the position includes observer-relative az/el.
     Returns 503 with no_tle_data=true if the TLE database is empty (e.g. after a manual clear).
     """
     # If the TLE database is empty (e.g. user cleared all data), do not auto-fetch —
@@ -81,21 +98,27 @@ async def get_iss(db: AsyncSession = Depends(get_db)):
     if await _tle_database_is_empty(db):
         return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-    return JSONResponse(await _get_satellite_data(_ISS_NORAD, db))
+    return JSONResponse(await _get_satellite_data(_ISS_NORAD, db, lat, lon))
 
 
 @router.get("/satellite/{norad_id}")
-async def get_satellite(norad_id: str, db: AsyncSession = Depends(get_db)):
+async def get_satellite(
+    norad_id: str,
+    lat: float | None = Query(None, description="Observer latitude for live look-angles"),
+    lon: float | None = Query(None, description="Observer longitude for live look-angles"),
+    db: AsyncSession = Depends(get_db),
+):
     """Return current position, ground track, and footprint for any satellite by NORAD ID.
 
     The satellite must exist in the TLE cache. Returns 404 if the NORAD ID is not found,
-    or 503 if the TLE database is empty.
+    or 503 if the TLE database is empty. When lat/lon are supplied, the position
+    includes observer-relative az/el.
     """
     try:
         if await _tle_database_is_empty(db):
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        return JSONResponse(await _get_satellite_data(norad_id, db))
+        return JSONResponse(await _get_satellite_data(norad_id, db, lat, lon))
 
     except RuntimeError as e:
         msg = str(e)
@@ -239,6 +262,10 @@ async def get_multi_satellite_passes(
                 min_elevation_deg=min_el,
             )
             for p in passes:
+                # The list view never plots arcs — the polar plot is fed by the
+                # per-satellite passes endpoint. Drop the track to keep this
+                # multi-satellite response small.
+                p.pop("sky_track", None)
                 p["norad_id"] = norad_id
                 p["name"] = name
                 p["category"] = category

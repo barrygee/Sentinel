@@ -27,6 +27,11 @@ export interface SatPass {
     radio_notes?:      string | null
 }
 
+export interface SkyPoint {
+    az: number
+    el: number
+}
+
 export interface AccPass {
     aos_utc:           string
     los_utc:           string
@@ -35,6 +40,7 @@ export interface AccPass {
     duration_s:        number
     max_elevation_deg: number
     max_el_utc:        string
+    sky_track?:        SkyPoint[]
 }
 
 export function passKey(p: SatPass): string {
