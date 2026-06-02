@@ -151,6 +151,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-database', label: 'TLE Database', desc: 'Satellite count, sources, and per-category last-updated times', type: 'space-tle-db' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-uncategorised', label: 'Uncategorised Satellites', desc: 'Assign categories to satellites imported without one', type: 'space-tle-uncat' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-satlist', label: 'Satellite List', desc: 'Full list of all TLE records stored in the database', type: 'space-tle-satlist' },
+  { section: 'space', sectionLabel: 'SPACE', id: 'space-sat-radio', label: 'Satellite Frequencies', desc: 'Edit radio frequencies for any satellite — these persist across a TLE database clear', type: 'space-sat-radio', groupLabel: 'SATELLITE DATA' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-filter-hover-preview', label: 'Filter Hover Behaviour', desc: 'When hovering over a satellite in the search results, choose whether the map stays in place or flies to that satellite', type: 'space-hover-preview', groupLabel: 'FILTER HOVER' },
   { section: 'sea', sectionLabel: 'SEA', id: 'sea-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'sea' },
   { section: 'sea', sectionLabel: 'SEA', id: 'sea-online-source', label: 'Online Data Source', desc: 'URL for live sea data feed', type: 'online-source', ns: 'sea', defaultUrl: '' },

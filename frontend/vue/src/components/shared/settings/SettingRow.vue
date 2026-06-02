@@ -17,6 +17,7 @@
     <SpaceTleDatabaseControl v-else-if="item.type === 'space-tle-db'" />
     <SpaceTleUncatControl v-else-if="item.type === 'space-tle-uncat'" />
     <SpaceTleSatListControl v-else-if="item.type === 'space-tle-satlist'" />
+    <SpaceSatelliteRadioControl v-else-if="item.type === 'space-sat-radio'" />
     <SpaceHoverPreviewControl v-else-if="item.type === 'space-hover-preview'" @stage="emit('stage', item.id, $event)" />
     <AdsbLabelFieldsControl v-else-if="item.type === 'air-label-fields'" @stage="emit('stage', item.id, $event)" />
     <AdsbTagFieldsControl v-else-if="item.type === 'air-tag-fields'" @stage="emit('stage', item.id, $event)" />
@@ -45,6 +46,7 @@ import SpaceTleManualControl from './SpaceTleManualControl.vue'
 import SpaceTleDatabaseControl from './SpaceTleDatabaseControl.vue'
 import SpaceTleUncatControl from './SpaceTleUncatControl.vue'
 import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
+import SpaceSatelliteRadioControl from './SpaceSatelliteRadioControl.vue'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
@@ -62,6 +64,6 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'config-current'])
+const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'space-sat-radio', 'config-current'])
 const isWide = WIDE_TYPES.has(props.item.type)
 </script>

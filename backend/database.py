@@ -408,6 +408,31 @@ async def seed_default_sdr_groups() -> None:
         await sync_sdr_groups_to_config(session)
 
 
+async def backfill_satellite_radio_store() -> None:
+    """One-shot: seed the persistent satellite radio store from existing
+    catalogue columns, so frequencies on installs that pre-date the store are
+    not lost on the first clear after upgrade.
+
+    Idempotent — skips entirely once the space/satelliteRadio key exists.
+    """
+    from backend.db_helpers import get_setting_row, upsert_setting  # avoid circular import
+    from backend.models import SatelliteCatalogue  # avoid circular import
+    from backend.services.sat_radio import RADIO_FIELDS, clean_entry
+
+    async with AsyncSessionLocal() as session:
+        if await get_setting_row(session, "space", "satelliteRadio") is not None:
+            return  # already present — nothing to backfill
+
+        rows = (await session.execute(select(SatelliteCatalogue))).scalars().all()
+        radio_map: dict[str, dict] = {}
+        for r in rows:
+            entry = clean_entry({f: getattr(r, f) for f in RADIO_FIELDS})
+            if entry:
+                radio_map[str(r.norad_id)] = entry
+        # Always write the key (even if empty) so this never runs again.
+        await upsert_setting(session, "space", "satelliteRadio", radio_map)
+
+
 async def seed_default_settings() -> None:
     """Insert default URL settings on startup — only if a row does not already exist."""
     from backend.models import UserSettings  # avoid circular import
