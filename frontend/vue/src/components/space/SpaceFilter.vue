@@ -111,21 +111,40 @@
                 <template v-if="sat.radio_status">
                   <div class="sfr-acc-cell sfr-acc-cell--status">
                     <div class="sfr-acc-cell-label">STATUS</div>
-                    <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-status-active': sat.radio_status === 'active', 'sfr-acc-status-silent': sat.radio_status === 'silent' || sat.radio_status === 'inactive' }">{{ sat.radio_status.toUpperCase() }}</div>
+                    <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-status-active': sat.radio_status === 'active', 'sfr-acc-status-silent': sat.radio_status === 'silent' || sat.radio_status === 'inactive' }">{{ formatStatus(sat.radio_status) }}</div>
                   </div>
                 </template>
               </div>
               <div v-if="sat.packet_info" class="sfr-acc-radio-line">
                 <div class="sfr-acc-cell-label">PACKET / DIGITAL</div>
-                <div class="sfr-acc-radio-text">{{ sat.packet_info }}</div>
+                <ul class="sfr-acc-radio-list">
+                  <li v-for="(p, i) in splitNotes(sat.packet_info)" :key="i">{{ p }}</li>
+                </ul>
               </div>
               <div v-if="sat.radio_notes" class="sfr-acc-radio-line">
                 <div class="sfr-acc-cell-label">NOTES</div>
-                <div class="sfr-acc-radio-text">{{ sat.radio_notes }}</div>
+                <ul class="sfr-acc-radio-list">
+                  <li v-for="(n, i) in splitNotes(sat.radio_notes)" :key="i">{{ n }}</li>
+                </ul>
               </div>
             </div>
             <div class="sfr-acc-section sfr-acc-section--track">
-              <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+              <div class="sfr-acc-track-row">
+                <button class="sfr-acc-track-btn" :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }" @click.stop="trackSat(sat)">{{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+                <button
+                  class="sfr-acc-notif-btn"
+                  :class="{ 'sfr-acc-notif-btn--active': notifNoradId === sat.norad_id }"
+                  :aria-label="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                  :title="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                  @click.stop="togglePassNotif(sat)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
+                    <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
+                    <line v-if="notifNoradId !== sat.norad_id" x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="sfr-acc-section sfr-acc-section--passes">
               <div class="sfr-acc-section-title sfr-acc-passes-title">
@@ -211,6 +230,16 @@ function hasRadioInfo(sat: SatEntry): boolean {
     sat.transponder_type || sat.packet_info || sat.radio_status || sat.radio_notes)
 }
 
+function splitNotes(s: string | null | undefined): string[] {
+  if (!s) return []
+  return s.split(/\s*;\s*/).map(x => x.trim()).filter(Boolean)
+}
+
+function formatStatus(s: string | null | undefined): string {
+  if (!s) return ''
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
+
 interface SatPass {
   aos_utc:           string
   los_utc:           string
@@ -239,6 +268,13 @@ const accordionStatus  = ref('COMPUTING PASSES…')
 const accordionPasses  = ref<SatPass[]>([])
 const liveTelemetry    = ref<Record<string, string>>({})
 const followedNoradId  = ref<string | null>(props.satelliteControl?.followedNoradId ?? null)
+const notifNoradId     = ref<string | null>(
+  props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
+)
+
+function readPassNotifState(noradId: string): boolean {
+  try { return localStorage.getItem(`passNotifEnabled_${noradId}`) === '1' } catch { return false }
+}
 
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
 let itemFetchAbort: AbortController | null = null
@@ -327,6 +363,7 @@ function onItemClick(sat: SatEntry): void {
     accordionLoading.value = true
     liveTelemetry.value = {}
     props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
+    notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
     void fetchAccordionPasses(sat.norad_id)
   }
 }
@@ -370,6 +407,15 @@ async function fetchAccordionPasses(noradId: string): Promise<void> {
 function startItemTick(): void {
   if (itemTickInterval) clearInterval(itemTickInterval)
   itemTickInterval = setInterval(() => { accordionPasses.value = [...accordionPasses.value] }, 1000)
+}
+
+function togglePassNotif(sat: SatEntry): void {
+  const ctrl = props.satelliteControl
+  if (!ctrl) return
+  if (ctrl.activeNoradId !== sat.norad_id) {
+    ctrl.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
+  }
+  ctrl.togglePassNotifications()
 }
 
 function trackSat(sat: SatEntry): void {
@@ -468,6 +514,10 @@ useDocumentEvent('settings-panel-closed', onSettingsPanelClosed)
 useDocumentEvent('satellite-follow-changed', (e: Event) => {
   const { noradId, following } = (e as CustomEvent<{ noradId: string; following: boolean }>).detail
   followedNoradId.value = following ? noradId : null
+})
+useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
+  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
 })
 
 defineExpose({ focus: () => inputRef.value?.focus() })
@@ -708,30 +758,67 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     padding-bottom: 24px;
 }
 
+.sfr-acc-track-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
 .sfr-acc-track-btn {
-    width: 100%;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    flex: 1;
+    background: #0d1015;
+    border: none;
     cursor: pointer;
     font-family: var(--font-primary);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.6);
-    padding: 11px 12px;
+    padding: 12px;
     text-transform: uppercase;
-    transition: color 0.12s, border-color 0.12s, background 0.12s;
+    transition: color 0.12s, background 0.12s;
 }
 
 .sfr-acc-track-btn:hover {
     color: var(--color-accent);
-    border-color: rgba(200, 255, 0, 0.4);
-    background: rgba(200, 255, 0, 0.04);
+    background: #05070a;
 }
 
 .sfr-acc-track-btn.sfr-acc-track-btn--active {
     color: var(--color-accent);
-    border-color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.12);
+}
+
+.sfr-acc-track-btn.sfr-acc-track-btn--active:hover {
+    background: rgba(200, 255, 0, 0.18);
+}
+
+.sfr-acc-notif-btn {
+    flex: 0 0 auto;
+    width: 44px;
+    background: #0d1015;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s, background 0.12s;
+}
+
+.sfr-acc-notif-btn:hover {
+    color: var(--color-accent);
+    background: #05070a;
+}
+
+.sfr-acc-notif-btn.sfr-acc-notif-btn--active {
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.12);
+}
+
+.sfr-acc-notif-btn.sfr-acc-notif-btn--active:hover {
+    background: rgba(200, 255, 0, 0.18);
 }
 
 .sfr-acc-section--passes {
@@ -875,15 +962,11 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 /* ---- RADIO section ---- */
-.sfr-acc-section--radio {
-    border-top: 1px solid var(--color-border);
-    padding-top: 12px;
-}
 .sfr-acc-radio-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px 14px;
-    margin-top: 6px;
+    column-gap: 16px;
+    row-gap: 12px;
 }
 .sfr-acc-radio-grid .sfr-acc-cell {
     align-items: flex-start;
@@ -901,17 +984,45 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     color: rgba(255, 130, 130, 0.85);
 }
 .sfr-acc-radio-line {
-    margin-top: 10px;
+    margin-top: 14px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 6px;
 }
 .sfr-acc-radio-text {
     font-family: var(--font-primary);
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.78);
+}
+.sfr-acc-radio-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sfr-acc-radio-list li {
+    position: relative;
+    padding-left: 14px;
+    font-family: var(--font-primary);
+    font-size: 13px;
     font-weight: 400;
     line-height: 1.45;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.82);
+}
+.sfr-acc-radio-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    opacity: 0.65;
 }
 @media (max-width: 480px) {
     .sfr-acc-radio-grid {

@@ -424,6 +424,30 @@ export class SatelliteControl extends SentinelControlBase {
     get isFollowing(): boolean { return this._followEnabled }
     get followedNoradId(): string | null { return this._followEnabled ? this._activeNoradId : null }
 
+    get passNotificationsEnabled(): boolean { return this._passNotifier.enabled }
+    get activeNoradId(): string { return this._activeNoradId }
+
+    togglePassNotifications(): void {
+        this._passNotifier.toggleEnabled()
+        // Sync the on-map hover-tag bell visual if it's currently rendered
+        const el = this._hoverTagMarker?.getElement()
+        const btn = el?.querySelector('.iss-notif-btn') as HTMLElement | null
+        const svg = btn?.querySelector('svg')
+        if (btn && svg) {
+            btn.classList.toggle('iss-notif-btn--active', this._passNotifier.enabled)
+            const existingSlash = svg.querySelector('line')
+            if (this._passNotifier.enabled && existingSlash) existingSlash.remove()
+            else if (!this._passNotifier.enabled && !existingSlash) {
+                const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+                slash.setAttribute('x1', '1.5'); slash.setAttribute('y1', '1.5')
+                slash.setAttribute('x2', '11.5'); slash.setAttribute('y2', '11.5')
+                slash.setAttribute('stroke', 'currentColor'); slash.setAttribute('stroke-width', '1.5')
+                slash.setAttribute('stroke-linecap', 'square')
+                svg.appendChild(slash)
+            }
+        }
+    }
+
     stopFollowing(): void { this._stopFollowing() }
 
     // ---- Following ----

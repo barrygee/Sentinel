@@ -64,8 +64,76 @@
               </div>
             </div>
           </div>
+          <div v-if="hasRadioInfo(pass)" class="spp-acc-section spp-acc-section--radio">
+            <div class="spp-acc-section-title">RADIO</div>
+            <div class="spp-acc-radio-grid">
+              <template v-if="pass.uplink_hz">
+                <div class="spp-acc-cell">
+                  <div class="spp-acc-cell-label">UPLINK</div>
+                  <div class="spp-acc-cell-value">{{ formatHz(pass.uplink_hz) }}<span v-if="pass.uplink_mode" class="spp-acc-cell-mode"> · {{ pass.uplink_mode }}</span></div>
+                </div>
+              </template>
+              <template v-if="pass.downlink_hz">
+                <div class="spp-acc-cell">
+                  <div class="spp-acc-cell-label">DOWNLINK</div>
+                  <div class="spp-acc-cell-value">{{ formatHz(pass.downlink_hz) }}<span v-if="pass.downlink_mode" class="spp-acc-cell-mode"> · {{ pass.downlink_mode }}</span></div>
+                </div>
+              </template>
+              <template v-if="pass.ctcss_hz">
+                <div class="spp-acc-cell">
+                  <div class="spp-acc-cell-label">CTCSS</div>
+                  <div class="spp-acc-cell-value">{{ pass.ctcss_hz.toFixed(1) }} Hz</div>
+                </div>
+              </template>
+              <template v-if="pass.transponder_type">
+                <div class="spp-acc-cell">
+                  <div class="spp-acc-cell-label">TRANSPONDER</div>
+                  <div class="spp-acc-cell-value">{{ pass.transponder_type }}</div>
+                </div>
+              </template>
+              <template v-if="pass.beacon_hz">
+                <div class="spp-acc-cell">
+                  <div class="spp-acc-cell-label">BEACON</div>
+                  <div class="spp-acc-cell-value">{{ formatHz(pass.beacon_hz) }}</div>
+                </div>
+              </template>
+              <template v-if="pass.radio_status">
+                <div class="spp-acc-cell">
+                  <div class="spp-acc-cell-label">STATUS</div>
+                  <div class="spp-acc-cell-value" :class="{ 'spp-acc-status-active': pass.radio_status === 'active', 'spp-acc-status-silent': pass.radio_status === 'silent' || pass.radio_status === 'inactive' }">{{ formatStatus(pass.radio_status) }}</div>
+                </div>
+              </template>
+            </div>
+            <div v-if="pass.packet_info" class="spp-acc-radio-line">
+              <div class="spp-acc-cell-label">PACKET / DIGITAL</div>
+              <ul class="spp-acc-radio-list">
+                <li v-for="(p, i) in splitNotes(pass.packet_info)" :key="i">{{ p }}</li>
+              </ul>
+            </div>
+            <div v-if="pass.radio_notes" class="spp-acc-radio-line">
+              <div class="spp-acc-cell-label">NOTES</div>
+              <ul class="spp-acc-radio-list">
+                <li v-for="(n, i) in splitNotes(pass.radio_notes)" :key="i">{{ n }}</li>
+              </ul>
+            </div>
+          </div>
           <div class="spp-acc-section spp-acc-section--track">
-            <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+            <div class="spp-acc-track-row">
+              <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+              <button
+                class="spp-acc-notif-btn"
+                :class="{ 'spp-acc-notif-btn--active': notifNoradId === pass.norad_id }"
+                :aria-label="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                :title="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                @click.stop="togglePassNotif(pass)"
+              >
+                <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
+                  <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
+                  <line v-if="notifNoradId !== pass.norad_id" x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="spp-acc-section spp-acc-section--passes">
             <div class="spp-acc-section-title spp-acc-passes-title">
@@ -154,6 +222,36 @@ const accPasses  = ref<AccPass[]>([])
 
 const now = ref(Date.now())
 const followedNoradId = ref<string | null>(props.satelliteControl?.followedNoradId ?? null)
+const notifNoradId    = ref<string | null>(
+  props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
+)
+
+function readPassNotifState(noradId: string): boolean {
+  try { return localStorage.getItem(`passNotifEnabled_${noradId}`) === '1' } catch { return false }
+}
+
+function formatHz(hz: number | null | undefined): string {
+  if (hz == null) return '—'
+  if (hz >= 1_000_000_000) return (hz / 1_000_000_000).toFixed(3) + ' GHz'
+  if (hz >= 1_000_000) return (hz / 1_000_000).toFixed(3) + ' MHz'
+  if (hz >= 1_000) return (hz / 1_000).toFixed(3) + ' kHz'
+  return String(hz) + ' Hz'
+}
+
+function hasRadioInfo(p: SatPass): boolean {
+  return !!(p.uplink_hz || p.downlink_hz || p.beacon_hz ||
+    p.transponder_type || p.packet_info || p.radio_status || p.radio_notes)
+}
+
+function splitNotes(s: string | null | undefined): string[] {
+  if (!s) return []
+  return s.split(/\s*;\s*/).map(x => x.trim()).filter(Boolean)
+}
+
+function formatStatus(s: string | null | undefined): string {
+  if (!s) return ''
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
 
 let fetchAbort: AbortController | null = null
 let accFetchAbort: AbortController | null = null
@@ -235,6 +333,7 @@ function onCardClick(pass: SatPass): void {
     accLoading.value = true
     liveTelemetry.value = {}
     props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
+    notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
     void fetchAccordionPasses(pass.norad_id)
   }
 }
@@ -269,6 +368,15 @@ function trackSat(pass: SatPass): void {
   } else {
     props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id, true)
   }
+}
+
+function togglePassNotif(pass: SatPass): void {
+  const ctrl = props.satelliteControl
+  if (!ctrl) return
+  if (ctrl.activeNoradId !== pass.norad_id) {
+    ctrl.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
+  }
+  ctrl.togglePassNotifications()
 }
 
 function onMouseEnter(pass: SatPass): void {
@@ -322,6 +430,10 @@ useDocumentEvent('sat-position-update', onSatPositionUpdate)
 useDocumentEvent('satellite-follow-changed', (e: Event) => {
   const { noradId, following } = (e as CustomEvent<{ noradId: string; following: boolean }>).detail
   followedNoradId.value = following ? noradId : null
+})
+useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
+  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
 })
 
 defineExpose({ fetchPasses, selectedCategories, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })

@@ -201,7 +201,14 @@ async def get_multi_satellite_passes(
 
     # Single query to get matching satellites
     result = await db.execute(
-        select(SatelliteCatalogue.norad_id, SatelliteCatalogue.name, SatelliteCatalogue.category)
+        select(
+            SatelliteCatalogue.norad_id, SatelliteCatalogue.name, SatelliteCatalogue.category,
+            SatelliteCatalogue.uplink_hz, SatelliteCatalogue.uplink_mode,
+            SatelliteCatalogue.downlink_hz, SatelliteCatalogue.downlink_mode,
+            SatelliteCatalogue.ctcss_hz, SatelliteCatalogue.transponder_type,
+            SatelliteCatalogue.beacon_hz, SatelliteCatalogue.packet_info,
+            SatelliteCatalogue.radio_status, SatelliteCatalogue.radio_notes,
+        )
         .where(SatelliteCatalogue.category.in_(category_filter))
     )
     satellites = result.all()
@@ -219,7 +226,8 @@ async def get_multi_satellite_passes(
     online_url, _ = await resolve_domain_urls("space", db)
     all_passes = []
 
-    for norad_id, name, category in satellites[:500]:
+    for row in satellites[:500]:
+        norad_id, name, category = row[0], row[1], row[2]
         try:
             tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
             _, line1, line2 = tle_service.parse_tle_lines(tle_text)
@@ -234,6 +242,16 @@ async def get_multi_satellite_passes(
                 p["norad_id"] = norad_id
                 p["name"] = name
                 p["category"] = category
+                p["uplink_hz"]        = row[3]
+                p["uplink_mode"]      = row[4]
+                p["downlink_hz"]      = row[5]
+                p["downlink_mode"]    = row[6]
+                p["ctcss_hz"]         = row[7]
+                p["transponder_type"] = row[8]
+                p["beacon_hz"]        = row[9]
+                p["packet_info"]      = row[10]
+                p["radio_status"]     = row[11]
+                p["radio_notes"]      = row[12]
             all_passes.extend(passes)
         except (RuntimeError, ValueError):
             continue

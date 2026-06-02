@@ -86,13 +86,16 @@ export class SatellitePassNotifier {
         } catch {}
     }
 
+    toggleEnabled(): void { this.toggle() }
+
     private toggle(): void {
-        const { notificationsStore, getUserLocation, getActiveSatName } = this._ctx
+        const { notificationsStore, getUserLocation, getActiveNoradId, getActiveSatName } = this._ctx
         if (this._enabled) {
             this._enabled = false; this._lastFiredAos = 0
             this.stop()
             this._saveState()
             notificationsStore.add({ type: 'notif-off', title: getActiveSatName(), detail: 'Pass notifications disabled' })
+            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId: getActiveNoradId(), enabled: false } }))
         } else {
             const loc = getUserLocation()
             if (!loc) {
@@ -101,12 +104,14 @@ export class SatellitePassNotifier {
                     if (l) {
                         clearInterval(poller); this._enabled = true
                         this._saveState(); this._startPolling()
+                        document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId: getActiveNoradId(), enabled: true } }))
                     }
                 }, 500)
                 setTimeout(() => clearInterval(poller), 30000)
                 return
             }
             this._enabled = true; this._saveState(); this._startPolling()
+            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId: getActiveNoradId(), enabled: true } }))
             notificationsStore.add({
                 type: 'tracking', title: getActiveSatName(), detail: 'Pass notifications enabled',
                 action: { label: 'DISABLE NOTIFICATIONS', callback: () => {
