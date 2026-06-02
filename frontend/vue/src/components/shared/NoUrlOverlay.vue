@@ -3,7 +3,7 @@
     <div class="no-url-overlay-box">
       <div class="no-url-overlay-title">
         <span class="no-url-overlay-title-accent">{{ domain.toUpperCase() }}</span>
-        <span class="no-url-overlay-title-main">No data source configured.</span>
+        <span class="no-url-overlay-title-main">{{ title }}</span>
       </div>
       <div class="no-url-overlay-msg">{{ message }}</div>
       <button class="no-url-overlay-btn" @click="openSettings">
@@ -40,7 +40,19 @@ function _effectiveMode(): string {
   return appStore.connectivityMode
 }
 
+// The space domain has no remote data source — satellite positions are
+// propagated locally from TLE data stored in the SQLite database. So the gate
+// is "does the DB hold TLE data?" rather than "is a URL configured?".
+const _isSpace = props.domain === 'space'
+
+const title = computed(() =>
+  _isSpace ? 'No satellite data available.' : 'No data source configured.'
+)
+
 const message = computed(() => {
+  if (_isSpace) {
+    return 'No satellite TLE data is stored in the local database. Import TLE data — or set an Online Data Source URL and fetch it — in settings to continue.'
+  }
   const mode = _effectiveMode() === 'offgrid' ? 'Off Grid' : 'Online'
   const setting = _effectiveMode() === 'offgrid' ? 'Off Grid Data Source' : 'Online Data Source'
   return `${mode} mode is active but no ${setting} URL has been set for ${props.domain.toUpperCase()}. Configure a URL in settings or switch connectivity mode to continue.`
@@ -62,6 +74,11 @@ function check() {
   const _oKey = offgridKey(ns)
   const _nKey = onlineKey(ns)
 
+  // Space data is served from the local TLE database, not a configured URL.
+  // Without backend access we can't know if the DB has data, so assume it does
+  // and let checkWithBackend() correct it — never block on a missing URL.
+  if (_isSpace) { hasUrl.value = true; return }
+
   if (mode === 'offgrid') {
     const raw = _lsGet(`sentinel_${ns}_${_oKey}`)
     if (!raw) { hasUrl.value = false; return }
@@ -80,6 +97,22 @@ async function checkWithBackend() {
   const mode  = _effectiveMode()
   const _oKey = offgridKey(ns)
   const _nKey = onlineKey(ns)
+
+  // Space has no remote data source: gate purely on whether the local TLE
+  // database holds any satellites, in both online and offgrid modes.
+  if (_isSpace) {
+    try {
+      const res = await fetch('/api/space/tle/status')
+      if (!res.ok) { hasUrl.value = true; return }
+      const data = await res.json() as { total?: number }
+      hasUrl.value = (data.total ?? 0) > 0
+    } catch {
+      // Backend unreachable — don't block the section on a transient failure.
+      hasUrl.value = true
+    }
+    return
+  }
+
   try {
     const res  = await fetch(`/api/settings/${ns}`)
     if (!res.ok) { check(); return }
