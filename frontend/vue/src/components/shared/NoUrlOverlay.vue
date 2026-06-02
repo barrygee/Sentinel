@@ -1,10 +1,15 @@
 <template>
   <div v-if="visible" class="no-url-overlay">
     <div class="no-url-overlay-box">
-      <div class="no-url-overlay-domain">{{ domain.toUpperCase() }}</div>
-      <div class="no-url-overlay-title">No Data Source Configured</div>
+      <div class="no-url-overlay-title">
+        <span class="no-url-overlay-title-accent">{{ domain.toUpperCase() }}</span>
+        <span class="no-url-overlay-title-main">No data source configured.</span>
+      </div>
       <div class="no-url-overlay-msg">{{ message }}</div>
-      <button class="no-url-overlay-btn" @click="openSettings">OPEN SETTINGS</button>
+      <button class="no-url-overlay-btn" @click="openSettings">
+        <span>OPEN SETTINGS</span>
+        <span class="no-url-overlay-btn-arrow">&rarr;</span>
+      </button>
     </div>
   </div>
 </template>
@@ -40,7 +45,6 @@ const message = computed(() => {
   const setting = _effectiveMode() === 'offgrid' ? 'Off Grid Data Source' : 'Online Data Source'
   return `${mode} mode is active but no ${setting} URL has been set for ${props.domain.toUpperCase()}. Configure a URL in settings or switch connectivity mode to continue.`
 })
-
 const visible = computed(() => !hasUrl.value)
 
 function _isPlaceholder(url: string): boolean {

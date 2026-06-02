@@ -276,6 +276,23 @@
     overflow-y: auto;
     max-height: 220px;
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.sdr-device-menu::-webkit-scrollbar {
+    width: 8px;
+}
+.sdr-device-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sdr-device-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+    border: 2px solid #13171f;
+}
+.sdr-device-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
 }
 
 .sdr-device-menu.sdr-device-menu--open {
@@ -673,7 +690,7 @@
 }
 
 .sdr-frequency-manager-groups-filter {
-    padding: 12px 24px 16px;
+    padding: 20px 24px 16px;
 }
 
 .sdr-frequency-manager-groups-filter-title {
@@ -721,6 +738,204 @@
 .sdr-scan-group-chip:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+.sdr-search-adhoc-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 4px 0 14px;
+}
+
+.sdr-search-adhoc-col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.sdr-search-adhoc-col .sdr-field-label {
+    margin-bottom: 6px;
+    color: #fff;
+    font-size: 9px;
+}
+
+.sdr-panel-input.sdr-search-adhoc-input {
+    width: 100%;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    padding: 0 14px;
+    box-sizing: border-box;
+}
+
+.sdr-panel-input.sdr-search-adhoc-input:focus {
+    border: none;
+    outline: none;
+}
+
+.sdr-search-adhoc-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.sdr-search-adhoc-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sdr-search-adhoc-input[type="number"]::-webkit-outer-spin-button,
+.sdr-search-adhoc-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.sdr-search-adhoc-input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.sdr-search-adhoc-col .sdr-device-dropdown {
+    width: 100%;
+    height: 38px;
+}
+
+.sdr-search-adhoc-col--play {
+    flex: 0 0 auto;
+    width: 38px;
+}
+
+.sdr-search-adhoc-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #c8ff00;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.sdr-search-adhoc-play:hover:not(:disabled) {
+    background: rgba(200, 255, 0, 0.18);
+}
+
+.sdr-search-adhoc-play:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.sdr-search-adhoc-play--active {
+    background: rgba(255, 59, 48, 0.18);
+    color: #ff3b30;
+}
+
+.sdr-search-adhoc-play--active:hover:not(:disabled) {
+    background: rgba(255, 59, 48, 0.28);
+}
+
+.sdr-search-range-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0 -20px 12px;
+}
+
+.sdr-search-range-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0 12px 0 20px;
+    background: none;
+    border: none;
+    text-align: left;
+    transition: background 0.12s;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.sdr-search-range-item:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.sdr-search-range-item-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 13px 4px 13px 4px;
+    background: none;
+    border: none;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.sdr-search-range-item-body:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sdr-search-range-item-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 2px;
+    color: #c8ff00;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.sdr-search-range-item-play:hover:not(:disabled) {
+    background: rgba(200, 255, 0, 0.18);
+}
+
+.sdr-search-range-item-play:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.sdr-search-range-item-play--active {
+    background: rgba(255, 59, 48, 0.18);
+    color: #ff3b30;
+}
+
+.sdr-search-range-item-play--active:hover:not(:disabled) {
+    background: rgba(255, 59, 48, 0.28);
+}
+
+
+.sdr-search-range-item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sdr-search-range-primary {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.sdr-search-range-secondary {
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
@@ -812,6 +1027,11 @@
 .sdr-scan-btns-row {
     display: flex;
     gap: 8px;
+    margin-top: 12px;
+}
+
+.sdr-scan-btns-row--right {
+    justify-content: flex-end;
 }
 
 .sdr-panel-btn.sdr-scan-btn {
@@ -1160,6 +1380,30 @@
 
 .sdr-editfreq-body .sdr-panel-input::placeholder {
     color: rgba(255, 255, 255, 0.4);
+}
+
+.sdr-editfreq-body .sdr-panel-textarea {
+    height: auto;
+    min-height: 96px;
+    padding: 10px 12px;
+    resize: none;
+    overflow-y: auto;
+    font-family: inherit;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.sdr-editfreq-body .sdr-panel-input.sdr-input-error,
+.sdr-editfreq-body .sdr-mode-pills.sdr-input-error {
+    box-shadow: inset 0 0 0 1px #ff5470, 0 0 0 1px rgba(255, 84, 112, 0.35);
+}
+
+.sdr-editfreq-body .sdr-field-error {
+    margin-top: 4px;
+    font-size: 10px;
+    color: #ff5470;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .sdr-editfreq-body .sdr-mode-pill {
@@ -1539,6 +1783,64 @@
     max-height: 2000px;
 }
 
+/* Frequency manager pane: list scrolls inside the pane; the
+   Add Frequency / inline add form stay pinned below. */
+.sdr-frequency-manager-freqs-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
+.sdr-frequency-manager-freqs-body > .sdr-tab-header,
+.sdr-frequency-manager-freqs-body > .sdr-search-row,
+.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
+.sdr-frequency-manager-freqs-body > .sdr-panel-empty {
+    flex: 0 0 auto;
+}
+
+/* Add Frequency button and inline add form stay pinned at the bottom
+   of the pane and never overflow past it. The add form scrolls
+   internally if its content exceeds available space. */
+.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-add-freq-row {
+    flex: 0 0 auto;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body {
+    flex: 0 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar {
+    width: 6px;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+}
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 255, 0, 0.28);
+}
+
+#sdr-freq-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+}
+
+#sdr-freq-list::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
 .sdr-freq-group-header {
     display: flex;
     align-items: center;
@@ -1571,8 +1873,7 @@
     flex-direction: row;
     align-items: flex-start;
     gap: 12px;
-    padding: 14px 24px;
-    cursor: pointer;
+    padding: 11px 24px;
     transition: background 0.12s;
 }
 
@@ -1664,7 +1965,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    padding: 4px 24px 10px;
+    padding: 20px 24px 10px;
 }
 
 .sdr-group-pill {
@@ -1729,6 +2030,23 @@
 .sdr-freq-row-edit:hover,
 .sdr-group-pill-edit:hover { color: rgba(200, 255, 0, 0.75); }
 .sdr-group-pill-del:hover  { color: rgba(255, 80, 80, 0.8); }
+
+.sdr-freq-row-play {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 4px;
+    color: rgba(255, 255, 255, 0.35);
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
+.sdr-freq-row-play:hover { color: rgba(200, 255, 0, 0.85); }
 
 .sdr-group-pill-default {
     opacity: 0.45;
@@ -1873,17 +2191,58 @@
     padding-right: 4px;
 }
 
-.sdr-clips-search-row {
-    padding: 10px 28px 4px;
+.sdr-clips-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 0 20px 0 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+}
+
+.sdr-clips-search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    caret-color: var(--color-accent);
+    min-width: 0;
+    padding: 0;
+}
+
+.sdr-clips-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+}
+
+.sdr-clips-search-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Barlow', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0;
+    margin-right: 6px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+
+.sdr-clips-search-clear:hover {
+    color: var(--color-text-muted);
 }
 
 #sdr-clips-empty {
     padding-top: 12px;
-}
-
-.sdr-clips-search-input {
-    width: 100%;
-    box-sizing: border-box;
 }
 
 #sdr-clips-list-wrap {
@@ -2535,7 +2894,6 @@
 }
 
 .sdr-rail-btn:hover[data-tooltip]::before { opacity: 1; }
-.sdr-rail-btn-active[data-tooltip]::before { opacity: 0 !important; }
 
 .sdr-tab-panes {
     flex: 1;
@@ -2556,6 +2914,37 @@
 
 .sdr-tab-pane.active {
     display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* When the frequency-manager pane is active, the panes container must
+   clip vertically so the inner #sdr-freq-list — not the panes container
+   or the page — owns the scroll. Overrides the #msb-pane-radio
+   `overflow-y: visible` and the base `overflow-y: auto`. */
+.sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+    overflow-y: hidden !important;
+    min-height: 0;
+}
+#sdr-panel-panes:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+    overflow-y: hidden;
+    min-height: 0;
+}
+
+/* In the map-sidebar (tab) mount, `#msb-pane-radio #sdr-panel-panes` is
+   forced to `flex: none; overflow-y: visible` so the radio tab can scroll
+   as a whole. When the frequency-manager pane is active, we need the
+   opposite: the pane chain must be height-constrained so only the inner
+   `#sdr-freq-list` scrolls — keeping the filter chips and Add Frequency
+   button pinned. */
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+    overflow-y: hidden;
+    min-height: 0;
+}
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) #sdr-panel-panes {
+    flex: 1;
+    overflow-y: hidden;
+    min-height: 0;
 }
 
 .sdr-tab-header {
@@ -2563,7 +2952,6 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 20px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sdr-tab-title {
@@ -2608,3 +2996,172 @@
 #msb-pane-radio .sdr-tab-panes {
     overflow-y: visible;
 }
+
+/* ── Search Ranges sub-section (Frequency Manager tab) ────────────────────── */
+
+/* Sub-section sits below the Frequencies body inside the Frequency Manager
+   tab pane. The parent pane is `display: flex; flex-direction: column` with
+   the Frequencies body claiming `flex: 1`, so this section needs its own
+   share of the height and its own scroll container — otherwise its inline
+   edit form gets clipped at the bottom of the panel. */
+.sdr-search-ranges-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.sdr-search-ranges-body > .sdr-search-ranges-header,
+.sdr-search-ranges-body > .sdr-search-ranges-filter,
+.sdr-search-ranges-body > .sdr-panel-empty,
+.sdr-search-ranges-body > .sdr-frequency-manager-add-freq-row {
+    flex: 0 0 auto;
+}
+
+/* Shared search row — matches the AirFilter style. */
+.sdr-search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    margin: 0 -20px 8px;
+    padding: 0 20px 0 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    flex: 0 0 auto;
+}
+
+.sdr-search-row-icon {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.35);
+    display: block;
+}
+
+.sdr-search-row-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    caret-color: var(--color-accent);
+    min-width: 0;
+    padding: 0;
+}
+
+.sdr-search-row-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+}
+
+.sdr-search-row-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+    margin-right: 6px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+
+.sdr-search-row-clear:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Align the SEARCH RANGES header title with the list item title and the
+   chevron with the row's delete X. The header bleeds to the panel edge
+   (margin: 0 -20px), while rows sit inside the parent's 20px padding and add
+   their own 24px — net 44px from the panel edge on both sides. */
+.sdr-search-ranges-body > .sdr-search-ranges-header.sdr-frequency-manager-accordion-toggle {
+    padding-left: 44px;
+    padding-right: 68px;
+}
+.sdr-search-ranges-body > .sdr-search-ranges-header .sdr-frequency-manager-accordion-chevron {
+    right: 44px;
+}
+
+/* Spacer matches the .sdr-freq-row-play footprint (10px svg + 4px left/right
+   padding) so the delete X on Search Range rows lines up with the X on
+   Frequency rows, which sit beside an extra play button. */
+.sdr-freq-row-play-spacer {
+    display: inline-block;
+    width: 18px;
+    flex-shrink: 0;
+}
+
+#sdr-search-range-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+
+#sdr-search-range-list::-webkit-scrollbar { width: 6px; }
+#sdr-search-range-list::-webkit-scrollbar-track { background: transparent; }
+#sdr-search-range-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+}
+#sdr-search-range-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 255, 0, 0.28);
+}
+
+.sdr-search-range-row-body {
+    cursor: pointer;
+}
+
+/* The range add-panel (when adding, not editing) needs its own scroll, same as
+   the frequency add-panel does. */
+.sdr-search-ranges-body > .sdr-editfreq-body.sdr-addfreq-body {
+    flex: 0 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+}
+
+/* The range editor has more fields than the frequency editor, so the shared
+   600px max-height clips it. Allow it to grow. */
+.sdr-search-ranges-body .sdr-editfreq-body.expanded {
+    max-height: none;
+}
+
+.sdr-editfreq-body .sdr-range-row {
+    flex-direction: row;
+    gap: 10px;
+}
+
+.sdr-editfreq-body .sdr-range-row .sdr-range-col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.sdr-editfreq-body .sdr-range-row .sdr-range-col .sdr-panel-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Hide the native number-input spinner arrows in the Search Range editor. */
+.sdr-search-ranges-body input[type="number"]::-webkit-outer-spin-button,
+.sdr-search-ranges-body input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.sdr-search-ranges-body input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+

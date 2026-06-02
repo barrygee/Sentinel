@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from backend.config import settings
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy import text as sa_text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -17,6 +17,20 @@ engine = create_async_engine(
     f"sqlite+aiosqlite:///{settings.db_path}",
     connect_args={"check_same_thread": False},  # required for SQLite async usage
 )
+
+
+# SQLite serialises writes on a single file lock. Concurrent endpoints (e.g.
+# multiple ADS-B cache upserts plus a background flight-history writer) can
+# collide and raise "database is locked" — surfaced as a 500. WAL lets readers
+# proceed during writes, and busy_timeout makes new writers wait up to N ms for
+# the lock instead of failing immediately.
+@event.listens_for(engine.sync_engine, "connect")
+def _sqlite_pragmas(dbapi_conn, _record):  # pragma: no cover — driver-level hook
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA busy_timeout=5000")
+    cur.execute("PRAGMA synchronous=NORMAL")
+    cur.close()
 
 # Session factory used by all request handlers via Depends(get_db)
 AsyncSessionLocal = sessionmaker(
@@ -51,6 +65,16 @@ async def create_tables():
             "ALTER TABLE sdr_radios ADD COLUMN agc INTEGER",
             "ALTER TABLE air_aircraft ADD COLUMN callsign TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE sdr_frequency_groups ADD COLUMN slug TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE satellite_catalogue ADD COLUMN uplink_hz INTEGER",
+            "ALTER TABLE satellite_catalogue ADD COLUMN uplink_mode TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN downlink_hz INTEGER",
+            "ALTER TABLE satellite_catalogue ADD COLUMN downlink_mode TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN ctcss_hz REAL",
+            "ALTER TABLE satellite_catalogue ADD COLUMN transponder_type TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN beacon_hz INTEGER",
+            "ALTER TABLE satellite_catalogue ADD COLUMN packet_info TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN radio_status TEXT",
+            "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
         ]:
             try:
                 await conn.execute(sa_text(col_sql))
@@ -253,6 +277,81 @@ async def normalize_sdr_frequencies_config() -> None:
     config always reflects the current schema."""
     async with AsyncSessionLocal() as session:
         await sync_sdr_groups_to_config(session)
+
+
+async def sync_sdr_search_ranges_to_config(session: AsyncSession) -> None:
+    """Mirror the SdrSearchRange table into UserSettings
+    (namespace='sdr', key='searchRanges') so the persisted app config JSON
+    always reflects current state."""
+    from backend.db_helpers import upsert_setting  # avoid circular import
+    from backend.models import SdrSearchRange  # avoid circular import
+
+    rows = (await session.execute(
+        select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)
+    )).scalars().all()
+    payload = [{
+        "label":          r.label,
+        "low_hz":         r.low_hz,
+        "high_hz":        r.high_hz,
+        "step_hz":        r.step_hz,
+        "mode":           r.mode,
+        "threshold_dbfs": r.threshold_dbfs,
+        "dwell_ms":       r.dwell_ms,
+        "band_name":      r.band_name,
+        "enabled":        r.enabled,
+        "notes":          r.notes,
+    } for r in rows]
+    await upsert_setting(session, "sdr", "searchRanges", payload)
+    await session.commit()
+
+
+async def normalize_sdr_search_ranges_config() -> None:
+    """One-shot startup mirror of sdr_search_ranges into the config snapshot."""
+    async with AsyncSessionLocal() as session:
+        await sync_sdr_search_ranges_to_config(session)
+
+
+async def seed_default_sdr_search_ranges() -> None:
+    """Insert default SDR search ranges from default_config.json's
+    `sdr.searchRanges` — only if the sdr_search_ranges table is empty."""
+    from backend.models import SdrSearchRange  # avoid circular import
+
+    async with AsyncSessionLocal() as session:
+        existing = await session.execute(select(SdrSearchRange).limit(1))
+        if existing.scalar_one_or_none() is not None:
+            return
+
+        try:
+            raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return
+        entries = raw.get("sdr", {}).get("searchRanges", [])
+        if not isinstance(entries, list) or not entries:
+            return
+
+        ts = int(time.time() * 1000)
+        for idx, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            try:
+                session.add(SdrSearchRange(
+                    label          = str(entry.get("label", f"Range {idx + 1}")),
+                    low_hz         = int(entry.get("low_hz", 0)),
+                    high_hz        = int(entry.get("high_hz", 0)),
+                    step_hz        = int(entry.get("step_hz", 12500)),
+                    mode           = str(entry.get("mode", "NFM")),
+                    threshold_dbfs = float(entry.get("threshold_dbfs", -70.0)),
+                    dwell_ms       = int(entry.get("dwell_ms", 250)),
+                    band_name      = str(entry.get("band_name", "")),
+                    enabled        = bool(entry.get("enabled", True)),
+                    notes          = str(entry.get("notes", "")),
+                    sort_order     = idx,
+                    created_at     = ts,
+                ))
+            except (TypeError, ValueError):
+                continue
+        await session.commit()
+        await sync_sdr_search_ranges_to_config(session)
 
 
 async def seed_default_sdr_groups() -> None:

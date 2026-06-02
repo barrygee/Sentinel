@@ -171,4 +171,21 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   background: rgba(200, 255, 0, 0.1);
   border-color: rgba(200, 255, 0, 0.5);
 }
+
+@media (max-width: 480px) {
+  .adsb-lf-table {
+    width: 100%;
+    min-width: 0;
+  }
+  .adsb-lf-header,
+  .adsb-lf-row {
+    grid-template-columns: 1fr 56px 56px;
+  }
+  .adsb-lf-header-field,
+  .adsb-lf-header-col {
+    padding: 7px 8px;
+    font-size: 8px;
+    letter-spacing: 0.14em;
+  }
+}
 </style>

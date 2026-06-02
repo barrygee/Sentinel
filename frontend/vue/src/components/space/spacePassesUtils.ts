@@ -15,6 +15,21 @@ export interface SatPass {
     duration_s:        number
     max_elevation_deg: number
     max_el_utc:        string
+    uplink_hz?:        number | null
+    uplink_mode?:      string | null
+    downlink_hz?:      number | null
+    downlink_mode?:    string | null
+    ctcss_hz?:         number | null
+    transponder_type?: string | null
+    beacon_hz?:        number | null
+    packet_info?:      string | null
+    radio_status?:     string | null
+    radio_notes?:      string | null
+}
+
+export interface SkyPoint {
+    az: number
+    el: number
 }
 
 export interface AccPass {
@@ -25,6 +40,7 @@ export interface AccPass {
     duration_s:        number
     max_elevation_deg: number
     max_el_utc:        string
+    sky_track?:        SkyPoint[]
 }
 
 export function passKey(p: SatPass): string {

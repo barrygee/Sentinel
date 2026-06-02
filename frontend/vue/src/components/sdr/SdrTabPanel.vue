@@ -47,10 +47,6 @@ import SdrPanel from './SdrPanel.vue'
     padding-right: 20px;
 }
 
-#msb-pane-radio .sdr-clips-search-row {
-    padding: 8px 20px 4px;
-}
-
 #msb-pane-radio #sdr-tab-clips-list,
 #msb-pane-radio #sdr-tab-clips-empty {
     padding-left: 0;

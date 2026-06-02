@@ -381,63 +381,239 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+.no-url-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url('/assets/sentinel-contour-background.svg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    filter: blur(0.6px);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .no-url-overlay-box {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    max-width: 420px;
+    gap: 18px;
+    max-width: 640px;
+    width: auto;
     text-align: center;
-    padding: 48px;
-}
-
-.no-url-overlay-domain {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--color-accent);
+    padding: 28px 40px;
+    background: transparent;
 }
 
 .no-url-overlay-title {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    line-height: 0.95;
+}
+
+.no-url-overlay-title-accent {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 300;
+    font-size: clamp(26px, 3.6vw, 48px);
+    color: var(--color-accent);
+    letter-spacing: -0.01em;
+}
+
+.no-url-overlay-title-main {
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 400;
+    font-size: clamp(18px, 2.2vw, 30px);
+    color: #fff;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
 }
 
 .no-url-overlay-msg {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 13px;
     font-weight: 400;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.45);
-    line-height: 1.6;
-    margin-top: 4px;
+    letter-spacing: 0.02em;
+    color: #fff;
+    line-height: 1.55;
+    max-width: 480px;
+    margin-top: 0;
 }
 
 .no-url-overlay-btn {
-    margin-top: 12px;
-    background: none;
-    border: 1px solid rgba(200, 255, 0, 0.4);
-    border-radius: 3px;
-    padding: 9px 24px;
-    color: var(--color-accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 999px;
+    padding: 9px 20px;
+    color: #0a0f1a;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background 0.15s, transform 0.15s;
+}
+
+.no-url-overlay-btn-arrow {
+    font-size: 13px;
+    line-height: 1;
 }
 
 .no-url-overlay-btn:hover {
-    background: rgba(200, 255, 0, 0.08);
-    border-color: rgba(200, 255, 0, 0.7);
+    background: #d8ff33;
+    transform: translateY(-1px);
+}
+
+
+/* ============================================================
+   RESPONSIVE — small screens
+   Breakpoints (documentation):
+     --bp-tablet:    1024px  tablet landscape / small laptops
+     --bp-mobile:     768px  phones / tablet portrait
+     --bp-mobile-sm:  480px  small phones
+   Strategy: slim chrome, convert side panel to full-width drawer,
+   suppress hover-only tooltips, respect iOS safe-area insets.
+   ============================================================ */
+
+/* iOS safe-area: keep nav clear of the notch, footer clear of home indicator */
+#nav {
+    padding-top: env(safe-area-inset-top);
+    height: calc(68px + env(safe-area-inset-top));
+}
+
+#footer {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(44px + env(safe-area-inset-bottom));
+}
+
+/* ---- ≤1024px (tablet landscape) ---- */
+@media (max-width: 1024px) {
+    :root {
+        --nav-height:    56px;
+        --footer-height: 40px;
+    }
+    #nav {
+        height: calc(56px + env(safe-area-inset-top));
+        padding-left: 6px;
+        padding-right: 16px;
+    }
+    #logo-img    { height: 44px; margin-top: 2px; }
+    #nav-right   { gap: 20px; }
+    #footer {
+        height: calc(40px + env(safe-area-inset-bottom));
+        padding: 0 16px;
+    }
+    .no-url-overlay { top: 56px; bottom: 40px; }
+}
+
+/* ---- ≤768px (phones / tablet portrait) ---- */
+@media (max-width: 768px) {
+    #nav {
+        padding-left: 4px;
+        padding-right: 10px;
+    }
+    #logo-img            { height: 38px; }
+    #nav-right           { gap: 14px; }
+    .nav-link            { font-size: 9px; letter-spacing: 0.14em; }
+
+    #footer {
+        padding: 0 10px;
+    }
+    #footer-left,
+    #footer-right {
+        gap: 8px;
+    }
+    /* drop the "LOC:" prefix label on phones, truncate the coord value */
+    #footer-right .footer-label { display: none; }
+    #footer-right .footer-code  {
+        max-width: 42vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Suppress hover-only tooltips — touch devices can't dismiss them */
+    #nav [data-tooltip]::before,
+    #footer [data-tooltip]::before,
+    #map-sidebar-rail [data-tooltip]::before {
+        display: none !important;
+    }
+
+    /* Sidebar panel: full-width drawer to the right of the 44px rail */
+    #map-sidebar {
+        left: 44px !important;
+        right: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+
+    /* No-url overlay: tighter text padding */
+    .no-url-overlay-box { padding: 20px 20px; gap: 14px; }
+    .no-url-overlay-msg { font-size: 12px; max-width: 90vw; }
+}
+
+/* ---- ≤480px (small phones) ---- */
+@media (max-width: 480px) {
+    /* Compress nav so 5 link labels + logo all fit at 375px */
+    #nav        { padding: env(safe-area-inset-top) 6px 0 4px; }
+    #logo-img   { height: 28px; }
+    #nav-right  { gap: 8px; }
+    .nav-link   { font-size: 8px; letter-spacing: 0.04em; }
+
+    /* Footer: hide center cluster + connection label; keep toggles + coord */
+    #footer-center { display: none; }
+    #footer        { padding: 0 6px; }
+
+    /* Sidebar rail relocates to bottom of viewport as a horizontal strip */
+    #map-sidebar-rail {
+        top: auto;
+        bottom: calc(40px + env(safe-area-inset-bottom));
+        left: 0;
+        right: 0;
+        width: auto;
+        height: 44px;
+        flex-direction: row;
+        border-top: 1px solid var(--color-border);
+        border-right: none;
+        justify-content: space-around;
+    }
+    .msb-rail-btn {
+        height: 100%;
+        width: auto;
+        flex: 1;
+        border-left: none;
+        border-top: 2px solid transparent;
+    }
+    .msb-rail-btn.msb-rail-btn-active {
+        border-left-color: transparent;
+        border-top-color: var(--color-accent);
+    }
+
+    /* Sidebar panel: full viewport above the bottom rail + footer */
+    #map-sidebar {
+        left: 0 !important;
+        right: 0 !important;
+        width: auto !important;
+        bottom: calc(44px + 40px + env(safe-area-inset-bottom)) !important;
+    }
+    #map-sidebar.msb-hidden {
+        transform: translateY(100%);
+    }
+
+    /* SDR domain keeps the rail hidden, so the sidebar fills bottom directly */
+    body[data-domain="sdr"] #map-sidebar {
+        bottom: calc(40px + env(safe-area-inset-bottom)) !important;
+    }
 }

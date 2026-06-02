@@ -25,6 +25,17 @@
         <svg v-else-if="tab.id === 'frequency-manager'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M6 3h12v18l-6-4-6 4V3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
         </svg>
+        <!-- search ranges (range brackets with sweep) -->
+        <svg v-else-if="tab.id === 'search-ranges'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linecap="round">
+          <path d="M5 7v10M5 7h3M5 17h3" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M19 7v10M19 7h-3M19 17h-3" stroke="currentColor" stroke-width="1.8"/>
+          <line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+        <!-- groups (stacked tags) -->
+        <svg v-else-if="tab.id === 'groups'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" stroke-linejoin="miter">
+          <path d="M4 7h10l4 4-4 4H4V7Z" stroke="currentColor" stroke-width="1.8" fill="none"/>
+          <circle cx="7" cy="11" r="1.1" fill="currentColor"/>
+        </svg>
         <!-- recordings -->
         <svg v-else-if="tab.id === 'recordings'" width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
@@ -124,7 +135,7 @@
               class="sdr-mode-pill sdr-tune-btn"
               type="button"
               title="Tune"
-              :disabled="controlsDisabled || playing || scanActive"
+              :disabled="controlsDisabled || playing || scanActive || searchActive"
               @click="tune"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
@@ -133,7 +144,7 @@
               class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
               type="button"
               title="Stop audio"
-              :disabled="!playing"
+              :disabled="!playing && !scanActive && !searchActive"
               @click="stop"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
@@ -143,7 +154,7 @@
               :class="{ 'sdr-rec-btn--active': isRecording }"
               type="button"
               title="Record"
-              :disabled="!playing && !scanActive"
+              :disabled="!playing && !scanActive && !searchActive"
               @click="toggleRecording"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -318,6 +329,7 @@
                 <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
               </label>
             </div>
+
           </div>
         </div>
 
@@ -358,28 +370,142 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
-          <div class="sdr-scan-subsection-label">CONTROLS</div>
-          <div class="sdr-scan-btns-row">
+          <div class="sdr-scan-btns-row sdr-scan-btns-row--right">
             <button
-              class="sdr-panel-btn sdr-scan-btn"
-              :class="{ 'sdr-scan-active-btn': scanActive && !scanLocked }"
+              type="button"
+              class="sdr-search-adhoc-play"
+              :class="{ 'sdr-search-adhoc-play--active': scanActive }"
               :disabled="controlsDisabled"
-              :aria-label="scanActive && !scanLocked ? 'Stop' : 'Scan'"
+              :aria-label="scanActive ? 'Stop scan' : 'Start scan'"
+              :title="scanActive ? 'Stop scan' : 'Start scan'"
               @click="onScanPrimaryClick"
             >
-              <svg v-if="scanActive && !scanLocked" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="#ff3b30"/></svg>
-              <template v-else>SCAN</template>
-            </button>
-            <button
-              class="sdr-panel-btn sdr-scan-btn sdr-scan-hold-btn"
-              :disabled="controlsDisabled || !scanActive || scanLocked"
-              title="Hold scanner on current frequency"
-              aria-label="Hold"
-              @click="toggleScanLock"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1" width="3" height="10" fill="currentColor"/><rect x="7" y="1" width="3" height="10" fill="currentColor"/></svg>
+              <svg v-if="scanActive" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
+              <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
             </button>
           </div>
+          </div>
+        </div>
+
+        <!-- Search controls (low/high range sweep) -->
+        <div class="sdr-radio-section sdr-scan-controls">
+          <button
+            type="button"
+            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': searchSectionExpanded }"
+            @click="searchSectionExpanded = !searchSectionExpanded"
+          >
+            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SEARCH</label>
+            <div class="sdr-scan-state-row" v-show="searchActive">
+              <span class="sdr-scan-state-label">{{ searchLocked ? 'SEARCHING PAUSED' : 'SEARCHING' }}</span>
+              <div class="sdr-scan-indicator" :class="{ 'sdr-scan-running': searchActive && !searchLocked, 'sdr-scan-holding': searchLocked }"></div>
+            </div>
+            <span class="sdr-frequency-manager-accordion-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          <div v-show="searchSectionExpanded">
+            <div class="sdr-search-adhoc-row">
+              <div class="sdr-search-adhoc-col">
+                <label class="sdr-field-label">LOW (MHz)</label>
+                <input
+                  class="sdr-panel-input sdr-search-adhoc-input"
+                  type="number"
+                  step="0.0001"
+                  required
+                  :disabled="controlsDisabled || searchActive"
+                  v-model="adhocLowMhz"
+                >
+              </div>
+              <div class="sdr-search-adhoc-col">
+                <label class="sdr-field-label">HIGH (MHz)</label>
+                <input
+                  class="sdr-panel-input sdr-search-adhoc-input"
+                  type="number"
+                  step="0.0001"
+                  required
+                  :disabled="controlsDisabled || searchActive"
+                  v-model="adhocHighMhz"
+                >
+              </div>
+              <div class="sdr-search-adhoc-col">
+                <label class="sdr-field-label">STEP</label>
+                <div
+                  :ref="setAdhocStepDropdownRef"
+                  class="sdr-device-dropdown sdr-step-dropdown"
+                  :class="{ 'sdr-device-dropdown--open': stepMenuOpen && stepMenuTarget === 'adhoc', 'sdr-device-dropdown--loading': controlsDisabled || searchActive }"
+                  tabindex="0"
+                  @click.stop="(controlsDisabled || searchActive) ? null : toggleStepMenu('adhoc')"
+                  @keydown="onStepDropdownKey($event, 'adhoc')"
+                >
+                  <div class="sdr-device-dropdown-selected">
+                    <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ adhocStepLabel }}</span>
+                    <span class="sdr-device-dropdown-arrow"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="sdr-search-adhoc-col sdr-search-adhoc-col--play">
+                <button
+                  type="button"
+                  class="sdr-search-adhoc-play"
+                  :class="{ 'sdr-search-adhoc-play--active': isAdhocSearching }"
+                  :disabled="controlsDisabled || (!adhocSearchValid && !isAdhocSearching)"
+                  :aria-label="isAdhocSearching ? 'Stop search' : 'Start search'"
+                  :title="isAdhocSearching ? 'Stop search' : 'Start search'"
+                  @click="onAdhocPlayClick"
+                >
+                  <svg v-if="isAdhocSearching" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
+                  <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="sdr-search-saved-ranges">
+              <button
+                type="button"
+                class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+                :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': savedRangesExpanded }"
+                @click="savedRangesExpanded = !savedRangesExpanded"
+              >
+                <label class="sdr-field-label sdr-frequency-manager-scanner-title">SAVED RANGES</label>
+                <span class="sdr-frequency-manager-accordion-chevron">
+                  <ChevronIcon />
+                </span>
+              </button>
+              <div v-show="savedRangesExpanded">
+                <div class="sdr-search-range-list" v-if="searchRanges.length > 0">
+                  <div
+                    v-for="r in searchRanges"
+                    :key="r.id"
+                    class="sdr-search-range-item"
+                    :class="{ 'sdr-search-range-item-active': searchSelectedRangeId === r.id }"
+                    :title="`step ${(r.step_hz/1000).toFixed(2)} kHz · ${r.mode}`"
+                  >
+                    <button
+                      type="button"
+                      class="sdr-search-range-item-body"
+                      :disabled="controlsDisabled"
+                      @click="selectSearchRange(r.id)"
+                    >
+                      <span class="sdr-search-range-primary">{{ r.label }}</span>
+                      <span class="sdr-search-range-secondary">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="sdr-search-range-item-play"
+                      :class="{ 'sdr-search-range-item-play--active': isSavedRangeSearching(r.id) }"
+                      :disabled="controlsDisabled"
+                      :aria-label="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
+                      :title="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
+                      @click.stop="onSavedRangePlayClick(r.id)"
+                    >
+                      <svg v-if="isSavedRangeSearching(r.id)" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
+                      <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div v-else class="sdr-scan-subsection-label" style="opacity:0.6">No ranges defined — add some in Frequency Manager.</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -388,21 +514,9 @@
       <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'frequency-manager' }">
 
-      <div class="sdr-scanner-section-body sdr-scanner-section-body-expanded">
+      <div class="sdr-frequency-manager-freqs-body">
 
-<button
-          type="button"
-          class="sdr-scanner-section-label-row sdr-frequency-manager-freqs-label-row sdr-frequency-manager-accordion-toggle"
-          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': freqsSectionExpanded }"
-          @click="toggleFreqsSection"
-        >
-          <span class="sdr-scanner-section-label">FREQUENCIES</span>
-          <span class="sdr-frequency-manager-accordion-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
-
-        <div v-show="freqsSectionExpanded && groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
+        <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
           <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
             <button
               type="button"
@@ -421,7 +535,7 @@
           </div>
         </div>
 
-        <div v-show="freqsSectionExpanded" id="sdr-freq-list">
+        <div id="sdr-freq-list">
           <div
             v-for="f in filteredFreqs"
             :key="f.id"
@@ -429,7 +543,7 @@
             :class="{ 'sdr-freq-editing': editingFreqId === f.id }"
             :data-id="f.id"
           >
-            <div class="sdr-freq-row-top" @click="onFreqRowClick(f)">
+            <div class="sdr-freq-row-top">
               <div class="sdr-freq-row-body">
                 <div class="sdr-freq-row-main">
                   <span class="sdr-freq-row-label">{{ f.label }}</span>
@@ -457,6 +571,14 @@
                 </div>
               </div>
               <button
+                class="sdr-freq-row-play"
+                aria-label="Play frequency"
+                title="Play"
+                @click.stop="tuneToFreq(f)"
+              >
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
+              </button>
+              <button
                 class="sdr-freq-row-edit"
                 aria-label="Edit frequency"
                 title="Edit"
@@ -474,15 +596,17 @@
             <div v-if="efOpen && editingFreqId === f.id" class="sdr-editfreq-body expanded" @click.stop>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">LABEL</label>
-                <input class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+                <input class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.label }" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+                <div v-if="efErrors.label" class="sdr-field-error">{{ efErrors.label }}</div>
               </div>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">FREQ (MHz)</label>
-                <input class="sdr-panel-input" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+                <input class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.freq }" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+                <div v-if="efErrors.freq" class="sdr-field-error">{{ efErrors.freq }}</div>
               </div>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">MODE</label>
-                <div class="sdr-mode-pills">
+                <div class="sdr-mode-pills" :class="{ 'sdr-input-error': efErrors.mode }">
                   <button
                     v-for="m in MODES"
                     :key="m"
@@ -491,6 +615,7 @@
                     @click="efMode = m"
                   >{{ m }}</button>
                 </div>
+                <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
               </div>
               <div class="sdr-editfreq-field">
                 <label class="sdr-field-label">GROUPS</label>
@@ -513,6 +638,18 @@
                   </button>
                 </div>
               </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">NOTES</label>
+                <textarea
+                  class="sdr-panel-input sdr-panel-textarea"
+                  :class="{ 'sdr-input-error': efErrors.notes }"
+                  placeholder="Notes…"
+                  rows="4"
+                  style="width:100%"
+                  v-model="efNotes"
+                ></textarea>
+                <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
+              </div>
               <div class="sdr-editfreq-actions">
                 <div class="sdr-editfreq-actions-right">
                   <button class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
@@ -522,14 +659,14 @@
             </div>
           </div>
         </div>
-        <div v-show="freqsSectionExpanded" id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
+        <div id="sdr-freq-empty" class="sdr-panel-empty" :style="{ display: freqs.length === 0 ? 'block' : 'none' }">
           No saved frequencies.<br>Tune to a frequency and use Add Frequency to save it.
         </div>
-        <div v-if="freqsSectionExpanded && freqs.length > 0 && filteredFreqs.length === 0" class="sdr-panel-empty">
+        <div v-if="freqs.length > 0 && filteredFreqs.length === 0" class="sdr-panel-empty">
           No matches.
         </div>
 
-        <div v-show="freqsSectionExpanded && !(efOpen && editingFreqId === null)" class="sdr-frequency-manager-add-freq-row">
+        <div v-show="!(efOpen && editingFreqId === null)" class="sdr-frequency-manager-add-freq-row">
           <button
             id="sdr-radio-add-freq"
             class="sdr-add-freq-btn"
@@ -544,15 +681,17 @@
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">LABEL</label>
-            <input id="sdr-ef-label" class="sdr-panel-input" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+            <input id="sdr-ef-label" class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.label }" type="text" placeholder="Label…" maxlength="60" style="width:100%" v-model="efLabel">
+            <div v-if="efErrors.label" class="sdr-field-error">{{ efErrors.label }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">FREQ (MHz)</label>
-            <input id="sdr-ef-freq" class="sdr-panel-input" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+            <input id="sdr-ef-freq" class="sdr-panel-input" :class="{ 'sdr-input-error': efErrors.freq }" type="text" placeholder="118.3800" autocomplete="off" style="width:100%" v-model="efFreq">
+            <div v-if="efErrors.freq" class="sdr-field-error">{{ efErrors.freq }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">MODE</label>
-            <div id="sdr-ef-mode-pills" class="sdr-mode-pills">
+            <div id="sdr-ef-mode-pills" class="sdr-mode-pills" :class="{ 'sdr-input-error': efErrors.mode }">
               <button
                 v-for="m in MODES"
                 :key="m"
@@ -561,6 +700,7 @@
                 @click="efMode = m"
               >{{ m }}</button>
             </div>
+            <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">GROUPS</label>
@@ -583,6 +723,19 @@
               </button>
             </div>
           </div>
+          <div class="sdr-editfreq-field">
+            <label class="sdr-field-label">NOTES</label>
+            <textarea
+              id="sdr-ef-notes"
+              class="sdr-panel-input sdr-panel-textarea"
+              :class="{ 'sdr-input-error': efErrors.notes }"
+              placeholder="Notes…"
+              rows="4"
+              style="width:100%"
+              v-model="efNotes"
+            ></textarea>
+            <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
+          </div>
           <div class="sdr-editfreq-actions">
             <div class="sdr-editfreq-actions-right">
               <button id="sdr-ef-cancel" class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
@@ -591,19 +744,199 @@
           </div>
         </div>
 
-        <!-- GROUPS -->
-        <button
-          type="button"
-          class="sdr-scanner-section-label-row sdr-frequency-manager-groups-label-row sdr-frequency-manager-accordion-toggle"
-          :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': groupsSectionExpanded }"
-          @click="groupsSectionExpanded = !groupsSectionExpanded"
-        >
-          <span class="sdr-scanner-section-label">GROUPS</span>
-          <span class="sdr-frequency-manager-accordion-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
-        <div v-show="groupsSectionExpanded" id="sdr-group-list">
+      </div>
+
+      </div>
+
+      <!-- ───────────── SEARCH RANGES TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'search-ranges' }">
+      <div class="sdr-search-ranges-body">
+        <div id="sdr-search-range-list">
+          <div
+            v-for="r in filteredSearchRanges"
+            :key="r.id"
+            class="sdr-freq-row-item"
+            :class="{ 'sdr-freq-editing': editingRangeId === r.id }"
+          >
+            <div class="sdr-freq-row-top">
+              <div
+                class="sdr-freq-row-body sdr-search-range-row-body"
+                role="button"
+                tabindex="0"
+                :title="rangeEditorOpen && editingRangeId === r.id ? 'Close editor' : 'Edit range'"
+                @click.stop="toggleEditRange(r)"
+                @keydown.enter.stop.prevent="toggleEditRange(r)"
+                @keydown.space.stop.prevent="toggleEditRange(r)"
+              >
+                <div class="sdr-freq-row-main">
+                  <span class="sdr-freq-row-label">{{ r.label }}</span>
+                </div>
+                <div class="sdr-freq-row-sub">
+                  <span class="sdr-freq-row-hz">{{ (r.low_hz/1e6).toFixed(3) }}–{{ (r.high_hz/1e6).toFixed(3) }} MHz</span>
+                </div>
+              </div>
+              <span class="sdr-freq-row-play-spacer" aria-hidden="true"></span>
+              <button v-if="!(rangeEditorOpen && editingRangeId === r.id)" class="sdr-freq-row-edit" aria-label="Edit range" title="Edit" @click.stop="toggleEditRange(r)">&#x270E;</button>
+              <button class="sdr-freq-row-del"  aria-label="Delete range" title="Delete" @click.stop="deleteRange(r.id)">&#x2715;</button>
+            </div>
+
+            <!-- Inline edit form (accordion body) -->
+            <div v-if="rangeEditorOpen && editingRangeId === r.id" class="sdr-editfreq-body expanded" @click.stop>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">LABEL</label>
+                <input class="sdr-panel-input" type="text" placeholder="e.g. Air Band" maxlength="60" style="width:100%" v-model="rangeEditor.label">
+              </div>
+              <div class="sdr-editfreq-field sdr-range-row">
+                <div class="sdr-range-col">
+                  <label class="sdr-field-label">LOW (MHz)</label>
+                  <input class="sdr-panel-input" type="number" step="0.0001" style="width:100%" v-model="rangeEditor.low_mhz">
+                </div>
+                <div class="sdr-range-col">
+                  <label class="sdr-field-label">HIGH (MHz)</label>
+                  <input class="sdr-panel-input" type="number" step="0.0001" style="width:100%" v-model="rangeEditor.high_mhz">
+                </div>
+              </div>
+              <div class="sdr-editfreq-field sdr-range-row">
+                <div class="sdr-range-col">
+                  <label class="sdr-field-label">STEP</label>
+                  <div
+                    :ref="setStepDropdownRef"
+                    class="sdr-device-dropdown sdr-step-dropdown"
+                    :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
+                    tabindex="0"
+                    @click.stop="toggleStepMenu('range')"
+                    @keydown="onStepDropdownKey($event, 'range')"
+                  >
+                    <div class="sdr-device-dropdown-selected">
+                      <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ stepMenuLabel }}</span>
+                      <span class="sdr-device-dropdown-arrow"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="sdr-range-col">
+                  <label class="sdr-field-label">DWELL (ms)</label>
+                  <input class="sdr-panel-input" type="number" step="10" min="50" style="width:100%" v-model="rangeEditor.dwell_ms">
+                </div>
+              </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">MODE</label>
+                <div class="sdr-mode-pills">
+                  <button
+                    v-for="m in SEARCH_MODES"
+                    :key="m"
+                    type="button"
+                    class="sdr-mode-pill"
+                    :class="{ active: rangeEditor.mode === m }"
+                    @click="rangeEditor.mode = m"
+                  >{{ m }}</button>
+                </div>
+              </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">THRESHOLD (dBFS)</label>
+                <input class="sdr-panel-input" type="number" step="1" style="width:100%" v-model="rangeEditor.threshold_dbfs">
+              </div>
+              <div class="sdr-editfreq-field">
+                <label class="sdr-field-label">NOTES</label>
+                <textarea class="sdr-panel-input sdr-panel-textarea" rows="3" style="width:100%" v-model="rangeEditor.notes"></textarea>
+              </div>
+              <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
+              <div class="sdr-editfreq-actions">
+                <div class="sdr-editfreq-actions-right">
+                  <button class="sdr-panel-btn" @click="cancelRangeEditor">CANCEL</button>
+                  <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveRangeEditor">SAVE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="searchRanges.length === 0" class="sdr-panel-empty">
+          No search ranges defined.
+        </div>
+        <div v-else-if="filteredSearchRanges.length === 0" class="sdr-panel-empty">
+          No ranges match your search.
+        </div>
+
+        <div v-show="!(rangeEditorOpen && editingRangeId === null)" class="sdr-frequency-manager-add-freq-row">
+          <button class="sdr-add-freq-btn" @click="openAddRange">Add Range</button>
+        </div>
+
+        <!-- Add range panel (only when adding, not editing) -->
+        <div v-if="rangeEditorOpen && editingRangeId === null" class="sdr-editfreq-body sdr-addfreq-body expanded">
+          <div class="sdr-addfreq-title-row">
+            <span class="sdr-scanner-section-label">ADD RANGE</span>
+          </div>
+          <div class="sdr-editfreq-field">
+            <label class="sdr-field-label">LABEL</label>
+            <input class="sdr-panel-input" type="text" placeholder="e.g. Air Band" maxlength="60" style="width:100%" v-model="rangeEditor.label">
+          </div>
+          <div class="sdr-editfreq-field sdr-range-row">
+            <div class="sdr-range-col">
+              <label class="sdr-field-label">LOW (MHz)</label>
+              <input class="sdr-panel-input" type="number" step="0.0001" style="width:100%" v-model="rangeEditor.low_mhz">
+            </div>
+            <div class="sdr-range-col">
+              <label class="sdr-field-label">HIGH (MHz)</label>
+              <input class="sdr-panel-input" type="number" step="0.0001" style="width:100%" v-model="rangeEditor.high_mhz">
+            </div>
+          </div>
+          <div class="sdr-editfreq-field sdr-range-row">
+            <div class="sdr-range-col">
+              <label class="sdr-field-label">STEP</label>
+              <div
+                :ref="setStepDropdownRef"
+                class="sdr-device-dropdown sdr-step-dropdown"
+                :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
+                tabindex="0"
+                @click.stop="toggleStepMenu('range')"
+                @keydown="onStepDropdownKey($event, 'range')"
+              >
+                <div class="sdr-device-dropdown-selected">
+                  <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{ stepMenuLabel }}</span>
+                  <span class="sdr-device-dropdown-arrow"></span>
+                </div>
+              </div>
+            </div>
+            <div class="sdr-range-col">
+              <label class="sdr-field-label">DWELL (ms)</label>
+              <input class="sdr-panel-input" type="number" step="10" min="50" style="width:100%" v-model="rangeEditor.dwell_ms">
+            </div>
+          </div>
+          <div class="sdr-editfreq-field">
+            <label class="sdr-field-label">MODE</label>
+            <div class="sdr-mode-pills">
+              <button
+                v-for="m in SEARCH_MODES"
+                :key="m"
+                type="button"
+                class="sdr-mode-pill"
+                :class="{ active: rangeEditor.mode === m }"
+                @click="rangeEditor.mode = m"
+              >{{ m }}</button>
+            </div>
+          </div>
+          <div class="sdr-editfreq-field">
+            <label class="sdr-field-label">THRESHOLD (dBFS)</label>
+            <input class="sdr-panel-input" type="number" step="1" style="width:100%" v-model="rangeEditor.threshold_dbfs">
+          </div>
+          <div class="sdr-editfreq-field">
+            <label class="sdr-field-label">NOTES</label>
+            <textarea class="sdr-panel-input sdr-panel-textarea" rows="3" style="width:100%" v-model="rangeEditor.notes"></textarea>
+          </div>
+          <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
+          <div class="sdr-editfreq-actions">
+            <div class="sdr-editfreq-actions-right">
+              <button class="sdr-panel-btn" @click="cancelRangeEditor">CANCEL</button>
+              <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveRangeEditor">SAVE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <!-- ───────────── GROUPS TAB ───────────── -->
+      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'groups' }">
+        <div id="sdr-group-list">
           <div class="sdr-group-pills">
             <div v-for="g in sortedGroups" :key="g.id" class="sdr-group-pill">
               <span class="sdr-group-pill-name">{{ g.name }}</span>
@@ -612,7 +945,7 @@
             </div>
           </div>
         </div>
-        <div v-show="groupsSectionExpanded" class="sdr-panel-add-row sdr-frequency-manager-group-add-row">
+        <div class="sdr-panel-add-row sdr-frequency-manager-group-add-row">
           <input
             ref="newGroupNameRef"
             class="sdr-panel-input"
@@ -628,13 +961,8 @@
         </div>
       </div>
 
-      </div>
-
       <!-- ───────────── RECORDINGS TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'recordings' }">
-        <div class="sdr-tab-header">
-          <span class="sdr-tab-title">RECORDINGS</span>
-        </div>
         <SdrClipsSection
           ref="clipsSectionRef"
           :live-recording="liveRecording"
@@ -646,6 +974,27 @@
     </div>
 
   </div>
+
+  <!-- Step dropdown menu (teleported so it overlays the side panel) -->
+  <Teleport to="body">
+    <div
+      v-if="stepMenuOpen"
+      ref="stepMenuRef"
+      class="sdr-device-menu sdr-device-menu--open sdr-step-menu"
+      :style="stepMenuStyle"
+      @click.stop
+    >
+      <div
+        v-for="s in STEP_OPTIONS_KHZ"
+        :key="s"
+        class="sdr-device-menu-item"
+        :class="{ 'sdr-device-menu-item--selected': parseFloat(stepMenuTarget === 'adhoc' ? adhocStepKhz : rangeEditor.step_khz) === s }"
+        @click="pickStep(s)"
+      >
+        {{ formatStepKhz(s) }}
+      </div>
+    </div>
+  </Teleport>
 
   <!-- ── GROUP RENAME MODAL ── -->
   <div id="sdr-group-modal" class="sdr-modal-overlay" :style="{ display: groupModalOpen ? 'flex' : 'none' }" @click.self="closeGroupModal">
@@ -673,6 +1022,13 @@ import SdrClipsSection from './SdrClipsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode } from '@/stores/sdr'
+import type { SdrSearchRange } from '@/services/sdrSearchApi'
+import {
+  listSearchRanges as apiListSearchRanges,
+  createSearchRange as apiCreateSearchRange,
+  updateSearchRange as apiUpdateSearchRange,
+  deleteSearchRange as apiDeleteSearchRange,
+} from '@/services/sdrSearchApi'
 
 interface SdrRadio { id: number; name: string; host: string; enabled: boolean }
 interface SdrFrequencyGroup { id: number; name: string; slug: string; color: string; sort_order: number }
@@ -704,11 +1060,13 @@ const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY  = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
-type SdrTab = 'radio' | 'frequency-manager' | 'recordings'
+type SdrTab = 'radio' | 'frequency-manager' | 'search-ranges' | 'groups' | 'recordings'
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio',      label: 'RADIO' },
   { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
+  { id: 'search-ranges', label: 'SEARCH RANGES' },
+  { id: 'groups',     label: 'GROUPS' },
   { id: 'recordings', label: 'RECORDINGS' },
 ]
 function _restoreSdrTab(): SdrTab {
@@ -751,6 +1109,7 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 // this stays in sync even when the Settings SDR control isn't mounted.
 useDocumentEvent('sentinel:config-uploaded', () => {
   void _sdrStore().hydrateAutoCenterFromDb()
+  void _sdrStore().hydrateResumeDelaySecFromDb()
 })
 
 const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
@@ -774,7 +1133,7 @@ const currentFreqHz     = ref(0)
 const gainDb            = ref(30)
 const gainAuto          = ref(false)
 const volume            = ref(80)
-const squelch           = ref(-120)
+const squelch           = ref(-30)
 const bwHz              = ref(10000)
 const bwMax             = ref(2048000)
 // Hardware sample rate (rtl_tcp): governs the spectrum/waterfall x-axis span
@@ -783,6 +1142,10 @@ const bwMax             = ref(2048000)
 // avoids the stuttering 250k/300k tiers measured on the remote Pi.
 const SAMPLE_RATE_OPTIONS = [1024000, 1536000, 1792000, 2048000] as const
 const sampleRateHz      = ref<number>(2048000)
+// Resume delay is owned by the SDR store (Settings → SDR → SCAN & SEARCH).
+// Wrapped in a computed so the existing watcher code keeps using
+// `resumeDelaySec.value` unchanged.
+const resumeDelaySec    = computed<number>(() => _sdrStore().resumeDelaySec)
 const activeFreqDisplay = ref('')
 const signalSmoothed    = ref(-120)
 const signalLit         = ref(0)
@@ -795,6 +1158,16 @@ const worklestSquelchOpen = ref(true)
 // onBwInput, applyStatus) — no changes to those functions.
 watch(currentFreqHz, (v) => { if (v) _sdrStore().setFrequency(v) }, { immediate: true })
 watch(bwHz,          (v) => { _sdrStore().setBandwidthHz(v) },       { immediate: true })
+
+// Collapse the Scanner + Search accordions whenever the side panel opens,
+// so the user starts from a clean state instead of inheriting prior expansion.
+watch(() => _sdrStore().panelOpen, (open) => {
+  if (open) {
+    scannerSectionExpanded.value = false
+    searchSectionExpanded.value = false
+    savedRangesExpanded.value = false
+  }
+})
 
 // Demod NCO offset bridge. The store is the single source of truth for the
 // offset from the hardware centre (set by the waterfall click handler when
@@ -875,14 +1248,60 @@ let _scanQueue: SdrStoredFrequency[] = []
 let _scanIdx   = 0
 let _scanTimer: ReturnType<typeof setTimeout> | null = null
 
+// ── Search (high/low frequency range sweep) ──────────────────────────────────
+const searchSectionExpanded = ref(false)
+const savedRangesExpanded = ref(false)
+const rangesSectionExpanded = ref(false)
+const searchRanges          = ref<SdrSearchRange[]>([])
+const filteredSearchRanges = computed<SdrSearchRange[]>(() => searchRanges.value)
+const searchActive          = ref(false)
+const searchLocked          = ref(false)
+const searchSelectedRangeId = ref<number | null>(null)
+// Tracks whether the running search was started from the ad-hoc inputs or a
+// saved range list item — needed so per-item play/stop buttons can show the
+// correct icon and toggle the correct sweep.
+const searchActiveSource    = ref<'adhoc' | 'saved' | null>(null)
+const searchCurrentHz       = ref<number | null>(null)
+
+// Ad-hoc search inputs (low/high MHz, step kHz) — required fields shown
+// above the saved ranges list. When all three are valid, SEARCH uses these
+// instead of a saved range.
+const adhocLowMhz  = ref<string>('')
+const adhocHighMhz = ref<string>('')
+const adhocStepKhz = ref<string>('12.5')
+const adhocSearchValid = computed(() => {
+  const lo = parseFloat(adhocLowMhz.value)
+  const hi = parseFloat(adhocHighMhz.value)
+  const st = parseFloat(adhocStepKhz.value)
+  return isFinite(lo) && isFinite(hi) && isFinite(st) && lo < hi && st > 0
+})
+let _searchHz = 0
+let _searchTimer: ReturnType<typeof setTimeout> | null = null
+
+// Post-tune race guard for the search engine. The backend tags FFT frames with
+// `conn.center_hz` at FFT time, not at IQ-read time — so a frame can be labelled
+// with the new frequency while its IQ samples were captured at the previous
+// one. We track how many frames have arrived bearing the expected center_hz
+// since the last retune, and only sample after a minimum settle window has
+// elapsed *and* at least one matching frame has been seen (we discard the
+// first one as a race-window guard).
+let _expectedCenterHz: number | null = null
+let _postTuneFrameCount = 0
+let _tuneAtMs = 0
+const SEARCH_MIN_SETTLE_MS = 250
+const SEARCH_RECHECK_MS = 80
+const SEARCH_MAX_RECHECKS = 6
+
+// Latest spectrum frame stash — used by the search engine to read the centre
+// bin's dBFS power after the dwell interval to decide hold-on-signal.
+let _lastSpectrum: { bins: number[]; center_hz: number; sample_rate: number } | null = null
+
 // ── Groups + frequencies ──────────────────────────────────────────────────────
 const groups       = ref<SdrFrequencyGroup[]>([])
 const freqs        = ref<SdrStoredFrequency[]>([])
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
-const freqsSectionExpanded = ref(true)
-const groupsSectionExpanded = ref(true)
-const scannerSectionExpanded = ref(true)
+const scannerSectionExpanded = ref(false)
 const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
 
@@ -934,6 +1353,27 @@ const sortedGroups = computed<SdrFrequencyGroup[]>(() =>
   groups.value.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 )
 
+// Mirror scanner sweep state + selected group labels into the store. The
+// waterfall component reads these to show the same paused/holding overlay
+// used during a range search whenever the scanner is stepping between
+// frequencies (but not when it has locked onto an active signal).
+watch(
+  [scanActive, scanLocked, scanAllSelected, scanSelectedGroupIds, groupsWithFreqs],
+  ([active, locked, allSel, selIds, groupsList]) => {
+    const _ss = _sdrStore()
+    _ss.scanSweeping = !!active && !locked
+    if (allSel || (selIds as number[]).length === 0) {
+      _ss.scanGroupNames = ['All']
+    } else {
+      const sel = new Set(selIds as number[])
+      _ss.scanGroupNames = (groupsList as SdrFrequencyGroup[])
+        .filter(g => sel.has(g.id))
+        .map(g => g.name)
+    }
+  },
+  { immediate: true, deep: true },
+)
+
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
 function freqGroupsFor(f: SdrStoredFrequency): SdrFrequencyGroup[] {
@@ -965,6 +1405,13 @@ const efLabel       = ref('')
 const efFreq        = ref('')
 const efMode        = ref('AM')
 const efGroupIds    = ref<number[]>([])
+const efNotes       = ref('')
+const efErrors      = ref<{ label?: string; freq?: string; mode?: string; notes?: string }>({})
+const NOTES_ALLOWED = /^[A-Za-z0-9\s.,!?\-_():;/@]*$/
+watch(efLabel, () => { if (efErrors.value.label) efErrors.value = { ...efErrors.value, label: undefined } })
+watch(efFreq,  () => { if (efErrors.value.freq)  efErrors.value = { ...efErrors.value, freq:  undefined } })
+watch(efMode,  () => { if (efErrors.value.mode)  efErrors.value = { ...efErrors.value, mode:  undefined } })
+watch(efNotes, () => { if (efErrors.value.notes) efErrors.value = { ...efErrors.value, notes: undefined } })
 
 // ── Recording state (live recording props passed to SdrClipsSection) ──────────
 
@@ -1023,6 +1470,8 @@ function restoreSettings() {
 // ── Control WebSocket ─────────────────────────────────────────────────────────
 
 let _ctrlSocket:       WebSocket | null = null
+let _ctrlReconnectDelay = 500
+const CTRL_RECONNECT_MAX = 30000
 let _ctrlRadioId:      number | null    = null
 let _ctrlReconnect:    ReturnType<typeof setTimeout> | null = null
 let _ctrlDataConfirmed = false
@@ -1065,6 +1514,7 @@ async function openControlSocket(radioId: number) {
   _ctrlSocket = ws
 
   ws.addEventListener('open', () => {
+    _ctrlReconnectDelay = 500
     const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
     if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
@@ -1106,6 +1556,14 @@ async function openControlSocket(radioId: number) {
             sample_rate: msg.sample_rate,
             ts: msg.timestamp_ms,
           })
+          _lastSpectrum = {
+            bins: msg.bins as number[],
+            center_hz: msg.center_hz as number,
+            sample_rate: msg.sample_rate as number,
+          }
+          if (_expectedCenterHz !== null && msg.center_hz === _expectedCenterHz) {
+            _postTuneFrameCount++
+          }
         }
         break
       case 'error':
@@ -1120,15 +1578,18 @@ async function openControlSocket(radioId: number) {
   ws.addEventListener('close', () => {
     setStatus(false)
     if (_ctrlReconnect) clearTimeout(_ctrlReconnect)
+    const delay = _ctrlReconnectDelay
+    _ctrlReconnectDelay = Math.min(_ctrlReconnectDelay * 2, CTRL_RECONNECT_MAX)
     _ctrlReconnect = setTimeout(() => {
       if (_ctrlRadioId === radioId) void openControlSocket(radioId)
-    }, 500)
+    }, delay)
   })
 
   ws.addEventListener('error', () => { setStatus(false) })
 }
 
 function closeControlSocket() {
+  _ctrlReconnectDelay = 500
   if (_ctrlReconnect) { clearTimeout(_ctrlReconnect); _ctrlReconnect = null }
   if (_ctrlSocket)    { _ctrlSocket.close(); _ctrlSocket = null }
   if (_ctrlRadioId != null) sessionStorage.removeItem(`sdrInit_${_ctrlRadioId}`)
@@ -1168,6 +1629,8 @@ function tune() {
 }
 
 function stop() {
+  if (scanActive.value) stopScan()
+  if (searchActive.value) stopSearch()
   sdrAudio.stop()
   setPlayingState(false)
   signalSmoothed.value = -120
@@ -1430,6 +1893,7 @@ function onDeviceDropdownKey(e: KeyboardEvent) {
 function onDocumentClick() {
   if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
+  if (stepMenuOpen.value) closeStepMenu()
 }
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
@@ -1530,6 +1994,8 @@ function startScan() {
   if (scanLocked.value) return
   _scanQueue = buildScanQueue()
   if (_scanQueue.length === 0) return
+  // Mutual exclusion with the range search — both drive `tune`.
+  if (searchActive.value) stopSearch()
   scanActive.value = true
   _scanIdx = 0
   doScanStep()
@@ -1540,7 +2006,11 @@ function stopScan() {
   scanLocked.value = false
   scanCurrentHz.value = null
   if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
+  stopResumeWatcher()
 }
+
+const SCAN_DWELL_MS = 250
+const SCAN_MAX_RECHECKS = 12
 
 function doScanStep() {
   if (!scanActive.value || scanLocked.value || _scanQueue.length === 0) return
@@ -1548,11 +2018,51 @@ function doScanStep() {
   tuneToFreq(f)
   scanCurrentHz.value = f.frequency_hz
   _scanIdx++
-  _scanTimer = setTimeout(doScanStep, 2000)
+
+  // Reuse the search engine's post-tune race guard so we don't sample
+  // pre-retune IQ.
+  _lastSpectrum = null
+  _expectedCenterHz = f.frequency_hz
+  _postTuneFrameCount = 0
+  _tuneAtMs = performance.now()
+
+  const thresholdDb = squelch.value
+
+  let rechecks = 0
+  const evaluate = () => {
+    _scanTimer = null
+    if (!scanActive.value || scanLocked.value) return
+    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
+    const frameOk = _postTuneFrameCount >= 2
+        && _lastSpectrum != null
+        && _lastSpectrum.center_hz === f.frequency_hz
+    if (!(settled && frameOk)) {
+      if (rechecks < SCAN_MAX_RECHECKS) {
+        rechecks++
+        _scanTimer = setTimeout(evaluate, SEARCH_RECHECK_MS)
+        return
+      }
+      // Couldn't get a clean frame — advance.
+      doScanStep()
+      return
+    }
+    const db = sampleChannelDb()
+    if (db >= thresholdDb) {
+      scanLocked.value = true
+      startResumeWatcher(thresholdDb, () => {
+        if (!scanActive.value || !scanLocked.value) return
+        toggleScanLock()
+      })
+      return
+    }
+    doScanStep()
+  }
+  _scanTimer = setTimeout(evaluate, SCAN_DWELL_MS)
 }
 
 function toggleScanLock() {
   scanLocked.value = !scanLocked.value
+  stopResumeWatcher()
   if (!scanLocked.value && scanActive.value) {
     if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null }
     doScanStep()
@@ -1568,6 +2078,487 @@ function tuneToFreq(f: SdrStoredFrequency) {
   sendCmd({ cmd: 'mode', mode: f.mode })
 }
 
+// ── Search engine (low/high range sweep with stop-on-signal) ─────────────────
+
+function adhocRange(): SdrSearchRange | null {
+  if (!adhocSearchValid.value) return null
+  const lo = parseFloat(adhocLowMhz.value)
+  const hi = parseFloat(adhocHighMhz.value)
+  const st = parseFloat(adhocStepKhz.value)
+  return {
+    id: -1,
+    label: 'Ad-hoc',
+    low_hz: Math.round(lo * 1e6),
+    high_hz: Math.round(hi * 1e6),
+    step_hz: Math.round(st * 1000),
+    mode: currentMode.value || 'NFM',
+    threshold_dbfs: -30,
+    dwell_ms: 250,
+    band_name: '',
+    enabled: true,
+    notes: '',
+    sort_order: 0,
+  }
+}
+
+function savedRange(id: number | null): SdrSearchRange | null {
+  if (id == null) return null
+  return searchRanges.value.find(r => r.id === id) ?? null
+}
+
+// Returns the range currently being searched (or that would be searched if the
+// main SEARCH button were pressed now). When a search is active, the source is
+// pinned by searchActiveSource so the per-item buttons stay accurate even if
+// ad-hoc inputs change mid-sweep.
+function currentSearchRange(): SdrSearchRange | null {
+  if (searchActive.value) {
+    if (searchActiveSource.value === 'adhoc') return adhocRange()
+    if (searchActiveSource.value === 'saved') return savedRange(searchSelectedRangeId.value)
+  }
+  return adhocRange() ?? savedRange(searchSelectedRangeId.value)
+}
+
+const isAdhocSearching = computed(() =>
+  searchActive.value && searchActiveSource.value === 'adhoc'
+)
+function isSavedRangeSearching(id: number): boolean {
+  return searchActive.value
+    && searchActiveSource.value === 'saved'
+    && searchSelectedRangeId.value === id
+}
+
+function sampleChannelDb(): number {
+  const s = _lastSpectrum
+  if (!s || !s.bins || s.bins.length === 0) return -120
+  // Peak dB across the demod channel around the tuner, skipping only the
+  // single centre DC spike. Mean across a narrow ±3..±5 window underreports
+  // narrow signals — the audio worklet (which sees the full demod channel)
+  // opened squelch but this sampler missed the peak. Sizing the window to
+  // the demod bandwidth (with a sensible floor) and taking the max matches
+  // what the user hears.
+  const n = s.bins.length
+  const mid = Math.floor(n / 2)
+  const binHz = (s.sample_rate || 2_048_000) / n
+  // Half-width: at least 4 bins, otherwise the demod bandwidth in bins.
+  const halfBins = Math.max(4, Math.ceil((bwHz.value / 2) / binHz))
+  const lo = Math.max(0, mid - halfBins)
+  const hi = Math.min(n - 1, mid + halfBins)
+  let peak = -Infinity
+  for (let i = lo; i <= hi; i++) {
+    if (i === mid) continue // skip LO/DC spike
+    const v = s.bins[i]
+    if (typeof v === 'number' && isFinite(v) && v > peak) peak = v
+  }
+  return peak === -Infinity ? -120 : peak
+}
+
+function tuneToHzMode(hz: number, mode: string) {
+  currentFreqHz.value = hz
+  currentMode.value   = mode
+  freqInputVal.value  = (hz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
+  sendCmd({ cmd: 'tune', frequency_hz: hz })
+  sendCmd({ cmd: 'mode', mode })
+}
+
+function startSearch(source?: 'adhoc' | 'saved') {
+  // Resolve which source to run if not explicitly chosen: ad-hoc takes
+  // priority when its inputs are valid, otherwise the selected saved range.
+  const resolved: 'adhoc' | 'saved' | null = source
+    ?? (adhocSearchValid.value ? 'adhoc' : (searchSelectedRangeId.value != null ? 'saved' : null))
+  if (!resolved) return
+  const r = resolved === 'adhoc' ? adhocRange() : savedRange(searchSelectedRangeId.value)
+  if (!r) return
+  if (r.low_hz >= r.high_hz || r.step_hz <= 0) return
+  // Mutual exclusion with scanner — both drive `tune`.
+  if (scanActive.value) stopScan()
+  if (selectedRadioId.value) {
+    sdrAudio.initAudio(selectedRadioId.value)
+    sdrAudio.setMode(r.mode as SdrMode)
+    const bw = defaultBwHz(r.mode)
+    sdrAudio.setBandwidthHz(bw)
+    bwHz.value = bw
+    setPlayingState(true)
+  }
+  searchActive.value = true
+  searchActiveSource.value = resolved
+  searchLocked.value = false
+  const _ss = _sdrStore()
+  _ss.searchSweeping = true
+  _ss.searchLowHz = r.low_hz
+  _ss.searchHighHz = r.high_hz
+  _ss.searchCurrentHz = r.low_hz
+  _searchHz = r.low_hz
+  // Invalidate any stale spectrum frame so the first step waits for fresh data.
+  _lastSpectrum = null
+  doSearchStep()
+}
+
+function stopSearch() {
+  searchActive.value = false
+  searchActiveSource.value = null
+  searchLocked.value = false
+  const _ss = _sdrStore()
+  _ss.searchSweeping = false
+  _ss.searchLowHz = null
+  _ss.searchHighHz = null
+  _ss.searchCurrentHz = null
+  searchCurrentHz.value = null
+  _expectedCenterHz = null
+  _postTuneFrameCount = 0
+  if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
+  stopResumeWatcher()
+}
+
+function toggleSearch() { if (searchActive.value) stopSearch(); else startSearch() }
+
+function onSearchPrimaryClick() {
+  if (searchActive.value && searchLocked.value) toggleSearchLock()
+  else toggleSearch()
+}
+
+function onAdhocPlayClick() {
+  if (isAdhocSearching.value) { stopSearch(); return }
+  if (searchActive.value) stopSearch()
+  startSearch('adhoc')
+}
+
+function onSavedRangePlayClick(id: number) {
+  if (isSavedRangeSearching(id)) { stopSearch(); return }
+  if (searchActive.value) stopSearch()
+  searchSelectedRangeId.value = id
+  startSearch('saved')
+}
+
+function toggleSearchLock() {
+  if (!searchActive.value) return
+  searchLocked.value = !searchLocked.value
+  _sdrStore().searchSweeping = searchActive.value && !searchLocked.value
+  stopResumeWatcher()
+  if (!searchLocked.value) {
+    if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null }
+    // Advance past the current freq so we don't immediately re-hold on the same signal.
+    const r = currentSearchRange()
+    if (r) {
+      _searchHz += r.step_hz
+      if (_searchHz > r.high_hz) _searchHz = r.low_hz
+    }
+    doSearchStep()
+  }
+}
+
+// Shared auto-resume watcher used by both search and scan. When a freq is
+// locked on a signal, poll sampleChannelDb() and only call onResume() once the
+// channel has been below `thresholdDb` continuously for `delaySec` seconds.
+// delaySec == 0 → resume on the next poll where the signal is gone.
+const RESUME_POLL_MS = 200
+let _resumeTimer: ReturnType<typeof setTimeout> | null = null
+let _quietSinceMs: number | null = null
+
+function stopResumeWatcher() {
+  if (_resumeTimer) { clearTimeout(_resumeTimer); _resumeTimer = null }
+  _quietSinceMs = null
+}
+
+function startResumeWatcher(thresholdDb: number, onResume: () => void) {
+  stopResumeWatcher()
+  const delayMs = Math.max(0, resumeDelaySec.value) * 1000
+  const tick = () => {
+    _resumeTimer = null
+    const db = sampleChannelDb()
+    const active = db >= thresholdDb
+    if (active) {
+      _quietSinceMs = null
+    } else {
+      if (_quietSinceMs == null) _quietSinceMs = performance.now()
+      if (performance.now() - _quietSinceMs >= delayMs) {
+        _quietSinceMs = null
+        onResume()
+        return
+      }
+    }
+    _resumeTimer = setTimeout(tick, RESUME_POLL_MS)
+  }
+  _resumeTimer = setTimeout(tick, RESUME_POLL_MS)
+}
+
+function doSearchStep() {
+  if (!searchActive.value || searchLocked.value) return
+  const r = currentSearchRange()
+  if (!r) { stopSearch(); return }
+  const stepHz = _searchHz
+  tuneToHzMode(stepHz, r.mode)
+  searchCurrentHz.value = stepHz
+  _sdrStore().searchCurrentHz = stepHz
+  // Reset the post-tune race guard. Frames bearing the new expected center_hz
+  // are counted by the WS handler; we discard the first one because the backend
+  // labels frames with conn.center_hz at FFT time, not at IQ-read time — so the
+  // first label-matching frame can still contain pre-retune IQ.
+  _lastSpectrum = null
+  _expectedCenterHz = stepHz
+  _postTuneFrameCount = 0
+  _tuneAtMs = performance.now()
+  const dwellMs = Math.max(50, r.dwell_ms)
+
+  let rechecks = 0
+  const evaluate = () => {
+    if (!searchActive.value || searchLocked.value) return
+    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
+    const frameOk = _postTuneFrameCount >= 2
+        && _lastSpectrum != null
+        && _lastSpectrum.center_hz === stepHz
+    if (!(settled && frameOk)) {
+      if (rechecks < SEARCH_MAX_RECHECKS) {
+        rechecks++
+        _searchTimer = setTimeout(evaluate, SEARCH_RECHECK_MS)
+        return
+      }
+      // Give up waiting for a clean frame and advance without sampling.
+      _searchHz += r.step_hz
+      if (_searchHz > r.high_hz) _searchHz = r.low_hz
+      doSearchStep()
+      return
+    }
+    // Use the SQUELCH slider as the activity threshold so "audible" lines up
+    // with "lock here" — same gate the audio path uses. Range threshold_dbfs
+    // is intentionally ignored.
+    const db = sampleChannelDb()
+    if (db >= squelch.value) {
+      // Lock on signal. A watcher will auto-advance once the signal
+      // drops and the user-configured RESUME DELAY has elapsed; until then
+      // the user can also press HOLD/RESUME to force-continue.
+      searchLocked.value = true
+      _sdrStore().searchSweeping = false
+      startResumeWatcher(squelch.value, () => {
+        if (!searchActive.value || !searchLocked.value) return
+        toggleSearchLock()
+      })
+      return
+    }
+    _searchHz += r.step_hz
+    if (_searchHz > r.high_hz) _searchHz = r.low_hz
+    doSearchStep()
+  }
+  _searchTimer = setTimeout(evaluate, dwellMs)
+}
+
+async function reloadSearchRanges() {
+  try { searchRanges.value = await apiListSearchRanges() } catch { searchRanges.value = [] }
+  // If the selected range was deleted elsewhere, clear the selection.
+  if (searchSelectedRangeId.value != null
+      && !searchRanges.value.find(r => r.id === searchSelectedRangeId.value)) {
+    if (searchActive.value) stopSearch()
+    searchSelectedRangeId.value = searchRanges.value[0]?.id ?? null
+  } else if (searchSelectedRangeId.value == null && searchRanges.value.length > 0) {
+    searchSelectedRangeId.value = searchRanges.value[0].id
+  }
+}
+
+function selectSearchRange(id: number) {
+  if (searchActive.value) stopSearch()
+  searchSelectedRangeId.value = id
+  adhocLowMhz.value = ''
+  adhocHighMhz.value = ''
+}
+
+// ── Search range editor (Frequency Manager tab) ──────────────────────────────
+
+const SEARCH_MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW']
+
+// Common channel step sizes (kHz) used by scanners / SDR apps. Covers HF fine
+// tuning (0.1–2.5), HF/CB (5), digital voice (6.25), 8.33 air band (EU),
+// 9 kHz MW (EU/AS), 10 kHz MW (US), 12.5 NFM PMR/marine, 25 NFM, and FM
+// broadcast (100/200).
+const STEP_OPTIONS_KHZ = [
+  0.1, 0.25, 0.5, 1, 2.5, 5, 6.25, 7.5, 8.33, 9, 10,
+  12.5, 15, 20, 25, 30, 50, 100, 200,
+] as const
+
+function formatStepKhz(v: number): string {
+  return `${v} kHz`
+}
+
+interface RangeEditorState {
+  id: number | null
+  label: string
+  low_mhz: string
+  high_mhz: string
+  step_khz: string
+  mode: string
+  threshold_dbfs: string
+  dwell_ms: string
+  notes: string
+}
+
+const rangeEditorOpen = ref(false)
+const editingRangeId  = ref<number | null>(null)
+const rangeEditor = ref<RangeEditorState>(blankRangeEditor())
+const rangeEditorError = ref<string>('')
+
+// Step dropdown (custom — matches sample-rate dropdown). Only one range form
+// renders at a time (edit vs add), so a single ref/state is sufficient.
+const stepDropdownRef = ref<HTMLElement | null>(null)
+const stepMenuRef     = ref<HTMLElement | null>(null)
+// Function ref: the edit form and add form both render a step dropdown (only
+// one at a time), so a plain template ref would be set/unset by both. Capture
+// only the live element here.
+function setStepDropdownRef(el: Element | null | { $el?: Element }) {
+  if (el && (el as HTMLElement).getBoundingClientRect) {
+    stepDropdownRef.value = el as HTMLElement
+  } else if (el == null) {
+    // ignore unmounts from the *other* form — only clear if it was ours
+  }
+}
+const adhocStepDropdownRef = ref<HTMLElement | null>(null)
+function setAdhocStepDropdownRef(el: Element | null | { $el?: Element }) {
+  if (el && (el as HTMLElement).getBoundingClientRect) {
+    adhocStepDropdownRef.value = el as HTMLElement
+  } else if (el == null) {
+    adhocStepDropdownRef.value = null
+  }
+}
+const stepMenuOpen    = ref(false)
+const stepMenuStyle   = ref<Record<string, string>>({})
+const stepMenuTarget  = ref<'range' | 'adhoc'>('range')
+
+function positionStepMenu() {
+  const el = stepMenuTarget.value === 'adhoc' ? adhocStepDropdownRef.value : stepDropdownRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  stepMenuStyle.value = { left: rect.left + 'px', top: rect.bottom + 'px', width: rect.width + 'px' }
+}
+
+function toggleStepMenu(target: 'range' | 'adhoc' = 'range') {
+  if (stepMenuOpen.value && stepMenuTarget.value === target) { closeStepMenu(); return }
+  stepMenuTarget.value = target
+  positionStepMenu()
+  stepMenuOpen.value = true
+}
+
+function closeStepMenu() { stepMenuOpen.value = false }
+
+function onStepDropdownKey(e: KeyboardEvent, target: 'range' | 'adhoc' = 'range') {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStepMenu(target) }
+  if (e.key === 'Escape') closeStepMenu()
+}
+
+function pickStep(v: number) {
+  const target = stepMenuTarget.value
+  closeStepMenu()
+  if (target === 'adhoc') {
+    adhocStepKhz.value = v.toString()
+  } else {
+    rangeEditor.value.step_khz = v.toString()
+  }
+}
+
+const stepMenuLabel = computed(() => {
+  const raw = stepMenuTarget.value === 'adhoc' ? adhocStepKhz.value : rangeEditor.value.step_khz
+  const v = parseFloat(raw)
+  if (!isFinite(v) || v <= 0) return '— select step —'
+  return formatStepKhz(v)
+})
+
+const adhocStepLabel = computed(() => {
+  const v = parseFloat(adhocStepKhz.value)
+  if (!isFinite(v) || v <= 0) return 'Select…'
+  return formatStepKhz(v)
+})
+
+function blankRangeEditor(): RangeEditorState {
+  return {
+    id: null, label: '', low_mhz: '', high_mhz: '',
+    step_khz: '12.5', mode: 'NFM', threshold_dbfs: '-70',
+    dwell_ms: '200', notes: '',
+  }
+}
+
+function openAddRange() {
+  editingRangeId.value = null
+  rangeEditor.value = blankRangeEditor()
+  rangeEditorError.value = ''
+  rangeEditorOpen.value = true
+}
+
+function toggleEditRange(r: SdrSearchRange) {
+  if (rangeEditorOpen.value && editingRangeId.value === r.id) {
+    cancelRangeEditor()
+  } else {
+    openEditRange(r)
+  }
+}
+
+function openEditRange(r: SdrSearchRange) {
+  editingRangeId.value = r.id
+  rangeEditor.value = {
+    id: r.id,
+    label: r.label,
+    low_mhz: (r.low_hz / 1e6).toString(),
+    high_mhz: (r.high_hz / 1e6).toString(),
+    step_khz: (r.step_hz / 1000).toString(),
+    mode: r.mode,
+    threshold_dbfs: r.threshold_dbfs.toString(),
+    dwell_ms: r.dwell_ms.toString(),
+    notes: r.notes,
+  }
+  rangeEditorError.value = ''
+  rangeEditorOpen.value = true
+}
+
+function cancelRangeEditor() {
+  rangeEditorOpen.value = false
+  editingRangeId.value = null
+  rangeEditorError.value = ''
+}
+
+async function saveRangeEditor() {
+  const e = rangeEditor.value
+  const lowHz  = Math.round(parseFloat(e.low_mhz)  * 1e6)
+  const highHz = Math.round(parseFloat(e.high_mhz) * 1e6)
+  const stepHz = Math.round(parseFloat(e.step_khz) * 1000)
+  const thr    = parseFloat(e.threshold_dbfs)
+  const dwell  = parseInt(e.dwell_ms, 10)
+  if (!e.label.trim()) { rangeEditorError.value = 'Label required'; return }
+  if (!isFinite(lowHz) || !isFinite(highHz) || lowHz <= 0 || highHz <= 0) {
+    rangeEditorError.value = 'Low and high MHz required'
+    return
+  }
+  if (lowHz >= highHz) { rangeEditorError.value = 'Low must be less than high'; return }
+  if (!isFinite(stepHz) || stepHz <= 0) { rangeEditorError.value = 'Step must be positive'; return }
+  if (!isFinite(thr)) { rangeEditorError.value = 'Threshold must be a number'; return }
+  if (!isFinite(dwell) || dwell <= 0) { rangeEditorError.value = 'Dwell must be positive'; return }
+
+  const body = {
+    label: e.label.trim(),
+    low_hz: lowHz,
+    high_hz: highHz,
+    step_hz: stepHz,
+    mode: e.mode,
+    threshold_dbfs: thr,
+    dwell_ms: dwell,
+    band_name: '',
+    enabled: true,
+    notes: e.notes,
+    sort_order: editingRangeId.value == null
+      ? (searchRanges.value.length)
+      : (searchRanges.value.find(r => r.id === editingRangeId.value)?.sort_order ?? 0),
+  }
+  const ok = editingRangeId.value == null
+    ? !!(await apiCreateSearchRange(body))
+    : !!(await apiUpdateSearchRange(editingRangeId.value, body))
+  if (!ok) { rangeEditorError.value = 'Save failed'; return }
+  rangeEditorOpen.value = false
+  editingRangeId.value = null
+  await reloadSearchRanges()
+}
+
+async function deleteRange(id: number) {
+  if (searchActive.value && searchSelectedRangeId.value === id) stopSearch()
+  await apiDeleteSearchRange(id)
+  if (editingRangeId.value === id) cancelRangeEditor()
+  await reloadSearchRanges()
+}
+
 // ── Data reload ───────────────────────────────────────────────────────────────
 
 async function reloadData() {
@@ -1575,6 +2566,7 @@ async function reloadData() {
     const [gRes, fRes] = await Promise.all([fetch('/api/sdr/groups'), fetch('/api/sdr/frequencies')])
     groups.value = await gRes.json()
     freqs.value  = await fRes.json()
+    void reloadSearchRanges()
     // Mirror into the SDR store so SdrWaterfall can render label markers on the
     // FFT. SdrPanel owns the fetch; the store keeps the slimmer shape consumed
     // by other components.
@@ -1677,12 +2669,10 @@ function openAddFreqPanel() {
   efFreq.value = currentFreqHz.value ? (currentFreqHz.value / 1e6).toFixed(4) : ''
   efMode.value = currentMode.value || 'AM'
   efGroupIds.value = []
+  efNotes.value = ''
+  efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
-}
-
-function onFreqRowClick(f: SdrStoredFrequency) {
-  tuneToFreq(f)
 }
 
 function openEditFreqPanel(f: SdrStoredFrequency) {
@@ -1691,6 +2681,8 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efFreq.value  = (f.frequency_hz / 1e6).toFixed(4)
   efMode.value  = f.mode
   efGroupIds.value = (f.group_ids || []).filter(id => id !== 0)
+  efNotes.value = f.notes ?? ''
+  efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
 }
@@ -1703,14 +2695,19 @@ function toggleEditFreqPanel(f: SdrStoredFrequency) {
   }
 }
 
-function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false }
+function cancelEditFreq() { editingFreqId.value = null; efOpen.value = false; efErrors.value = {} }
 
-function toggleFreqsSection() {
-  freqsSectionExpanded.value = !freqsSectionExpanded.value
-  if (!freqsSectionExpanded.value && efOpen.value) {
-    efOpen.value = false
-    editingFreqId.value = null
-  }
+function validateFreqForm(): boolean {
+  const errs: { label?: string; freq?: string; mode?: string; notes?: string } = {}
+  const label = efLabel.value.trim()
+  if (!label) errs.label = 'Label is required'
+  else if (label.length > 60) errs.label = 'Label must be 60 characters or fewer'
+  const hz = parseFreqMhz(efFreq.value)
+  if (!hz) errs.freq = 'Enter a valid frequency in MHz'
+  if (!efMode.value || !(MODES as readonly string[]).includes(efMode.value)) errs.mode = 'Select a mode'
+  if (efNotes.value && !NOTES_ALLOWED.test(efNotes.value)) errs.notes = 'Notes contain disallowed characters'
+  efErrors.value = errs
+  return Object.keys(errs).length === 0
 }
 
 function toggleEfGroup(id: number) {
@@ -1720,6 +2717,7 @@ function toggleEfGroup(id: number) {
 }
 
 async function saveFreq() {
+  if (!validateFreqForm()) return
   const label = efLabel.value.trim()
   const hz    = parseFreqMhz(efFreq.value)
   if (!label || !hz) return
@@ -1734,13 +2732,13 @@ async function saveFreq() {
           squelch: existing?.squelch ?? squelch.value,
           gain: existing?.gain ?? gainDb.value,
           scannable: existing?.scannable ?? true,
-          notes: existing?.notes ?? '',
+          notes: efNotes.value,
         }),
       })
     } else {
       await fetch('/api/sdr/frequencies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_ids: efGroupIds.value }),
+        body: JSON.stringify({ label, frequency_hz: hz, mode: efMode.value, squelch: squelch.value, gain: gainDb.value, scannable: true, group_ids: efGroupIds.value, notes: efNotes.value }),
       })
     }
     editingFreqId.value = null
@@ -1791,7 +2789,6 @@ async function toggleRecording() {
     startedAt:    now.toISOString().replace('T', ' ').slice(0, 16),
   }
   liveElapsedS.value = 0
-  if (clipsSectionRef.value) clipsSectionRef.value.recordingsExpanded = true
   _recTimerInterval = setInterval(() => {
     const pausedSoFar = _recPauseStart != null ? _recPausedMs + (Date.now() - _recPauseStart) : _recPausedMs
     liveElapsedS.value = Math.floor((Date.now() - _recStartEpoch - pausedSoFar) / 1000)
@@ -1810,7 +2807,6 @@ async function stopRecordingIfActive() {
   liveRecording.value = null
   await clipsSectionRef.value?.reload()
   setTimeout(() => clipsSectionRef.value?.reload(), 2000)
-  clipsSectionRef.value && (clipsSectionRef.value.recordingsExpanded = true)
 }
 
 function onSquelchChangeCallback(open: boolean) {
@@ -1836,6 +2832,10 @@ function onRadiosChanged() {
 onMounted(() => {
   restoreSettings()
 
+  // Hydrate the resume delay from the DB so the scan/search watcher uses the
+  // user's persisted value even if the Settings SDR panel hasn't been opened
+  // yet in this session.
+  void _sdrStore().hydrateResumeDelaySecFromDb()
 
   sdrAudio.onSquelchChange(onSquelchChangeCallback)
   sdrAudio.onPower(updateSignalBar)

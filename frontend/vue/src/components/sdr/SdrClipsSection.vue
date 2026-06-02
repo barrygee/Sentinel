@@ -1,28 +1,21 @@
 <template>
-  <!-- ── RECORDINGS section toggle ── -->
-  <button
-    class="sdr-group-toggle"
-    :class="{ 'sdr-group-toggle-expanded': recordingsExpanded }"
-    @click="recordingsExpanded = !recordingsExpanded"
-  >
-    <div class="sdr-scanner-section-left">
-      <span class="sdr-group-toggle-icon">
-        <ChevronIcon :stroke-width="1.5" />
-      </span>
-      <span class="sdr-group-toggle-label">RECORDINGS</span>
-    </div>
-    <span class="sdr-clips-count">{{ clips.length || '' }}</span>
-  </button>
-  <div class="sdr-group-body" :class="{ 'sdr-group-body-expanded': recordingsExpanded }">
-    <div class="sdr-clips-search-row">
-      <input
-        class="sdr-panel-input sdr-clips-search-input"
-        type="text"
-        placeholder="Search clips…"
-        autocomplete="off"
-        v-model="clipsFilter"
-      >
-    </div>
+  <div class="sdr-clips-search-wrap">
+    <input
+      class="sdr-clips-search-input"
+      type="text"
+      placeholder="NAME · NOTES · MODE"
+      autocomplete="off"
+      spellcheck="false"
+      v-model="clipsFilter"
+    >
+    <button
+      v-if="clipsFilter"
+      class="sdr-clips-search-clear"
+      aria-label="Clear filter"
+      @click="clipsFilter = ''"
+    >✕</button>
+  </div>
+  <div class="sdr-clips-body">
     <div ref="clipsListWrapRef" id="sdr-clips-list-wrap" @scroll="updateScrollHint">
       <!-- Live recording row -->
       <div v-if="liveRecording" class="sdr-clip-row sdr-clip-live">
@@ -142,7 +135,6 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 
 interface SdrClip {
   id: number; name: string; notes: string; frequency_hz: number; mode: string;
@@ -178,7 +170,6 @@ const filteredClips = computed(() => {
 })
 
 const expandedClipId   = ref<number | null>(null)
-const recordingsExpanded = ref(true)
 
 const playingClipId   = ref<number | null>(null)
 const clipCurrentTime = ref(0)
@@ -344,5 +335,5 @@ async function confirmDeleteRec(): Promise<void> {
 }
 
 // Expose reload so SdrPanel can trigger refresh after recording stops
-defineExpose({ reload, recordingsExpanded })
+defineExpose({ reload })
 </script>

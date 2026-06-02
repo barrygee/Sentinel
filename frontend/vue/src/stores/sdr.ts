@@ -178,6 +178,36 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch { /* offline / transient */ }
   }
 
+  // Resume delay (seconds) for scan + search auto-resume. When the radio locks
+  // on a signal during scan/search, it waits until the signal drops below its
+  // threshold AND this many seconds have elapsed before continuing. 0 → resume
+  // immediately on drop. Persisted in the `sdr` settings namespace; localStorage
+  // is a fast-path cache for instant restore.
+  function _readResumeDelaySec(): number {
+    try {
+      const raw = localStorage.getItem('sdrResumeDelaySec')
+      const n = raw == null ? 0 : parseInt(raw, 10)
+      return isFinite(n) && n >= 0 ? n : 0
+    } catch { return 0 }
+  }
+  const resumeDelaySec = ref<number>(_readResumeDelaySec())
+  function setResumeDelaySec(v: number) {
+    const clamped = isFinite(v) && v >= 0 ? Math.floor(v) : 0
+    resumeDelaySec.value = clamped
+    try { localStorage.setItem('sdrResumeDelaySec', String(clamped)) } catch {}
+  }
+  async function hydrateResumeDelaySecFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.resumeDelaySec
+      if (typeof v === 'number' && v >= 0 && v !== resumeDelaySec.value) {
+        setResumeDelaySec(v)
+      }
+    } catch { /* offline / transient */ }
+  }
+
   // Current demod offset from the hardware centre frequency (Hz). 0 when
   // auto-centre is ON or the marker sits at centre. The waterfall reads this to
   // place the tuning bar at currentFreqHz + tuningOffsetHz; the panel pushes it
@@ -199,6 +229,23 @@ export const useSdrStore = defineStore('sdr', () => {
   function setSpectrum(frame: SdrSpectrumFrame) {
     lastSpectrum.value = frame
   }
+
+  // True only while a range search is actively stepping (sweeping). The
+  // waterfall reads this to freeze rendering while the centre frequency is
+  // jumping every dwell_ms — painting those frames produces meaningless noise.
+  const searchSweeping = ref(false)
+  // Range bounds + current step for the search overlay shown by SdrWaterfall.
+  // Panel writes these as the sweep advances; null when not searching.
+  const searchLowHz = ref<number | null>(null)
+  const searchHighHz = ref<number | null>(null)
+  const searchCurrentHz = ref<number | null>(null)
+
+  // True while the scanner is actively stepping between saved frequencies and
+  // has not yet locked on an active signal. Drives the same paused/holding
+  // overlay used during search sweeps. Group names label which groups are in
+  // the scan queue (or a single "All" entry when every scannable freq is in).
+  const scanSweeping = ref(false)
+  const scanGroupNames = ref<string[]>([])
 
   function _restoreSession() {
     try {
@@ -287,11 +334,14 @@ export const useSdrStore = defineStore('sdr', () => {
   return {
     radios, groups, frequencies, currentRadioId, playing, connected,
     currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    lastSpectrum, bwHz, tuneRequest, bwRequest, fftSizeRequest,
+    lastSpectrum, searchSweeping, searchLowHz, searchHighHz, searchCurrentHz,
+    scanSweeping, scanGroupNames,
+    bwHz, tuneRequest, bwRequest, fftSizeRequest,
     autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
     fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,
     showBandPlan, setShowBandPlan, hydrateShowBandPlanFromDb,
     showKnownFreqs, setShowKnownFreqs, hydrateShowKnownFreqsFromDb,
+    resumeDelaySec, setResumeDelaySec, hydrateResumeDelaySecFromDb,
     tuningOffsetHz, setTuningOffsetHz,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
     setBandwidthHz, requestTune, requestBandwidth, requestFftSize,

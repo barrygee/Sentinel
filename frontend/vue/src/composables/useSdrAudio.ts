@@ -21,6 +21,8 @@ let _squelch = -120
 // IQ block (like _mode) so it survives worklet recreation.
 let _offsetHz = 0
 let _iqReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let _iqReconnectDelay = 500
+const IQ_RECONNECT_MAX = 30000
 
 // Recording state
 let _isRecording = false
@@ -231,6 +233,7 @@ function _openIqSocket(radioId: number) {
   ws.binaryType = 'arraybuffer'
   _iqSocket = ws
   ws.addEventListener('open', () => {
+    _iqReconnectDelay = 500
     if (_ctx && _ctx.state === 'suspended') _ctx.resume().catch(() => {})
     if (_worklet) _worklet.port.postMessage({ type: 'reset' })
   })
@@ -252,7 +255,9 @@ function _openIqSocket(radioId: number) {
   })
   ws.addEventListener('close', () => {
     _iqSocket = null
-    _iqReconnectTimer = setTimeout(() => { if (_radioId === radioId) _openIqSocket(radioId) }, 500)
+    const delay = _iqReconnectDelay
+    _iqReconnectDelay = Math.min(_iqReconnectDelay * 2, IQ_RECONNECT_MAX)
+    _iqReconnectTimer = setTimeout(() => { if (_radioId === radioId) _openIqSocket(radioId) }, delay)
   })
   ws.addEventListener('error', () => {})
 }

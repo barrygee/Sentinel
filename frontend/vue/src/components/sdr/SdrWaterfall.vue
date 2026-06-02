@@ -112,12 +112,35 @@ mx.text = function (
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
-import { useSdrStore } from '@/stores/sdr'
+import { useSdrStore, type SdrMode } from '@/stores/sdr'
 import { useSettingsStore } from '@/stores/settings'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 
 const store = useSdrStore()
 const settings = useSettingsStore()
+
+// ── Search-overlay readouts ──────────────────────────────────────────────────
+// The waterfall freezes during a range sweep; these computeds shape the panel's
+// search state into the strings + progress fraction the overlay renders.
+const searchOverlayLowMHz = computed(() =>
+  store.searchLowHz != null ? (store.searchLowHz / 1e6).toFixed(4) : '—',
+)
+const searchOverlayHighMHz = computed(() =>
+  store.searchHighHz != null ? (store.searchHighHz / 1e6).toFixed(4) : '—',
+)
+const searchOverlayActiveMHz = computed(() =>
+  store.searchCurrentHz != null
+    ? (store.searchCurrentHz / 1e6).toFixed(4) + ' MHz'
+    : '— MHz',
+)
+const searchOverlayProgressPct = computed(() => {
+  const lo = store.searchLowHz
+  const hi = store.searchHighHz
+  const cur = store.searchCurrentHz
+  if (lo == null || hi == null || cur == null || hi <= lo) return 0
+  const pct = ((cur - lo) / (hi - lo)) * 100
+  return Math.max(0, Math.min(100, pct))
+})
 
 // ── RF band plan ─────────────────────────────────────────────────────────────
 // Reference allocations used to label the spectrum (e.g. "Medium Wave"). Sourced
@@ -355,8 +378,30 @@ let ro: ResizeObserver | null = null
 // layer x is in raw Hz. With mode:'absolute' the accordion positions itself in
 // the plot's x data units, so each instance gets its centre/width in that
 // plot's units. Single source of truth is the store (currentFreqHz + bwHz).
-let specAcc: AccordionPlugin | null = null   // MHz spectrum plot
-let wfAcc: AccordionPlugin | null = null     // Hz waterfall plot
+let specAcc: AccordionPlugin | null = null   // MHz spectrum plot — shaded passband
+let wfAcc: AccordionPlugin | null = null     // Hz waterfall plot — shaded passband
+// Carrier-line accordions: zero-shade, single line drawn on the actual carrier
+// frequency. Decoupled from the passband shading so SSB modes (USB/LSB) can
+// shift the shaded rectangle to one side while keeping the tuning line on the
+// carrier itself, matching SDR#.
+let specCar: AccordionPlugin | null = null
+let wfCar: AccordionPlugin | null = null
+
+// SDR# convention: SSB modes draw the passband on a single side of the carrier
+// (USB → above, LSB → below). Other modes are symmetric around the carrier.
+// The carrier itself stays at the red centre line on the plot; only the shaded
+// rectangle shifts. Inverse undoes the shift so a drag commits the carrier, not
+// the bracket centre.
+function bracketGeomHz(carrierHz: number, bwHz: number, mode: SdrMode) {
+  if (mode === 'USB') return { centerHz: carrierHz + bwHz / 2, widthHz: bwHz }
+  if (mode === 'LSB') return { centerHz: carrierHz - bwHz / 2, widthHz: bwHz }
+  return { centerHz: carrierHz, widthHz: bwHz }
+}
+function carrierFromBracketHz(centerHz: number, widthHz: number, mode: SdrMode) {
+  if (mode === 'USB') return centerHz - widthHz / 2
+  if (mode === 'LSB') return centerHz + widthHz / 2
+  return centerHz
+}
 
 // Known-frequency labels (from the frequency manager). Sigplot AnnotationPlugin
 // renders text/images on the spectrum canvas with native Hz→pixel mapping and
@@ -465,19 +510,37 @@ function applyMarker() {
   const bHz = Math.max(MIN_BW_HZ, store.bwHz || 10000)
   const span =
     store.sampleRate || (spanEndHz.value - spanStartHz.value) || bHz
+  const { centerHz, widthHz } = bracketGeomHz(fHz, bHz, store.currentMode)
+  // Carrier-line accordions hold a fixed near-zero width — they only draw the
+  // tuning line at the actual carrier, never participate in passband shading.
+  const CARRIER_W_HZ = 1
   suppressAccEvents = true
   try {
-    specAcc.center(fHz / HZ_PER_MHZ)
-    specAcc.width(bHz / HZ_PER_MHZ)
+    specAcc.center(centerHz / HZ_PER_MHZ)
+    specAcc.width(widthHz / HZ_PER_MHZ)
     specAcc.min_width(MIN_BW_HZ / HZ_PER_MHZ)
     specAcc.max_width(span / HZ_PER_MHZ)
-    wfAcc.center(fHz)
-    wfAcc.width(bHz)
+    wfAcc.center(centerHz)
+    wfAcc.width(widthHz)
     wfAcc.min_width(MIN_BW_HZ)
     wfAcc.max_width(span)
+    if (specCar) {
+      specCar.center(fHz / HZ_PER_MHZ)
+      specCar.width(CARRIER_W_HZ / HZ_PER_MHZ)
+      specCar.min_width(CARRIER_W_HZ / HZ_PER_MHZ)
+      specCar.max_width(span / HZ_PER_MHZ)
+    }
+    if (wfCar) {
+      wfCar.center(fHz)
+      wfCar.width(CARRIER_W_HZ)
+      wfCar.min_width(CARRIER_W_HZ)
+      wfCar.max_width(span)
+    }
     const vis = store.playing
     specAcc.display(vis)
     wfAcc.display(vis)
+    if (specCar) specCar.display(vis)
+    if (wfCar) wfCar.display(vis)
   } finally {
     suppressAccEvents = false
   }
@@ -715,6 +778,10 @@ function accIsDragging(a: AccordionPlugin | null): boolean {
   const s = a as unknown as AccDragState | null
   return !!s && (!!s.dragging || !!s.edge_dragging)
 }
+function accIsEdgeDragging(a: AccordionPlugin | null): boolean {
+  const s = a as unknown as AccDragState | null
+  return !!s && !!s.edge_dragging
+}
 
 // Live mirror: while the user drags one plot's accordion, sigplot's
 // _onMouseMove updates ONLY that plot (and refreshes only it). Mirror its live
@@ -731,8 +798,8 @@ function accIsDragging(a: AccordionPlugin | null): boolean {
 useDocumentEvent('mousedown', () => {
   if (!specAcc || !wfAcc) return
   if (!accIsDragging(specAcc) && !accIsDragging(wfAcc)) return
-  dragBaseFreqHz = wfAcc.center()
   dragBaseBwHz = wfAcc.width()
+  dragBaseFreqHz = carrierFromBracketHz(wfAcc.center(), dragBaseBwHz, store.currentMode)
   dragActive = true
 })
 
@@ -741,16 +808,58 @@ useDocumentEvent('mousemove', () => {
   const specDragging = accIsDragging(specAcc)
   const wfDragging = accIsDragging(wfAcc)
   if (!specDragging && !wfDragging) return
+  const mode = store.currentMode
+  const isSSB = mode === 'USB' || mode === 'LSB'
+  const edgeDragging = isSSB && (accIsEdgeDragging(specAcc) || accIsEdgeDragging(wfAcc))
   suppressAccEvents = true
   try {
+    // Read sigplot's just-updated geometry from whichever accordion the user
+    // grabbed (units: spectrum=MHz, waterfall=Hz).
+    let rawCenterHz: number
+    let rawWidthHz: number
     if (specDragging) {
-      // Spectrum is in MHz → push Hz onto the waterfall.
-      wfAcc.center(specAcc.center() * HZ_PER_MHZ)
-      wfAcc.width(specAcc.width() * HZ_PER_MHZ)
+      rawCenterHz = specAcc.center() * HZ_PER_MHZ
+      rawWidthHz = specAcc.width() * HZ_PER_MHZ
     } else {
-      // Waterfall is in Hz → push MHz onto the spectrum.
-      specAcc.center(wfAcc.center() / HZ_PER_MHZ)
-      specAcc.width(wfAcc.width() / HZ_PER_MHZ)
+      rawCenterHz = wfAcc.center()
+      rawWidthHz = wfAcc.width()
+    }
+
+    let carrierHz: number
+    let widthHz: number
+    if (isSSB && edgeDragging) {
+      // Resize: keep the carrier-side edge pinned to the original carrier and
+      // let the outer edge follow the cursor. sigplot grows width symmetrically
+      // around its (shifted) centre, so the outer edge is at
+      //   USB: rawCenter + rawWidth/2  (above the carrier)
+      //   LSB: rawCenter - rawWidth/2  (below the carrier)
+      // New width = distance from carrier to that outer edge.
+      carrierHz = dragBaseFreqHz
+      const outerHz = mode === 'USB'
+        ? rawCenterHz + rawWidthHz / 2
+        : rawCenterHz - rawWidthHz / 2
+      widthHz = Math.max(MIN_BW_HZ, Math.abs(outerHz - carrierHz))
+    } else if (isSSB) {
+      // Move: sigplot moved the bracket centre; the carrier must trail it by
+      // exactly bw/2 (USB: carrier below the new centre, LSB: above).
+      carrierHz = carrierFromBracketHz(rawCenterHz, rawWidthHz, mode)
+      widthHz = rawWidthHz
+    } else {
+      // Symmetric modes — carrier IS the centre.
+      carrierHz = rawCenterHz
+      widthHz = rawWidthHz
+    }
+
+    const { centerHz: bcHz, widthHz: bwOut } = bracketGeomHz(carrierHz, widthHz, mode)
+    specAcc.center(bcHz / HZ_PER_MHZ)
+    specAcc.width(bwOut / HZ_PER_MHZ)
+    wfAcc.center(bcHz)
+    wfAcc.width(bwOut)
+    if (specCar) {
+      specCar.center(carrierHz / HZ_PER_MHZ)
+    }
+    if (wfCar) {
+      wfCar.center(carrierHz)
     }
   } finally {
     suppressAccEvents = false
@@ -815,23 +924,27 @@ useDocumentEvent('mouseup', () => {
   // Read the final geometry from the WATERFALL accordion (Hz, no MHz rounding
   // loss). The mousemove mirror keeps both accordions in lock-step, so either
   // is authoritative; we pick Hz to avoid a float round-trip through MHz.
-  const freqHz = wfAcc.center()
+  const mode = store.currentMode
   const bw = wfAcc.width()
-  const freqMoved = Math.abs(freqHz - dragBaseFreqHz) > 1
+  const carrierHz = carrierFromBracketHz(wfAcc.center(), bw, mode)
+  const freqMoved = Math.abs(carrierHz - dragBaseFreqHz) > 1
   const bwMoved = Math.abs(bw - dragBaseBwHz) > 1
   if (!freqMoved && !bwMoved) return
-  if (freqMoved) store.requestTune(Math.round(freqHz))
+  if (freqMoved) store.requestTune(Math.round(carrierHz))
   if (bwMoved) store.requestBandwidth(Math.round(bw))
-  lastCommittedFreqHz = freqHz
+  lastCommittedFreqHz = carrierHz
   lastCommittedBwHz = bw
   // Re-sync both plots immediately so the un-dragged plot follows now (don't
-  // wait for the debounced backend echo).
+  // wait for the debounced backend echo). Re-derive the bracket geometry from
+  // the carrier — for SSB, resizing must keep the carrier-side edge anchored
+  // on the red line instead of drifting.
+  const { centerHz: syncCenterHz, widthHz: syncWidthHz } = bracketGeomHz(carrierHz, bw, mode)
   suppressAccEvents = true
   try {
-    specAcc.center(freqHz / HZ_PER_MHZ)
-    specAcc.width(bw / HZ_PER_MHZ)
-    wfAcc.center(freqHz)
-    wfAcc.width(bw)
+    specAcc.center(syncCenterHz / HZ_PER_MHZ)
+    specAcc.width(syncWidthHz / HZ_PER_MHZ)
+    wfAcc.center(syncCenterHz)
+    wfAcc.width(syncWidthHz)
   } finally {
     suppressAccEvents = false
   }
@@ -1088,17 +1201,36 @@ function initPlots() {
   const accCommon = {
     mode: 'absolute' as const,
     direction: 'vertical' as const,
+    // Keep draw_center_line on but make it visually invisible — sigplot's
+    // move-drag hit-test uses `center_line_style.lineWidth` as the click
+    // tolerance around center_location. A wider, transparent line gives the
+    // user a comfortable area to grab the bracket without painting a second
+    // line on top of the carrier-line accordion.
     draw_center_line: true,
     draw_edge_lines: false,
     shade_area: true,
     fill_style: { fillStyle: '#000000', opacity: 0.35 },
+    center_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 20, lineCap: 'butt' },
+    edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
+  }
+  const carCommon = {
+    mode: 'absolute' as const,
+    direction: 'vertical' as const,
+    draw_center_line: true,
+    draw_edge_lines: false,
+    shade_area: false,
+    fill_style: { fillStyle: 'rgba(0,0,0,0)', opacity: 0 },
     center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
   specAcc = new Acc({ ...accCommon })
   wfAcc = new Acc({ ...accCommon })
+  specCar = new Acc({ ...carCommon })
+  wfCar = new Acc({ ...carCommon })
   specPlot.add_plugin(specAcc, 1)
   wfPlot.add_plugin(wfAcc, 1)
+  specPlot.add_plugin(specCar, 1)
+  wfPlot.add_plugin(wfCar, 1)
   applyMarker()
 
   // Known-frequency labels on the spectrum. AnnotationPlugin draws each
@@ -1247,7 +1379,7 @@ function drawLoop() {
   drawRaf = 0
   const frame = pendingFrame
   pendingFrame = null
-  if (frame && store.playing && specPlot) {
+  if (frame && store.playing && !(store.searchSweeping || store.scanSweeping) && specPlot) {
     specPlot.reload(specUuid, frame.bins)
     // Mx.l / Mx.r / Mx.b are computed by sigplot during its draw pass — the
     // ResizeObserver fires on layout changes, not on draws, so without this
@@ -1264,7 +1396,7 @@ let lastSampleRate = 0
 watch(
   () => store.lastSpectrum,
   (frame) => {
-    if (!store.playing || !frame || !specPlot || !wfPlot) return
+    if (!store.playing || (store.searchSweeping || store.scanSweeping) || !frame || !specPlot || !wfPlot) return
 
     // Update the frequency span (drives the axis scaling + band overlay).
     // sample_rate spans the full FFT; bin 0 sits at center - rate/2.
@@ -1390,7 +1522,7 @@ watch(
 // status reconcile — all flow into the store) and play/stop visibility. Skip
 // while WE are mid programmatic write to avoid feeding our own change back.
 watch(
-  () => [store.currentFreqHz, store.bwHz, store.sampleRate, store.playing] as const,
+  () => [store.currentFreqHz, store.bwHz, store.sampleRate, store.playing, store.currentMode] as const,
   () => { if (!suppressAccEvents) applyMarker() },
 )
 
@@ -1471,9 +1603,22 @@ onBeforeUnmount(() => {
   controlsRo = null
   try { if (specAcc) specPlot?.remove_plugin(specAcc) } catch { /* noop */ }
   try { if (wfAcc) wfPlot?.remove_plugin(wfAcc) } catch { /* noop */ }
+  try { if (specCar) specPlot?.remove_plugin(specCar) } catch { /* noop */ }
+  try { if (wfCar) wfPlot?.remove_plugin(wfCar) } catch { /* noop */ }
+  // sigplot's AnnotationPlugin registers a document `mouseup` listener in init
+  // but never removes it in dispose() — after remove_plugin() zeroes its
+  // `annotations` array, the stale listener throws on the next mouseup. Detach
+  // it ourselves before disposing.
+  try {
+    if (knownFreqPlugin?.onmouseup) {
+      document.removeEventListener('mouseup', knownFreqPlugin.onmouseup, false)
+    }
+  } catch { /* noop */ }
   try { if (knownFreqPlugin) specPlot?.remove_plugin(knownFreqPlugin) } catch { /* noop */ }
   specAcc = null
   wfAcc = null
+  specCar = null
+  wfCar = null
   knownFreqPlugin = null
   try { specPlot?.remove_layer(specUuid) } catch { /* noop */ }
   try { wfPlot?.remove_layer(wfUuid) } catch { /* noop */ }
@@ -1490,6 +1635,40 @@ onBeforeUnmount(() => {
     ref="rootEl"
     :class="{ 'panel-closed': !panelOpen, 'edge-resize': nearEdge }"
   >
+    <div v-if="store.searchSweeping" class="sdr-wf-search-overlay">
+      <div class="sdr-wf-search-overlay-inner">
+        <div class="sdr-wf-search-overlay-stack">
+          <div class="sdr-wf-search-overlay-headline">
+            Spectrum and waterfall paused during active search.
+          </div>
+          <div class="sdr-wf-search-overlay-progress" :aria-valuenow="searchOverlayProgressPct" aria-valuemin="0" aria-valuemax="100" role="progressbar">
+            <div class="sdr-wf-search-overlay-progress-fill" :style="{ width: searchOverlayProgressPct + '%' }"></div>
+          </div>
+          <div class="sdr-wf-search-overlay-range">
+            <span class="sdr-wf-search-overlay-range-val">{{ searchOverlayLowMHz }}</span>
+            <span class="sdr-wf-search-overlay-range-sep">→</span>
+            <span class="sdr-wf-search-overlay-range-val">{{ searchOverlayHighMHz }}</span>
+            <span class="sdr-wf-search-overlay-range-unit">MHz</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="store.scanSweeping" class="sdr-wf-search-overlay">
+      <div class="sdr-wf-search-overlay-inner">
+        <div class="sdr-wf-search-overlay-stack">
+          <div class="sdr-wf-search-overlay-headline">
+            Spectrum and waterfall paused during active group scan.
+          </div>
+          <div class="sdr-wf-scan-overlay-groups">
+            <span
+              v-for="(name, idx) in store.scanGroupNames"
+              :key="name + idx"
+              class="sdr-scan-group-chip sdr-scan-group-chip-active"
+            >{{ name }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="sdr-wf-controls" ref="controlsEl">
       <div class="sdr-wf-ctl">
         <span class="sdr-wf-ctl-label">Zoom</span>

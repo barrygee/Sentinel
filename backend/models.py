@@ -57,6 +57,18 @@ class SatelliteCatalogue(Base):
     category_source = Column(Text, nullable=True)       # 'celestrak_group'|'user'|'active'|NULL
     name_source     = Column(Text, nullable=True)       # NULL | 'user' — 'user' locks name against TLE updates
     updated_at      = Column(Integer, nullable=False)   # Unix ms of last TLE update for this sat
+    # Radio info — used for amateur satellites, but the columns are generic and any sat may have them.
+    # Frequencies stored as integer Hz. Modes are free text (FM|SSB|CW|FSK|GMSK|APRS|SSTV|DIGITAL etc.).
+    uplink_hz        = Column(Integer, nullable=True)   # uplink frequency in Hz, or NULL
+    uplink_mode      = Column(Text,    nullable=True)   # uplink modulation e.g. "FM"
+    downlink_hz      = Column(Integer, nullable=True)   # downlink frequency in Hz, or NULL
+    downlink_mode    = Column(Text,    nullable=True)   # downlink modulation e.g. "FM"
+    ctcss_hz         = Column(Float,   nullable=True)   # CTCSS sub-audible tone in Hz (e.g. 67.0), if required to access an FM repeater
+    transponder_type = Column(Text,    nullable=True)   # 'FM'|'Linear'|'Digital'|'SSTV'|'Telemetry'|'APRS' etc.
+    beacon_hz        = Column(Integer, nullable=True)   # beacon frequency in Hz (often CW or telemetry), or NULL
+    packet_info      = Column(Text,    nullable=True)   # short free text describing packet/APRS/digital details
+    radio_status     = Column(Text,    nullable=True)   # 'active'|'inactive'|'silent'|'reentered'|'partial' — operational status of the radio payload
+    radio_notes      = Column(Text,    nullable=True)   # free-form notes / description for the radio payload
 
 
 class AirMessage(Base):
@@ -134,6 +146,26 @@ class SdrFrequencyGroupLink(Base):
 
     frequency_id = Column(Integer, primary_key=True)
     group_id     = Column(Integer, primary_key=True)
+
+
+class SdrSearchRange(Base):
+    """A named low/high frequency range with a step size, used by the SDR
+    Search feature to sweep a band and stop on signals."""
+    __tablename__ = "sdr_search_ranges"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    label          = Column(Text,    nullable=False)                       # e.g. "Air Band"
+    low_hz         = Column(Integer, nullable=False)                       # inclusive sweep start
+    high_hz        = Column(Integer, nullable=False)                       # inclusive sweep end
+    step_hz        = Column(Integer, nullable=False, default=12500)        # channel spacing
+    mode           = Column(Text,    nullable=False, default="NFM")        # AM|NFM|WFM|USB|LSB|CW
+    threshold_dbfs = Column(Float,   nullable=False, default=-35.0)        # stop-on-signal threshold
+    dwell_ms       = Column(Integer, nullable=False, default=250)          # ms per step
+    band_name      = Column(Text,    nullable=False, default="")           # optional sdr.bandPlan ref
+    enabled        = Column(Boolean, nullable=False, default=True)
+    notes          = Column(Text,    nullable=False, default="")
+    sort_order     = Column(Integer, nullable=False, default=0)
+    created_at     = Column(Integer, nullable=False)                       # Unix ms
 
 
 class SdrRecording(Base):

@@ -206,6 +206,32 @@ def _elevation_deg(dist_rad: float, alt_km: float) -> float:
     ))
 
 
+def compute_look_angles(
+    sat_lat: float, sat_lon: float, sat_alt_km: float, obs_lat: float, obs_lon: float
+) -> dict:
+    """Return observer-relative look angles for a satellite sub-point.
+
+    Returns {"az": azimuth_deg (0=N, clockwise), "el": elevation_deg}. Elevation
+    is the topocentric angle above the horizon (negative when below). Uses the
+    same spherical model as pass prediction so the live marker lands on the arc.
+    """
+    dist_rad = _angular_distance_rad(sat_lat, sat_lon, obs_lat, obs_lon)
+    el = _elevation_deg(dist_rad, sat_alt_km)
+    az = _azimuth_deg(sat_lat, sat_lon, obs_lat, obs_lon)
+    return {"az": round(az, 1), "el": round(el, 1)}
+
+
+def _azimuth_deg(sat_lat: float, sat_lon: float, obs_lat: float, obs_lon: float) -> float:
+    """Return the azimuth (degrees, 0=N, clockwise) from the observer to the
+    satellite's sub-point, on a spherical Earth — sufficient for a sky plot."""
+    lat1 = math.radians(obs_lat)
+    lat2 = math.radians(sat_lat)
+    dlon = math.radians(sat_lon - obs_lon)
+    x = math.sin(dlon) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+    return (math.degrees(math.atan2(x, y)) + 360.0) % 360.0
+
+
 def _jday_offset(jd: int, fr: float, offset_seconds: float) -> tuple[int, float]:
     """Return (jd, fr) shifted by offset_seconds."""
     fr_new = fr + offset_seconds / 86400.0
@@ -265,6 +291,35 @@ def compute_passes(
         elev = _elevation_deg(dist_rad, alt_km)
         return dist_rad <= horizon_rad, elev, alt_km
 
+    def _azel_at(offset_s: float) -> tuple[float, float] | None:
+        """Return (azimuth_deg, elevation_deg) at now + offset_s, or None on error."""
+        jd_t, fr_t = _jday_offset(jd, fr, offset_s)
+        result = _propagate_at(sat, jd_t, fr_t)
+        if result is None:
+            return None
+        r, _ = result
+        t_prop = now + timedelta(seconds=offset_s)
+        lat, lon, alt_km = _eci_to_geodetic(r, t_prop)
+        dist_rad = _angular_distance_rad(lat, lon, obs_lat, obs_lon)
+        elev = _elevation_deg(dist_rad, alt_km)
+        az = _azimuth_deg(lat, lon, obs_lat, obs_lon)
+        return az, elev
+
+    def _sky_track(aos_s: float, los_s: float, points: int = 24) -> list[dict]:
+        """Sample the satellite's az/el arc across the pass for a polar sky plot."""
+        track: list[dict] = []
+        span = los_s - aos_s
+        if span <= 0:
+            return track
+        for i in range(points + 1):
+            t = aos_s + span * (i / points)
+            azel = _azel_at(t)
+            if azel is None:
+                continue
+            az, el = azel
+            track.append({"az": round(az, 1), "el": round(max(el, 0.0), 1)})
+        return track
+
     def _refine_transition(t_before_s: float, t_after_s: float) -> float:
         """Binary-search to find the transition second within a 5-second resolution."""
         lo, hi = t_before_s, t_after_s
@@ -319,6 +374,7 @@ def compute_passes(
                     "duration_s":        int(los_s - pass_start_s),
                     "max_elevation_deg": round(max_elev, 1),
                     "max_el_utc":        max_el_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "sky_track":         _sky_track(pass_start_s, los_s),
                 })
                 if len(passes) >= 10:
                     break

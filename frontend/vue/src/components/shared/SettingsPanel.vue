@@ -163,6 +163,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-full-waterfall-update', label: 'Full Waterfall Update', desc: 'When ON, the waterfall history clears each time you change Zoom so new rows fill the new viewport cleanly. When OFF (the SDR++ default), the existing rows stay stretched and only new rows are drawn at the new zoom level.', type: 'sdr-full-waterfall-update' },
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-show-bandplan', label: 'Show Band Plan', desc: 'Show the coloured RF band-plan strip (Air Band, FM Broadcast, etc.) along the bottom of the spectrum.', type: 'sdr-show-bandplan' },
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-show-known-freqs', label: 'Show Known Frequencies', desc: 'Show labels on the spectrum for the frequencies tracked in your Frequency Manager.', type: 'sdr-show-known-freqs' },
+  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-resume-delay', label: 'Resume Delay', desc: 'When scan or search locks on a signal, wait this many seconds after the signal drops before continuing. 0 resumes immediately on drop. You can always press HOLD/RESUME to force-continue.', type: 'sdr-resume-delay', groupLabel: 'SCAN & SEARCH' },
   { section: 'app', sectionLabel: 'App Settings', id: 'config-current', label: 'Application Config', desc: 'Settings currently stored in the database', type: 'config-current' },
 ]
 
