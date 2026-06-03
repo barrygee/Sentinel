@@ -615,15 +615,43 @@ const freqTicks = computed(() => {
   const decimals = Math.max(1, Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)))
   const ticks: { key: string; leftPct: number; label: string }[] = []
   for (let f = first; f <= winHi; f += stepHz) {
-    const mhz = f / HZ_PER_MHZ
     ticks.push({
       key: `t-${f}`,
       leftPct: ((f - winLo) / w) * 100,
-      label: mhz.toFixed(decimals),
+      label: formatFreqTick(f, decimals),
     })
   }
   return ticks
 })
+
+// Format a tick frequency (Hz) with an SI unit suffix chosen by magnitude:
+// kHz → "K", MHz → "M", GHz → "G". `decimals` is computed in MHz (the axis's
+// native unit), so re-derive the precision for the chosen unit: scaling Hz→kHz
+// shifts the decimal point three places (so +3 decimals vs MHz), Hz→GHz shifts
+// it back three (−3), and the value is then trimmed of trailing zeros so e.g.
+// 123.00 reads "123M", 123.45 reads "123.45M".
+function formatFreqTick(hz: number, mhzDecimals: number): string {
+  let value: number
+  let unit: string
+  let decimals: number
+  if (hz >= 1e9) {
+    value = hz / 1e9
+    unit = 'G'
+    decimals = mhzDecimals + 3
+  } else if (hz >= 1e6) {
+    value = hz / 1e6
+    unit = 'M'
+    decimals = mhzDecimals
+  } else {
+    value = hz / 1e3
+    unit = 'K'
+    decimals = Math.max(0, mhzDecimals - 3)
+  }
+  const text = value.toFixed(Math.max(0, Math.min(6, decimals)))
+  // Trim trailing zeros (and a dangling dot) so "123.00" → "123", "123.40" → "123.4".
+  const trimmed = text.includes('.') ? text.replace(/\.?0+$/, '') : text
+  return `${trimmed}${unit}`
+}
 
 // Inline style for the tick gutter overlay — spans the data box horizontally
 // (same insets as the band overlay) and the freq-label gutter vertically.
