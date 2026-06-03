@@ -9,6 +9,7 @@
     <OverheadAlertRadiusControl v-else-if="item.type === 'overhead-alert-radius'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <ProbeUrlControl v-else-if="item.type === 'probe-url'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <LocationControl v-else-if="item.type === 'location'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
+    <NotificationSoundControl v-else-if="item.type === 'notification-sound'" @stage="emit('stage', item.id, $event)" />
     <SourceOverrideControl v-else-if="item.type === 'source-override'" :ns="item.ns!" @stage="emit('stage', item.id, $event)" />
     <OnlineSourceControl v-else-if="item.type === 'online-source'" :ns="item.ns!" :default-url="item.defaultUrl ?? ''" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
     <OfflineSourceControl v-else-if="item.type === 'offline-source'" :ns="item.ns!" :default-url="item.defaultUrl ?? ''" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
@@ -53,6 +54,7 @@ import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
 import OverheadAlertRadiusControl from './OverheadAlertRadiusControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
+import NotificationSoundControl from './NotificationSoundControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
 import OfflineSourceControl from './OfflineSourceControl.vue'

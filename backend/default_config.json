@@ -3,7 +3,8 @@
   "app": {
     "connectivityMode": "online",
     "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico",
-    "location": { "latitude": "", "longitude": "" }
+    "location": { "latitude": "", "longitude": "" },
+    "notificationSound": false
   },
   "air": {
     "enabled": true,

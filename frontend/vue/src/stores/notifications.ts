@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { playNotificationSound } from '../composables/useNotificationSound'
+import { useAppStore } from './app'
 
 export type NotificationType =
   | 'flight' | 'departure' | 'track' | 'untrack' | 'tracking'
@@ -91,6 +93,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
     items.value.unshift(item)
     _save(items.value)
+
+    if (useAppStore().notificationSound) playNotificationSound(item.type === 'emergency')
 
     fetch('/api/air/messages', {
       method: 'POST',

@@ -140,6 +140,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'app', sectionLabel: 'App Settings', id: 'connectivity-mode', label: 'Connectivity Mode', desc: 'Use online or off grid data sources across the app', type: 'connectivity-toggle' },
   { section: 'app', sectionLabel: 'App Settings', id: 'app-connectivity-probe', label: 'Connectivity Probe URL', desc: 'URL polled every 2 seconds to detect internet access', type: 'probe-url' },
   { section: 'app', sectionLabel: 'App Settings', id: 'location', label: 'My Location', desc: 'Set a fixed latitude / longitude for your position', type: 'location' },
+  { section: 'app', sectionLabel: 'App Settings', id: 'notification-sound', label: 'Notification Sound', desc: 'Play a subtle blip when a new alert or notification arrives', type: 'notification-sound' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-overhead-alerts', label: 'Overhead Aircraft Alerts', desc: 'Notify when aircraft are within range of your location, and show the zone on the map', type: 'overhead-alerts-toggle', groupLabel: 'ALERTS' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-overhead-alert-radius', label: 'Overhead Alert Radius', desc: 'Distance from your location (in nautical miles) used to trigger overhead aircraft alerts and define the zone shown on the map', type: 'overhead-alert-radius' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-tag-fields', label: 'Label Data Points', desc: 'Choose which data fields appear on aircraft labels for civil and military aircraft', type: 'air-tag-fields', groupLabel: 'LABELS' },

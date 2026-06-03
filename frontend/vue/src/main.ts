@@ -67,6 +67,10 @@ const DEFAULT_LABEL_DATA_POINTS = {
         appStore.setConnectivityMode(backendMode as ConnectivityMode)
       }
 
+      // Notification blip sound — default OFF when absent from the DB.
+      const soundOn = data.app?.notificationSound
+      appStore.setNotificationSound(typeof soundOn === 'boolean' ? soundOn : false)
+
       // Hydrate labelDataPoints from API into store before first render.
       const remote = data.air?.labelDataPoints as AdsbTagFields | undefined
       if (remote && typeof remote === 'object' && !Array.isArray(remote) &&
