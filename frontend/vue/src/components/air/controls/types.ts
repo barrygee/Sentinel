@@ -1,10 +1,12 @@
 import type { useNotificationsStore } from '@/stores/notifications'
 import type { useTrackingStore } from '@/stores/tracking'
 import type { useAirStore } from '@/stores/air'
+import type { useAirNotifStore } from '@/stores/airNotif'
 
 export type NotificationsStore = ReturnType<typeof useNotificationsStore>
 export type TrackingStore = ReturnType<typeof useTrackingStore>
 export type AirStore = ReturnType<typeof useAirStore>
+export type AirNotifStore = ReturnType<typeof useAirNotifStore>
 
 export interface OverlayStates {
   adsb: boolean

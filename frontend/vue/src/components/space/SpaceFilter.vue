@@ -202,6 +202,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
+import { isPassNotifEnabled } from './controls/satellite/passNotifStore'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
@@ -322,7 +323,7 @@ const polarLive = computed<SkyPoint | null>(() => {
 })
 
 function readPassNotifState(noradId: string): boolean {
-  try { return localStorage.getItem(`passNotifEnabled_${noradId}`) === '1' } catch { return false }
+  return isPassNotifEnabled(noradId)
 }
 
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
