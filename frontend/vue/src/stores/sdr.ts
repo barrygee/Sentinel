@@ -60,7 +60,10 @@ export const useSdrStore = defineStore('sdr', () => {
   // watches these) runs its existing debounced sendCmd path. The nonce makes an
   // identical repeat value (e.g. nudge back to the same freq) still fire the
   // watcher — a plain ref would not re-trigger on an unchanged value.
-  const tuneRequest = shallowRef<{ hz: number; nonce: number } | null>(null)
+  // `center: true` forces the panel to retune the HARDWARE centre even when
+  // autoCenterWaterfallOnTune is OFF — used by the freq-axis drag-pan, which
+  // means "move the hardware centre" regardless of the click-to-tune preference.
+  const tuneRequest = shallowRef<{ hz: number; nonce: number; center?: boolean } | null>(null)
   const bwRequest = shallowRef<{ hz: number; nonce: number } | null>(null)
   // Waterfall → panel: request a backend FFT bin count (matches the canvas's
   // device-pixel width so the waterfall isn't blurry on HiDPI / wide displays).
@@ -294,8 +297,10 @@ export const useSdrStore = defineStore('sdr', () => {
   }
 
   // Marker → panel: request a device retune (panel applies it, debounced).
-  function requestTune(hz: number) {
-    tuneRequest.value = { hz, nonce: ++_tuneNonce }
+  // center=true forces a hardware-centre retune even with auto-centre OFF
+  // (the freq-axis drag-pan sets this; click-to-tune leaves it undefined).
+  function requestTune(hz: number, center = false) {
+    tuneRequest.value = { hz, nonce: ++_tuneNonce, center }
   }
 
   // Marker → panel: request a demod-bandwidth change (audio filter only).

@@ -1198,8 +1198,10 @@ watch(() => _sdrStore().tuneRequest, (req) => {
     // (already set in the store by the waterfall click) tunes the audio while
     // the display stays put. Calling sendCmd('tune') here would both recenter
     // the hardware AND clear the offset (sendCmd zeroes it on any tune), so
-    // skip it.
-    if (_sdrStore().autoCenterWaterfallOnTune) {
+    // skip it. EXCEPTION: a freq-axis drag-pan (req.center) means "move the
+    // hardware centre" — force the retune so the panned view fills with real
+    // data regardless of the toggle.
+    if (_sdrStore().autoCenterWaterfallOnTune || req.center) {
       sendCmd({ cmd: 'tune', frequency_hz: hz })
     }
   }, 600)

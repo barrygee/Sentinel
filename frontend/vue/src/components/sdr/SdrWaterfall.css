@@ -172,6 +172,14 @@
   cursor: crosshair;
 }
 
+/* While dragging the freq axis to pan, show a grabbing cursor across the whole
+ * spectrum for feedback (the pan is armed when the press lands in the bottom
+ * freq-label gutter — see tryStartFreqDrag in SdrWaterfall.vue). */
+.sdr-wf-spectrum--panning,
+.sdr-wf-spectrum--panning * {
+  cursor: grabbing !important;
+}
+
 /* RF band-plan overlay: translucent coloured strip across the bottom of the
  * spectrum canvas (matches the reference UI's "Medium Wave" / "FM Broadcast"
  * bars). The left/right insets bind to bandInsetLeftPx/Px (driven by
@@ -220,6 +228,10 @@
  * up with the labels sigplot draws below the data box. Sits over the gutter
  * area (left/right/height pushed in from tickGutterStyle); pointer-events:none
  * so click-to-tune still passes through. */
+/* The freq-label gutter strip below the FFT trace. pointer-events:none so the
+ * mousedown reaches .sdr-wf-spectrum's capture handler (onPlotMouseDown), which
+ * starts a frequency pan when the press lands in this strip. The grab-cursor
+ * affordance is driven from the spectrum element instead (see below). */
 .sdr-wf-tick-gutter {
   position: absolute;
   bottom: 0;
