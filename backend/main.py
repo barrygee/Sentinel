@@ -7,7 +7,7 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from backend.database import create_tables, migrate_sdr_radios_to_settings, normalize_sdr_frequencies_config, normalize_sdr_search_ranges_config, seed_default_sdr_groups, seed_default_sdr_search_ranges, seed_default_settings
+from backend.database import backfill_satellite_radio_store, create_tables, migrate_sdr_radios_to_settings, seed_default_settings, seed_sdr_bandplan_from_file, seed_sdr_data_from_files
 from backend.routers import air, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
@@ -37,10 +37,9 @@ async def lifespan(app: FastAPI):
     await create_tables()
     await migrate_sdr_radios_to_settings()
     await seed_default_settings()
-    await seed_default_sdr_groups()
-    await normalize_sdr_frequencies_config()
-    await seed_default_sdr_search_ranges()
-    await normalize_sdr_search_ranges_config()
+    await seed_sdr_data_from_files()
+    await seed_sdr_bandplan_from_file()
+    await backfill_satellite_radio_store()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the

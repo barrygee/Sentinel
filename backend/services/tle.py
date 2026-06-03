@@ -17,6 +17,7 @@ import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.models import SatelliteCatalogue, TleCache
+from backend.services import sat_radio
 from sgp4.api import Satrec
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -236,6 +237,13 @@ async def store_tle_bulk(
             )
             db.add(new_cat)
             existing_cat[norad_id] = new_cat  # prevent duplicates if same NORAD appears twice
+
+    # Restore user-curated radio frequencies from the persistent store onto the
+    # catalogue rows (both new and pre-existing). The store survives a TLE clear,
+    # so this repopulates the display columns that the clear/re-import wiped.
+    radio_map = await sat_radio.get_radio_map(db)
+    if radio_map:
+        sat_radio.apply_radio_to_rows(list(existing_cat.values()), radio_map)
 
     await db.commit()
     return {"inserted": inserted, "updated": updated}

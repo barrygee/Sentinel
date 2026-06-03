@@ -38,6 +38,7 @@ from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
+from backend.services.sdr_data import write_sdr_frequencies_file
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, field_validator
@@ -143,6 +144,20 @@ async def _get_radios(db: AsyncSession) -> list[dict]:
 async def _save_radios(db: AsyncSession, radios: list[dict]) -> None:
     """Write the sdr.radios array back to UserSettings (upsert)."""
     await upsert_setting(db, "sdr", "radios", radios)
+
+
+async def _sync_groups(db: AsyncSession) -> None:
+    """Mirror groups/frequencies into UserSettings and write the file back, so
+    every group/frequency mutation keeps sdr_frequencies.json the source of
+    truth (matches the satellite-radio write-through)."""
+    await sync_sdr_groups_to_config(db)
+    await write_sdr_frequencies_file(db)
+
+
+async def _sync_search_ranges(db: AsyncSession) -> None:
+    """Mirror search ranges into UserSettings and write the file back."""
+    await sync_sdr_search_ranges_to_config(db)
+    await write_sdr_frequencies_file(db)
 
 
 def _group_to_dict(g: SdrFrequencyGroup) -> dict:
@@ -288,7 +303,7 @@ async def create_group(body: GroupIn, db: AsyncSession = Depends(get_db)):
     db.add(group)
     await db.commit()
     await db.refresh(group)
-    await sync_sdr_groups_to_config(db)
+    await _sync_groups(db)
     return JSONResponse(_group_to_dict(group), status_code=201)
 
 
@@ -301,7 +316,7 @@ async def update_group(group_id: int, body: GroupIn, db: AsyncSession = Depends(
         setattr(row, k, v)
     await db.commit()
     await db.refresh(row)
-    await sync_sdr_groups_to_config(db)
+    await _sync_groups(db)
     return JSONResponse(_group_to_dict(row))
 
 
@@ -321,7 +336,7 @@ async def delete_group(group_id: int, db: AsyncSession = Depends(get_db)):
         await db.delete(link)
     await db.delete(row)
     await db.commit()
-    await sync_sdr_groups_to_config(db)
+    await _sync_groups(db)
 
 
 # ── Frequency CRUD ────────────────────────────────────────────────────────────
@@ -351,7 +366,7 @@ async def create_frequency(body: FrequencyIn, db: AsyncSession = Depends(get_db)
     await db.flush()
     await _set_freq_groups(db, freq.id, gids)
     await db.commit()
-    await sync_sdr_groups_to_config(db)
+    await _sync_groups(db)
     await db.refresh(freq)
     return JSONResponse(_freq_to_dict(freq, gids), status_code=201)
 
@@ -368,7 +383,7 @@ async def update_frequency(freq_id: int, body: FrequencyIn, db: AsyncSession = D
         setattr(row, k, v)
     await _set_freq_groups(db, freq_id, gids)
     await db.commit()
-    await sync_sdr_groups_to_config(db)
+    await _sync_groups(db)
     await db.refresh(row)
     return JSONResponse(_freq_to_dict(row, gids))
 
@@ -385,7 +400,7 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
         await db.delete(link)
     await db.delete(row)
     await db.commit()
-    await sync_sdr_groups_to_config(db)
+    await _sync_groups(db)
 
 
 # ── Search Range CRUD ─────────────────────────────────────────────────────────
@@ -426,7 +441,7 @@ async def create_search_range(body: SearchRangeIn, db: AsyncSession = Depends(ge
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    await sync_sdr_search_ranges_to_config(db)
+    await _sync_search_ranges(db)
     return JSONResponse(_search_range_to_dict(row), status_code=201)
 
 
@@ -443,7 +458,7 @@ async def update_search_range(range_id: int, body: SearchRangeIn, db: AsyncSessi
         setattr(row, k, v)
     await db.commit()
     await db.refresh(row)
-    await sync_sdr_search_ranges_to_config(db)
+    await _sync_search_ranges(db)
     return JSONResponse(_search_range_to_dict(row))
 
 
@@ -454,7 +469,60 @@ async def delete_search_range(range_id: int, db: AsyncSession = Depends(get_db))
         raise HTTPException(404, "Search range not found")
     await db.delete(row)
     await db.commit()
+    await _sync_search_ranges(db)
+
+
+# ── Bulk data editors (textarea JSON for Settings > SDR) ──────────────────────
+
+@router.get("/api/sdr/data/frequencies")
+async def get_sdr_data_frequencies(db: AsyncSession = Depends(get_db)):
+    """Return {groups, frequencies, searchRanges} as the textarea source — the
+    current DB state mirrored into the flat config representation."""
+    return JSONResponse({
+        "groups":       await get_setting(db, "sdr", "groups", default=[]),
+        "frequencies":  await get_setting(db, "sdr", "frequencies", default=[]),
+        "searchRanges": await get_setting(db, "sdr", "searchRanges", default=[]),
+    })
+
+
+@router.post("/api/sdr/data/frequencies")
+async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db)):
+    """Replace SDR groups/frequencies/search-ranges from an edited JSON object.
+
+    Reconciles into the dedicated tables (reusing the same logic as the config
+    upload), then re-derives the snapshot and writes sdr_frequencies.json."""
+    from backend.routers.settings import _reconcile_sdr_frequencies
+    from backend.services.sdr_data import reconcile_search_ranges
+
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Body must be a JSON object")
+    groups = body.get("groups") if isinstance(body.get("groups"), list) else []
+    freqs = body.get("frequencies") if isinstance(body.get("frequencies"), list) else []
+    ranges = body.get("searchRanges") if isinstance(body.get("searchRanges"), list) else []
+
+    await _reconcile_sdr_frequencies(db, freqs, groups)
+    await reconcile_search_ranges(db, ranges)
+    await db.commit()
+    await _sync_groups(db)          # mirrors groups+frequencies, writes the file
     await sync_sdr_search_ranges_to_config(db)
+    return JSONResponse({"status": "ok"})
+
+
+@router.get("/api/sdr/data/bandplan")
+async def get_sdr_data_bandplan(db: AsyncSession = Depends(get_db)):
+    """Return {bandPlan} as the textarea source."""
+    from backend.services.sdr_data import get_bandplan
+    return JSONResponse({"bandPlan": await get_bandplan(db)})
+
+
+@router.post("/api/sdr/data/bandplan")
+async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
+    """Replace the band plan from an edited JSON object {bandPlan: [...]}."""
+    from backend.services.sdr_data import set_bandplan
+    if not isinstance(body, dict) or not isinstance(body.get("bandPlan"), list):
+        raise HTTPException(400, "Body must be a JSON object with a bandPlan array")
+    await set_bandplan(db, body["bandPlan"])
+    return JSONResponse({"status": "ok"})
 
 
 # ── Recording CRUD + file serving ────────────────────────────────────────────

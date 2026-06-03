@@ -267,18 +267,6 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     await session.commit()
 
 
-async def normalize_sdr_frequencies_config() -> None:
-    """One-shot startup normalization: rewrite the persisted sdr.frequencies
-    config into the current flat shape regardless of recent mutations.
-
-    sync_sdr_groups_to_config only fires on a frequency/group mutation, so a
-    long-idle install upgraded in place would otherwise keep the old grouped
-    representation until the first edit. Running it once on boot guarantees the
-    config always reflects the current schema."""
-    async with AsyncSessionLocal() as session:
-        await sync_sdr_groups_to_config(session)
-
-
 async def sync_sdr_search_ranges_to_config(session: AsyncSession) -> None:
     """Mirror the SdrSearchRange table into UserSettings
     (namespace='sdr', key='searchRanges') so the persisted app config JSON
@@ -305,107 +293,86 @@ async def sync_sdr_search_ranges_to_config(session: AsyncSession) -> None:
     await session.commit()
 
 
-async def normalize_sdr_search_ranges_config() -> None:
-    """One-shot startup mirror of sdr_search_ranges into the config snapshot."""
-    async with AsyncSessionLocal() as session:
-        await sync_sdr_search_ranges_to_config(session)
+async def seed_sdr_data_from_files() -> None:
+    """Seed the SDR groups/frequencies/search-ranges tables from
+    backend/data/sdr_frequencies.json on first run (empty tables), then mirror
+    the live tables back into the file so it stays the source of truth.
 
+    The file is authoritative on a fresh install. After seeding, the runtime
+    CRUD endpoints and the bulk textarea editor keep the file and tables in
+    sync, so this only *seeds* — it does not clobber user edits on later boots.
+    """
+    from backend.models import SdrFrequencyGroup, SdrSearchRange  # avoid circular import
+    from backend.routers.settings import _reconcile_sdr_frequencies  # avoid circular import
+    from backend.services.sdr_data import (
+        load_sdr_frequencies_file,
+        reconcile_search_ranges,
+        write_sdr_frequencies_file,
+    )
 
-async def seed_default_sdr_search_ranges() -> None:
-    """Insert default SDR search ranges from default_config.json's
-    `sdr.searchRanges` — only if the sdr_search_ranges table is empty."""
-    from backend.models import SdrSearchRange  # avoid circular import
-
-    async with AsyncSessionLocal() as session:
-        existing = await session.execute(select(SdrSearchRange).limit(1))
-        if existing.scalar_one_or_none() is not None:
-            return
-
-        try:
-            raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return
-        entries = raw.get("sdr", {}).get("searchRanges", [])
-        if not isinstance(entries, list) or not entries:
-            return
-
-        ts = int(time.time() * 1000)
-        for idx, entry in enumerate(entries):
-            if not isinstance(entry, dict):
-                continue
-            try:
-                session.add(SdrSearchRange(
-                    label          = str(entry.get("label", f"Range {idx + 1}")),
-                    low_hz         = int(entry.get("low_hz", 0)),
-                    high_hz        = int(entry.get("high_hz", 0)),
-                    step_hz        = int(entry.get("step_hz", 12500)),
-                    mode           = str(entry.get("mode", "NFM")),
-                    threshold_dbfs = float(entry.get("threshold_dbfs", -70.0)),
-                    dwell_ms       = int(entry.get("dwell_ms", 250)),
-                    band_name      = str(entry.get("band_name", "")),
-                    enabled        = bool(entry.get("enabled", True)),
-                    notes          = str(entry.get("notes", "")),
-                    sort_order     = idx,
-                    created_at     = ts,
-                ))
-            except (TypeError, ValueError):
-                continue
-        await session.commit()
-        await sync_sdr_search_ranges_to_config(session)
-
-
-async def seed_default_sdr_groups() -> None:
-    """Insert the default (empty) SDR frequency groups from
-    default_config.json's `sdr.groups` — only if the sdr_frequency_groups
-    table is currently empty. Accepts either {name, slug} objects (current
-    shape) or bare name strings (legacy / hand-written default_config); a
-    missing slug is derived from the name. Users can rename/delete afterwards
-    without re-seeding. Frequencies are not seeded; they are managed at runtime
-    and mirrored into the flat `sdr.frequencies` config key."""
-    from backend.models import SdrFrequencyGroup  # avoid circular import
-    from backend.utils import InvalidGroupName, clean_group_name, slugify
+    data = load_sdr_frequencies_file()
 
     async with AsyncSessionLocal() as session:
-        existing = await session.execute(select(SdrFrequencyGroup).limit(1))
-        if existing.scalar_one_or_none() is not None:
-            return
+        groups_empty = (await session.execute(
+            select(SdrFrequencyGroup).limit(1))).scalar_one_or_none() is None
+        ranges_empty = (await session.execute(
+            select(SdrSearchRange).limit(1))).scalar_one_or_none() is None
 
-        try:
-            raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return
-        entries = raw.get("sdr", {}).get("groups", [])
-        if not isinstance(entries, list) or not entries:
-            return
+        if groups_empty and (data["groups"] or data["frequencies"]):
+            # Rebuild groups + frequencies from the file (catalogue authoritative).
+            await _reconcile_sdr_frequencies(session, data["frequencies"], data["groups"])
+            await session.commit()
 
-        ts = int(time.time() * 1000)
-        seen_slugs: set[str] = set()
-        for idx, entry in enumerate(entries):
-            if isinstance(entry, dict):
-                raw_name = str(entry.get("name", ""))
-                raw_slug = str(entry.get("slug", "")).strip()
-            elif isinstance(entry, str):
-                raw_name, raw_slug = entry, ""
-            else:
-                continue
-            try:
-                name = clean_group_name(raw_name)
-            except InvalidGroupName:
-                continue
-            slug = slugify(raw_slug or name) or f"group-{idx}"
-            if slug in seen_slugs:  # keep slugs unique within the catalogue
-                slug = f"{slug}-{idx}"
-            seen_slugs.add(slug)
-            session.add(SdrFrequencyGroup(
-                name=name,
-                slug=slug,
-                color="#c8ff00",
-                sort_order=idx,
-                created_at=ts,
-            ))
-        await session.commit()
-        # Reflect the freshly seeded (empty) groups in the config snapshot.
+        if ranges_empty and data["searchRanges"]:
+            await reconcile_search_ranges(session, data["searchRanges"])
+            await session.commit()
+
+        # Mirror live tables into the UserSettings snapshot, then rewrite the
+        # file from that snapshot so file and DB always agree.
         await sync_sdr_groups_to_config(session)
+        await sync_sdr_search_ranges_to_config(session)
+        await write_sdr_frequencies_file(session)
+
+
+async def seed_sdr_bandplan_from_file() -> None:
+    """Seed UserSettings(sdr.bandPlan) from backend/data/sdr_bandplan.json on
+    first run (key unset). The waterfall reads sdr.bandPlan; the file is the
+    source of truth and is written back on edit via sdr_data.set_bandplan."""
+    from backend.db_helpers import get_setting_row, upsert_setting  # avoid circular import
+    from backend.services.sdr_data import load_sdr_bandplan_file
+
+    async with AsyncSessionLocal() as session:
+        if await get_setting_row(session, "sdr", "bandPlan") is not None:
+            return
+        await upsert_setting(session, "sdr", "bandPlan", load_sdr_bandplan_file())
+
+
+async def backfill_satellite_radio_store() -> None:
+    """Reconcile the on-disk satellite_radio.json source of truth into the
+    persistent store (UserSettings space/satelliteRadio) on every startup.
+
+    The file is authoritative for the entries it defines: its values are merged
+    into the store, overwriting per-NORAD entries the file specifies. Entries
+    that exist only in the store (e.g. a UI edit for a sat the file doesn't
+    mention) are preserved. Hand-edits to the file therefore take effect on the
+    next restart, while UI write-through keeps the file and store in sync.
+
+    No-ops when nothing changes, so it's cheap to run on every boot.
+    """
+    from backend.db_helpers import get_setting_row, upsert_setting  # avoid circular import
+    from backend.services.sat_radio import get_radio_map, load_radio_file
+
+    file_map = load_radio_file()
+
+    async with AsyncSessionLocal() as session:
+        row = await get_setting_row(session, "space", "satelliteRadio")
+        store = await get_radio_map(session) if row is not None else {}
+
+        merged = {**store, **file_map}  # file wins per-key it defines
+        if row is not None and merged == store:
+            return  # already in sync — nothing to write
+
+        await upsert_setting(session, "space", "satelliteRadio", merged)
 
 
 async def seed_default_settings() -> None:

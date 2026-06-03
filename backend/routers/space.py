@@ -26,6 +26,7 @@ from backend.error_handlers import handle_service_errors, handle_unexpected_erro
 from backend.models import SatelliteCatalogue, TleCache
 from backend.services import daynight as dn_service
 from backend.services import satellite as sat_service
+from backend.services import sat_radio
 from backend.services import tle as tle_service
 from backend.utils import resolve_domain_urls
 from fastapi import APIRouter, Body, Depends, Query
@@ -622,11 +623,7 @@ async def patch_tle_satellite(
     })
 
 
-_RADIO_FIELDS = (
-    "uplink_hz", "uplink_mode", "downlink_hz", "downlink_mode",
-    "ctcss_hz", "transponder_type", "beacon_hz", "packet_info",
-    "radio_status", "radio_notes",
-)
+_RADIO_FIELDS = sat_radio.RADIO_FIELDS
 
 
 @router.patch("/tle/radio")
@@ -653,12 +650,16 @@ async def patch_tle_radio(
     if not row:
         return JSONResponse({"error": "Satellite not found"}, status_code=404)
 
-    for field in _RADIO_FIELDS:
-        if field in body:
-            setattr(row, field, body[field])
+    changed = {field: body[field] for field in _RADIO_FIELDS if field in body}
+    for field, value in changed.items():
+        setattr(row, field, value)
 
     row.updated_at = now_ms()
     await db.commit()
+
+    # Persist into the clear-survivable store so the edit is restored after a
+    # TLE clear + re-import. set_radio_for commits the UserSettings row itself.
+    await sat_radio.set_radio_for(db, norad_id, changed)
 
     return JSONResponse({
         "norad_id":         row.norad_id,
@@ -673,6 +674,26 @@ async def patch_tle_radio(
         "radio_status":     row.radio_status,
         "radio_notes":      row.radio_notes,
     })
+
+
+@router.get("/radio/file")
+@handle_unexpected_errors
+async def get_radio_file(db: AsyncSession = Depends(get_db)):
+    """Return the full norad_id -> radio-fields map (the Space textarea source)."""
+    return JSONResponse(await sat_radio.get_radio_map(db))
+
+
+@router.post("/radio/file")
+@handle_unexpected_errors
+async def set_radio_file(body: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Replace the entire satellite radio map from an edited JSON object.
+
+    Persists the store, refreshes the catalogue display columns, and writes
+    satellite_radio.json back."""
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "Body must be a JSON object"}, status_code=400)
+    cleaned = await sat_radio.replace_radio_map(db, body)
+    return JSONResponse({"status": "ok", "count": len(cleaned)})
 
 
 @router.delete("/tle")
