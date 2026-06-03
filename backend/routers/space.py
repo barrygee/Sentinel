@@ -676,6 +676,26 @@ async def patch_tle_radio(
     })
 
 
+@router.get("/radio/file")
+@handle_unexpected_errors
+async def get_radio_file(db: AsyncSession = Depends(get_db)):
+    """Return the full norad_id -> radio-fields map (the Space textarea source)."""
+    return JSONResponse(await sat_radio.get_radio_map(db))
+
+
+@router.post("/radio/file")
+@handle_unexpected_errors
+async def set_radio_file(body: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Replace the entire satellite radio map from an edited JSON object.
+
+    Persists the store, refreshes the catalogue display columns, and writes
+    satellite_radio.json back."""
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "Body must be a JSON object"}, status_code=400)
+    cleaned = await sat_radio.replace_radio_map(db, body)
+    return JSONResponse({"status": "ok", "count": len(cleaned)})
+
+
 @router.delete("/tle")
 @handle_unexpected_errors
 async def clear_tle_data(

@@ -287,6 +287,29 @@ async def get_all_settings(db: AsyncSession = Depends(get_db)):
 
 # ── Config preview (must be registered before /{namespace}) ─────────────────
 
+# Curated reference data that now lives in dedicated files with their own
+# Settings editors (backend/data/sdr_frequencies.json → Settings > SDR,
+# sdr_bandplan.json → Settings > SDR, satellite_radio.json → Settings > Space).
+# These keys are excluded from the app-config JSON so they are neither shown
+# nor round-tripped here. The runtime UserSettings mirrors still exist (the SDR
+# panel/waterfall and satellite display read them) — they're just no longer
+# part of the application config.
+_EXCLUDED_DATA_KEYS: dict[str, frozenset[str]] = {
+    "sdr": frozenset({"groups", "frequencies", "searchRanges", "bandPlan"}),
+    "space": frozenset({"satelliteRadio"}),
+}
+
+
+def _strip_data_keys(config: dict) -> dict:
+    """Drop the moved data keys (SDR frequencies/groups/bandplan, satellite
+    radio) from an exported config dict."""
+    for ns, excluded in _EXCLUDED_DATA_KEYS.items():
+        block = config.get(ns)
+        if isinstance(block, dict):
+            config[ns] = {k: v for k, v in block.items() if k not in excluded}
+    return config
+
+
 @router.get("/config/preview")
 async def config_preview(db: AsyncSession = Depends(get_db)):
     """Return the current settings as a config JSON file (downloadable)."""
@@ -298,7 +321,7 @@ async def config_preview(db: AsyncSession = Depends(get_db)):
         grouped.setdefault(row.namespace, []).append(row)
 
     config = {ns: _rows_to_namespace_dict(ns_rows, ns) for ns, ns_rows in grouped.items()}
-    payload = json.dumps(config, indent=2, ensure_ascii=False)
+    payload = json.dumps(_strip_data_keys(config), indent=2, ensure_ascii=False)
     return Response(content=payload, media_type="application/json")
 
 
@@ -326,20 +349,6 @@ async def config_upload(
                 r["id"] = next_id
                 next_id += 1
 
-    # Reconcile SDR frequency groups + frequencies from the flat config
-    # representation back into their dedicated tables, so editing them in the
-    # app config JSON actually takes effect. The `sdr.groups` catalogue
-    # ({name, slug} objects) supplies slug→name and protects empty groups
-    # from being pruned for having no frequencies.
-    sdr_ns = config.get("sdr")
-    if isinstance(sdr_ns, dict) and isinstance(sdr_ns.get("frequencies"), list):
-        catalogue = sdr_ns.get("groups")
-        await _reconcile_sdr_frequencies(
-            db,
-            sdr_ns["frequencies"],
-            catalogue if isinstance(catalogue, list) else [],
-        )
-
     # Validate app.location up front so a bad coordinate rejects the whole
     # upload rather than being persisted (raises HTTPException(400)).
     app_ns = config.get("app")
@@ -351,6 +360,13 @@ async def config_upload(
         if not isinstance(keys, dict):
             continue
         for key, value in keys.items():
+            # SDR frequencies/groups/searchRanges/bandPlan and satellite radio
+            # are no longer part of the app config — they live in dedicated
+            # files with their own editors. Ignore them here so an old/exported
+            # config that still carries them can't silently overwrite the
+            # dedicated stores.
+            if key in _EXCLUDED_DATA_KEYS.get(namespace, frozenset()):
+                continue
             result = await db.execute(
                 select(UserSettings).where(
                     UserSettings.namespace == namespace,
@@ -371,16 +387,6 @@ async def config_upload(
                 ))
 
     await db.commit()
-
-    # The generic loop above persisted the *raw uploaded* sdr.groups /
-    # sdr.frequencies verbatim, which would defeat _reconcile_sdr_frequencies
-    # (e.g. a dangling group ref the reconcile dropped would still appear in
-    # the stored config, and on the next export). Re-derive both keys from the
-    # authoritative reconciled DB state so the persisted config and the tables
-    # always agree. Same helper every SDR mutation endpoint uses.
-    if isinstance(sdr_ns, dict) and isinstance(sdr_ns.get("frequencies"), list):
-        from backend.database import sync_sdr_groups_to_config
-        await sync_sdr_groups_to_config(db)
 
     return JSONResponse({"status": "ok"})
 

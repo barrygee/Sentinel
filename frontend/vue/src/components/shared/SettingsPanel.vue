@@ -152,6 +152,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-uncategorised', label: 'Uncategorised Satellites', desc: 'Assign categories to satellites imported without one', type: 'space-tle-uncat' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-satlist', label: 'Satellite List', desc: 'Full list of all TLE records stored in the database', type: 'space-tle-satlist' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-sat-radio', label: 'Satellite Frequencies', desc: 'Edit radio frequencies for any satellite — these persist across a TLE database clear', type: 'space-sat-radio', groupLabel: 'SATELLITE DATA' },
+  { section: 'space', sectionLabel: 'SPACE', id: 'space-sat-radio-file', label: 'Satellite Frequencies (JSON)', desc: 'Bulk-edit all satellite frequencies as raw JSON. Saved to backend/data/satellite_radio.json and the database.', type: 'space-sat-radio-file' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-filter-hover-preview', label: 'Filter Hover Behaviour', desc: 'When hovering over a satellite in the search results, choose whether the map stays in place or flies to that satellite', type: 'space-hover-preview', groupLabel: 'FILTER HOVER' },
   { section: 'sea', sectionLabel: 'SEA', id: 'sea-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'sea' },
   { section: 'sea', sectionLabel: 'SEA', id: 'sea-online-source', label: 'Online Data Source', desc: 'URL for live sea data feed', type: 'online-source', ns: 'sea', defaultUrl: '' },
@@ -165,6 +166,8 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-show-bandplan', label: 'Show Band Plan', desc: 'Show the coloured RF band-plan strip (Air Band, FM Broadcast, etc.) along the bottom of the spectrum.', type: 'sdr-show-bandplan' },
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-show-known-freqs', label: 'Show Known Frequencies', desc: 'Show labels on the spectrum for the frequencies tracked in your Frequency Manager.', type: 'sdr-show-known-freqs' },
   { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-resume-delay', label: 'Resume Delay', desc: 'When scan or search locks on a signal, wait this many seconds after the signal drops before continuing. 0 resumes immediately on drop. You can always press HOLD/RESUME to force-continue.', type: 'sdr-resume-delay', groupLabel: 'SCAN & SEARCH' },
+  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-frequencies-file', label: 'Frequencies & Groups (JSON)', desc: 'Bulk-edit frequency groups, stored frequencies, and search ranges as raw JSON. Saved to backend/data/sdr_frequencies.json and the database.', type: 'sdr-frequencies-file', groupLabel: 'FREQUENCY DATA' },
+  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-bandplan-file', label: 'Band Plan (JSON)', desc: 'Bulk-edit the coloured RF band-plan strip as raw JSON. Saved to backend/data/sdr_bandplan.json and the database.', type: 'sdr-bandplan-file' },
   { section: 'app', sectionLabel: 'App Settings', id: 'config-current', label: 'Application Config', desc: 'Settings currently stored in the database', type: 'config-current' },
 ]
 

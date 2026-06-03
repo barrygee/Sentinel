@@ -18,6 +18,11 @@
     <SpaceTleUncatControl v-else-if="item.type === 'space-tle-uncat'" />
     <SpaceTleSatListControl v-else-if="item.type === 'space-tle-satlist'" />
     <SpaceSatelliteRadioControl v-else-if="item.type === 'space-sat-radio'" />
+    <JsonDataControl
+      v-else-if="item.type === 'space-sat-radio-file'"
+      get-url="/api/space/radio/file" post-url="/api/space/radio/file" filename="satellite_radio.json"
+      @stage="emit('stage', item.id, $event)"
+    />
     <SpaceHoverPreviewControl v-else-if="item.type === 'space-hover-preview'" @stage="emit('stage', item.id, $event)" />
     <AdsbLabelFieldsControl v-else-if="item.type === 'air-label-fields'" @stage="emit('stage', item.id, $event)" />
     <AdsbTagFieldsControl v-else-if="item.type === 'air-tag-fields'" @stage="emit('stage', item.id, $event)" />
@@ -27,6 +32,16 @@
     <SdrShowBandPlanControl v-else-if="item.type === 'sdr-show-bandplan'" @stage="emit('stage', item.id, $event)" />
     <SdrShowKnownFreqsControl v-else-if="item.type === 'sdr-show-known-freqs'" @stage="emit('stage', item.id, $event)" />
     <SdrResumeDelayControl v-else-if="item.type === 'sdr-resume-delay'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
+    <JsonDataControl
+      v-else-if="item.type === 'sdr-frequencies-file'"
+      get-url="/api/sdr/data/frequencies" post-url="/api/sdr/data/frequencies" filename="sdr_frequencies.json"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <JsonDataControl
+      v-else-if="item.type === 'sdr-bandplan-file'"
+      get-url="/api/sdr/data/bandplan" post-url="/api/sdr/data/bandplan" filename="sdr_bandplan.json"
+      @stage="emit('stage', item.id, $event)"
+    />
     <ConfigCurrentControl v-else-if="item.type === 'config-current'" @stage="emit('stage', item.id, $event)" />
   </div>
 </template>
@@ -57,6 +72,7 @@ import SdrShowBandPlanControl from './SdrShowBandPlanControl.vue'
 import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
+import JsonDataControl from './JsonDataControl.vue'
 
 const props = defineProps<{ item: SettingItem; pending: Map<string, () => Promise<unknown> | void> }>()
 const emit = defineEmits<{
@@ -64,6 +80,6 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'space-sat-radio', 'config-current'])
+const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'space-sat-radio', 'space-sat-radio-file', 'sdr-frequencies-file', 'sdr-bandplan-file', 'config-current'])
 const isWide = WIDE_TYPES.has(props.item.type)
 </script>

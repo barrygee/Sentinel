@@ -1,20 +1,22 @@
-"""Apply curated satellite radio frequencies into a Sentinel database.
+"""Build / apply the consolidated satellite radio frequency source of truth.
 
-Merges two NORAD-keyed JSON sources:
+At runtime there is a SINGLE source of truth: backend/data/satellite_radio.json
+(a NORAD-keyed map of radio fields), seeded into the persistent store on startup
+and written back on every UI edit (see backend/services/sat_radio.py).
+
+This script is the OFFLINE regeneration tool for that file. It merges the two
+curated intermediate sources:
   - backend/data/amateur_radio_data.json   (amateur sats, from SatNOGS)
   - backend/data/satellite_radio_extra.json (weather/space-station/science/
                                              cubesat/navigation/military)
-
-For each NORAD ID present in satellite_catalogue, this writes BOTH:
-  1. the persistent, clear-survivable store — UserSettings(space/satelliteRadio),
-     a JSON map norad_id -> {radio fields}; and
-  2. the satellite_catalogue radio columns (the fast display cache).
-
-Only the known radio fields are written. Entries whose NORAD ID is not in the
-catalogue are skipped (reported). Idempotent: re-running overwrites with the
-latest curated values.
+into satellite_radio.json (the extra file wins on conflict). NORAD IDs are
+normalised to unpadded strings.
 
 Usage:
+    # Regenerate the consolidated file from the two curated sources:
+    python backend/scripts/apply_satellite_radio.py --rebuild-file
+
+    # (Legacy) directly apply the merge into a DB's store + catalogue columns:
     python backend/scripts/apply_satellite_radio.py --db /app/data/sentinel.db
 """
 from __future__ import annotations
@@ -73,11 +75,46 @@ def load_sources() -> dict[str, dict]:
     return merged
 
 
+_RADIO_FILE = _DATA / "satellite_radio.json"
+_FILE_COMMENT = (
+    "Single source of truth for satellite radio frequencies. NORAD ID -> radio "
+    "fields. Frequencies in Hz (integer). Editable in-app (Settings > Space > "
+    "Satellite Radio) or by hand-editing this file; in-app edits are written "
+    "back here."
+)
+
+
+def rebuild_file() -> int:
+    """Regenerate satellite_radio.json from the two curated intermediate sources."""
+    raw = load_sources()
+    # Normalise NORAD IDs to unpadded strings (amateur source keys are
+    # zero-padded), re-merging any that collide.
+    radio_map: dict[str, dict] = {}
+    for nid, entry in raw.items():
+        key = str(int(nid))
+        radio_map[key] = {**radio_map.get(key, {}), **entry}
+    payload: dict = {"_comment": _FILE_COMMENT}
+    for nid in sorted(radio_map, key=lambda x: int(x)):
+        payload[nid] = radio_map[nid]
+    _RADIO_FILE.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    print(f"✓ wrote {len(radio_map)} satellites to {_RADIO_FILE}", file=sys.stderr)
+    return 0
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Apply curated satellite radio frequencies")
-    ap.add_argument("--db", required=True, help="Path to sentinel.db")
+    ap = argparse.ArgumentParser(description="Build/apply curated satellite radio frequencies")
+    ap.add_argument("--db", help="Path to sentinel.db (legacy direct-apply mode)")
+    ap.add_argument("--rebuild-file", action="store_true",
+                    help="Regenerate backend/data/satellite_radio.json from the curated sources")
     ap.add_argument("--dry-run", action="store_true", help="Report only; write nothing")
     args = ap.parse_args()
+
+    if args.rebuild_file:
+        return rebuild_file()
+    if not args.db:
+        ap.error("one of --rebuild-file or --db is required")
 
     radio_map = load_sources()
     print(f"loaded {len(radio_map)} curated satellites from {len(_SOURCES)} sources", file=sys.stderr)
