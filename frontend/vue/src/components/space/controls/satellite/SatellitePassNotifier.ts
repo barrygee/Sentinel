@@ -1,16 +1,7 @@
 import type { useNotificationsStore } from '@/stores/notifications'
+import { isPassNotifEnabled, setPassNotifEnabled } from './passNotifStore'
 
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
-
-interface IssPass {
-    aos_utc: string; los_utc: string
-    aos_unix_ms: number; los_unix_ms: number
-    duration_s: number; max_elevation_deg: number; max_el_utc: string
-}
-interface IssPassesApiResponse {
-    passes: IssPass[]; obs_lat: number; obs_lon: number
-    lookahead_hours: number; computed_at: string; error?: string
-}
 
 export interface SatellitePassNotifierContext {
     notificationsStore: NotificationsStore
@@ -19,34 +10,26 @@ export interface SatellitePassNotifierContext {
     getActiveSatName: () => string
 }
 
-// Handles "ping me ~10 minutes before this satellite next passes overhead".
-// Owns its own enabled flag (persisted to localStorage), the next-pass timer,
-// and a refresh interval that periodically re-fetches the pass list.
+// Owns the on-map bell button + enabled flag for the ACTIVE satellite's pass
+// notifications. The actual scheduling/firing of pass alerts is handled by the
+// app-level useSpaceAlertsService (one SatellitePassScheduler per enabled
+// satellite) so alerts fire regardless of which section is active. This class
+// therefore only persists the enabled flag and dispatches the
+// `satellite-pass-notif-changed` event the service listens to.
 export class SatellitePassNotifier {
     private _ctx: SatellitePassNotifierContext
-    private _enabled = false
-    private _lastFiredAos = 0
-    private _scheduleTimeout: ReturnType<typeof setTimeout> | null = null
-    private _refreshInterval: ReturnType<typeof setInterval> | null = null
 
     constructor(ctx: SatellitePassNotifierContext) {
         this._ctx = ctx
-        this._restoreState()
     }
 
-    get enabled(): boolean { return this._enabled }
-
-    // Called when the controller has finished its first data fetch (i.e. has
-    // a known active satellite) — if persistence said pass-notifs were on for
-    // that satellite, start the polling now.
-    onActivated(): void {
-        if (this._enabled) this._startPolling()
+    get enabled(): boolean {
+        return isPassNotifEnabled(this._ctx.getActiveNoradId())
     }
 
-    stop(): void {
-        if (this._scheduleTimeout) { clearTimeout(this._scheduleTimeout); this._scheduleTimeout = null }
-        if (this._refreshInterval) { clearInterval(this._refreshInterval); this._refreshInterval = null }
-    }
+    // Retained for call-site compatibility; scheduling now lives in the service.
+    onActivated(): void {}
+    stop(): void {}
 
     // Wire the bell-button found inside a hover-tag element.
     wireButton(el: HTMLElement): void {
@@ -58,10 +41,10 @@ export class SatellitePassNotifier {
             this.toggle()
             const svg = btn.querySelector('svg')
             if (svg) {
-                ;(btn as HTMLElement).classList.toggle('iss-notif-btn--active', this._enabled)
+                ;(btn as HTMLElement).classList.toggle('iss-notif-btn--active', this.enabled)
                 const existingSlash = svg.querySelector('line')
-                if (this._enabled && existingSlash) existingSlash.remove()
-                else if (!this._enabled && !existingSlash) {
+                if (this.enabled && existingSlash) existingSlash.remove()
+                else if (!this.enabled && !existingSlash) {
                     const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
                     slash.setAttribute('x1', '1.5'); slash.setAttribute('y1', '1.5')
                     slash.setAttribute('x2', '11.5'); slash.setAttribute('y2', '11.5')
@@ -73,109 +56,41 @@ export class SatellitePassNotifier {
         })
     }
 
-    private _storageKey(): string { return `passNotifEnabled_${this._ctx.getActiveNoradId()}` }
-
-    private _restoreState(): void {
-        try { this._enabled = localStorage.getItem(this._storageKey()) === '1' } catch {}
-    }
-
-    private _saveState(): void {
-        try {
-            if (this._enabled) localStorage.setItem(this._storageKey(), '1')
-            else localStorage.removeItem(this._storageKey())
-        } catch {}
-    }
-
     toggleEnabled(): void { this.toggle() }
 
     private toggle(): void {
         const { notificationsStore, getUserLocation, getActiveNoradId, getActiveSatName } = this._ctx
-        if (this._enabled) {
-            this._enabled = false; this._lastFiredAos = 0
-            this.stop()
-            this._saveState()
-            notificationsStore.add({ type: 'notif-off', title: getActiveSatName(), detail: 'Pass notifications disabled' })
-            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId: getActiveNoradId(), enabled: false } }))
+        const noradId = getActiveNoradId()
+        const name = getActiveSatName()
+        if (this.enabled) {
+            setPassNotifEnabled(noradId, false)
+            notificationsStore.add({ type: 'notif-off', title: name, detail: 'Pass notifications disabled' })
+            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
         } else {
             const loc = getUserLocation()
             if (!loc) {
+                // Defer enabling until a location is available.
                 const poller = setInterval(() => {
-                    const l = getUserLocation()
-                    if (l) {
-                        clearInterval(poller); this._enabled = true
-                        this._saveState(); this._startPolling()
-                        document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId: getActiveNoradId(), enabled: true } }))
+                    if (getUserLocation()) {
+                        clearInterval(poller)
+                        setPassNotifEnabled(noradId, true, name)
+                        document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: true } }))
                     }
                 }, 500)
                 setTimeout(() => clearInterval(poller), 30000)
                 return
             }
-            this._enabled = true; this._saveState(); this._startPolling()
-            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId: getActiveNoradId(), enabled: true } }))
+            setPassNotifEnabled(noradId, true, name)
+            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: true } }))
             notificationsStore.add({
-                type: 'tracking', title: getActiveSatName(), detail: 'Pass notifications enabled',
+                type: 'tracking', title: name, detail: 'Pass notifications enabled',
+                // Target this specific satellite (not whichever is active later).
                 action: { label: 'DISABLE NOTIFICATIONS', callback: () => {
-                    this._enabled = true; this.toggle()
-                }},
+                    setPassNotifEnabled(noradId, false)
+                    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Pass notifications disabled' })
+                    document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
+                } },
             })
         }
-    }
-
-    private _startPolling(): void {
-        this._fetchAndSchedule()
-        if (this._refreshInterval) clearInterval(this._refreshInterval)
-        this._refreshInterval = setInterval(() => this._fetchAndSchedule(), 5 * 60 * 1000)
-    }
-
-    private async _fetchAndSchedule(): Promise<void> {
-        const loc = this._ctx.getUserLocation()
-        if (!loc) return
-        const [lon, lat] = loc
-        const noradId = this._ctx.getActiveNoradId()
-        try {
-            const endpoint = noradId === '25544'
-                ? `/api/space/iss/passes?lat=${lat}&lon=${lon}&hours=24`
-                : `/api/space/satellite/${noradId}/passes?lat=${lat}&lon=${lon}&hours=24`
-            const resp = await fetch(endpoint)
-            if (!resp.ok) return
-            const data = await resp.json() as IssPassesApiResponse
-            if (data.error || !data.passes) return
-            this._schedule(data.passes)
-        } catch {}
-    }
-
-    private _schedule(passes: IssPass[]): void {
-        if (this._scheduleTimeout) { clearTimeout(this._scheduleTimeout); this._scheduleTimeout = null }
-        if (!this._enabled) return
-        const now = Date.now(); const leadMs = 10 * 60 * 1000
-        const next = passes.find(p => p.aos_unix_ms > now)
-        if (!next) return
-        const delay = (next.aos_unix_ms - leadMs) - now
-        if (delay < 0) {
-            if (this._lastFiredAos !== next.aos_unix_ms) {
-                this._lastFiredAos = next.aos_unix_ms; this._fire(next)
-            }
-            const remaining = passes.filter(p => p.aos_unix_ms > now + 60000)
-            if (remaining.length > 0) this._schedule(remaining)
-            return
-        }
-        this._scheduleTimeout = setTimeout(() => {
-            this._scheduleTimeout = null
-            if (!this._enabled) return
-            this._lastFiredAos = next.aos_unix_ms; this._fire(next)
-            const remaining = passes.filter(p => p.aos_unix_ms > next.aos_unix_ms + 60000)
-            if (remaining.length > 0) this._schedule(remaining)
-            else this._fetchAndSchedule()
-        }, delay)
-    }
-
-    private _fire(pass: IssPass): void {
-        const aosDate = new Date(pass.aos_unix_ms)
-        const aosTime = aosDate.toUTCString().slice(17, 22) + ' UTC'
-        this._ctx.notificationsStore.add({
-            type: 'tracking', title: `${this._ctx.getActiveSatName()} PASS`,
-            detail: `AOS ~10 min — max ${pass.max_elevation_deg}° elev at ${aosTime}`,
-            action: { label: 'DISABLE', callback: () => { this._enabled = true; this.toggle() } },
-        })
     }
 }

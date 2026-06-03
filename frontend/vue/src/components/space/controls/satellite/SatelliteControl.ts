@@ -5,6 +5,7 @@ import type { useNotificationsStore } from '@/stores/notifications'
 import type { useTrackingStore } from '@/stores/tracking'
 import { createSatelliteIcon, createSatBracket, buildFootprintFeatures } from './satelliteSprites'
 import { SatellitePassNotifier } from './SatellitePassNotifier'
+import { updatePassNotifName } from './passNotifStore'
 
 type SpaceStore        = ReturnType<typeof useSpaceStore>
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
@@ -670,7 +671,6 @@ export class SatelliteControl extends SentinelControlBase {
         if (this._followEnabled) this._stopFollowing()
         this._hideHoverTagNow(); this._hideLabel()
         if (follow) this._followEnabled = true
-        this._passNotifier.stop()
 
         const isSameSat = this._activeNoradId === noradId
         this._activeNoradId = noradId; this._activeSatName = name
@@ -686,14 +686,10 @@ export class SatelliteControl extends SentinelControlBase {
             this._spaceStore.setOverlay('iss', true)
         }
 
-        // Re-build the notifier so it re-reads persistence for the newly-selected satellite
-        this._passNotifier = new SatellitePassNotifier({
-            notificationsStore: this._notificationsStore,
-            getUserLocation: this._getUserLocation,
-            getActiveNoradId: () => this._activeNoradId,
-            getActiveSatName: () => this._activeSatName,
-        })
-        this._passNotifier.onActivated()
+        // Keep the persisted pass-notif display name fresh for this satellite
+        // (the background scheduler reads it). The notifier reads the active
+        // norad/name via its dynamic getters, so no reconstruction is needed.
+        updatePassNotifName(noradId, name)
         if (follow && this._lastPosition) {
             this._startFollowing()
         }

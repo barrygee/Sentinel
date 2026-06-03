@@ -40,6 +40,8 @@ import SettingsPanel from '@/components/shared/SettingsPanel.vue'
 import SdrTabPanel from '@/components/sdr/SdrTabPanel.vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useAirAlertsService } from '@/composables/useAirAlertsService'
+import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
 
@@ -54,6 +56,10 @@ onMounted(async () => {
   // GPS (started next) can reposition rather than pinning the old marker.
   await hydrateFromConfig()
   startGps()
+  // App-level alert services run independently of the active section so
+  // aircraft/overhead/satellite-pass alerts fire from any page.
+  useAirAlertsService().start()
+  useSpaceAlertsService().start()
 })
 
 // Surface the "no location available" state as a single app-wide alerts-panel

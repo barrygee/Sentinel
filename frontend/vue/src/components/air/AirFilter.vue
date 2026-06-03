@@ -97,6 +97,7 @@ import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import type { AirportsToggleControl } from './controls/airports/AirportsControl'
 import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useAirNotifStore } from '@/stores/airNotif'
 
 interface PlaneResult {
   kind: 'plane'
@@ -124,14 +125,15 @@ const props = defineProps<{
 }>()
 
 const notificationsStore = useNotificationsStore()
+const airNotifStore = useAirNotifStore()
 
 const inputRef  = ref<HTMLInputElement | null>(null)
 const resultsRef = ref<HTMLElement | null>(null)
 const query      = ref('')
 const focusedKey = ref<string | null>(null)
 
-// Notification state — mirrors adsbControl._notifEnabled reactively
-const notifEnabled = ref<Set<string>>(new Set())
+// Notification opt-in state — sourced from the persisted airNotif store.
+const notifEnabled = computed(() => airNotifStore.enabledHexes)
 
 // Aircraft data — refreshed on adsb-data-update event
 const aircraftFeatures = ref<Array<{ properties: Record<string, unknown>; geometry: { coordinates: [number, number] } }>>([])
@@ -310,49 +312,47 @@ function selectMil(r: MilResult) {
 // ---- Notifications (bell button) ----
 function toggleNotif(hex: string) {
   const c = props.adsbControl
-  if (!c) return
-  if (!c._notifEnabled) c._notifEnabled = new Set()
-  if (!c._trackingNotifIds) c._trackingNotifIds = {}
-  const matchedFeature = (c._geojson.features as unknown as Array<{ properties: Record<string, unknown> }>).find(f => (f.properties.hex as string) === hex)
+  if (c && !c._trackingNotifIds) c._trackingNotifIds = {}
+  const matchedFeature = c
+    ? (c._geojson.features as unknown as Array<{ properties: Record<string, unknown> }>).find(f => (f.properties.hex as string) === hex)
+    : undefined
   const callsign = matchedFeature
     ? (((matchedFeature.properties.flight as string) || '').trim() || ((matchedFeature.properties.r as string) || '').trim() || hex)
-    : hex
-  const wasOn = c._notifEnabled.has(hex)
+    : airNotifStore.callsignFor(hex)
+  const wasOn = airNotifStore.isEnabled(hex)
   if (wasOn) {
-    c._notifEnabled.delete(hex)
-    if (c._trackingNotifIds[hex]) {
+    airNotifStore.disable(hex)
+    if (c?._trackingNotifIds?.[hex]) {
       notificationsStore.dismiss(c._trackingNotifIds[hex])
       delete c._trackingNotifIds[hex]
     }
     notificationsStore.add({ type: 'notif-off', title: callsign })
   } else {
-    c._notifEnabled.add(hex)
-    if (c._trackingNotifIds[hex]) notificationsStore.dismiss(c._trackingNotifIds[hex])
-    c._trackingNotifIds[hex] = notificationsStore.add({
-      type: 'tracking',
-      title: callsign,
-      action: {
-        label: 'DISABLE NOTIFICATIONS',
-        callback: () => {
-          c._notifEnabled.delete(hex)
-          if (c._trackingNotifIds) delete c._trackingNotifIds[hex]
-          c._rebuildTagForHex(hex)
-          notifEnabled.value = new Set(c._notifEnabled)
+    airNotifStore.enable(hex, callsign)
+    if (c) {
+      if (c._trackingNotifIds![hex]) notificationsStore.dismiss(c._trackingNotifIds![hex])
+      c._trackingNotifIds![hex] = notificationsStore.add({
+        type: 'tracking',
+        title: callsign,
+        action: {
+          label: 'DISABLE NOTIFICATIONS',
+          callback: () => {
+            airNotifStore.disable(hex)
+            if (c._trackingNotifIds) delete c._trackingNotifIds[hex]
+            c._rebuildTagForHex(hex)
+          },
         },
-      },
-    })
+      })
+    } else {
+      notificationsStore.add({ type: 'tracking', title: callsign })
+    }
   }
-  // Trigger Vue to re-render bell buttons
-  notifEnabled.value = new Set(c._notifEnabled)
-  c._rebuildTagForHex(hex)
+  c?._rebuildTagForHex(hex)
 }
 
-// Sync notifEnabled and aircraft data when adsbControl becomes available
+// Refresh aircraft data when adsbControl becomes available.
 watch(() => props.adsbControl, (ctrl) => {
-  if (ctrl) {
-    notifEnabled.value = new Set(ctrl._notifEnabled)
-    refreshAircraft()
-  }
+  if (ctrl) refreshAircraft()
 }, { immediate: true })
 
 onMounted(refreshAircraft)

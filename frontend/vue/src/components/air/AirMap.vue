@@ -18,6 +18,7 @@ import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useNotificationsStore, registerAircraftClickHandler } from '@/stores/notifications'
+import { useAirNotifStore } from '@/stores/airNotif'
 import { useTrackingStore } from '@/stores/tracking'
 import { useSettingsStore } from '@/stores/settings'
 import { useConnectivity } from '@/composables/useConnectivity'
@@ -31,7 +32,6 @@ import { NamesToggleControl }         from './controls/names/NamesToggleControl'
 import { RoadsToggleControl }         from './controls/roads/RoadsToggleControl'
 import { RangeRingsControl }          from './controls/range-rings/RangeRingsControl'
 import { OverheadZoneControl }        from './controls/overhead-zone/OverheadZoneControl'
-import { OverheadAlertsTracker }      from './controls/overhead-zone/OverheadAlertsTracker'
 import { AdsbLabelsToggleControl }    from './controls/adsb-labels/AdsbLabelsToggleControl'
 import { ClearOverlaysControl }       from './controls/clear-overlays/ClearOverlaysControl'
 import { AirportsToggleControl }      from './controls/airports/AirportsControl'
@@ -45,6 +45,7 @@ import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
 const appStore           = useAppStore()
 const airStore           = useAirStore()
 const notificationsStore = useNotificationsStore()
+const airNotifStore      = useAirNotifStore()
 const trackingStore      = useTrackingStore()
 const settingsStore      = useSettingsStore()
 const playbackStore      = usePlaybackStore()
@@ -83,7 +84,6 @@ let adsbControl:         AdsbLiveControl | null            = null
 let adsbLabelsControl:   AdsbLabelsToggleControl | null    = null
 let rangeRingsControl:   RangeRingsControl | null          = null
 let overheadZoneControl: OverheadZoneControl | null        = null
-let overheadAlertsTracker: OverheadAlertsTracker | null    = null
 let roadsControl:        RoadsToggleControl | null         = null
 let namesControl:        NamesToggleControl | null         = null
 let airportsControl:     AirportsToggleControl | null      = null
@@ -170,6 +170,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
     airStore,
     notificationsStore,
     trackingStore,
+    airNotifStore,
     is3DActive,
     getTargetPitch,
     (v: boolean) => adsbLabelsControl?.syncToAdsb(v),
@@ -185,21 +186,11 @@ function onStyleLoaded(m: MapLibreGlMap) {
     initialLoc,
     airStore.overheadAlertRadiusNm,
   )
-  overheadAlertsTracker = new OverheadAlertsTracker(
-    notificationsStore,
-    () => adsbControl?._geojson ?? null,
-    () => {
-      const l = userLocation.value
-      return l ? { lon: l.lon, lat: l.lat } : null
-    },
-    (hex: string) => { adsbControl?.selectByHex(hex) },
-    airStore.overheadAlertRadiusNm,
-  )
+  // Overhead-alert detection runs app-wide in useAirAlertsService (fires from
+  // any section). AirMap keeps only the visual OverheadZoneControl ring. We
+  // still register the aircraft-click handler so clicking an overhead alert
+  // selects the plane while the Air map is mounted.
   registerAircraftClickHandler((hex: string) => { adsbControl?.selectByHex(hex) })
-  overheadAlertsTracker.setEnabled({
-    civil: airStore.overlayStates.overheadAlertsCivil,
-    mil:   airStore.overlayStates.overheadAlertsMil,
-  })
   roadsControl         = new RoadsToggleControl(airStore)
   namesControl         = new NamesToggleControl(airStore)
   airportsControl      = new AirportsToggleControl(airStore)
@@ -328,20 +319,16 @@ onMounted(() => {
     )
   }, { immediate: true })
 
+  // Only the visual ring is driven here; overhead-alert detection lives in
+  // useAirAlertsService.
   watch(
     () => [airStore.overlayStates.overheadAlertsCivil, airStore.overlayStates.overheadAlertsMil] as const,
-    ([civil, mil]) => {
-      overheadZoneControl?.setVisible(civil || mil)
-      overheadAlertsTracker?.setEnabled({ civil, mil })
-    },
+    ([civil, mil]) => { overheadZoneControl?.setVisible(civil || mil) },
   )
 
   watch(
     () => airStore.overheadAlertRadiusNm,
-    (nm) => {
-      overheadZoneControl?.setRadiusNm(nm)
-      overheadAlertsTracker?.setRadiusNm(nm)
-    },
+    (nm) => { overheadZoneControl?.setRadiusNm(nm) },
   )
 
   watch(() => playbackStore.status, async (status) => {
@@ -392,12 +379,10 @@ onBeforeUnmount(() => {
   aaraControl?.onRemove()
   awacsControl?.onRemove()
   overheadZoneControl?.onRemove()
-  overheadAlertsTracker?.destroy()
   adsbControl         = null
   adsbLabelsControl   = null
   rangeRingsControl   = null
   overheadZoneControl = null
-  overheadAlertsTracker = null
   roadsControl        = null
   namesControl        = null
   airportsControl     = null
