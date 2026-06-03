@@ -1190,6 +1190,21 @@ watch(() => _sdrStore().tuneRequest, (req) => {
   currentFreqHz.value = hz
   activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
   freqInputVal.value = (hz / 1e6).toFixed(4)
+  // A freq-axis drag-pan (req.center) commits exactly ONCE on mouse release, so
+  // it needs no coalescing debounce — retune the hardware IMMEDIATELY so the
+  // panned view fills with real data without the ~600ms lag. The pan means
+  // "move the hardware centre" regardless of the auto-centre toggle. (Marker
+  // drags / typed freqs still debounce below to coalesce continuous updates.)
+  if (req.center) {
+    if (_retuneDebounce) clearTimeout(_retuneDebounce)
+    sendCmd({ cmd: 'tune', frequency_hz: hz })
+    // Persist (best-effort) without blocking the retune.
+    _retuneDebounce = setTimeout(() => {
+      sessionStorage.setItem('sdrLastFreqHz', String(hz))
+      saveSettings()
+    }, 600)
+    return
+  }
   if (_retuneDebounce) clearTimeout(_retuneDebounce)
   _retuneDebounce = setTimeout(() => {
     sessionStorage.setItem('sdrLastFreqHz', String(hz))
@@ -1198,10 +1213,8 @@ watch(() => _sdrStore().tuneRequest, (req) => {
     // (already set in the store by the waterfall click) tunes the audio while
     // the display stays put. Calling sendCmd('tune') here would both recenter
     // the hardware AND clear the offset (sendCmd zeroes it on any tune), so
-    // skip it. EXCEPTION: a freq-axis drag-pan (req.center) means "move the
-    // hardware centre" — force the retune so the panned view fills with real
-    // data regardless of the toggle.
-    if (_sdrStore().autoCenterWaterfallOnTune || req.center) {
+    // skip it.
+    if (_sdrStore().autoCenterWaterfallOnTune) {
       sendCmd({ cmd: 'tune', frequency_hz: hz })
     }
   }, 600)
