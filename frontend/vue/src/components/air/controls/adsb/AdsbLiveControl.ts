@@ -1,7 +1,8 @@
 import maplibregl from 'maplibre-gl'
-import type { AirStore, NotificationsStore, TrackingStore } from '../types'
+import type { AirStore, AirNotifStore, NotificationsStore, TrackingStore } from '../types'
+import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '@/stores/airNotif'
+import { parseAlt, isMilitary } from './adsbParse'
 import type { TrackingField } from '@/stores/tracking'
-import { AIRPORTS_DATA, type AirportProperties } from '../airports/AirportsControl'
 import {
     createRadarBlip,
     createBracket,
@@ -102,7 +103,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     private _seenOnGround: Record<string, boolean> = {}
     private _parkedTimers: Record<string, ReturnType<typeof setTimeout>> = {}
 
-    _notifEnabled:     Set<string>                  = new Set()
+    // Set-like adapter backed by the persisted airNotif store (source of truth
+    // for the per-aircraft notification opt-in). Initialised in the constructor.
+    _notifEnabled!:    NotifEnabledAdapter
+    private _airNotifStore!: AirNotifStore
     private _tagClickHandled   = false
     private _trackingRestored  = false
     _trackingNotifIds: Record<string, string> | null = null
@@ -130,6 +134,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         airStore: AirStore,
         notificationsStore: NotificationsStore,
         trackingStore: TrackingStore,
+        airNotifStore: AirNotifStore,
         is3DActive: () => boolean,
         getTargetPitch: () => number,
         onAdsbLabelsSync: ((visible: boolean) => void) | null = null,
@@ -137,6 +142,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._airStore           = airStore
         this._notificationsStore = notificationsStore
         this._trackingStore      = trackingStore
+        this._airNotifStore      = airNotifStore
+        this._notifEnabled       = createNotifEnabledAdapter(airNotifStore)
         this._is3DActive         = is3DActive
         this._getTargetPitch     = getTargetPitch
         this._onAdsbLabelsSync   = onAdsbLabelsSync
@@ -334,9 +341,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     // ---- Altitude helper ----
 
     private _parseAlt(alt_baro: number | string | null): number {
-        if (alt_baro === 'ground' || alt_baro === '' || alt_baro == null) return 0
-        const alt = typeof alt_baro === 'number' ? alt_baro : parseFloat(alt_baro as string) || 0
-        return alt < 0 ? 0 : alt
+        return parseAlt(alt_baro)
     }
 
     private _formatAltBadge(alt: number): string {
@@ -1729,44 +1734,17 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 }
 
                 if (hex) {
+                    // Landing/departure *notifications* are handled by the app-level
+                    // AircraftEventDetector (see useAirAlertsService) so they fire from
+                    // any section. The control keeps a minimal landing check purely to
+                    // drive its own post-landing render cleanup (the parked-aircraft
+                    // removal timer below) for opted-in aircraft.
                     const prevAlt    = this._prevAlt[hex]
-                    const gs         = a.gs ?? 0
                     const justLanded = (prevAlt !== undefined && prevAlt > 0 && alt === 0)
                     if (justLanded) this._landedAt[hex] = Date.now()
-                    if (alt === 0 && this._notifEnabled.has(hex)) this._seenOnGround[hex] = true
-                    const justDeparted = (
-                        alt > 0 && gs > 0 &&
-                        !this._hasDeparted[hex] &&
-                        this._seenOnGround[hex] &&
-                        this._notifEnabled.has(hex)
-                    )
                     this._prevAlt[hex] = alt
-                    if (alt === 0) this._hasDeparted[hex] = false
-
-                    const _nearestAirport = (aLat: number, aLon: number): AirportProperties | null => {
-                        let best: AirportProperties | null = null, bestDist = Infinity
-                        for (const f of AIRPORTS_DATA.features) {
-                            const [fLon, fLat] = f.geometry.coordinates
-                            const dLat = (aLat - fLat) * Math.PI / 180
-                            const dLon = (aLon - fLon) * Math.PI / 180
-                            const a2 = Math.sin(dLat/2)**2 + Math.cos(fLat * Math.PI/180) * Math.cos(aLat * Math.PI/180) * Math.sin(dLon/2)**2
-                            const dist = 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1-a2))
-                            if (dist < bestDist) { bestDist = dist; best = f.properties }
-                        }
-                        return best
-                    }
-
-                    if (justDeparted) {
-                        this._hasDeparted[hex] = true
-                        const callsign = (a.flight || '').trim() || (a.r || '').trim()
-                        const apt      = _nearestAirport(a.lat!, a.lon!)
-                        this._notificationsStore.add({ type: 'departure', title: callsign, ...(apt ? { detail: `${apt.name} (${apt.icao})` } : {}) })
-                    }
 
                     if (justLanded && this._notifEnabled.has(hex)) {
-                        const callsign = (a.flight || '').trim() || (a.r || '').trim()
-                        const apt      = _nearestAirport(a.lat!, a.lon!)
-                        this._notificationsStore.add({ type: 'flight', title: callsign, ...(apt ? { detail: `${apt.name} (${apt.icao})` } : {}) })
                         if (this._parkedTimers[hex]) clearTimeout(this._parkedTimers[hex])
                         this._parkedTimers[hex] = setTimeout(() => {
                             delete this._parkedTimers[hex]; delete this._prevAlt[hex]
@@ -1786,11 +1764,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 }
 
                 const gs     = a.gs ?? 0
-                const hexInt = parseInt(hex, 16)
-                const military = a.t !== 'LAAD'
-                    && (a.military === true
-                    || (hexInt >= 0x43C000 && hexInt <= 0x43FFFF)
-                    || (hexInt >= 0xAE0000 && hexInt <= 0xAFFFFF))
+                const military = isMilitary(hex, a.military, a.t)
 
                 const coords = [a.lon!, a.lat!] as [number, number]
 

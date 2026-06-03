@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
+import { isPassNotifEnabled } from './controls/satellite/passNotifStore'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
@@ -243,7 +244,7 @@ const notifNoradId    = ref<string | null>(
 )
 
 function readPassNotifState(noradId: string): boolean {
-  try { return localStorage.getItem(`passNotifEnabled_${noradId}`) === '1' } catch { return false }
+  return isPassNotifEnabled(noradId)
 }
 
 // Exact observer-relative look-angles for the live satellite, supplied by the
