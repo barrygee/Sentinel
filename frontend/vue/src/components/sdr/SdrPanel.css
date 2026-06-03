@@ -832,6 +832,16 @@
     text-transform: uppercase;
 }
 
+/* Scan button (the only labelled play button in the scanner row): lighter
+   weight and a shorter button than the shared 38px play-button square. */
+.sdr-scan-btns-row--right .sdr-search-adhoc-play {
+    height: 30px;
+}
+
+.sdr-scan-btns-row--right .sdr-search-adhoc-play-label {
+    font-weight: 400;
+}
+
 .sdr-search-adhoc-play:hover:not(:disabled) {
     background: rgba(200, 255, 0, 0.18);
 }

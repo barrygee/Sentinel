@@ -749,7 +749,7 @@ async def radio_status(radio_id: int, db: AsyncSession = Depends(get_db)):
     radio = _get_radio_by_id(radios, radio_id)
     if not radio:
         raise HTTPException(404, "Radio not found")
-    status = sdr_svc.connection_status(radio["host"], radio["port"])
+    status = await sdr_svc.reachability_status(radio["host"], radio["port"])
     return JSONResponse({"radio_id": radio_id, "radio_name": radio["name"], **status})
 
 

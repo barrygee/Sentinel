@@ -380,9 +380,9 @@
               :title="scanActive ? 'Stop scan' : 'Start scan'"
               @click="onScanPrimaryClick"
             >
+              <span class="sdr-search-adhoc-play-label">{{ scanActive ? 'Stop' : 'Scan' }}</span>
               <svg v-if="scanActive" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
               <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
-              <span class="sdr-search-adhoc-play-label">{{ scanActive ? 'Stop' : 'Scan' }}</span>
             </button>
           </div>
           </div>
@@ -1921,16 +1921,22 @@ function populateRadios(radios: SdrRadio[]) {
   radiosLoading.value = false
   try { sessionStorage.setItem(RADIOS_CACHE_KEY2, JSON.stringify(radios)) } catch (_) {}
   const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '', 10)
-  if (savedId) {
-    const r = radios.find(r => r.id === savedId && r.enabled)
-    if (r) {
-      selectedRadioId.value = r.id
-      deviceDropdownLabel.value = r.name
-      controlsDisabled.value = false
-      void openControlSocket(r.id)
-    } else {
-      deviceDropdownLabel.value = '— select radio —'
-    }
+  const savedRadio = savedId ? radios.find(r => r.id === savedId && r.enabled) : undefined
+  // Pick a radio to make the panel usable without a manual dropdown selection:
+  //   1. the remembered radio (if still present + enabled), else
+  //   2. the sole enabled radio — when there's exactly one, there's nothing to
+  //      disambiguate, so auto-select it (fixes "freshly added SDR leaves the
+  //      whole radio panel locked / no way to type a frequency").
+  // With two or more enabled radios and nothing remembered we can't guess which
+  // one the user wants, so fall back to the "select radio" placeholder.
+  const enabledRadios = radios.filter(r => r.enabled)
+  const autoRadio = savedRadio ?? (enabledRadios.length === 1 ? enabledRadios[0] : undefined)
+  if (autoRadio) {
+    selectedRadioId.value = autoRadio.id
+    deviceDropdownLabel.value = autoRadio.name
+    sessionStorage.setItem('sdrLastRadioId', String(autoRadio.id))
+    controlsDisabled.value = false
+    void openControlSocket(autoRadio.id)
   } else {
     deviceDropdownLabel.value = '— select radio —'
   }
