@@ -13,6 +13,7 @@ import { useAppStore } from './stores/app'
 import type { ConnectivityMode } from './stores/app'
 import { useAirStore } from './stores/air'
 import type { AdsbTagFields } from './stores/air'
+import { useSettingsStore } from './stores/settings'
 
 // Register PMTiles protocol once at app startup — never inside a component.
 const protocol = new pmtiles.Protocol()
@@ -40,6 +41,7 @@ const ALL_DOMAINS = ['air', 'space', 'sea', 'land', 'sdr'] as const
 // Domains that are ON by default when the DB has no explicit enabled key for them.
 const DOMAINS_ON_BY_DEFAULT = new Set(['air', 'space', 'sdr'])
 const airStore = useAirStore()
+const settingsStore = useSettingsStore()
 
 const DEFAULT_LABEL_DATA_POINTS = {
   civil: { callsign: true, altitude: false, speed: false, heading: false, aircraftType: false, registration: false, squawk: false, category: false },
@@ -51,6 +53,11 @@ const DEFAULT_LABEL_DATA_POINTS = {
     const res = await fetch('/api/settings')
     if (res.ok) {
       const data = await res.json() as Record<string, Record<string, unknown>>
+      // Seed the settings store from this same payload so reads like
+      // sdr.bandPlan (waterfall band strip) and app.connectivityProbeUrl
+      // resolve to the persisted values instead of their fallbacks. Nothing
+      // else calls loadAll(), so without this the store stays empty.
+      settingsStore.allSettings = data
       const enabled = ALL_DOMAINS.filter(d => {
         const val = data[d]?.enabled
         if (typeof val === 'boolean') return val
