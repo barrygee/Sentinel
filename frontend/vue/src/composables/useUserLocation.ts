@@ -135,7 +135,7 @@ function _startWatch(highAccuracy: boolean): void {
       // App-level hint can explain the empty map.
       if (!sharedLocation.value) locationUnavailable.value = true
     },
-    { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 30000, maximumAge: 5000 },
+    { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 30000, maximumAge: 60000 },
   )
 }
 

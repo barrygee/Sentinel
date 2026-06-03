@@ -840,6 +840,8 @@
 
 .sdr-scan-btns-row--right .sdr-search-adhoc-play-label {
     font-weight: 400;
+    font-size: 9px;
+    letter-spacing: 0.14em;
 }
 
 .sdr-search-adhoc-play:hover:not(:disabled) {
