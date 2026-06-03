@@ -1819,13 +1819,19 @@ function applyStatus(msg: {
   connected: boolean; center_hz: number; mode: string;
   gain_db: number; gain_auto: boolean; sample_rate: number
 }) {
-  if (!msg.connected) return
+  // Seed the frequency field from the device's center_hz even while the radio is
+  // still reporting connected=false (the initial status sent right after a page
+  // refresh). Without this the input stays blank until the user manually tunes,
+  // which looked like "the selected SDR can't be tuned again after a refresh".
   const hadUserFreq = currentFreqHz.value && currentFreqHz.value !== msg.center_hz
-  if (!hadUserFreq) {
+  if (!hadUserFreq && msg.center_hz > 0) {
     currentFreqHz.value = msg.center_hz
     freqInputVal.value = (msg.center_hz / 1e6).toFixed(4)
     activeFreqDisplay.value = (msg.center_hz / 1e6).toFixed(3) + ' MHz'
   }
+  // The remaining fields reflect live hardware state — only trust them once the
+  // device is actually connected and streaming.
+  if (!msg.connected) return
   currentMode.value = msg.mode
   gainDb.value = msg.gain_db
   gainAuto.value = msg.gain_auto
