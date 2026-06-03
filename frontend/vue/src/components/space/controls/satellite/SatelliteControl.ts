@@ -51,6 +51,11 @@ export class SatelliteControl extends SentinelControlBase {
 
     private _trackingNotifId:   string | null = null
     private _onShowTracksChanged: ((e: Event) => void) | null = null
+    // Set when the backend reports an empty TLE database (503 no_tle_data). While
+    // paused the 5s poll loop is stopped — polling an empty DB only spams the
+    // console with 503s. Cleared and polling resumed on a `tle:refreshStatus`.
+    private _pausedNoTle = false
+    private _onTleRefresh: (() => void) | null = null
     private _passNotifier!:     SatellitePassNotifier
     _previewNoradId:            string | null = null
     private _previewAbort:      AbortController | null = null
@@ -106,6 +111,16 @@ export class SatelliteControl extends SentinelControlBase {
             })
         }
         window.addEventListener('sentinel:showTracksChanged', this._onShowTracksChanged)
+
+        // When TLE data is loaded/changed in Settings, resume polling if we were
+        // paused on an empty database.
+        this._onTleRefresh = () => {
+            if (!this._pausedNoTle) return
+            this._pausedNoTle = false
+            this._fetch()
+            this._startPolling()
+        }
+        document.addEventListener('tle:refreshStatus', this._onTleRefresh)
     }
 
     protected handleClick(): void { this.toggleIss() }
@@ -125,6 +140,10 @@ export class SatelliteControl extends SentinelControlBase {
         if (this._onShowTracksChanged) {
             window.removeEventListener('sentinel:showTracksChanged', this._onShowTracksChanged)
             this._onShowTracksChanged = null
+        }
+        if (this._onTleRefresh) {
+            document.removeEventListener('tle:refreshStatus', this._onTleRefresh)
+            this._onTleRefresh = null
         }
         super.onRemove()
     }
@@ -216,7 +235,28 @@ export class SatelliteControl extends SentinelControlBase {
         this.map.on('mouseleave', 'iss-icon',    () => { this.map.getCanvas().style.cursor = ''; this._scheduleHideHoverTag() })
         this.map.on('mouseleave', 'iss-bracket', () => { this.map.getCanvas().style.cursor = ''; this._scheduleHideHoverTag() })
 
-        // Start polling after layers are ready
+        // Start polling after layers are ready. Pre-check the TLE database so we
+        // don't fire a doomed ISS request (which would 503) when it's empty.
+        void this._startTrackingIfTleReady()
+    }
+
+    /** GET the TLE status once; only begin polling if the database has data.
+     *  Otherwise show the no-TLE overlay and wait for `tle:refreshStatus`. */
+    private async _startTrackingIfTleReady(): Promise<void> {
+        let total = 1  // assume data on failure — fall back to the old fetch-then-pause path
+        try {
+            const resp = await fetch('/api/space/tle/status')
+            if (resp.ok) {
+                const status = await resp.json() as { total?: number }
+                total = status.total ?? 0
+            }
+        } catch {}
+
+        if (total === 0) {
+            this._showNoTleOverlay()
+            this._pausedNoTle = true
+            return
+        }
         this._fetch()
         this._startPolling()
     }
@@ -244,12 +284,19 @@ export class SatelliteControl extends SentinelControlBase {
             const resp = await fetch(url)
             if (!resp.ok) {
                 const body = await resp.json().catch(() => ({})) as { no_tle_data?: boolean }
-                if (body.no_tle_data) this._showNoTleOverlay()
+                if (body.no_tle_data) {
+                    this._showNoTleOverlay()
+                    // Nothing to poll while the DB is empty — stop the loop. The
+                    // tle:refreshStatus listener resumes it once data is loaded.
+                    this._pausedNoTle = true
+                    this._stopPolling()
+                }
                 return
             }
             const data = await resp.json() as IssApiResponse
             if (data.error) return
             this._hideNoTleOverlay()
+            this._pausedNoTle = false
 
             const { position, ground_track, footprint } = data
             this._lastPosition = position
