@@ -895,6 +895,69 @@ useDocumentEvent('mouseup', () => {
   store.requestTune(finalCenterHz, true)
 })
 
+// ── Mouse-wheel pan ──────────────────────────────────────────────────────────
+// Scrolling the wheel over the spectrum/waterfall pans the frequency window the
+// same way the gutter drag does — reusing the live-pan machinery (livePanOffsetHz
+// → applyZoom + applyMarker). Wheel events arrive in bursts with no "release",
+// so the running offset accumulates per tick (instant local feedback) and the
+// hardware retune is committed once, debounced ~250ms after the last tick.
+// Scroll UP → pan toward HIGHER frequency (window centre increases); scroll DOWN
+// → lower. (One notch ≈ a small fraction of the visible window.)
+let wheelPanCenterHz = 0      // running committed-centre target during a burst
+let wheelPanActive = false
+let wheelCommitTimer: ReturnType<typeof setTimeout> | null = null
+let wheelRaf = 0
+
+function wheelFlush() {
+  wheelRaf = 0
+  if (!wheelPanActive) return
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return
+  // Offset relative to the live span centre (same basis as the drag).
+  livePanOffsetHz.value = wheelPanCenterHz - (lo + hi) / 2
+  applyZoom()
+  applyMarker()
+}
+
+function onPlotWheel(e: WheelEvent) {
+  if (!store.playing) return
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return
+  // Take over the wheel from sigplot's own (window-level) handler.
+  e.preventDefault()
+  e.stopImmediatePropagation()
+  // Per-notch step ~12% of the visible (zoom-aware) window. A standard mouse
+  // notch is deltaY≈±100 (deltaMode 0, pixels) or ±1..3 (deltaMode 1, lines);
+  // normalise both to "notches" so a precision/trackpad scroll moves
+  // proportionally and a chunky mouse wheel moves one notch per click.
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
+  const winW = winHi - winLo
+  const notches = e.deltaMode === 1 ? e.deltaY / 3 : e.deltaY / 100
+  const stepHz = winW * 0.12 * notches
+  // Scroll up (deltaY < 0) → higher freq → centre increases, so SUBTRACT stepHz.
+  if (!wheelPanActive) {
+    wheelPanActive = true
+    wheelPanCenterHz = (lo + hi) / 2 + livePanOffsetHz.value
+  }
+  wheelPanCenterHz -= stepHz
+  freqDragging.value = true   // reuse the grabbing-cursor affordance
+  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelFlush)
+  // Debounced single hardware commit after the burst settles.
+  if (wheelCommitTimer) clearTimeout(wheelCommitTimer)
+  wheelCommitTimer = setTimeout(() => {
+    wheelCommitTimer = null
+    wheelPanActive = false
+    freqDragging.value = false
+    if (wheelRaf) { cancelAnimationFrame(wheelRaf); wheelRaf = 0 }
+    // Keep livePanOffsetHz held until the new centred frame lands (reset in the
+    // lastSpectrum watch), so no snap-back. center=true forces the retune.
+    store.setTuningOffsetHz(0)
+    store.requestTune(Math.round(wheelPanCenterHz), true)
+  }, 250)
+}
+
 // Read the spectrum plot's real data-area margins (Mx.l / Mx.r / Mx.b) and
 // drive the HTML band overlay's inset from them so it lines up with the data
 // area on all three edges (top is intentionally open — the strip grows up
@@ -1893,6 +1956,7 @@ onBeforeUnmount(() => {
       :style="spectrumStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     >
       <div v-if="store.showBandPlan && visibleBands.length > 0" class="sdr-wf-band-overlay" :style="bandOverlayStyle">
@@ -1945,6 +2009,7 @@ onBeforeUnmount(() => {
       class="sdr-wf-raster"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     ></div>
   </div>
