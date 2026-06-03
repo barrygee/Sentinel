@@ -1503,11 +1503,26 @@ async function openControlSocket(radioId: number) {
   sessionStorage.setItem('sdrLastRadioId', String(radioId))
 
   try {
-    await fetch('/api/sdr/connect', {
+    const res = await fetch('/api/sdr/connect', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ radio_id: radioId }),
     })
+    // 404 means this radio no longer exists in the DB (e.g. deleted while a
+    // stale sdrLastRadioId lingered in sessionStorage). Retrying would 404
+    // every reconnect — clear the id and stop the loop instead.
+    if (res.status === 404) {
+      sessionStorage.removeItem('sdrLastRadioId')
+      closeControlSocket()
+      selectedRadioId.value = null
+      deviceDropdownLabel.value = '— select radio —'
+      controlsDisabled.value = true
+      return
+    }
   } catch (_) {}
+
+  // Bail if the radio selection changed (or the socket was torn down) while the
+  // connect request was in flight — otherwise we'd open a socket for a stale id.
+  if (_ctrlRadioId !== radioId) return
 
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
   const ws    = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}`)
