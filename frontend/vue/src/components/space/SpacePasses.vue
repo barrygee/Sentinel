@@ -151,7 +151,7 @@
               <button
                 v-if="pass.downlink_hz"
                 class="spp-acc-autotune-btn"
-                :class="{ 'spp-acc-autotune-btn--active': autoTuneNoradId === pass.norad_id }"
+                :class="{ 'spp-acc-autotune-btn--active': isArmed(pass.norad_id) }"
                 :aria-label="autoTuneLabel()"
                 :data-tooltip="autoTuneLabel()"
                 @click.stop="toggleAutoTune(pass)"
@@ -164,6 +164,14 @@
                   <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 </svg>
               </button>
+            </div>
+            <div v-if="isArmed(pass.norad_id) && conflictText(pass.norad_id)" class="spp-acc-autotune-warn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+                <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor"/>
+              </svg>
+              <span>{{ conflictText(pass.norad_id) }}</span>
             </div>
           </div>
           <div class="spp-acc-section spp-acc-section--polar">
@@ -239,6 +247,7 @@ import {
   isInProgress,
   aosText,
   accPassIsNow,
+  findAutoTuneConflicts,
   type SatPass,
   type AccPass,
   type SkyPoint,
@@ -316,28 +325,62 @@ const followedNoradId = ref<string | null>(props.satelliteControl?.followedNorad
 const notifNoradId    = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
-const autoTuneNoradId = ref<string | null>(null)
+// Multiple sats can be auto-tune armed at once (the store/background service
+// support it). The active highlight and conflict warnings read straight from the
+// store; `armedTick` is a reactivity nudge bumped whenever arming changes (toggle
+// or the satellite-auto-tune-changed event) so computeds re-evaluate.
+const armedTick = ref(0)
 const notificationsStore = useNotificationsStore()
 
 function readPassNotifState(noradId: string): boolean {
   return isPassNotifEnabled(noradId)
 }
 
+function isArmed(noradId: string): boolean {
+  void armedTick.value
+  return isAutoTuneEnabled(noradId)
+}
+
 function autoTuneLabel(): string {
   return 'Auto-tune SDR'
+}
+
+// Other armed sats whose upcoming passes overlap this sat's — keyed by norad_id.
+// Lock-in means one of the overlapping passes won't be tuned; we warn inline.
+const autoTuneConflicts = computed<Record<string, ReturnType<typeof findAutoTuneConflicts>>>(() => {
+  void armedTick.value
+  const out: Record<string, ReturnType<typeof findAutoTuneConflicts>> = {}
+  const seen = new Set<string>()
+  for (const p of passes.value) {
+    if (seen.has(p.norad_id)) continue
+    seen.add(p.norad_id)
+    if (!isAutoTuneEnabled(p.norad_id)) continue
+    const conflicts = findAutoTuneConflicts(p.norad_id, passes.value, isAutoTuneEnabled)
+    if (conflicts.length > 0) out[p.norad_id] = conflicts
+  }
+  return out
+})
+
+function conflictText(noradId: string): string {
+  const conflicts = autoTuneConflicts.value[noradId]
+  if (!conflicts || conflicts.length === 0) return ''
+  const c = conflicts[0]
+  const t = new Date(c.aosMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const extra = conflicts.length > 1 ? ` +${conflicts.length - 1} more` : ''
+  return `Overlaps ${c.name} @ ${t} — earlier pass keeps the radio${extra}`
 }
 
 function toggleAutoTune(pass: SatPass): void {
   if (!pass.downlink_hz) return
   const noradId = pass.norad_id
   const name = pass.name || noradId
-  const enabled = autoTuneNoradId.value !== noradId
+  const enabled = !isAutoTuneEnabled(noradId)
   setAutoTuneEnabled(noradId, enabled, {
     name,
     downlinkHz: pass.downlink_hz ?? undefined,
     downlinkMode: pass.downlink_mode ?? undefined,
   })
-  autoTuneNoradId.value = enabled ? noradId : null
+  armedTick.value++
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
@@ -484,7 +527,6 @@ function onCardClick(pass: SatPass): void {
     liveAzEl.value = null
     props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
     notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
-    autoTuneNoradId.value = isAutoTuneEnabled(pass.norad_id) ? pass.norad_id : null
     void fetchAccordionPasses(pass.norad_id)
   }
 }
@@ -591,9 +633,9 @@ useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
   const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
   notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
 })
-useDocumentEvent('satellite-auto-tune-changed', (e: Event) => {
-  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
-  autoTuneNoradId.value = enabled ? noradId : (autoTuneNoradId.value === noradId ? null : autoTuneNoradId.value)
+useDocumentEvent('satellite-auto-tune-changed', () => {
+  // Re-read armed state from the store (another component may have toggled).
+  armedTick.value++
 })
 
 defineExpose({ fetchPasses, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })

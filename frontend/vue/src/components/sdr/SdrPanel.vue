@@ -2357,6 +2357,20 @@ function _coerceSdrMode(mode: string | undefined): SdrMode {
   return 'NFM'
 }
 
+// True while an auto-tune is actively holding the radio: we have a snapshot AND
+// the radio is still parked on exactly what we tuned it to. If the user (or a
+// scan/search) has since moved off that freq, the lock is no longer held and a
+// fresh pass may take over. Shared by onExternalTune (lock-in priority) and
+// onExternalTuneRestore (only restore if still on the tuned freq).
+function _isAutoTuneLockHeld(): boolean {
+  const snap = _autoTunePrevState
+  if (!snap) return false
+  if (scanActive.value || searchActive.value) return false
+  return playing.value
+    && Math.round(currentFreqHz.value) === snap.tunedHz
+    && (currentMode.value as SdrMode) === snap.tunedMode
+}
+
 // External tune request (currently from satellite auto-tune at AOS). Tunes the
 // SDR to the given freq+mode, starting the default radio hands-free if nothing
 // is playing. Because the control socket opens asynchronously, the actual tune
@@ -2370,6 +2384,20 @@ function onExternalTune(e: Event): void {
   const satName = detail.satName || 'SATELLITE'
   const noradId = detail.noradId
   const token = detail.token
+
+  // Lock-in priority: if an earlier overlapping pass already holds the radio,
+  // skip this later one rather than grabbing the tuner mid-copy. Leave the
+  // snapshot/radio untouched so the holder's LOS restore still matches its
+  // token. A scan/search or a manual retune releases the lock (see
+  // _isAutoTuneLockHeld), letting the next pass take over normally.
+  if (_isAutoTuneLockHeld() && _autoTunePrevState!.token !== token) {
+    _notificationsStore().add({
+      type: 'autotune', title: `${satName} PASS SKIPPED`,
+      detail: 'Radio busy with an earlier pass — not retuned',
+      noradId,
+    })
+    return
+  }
 
   // Snapshot the pre-AOS state so the LOS restore can put it back. Captured
   // before any mutation below. A scan/search counts as "not the prior idle
@@ -2485,7 +2513,9 @@ function onExternalTuneRestore(e: Event): void {
   const noradId = detail?.noradId
 
   // Bail if the user has taken manual control (retuned, scanned, searched, or
-  // stopped) since the auto-tune — respect their state over the restore.
+  // stopped) since the auto-tune — respect their state over the restore. Note
+  // _isAutoTuneLockHeld reads _autoTunePrevState, which we cleared above, so
+  // re-check against the captured snapshot directly here.
   if (scanActive.value || searchActive.value) return
   const onTunedFreq = playing.value
     && Math.round(currentFreqHz.value) === snap.tunedHz

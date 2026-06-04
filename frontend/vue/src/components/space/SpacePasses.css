@@ -596,6 +596,27 @@
     background: rgba(200, 255, 0, 0.18);
 }
 
+/* Inline lock-in conflict warning shown below the button row when an armed sat's
+   passes overlap another armed sat's (only one will actually be tuned). */
+.spp-acc-autotune-warn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 5px 8px;
+    background: rgba(255, 176, 0, 0.08);
+    border-left: 2px solid #ffb000;
+    color: #ffb000;
+    font-size: 10px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.spp-acc-autotune-warn svg {
+    flex: 0 0 auto;
+}
+
 /* Styled tooltips for the notif / auto-tune icon buttons — matches the
    sidebar tab (rail) tooltip style. Positioned above the button row. */
 .spp-acc-notif-btn[data-tooltip]::before,

@@ -153,7 +153,7 @@
                 <button
                   v-if="sat.downlink_hz"
                   class="sfr-acc-autotune-btn"
-                  :class="{ 'sfr-acc-autotune-btn--active': autoTuneNoradId === sat.norad_id }"
+                  :class="{ 'sfr-acc-autotune-btn--active': isArmed(sat.norad_id) }"
                   :aria-label="autoTuneLabel(sat)"
                   :data-tooltip="autoTuneLabel(sat)"
                   @click.stop="toggleAutoTune(sat)"
@@ -167,6 +167,14 @@
                     <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                   </svg>
                 </button>
+              </div>
+              <div v-if="isArmed(sat.norad_id) && autoTuneConflictText" class="sfr-acc-autotune-warn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+                  <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor"/>
+                </svg>
+                <span>{{ autoTuneConflictText }}</span>
               </div>
             </div>
             <div class="sfr-acc-section sfr-acc-section--polar">
@@ -226,7 +234,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
+import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
@@ -332,9 +340,21 @@ const followedNoradId  = ref<string | null>(props.satelliteControl?.followedNora
 const notifNoradId     = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
-// Like notifNoradId, tracks auto-tune state for the single expanded accordion.
-const autoTuneNoradId  = ref<string | null>(null)
+// Auto-tune armed state is read straight from the store (multiple sats can be
+// armed). `armedTick` nudges reactivity when arming changes.
+const armedTick        = ref(0)
 const notificationsStore = useNotificationsStore()
+
+// Passes of OTHER armed sats, fetched lazily so we can detect lock-in conflicts
+// for the expanded sat (SpaceFilter only loads one sat's passes at a time). Only
+// the fields the overlap test needs, tagged with the owning sat.
+interface ArmedPass { norad_id: string; name: string; aos_unix_ms: number; los_unix_ms: number }
+const armedPasses      = ref<ArmedPass[]>([])
+
+function isArmed(noradId: string): boolean {
+  void armedTick.value
+  return isAutoTuneEnabled(noradId)
+}
 
 const now = ref(Date.now())
 
@@ -372,17 +392,67 @@ function autoTuneLabel(_sat: SatEntry): string {
   return 'Auto-tune SDR'
 }
 
+// Lock-in conflict for the expanded accordion: which OTHER armed sat has a pass
+// overlapping this sat's loaded passes. SpaceFilter passes lack norad_id and only
+// the expanded sat is loaded, so we test raw time-overlap of `accordionPasses`
+// against the lazily-fetched `armedPasses` (passes of other armed sats).
+const autoTuneConflict = computed<{ name: string; aosMs: number } | null>(() => {
+  void armedTick.value
+  const exp = expandedNoradId.value
+  if (!exp || !isAutoTuneEnabled(exp)) return null
+  const now = Date.now()
+  const mine = accordionPasses.value.filter(p => p.los_unix_ms > now)
+  let best: { name: string; aosMs: number } | null = null
+  for (const o of armedPasses.value) {
+    if (o.norad_id === exp || o.los_unix_ms <= now || !isAutoTuneEnabled(o.norad_id)) continue
+    const overlaps = mine.some(m => m.aos_unix_ms < o.los_unix_ms && o.aos_unix_ms < m.los_unix_ms)
+    if (!overlaps) continue
+    if (!best || o.aos_unix_ms < best.aosMs) best = { name: o.name || o.norad_id, aosMs: o.aos_unix_ms }
+  }
+  return best
+})
+
+const autoTuneConflictText = computed<string>(() => {
+  const c = autoTuneConflict.value
+  if (!c) return ''
+  const t = new Date(c.aosMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return `Overlaps ${c.name} @ ${t} — earlier pass keeps the radio`
+})
+
+// Fetch upcoming passes for every armed sat except `excludeNoradId` (the one whose
+// own passes are already in accordionPasses), so the conflict check has data.
+async function refreshArmedPasses(excludeNoradId: string): Promise<void> {
+  const loc = props.getUserLocation()
+  if (!loc) { armedPasses.value = []; return }
+  const [lon, lat] = loc
+  const armed = Object.keys(getAllPassNotifs()).filter(
+    id => id !== excludeNoradId && isAutoTuneEnabled(id))
+  if (armed.length === 0) { armedPasses.value = []; return }
+  try {
+    const results = await Promise.all(armed.map(async id => {
+      const url = `/api/space/satellite/${encodeURIComponent(id)}/passes?lat=${lat}&lon=${lon}&hours=24&min_el=0`
+      const resp = await fetch(url)
+      if (!resp.ok) return []
+      const data = await resp.json() as { passes: Array<{ aos_unix_ms: number; los_unix_ms: number }> }
+      const name = getAllPassNotifs()[id]?.name || id
+      return (data.passes || []).map(p => ({ norad_id: id, name, aos_unix_ms: p.aos_unix_ms, los_unix_ms: p.los_unix_ms }))
+    }))
+    armedPasses.value = results.flat()
+  } catch { armedPasses.value = [] }
+}
+
 function toggleAutoTune(sat: SatEntry): void {
   if (!sat.downlink_hz) return
   const noradId = sat.norad_id
   const name = sat.name || noradId
-  const enabled = autoTuneNoradId.value !== noradId
+  const enabled = !isAutoTuneEnabled(noradId)
   setAutoTuneEnabled(noradId, enabled, {
     name,
     downlinkHz: sat.downlink_hz ?? undefined,
     downlinkMode: sat.downlink_mode ?? undefined,
   })
-  autoTuneNoradId.value = enabled ? noradId : null
+  armedTick.value++
+  void refreshArmedPasses(noradId)
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
@@ -527,8 +597,9 @@ function onItemClick(sat: SatEntry): void {
     liveAzEl.value = null
     props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
     notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
-    autoTuneNoradId.value = isAutoTuneEnabled(sat.norad_id) ? sat.norad_id : null
     void fetchAccordionPasses(sat.norad_id)
+    if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
+    else armedPasses.value = []
   }
 }
 
@@ -691,9 +762,13 @@ useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
   const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
   notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
 })
-useDocumentEvent('satellite-auto-tune-changed', (e: Event) => {
-  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
-  autoTuneNoradId.value = enabled ? noradId : (autoTuneNoradId.value === noradId ? null : autoTuneNoradId.value)
+useDocumentEvent('satellite-auto-tune-changed', () => {
+  // Re-read armed state from the store (another component may have toggled) and
+  // refresh the conflict data for whatever sat is expanded.
+  armedTick.value++
+  const exp = expandedNoradId.value
+  if (exp && isAutoTuneEnabled(exp)) void refreshArmedPasses(exp)
+  else armedPasses.value = []
 })
 
 defineExpose({ focus: () => inputRef.value?.focus() })
@@ -1051,6 +1126,27 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 
 .sfr-acc-autotune-btn.sfr-acc-autotune-btn--active:hover {
     background: rgba(200, 255, 0, 0.18);
+}
+
+/* Inline lock-in conflict warning: another armed sat overlaps this one, so only
+   one of the two passes will actually be tuned. */
+.sfr-acc-autotune-warn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 5px 8px;
+    background: rgba(255, 176, 0, 0.08);
+    border-left: 2px solid #ffb000;
+    color: #ffb000;
+    font-size: 10px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.sfr-acc-autotune-warn svg {
+    flex: 0 0 auto;
 }
 
 /* Styled tooltips for the notif / auto-tune icon buttons — matches the
