@@ -352,16 +352,31 @@ function categoryForQuery(q: string): string | null {
   return null
 }
 
+// Lower score = better match, so the most relevant satellites sort first
+// within their category group (e.g. "ISS (ZARYA)" floats above the other
+// space stations when the query is "iss").
+function matchScore(s: SatEntry, lq: string, matchedCat: string | null): number {
+  const name = s.name?.toLowerCase() ?? ''
+  if (name === lq) return 0
+  if (name.startsWith(lq)) return 1
+  if (name.includes(lq)) return 2
+  if (s.norad_id.includes(lq)) return 3
+  if (matchedCat !== null && s.category === matchedCat) return 4
+  return 5
+}
+
 const results = computed<SatEntry[]>(() => {
   const q = query.value.trim()
   if (!q) return satellites.value
   const matchedCat = categoryForQuery(q)
   const lq = q.toLowerCase()
-  return satellites.value.filter(s =>
-    s.name?.toLowerCase().includes(lq) ||
-    s.norad_id.includes(lq) ||
-    (matchedCat !== null && s.category === matchedCat),
-  )
+  return satellites.value
+    .filter(s =>
+      s.name?.toLowerCase().includes(lq) ||
+      s.norad_id.includes(lq) ||
+      (matchedCat !== null && s.category === matchedCat),
+    )
+    .sort((a, b) => matchScore(a, lq, matchedCat) - matchScore(b, lq, matchedCat))
 })
 
 const groupedResults = computed(() => {
