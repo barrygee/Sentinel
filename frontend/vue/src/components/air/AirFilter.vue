@@ -162,11 +162,16 @@ const focusedKey = ref<string | null>(null)
 
 // Collapsed group headings. Sections default to expanded; a key present here is collapsed.
 const collapsed = ref<Set<string>>(new Set())
+// Sections collapsed by the user but force-opened by the search auto-expand. They
+// re-collapse once their matches go away, unless the user manually toggles them.
+const autoOpened = ref<Set<string>>(new Set())
 function toggleSection(key: string): void {
   const next = new Set(collapsed.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
   collapsed.value = next
+  // A manual toggle takes ownership: drop any auto-open bookkeeping for this key.
+  autoOpened.value.delete(key)
 }
 function sectionKey(r: { kind: string }): string {
   return r.kind === 'plane' ? 'aircraft' : r.kind === 'airport' ? 'airports' : 'mil'
@@ -238,6 +243,33 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
 const planes   = computed(() => results.value.filter(r => r.kind === 'plane')   as PlaneResult[])
 const airports = computed(() => results.value.filter(r => r.kind === 'airport') as AirportResult[])
 const milBases = computed(() => results.value.filter(r => r.kind === 'mil')     as MilResult[])
+
+// Keep auto-expanded sections in sync with the search. A collapsed section that
+// gains matches is force-opened; once its matches disappear (or the query is
+// cleared) it re-collapses, so it returns to the state the user left it in.
+const sectionHasMatches: Record<string, () => boolean> = {
+  aircraft: () => planes.value.length > 0,
+  airports: () => airports.value.length > 0,
+  mil:      () => milBases.value.length > 0,
+}
+watch([query, planes, airports, milBases], () => {
+  const searching = query.value.trim().length > 0
+  const collapsedNext = new Set(collapsed.value)
+  let changed = false
+  for (const key of Object.keys(sectionHasMatches)) {
+    const shouldOpen = searching && sectionHasMatches[key]()
+    if (shouldOpen && collapsedNext.has(key)) {
+      collapsedNext.delete(key)
+      autoOpened.value.add(key)
+      changed = true
+    } else if (!shouldOpen && autoOpened.value.has(key)) {
+      collapsedNext.add(key)
+      autoOpened.value.delete(key)
+      changed = true
+    }
+  }
+  if (changed) collapsed.value = collapsedNext
+})
 
 // ---- SVG icons ----
 const PLANE_ICON   = `<svg width="11" height="11" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="28,18 35,36 28,33 21,36" fill="currentColor"/></svg>`

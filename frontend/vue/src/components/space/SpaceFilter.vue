@@ -312,11 +312,16 @@ const focusedNoradId  = ref<string | null>(null)
 
 // Collapsed category groups. Groups default to expanded; a category present here is collapsed.
 const collapsedCats = ref<Set<string>>(new Set())
+// Categories collapsed by the user but force-opened by the search auto-expand. They
+// re-collapse once their matches go away, unless the user manually toggles them.
+const autoOpenedCats = ref<Set<string>>(new Set())
 function toggleSection(cat: string): void {
   const next = new Set(collapsedCats.value)
   if (next.has(cat)) next.delete(cat)
   else next.add(cat)
   collapsedCats.value = next
+  // A manual toggle takes ownership: drop any auto-open bookkeeping for this category.
+  autoOpenedCats.value.delete(cat)
 }
 
 const accordionLoading = ref(false)
@@ -458,6 +463,31 @@ const groupedResults = computed(() => {
     })
   })
   return out
+})
+
+// Keep auto-expanded categories in sync with the search. A collapsed category that
+// gains matches is force-opened; once its matches disappear (or the query is
+// cleared) it re-collapses, so it returns to the state the user left it in.
+watch([query, groupedResults], () => {
+  const searching = query.value.trim().length > 0
+  const matched = new Set(searching ? groupedResults.value.map(g => g.cat) : [])
+  const next = new Set(collapsedCats.value)
+  let changed = false
+  for (const cat of matched) {
+    if (next.has(cat)) {
+      next.delete(cat)
+      autoOpenedCats.value.add(cat)
+      changed = true
+    }
+  }
+  for (const cat of [...autoOpenedCats.value]) {
+    if (!matched.has(cat)) {
+      next.add(cat)
+      autoOpenedCats.value.delete(cat)
+      changed = true
+    }
+  }
+  if (changed) collapsedCats.value = next
 })
 
 function satSecondary(sat: SatEntry): string {
