@@ -310,7 +310,7 @@
     position: absolute;
     right: 0;
     top: 0;
-    bottom: 0;
+    height: 44px;
     padding: 0 24px;
     display: flex;
     align-items: center;
@@ -319,6 +319,10 @@
     transition: transform 0.2s ease, color 0.15s;
     transform: rotate(-90deg);
     pointer-events: none;
+}
+
+.spp-pass-card:first-child .spp-pass-chevron {
+    top: 5px;
 }
 
 .spp-pass-card.spp-expanded .spp-pass-chevron {
