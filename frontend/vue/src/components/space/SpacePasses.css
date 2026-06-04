@@ -500,6 +500,7 @@
 }
 
 .spp-acc-notif-btn {
+    position: relative;
     flex: 0 0 auto;
     width: 44px;
     background: #0d1015;
@@ -528,6 +529,7 @@
 }
 
 .spp-acc-autotune-btn {
+    position: relative;
     flex: 0 0 auto;
     width: 44px;
     background: #0d1015;
@@ -553,6 +555,38 @@
 
 .spp-acc-autotune-btn.spp-acc-autotune-btn--active:hover {
     background: rgba(200, 255, 0, 0.18);
+}
+
+/* Styled tooltips for the notif / auto-tune icon buttons — matches the
+   sidebar tab (rail) tooltip style. Positioned above the button row. */
+.spp-acc-notif-btn[data-tooltip]::before,
+.spp-acc-autotune-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10002;
+}
+
+.spp-acc-notif-btn[data-tooltip]:hover::before,
+.spp-acc-autotune-btn[data-tooltip]:hover::before {
+    opacity: 1;
 }
 
 .spp-acc-section--polar {

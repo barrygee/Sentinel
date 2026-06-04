@@ -4,7 +4,7 @@ import { playNotificationSound } from '../composables/useNotificationSound'
 import { useAppStore } from './app'
 
 export type NotificationType =
-  | 'flight' | 'departure' | 'track' | 'untrack' | 'tracking'
+  | 'flight' | 'departure' | 'track' | 'untrack' | 'tracking' | 'autotune'
   | 'notif-off' | 'system' | 'message' | 'emergency' | 'squawk-clr' | 'overhead'
 
 export interface NotificationAction {
@@ -21,6 +21,9 @@ export interface NotificationItem {
   action?: NotificationAction
   clickAction?: () => void
   hex?: string
+  // For autotune notifications: the satellite this card controls. Closing the
+  // card cancels auto-tune for this NORAD id.
+  noradId?: string
 }
 
 export interface AddOptions {
@@ -30,6 +33,7 @@ export interface AddOptions {
   action?: NotificationAction
   clickAction?: () => void
   hex?: string
+  noradId?: string
 }
 
 export interface UpdateOptions {
@@ -73,7 +77,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   function getLabelForType(type: string): string {
     const map: Record<string, string> = {
       flight: 'LANDED', departure: 'DEPARTED', track: 'TRACKING',
-      untrack: 'UNTRACKED', tracking: 'NOTIFICATIONS ON', 'notif-off': 'NOTIFICATIONS OFF',
+      untrack: 'UNTRACKED', tracking: 'NOTIFICATIONS ON', autotune: 'AUTOTUNE', 'notif-off': 'NOTIFICATIONS OFF',
       system: 'SYSTEM', message: 'MESSAGE', emergency: '⚠ EMERGENCY', 'squawk-clr': 'SQUAWK CLEARED',
       overhead: 'OVERHEAD NOTIFICATION',
     }
@@ -90,6 +94,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       action: opts.action,
       clickAction: opts.clickAction,
       hex: opts.hex,
+      noradId: opts.noradId,
     }
     items.value.unshift(item)
     _save(items.value)
@@ -166,7 +171,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       if (!Array.isArray(rows) || !rows.length) return
       const localById = new Map(items.value.map(i => [i.id, i]))
       const fromBackend: NotificationItem[] = rows
-        .filter(r => r.type !== 'tracking' && r.type !== 'track')
+        .filter(r => r.type !== 'tracking' && r.type !== 'track' && r.type !== 'autotune')
         .map(r => {
           const prev = localById.get(r.msg_id)
           return {

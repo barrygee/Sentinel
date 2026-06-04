@@ -113,12 +113,13 @@ export class SatelliteAutoTuneScheduler {
         // stopped) and tune to the downlink. SdrPanel adds the "AUTO-TUNED"
         // alert once it actually applies the tune (or a failure notice).
         document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', {
-            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name },
+            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId },
         }))
         // Lightweight trace in the alerts tab regardless of SDR state.
         this._ctx.notificationsStore.add({
-            type: 'tracking', title: `${name} PASS`,
+            type: 'autotune', title: `${name} PASS`,
             detail: `Auto-tuning SDR → ${mhz} MHz ${dl.mode}`,
+            noradId: this._ctx.noradId,
         })
     }
 }

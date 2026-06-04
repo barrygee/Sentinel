@@ -135,7 +135,7 @@
                   class="sfr-acc-notif-btn"
                   :class="{ 'sfr-acc-notif-btn--active': notifNoradId === sat.norad_id }"
                   :aria-label="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
-                  :title="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                  :data-tooltip="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
                   @click.stop="togglePassNotif(sat)"
                 >
                   <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -148,7 +148,7 @@
                   class="sfr-acc-autotune-btn"
                   :class="{ 'sfr-acc-autotune-btn--active': autoTuneNoradId === sat.norad_id }"
                   :aria-label="autoTuneLabel(sat)"
-                  :title="autoTuneLabel(sat)"
+                  :data-tooltip="autoTuneLabel(sat)"
                   @click.stop="toggleAutoTune(sat)"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -364,15 +364,8 @@ function toggleAutoTune(sat: SatEntry): void {
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
-      type: 'tracking', title: name, detail: 'Auto-tune on pass enabled',
-      action: { label: 'DISABLE AUTO-TUNE', callback: () => {
-        setAutoTuneEnabled(noradId, false)
-        document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }))
-        notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
-      } },
+      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId,
     })
-  } else {
-    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
   }
 }
 
@@ -921,6 +914,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .sfr-acc-notif-btn {
+    position: relative;
     flex: 0 0 auto;
     width: 44px;
     background: #0d1015;
@@ -949,6 +943,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .sfr-acc-autotune-btn {
+    position: relative;
     flex: 0 0 auto;
     width: 44px;
     background: #0d1015;
@@ -974,6 +969,38 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 
 .sfr-acc-autotune-btn.sfr-acc-autotune-btn--active:hover {
     background: rgba(200, 255, 0, 0.18);
+}
+
+/* Styled tooltips for the notif / auto-tune icon buttons — matches the
+   sidebar tab (rail) tooltip style. Positioned above the button row. */
+.sfr-acc-notif-btn[data-tooltip]::before,
+.sfr-acc-autotune-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10002;
+}
+
+.sfr-acc-notif-btn[data-tooltip]:hover::before,
+.sfr-acc-autotune-btn[data-tooltip]:hover::before {
+    opacity: 1;
 }
 
 .sfr-acc-section--polar {

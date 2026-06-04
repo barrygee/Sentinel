@@ -124,7 +124,7 @@
                 class="spp-acc-notif-btn"
                 :class="{ 'spp-acc-notif-btn--active': notifNoradId === pass.norad_id }"
                 :aria-label="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
-                :title="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                :data-tooltip="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
                 @click.stop="togglePassNotif(pass)"
               >
                 <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -137,7 +137,7 @@
                 class="spp-acc-autotune-btn"
                 :class="{ 'spp-acc-autotune-btn--active': autoTuneNoradId === pass.norad_id }"
                 :aria-label="autoTuneLabel()"
-                :title="autoTuneLabel()"
+                :data-tooltip="autoTuneLabel()"
                 @click.stop="toggleAutoTune(pass)"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -283,15 +283,8 @@ function toggleAutoTune(pass: SatPass): void {
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
-      type: 'tracking', title: name, detail: 'Auto-tune on pass enabled',
-      action: { label: 'DISABLE AUTO-TUNE', callback: () => {
-        setAutoTuneEnabled(noradId, false)
-        document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }))
-        notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
-      } },
+      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId,
     })
-  } else {
-    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
   }
 }
 

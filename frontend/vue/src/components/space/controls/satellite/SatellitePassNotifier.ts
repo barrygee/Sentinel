@@ -64,7 +64,6 @@ export class SatellitePassNotifier {
         const name = getActiveSatName()
         if (this.enabled) {
             setPassNotifEnabled(noradId, false)
-            notificationsStore.add({ type: 'notif-off', title: name, detail: 'Pass notifications disabled' })
             document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
         } else {
             const loc = getUserLocation()
@@ -87,7 +86,6 @@ export class SatellitePassNotifier {
                 // Target this specific satellite (not whichever is active later).
                 action: { label: 'DISABLE NOTIFICATIONS', callback: () => {
                     setPassNotifEnabled(noradId, false)
-                    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Pass notifications disabled' })
                     document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
                 } },
             })

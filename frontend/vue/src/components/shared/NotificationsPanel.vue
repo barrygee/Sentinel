@@ -13,14 +13,20 @@
         >
           <div class="notif-header">
             <span class="notif-label">
-              <template v-if="item.action">
+              <template v-if="item.type === 'autotune'">
+                <span class="notif-label-default">{{ store.getLabelForType(item.type) }}</span>
+                <span class="notif-label-disable">DISABLE AUTOTUNE</span>
+              </template>
+              <template v-else-if="item.action">
                 <span class="notif-label-default">{{ store.getLabelForType(item.type) }}</span>
                 <span class="notif-label-disable">DISABLE NOTIFICATIONS</span>
               </template>
               <template v-else>{{ store.getLabelForType(item.type) }}</template>
             </span>
             <div style="display:flex;align-items:center;gap:8px">
-              <button v-if="item.action" class="notif-action" aria-label="Disable notifications"
+              <button v-if="item.type === 'autotune'" class="notif-dismiss" aria-label="Disable autotune"
+                data-tooltip="Disable autotune" @click.stop="cancelAutoTune(item)">✕</button>
+              <button v-else-if="item.action" class="notif-action" aria-label="Disable notifications"
                 @click.stop="item.action!.callback(); store.dismiss(item.id)">
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
@@ -28,7 +34,7 @@
                   <line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
                 </svg>
               </button>
-              <button v-else class="notif-dismiss" aria-label="Dismiss" @click.stop="store.dismiss(item.id)">✕</button>
+              <button v-else class="notif-dismiss" aria-label="Dismiss" data-tooltip="Dismiss" @click.stop="store.dismiss(item.id)">✕</button>
             </div>
           </div>
           <div class="notif-body">
@@ -43,18 +49,20 @@
   <div id="notif-footer">
     <button id="notif-clear-all-btn" v-if="store.total > 0"
       aria-label="Clear notifications" @click="store.clearAll()">CLEAR</button>
-    <div id="notif-scroll-hint" :class="{ 'notif-scroll-hint-visible': showScrollHint }">
+    <button id="notif-scroll-hint" type="button" aria-label="Scroll for more"
+      :class="{ 'notif-scroll-hint-visible': showScrollHint }" @click="scrollForMore">
       MORE
       <svg id="notif-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
         <polyline points="1,2.5 4,5.5 7,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-    </div>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useNotificationsStore, getAircraftClickHandler, type NotificationItem } from '@/stores/notifications'
+import { setAutoTuneEnabled, isAutoTuneEnabled } from '@/components/space/controls/satellite/passNotifStore'
 
 const store = useNotificationsStore()
 
@@ -64,6 +72,18 @@ function handleItemClick(item: NotificationItem): void {
     const handler = getAircraftClickHandler()
     if (handler) handler(item.hex)
   }
+}
+
+// Closing an autotune notification cancels auto-tune for that satellite, not
+// just the card. Disables the persisted flag and tells the schedulers + the
+// space UI toggles to stand down via the same event they already listen to.
+function cancelAutoTune(item: NotificationItem): void {
+  const noradId = item.noradId
+  if (noradId && isAutoTuneEnabled(noradId)) {
+    setAutoTuneEnabled(noradId, false)
+    document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }))
+  }
+  store.dismiss(item.id)
 }
 const listRef = ref<HTMLElement | null>(null)
 const showScrollHint = ref(false)
@@ -84,7 +104,15 @@ function formatTime(ts: number): string {
 function updateScrollHint() {
   const el = listRef.value
   if (!el) return
-  showScrollHint.value = el.scrollHeight > el.clientHeight + 1
+  // Hint only while there is more content below the current scroll position.
+  const remaining = el.scrollHeight - el.clientHeight - el.scrollTop
+  showScrollHint.value = remaining > 1
+}
+
+function scrollForMore(): void {
+  const el = listRef.value
+  if (!el) return
+  el.scrollBy({ top: el.clientHeight * 0.9, behavior: 'smooth' })
 }
 
 let resizeObs: ResizeObserver | null = null
@@ -92,11 +120,15 @@ let resizeObs: ResizeObserver | null = null
 onMounted(() => {
   store.syncFromBackend()
   resizeObs = new ResizeObserver(updateScrollHint)
-  if (listRef.value) resizeObs.observe(listRef.value)
+  if (listRef.value) {
+    resizeObs.observe(listRef.value)
+    listRef.value.addEventListener('scroll', updateScrollHint, { passive: true })
+  }
 })
 
 onUnmounted(() => {
   resizeObs?.disconnect()
+  listRef.value?.removeEventListener('scroll', updateScrollHint)
 })
 </script>
 
@@ -154,7 +186,7 @@ onUnmounted(() => {
     min-height: 0;
     overflow-y: auto;
     scrollbar-width: none;
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 #notif-list::-webkit-scrollbar {
@@ -164,6 +196,7 @@ onUnmounted(() => {
 #notif-scroll-hint {
     flex: 1;
     background: none;
+    border: none;
     color: rgba(255, 255, 255, 0.35);
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 10px;
@@ -175,15 +208,21 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     gap: 5px;
+    cursor: pointer;
     pointer-events: none;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, color 0.15s ease;
 }
 
 #notif-scroll-hint.notif-scroll-hint-visible {
     visibility: visible;
     opacity: 1;
+    pointer-events: all;
+}
+
+#notif-scroll-hint.notif-scroll-hint-visible:hover {
+    color: var(--color-text-muted);
 }
 
 #notif-scroll-arrow {
@@ -254,6 +293,7 @@ onUnmounted(() => {
 .notif-item[data-type="departure"]  .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="track"]      .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="tracking"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
+.notif-item[data-type="autotune"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="overhead"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
 .notif-item[data-type="notif-off"]  .notif-label { color: rgba(255, 255, 255, 0.45); }
 .notif-item[data-type="system"]     .notif-label { color: rgba(255, 255, 255, 0.45); }
@@ -262,6 +302,7 @@ onUnmounted(() => {
 .notif-item[data-type="squawk-clr"] .notif-label { color: rgba(255, 255, 255, 0.45); }
 
 .notif-dismiss {
+    position: relative;
     background: none;
     border: none;
     cursor: pointer;
@@ -347,15 +388,18 @@ onUnmounted(() => {
     color: #fff;
 }
 
-.notif-header:has(.notif-action:hover) .notif-label-default {
+.notif-header:has(.notif-action:hover) .notif-label-default,
+.notif-item[data-type="autotune"] .notif-header:has(.notif-dismiss:hover) .notif-label-default {
     display: none;
 }
 
-.notif-header:has(.notif-action:hover) .notif-label-disable {
+.notif-header:has(.notif-action:hover) .notif-label-disable,
+.notif-item[data-type="autotune"] .notif-header:has(.notif-dismiss:hover) .notif-label-disable {
     display: inline;
 }
 
-.notif-action[data-tooltip]::before {
+.notif-action[data-tooltip]::before,
+.notif-dismiss[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
     right: calc(100% + 8px);
@@ -369,7 +413,7 @@ onUnmounted(() => {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     white-space: nowrap;
-    padding: 0 10px;
+    padding: 0 14px;
     height: 28px;
     display: flex;
     align-items: center;
@@ -379,7 +423,8 @@ onUnmounted(() => {
     z-index: 10002;
 }
 
-.notif-action[data-tooltip]:hover::before {
+.notif-action[data-tooltip]:hover::before,
+.notif-dismiss[data-tooltip]:hover::before {
     opacity: 1;
 }
 

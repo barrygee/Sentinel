@@ -60,7 +60,7 @@ function _migrate(): void {
             if (!existing[norad]) {
                 // Genuine legacy bell entry — stamp bell:true explicitly so it no
                 // longer relies on the fragile "no bell key = on" inference.
-                existing[norad] = { name: norad === '25544' ? 'ISS' : norad, bell: true }
+                existing[norad] = { name: norad === '25544' ? 'ISS (ZARYA)' : norad, bell: true }
                 changed = true
             }
         }
@@ -93,7 +93,7 @@ export function getAllPassNotifs(): PassNotifMap {
 }
 
 function _defaultName(noradId: string): string {
-    return noradId === '25544' ? 'ISS' : noradId
+    return noradId === '25544' ? 'ISS (ZARYA)' : noradId
 }
 
 // Drop an entry once BOTH toggles are off, so a satellite the user has fully

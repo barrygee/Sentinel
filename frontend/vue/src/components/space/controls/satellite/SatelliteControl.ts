@@ -44,7 +44,7 @@ export class SatelliteControl extends SentinelControlBase {
     private _trackingRestored = false
     private _hoverHideTimer:  ReturnType<typeof setTimeout> | null = null
     _activeNoradId            = '25544'
-    _activeSatName            = 'ISS'
+    _activeSatName            = 'ISS (ZARYA)'
 
     private _issGeojson:       GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     private _trackGeojson:     GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -713,7 +713,7 @@ export class SatelliteControl extends SentinelControlBase {
         this._spaceStore.setOverlay('iss', this.issVisible)
         if (!this.issVisible) {
             this._stopPolling(); this._stopFollowing(); this._hideHoverTagNow(); this._hideLabel()
-            this._activeNoradId = '25544'; this._activeSatName = 'ISS'
+            this._activeNoradId = '25544'; this._activeSatName = 'ISS (ZARYA)'
         } else {
             this._fetch(); this._startPolling()
         }

@@ -1065,7 +1065,7 @@ function _notificationsStore() {
 }
 
 // Pending external (auto-tune) request, applied once the control socket opens.
-let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string } | null = null
+let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?: string } | null = null
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
@@ -2352,11 +2352,12 @@ function _coerceSdrMode(mode: string | undefined): SdrMode {
 // is queued in _pendingExternalTune and applied once the socket is open (see
 // openControlSocket's 'open' handler).
 function onExternalTune(e: Event): void {
-  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string }>).detail
+  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string; noradId?: string }>).detail
   if (!detail || !detail.hz) return
   const hz = Math.round(detail.hz)
   const mode = _coerceSdrMode(detail.mode)
   const satName = detail.satName || 'SATELLITE'
+  const noradId = detail.noradId
 
   if (selectedRadioId.value && playing.value) {
     // Already running — just retune (+ keep the audio demod in sync).
@@ -2371,7 +2372,7 @@ function onExternalTune(e: Event): void {
     sessionStorage.setItem('sdrLastMode', mode)
     sendCmd({ cmd: 'tune', frequency_hz: hz })
     sendCmd({ cmd: 'mode', mode })
-    _notifyAutoTuned(satName, hz, mode)
+    _notifyAutoTuned(satName, hz, mode, noradId)
     return
   }
 
@@ -2392,7 +2393,7 @@ function onExternalTune(e: Event): void {
   }
 
   // Queue the tune to fire once the control socket is open.
-  _pendingExternalTune = { hz, mode, satName }
+  _pendingExternalTune = { hz, mode, satName, noradId }
   const sameRadio = selectedRadioId.value === radio.id
   const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
   const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
@@ -2425,13 +2426,14 @@ function _applyPendingExternalTune(): void {
   saveSettings()
   sendCmd({ cmd: 'tune', frequency_hz: p.hz })
   sendCmd({ cmd: 'mode', mode: p.mode })
-  _notifyAutoTuned(p.satName, p.hz, p.mode)
+  _notifyAutoTuned(p.satName, p.hz, p.mode, p.noradId)
 }
 
-function _notifyAutoTuned(satName: string, hz: number, mode: string): void {
+function _notifyAutoTuned(satName: string, hz: number, mode: string, noradId?: string): void {
   _notificationsStore().add({
-    type: 'tracking', title: `${satName} AUTO-TUNED`,
+    type: 'autotune', title: `${satName} AUTO-TUNED`,
     detail: `Downlink ${(hz / 1e6).toFixed(3)} MHz ${mode} @ AOS`,
+    noradId,
   })
 }
 
