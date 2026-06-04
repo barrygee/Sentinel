@@ -111,7 +111,7 @@
                 <template v-if="sat.radio_status">
                   <div class="sfr-acc-cell sfr-acc-cell--status">
                     <div class="sfr-acc-cell-label">STATUS</div>
-                    <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-status-active': sat.radio_status === 'active', 'sfr-acc-status-silent': sat.radio_status === 'silent' || sat.radio_status === 'inactive' }">{{ formatStatus(sat.radio_status) }}</div>
+                    <div class="sfr-acc-cell-value">{{ formatStatus(sat.radio_status) }}</div>
                   </div>
                 </template>
               </div>
@@ -141,7 +141,23 @@
                   <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
                     <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
-                    <line v-if="notifNoradId !== sat.norad_id" x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+                  </svg>
+                </button>
+                <button
+                  v-if="sat.downlink_hz"
+                  class="sfr-acc-autotune-btn"
+                  :class="{ 'sfr-acc-autotune-btn--active': autoTuneNoradId === sat.norad_id }"
+                  :aria-label="autoTuneLabel(sat)"
+                  :title="autoTuneLabel(sat)"
+                  @click.stop="toggleAutoTune(sat)"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <!-- radio receiver: matches the SDR tab glyph -->
+                    <path d="M5 7h14v12H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+                    <line x1="6" y1="7" x2="17" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <circle cx="9" cy="13" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                    <line x1="15.5" y1="11" x2="17" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                   </svg>
                 </button>
               </div>
@@ -202,7 +218,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled } from './controls/satellite/passNotifStore'
+import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
+import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
@@ -293,6 +310,9 @@ const followedNoradId  = ref<string | null>(props.satelliteControl?.followedNora
 const notifNoradId     = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
+// Like notifNoradId, tracks auto-tune state for the single expanded accordion.
+const autoTuneNoradId  = ref<string | null>(null)
+const notificationsStore = useNotificationsStore()
 
 const now = ref(Date.now())
 
@@ -324,6 +344,36 @@ const polarLive = computed<SkyPoint | null>(() => {
 
 function readPassNotifState(noradId: string): boolean {
   return isPassNotifEnabled(noradId)
+}
+
+function autoTuneLabel(_sat: SatEntry): string {
+  return 'Auto-tune SDR'
+}
+
+function toggleAutoTune(sat: SatEntry): void {
+  if (!sat.downlink_hz) return
+  const noradId = sat.norad_id
+  const name = sat.name || noradId
+  const enabled = autoTuneNoradId.value !== noradId
+  setAutoTuneEnabled(noradId, enabled, {
+    name,
+    downlinkHz: sat.downlink_hz ?? undefined,
+    downlinkMode: sat.downlink_mode ?? undefined,
+  })
+  autoTuneNoradId.value = enabled ? noradId : null
+  document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
+  if (enabled) {
+    notificationsStore.add({
+      type: 'tracking', title: name, detail: 'Auto-tune on pass enabled',
+      action: { label: 'DISABLE AUTO-TUNE', callback: () => {
+        setAutoTuneEnabled(noradId, false)
+        document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }))
+        notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
+      } },
+    })
+  } else {
+    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
+  }
 }
 
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
@@ -430,6 +480,7 @@ function onItemClick(sat: SatEntry): void {
     liveAzEl.value = null
     props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
     notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
+    autoTuneNoradId.value = isAutoTuneEnabled(sat.norad_id) ? sat.norad_id : null
     void fetchAccordionPasses(sat.norad_id)
   }
 }
@@ -590,6 +641,10 @@ useDocumentEvent('satellite-follow-changed', (e: Event) => {
 useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
   const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
   notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
+})
+useDocumentEvent('satellite-auto-tune-changed', (e: Event) => {
+  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  autoTuneNoradId.value = enabled ? noradId : (autoTuneNoradId.value === noradId ? null : autoTuneNoradId.value)
 })
 
 defineExpose({ focus: () => inputRef.value?.focus() })
@@ -893,6 +948,34 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     background: rgba(200, 255, 0, 0.18);
 }
 
+.sfr-acc-autotune-btn {
+    flex: 0 0 auto;
+    width: 44px;
+    background: #0d1015;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s, background 0.12s;
+}
+
+.sfr-acc-autotune-btn:hover {
+    color: var(--color-accent);
+    background: #05070a;
+}
+
+.sfr-acc-autotune-btn.sfr-acc-autotune-btn--active {
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.12);
+}
+
+.sfr-acc-autotune-btn.sfr-acc-autotune-btn--active:hover {
+    background: rgba(200, 255, 0, 0.18);
+}
+
 .sfr-acc-section--polar {
     padding-top: 14px;
     padding-bottom: 6px;
@@ -1081,12 +1164,6 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     color: rgba(255, 255, 255, 0.45);
     font-weight: 400;
     margin-left: 2px;
-}
-.sfr-acc-status-active {
-    color: var(--color-accent);
-}
-.sfr-acc-status-silent {
-    color: rgba(255, 130, 130, 0.85);
 }
 .sfr-acc-radio-line {
     margin-top: 14px;

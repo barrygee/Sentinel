@@ -100,7 +100,7 @@
               <template v-if="pass.radio_status">
                 <div class="spp-acc-cell">
                   <div class="spp-acc-cell-label">STATUS</div>
-                  <div class="spp-acc-cell-value" :class="{ 'spp-acc-status-active': pass.radio_status === 'active', 'spp-acc-status-silent': pass.radio_status === 'silent' || pass.radio_status === 'inactive' }">{{ formatStatus(pass.radio_status) }}</div>
+                  <div class="spp-acc-cell-value">{{ formatStatus(pass.radio_status) }}</div>
                 </div>
               </template>
             </div>
@@ -130,7 +130,22 @@
                 <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
                   <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
-                  <line v-if="notifNoradId !== pass.norad_id" x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+                </svg>
+              </button>
+              <button
+                v-if="pass.downlink_hz"
+                class="spp-acc-autotune-btn"
+                :class="{ 'spp-acc-autotune-btn--active': autoTuneNoradId === pass.norad_id }"
+                :aria-label="autoTuneLabel()"
+                :title="autoTuneLabel()"
+                @click.stop="toggleAutoTune(pass)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M5 7h14v12H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+                  <line x1="6" y1="7" x2="17" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="9" cy="13" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                  <line x1="15.5" y1="11" x2="17" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 </svg>
               </button>
             </div>
@@ -188,7 +203,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled } from './controls/satellite/passNotifStore'
+import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
+import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
@@ -242,9 +258,41 @@ const followedNoradId = ref<string | null>(props.satelliteControl?.followedNorad
 const notifNoradId    = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
+const autoTuneNoradId = ref<string | null>(null)
+const notificationsStore = useNotificationsStore()
 
 function readPassNotifState(noradId: string): boolean {
   return isPassNotifEnabled(noradId)
+}
+
+function autoTuneLabel(): string {
+  return 'Auto-tune SDR'
+}
+
+function toggleAutoTune(pass: SatPass): void {
+  if (!pass.downlink_hz) return
+  const noradId = pass.norad_id
+  const name = pass.name || noradId
+  const enabled = autoTuneNoradId.value !== noradId
+  setAutoTuneEnabled(noradId, enabled, {
+    name,
+    downlinkHz: pass.downlink_hz ?? undefined,
+    downlinkMode: pass.downlink_mode ?? undefined,
+  })
+  autoTuneNoradId.value = enabled ? noradId : null
+  document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
+  if (enabled) {
+    notificationsStore.add({
+      type: 'tracking', title: name, detail: 'Auto-tune on pass enabled',
+      action: { label: 'DISABLE AUTO-TUNE', callback: () => {
+        setAutoTuneEnabled(noradId, false)
+        document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }))
+        notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
+      } },
+    })
+  } else {
+    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Auto-tune disabled' })
+  }
 }
 
 // Exact observer-relative look-angles for the live satellite, supplied by the
@@ -378,6 +426,7 @@ function onCardClick(pass: SatPass): void {
     liveAzEl.value = null
     props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
     notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
+    autoTuneNoradId.value = isAutoTuneEnabled(pass.norad_id) ? pass.norad_id : null
     void fetchAccordionPasses(pass.norad_id)
   }
 }
@@ -483,6 +532,10 @@ useDocumentEvent('satellite-follow-changed', (e: Event) => {
 useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
   const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
   notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
+})
+useDocumentEvent('satellite-auto-tune-changed', (e: Event) => {
+  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  autoTuneNoradId.value = enabled ? noradId : (autoTuneNoradId.value === noradId ? null : autoTuneNoradId.value)
 })
 
 defineExpose({ fetchPasses, selectedCategories, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })

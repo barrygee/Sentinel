@@ -1024,6 +1024,7 @@ import SdrClipsSection from './SdrClipsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode } from '@/stores/sdr'
+import { useNotificationsStore } from '@/stores/notifications'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {
   listSearchRanges as apiListSearchRanges,
@@ -1056,6 +1057,15 @@ function _sdrStore() {
   if (!_spectrumStore) _spectrumStore = useSdrStore()
   return _spectrumStore
 }
+
+let _notifStore: ReturnType<typeof useNotificationsStore> | null = null
+function _notificationsStore() {
+  if (!_notifStore) _notifStore = useNotificationsStore()
+  return _notifStore
+}
+
+// Pending external (auto-tune) request, applied once the control socket opens.
+let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string } | null = null
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
@@ -1562,6 +1572,8 @@ async function openControlSocket(radioId: number) {
     // Push the restored hardware sample rate so the backend's span matches
     // what the user last picked, instead of whatever the device default is.
     sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
+    // Apply a queued auto-tune now that the socket can accept commands.
+    if (_pendingExternalTune) _applyPendingExternalTune()
   })
 
   ws.addEventListener('message', (ev: MessageEvent) => {
@@ -2320,6 +2332,116 @@ function tuneToHzMode(hz: number, mode: string) {
   sendCmd({ cmd: 'mode', mode })
 }
 
+// Map a satellite's downlink mode string (e.g. "FM", "USB", "FSK9k6") to a
+// demodulator the SDR supports. Satellite FM voice is narrowband, so "FM" maps
+// to NFM (not broadcast WFM); anything unrecognised falls back to NFM.
+function _coerceSdrMode(mode: string | undefined): SdrMode {
+  const m = (mode || '').toUpperCase()
+  if (m === 'WFM') return 'WFM'
+  if (m === 'NFM' || m === 'FM') return 'NFM'
+  if (m === 'AM') return 'AM'
+  if (m === 'USB') return 'USB'
+  if (m === 'LSB') return 'LSB'
+  if (m === 'CW') return 'CW'
+  return 'NFM'
+}
+
+// External tune request (currently from satellite auto-tune at AOS). Tunes the
+// SDR to the given freq+mode, starting the default radio hands-free if nothing
+// is playing. Because the control socket opens asynchronously, the actual tune
+// is queued in _pendingExternalTune and applied once the socket is open (see
+// openControlSocket's 'open' handler).
+function onExternalTune(e: Event): void {
+  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string }>).detail
+  if (!detail || !detail.hz) return
+  const hz = Math.round(detail.hz)
+  const mode = _coerceSdrMode(detail.mode)
+  const satName = detail.satName || 'SATELLITE'
+
+  if (selectedRadioId.value && playing.value) {
+    // Already running — just retune (+ keep the audio demod in sync).
+    currentFreqHz.value = hz
+    currentMode.value   = mode
+    freqInputVal.value  = (hz / 1e6).toFixed(4)
+    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
+    sdrAudio.setMode(mode)
+    const bw = defaultBwHz(mode)
+    sdrAudio.setBandwidthHz(bw); bwHz.value = bw
+    sessionStorage.setItem('sdrLastFreqHz', String(hz))
+    sessionStorage.setItem('sdrLastMode', mode)
+    sendCmd({ cmd: 'tune', frequency_hz: hz })
+    sendCmd({ cmd: 'mode', mode })
+    _notifyAutoTuned(satName, hz, mode)
+    return
+  }
+
+  // Not playing: pick a radio. Prefer the currently-selected one, else the
+  // last-used (sdrLastRadioId), else the first enabled known radio.
+  let radio: SdrRadio | null = null
+  if (selectedRadioId.value) {
+    radio = knownRadios.value.find(r => r.id === selectedRadioId.value) ?? null
+  }
+  if (!radio) {
+    const lastId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '', 10)
+    if (!isNaN(lastId)) radio = knownRadios.value.find(r => r.id === lastId && r.enabled) ?? null
+  }
+  if (!radio) radio = knownRadios.value.find(r => r.enabled) ?? null
+  if (!radio) {
+    _notifyAutoTuneFailed(satName)
+    return
+  }
+
+  // Queue the tune to fire once the control socket is open.
+  _pendingExternalTune = { hz, mode, satName }
+  const sameRadio = selectedRadioId.value === radio.id
+  const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
+  const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
+  if (sameRadio && sockOpen) {
+    _applyPendingExternalTune()
+  } else if (sameRadio && sockConnecting) {
+    // Socket already opening for this radio — its 'open' handler will drain the
+    // pending tune. Re-selecting would early-return and never fire 'open'.
+  } else {
+    selectRadio(radio)
+  }
+}
+
+function _applyPendingExternalTune(): void {
+  const p = _pendingExternalTune
+  if (!p) return
+  _pendingExternalTune = null
+  if (!selectedRadioId.value) return
+  currentFreqHz.value = p.hz
+  currentMode.value   = p.mode
+  freqInputVal.value  = (p.hz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (p.hz / 1e6).toFixed(3) + ' MHz'
+  sdrAudio.initAudio(selectedRadioId.value)
+  sdrAudio.setMode(p.mode)
+  const bw = defaultBwHz(p.mode)
+  sdrAudio.setBandwidthHz(bw); bwHz.value = bw
+  setPlayingState(true)
+  sessionStorage.setItem('sdrLastFreqHz', String(p.hz))
+  sessionStorage.setItem('sdrLastMode', p.mode)
+  saveSettings()
+  sendCmd({ cmd: 'tune', frequency_hz: p.hz })
+  sendCmd({ cmd: 'mode', mode: p.mode })
+  _notifyAutoTuned(p.satName, p.hz, p.mode)
+}
+
+function _notifyAutoTuned(satName: string, hz: number, mode: string): void {
+  _notificationsStore().add({
+    type: 'tracking', title: `${satName} AUTO-TUNED`,
+    detail: `Downlink ${(hz / 1e6).toFixed(3)} MHz ${mode} @ AOS`,
+  })
+}
+
+function _notifyAutoTuneFailed(satName: string): void {
+  _notificationsStore().add({
+    type: 'system', title: `${satName} AUTO-TUNE`,
+    detail: 'No SDR radio configured — open the RADIO panel to add one',
+  })
+}
+
 function startSearch(source?: 'adhoc' | 'saved') {
   // Resolve which source to run if not explicitly chosen: ad-hoc takes
   // priority when its inputs are valid, otherwise the selected saved range.
@@ -3039,5 +3161,6 @@ onUnmounted(() => {
 
 useDocumentEvent('click', onDocumentClick)
 useDocumentEvent('sdr:radios-changed', onRadiosChanged)
+useDocumentEvent('sentinel:sdr-tune-external', onExternalTune)
 </script>
 
