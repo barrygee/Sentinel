@@ -840,11 +840,13 @@
 
 /* Scan button (the only labelled play button in the scanner row): lighter
    weight and a shorter button than the shared 38px play-button square. */
-.sdr-scan-btns-row--right .sdr-search-adhoc-play {
+.sdr-scan-btns-row--right .sdr-search-adhoc-play,
+.sdr-scan-btns-row--left .sdr-search-adhoc-play {
     height: 30px;
 }
 
-.sdr-scan-btns-row--right .sdr-search-adhoc-play-label {
+.sdr-scan-btns-row--right .sdr-search-adhoc-play-label,
+.sdr-scan-btns-row--left .sdr-search-adhoc-play-label {
     font-weight: 400;
     font-size: 9px;
     letter-spacing: 0.14em;
@@ -1058,11 +1060,15 @@
 .sdr-scan-btns-row {
     display: flex;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 20px;
 }
 
 .sdr-scan-btns-row--right {
     justify-content: flex-end;
+}
+
+.sdr-scan-btns-row--left {
+    justify-content: flex-start;
 }
 
 .sdr-panel-btn.sdr-scan-btn {

@@ -371,7 +371,7 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
-          <div class="sdr-scan-btns-row sdr-scan-btns-row--right">
+          <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
             <button
               type="button"
               class="sdr-search-adhoc-play"
