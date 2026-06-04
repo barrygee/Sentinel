@@ -576,7 +576,7 @@
                 class="sdr-freq-row-play"
                 aria-label="Play frequency"
                 title="Play"
-                @click.stop="tuneToFreq(f)"
+                @click.stop="playFreq(f)"
               >
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
               </button>
@@ -2203,11 +2203,36 @@ function toggleScanLock() {
   }
 }
 
+// Lightweight retune used by the scan engine: the stream is already running,
+// so this only moves the receiver — it must NOT (re)init audio or toggle the
+// playing state on every scan step.
 function tuneToFreq(f: SdrStoredFrequency) {
   currentFreqHz.value = f.frequency_hz
   currentMode.value   = f.mode
   freqInputVal.value  = (f.frequency_hz / 1e6).toFixed(4)
   activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
+  sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
+  sendCmd({ cmd: 'mode', mode: f.mode })
+}
+
+// Play button on a saved frequency row: tune AND start the audio stream.
+function playFreq(f: SdrStoredFrequency) {
+  if (!selectedRadioId.value) return
+  if (scanActive.value) stopScan()
+  if (searchActive.value) stopSearch()
+  currentFreqHz.value = f.frequency_hz
+  currentMode.value   = f.mode
+  freqInputVal.value  = (f.frequency_hz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
+  sdrAudio.initAudio(selectedRadioId.value)
+  sdrAudio.setMode(f.mode as SdrMode)
+  const bw = defaultBwHz(f.mode)
+  sdrAudio.setBandwidthHz(bw)
+  bwHz.value = bw
+  setPlayingState(true)
+  sessionStorage.setItem('sdrLastFreqHz', String(f.frequency_hz))
+  sessionStorage.setItem('sdrLastMode', f.mode)
+  saveSettings()
   sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
   sendCmd({ cmd: 'mode', mode: f.mode })
 }
