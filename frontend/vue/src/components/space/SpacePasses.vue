@@ -421,9 +421,9 @@ async function fetchPasses(): Promise<void> {
   statusText.value = 'COMPUTING PASSES…'
   message.value = ''
   try {
-    // No `categories` param — the backend then includes every valid category,
-    // so the list spans all satellite categories and types. The chips above the
-    // list narrow it down client-side.
+    // No `categories` param — the backend includes every valid category, so the
+    // list spans all satellite types (space stations included). The chips above
+    // the list, built from the categories actually present, filter per type.
     const url = `/api/space/passes?lat=${lat}&lon=${lon}&hours=${hours.value}&min_el=${minEl.value}&limit=200`
     const resp = await fetch(url, { signal: abort.signal })
     if (abort.signal.aborted) return
