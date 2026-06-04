@@ -7,6 +7,12 @@ import { createSatelliteIcon, createSatBracket, buildFootprintFeatures } from '.
 import { SatellitePassNotifier } from './SatellitePassNotifier'
 import { updatePassNotifName } from './passNotifStore'
 
+// Persists the satellite the user is following so the follow survives a section
+// change (the Space map unmounts on navigation, destroying the control). On
+// remount the fresh control restores the follow from this key — mirrors AIR's
+// `adsbTracking`. Stores the active norad+name; cleared when the user untracks.
+const FOLLOW_LS_KEY = 'sentinel_space_follow'
+
 type SpaceStore        = ReturnType<typeof useSpaceStore>
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
 type TrackingStore     = ReturnType<typeof useTrackingStore>
@@ -42,6 +48,10 @@ export class SatelliteControl extends SentinelControlBase {
     private _labelMarker:     maplibregl.Marker | null = null
     _followEnabled            = false
     private _trackingRestored = false
+    // Set in onInit from FOLLOW_LS_KEY when a fresh control mounts with a
+    // previously-followed satellite; consumed once the first position arrives
+    // to resume following (see _fetch). Survives section changes.
+    private _pendingFollowRestore = false
     private _hoverHideTimer:  ReturnType<typeof setTimeout> | null = null
     _activeNoradId            = '25544'
     _activeSatName            = 'ISS (ZARYA)'
@@ -99,6 +109,19 @@ export class SatelliteControl extends SentinelControlBase {
     get buttonTitle(): string { return 'Toggle ISS tracking' }
 
     protected onInit(): void {
+        // Resume a follow that was active before a section change unmounted the
+        // map. Seed the active satellite now so the first poll fetches the right
+        // one; _fetch resumes following once it has a position.
+        const persistedFollow = this._readFollowState()
+        if (persistedFollow) {
+            this._activeNoradId = persistedFollow.noradId
+            this._activeSatName = persistedFollow.name
+            this._pendingFollowRestore = true
+            this.issVisible = true
+            this.setButtonActive(true)
+            this._spaceStore.setOverlay('iss', true)
+        }
+
         this.setButtonActive(this.issVisible)
         if (this.map.isStyleLoaded()) this.initLayers()
         else this.map.once('style.load', () => this.initLayers())
@@ -330,6 +353,13 @@ export class SatelliteControl extends SentinelControlBase {
                 this._passNotifier.onActivated()
             }
 
+            // Resume a follow carried over from before a section change. Now that
+            // we have a live position, re-enter the follow UI + tracking panel.
+            if (this._pendingFollowRestore && !this._previewNoradId && this._lastPosition) {
+                this._pendingFollowRestore = false
+                this._startFollowing()
+            }
+
             if (!this._previewNoradId) {
                 if (this.issVisible && !this._hoverTagMarker && !this._followEnabled) {
                     this._showLabel(position.lon, position.lat)
@@ -523,6 +553,7 @@ export class SatelliteControl extends SentinelControlBase {
         this.map.easeTo({ center: coords, duration: 600 })
         this._showStatusBar(pos)
         if (this._trackingNotifId) { this._notificationsStore.dismiss(this._trackingNotifId); this._trackingNotifId = null }
+        this._saveFollowState()
         document.dispatchEvent(new CustomEvent('satellite-follow-changed', { detail: { noradId: this._activeNoradId, following: true } }))
     }
 
@@ -537,7 +568,28 @@ export class SatelliteControl extends SentinelControlBase {
         if (this._trackingNotifId) { this._notificationsStore.dismiss(this._trackingNotifId); this._trackingNotifId = null }
         this._hideStatusBar()
         this.map.easeTo({ center: [12, 20], zoom: 2, duration: 600 })
+        this._saveFollowState()
         document.dispatchEvent(new CustomEvent('satellite-follow-changed', { detail: { noradId: this._activeNoradId, following: false } }))
+    }
+
+    // ---- Follow persistence (survives section changes) ----
+    private _saveFollowState(): void {
+        try {
+            if (this._followEnabled) {
+                localStorage.setItem(FOLLOW_LS_KEY, JSON.stringify({ noradId: this._activeNoradId, name: this._activeSatName }))
+            } else {
+                localStorage.removeItem(FOLLOW_LS_KEY)
+            }
+        } catch {}
+    }
+
+    private _readFollowState(): { noradId: string; name: string } | null {
+        try {
+            const raw = localStorage.getItem(FOLLOW_LS_KEY)
+            if (!raw) return null
+            const parsed = JSON.parse(raw) as { noradId?: string; name?: string }
+            return parsed.noradId ? { noradId: parsed.noradId, name: parsed.name || parsed.noradId } : null
+        } catch { return null }
     }
 
     // ---- Status bar ----
@@ -668,6 +720,8 @@ export class SatelliteControl extends SentinelControlBase {
     switchSatellite(noradId: string, name: string, follow = false): void {
         if (this._previewAbort) { this._previewAbort.abort(); this._previewAbort = null }
         this._previewNoradId = null
+        // An explicit switch supersedes any pending restore-on-remount follow.
+        this._pendingFollowRestore = false
         if (this._followEnabled) this._stopFollowing()
         this._hideHoverTagNow(); this._hideLabel()
         if (follow) this._followEnabled = true
