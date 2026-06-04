@@ -122,7 +122,7 @@
               <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
               <button
                 class="spp-acc-notif-btn"
-                :class="{ 'spp-acc-notif-btn--active': notifNoradId === pass.norad_id }"
+                :class="{ 'spp-acc-notif-btn--active': notifNoradId === pass.norad_id, 'spp-acc-notif-btn--last': !pass.downlink_hz }"
                 :aria-label="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
                 :data-tooltip="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
                 @click.stop="togglePassNotif(pass)"
@@ -285,6 +285,13 @@ function toggleAutoTune(pass: SatPass): void {
     notificationsStore.add({
       type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId,
     })
+  } else {
+    // Remove the persistent "Auto-tune on pass enabled" card so the alerts list
+    // stays in sync (the live pass/tune trace alerts share the noradId but have
+    // a different detail, so match on it to leave those untouched).
+    notificationsStore.items
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Auto-tune on pass enabled')
+      .forEach(i => notificationsStore.dismiss(i.id))
   }
 }
 

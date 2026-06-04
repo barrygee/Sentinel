@@ -388,6 +388,13 @@ function toggleAutoTune(sat: SatEntry): void {
     notificationsStore.add({
       type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId,
     })
+  } else {
+    // Remove the persistent "Auto-tune on pass enabled" card so the alerts list
+    // stays in sync (the live pass/tune trace alerts share the noradId but have
+    // a different detail, so match on it to leave those untouched).
+    notificationsStore.items
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Auto-tune on pass enabled')
+      .forEach(i => notificationsStore.dismiss(i.id))
   }
 }
 

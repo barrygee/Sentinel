@@ -567,6 +567,9 @@
     left: 50%;
     transform: translateX(-50%);
     background: #000;
+    /* override below: right-anchor so a wide tooltip never overflows the
+       panel's right edge (the notif btn is rightmost when the auto-tune
+       btn is hidden) */
     color: var(--color-text-muted);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
@@ -587,6 +590,19 @@
 .spp-acc-notif-btn[data-tooltip]:hover::before,
 .spp-acc-autotune-btn[data-tooltip]:hover::before {
     opacity: 1;
+}
+
+/* The rightmost icon button's tooltip is wider than the button, so a centered
+   tooltip overflows the row's right edge and is clipped by #spp-list
+   (overflow-y:auto also clips horizontally). Right-anchor whichever button is
+   last so the tooltip grows leftward into available space and stays in-bounds.
+   Applies to the notif button when auto-tune is hidden, and to the auto-tune
+   button when it is shown. */
+.spp-acc-notif-btn--last[data-tooltip]::before,
+.spp-acc-autotune-btn[data-tooltip]:last-child::before {
+    left: auto;
+    right: 0;
+    transform: none;
 }
 
 .spp-acc-section--polar {
