@@ -1,5 +1,21 @@
 <template>
-  <div id="spp-status-bar" :class="{ 'spp-loading': loading }">{{ statusText }}</div>
+  <div v-if="statusText" id="spp-status-bar" :class="{ 'spp-loading': loading }">{{ statusText }}</div>
+  <div v-if="!message && categoryFilters.length > 1" class="spp-cat-filter-row">
+    <button
+      type="button"
+      class="spp-cat-filter-chip"
+      :class="{ 'spp-cat-filter-chip-active': activeFilters.size === 0 }"
+      @click="selectAllCategories"
+    >ALL</button>
+    <button
+      v-for="cat in categoryFilters"
+      :key="cat"
+      type="button"
+      class="spp-cat-filter-chip"
+      :class="{ 'spp-cat-filter-chip-active': activeFilters.has(cat) }"
+      @click="toggleCategoryFilter(cat)"
+    >{{ categoryLabel(cat) }}</button>
+  </div>
   <div id="spp-list">
     <div v-if="message" class="spp-message">
       <div>{{ message }}</div>
@@ -7,7 +23,7 @@
     </div>
     <template v-else>
       <div
-        v-for="pass in passes"
+        v-for="pass in visiblePasses"
         :key="pass.norad_id + pass.aos_unix_ms"
         class="spp-pass-card"
         :class="{ 'spp-expanded': expandedKey === passKey(pass) }"
@@ -201,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
@@ -211,6 +227,7 @@ import SatPolarPlot from './SatPolarPlot.vue'
 import {
   SATELLITE_CATEGORY_ORDER,
   SATELLITE_CATEGORY_DISPLAY_NAMES,
+  SATELLITE_CATEGORY_SECTION_LABELS,
   formatPassDuration,
   formatPassTime,
   formatPassDate,
@@ -241,10 +258,51 @@ const statusText      = ref('')
 const message         = ref('')
 const showSetLocationBtn = ref(false)
 
-const selectedCategories = ref<Set<string>>(new Set(['space_station', 'weather', 'amateur']))
 const minEl  = ref(35)
 const hours  = ref(24)
 const filtersExpanded = ref(false)
+
+// Client-side category filter chips above the list, derived from the categories
+// actually present in the loaded passes. An empty set means ALL (the default) —
+// chips are additive, so multiple categories can be active at once.
+const activeFilters = ref<Set<string>>(new Set())
+
+const categoryFilters = computed<string[]>(() => {
+  const present = new Set<string>()
+  for (const p of passes.value) present.add(p.category || 'unknown')
+  return SATELLITE_CATEGORY_ORDER.filter(c => present.has(c))
+    .concat([...present].filter(c => !SATELLITE_CATEGORY_ORDER.includes(c)))
+})
+
+function categoryLabel(cat: string): string {
+  return SATELLITE_CATEGORY_SECTION_LABELS[cat] || cat.replace(/_/g, ' ').toUpperCase()
+}
+
+function selectAllCategories(): void {
+  activeFilters.value = new Set()
+}
+
+function toggleCategoryFilter(cat: string): void {
+  const next = new Set(activeFilters.value)
+  if (next.has(cat)) next.delete(cat)
+  else next.add(cat)
+  activeFilters.value = next
+}
+
+const visiblePasses = computed<SatPass[]>(() =>
+  activeFilters.value.size === 0
+    ? passes.value
+    : passes.value.filter(p => activeFilters.value.has(p.category || 'unknown')),
+)
+
+// If a refetch drops a selected category from the results, prune it so the user
+// isn't left filtering on a category that no longer appears.
+watch(categoryFilters, (cats) => {
+  if (activeFilters.value.size === 0) return
+  const valid = new Set(cats)
+  const next = new Set([...activeFilters.value].filter(c => valid.has(c)))
+  if (next.size !== activeFilters.value.size) activeFilters.value = next
+})
 
 const expandedKey = ref<string | null>(null)
 const liveTelemetry = ref<Record<string, string>>({})
@@ -359,13 +417,14 @@ async function fetchPasses(): Promise<void> {
   const loc = props.getUserLocation()
   if (!loc) { showNoLocation(); return }
   const [lon, lat] = loc
-  const cats = Array.from(selectedCategories.value).join(',')
-  if (!cats) { message.value = 'Select at least one satellite category.'; showSetLocationBtn.value = false; return }
   loading.value = true
   statusText.value = 'COMPUTING PASSES…'
   message.value = ''
   try {
-    const url = `/api/space/passes?lat=${lat}&lon=${lon}&hours=${hours.value}&min_el=${minEl.value}&categories=${encodeURIComponent(cats)}&limit=100`
+    // No `categories` param — the backend then includes every valid category,
+    // so the list spans all satellite categories and types. The chips above the
+    // list narrow it down client-side.
+    const url = `/api/space/passes?lat=${lat}&lon=${lon}&hours=${hours.value}&min_el=${minEl.value}&limit=200`
     const resp = await fetch(url, { signal: abort.signal })
     if (abort.signal.aborted) return
     if (!resp.ok) {
@@ -376,8 +435,7 @@ async function fetchPasses(): Promise<void> {
     }
     const data = await resp.json() as { passes: SatPass[]; satellite_count: number; computed_at: string }
     passes.value = data.passes || []
-    const t = new Date(data.computed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    statusText.value = `${data.satellite_count} SATELLITES · UPDATED ${t}`
+    statusText.value = ''
     if (!passes.value.length) message.value = 'No passes found. Try broader categories, lower elevation, or longer window.'
   } catch (e: unknown) {
     if (e instanceof Error && e.name === 'AbortError') return
@@ -538,6 +596,6 @@ useDocumentEvent('satellite-auto-tune-changed', (e: Event) => {
   autoTuneNoradId.value = enabled ? noradId : (autoTuneNoradId.value === noradId ? null : autoTuneNoradId.value)
 })
 
-defineExpose({ fetchPasses, selectedCategories, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })
+defineExpose({ fetchPasses, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })
 </script>
 
