@@ -26,7 +26,15 @@
     <template v-else>
       <!-- Aircraft section -->
       <template v-if="planes.length">
-        <div class="filter-section-label">AIRCRAFT</div>
+        <button
+          class="filter-section-label"
+          :class="{ 'filter-section-label--collapsed': collapsed.has('aircraft') }"
+          @click="toggleSection('aircraft')"
+        >
+          <span>AIRCRAFT</span>
+          <ChevronIcon class="filter-section-chevron" :class="{ 'filter-section-chevron--collapsed': collapsed.has('aircraft') }" />
+        </button>
+        <template v-if="!collapsed.has('aircraft')">
         <div
           v-for="r in planes"
           :key="r.hex"
@@ -47,11 +55,20 @@
             v-html="bellSvg(r.hex)"
           />
         </div>
+        </template>
       </template>
 
       <!-- Airports section -->
       <template v-if="airports.length">
-        <div class="filter-section-label">AIRPORTS</div>
+        <button
+          class="filter-section-label"
+          :class="{ 'filter-section-label--collapsed': collapsed.has('airports') }"
+          @click="toggleSection('airports')"
+        >
+          <span>AIRPORTS</span>
+          <ChevronIcon class="filter-section-chevron" :class="{ 'filter-section-chevron--collapsed': collapsed.has('airports') }" />
+        </button>
+        <template v-if="!collapsed.has('airports')">
         <div
           v-for="r in airports"
           :key="r.icao"
@@ -65,11 +82,20 @@
           </div>
           <div class="filter-result-badge">CVL</div>
         </div>
+        </template>
       </template>
 
       <!-- Military bases section -->
       <template v-if="milBases.length">
-        <div class="filter-section-label">MILITARY BASES</div>
+        <button
+          class="filter-section-label"
+          :class="{ 'filter-section-label--collapsed': collapsed.has('mil') }"
+          @click="toggleSection('mil')"
+        >
+          <span>MILITARY BASES</span>
+          <ChevronIcon class="filter-section-chevron" :class="{ 'filter-section-chevron--collapsed': collapsed.has('mil') }" />
+        </button>
+        <template v-if="!collapsed.has('mil')">
         <div
           v-for="r in milBases"
           :key="r.name"
@@ -83,6 +109,7 @@
           </div>
           <div class="filter-result-badge">MIL</div>
         </div>
+        </template>
       </template>
     </template>
   </div>
@@ -91,6 +118,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
 import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
@@ -131,6 +159,18 @@ const inputRef  = ref<HTMLInputElement | null>(null)
 const resultsRef = ref<HTMLElement | null>(null)
 const query      = ref('')
 const focusedKey = ref<string | null>(null)
+
+// Collapsed group headings. Sections default to expanded; a key present here is collapsed.
+const collapsed = ref<Set<string>>(new Set())
+function toggleSection(key: string): void {
+  const next = new Set(collapsed.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  collapsed.value = next
+}
+function sectionKey(r: { kind: string }): string {
+  return r.kind === 'plane' ? 'aircraft' : r.kind === 'airport' ? 'airports' : 'mil'
+}
 
 // Notification opt-in state — sourced from the persisted airNotif store.
 const notifEnabled = computed(() => airNotifStore.enabledHexes)
@@ -236,7 +276,7 @@ function clearInput() {
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') { query.value = ''; return }
 
-  const allItems = results.value
+  const allItems = results.value.filter(r => !collapsed.value.has(sectionKey(r)))
   if (!allItems.length) return
 
   const keys = allItems.map(r => r.kind === 'plane' ? r.hex : r.kind === 'airport' ? r.icao : r.name)
@@ -438,16 +478,42 @@ defineExpose({
 }
 
 .filter-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-accent);
-    padding: 18px 18px 5px 24px;
+    padding: 22px 20px 12px 24px;
     text-transform: uppercase;
+    text-align: left;
+    transition: opacity 0.12s;
+}
+
+.filter-section-label:hover {
+    opacity: 0.8;
 }
 
 .filter-section-label:first-child {
     padding-top: 24px;
+}
+
+.filter-section-chevron {
+    color: rgba(255, 255, 255, 0.35);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+/* Match the per-item chevron convention: down when expanded, left when collapsed. */
+.filter-section-chevron--collapsed {
+    transform: rotate(-90deg);
 }
 
 .filter-result-item {
@@ -486,7 +552,10 @@ defineExpose({
     background: none;
     border: none;
     cursor: pointer;
-    padding: 6px 6px;
+    /* Right padding 0 so the bell icon lines up with the group-heading chevron
+       (both ~20px from the row edge); extra hit area kept on the left. */
+    padding: 6px 0 6px 12px;
+    margin-right: -1px;
     flex-shrink: 0;
     line-height: 1;
     display: flex;

@@ -26,7 +26,14 @@
     </template>
     <template v-else>
       <template v-for="group in groupedResults" :key="group.cat">
-        <div class="space-filter-section-label">{{ group.label }}</div>
+        <button
+          class="space-filter-section-label"
+          @click="toggleSection(group.cat)"
+        >
+          <span>{{ group.label }}</span>
+          <ChevronIcon class="space-filter-section-chevron" :class="{ 'space-filter-section-chevron--collapsed': collapsedCats.has(group.cat) }" />
+        </button>
+        <template v-if="!collapsedCats.has(group.cat)">
         <div
           v-for="sat in group.sats"
           :key="sat.norad_id"
@@ -210,6 +217,7 @@
             </div>
           </div>
         </div>
+        </template>
       </template>
     </template>
   </div>
@@ -301,6 +309,15 @@ const satellites    = ref<SatEntry[]>([])
 const loaded        = ref(false)
 const expandedNoradId = ref<string | null>(null)
 const focusedNoradId  = ref<string | null>(null)
+
+// Collapsed category groups. Groups default to expanded; a category present here is collapsed.
+const collapsedCats = ref<Set<string>>(new Set())
+function toggleSection(cat: string): void {
+  const next = new Set(collapsedCats.value)
+  if (next.has(cat)) next.delete(cat)
+  else next.add(cat)
+  collapsedCats.value = next
+}
 
 const accordionLoading = ref(false)
 const accordionStatus  = ref('COMPUTING PASSES…')
@@ -544,7 +561,9 @@ function clearQuery(): void {
 
 function onKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') { clearQuery(); return }
-  const allSats = groupedResults.value.flatMap(g => g.sats)
+  const allSats = groupedResults.value
+    .filter(g => !collapsedCats.value.has(g.cat))
+    .flatMap(g => g.sats)
   if (!allSats.length) return
   const idx = allSats.findIndex(s => s.norad_id === focusedNoradId.value)
   if (e.key === 'ArrowDown') {
@@ -717,17 +736,43 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .space-filter-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-accent);
-    padding: 18px 20px 5px 24px;
+    padding: 22px 20px 12px 24px;
     text-transform: uppercase;
+    text-align: left;
     flex-shrink: 0;
+    transition: opacity 0.12s;
+}
+
+.space-filter-section-label:hover {
+    opacity: 0.8;
 }
 
 .space-filter-section-label:first-child {
     padding-top: 24px;
+}
+
+.space-filter-section-chevron {
+    color: rgba(255, 255, 255, 0.35);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+/* Match the per-item chevron convention: down when expanded, left when collapsed. */
+.space-filter-section-chevron--collapsed {
+    transform: rotate(-90deg);
 }
 
 .space-filter-result-item {
@@ -789,7 +834,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     right: 0;
     top: 0;
     height: 44px;
-    padding: 0 24px;
+    padding: 0 20px;
     display: flex;
     align-items: center;
     flex-shrink: 0;
