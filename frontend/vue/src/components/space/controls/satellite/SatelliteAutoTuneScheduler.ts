@@ -32,7 +32,9 @@ export interface SatelliteAutoTuneSchedulerCtx {
 export class SatelliteAutoTuneScheduler {
     private _ctx: SatelliteAutoTuneSchedulerCtx
     private _lastFiredAos = 0
+    private _lastFiredLos = 0
     private _scheduleTimeout: ReturnType<typeof setTimeout> | null = null
+    private _losTimeout: ReturnType<typeof setTimeout> | null = null
     private _refreshInterval: ReturnType<typeof setInterval> | null = null
     private _stopped = false
 
@@ -50,6 +52,7 @@ export class SatelliteAutoTuneScheduler {
     stop(): void {
         this._stopped = true
         if (this._scheduleTimeout) { clearTimeout(this._scheduleTimeout); this._scheduleTimeout = null }
+        if (this._losTimeout) { clearTimeout(this._losTimeout); this._losTimeout = null }
         if (this._refreshInterval) { clearInterval(this._refreshInterval); this._refreshInterval = null }
     }
 
@@ -98,7 +101,7 @@ export class SatelliteAutoTuneScheduler {
         }, delay)
     }
 
-    private _fire(_pass: IssPass): void {
+    private _fire(pass: IssPass): void {
         const dl = this._ctx.getDownlink()
         const name = this._ctx.getName()
         if (!dl) {
@@ -111,9 +114,12 @@ export class SatelliteAutoTuneScheduler {
         const mhz = (dl.hz / 1e6).toFixed(3)
         // Ask the always-mounted SdrPanel to select/start the default radio (if
         // stopped) and tune to the downlink. SdrPanel adds the "AUTO-TUNED"
-        // alert once it actually applies the tune (or a failure notice).
+        // alert once it actually applies the tune (or a failure notice). The
+        // event token identifies this pass so the matching LOS restore can be
+        // ignored if a newer pass has taken over the radio meanwhile.
+        const token = `${this._ctx.noradId}:${pass.aos_unix_ms}`
         document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', {
-            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId },
+            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token },
         }))
         // Lightweight trace in the alerts tab regardless of SDR state.
         this._ctx.notificationsStore.add({
@@ -121,5 +127,24 @@ export class SatelliteAutoTuneScheduler {
             detail: `Auto-tuning SDR → ${mhz} MHz ${dl.mode}`,
             noradId: this._ctx.noradId,
         })
+        this._scheduleLos(pass, name, token)
+    }
+
+    // Arm a one-shot restore at LOS for the pass we just tuned for. Asks the
+    // SdrPanel to undo the auto-tune — returning to whatever state it captured
+    // at AOS (a prior frequency, or stopped/connected). Fires immediately if LOS
+    // is already past (a pass that was overhead when we picked it up).
+    private _scheduleLos(pass: IssPass, name: string, token: string): void {
+        if (this._losTimeout) { clearTimeout(this._losTimeout); this._losTimeout = null }
+        const fire = () => {
+            if (this._lastFiredLos === pass.los_unix_ms) return
+            this._lastFiredLos = pass.los_unix_ms
+            document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-restore', {
+                detail: { source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token },
+            }))
+        }
+        const delay = pass.los_unix_ms - Date.now()
+        if (delay <= 0) { fire(); return }
+        this._losTimeout = setTimeout(() => { this._losTimeout = null; if (!this._stopped) fire() }, delay)
     }
 }

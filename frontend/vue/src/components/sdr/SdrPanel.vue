@@ -1065,7 +1065,18 @@ function _notificationsStore() {
 }
 
 // Pending external (auto-tune) request, applied once the control socket opens.
-let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?: string } | null = null
+let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?: string; token?: string } | null = null
+
+// State captured the moment an auto-tune takes over the radio, so the LOS
+// restore can put things back. `playing` records whether audio was running
+// before AOS; when false the radio was stopped (or merely connected) and the
+// restore stops playback again. `token` ties this snapshot to the firing pass so
+// a stale LOS (after a newer pass retuned) is ignored. `tunedHz`/`tunedMode` are
+// what we tuned *to* — the restore only acts if the radio is still on them
+// (i.e. the user hasn't manually retuned since), so we never clobber a manual change.
+let _autoTunePrevState:
+  | { token?: string; playing: boolean; freqHz: number; mode: SdrMode; tunedHz: number; tunedMode: SdrMode }
+  | null = null
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
@@ -2352,12 +2363,25 @@ function _coerceSdrMode(mode: string | undefined): SdrMode {
 // is queued in _pendingExternalTune and applied once the socket is open (see
 // openControlSocket's 'open' handler).
 function onExternalTune(e: Event): void {
-  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string; noradId?: string }>).detail
+  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string; noradId?: string; token?: string }>).detail
   if (!detail || !detail.hz) return
   const hz = Math.round(detail.hz)
   const mode = _coerceSdrMode(detail.mode)
   const satName = detail.satName || 'SATELLITE'
   const noradId = detail.noradId
+  const token = detail.token
+
+  // Snapshot the pre-AOS state so the LOS restore can put it back. Captured
+  // before any mutation below. A scan/search counts as "not the prior idle
+  // freq", so we record whether it was running and just stop on restore.
+  _autoTunePrevState = {
+    token,
+    playing: playing.value,
+    freqHz: currentFreqHz.value,
+    mode: currentMode.value as SdrMode,
+    tunedHz: hz,
+    tunedMode: mode,
+  }
 
   if (selectedRadioId.value && playing.value) {
     // Already running — just retune (+ keep the audio demod in sync).
@@ -2393,7 +2417,7 @@ function onExternalTune(e: Event): void {
   }
 
   // Queue the tune to fire once the control socket is open.
-  _pendingExternalTune = { hz, mode, satName, noradId }
+  _pendingExternalTune = { hz, mode, satName, noradId, token }
   const sameRadio = selectedRadioId.value === radio.id
   const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
   const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
@@ -2441,6 +2465,63 @@ function _notifyAutoTuneFailed(satName: string): void {
   _notificationsStore().add({
     type: 'system', title: `${satName} AUTO-TUNE`,
     detail: 'No SDR radio configured — open the RADIO panel to add one',
+  })
+}
+
+// LOS restore: undo an auto-tune once the pass ends, returning the radio to the
+// state captured at AOS. We only act if the radio is still parked on the
+// frequency/mode we auto-tuned to — if the user (or a newer pass) has retuned
+// since, the snapshot is stale and we leave things alone.
+function onExternalTuneRestore(e: Event): void {
+  const detail = (e as CustomEvent<{ satName?: string; noradId?: string; token?: string }>).detail
+  const snap = _autoTunePrevState
+  if (!snap) return
+  // Token mismatch means a later AOS overwrote the snapshot; that newer pass
+  // owns the restore now, so ignore this stale LOS.
+  if (detail?.token && snap.token && detail.token !== snap.token) return
+  _autoTunePrevState = null
+
+  const satName = detail?.satName || 'SATELLITE'
+  const noradId = detail?.noradId
+
+  // Bail if the user has taken manual control (retuned, scanned, searched, or
+  // stopped) since the auto-tune — respect their state over the restore.
+  if (scanActive.value || searchActive.value) return
+  const onTunedFreq = playing.value
+    && Math.round(currentFreqHz.value) === snap.tunedHz
+    && (currentMode.value as SdrMode) === snap.tunedMode
+  if (!onTunedFreq) return
+
+  if (!snap.playing) {
+    // Radio was stopped/connected-but-idle before AOS — stop playback again.
+    stop()
+    _notifyAutoRestored(satName, null, null, noradId)
+    return
+  }
+
+  // Was playing on another frequency before AOS — retune back to it.
+  if (!selectedRadioId.value) return
+  currentFreqHz.value = snap.freqHz
+  currentMode.value   = snap.mode
+  freqInputVal.value  = (snap.freqHz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (snap.freqHz / 1e6).toFixed(3) + ' MHz'
+  sdrAudio.setMode(snap.mode)
+  const bw = defaultBwHz(snap.mode)
+  sdrAudio.setBandwidthHz(bw); bwHz.value = bw
+  sessionStorage.setItem('sdrLastFreqHz', String(snap.freqHz))
+  sessionStorage.setItem('sdrLastMode', snap.mode)
+  sendCmd({ cmd: 'tune', frequency_hz: snap.freqHz })
+  sendCmd({ cmd: 'mode', mode: snap.mode })
+  _notifyAutoRestored(satName, snap.freqHz, snap.mode, noradId)
+}
+
+function _notifyAutoRestored(satName: string, hz: number | null, mode: string | null, noradId?: string): void {
+  _notificationsStore().add({
+    type: 'autotune', title: `${satName} PASS ENDED`,
+    detail: hz != null && mode != null
+      ? `Restored SDR → ${(hz / 1e6).toFixed(3)} MHz ${mode}`
+      : 'Stopped SDR (was idle before pass)',
+    noradId,
   })
 }
 
@@ -3164,5 +3245,6 @@ onUnmounted(() => {
 useDocumentEvent('click', onDocumentClick)
 useDocumentEvent('sdr:radios-changed', onRadiosChanged)
 useDocumentEvent('sentinel:sdr-tune-external', onExternalTune)
+useDocumentEvent('sentinel:sdr-tune-restore', onExternalTuneRestore)
 </script>
 
