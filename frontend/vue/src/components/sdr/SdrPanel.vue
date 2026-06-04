@@ -2944,6 +2944,33 @@ async function stopRecordingIfActive() {
 }
 
 function onSquelchChangeCallback(open: boolean) {
+  // The audio worklet's squelch is the source of truth for "is this channel
+  // audible". The scan/search dwell check samples the spectrum waterfall
+  // (sampleChannelDb), which can underreport narrow signals the worklet's
+  // squelch did open on — so a signal could be playing while the scan kept
+  // stepping. Lock the moment the worklet opens squelch on an active, unlocked
+  // sweep, but only once the post-tune settle has elapsed so we don't lock on
+  // residual audio from the previous frequency.
+  if (open) {
+    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
+    if (settled) {
+      if (scanActive.value && !scanLocked.value) {
+        scanLocked.value = true
+        startResumeWatcher(squelch.value, () => {
+          if (!scanActive.value || !scanLocked.value) return
+          toggleScanLock()
+        })
+      } else if (searchActive.value && !searchLocked.value) {
+        searchLocked.value = true
+        _sdrStore().searchSweeping = false
+        startResumeWatcher(squelch.value, () => {
+          if (!searchActive.value || !searchLocked.value) return
+          toggleSearchLock()
+        })
+      }
+    }
+  }
+
   if (!isRecording.value) return
   if (open && !recSquelchOpen.value) {
     if (_recPauseStart != null) { _recPausedMs += Date.now() - _recPauseStart; _recPauseStart = null }
