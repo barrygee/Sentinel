@@ -60,7 +60,7 @@ const saving = ref(false)
 const form = ref({
   name: props.radio?.name ?? '',
   host: props.radio?.host ?? '',
-  port: props.radio?.port ?? 1234,
+  port: props.radio?.port ?? null as number | null,
   bandwidth: props.radio?.bandwidth ?? null as number | null,
   rfGain: props.radio?.rf_gain ?? null as number | null,
   agc: props.radio?.agc === true,

@@ -268,6 +268,13 @@ def compute_passes(
     jd, fr = _jday_now()
     now = datetime.now(UTC)
 
+    # Begin the scan slightly in the past so a pass already in progress is
+    # captured with its true AOS and full elevation arc. Without this, an
+    # in-progress pass is detected at offset 0 as if it were just rising, and
+    # its max elevation (computed only from now onward) can fall below the
+    # min-elevation filter even while the satellite is overhead right now —
+    # making it vanish from the list. ~20 min covers the longest LEO passes.
+    backscan_minutes = 20
     total_minutes = lookahead_hours * 60
     passes: list[dict] = []
 
@@ -332,13 +339,18 @@ def compute_passes(
                 hi = mid
         return (lo + hi) / 2
 
-    for minute in range(total_minutes + 1):
+    for minute in range(-backscan_minutes, total_minutes + 1):
         offset_s = minute * 60.0
         visible, elev, _ = _vis_at(offset_s)
 
         if visible and not prev_visible:
-            # AOS transition
-            aos_s = _refine_transition((minute - 1) * 60.0, offset_s) if minute > 0 else 0.0
+            # AOS transition. At the very first sample we can't bracket the rise,
+            # so fall back to the sample offset itself.
+            aos_s = (
+                _refine_transition(offset_s - 60.0, offset_s)
+                if minute > -backscan_minutes
+                else offset_s
+            )
             pass_start_s = aos_s
             pass_samples = [(offset_s, elev)]
         elif visible and prev_visible:
@@ -362,7 +374,9 @@ def compute_passes(
                     max_elev_s = scan_s
                 scan_s += 5.0
 
-            if max_elev >= min_elevation_deg:
+            # Skip passes that have already fully set (LOS in the past); the
+            # back-scan only exists to recover passes still in progress.
+            if los_s >= 0 and max_elev >= min_elevation_deg:
                 aos_dt = now + timedelta(seconds=pass_start_s)
                 los_dt = now + timedelta(seconds=los_s)
                 max_el_dt = now + timedelta(seconds=max_elev_s)

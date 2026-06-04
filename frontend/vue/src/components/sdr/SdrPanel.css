@@ -414,8 +414,14 @@
     box-sizing: border-box;
 }
 
+.sdr-freq-input-large:hover {
+    /* Hint that the field is scrollable to step the digit under the cursor. */
+    cursor: ns-resize;
+}
+
 .sdr-freq-input-large:focus {
     background: rgba(10, 13, 20, 0.92);
+    cursor: text;
 }
 
 .sdr-freq-input-large::placeholder {
@@ -810,6 +816,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 7px;
     width: 38px;
     height: 38px;
     background: rgba(255, 255, 255, 0.08);
@@ -817,6 +824,32 @@
     color: #c8ff00;
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
+}
+
+.sdr-search-adhoc-play:has(.sdr-search-adhoc-play-label) {
+    width: auto;
+    padding: 0 14px;
+}
+
+.sdr-search-adhoc-play-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Scan button (the only labelled play button in the scanner row): lighter
+   weight and a shorter button than the shared 38px play-button square. */
+.sdr-scan-btns-row--right .sdr-search-adhoc-play,
+.sdr-scan-btns-row--left .sdr-search-adhoc-play {
+    height: 30px;
+}
+
+.sdr-scan-btns-row--right .sdr-search-adhoc-play-label,
+.sdr-scan-btns-row--left .sdr-search-adhoc-play-label {
+    font-weight: 400;
+    font-size: 9px;
+    letter-spacing: 0.14em;
 }
 
 .sdr-search-adhoc-play:hover:not(:disabled) {
@@ -1027,11 +1060,15 @@
 .sdr-scan-btns-row {
     display: flex;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 20px;
 }
 
 .sdr-scan-btns-row--right {
     justify-content: flex-end;
+}
+
+.sdr-scan-btns-row--left {
+    justify-content: flex-start;
 }
 
 .sdr-panel-btn.sdr-scan-btn {

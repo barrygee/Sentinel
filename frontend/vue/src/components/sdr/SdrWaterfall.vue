@@ -258,21 +258,34 @@ const ZOOM_MIN = 1
 const ZOOM_MAX = 50
 const zoom = ref(ZOOM_MIN)
 
-// The visible (zoom-aware) frequency window for the current span. Centred on
-// the selected frequency, then clamped so the window never extends past the
-// span edges (zooming into a near-edge frequency slides the window inward
-// rather than showing empty space outside the data). At zoom <= 1 this is the
-// full span. Single source of truth for applyZoom() AND every overlay computed
-// (visibleBands / freqTicks / visibleKnownFreqs / onPlotMouseUp) so the trace
-// and overlays always agree on what's on screen.
+// Live drag-pan offset (Hz). While the user drags the freq gutter, this slides
+// the visible window WITHOUT retuning — see freqDragFlush(). Folded into
+// zoomWindowHz below so applyZoom + all overlay computeds shift together. 0 when
+// not panning. Declared before zoomWindowHz (its consumer) so the closure binds.
+const livePanOffsetHz = ref(0)
+
+// The visible (zoom-aware, pan-aware) frequency window for the current span.
+// Centred on the selected frequency (zoom-clamped to the span edges), then the
+// live drag-pan offset is added AFTER the clamp. The zoom clamp keeps a
+// zoomed-in browse window inside the data; the pan offset is intentionally NOT
+// clamped so a freq-axis drag can slide the window past the span edges (the
+// trailing edge shows empty until the committed hardware retune fills it in —
+// the "grab and scroll" feel). At zoom <= 1 the base is the full span, so the
+// only way to move the window is the pan offset. Single source of truth for
+// applyZoom() AND every overlay computed (visibleBands / freqTicks /
+// visibleKnownFreqs / onPlotMouseUp) so the trace and overlays always agree on
+// what's on screen.
 function zoomWindowHz(lo: number, hi: number): { winLo: number; winHi: number } {
-  if (zoom.value <= ZOOM_MIN || hi <= lo) return { winLo: lo, winHi: hi }
-  const win = (hi - lo) / zoom.value
+  if (hi <= lo) return { winLo: lo, winHi: hi }
+  // Base window width: full span at zoom <= 1, else span / zoom.
+  const win = zoom.value <= ZOOM_MIN ? hi - lo : (hi - lo) / zoom.value
   const halfWin = win / 2
-  // Selected frequency; fall back to the span midpoint if not yet known.
-  const sel = store.currentFreqHz || (lo + hi) / 2
-  // Clamp the centre so [centre-halfWin, centre+halfWin] stays inside [lo, hi].
-  const center = Math.min(hi - halfWin, Math.max(lo + halfWin, sel))
+  // Base centre: span midpoint at zoom <= 1 (full span), else the selected freq.
+  const sel = zoom.value <= ZOOM_MIN ? (lo + hi) / 2 : (store.currentFreqHz || (lo + hi) / 2)
+  // Zoom clamp: keep [centre-halfWin, centre+halfWin] inside [lo, hi].
+  const clamped = Math.min(hi - halfWin, Math.max(lo + halfWin, sel))
+  // Live pan offset is added AFTER the clamp so the drag can slide past edges.
+  const center = clamped + livePanOffsetHz.value
   return { winLo: center - halfWin, winHi: center + halfWin }
 }
 
@@ -283,7 +296,12 @@ function applyZoom() {
   // Zoom is a pure viewport change — sigplot.zoom() re-windows the existing
   // raster in place. Do NOT rebuild the pipe here: that would wipe the
   // waterfall history. Historical rows simply stretch across the new viewport.
-  if (zoom.value <= ZOOM_MIN) {
+  //
+  // Take the windowed path when either zoomed in OR live-panning (a drag-pan at
+  // zoom 1 still needs a real window so the slid view survives sigplot's
+  // per-frame reload — see the level>=1 note below). Only when fully unzoomed
+  // AND not panning do we restore the full-span base view.
+  if (zoom.value <= ZOOM_MIN && livePanOffsetHz.value === 0) {
     try { specPlot?.unzoom() } catch { /* noop */ }
     try { wfPlot?.unzoom() } catch { /* noop */ }
     return
@@ -510,7 +528,14 @@ function applyMarker() {
   const bHz = Math.max(MIN_BW_HZ, store.bwHz || 10000)
   const span =
     store.sampleRate || (spanEndHz.value - spanStartHz.value) || bHz
-  const { centerHz, widthHz } = bracketGeomHz(fHz, bHz, store.currentMode)
+  // Display-only frequency: while live-panning the freq axis (drag), the visible
+  // window slides by livePanOffsetHz but the tuned freq hasn't changed yet. Shift
+  // the marker's drawn position by the SAME offset so the bar stays on the same
+  // screen pixel (span centre) while the content scrolls under it. The committed
+  // store values (lastCommittedFreqHz below) stay on the true carrier — only the
+  // accordion geometry uses dispFHz.
+  const dispFHz = fHz + livePanOffsetHz.value
+  const { centerHz, widthHz } = bracketGeomHz(dispFHz, bHz, store.currentMode)
   // Carrier-line accordions hold a fixed near-zero width — they only draw the
   // tuning line at the actual carrier, never participate in passband shading.
   const CARRIER_W_HZ = 1
@@ -525,13 +550,13 @@ function applyMarker() {
     wfAcc.min_width(MIN_BW_HZ)
     wfAcc.max_width(span)
     if (specCar) {
-      specCar.center(fHz / HZ_PER_MHZ)
+      specCar.center(dispFHz / HZ_PER_MHZ)
       specCar.width(CARRIER_W_HZ / HZ_PER_MHZ)
       specCar.min_width(CARRIER_W_HZ / HZ_PER_MHZ)
       specCar.max_width(span / HZ_PER_MHZ)
     }
     if (wfCar) {
-      wfCar.center(fHz)
+      wfCar.center(dispFHz)
       wfCar.width(CARRIER_W_HZ)
       wfCar.min_width(CARRIER_W_HZ)
       wfCar.max_width(span)
@@ -615,15 +640,43 @@ const freqTicks = computed(() => {
   const decimals = Math.max(1, Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)))
   const ticks: { key: string; leftPct: number; label: string }[] = []
   for (let f = first; f <= winHi; f += stepHz) {
-    const mhz = f / HZ_PER_MHZ
     ticks.push({
       key: `t-${f}`,
       leftPct: ((f - winLo) / w) * 100,
-      label: mhz.toFixed(decimals),
+      label: formatFreqTick(f, decimals),
     })
   }
   return ticks
 })
+
+// Format a tick frequency (Hz) with an SI unit suffix chosen by magnitude:
+// kHz → "K", MHz → "M", GHz → "G". `decimals` is computed in MHz (the axis's
+// native unit), so re-derive the precision for the chosen unit: scaling Hz→kHz
+// shifts the decimal point three places (so +3 decimals vs MHz), Hz→GHz shifts
+// it back three (−3), and the value is then trimmed of trailing zeros so e.g.
+// 123.00 reads "123M", 123.45 reads "123.45M".
+function formatFreqTick(hz: number, mhzDecimals: number): string {
+  let value: number
+  let unit: string
+  let decimals: number
+  if (hz >= 1e9) {
+    value = hz / 1e9
+    unit = 'G'
+    decimals = mhzDecimals + 3
+  } else if (hz >= 1e6) {
+    value = hz / 1e6
+    unit = 'M'
+    decimals = mhzDecimals
+  } else {
+    value = hz / 1e3
+    unit = 'K'
+    decimals = Math.max(0, mhzDecimals - 3)
+  }
+  const text = value.toFixed(Math.max(0, Math.min(6, decimals)))
+  // Trim trailing zeros (and a dangling dot) so "123.00" → "123", "123.40" → "123.4".
+  const trimmed = text.includes('.') ? text.replace(/\.?0+$/, '') : text
+  return `${trimmed}${unit}`
+}
 
 // Inline style for the tick gutter overlay — spans the data box horizontally
 // (same insets as the band overlay) and the freq-label gutter vertically.
@@ -671,6 +724,16 @@ function onPlotMouseDown(e: MouseEvent) {
     return
   }
   if (e.button !== 0) return
+  // Drag-to-pan: a mousedown that lands in the bottom freq-label gutter starts
+  // a frequency pan instead of a click-to-tune. This runs in the capture phase
+  // on .sdr-wf-spectrum (before sigplot's own canvas mousedown), so it reliably
+  // wins regardless of canvas/overlay stacking. If it starts a pan, swallow the
+  // event so neither sigplot nor click-to-tune also acts on it.
+  if (e.currentTarget === specEl.value && tryStartFreqDrag(e)) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    return
+  }
   mdownEl = e.currentTarget as HTMLElement
   mdownX = e.clientX
   mdownY = e.clientY
@@ -690,6 +753,9 @@ function onPlotMouseUp(e: MouseEvent) {
   if (e.button !== 0 || !el || el !== e.currentTarget) return
   // A marker drag also ends with a mouseup over the plot — ignore it.
   if (dragActive || accIsDragging(specAcc) || accIsDragging(wfAcc)) return
+  // A freq-axis pan started in the gutter (the parent capture handler still
+  // recorded mdownEl); the pan handles tuning itself, so don't also click-tune.
+  if (freqDragActive) return
   // Moved more than the slop? It was a drag/pan, not a click.
   if (
     Math.abs(e.clientX - mdownX) > CLICK_SLOP_PX ||
@@ -711,6 +777,13 @@ function onPlotMouseUp(e: MouseEvent) {
   // the user sees.
   const { winLo, winHi } = zoomWindowHz(lo, hi)
   const freqHz = Math.round(winLo + frac * (winHi - winLo))
+  // If a freq-axis pan is still held (livePanOffsetHz != 0, awaiting the new
+  // centred frame), a click commits a fresh tune INSIDE the displayed window.
+  // freqHz was already computed in the offset-shifted window, so clear the
+  // offset now: applyMarker must NOT add it again (that would draw the bar
+  // offset from the clicked pixel). The retune below fetches a frame centred on
+  // freqHz, which lands the window correctly.
+  if (livePanOffsetHz.value !== 0) livePanOffsetHz.value = 0
   if (store.autoCenterWaterfallOnTune) {
     // Auto-centre ON: retune the hardware so the clicked freq becomes the new
     // span centre. Clear any prior demod offset — the bar returns to centre.
@@ -727,6 +800,162 @@ function onPlotMouseUp(e: MouseEvent) {
   // (currentFreqHz / readout / input) and the marker follows. The panel skips
   // the hardware retune when auto-centre is OFF (offset handles the audio).
   store.requestTune(freqHz)
+}
+
+// ── Drag-to-pan the frequency axis ───────────────────────────────────────────
+// Grabbing the freq-number gutter below the spectrum and dragging left/right
+// scrolls the visible window across the radio's tuning range — like dragging a
+// map. Dragging RIGHT slides the spectrum content RIGHT (the labels follow the
+// cursor); the tuning bar stays pinned at its screen position (span centre).
+//
+// The drag is a PURELY LOCAL viewport pan for instant feedback: each rAF tick
+// sets livePanOffsetHz (folded into zoomWindowHz) and re-windows the existing
+// raster via applyZoom() + re-pins the marker via applyMarker() — NO retune, no
+// currentFreqHz change, so the bar never jumps. The hardware retune is committed
+// ONCE on mouseup (move the hardware centre to the final panned frequency), and
+// the live offset is held until the new span frame lands so there's no snap-back
+// (it's reset in the lastSpectrum watch when frame.center_hz changes).
+let freqDragActive = false
+// Reactive mirror of freqDragActive — drives the grabbing-cursor class on the
+// spectrum so the user gets feedback while panning the frequency axis.
+const freqDragging = ref(false)
+let freqDragStartX = 0
+let freqDragStartCenterHz = 0
+let freqDragHzPerPx = 0
+// Last raw (unclamped) pointer dx, stashed by mousemove and consumed by the rAF
+// flush (live preview, clamped) and by mouseup (commit, unclamped).
+let freqDragDx = 0
+let freqDragRaf = 0
+
+function freqDragFlush() {
+  freqDragRaf = 0
+  if (!freqDragActive) return
+  // Drag right (dx > 0) → window freqs decrease → content moves right. The
+  // clamp to the loaded span lives inside zoomWindowHz, so the live preview
+  // never shows blank edges.
+  livePanOffsetHz.value = -freqDragDx * freqDragHzPerPx
+  applyZoom()      // re-window the spectrum + waterfall raster in place
+  applyMarker()    // re-pin the bar at screen centre (dispFHz += offset)
+}
+
+// Returns true (and arms the pan) when the mousedown lands in the bottom
+// freq-label gutter of the spectrum element. Called from onPlotMouseDown's
+// capture handler so it reliably intercepts before sigplot's canvas listener.
+function tryStartFreqDrag(e: MouseEvent): boolean {
+  if (!store.playing) return false
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return false
+  const el = specEl.value
+  if (!el) return false
+  const rect = el.getBoundingClientRect()
+  // The grabbable strip is the freq-label gutter at the bottom of the spectrum
+  // element (height = bandInsetBottomPx). A mousedown above it is a normal
+  // click-to-tune / marker interaction.
+  const gutterTop = rect.bottom - bandInsetBottomPx.value
+  if (bandInsetBottomPx.value <= 0 || e.clientY < gutterTop) return false
+  const dataWidth = el.clientWidth - bandInsetLeftPx.value - bandInsetRightPx.value
+  if (dataWidth <= 0) return false
+  // Pixel→Hz uses the VISIBLE (zoom-aware) window so the drag tracks the
+  // on-screen scale, not the full hardware span. Capture BEFORE arming the
+  // drag so zoomWindowHz sees the pre-pan offset (still 0 at grab time).
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
+  freqDragHzPerPx = (winHi - winLo) / dataWidth
+  freqDragStartX = e.clientX
+  freqDragStartCenterHz = (lo + hi) / 2
+  freqDragDx = 0
+  freqDragActive = true
+  freqDragging.value = true
+  return true
+}
+
+useDocumentEvent('mousemove', (e: Event) => {
+  if (!freqDragActive) return
+  const me = e as MouseEvent
+  freqDragDx = me.clientX - freqDragStartX
+  // Throttle the viewport re-window to one per animation frame.
+  if (!freqDragRaf) freqDragRaf = requestAnimationFrame(freqDragFlush)
+})
+
+useDocumentEvent('mouseup', () => {
+  if (!freqDragActive) return
+  freqDragActive = false
+  freqDragging.value = false
+  if (freqDragRaf) { cancelAnimationFrame(freqDragRaf); freqDragRaf = 0 }
+  // Commit the hardware retune ONCE, to the final panned centre using the RAW
+  // (unclamped) drag so a fling past the loaded span still retunes there. A
+  // freq-axis pan means "move the hardware centre", so force auto-centre
+  // semantics (clear the demod offset) — mirrors the click-to-tune ON path.
+  const finalCenterHz = Math.round(freqDragStartCenterHz - freqDragDx * freqDragHzPerPx)
+  // Keep livePanOffsetHz in place (no snap-back); the lastSpectrum watch resets
+  // it to 0 when the new span frame (centred on finalCenterHz) arrives.
+  // center=true forces the hardware-centre retune even with auto-centre OFF —
+  // otherwise the panned view would stay stuck (no new frames ever arrive).
+  store.setTuningOffsetHz(0)
+  store.requestTune(finalCenterHz, true)
+})
+
+// ── Mouse-wheel pan ──────────────────────────────────────────────────────────
+// Scrolling the wheel over the spectrum/waterfall pans the frequency window the
+// same way the gutter drag does — reusing the live-pan machinery (livePanOffsetHz
+// → applyZoom + applyMarker). Wheel events arrive in bursts with no "release",
+// so the running offset accumulates per tick (instant local feedback) and the
+// hardware retune is committed once, debounced ~250ms after the last tick.
+// Scroll UP → pan toward HIGHER frequency (window centre increases); scroll DOWN
+// → lower. (One notch ≈ a small fraction of the visible window.)
+let wheelPanCenterHz = 0      // running committed-centre target during a burst
+let wheelPanActive = false
+let wheelCommitTimer: ReturnType<typeof setTimeout> | null = null
+let wheelRaf = 0
+
+function wheelFlush() {
+  wheelRaf = 0
+  if (!wheelPanActive) return
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return
+  // Offset relative to the live span centre (same basis as the drag).
+  livePanOffsetHz.value = wheelPanCenterHz - (lo + hi) / 2
+  applyZoom()
+  applyMarker()
+}
+
+function onPlotWheel(e: WheelEvent) {
+  if (!store.playing) return
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return
+  // Take over the wheel from sigplot's own (window-level) handler.
+  e.preventDefault()
+  e.stopImmediatePropagation()
+  // Per-notch step ~12% of the visible (zoom-aware) window. A standard mouse
+  // notch is deltaY≈±100 (deltaMode 0, pixels) or ±1..3 (deltaMode 1, lines);
+  // normalise both to "notches" so a precision/trackpad scroll moves
+  // proportionally and a chunky mouse wheel moves one notch per click.
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
+  const winW = winHi - winLo
+  const notches = e.deltaMode === 1 ? e.deltaY / 3 : e.deltaY / 100
+  const stepHz = winW * 0.12 * notches
+  // Scroll up (deltaY < 0) → higher freq → centre increases, so SUBTRACT stepHz.
+  if (!wheelPanActive) {
+    wheelPanActive = true
+    wheelPanCenterHz = (lo + hi) / 2 + livePanOffsetHz.value
+  }
+  wheelPanCenterHz -= stepHz
+  freqDragging.value = true   // reuse the grabbing-cursor affordance
+  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelFlush)
+  // Debounced single hardware commit after the burst settles.
+  if (wheelCommitTimer) clearTimeout(wheelCommitTimer)
+  wheelCommitTimer = setTimeout(() => {
+    wheelCommitTimer = null
+    wheelPanActive = false
+    freqDragging.value = false
+    if (wheelRaf) { cancelAnimationFrame(wheelRaf); wheelRaf = 0 }
+    // Keep livePanOffsetHz held until the new centred frame lands (reset in the
+    // lastSpectrum watch), so no snap-back. center=true forces the retune.
+    store.setTuningOffsetHz(0)
+    store.requestTune(Math.round(wheelPanCenterHz), true)
+  }, 250)
 }
 
 // Read the spectrum plot's real data-area margins (Mx.l / Mx.r / Mx.b) and
@@ -1408,6 +1637,13 @@ watch(
     // axis and waterfall stay aligned to the real frequencies.
     const scaleChanged =
       frame.center_hz !== lastCenterHz || frame.sample_rate !== lastSampleRate
+    // A new span centre means a committed drag-pan (or any retune) has landed:
+    // the real span now carries the offset, so clear the live pan to avoid a
+    // double-shift. Guard against an in-flight drag (a mid-drag backend retune
+    // shouldn't yank the preview out from under the user).
+    if (frame.center_hz !== lastCenterHz && !freqDragActive && livePanOffsetHz.value !== 0) {
+      livePanOffsetHz.value = 0
+    }
     if (frame.bins.length !== subsize || scaleChanged) {
       lastCenterHz = frame.center_hz
       lastSampleRate = frame.sample_rate
@@ -1716,9 +1952,11 @@ onBeforeUnmount(() => {
     <div
       ref="specEl"
       class="sdr-wf-spectrum"
+      :class="{ 'sdr-wf-spectrum--panning': freqDragging }"
       :style="spectrumStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     >
       <div v-if="store.showBandPlan && visibleBands.length > 0" class="sdr-wf-band-overlay" :style="bandOverlayStyle">
@@ -1771,6 +2009,7 @@ onBeforeUnmount(() => {
       class="sdr-wf-raster"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     ></div>
   </div>

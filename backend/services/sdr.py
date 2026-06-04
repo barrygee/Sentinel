@@ -433,6 +433,32 @@ def connection_status(host: str, port: int) -> dict:
     }
 
 
+async def reachability_status(host: str, port: int, timeout: float = 1.5) -> dict:
+    """Status for the Settings device list.
+
+    If a live stream is already running for this radio, report its rich state
+    (same as connection_status). Otherwise do a lightweight TCP probe so the
+    Settings dot reflects *reachability* of the rtl_tcp host:port rather than
+    "is the panel currently streaming this radio". The probe opens and
+    immediately closes a socket — it never leaves a persistent connection
+    behind (that would race the broadcaster's exclusive rtl_tcp session).
+    """
+    live = connection_status(host, port)
+    if live.get("connected"):
+        return live
+    try:
+        fut = asyncio.open_connection(host, port)
+        reader, writer = await asyncio.wait_for(fut, timeout=timeout)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        return {"connected": True, "reachable": True}
+    except Exception:
+        return {"connected": False}
+
+
 def get_broadcaster(host: str, port: int) -> RadioBroadcaster | None:
     """Return the existing broadcaster for this radio, or None if not running."""
     return _broadcasters.get(f"{host}:{port}")

@@ -377,6 +377,33 @@
       ]
     },
     {
+      "label": "Scottish",
+      "frequency_hz": 135525000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish",
+      "frequency_hz": 135576000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish",
+      "frequency_hz": 135851000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
       "label": "2m FT8",
       "frequency_hz": 144174000,
       "mode": "USB",

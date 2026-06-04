@@ -126,6 +126,7 @@
               @focus="onFreqInputFocus"
               @click="onFreqInputFocus"
               @blur="onFreqInputBlur"
+              @wheel.prevent="onFreqWheel"
             >
             <span class="sdr-freq-unit">MHz</span>
           </div>
@@ -370,7 +371,7 @@
               @click="toggleScanGroup(g.id)"
             >{{ g.name }}</button>
           </div>
-          <div class="sdr-scan-btns-row sdr-scan-btns-row--right">
+          <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
             <button
               type="button"
               class="sdr-search-adhoc-play"
@@ -380,6 +381,7 @@
               :title="scanActive ? 'Stop scan' : 'Start scan'"
               @click="onScanPrimaryClick"
             >
+              <span class="sdr-search-adhoc-play-label">{{ scanActive ? 'Stop' : 'Scan' }}</span>
               <svg v-if="scanActive" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
               <svg v-else width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
             </button>
@@ -574,7 +576,7 @@
                 class="sdr-freq-row-play"
                 aria-label="Play frequency"
                 title="Play"
-                @click.stop="tuneToFreq(f)"
+                @click.stop="playFreq(f)"
               >
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><polygon points="2,1 11,6 2,11" fill="currentColor"/></svg>
               </button>
@@ -1022,6 +1024,7 @@ import SdrClipsSection from './SdrClipsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode } from '@/stores/sdr'
+import { useNotificationsStore } from '@/stores/notifications'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {
   listSearchRanges as apiListSearchRanges,
@@ -1054,6 +1057,26 @@ function _sdrStore() {
   if (!_spectrumStore) _spectrumStore = useSdrStore()
   return _spectrumStore
 }
+
+let _notifStore: ReturnType<typeof useNotificationsStore> | null = null
+function _notificationsStore() {
+  if (!_notifStore) _notifStore = useNotificationsStore()
+  return _notifStore
+}
+
+// Pending external (auto-tune) request, applied once the control socket opens.
+let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?: string; token?: string } | null = null
+
+// State captured the moment an auto-tune takes over the radio, so the LOS
+// restore can put things back. `playing` records whether audio was running
+// before AOS; when false the radio was stopped (or merely connected) and the
+// restore stops playback again. `token` ties this snapshot to the firing pass so
+// a stale LOS (after a newer pass retuned) is ignored. `tunedHz`/`tunedMode` are
+// what we tuned *to* — the restore only acts if the radio is still on them
+// (i.e. the user hasn't manually retuned since), so we never clobber a manual change.
+let _autoTunePrevState:
+  | { token?: string; playing: boolean; freqHz: number; mode: SdrMode; tunedHz: number; tunedMode: SdrMode }
+  | null = null
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
@@ -1189,6 +1212,21 @@ watch(() => _sdrStore().tuneRequest, (req) => {
   currentFreqHz.value = hz
   activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
   freqInputVal.value = (hz / 1e6).toFixed(4)
+  // A freq-axis drag-pan (req.center) commits exactly ONCE on mouse release, so
+  // it needs no coalescing debounce — retune the hardware IMMEDIATELY so the
+  // panned view fills with real data without the ~600ms lag. The pan means
+  // "move the hardware centre" regardless of the auto-centre toggle. (Marker
+  // drags / typed freqs still debounce below to coalesce continuous updates.)
+  if (req.center) {
+    if (_retuneDebounce) clearTimeout(_retuneDebounce)
+    sendCmd({ cmd: 'tune', frequency_hz: hz })
+    // Persist (best-effort) without blocking the retune.
+    _retuneDebounce = setTimeout(() => {
+      sessionStorage.setItem('sdrLastFreqHz', String(hz))
+      saveSettings()
+    }, 600)
+    return
+  }
   if (_retuneDebounce) clearTimeout(_retuneDebounce)
   _retuneDebounce = setTimeout(() => {
     sessionStorage.setItem('sdrLastFreqHz', String(hz))
@@ -1545,6 +1583,8 @@ async function openControlSocket(radioId: number) {
     // Push the restored hardware sample rate so the backend's span matches
     // what the user last picked, instead of whatever the device default is.
     sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
+    // Apply a queued auto-tune now that the socket can accept commands.
+    if (_pendingExternalTune) _applyPendingExternalTune()
   })
 
   ws.addEventListener('message', (ev: MessageEvent) => {
@@ -1623,6 +1663,96 @@ function setPlayingState(on: boolean) {
 // ── Tune ──────────────────────────────────────────────────────────────────────
 
 let _retuneDebounce: ReturnType<typeof setTimeout> | null = null
+
+// ── Scroll-to-tune (per-digit) ────────────────────────────────────────────────
+// Hover a digit in the frequency input and scroll the wheel to step that digit's
+// place value. We work in Hz and reformat (rather than editing the character) so
+// 9→0 carries fall out naturally. Display updates live per notch; the hardware
+// retune is debounced (250ms) via the store's tuneRequest path so the spectrum
+// marker stays in sync — matching onPlotWheel in SdrWaterfall.vue.
+let _freqWheelDebounce: ReturnType<typeof setTimeout> | null = null
+let _freqWheelMirror: HTMLSpanElement | null = null
+
+// Measure the on-screen left edge (px, from the input's content box) of each
+// character in `str`, using a hidden span that mirrors the input's exact font
+// metrics — including letter-spacing, which canvas measureText ignores. The
+// browser does the real layout, so the boundaries are pixel-accurate and don't
+// accumulate rounding error across the string.
+function freqCharEdges(el: HTMLInputElement, str: string): number[] {
+  if (!_freqWheelMirror) {
+    _freqWheelMirror = document.createElement('span')
+    _freqWheelMirror.style.position = 'absolute'
+    _freqWheelMirror.style.visibility = 'hidden'
+    _freqWheelMirror.style.whiteSpace = 'pre'
+    _freqWheelMirror.style.left = '-9999px'
+    _freqWheelMirror.style.top = '0'
+    document.body.appendChild(_freqWheelMirror)
+  }
+  const m = _freqWheelMirror
+  const cs = getComputedStyle(el)
+  m.style.font = cs.font
+  m.style.fontFamily = cs.fontFamily
+  m.style.fontSize = cs.fontSize
+  m.style.fontWeight = cs.fontWeight
+  m.style.fontVariantNumeric = cs.fontVariantNumeric
+  m.style.letterSpacing = cs.letterSpacing
+  // Width of each leading prefix "", "N", "NN", … gives every character's right
+  // edge; index i's span is [edges[i], edges[i+1]).
+  const edges: number[] = [0]
+  for (let i = 1; i <= str.length; i++) {
+    m.textContent = str.slice(0, i)
+    edges.push(m.getBoundingClientRect().width)
+  }
+  return edges
+}
+
+// Map the wheel event's cursor X to the place value (in Hz) of the digit under it,
+// using the authoritative currentFreqHz (the input may be transiently blanked on
+// focus). Returns null when the cursor is over the decimal point or out of range.
+function freqDigitPlaceHz(e: WheelEvent): number | null {
+  const el = freqInputRef.value
+  if (!el || !currentFreqHz.value) return null
+  const str = (currentFreqHz.value / 1e6).toFixed(4) // "NNN.DDDD"
+  const rect = el.getBoundingClientRect()
+  const cs = getComputedStyle(el)
+  // Text starts after the left padding/border (both 0 here, but read to be safe).
+  const x = e.clientX - rect.left - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.borderLeftWidth || '0')
+  if (x < 0) return null
+  const edges = freqCharEdges(el, str)
+  let idx = -1
+  for (let i = 0; i < str.length; i++) {
+    if (x >= edges[i] && x < edges[i + 1]) { idx = i; break }
+  }
+  if (idx < 0 || str[idx] === '.') return null
+  const dot = str.indexOf('.')
+  // Integer digit at index idx: place 10^(dot-1-idx) MHz. Decimal digit: 10^-(idx-dot) MHz.
+  const placeMhz = idx < dot
+    ? Math.pow(10, dot - 1 - idx)
+    : Math.pow(10, -(idx - dot))
+  return placeMhz * 1e6
+}
+
+function onFreqWheel(e: WheelEvent) {
+  if (controlsDisabled.value || scanActive.value) return
+  const placeHz = freqDigitPlaceHz(e)
+  if (placeHz == null) return
+  const dir = e.deltaY < 0 ? 1 : -1 // scroll up → higher freq
+  const newHz = Math.round(currentFreqHz.value + dir * placeHz)
+  if (newHz <= 0) return
+  // Update the display live every notch.
+  currentFreqHz.value = newHz
+  activeFreqDisplay.value = (newHz / 1e6).toFixed(3) + ' MHz'
+  freqInputVal.value = (newHz / 1e6).toFixed(4)
+  // Commit to hardware once the burst settles (only when playing). Reuses the
+  // tuneRequest watcher: marker sync + sendCmd('tune') + persistence.
+  if (playing.value && selectedRadioId.value) {
+    if (_freqWheelDebounce) clearTimeout(_freqWheelDebounce)
+    _freqWheelDebounce = setTimeout(() => {
+      _freqWheelDebounce = null
+      _sdrStore().requestTune(currentFreqHz.value, true)
+    }, 250)
+  }
+}
 
 function tune() {
   if (!selectedRadioId.value) return
@@ -1818,13 +1948,19 @@ function applyStatus(msg: {
   connected: boolean; center_hz: number; mode: string;
   gain_db: number; gain_auto: boolean; sample_rate: number
 }) {
-  if (!msg.connected) return
+  // Seed the frequency field from the device's center_hz even while the radio is
+  // still reporting connected=false (the initial status sent right after a page
+  // refresh). Without this the input stays blank until the user manually tunes,
+  // which looked like "the selected SDR can't be tuned again after a refresh".
   const hadUserFreq = currentFreqHz.value && currentFreqHz.value !== msg.center_hz
-  if (!hadUserFreq) {
+  if (!hadUserFreq && msg.center_hz > 0) {
     currentFreqHz.value = msg.center_hz
     freqInputVal.value = (msg.center_hz / 1e6).toFixed(4)
     activeFreqDisplay.value = (msg.center_hz / 1e6).toFixed(3) + ' MHz'
   }
+  // The remaining fields reflect live hardware state — only trust them once the
+  // device is actually connected and streaming.
+  if (!msg.connected) return
   currentMode.value = msg.mode
   gainDb.value = msg.gain_db
   gainAuto.value = msg.gain_auto
@@ -1920,16 +2056,22 @@ function populateRadios(radios: SdrRadio[]) {
   radiosLoading.value = false
   try { sessionStorage.setItem(RADIOS_CACHE_KEY2, JSON.stringify(radios)) } catch (_) {}
   const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '', 10)
-  if (savedId) {
-    const r = radios.find(r => r.id === savedId && r.enabled)
-    if (r) {
-      selectedRadioId.value = r.id
-      deviceDropdownLabel.value = r.name
-      controlsDisabled.value = false
-      void openControlSocket(r.id)
-    } else {
-      deviceDropdownLabel.value = '— select radio —'
-    }
+  const savedRadio = savedId ? radios.find(r => r.id === savedId && r.enabled) : undefined
+  // Pick a radio to make the panel usable without a manual dropdown selection:
+  //   1. the remembered radio (if still present + enabled), else
+  //   2. the sole enabled radio — when there's exactly one, there's nothing to
+  //      disambiguate, so auto-select it (fixes "freshly added SDR leaves the
+  //      whole radio panel locked / no way to type a frequency").
+  // With two or more enabled radios and nothing remembered we can't guess which
+  // one the user wants, so fall back to the "select radio" placeholder.
+  const enabledRadios = radios.filter(r => r.enabled)
+  const autoRadio = savedRadio ?? (enabledRadios.length === 1 ? enabledRadios[0] : undefined)
+  if (autoRadio) {
+    selectedRadioId.value = autoRadio.id
+    deviceDropdownLabel.value = autoRadio.name
+    sessionStorage.setItem('sdrLastRadioId', String(autoRadio.id))
+    controlsDisabled.value = false
+    void openControlSocket(autoRadio.id)
   } else {
     deviceDropdownLabel.value = '— select radio —'
   }
@@ -2084,11 +2226,36 @@ function toggleScanLock() {
   }
 }
 
+// Lightweight retune used by the scan engine: the stream is already running,
+// so this only moves the receiver — it must NOT (re)init audio or toggle the
+// playing state on every scan step.
 function tuneToFreq(f: SdrStoredFrequency) {
   currentFreqHz.value = f.frequency_hz
   currentMode.value   = f.mode
   freqInputVal.value  = (f.frequency_hz / 1e6).toFixed(4)
   activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
+  sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
+  sendCmd({ cmd: 'mode', mode: f.mode })
+}
+
+// Play button on a saved frequency row: tune AND start the audio stream.
+function playFreq(f: SdrStoredFrequency) {
+  if (!selectedRadioId.value) return
+  if (scanActive.value) stopScan()
+  if (searchActive.value) stopSearch()
+  currentFreqHz.value = f.frequency_hz
+  currentMode.value   = f.mode
+  freqInputVal.value  = (f.frequency_hz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
+  sdrAudio.initAudio(selectedRadioId.value)
+  sdrAudio.setMode(f.mode as SdrMode)
+  const bw = defaultBwHz(f.mode)
+  sdrAudio.setBandwidthHz(bw)
+  bwHz.value = bw
+  setPlayingState(true)
+  sessionStorage.setItem('sdrLastFreqHz', String(f.frequency_hz))
+  sessionStorage.setItem('sdrLastMode', f.mode)
+  saveSettings()
   sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
   sendCmd({ cmd: 'mode', mode: f.mode })
 }
@@ -2174,6 +2341,218 @@ function tuneToHzMode(hz: number, mode: string) {
   activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
   sendCmd({ cmd: 'tune', frequency_hz: hz })
   sendCmd({ cmd: 'mode', mode })
+}
+
+// Map a satellite's downlink mode string (e.g. "FM", "USB", "FSK9k6") to a
+// demodulator the SDR supports. Satellite FM voice is narrowband, so "FM" maps
+// to NFM (not broadcast WFM); anything unrecognised falls back to NFM.
+function _coerceSdrMode(mode: string | undefined): SdrMode {
+  const m = (mode || '').toUpperCase()
+  if (m === 'WFM') return 'WFM'
+  if (m === 'NFM' || m === 'FM') return 'NFM'
+  if (m === 'AM') return 'AM'
+  if (m === 'USB') return 'USB'
+  if (m === 'LSB') return 'LSB'
+  if (m === 'CW') return 'CW'
+  return 'NFM'
+}
+
+// True while an auto-tune is actively holding the radio: we have a snapshot AND
+// the radio is still parked on exactly what we tuned it to. If the user (or a
+// scan/search) has since moved off that freq, the lock is no longer held and a
+// fresh pass may take over. Shared by onExternalTune (lock-in priority) and
+// onExternalTuneRestore (only restore if still on the tuned freq).
+function _isAutoTuneLockHeld(): boolean {
+  const snap = _autoTunePrevState
+  if (!snap) return false
+  if (scanActive.value || searchActive.value) return false
+  return playing.value
+    && Math.round(currentFreqHz.value) === snap.tunedHz
+    && (currentMode.value as SdrMode) === snap.tunedMode
+}
+
+// External tune request (currently from satellite auto-tune at AOS). Tunes the
+// SDR to the given freq+mode, starting the default radio hands-free if nothing
+// is playing. Because the control socket opens asynchronously, the actual tune
+// is queued in _pendingExternalTune and applied once the socket is open (see
+// openControlSocket's 'open' handler).
+function onExternalTune(e: Event): void {
+  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string; noradId?: string; token?: string }>).detail
+  if (!detail || !detail.hz) return
+  const hz = Math.round(detail.hz)
+  const mode = _coerceSdrMode(detail.mode)
+  const satName = detail.satName || 'SATELLITE'
+  const noradId = detail.noradId
+  const token = detail.token
+
+  // Lock-in priority: if an earlier overlapping pass already holds the radio,
+  // skip this later one rather than grabbing the tuner mid-copy. Leave the
+  // snapshot/radio untouched so the holder's LOS restore still matches its
+  // token. A scan/search or a manual retune releases the lock (see
+  // _isAutoTuneLockHeld), letting the next pass take over normally.
+  if (_isAutoTuneLockHeld() && _autoTunePrevState!.token !== token) {
+    _notificationsStore().add({
+      type: 'autotune', title: `${satName} PASS SKIPPED`,
+      detail: 'Radio busy with an earlier pass — not retuned',
+      noradId,
+    })
+    return
+  }
+
+  // Snapshot the pre-AOS state so the LOS restore can put it back. Captured
+  // before any mutation below. A scan/search counts as "not the prior idle
+  // freq", so we record whether it was running and just stop on restore.
+  _autoTunePrevState = {
+    token,
+    playing: playing.value,
+    freqHz: currentFreqHz.value,
+    mode: currentMode.value as SdrMode,
+    tunedHz: hz,
+    tunedMode: mode,
+  }
+
+  if (selectedRadioId.value && playing.value) {
+    // Already running — just retune (+ keep the audio demod in sync).
+    currentFreqHz.value = hz
+    currentMode.value   = mode
+    freqInputVal.value  = (hz / 1e6).toFixed(4)
+    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
+    sdrAudio.setMode(mode)
+    const bw = defaultBwHz(mode)
+    sdrAudio.setBandwidthHz(bw); bwHz.value = bw
+    sessionStorage.setItem('sdrLastFreqHz', String(hz))
+    sessionStorage.setItem('sdrLastMode', mode)
+    sendCmd({ cmd: 'tune', frequency_hz: hz })
+    sendCmd({ cmd: 'mode', mode })
+    _notifyAutoTuned(satName, hz, mode, noradId)
+    return
+  }
+
+  // Not playing: pick a radio. Prefer the currently-selected one, else the
+  // last-used (sdrLastRadioId), else the first enabled known radio.
+  let radio: SdrRadio | null = null
+  if (selectedRadioId.value) {
+    radio = knownRadios.value.find(r => r.id === selectedRadioId.value) ?? null
+  }
+  if (!radio) {
+    const lastId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '', 10)
+    if (!isNaN(lastId)) radio = knownRadios.value.find(r => r.id === lastId && r.enabled) ?? null
+  }
+  if (!radio) radio = knownRadios.value.find(r => r.enabled) ?? null
+  if (!radio) {
+    _notifyAutoTuneFailed(satName)
+    return
+  }
+
+  // Queue the tune to fire once the control socket is open.
+  _pendingExternalTune = { hz, mode, satName, noradId, token }
+  const sameRadio = selectedRadioId.value === radio.id
+  const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
+  const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
+  if (sameRadio && sockOpen) {
+    _applyPendingExternalTune()
+  } else if (sameRadio && sockConnecting) {
+    // Socket already opening for this radio — its 'open' handler will drain the
+    // pending tune. Re-selecting would early-return and never fire 'open'.
+  } else {
+    selectRadio(radio)
+  }
+}
+
+function _applyPendingExternalTune(): void {
+  const p = _pendingExternalTune
+  if (!p) return
+  _pendingExternalTune = null
+  if (!selectedRadioId.value) return
+  currentFreqHz.value = p.hz
+  currentMode.value   = p.mode
+  freqInputVal.value  = (p.hz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (p.hz / 1e6).toFixed(3) + ' MHz'
+  sdrAudio.initAudio(selectedRadioId.value)
+  sdrAudio.setMode(p.mode)
+  const bw = defaultBwHz(p.mode)
+  sdrAudio.setBandwidthHz(bw); bwHz.value = bw
+  setPlayingState(true)
+  sessionStorage.setItem('sdrLastFreqHz', String(p.hz))
+  sessionStorage.setItem('sdrLastMode', p.mode)
+  saveSettings()
+  sendCmd({ cmd: 'tune', frequency_hz: p.hz })
+  sendCmd({ cmd: 'mode', mode: p.mode })
+  _notifyAutoTuned(p.satName, p.hz, p.mode, p.noradId)
+}
+
+function _notifyAutoTuned(satName: string, hz: number, mode: string, noradId?: string): void {
+  _notificationsStore().add({
+    type: 'autotune', title: `${satName} AUTO-TUNED`,
+    detail: `Downlink ${(hz / 1e6).toFixed(3)} MHz ${mode} @ AOS`,
+    noradId,
+  })
+}
+
+function _notifyAutoTuneFailed(satName: string): void {
+  _notificationsStore().add({
+    type: 'system', title: `${satName} AUTO-TUNE`,
+    detail: 'No SDR radio configured — open the RADIO panel to add one',
+  })
+}
+
+// LOS restore: undo an auto-tune once the pass ends, returning the radio to the
+// state captured at AOS. We only act if the radio is still parked on the
+// frequency/mode we auto-tuned to — if the user (or a newer pass) has retuned
+// since, the snapshot is stale and we leave things alone.
+function onExternalTuneRestore(e: Event): void {
+  const detail = (e as CustomEvent<{ satName?: string; noradId?: string; token?: string }>).detail
+  const snap = _autoTunePrevState
+  if (!snap) return
+  // Token mismatch means a later AOS overwrote the snapshot; that newer pass
+  // owns the restore now, so ignore this stale LOS.
+  if (detail?.token && snap.token && detail.token !== snap.token) return
+  _autoTunePrevState = null
+
+  const satName = detail?.satName || 'SATELLITE'
+  const noradId = detail?.noradId
+
+  // Bail if the user has taken manual control (retuned, scanned, searched, or
+  // stopped) since the auto-tune — respect their state over the restore. Note
+  // _isAutoTuneLockHeld reads _autoTunePrevState, which we cleared above, so
+  // re-check against the captured snapshot directly here.
+  if (scanActive.value || searchActive.value) return
+  const onTunedFreq = playing.value
+    && Math.round(currentFreqHz.value) === snap.tunedHz
+    && (currentMode.value as SdrMode) === snap.tunedMode
+  if (!onTunedFreq) return
+
+  if (!snap.playing) {
+    // Radio was stopped/connected-but-idle before AOS — stop playback again.
+    stop()
+    _notifyAutoRestored(satName, null, null, noradId)
+    return
+  }
+
+  // Was playing on another frequency before AOS — retune back to it.
+  if (!selectedRadioId.value) return
+  currentFreqHz.value = snap.freqHz
+  currentMode.value   = snap.mode
+  freqInputVal.value  = (snap.freqHz / 1e6).toFixed(4)
+  activeFreqDisplay.value = (snap.freqHz / 1e6).toFixed(3) + ' MHz'
+  sdrAudio.setMode(snap.mode)
+  const bw = defaultBwHz(snap.mode)
+  sdrAudio.setBandwidthHz(bw); bwHz.value = bw
+  sessionStorage.setItem('sdrLastFreqHz', String(snap.freqHz))
+  sessionStorage.setItem('sdrLastMode', snap.mode)
+  sendCmd({ cmd: 'tune', frequency_hz: snap.freqHz })
+  sendCmd({ cmd: 'mode', mode: snap.mode })
+  _notifyAutoRestored(satName, snap.freqHz, snap.mode, noradId)
+}
+
+function _notifyAutoRestored(satName: string, hz: number | null, mode: string | null, noradId?: string): void {
+  _notificationsStore().add({
+    type: 'autotune', title: `${satName} PASS ENDED`,
+    detail: hz != null && mode != null
+      ? `Restored SDR → ${(hz / 1e6).toFixed(3)} MHz ${mode}`
+      : 'Stopped SDR (was idle before pass)',
+    noradId,
+  })
 }
 
 function startSearch(source?: 'adhoc' | 'saved') {
@@ -2825,6 +3204,33 @@ async function stopRecordingIfActive() {
 }
 
 function onSquelchChangeCallback(open: boolean) {
+  // The audio worklet's squelch is the source of truth for "is this channel
+  // audible". The scan/search dwell check samples the spectrum waterfall
+  // (sampleChannelDb), which can underreport narrow signals the worklet's
+  // squelch did open on — so a signal could be playing while the scan kept
+  // stepping. Lock the moment the worklet opens squelch on an active, unlocked
+  // sweep, but only once the post-tune settle has elapsed so we don't lock on
+  // residual audio from the previous frequency.
+  if (open) {
+    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
+    if (settled) {
+      if (scanActive.value && !scanLocked.value) {
+        scanLocked.value = true
+        startResumeWatcher(squelch.value, () => {
+          if (!scanActive.value || !scanLocked.value) return
+          toggleScanLock()
+        })
+      } else if (searchActive.value && !searchLocked.value) {
+        searchLocked.value = true
+        _sdrStore().searchSweeping = false
+        startResumeWatcher(squelch.value, () => {
+          if (!searchActive.value || !searchLocked.value) return
+          toggleSearchLock()
+        })
+      }
+    }
+  }
+
   if (!isRecording.value) return
   if (open && !recSquelchOpen.value) {
     if (_recPauseStart != null) { _recPausedMs += Date.now() - _recPauseStart; _recPauseStart = null }
@@ -2868,5 +3274,7 @@ onUnmounted(() => {
 
 useDocumentEvent('click', onDocumentClick)
 useDocumentEvent('sdr:radios-changed', onRadiosChanged)
+useDocumentEvent('sentinel:sdr-tune-external', onExternalTune)
+useDocumentEvent('sentinel:sdr-tune-restore', onExternalTuneRestore)
 </script>
 

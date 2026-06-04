@@ -67,3 +67,47 @@ export function aosText(pass: SatPass, nowMs: number = Date.now()): string {
 export function accPassIsNow(ap: AccPass, nowMs: number): boolean {
     return nowMs >= ap.aos_unix_ms && nowMs <= ap.los_unix_ms
 }
+
+export interface AutoTuneConflict {
+    noradId: string
+    name:    string
+    aosMs:   number
+    losMs:   number
+}
+
+// Auto-tune is lock-in: when two armed sats are overhead at once, the radio (one
+// tuner) holds whichever pass it acquired first and skips the later one. This
+// flags, for a candidate sat the user is arming, which *other already-armed*
+// sats have an upcoming pass that time-overlaps the candidate's — so the UI can
+// warn that one of the two passes won't be tuned. Pure: pass in the full pass
+// list (all sats) and an `isArmed` predicate. Returns one entry per conflicting
+// sat (the earliest overlapping window), sorted by AOS.
+export function findAutoTuneConflicts(
+    candidateNoradId: string,
+    passes: SatPass[],
+    isArmed: (noradId: string) => boolean,
+    nowMs: number = Date.now(),
+): AutoTuneConflict[] {
+    const mine = passes.filter(p => p.norad_id === candidateNoradId && p.los_unix_ms > nowMs)
+    if (mine.length === 0) return []
+    const byNorad = new Map<string, AutoTuneConflict>()
+    for (const other of passes) {
+        if (other.norad_id === candidateNoradId) continue
+        if (other.los_unix_ms <= nowMs) continue
+        if (!isArmed(other.norad_id)) continue
+        // Standard interval overlap against any of the candidate's passes.
+        const overlaps = mine.some(m =>
+            m.aos_unix_ms < other.los_unix_ms && other.aos_unix_ms < m.los_unix_ms)
+        if (!overlaps) continue
+        const existing = byNorad.get(other.norad_id)
+        if (!existing || other.aos_unix_ms < existing.aosMs) {
+            byNorad.set(other.norad_id, {
+                noradId: other.norad_id,
+                name: other.name || other.norad_id,
+                aosMs: other.aos_unix_ms,
+                losMs: other.los_unix_ms,
+            })
+        }
+    }
+    return [...byNorad.values()].sort((a, b) => a.aosMs - b.aosMs)
+}

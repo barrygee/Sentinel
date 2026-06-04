@@ -26,7 +26,14 @@
     </template>
     <template v-else>
       <template v-for="group in groupedResults" :key="group.cat">
-        <div class="space-filter-section-label">{{ group.label }}</div>
+        <button
+          class="space-filter-section-label"
+          @click="toggleSection(group.cat)"
+        >
+          <span>{{ group.label }}</span>
+          <ChevronIcon class="space-filter-section-chevron" :class="{ 'space-filter-section-chevron--collapsed': collapsedCats.has(group.cat) }" />
+        </button>
+        <template v-if="!collapsedCats.has(group.cat)">
         <div
           v-for="sat in group.sats"
           :key="sat.norad_id"
@@ -111,7 +118,7 @@
                 <template v-if="sat.radio_status">
                   <div class="sfr-acc-cell sfr-acc-cell--status">
                     <div class="sfr-acc-cell-label">STATUS</div>
-                    <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-status-active': sat.radio_status === 'active', 'sfr-acc-status-silent': sat.radio_status === 'silent' || sat.radio_status === 'inactive' }">{{ formatStatus(sat.radio_status) }}</div>
+                    <div class="sfr-acc-cell-value">{{ formatStatus(sat.radio_status) }}</div>
                   </div>
                 </template>
               </div>
@@ -135,15 +142,39 @@
                   class="sfr-acc-notif-btn"
                   :class="{ 'sfr-acc-notif-btn--active': notifNoradId === sat.norad_id }"
                   :aria-label="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
-                  :title="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                  :data-tooltip="notifNoradId === sat.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
                   @click.stop="togglePassNotif(sat)"
                 >
                   <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
                     <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
-                    <line v-if="notifNoradId !== sat.norad_id" x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
                   </svg>
                 </button>
+                <button
+                  v-if="sat.downlink_hz"
+                  class="sfr-acc-autotune-btn"
+                  :class="{ 'sfr-acc-autotune-btn--active': isArmed(sat.norad_id) }"
+                  :aria-label="autoTuneLabel(sat)"
+                  :data-tooltip="autoTuneLabel(sat)"
+                  @click.stop="toggleAutoTune(sat)"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <!-- radio receiver: matches the SDR tab glyph -->
+                    <path d="M5 7h14v12H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
+                    <line x1="6" y1="7" x2="17" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <circle cx="9" cy="13" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                    <line x1="15.5" y1="11" x2="17" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div v-if="isArmed(sat.norad_id) && autoTuneConflictText" class="sfr-acc-autotune-warn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+                  <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor"/>
+                </svg>
+                <span>{{ autoTuneConflictText }}</span>
               </div>
             </div>
             <div class="sfr-acc-section sfr-acc-section--polar">
@@ -194,6 +225,7 @@
             </div>
           </div>
         </div>
+        </template>
       </template>
     </template>
   </div>
@@ -202,7 +234,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled } from './controls/satellite/passNotifStore'
+import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
+import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
@@ -285,6 +318,20 @@ const loaded        = ref(false)
 const expandedNoradId = ref<string | null>(null)
 const focusedNoradId  = ref<string | null>(null)
 
+// Collapsed category groups. Groups default to expanded; a category present here is collapsed.
+const collapsedCats = ref<Set<string>>(new Set())
+// Categories collapsed by the user but force-opened by the search auto-expand. They
+// re-collapse once their matches go away, unless the user manually toggles them.
+const autoOpenedCats = ref<Set<string>>(new Set())
+function toggleSection(cat: string): void {
+  const next = new Set(collapsedCats.value)
+  if (next.has(cat)) next.delete(cat)
+  else next.add(cat)
+  collapsedCats.value = next
+  // A manual toggle takes ownership: drop any auto-open bookkeeping for this category.
+  autoOpenedCats.value.delete(cat)
+}
+
 const accordionLoading = ref(false)
 const accordionStatus  = ref('COMPUTING PASSES…')
 const accordionPasses  = ref<SatPass[]>([])
@@ -293,6 +340,21 @@ const followedNoradId  = ref<string | null>(props.satelliteControl?.followedNora
 const notifNoradId     = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
+// Auto-tune armed state is read straight from the store (multiple sats can be
+// armed). `armedTick` nudges reactivity when arming changes.
+const armedTick        = ref(0)
+const notificationsStore = useNotificationsStore()
+
+// Passes of OTHER armed sats, fetched lazily so we can detect lock-in conflicts
+// for the expanded sat (SpaceFilter only loads one sat's passes at a time). Only
+// the fields the overlap test needs, tagged with the owning sat.
+interface ArmedPass { norad_id: string; name: string; aos_unix_ms: number; los_unix_ms: number }
+const armedPasses      = ref<ArmedPass[]>([])
+
+function isArmed(noradId: string): boolean {
+  void armedTick.value
+  return isAutoTuneEnabled(noradId)
+}
 
 const now = ref(Date.now())
 
@@ -326,6 +388,86 @@ function readPassNotifState(noradId: string): boolean {
   return isPassNotifEnabled(noradId)
 }
 
+function autoTuneLabel(_sat: SatEntry): string {
+  return 'Auto-tune SDR'
+}
+
+// Lock-in conflict for the expanded accordion: which OTHER armed sat has a pass
+// overlapping this sat's loaded passes. SpaceFilter passes lack norad_id and only
+// the expanded sat is loaded, so we test raw time-overlap of `accordionPasses`
+// against the lazily-fetched `armedPasses` (passes of other armed sats).
+const autoTuneConflict = computed<{ name: string; aosMs: number } | null>(() => {
+  void armedTick.value
+  const exp = expandedNoradId.value
+  if (!exp || !isAutoTuneEnabled(exp)) return null
+  const now = Date.now()
+  const mine = accordionPasses.value.filter(p => p.los_unix_ms > now)
+  let best: { name: string; aosMs: number } | null = null
+  for (const o of armedPasses.value) {
+    if (o.norad_id === exp || o.los_unix_ms <= now || !isAutoTuneEnabled(o.norad_id)) continue
+    const overlaps = mine.some(m => m.aos_unix_ms < o.los_unix_ms && o.aos_unix_ms < m.los_unix_ms)
+    if (!overlaps) continue
+    if (!best || o.aos_unix_ms < best.aosMs) best = { name: o.name || o.norad_id, aosMs: o.aos_unix_ms }
+  }
+  return best
+})
+
+const autoTuneConflictText = computed<string>(() => {
+  const c = autoTuneConflict.value
+  if (!c) return ''
+  const t = new Date(c.aosMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return `Overlaps ${c.name} @ ${t} — earlier pass keeps the radio`
+})
+
+// Fetch upcoming passes for every armed sat except `excludeNoradId` (the one whose
+// own passes are already in accordionPasses), so the conflict check has data.
+async function refreshArmedPasses(excludeNoradId: string): Promise<void> {
+  const loc = props.getUserLocation()
+  if (!loc) { armedPasses.value = []; return }
+  const [lon, lat] = loc
+  const armed = Object.keys(getAllPassNotifs()).filter(
+    id => id !== excludeNoradId && isAutoTuneEnabled(id))
+  if (armed.length === 0) { armedPasses.value = []; return }
+  try {
+    const results = await Promise.all(armed.map(async id => {
+      const url = `/api/space/satellite/${encodeURIComponent(id)}/passes?lat=${lat}&lon=${lon}&hours=24&min_el=0`
+      const resp = await fetch(url)
+      if (!resp.ok) return []
+      const data = await resp.json() as { passes: Array<{ aos_unix_ms: number; los_unix_ms: number }> }
+      const name = getAllPassNotifs()[id]?.name || id
+      return (data.passes || []).map(p => ({ norad_id: id, name, aos_unix_ms: p.aos_unix_ms, los_unix_ms: p.los_unix_ms }))
+    }))
+    armedPasses.value = results.flat()
+  } catch { armedPasses.value = [] }
+}
+
+function toggleAutoTune(sat: SatEntry): void {
+  if (!sat.downlink_hz) return
+  const noradId = sat.norad_id
+  const name = sat.name || noradId
+  const enabled = !isAutoTuneEnabled(noradId)
+  setAutoTuneEnabled(noradId, enabled, {
+    name,
+    downlinkHz: sat.downlink_hz ?? undefined,
+    downlinkMode: sat.downlink_mode ?? undefined,
+  })
+  armedTick.value++
+  void refreshArmedPasses(noradId)
+  document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
+  if (enabled) {
+    notificationsStore.add({
+      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId,
+    })
+  } else {
+    // Remove the persistent "Auto-tune on pass enabled" card so the alerts list
+    // stays in sync (the live pass/tune trace alerts share the noradId but have
+    // a different detail, so match on it to leave those untouched).
+    notificationsStore.items
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Auto-tune on pass enabled')
+      .forEach(i => notificationsStore.dismiss(i.id))
+  }
+}
+
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
 let itemFetchAbort: AbortController | null = null
 let itemTickInterval: ReturnType<typeof setInterval> | null = null
@@ -352,16 +494,31 @@ function categoryForQuery(q: string): string | null {
   return null
 }
 
+// Lower score = better match, so the most relevant satellites sort first
+// within their category group (e.g. "ISS (ZARYA)" floats above the other
+// space stations when the query is "iss").
+function matchScore(s: SatEntry, lq: string, matchedCat: string | null): number {
+  const name = s.name?.toLowerCase() ?? ''
+  if (name === lq) return 0
+  if (name.startsWith(lq)) return 1
+  if (name.includes(lq)) return 2
+  if (s.norad_id.includes(lq)) return 3
+  if (matchedCat !== null && s.category === matchedCat) return 4
+  return 5
+}
+
 const results = computed<SatEntry[]>(() => {
   const q = query.value.trim()
   if (!q) return satellites.value
   const matchedCat = categoryForQuery(q)
   const lq = q.toLowerCase()
-  return satellites.value.filter(s =>
-    s.name?.toLowerCase().includes(lq) ||
-    s.norad_id.includes(lq) ||
-    (matchedCat !== null && s.category === matchedCat),
-  )
+  return satellites.value
+    .filter(s =>
+      s.name?.toLowerCase().includes(lq) ||
+      s.norad_id.includes(lq) ||
+      (matchedCat !== null && s.category === matchedCat),
+    )
+    .sort((a, b) => matchScore(a, lq, matchedCat) - matchScore(b, lq, matchedCat))
 })
 
 const groupedResults = computed(() => {
@@ -383,6 +540,31 @@ const groupedResults = computed(() => {
     })
   })
   return out
+})
+
+// Keep auto-expanded categories in sync with the search. A collapsed category that
+// gains matches is force-opened; once its matches disappear (or the query is
+// cleared) it re-collapses, so it returns to the state the user left it in.
+watch([query, groupedResults], () => {
+  const searching = query.value.trim().length > 0
+  const matched = new Set(searching ? groupedResults.value.map(g => g.cat) : [])
+  const next = new Set(collapsedCats.value)
+  let changed = false
+  for (const cat of matched) {
+    if (next.has(cat)) {
+      next.delete(cat)
+      autoOpenedCats.value.add(cat)
+      changed = true
+    }
+  }
+  for (const cat of [...autoOpenedCats.value]) {
+    if (!matched.has(cat)) {
+      next.add(cat)
+      autoOpenedCats.value.delete(cat)
+      changed = true
+    }
+  }
+  if (changed) collapsedCats.value = next
 })
 
 function satSecondary(sat: SatEntry): string {
@@ -416,6 +598,8 @@ function onItemClick(sat: SatEntry): void {
     props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
     notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
     void fetchAccordionPasses(sat.norad_id)
+    if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
+    else armedPasses.value = []
   }
 }
 
@@ -485,7 +669,9 @@ function clearQuery(): void {
 
 function onKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') { clearQuery(); return }
-  const allSats = groupedResults.value.flatMap(g => g.sats)
+  const allSats = groupedResults.value
+    .filter(g => !collapsedCats.value.has(g.cat))
+    .flatMap(g => g.sats)
   if (!allSats.length) return
   const idx = allSats.findIndex(s => s.norad_id === focusedNoradId.value)
   if (e.key === 'ArrowDown') {
@@ -576,6 +762,14 @@ useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
   const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
   notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
 })
+useDocumentEvent('satellite-auto-tune-changed', () => {
+  // Re-read armed state from the store (another component may have toggled) and
+  // refresh the conflict data for whatever sat is expanded.
+  armedTick.value++
+  const exp = expandedNoradId.value
+  if (exp && isAutoTuneEnabled(exp)) void refreshArmedPasses(exp)
+  else armedPasses.value = []
+})
 
 defineExpose({ focus: () => inputRef.value?.focus() })
 </script>
@@ -654,17 +848,43 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .space-filter-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.18em;
     color: var(--color-accent);
-    padding: 18px 20px 5px 24px;
+    padding: 22px 20px 12px 24px;
     text-transform: uppercase;
+    text-align: left;
     flex-shrink: 0;
+    transition: opacity 0.12s;
+}
+
+.space-filter-section-label:hover {
+    opacity: 0.8;
 }
 
 .space-filter-section-label:first-child {
     padding-top: 24px;
+}
+
+.space-filter-section-chevron {
+    color: rgba(255, 255, 255, 0.35);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+/* Match the per-item chevron convention: down when expanded, left when collapsed. */
+.space-filter-section-chevron--collapsed {
+    transform: rotate(-90deg);
 }
 
 .space-filter-result-item {
@@ -726,7 +946,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     right: 0;
     top: 0;
     height: 44px;
-    padding: 0 24px;
+    padding: 0 20px;
     display: flex;
     align-items: center;
     flex-shrink: 0;
@@ -851,6 +1071,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .sfr-acc-notif-btn {
+    position: relative;
     flex: 0 0 auto;
     width: 44px;
     background: #0d1015;
@@ -876,6 +1097,88 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 
 .sfr-acc-notif-btn.sfr-acc-notif-btn--active:hover {
     background: rgba(200, 255, 0, 0.18);
+}
+
+.sfr-acc-autotune-btn {
+    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    background: #0d1015;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s, background 0.12s;
+}
+
+.sfr-acc-autotune-btn:hover {
+    color: var(--color-accent);
+    background: #05070a;
+}
+
+.sfr-acc-autotune-btn.sfr-acc-autotune-btn--active {
+    color: var(--color-accent);
+    background: rgba(200, 255, 0, 0.12);
+}
+
+.sfr-acc-autotune-btn.sfr-acc-autotune-btn--active:hover {
+    background: rgba(200, 255, 0, 0.18);
+}
+
+/* Inline lock-in conflict warning: another armed sat overlaps this one, so only
+   one of the two passes will actually be tuned. */
+.sfr-acc-autotune-warn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 5px 8px;
+    background: rgba(255, 176, 0, 0.08);
+    border-left: 2px solid #ffb000;
+    color: #ffb000;
+    font-size: 10px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.sfr-acc-autotune-warn svg {
+    flex: 0 0 auto;
+}
+
+/* Styled tooltips for the notif / auto-tune icon buttons — matches the
+   sidebar tab (rail) tooltip style. Positioned above the button row. */
+.sfr-acc-notif-btn[data-tooltip]::before,
+.sfr-acc-autotune-btn[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: var(--color-text-muted);
+    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 14px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10002;
+}
+
+.sfr-acc-notif-btn[data-tooltip]:hover::before,
+.sfr-acc-autotune-btn[data-tooltip]:hover::before {
+    opacity: 1;
 }
 
 .sfr-acc-section--polar {
@@ -1066,12 +1369,6 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     color: rgba(255, 255, 255, 0.45);
     font-weight: 400;
     margin-left: 2px;
-}
-.sfr-acc-status-active {
-    color: var(--color-accent);
-}
-.sfr-acc-status-silent {
-    color: rgba(255, 130, 130, 0.85);
 }
 .sfr-acc-radio-line {
     margin-top: 14px;

@@ -58,13 +58,23 @@ export class SatellitePassNotifier {
 
     toggleEnabled(): void { this.toggle() }
 
+    // Remove the persistent "Pass notifications enabled" alert for a satellite
+    // when its notifications are turned off, so the alerts list stays in sync.
+    private _dismissEnabledAlert(noradId: string): void {
+        const { notificationsStore } = this._ctx
+        const stale = notificationsStore.items
+            .filter(i => i.type === 'tracking' && i.noradId === noradId && i.detail === 'Pass notifications enabled')
+            .map(i => i.id)
+        stale.forEach(id => notificationsStore.dismiss(id))
+    }
+
     private toggle(): void {
         const { notificationsStore, getUserLocation, getActiveNoradId, getActiveSatName } = this._ctx
         const noradId = getActiveNoradId()
         const name = getActiveSatName()
         if (this.enabled) {
             setPassNotifEnabled(noradId, false)
-            notificationsStore.add({ type: 'notif-off', title: name, detail: 'Pass notifications disabled' })
+            this._dismissEnabledAlert(noradId)
             document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
         } else {
             const loc = getUserLocation()
@@ -83,11 +93,11 @@ export class SatellitePassNotifier {
             setPassNotifEnabled(noradId, true, name)
             document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: true } }))
             notificationsStore.add({
-                type: 'tracking', title: name, detail: 'Pass notifications enabled',
+                type: 'tracking', title: name, detail: 'Pass notifications enabled', noradId,
                 // Target this specific satellite (not whichever is active later).
                 action: { label: 'DISABLE NOTIFICATIONS', callback: () => {
                     setPassNotifEnabled(noradId, false)
-                    notificationsStore.add({ type: 'notif-off', title: name, detail: 'Pass notifications disabled' })
+                    this._dismissEnabledAlert(noradId)
                     document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
                 } },
             })
