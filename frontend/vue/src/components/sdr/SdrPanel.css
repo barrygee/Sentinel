@@ -414,8 +414,14 @@
     box-sizing: border-box;
 }
 
+.sdr-freq-input-large:hover {
+    /* Hint that the field is scrollable to step the digit under the cursor. */
+    cursor: ns-resize;
+}
+
 .sdr-freq-input-large:focus {
     background: rgba(10, 13, 20, 0.92);
+    cursor: text;
 }
 
 .sdr-freq-input-large::placeholder {

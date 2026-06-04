@@ -126,6 +126,7 @@
               @focus="onFreqInputFocus"
               @click="onFreqInputFocus"
               @blur="onFreqInputBlur"
+              @wheel.prevent="onFreqWheel"
             >
             <span class="sdr-freq-unit">MHz</span>
           </div>
@@ -1639,6 +1640,96 @@ function setPlayingState(on: boolean) {
 // ── Tune ──────────────────────────────────────────────────────────────────────
 
 let _retuneDebounce: ReturnType<typeof setTimeout> | null = null
+
+// ── Scroll-to-tune (per-digit) ────────────────────────────────────────────────
+// Hover a digit in the frequency input and scroll the wheel to step that digit's
+// place value. We work in Hz and reformat (rather than editing the character) so
+// 9→0 carries fall out naturally. Display updates live per notch; the hardware
+// retune is debounced (250ms) via the store's tuneRequest path so the spectrum
+// marker stays in sync — matching onPlotWheel in SdrWaterfall.vue.
+let _freqWheelDebounce: ReturnType<typeof setTimeout> | null = null
+let _freqWheelMirror: HTMLSpanElement | null = null
+
+// Measure the on-screen left edge (px, from the input's content box) of each
+// character in `str`, using a hidden span that mirrors the input's exact font
+// metrics — including letter-spacing, which canvas measureText ignores. The
+// browser does the real layout, so the boundaries are pixel-accurate and don't
+// accumulate rounding error across the string.
+function freqCharEdges(el: HTMLInputElement, str: string): number[] {
+  if (!_freqWheelMirror) {
+    _freqWheelMirror = document.createElement('span')
+    _freqWheelMirror.style.position = 'absolute'
+    _freqWheelMirror.style.visibility = 'hidden'
+    _freqWheelMirror.style.whiteSpace = 'pre'
+    _freqWheelMirror.style.left = '-9999px'
+    _freqWheelMirror.style.top = '0'
+    document.body.appendChild(_freqWheelMirror)
+  }
+  const m = _freqWheelMirror
+  const cs = getComputedStyle(el)
+  m.style.font = cs.font
+  m.style.fontFamily = cs.fontFamily
+  m.style.fontSize = cs.fontSize
+  m.style.fontWeight = cs.fontWeight
+  m.style.fontVariantNumeric = cs.fontVariantNumeric
+  m.style.letterSpacing = cs.letterSpacing
+  // Width of each leading prefix "", "N", "NN", … gives every character's right
+  // edge; index i's span is [edges[i], edges[i+1]).
+  const edges: number[] = [0]
+  for (let i = 1; i <= str.length; i++) {
+    m.textContent = str.slice(0, i)
+    edges.push(m.getBoundingClientRect().width)
+  }
+  return edges
+}
+
+// Map the wheel event's cursor X to the place value (in Hz) of the digit under it,
+// using the authoritative currentFreqHz (the input may be transiently blanked on
+// focus). Returns null when the cursor is over the decimal point or out of range.
+function freqDigitPlaceHz(e: WheelEvent): number | null {
+  const el = freqInputRef.value
+  if (!el || !currentFreqHz.value) return null
+  const str = (currentFreqHz.value / 1e6).toFixed(4) // "NNN.DDDD"
+  const rect = el.getBoundingClientRect()
+  const cs = getComputedStyle(el)
+  // Text starts after the left padding/border (both 0 here, but read to be safe).
+  const x = e.clientX - rect.left - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.borderLeftWidth || '0')
+  if (x < 0) return null
+  const edges = freqCharEdges(el, str)
+  let idx = -1
+  for (let i = 0; i < str.length; i++) {
+    if (x >= edges[i] && x < edges[i + 1]) { idx = i; break }
+  }
+  if (idx < 0 || str[idx] === '.') return null
+  const dot = str.indexOf('.')
+  // Integer digit at index idx: place 10^(dot-1-idx) MHz. Decimal digit: 10^-(idx-dot) MHz.
+  const placeMhz = idx < dot
+    ? Math.pow(10, dot - 1 - idx)
+    : Math.pow(10, -(idx - dot))
+  return placeMhz * 1e6
+}
+
+function onFreqWheel(e: WheelEvent) {
+  if (controlsDisabled.value || scanActive.value) return
+  const placeHz = freqDigitPlaceHz(e)
+  if (placeHz == null) return
+  const dir = e.deltaY < 0 ? 1 : -1 // scroll up → higher freq
+  const newHz = Math.round(currentFreqHz.value + dir * placeHz)
+  if (newHz <= 0) return
+  // Update the display live every notch.
+  currentFreqHz.value = newHz
+  activeFreqDisplay.value = (newHz / 1e6).toFixed(3) + ' MHz'
+  freqInputVal.value = (newHz / 1e6).toFixed(4)
+  // Commit to hardware once the burst settles (only when playing). Reuses the
+  // tuneRequest watcher: marker sync + sendCmd('tune') + persistence.
+  if (playing.value && selectedRadioId.value) {
+    if (_freqWheelDebounce) clearTimeout(_freqWheelDebounce)
+    _freqWheelDebounce = setTimeout(() => {
+      _freqWheelDebounce = null
+      _sdrStore().requestTune(currentFreqHz.value, true)
+    }, 250)
+  }
+}
 
 function tune() {
   if (!selectedRadioId.value) return
