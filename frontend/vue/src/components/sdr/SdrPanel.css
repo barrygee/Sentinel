@@ -2237,9 +2237,19 @@
     align-items: center;
     gap: 12px;
     height: 48px;
+    flex: 0 0 auto;
     padding: 0 20px 0 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-sizing: border-box;
+}
+
+/* The search box stays pinned; only the list below it scrolls — matching the
+   other list side panels (e.g. the Frequency Manager). */
+.sdr-clips-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 .sdr-clips-search-input {
@@ -2287,8 +2297,18 @@
 }
 
 #sdr-clips-list-wrap {
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 14px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
 }
+
+#sdr-clips-list-wrap::-webkit-scrollbar { display: none; }
 
 #sdr-clips-list {
     overflow-y: auto;
@@ -2332,79 +2352,353 @@
     transform: rotate(180deg);
 }
 
+/* Clip rows adopt the radio styling: a large Barlow-Condensed frequency readout
+   (mirroring .sdr-freq-input-large), a small uppercase name/mode sub-line, the
+   Date/Duration/Size meta, and — while playing — a SIGNAL-style block bar that
+   lights up to show position (click anywhere on it to seek). */
 .sdr-clip-row {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 20px 28px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     transition: background 0.12s;
 }
 
-.sdr-clip-body {
+.sdr-clip-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Subtle highlight on the whole row while playing. */
+.sdr-clip-playing {
+    background: rgba(200, 255, 0, 0.04);
+}
+
+.sdr-clip-content {
     display: flex;
     flex-direction: column;
+    padding: 10px 20px 10px 24px;
+    min-width: 0;
+}
+
+/* Title row: large frequency readout on the left, action glyphs on the right. */
+.sdr-clip-head {
+    display: flex;
+    align-items: center;
     gap: 12px;
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.25s ease, overflow 0s linear 0.25s;
 }
 
-.sdr-clip-expanded .sdr-clip-body {
-    overflow: visible;
-    transition: max-height 0.25s ease;
-}
-
-.sdr-clip-expanded .sdr-clip-summary {
-    display: none;
-}
-
-.sdr-clip-header {
+.sdr-clip-freq {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    cursor: pointer;
-}
-
-.sdr-clip-summary {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 13px;
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.55);
-    letter-spacing: 0.02em;
-}
-
-.sdr-clip-name {
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 13px;
-    font-weight: 500;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    gap: 4px;
     flex: 1;
     min-width: 0;
 }
 
-.sdr-clip-meta {
+/* Mirrors .sdr-freq-input-large — the radio's big frequency readout. */
+.sdr-clip-freq-num {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    color: #ffffff;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mirrors .sdr-freq-unit. */
+.sdr-clip-freq-unit {
+    flex-shrink: 0;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Mode (USB/AM/…) inline after the unit, separated by a dash. */
+.sdr-clip-freq-mode {
+    flex-shrink: 0;
+    margin-left: 5px;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* Custom name under the freq, mirroring .sdr-freq-name. */
+.sdr-clip-subname {
+    margin-top: 3px;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 13px;
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.78);
-    letter-spacing: 0.02em;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.sdr-clip-date {
+/* Labelled metadata rows: Date / Duration / Size. */
+.sdr-clip-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 12px 0 0;
+}
+
+.sdr-clip-meta-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 11px;
-    font-weight: 300;
-    color: rgba(200, 255, 0, 0.55);
-    letter-spacing: 0.04em;
+    font-weight: 400;
+    letter-spacing: 0.08em;
 }
 
-.sdr-clip-live {
-    border-left: 2px solid rgba(200, 255, 0, 0.4);
+.sdr-clip-meta-row dt {
+    width: 64px;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.sdr-clip-meta-row dd {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── SIGNAL-style block progress bar (click to seek) ── */
+.sdr-clip-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.sdr-clip-segments {
+    display: flex;
+    gap: 3px;
+    flex: 1;
+    height: 10px;
+    cursor: pointer;
+}
+
+/* Each block lights up as playback reaches it; the colour transition fades it
+   in cleanly so the bar animates block-by-block. */
+.sdr-clip-seg {
+    flex: 1;
+    height: 100%;
+    border-radius: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    transition: background 0.15s ease;
+}
+
+.sdr-clip-seg--on {
+    background: #c8ff00;
+}
+
+.sdr-clip-time {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Edit / delete sit inline on the right of the title, borderless glyphs. */
+.sdr-clip-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.sdr-clip-edit,
+.sdr-clip-del {
+    position: relative;
+    background: none;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 0 2px;
+    color: rgba(255, 255, 255, 0.35);
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* Flat dark tooltip — matches .sdr-rail-btn / #radio-mini-btn. Drops below the
+   button (the actions sit at the top of each clip row). */
+.sdr-clip-edit[data-tooltip]::before,
+.sdr-clip-del[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: rgba(10, 13, 20, 0.96);
+    color: #fff;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 10px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    border: none;
+    border-radius: 3px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10001;
+}
+
+.sdr-clip-edit:hover[data-tooltip]::before,
+.sdr-clip-del:hover[data-tooltip]::before { opacity: 1; }
+
+.sdr-clip-edit { font-size: 15px; }
+
+.sdr-clip-edit:hover { color: rgba(200, 255, 0, 0.85); }
+
+.sdr-clip-del { font-size: 14px; }
+
+.sdr-clip-del:hover { color: rgba(255, 80, 80, 0.85); }
+
+/* Inline delete confirm: armed ✓ reads as a "go" colour, ✕ stays neutral/red. */
+.sdr-clip-del--confirm { color: rgba(200, 255, 0, 0.85); }
+.sdr-clip-del--confirm:hover { color: rgba(200, 255, 0, 1); }
+.sdr-clip-del--cancel { color: rgba(255, 255, 255, 0.45); }
+.sdr-clip-del--cancel:hover { color: rgba(255, 80, 80, 0.85); }
+
+/* Play + download pill row beneath the meta. Buttons match the radio controls
+   (.sdr-mode-pill): a dark background that brightens on hover, accent tints. */
+.sdr-clip-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 14px;
+}
+
+.sdr-clip-play,
+.sdr-clip-export,
+.sdr-clip-iq,
+.sdr-clip-stop {
+    height: 28px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* Stop recording — red pill with a square glyph + STOP label. */
+.sdr-clip-stop {
+    gap: 7px;
+    padding: 0 14px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 80, 80, 0.85);
+}
+
+.sdr-clip-stop svg { display: block; }
+
+.sdr-clip-stop:hover {
+    background: rgba(255, 80, 80, 0.15);
+    color: #ff5050;
+}
+
+.sdr-clip-play {
+    width: 40px;
+    padding: 0;
+}
+
+.sdr-clip-play svg {
+    display: block;
+}
+
+/* Download is a text pill ("DOWNLOAD"), no icon. Sized to match the FM/USB/LSB
+   mode pills (9px). */
+.sdr-clip-export {
+    padding: 0 14px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.sdr-clip-export:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* Play button carries the accent tint, like the radio's tune button. */
+.sdr-clip-play {
+    color: rgba(200, 255, 0, 0.75);
+}
+
+.sdr-clip-play:hover {
+    background: rgba(200, 255, 0, 0.15);
+    color: #c8ff00;
+}
+
+.sdr-clip-playing .sdr-clip-play {
+    background: rgba(200, 255, 0, 0.12);
+    color: #c8ff00;
+}
+
+.sdr-clip-iq {
+    padding: 0 12px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(100, 180, 255, 0.75);
+}
+
+.sdr-clip-iq:hover {
+    background: rgba(100, 180, 255, 0.15);
+    color: rgba(100, 180, 255, 0.95);
+}
+
+/* ── Live recording row ── */
+
+/* "Recording" / "Waiting" status pill on the right of the freq title. */
+.sdr-clip-live-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.65);
 }
 
 .sdr-clip-live-dot {
@@ -2412,7 +2706,7 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #4cff72;
+    background: #c8ff00;
     flex-shrink: 0;
     animation: sdr-rec-pulse 1.2s ease-in-out infinite;
 }
@@ -2420,100 +2714,6 @@
 .sdr-clip-live-dot--waiting {
     background: #ffb300;
     animation: sdr-rec-pulse 2s ease-in-out infinite;
-}
-
-.sdr-clip-live-meta {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 13px;
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.78);
-    letter-spacing: 0.02em;
-}
-
-.sdr-clip-notes {
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.32);
-    font-style: italic;
-    padding-top: 1px;
-}
-
-.sdr-clip-actions {
-    display: flex;
-    gap: 4px;
-    margin-top: 4px;
-    flex-wrap: wrap;
-}
-
-.sdr-clip-play-btn {
-    background: rgba(200, 255, 0, 0.06);
-    color: rgba(200, 255, 0, 0.5);
-    padding: 0 10px;
-}
-
-.sdr-clip-play-btn:hover {
-    background: rgba(200, 255, 0, 0.12);
-    color: #c8ff00;
-}
-
-.sdr-clip-iq-btn {
-    background: rgba(100, 180, 255, 0.06);
-    color: rgba(100, 180, 255, 0.5);
-    padding: 0 10px;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-}
-
-.sdr-clip-iq-btn:hover {
-    background: rgba(100, 180, 255, 0.12);
-    color: rgba(100, 180, 255, 0.9);
-}
-
-.sdr-clip-edit-btn,
-.sdr-clip-export-btn,
-.sdr-clip-del-btn {
-    padding: 0;
-    width: 28px;
-    justify-content: center;
-}
-
-.sdr-clip-btn-icon {
-    display: block;
-    flex-shrink: 0;
-}
-
-.sdr-clip-player {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 14px;
-    padding-bottom: 6px;
-}
-
-.sdr-clip-time-cur,
-.sdr-clip-time-dur {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 10px;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.4);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.sdr-clip-seek {
-    flex: 1;
-    border-radius: 0;
-    background: rgba(200, 255, 0, 0.55);
-}
-
-.sdr-clip-seek::-webkit-slider-runnable-track {
-    border-radius: 0;
-}
-
-.sdr-clip-seek::-moz-range-track {
-    border-radius: 0;
 }
 
 .sdr-recmod-notes {
@@ -2983,6 +3183,26 @@
     min-height: 0;
 }
 #msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) #sdr-panel-panes {
+    flex: 1;
+    overflow-y: hidden;
+    min-height: 0;
+}
+
+/* Same height-constraint for the Recordings pane so the search box stays pinned
+   and only #sdr-clips-list-wrap scrolls. */
+.sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-clips-body) {
+    overflow-y: hidden !important;
+    min-height: 0;
+}
+#sdr-panel-panes:has(.sdr-tab-pane.active > .sdr-clips-body) {
+    overflow-y: hidden;
+    min-height: 0;
+}
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-clips-body) {
+    overflow-y: hidden;
+    min-height: 0;
+}
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-clips-body) #sdr-panel-panes {
     flex: 1;
     overflow-y: hidden;
     min-height: 0;

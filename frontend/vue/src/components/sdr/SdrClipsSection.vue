@@ -19,20 +19,39 @@
     <div ref="clipsListWrapRef" id="sdr-clips-list-wrap" @scroll="updateScrollHint">
       <!-- Live recording row -->
       <div v-if="liveRecording" class="sdr-clip-row sdr-clip-live">
-        <div class="sdr-clip-header">
-          <span class="sdr-clip-live-dot" :class="{ 'sdr-clip-live-dot--waiting': !recSquelchOpen }"></span>
-          <span class="sdr-clip-name">{{ recSquelchOpen ? 'Recording…' : 'Waiting for signal…' }}</span>
+        <div class="sdr-clip-content">
+          <div class="sdr-clip-head">
+            <div class="sdr-clip-freq">
+              <span class="sdr-clip-freq-num">{{ (liveRecording.frequency_hz / 1e6).toFixed(4) }}</span>
+              <span class="sdr-clip-freq-unit">MHz</span>
+              <span v-if="liveRecording.mode" class="sdr-clip-freq-mode">- {{ liveRecording.mode }}</span>
+            </div>
+            <span class="sdr-clip-live-status">
+              <span class="sdr-clip-live-dot" :class="{ 'sdr-clip-live-dot--waiting': !recSquelchOpen }"></span>
+              {{ recSquelchOpen ? 'Recording' : 'Waiting' }}
+            </span>
+          </div>
+          <dl class="sdr-clip-meta">
+            <div class="sdr-clip-meta-row">
+              <dt>Date</dt>
+              <dd>{{ liveRecording.startedAt }}</dd>
+            </div>
+            <div class="sdr-clip-meta-row">
+              <dt>Duration</dt>
+              <dd>{{ fmtDuration(liveElapsedS) }}</dd>
+            </div>
+            <div class="sdr-clip-meta-row">
+              <dt>Size</dt>
+              <dd>{{ fmtBytes(liveElapsedS * 96000) }}</dd>
+            </div>
+          </dl>
+          <div class="sdr-clip-controls">
+            <button class="sdr-clip-stop" title="Stop recording" aria-label="Stop recording" @click.stop="emit('stop-recording')">
+              <svg width="11" height="11" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" rx="1"/></svg>
+              STOP
+            </button>
+          </div>
         </div>
-        <div class="sdr-clip-live-meta">
-          <span class="sdr-clip-live-mhz">{{ (liveRecording.frequency_hz / 1e6).toFixed(4) }} MHz</span>
-          &nbsp;·&nbsp;
-          <span class="sdr-clip-mode-inline">{{ liveRecording.mode }}</span>
-          &nbsp;·&nbsp;
-          <span class="sdr-clip-live-dur">{{ fmtDuration(liveElapsedS) }}</span>
-          &nbsp;·&nbsp;
-          <span class="sdr-clip-live-sz">{{ fmtBytes(liveElapsedS * 96000) }}</span>
-        </div>
-        <div class="sdr-clip-date">{{ liveRecording.startedAt }}</div>
       </div>
 
       <!-- Saved clips -->
@@ -40,53 +59,95 @@
         v-for="c in filteredClips"
         :key="c.id"
         class="sdr-clip-row"
-        :class="{ 'sdr-clip-expanded': expandedClipId === c.id }"
+        :class="{ 'sdr-clip-playing': playingClipId === c.id }"
       >
-        <div class="sdr-clip-header" @click="toggleClipExpand(c.id)">
-          <span class="sdr-clip-name">{{ c.name }}</span>
-        </div>
-        <div class="sdr-clip-summary">{{ (c.frequency_hz / 1e6).toFixed(4) }} MHz &nbsp;·&nbsp; {{ c.mode }} &nbsp;·&nbsp; {{ fmtDuration(c.duration_s || 0) }} &nbsp;·&nbsp; {{ fmtBytes(c.file_size_bytes || 0) }}</div>
-        <div class="sdr-clip-body" :style="clipBodyStyle(c.id)">
-          <div class="sdr-clip-meta">{{ (c.frequency_hz / 1e6).toFixed(4) }} MHz &nbsp;·&nbsp; {{ c.mode }} &nbsp;·&nbsp; {{ fmtDuration(c.duration_s || 0) }} &nbsp;·&nbsp; {{ fmtBytes(c.file_size_bytes || 0) }}</div>
-          <div class="sdr-clip-date">{{ c.started_at ? c.started_at.replace('T', ' ').slice(0, 16) : '' }}</div>
-          <div v-if="c.notes" class="sdr-clip-notes">{{ c.notes }}</div>
-          <div class="sdr-clip-actions">
-            <button class="sdr-clip-play-btn sdr-panel-btn" :title="playingClipId === c.id ? 'Stop' : 'Play'" @click="toggleClipPlay(c)">
-              <svg v-if="playingClipId !== c.id" class="sdr-clip-btn-icon sdr-clip-play-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
-              <svg v-else class="sdr-clip-btn-icon sdr-clip-stop-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect x="1.5" y="1.5" width="3" height="7"/><rect x="5.5" y="1.5" width="3" height="7"/></svg>
-            </button>
-            <button class="sdr-clip-edit-btn sdr-panel-btn" title="Edit" @click="openEditRecModal(c)">
-              <svg class="sdr-clip-btn-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z"/></svg>
-            </button>
-            <button class="sdr-clip-export-btn sdr-panel-btn" title="Download WAV" @click="downloadClip(c, 'wav')">
-              <svg class="sdr-clip-btn-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1v6M2.5 7l3 3 3-3"/><line x1="1" y1="10" x2="10" y2="10"/></svg>
-            </button>
-            <button v-if="c.has_iq_file" class="sdr-clip-iq-btn sdr-panel-btn" title="Download IQ" @click="downloadClip(c, 'iq')">IQ</button>
-            <button class="sdr-clip-del-btn sdr-panel-btn" title="Delete" @click="openDeleteRecModal(c)">
-              <svg class="sdr-clip-btn-icon" width="10" height="11" viewBox="0 0 10 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h8M4 3V2h2v1M8 3l-.7 7H2.7L2 3"/></svg>
-            </button>
+        <div class="sdr-clip-content">
+          <!-- Title: frequency in the radio readout style (big number + small unit).
+               Edit / delete stay top-right as borderless glyphs. -->
+          <div class="sdr-clip-head">
+            <div class="sdr-clip-freq">
+              <span class="sdr-clip-freq-num">{{ clipFreqNumber(c) }}</span>
+              <span class="sdr-clip-freq-unit">MHz</span>
+              <span v-if="c.mode" class="sdr-clip-freq-mode">- {{ c.mode }}</span>
+            </div>
+            <div class="sdr-clip-actions">
+              <button class="sdr-clip-edit" data-tooltip="Edit" aria-label="Edit" @click.stop="openEditRecModal(c)">&#x270E;</button>
+              <!-- Inline delete confirm: bin → check/cancel pair. Click bin to arm,
+                   click again (✓) to confirm, ✕ to cancel. -->
+              <template v-if="confirmDelId === c.id">
+                <button class="sdr-clip-del sdr-clip-del--confirm" data-tooltip="Confirm delete" aria-label="Confirm delete" @click.stop="confirmInlineDelete(c)">
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2.5 7.5l3 3 6-7"/>
+                  </svg>
+                </button>
+                <button class="sdr-clip-del sdr-clip-del--cancel" data-tooltip="Cancel" aria-label="Cancel delete" @click.stop="confirmDelId = null">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                    <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
+                  </svg>
+                </button>
+              </template>
+              <button v-else class="sdr-clip-del" data-tooltip="Delete" aria-label="Delete" @click.stop="confirmDelId = c.id">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3.5h10"/>
+                  <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3"/>
+                  <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1"/>
+                  <path d="M6 6v4M8 6v4"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div v-if="playingClipId === c.id" class="sdr-clip-player" style="display:flex">
-            <span class="sdr-clip-time-cur">{{ fmtTime(clipCurrentTime) }}</span>
-            <input
-              type="range"
-              class="sdr-clip-seek sdr-panel-slider"
-              :value="clipCurrentTime"
-              :max="clipDuration"
-              min="0" step="0.01"
-              @input="seekClip"
-            >
-            <span class="sdr-clip-time-dur">{{ fmtTime(clipDuration) }}</span>
+
+          <!-- Custom name (if any), radio freq-name style. -->
+          <div v-if="clipCustomName(c)" class="sdr-clip-subname">{{ clipCustomName(c) }}</div>
+
+          <dl class="sdr-clip-meta">
+            <div class="sdr-clip-meta-row">
+              <dt>Date</dt>
+              <dd>{{ c.started_at ? c.started_at.replace('T', ' ').slice(0, 16) : '—' }}</dd>
+            </div>
+            <div class="sdr-clip-meta-row">
+              <dt>Duration</dt>
+              <dd>{{ fmtDuration(c.duration_s || 0) }}</dd>
+            </div>
+            <div class="sdr-clip-meta-row">
+              <dt>Size</dt>
+              <dd>{{ fmtBytes(c.file_size_bytes || 0) }}</dd>
+            </div>
+          </dl>
+
+          <!-- Play + download (WAV/IQ) as pill buttons, beneath the meta. -->
+          <div class="sdr-clip-controls">
+            <button class="sdr-clip-play" :title="playingClipId === c.id ? 'Stop' : 'Play'" :aria-label="playingClipId === c.id ? 'Stop' : 'Play'" @click.stop="toggleClipPlay(c)">
+              <svg v-if="playingClipId !== c.id" width="13" height="13" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><polygon points="2,1 9,5 2,9"/></svg>
+              <svg v-else width="13" height="13" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><rect x="1.5" y="1.5" width="3" height="7"/><rect x="5.5" y="1.5" width="3" height="7"/></svg>
+            </button>
+            <button class="sdr-clip-export" title="Download WAV" aria-label="Download WAV" @click.stop="downloadClip(c, 'wav')">DOWNLOAD</button>
+            <button v-if="c.has_iq_file" class="sdr-clip-iq" title="Download IQ" aria-label="Download IQ" @click.stop="downloadClip(c, 'iq')">IQ</button>
           </div>
-          <audio
-            :ref="el => setClipAudioRef(c.id, el as HTMLAudioElement | null)"
-            :src="`/api/sdr/recordings/${c.id}/file`"
-            style="display:none"
-            @loadedmetadata="onAudioMeta(c.id)"
-            @timeupdate="onAudioTimeUpdate(c.id)"
-            @ended="onAudioEnded(c.id)"
-          ></audio>
+
+          <!-- SIGNAL-style block progress bar (click to seek), shown while playing.
+               Each block lights up as playback passes it; a CSS transition fades
+               the colour so it animates cleanly block-by-block. -->
+          <div v-if="playingClipId === c.id" class="sdr-clip-progress">
+            <div class="sdr-clip-segments" @click.stop="seekClipBar" @mousedown.stop>
+              <div
+                v-for="i in CLIP_PROGRESS_SEGS"
+                :key="i"
+                class="sdr-clip-seg"
+                :class="{ 'sdr-clip-seg--on': i <= clipLitSegs }"
+              ></div>
+            </div>
+            <span class="sdr-clip-time">{{ fmtTime(clipCurrentTime) }} / {{ fmtTime(clipDuration) }}</span>
+          </div>
         </div>
+        <audio
+          :ref="el => setClipAudioRef(c.id, el as HTMLAudioElement | null)"
+          :src="`/api/sdr/recordings/${c.id}/file`"
+          style="display:none"
+          @loadedmetadata="onAudioMeta(c.id)"
+          @timeupdate="onAudioTimeUpdate(c.id)"
+          @ended="onAudioEnded(c.id)"
+        ></audio>
       </div>
 
       <div v-if="!liveRecording && filteredClips.length === 0" id="sdr-clips-empty" class="sdr-panel-empty">
@@ -120,21 +181,10 @@
     </div>
   </div>
 
-  <!-- ── DELETE RECORDING MODAL ── -->
-  <div id="sdr-rec-del-modal" class="sdr-modal-overlay" :style="{ display: deleteRecModalOpen ? 'flex' : 'none' }" @click.self="closeDeleteRecModal">
-    <div class="sdr-modal">
-      <div class="sdr-modal-title">DELETE CLIP?</div>
-      <div id="sdr-recdelmod-msg" class="sdr-recdelmod-msg">{{ deleteRecMsg }}</div>
-      <div class="sdr-modal-actions">
-        <button id="sdr-recdelmod-cancel" class="sdr-panel-btn" @click="closeDeleteRecModal">CANCEL</button>
-        <button id="sdr-recdelmod-confirm" class="sdr-panel-btn sdr-editfreq-del-btn" @click="confirmDeleteRec">DELETE</button>
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 
 interface SdrClip {
   id: number; name: string; notes: string; frequency_hz: number; mode: string;
@@ -154,6 +204,13 @@ const props = defineProps<{
   liveElapsedS: number
 }>()
 
+const emit = defineEmits<{
+  (e: 'stop-recording'): void
+  // Fired whenever a clip starts/stops playing so the parent can mute the live
+  // SDR audio during playback (signal/waterfall/spectrum keep running).
+  (e: 'playback-active', active: boolean): void
+}>()
+
 // ── Clips state ───────────────────────────────────────────────────────────────
 
 const clips        = ref<SdrClip[]>([])
@@ -169,12 +226,25 @@ const filteredClips = computed(() => {
   )
 })
 
-const expandedClipId   = ref<number | null>(null)
-
 const playingClipId   = ref<number | null>(null)
 const clipCurrentTime = ref(0)
 const clipDuration    = ref(0)
 const clipAudioRefs   = new Map<number, HTMLAudioElement>()
+const clipProgressPct = computed(() =>
+  clipDuration.value > 0
+    ? Math.min(100, Math.max(0, (clipCurrentTime.value / clipDuration.value) * 100))
+    : 0
+)
+
+// How many of the CLIP_PROGRESS_SEGS blocks are lit for the current position.
+const clipLitSegs = computed(() =>
+  Math.round((clipProgressPct.value / 100) * CLIP_PROGRESS_SEGS),
+)
+
+// Mute live SDR audio while any clip is playing; unmute when nothing plays.
+watch(playingClipId, (id, prev) => {
+  if ((id !== null) !== (prev !== null)) emit('playback-active', id !== null)
+})
 
 const clipsListWrapRef = ref<HTMLElement | null>(null)
 const scrollHintRef    = ref<HTMLElement | null>(null)
@@ -187,13 +257,33 @@ const recmodNotes      = ref('')
 const recmodNameRef    = ref<HTMLInputElement | null>(null)
 const editingRecId     = ref<number | null>(null)
 
-// ── Delete recording modal state ──────────────────────────────────────────────
+// ── Inline delete confirm ─────────────────────────────────────────────────────
+// The clip whose bin icon is "armed" — swaps it for a ✓ / ✕ pair until confirmed.
+const confirmDelId = ref<number | null>(null)
 
-const deleteRecModalOpen = ref(false)
-const deleteRecMsg       = ref('')
-const deletingRecId      = ref<number | null>(null)
+// Number of blocks in the SIGNAL-style progress bar (matches the radio meter feel).
+const CLIP_PROGRESS_SEGS = 28
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// The title is always the frequency in the big radio readout style. The numeric
+// part and the "MHz" unit are split so they can be sized differently, mirroring
+// .sdr-freq-input-large + .sdr-freq-unit.
+function clipFreqNumber(c: SdrClip): string {
+  return c.frequency_hz ? (c.frequency_hz / 1e6).toFixed(4) : '—'
+}
+
+// A custom, user-given name (if any) shown as a small sub-line under the freq.
+// Strip any legacy auto-generated "Recording <date>" / "YYYY-MM-DD HH:MM ·" or a
+// bare "<freq> MHz · MODE" so we only surface a real, meaningful name.
+function clipCustomName(c: SdrClip): string {
+  const stripped = (c.name || '')
+    .replace(/^Recording\s+/i, '')
+    .replace(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?:\s*·\s*)?/, '')
+    .replace(/^\d+(?:\.\d+)?\s*MHz(?:\s*·\s*[A-Z]+)?$/i, '')
+    .trim()
+  return stripped
+}
 
 function fmtDuration(s: number): string {
   const m = Math.floor(s / 60), sec = Math.round(s % 60)
@@ -240,37 +330,42 @@ function toggleClipPlay(c: SdrClip): void {
     }
     playingClipId.value = c.id
     clipCurrentTime.value = 0
+    // Seed duration from metadata if already loaded, else fall back to the
+    // recorded duration_s so the end time is populated immediately.
+    clipDuration.value = isFiniteDuration(a.duration) ? a.duration : (c.duration_s || 0)
     a.play()
   }
 }
 
+function isFiniteDuration(d: number): boolean {
+  return Number.isFinite(d) && d > 0
+}
+
 function onAudioMeta(id: number): void {
   const a = clipAudioRefs.get(id); if (!a) return
-  if (playingClipId.value === id) clipDuration.value = a.duration || 0
+  if (playingClipId.value === id && isFiniteDuration(a.duration)) clipDuration.value = a.duration
 }
 
 function onAudioTimeUpdate(id: number): void {
   if (playingClipId.value !== id) return
   const a = clipAudioRefs.get(id); if (!a) return
   clipCurrentTime.value = a.currentTime
+  // Streamed WAVs may only expose a finite duration once playback begins.
+  if (isFiniteDuration(a.duration) && a.duration !== clipDuration.value) clipDuration.value = a.duration
 }
 
 function onAudioEnded(id: number): void {
   if (playingClipId.value === id) { playingClipId.value = null; clipCurrentTime.value = 0 }
 }
 
-function seekClip(e: Event): void {
-  if (playingClipId.value === null) return
+// Click anywhere on the block bar to seek to that fraction of the clip.
+function seekClipBar(e: MouseEvent): void {
+  if (playingClipId.value === null || clipDuration.value <= 0) return
   const a = clipAudioRefs.get(playingClipId.value); if (!a) return
-  a.currentTime = parseFloat((e.target as HTMLInputElement).value)
-}
-
-function toggleClipExpand(id: number): void {
-  expandedClipId.value = expandedClipId.value === id ? null : id
-}
-
-function clipBodyStyle(id: number): Record<string, string> {
-  return expandedClipId.value === id ? { maxHeight: 'none' } : { maxHeight: '0' }
+  const el = e.currentTarget as HTMLElement
+  const rect = el.getBoundingClientRect()
+  const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+  a.currentTime = frac * clipDuration.value
 }
 
 function downloadClip(c: SdrClip, type: 'wav' | 'iq'): void {
@@ -315,21 +410,13 @@ async function saveEditRecModal(): Promise<void> {
   } catch (_) {}
 }
 
-// ── Delete recording modal ────────────────────────────────────────────────────
+// ── Delete recording ──────────────────────────────────────────────────────────
 
-function openDeleteRecModal(c: SdrClip): void {
-  deletingRecId.value  = c.id
-  deleteRecMsg.value   = `Delete "${c.name}"? This cannot be undone.`
-  deleteRecModalOpen.value = true
-}
-
-function closeDeleteRecModal(): void { deleteRecModalOpen.value = false; deletingRecId.value = null }
-
-async function confirmDeleteRec(): Promise<void> {
-  if (deletingRecId.value === null) return
+// Inline confirm: the bin was armed and the ✓ was clicked.
+async function confirmInlineDelete(c: SdrClip): Promise<void> {
+  confirmDelId.value = null
   try {
-    await fetch(`/api/sdr/recordings/${deletingRecId.value}`, { method: 'DELETE' })
-    closeDeleteRecModal()
+    await fetch(`/api/sdr/recordings/${c.id}`, { method: 'DELETE' })
     await reload()
   } catch (_) {}
 }

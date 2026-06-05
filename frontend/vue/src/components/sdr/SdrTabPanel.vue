@@ -53,8 +53,11 @@ import SdrPanel from './SdrPanel.vue'
     padding-right: 0;
 }
 
+/* The clip row's inner .sdr-clip-content / .sdr-clip-live own the horizontal
+   inset now (matching the search wrap's 24px left / 20px right); the row itself
+   spans full width so titles line up with the NAME header. */
 #msb-pane-radio .sdr-clip-row {
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-left: 0;
+    padding-right: 0;
 }
 </style>

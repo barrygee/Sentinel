@@ -970,6 +970,8 @@
           :live-recording="liveRecording"
           :rec-squelch-open="recSquelchOpen"
           :live-elapsed-s="liveElapsedS"
+          @stop-recording="stopRecordingIfActive"
+          @playback-active="(active: boolean) => sdrAudio.setLiveMuted(active)"
         />
       </div>
 
