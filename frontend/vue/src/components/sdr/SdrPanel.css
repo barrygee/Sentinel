@@ -2474,6 +2474,60 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Saved note (read-only), shown under the meta when present. */
+.sdr-clip-note {
+    margin-top: 10px;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Pencil turns accent while its edit accordion is open. */
+.sdr-clip-edit--active { color: rgba(200, 255, 0, 0.85); }
+
+/* ── Inline edit accordion (name + note) ── */
+.sdr-clip-edit-panel {
+    display: flex;
+    flex-direction: column;
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+}
+
+.sdr-clip-edit-label {
+    display: block;
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 6px;
+}
+
+.sdr-clip-edit-input {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.sdr-clip-edit-note {
+    resize: vertical;
+    min-height: 56px;
+    line-height: 1.45;
+}
+
+.sdr-clip-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 2px;
+}
+
 /* ── SIGNAL-style block progress bar (click to seek) ── */
 .sdr-clip-progress {
     display: flex;
@@ -2714,22 +2768,6 @@
 .sdr-clip-live-dot--waiting {
     background: #ffb300;
     animation: sdr-rec-pulse 2s ease-in-out infinite;
-}
-
-.sdr-recmod-notes {
-    resize: vertical;
-    min-height: 52px;
-    padding: 6px 8px;
-    line-height: 1.5;
-}
-
-.sdr-recdelmod-msg {
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.45);
-    letter-spacing: 0.05em;
-    line-height: 1.6;
-    padding: 4px 0 8px;
 }
 
 .sdr-mgmt-actions-row {

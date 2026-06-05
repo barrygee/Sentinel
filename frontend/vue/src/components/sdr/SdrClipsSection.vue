@@ -71,7 +71,7 @@
               <span v-if="c.mode" class="sdr-clip-freq-mode">- {{ c.mode }}</span>
             </div>
             <div class="sdr-clip-actions">
-              <button class="sdr-clip-edit" data-tooltip="Edit" aria-label="Edit" @click.stop="openEditRecModal(c)">&#x270E;</button>
+              <button class="sdr-clip-edit" :class="{ 'sdr-clip-edit--active': editingRecId === c.id }" data-tooltip="Edit" aria-label="Edit" @click.stop="toggleEditAccordion(c)">&#x270E;</button>
               <!-- Inline delete confirm: bin → check/cancel pair. Click bin to arm,
                    click again (✓) to confirm, ✕ to cancel. -->
               <template v-if="confirmDelId === c.id">
@@ -114,6 +114,37 @@
               <dd>{{ fmtBytes(c.file_size_bytes || 0) }}</dd>
             </div>
           </dl>
+
+          <!-- Saved note (read-only) shown when present and not editing. -->
+          <div v-if="c.notes && editingRecId !== c.id" class="sdr-clip-note">{{ c.notes }}</div>
+
+          <!-- Inline edit accordion: slides open between the meta and the play
+               controls. Edit the name + add a note, then SAVE (or CANCEL). -->
+          <div v-if="editingRecId === c.id" class="sdr-clip-edit-panel" @click.stop>
+            <label class="sdr-clip-edit-label">NAME</label>
+            <input
+              ref="recmodNameRef"
+              class="sdr-panel-input sdr-clip-edit-input"
+              type="text"
+              maxlength="120"
+              v-model="recmodName"
+              @keydown.enter="saveEditAccordion"
+              @keydown.esc="closeEditAccordion"
+            >
+            <label class="sdr-clip-edit-label">NOTE</label>
+            <textarea
+              class="sdr-panel-input sdr-clip-edit-input sdr-clip-edit-note"
+              rows="3"
+              maxlength="500"
+              placeholder="Add a note…"
+              v-model="recmodNotes"
+              @keydown.esc="closeEditAccordion"
+            ></textarea>
+            <div class="sdr-clip-edit-actions">
+              <button class="sdr-panel-btn sdr-clip-edit-cancel" @click.stop="closeEditAccordion">CANCEL</button>
+              <button class="sdr-panel-btn sdr-editfreq-save-btn sdr-clip-edit-save" @click.stop="saveEditAccordion">SAVE</button>
+            </div>
+          </div>
 
           <!-- Play + download (WAV/IQ) as pill buttons, beneath the meta. -->
           <div class="sdr-clip-controls">
@@ -161,26 +192,6 @@
       </svg>
     </div>
   </div>
-
-  <!-- ── EDIT RECORDING MODAL ── -->
-  <div id="sdr-rec-modal" class="sdr-modal-overlay" :style="{ display: editRecModalOpen ? 'flex' : 'none' }" @click.self="closeEditRecModal">
-    <div class="sdr-modal">
-      <div class="sdr-modal-title">EDIT CLIP</div>
-      <div class="sdr-modal-field">
-        <label class="sdr-field-label">NAME</label>
-        <input ref="recmodNameRef" id="sdr-recmod-name" class="sdr-panel-input sdr-modal-input" type="text" maxlength="120" v-model="recmodName">
-      </div>
-      <div class="sdr-modal-field">
-        <label class="sdr-field-label">NOTES</label>
-        <textarea id="sdr-recmod-notes" class="sdr-panel-input sdr-modal-input sdr-recmod-notes" rows="3" maxlength="500" placeholder="Optional notes…" v-model="recmodNotes"></textarea>
-      </div>
-      <div class="sdr-modal-actions">
-        <button id="sdr-recmod-cancel" class="sdr-panel-btn" @click="closeEditRecModal">CANCEL</button>
-        <button id="sdr-recmod-save" class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveEditRecModal">SAVE</button>
-      </div>
-    </div>
-  </div>
-
 </template>
 
 <script setup lang="ts">
@@ -249,9 +260,9 @@ watch(playingClipId, (id, prev) => {
 const clipsListWrapRef = ref<HTMLElement | null>(null)
 const scrollHintRef    = ref<HTMLElement | null>(null)
 
-// ── Edit recording modal state ────────────────────────────────────────────────
+// ── Inline edit accordion state ───────────────────────────────────────────────
+// editingRecId is the clip whose edit panel is expanded (null = none open).
 
-const editRecModalOpen = ref(false)
 const recmodName       = ref('')
 const recmodNotes      = ref('')
 const recmodNameRef    = ref<HTMLInputElement | null>(null)
@@ -385,19 +396,21 @@ function updateScrollHint(): void {
   hint.style.display = (hasOverflow && !atBottom) ? 'flex' : 'none'
 }
 
-// ── Edit recording modal ──────────────────────────────────────────────────────
+// ── Inline edit accordion ─────────────────────────────────────────────────────
 
-function openEditRecModal(c: SdrClip): void {
+// Toggle the edit panel for a clip. Opening seeds the inputs from the clip and
+// closes any other open panel; clicking the pencil again collapses it.
+function toggleEditAccordion(c: SdrClip): void {
+  if (editingRecId.value === c.id) { closeEditAccordion(); return }
   editingRecId.value = c.id
   recmodName.value   = c.name || ''
   recmodNotes.value  = c.notes || ''
-  editRecModalOpen.value = true
   nextTick(() => recmodNameRef.value?.focus())
 }
 
-function closeEditRecModal(): void { editRecModalOpen.value = false; editingRecId.value = null }
+function closeEditAccordion(): void { editingRecId.value = null }
 
-async function saveEditRecModal(): Promise<void> {
+async function saveEditAccordion(): Promise<void> {
   const name = recmodName.value.trim()
   if (!name || editingRecId.value === null) return
   try {
@@ -405,7 +418,7 @@ async function saveEditRecModal(): Promise<void> {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, notes: recmodNotes.value.trim() }),
     })
-    closeEditRecModal()
+    closeEditAccordion()
     await reload()
   } catch (_) {}
 }
