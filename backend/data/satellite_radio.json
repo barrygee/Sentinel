@@ -6,9 +6,9 @@
     "downlink_hz": 29400000,
     "downlink_mode": "USB",
     "transponder_type": "Linear",
-    "beacon_hz": 435100000,
+    "beacon_hz": 29502000,
     "radio_status": "active",
-    "radio_notes": "Mode U TLM Beacon; Mode U/V (B) TLM Beacon; Mode V/A (A) Lin SSB; Mode V/A (A) Lin CW; Mode U/V (B) Lin; Mode V/A (A) TLM Beacon; 13 cm Beacon (40mW)"
+    "radio_notes": "AO-7 (Oscar 7). Mode A (V/A) non-inverting: uplink 145.850-145.950 MHz USB/CW, downlink 29.400-29.500 MHz USB/CW, TLM beacon 29.502 MHz CW. Mode B (U/V) inverting: uplink 432.125-432.175 MHz LSB/CW, downlink 145.975-145.925 MHz USB/CW, TLM beacon 145.972/145.975 MHz CW. 13 cm beacon 2304.100 MHz CW (40mW)."
   },
   "14129": {
     "downlink_hz": 145987000,

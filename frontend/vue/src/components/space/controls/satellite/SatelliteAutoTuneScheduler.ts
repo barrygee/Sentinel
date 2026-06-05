@@ -33,6 +33,12 @@ export class SatelliteAutoTuneScheduler {
     private _ctx: SatelliteAutoTuneSchedulerCtx
     private _lastFiredAos = 0
     private _lastFiredLos = 0
+    // LOS of the pass we last fired AOS for. Used to suppress duplicate fires
+    // while that same pass is still overhead: each 5-min refresh re-fetches the
+    // passes, and the backscan AOS detection for an in-progress pass can shift
+    // its aos_unix_ms by a few seconds, defeating an exact-AOS equality guard
+    // and re-firing the tune (one "PASS" + "AUTO-TUNED" alert per refresh).
+    private _firedThroughLos = 0
     private _scheduleTimeout: ReturnType<typeof setTimeout> | null = null
     private _losTimeout: ReturnType<typeof setTimeout> | null = null
     private _refreshInterval: ReturnType<typeof setInterval> | null = null
@@ -84,8 +90,14 @@ export class SatelliteAutoTuneScheduler {
         if (!next) return
         const delay = next.aos_unix_ms - now
         if (delay <= 0) {
-            if (this._lastFiredAos !== next.aos_unix_ms) {
-                this._lastFiredAos = next.aos_unix_ms; this._fire(next)
+            // Fire once per overhead pass. Guard on the fired pass's LOS rather
+            // than exact AOS equality: AOS can drift across refreshes for an
+            // in-progress pass (see _firedThroughLos), but its LOS is stable, so
+            // suppress while we're still inside a window we've already fired for.
+            if (now >= this._firedThroughLos) {
+                this._lastFiredAos = next.aos_unix_ms
+                this._firedThroughLos = next.los_unix_ms
+                this._fire(next)
             }
             const remaining = passes.filter(p => p.aos_unix_ms > now + 60000)
             if (remaining.length > 0) this._schedule(remaining)
@@ -94,7 +106,9 @@ export class SatelliteAutoTuneScheduler {
         this._scheduleTimeout = setTimeout(() => {
             this._scheduleTimeout = null
             if (this._stopped) return
-            this._lastFiredAos = next.aos_unix_ms; this._fire(next)
+            this._lastFiredAos = next.aos_unix_ms
+            this._firedThroughLos = next.los_unix_ms
+            this._fire(next)
             const remaining = passes.filter(p => p.aos_unix_ms > next.aos_unix_ms + 60000)
             if (remaining.length > 0) this._schedule(remaining)
             else this._fetchAndSchedule()
