@@ -1236,7 +1236,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 
 .sfr-acc-polar-empty {
     padding: 18px 0;
-    text-align: center;
+    text-align: left;
     font-family: var(--font-primary);
     font-size: 10px;
     font-weight: 400;
@@ -1272,7 +1272,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .sfr-acc-no-passes {
-    padding: 4px 0 8px 0;
+    padding: 4px 24px 8px 24px;
     font-family: var(--font-primary);
     font-size: 10px;
     font-weight: 400;

@@ -689,7 +689,7 @@
 
 .spp-acc-polar-empty {
     padding: 18px 0;
-    text-align: center;
+    text-align: left;
     font-family: var(--font-primary);
     font-size: 10px;
     font-weight: 400;
@@ -725,7 +725,7 @@
 }
 
 .spp-acc-no-passes {
-    padding: 4px 0 8px 0;
+    padding: 4px 28px 8px 28px;
     font-family: var(--font-primary);
     font-size: 10px;
     font-weight: 400;
