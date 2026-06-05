@@ -1568,6 +1568,10 @@ async function openControlSocket(radioId: number) {
 
   ws.addEventListener('open', () => {
     _ctrlReconnectDelay = 500
+    // The control socket is open, which means /api/sdr/connect succeeded and the
+    // device is reachable — light the connection dot now (availability), rather
+    // than waiting for the first spectrum frame that only flows once playing.
+    void _probeReachability(radioId)
     const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
     if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
@@ -1929,6 +1933,24 @@ function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
+
+// Reachability probe for the connection dot. The dot represents *availability*
+// (the device is connected), NOT whether audio/spectrum is actively streaming —
+// so it must go green as soon as a selected radio is reachable, without waiting
+// for the first spectrum frame (which only arrives once the user hits Play).
+// This mirrors the Settings device dot, which polls the same endpoint. Guarded
+// by radioId so a probe that resolves after the user switched radios is ignored.
+async function _probeReachability(radioId: number): Promise<void> {
+  try {
+    const res = await fetch(`/api/sdr/status/${radioId}`)
+    if (selectedRadioId.value !== radioId) return
+    if (!res.ok) return
+    const data = await res.json()
+    if (data.connected === true || data.reachable === true) {
+      connected.value = true
+    }
+  } catch (_) {}
+}
 
 function setStatus(isConnected: boolean) {
   connected.value = isConnected
