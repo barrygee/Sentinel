@@ -76,6 +76,10 @@
     background: rgba(255, 60, 60, 0.6);
 }
 
+.sdr-dot-idle {
+    background: #ffcc33;
+}
+
 .sdr-dot-on {
     background: #c8ff00;
 }

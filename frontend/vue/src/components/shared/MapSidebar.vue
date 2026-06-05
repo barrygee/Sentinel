@@ -98,10 +98,19 @@ withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
 type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'playback' | 'radio'
 
 const SS_KEY = 'sentinel_sidebar_open'
-const SS_TAB_KEY = 'sentinel_sidebar_tab'
+// Per-domain tab memory in localStorage (survives refresh): each section
+// remembers its own last tab, so returning to Space resumes 'passes' while Air
+// resumes 'playback'. 'radio' is never stored (it's re-applied by the SDR route).
+const SS_TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
+const VALID_TABS: readonly SidebarTab[] = ['search', 'alerts', 'tracking', 'passes', 'playback', 'radio']
+
+function _domainFromPath(): string {
+  return window.location.pathname.split('/').filter(Boolean)[0] ?? ''
+}
+let _activeDomain = _domainFromPath()
 
 const open = ref(_restoreOpen())
-const activeTab = ref<SidebarTab>(_restoreTab())
+const activeTab = ref<SidebarTab>(_restoreTab(_activeDomain))
 
 const tabs = computed(() => [
   { id: 'search' as SidebarTab,   label: 'SEARCH' },
@@ -134,12 +143,11 @@ function hide() { open.value = false; _persistOpen(false) }
 
 function openPlaybackTab() { show(); switchTab('playback') }
 function openRadioTab() { show(); switchTab('radio') }
-// Called when navigating away from the SDR route. Reset the SDR-only 'radio'
-// tab and close the panel. Note: this can race with the 'sentinel:domain-changed'
-// handler, which may have already reset activeTab to 'search' — so we hide()
-// unconditionally rather than gating on activeTab still being 'radio'.
+// Called when navigating away from the SDR route. The entering section's tab is
+// restored by the domain-changed handler, so here we only close the panel (the
+// 'radio' tab is never persisted). hide() runs unconditionally since this can
+// race with domain-changed.
 function closeRadioTab() {
-  setTab('search')
   hide()
 }
 
@@ -148,9 +156,24 @@ function _persistOpen(val: boolean) {
   document.dispatchEvent(new CustomEvent('sentinel:sidebar-state', { detail: { open: val } }))
 }
 
-function _persistTab(tab: SidebarTab) {
+function _readTabMap(): Record<string, string> {
   try {
-    tab === 'radio' ? sessionStorage.setItem(SS_TAB_KEY, tab) : sessionStorage.removeItem(SS_TAB_KEY)
+    const raw = localStorage.getItem(SS_TAB_MAP_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, string>
+  } catch {}
+  return {}
+}
+
+function _persistTab(tab: SidebarTab) {
+  // 'radio' is transient (driven by the SDR route), so never store it — doing so
+  // would shadow the SDR section's real saved tab. Record under the current domain.
+  if (tab === 'radio') return
+  try {
+    const map = _readTabMap()
+    if (tab === 'search') delete map[_activeDomain]  // 'search' is the default
+    else map[_activeDomain] = tab
+    localStorage.setItem(SS_TAB_MAP_KEY, JSON.stringify(map))
   } catch {}
 }
 
@@ -158,12 +181,12 @@ function _restoreOpen(): boolean {
   try { return sessionStorage.getItem(SS_KEY) === '1' } catch { return false }
 }
 
-function _restoreTab(): SidebarTab {
-  try {
-    const saved = sessionStorage.getItem(SS_TAB_KEY)
-    if (saved === 'radio') return 'radio'
-  } catch {}
-  return 'search'
+function _restoreTab(domain: string): SidebarTab {
+  const saved = _readTabMap()[domain]
+  if (!saved || !(VALID_TABS as readonly string[]).includes(saved)) return 'search'
+  const required = DOMAIN_SPECIFIC_TABS[saved]
+  if (required && required !== domain) return 'search'  // defensive
+  return saved as SidebarTab
 }
 
 useDocumentEvent('sentinel:sdr-open-panel', () => { show() })
@@ -171,13 +194,14 @@ useDocumentEvent('sentinel:sdr-toggle-panel', () => { toggle() })
 
 useDocumentEvent('sentinel:domain-changed', (e: Event) => {
   const { domain } = (e as CustomEvent<{ domain: string; prev: string }>).detail
-  const required = DOMAIN_SPECIFIC_TABS[activeTab.value]
-  if (required && required !== domain) {
-    // Reset the now-invalid domain-specific tab back to 'search' without
-    // touching the panel's open/closed state — navigating away from a section
-    // shouldn't auto-open the side panel.
-    setTab('search')
-  }
+  _activeDomain = domain
+  // SDR is special: its 'radio' tab is applied by App.vue's isSdrRoute watch, so
+  // don't touch activeTab here (closeRadioTab handles leaving SDR).
+  if (domain === 'sdr') return
+  // Restore the tab this section was last left on (Space → 'passes', Air →
+  // 'playback', else 'search'). This makes per-section tab memory work on in-app
+  // navigation. Panel open/closed state is left untouched.
+  setTab(_restoreTab(domain))
 })
 
 defineExpose({ switchTab, openPlaybackTab, openRadioTab, closeRadioTab, show, hide, toggle, open, activeTab })

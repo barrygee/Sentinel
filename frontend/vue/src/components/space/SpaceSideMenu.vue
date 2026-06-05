@@ -69,7 +69,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useSpaceStore } from '@/stores/space'
 import { useUserLocation } from '@/composables/useUserLocation'
 import type SpaceMap from './SpaceMap.vue'
@@ -82,7 +83,9 @@ const mapRef = { get value() { return props.mapRef.current } }
 const spaceStore = useSpaceStore()
 const { location: userLocation } = useUserLocation()
 
-const expanded  = ref(false)
+// Expanded/collapsed state lives on the (always-alive) store so it survives
+// navigating away from Space and a full refresh, regardless of remount timing.
+const { sideMenuExpanded: expanded } = storeToRefs(spaceStore)
 const locActive = computed(() => userLocation.value !== null)
 
 const trackActive    = computed(() => spaceStore.overlayStates.groundTrack)

@@ -265,6 +265,15 @@
       ]
     },
     {
+      "label": "EGNV Radar",
+      "frequency_hz": 118850000,
+      "mode": "AM",
+      "notes": "Teeside",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
       "label": "EGNT Tower",
       "frequency_hz": 119700000,
       "mode": "AM",
@@ -305,8 +314,8 @@
       ]
     },
     {
-      "label": "Scottish radar",
-      "frequency_hz": 124500600,
+      "label": "Scottish control",
+      "frequency_hz": 124500000,
       "mode": "AM",
       "notes": "",
       "groups": [

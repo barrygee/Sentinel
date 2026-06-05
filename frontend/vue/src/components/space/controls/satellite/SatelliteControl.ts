@@ -52,6 +52,10 @@ export class SatelliteControl extends SentinelControlBase {
     // previously-followed satellite; consumed once the first position arrives
     // to resume following (see _fetch). Survives section changes.
     private _pendingFollowRestore = false
+    // Set by focusSatellite when an alert is clicked; consumed once the first
+    // position arrives to pan the satellite into the centre of the viewport a
+    // single time — without engaging continuous follow (see _fetch).
+    private _pendingCenterOnce = false
     private _hoverHideTimer:  ReturnType<typeof setTimeout> | null = null
     _activeNoradId            = '25544'
     _activeSatName            = 'ISS (ZARYA)'
@@ -358,6 +362,14 @@ export class SatelliteControl extends SentinelControlBase {
             if (this._pendingFollowRestore && !this._previewNoradId && this._lastPosition) {
                 this._pendingFollowRestore = false
                 this._startFollowing()
+            }
+
+            // One-shot recentre requested from an alert click: pan the satellite
+            // into the viewport centre once, then stop. No follow is engaged, so
+            // the satellite is free to drift out of frame afterwards.
+            if (this._pendingCenterOnce && !this._previewNoradId && !this._followEnabled) {
+                this._pendingCenterOnce = false
+                this.map.flyTo({ center: [position.lon, position.lat], zoom: Math.max(this.map.getZoom(), 2), duration: 800 })
             }
 
             if (!this._previewNoradId) {
@@ -752,6 +764,21 @@ export class SatelliteControl extends SentinelControlBase {
         // Notify filter/passes panels
         document.dispatchEvent(new CustomEvent('satellite-selected', { detail: { noradId, name } }))
         this._onSwitchSat?.(noradId, name)
+    }
+
+    // Select a satellite and pan it into the centre of the viewport once,
+    // without engaging continuous follow/tracking. Used when an alert is
+    // clicked — the user wants to see the subject, not lock onto it.
+    focusSatellite(noradId: string, name: string): void {
+        this.switchSatellite(noradId, name, false)
+        if (!this._followEnabled) {
+            if (this._lastPosition) {
+                this.map.flyTo({ center: [this._lastPosition.lon, this._lastPosition.lat], zoom: Math.max(this.map.getZoom(), 2), duration: 800 })
+            } else {
+                // Position not known yet (fresh switch) — centre on first fetch.
+                this._pendingCenterOnce = true
+            }
+        }
     }
 
     // ---- Visibility toggles ----

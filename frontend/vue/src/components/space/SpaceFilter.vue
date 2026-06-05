@@ -233,6 +233,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
@@ -312,14 +314,20 @@ const props = defineProps<{
 
 const inputRef = ref<HTMLInputElement | null>(null)
 
-const query         = ref('')
+// Search query, the expanded satellite accordion, and which category sections
+// are collapsed all persist so the Search pane resumes exactly as you left it
+// after navigating away from Space (and across a full refresh). They live on the
+// store (a singleton) so restore is independent of this teleported pane's
+// remount timing.
+const spaceStore = useSpaceStore()
+const {
+  searchQuery: query,
+  searchExpandedNorad: expandedNoradId,
+  searchCollapsedCats: collapsedCats,
+} = storeToRefs(spaceStore)
 const satellites    = ref<SatEntry[]>([])
 const loaded        = ref(false)
-const expandedNoradId = ref<string | null>(null)
 const focusedNoradId  = ref<string | null>(null)
-
-// Collapsed category groups. Groups default to expanded; a category present here is collapsed.
-const collapsedCats = ref<Set<string>>(new Set())
 // Categories collapsed by the user but force-opened by the search auto-expand. They
 // re-collapse once their matches go away, unless the user manually toggles them.
 const autoOpenedCats = ref<Set<string>>(new Set())
@@ -585,26 +593,33 @@ function onMouseLeave(): void {
   }, 50)
 }
 
+// Open the accordion for a satellite: select it on the map and load its passes
+// / telemetry. Shared by a click and by the on-mount restore of a persisted
+// expansion. `select` is false on restore so we don't yank the map camera back.
+function openAccordion(sat: SatEntry, select = true): void {
+  expandedNoradId.value = sat.norad_id
+  accordionPasses.value = []
+  accordionStatus.value = 'COMPUTING PASSES…'
+  accordionLoading.value = true
+  liveTelemetry.value = {}
+  liveAzEl.value = null
+  if (select) props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
+  notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
+  void fetchAccordionPasses(sat.norad_id)
+  if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
+  else armedPasses.value = []
+}
+
 function onItemClick(sat: SatEntry): void {
   const wasExpanded = expandedNoradId.value === sat.norad_id
   collapseExpanded()
   if (!wasExpanded) {
-    expandedNoradId.value = sat.norad_id
-    accordionPasses.value = []
-    accordionStatus.value = 'COMPUTING PASSES…'
-    accordionLoading.value = true
-    liveTelemetry.value = {}
-    liveAzEl.value = null
-    props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
-    notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
-    void fetchAccordionPasses(sat.norad_id)
-    if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
-    else armedPasses.value = []
+    openAccordion(sat)
   }
 }
 
 function collapseExpanded(): void {
-  expandedNoradId.value = null
+  expandedNoradId.value = ''
   accordionPasses.value = []
   if (itemFetchAbort) { itemFetchAbort.abort(); itemFetchAbort = null }
   if (itemTickInterval) { clearInterval(itemTickInterval); itemTickInterval = null }
@@ -720,9 +735,22 @@ async function loadSatellites(): Promise<void> {
     const data = await resp.json() as { satellites?: SatEntry[] }
     satellites.value = data.satellites ?? []
     loaded.value = true
+    restoreExpandedAccordion()
   } catch {
     loaded.value = true
   }
+}
+
+// Re-open the satellite accordion the user left expanded before navigating away.
+// The persisted id may be stale (sat dropped from the DB) — clear it if so. We
+// don't re-select on the map: SatelliteControl restores its own follow state,
+// and a non-followed selection shouldn't pull the camera on return.
+function restoreExpandedAccordion(): void {
+  const id = expandedNoradId.value
+  if (!id) return
+  const sat = satellites.value.find(s => s.norad_id === id)
+  if (sat) openAccordion(sat, false)
+  else expandedNoradId.value = ''
 }
 
 function isNow(pass: SatPass): boolean {

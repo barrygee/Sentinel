@@ -119,10 +119,11 @@ function onStyleLoaded(m: MapLibreGlMap) {
   m.addControl(daynightControl,'top-right')
   m.addControl(namesControl,   'top-right')
 
-  // Clicking a satellite alert focuses/tracks it here. Registering drains any
-  // pending target stashed when the alert was clicked from another section.
+  // Clicking a satellite alert centres it in the viewport here (no follow).
+  // Registering drains any pending target stashed when the alert was clicked
+  // from another section.
   registerSatelliteClickHandler((noradId, name) => {
-    satelliteControl?.switchSatellite(noradId, name, true)
+    satelliteControl?.focusSatellite(noradId, name)
   })
 
   // Hide the MapLibre native top-right control container — space side menu replaces it

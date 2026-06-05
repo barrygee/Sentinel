@@ -71,8 +71,9 @@ import { setAutoTuneEnabled, isAutoTuneEnabled } from '@/components/space/contro
 const store = useNotificationsStore()
 const router = useRouter()
 
-// Clicking an alert navigates the map to its subject. Aircraft (hex) focus on
-// the air map; satellites (noradId) focus/track on the space map. If the target
+// Clicking an alert navigates the map to its subject, centring it in the
+// viewport without locking on. Aircraft (hex) focus on the air map; satellites
+// (noradId) centre on the space map. If the target
 // section isn't mounted, route to it first and stash the target — the map drains
 // it when it registers its handler.
 function handleItemClick(item: NotificationItem): void {

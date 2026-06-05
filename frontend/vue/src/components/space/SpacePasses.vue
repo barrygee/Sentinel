@@ -225,7 +225,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
@@ -267,14 +269,17 @@ const statusText      = ref('')
 const message         = ref('')
 const showSetLocationBtn = ref(false)
 
-const minEl  = ref(35)
-const hours  = ref(24)
-const filtersExpanded = ref(false)
-
-// Client-side category filter chips above the list, derived from the categories
-// actually present in the loaded passes. An empty set means ALL (the default) —
-// chips are additive, so multiple categories can be active at once.
-const activeFilters = ref<Set<string>>(new Set())
+// Pass-query controls and filter chips persist so the Passes pane resumes with
+// the same elevation/horizon window and category selection after navigating away
+// from Space (and across a full refresh). These live on the store (a singleton)
+// so restore is independent of this teleported pane's remount timing.
+const spaceStore = useSpaceStore()
+const {
+  passesMinEl: minEl,
+  passesHours: hours,
+  passesFiltersOpen: filtersExpanded,
+  passesActiveFilters: activeFilters,
+} = storeToRefs(spaceStore)
 
 const categoryFilters = computed<string[]>(() => {
   const present = new Set<string>()
@@ -304,16 +309,18 @@ const visiblePasses = computed<SatPass[]>(() =>
     : passes.value.filter(p => activeFilters.value.has(p.category || 'unknown')),
 )
 
-// If a refetch drops a selected category from the results, prune it so the user
-// isn't left filtering on a category that no longer appears.
-watch(categoryFilters, (cats) => {
-  if (activeFilters.value.size === 0) return
-  const valid = new Set(cats)
-  const next = new Set([...activeFilters.value].filter(c => valid.has(c)))
-  if (next.size !== activeFilters.value.size) activeFilters.value = next
-})
+// Note: we deliberately do NOT auto-prune activeFilters when a category is
+// momentarily absent from the results. The selection is persisted across
+// navigation/refresh, and an initial fetch (or a window with no passes for that
+// category) would otherwise wipe a restored selection. A category with no current
+// passes simply shows no chip and an empty list until it reappears — non-
+// destructive — rather than silently discarding the user's choice.
 
-const expandedKey = ref<string | null>(null)
+// Which pass card is expanded. The key is `norad_id_aosMs`, which is stable
+// across reloads (AOS times are deterministic) until the pass rolls into the
+// past — at which point it simply matches no card and stays collapsed. Held on
+// the store so it survives navigation regardless of this pane's remount timing.
+const { passesExpandedKey: expandedKey } = storeToRefs(spaceStore)
 const liveTelemetry = ref<Record<string, string>>({})
 
 const accLoading = ref(false)
@@ -480,6 +487,7 @@ async function fetchPasses(): Promise<void> {
     passes.value = data.passes || []
     statusText.value = ''
     if (!passes.value.length) message.value = 'No passes found. Try broader categories, lower elevation, or longer window.'
+    restoreExpandedAccordion()
   } catch (e: unknown) {
     if (e instanceof Error && e.name === 'AbortError') return
     message.value = 'Network error — check connection and retry.'
@@ -509,26 +517,49 @@ function requestLocation(): void {
 
 // ---- Accordion ----
 function collapseExpanded(): void {
-  expandedKey.value = null
+  expandedKey.value = ''
   accPasses.value = []
   if (accFetchAbort) { accFetchAbort.abort(); accFetchAbort = null }
 }
 
+// Open a pass card's accordion: select the sat on the map and load its passes /
+// telemetry. Shared by a click and the on-mount restore of a persisted
+// expansion. `select` is false on restore so we don't yank the map camera back.
+function openAccordion(pass: SatPass, select = true): void {
+  expandedKey.value = passKey(pass)
+  accPasses.value = []
+  accStatus.value = 'COMPUTING PASSES…'
+  accLoading.value = true
+  liveTelemetry.value = {}
+  liveAzEl.value = null
+  if (select) props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
+  notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
+  void fetchAccordionPasses(pass.norad_id)
+}
+
 function onCardClick(pass: SatPass): void {
-  const key = passKey(pass)
-  const wasExpanded = expandedKey.value === key
+  const wasExpanded = expandedKey.value === passKey(pass)
   collapseExpanded()
-  if (!wasExpanded) {
-    expandedKey.value = key
-    accPasses.value = []
-    accStatus.value = 'COMPUTING PASSES…'
-    accLoading.value = true
-    liveTelemetry.value = {}
-    liveAzEl.value = null
-    props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
-    notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
-    void fetchAccordionPasses(pass.norad_id)
-  }
+  if (!wasExpanded) openAccordion(pass)
+}
+
+// Re-open the pass accordion the user left expanded. Prefer the exact pass, but
+// fall back to the same satellite's nearest pass: AOS timestamps can drift by a
+// few ms between recomputations (and the original pass may have rolled into the
+// past), which would otherwise make an exact key match fail every time. Clear the
+// key only when that satellite has no pass left in the list.
+function restoreExpandedAccordion(): void {
+  const key = expandedKey.value
+  if (!key) return
+  const exact = passes.value.find(p => passKey(p) === key)
+  if (exact) { openAccordion(exact, false); return }
+  const noradId = key.slice(0, key.lastIndexOf('_'))
+  const targetAos = Number(key.slice(key.lastIndexOf('_') + 1))
+  const sameSat = passes.value.filter(p => p.norad_id === noradId)
+  if (sameSat.length === 0) { expandedKey.value = ''; return }
+  const nearest = sameSat.reduce((best, p) =>
+    Math.abs(p.aos_unix_ms - targetAos) < Math.abs(best.aos_unix_ms - targetAos) ? p : best)
+  openAccordion(nearest, false)
 }
 
 async function fetchAccordionPasses(noradId: string): Promise<void> {
