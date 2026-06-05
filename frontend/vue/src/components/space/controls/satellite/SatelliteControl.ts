@@ -258,10 +258,10 @@ export class SatelliteControl extends SentinelControlBase {
             },
         })
 
-        this.map.on('mouseenter', 'iss-icon',    (e) => { this.map.getCanvas().style.cursor = 'pointer'; this._showHoverTag(e) })
-        this.map.on('mouseenter', 'iss-bracket', (e) => { this.map.getCanvas().style.cursor = 'pointer'; this._showHoverTag(e) })
-        this.map.on('mouseleave', 'iss-icon',    () => { this.map.getCanvas().style.cursor = ''; this._scheduleHideHoverTag() })
-        this.map.on('mouseleave', 'iss-bracket', () => { this.map.getCanvas().style.cursor = ''; this._scheduleHideHoverTag() })
+        this.map.on('mouseenter', 'iss-icon',    () => { this.map.getCanvas().style.cursor = 'pointer' })
+        this.map.on('mouseenter', 'iss-bracket', () => { this.map.getCanvas().style.cursor = 'pointer' })
+        this.map.on('mouseleave', 'iss-icon',    () => { this.map.getCanvas().style.cursor = '' })
+        this.map.on('mouseleave', 'iss-bracket', () => { this.map.getCanvas().style.cursor = '' })
 
         // Start polling after layers are ready. Pre-check the TLE database so we
         // don't fire a doomed ISS request (which would 503) when it's empty.
