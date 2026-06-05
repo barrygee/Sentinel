@@ -142,13 +142,22 @@ function show() { open.value = true; _persistOpen(true) }
 function hide() { open.value = false; _persistOpen(false) }
 
 function openPlaybackTab() { show(); switchTab('playback') }
-function openRadioTab() { show(); switchTab('radio') }
-// Called when navigating away from the SDR route. The entering section's tab is
-// restored by the domain-changed handler, so here we only close the panel (the
-// 'radio' tab is never persisted). hide() runs unconditionally since this can
-// race with domain-changed.
+
+// The SDR route force-opens the panel to show the radio tab. Remember whether the
+// panel was open *before* that, so leaving SDR restores the prior state rather
+// than unconditionally closing it (otherwise an open panel in Space would be lost
+// on a Space → SDR → Space round-trip).
+let _openBeforeRadio = false
+function openRadioTab() {
+  _openBeforeRadio = open.value
+  show()
+  switchTab('radio')
+}
+// Called when navigating away from the SDR route. Restore the panel's pre-SDR
+// open state (the entering section's tab is restored by the domain-changed
+// handler; the 'radio' tab itself is never persisted).
 function closeRadioTab() {
-  hide()
+  _openBeforeRadio ? show() : hide()
 }
 
 function _persistOpen(val: boolean) {
