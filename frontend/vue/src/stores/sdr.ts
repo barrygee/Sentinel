@@ -211,6 +211,42 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch { /* offline / transient */ }
   }
 
+  // Waterfall view settings (Zoom / Max / Min sliders in SdrWaterfall). These
+  // live in the store — not as plain local refs in the component — so they
+  // survive the component being torn down and rebuilt when the user navigates
+  // away from the SDR section and back. SdrWaterfall seeds its local working
+  // copies from these on mount and writes back on every slider change. zmin/
+  // zmax of 0/0 means "unset" (use the device default range); autoScale true
+  // means the Min/Max sliders haven't been touched. Persisted in localStorage
+  // (like the SDR toggle preferences above) so they also survive a full page
+  // reload / tab close, not just in-app navigation.
+  function _readNum(key: string, fallback: number): number {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw == null) return fallback
+      const n = parseFloat(raw)
+      return isFinite(n) ? n : fallback
+    } catch { return fallback }
+  }
+  const viewZoom = ref(_readNum('sdrViewZoom', 1))
+  const viewZmin = ref(_readNum('sdrViewZmin', 0))
+  const viewZmax = ref(_readNum('sdrViewZmax', 0))
+  const viewAutoScale = ref<boolean>((() => {
+    try { return localStorage.getItem('sdrViewAutoScale') !== '0' } catch { return true }
+  })())
+  function setViewSettings(s: { zoom?: number; zmin?: number; zmax?: number; autoScale?: boolean }) {
+    if (s.zoom !== undefined) viewZoom.value = s.zoom
+    if (s.zmin !== undefined) viewZmin.value = s.zmin
+    if (s.zmax !== undefined) viewZmax.value = s.zmax
+    if (s.autoScale !== undefined) viewAutoScale.value = s.autoScale
+    try {
+      localStorage.setItem('sdrViewZoom', String(viewZoom.value))
+      localStorage.setItem('sdrViewZmin', String(viewZmin.value))
+      localStorage.setItem('sdrViewZmax', String(viewZmax.value))
+      localStorage.setItem('sdrViewAutoScale', viewAutoScale.value ? '1' : '0')
+    } catch {}
+  }
+
   // Current demod offset from the hardware centre frequency (Hz). 0 when
   // auto-centre is ON or the marker sits at centre. The waterfall reads this to
   // place the tuning bar at currentFreqHz + tuningOffsetHz; the panel pushes it
@@ -347,6 +383,7 @@ export const useSdrStore = defineStore('sdr', () => {
     showBandPlan, setShowBandPlan, hydrateShowBandPlanFromDb,
     showKnownFreqs, setShowKnownFreqs, hydrateShowKnownFreqsFromDb,
     resumeDelaySec, setResumeDelaySec, hydrateResumeDelaySecFromDb,
+    viewZoom, viewZmin, viewZmax, viewAutoScale, setViewSettings,
     tuningOffsetHz, setTuningOffsetHz,
     setRadio, setFrequency, setMode, setPlaying, setSpectrum,
     setBandwidthHz, requestTune, requestBandwidth, requestFftSize,

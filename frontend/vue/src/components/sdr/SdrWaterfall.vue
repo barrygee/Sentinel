@@ -256,7 +256,10 @@ const zminSlider = computed({
 // zoom-stack growth); zoom === 1 calls unzoom() to restore the full-span view.
 const ZOOM_MIN = 1
 const ZOOM_MAX = 50
-const zoom = ref(ZOOM_MIN)
+// Restore the persisted zoom level (kept in the store so it survives leaving
+// and re-entering the SDR section), clamped to the valid range; default to
+// full span when unset.
+const zoom = ref(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, store.viewZoom || ZOOM_MIN)))
 
 // Live drag-pan offset (Hz). While the user drags the freq gutter, this slides
 // the visible window WITHOUT retuning — see freqDragFlush(). Folded into
@@ -364,9 +367,18 @@ const ACTIVE_DEVICE: SdrDeviceId = 'rtl_tcp'
 const SPEC_YMIN_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymin
 const SPEC_YMAX_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymax
 // Seed the sliders with the device's default range — must happen after both
-// the refs (above) and the DEVICE_DB_RANGE constants are declared.
-zmin.value = SPEC_YMIN_DB
-zmax.value = SPEC_YMAX_DB
+// the refs (above) and the DEVICE_DB_RANGE constants are declared. If the user
+// previously set a custom range this session (persisted in the store so it
+// survives navigating away from SDR and back), restore that instead so the
+// Zoom/Max/Min settings persist. autoScale false means a slider was touched.
+if (!store.viewAutoScale && store.viewZmin !== 0 && store.viewZmax !== 0) {
+  zmin.value = store.viewZmin
+  zmax.value = store.viewZmax
+  autoScale.value = false
+} else {
+  zmin.value = SPEC_YMIN_DB
+  zmax.value = SPEC_YMAX_DB
+}
 
 // Apply a (min, max) dB range to BOTH plots: spectrum trace y-axis and
 // waterfall colour map. ydiv is recomputed so tick steps land on endpoints
@@ -1741,6 +1753,10 @@ watch(
       zmax.value = SPEC_YMAX_DB
     }
     autoScale.value = true
+    // The [zmin, zmax] watcher above persisted autoScale=false; the stop reset
+    // re-enables auto-scale, so persist the cleared state to keep the store in
+    // step (next entry into SDR seeds from the device default range).
+    store.setViewSettings({ zmin: SPEC_YMIN_DB, zmax: SPEC_YMAX_DB, autoScale: true })
     try {
       specPlot.change_settings({
         ymin: SPEC_YMIN_DB,
@@ -1786,6 +1802,8 @@ watch([zmin, zmax], ([lo, hi]) => {
   }
   autoScale.value = false
   applySpecRange(lo, hi)
+  // Persist so the Max/Min range survives navigating away and back.
+  store.setViewSettings({ zmin: lo, zmax: hi, autoScale: false })
   // Re-measure: the freq-label gridline position depends on the live dB range.
   syncBandInset()
 })
@@ -1798,8 +1816,10 @@ watch([zmin, zmax], ([lo, hi]) => {
 // triggers buildPipes() in the frame watcher). When OFF, bins are fixed at
 // mount time: the raster gets pixelated when zoomed in, but history is
 // preserved across zoom changes.
-watch(zoom, () => {
+watch(zoom, (z) => {
   applyZoom()
+  // Persist so the zoom level survives navigating away and back.
+  store.setViewSettings({ zoom: z })
   if (store.fullWaterfallUpdate) scheduleDesiredBins()
 })
 
