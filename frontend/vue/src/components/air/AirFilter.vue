@@ -183,12 +183,26 @@ const notifEnabled = computed(() => airNotifStore.enabledHexes)
 // Aircraft data — refreshed on adsb-data-update event
 const aircraftFeatures = ref<Array<{ properties: Record<string, unknown>; geometry: { coordinates: [number, number] } }>>([])
 
+// Mirror of the map's active filter so the search list shows the same aircraft
+// the map does (ALL / CIVIL / MILITARY). Refreshed alongside the feature data
+// and whenever the user changes the filter mode.
+const typeFilter = ref<'all' | 'civil' | 'mil'>('all')
+const allHidden  = ref(false)
+
+function refreshFilterState() {
+  if (props.adsbControl) {
+    typeFilter.value = props.adsbControl._typeFilter
+    allHidden.value  = props.adsbControl._allHidden
+  }
+}
+
 function refreshAircraft() {
   if (props.adsbControl?._geojson?.features) {
     aircraftFeatures.value = props.adsbControl._geojson.features as unknown as typeof aircraftFeatures.value
   } else {
     aircraftFeatures.value = []
   }
+  refreshFilterState()
 }
 
 function onMsbTabSwitch(e: Event): void {
@@ -199,15 +213,29 @@ function onMsbTabSwitch(e: Event): void {
 
 useDocumentEvent('adsb-data-update', refreshAircraft)
 useDocumentEvent('msb-tab-switch', onMsbTabSwitch)
+// AirSideMenu dispatches this when the map filter mode changes so the list stays in sync.
+useDocumentEvent('adsb-filter-change', refreshFilterState)
 
 // ---- Search results ----
 const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
   const q = query.value.trim().toLowerCase()
   const out: Array<PlaneResult | AirportResult | MilResult> = []
 
-  // Aircraft
+  // Aircraft — gated by the map's active filter (ALL hides everything; CIVIL/MIL
+  // restrict to planes matching the military flag, excluding ground/tower like the map).
   for (const f of aircraftFeatures.value) {
+    if (allHidden.value) break
     const p = f.properties
+    const category = ((p.category as string) || '').trim()
+    const t        = ((p.t as string) || '').trim()
+    const isGnd    = category === 'C1' || category === 'C2'
+    const isTower  = ['C3', 'C4', 'C5'].includes(category) || t === 'TWR'
+    if (typeFilter.value !== 'all') {
+      if (isGnd || isTower) continue
+      const isMil = !!p.military
+      if (typeFilter.value === 'mil'   && !isMil) continue
+      if (typeFilter.value === 'civil' &&  isMil) continue
+    }
     const callsign = ((p.flight as string) || '').trim()
     const hex      = ((p.hex as string) || '').trim()
     const reg      = ((p.r as string) || '').trim()

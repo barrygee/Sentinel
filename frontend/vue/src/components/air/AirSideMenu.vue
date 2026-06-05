@@ -369,6 +369,8 @@ function setFilterMode(mode: string) {
   if (c._allHidden) c.setAllHidden(false)
   c.setTypeFilter(mode as 'all' | 'civil' | 'mil')
   _saveFilter()
+  // Let the search list re-apply the same filter to its aircraft section.
+  document.dispatchEvent(new CustomEvent('adsb-filter-change'))
 }
 
 function _saveFilter() {
