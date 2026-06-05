@@ -524,15 +524,19 @@ function collapseExpanded(): void {
 
 // Open a pass card's accordion: select the sat on the map and load its passes /
 // telemetry. Shared by a click and the on-mount restore of a persisted
-// expansion. `select` is false on restore so we don't yank the map camera back.
-function openAccordion(pass: SatPass, select = true): void {
+// expansion. switchSatellite (follow=false) selects the sat and starts the
+// position polling that feeds the live POSITION/ORBITAL fields and polar plot
+// via 'sat-position-update' — without moving the camera, so it's safe to run on
+// a passive restore too. (Skipping it left the restored accordion's live data
+// blank, since no position events would ever arrive.)
+function openAccordion(pass: SatPass): void {
   expandedKey.value = passKey(pass)
   accPasses.value = []
   accStatus.value = 'COMPUTING PASSES…'
   accLoading.value = true
   liveTelemetry.value = {}
   liveAzEl.value = null
-  if (select) props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
+  props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
   notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
   void fetchAccordionPasses(pass.norad_id)
 }
@@ -552,14 +556,14 @@ function restoreExpandedAccordion(): void {
   const key = expandedKey.value
   if (!key) return
   const exact = passes.value.find(p => passKey(p) === key)
-  if (exact) { openAccordion(exact, false); return }
+  if (exact) { openAccordion(exact); return }
   const noradId = key.slice(0, key.lastIndexOf('_'))
   const targetAos = Number(key.slice(key.lastIndexOf('_') + 1))
   const sameSat = passes.value.filter(p => p.norad_id === noradId)
   if (sameSat.length === 0) { expandedKey.value = ''; return }
   const nearest = sameSat.reduce((best, p) =>
     Math.abs(p.aos_unix_ms - targetAos) < Math.abs(best.aos_unix_ms - targetAos) ? p : best)
-  openAccordion(nearest, false)
+  openAccordion(nearest)
 }
 
 async function fetchAccordionPasses(noradId: string): Promise<void> {

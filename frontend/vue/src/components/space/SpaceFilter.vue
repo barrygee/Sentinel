@@ -595,15 +595,18 @@ function onMouseLeave(): void {
 
 // Open the accordion for a satellite: select it on the map and load its passes
 // / telemetry. Shared by a click and by the on-mount restore of a persisted
-// expansion. `select` is false on restore so we don't yank the map camera back.
-function openAccordion(sat: SatEntry, select = true): void {
+// expansion. switchSatellite (follow=false) selects the sat and starts the
+// position polling that feeds the live POSITION/ORBITAL fields and polar plot
+// via 'sat-position-update' — without moving the camera, so it's safe on a
+// passive restore too. (Skipping it left the restored accordion's data blank.)
+function openAccordion(sat: SatEntry): void {
   expandedNoradId.value = sat.norad_id
   accordionPasses.value = []
   accordionStatus.value = 'COMPUTING PASSES…'
   accordionLoading.value = true
   liveTelemetry.value = {}
   liveAzEl.value = null
-  if (select) props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
+  props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
   notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
   void fetchAccordionPasses(sat.norad_id)
   if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
@@ -742,14 +745,14 @@ async function loadSatellites(): Promise<void> {
 }
 
 // Re-open the satellite accordion the user left expanded before navigating away.
-// The persisted id may be stale (sat dropped from the DB) — clear it if so. We
-// don't re-select on the map: SatelliteControl restores its own follow state,
-// and a non-followed selection shouldn't pull the camera on return.
+// The persisted id may be stale (sat dropped from the DB) — clear it if so.
+// openAccordion re-selects the sat (follow=false, camera-safe) so its live
+// telemetry repopulates.
 function restoreExpandedAccordion(): void {
   const id = expandedNoradId.value
   if (!id) return
   const sat = satellites.value.find(s => s.norad_id === id)
-  if (sat) openAccordion(sat, false)
+  if (sat) openAccordion(sat)
   else expandedNoradId.value = ''
 }
 
