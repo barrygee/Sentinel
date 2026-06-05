@@ -456,7 +456,7 @@ function toggleAutoTune(sat: SatEntry): void {
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
-      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId,
+      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId, satName: name,
     })
   } else {
     // Remove the persistent "Auto-tune on pass enabled" card so the alerts list

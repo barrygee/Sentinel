@@ -8,7 +8,7 @@
           :key="item.id"
           class="notif-item"
           :data-type="item.type"
-          :style="(item.clickAction || item.hex) ? 'cursor:pointer' : ''"
+          :style="(item.clickAction || item.hex || item.noradId) ? 'cursor:pointer' : ''"
           @click="handleItemClick(item)"
         >
           <div class="notif-header">
@@ -61,16 +61,35 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useNotificationsStore, getAircraftClickHandler, type NotificationItem } from '@/stores/notifications'
+import { useRouter } from 'vue-router'
+import {
+  useNotificationsStore, getAircraftClickHandler, getSatelliteClickHandler,
+  setPendingAircraftTarget, setPendingSatelliteTarget, type NotificationItem,
+} from '@/stores/notifications'
 import { setAutoTuneEnabled, isAutoTuneEnabled } from '@/components/space/controls/satellite/passNotifStore'
 
 const store = useNotificationsStore()
+const router = useRouter()
 
+// Clicking an alert navigates the map to its subject. Aircraft (hex) focus on
+// the air map; satellites (noradId) focus/track on the space map. If the target
+// section isn't mounted, route to it first and stash the target — the map drains
+// it when it registers its handler.
 function handleItemClick(item: NotificationItem): void {
   if (item.clickAction) { item.clickAction(); return }
+  if (item.noradId) {
+    const name = item.satName || item.title || item.noradId
+    const handler = getSatelliteClickHandler()
+    if (handler) { handler(item.noradId, name); return }
+    setPendingSatelliteTarget(item.noradId, name)
+    void router.push('/space/')
+    return
+  }
   if (item.hex) {
     const handler = getAircraftClickHandler()
-    if (handler) handler(item.hex)
+    if (handler) { handler(item.hex); return }
+    setPendingAircraftTarget(item.hex)
+    void router.push('/air/')
   }
 }
 

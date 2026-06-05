@@ -2394,7 +2394,7 @@ function onExternalTune(e: Event): void {
     _notificationsStore().add({
       type: 'autotune', title: `${satName} PASS SKIPPED`,
       detail: 'Radio busy with an earlier pass — not retuned',
-      noradId,
+      noradId, satName,
     })
     return
   }
@@ -2485,7 +2485,7 @@ function _notifyAutoTuned(satName: string, hz: number, mode: string, noradId?: s
   _notificationsStore().add({
     type: 'autotune', title: `${satName} AUTO-TUNED`,
     detail: `Downlink ${(hz / 1e6).toFixed(3)} MHz ${mode} @ AOS`,
-    noradId,
+    noradId, satName,
   })
 }
 
@@ -2551,7 +2551,7 @@ function _notifyAutoRestored(satName: string, hz: number | null, mode: string | 
     detail: hz != null && mode != null
       ? `Restored SDR → ${(hz / 1e6).toFixed(3)} MHz ${mode}`
       : 'Stopped SDR (was idle before pass)',
-    noradId,
+    noradId, satName,
   })
 }
 

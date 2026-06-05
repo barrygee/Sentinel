@@ -22,8 +22,12 @@ export interface NotificationItem {
   clickAction?: () => void
   hex?: string
   // For autotune notifications: the satellite this card controls. Closing the
-  // card cancels auto-tune for this NORAD id.
+  // card cancels auto-tune for this NORAD id. Also used to focus the satellite
+  // on the space map when the alert is clicked.
   noradId?: string
+  // Clean satellite display name for click-to-focus (the title may be decorated,
+  // e.g. "GOMX-1 PASS"). Falls back to title/noradId when absent.
+  satName?: string
 }
 
 export interface AddOptions {
@@ -34,6 +38,7 @@ export interface AddOptions {
   clickAction?: () => void
   hex?: string
   noradId?: string
+  satName?: string
 }
 
 export interface UpdateOptions {
@@ -60,9 +65,37 @@ function _save(items: NotificationItem[]): void {
 let _aircraftClickHandler: ((hex: string) => void) | null = null
 export function registerAircraftClickHandler(fn: (hex: string) => void): void {
   _aircraftClickHandler = fn
+  if (_pendingAircraftTarget) { const hex = _pendingAircraftTarget; _pendingAircraftTarget = null; fn(hex) }
 }
 export function getAircraftClickHandler(): ((hex: string) => void) | null {
   return _aircraftClickHandler
+}
+
+// Satellite click handler — registered by SpaceMap while it is mounted. Clicking
+// a satellite alert focuses/tracks that satellite on the space map. Mirrors the
+// aircraft handler above.
+let _satelliteClickHandler: ((noradId: string, name: string) => void) | null = null
+export function registerSatelliteClickHandler(fn: (noradId: string, name: string) => void): void {
+  _satelliteClickHandler = fn
+  if (_pendingSatelliteTarget) {
+    const { noradId, name } = _pendingSatelliteTarget; _pendingSatelliteTarget = null; fn(noradId, name)
+  }
+}
+export function getSatelliteClickHandler(): ((noradId: string, name: string) => void) | null {
+  return _satelliteClickHandler
+}
+// Cleared when SpaceMap unmounts so a sat alert clicked from another section
+// routes to Space (rather than calling a stale, torn-down handler).
+export function clearSatelliteClickHandler(): void { _satelliteClickHandler = null }
+
+// When an alert is clicked from another section, the target map isn't mounted
+// yet (so no handler is registered). The panel routes to the right section and
+// stashes the target here; the map drains it on registration (see above).
+let _pendingAircraftTarget: string | null = null
+let _pendingSatelliteTarget: { noradId: string; name: string } | null = null
+export function setPendingAircraftTarget(hex: string): void { _pendingAircraftTarget = hex }
+export function setPendingSatelliteTarget(noradId: string, name: string): void {
+  _pendingSatelliteTarget = { noradId, name }
 }
 
 export const useNotificationsStore = defineStore('notifications', () => {
@@ -95,6 +128,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       clickAction: opts.clickAction,
       hex: opts.hex,
       noradId: opts.noradId,
+      satName: opts.satName,
     }
     items.value.unshift(item)
     _save(items.value)

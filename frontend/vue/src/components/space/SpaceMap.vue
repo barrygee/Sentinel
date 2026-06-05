@@ -15,7 +15,7 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useSpaceStore } from '@/stores/space'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore, registerSatelliteClickHandler, clearSatelliteClickHandler } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
@@ -119,6 +119,12 @@ function onStyleLoaded(m: MapLibreGlMap) {
   m.addControl(daynightControl,'top-right')
   m.addControl(namesControl,   'top-right')
 
+  // Clicking a satellite alert focuses/tracks it here. Registering drains any
+  // pending target stashed when the alert was clicked from another section.
+  registerSatelliteClickHandler((noradId, name) => {
+    satelliteControl?.switchSatellite(noradId, name, true)
+  })
+
   // Hide the MapLibre native top-right control container — space side menu replaces it
   const ctrlEl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (ctrlEl) ctrlEl.style.display = 'none'
@@ -149,6 +155,7 @@ onBeforeUnmount(() => {
   daynightControl  = null
   namesControl     = null
   satelliteControlRef.value = null
+  clearSatelliteClickHandler()
 })
 
 defineExpose({

@@ -1,23 +1,26 @@
 import { useNotificationsStore } from '@/stores/notifications'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { SatellitePassScheduler } from '@/components/space/controls/satellite/SatellitePassScheduler'
-import { SatelliteAutoTuneScheduler } from '@/components/space/controls/satellite/SatelliteAutoTuneScheduler'
-import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled } from '@/components/space/controls/satellite/passNotifStore'
+import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled, isAutoTuneEnabled } from '@/components/space/controls/satellite/passNotifStore'
 
-// App-level background service that fires "~10 min before next pass" alerts for
-// EVERY satellite the user has enabled pass notifications on — regardless of
-// which section is active and regardless of which satellite is currently
-// selected. Previously only the active satellite's notifier ran, and only while
-// the Space section was mounted.
+// App-level background service that drives per-satellite pass alerts for EVERY
+// satellite the user has enabled — regardless of which section is active and
+// regardless of which satellite is currently selected. Previously only the
+// active satellite's notifier ran, and only while the Space section was mounted.
+//
+// Each enabled satellite gets ONE SatellitePassScheduler, which internally runs
+// two independent action tracks off a single fetch loop: a "~5 min before AOS"
+// heads-up (when the bell is on) and an AOS auto-tune + LOS restore (when
+// auto-tune is on). The two flags are independent, so a scheduler exists when
+// EITHER is on, and the tracks read the flags live.
 //
 // Module-singleton (mirrors useUserLocation). Instantiated and started once from
-// App.vue. Reacts to the `satellite-pass-notif-changed` event (toggled from the
-// Space UI) to spin schedulers up/down, and `satellite-selected` to refresh the
-// cached display name.
+// App.vue. Reacts to `satellite-pass-notif-changed` and
+// `satellite-auto-tune-changed` (toggled from the Space UI) to spin schedulers
+// up/down, and `satellite-selected` to refresh the cached display name.
 
 let _started = false
 const _schedulers = new Map<string, SatellitePassScheduler>()
-const _autoTuners = new Map<string, SatelliteAutoTuneScheduler>()
 
 // Downlink (freq + mode) per satellite, primed lazily from /api/space/tle/list
 // for entries whose cached downlink is missing (e.g. legacy entries enabled
@@ -48,8 +51,20 @@ function _getDownlink(noradId: string): { hz: number; mode: string } | null {
   return _downlinkCache?.[noradId] ?? null
 }
 
-function _ensureScheduler(noradId: string, name: string): void {
-  if (_schedulers.has(noradId)) return
+// Create the scheduler for a satellite if either the bell or auto-tune is on,
+// and tear it down once both are off. Idempotent — safe to call on every toggle.
+function _syncScheduler(noradId: string, name: string): void {
+  const wantBell = isPassNotifEnabled(noradId)
+  const wantAutoTune = isAutoTuneEnabled(noradId)
+  const existing = _schedulers.get(noradId)
+
+  if (!wantBell && !wantAutoTune) {
+    if (existing) { existing.stop(); _schedulers.delete(noradId) }
+    return
+  }
+  if (existing) return // already running; tracks read the flags live
+
+  if (wantAutoTune) _ensureDownlinkCache()
   const notificationsStore = useNotificationsStore()
   const { location } = useUserLocation()
   const sched = new SatellitePassScheduler({
@@ -60,50 +75,22 @@ function _ensureScheduler(noradId: string, name: string): void {
       return l ? [l.lon, l.lat] : null
     },
     getName: () => getAllPassNotifs()[noradId]?.name || name,
+    headsUpEnabled: () => isPassNotifEnabled(noradId),
+    autoTuneEnabled: () => isAutoTuneEnabled(noradId),
+    getDownlink: () => _getDownlink(noradId),
   })
   _schedulers.set(noradId, sched)
   sched.start()
 }
 
-function _removeScheduler(noradId: string): void {
-  const s = _schedulers.get(noradId)
-  if (s) { s.stop(); _schedulers.delete(noradId) }
-}
-
-function _ensureAutoTuner(noradId: string, name: string): void {
-  if (_autoTuners.has(noradId)) return
-  _ensureDownlinkCache()
-  const notificationsStore = useNotificationsStore()
-  const { location } = useUserLocation()
-  const sched = new SatelliteAutoTuneScheduler({
-    noradId,
-    notificationsStore,
-    getUserLocation: () => {
-      const l = location.value
-      return l ? [l.lon, l.lat] : null
-    },
-    getName: () => getAllPassNotifs()[noradId]?.name || name,
-    getDownlink: () => _getDownlink(noradId),
-  })
-  _autoTuners.set(noradId, sched)
-  sched.start()
-}
-
-function _removeAutoTuner(noradId: string): void {
-  const s = _autoTuners.get(noradId)
-  if (s) { s.stop(); _autoTuners.delete(noradId) }
-}
-
 function _onNotifChanged(e: Event): void {
-  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
-  if (enabled) _ensureScheduler(noradId, getAllPassNotifs()[noradId]?.name || noradId)
-  else _removeScheduler(noradId)
+  const { noradId } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  _syncScheduler(noradId, getAllPassNotifs()[noradId]?.name || noradId)
 }
 
 function _onAutoTuneChanged(e: Event): void {
-  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
-  if (enabled) _ensureAutoTuner(noradId, getAllPassNotifs()[noradId]?.name || noradId)
-  else _removeAutoTuner(noradId)
+  const { noradId } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  _syncScheduler(noradId, getAllPassNotifs()[noradId]?.name || noradId)
 }
 
 function _onSatSelected(e: Event): void {
@@ -115,13 +102,12 @@ function start(): void {
   if (_started) return
   _started = true
 
-  // Spin up the right scheduler(s) for each already-enabled satellite (restored
-  // from persistence, including the migration of legacy per-key flags). An entry
-  // may have the bell on, auto-tune on, or both.
+  // Spin up a scheduler for each already-enabled satellite (restored from
+  // persistence, including the migration of legacy per-key flags). An entry may
+  // have the bell on, auto-tune on, or both.
   const enabled = getAllPassNotifs()
   for (const [noradId, entry] of Object.entries(enabled)) {
-    if (isPassNotifEnabled(noradId)) _ensureScheduler(noradId, entry.name)
-    if (entry.autoTune) _ensureAutoTuner(noradId, entry.name)
+    _syncScheduler(noradId, entry.name)
   }
 
   document.addEventListener('satellite-pass-notif-changed', _onNotifChanged)
@@ -134,9 +120,7 @@ function stop(): void {
   document.removeEventListener('satellite-auto-tune-changed', _onAutoTuneChanged)
   document.removeEventListener('satellite-selected', _onSatSelected)
   for (const s of _schedulers.values()) s.stop()
-  for (const s of _autoTuners.values()) s.stop()
   _schedulers.clear()
-  _autoTuners.clear()
   _started = false
 }
 

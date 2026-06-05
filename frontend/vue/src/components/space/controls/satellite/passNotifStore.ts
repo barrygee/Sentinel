@@ -13,9 +13,9 @@ const LS_KEY = 'space_pass_notifs'
 const OLD_PREFIX = 'passNotifEnabled_'
 
 // An entry can now carry two independent per-satellite toggles:
-//  - bell      → "ping me ~10 min before this satellite next passes overhead"
+//  - bell      → "ping me ~5 min before this satellite next passes overhead"
 //  - autoTune  → "tune the SDR to this satellite's downlink the moment a pass
-//                 begins (AOS)" — see SatelliteAutoTuneScheduler.
+//                 begins (AOS)" — see SatellitePassScheduler.
 // Back-compat: entries written before auto-tune existed have NO `bell` key and
 // mean "bell on" (their mere presence used to BE the bell flag). So `bell` is
 // read as `!== false` and only ever written explicitly. `downlinkHz`/
