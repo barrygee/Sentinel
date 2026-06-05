@@ -7,12 +7,14 @@ into a small surface area.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
 from backend.cache import now_ms
 from backend.models import UserSettings
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -56,19 +58,35 @@ async def upsert_setting(
     namespace: str,
     key: str,
     value: Any,
+    *,
+    retries: int = 3,
 ) -> None:
-    """Upsert (namespace, key) → JSON-encoded value. Commits the transaction."""
-    row = await get_setting_row(db, namespace, key)
+    """Upsert (namespace, key) → JSON-encoded value. Commits the transaction.
+
+    A user setting write is small and infrequent but can still lose the SQLite
+    write-lock race to a busy background writer (e.g. flight-history recording),
+    which raises "database is locked" once busy_timeout is exhausted. Retry a
+    few times with a short backoff so a transient lock doesn't surface as a 500.
+    """
     value_str = json.dumps(value)
-    ts = now_ms()
-    if row:
-        row.value = value_str
-        row.updated_at = ts
-    else:
-        db.add(UserSettings(
-            namespace=namespace,
-            key=key,
-            value=value_str,
-            updated_at=ts,
-        ))
-    await db.commit()
+    for attempt in range(retries + 1):
+        try:
+            row = await get_setting_row(db, namespace, key)
+            ts = now_ms()
+            if row:
+                row.value = value_str
+                row.updated_at = ts
+            else:
+                db.add(UserSettings(
+                    namespace=namespace,
+                    key=key,
+                    value=value_str,
+                    updated_at=ts,
+                ))
+            await db.commit()
+            return
+        except OperationalError:
+            await db.rollback()
+            if attempt == retries:
+                raise
+            await asyncio.sleep(0.2 * (attempt + 1))

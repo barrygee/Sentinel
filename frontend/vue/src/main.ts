@@ -78,6 +78,10 @@ const DEFAULT_LABEL_DATA_POINTS = {
       const soundOn = data.app?.notificationSound
       appStore.setNotificationSound(typeof soundOn === 'boolean' ? soundOn : false)
 
+      // Replay recording toggle — default OFF when absent from the DB.
+      const replayOn = data.air?.replayEnabled
+      airStore.setReplayEnabled(typeof replayOn === 'boolean' ? replayOn : false)
+
       // Hydrate labelDataPoints from API into store before first render.
       const remote = data.air?.labelDataPoints as AdsbTagFields | undefined
       if (remote && typeof remote === 'object' && !Array.isArray(remote) &&

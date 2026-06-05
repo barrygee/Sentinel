@@ -18,6 +18,7 @@ import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal, get_db
+from backend.db_helpers import get_setting
 from backend.models import AdsbCache, AirAircraft, AirFlight, AirMessage, AirSnapshot, AirTracking
 from backend.services import adsb as adsb_service
 from backend.services.flight_history import record_aircraft_batch
@@ -79,6 +80,10 @@ async def get_aircraft_near_point(
     # Build a deterministic cache key from the query parameters
     cache_key = f"{lat:.4f}_{lon:.4f}_{radius}"
 
+    # Replay history recording is opt-in (default OFF). When disabled we still
+    # serve and cache live ADS-B data, but never populate the history tables.
+    replay_enabled = bool(await get_setting(db, "air", "replayEnabled", default=False))
+
     primary_url, fallback_url = await resolve_domain_urls("air", db, online_default=settings.adsb_upstream_base)
 
     # Look up any existing cache row for this key
@@ -137,11 +142,11 @@ async def get_aircraft_near_point(
             await db.commit()
         except OperationalError:
             await db.rollback()
-            if background_tasks is not None:
+            if replay_enabled and background_tasks is not None:
                 background_tasks.add_task(_record_history_bg, data.get("ac", []))
             return JSONResponse(content=data, headers={"X-Cache": "BYPASS"})
 
-        if background_tasks is not None:
+        if replay_enabled and background_tasks is not None:
             background_tasks.add_task(_record_history_bg, data.get("ac", []))
 
         return JSONResponse(content=data, headers={"X-Cache": "MISS"})

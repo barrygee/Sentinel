@@ -144,6 +144,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'air', sectionLabel: 'AIR', id: 'air-overhead-alerts', label: 'Overhead Aircraft Alerts', desc: 'Notify when aircraft are within range of your location, and show the zone on the map', type: 'overhead-alerts-toggle', groupLabel: 'ALERTS' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-overhead-alert-radius', label: 'Overhead Alert Radius', desc: 'Distance from your location (in nautical miles) used to trigger overhead aircraft alerts and define the zone shown on the map', type: 'overhead-alert-radius' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-tag-fields', label: 'Label Data Points', desc: 'Choose which data fields appear on aircraft labels for civil and military aircraft', type: 'air-tag-fields', groupLabel: 'LABELS' },
+  { section: 'air', sectionLabel: 'AIR', id: 'air-replay-toggle', label: 'Flight Replay', desc: 'Record aircraft movements to the database so you can replay them later via the REPLAY tab. When off, no flight history is recorded and the REPLAY tab is hidden. Off by default.', type: 'air-replay-toggle', groupLabel: 'REPLAY' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'air', groupLabel: 'DATA SOURCES' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-online-source', label: 'Online Data Source', desc: 'URL for live air data feed', type: 'online-source', ns: 'air', defaultUrl: 'https://api.airplanes.live/v2' },
   { section: 'air', sectionLabel: 'AIR', id: 'air-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for air data', type: 'offline-source', ns: 'air', defaultUrl: '' },
@@ -262,10 +263,12 @@ async function commitAll(): Promise<void> {
   }
   pending.value.clear()
   showApplyStatus('SAVED', false)
+  // Hold long enough for the SAVED confirmation to be clearly visible before the
+  // page reloads (the reload re-hydrates settings that need a fresh app start).
   setTimeout(() => {
     try { sessionStorage.setItem('sentinel_settings_reopen', activeSection.value) } catch {}
     location.reload()
-  }, 400)
+  }, 1200)
 }
 
 watch(() => store.open, (isOpen) => {

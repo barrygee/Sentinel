@@ -27,6 +27,7 @@
     <SpaceHoverPreviewControl v-else-if="item.type === 'space-hover-preview'" @stage="emit('stage', item.id, $event)" />
     <AdsbLabelFieldsControl v-else-if="item.type === 'air-label-fields'" @stage="emit('stage', item.id, $event)" />
     <AdsbTagFieldsControl v-else-if="item.type === 'air-tag-fields'" @stage="emit('stage', item.id, $event)" />
+    <AirReplayToggleControl v-else-if="item.type === 'air-replay-toggle'" @stage="emit('stage', item.id, $event)" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
     <SdrAutoCenterControl v-else-if="item.type === 'sdr-autocenter'" @stage="emit('stage', item.id, $event)" />
     <SdrFullWaterfallUpdateControl v-else-if="item.type === 'sdr-full-waterfall-update'" @stage="emit('stage', item.id, $event)" />
@@ -67,6 +68,7 @@ import SpaceSatelliteRadioControl from './SpaceSatelliteRadioControl.vue'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
+import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrAutoCenterControl from './SdrAutoCenterControl.vue'
 import SdrFullWaterfallUpdateControl from './SdrFullWaterfallUpdateControl.vue'

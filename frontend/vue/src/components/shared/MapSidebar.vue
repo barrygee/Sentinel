@@ -78,13 +78,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useAirStore } from '@/stores/air'
 
 const notifStore = useNotificationsStore()
+const airStore = useAirStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
@@ -117,8 +119,15 @@ const tabs = computed(() => [
   { id: 'alerts' as SidebarTab,   label: 'ALERTS' },
   { id: 'tracking' as SidebarTab, label: 'TRACKING' },
   { id: 'passes' as SidebarTab,   label: 'PASSES' },
-  { id: 'playback' as SidebarTab, label: 'REPLAY' },
+  // REPLAY tab only appears when air replay recording is enabled (Settings > AIR).
+  ...(airStore.replayEnabled ? [{ id: 'playback' as SidebarTab, label: 'REPLAY' }] : []),
 ])
+
+// If replay gets disabled while the REPLAY tab is active, fall back to SEARCH so
+// the now-hidden pane isn't left showing.
+watch(() => airStore.replayEnabled, (enabled) => {
+  if (!enabled && activeTab.value === 'playback') setTab('search')
+})
 
 // Change the active tab without altering the panel's open/closed state.
 function setTab(tab: SidebarTab) {
@@ -195,6 +204,8 @@ function _restoreTab(domain: string): SidebarTab {
   if (!saved || !(VALID_TABS as readonly string[]).includes(saved)) return 'search'
   const required = DOMAIN_SPECIFIC_TABS[saved]
   if (required && required !== domain) return 'search'  // defensive
+  // REPLAY is hidden when air replay recording is off — don't restore into it.
+  if (saved === 'playback' && !airStore.replayEnabled) return 'search'
   return saved as SidebarTab
 }
 

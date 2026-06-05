@@ -98,6 +98,12 @@ function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
   }
 }
 
+const LS_REPLAY_ENABLED_KEY = 'airReplayEnabled'
+
+function readPersistedReplayEnabled(): boolean {
+  try { return localStorage.getItem(LS_REPLAY_ENABLED_KEY) === '1' } catch { return false }
+}
+
 function readPersistedRadius(): number {
   try {
     const raw = localStorage.getItem(LS_OVERHEAD_RADIUS_KEY)
@@ -114,6 +120,9 @@ export const useAirStore = defineStore('air', () => {
   const adsbLabelFields = usePersistedObject<AdsbLabelFields>(LS_LABEL_FIELDS_KEY, DEFAULT_LABEL_FIELDS, migrateLabelFields)
   const adsbTagFields = usePersistedObject<AdsbTagFields>(LS_TAG_FIELDS_KEY, DEFAULT_TAG_FIELDS, migrateTagFields)
   const overheadAlertRadiusNm = ref<number>(readPersistedRadius())
+  // Replay (flight history recording + REPLAY tab). Opt-in, default OFF.
+  // localStorage for instant restore; DB hydrate happens in main.ts at startup.
+  const replayEnabled = ref<boolean>(readPersistedReplayEnabled())
   const filterQuery = ref('')
   const filterOpen = ref(false)
   const mapCenter = ref<[number, number] | null>(null)
@@ -130,6 +139,11 @@ export const useAirStore = defineStore('air', () => {
 
   function setAdsbTagFields(fields: AdsbTagFields) {
     adsbTagFields.value = fields
+  }
+
+  function setReplayEnabled(on: boolean) {
+    replayEnabled.value = on
+    try { localStorage.setItem(LS_REPLAY_ENABLED_KEY, on ? '1' : '0') } catch {}
   }
 
   function setOverheadAlertRadiusNm(nm: number) {
@@ -152,5 +166,5 @@ export const useAirStore = defineStore('air', () => {
     pitch.value = currentPitch
   }
 
-  return { overlayStates, adsbLabelFields, adsbTagFields, overheadAlertRadiusNm, filterQuery, filterOpen, mapCenter, mapZoom, pitch, setOverlay, setAdsbLabelFields, setAdsbTagFields, setOverheadAlertRadiusNm, setFilter, toggleFilter, saveMapState }
+  return { overlayStates, adsbLabelFields, adsbTagFields, overheadAlertRadiusNm, replayEnabled, filterQuery, filterOpen, mapCenter, mapZoom, pitch, setOverlay, setAdsbLabelFields, setAdsbTagFields, setOverheadAlertRadiusNm, setReplayEnabled, setFilter, toggleFilter, saveMapState }
 })

@@ -8,6 +8,7 @@
   },
   "air": {
     "enabled": true,
+    "replayEnabled": false,
     "sourceOverride": "auto",
     "onlineDataSourceURL": "https://api.airplanes.live/v2",
     "offgridDataSourceURL": {
