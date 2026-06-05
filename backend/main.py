@@ -133,7 +133,14 @@ if SPA_DIR.exists():
 async def serve_spa(full_path: str):
     index = SPA_DIR / "index.html"
     if index.exists():
-        return FileResponse(index, media_type="text/html")
+        # The SPA entry must never be cached: it references hash-named JS/CSS
+        # assets, so a stale index.html keeps pointing at an old bundle after a
+        # rebuild. The hashed assets themselves remain immutably cacheable.
+        return FileResponse(
+            index,
+            media_type="text/html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
     # SPA not built yet — return a helpful message during development
     return JSONResponse(
         {"detail": "SPA not built. Run: cd frontend/vue && npm run build"},

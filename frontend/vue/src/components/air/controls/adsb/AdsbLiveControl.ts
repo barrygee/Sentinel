@@ -154,6 +154,23 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
         this._labelFields   = this._loadLabelFields()
         this._tagFields     = { civil: { ...airStore.adsbTagFields.civil }, mil: { ...airStore.adsbTagFields.mil } }
+        // Restore the persisted type/visibility filter here (not via a delayed
+        // setTimeout in AirSideMenu) so the very first poll renders under the
+        // correct filter — otherwise civil aircraft flash for ~1s on load before
+        // the filter is applied.
+        this._loadFilterState()
+    }
+
+    private _loadFilterState(): void {
+        try {
+            const raw = localStorage.getItem('adsbFilter')
+            if (!raw) return
+            const p = JSON.parse(raw) as { typeFilter?: string; allHidden?: boolean }
+            if (p && (p.typeFilter === 'civil' || p.typeFilter === 'mil' || p.typeFilter === 'all')) {
+                this._typeFilter = p.typeFilter
+            }
+            if (typeof p.allHidden === 'boolean') this._allHidden = p.allHidden
+        } catch {}
     }
 
     private _loadLabelFields(): { civil: string[]; mil: string[] } {
@@ -239,6 +256,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (this._isolatedHex) {
             const isolateFilter = ['==', ['get', 'hex'], this._isolatedHex]
             if (this.map.getLayer('adsb-bracket')) this.map.setFilter('adsb-bracket', isolateFilter as maplibregl.FilterSpecification)
+            if (this.map.getLayer('adsb-hit')) this.map.setFilter('adsb-hit', isolateFilter as maplibregl.FilterSpecification)
             if (this.map.getLayer('adsb-icons')) {
                 this.map.setFilter('adsb-icons', isolateFilter as maplibregl.FilterSpecification)
                 // Keep icon visible in isolation mode even when labelsVisible (HTML markers replace symbols
@@ -271,6 +289,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
             : conditions.length === 1 ? conditions[0] : ['any', ...conditions]
 
         if (this.map.getLayer('adsb-bracket')) this.map.setFilter('adsb-bracket', filter as maplibregl.FilterSpecification)
+        // Apply the same filter to the transparent hit-test layer so hover/click only
+        // fire for aircraft that are actually visible under the current type filter.
+        if (this.map.getLayer('adsb-hit')) this.map.setFilter('adsb-hit', filter as maplibregl.FilterSpecification)
         if (this.map.getLayer('adsb-icons')) {
             this.map.setFilter('adsb-icons', filter as maplibregl.FilterSpecification)
             if (this.labelsVisible) this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')

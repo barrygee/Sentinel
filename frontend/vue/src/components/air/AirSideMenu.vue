@@ -398,23 +398,10 @@ function openSearch() {
   document.dispatchEvent(event)
 }
 
-// ---- Restore persisted filter state ----
-try {
-  const saved = localStorage.getItem('adsbFilter')
-  if (saved) {
-    const { typeFilter, allHidden } = JSON.parse(saved) as { typeFilter: string; allHidden: boolean }
-    // Applied lazily when adsbControl is available (after map loads)
-    setTimeout(() => {
-      const c = getAdsb()
-      if (!c) return
-      if (allHidden) {
-        c.setAllHidden(true)
-      } else if (typeFilter && typeFilter !== 'all') {
-        c.setTypeFilter(typeFilter as 'civil' | 'mil')
-      }
-    }, 2000)
-  }
-} catch {}
+// Persisted filter state (localStorage `adsbFilter`) is restored inside the
+// AdsbLiveControl constructor (_loadFilterState) so the first poll renders under
+// the correct filter — restoring it here via setTimeout caused civil aircraft to
+// flash for ~1s on load before the filter applied.
 </script>
 
 <style>
