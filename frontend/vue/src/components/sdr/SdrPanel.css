@@ -2474,58 +2474,82 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* Saved note (read-only), shown under the meta when present. */
+/* Saved note (read-only), shown under the meta when present. The "NOTES"
+   caption matches the DATE/DURATION/SIZE meta labels. */
 .sdr-clip-note {
-    margin-top: 10px;
+    margin-top: 12px;
+}
+
+.sdr-clip-note-label {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 5px;
+}
+
+/* Read-only note: clamp to 2 lines, then ellipsis. */
+.sdr-clip-note-text {
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 11px;
     line-height: 1.45;
     color: rgba(255, 255, 255, 0.55);
-    white-space: pre-wrap;
     word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
 }
 
 /* Pencil turns accent while its edit accordion is open. */
 .sdr-clip-edit--active { color: rgba(200, 255, 0, 0.85); }
 
-/* ── Inline edit accordion (name + note) ── */
+/* ── Inline edit accordion (note only) ── */
 .sdr-clip-edit-panel {
     display: flex;
     flex-direction: column;
     margin-top: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 3px;
 }
 
-.sdr-clip-edit-label {
-    display: block;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.3);
-    margin-bottom: 6px;
-}
-
-.sdr-clip-edit-input {
-    width: 100%;
-    margin-bottom: 10px;
-}
-
+/* Flat note input — no box/border, just an underline that brightens on focus. */
 .sdr-clip-edit-note {
-    resize: vertical;
-    min-height: 56px;
+    width: 100%;
+    box-sizing: border-box;
+    resize: none;
+    /* Exactly two lines (2 × 1.45em line-height) + the 4px top/bottom padding.
+       overflow:hidden removes the scrollbar; content past 2 lines scrolls
+       internally as you type but is never shown with a scrollbar. */
+    height: calc(2 * 1.45em + 8px);
+    overflow: hidden;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    padding: 4px 0;
+    outline: none;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: var(--font-primary, 'Barlow', sans-serif);
+    font-size: 11px;
     line-height: 1.45;
+    transition: border-color 0.15s;
+}
+
+.sdr-clip-edit-note:focus {
+    border-bottom-color: rgba(200, 255, 0, 0.5);
+}
+
+.sdr-clip-edit-note::placeholder {
+    color: rgba(255, 255, 255, 0.2);
 }
 
 .sdr-clip-edit-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 2px;
+    margin-top: 12px;
 }
 
 /* ── SIGNAL-style block progress bar (click to seek) ── */

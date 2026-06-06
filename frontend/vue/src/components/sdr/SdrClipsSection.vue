@@ -3,7 +3,7 @@
     <input
       class="sdr-clips-search-input"
       type="text"
-      placeholder="NAME · NOTES · MODE"
+      placeholder="NOTES · MODE"
       autocomplete="off"
       spellcheck="false"
       v-model="clipsFilter"
@@ -115,27 +115,23 @@
             </div>
           </dl>
 
-          <!-- Saved note (read-only) shown when present and not editing. -->
-          <div v-if="c.notes && editingRecId !== c.id" class="sdr-clip-note">{{ c.notes }}</div>
+          <!-- Saved note (read-only) shown when present and not editing. The
+               "NOTES" caption only appears when there is note text — mirroring
+               the DATE/DURATION/SIZE meta labels. -->
+          <div v-if="c.notes && editingRecId !== c.id" class="sdr-clip-note">
+            <div class="sdr-clip-note-label">NOTES</div>
+            <div class="sdr-clip-note-text">{{ c.notes }}</div>
+          </div>
 
           <!-- Inline edit accordion: slides open between the meta and the play
-               controls. Edit the name + add a note, then SAVE (or CANCEL). -->
+               controls. Note only — flat input, no border box. -->
           <div v-if="editingRecId === c.id" class="sdr-clip-edit-panel" @click.stop>
-            <label class="sdr-clip-edit-label">NAME</label>
-            <input
-              ref="recmodNameRef"
-              class="sdr-panel-input sdr-clip-edit-input"
-              type="text"
-              maxlength="120"
-              v-model="recmodName"
-              @keydown.enter="saveEditAccordion"
-              @keydown.esc="closeEditAccordion"
-            >
-            <label class="sdr-clip-edit-label">NOTE</label>
+            <div v-if="recmodNotes.trim()" class="sdr-clip-note-label">NOTES</div>
             <textarea
-              class="sdr-panel-input sdr-clip-edit-input sdr-clip-edit-note"
-              rows="3"
-              maxlength="500"
+              ref="recmodNoteRef"
+              class="sdr-clip-edit-note"
+              rows="2"
+              maxlength="250"
               placeholder="Add a note…"
               v-model="recmodNotes"
               @keydown.esc="closeEditAccordion"
@@ -263,9 +259,11 @@ const scrollHintRef    = ref<HTMLElement | null>(null)
 // ── Inline edit accordion state ───────────────────────────────────────────────
 // editingRecId is the clip whose edit panel is expanded (null = none open).
 
+// recmodName holds the clip's existing name unchanged — the accordion only edits
+// the note, but the PATCH endpoint requires a name, so we round-trip it.
 const recmodName       = ref('')
 const recmodNotes      = ref('')
-const recmodNameRef    = ref<HTMLInputElement | null>(null)
+const recmodNoteRef    = ref<HTMLTextAreaElement | null>(null)
 const editingRecId     = ref<number | null>(null)
 
 // ── Inline delete confirm ─────────────────────────────────────────────────────
@@ -405,7 +403,7 @@ function toggleEditAccordion(c: SdrClip): void {
   editingRecId.value = c.id
   recmodName.value   = c.name || ''
   recmodNotes.value  = c.notes || ''
-  nextTick(() => recmodNameRef.value?.focus())
+  nextTick(() => recmodNoteRef.value?.focus())
 }
 
 function closeEditAccordion(): void { editingRecId.value = null }
