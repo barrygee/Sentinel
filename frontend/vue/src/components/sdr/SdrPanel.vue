@@ -965,8 +965,8 @@
 
       <!-- ───────────── RECORDINGS TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'recordings' }">
-        <SdrClipsSection
-          ref="clipsSectionRef"
+        <SdrRecordingsSection
+          ref="recordingsSectionRef"
           :live-recording="liveRecording"
           :rec-squelch-open="recSquelchOpen"
           :live-elapsed-s="liveElapsedS"
@@ -1022,7 +1022,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import SdrClipsSection from './SdrClipsSection.vue'
+import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode } from '@/stores/sdr'
@@ -1067,7 +1067,7 @@ function _notificationsStore() {
 }
 
 // Pending external (auto-tune) request, applied once the control socket opens.
-let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?: string; token?: string } | null = null
+let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?: string; token?: string; record?: boolean } | null = null
 
 // State captured the moment an auto-tune takes over the radio, so the LOS
 // restore can put things back. `playing` records whether audio was running
@@ -1076,8 +1076,10 @@ let _pendingExternalTune: { hz: number; mode: SdrMode; satName: string; noradId?
 // a stale LOS (after a newer pass retuned) is ignored. `tunedHz`/`tunedMode` are
 // what we tuned *to* — the restore only acts if the radio is still on them
 // (i.e. the user hasn't manually retuned since), so we never clobber a manual change.
+// `startedRecording` is true when *we* auto-started a recording at AOS, so the LOS
+// restore stops only that recording and never a manual one the user began.
 let _autoTunePrevState:
-  | { token?: string; playing: boolean; freqHz: number; mode: SdrMode; tunedHz: number; tunedMode: SdrMode }
+  | { token?: string; playing: boolean; freqHz: number; mode: SdrMode; tunedHz: number; tunedMode: SdrMode; startedRecording?: boolean }
   | null = null
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
@@ -1137,7 +1139,7 @@ useDocumentEvent('sentinel:config-uploaded', () => {
   void _sdrStore().hydrateResumeDelaySecFromDb()
 })
 
-const clipsSectionRef = ref<InstanceType<typeof SdrClipsSection> | null>(null)
+const recordingsSectionRef = ref<InstanceType<typeof SdrRecordingsSection> | null>(null)
 
 // ── Radio state ───────────────────────────────────────────────────────────────
 const connected         = ref(false)
@@ -1453,7 +1455,7 @@ watch(efFreq,  () => { if (efErrors.value.freq)  efErrors.value = { ...efErrors.
 watch(efMode,  () => { if (efErrors.value.mode)  efErrors.value = { ...efErrors.value, mode:  undefined } })
 watch(efNotes, () => { if (efErrors.value.notes) efErrors.value = { ...efErrors.value, notes: undefined } })
 
-// ── Recording state (live recording props passed to SdrClipsSection) ──────────
+// ── Recording state (live recording props passed to SdrRecordingsSection) ─────
 
 const isRecording    = ref(false)
 const recSquelchOpen = ref(true)
@@ -2401,13 +2403,14 @@ function _isAutoTuneLockHeld(): boolean {
 // is queued in _pendingExternalTune and applied once the socket is open (see
 // openControlSocket's 'open' handler).
 function onExternalTune(e: Event): void {
-  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string; noradId?: string; token?: string }>).detail
+  const detail = (e as CustomEvent<{ hz: number; mode?: string; satName?: string; noradId?: string; token?: string; record?: boolean }>).detail
   if (!detail || !detail.hz) return
   const hz = Math.round(detail.hz)
   const mode = _coerceSdrMode(detail.mode)
   const satName = detail.satName || 'SATELLITE'
   const noradId = detail.noradId
   const token = detail.token
+  const record = !!detail.record
 
   // Lock-in priority: if an earlier overlapping pass already holds the radio,
   // skip this later one rather than grabbing the tuner mid-copy. Leave the
@@ -2449,6 +2452,7 @@ function onExternalTune(e: Event): void {
     sendCmd({ cmd: 'tune', frequency_hz: hz })
     sendCmd({ cmd: 'mode', mode })
     _notifyAutoTuned(satName, hz, mode, noradId)
+    if (record) void _startAutoTuneRecording(satName, noradId)
     return
   }
 
@@ -2469,7 +2473,7 @@ function onExternalTune(e: Event): void {
   }
 
   // Queue the tune to fire once the control socket is open.
-  _pendingExternalTune = { hz, mode, satName, noradId, token }
+  _pendingExternalTune = { hz, mode, satName, noradId, token, record }
   const sameRadio = selectedRadioId.value === radio.id
   const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
   const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
@@ -2503,6 +2507,23 @@ function _applyPendingExternalTune(): void {
   sendCmd({ cmd: 'tune', frequency_hz: p.hz })
   sendCmd({ cmd: 'mode', mode: p.mode })
   _notifyAutoTuned(p.satName, p.hz, p.mode, p.noradId)
+  if (p.record) void _startAutoTuneRecording(p.satName, p.noradId)
+}
+
+// Start a recording for an auto-tuned pass and mark the snapshot so the LOS
+// restore stops it (and only it). The radio has just been tuned/started above,
+// so the recording captures the downlink from AOS. No-op if a recording is
+// already running (e.g. a manual REC the user started) — we don't take it over,
+// and we don't flag it as auto-started, so LOS leaves it alone.
+async function _startAutoTuneRecording(satName: string, noradId?: string): Promise<void> {
+  if (isRecording.value) return
+  const started = await _startRecording()
+  if (!started) return
+  if (_autoTunePrevState) _autoTunePrevState.startedRecording = true
+  _notificationsStore().add({
+    type: 'autotune', title: `${satName} RECORDING`,
+    detail: 'Recording pass', noradId, satName,
+  })
 }
 
 function _notifyAutoTuned(satName: string, hz: number, mode: string, noradId?: string): void {
@@ -2541,6 +2562,15 @@ function onExternalTuneRestore(e: Event): void {
   // _isAutoTuneLockHeld reads _autoTunePrevState, which we cleared above, so
   // re-check against the captured snapshot directly here.
   if (scanActive.value || searchActive.value) return
+
+  // Finalise an auto-started recording at LOS no matter what — "record the pass"
+  // means the recording ends when the pass ends, even if the user retuned away mid-pass
+  // (their new tune keeps playing, just not recording). Only stops a recording WE
+  // began; a manual REC the user started never set startedRecording, so it's
+  // untouched. Runs before the onTunedFreq bail below, which only governs whether
+  // we put the *radio* back — not whether our recording should end.
+  if (snap.startedRecording) void stopRecordingIfActive()
+
   const onTunedFreq = playing.value
     && Math.round(currentFreqHz.value) === snap.tunedHz
     && (currentMode.value as SdrMode) === snap.tunedMode
@@ -2994,7 +3024,7 @@ async function reloadData() {
     }))
     _scanQueue = buildScanQueue()
   } catch (_) {}
-  await clipsSectionRef.value?.reload()
+  await recordingsSectionRef.value?.reload()
 }
 
 // Refresh the list when frequencies are imported from the settings panel
@@ -3182,6 +3212,14 @@ async function deleteFreq(id?: number) {
 
 async function toggleRecording() {
   if (isRecording.value) { await stopRecordingIfActive(); return }
+  await _startRecording()
+}
+
+// Build the recording metadata from the current tune and start a recording,
+// wiring up the live-recording UI/timer. Shared by the manual REC button and the
+// auto-tune-on-pass path. Returns true if a recording actually started.
+async function _startRecording(): Promise<boolean> {
+  if (isRecording.value) return false
   const radioName = selectedRadioId.value ? knownRadios.value.find(r => r.id === selectedRadioId.value)?.name ?? '' : ''
   const metadata = {
     radio_id:     selectedRadioId.value,
@@ -3193,7 +3231,7 @@ async function toggleRecording() {
     sample_rate:  2048000,
   }
   const recId = await sdrAudio.startRecording(metadata)
-  if (!recId) return
+  if (!recId) return false
   isRecording.value = true
   _recStartEpoch = Date.now()
   _recPausedMs   = 0
@@ -3211,6 +3249,7 @@ async function toggleRecording() {
     const pausedSoFar = _recPauseStart != null ? _recPausedMs + (Date.now() - _recPauseStart) : _recPausedMs
     liveElapsedS.value = Math.floor((Date.now() - _recStartEpoch - pausedSoFar) / 1000)
   }, 1000)
+  return true
 }
 
 async function stopRecordingIfActive() {
@@ -3223,8 +3262,8 @@ async function stopRecordingIfActive() {
     mode: currentMode.value || 'AM',
   })
   liveRecording.value = null
-  await clipsSectionRef.value?.reload()
-  setTimeout(() => clipsSectionRef.value?.reload(), 2000)
+  await recordingsSectionRef.value?.reload()
+  setTimeout(() => recordingsSectionRef.value?.reload(), 2000)
 }
 
 function onSquelchChangeCallback(open: boolean) {

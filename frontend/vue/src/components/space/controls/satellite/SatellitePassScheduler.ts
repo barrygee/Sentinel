@@ -22,6 +22,10 @@ export interface SatellitePassSchedulerCtx {
     headsUpEnabled: () => boolean
     // Whether to auto-tune the SDR at AOS. Independent of headsUpEnabled.
     autoTuneEnabled: () => boolean
+    // Whether to also record the pass to a recording when auto-tune fires. Read live so
+    // toggling record takes effect on the next pass without recreating us. Only
+    // meaningful while autoTuneEnabled is also true.
+    recordOnPass: () => boolean
     // Downlink to tune to, or null when unknown (then auto-tune is skipped with a
     // notice). The UI prevents enabling auto-tune for sats without a downlink,
     // but a hand-edited entry could be missing it.
@@ -202,8 +206,9 @@ class AutoTuneTrack extends ActionTrack {
         // identifies this pass so the matching LOS restore can be ignored if a
         // newer pass has taken over the radio meanwhile.
         const token = `${this._ctx.noradId}:${pass.aos_unix_ms}`
+        const record = this._ctx.recordOnPass()
         document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', {
-            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token },
+            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token, record },
         }))
         // Lightweight trace in the alerts tab regardless of SDR state.
         this._ctx.notificationsStore.add({

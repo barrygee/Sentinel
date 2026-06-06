@@ -11,7 +11,7 @@ import type { SdrMode } from '@/stores/sdr'
 let _ctx: AudioContext | null = null
 let _worklet: AudioWorkletNode | null = null
 let _gain: GainNode | null = null
-// User-set output volume and a transient mute applied while a saved clip is
+// User-set output volume and a transient mute applied while a saved recording is
 // playing back. The effective gain is _volume unless _liveMuted, then 0 — the
 // IQ stream (and therefore signal meter / waterfall / spectrum) keeps running.
 let _volume = 1.0
@@ -360,7 +360,7 @@ export function useSdrAudio() {
     applyGain()
   }
 
-  // Mute the live SDR audio (e.g. while a recorded clip plays) without touching
+  // Mute the live SDR audio (e.g. while a recording plays) without touching
   // the IQ stream, so signal/waterfall/spectrum keep updating. Restoring unmutes
   // to the user's current volume.
   function setLiveMuted(muted: boolean) {

@@ -14,7 +14,7 @@ import SdrPanel from './SdrPanel.vue'
     margin-left: auto;
 }
 
-#sdr-tab-clips-scroll-hint {
+#sdr-tab-recordings-scroll-hint {
     display: none;
     align-items: center;
     justify-content: center;
@@ -28,13 +28,13 @@ import SdrPanel from './SdrPanel.vue'
     user-select: none;
 }
 
-#sdr-tab-clips-list-wrap {
+#sdr-tab-recordings-list-wrap {
     max-height: 260px;
     overflow-y: auto;
     scrollbar-width: none;
 }
 
-#sdr-tab-clips-list-wrap::-webkit-scrollbar {
+#sdr-tab-recordings-list-wrap::-webkit-scrollbar {
     display: none;
 }
 
@@ -47,16 +47,16 @@ import SdrPanel from './SdrPanel.vue'
     padding-right: 20px;
 }
 
-#msb-pane-radio #sdr-tab-clips-list,
-#msb-pane-radio #sdr-tab-clips-empty {
+#msb-pane-radio #sdr-tab-recordings-list,
+#msb-pane-radio #sdr-tab-recordings-empty {
     padding-left: 0;
     padding-right: 0;
 }
 
-/* The clip row's inner .sdr-clip-content / .sdr-clip-live own the horizontal
+/* The recording row's inner .sdr-recording-content / .sdr-recording-live own the horizontal
    inset now (matching the search wrap's 24px left / 20px right); the row itself
    spans full width so titles line up with the NAME header. */
-#msb-pane-radio .sdr-clip-row {
+#msb-pane-radio .sdr-recording-row {
     padding-left: 0;
     padding-right: 0;
 }

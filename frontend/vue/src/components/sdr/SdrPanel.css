@@ -2222,7 +2222,7 @@
     margin-top: 3px;
 }
 
-.sdr-clips-count {
+.sdr-recordings-count {
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
     font-weight: 700;
@@ -2232,7 +2232,7 @@
     padding-right: 4px;
 }
 
-.sdr-clips-search-wrap {
+.sdr-recordings-search-wrap {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -2245,14 +2245,14 @@
 
 /* The search box stays pinned; only the list below it scrolls — matching the
    other list side panels (e.g. the Frequency Manager). */
-.sdr-clips-body {
+.sdr-recordings-body {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
 }
 
-.sdr-clips-search-input {
+.sdr-recordings-search-input {
     flex: 1;
     background: none;
     border: none;
@@ -2268,13 +2268,13 @@
     padding: 0;
 }
 
-.sdr-clips-search-input::placeholder {
+.sdr-recordings-search-input::placeholder {
     color: rgba(255, 255, 255, 0.2);
     font-size: 11px;
     letter-spacing: 0.14em;
 }
 
-.sdr-clips-search-clear {
+.sdr-recordings-search-clear {
     background: none;
     border: none;
     cursor: pointer;
@@ -2288,15 +2288,15 @@
     flex-shrink: 0;
 }
 
-.sdr-clips-search-clear:hover {
+.sdr-recordings-search-clear:hover {
     color: var(--color-text-muted);
 }
 
-#sdr-clips-empty {
+#sdr-recordings-empty {
     padding-top: 12px;
 }
 
-#sdr-clips-list-wrap {
+#sdr-recordings-list-wrap {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -2308,18 +2308,18 @@
     scrollbar-width: none;
 }
 
-#sdr-clips-list-wrap::-webkit-scrollbar { display: none; }
+#sdr-recordings-list-wrap::-webkit-scrollbar { display: none; }
 
-#sdr-clips-list {
+#sdr-recordings-list {
     overflow-y: auto;
     overflow-x: hidden;
     max-height: 480px;
     scrollbar-width: none;
 }
 
-#sdr-clips-list::-webkit-scrollbar { display: none; }
+#sdr-recordings-list::-webkit-scrollbar { display: none; }
 
-#sdr-clips-scroll-hint {
+#sdr-recordings-scroll-hint {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2337,41 +2337,41 @@
     pointer-events: none;
 }
 
-#sdr-clips-scroll-hint.sdr-clips-hint-visible {
+#sdr-recordings-scroll-hint.sdr-recordings-hint-visible {
     visibility: visible;
     opacity: 1;
 }
 
-#sdr-clips-scroll-arrow {
+#sdr-recordings-scroll-arrow {
     display: inline-block;
     flex-shrink: 0;
     transition: transform 0.2s ease;
 }
 
-#sdr-clips-scroll-arrow.sdr-clips-arrow-up {
+#sdr-recordings-scroll-arrow.sdr-recordings-arrow-up {
     transform: rotate(180deg);
 }
 
-/* Clip rows adopt the radio styling: a large Barlow-Condensed frequency readout
+/* Recording rows adopt the radio styling: a large Barlow-Condensed frequency readout
    (mirroring .sdr-freq-input-large), a small uppercase name/mode sub-line, the
    Date/Duration/Size meta, and — while playing — a SIGNAL-style block bar that
    lights up to show position (click anywhere on it to seek). */
-.sdr-clip-row {
+.sdr-recording-row {
     display: flex;
     flex-direction: column;
     transition: background 0.12s;
 }
 
-.sdr-clip-row:hover {
+.sdr-recording-row:hover {
     background: rgba(255, 255, 255, 0.04);
 }
 
 /* Subtle highlight on the whole row while playing. */
-.sdr-clip-playing {
+.sdr-recording-playing {
     background: rgba(200, 255, 0, 0.04);
 }
 
-.sdr-clip-content {
+.sdr-recording-content {
     display: flex;
     flex-direction: column;
     padding: 10px 20px 10px 24px;
@@ -2379,13 +2379,13 @@
 }
 
 /* Title row: large frequency readout on the left, action glyphs on the right. */
-.sdr-clip-head {
+.sdr-recording-head {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.sdr-clip-freq {
+.sdr-recording-freq {
     display: flex;
     align-items: baseline;
     gap: 4px;
@@ -2394,7 +2394,7 @@
 }
 
 /* Mirrors .sdr-freq-input-large — the radio's big frequency readout. */
-.sdr-clip-freq-num {
+.sdr-recording-freq-num {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 26px;
     font-weight: 300;
@@ -2408,7 +2408,7 @@
 }
 
 /* Mirrors .sdr-freq-unit. */
-.sdr-clip-freq-unit {
+.sdr-recording-freq-unit {
     flex-shrink: 0;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 14px;
@@ -2418,7 +2418,7 @@
 }
 
 /* Mode (USB/AM/…) inline after the unit, separated by a dash. */
-.sdr-clip-freq-mode {
+.sdr-recording-freq-mode {
     flex-shrink: 0;
     margin-left: 5px;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
@@ -2430,7 +2430,7 @@
 }
 
 /* Custom name under the freq, mirroring .sdr-freq-name. */
-.sdr-clip-subname {
+.sdr-recording-subname {
     margin-top: 3px;
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 13px;
@@ -2444,14 +2444,14 @@
 }
 
 /* Labelled metadata rows: Date / Duration / Size. */
-.sdr-clip-meta {
+.sdr-recording-meta {
     display: flex;
     flex-direction: column;
     gap: 4px;
     margin: 12px 0 0;
 }
 
-.sdr-clip-meta-row {
+.sdr-recording-meta-row {
     display: flex;
     align-items: baseline;
     gap: 10px;
@@ -2461,14 +2461,14 @@
     letter-spacing: 0.08em;
 }
 
-.sdr-clip-meta-row dt {
+.sdr-recording-meta-row dt {
     width: 64px;
     color: rgba(255, 255, 255, 0.3);
     text-transform: uppercase;
     flex-shrink: 0;
 }
 
-.sdr-clip-meta-row dd {
+.sdr-recording-meta-row dd {
     margin: 0;
     color: rgba(255, 255, 255, 0.6);
     font-variant-numeric: tabular-nums;
@@ -2476,11 +2476,11 @@
 
 /* Saved note (read-only), shown under the meta when present. The "NOTES"
    caption matches the DATE/DURATION/SIZE meta labels. */
-.sdr-clip-note {
+.sdr-recording-note {
     margin-top: 12px;
 }
 
-.sdr-clip-note-label {
+.sdr-recording-note-label {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 11px;
     font-weight: 400;
@@ -2491,7 +2491,7 @@
 }
 
 /* Read-only note: clamp to 2 lines, then ellipsis. */
-.sdr-clip-note-text {
+.sdr-recording-note-text {
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 11px;
     line-height: 1.45;
@@ -2505,17 +2505,17 @@
 }
 
 /* Pencil turns accent while its edit accordion is open. */
-.sdr-clip-edit--active { color: rgba(200, 255, 0, 0.85); }
+.sdr-recording-edit--active { color: rgba(200, 255, 0, 0.85); }
 
 /* ── Inline edit accordion (note only) ── */
-.sdr-clip-edit-panel {
+.sdr-recording-edit-panel {
     display: flex;
     flex-direction: column;
     margin-top: 12px;
 }
 
 /* Flat note input — no box/border, just an underline that brightens on focus. */
-.sdr-clip-edit-note {
+.sdr-recording-edit-note {
     width: 100%;
     box-sizing: border-box;
     resize: none;
@@ -2537,15 +2537,15 @@
     transition: border-color 0.15s;
 }
 
-.sdr-clip-edit-note:focus {
+.sdr-recording-edit-note:focus {
     border-bottom-color: rgba(200, 255, 0, 0.5);
 }
 
-.sdr-clip-edit-note::placeholder {
+.sdr-recording-edit-note::placeholder {
     color: rgba(255, 255, 255, 0.2);
 }
 
-.sdr-clip-edit-actions {
+.sdr-recording-edit-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -2553,14 +2553,14 @@
 }
 
 /* ── SIGNAL-style block progress bar (click to seek) ── */
-.sdr-clip-progress {
+.sdr-recording-progress {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 14px;
 }
 
-.sdr-clip-segments {
+.sdr-recording-segments {
     display: flex;
     gap: 3px;
     flex: 1;
@@ -2570,7 +2570,7 @@
 
 /* Each block lights up as playback reaches it; the colour transition fades it
    in cleanly so the bar animates block-by-block. */
-.sdr-clip-seg {
+.sdr-recording-seg {
     flex: 1;
     height: 100%;
     border-radius: 1px;
@@ -2578,11 +2578,11 @@
     transition: background 0.15s ease;
 }
 
-.sdr-clip-seg--on {
+.sdr-recording-seg--on {
     background: #c8ff00;
 }
 
-.sdr-clip-time {
+.sdr-recording-time {
     font-family: 'Barlow Condensed', 'Barlow', sans-serif;
     font-size: 11px;
     font-weight: 400;
@@ -2594,15 +2594,15 @@
 }
 
 /* Edit / delete sit inline on the right of the title, borderless glyphs. */
-.sdr-clip-actions {
+.sdr-recording-actions {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
 }
 
-.sdr-clip-edit,
-.sdr-clip-del {
+.sdr-recording-edit,
+.sdr-recording-del {
     position: relative;
     background: none;
     border: none;
@@ -2618,9 +2618,9 @@
 }
 
 /* Flat dark tooltip — matches .sdr-rail-btn / #radio-mini-btn. Drops below the
-   button (the actions sit at the top of each clip row). */
-.sdr-clip-edit[data-tooltip]::before,
-.sdr-clip-del[data-tooltip]::before {
+   button (the actions sit at the top of each recording row). */
+.sdr-recording-edit[data-tooltip]::before,
+.sdr-recording-del[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
     top: calc(100% + 8px);
@@ -2645,36 +2645,36 @@
     z-index: 10001;
 }
 
-.sdr-clip-edit:hover[data-tooltip]::before,
-.sdr-clip-del:hover[data-tooltip]::before { opacity: 1; }
+.sdr-recording-edit:hover[data-tooltip]::before,
+.sdr-recording-del:hover[data-tooltip]::before { opacity: 1; }
 
-.sdr-clip-edit { font-size: 15px; }
+.sdr-recording-edit { font-size: 15px; }
 
-.sdr-clip-edit:hover { color: rgba(200, 255, 0, 0.85); }
+.sdr-recording-edit:hover { color: rgba(200, 255, 0, 0.85); }
 
-.sdr-clip-del { font-size: 14px; }
+.sdr-recording-del { font-size: 14px; }
 
-.sdr-clip-del:hover { color: rgba(255, 80, 80, 0.85); }
+.sdr-recording-del:hover { color: rgba(255, 80, 80, 0.85); }
 
 /* Inline delete confirm: armed ✓ reads as a "go" colour, ✕ stays neutral/red. */
-.sdr-clip-del--confirm { color: rgba(200, 255, 0, 0.85); }
-.sdr-clip-del--confirm:hover { color: rgba(200, 255, 0, 1); }
-.sdr-clip-del--cancel { color: rgba(255, 255, 255, 0.45); }
-.sdr-clip-del--cancel:hover { color: rgba(255, 80, 80, 0.85); }
+.sdr-recording-del--confirm { color: rgba(200, 255, 0, 0.85); }
+.sdr-recording-del--confirm:hover { color: rgba(200, 255, 0, 1); }
+.sdr-recording-del--cancel { color: rgba(255, 255, 255, 0.45); }
+.sdr-recording-del--cancel:hover { color: rgba(255, 80, 80, 0.85); }
 
 /* Play + download pill row beneath the meta. Buttons match the radio controls
    (.sdr-mode-pill): a dark background that brightens on hover, accent tints. */
-.sdr-clip-controls {
+.sdr-recording-controls {
     display: flex;
     align-items: center;
     gap: 4px;
     margin-top: 14px;
 }
 
-.sdr-clip-play,
-.sdr-clip-export,
-.sdr-clip-iq,
-.sdr-clip-stop {
+.sdr-recording-play,
+.sdr-recording-export,
+.sdr-recording-iq,
+.sdr-recording-stop {
     height: 28px;
     flex-shrink: 0;
     background: rgba(255, 255, 255, 0.08);
@@ -2691,7 +2691,7 @@
 }
 
 /* Stop recording — red pill with a square glyph + STOP label. */
-.sdr-clip-stop {
+.sdr-recording-stop {
     gap: 7px;
     padding: 0 14px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
@@ -2702,25 +2702,25 @@
     color: rgba(255, 80, 80, 0.85);
 }
 
-.sdr-clip-stop svg { display: block; }
+.sdr-recording-stop svg { display: block; }
 
-.sdr-clip-stop:hover {
+.sdr-recording-stop:hover {
     background: rgba(255, 80, 80, 0.15);
     color: #ff5050;
 }
 
-.sdr-clip-play {
+.sdr-recording-play {
     width: 40px;
     padding: 0;
 }
 
-.sdr-clip-play svg {
+.sdr-recording-play svg {
     display: block;
 }
 
 /* Download is a text pill ("DOWNLOAD"), no icon. Sized to match the FM/USB/LSB
    mode pills (9px). */
-.sdr-clip-export {
+.sdr-recording-export {
     padding: 0 14px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 9px;
@@ -2729,27 +2729,27 @@
     text-transform: uppercase;
 }
 
-.sdr-clip-export:hover {
+.sdr-recording-export:hover {
     background: rgba(255, 255, 255, 0.15);
     color: #fff;
 }
 
 /* Play button carries the accent tint, like the radio's tune button. */
-.sdr-clip-play {
+.sdr-recording-play {
     color: rgba(200, 255, 0, 0.75);
 }
 
-.sdr-clip-play:hover {
+.sdr-recording-play:hover {
     background: rgba(200, 255, 0, 0.15);
     color: #c8ff00;
 }
 
-.sdr-clip-playing .sdr-clip-play {
+.sdr-recording-playing .sdr-recording-play {
     background: rgba(200, 255, 0, 0.12);
     color: #c8ff00;
 }
 
-.sdr-clip-iq {
+.sdr-recording-iq {
     padding: 0 12px;
     font-family: var(--font-primary, 'Barlow', sans-serif);
     font-size: 11px;
@@ -2758,7 +2758,7 @@
     color: rgba(100, 180, 255, 0.75);
 }
 
-.sdr-clip-iq:hover {
+.sdr-recording-iq:hover {
     background: rgba(100, 180, 255, 0.15);
     color: rgba(100, 180, 255, 0.95);
 }
@@ -2766,7 +2766,7 @@
 /* ── Live recording row ── */
 
 /* "Recording" / "Waiting" status pill on the right of the freq title. */
-.sdr-clip-live-status {
+.sdr-recording-live-status {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -2779,7 +2779,7 @@
     color: rgba(255, 255, 255, 0.65);
 }
 
-.sdr-clip-live-dot {
+.sdr-recording-live-dot {
     display: inline-block;
     width: 7px;
     height: 7px;
@@ -2789,7 +2789,7 @@
     animation: sdr-rec-pulse 1.2s ease-in-out infinite;
 }
 
-.sdr-clip-live-dot--waiting {
+.sdr-recording-live-dot--waiting {
     background: #ffb300;
     animation: sdr-rec-pulse 2s ease-in-out infinite;
 }
@@ -3222,7 +3222,7 @@
 }
 
 /* When the frequency-manager pane is active, the panes container must
-   clip vertically so the inner #sdr-freq-list — not the panes container
+   recording vertically so the inner #sdr-freq-list — not the panes container
    or the page — owns the scroll. Overrides the #msb-pane-radio
    `overflow-y: visible` and the base `overflow-y: auto`. */
 .sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
@@ -3251,20 +3251,20 @@
 }
 
 /* Same height-constraint for the Recordings pane so the search box stays pinned
-   and only #sdr-clips-list-wrap scrolls. */
-.sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-clips-body) {
+   and only #sdr-recordings-list-wrap scrolls. */
+.sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-recordings-body) {
     overflow-y: hidden !important;
     min-height: 0;
 }
-#sdr-panel-panes:has(.sdr-tab-pane.active > .sdr-clips-body) {
+#sdr-panel-panes:has(.sdr-tab-pane.active > .sdr-recordings-body) {
     overflow-y: hidden;
     min-height: 0;
 }
-#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-clips-body) {
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-recordings-body) {
     overflow-y: hidden;
     min-height: 0;
 }
-#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-clips-body) #sdr-panel-panes {
+#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-recordings-body) #sdr-panel-panes {
     flex: 1;
     overflow-y: hidden;
     min-height: 0;
@@ -3326,7 +3326,7 @@
    tab pane. The parent pane is `display: flex; flex-direction: column` with
    the Frequencies body claiming `flex: 1`, so this section needs its own
    share of the height and its own scroll container — otherwise its inline
-   edit form gets clipped at the bottom of the panel. */
+   edit form gets recordingped at the bottom of the panel. */
 .sdr-search-ranges-body {
     display: flex;
     flex-direction: column;
@@ -3455,7 +3455,7 @@
 }
 
 /* The range editor has more fields than the frequency editor, so the shared
-   600px max-height clips it. Allow it to grow. */
+   600px max-height recordings it. Allow it to grow. */
 .sdr-search-ranges-body .sdr-editfreq-body.expanded {
     max-height: none;
 }

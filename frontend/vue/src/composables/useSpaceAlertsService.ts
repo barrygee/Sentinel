@@ -1,7 +1,7 @@
 import { useNotificationsStore } from '@/stores/notifications'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { SatellitePassScheduler } from '@/components/space/controls/satellite/SatellitePassScheduler'
-import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled, isAutoTuneEnabled } from '@/components/space/controls/satellite/passNotifStore'
+import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled, isAutoTuneEnabled, isRecordOnPassEnabled } from '@/components/space/controls/satellite/passNotifStore'
 
 // App-level background service that drives per-satellite pass alerts for EVERY
 // satellite the user has enabled — regardless of which section is active and
@@ -77,6 +77,7 @@ function _syncScheduler(noradId: string, name: string): void {
     getName: () => getAllPassNotifs()[noradId]?.name || name,
     headsUpEnabled: () => isPassNotifEnabled(noradId),
     autoTuneEnabled: () => isAutoTuneEnabled(noradId),
+    recordOnPass: () => isRecordOnPassEnabled(noradId),
     getDownlink: () => _getDownlink(noradId),
   })
   _schedulers.set(noradId, sched)

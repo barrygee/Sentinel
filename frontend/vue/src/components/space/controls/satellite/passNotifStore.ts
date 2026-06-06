@@ -25,6 +25,10 @@ export interface PassNotifEntry {
     name: string
     bell?: boolean
     autoTune?: boolean
+    // Record the pass to a recording when auto-tune fires at AOS. Only meaningful while
+    // `autoTune` is also on — recording needs a live tune to capture. Setting it
+    // forces `autoTune: true`; clearing `autoTune` also clears this.
+    record?: boolean
     downlinkHz?: number
     downlinkMode?: string
 }
@@ -100,7 +104,7 @@ function _defaultName(noradId: string): string {
 // disabled doesn't linger in the map.
 function _pruneIfEmpty(map: PassNotifMap, noradId: string): void {
     const e = map[noradId]
-    if (e && e.bell === false && !e.autoTune) delete map[noradId]
+    if (e && e.bell === false && !e.autoTune && !e.record) delete map[noradId]
 }
 
 export function isPassNotifEnabled(noradId: string): boolean {
@@ -151,6 +155,39 @@ export function setAutoTuneEnabled(
         }
     } else if (existing) {
         existing.autoTune = false
+        // Record can't run without a tune — disabling auto-tune disarms record too.
+        existing.record = false
+        _pruneIfEmpty(map, noradId)
+    }
+    _write(map)
+}
+
+export function isRecordOnPassEnabled(noradId: string): boolean {
+    _migrate()
+    return !!_read()[noradId]?.record
+}
+
+export function setRecordOnPassEnabled(
+    noradId: string,
+    enabled: boolean,
+    opts?: { name?: string; downlinkHz?: number; downlinkMode?: string },
+): void {
+    _migrate()
+    const map = _read()
+    const existing = map[noradId]
+    if (enabled) {
+        map[noradId] = {
+            ...existing,
+            name: opts?.name || existing?.name || _defaultName(noradId),
+            // Preserve bell; recording implies auto-tune, so force it on.
+            bell: existing ? (existing.bell !== false) : false,
+            autoTune: true,
+            record: true,
+            downlinkHz: opts?.downlinkHz ?? existing?.downlinkHz,
+            downlinkMode: opts?.downlinkMode ?? existing?.downlinkMode,
+        }
+    } else if (existing) {
+        existing.record = false
         _pruneIfEmpty(map, noradId)
     }
     _write(map)

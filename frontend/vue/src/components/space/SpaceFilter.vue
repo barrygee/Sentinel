@@ -167,6 +167,19 @@
                     <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                   </svg>
                 </button>
+                <button
+                  v-if="sat.downlink_hz"
+                  class="sfr-acc-record-btn"
+                  :class="{ 'sfr-acc-record-btn--active': isRecordArmed(sat.norad_id) }"
+                  :disabled="!isArmed(sat.norad_id)"
+                  aria-label="Record pass"
+                  data-tooltip="Record pass"
+                  @click.stop="toggleRecord(sat)"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="12" cy="12" r="6" fill="currentColor"/>
+                  </svg>
+                </button>
               </div>
               <div v-if="isArmed(sat.norad_id) && autoTuneConflictText" class="sfr-acc-autotune-warn">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -236,7 +249,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
+import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, isRecordOnPassEnabled, setRecordOnPassEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
@@ -364,6 +377,11 @@ function isArmed(noradId: string): boolean {
   return isAutoTuneEnabled(noradId)
 }
 
+function isRecordArmed(noradId: string): boolean {
+  void armedTick.value
+  return isRecordOnPassEnabled(noradId)
+}
+
 const now = ref(Date.now())
 
 // Exact observer-relative look-angles for the live satellite, supplied by the
@@ -472,6 +490,31 @@ function toggleAutoTune(sat: SatEntry): void {
     // a different detail, so match on it to leave those untouched).
     notificationsStore.items
       .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Auto-tune on pass enabled')
+      .forEach(i => notificationsStore.dismiss(i.id))
+    // Disabling auto-tune also disarms record (the store clears the flag); drop
+    // its card too so the alerts list doesn't show a stale "Record on pass enabled".
+    notificationsStore.items
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Record on pass enabled')
+      .forEach(i => notificationsStore.dismiss(i.id))
+  }
+}
+
+function toggleRecord(sat: SatEntry): void {
+  if (!sat.downlink_hz) return
+  const noradId = sat.norad_id
+  // Record needs a live tune — only togglable while auto-tune is armed.
+  if (!isAutoTuneEnabled(noradId)) return
+  const name = sat.name || noradId
+  const enabled = !isRecordOnPassEnabled(noradId)
+  setRecordOnPassEnabled(noradId, enabled, { name })
+  armedTick.value++
+  if (enabled) {
+    notificationsStore.add({
+      type: 'autotune', title: name, detail: 'Record on pass enabled', noradId, satName: name,
+    })
+  } else {
+    notificationsStore.items
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Record on pass enabled')
       .forEach(i => notificationsStore.dismiss(i.id))
   }
 }
@@ -1159,6 +1202,42 @@ defineExpose({ focus: () => inputRef.value?.focus() })
     background: rgba(200, 255, 0, 0.18);
 }
 
+/* Record-on-pass button — sits beside auto-tune and is only enabled once
+   auto-tune is armed (recording needs a live tune to capture). */
+.sfr-acc-record-btn {
+    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    background: #0d1015;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s, background 0.12s;
+}
+
+.sfr-acc-record-btn:hover:not(:disabled) {
+    color: #ff4040;
+    background: #05070a;
+}
+
+.sfr-acc-record-btn.sfr-acc-record-btn--active {
+    color: #ff4040;
+    background: rgba(255, 64, 64, 0.12);
+}
+
+.sfr-acc-record-btn.sfr-acc-record-btn--active:hover {
+    background: rgba(255, 64, 64, 0.18);
+}
+
+.sfr-acc-record-btn:disabled {
+    cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.18);
+}
+
 /* Inline lock-in conflict warning: another armed sat overlaps this one, so only
    one of the two passes will actually be tuned. */
 .sfr-acc-autotune-warn {
@@ -1183,7 +1262,8 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 /* Styled tooltips for the notif / auto-tune icon buttons — matches the
    sidebar tab (rail) tooltip style. Positioned above the button row. */
 .sfr-acc-notif-btn[data-tooltip]::before,
-.sfr-acc-autotune-btn[data-tooltip]::before {
+.sfr-acc-autotune-btn[data-tooltip]::before,
+.sfr-acc-record-btn[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -1208,7 +1288,8 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .sfr-acc-notif-btn[data-tooltip]:hover::before,
-.sfr-acc-autotune-btn[data-tooltip]:hover::before {
+.sfr-acc-autotune-btn[data-tooltip]:hover::before,
+.sfr-acc-record-btn[data-tooltip]:hover::before {
     opacity: 1;
 }
 
