@@ -132,6 +132,28 @@ class RecordingPatchIn(BaseModel):
     name: str | None = None
     notes: str | None = None
 
+    @field_validator("name", "notes")
+    @classmethod
+    def _sanitize_text(cls, v: str | None) -> str | None:
+        """Defence-in-depth for user-supplied text.
+
+        Queries go through the SQLAlchemy ORM (bound parameters), so SQL
+        injection is not reachable here, and Vue escapes interpolated text so
+        stored XSS is mitigated at render. We still validate the input: strip
+        control characters (keeping tab/newline), collapse to a sane length,
+        and reject anything implausible so junk never reaches the DB.
+        """
+        if v is None:
+            return None
+        # Drop C0/C1 control chars except tab (\t) and newline (\n).
+        cleaned = "".join(
+            ch for ch in v
+            if ch in ("\t", "\n") or (ord(ch) >= 0x20 and ord(ch) != 0x7F)
+        ).strip()
+        if len(cleaned) > 250:
+            raise ValueError("text too long (max 250 characters)")
+        return cleaned
+
 
 # ── Radio helpers — read/write sdr.radios from UserSettings ──────────────────
 

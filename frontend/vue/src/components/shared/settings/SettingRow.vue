@@ -18,7 +18,6 @@
     <SpaceTleDatabaseControl v-else-if="item.type === 'space-tle-db'" />
     <SpaceTleUncatControl v-else-if="item.type === 'space-tle-uncat'" />
     <SpaceTleSatListControl v-else-if="item.type === 'space-tle-satlist'" />
-    <SpaceSatelliteRadioControl v-else-if="item.type === 'space-sat-radio'" />
     <JsonDataControl
       v-else-if="item.type === 'space-sat-radio-file'"
       get-url="/api/space/radio/file" post-url="/api/space/radio/file" filename="satellite_radio.json"
@@ -64,7 +63,6 @@ import SpaceTleManualControl from './SpaceTleManualControl.vue'
 import SpaceTleDatabaseControl from './SpaceTleDatabaseControl.vue'
 import SpaceTleUncatControl from './SpaceTleUncatControl.vue'
 import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
-import SpaceSatelliteRadioControl from './SpaceSatelliteRadioControl.vue'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
@@ -84,6 +82,6 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'space-sat-radio', 'space-sat-radio-file', 'sdr-frequencies-file', 'sdr-bandplan-file', 'config-current'])
+const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'space-sat-radio-file', 'sdr-frequencies-file', 'sdr-bandplan-file', 'config-current'])
 const isWide = WIDE_TYPES.has(props.item.type)
 </script>

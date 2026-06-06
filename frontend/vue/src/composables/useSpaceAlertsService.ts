@@ -1,7 +1,7 @@
 import { useNotificationsStore } from '@/stores/notifications'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { SatellitePassScheduler } from '@/components/space/controls/satellite/SatellitePassScheduler'
-import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled, isAutoTuneEnabled } from '@/components/space/controls/satellite/passNotifStore'
+import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled, isAutoTuneEnabled, isRecordOnPassEnabled } from '@/components/space/controls/satellite/passNotifStore'
 
 // App-level background service that drives per-satellite pass alerts for EVERY
 // satellite the user has enabled — regardless of which section is active and
@@ -77,6 +77,7 @@ function _syncScheduler(noradId: string, name: string): void {
     getName: () => getAllPassNotifs()[noradId]?.name || name,
     headsUpEnabled: () => isPassNotifEnabled(noradId),
     autoTuneEnabled: () => isAutoTuneEnabled(noradId),
+    recordOnPass: () => isRecordOnPassEnabled(noradId),
     getDownlink: () => _getDownlink(noradId),
   })
   _schedulers.set(noradId, sched)
@@ -89,8 +90,24 @@ function _onNotifChanged(e: Event): void {
 }
 
 function _onAutoTuneChanged(e: Event): void {
-  const { noradId } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
   _syncScheduler(noradId, getAllPassNotifs()[noradId]?.name || noradId)
+  // Enabling auto-tune while a pass is already overhead must tune that pass now,
+  // not wait for the next one. If a scheduler already existed (e.g. the bell was
+  // on), _syncScheduler left it untouched and its fired-guard has advanced past
+  // the overhead pass — so explicitly re-fire. A freshly-created scheduler tunes
+  // the overhead pass on its first fetch, but re-firing it is a harmless no-op.
+  if (enabled) _schedulers.get(noradId)?.refireAutoTuneForCurrentPass()
+}
+
+// Record-on-pass was toggled. Unlike auto-tune, this never creates/destroys a
+// scheduler (record is only meaningful while auto-tune is already on). When
+// enabled mid-pass it must start recording the overhead pass immediately, so
+// re-fire the auto-tune for it — onExternalTune re-applies the same tune and
+// starts the recording that wasn't armed when the pass first fired.
+function _onRecordChanged(e: Event): void {
+  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
+  if (enabled) _schedulers.get(noradId)?.refireAutoTuneForCurrentPass()
 }
 
 function _onSatSelected(e: Event): void {
@@ -112,12 +129,14 @@ function start(): void {
 
   document.addEventListener('satellite-pass-notif-changed', _onNotifChanged)
   document.addEventListener('satellite-auto-tune-changed', _onAutoTuneChanged)
+  document.addEventListener('satellite-record-on-pass-changed', _onRecordChanged)
   document.addEventListener('satellite-selected', _onSatSelected)
 }
 
 function stop(): void {
   document.removeEventListener('satellite-pass-notif-changed', _onNotifChanged)
   document.removeEventListener('satellite-auto-tune-changed', _onAutoTuneChanged)
+  document.removeEventListener('satellite-record-on-pass-changed', _onRecordChanged)
   document.removeEventListener('satellite-selected', _onSatSelected)
   for (const s of _schedulers.values()) s.stop()
   _schedulers.clear()

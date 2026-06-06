@@ -212,6 +212,10 @@ function _restoreTab(domain: string): SidebarTab {
 useDocumentEvent('sentinel:sdr-open-panel', () => { show() })
 useDocumentEvent('sentinel:sdr-toggle-panel', () => { toggle() })
 
+// Air-domain airport marker click: open the panel on the SEARCH tab so the
+// airport's accordion (AirFilter) is visible.
+useDocumentEvent('air-open-airport', () => { switchTab('search') })
+
 useDocumentEvent('sentinel:domain-changed', (e: Event) => {
   const { domain } = (e as CustomEvent<{ domain: string; prev: string }>).detail
   _activeDomain = domain

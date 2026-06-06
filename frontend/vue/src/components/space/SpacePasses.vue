@@ -164,6 +164,19 @@
                   <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 </svg>
               </button>
+              <button
+                v-if="pass.downlink_hz"
+                class="spp-acc-record-btn"
+                :class="{ 'spp-acc-record-btn--active': isRecordArmed(pass.norad_id) }"
+                :disabled="!isArmed(pass.norad_id)"
+                aria-label="Record pass"
+                data-tooltip="Record pass"
+                @click.stop="toggleRecord(pass)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="12" cy="12" r="6" fill="currentColor"/>
+                </svg>
+              </button>
             </div>
             <div v-if="isArmed(pass.norad_id) && conflictText(pass.norad_id)" class="spp-acc-autotune-warn">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -229,7 +242,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
+import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, isRecordOnPassEnabled, setRecordOnPassEnabled } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
@@ -348,6 +361,11 @@ function isArmed(noradId: string): boolean {
   return isAutoTuneEnabled(noradId)
 }
 
+function isRecordArmed(noradId: string): boolean {
+  void armedTick.value
+  return isRecordOnPassEnabled(noradId)
+}
+
 function autoTuneLabel(): string {
   return 'Auto-tune SDR'
 }
@@ -377,6 +395,14 @@ function conflictText(noradId: string): string {
   return `Overlaps ${c.name} @ ${t} — earlier pass keeps the radio${extra}`
 }
 
+// Persistent "armed" alert-card wording. One card per satellite represents the
+// auto-tune arming; record folds into its detail rather than adding a 2nd card.
+const ARMED_DETAIL_AUTOTUNE = 'Auto-tune on pass enabled'
+const ARMED_DETAIL_RECORD   = 'Auto-tune and record on pass enabled'
+function isArmedCardDetail(detail: string): boolean {
+  return detail === ARMED_DETAIL_AUTOTUNE || detail === ARMED_DETAIL_RECORD
+}
+
 function toggleAutoTune(pass: SatPass): void {
   if (!pass.downlink_hz) return
   const noradId = pass.norad_id
@@ -391,15 +417,42 @@ function toggleAutoTune(pass: SatPass): void {
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
-      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId, satName: name,
+      type: 'autotune', title: name, detail: ARMED_DETAIL_AUTOTUNE, noradId, satName: name,
     })
   } else {
-    // Remove the persistent "Auto-tune on pass enabled" card so the alerts list
-    // stays in sync (the live pass/tune trace alerts share the noradId but have
-    // a different detail, so match on it to leave those untouched).
+    // Remove the persistent armed card so the alerts list stays in sync. Record
+    // folds its state into this one card's detail (see toggleRecord), so match
+    // either wording. The live pass/tune trace alerts share the noradId but have
+    // a different detail, so they're left untouched.
     notificationsStore.items
-      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Auto-tune on pass enabled')
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail))
       .forEach(i => notificationsStore.dismiss(i.id))
+  }
+}
+
+function toggleRecord(pass: SatPass): void {
+  if (!pass.downlink_hz) return
+  const noradId = pass.norad_id
+  // Record needs a live tune — only togglable while auto-tune is armed.
+  if (!isAutoTuneEnabled(noradId)) return
+  const name = pass.name || noradId
+  const enabled = !isRecordOnPassEnabled(noradId)
+  setRecordOnPassEnabled(noradId, enabled, { name })
+  armedTick.value++
+  // Notify the alerts service so enabling record mid-pass starts recording the
+  // overhead pass now, rather than only taking effect on the next pass.
+  document.dispatchEvent(new CustomEvent('satellite-record-on-pass-changed', { detail: { noradId, enabled } }))
+  // Don't add a second card for record — fold its state into the existing
+  // auto-tune armed card by retitling its detail. If for some reason that card
+  // is gone (e.g. dismissed), add a fresh one with the combined wording.
+  const detail = enabled ? ARMED_DETAIL_RECORD : ARMED_DETAIL_AUTOTUNE
+  const existing = notificationsStore.items.find(
+    i => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail),
+  )
+  if (existing) {
+    notificationsStore.update({ id: existing.id, detail })
+  } else {
+    notificationsStore.add({ type: 'autotune', title: name, detail, noradId, satName: name })
   }
 }
 

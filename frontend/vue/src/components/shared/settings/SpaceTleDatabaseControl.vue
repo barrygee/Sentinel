@@ -6,6 +6,13 @@
         <span class="tle-cat-name">{{ SATELLITE_CATEGORY_FULL_LABELS[cat] ?? cat }}</span>
         <span class="tle-cat-count">{{ info.count }}</span>
         <span class="tle-cat-age">{{ info.last_updated ? formatTleAge(info.last_updated) : '—' }}</span>
+        <button
+          class="tle-cat-clear"
+          :class="{ 'tle-cat-clear--confirm': confirmCat === cat }"
+          :disabled="clearingCat !== null"
+          :title="confirmCat === cat ? 'Confirm clear' : 'Clear this category'"
+          @click="clearCategory(cat)"
+        >{{ clearingCat === cat ? '…' : confirmCat === cat ? 'CONFIRM?' : 'CLEAR' }}</button>
       </div>
     </div>
     <button
@@ -29,6 +36,11 @@ const byCategory = ref<Record<string, CatInfo>>({})
 const confirmPending = ref(false)
 const clearLoading = ref(false)
 let confirmTimer: ReturnType<typeof setTimeout> | null = null
+
+// Per-category clear: two-step confirm (one category at a time) mirroring CLEAR ALL.
+const confirmCat = ref<string | null>(null)
+const clearingCat = ref<string | null>(null)
+let catConfirmTimer: ReturnType<typeof setTimeout> | null = null
 
 const sortedCategories = computed(() =>
   Object.entries(byCategory.value).sort((a, b) => a[0].localeCompare(b[0]))
@@ -68,9 +80,33 @@ async function clearAll(): Promise<void> {
   }
 }
 
+async function clearCategory(cat: string): Promise<void> {
+  if (confirmCat.value !== cat) {
+    confirmCat.value = cat
+    if (catConfirmTimer) clearTimeout(catConfirmTimer)
+    catConfirmTimer = setTimeout(() => { confirmCat.value = null }, 4000)
+    return
+  }
+  if (catConfirmTimer) clearTimeout(catConfirmTimer)
+  confirmCat.value = null
+  clearingCat.value = cat
+  try {
+    const resp = await fetch(`/api/space/tle?confirm=true&category=${encodeURIComponent(cat)}`, { method: 'DELETE' })
+    if (!resp.ok) throw new Error((await resp.json() as { error?: string }).error ?? resp.statusText)
+    document.dispatchEvent(new CustomEvent('tle:refreshStatus'))
+  } catch (err) {
+    summary.value = 'Error: ' + (err as Error).message
+  } finally {
+    clearingCat.value = null
+  }
+}
+
 function onRefresh(): void { load() }
 
 onMounted(() => { load() })
-onUnmounted(() => { if (confirmTimer) clearTimeout(confirmTimer) })
+onUnmounted(() => {
+  if (confirmTimer) clearTimeout(confirmTimer)
+  if (catConfirmTimer) clearTimeout(catConfirmTimer)
+})
 useDocumentEvent('tle:refreshStatus', onRefresh)
 </script>

@@ -69,19 +69,58 @@
           <ChevronIcon class="filter-section-chevron" :class="{ 'filter-section-chevron--collapsed': collapsed.has('airports') }" />
         </button>
         <template v-if="!collapsed.has('airports')">
+        <template v-for="r in airports" :key="r.icao">
         <div
-          v-for="r in airports"
-          :key="r.icao"
           class="filter-result-item"
-          :class="{ 'keyboard-focused': focusedKey === r.icao }"
+          :class="{ 'keyboard-focused': focusedKey === r.icao, 'filter-result-item--open': expandedAirport === r.icao }"
         >
-          <div class="filter-result-icon filter-icon-airport" @click="selectAirport(r)" v-html="AIRPORT_ICON" />
-          <div class="filter-result-info" @click="selectAirport(r)">
+          <div class="filter-result-icon filter-icon-airport" @click="toggleAirport(r)" v-html="AIRPORT_ICON" />
+          <div class="filter-result-info" @click="toggleAirport(r)">
             <div class="filter-result-primary">{{ r.icao }}</div>
             <div class="filter-result-secondary">{{ r.name.toUpperCase() }}{{ r.iata ? ' · ' + r.iata : '' }}</div>
           </div>
-          <div class="filter-result-badge">CVL</div>
+          <ChevronIcon
+            class="filter-result-chevron"
+            :class="{ 'filter-result-chevron--open': expandedAirport === r.icao }"
+            @click="toggleAirport(r)"
+          />
         </div>
+        <!-- Inline accordion: location + clickable frequencies (matches the
+             space satellite detail panel styling). -->
+        <div v-if="expandedAirport === r.icao" class="apt-acc-body">
+          <div class="apt-acc-section">
+            <div class="apt-acc-section-title">LOCATION</div>
+            <div class="apt-acc-grid apt-acc-grid--two">
+              <div class="apt-acc-cell">
+                <div class="apt-acc-cell-label">LATITUDE</div>
+                <div class="apt-acc-cell-value">{{ formatLat(r.coords[1]) }}</div>
+              </div>
+              <div class="apt-acc-cell">
+                <div class="apt-acc-cell-label">LONGITUDE</div>
+                <div class="apt-acc-cell-value">{{ formatLon(r.coords[0]) }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="apt-acc-section">
+            <div class="apt-acc-section-title">FREQUENCIES</div>
+            <div class="apt-acc-grid apt-acc-grid--two">
+              <button
+                v-for="f in airportFreqs(r)"
+                :key="f.label"
+                class="apt-acc-cell apt-acc-freq"
+                :title="sdrConnected ? `Tune to ${f.display} ${f.mode}` : 'Connect an SDR to tune'"
+                @click="tuneFreq(r, f)"
+              >
+                <div class="apt-acc-cell-label">{{ f.label.toUpperCase() }}</div>
+                <div class="apt-acc-cell-value">{{ f.display }}<span class="apt-acc-cell-mode"> · {{ f.mode }}</span></div>
+              </button>
+            </div>
+            <div v-if="tuneNotice === r.icao" class="apt-acc-notice">
+              Connect an SDR before tuning
+            </div>
+          </div>
+        </div>
+        </template>
         </template>
       </template>
 
@@ -126,6 +165,7 @@ import type { AirportsToggleControl } from './controls/airports/AirportsControl'
 import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirNotifStore } from '@/stores/airNotif'
+import { useSdrStore } from '@/stores/sdr'
 
 interface PlaneResult {
   kind: 'plane'
@@ -137,6 +177,7 @@ interface AirportResult {
   icao: string; iata: string; name: string
   bounds: [number, number, number, number]
   coords: [number, number]
+  freqs: { tower: string; radar: string; approach: string; atis: string }
 }
 interface MilResult {
   kind: 'mil'
@@ -154,6 +195,14 @@ const props = defineProps<{
 
 const notificationsStore = useNotificationsStore()
 const airNotifStore = useAirNotifStore()
+const sdrStore = useSdrStore()
+
+// Which airport row is expanded (by ICAO), and which one is currently showing
+// the "connect an SDR" inline notice.
+const expandedAirport = ref<string | null>(null)
+const tuneNotice      = ref<string | null>(null)
+
+const sdrConnected = computed(() => sdrStore.connected)
 
 const inputRef  = ref<HTMLInputElement | null>(null)
 const resultsRef = ref<HTMLElement | null>(null)
@@ -253,7 +302,7 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
   for (const f of AIRPORTS_DATA.features) {
     const p = f.properties
     if (!q || [p.icao, p.iata, p.name].some(v => v?.toLowerCase().includes(q))) {
-      out.push({ kind: 'airport', icao: p.icao, iata: p.iata, name: p.name, bounds: p.bounds, coords: f.geometry.coordinates as [number, number] })
+      out.push({ kind: 'airport', icao: p.icao, iata: p.iata, name: p.name, bounds: p.bounds, coords: f.geometry.coordinates as [number, number], freqs: p.freqs })
     }
   }
 
@@ -374,7 +423,7 @@ function scrollToFocused() {
 
 function activateResult(r: PlaneResult | AirportResult | MilResult) {
   if (r.kind === 'plane')   selectPlane(r)
-  if (r.kind === 'airport') selectAirport(r)
+  if (r.kind === 'airport') toggleAirport(r)
   if (r.kind === 'mil')     selectMil(r)
 }
 
@@ -401,8 +450,62 @@ function fitBoundsWithPadding(bounds: [number, number, number, number]) {
   )
 }
 
-function selectAirport(r: AirportResult) {
+// Clicking an airport row both navigates the map to it and expands/collapses
+// the inline accordion of frequencies.
+function toggleAirport(r: AirportResult) {
+  if (expandedAirport.value === r.icao) {
+    expandedAirport.value = null
+    return
+  }
+  expandedAirport.value = r.icao
+  tuneNotice.value = null
   fitBoundsWithPadding(r.bounds)
+}
+
+interface AirportFreq { label: string; display: string; mode: 'AM'; hz: number }
+
+// All airband voice/ATIS channels are AM. A stored value may hold more than one
+// frequency ("118.500 / 118.700"); the first is the primary we tune to.
+function airportFreqs(r: AirportResult): AirportFreq[] {
+  const defs: [string, string][] = [
+    ['Tower',    r.freqs.tower],
+    ['Radar',    r.freqs.radar],
+    ['Approach', r.freqs.approach],
+    ['ATIS',     r.freqs.atis],
+  ]
+  const out: AirportFreq[] = []
+  for (const [label, raw] of defs) {
+    const first = (raw || '').split('/')[0].trim()
+    const mhz = parseFloat(first)
+    if (isNaN(mhz) || mhz <= 0) continue
+    out.push({ label, display: raw.trim(), mode: 'AM', hz: Math.round(mhz * 1e6) })
+  }
+  return out
+}
+
+function formatLat(lat: number): string {
+  return `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}`
+}
+function formatLon(lon: number): string {
+  return `${Math.abs(lon).toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`
+}
+
+// Tune the connected SDR to a clicked frequency. If no radio is connected, show
+// a subtle inline notice instead of attempting to tune.
+function tuneFreq(r: AirportResult, f: AirportFreq) {
+  if (!sdrStore.connected) {
+    tuneNotice.value = r.icao
+    return
+  }
+  tuneNotice.value = null
+  document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', {
+    detail: { hz: f.hz, mode: f.mode, satName: `${r.name} ${f.label}` },
+  }))
+  notificationsStore.add({
+    type: 'system',
+    title: `${r.icao} ${f.label.toUpperCase()}`,
+    detail: `Tuned ${f.display} ${f.mode}`,
+  })
 }
 
 function selectMil(r: MilResult) {
@@ -457,9 +560,30 @@ watch(() => props.adsbControl, (ctrl) => {
 
 onMounted(refreshAircraft)
 
+// Expand a specific airport's accordion by ICAO (driven by a map marker click)
+// and scroll it into view. Clears any active search so the row is in the list.
+function expandAirport(icao: string) {
+  const r = AIRPORTS_DATA.features.find(f => f.properties.icao === icao)
+  if (!r) return
+  query.value = ''
+  // Make sure the airports section isn't collapsed.
+  if (collapsed.value.has('airports')) {
+    const next = new Set(collapsed.value)
+    next.delete('airports')
+    collapsed.value = next
+  }
+  expandedAirport.value = icao
+  tuneNotice.value = null
+  requestAnimationFrame(() => {
+    const el = resultsRef.value?.querySelector('.filter-result-item--open') as HTMLElement | null
+    el?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
 // Expose focus method for keyboard shortcut
 defineExpose({
   focus: () => inputRef.value?.focus(),
+  expandAirport,
 })
 </script>
 
@@ -692,6 +816,132 @@ defineExpose({
 
 .filter-result-badge.filter-badge-emrg {
     color: #ff4040;
+}
+
+/* ---- Airport row chevron + inline accordion ---- */
+.filter-result-chevron {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease, color 0.15s;
+}
+
+.filter-result-item:hover .filter-result-chevron {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* Down when open, left when closed — matches the section-heading convention. */
+.filter-result-chevron:not(.filter-result-chevron--open) {
+    transform: rotate(-90deg);
+}
+
+.filter-result-item--open {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Airport accordion body — matches the space satellite detail panel. The same
+   lighter-grey tint as the open row carries through the content so the whole
+   expanded block reads as one block (the sat row wraps header + body in a single
+   tinted container; here they are siblings, so the body repeats the tint). */
+.apt-acc-body {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.04);
+    /* Close the 1px #filter-results flex gap between the open row and the body so
+       no dark seam shows; both share the same tint and read as one block. */
+    margin-top: -1px;
+    /* Extra breathing room before the next airport in the list. */
+    padding-bottom: 12px;
+    animation: apt-acc-expand 0.18s ease;
+}
+
+@keyframes apt-acc-expand {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.apt-acc-section {
+    padding: 14px 24px 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.apt-acc-section-title {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
+    text-transform: uppercase;
+}
+
+.apt-acc-grid {
+    display: grid;
+    column-gap: 16px;
+    row-gap: 12px;
+}
+
+.apt-acc-grid--two {
+    grid-template-columns: 1fr 1fr;
+}
+
+.apt-acc-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.apt-acc-cell-label {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+}
+
+.apt-acc-cell-value {
+    font-family: var(--font-primary);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.apt-acc-cell-mode {
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 400;
+    margin-left: 2px;
+}
+
+/* Frequency cells are tunable buttons. */
+.apt-acc-freq {
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    transition: opacity 0.12s;
+}
+
+.apt-acc-freq:hover {
+    opacity: 0.7;
+}
+
+.apt-acc-notice {
+    margin-top: 2px;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
 }
 
 .filter-no-results {

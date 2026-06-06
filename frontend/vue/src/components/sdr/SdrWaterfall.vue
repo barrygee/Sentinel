@@ -1464,10 +1464,23 @@ function initPlots() {
     center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
+  // Waterfall variants: same geometry/hit-test as the spectrum, but the
+  // visible passband shade and carrier line are toned down so the tuning bar
+  // is far more subtle over the raster. The spectrum keeps accCommon/carCommon
+  // untouched. Only the *visible* styles change — the transparent center-line
+  // hit zone (lineWidth: 20) is preserved so the bracket stays grabbable.
+  const wfAccStyle = {
+    ...accCommon,
+    fill_style: { fillStyle: '#000000', opacity: 0.12 },
+  }
+  const wfCarStyle = {
+    ...carCommon,
+    center_line_style: { strokeStyle: 'rgba(200,255,0,0.35)', lineWidth: 1, lineCap: 'butt' as const },
+  }
   specAcc = new Acc({ ...accCommon })
-  wfAcc = new Acc({ ...accCommon })
+  wfAcc = new Acc({ ...wfAccStyle })
   specCar = new Acc({ ...carCommon })
-  wfCar = new Acc({ ...carCommon })
+  wfCar = new Acc({ ...wfCarStyle })
   specPlot.add_plugin(specAcc, 1)
   wfPlot.add_plugin(wfAcc, 1)
   specPlot.add_plugin(specCar, 1)

@@ -596,6 +596,42 @@
     background: rgba(200, 255, 0, 0.18);
 }
 
+/* Record-on-pass button — beside auto-tune, only enabled once auto-tune is armed
+   (recording needs a live tune to capture). */
+.spp-acc-record-btn {
+    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    background: #0d1015;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s, background 0.12s;
+}
+
+.spp-acc-record-btn:hover:not(:disabled) {
+    color: #ff4040;
+    background: #05070a;
+}
+
+.spp-acc-record-btn.spp-acc-record-btn--active {
+    color: #ff4040;
+    background: rgba(255, 64, 64, 0.12);
+}
+
+.spp-acc-record-btn.spp-acc-record-btn--active:hover {
+    background: rgba(255, 64, 64, 0.18);
+}
+
+.spp-acc-record-btn:disabled {
+    cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.18);
+}
+
 /* Inline lock-in conflict warning shown below the button row when an armed sat's
    passes overlap another armed sat's (only one will actually be tuned). */
 .spp-acc-autotune-warn {
@@ -620,7 +656,8 @@
 /* Styled tooltips for the notif / auto-tune icon buttons — matches the
    sidebar tab (rail) tooltip style. Positioned above the button row. */
 .spp-acc-notif-btn[data-tooltip]::before,
-.spp-acc-autotune-btn[data-tooltip]::before {
+.spp-acc-autotune-btn[data-tooltip]::before,
+.spp-acc-record-btn[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -648,7 +685,8 @@
 }
 
 .spp-acc-notif-btn[data-tooltip]:hover::before,
-.spp-acc-autotune-btn[data-tooltip]:hover::before {
+.spp-acc-autotune-btn[data-tooltip]:hover::before,
+.spp-acc-record-btn[data-tooltip]:hover::before {
     opacity: 1;
 }
 
@@ -659,7 +697,8 @@
    Applies to the notif button when auto-tune is hidden, and to the auto-tune
    button when it is shown. */
 .spp-acc-notif-btn--last[data-tooltip]::before,
-.spp-acc-autotune-btn[data-tooltip]:last-child::before {
+.spp-acc-autotune-btn[data-tooltip]:last-child::before,
+.spp-acc-record-btn[data-tooltip]:last-child::before {
     left: auto;
     right: 0;
     transform: none;

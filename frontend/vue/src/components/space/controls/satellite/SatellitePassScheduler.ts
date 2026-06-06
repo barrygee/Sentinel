@@ -22,6 +22,10 @@ export interface SatellitePassSchedulerCtx {
     headsUpEnabled: () => boolean
     // Whether to auto-tune the SDR at AOS. Independent of headsUpEnabled.
     autoTuneEnabled: () => boolean
+    // Whether to also record the pass to a recording when auto-tune fires. Read live so
+    // toggling record takes effect on the next pass without recreating us. Only
+    // meaningful while autoTuneEnabled is also true.
+    recordOnPass: () => boolean
     // Downlink to tune to, or null when unknown (then auto-tune is skipped with a
     // notice). The UI prevents enabling auto-tune for sats without a downlink,
     // but a hand-edited entry could be missing it.
@@ -48,6 +52,10 @@ export class SatellitePassScheduler {
     private _ctx: SatellitePassSchedulerCtx
     private _refreshInterval: ReturnType<typeof setInterval> | null = null
     private _stopped = false
+    // Latest fetched pass list, retained so a mid-pass toggle (e.g. enabling
+    // record while a pass is already overhead) can re-run the auto-tune track
+    // without waiting for the next 5-min refresh.
+    private _lastPasses: IssPass[] = []
 
     private _headsUp: ActionTrack
     private _autoTune: AutoTuneTrack
@@ -89,9 +97,22 @@ export class SatellitePassScheduler {
             if (!resp.ok || this._stopped) return
             const data = await resp.json() as IssPassesApiResponse
             if (data.error || !data.passes) return
+            this._lastPasses = data.passes
             this._headsUp.schedule(data.passes)
             this._autoTune.schedule(data.passes)
         } catch {}
+    }
+
+    // Re-run the auto-tune track against the currently-overhead pass so a toggle
+    // flipped on mid-pass (auto-tune or record) takes effect immediately instead
+    // of waiting for the next pass. Tells the track to forget the overhead pass's
+    // fired-guard, then re-schedules: if the radio is already tuned for it,
+    // onExternalTune just re-applies the same tune and starts the recording that
+    // wasn't armed at first fire. No-op if no pass is overhead.
+    refireAutoTuneForCurrentPass(): void {
+        if (this._stopped || !this._lastPasses.length) return
+        this._autoTune.forgetCurrentPass(Date.now())
+        this._autoTune.schedule(this._lastPasses)
     }
 
     private _fireHeadsUp(pass: IssPass): void {
@@ -180,6 +201,19 @@ class AutoTuneTrack extends ActionTrack {
         if (this._losTimeout) { clearTimeout(this._losTimeout); this._losTimeout = null }
     }
 
+    // Clear the fired-guard for a pass currently overhead so the next schedule()
+    // re-fires it. Used when a toggle (auto-tune/record) is flipped on mid-pass:
+    // _firedThroughLos has already advanced past the overhead pass (the guard
+    // advances even when not firing), so without this the current pass is never
+    // reconsidered. Only rolls the guard back to `now` — never resurrects a pass
+    // whose LOS is already behind us. Also clears the armed LOS restore so the
+    // re-fire arms a fresh one.
+    forgetCurrentPass(now: number): void {
+        if (this._firedThroughLos > now) this._firedThroughLos = now
+        this._lastFiredLos = 0
+        if (this._losTimeout) { clearTimeout(this._losTimeout); this._losTimeout = null }
+    }
+
     // Tuning is useful any time during the pass, so a pass overhead when we pick
     // it up (or when auto-tune is enabled mid-pass) still tunes — up to LOS.
     protected override lateFireUntil(pass: IssPass): number { return pass.los_unix_ms }
@@ -202,13 +236,19 @@ class AutoTuneTrack extends ActionTrack {
         // identifies this pass so the matching LOS restore can be ignored if a
         // newer pass has taken over the radio meanwhile.
         const token = `${this._ctx.noradId}:${pass.aos_unix_ms}`
+        const record = this._ctx.recordOnPass()
         document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', {
-            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token },
+            detail: { hz: dl.hz, mode: dl.mode, source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token, record },
         }))
-        // Lightweight trace in the alerts tab regardless of SDR state.
+        // Lightweight trace in the alerts tab regardless of SDR state. Mirror the
+        // record state in the wording (and via the "& RECORD" label) so a pass
+        // firing now reads the same as an armed upcoming pass — the trace is what's
+        // shown for a current pass, where there's no separate armed card.
         this._ctx.notificationsStore.add({
             type: 'autotune', title: `${name} PASS`,
-            detail: `Auto-tuning SDR → ${mhz} MHz ${dl.mode}`,
+            detail: record
+                ? `Auto-tuning & recording SDR → ${mhz} MHz ${dl.mode}`
+                : `Auto-tuning SDR → ${mhz} MHz ${dl.mode}`,
             noradId: this._ctx.noradId, satName: name,
         })
         this._scheduleLos(pass, name, token)

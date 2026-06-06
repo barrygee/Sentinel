@@ -11,6 +11,11 @@ import type { SdrMode } from '@/stores/sdr'
 let _ctx: AudioContext | null = null
 let _worklet: AudioWorkletNode | null = null
 let _gain: GainNode | null = null
+// User-set output volume and a transient mute applied while a saved recording is
+// playing back. The effective gain is _volume unless _liveMuted, then 0 — the
+// IQ stream (and therefore signal meter / waterfall / spectrum) keeps running.
+let _volume = 1.0
+let _liveMuted = false
 let _iqSocket: WebSocket | null = null
 let _radioId: number | null = null
 let _ready = false
@@ -279,7 +284,7 @@ async function _initAudio() {
     URL.revokeObjectURL(blobUrl)
     _worklet = new AudioWorkletNode(_ctx, 'sdr-demod-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] })
     _gain = _ctx.createGain()
-    _gain.gain.value = 1.0
+    _gain.gain.value = _liveMuted ? 0 : _volume
     _worklet.connect(_gain)
     _gain.connect(_ctx.destination)
     _worklet.port.onmessage = (ev: MessageEvent) => {
@@ -346,8 +351,21 @@ export function useSdrAudio() {
     _squelch = dbfs
   }
 
+  function applyGain() {
+    if (_gain) _gain.gain.value = _liveMuted ? 0 : _volume
+  }
+
   function setVolume(volume: number) {
-    if (_gain) _gain.gain.value = Math.max(0, Math.min(2, volume))
+    _volume = Math.max(0, Math.min(2, volume))
+    applyGain()
+  }
+
+  // Mute the live SDR audio (e.g. while a recording plays) without touching
+  // the IQ stream, so signal/waterfall/spectrum keep updating. Restoring unmutes
+  // to the user's current volume.
+  function setLiveMuted(muted: boolean) {
+    _liveMuted = muted
+    applyGain()
   }
 
   function setBandwidthHz(hz: number) {
@@ -409,7 +427,7 @@ export function useSdrAudio() {
     const endedAt   = endTime.toISOString().replace(/\.\d{3}Z$/, 'Z')
     const freqMhz   = metadata.frequency_hz ? (metadata.frequency_hz / 1e6).toFixed(3) : null
     const mode      = metadata.mode || null
-    const defaultName = [startedAt.slice(0, 16).replace('T', ' '), freqMhz ? `${freqMhz} MHz` : null, mode].filter(Boolean).join(' · ')
+    const defaultName = [freqMhz ? `${freqMhz} MHz` : null, mode].filter(Boolean).join(' · ') || 'Recording'
     const chunks = _recChunks; _recChunks = []
     const recId = _recId; _recId = null; _recStartTime = null
     if (chunks.length === 0) {
@@ -440,8 +458,8 @@ export function useSdrAudio() {
   function isPlaying() { return sdrStore.playing }
 
   return {
-    initAudio, stop, setRadioId, setMode, setSquelch, setVolume, setBandwidthHz,
-    setOffsetHz,
+    initAudio, stop, setRadioId, setMode, setSquelch, setVolume, setLiveMuted,
+    setBandwidthHz, setOffsetHz,
     startRecording, stopRecording, onPower, onSquelchChange, isReady, isPlaying,
   }
 }
