@@ -97,12 +97,12 @@
     "uplink_mode": "FM",
     "downlink_hz": 145800000,
     "downlink_mode": "FM",
+    "ctcss_hz": 67.0,
     "transponder_type": "FM",
     "beacon_hz": 145825000,
     "packet_info": "Mode V APRS · AFSK · 1200 baud · DL 145.8250 MHz",
     "radio_status": "active",
-    "radio_notes": "ISS ham radio (RS0ISS/NA1SS): V/V FM voice repeater 145.990 up (67.0 Hz CTCSS) / 437.800 down; APRS digipeater 145.825 (1k2 AFSK); SSTV 145.800 (PD120); ARISS school contacts 145.800 down / 144.490 up. EVA/spacewalk: US space-to-space UHF ~414.2 / 417.1 MHz (S-band relay via TDRS); Russian Orlan/Soyuz VHF 121.75 / 130.165 / 143.625 MHz.",
-    "ctcss_hz": 67.0
+    "radio_notes": "ISS ham radio (RS0ISS/NA1SS): V/V FM voice repeater 145.990 up (67.0 Hz CTCSS) / 437.800 down; APRS digipeater 145.825 (1k2 AFSK); SSTV 145.800 (PD120); ARISS school contacts 145.800 down / 144.490 up. EVA/spacewalk: US space-to-space UHF ~414.2 / 417.1 MHz (S-band relay via TDRS); Russian Orlan/Soyuz VHF 121.75 / 130.165 / 143.625 MHz."
   },
   "25867": {
     "downlink_hz": 2250000000,
@@ -769,7 +769,7 @@
     "downlink_hz": 145950000,
     "downlink_mode": "USB",
     "transponder_type": "Linear",
-    "beacon_hz": 145815000,
+    "beacon_hz": 145935000,
     "packet_info": "BPSK Telemetry · 1200 baud · DL 145.9350 MHz",
     "radio_status": "active",
     "radio_notes": "Mode U/V Linear; CW Beacon; BPSK Telemetry"

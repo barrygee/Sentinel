@@ -178,7 +178,7 @@
       </div>
 
       <div v-if="!liveRecording && filteredRecordings.length === 0" id="sdr-recordings-empty" class="sdr-panel-empty">
-        No recordings yet.<br>Use the REC button while listening.
+        No recordings.
       </div>
     </div>
     <div ref="scrollHintRef" id="sdr-recordings-scroll-hint" style="display:none">
