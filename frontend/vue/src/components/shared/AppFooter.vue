@@ -1,7 +1,7 @@
 <template>
   <footer id="footer">
     <div id="footer-left">
-      <button v-show="!settingsStore.open" id="map-sidebar-btn" aria-label="Toggle map sidebar" data-tooltip="SIDE PANEL"
+      <button v-show="!settingsStore.open" id="map-sidebar-btn" aria-label="Toggle map sidebar"
         :class="{ 'msb-btn-active': sidebarOpen }"
         @click="emit('toggle-sidebar')">
         <svg width="14" height="14" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

@@ -467,6 +467,14 @@ async function refreshArmedPasses(excludeNoradId: string): Promise<void> {
   } catch { armedPasses.value = [] }
 }
 
+// Persistent "armed" alert-card wording. One card per satellite represents the
+// auto-tune arming; record folds into its detail rather than adding a 2nd card.
+const ARMED_DETAIL_AUTOTUNE = 'Auto-tune on pass enabled'
+const ARMED_DETAIL_RECORD   = 'Auto-tune and record on pass enabled'
+function isArmedCardDetail(detail: string): boolean {
+  return detail === ARMED_DETAIL_AUTOTUNE || detail === ARMED_DETAIL_RECORD
+}
+
 function toggleAutoTune(sat: SatEntry): void {
   if (!sat.downlink_hz) return
   const noradId = sat.norad_id
@@ -482,19 +490,15 @@ function toggleAutoTune(sat: SatEntry): void {
   document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
   if (enabled) {
     notificationsStore.add({
-      type: 'autotune', title: name, detail: 'Auto-tune on pass enabled', noradId, satName: name,
+      type: 'autotune', title: name, detail: ARMED_DETAIL_AUTOTUNE, noradId, satName: name,
     })
   } else {
-    // Remove the persistent "Auto-tune on pass enabled" card so the alerts list
-    // stays in sync (the live pass/tune trace alerts share the noradId but have
-    // a different detail, so match on it to leave those untouched).
+    // Remove the persistent armed card so the alerts list stays in sync. Record
+    // folds its state into this one card's detail (see toggleRecord), so match
+    // either wording. The live pass/tune trace alerts share the noradId but have
+    // a different detail, so they're left untouched.
     notificationsStore.items
-      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Auto-tune on pass enabled')
-      .forEach(i => notificationsStore.dismiss(i.id))
-    // Disabling auto-tune also disarms record (the store clears the flag); drop
-    // its card too so the alerts list doesn't show a stale "Record on pass enabled".
-    notificationsStore.items
-      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Record on pass enabled')
+      .filter(i => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail))
       .forEach(i => notificationsStore.dismiss(i.id))
   }
 }
@@ -508,14 +512,20 @@ function toggleRecord(sat: SatEntry): void {
   const enabled = !isRecordOnPassEnabled(noradId)
   setRecordOnPassEnabled(noradId, enabled, { name })
   armedTick.value++
-  if (enabled) {
-    notificationsStore.add({
-      type: 'autotune', title: name, detail: 'Record on pass enabled', noradId, satName: name,
-    })
+  // Notify the alerts service so enabling record mid-pass starts recording the
+  // overhead pass now, rather than only taking effect on the next pass.
+  document.dispatchEvent(new CustomEvent('satellite-record-on-pass-changed', { detail: { noradId, enabled } }))
+  // Don't add a second card for record — fold its state into the existing
+  // auto-tune armed card by retitling its detail. If for some reason that card
+  // is gone (e.g. dismissed), add a fresh one with the combined wording.
+  const detail = enabled ? ARMED_DETAIL_RECORD : ARMED_DETAIL_AUTOTUNE
+  const existing = notificationsStore.items.find(
+    i => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail),
+  )
+  if (existing) {
+    notificationsStore.update({ id: existing.id, detail })
   } else {
-    notificationsStore.items
-      .filter(i => i.type === 'autotune' && i.noradId === noradId && i.detail === 'Record on pass enabled')
-      .forEach(i => notificationsStore.dismiss(i.id))
+    notificationsStore.add({ type: 'autotune', title: name, detail, noradId, satName: name })
   }
 }
 

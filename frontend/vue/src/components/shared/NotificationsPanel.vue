@@ -14,8 +14,7 @@
           <div class="notif-header">
             <span class="notif-label">
               <template v-if="item.type === 'autotune'">
-                <span class="notif-label-default">{{ store.getLabelForType(item.type) }}</span>
-                <span class="notif-label-disable">DISABLE AUTOTUNE</span>
+                <span class="notif-label-default">{{ autotuneLabel(item) }}</span>
               </template>
               <template v-else-if="item.action">
                 <span class="notif-label-default">{{ store.getLabelForType(item.type) }}</span>
@@ -25,7 +24,7 @@
             </span>
             <div style="display:flex;align-items:center;gap:8px">
               <button v-if="item.type === 'autotune'" class="notif-dismiss" aria-label="Disable autotune"
-                data-tooltip="Disable autotune" @click.stop="cancelAutoTune(item)">✕</button>
+                @click.stop="cancelAutoTune(item)">✕</button>
               <button v-else-if="item.action" class="notif-action" aria-label="Disable notifications"
                 @click.stop="item.action!.callback(); store.dismiss(item.id)">
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -92,6 +91,18 @@ function handleItemClick(item: NotificationItem): void {
     setPendingAircraftTarget(item.hex)
     void router.push('/air/')
   }
+}
+
+// Green type label for an autotune card. The "armed" card folds record state
+// into its detail (see SpacePasses/SpaceFilter toggleRecord), so reflect that in
+// the label too: "AUTOTUNE & RECORD" while record is armed, else "AUTOTUNE".
+// Live pass/tune trace alerts (a different detail) keep the plain label.
+function autotuneLabel(item: NotificationItem): string {
+  // Armed card (upcoming) and the live "now firing" trace (current pass) both
+  // signal record via their detail wording — show "& RECORD" for either.
+  if (item.detail === 'Auto-tune and record on pass enabled') return 'AUTOTUNE & RECORD'
+  if (item.detail.startsWith('Auto-tuning & recording')) return 'AUTOTUNE & RECORD'
+  return store.getLabelForType(item.type)
 }
 
 // Closing an autotune notification cancels auto-tune for that satellite, not
@@ -408,13 +419,11 @@ onUnmounted(() => {
     color: #fff;
 }
 
-.notif-header:has(.notif-action:hover) .notif-label-default,
-.notif-item[data-type="autotune"] .notif-header:has(.notif-dismiss:hover) .notif-label-default {
+.notif-header:has(.notif-action:hover) .notif-label-default {
     display: none;
 }
 
-.notif-header:has(.notif-action:hover) .notif-label-disable,
-.notif-item[data-type="autotune"] .notif-header:has(.notif-dismiss:hover) .notif-label-disable {
+.notif-header:has(.notif-action:hover) .notif-label-disable {
     display: inline;
 }
 

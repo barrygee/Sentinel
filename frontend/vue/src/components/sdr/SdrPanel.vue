@@ -1595,7 +1595,7 @@ async function openControlSocket(radioId: number) {
     // what the user last picked, instead of whatever the device default is.
     sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
     // Apply a queued auto-tune now that the socket can accept commands.
-    if (_pendingExternalTune) _applyPendingExternalTune()
+    if (_pendingExternalTune) void _applyPendingExternalTune()
   })
 
   ws.addEventListener('message', (ev: MessageEvent) => {
@@ -1760,6 +1760,7 @@ function onFreqWheel(e: WheelEvent) {
     if (_freqWheelDebounce) clearTimeout(_freqWheelDebounce)
     _freqWheelDebounce = setTimeout(() => {
       _freqWheelDebounce = null
+      _endRecordingOnManualChange()
       _sdrStore().requestTune(currentFreqHz.value, true)
     }, 250)
   }
@@ -1785,6 +1786,7 @@ function tune() {
 }
 
 function stop() {
+  _endRecordingOnManualChange()
   if (scanActive.value) stopScan()
   if (searchActive.value) stopSearch()
   sdrAudio.stop()
@@ -2270,6 +2272,7 @@ function tuneToFreq(f: SdrStoredFrequency) {
 // Play button on a saved frequency row: tune AND start the audio stream.
 function playFreq(f: SdrStoredFrequency) {
   if (!selectedRadioId.value) return
+  _endRecordingOnManualChange()
   if (scanActive.value) stopScan()
   if (searchActive.value) stopSearch()
   currentFreqHz.value = f.frequency_hz
@@ -2481,7 +2484,7 @@ function onExternalTune(e: Event): void {
   const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
   const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
   if (sameRadio && sockOpen) {
-    _applyPendingExternalTune()
+    void _applyPendingExternalTune()
   } else if (sameRadio && sockConnecting) {
     // Socket already opening for this radio — its 'open' handler will drain the
     // pending tune. Re-selecting would early-return and never fire 'open'.
@@ -2490,7 +2493,7 @@ function onExternalTune(e: Event): void {
   }
 }
 
-function _applyPendingExternalTune(): void {
+async function _applyPendingExternalTune(): Promise<void> {
   const p = _pendingExternalTune
   if (!p) return
   _pendingExternalTune = null
@@ -2499,7 +2502,11 @@ function _applyPendingExternalTune(): void {
   currentMode.value   = p.mode
   freqInputVal.value  = (p.hz / 1e6).toFixed(4)
   activeFreqDisplay.value = (p.hz / 1e6).toFixed(3) + ' MHz'
-  sdrAudio.initAudio(selectedRadioId.value)
+  // Await audio init: the worklet must be ready before _startAutoTuneRecording
+  // (below) calls startRecording, which bails if the worklet hasn't loaded yet.
+  // This is the "armed before the pass" path — the radio starts from stopped at
+  // AOS, so without awaiting, record silently no-ops while the tune still fires.
+  await sdrAudio.initAudio(selectedRadioId.value)
   sdrAudio.setMode(p.mode)
   const bw = defaultBwHz(p.mode)
   sdrAudio.setBandwidthHz(bw); bwHz.value = bw
@@ -3216,6 +3223,18 @@ async function deleteFreq(id?: number) {
 async function toggleRecording() {
   if (isRecording.value) { await stopRecordingIfActive(); return }
   await _startRecording()
+}
+
+// A manual frequency change or stop ends any in-progress recording, finalising
+// the clip at the moment the user moves off the channel it was capturing — we
+// don't let a recording silently carry on onto a new frequency. Covers both a
+// manually-started REC and one auto-started for a satellite pass; for the latter
+// this fires before LOS, so the pass clip ends here and onExternalTuneRestore's
+// own stopRecordingIfActive becomes a no-op. Only the genuinely-manual entry
+// points call this (wheel retune, saved-freq play, the Stop button); scan/search
+// stepping and the auto-tune path deliberately do not.
+function _endRecordingOnManualChange(): void {
+  if (isRecording.value) void stopRecordingIfActive()
 }
 
 // Build the recording metadata from the current tune and start a recording,

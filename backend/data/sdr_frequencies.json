@@ -40,33 +40,6 @@
   ],
   "frequencies": [
     {
-      "label": "80m SSB Calling",
-      "frequency_hz": 3690000,
-      "mode": "LSB",
-      "notes": "SSB calling frequency",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "80m FM Calling",
-      "frequency_hz": 3760000,
-      "mode": "NFM",
-      "notes": "FM calling",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "60m FT8",
-      "frequency_hz": 5357000,
-      "mode": "USB",
-      "notes": "FT8",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
       "label": "40m FT8",
       "frequency_hz": 7074000,
       "mode": "USB",
@@ -80,15 +53,6 @@
       "frequency_hz": 7090000,
       "mode": "LSB",
       "notes": "SSB calling frequency",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "30m FT8",
-      "frequency_hz": 10136000,
-      "mode": "USB",
-      "notes": "FT8",
       "groups": [
         "amateur-radio"
       ]
@@ -114,51 +78,6 @@
     {
       "label": "20m SSB Calling",
       "frequency_hz": 14285000,
-      "mode": "USB",
-      "notes": "SSB calling frequency",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "17m FT8",
-      "frequency_hz": 18100000,
-      "mode": "USB",
-      "notes": "FT8",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "17m IBP Beacons",
-      "frequency_hz": 18110000,
-      "mode": "CW",
-      "notes": "NCDXF international beacon project",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "15m FT8",
-      "frequency_hz": 21074000,
-      "mode": "USB",
-      "notes": "FT8",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "15m IBP Beacons",
-      "frequency_hz": 21150000,
-      "mode": "CW",
-      "notes": "NCDXF international beacon project",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "15m SSB Calling",
-      "frequency_hz": 21285000,
       "mode": "USB",
       "notes": "SSB calling frequency",
       "groups": [
