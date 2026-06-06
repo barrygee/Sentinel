@@ -24,7 +24,7 @@ from backend.services.json_store import DATA_DIR, load_json_file, write_json_fil
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Single source of truth for the editable radio fields. Mirrors the columns on
-# SatelliteCatalogue (models.py) and the body fields accepted by PATCH /tle/radio.
+# SatelliteCatalogue (models.py) and the entries in the radio JSON file.
 RADIO_FIELDS: tuple[str, ...] = (
     "uplink_hz", "uplink_mode", "downlink_hz", "downlink_mode",
     "ctcss_hz", "transponder_type", "beacon_hz", "packet_info",
@@ -42,8 +42,8 @@ RADIO_FILE = DATA_DIR / "satellite_radio.json"
 _FILE_COMMENT = (
     "Single source of truth for satellite radio frequencies. NORAD ID -> radio "
     "fields. Frequencies in Hz (integer). Editable in-app (Settings > Space > "
-    "Satellite Radio) or by hand-editing this file; in-app edits are written "
-    "back here."
+    "Satellite Frequencies (JSON)) or by hand-editing this file; in-app edits "
+    "are written back here."
 )
 
 
@@ -99,43 +99,6 @@ def write_radio_file(radio_map: dict[str, dict[str, Any]]) -> bool:
     for nid in sorted(radio_map, key=lambda x: int(x)):
         payload[nid] = radio_map[nid]
     return write_json_file(RADIO_FILE, payload)
-
-
-async def set_radio_for(
-    db: AsyncSession,
-    norad_id: str,
-    fields: dict[str, Any],
-) -> dict[str, Any]:
-    """Merge `fields` into the stored entry for `norad_id` and persist the map.
-
-    Only keys present in `fields` are touched (matches PATCH semantics). Passing
-    an explicit None clears that field. An entry with no remaining non-null
-    fields is dropped from the map entirely. Returns the resulting entry.
-    """
-    norad_id = str(norad_id).strip()
-    radio_map = await get_radio_map(db)
-    entry = dict(radio_map.get(norad_id, {}))
-
-    for f in RADIO_FIELDS:
-        if f not in fields:
-            continue
-        v = fields[f]
-        if v is None or (isinstance(v, str) and v.strip() == ""):
-            entry.pop(f, None)
-        else:
-            entry[f] = v
-
-    if entry:
-        radio_map[norad_id] = entry
-    else:
-        radio_map.pop(norad_id, None)
-
-    await upsert_setting(db, _NAMESPACE, _KEY, radio_map)
-    # Write through to the on-disk source of truth. A failure here (read-only
-    # FS) is logged but does not fail the edit — the DB store is authoritative
-    # at runtime and reseeds the file when it next becomes writable.
-    write_radio_file(radio_map)
-    return entry
 
 
 async def replace_radio_map(db: AsyncSession, new_map: dict[str, Any]) -> dict[str, dict[str, Any]]:

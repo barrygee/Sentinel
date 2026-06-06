@@ -623,59 +623,6 @@ async def patch_tle_satellite(
     })
 
 
-_RADIO_FIELDS = sat_radio.RADIO_FIELDS
-
-
-@router.patch("/tle/radio")
-@handle_unexpected_errors
-async def patch_tle_radio(
-    body: dict = Body(...),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update radio-payload metadata for a single satellite.
-
-    Body: { "norad_id": str, "<field>": value, ... }
-    Valid fields: uplink_hz, uplink_mode, downlink_hz, downlink_mode, ctcss_hz,
-    transponder_type, beacon_hz, packet_info, radio_status, radio_notes.
-    Pass an explicit null to clear a field. Unspecified fields are left untouched.
-    """
-    norad_id = str(body.get("norad_id") or "").strip()
-    if not norad_id:
-        return JSONResponse({"error": "norad_id is required"}, status_code=400)
-
-    result = await db.execute(
-        select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id == norad_id)
-    )
-    row = result.scalar_one_or_none()
-    if not row:
-        return JSONResponse({"error": "Satellite not found"}, status_code=404)
-
-    changed = {field: body[field] for field in _RADIO_FIELDS if field in body}
-    for field, value in changed.items():
-        setattr(row, field, value)
-
-    row.updated_at = now_ms()
-    await db.commit()
-
-    # Persist into the clear-survivable store so the edit is restored after a
-    # TLE clear + re-import. set_radio_for commits the UserSettings row itself.
-    await sat_radio.set_radio_for(db, norad_id, changed)
-
-    return JSONResponse({
-        "norad_id":         row.norad_id,
-        "uplink_hz":        row.uplink_hz,
-        "uplink_mode":      row.uplink_mode,
-        "downlink_hz":      row.downlink_hz,
-        "downlink_mode":    row.downlink_mode,
-        "ctcss_hz":         row.ctcss_hz,
-        "transponder_type": row.transponder_type,
-        "beacon_hz":        row.beacon_hz,
-        "packet_info":      row.packet_info,
-        "radio_status":     row.radio_status,
-        "radio_notes":      row.radio_notes,
-    })
-
-
 @router.get("/radio/file")
 @handle_unexpected_errors
 async def get_radio_file(db: AsyncSession = Depends(get_db)):
