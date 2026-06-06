@@ -840,10 +840,25 @@ defineExpose({
     background: rgba(255, 255, 255, 0.04);
 }
 
-/* Airport accordion body — matches the space satellite detail panel. */
+/* Airport accordion body — matches the space satellite detail panel. The same
+   lighter-grey tint as the open row carries through the content so the whole
+   expanded block reads as one block (the sat row wraps header + body in a single
+   tinted container; here they are siblings, so the body repeats the tint). */
 .apt-acc-body {
     display: flex;
     flex-direction: column;
+    background: rgba(255, 255, 255, 0.04);
+    /* Close the 1px #filter-results flex gap between the open row and the body so
+       no dark seam shows; both share the same tint and read as one block. */
+    margin-top: -1px;
+    /* Extra breathing room before the next airport in the list. */
+    padding-bottom: 12px;
+    animation: apt-acc-expand 0.18s ease;
+}
+
+@keyframes apt-acc-expand {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .apt-acc-section {
