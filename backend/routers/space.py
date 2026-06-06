@@ -13,7 +13,7 @@ Endpoints:
   POST /api/space/tle/fetch        — Fetch TLE data from a URL (online or local network)
   POST /api/space/tle/manual       — Store TLE data from raw text (paste / file upload)
   PATCH /api/space/tle/category    — Assign category to one or more NORAD IDs
-  DELETE /api/space/tle            — Clear all TLE data (requires confirm=true)
+  DELETE /api/space/tle            — Clear TLE data, optionally by category (requires confirm=true)
 """
 
 from datetime import UTC, datetime
@@ -647,18 +647,54 @@ async def set_radio_file(body: dict = Body(...), db: AsyncSession = Depends(get_
 @handle_unexpected_errors
 async def clear_tle_data(
     confirm: bool = Query(False, description="Must be true to execute the delete"),
+    category: str = Query(
+        None,
+        description="If set, only clear satellites in this category "
+        "('unknown' clears uncategorised). Omit to clear everything.",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete all TLE data from both tle_cache and satellite_catalogue.
+    """Delete TLE data from both tle_cache and satellite_catalogue.
+
+    With no category, clears the entire database. With a category, clears only
+    the satellites in that category (and their cached TLE rows). The special
+    value 'unknown' clears uncategorised satellites (category IS NULL).
 
     Requires ?confirm=true query parameter as a safeguard against accidental calls.
     """
     if not confirm:
         return JSONResponse(
-            {"error": "Pass ?confirm=true to confirm deletion of all TLE data"},
+            {"error": "Pass ?confirm=true to confirm deletion of TLE data"},
             status_code=400,
         )
-    await db.execute(delete(TleCache))
-    await db.execute(delete(SatelliteCatalogue))
-    await db.commit()
-    return JSONResponse({"cleared": True})
+
+    if category is None:
+        await db.execute(delete(TleCache))
+        await db.execute(delete(SatelliteCatalogue))
+        await db.commit()
+        return JSONResponse({"cleared": True})
+
+    # Per-category clear. Validate against known categories (plus 'unknown' for NULL).
+    if category != "unknown" and category not in _VALID_CATEGORIES:
+        return JSONResponse(
+            {"error": f"Invalid category. Valid values: {sorted(_VALID_CATEGORIES) + ['unknown']}"},
+            status_code=400,
+        )
+
+    cat_filter = (
+        SatelliteCatalogue.category.is_(None)
+        if category == "unknown"
+        else SatelliteCatalogue.category == category
+    )
+
+    # Gather the NORAD IDs in this category so we can also drop their cached TLE
+    # rows (tle_cache.cache_key == satellite_catalogue.norad_id, no FK link).
+    id_rows = await db.execute(select(SatelliteCatalogue.norad_id).where(cat_filter))
+    norad_ids = [row[0] for row in id_rows.all()]
+
+    if norad_ids:
+        await db.execute(delete(TleCache).where(TleCache.cache_key.in_(norad_ids)))
+        await db.execute(delete(SatelliteCatalogue).where(cat_filter))
+        await db.commit()
+
+    return JSONResponse({"cleared": True, "category": category, "count": len(norad_ids)})

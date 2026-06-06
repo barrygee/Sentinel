@@ -150,7 +150,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { section: 'air', sectionLabel: 'AIR', id: 'air-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for air data', type: 'offline-source', ns: 'air', defaultUrl: '' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-online-source', label: 'Online Data Source', desc: 'URL to fetch TLE data from — select a category and click UPDATE TLE', type: 'space-tle-online', groupLabel: 'DATA SOURCES' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-manual-tle', label: 'TLE Import', desc: 'Upload a .txt file of TLE data', type: 'space-tle-manual' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-database', label: 'TLE Database', desc: 'Satellite count, sources, and per-category last-updated times', type: 'space-tle-db' },
+  { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-database', label: 'TLE Database', desc: 'Satellite count, sources, and per-category last-updated times. Clear all data, or clear a single category (e.g. space station, amateur radio).', type: 'space-tle-db' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-uncategorised', label: 'Uncategorised Satellites', desc: 'Assign categories to satellites imported without one', type: 'space-tle-uncat' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-satlist', label: 'Satellite List', desc: 'Full list of all TLE records stored in the database', type: 'space-tle-satlist' },
   { section: 'space', sectionLabel: 'SPACE', id: 'space-sat-radio-file', label: 'Satellite Frequencies (JSON)', desc: 'Bulk-edit all satellite frequencies as raw JSON. Saved to backend/data/satellite_radio.json and the database.', type: 'space-sat-radio-file', groupLabel: 'SATELLITE DATA' },

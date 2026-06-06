@@ -1147,7 +1147,7 @@
 }
 .tle-cat-row {
     display: grid;
-    grid-template-columns: 1fr 48px 90px;
+    grid-template-columns: 1fr 48px 90px 58px;
     align-items: center;
     padding: 7px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -1181,6 +1181,36 @@
     color: rgba(255, 255, 255, 0.3);
     text-align: right;
     letter-spacing: 0.04em;
+}
+.tle-cat-clear {
+    justify-self: end;
+    font-family: 'Barlow Condensed', 'Barlow', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    padding: 2px 7px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+}
+.tle-cat-clear:hover:not(:disabled) {
+    color: rgba(255, 120, 120, 0.9);
+    border-color: rgba(255, 80, 80, 0.5);
+    background: rgba(255, 60, 60, 0.1);
+}
+.tle-cat-clear:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.tle-cat-clear--confirm {
+    color: rgba(255, 180, 0, 0.9);
+    background: rgba(255, 140, 0, 0.1);
+    border-color: rgba(255, 140, 0, 0.4);
 }
 
 .tle-uncat-wrap {
