@@ -84,7 +84,15 @@ function onKeydown(e: KeyboardEvent) {
 function onOpenSearch() { airFilterRef.value?.focus() }
 function onOpenFilter() { airFilterRef.value?.focus() }
 
+// Airport marker click on the map → expand that airport's accordion in the
+// SEARCH list. MapSidebar handles opening the panel on the search tab.
+function onOpenAirport(e: Event) {
+  const icao = (e as CustomEvent<{ icao: string }>).detail?.icao
+  if (icao) airFilterRef.value?.expandAirport(icao)
+}
+
 useDocumentEvent('keydown', onKeydown)
 useDocumentEvent('air-open-search', onOpenSearch)
 useDocumentEvent('air-open-filter', onOpenFilter)
+useDocumentEvent('air-open-airport', onOpenAirport)
 </script>

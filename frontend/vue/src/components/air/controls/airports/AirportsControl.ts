@@ -75,81 +75,6 @@ export class AirportsToggleControl extends SentinelControlBase {
         super.onRemove();
     }
 
-    _buildFreqPanel(p: AirportProperties): string {
-        const rows: [string, string][] = [
-            ['TWR',  p.freqs.tower],
-            ['RAD',  p.freqs.radar],
-            ['APP',  p.freqs.approach],
-            ['ATIS', p.freqs.atis],
-        ];
-        const rowsHTML = rows.map(([lbl, val]) =>
-            `<div style="display:flex;gap:14px;line-height:1.8">` +
-            `<span style="opacity:0.5;min-width:34px;letter-spacing:.05em">${lbl}</span>` +
-            `<span>${val}</span></div>`
-        ).join('');
-        return `<div style="display:inline-block;background:rgba(0,0,0,0.7);color:#fff;` +
-            `font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;` +
-            `padding:6px 14px 9px;pointer-events:none;white-space:nowrap;user-select:none">` +
-            `<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;` +
-            `font-weight:600;font-size:15px;letter-spacing:.12em;` +
-            `margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
-            `<span style="font-size:13px;font-weight:600;letter-spacing:.12em">${p.icao}</span>` +
-            `<span style="font-size:11px;font-weight:400;opacity:0.5;letter-spacing:.08em">${p.name.toUpperCase()}</span>` +
-            `</div>${rowsHTML}</div>`;
-    }
-
-    _buildClickPanel(p: AirportProperties): HTMLDivElement {
-        const rows: [string, string][] = [
-            ['TWR',  p.freqs.tower],
-            ['RAD',  p.freqs.radar],
-            ['APP',  p.freqs.approach],
-            ['ATIS', p.freqs.atis],
-        ];
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'display:inline-block;background:rgba(0,0,0,0.85);color:#fff;' +
-            "font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;" +
-            'padding:6px 14px 9px;white-space:nowrap;user-select:none;pointer-events:auto;margin-top:4px;' +
-            'border:1px solid rgba(255,255,255,0.12);border-radius:2px;';
-
-        const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:16px;' +
-            'font-weight:600;font-size:15px;letter-spacing:.12em;' +
-            'margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.12)';
-        header.innerHTML =
-            `<span style="font-size:13px;font-weight:600;letter-spacing:.12em;color:#c8ff00">${p.icao}</span>` +
-            `<span style="font-size:11px;font-weight:400;opacity:0.5;letter-spacing:.08em">${p.name.toUpperCase()}</span>`;
-        wrap.appendChild(header);
-
-        rows.forEach(([lbl, val]) => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;gap:14px;line-height:1.8;align-items:center';
-
-            const lblEl = document.createElement('span');
-            lblEl.style.cssText = 'opacity:0.5;min-width:34px;letter-spacing:.05em';
-            lblEl.textContent = lbl;
-            row.appendChild(lblEl);
-
-            const valEl = document.createElement('span');
-            valEl.textContent = val;
-            if ((window as any)._SdrMiniPlayer) {
-                valEl.style.cssText = 'cursor:pointer';
-                valEl.title = `Tune to ${val}`;
-                valEl.addEventListener('click', (e: Event) => {
-                    e.stopPropagation();
-                    const first = val.split('/')[0].trim();
-                    const mhz = parseFloat(first);
-                    if (isNaN(mhz) || mhz <= 0) return;
-                    const hz = mhz > 30000 ? Math.round(mhz) : Math.round(mhz * 1e6);
-                    (window as any)._SdrMiniPlayer.tune(hz, 'AM', `${p.name} ${lbl}`);
-                });
-            }
-            row.appendChild(valEl);
-            wrap.appendChild(row);
-        });
-
-        return wrap;
-    }
-
     initLayers(): void {
         if (this.map.getSource('airports')) this.map.removeSource('airports');
         this.map.addSource('airports', { type: 'geojson', data: AIRPORTS_DATA });
@@ -171,35 +96,13 @@ export class AirportsToggleControl extends SentinelControlBase {
                     `<br><span class="apt-name" style="opacity:0.7;font-weight:400">${airportProperties.name.toUpperCase()}</span>`;
                 el.appendChild(label);
 
-                let clickPanel: HTMLDivElement | null = null;
-                let hoverPanel: HTMLDivElement | null = null;
-
-                const closeClickPanel = () => {
-                    if (clickPanel) { clickPanel.remove(); clickPanel = null; }
-                };
-
+                // Clicking an airport opens its accordion in the side-panel SEARCH
+                // list (AirFilter listens for this) — no on-map panel is shown.
                 el.addEventListener('click', (e: Event) => {
                     e.stopPropagation();
-                    if (clickPanel) { closeClickPanel(); return; }
-                    if (hoverPanel) { hoverPanel.remove(); hoverPanel = null; }
-                    clickPanel = this._buildClickPanel(airportProperties);
-                    el.appendChild(clickPanel);
-                    // dismiss on next map click
-                    const onMapClick = () => { closeClickPanel(); this.map.off('click', onMapClick); };
-                    this.map.on('click', onMapClick);
-                });
-
-                el.addEventListener('mouseenter', () => {
-                    if (clickPanel) return;
-                    if (!hoverPanel) {
-                        hoverPanel = document.createElement('div');
-                        hoverPanel.innerHTML  = this._buildFreqPanel(airportProperties);
-                        hoverPanel.style.cssText = 'pointer-events:none;margin-top:4px';
-                        el.appendChild(hoverPanel);
-                    }
-                });
-                el.addEventListener('mouseleave', () => {
-                    if (hoverPanel) { hoverPanel.remove(); hoverPanel = null; }
+                    document.dispatchEvent(new CustomEvent('air-open-airport', {
+                        detail: { icao: airportProperties.icao },
+                    }));
                 });
 
                 return new maplibregl.Marker({ element: el, anchor: 'top-left', offset: [8, -6] })
@@ -208,19 +111,6 @@ export class AirportsToggleControl extends SentinelControlBase {
 
             if (this.visible) this._markers.forEach(m => m.addTo(this.map));
         }
-    }
-
-    _showAirportPanel(props: AirportProperties, coords: LngLat, _fitMap?: boolean): void {
-        if (!this._markers) return;
-        // Find the marker whose element contains the ICAO label and simulate a click
-        const idx = AIRPORTS_DATA.features.findIndex(f => f.properties.icao === props.icao);
-        if (idx < 0) return;
-        const marker = this._markers[idx];
-        if (!marker) return;
-        // Ensure the layer is visible so the marker is on the map
-        if (!this.visible) this.toggle();
-        const markerEl = marker.getElement();
-        markerEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }
 
     toggle(): void {

@@ -327,6 +327,14 @@ export const useSdrStore = defineStore('sdr', () => {
     _persistSession()
   }
 
+  // Panel → store mirror of the device reachability dot. The authoritative copy
+  // is the local `connected` ref in SdrPanel.vue; the panel pushes it here so
+  // other components (e.g. the air-domain airport list) can gate SDR tuning on
+  // whether a radio is actually connected.
+  function setConnected(val: boolean) {
+    connected.value = val
+  }
+
   // Panel → store mirror of the demod bandwidth.
   function setBandwidthHz(hz: number) {
     bwHz.value = hz
@@ -385,7 +393,7 @@ export const useSdrStore = defineStore('sdr', () => {
     resumeDelaySec, setResumeDelaySec, hydrateResumeDelaySecFromDb,
     viewZoom, viewZmin, viewZmax, viewAutoScale, setViewSettings,
     tuningOffsetHz, setTuningOffsetHz,
-    setRadio, setFrequency, setMode, setPlaying, setSpectrum,
+    setRadio, setFrequency, setMode, setPlaying, setConnected, setSpectrum,
     setBandwidthHz, requestTune, requestBandwidth, requestFftSize,
     loadRadios, loadGroups, loadFrequencies,
   }

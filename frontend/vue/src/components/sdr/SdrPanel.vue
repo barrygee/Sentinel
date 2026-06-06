@@ -1149,6 +1149,9 @@ const playing           = ref(false)
 // play-state logic (avoids the regression that earlier setPlayingState
 // substitutions risked).
 watch(playing, (v) => { _sdrStore().setPlaying(v) })
+// Mirror device reachability into the store so other components (e.g. the
+// air-domain airport list) can gate SDR tuning on whether a radio is connected.
+watch(connected, (v) => { _sdrStore().setConnected(v) }, { immediate: true })
 const controlsDisabled  = ref(true)
 const selectedRadioId   = ref<number | null>(null)
 const knownRadios       = ref<SdrRadio[]>([])
