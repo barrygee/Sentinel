@@ -662,14 +662,17 @@ export class SatelliteControl extends SentinelControlBase {
             if (trackSource) trackSource.setData(ground_track)
             if (fpSource)    fpSource.setData(footprintGeo)
 
-            // Ensure layers are visible for the preview even if the overlay was toggled off
+            // Show the previewed satellite + label, but honour the user's track/
+            // footprint toggles so hovering another sat doesn't resurrect a track
+            // the user explicitly hid.
             try {
+                const trackVis = this.trackVisible     ? 'visible' : 'none'
+                const fpVis    = this.footprintVisible ? 'visible' : 'none'
                 this.map.setLayoutProperty('iss-icon',    'visibility', 'visible')
                 this.map.setLayoutProperty('iss-bracket', 'visibility', 'visible')
-                this.map.setLayoutProperty('iss-track-orbit1', 'visibility', 'visible')
-                this.map.setLayoutProperty('iss-track-orbit2', 'visibility', 'visible')
-                this.map.setLayoutProperty('iss-footprint-fill', 'visibility', 'visible')
-                this.map.setLayoutProperty('iss-footprint',      'visibility', 'visible')
+                ;['iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3'].forEach(id => this.map.setLayoutProperty(id, 'visibility', trackVis))
+                this.map.setLayoutProperty('iss-footprint-fill', 'visibility', fpVis)
+                this.map.setLayoutProperty('iss-footprint',      'visibility', fpVis)
             } catch {}
 
             if (this._labelMarker) {
@@ -708,8 +711,7 @@ export class SatelliteControl extends SentinelControlBase {
             const fpVis    = (this.issVisible && this.footprintVisible) ? 'visible' : 'none'
             this.map.setLayoutProperty('iss-icon',    'visibility', issVis)
             this.map.setLayoutProperty('iss-bracket', 'visibility', issVis)
-            this.map.setLayoutProperty('iss-track-orbit1', 'visibility', trackVis)
-            this.map.setLayoutProperty('iss-track-orbit2', 'visibility', trackVis)
+            ;['iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3'].forEach(id => this.map.setLayoutProperty(id, 'visibility', trackVis))
             this.map.setLayoutProperty('iss-footprint-fill', 'visibility', fpVis)
             this.map.setLayoutProperty('iss-footprint',      'visibility', fpVis)
         } catch {}
@@ -788,7 +790,7 @@ export class SatelliteControl extends SentinelControlBase {
         const trackVis = (this.issVisible && this.trackVisible)     ? 'visible' : 'none'
         const fpVis    = (this.issVisible && this.footprintVisible)  ? 'visible' : 'none'
         ;['iss-icon', 'iss-bracket'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', issVis) } catch {} })
-        ;['iss-track-orbit1', 'iss-track-orbit2'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', trackVis) } catch {} })
+        ;['iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', trackVis) } catch {} })
         ;['iss-footprint-fill', 'iss-footprint'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', fpVis) } catch {} })
         this.setButtonActive(this.issVisible)
         this._spaceStore.setOverlay('iss', this.issVisible)
@@ -803,7 +805,8 @@ export class SatelliteControl extends SentinelControlBase {
     toggleTrack(): void {
         this.trackVisible = !this.trackVisible
         const trackVis = (this.issVisible && this.trackVisible) ? 'visible' : 'none'
-        ;['iss-track-orbit1', 'iss-track-orbit2'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', trackVis) } catch {} })
+        ;['iss-track-orbit0', 'iss-track-orbit1', 'iss-track-orbit2', 'iss-track-orbit3'].forEach(id => { try { this.map.setLayoutProperty(id, 'visibility', trackVis) } catch {} })
+        this._spaceStore.setOverlay('groundTrack', this.trackVisible)
     }
 
     toggleFootprint(): void {
