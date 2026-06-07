@@ -1,9 +1,9 @@
 services:
-  backend:
+  app:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: sentinel-api
+    container_name: sentinel-app
     ports:
       - "8080:8000"
     volumes:

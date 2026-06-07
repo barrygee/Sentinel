@@ -87,7 +87,7 @@ Sentinel/
 │   └── spa-dist/             Built SPA bundle (served by the backend; committed)
 │
 ├── tests/                    pytest (backend) + jest (frontend helpers)
-├── docker-compose.yml        Backend service (host :8080)
+├── docker-compose.yml        App service — FastAPI serving the SPA (host :8080)
 └── backend/Dockerfile        Multi-stage build (SPA + backend)
 ```
 

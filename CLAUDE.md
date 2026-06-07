@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Sentinel is a real-time, offline-capable multi-domain surveillance dashboard (Air, Space, Sea, Land, SDR): a **FastAPI** backend serving a **Vue 3 SPA** that renders live data on **MapLibre GL** maps (**PMTiles** for offline tiles).
-
-> `README.md` describes an older Jinja2 + vanilla-JS frontend and is **out of date**. The real frontend is the Vue SPA in `frontend/vue/`. Trust the code, not the README.
+Sentinel is a real-time, offline-capable multi-domain surveillance dashboard (Air, Space, Sea, Land, SDR): a **FastAPI** backend serving a **Vue 3 SPA** that renders live data on **MapLibre GL** maps (**PMTiles** for offline tiles). The real frontend is the Vue SPA in `frontend/vue/`. `README.md` is current — it covers user-facing setup/features; this file covers working-on-the-code details.
 
 ## Develop & deploy
 
