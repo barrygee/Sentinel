@@ -1,407 +1,246 @@
 ![Sentinel logo](frontend/assets/logo.svg)
 
-Sentinel is a real-time multi-domain surveillance dashboard for tracking activity across Air, Space, Sea, Land, and SDR domains. It combines a FastAPI backend with a MapLibre GL browser client to display live data on interactive maps.
+# Sentinel
 
-The application is designed for offline-first operation: every domain supports configurable online and offline data sources, with automatic fallback when connectivity changes. A global connectivity mode and per-domain source overrides allow fine-grained control.
+**One screen. Every signal in the sky.**
 
----
+Sentinel is a real-time, multi-domain surveillance dashboard that tracks aircraft, satellites, and the radio spectrum on a single interactive map. A **FastAPI** backend serves a **Vue 3** single-page app that renders live data on **MapLibre GL** maps.
 
-## Quick Start
-
-**Docker (recommended)**
-
-```bash
-git clone <repo-url> Sentinel
-cd Sentinel
-docker compose up --build
-```
-
-Open `http://localhost`. The database is created and seeded with defaults on first run.
-
-**Local development**
-
-```bash
-python -m venv backend/.venv
-source backend/.venv/bin/activate
-pip install -e "backend[dev]"
-uvicorn backend.main:app --reload --port 8000
-```
-
-App: `http://localhost:8000` — Swagger UI: `http://localhost:8000/docs`
-
-Once running, open **Settings** (gear icon, bottom-right) and set *My Location* to your latitude/longitude.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.12+, FastAPI, SQLAlchemy (async), aiosqlite |
-| Frontend | TypeScript, Vanilla JS (compiled), Jinja2 templates |
-| Maps | MapLibre GL JS, PMTiles (offline vector tiles) |
-| Database | SQLite via aiosqlite |
-| Satellite | sgp4 (TLE propagation), Celestrak TLE feeds |
-| Reverse proxy | nginx (Docker deployment) |
-
----
-
-## Architecture
-
-### Directory Layout
-
-```
-Sentinel/
-├── backend/                 FastAPI application
-│   ├── main.py              App factory, lifespan, page routes
-│   ├── config.py            Pydantic settings (TTLs, upstream URLs)
-│   ├── database.py          SQLAlchemy engine, session factory, seed data
-│   ├── models.py            ORM models (AdsbCache, TleCache, UserSettings …)
-│   ├── cache.py             TTL helpers (now_ms, is_fresh, is_within_stale)
-│   ├── utils.py             resolve_domain_urls — online/offline URL logic
-│   ├── routers/
-│   │   ├── air.py           ADS-B proxy, messages, tracking
-│   │   ├── space.py         ISS, day/night, TLE management
-│   │   ├── settings.py      User preferences (namespace/key/value store)
-│   │   ├── sea.py           Stub (not yet implemented)
-│   │   └── land.py          Stub (not yet implemented)
-│   └── services/
-│       ├── adsb.py          httpx client → airplanes.live
-│       ├── satellite.py     TLE parsing, satellite catalogue management
-│       ├── tle.py           TLE cache fetch and refresh logic
-│       └── daynight.py      Day/night terminator calculation
-│
-├── frontend/
-│   ├── templates/           Jinja2 HTML templates (extend base.html)
-│   │   ├── base.html        Shared nav, footer, script/CSS includes
-│   │   ├── air/index.html
-│   │   ├── space/index.html
-│   │   └── docs/index.html
-│   ├── assets/              Static assets (MapLibre, PMTiles, fonts, sprites)
-│   └── components/
-│       ├── shared/          Shared UI components (settings, map, notifications…)
-│       ├── air/             AIR-domain components (adsb controls, overlay, init)
-│       ├── space/           SPACE-domain components
-│       └── docs/            Docs page CSS + JS
-│
-├── docker-compose.yml       nginx + FastAPI services
-├── Dockerfile               FastAPI container
-└── nginx.conf               Reverse proxy config
-```
-
-### Request Flow
-
-All HTTP traffic enters via nginx (port 80/443 in Docker) which proxies to uvicorn on port 8000. Static assets are served directly by nginx from the `/frontend/assets` and `/frontend/components` directories. Page requests hit FastAPI which renders Jinja2 templates. API requests are handled by domain routers.
-
-```
-Browser → nginx → uvicorn (FastAPI)
-                  ↓
-            Page route → Jinja2 template → HTML
-            API route  → Router handler → JSON
-            /assets    → StaticFiles mount
-```
-
-### Database
-
-SQLite is used for all persistence. Tables are created automatically on startup via `create_tables()`. Default settings are seeded on first run via `seed_default_settings()`.
-
-| Table | Purpose |
-|---|---|
-| `adsb_cache` | Write-through cache for ADS-B API responses (keyed by lat/lon/radius) |
-| `tle_cache` | Cached TLE elements from Celestrak or manual uploads |
-| `satellite_catalogue` | Permanent satellite identity records (name, NORAD ID, category) |
-| `air_messages` | Notification messages (emergencies, squawks, system alerts) |
-| `air_tracking` | Currently tracked aircraft (ICAO hex, callsign, follow mode) |
-| `user_settings` | User preferences stored as namespace / key / JSON-value triples |
-
-### Connectivity Model
-
-Each domain has two data source slots — online and offline. A global `connectivityMode` setting (online/offline) selects which slot is active. Individual domains can override this with a per-domain `sourceOverride` (auto / online / offline). `resolve_domain_urls()` in `utils.py` encapsulates this logic and returns the effective *(primary_url, fallback_url)* pair for any request.
+It is built **offline-first**: each domain has online and offline data sources with automatic failover, and offline vector map tiles (**PMTiles**) mean the map keeps working when the internet doesn't.
 
 ---
 
 ## Domains
 
+| Domain | Status | What it does |
+|---|---|---|
+| **AIR** | ✅ Live | Real-time ADS-B aircraft tracking, flight replay, military/civil filtering, airports & airspace overlays |
+| **SPACE** | ✅ Live | SGP4 satellite propagation, ground tracks & footprints, pass prediction, day/night terminator, TLE management, satellite-radio auto-tune |
+| **SDR** | ✅ Live | Live RTL-SDR spectrum + waterfall over `rtl_tcp`, tuning, audio demod, frequency groups, frequency search, recordings |
+| **SEA** | 🚧 Stub | Routing/settings scaffolding only — no data integration yet |
+| **LAND** | 🚧 Stub | Routing/settings scaffolding only — no data integration yet |
+
 ### AIR
+ADS-B aircraft from the [airplanes.live](https://airplanes.live) API are proxied through the backend and cached in SQLite (10 s fresh TTL, 60 s stale window) to limit upstream load. Aircraft render as oriented icons; clicking one opens a detail panel and lets you track it. Map controls add airports (with frequencies), military bases, AWACS lobes, range rings, roads, an overhead-alert zone, and live labels.
 
-Real-time ADS-B aircraft tracking powered by the [airplanes.live](https://airplanes.live) API. The backend proxies requests to the upstream and caches responses in SQLite to reduce upstream calls (5 s TTL, 30 s stale window).
-
-Aircraft are rendered as icons on a MapLibre map. Clicking an aircraft opens a detail panel with callsign, altitude, speed, and heading. Aircraft can be added to the tracking list which persists across sessions.
-
-Notification messages (emergencies, special squawks) are stored in `air_messages` and displayed in the notification panel.
+Optional **flight replay** (off by default, behind `air.replayEnabled`) records periodic snapshots into SQLite so past flights can be browsed by date and replayed on the map.
 
 ### SPACE
+Satellites are propagated from TLE data using **SGP4**. The default view tracks the ISS; any catalogued satellite can be selected by NORAD ID to show its current position, multi-orbit ground track, and visibility footprint. Pass prediction lists upcoming passes over your location, with heads-up notifications and optional **auto-tune** that drives the SDR to a satellite's downlink frequency during a pass. A day/night terminator overlay and full **TLE database management** (fetch from Celestrak, upload `.txt`, categorise, clear) are built in.
 
-Satellite tracking using SGP4 propagation from Two-Line Element (TLE) data. The ISS is tracked by default. TLE data is fetched from Celestrak and cached for 6 hours (stale window: 12 hours).
-
-The day/night terminator is rendered as a GeoJSON overlay. TLE data can be managed via the Settings panel: fetch from a URL, upload a .txt file, assign categories to satellites, and clear the database.
-
-Satellite categories: `space_station`, `amateur`, `weather`, `military`, `navigation`, `science`, `cubesat`, `active`, `unknown`.
-
-### SEA / LAND / SDR
-
-These domains are currently stubs — the routing, template, and settings infrastructure is in place but data source integration is not yet implemented. The source override and URL settings are available and will be respected when functionality is added.
+### SDR
+Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback.
 
 ---
 
-## API Reference
+## Tech stack
 
-### Health
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/health` | Liveness probe — returns `{"status":"ok","timestamp":…}` |
-
-### Settings
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/settings` | All settings grouped by namespace `{"app":{"connectivityMode":"online",…}}` |
-| GET | `/api/settings/{namespace}` | Settings for one namespace as `{"key": value}` |
-| PUT | `/api/settings/{namespace}/{key}` | Upsert a setting. Body: `{"value": any}` |
-| GET | `/api/settings/config/preview` | Current settings as a downloadable JSON config file |
-
-### AIR — ADS-B
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/air/adsb/point/{lat}/{lon}/{radius}` | Aircraft within *radius* nm of a point. Cached 5 s. Returns `X-Cache: HIT\|MISS\|STALE`. |
-
-### AIR — Messages
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/air/messages` | List non-dismissed messages, newest first |
-| POST | `/api/air/messages` | Create a message. Body: `{"msg_id","type","title","detail","ts"}`. Idempotent. |
-| DELETE | `/api/air/messages/{msg_id}` | Soft-delete (dismiss) a single message |
-| DELETE | `/api/air/messages` | Dismiss all messages |
-
-### AIR — Tracking
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/air/tracking` | List tracked aircraft, most recently added first |
-| POST | `/api/air/tracking` | Track aircraft. Body: `{"hex","callsign","follow"}`. Updates if already tracked. |
-| DELETE | `/api/air/tracking/{hex}` | Stop tracking an aircraft by ICAO hex |
-
-### SPACE — Satellites & Day/Night
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/space/iss` | Current ISS position, ground track (±2 orbits), and visibility footprint |
-| GET | `/api/space/iss/passes?lat=&lon=` | Predicted ISS passes over an observer location |
-| GET | `/api/space/satellite/{norad_id}` | Position, ground track, and footprint for any satellite by NORAD ID |
-| GET | `/api/space/satellite/{norad_id}/passes?lat=&lon=` | Predicted passes for any satellite over an observer location |
-| GET | `/api/space/daynight` | Day/night terminator as GeoJSON polygon |
-
-### SPACE — TLE Management
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/space/tle/status` | TLE database summary — counts, per-category last-updated times |
-| GET | `/api/space/tle/list` | Full satellite catalogue ordered by name |
-| GET | `/api/space/tle/uncategorised` | Satellites with no assigned category |
-| POST | `/api/space/tle/fetch` | Fetch TLE data from a URL. Body: `{"url": str, "category": str\|null}` |
-| POST | `/api/space/tle/manual` | Store TLE from raw text. Body: `{"text": str, "category": str\|null}` |
-| PATCH | `/api/space/tle/category` | Assign categories in bulk. Body: `{"assignments": [{"norad_id": str, "category": str}]}` |
-| PATCH | `/api/space/tle/satellite` | Update name/category for one satellite. Body: `{"norad_id": str, "name": str\|null, "category": str\|null}` |
-| DELETE | `/api/space/tle?confirm=true` | Clear all TLE data. Requires `confirm=true` query param. |
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), aiosqlite |
+| Frontend | Vue 3 + TypeScript, Pinia, Vue Router, Vite |
+| Maps | MapLibre GL JS, PMTiles (offline vector tiles) |
+| Spectrum | sigplot (waterfall), NumPy (FFT) |
+| Satellites | sgp4 (TLE propagation), Celestrak feeds |
+| SDR | `rtl_tcp` over raw asyncio TCP, WebSocket streaming |
+| Database | SQLite (aiosqlite) |
+| Packaging | uv (Python), Docker / Docker Compose |
 
 ---
 
-## Settings
+## Architecture
 
-Open the Settings panel using the gear icon in the bottom-right footer. Settings are saved to the backend database and synchronised with `localStorage` for instant load on next visit. Changes in the panel are staged until you click **APPLY CHANGES**.
+FastAPI is the only server. It exposes the JSON API and SDR WebSockets, serves the static map assets, and serves the built Vue SPA, falling back to the SPA's `index.html` so Vue Router can handle client-side routes.
 
-### App Settings
+```
+Browser ──┬─► /api/**            → domain routers (air, space, settings, sdr)
+          ├─► /ws/sdr/{id}[/iq]  → SDR spectrum / raw-IQ WebSocket stream
+          ├─► /assets/**         → map tiles, PMTiles, sprites, fonts
+          ├─► /spa-assets/**     → hashed Vue JS/CSS bundle
+          └─► /{any}             → SPA index.html (Vue Router)
+```
 
-| Setting | Description |
-|---|---|
-| Connectivity Mode | Global toggle between *online* and *offline* data sources across all domains. |
-| Connectivity Probe URL | A URL polled every 2 seconds to detect internet access. A failed fetch switches the indicator to offline. |
-| My Location | Fixed latitude/longitude used as the map centre and for range queries. Dispatches a `sentinel:setUserLocation` event on change. |
+**Connectivity model.** Each domain has online + offline data-source slots. A global `connectivityMode` (online/offline) plus a per-domain `sourceOverride` (auto/online/offline) decide which is active; a probe URL is polled to auto-switch on connectivity loss.
 
-### Domain Settings (AIR / SEA / LAND)
+**Caching.** Upstream responses are write-through cached in SQLite with a *fresh* TTL and a longer *stale* window — stale data is served if the upstream is unreachable. ADS-B responses carry an `X-Cache: HIT|MISS|STALE` header.
 
-| Setting | Description |
-|---|---|
-| Source Override | *Auto* — follow app-level connectivity mode. *Online* or *Offline* — force a specific source regardless of app mode. |
-| Online Data Source | Base URL for the live upstream data feed. |
-| Offline Data Source | Base URL for a local network server (e.g. a self-hosted feed on `http://192.168.1.x:port`). |
+**Persistence.** SQLite via SQLAlchemy async. The schema is created from the ORM models on startup, and defaults plus SDR/satellite reference data are seeded from `backend/data/*.json`. User preferences live in `user_settings` as `namespace / key / JSON-value` triples.
 
-### SPACE Settings
+### Project layout
 
-| Setting | Description |
-|---|---|
-| Online Data Source | Celestrak TLE feed URL. Select a category and click *UPDATE TLE* to fetch. |
-| TLE Import | Upload a `.txt` file of TLE data (standard two-line or three-line format). |
-| TLE Database | Summary of all loaded TLE data — satellite counts and per-category last-updated timestamps. Includes a *CLEAR ALL* button. |
-| Uncategorised Satellites | List of satellites imported without a category. Assign categories individually or in bulk. |
+```
+Sentinel/
+├── backend/                  FastAPI application (uv-managed)
+│   ├── main.py               App, lifespan, static mounts, SPA catch-all
+│   ├── config.py             Pydantic settings (TTLs, upstream URLs)
+│   ├── database.py           Engine, table creation, seeders, migrations
+│   ├── models.py             SQLAlchemy ORM models
+│   ├── routers/              air.py · space.py · sdr.py · settings.py
+│   ├── services/             adsb · satellite · tle · daynight · sdr · sdr_data
+│   │                         · sat_radio · flight_history · json_store
+│   └── data/                 Seed JSON (bandplan, frequencies, satellite radio)
+│
+├── frontend/
+│   ├── vue/                  Vue 3 + Vite SPA (the application)
+│   │   └── src/              components/<domain>/ · stores/ · router/ · services/
+│   ├── assets/               Map tiles, PMTiles, sprites, fonts, logos
+│   └── spa-dist/             Built SPA bundle (served by the backend; committed)
+│
+├── tests/                    pytest (backend) + jest (frontend helpers)
+├── docker-compose.yml        Backend service (host :8080)
+└── backend/Dockerfile        Multi-stage build (SPA + backend)
+```
 
-### Settings Storage
+---
 
-| Tier | When used |
-|---|---|
-| localStorage | Instant read on page load — avoids a network round-trip for every render. |
-| Backend (SQLite) | Persisted server-side — survives browser cache clears and syncs across devices/tabs. |
-| Reconciliation | On panel open, backend values are fetched and used to fill empty local fields. |
+## Getting started
+
+### Run with Docker (simplest)
+
+```bash
+docker compose up --build      # app on http://localhost:8080
+```
+
+The multi-stage build compiles the Vue SPA and packages the backend. The SQLite database is created and seeded on first run and persisted in the `sentinel_db` volume. You only need `--build` again when dependencies change.
+
+### Local development (hot reload)
+
+Two terminals. The Vite dev server proxies `/api`, `/ws`, and `/assets` to the backend on port **8080**, so run the backend there:
+
+```bash
+# Terminal 1 — backend on :8080 (Docker, code volume-mounted with --reload)
+docker compose up
+#   …or without Docker, from the repo root:
+#   cd backend && uv sync
+#   uv run --project backend uvicorn backend.main:app --reload --port 8080
+
+# Terminal 2 — Vite dev server with hot module reload
+cd frontend/vue
+npm install
+npm run dev                    # open http://localhost:5173
+```
+
+Backend edits hot-reload via `uvicorn --reload`; Vue edits via Vite HMR.
+
+### Building the SPA for deployment
+
+```bash
+cd frontend/vue
+npm run build                  # outputs to ../../frontend/spa-dist (committed, served by the backend)
+```
+
+> Outside the Vite dev server, the backend serves the **pre-built** bundle from `frontend/spa-dist/`. Rebuild (and commit) it when shipping a frontend change — a hard browser refresh then picks it up; no backend restart needed.
+
+Once running, open **Settings** (gear icon, bottom-right) and set *My Location* to your latitude/longitude.
+
+---
+
+## Testing
+
+Run from the repo **root**. Pass `--project backend` so `uv` uses the backend virtualenv (the Python project's `pyproject.toml` lives in `backend/`):
+
+```bash
+uv run --project backend pytest                 # backend tests
+uv run --project backend pytest tests/backend/test_routers_air.py::test_name   # single test
+uv run --project backend ruff check backend     # lint
+npm test                                         # frontend helper unit tests (jest)
+cd frontend/vue && npm run typecheck             # SPA type-check (vue-tsc)
+```
 
 ---
 
 ## Configuration
 
-Backend configuration is handled by Pydantic Settings in `backend/config.py`. All values can be overridden via environment variables or a `.env` file in the project root.
-
-### Config Options
+Backend settings live in `backend/config.py` (Pydantic Settings) and can be overridden via environment variables or a `.env` file in the repo root.
 
 | Variable | Default | Description |
 |---|---|---|
-| `db_path` | `backend/sentinel.db` | Path to the SQLite database file |
-| `adsb_ttl_ms` | `5000` | ADS-B cache TTL — how long a cached response is considered fresh (ms) |
-| `adsb_stale_ms` | `30000` | How long a stale ADS-B response can still be served if upstream fails (ms) |
-| `adsb_upstream_base` | `https://api.airplanes.live/v2` | Default ADS-B upstream base URL |
-| `tle_ttl_ms` | `21600000` (6 h) | TLE cache TTL — Celestrak updates daily so 6 h is sufficient |
-| `tle_stale_ms` | `43200000` (12 h) | Stale TLE window — serve old data if Celestrak is unreachable |
-| `tle_manual_ttl_ms` | `2592000000` (30 d) | TTL for manually-uploaded TLE data |
-| `celestrak_iss_url` | `celestrak.org/NORAD/elements/gp.php?…` | Default Celestrak TLE feed URL |
+| `DB_PATH` | `backend/sentinel.db` | SQLite database file path |
+| `ADSB_TTL_MS` | `10000` | ADS-B cache fresh window (ms) |
+| `ADSB_STALE_MS` | `60000` | ADS-B stale window — serve old data if upstream fails (ms) |
+| `ADSB_UPSTREAM_BASE` | `https://api.airplanes.live/v2` | ADS-B upstream base URL |
+| `TLE_TTL_MS` | `21600000` (6 h) | TLE cache fresh window |
+| `TLE_STALE_MS` | `43200000` (12 h) | TLE stale window |
+| `TLE_MANUAL_TTL_MS` | `2592000000` (30 d) | TTL for manually-uploaded TLE data |
+| `CELESTRAK_ISS_URL` | Celestrak active-satellites TLE feed | Default TLE feed URL |
 
-### Default Settings (seeded on first run)
-
-| Namespace | Key | Default value |
-|---|---|---|
-| `app` | `connectivityProbeUrl` | `https://tile.openstreetmap.org/favicon.ico` |
-| `app` | `connectivityMode` | `online` |
-| `air` | `sourceOverride` | `auto` |
-| `air` | `onlineUrl` | `https://api.airplanes.live/v2` |
-| `space` | `sourceOverride` | `auto` |
-| `space` | `onlineUrl` | Celestrak active satellites TLE feed |
-| `sea` | `sourceOverride` | `auto` |
-| `land` | `sourceOverride` | `auto` |
+In Docker, set these under `environment:` in `docker-compose.yml`.
 
 ---
 
-## Offline Maps
+## API reference
 
-Sentinel uses [PMTiles](https://protomaps.com) vector tile archives for offline map rendering. Two files are required, placed in `frontend/assets/tiles/`:
+Interactive docs are available at `/api/docs` (Swagger) and `/api/redoc` when the app is running. `GET /health` is a liveness probe.
 
-| File | Coverage | Approx. size |
+### AIR — `/api/air`
+| Method | Path | Description |
 |---|---|---|
-| `surroundings.pmtiles` | Global — zoom levels 0–6 (world overview) | ~44 MB |
-| `uk.pmtiles` | United Kingdom — zoom levels 0–14 (street level) | ~1.3 GB |
+| GET | `/adsb/point/{lat}/{lon}/{radius}` | Aircraft within *radius* nm of a point (cached) |
+| GET · POST · DELETE | `/messages` · `/messages/{id}` | List / create / dismiss notification messages |
+| GET · POST · DELETE | `/tracking` · `/tracking/{hex}` | List / add / remove tracked aircraft |
+| GET | `/recordings/available-dates` | Dates with recorded flight snapshots |
+| GET | `/snapshots` | Aircraft snapshots for replay |
+| GET · DELETE | `/flights` · `/flights/{registration}[/{flight_id}]` | Recorded flight history |
 
-### Prerequisites
+### SPACE — `/api/space`
+| Method | Path | Description |
+|---|---|---|
+| GET | `/iss` | ISS position, ground track, footprint |
+| GET | `/satellite/{norad_id}` | Position, ground track, footprint for any satellite |
+| GET | `/iss/passes` · `/satellite/{norad_id}/passes` · `/passes` | Pass predictions over an observer location |
+| GET | `/daynight` | Day/night terminator as GeoJSON |
+| GET | `/tle/status` · `/tle/list` · `/tle/uncategorised` | TLE database summaries |
+| POST | `/tle/fetch` · `/tle/manual` | Import TLEs from a URL or raw text |
+| PATCH | `/tle/category` · `/tle/satellite` | Categorise / edit satellites |
+| DELETE | `/tle` | Clear TLE data (`?confirm=true`) |
+| GET · POST | `/radio/file` | Satellite-radio frequency data |
 
-Install the `pmtiles` CLI:
+### SDR — `/api/sdr`
+| Method | Path | Description |
+|---|---|---|
+| GET · POST · PUT · DELETE | `/radios[/{id}]` | Manage configured radios |
+| GET · POST · PUT · DELETE | `/groups[/{id}]` · `/frequencies[/{id}]` · `/search-ranges[/{id}]` | Manage frequency groups, stored frequencies, search ranges |
+| GET · POST | `/data/frequencies` · `/data/bandplan` | Bulk import/export of SDR data |
+| GET · POST · PATCH · DELETE | `/recordings[...]` | Manage recordings; `/recordings/{id}/file` (WAV) and `/{id}/iq` (raw IQ) download |
+| POST | `/connect` · `/disconnect` | Open/close a radio's `rtl_tcp` connection |
+| GET | `/status/{radio_id}` | Connection state |
+| WS | `/ws/sdr/{radio_id}` · `/ws/sdr/{radio_id}/iq` | Spectrum frames / raw IQ stream |
 
-```bash
-brew install protomaps/homebrew-tap/pmtiles
-```
+### Settings — `/api/settings`
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` · `/{namespace}` | All settings, or one namespace as `{key: value}` |
+| PUT · DELETE | `/{namespace}/{key}` | Upsert / delete a setting |
+| GET | `/config/preview` | Current settings as a downloadable config JSON |
+| POST | `/config/upload` | Replace settings from an uploaded config JSON |
 
-Or download a binary from the [go-pmtiles releases page](https://github.com/protomaps/go-pmtiles/releases).
+---
 
-### Downloading the Tiles
+## Offline maps
 
-Both files are extracted from the Protomaps daily planet build. Replace `YYYYMMDD` with the current date — builds are published at `https://build.protomaps.com/YYYYMMDD.pmtiles`.
+Sentinel renders offline from [PMTiles](https://protomaps.com) vector archives placed in `frontend/assets/tiles/`:
+
+| File | Coverage |
+|---|---|
+| `surroundings.pmtiles` | Global overview (zoom 0–6) |
+| `uk.pmtiles` | Regional detail (e.g. UK, zoom 0–14) |
+
+Install the `pmtiles` CLI (`brew install protomaps/homebrew-tap/pmtiles`) and extract a region from a Protomaps planet build:
 
 ```bash
 mkdir -p frontend/assets/tiles
-```
-
-**Global overview (`surroundings.pmtiles`) — ~44 MB**
-
-Covers the entire world at zoom levels 0–6 for continent/country context when zoomed out.
-
-```bash
 pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles \
-  frontend/assets/tiles/surroundings.pmtiles \
-  --maxzoom=6
-```
-
-**UK detail (`uk.pmtiles`) — ~1.3 GB**
-
-Covers the United Kingdom at zoom levels 0–14 (street level). Takes 5–15 minutes depending on connection speed.
-
-```bash
+  frontend/assets/tiles/surroundings.pmtiles --maxzoom=6
 pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles \
-  frontend/assets/tiles/uk.pmtiles \
-  --bbox=-8.65,49.84,1.77,60.86 \
-  --maxzoom=14
+  frontend/assets/tiles/uk.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=14
 ```
 
-The `--bbox` parameter is `west,south,east,north` in decimal degrees.
-
-### Custom Regions
-
-To cover a different region, adjust `--bbox` and `--maxzoom`. Common extracts at z0–z14:
-
-| Region | Bounding box | Approx. size |
-|---|---|---|
-| United Kingdom | `-8.65,49.84,1.77,60.86` | ~1.3 GB |
-| Ireland | `-10.56,51.39,-5.97,55.43` | ~150 MB |
-| France | `-5.14,41.33,9.56,51.09` | ~3–4 GB |
-| Germany | `5.87,47.27,15.04,55.06` | ~3–4 GB |
-| Northern Europe | `-25.0,44.0,35.0,72.0` | ~10–15 GB |
-
-Beyond the configured bounding box, only the global z0–z6 data from `surroundings.pmtiles` renders.
-
-### Switching to Offline Mode
-
-Once the tile files are in place, switch via **Settings → Connectivity Mode → Offline**, or Sentinel will switch automatically when it detects lost connectivity (probes every 2 seconds).
+`--bbox` is `west,south,east,north` in decimal degrees. With the files in place, switch via **Settings → Connectivity Mode → Offline**, or let Sentinel fail over automatically when it loses connectivity.
 
 ---
 
-## Deployment
+## Database
 
-### Docker (recommended)
+SQLite tables are created automatically from the ORM models on startup:
 
-The project ships with a `docker-compose.yml` that runs nginx as a reverse proxy in front of the FastAPI container.
-
-```bash
-docker compose up --build
-```
-
-The app will be available at `http://localhost` (port 80). nginx serves static files directly and proxies all other requests to uvicorn on port 8000.
-
-### Local Development
-
-Run the FastAPI backend with hot-reload:
-
-```bash
-cd /path/to/Sentinel
-python -m venv backend/.venv
-source backend/.venv/bin/activate
-pip install -e "backend[dev]"
-uvicorn backend.main:app --reload --port 8000
-```
-
-The app will be available at `http://localhost:8000`. FastAPI's interactive API docs (Swagger UI) are at `http://localhost:8000/docs`.
-
-### Frontend Build
-
-TypeScript source files in `frontend/components/` are compiled to plain JavaScript. The compiled `.js` files are committed alongside the `.ts` sources.
-
-```bash
-# One-time build
-npm run build
-
-# Watch mode (recompiles on save)
-npm run watch
-
-# Type-check only
-npm run typecheck
-```
-
-### nginx Config
-
-`nginx.conf` proxies all requests to uvicorn. Static files under `/assets/` are served directly with long cache headers. The proxy passes standard forwarding headers (`X-Real-IP`, `X-Forwarded-For`).
-
-### Environment Variables
-
-All `backend/config.py` settings can be overridden at runtime via environment variables (uppercase, same name) or a `.env` file. For Docker deployments, set them in `docker-compose.yml` under the `environment:` key.
-
-```bash
-# Example .env
-ADSB_UPSTREAM_BASE=https://my-custom-feed.example.com/v2
-DB_PATH=/data/sentinel.db
-TLE_TTL_MS=3600000
-```
+`adsb_cache` · `tle_cache` · `satellite_catalogue` · `air_messages` · `air_tracking` · `air_aircraft` · `air_flights` · `air_snapshots` · `sdr_radios` · `sdr_frequency_groups` · `sdr_stored_frequencies` · `sdr_frequency_group_links` · `sdr_search_ranges` · `sdr_recordings` · `user_settings`
