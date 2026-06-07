@@ -224,25 +224,28 @@ class TestConfigUpload:
         assert len(set(ids)) == 3
 
     # ── sdr.groups authority on import ────────────────────────────────────────
+    # SDR groups/frequencies are no longer part of config-upload (they live in a
+    # dedicated store, excluded via _EXCLUDED_DATA_KEYS). POST /api/sdr/data/
+    # frequencies owns the reconcile, so these authority tests target it.
+    def _set_sdr_data(self, client, sdr_block):
+        return client.post("/api/sdr/data/frequencies", json=sdr_block)
 
     def test_dangling_group_ref_dropped_when_catalogue_authoritative(self, client):
-        # Frequency references "maritime" but it is NOT in sdr.groups → the
+        # Frequency references "maritime" but it is NOT in groups → the
         # ref is dropped and the group is never created/resurrected.
         payload = {
-            "sdr": {
-                "groups": [{"name": "Airband", "slug": "airband"}],
-                "frequencies": [
-                    {
-                        "label": "EGNT Tower",
-                        "frequency_hz": 119700000,
-                        "mode": "AM",
-                        "notes": "",
-                        "groups": ["airband", "maritime"],
-                    },
-                ],
-            },
+            "groups": [{"name": "Airband", "slug": "airband"}],
+            "frequencies": [
+                {
+                    "label": "EGNT Tower",
+                    "frequency_hz": 119700000,
+                    "mode": "AM",
+                    "notes": "",
+                    "groups": ["airband", "maritime"],
+                },
+            ],
         }
-        assert self._upload(client, payload).status_code == 200
+        assert self._set_sdr_data(client, payload).status_code == 200
 
         group_slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
         assert group_slugs == {"airband"}
@@ -255,50 +258,41 @@ class TestConfigUpload:
         gid_to_slug = {g["id"]: g["slug"] for g in client.get("/api/sdr/groups").json()}
         assert [gid_to_slug[i] for i in group_ids if i] == ["airband"]
 
-        sdr_cfg = json.loads(client.get("/api/settings/config/preview").content)["sdr"]
-        assert {g["slug"] for g in sdr_cfg["groups"]} == {"airband"}
-        for f in sdr_cfg["frequencies"]:
-            assert "maritime" not in f["groups"]
-
     def test_in_catalogue_empty_group_preserved(self, client):
-        # "empty" is in sdr.groups but referenced by no frequency → kept.
+        # "empty" is in groups but referenced by no frequency → kept.
         payload = {
-            "sdr": {
-                "groups": [
-                    {"name": "Airband", "slug": "airband"},
-                    {"name": "Empty", "slug": "empty"},
-                ],
-                "frequencies": [
-                    {
-                        "label": "EGNT Tower",
-                        "frequency_hz": 119700000,
-                        "mode": "AM",
-                        "notes": "",
-                        "groups": ["airband"],
-                    },
-                ],
-            },
+            "groups": [
+                {"name": "Airband", "slug": "airband"},
+                {"name": "Empty", "slug": "empty"},
+            ],
+            "frequencies": [
+                {
+                    "label": "EGNT Tower",
+                    "frequency_hz": 119700000,
+                    "mode": "AM",
+                    "notes": "",
+                    "groups": ["airband"],
+                },
+            ],
         }
-        assert self._upload(client, payload).status_code == 200
+        assert self._set_sdr_data(client, payload).status_code == 200
         slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
         assert slugs == {"airband", "empty"}
 
     def test_legacy_empty_catalogue_auto_creates_group(self, client):
-        # No sdr.groups key at all → relaxed (legacy) mode: a slug referenced
+        # No groups key at all → relaxed (legacy) mode: a slug referenced
         # by a frequency is auto-created so the import is not silently wiped.
         payload = {
-            "sdr": {
-                "frequencies": [
-                    {
-                        "label": "EGNT Tower",
-                        "frequency_hz": 119700000,
-                        "mode": "AM",
-                        "notes": "",
-                        "groups": ["foo"],
-                    },
-                ],
-            },
+            "frequencies": [
+                {
+                    "label": "EGNT Tower",
+                    "frequency_hz": 119700000,
+                    "mode": "AM",
+                    "notes": "",
+                    "groups": ["foo"],
+                },
+            ],
         }
-        assert self._upload(client, payload).status_code == 200
+        assert self._set_sdr_data(client, payload).status_code == 200
         slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
         assert "foo" in slugs
