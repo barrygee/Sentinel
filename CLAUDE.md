@@ -58,5 +58,6 @@ npm test                                                          # jest: fronte
 **Frontend (`frontend/vue/src/`).** Pinia `stores/` hold domain + cross-cutting state; `_persist.ts` backs selected state with localStorage, reconciled against the backend on load. **State that must survive teleport remounts (pane/tab selection) belongs in the store, not component refs.** Map features are class-based MapLibre `IControl`s under `components/<domain>/controls/<feature>/` extending a shared base — add features as controls, not inline in the view.
 
 ## Conventions
+- **Always work on a feature branch — never commit directly to `main`.** Before starting any new feature, fix, or edit (frontend, backend, or project config), create a branch off `main` (e.g. `feat/sdr-recording`, `fix/adsb-filter`, `chore/update-deps`). One branch per logical change; open a PR to merge back. This applies to every change, however small.
 - Run all `uv` commands from the **repo root** with `--project backend` (see Test & lint for why).
 - ruff is intentionally minimal; mypy is informational, not CI-gating.
