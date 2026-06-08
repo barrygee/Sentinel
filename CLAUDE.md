@@ -1,0 +1,62 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Sentinel is a real-time, offline-capable multi-domain surveillance dashboard (Air, Space, Sea, Land, SDR): a **FastAPI** backend serving a **Vue 3 SPA** that renders live data on **MapLibre GL** maps (**PMTiles** for offline tiles). The real frontend is the Vue SPA in `frontend/vue/`. `README.md` is current — it covers user-facing setup/features; this file covers working-on-the-code details.
+
+## Develop & deploy
+
+**Dev loop (hot reload — use this for frontend work).** Two terminals:
+```bash
+# 1. backend on :8080 (the port Vite's proxy expects — see frontend/vue/vite.config.ts)
+docker compose up                 # dockerized backend, code volume-mounted, on :8080
+#   …or local, no Docker (from repo root):  uv run --project backend uvicorn backend.main:app --reload --port 8080
+
+# 2. Vite dev server with Vue HMR — open http://localhost:5173
+cd frontend/vue && npm run dev    # proxies /api, /ws, /assets to :8080
+```
+Backend changes hot-reload via `uvicorn --reload`; Vue changes via Vite HMR. No rebuilds.
+
+**Deploy.** One command builds everything (multi-stage: compiles the SPA, packages the backend):
+```bash
+docker compose up --build -d      # app on http://localhost:8080
+```
+You only need `--build` when **dependencies** change (`pyproject.toml` / `package.json`). For plain code changes the volume mounts pick up backend edits live, and `cd frontend/vue && npm run build` regenerates the served `frontend/spa-dist/` (hard-reload the browser — no Docker restart).
+
+Note: `frontend/spa-dist/` (the built bundle) **is committed** and is what the backend serves in production — rebuild and commit it when shipping a frontend change.
+
+## Test & lint
+Run from the repo **root** (tests need `pythonpath=.`), and pass `--project backend` so uv uses the backend venv — the project's `pyproject.toml` lives in `backend/`, so a bare `uv run` from the root resolves to the wrong interpreter (an unrelated `~/.venv` / system pytest).
+```bash
+uv run --project backend pytest                                  # all backend tests
+uv run --project backend pytest tests/backend/test_routers_air.py::test_name   # single test
+uv run --project backend ruff check backend                      # lint (conservative: E,F,I,UP,B)
+uv run --project backend mypy backend                            # informational only, NOT gating (~90 known errors)
+npm test                                                          # jest: frontend helper unit tests in tests/
+```
+
+## Two npm contexts — don't confuse them
+- **`frontend/vue/`** — the real app (Vite + Vue 3 + Pinia + vue-router).
+- **Repo-root `package.json`** — legacy `tsc`/`jest` for standalone TS helpers tested in `tests/frontend/`. Not the app build.
+
+## Architecture
+
+**Serving model (`backend/main.py`).** FastAPI is the only server. Route order: `/api/**` (routers `air`, `space`, `settings`, `sdr`) → `/ws/sdr/{id}` → `/assets/**` (tiles/sprites/fonts) → `/spa-assets/**` + `/fonts/**` (hashed Vue bundle) → `/{full_path:path}` catch-all serving SPA `index.html` (`no-cache`, so it never pins a stale bundle) for vue-router. `lifespan` creates tables, runs migrations/seeders, starts a 24h cleanup loop, and **chains SIGTERM/SIGINT** to wake SDR WS queues before uvicorn shuts down — without it, long-lived SDR WS tasks deadlock `--reload`. Don't remove that.
+
+**Domains.** `air` (ADS-B), `space` (SGP4 + day/night terminator), `sdr` (RTL-SDR spectrum) are implemented; `sea`/`land` are scaffolding only. vue-router gates routes by `appStore.enabledDomains`.
+
+**Connectivity.** Each domain has online + offline source slots; a global `connectivityMode` plus per-domain `sourceOverride` (auto/online/offline) select the active one. `resolve_domain_urls()` in `backend/utils.py` centralises this and returns `(primary, fallback)`.
+
+**Caching.** `backend/cache.py` (`now_ms`/`is_fresh`/`is_within_stale`): SQLite write-through with a fresh TTL and a longer stale window (serve old data if upstream fails). ADS-B returns `X-Cache: HIT|MISS|STALE`. TTLs in `backend/config.py` (Pydantic Settings, env/`.env` overridable).
+
+**Persistence.** SQLite + SQLAlchemy 2.0 async. Schema built from ORM models on startup; defaults and SDR band-plan/frequency/satellite-radio data seeded from `backend/data/*.json`. Prefs live in `user_settings` as `namespace/key/JSON-value`. Tests use an in-memory StaticPool engine, override `get_db`, and skip lifespan (`conftest.py`).
+
+**SDR pipeline (`backend/services/sdr.py`).** Each radio connects to a remote `rtl_tcp` over raw asyncio TCP. **One broadcaster task per radio** reads IQ and fans FFT frames to all subscribed WS queues — avoids the `readexactly()` concurrent-reader error. Reads are sized **by time (~40ms ≈ 25fps)**, not sample count, so frame rate is stable when bandwidth changes. `rtl_tcp` cmd frame = 5 bytes `[cmd][big-endian uint32]`. FFT size clamped 1024–32768 (read the comments before changing).
+
+**Frontend (`frontend/vue/src/`).** Pinia `stores/` hold domain + cross-cutting state; `_persist.ts` backs selected state with localStorage, reconciled against the backend on load. **State that must survive teleport remounts (pane/tab selection) belongs in the store, not component refs.** Map features are class-based MapLibre `IControl`s under `components/<domain>/controls/<feature>/` extending a shared base — add features as controls, not inline in the view.
+
+## Conventions
+- Run all `uv` commands from the **repo root** with `--project backend` (see Test & lint for why).
+- ruff is intentionally minimal; mypy is informational, not CI-gating.
