@@ -11,7 +11,7 @@
       autocomplete="off"
       @input="onInput"
       @keydown.enter="emit('commit')"
-    >
+    />
     <span class="rd-label">s</span>
   </div>
 </template>
@@ -91,7 +91,9 @@ function onInput(e: Event): void {
   letter-spacing: 0.05em;
   text-align: right;
   outline: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .rd-input:focus {
   border-color: rgba(200, 255, 0, 0.6);

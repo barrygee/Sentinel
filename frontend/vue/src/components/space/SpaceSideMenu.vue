@@ -1,19 +1,38 @@
 <template>
   <div id="space-side-menu" :class="{ expanded }">
     <!-- Group 1: expand/collapse toggle -->
-    <div class="sm-group" id="ssm-group-toggle">
+    <div id="ssm-group-toggle" class="sm-group">
       <button
         id="space-side-menu-toggle"
         :data-tooltip="expanded ? 'COLLAPSE MENU' : 'EXPAND MENU'"
         @click="expanded = !expanded"
-      >{{ expanded ? '›' : '‹' }}</button>
+      >
+        {{ expanded ? '›' : '‹' }}
+      </button>
     </div>
 
     <!-- Group 2: zoom / go-to-location nav -->
-    <div class="sm-group" id="ssm-group-nav">
-      <button class="sm-nav-btn" title="Zoom in"   data-tooltip="Zoom in"   @click="mapRef.value?.getMap()?.zoomIn()">+</button>
-      <button class="sm-nav-btn" title="Zoom out"  data-tooltip="Zoom out"  @click="mapRef.value?.getMap()?.zoomOut()">−</button>
-      <button class="sm-nav-btn" title="Go to my location" data-tooltip="Go to my location"
+    <div id="ssm-group-nav" class="sm-group">
+      <button
+        class="sm-nav-btn"
+        title="Zoom in"
+        data-tooltip="Zoom in"
+        @click="mapRef.value?.getMap()?.zoomIn()"
+      >
+        +
+      </button>
+      <button
+        class="sm-nav-btn"
+        title="Zoom out"
+        data-tooltip="Zoom out"
+        @click="mapRef.value?.getMap()?.zoomOut()"
+      >
+        −
+      </button>
+      <button
+        class="sm-nav-btn"
+        title="Go to my location"
+        data-tooltip="Go to my location"
         :class="{ active: locActive }"
         @click="goToLocation"
         v-html="LOC_SVG"
@@ -21,15 +40,19 @@
     </div>
 
     <!-- Group 3: ground track + footprint (expanded only) -->
-    <div class="sm-group" id="ssm-group-iss">
-      <button class="sm-btn" data-tooltip="GROUND TRACK"
+    <div id="ssm-group-iss" class="sm-group">
+      <button
+        class="sm-btn"
+        data-tooltip="GROUND TRACK"
         :class="{ active: trackActive }"
         @click="toggleTrack"
       >
         <span class="sm-icon" v-html="TRACK_SVG" />
         <span class="sm-label">GROUND TRACK</span>
       </button>
-      <button class="sm-btn" data-tooltip="FOOTPRINT"
+      <button
+        class="sm-btn"
+        data-tooltip="FOOTPRINT"
         :class="{ active: footprintActive }"
         @click="toggleFootprint"
       >
@@ -39,28 +62,30 @@
     </div>
 
     <!-- Group 4: day/night + locations (expanded only) -->
-    <div class="sm-group" id="ssm-group-daynight">
-      <button class="sm-btn" data-tooltip="DAY / NIGHT"
+    <div id="ssm-group-daynight" class="sm-group">
+      <button
+        class="sm-btn"
+        data-tooltip="DAY / NIGHT"
         :class="{ active: daynightActive }"
         @click="toggleDaynight"
       >
         <span class="sm-icon" v-html="MOON_SVG" />
         <span class="sm-label">DAY / NIGHT</span>
       </button>
-      <button class="sm-btn" data-tooltip="LOCATIONS"
+      <button
+        class="sm-btn"
+        data-tooltip="LOCATIONS"
         :class="{ active: namesActive }"
         @click="toggleNames"
       >
-        <span class="sm-icon" style="--sm-icon-size:14px">N</span>
+        <span class="sm-icon" style="--sm-icon-size: 14px">N</span>
         <span class="sm-label">LOCATIONS</span>
       </button>
     </div>
 
     <!-- Group 5: satellite search -->
-    <div class="sm-group" id="ssm-group-filter">
-      <button class="sm-btn enabled" id="ssm-filter-btn" data-tooltip="SEARCH"
-        @click="openSearch"
-      >
+    <div id="ssm-group-filter" class="sm-group">
+      <button id="ssm-filter-btn" class="sm-btn enabled" data-tooltip="SEARCH" @click="openSearch">
         <span class="sm-icon" v-html="FILTER_SVG" />
         <span class="sm-label">SEARCH</span>
       </button>
@@ -78,7 +103,11 @@ import type SpaceMap from './SpaceMap.vue'
 // markRaw proxy from SpaceView — .current is non-reactive, preventing re-renders during teardown
 const props = defineProps<{ mapRef: { current: InstanceType<typeof SpaceMap> | null } }>()
 
-const mapRef = { get value() { return props.mapRef.current } }
+const mapRef = {
+  get value() {
+    return props.mapRef.current
+  },
+}
 
 const spaceStore = useSpaceStore()
 const { location: userLocation } = useUserLocation()
@@ -88,12 +117,12 @@ const { location: userLocation } = useUserLocation()
 const { sideMenuExpanded: expanded } = storeToRefs(spaceStore)
 const locActive = computed(() => userLocation.value !== null)
 
-const trackActive    = computed(() => spaceStore.overlayStates.groundTrack)
-const footprintActive= computed(() => spaceStore.overlayStates.footprint)
+const trackActive = computed(() => spaceStore.overlayStates.groundTrack)
+const footprintActive = computed(() => spaceStore.overlayStates.footprint)
 const daynightActive = computed(() => spaceStore.overlayStates.daynight)
-const namesActive    = computed(() => spaceStore.overlayStates.names)
+const namesActive = computed(() => spaceStore.overlayStates.names)
 
-const SAT_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+const _SAT_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="10" y="10" width="4" height="4" fill="#c8ff00"/>
   <rect x="2"  y="10" width="7" height="4" fill="rgba(200,255,0,0.5)"/>
   <rect x="15" y="10" width="7" height="4" fill="rgba(200,255,0,0.5)"/>
@@ -147,247 +176,254 @@ function openSearch(): void {
 
 <style>
 #space-side-menu {
-    position: fixed;
-    top: 80px;
-    right: 14px;
-    z-index: 1002;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
+  position: fixed;
+  top: 80px;
+  right: 14px;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
 }
 
 #space-side-menu .sm-group {
-    background: transparent;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    gap: 4px;
-    width: calc((148px - 8px) / 3);
-    transition: width 0.2s ease;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 4px;
+  width: calc((148px - 8px) / 3);
+  transition: width 0.2s ease;
 }
 
 #space-side-menu.expanded .sm-group {
-    width: 148px;
+  width: 148px;
 }
 
 #space-side-menu.expanded #ssm-group-nav {
-    flex-direction: row;
-    gap: 4px;
-    background: transparent;
-    border-color: transparent;
+  flex-direction: row;
+  gap: 4px;
+  background: transparent;
+  border-color: transparent;
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn {
-    flex: 1;
-    width: auto;
+  flex: 1;
+  width: auto;
 }
 
 #space-side-menu.expanded #ssm-group-toggle {
-    gap: 0;
-    width: calc((148px - 8px) / 3);
+  gap: 0;
+  width: calc((148px - 8px) / 3);
 }
 
 #space-side-menu-toggle {
-    width: 100%;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: rgba(255,255,255,0.35);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 14px;
-    font-weight: 400;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s, background 0.2s;
+  width: 100%;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.2s,
+    background 0.2s;
 }
 
 #space-side-menu-toggle:hover {
-    background: #111;
-    color: var(--color-text-muted);
+  background: #111;
+  color: var(--color-text-muted);
 }
 
 #space-side-menu .sm-nav-btn {
-    flex: none;
-    width: 100%;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: rgba(255,255,255,0.6);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 18px;
-    font-weight: 300;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s, color 0.2s;
+  flex: none;
+  width: 100%;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 #space-side-menu .sm-nav-btn:hover {
-    background: #111;
-    color: #fff;
+  background: #111;
+  color: #fff;
 }
 
 #space-side-menu .sm-btn {
-    width: 100%;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: #fff;
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s, opacity 0.2s, color 0.2s;
-    opacity: 1;
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 0;
+  width: 100%;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: #fff;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s,
+    opacity 0.2s,
+    color 0.2s;
+  opacity: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0;
 }
 
 #space-side-menu .sm-btn:hover {
-    background: #111;
+  background: #111;
 }
 
 #space-side-menu .sm-btn.active {
-    opacity: 1;
-    color: rgba(200, 255, 0, 0.75);
+  opacity: 1;
+  color: rgba(200, 255, 0, 0.75);
 }
 
 #space-side-menu .sm-btn .sm-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 29px;
-    flex-shrink: 0;
-    font-size: var(--sm-icon-size, 14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  flex-shrink: 0;
+  font-size: var(--sm-icon-size, 14px);
 }
 
 #space-side-menu .sm-btn .sm-icon svg {
-    display: block;
-    flex-shrink: 0;
-    width: auto;
-    height: 15px;
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: 15px;
 }
 
 #space-side-menu .sm-btn .sm-label {
-    display: none;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+  display: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
 }
 
 #space-side-menu.expanded .sm-btn {
-    justify-content: flex-start;
-    padding: 0 14px;
+  justify-content: flex-start;
+  padding: 0 14px;
 }
 
 #space-side-menu.expanded .sm-btn .sm-icon {
-    display: none;
+  display: none;
 }
 
 #space-side-menu.expanded .sm-btn .sm-label {
-    display: flex;
+  display: flex;
 }
 
 #space-side-menu:not(.expanded) #ssm-group-iss,
 #space-side-menu:not(.expanded) #ssm-group-daynight {
-    display: none;
+  display: none;
 }
 
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip],
 #space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip],
 #space-side-menu:not(.expanded) #space-side-menu-toggle[data-tooltip],
 #space-side-menu.expanded .sm-nav-btn[data-tooltip] {
-    position: relative;
+  position: relative;
 }
 
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip]::before,
 #space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip]::before,
 #space-side-menu:not(.expanded) #space-side-menu-toggle[data-tooltip]::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    right: calc(100% + 8px);
-    top: 50%;
-    transform: translateY(-50%);
-    background: #000;
-    color: var(--color-text-muted);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 0 10px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 1002;
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 10px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1002;
 }
 
 #space-side-menu:not(.expanded) .sm-btn[data-tooltip]:hover::before,
 #space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip]:hover::before,
 #space-side-menu:not(.expanded) #space-side-menu-toggle[data-tooltip]:hover::before {
-    opacity: 1;
+  opacity: 1;
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn[data-tooltip],
 #space-side-menu.expanded #space-side-menu-toggle[data-tooltip] {
-    position: relative;
+  position: relative;
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn[data-tooltip]::before,
 #space-side-menu.expanded #space-side-menu-toggle[data-tooltip]::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #000;
-    color: var(--color-text-muted);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 0 10px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 1002;
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 10px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1002;
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(1)[data-tooltip]::before {
-    right: calc(100% + 8px);
+  right: calc(100% + 8px);
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(2)[data-tooltip]::before {
-    right: calc(100% + 8px + 50.67px);
+  right: calc(100% + 8px + 50.67px);
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(3)[data-tooltip]::before {
-    right: calc(100% + 8px + 101.33px);
+  right: calc(100% + 8px + 101.33px);
 }
 
 #space-side-menu.expanded #space-side-menu-toggle[data-tooltip]::before {
-    right: calc(100% + 8px);
+  right: calc(100% + 8px);
 }
 
 #space-side-menu.expanded #ssm-group-nav .sm-nav-btn[data-tooltip]:hover::before,
 #space-side-menu.expanded #space-side-menu-toggle[data-tooltip]:hover::before {
-    opacity: 1;
+  opacity: 1;
 }
 </style>

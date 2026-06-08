@@ -8,7 +8,7 @@
           :key="item.id"
           class="notif-item"
           :data-type="item.type"
-          :style="(item.clickAction || item.hex || item.noradId) ? 'cursor:pointer' : ''"
+          :style="item.clickAction || item.hex || item.noradId ? 'cursor:pointer' : ''"
           @click="handleItemClick(item)"
         >
           <div class="notif-header">
@@ -22,18 +22,58 @@
               </template>
               <template v-else>{{ store.getLabelForType(item.type) }}</template>
             </span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <button v-if="item.type === 'autotune'" class="notif-dismiss" aria-label="Disable autotune"
-                @click.stop="cancelAutoTune(item)">✕</button>
-              <button v-else-if="item.action" class="notif-action" aria-label="Disable notifications"
-                @click.stop="item.action!.callback(); store.dismiss(item.id)">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
-                  <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
-                  <line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <button
+                v-if="item.type === 'autotune'"
+                class="notif-dismiss"
+                aria-label="Disable autotune"
+                @click.stop="cancelAutoTune(item)"
+              >
+                ✕
+              </button>
+              <button
+                v-else-if="item.action"
+                class="notif-action"
+                aria-label="Disable notifications"
+                @click.stop="runActionAndDismiss(item)"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 13 13"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M5 10.5a1.5 1.5 0 0 0 3 0"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    fill="none"
+                  />
+                  <line
+                    x1="1.5"
+                    y1="1.5"
+                    x2="11.5"
+                    y2="11.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="square"
+                  />
                 </svg>
               </button>
-              <button v-else class="notif-dismiss" aria-label="Dismiss" data-tooltip="Dismiss" @click.stop="store.dismiss(item.id)">✕</button>
+              <button
+                v-else
+                class="notif-dismiss"
+                aria-label="Dismiss"
+                data-tooltip="Dismiss"
+                @click.stop="store.dismiss(item.id)"
+              >
+                ✕
+              </button>
             </div>
           </div>
           <div class="notif-body">
@@ -46,13 +86,37 @@
     </div>
   </div>
   <div id="notif-footer">
-    <button id="notif-clear-all-btn" v-if="store.total > 0"
-      aria-label="Clear notifications" @click="store.clearAll()">CLEAR</button>
-    <button id="notif-scroll-hint" type="button" aria-label="Scroll for more"
-      :class="{ 'notif-scroll-hint-visible': showScrollHint }" @click="scrollForMore">
+    <button
+      v-if="store.total > 0"
+      id="notif-clear-all-btn"
+      aria-label="Clear notifications"
+      @click="store.clearAll()"
+    >
+      CLEAR
+    </button>
+    <button
+      id="notif-scroll-hint"
+      type="button"
+      aria-label="Scroll for more"
+      :class="{ 'notif-scroll-hint-visible': showScrollHint }"
+      @click="scrollForMore"
+    >
       MORE
-      <svg id="notif-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <polyline points="1,2.5 4,5.5 7,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg
+        id="notif-scroll-arrow"
+        width="8"
+        height="8"
+        viewBox="0 0 8 8"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <polyline
+          points="1,2.5 4,5.5 7,2.5"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </button>
   </div>
@@ -62,13 +126,28 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  useNotificationsStore, getAircraftClickHandler, getSatelliteClickHandler,
-  setPendingAircraftTarget, setPendingSatelliteTarget, type NotificationItem,
+  useNotificationsStore,
+  getAircraftClickHandler,
+  getSatelliteClickHandler,
+  setPendingAircraftTarget,
+  setPendingSatelliteTarget,
+  type NotificationItem,
 } from '@/stores/notifications'
-import { setAutoTuneEnabled, isAutoTuneEnabled } from '@/components/space/controls/satellite/passNotifStore'
+import {
+  setAutoTuneEnabled,
+  isAutoTuneEnabled,
+} from '@/components/space/controls/satellite/passNotifStore'
 
 const store = useNotificationsStore()
 const router = useRouter()
+
+// Run a notification's inline action then dismiss it. Extracted from an inline
+// multi-statement template handler so the no-semicolon Prettier style doesn't
+// break it in the Vue template compiler.
+function runActionAndDismiss(item: NotificationItem): void {
+  item.action?.callback()
+  store.dismiss(item.id)
+}
 
 // Clicking an alert navigates the map to its subject, centring it in the
 // viewport without locking on. Aircraft (hex) focus on the air map; satellites
@@ -76,18 +155,27 @@ const router = useRouter()
 // section isn't mounted, route to it first and stash the target — the map drains
 // it when it registers its handler.
 function handleItemClick(item: NotificationItem): void {
-  if (item.clickAction) { item.clickAction(); return }
+  if (item.clickAction) {
+    item.clickAction()
+    return
+  }
   if (item.noradId) {
     const name = item.satName || item.title || item.noradId
     const handler = getSatelliteClickHandler()
-    if (handler) { handler(item.noradId, name); return }
+    if (handler) {
+      handler(item.noradId, name)
+      return
+    }
     setPendingSatelliteTarget(item.noradId, name)
     void router.push('/space/')
     return
   }
   if (item.hex) {
     const handler = getAircraftClickHandler()
-    if (handler) { handler(item.hex); return }
+    if (handler) {
+      handler(item.hex)
+      return
+    }
     setPendingAircraftTarget(item.hex)
     void router.push('/air/')
   }
@@ -112,7 +200,9 @@ function cancelAutoTune(item: NotificationItem): void {
   const noradId = item.noradId
   if (noradId && isAutoTuneEnabled(noradId)) {
     setAutoTuneEnabled(noradId, false)
-    document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }))
+    document.dispatchEvent(
+      new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }),
+    )
   }
   store.dismiss(item.id)
 }
@@ -129,7 +219,7 @@ function onAfterLeave(): void {
 
 function formatTime(ts: number): string {
   const d = new Date(ts)
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} LOCAL`
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} LOCAL`
 }
 
 function updateScrollHint() {
@@ -165,375 +255,422 @@ onUnmounted(() => {
 
 <style>
 #notif-list-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    pointer-events: all;
-    touch-action: none;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  pointer-events: all;
+  touch-action: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 #notif-footer {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    flex-shrink: 0;
-    border-top: none;
-    pointer-events: all;
-    height: 40px;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-shrink: 0;
+  border-top: none;
+  pointer-events: all;
+  height: 40px;
 }
 
 #notif-clear-all-btn {
-    flex: 1;
-    pointer-events: all;
-    background: none;
-    border: none;
-    border-right: 1px solid var(--color-border);
-    color: rgba(255, 255, 255, 0.4);
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    line-height: 1;
-    transition: color 0.15s ease, background 0.15s ease;
+  flex: 1;
+  pointer-events: all;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 #notif-clear-all-btn:hover {
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-muted);
 }
 
 #notif-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    align-items: flex-start;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-    pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  pointer-events: auto;
 }
 
 #notif-list::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 #notif-scroll-hint {
-    flex: 1;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.35);
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    cursor: pointer;
-    pointer-events: none;
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s ease, color 0.15s ease;
+  flex: 1;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    visibility 0.3s ease,
+    color 0.15s ease;
 }
 
 #notif-scroll-hint.notif-scroll-hint-visible {
-    visibility: visible;
-    opacity: 1;
-    pointer-events: all;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: all;
 }
 
 #notif-scroll-hint.notif-scroll-hint-visible:hover {
-    color: var(--color-text-muted);
+  color: var(--color-text-muted);
 }
 
 #notif-scroll-arrow {
-    display: inline-block;
-    vertical-align: middle;
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
 }
 
 #notif-scroll-arrow.notif-arrow-up {
-    transform: rotate(180deg);
+  transform: rotate(180deg);
 }
 
 .notif-item {
-    width: 100%;
-    background: transparent;
-    color: #fff;
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    pointer-events: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    padding: 13px 26px 13px 28px;
-    transition: background 0.12s;
-    flex-shrink: 0;
+  width: 100%;
+  background: transparent;
+  color: #fff;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 13px 26px 13px 28px;
+  transition: background 0.12s;
+  flex-shrink: 0;
 }
 
 .notif-enter-active,
 .notif-leave-active {
-    transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .notif-enter-from {
-    opacity: 0;
-    transform: translateX(-10px);
+  opacity: 0;
+  transform: translateX(-10px);
 }
 
 .notif-leave-to {
-    opacity: 0;
-    transform: translateX(-10px);
+  opacity: 0;
+  transform: translateX(-10px);
 }
 
 .notif-item:hover {
-    background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .notif-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: none;
-    background: transparent;
-    position: relative;
-    z-index: 1;
-    gap: 6px;
-    margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: none;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  gap: 6px;
+  margin-bottom: 2px;
 }
 
 .notif-label {
-    flex: 1;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+  flex: 1;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.notif-item[data-type="flight"]     .notif-label { color: var(--color-accent); opacity: 0.75; }
-.notif-item[data-type="departure"]  .notif-label { color: var(--color-accent); opacity: 0.75; }
-.notif-item[data-type="track"]      .notif-label { color: var(--color-accent); opacity: 0.75; }
-.notif-item[data-type="tracking"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
-.notif-item[data-type="autotune"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
-.notif-item[data-type="overhead"]   .notif-label { color: var(--color-accent); opacity: 0.75; }
-.notif-item[data-type="notif-off"]  .notif-label { color: rgba(255, 255, 255, 0.45); }
-.notif-item[data-type="system"]     .notif-label { color: rgba(255, 255, 255, 0.45); }
-.notif-item[data-type="message"]    .notif-label { color: rgba(100, 160, 255, 0.8); }
-.notif-item[data-type="emergency"]  .notif-label { color: #ff2222; }
-.notif-item[data-type="squawk-clr"] .notif-label { color: rgba(255, 255, 255, 0.45); }
+.notif-item[data-type='flight'] .notif-label {
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+.notif-item[data-type='departure'] .notif-label {
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+.notif-item[data-type='track'] .notif-label {
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+.notif-item[data-type='tracking'] .notif-label {
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+.notif-item[data-type='autotune'] .notif-label {
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+.notif-item[data-type='overhead'] .notif-label {
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+.notif-item[data-type='notif-off'] .notif-label {
+  color: rgba(255, 255, 255, 0.45);
+}
+.notif-item[data-type='system'] .notif-label {
+  color: rgba(255, 255, 255, 0.45);
+}
+.notif-item[data-type='message'] .notif-label {
+  color: rgba(100, 160, 255, 0.8);
+}
+.notif-item[data-type='emergency'] .notif-label {
+  color: #ff2222;
+}
+.notif-item[data-type='squawk-clr'] .notif-label {
+  color: rgba(255, 255, 255, 0.45);
+}
 
 .notif-dismiss {
-    position: relative;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    color: rgba(255, 255, 255, 0.25);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    transition: color 0.2s;
-    line-height: 1;
-    flex-shrink: 0;
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .notif-dismiss:hover {
-    color: var(--color-text-muted);
+  color: var(--color-text-muted);
 }
 
 .notif-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .notif-title {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: #fff;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.notif-item[data-type="emergency"] .notif-title {
-    color: #ff2222;
+.notif-item[data-type='emergency'] .notif-title {
+  color: #ff2222;
 }
 
 .notif-detail {
-    font-size: 10px;
-    font-weight: 400;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.4);
-    text-transform: uppercase;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notif-time {
-    font-size: 10px;
-    font-weight: 400;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.25);
-    margin-top: 0;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.25);
+  margin-top: 0;
 }
 
 .notif-action {
-    position: relative;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    margin-right: -2px;
-    color: rgba(255, 255, 255, 0.3);
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    transition: color 0.15s;
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-right: -2px;
+  color: rgba(255, 255, 255, 0.3);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
 }
 
 .notif-action:hover {
-    color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .notif-label-default {
-    transition: opacity 0.15s;
+  transition: opacity 0.15s;
 }
 
 .notif-label-disable {
-    display: none;
-    color: #fff;
+  display: none;
+  color: #fff;
 }
 
 .notif-header:has(.notif-action:hover) .notif-label-default {
-    display: none;
+  display: none;
 }
 
 .notif-header:has(.notif-action:hover) .notif-label-disable {
-    display: inline;
+  display: inline;
 }
 
 .notif-action[data-tooltip]::before,
 .notif-dismiss[data-tooltip]::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    right: calc(100% + 8px);
-    top: 50%;
-    transform: translateY(-50%);
-    background: #000;
-    color: var(--color-text-muted);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 0 14px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 10002;
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 14px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10002;
 }
 
 .notif-action[data-tooltip]:hover::before,
 .notif-dismiss[data-tooltip]:hover::before {
-    opacity: 1;
+  opacity: 1;
 }
 
 @keyframes notif-bell-pulse {
-    0%   { opacity: 0.6; color: #fff; }
-    50%  { opacity: 1;   color: var(--color-accent); }
-    100% { opacity: 0.6; color: #fff; }
+  0% {
+    opacity: 0.6;
+    color: #fff;
+  }
+  50% {
+    opacity: 1;
+    color: var(--color-accent);
+  }
+  100% {
+    opacity: 0.6;
+    color: #fff;
+  }
 }
 
 #notif-toggle-btn.notif-btn-unread {
-    animation: notif-bell-pulse 0.6s ease-in-out 3;
+  animation: notif-bell-pulse 0.6s ease-in-out 3;
 }
 
 #notif-toggle-btn {
-    height: 36px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0 10px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    color: #fff;
-    opacity: 0.6;
-    transition: background 0.2s, opacity 0.2s, color 0.2s;
-    flex-shrink: 0;
-    margin: 4px 0;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff;
+  opacity: 0.6;
+  transition:
+    background 0.2s,
+    opacity 0.2s,
+    color 0.2s;
+  flex-shrink: 0;
+  margin: 4px 0;
 }
 
 #notif-toggle-btn:hover {
-    background: var(--color-border);
-    border-radius: 6px;
-    opacity: 1;
+  background: var(--color-border);
+  border-radius: 6px;
+  opacity: 1;
 }
 
 #notif-toggle-btn.notif-btn-active {
-    opacity: 1;
-    color: #fff;
+  opacity: 1;
+  color: #fff;
 }
 
 #notif-toggle-btn:not(.notif-btn-active) {
-    position: relative;
+  position: relative;
 }
 
 #notif-toggle-btn:not(.notif-btn-active) #notif-icon {
-    position: relative;
+  position: relative;
 }
 
 #notif-toggle-btn:not(.notif-btn-active) #notif-icon::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 2px;
-    height: 22px;
-    background: rgba(255, 255, 255, 0.55);
-    transform: translate(-50%, -50%) rotate(45deg);
-    pointer-events: none;
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.55);
+  transform: translate(-50%, -50%) rotate(45deg);
+  pointer-events: none;
 }
 
 #notif-icon {
-    display: block;
-    flex-shrink: 0;
-    width: auto;
-    height: 15px;
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: 15px;
 }
 
 #notif-count {
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.4);
-    line-height: 1;
-    margin-bottom: 4px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
 #notif-count.notif-count-unread {
-    color: var(--color-accent);
+  color: var(--color-accent);
 }
 </style>

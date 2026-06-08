@@ -11,12 +11,18 @@ export const useAppStore = defineStore('app', () => {
   // Play a subtle blip when a new notification arrives. localStorage for instant
   // restore, DB hydrate on config upload. Default OFF.
   function _readNotificationSound(): boolean {
-    try { return localStorage.getItem('appNotificationSound') === '1' } catch { return false }
+    try {
+      return localStorage.getItem('appNotificationSound') === '1'
+    } catch {
+      return false
+    }
   }
   const notificationSound = ref<boolean>(_readNotificationSound())
   function setNotificationSound(on: boolean) {
     notificationSound.value = on
-    try { localStorage.setItem('appNotificationSound', on ? '1' : '0') } catch {}
+    try {
+      localStorage.setItem('appNotificationSound', on ? '1' : '0')
+    } catch {}
   }
   async function hydrateNotificationSoundFromDb(): Promise<void> {
     try {
@@ -25,7 +31,9 @@ export const useAppStore = defineStore('app', () => {
       const data = await res.json()
       const v = data?.notificationSound
       if (typeof v === 'boolean' && v !== notificationSound.value) setNotificationSound(v)
-    } catch { /* offline / transient */ }
+    } catch {
+      /* offline / transient */
+    }
   }
 
   function setConnectivityMode(mode: ConnectivityMode) {
@@ -47,8 +55,15 @@ export const useAppStore = defineStore('app', () => {
   }
 
   return {
-    connectivityMode, isOnline, enabledDomains,
-    notificationSound, setNotificationSound, hydrateNotificationSoundFromDb,
-    setConnectivityMode, setOnline, setEnabledDomains, firstEnabledDomain,
+    connectivityMode,
+    isOnline,
+    enabledDomains,
+    notificationSound,
+    setNotificationSound,
+    hydrateNotificationSoundFromDb,
+    setConnectivityMode,
+    setOnline,
+    setEnabledDomains,
+    firstEnabledDomain,
   }
 })

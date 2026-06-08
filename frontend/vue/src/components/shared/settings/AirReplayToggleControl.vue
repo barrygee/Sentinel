@@ -9,7 +9,9 @@
         :aria-checked="on"
         aria-label="Toggle air replay recording"
         @click="toggle"
-      ><span class="ac-thumb"></span></button>
+      >
+        <span class="ac-thumb"></span>
+      </button>
     </div>
   </div>
 </template>
@@ -54,8 +56,18 @@ function toggle(): void {
 </script>
 
 <style scoped>
-.ac-wrap { display: flex; flex-direction: row; align-items: center; gap: 20px; flex-wrap: wrap; }
-.ac-row { display: flex; align-items: center; gap: 10px; }
+.ac-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.ac-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .ac-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
@@ -73,9 +85,14 @@ function toggle(): void {
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
-.ac-track.is-on { background: rgba(200, 255, 0, 0.2); border-color: rgba(200, 255, 0, 0.6); }
+.ac-track.is-on {
+  background: rgba(200, 255, 0, 0.2);
+  border-color: rgba(200, 255, 0, 0.6);
+}
 .ac-thumb {
   position: absolute;
   top: 2px;
@@ -84,7 +101,12 @@ function toggle(): void {
   height: 12px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.55);
-  transition: left 0.15s, background 0.15s;
+  transition:
+    left 0.15s,
+    background 0.15s;
 }
-.ac-track.is-on .ac-thumb { background: #c8ff00; left: 20px; }
+.ac-track.is-on .ac-thumb {
+  background: #c8ff00;
+  left: 20px;
+}
 </style>

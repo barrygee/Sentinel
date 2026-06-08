@@ -15,7 +15,11 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useSpaceStore } from '@/stores/space'
-import { useNotificationsStore, registerSatelliteClickHandler, clearSatelliteClickHandler } from '@/stores/notifications'
+import {
+  useNotificationsStore,
+  registerSatelliteClickHandler,
+  clearSatelliteClickHandler,
+} from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
@@ -34,10 +38,10 @@ const { location: userLocation, start: startLocation } = useUserLocation()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const STYLE_ONLINE  = '/assets/fiord-online.json'
+const STYLE_ONLINE = '/assets/fiord-online.json'
 const STYLE_OFFLINE = '/assets/fiord.json'
 
-const styleUrl = computed(() => appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE)
+const styleUrl = computed(() => (appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE))
 
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
@@ -84,12 +88,16 @@ function _clearLocationMarker(): void {
 
 onMounted(() => {
   window.addEventListener('sentinel:userLocationCleared', _clearLocationMarker)
-  watch(userLocation, (loc) => {
-    // Drop the marker when the location is cleared (config emptied) so a
-    // stale pin doesn't linger until GPS provides a new fix.
-    if (loc) _locationMarker.update(loc.lon, loc.lat)
-    else _clearLocationMarker()
-  }, { immediate: true })
+  watch(
+    userLocation,
+    (loc) => {
+      // Drop the marker when the location is cleared (config emptied) so a
+      // stale pin doesn't linger until GPS provides a new fix.
+      if (loc) _locationMarker.update(loc.lon, loc.lat)
+      else _clearLocationMarker()
+    },
+    { immediate: true },
+  )
 })
 
 function onGoToLocation(): void {
@@ -111,13 +119,15 @@ function onStyleLoaded(m: MapLibreGlMap) {
     getUserLocation,
     null,
   )
-  void nextTick(() => { satelliteControlRef.value = satelliteControl })
+  void nextTick(() => {
+    satelliteControlRef.value = satelliteControl
+  })
   daynightControl = new DaynightControl(spaceStore)
-  namesControl    = new SpaceNamesToggleControl(spaceStore)
+  namesControl = new SpaceNamesToggleControl(spaceStore)
 
-  m.addControl(satelliteControl,     'top-right')
-  m.addControl(daynightControl,'top-right')
-  m.addControl(namesControl,   'top-right')
+  m.addControl(satelliteControl, 'top-right')
+  m.addControl(daynightControl, 'top-right')
+  m.addControl(namesControl, 'top-right')
 
   // Clicking a satellite alert centres it in the viewport here (no follow).
   // Registering drains any pending target stashed when the alert was clicked
@@ -153,151 +163,153 @@ onBeforeUnmount(() => {
   }
   _map = null
   satelliteControl = null
-  daynightControl  = null
-  namesControl     = null
+  daynightControl = null
+  namesControl = null
   satelliteControlRef.value = null
   clearSatelliteClickHandler()
 })
 
 defineExpose({
-  getSatelliteControl:     () => satelliteControl,
-  get satelliteControlReactive() { return satelliteControlRef.value },
-  getDaynightControl:() => daynightControl,
-  getNamesControl:   () => namesControl,
-  getMap:            () => _map,
+  getSatelliteControl: () => satelliteControl,
+  get satelliteControlReactive() {
+    return satelliteControlRef.value
+  },
+  getDaynightControl: () => daynightControl,
+  getNamesControl: () => namesControl,
+  getMap: () => _map,
 })
 </script>
 
 <style>
 .iss-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(0, 0, 0, 0.5);
-    color: #ffffff;
-    font-family: 'Barlow Condensed', 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 3px 10px;
-    white-space: nowrap;
-    pointer-events: none;
-    user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  font-family: 'Barlow Condensed', 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 }
 
 .iss-label.iss-label--tracking {
-    pointer-events: auto;
-    cursor: pointer;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .iss-label.iss-label--hidden {
-    visibility: hidden;
+  visibility: hidden;
 }
 
 .iss-tracking-badge {
-    color: #c8ff00;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    transition: color 0.2s;
+  color: #c8ff00;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transition: color 0.2s;
 }
 
 .iss-tracking-badge.iss-tracking-badge--hidden {
-    display: none;
+  display: none;
 }
 
 .iss-tag-wrap {
-    pointer-events: auto;
+  pointer-events: auto;
 }
 
 .iss-tag {
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 14px;
-    font-weight: 400;
-    padding: 6px 14px 9px;
-    white-space: nowrap;
-    user-select: none;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  padding: 6px 14px 9px;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .iss-tag-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 15px;
-    letter-spacing: 0.12em;
-    margin-bottom: 6px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .iss-tag-name {
-    font-size: 13px;
-    font-weight: 400;
-    pointer-events: none;
-    color: #c8ff00;
-    letter-spacing: 0.12em;
+  font-size: 13px;
+  font-weight: 400;
+  pointer-events: none;
+  color: #c8ff00;
+  letter-spacing: 0.12em;
 }
 
 .iss-tag-actions {
-    display: flex;
-    align-items: center;
-    gap: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
 }
 
 .iss-tag-rows {
-    pointer-events: none;
+  pointer-events: none;
 }
 
 .iss-tag-row {
-    display: flex;
-    gap: 14px;
-    line-height: 1.8;
+  display: flex;
+  gap: 14px;
+  line-height: 1.8;
 }
 
 .iss-tag-lbl {
-    opacity: 0.5;
-    min-width: 34px;
-    letter-spacing: 0.05em;
+  opacity: 0.5;
+  min-width: 34px;
+  letter-spacing: 0.05em;
 }
 
 .iss-track-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px 12px;
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    line-height: 1;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    color: rgba(255, 255, 255, 0.3);
-    transition: color 0.15s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.15s;
 }
 
 .iss-track-btn.iss-track-btn--active {
-    color: #c8ff00;
+  color: #c8ff00;
 }
 
 .iss-notif-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px 6px;
-    line-height: 1;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    color: rgba(255, 255, 255, 0.3);
-    transition: color 0.15s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 6px;
+  line-height: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.15s;
 }
 
 .iss-notif-btn.iss-notif-btn--active {
-    color: #c8ff00;
+  color: #c8ff00;
 }
 </style>

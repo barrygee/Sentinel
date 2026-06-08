@@ -7,7 +7,9 @@
         class="settings-source-override-btn"
         :class="{ 'is-active': current === opt.value }"
         @click="select(opt.value)"
-      >{{ opt.label }}</button>
+      >
+        {{ opt.label }}
+      </button>
     </div>
   </div>
 </template>
@@ -21,7 +23,7 @@ const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const LS_KEY = 'sentinel_space_filterHoverPreview'
 const OPTIONS: Array<{ value: 'stay' | 'fly'; label: string }> = [
   { value: 'stay', label: 'STAY IN PLACE' },
-  { value: 'fly',  label: 'FLY TO SATELLITE' },
+  { value: 'fly', label: 'FLY TO SATELLITE' },
 ]
 
 const current = ref<'stay' | 'fly'>('stay')
@@ -35,7 +37,9 @@ onMounted(async () => {
   const data = await settingsApi.getNamespace('space')
   if (data?.filterHoverPreview === 'fly' || data?.filterHoverPreview === 'stay') {
     current.value = data.filterHoverPreview as 'stay' | 'fly'
-    try { localStorage.setItem(LS_KEY, current.value) } catch {}
+    try {
+      localStorage.setItem(LS_KEY, current.value)
+    } catch {}
   }
 })
 
@@ -43,7 +47,9 @@ function select(val: 'stay' | 'fly'): void {
   if (current.value === val) return
   current.value = val
   emit('stage', () => {
-    try { localStorage.setItem(LS_KEY, current.value) } catch {}
+    try {
+      localStorage.setItem(LS_KEY, current.value)
+    } catch {}
     settingsApi.put('space', 'filterHoverPreview', current.value)
   })
 }

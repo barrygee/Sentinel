@@ -7,7 +7,9 @@ let _ctx: AudioContext | null = null
 function _getCtx(): AudioContext | null {
   try {
     if (!_ctx) {
-      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       if (!Ctor) return null
       _ctx = new Ctor()
     }
@@ -32,8 +34,8 @@ export function playNotificationSound(emphasis = false): void {
   try {
     const now = ctx.currentTime
     const peak = emphasis ? 0.09 : 0.06
-    const noteDur = 0.07            // length of each note
-    const gap = 0.06               // start-to-start spacing of the two notes
+    const noteDur = 0.07 // length of each note
+    const gap = 0.06 // start-to-start spacing of the two notes
 
     // Low then high: an ascending pair is the classic "alert" gesture.
     const f1 = emphasis ? 740 : 620

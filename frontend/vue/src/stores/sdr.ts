@@ -82,7 +82,11 @@ export const useSdrStore = defineStore('sdr', () => {
   //        WITHOUT retuning the hardware; the display stays put and the audio
   //        follows via an NCO offset (see useSdrAudio.setOffsetHz).
   function _readAutoCenterWaterfallOnTune(): boolean {
-    try { return localStorage.getItem('sdrAutoCenterWaterfallOnTune') !== '0' } catch { return true }
+    try {
+      return localStorage.getItem('sdrAutoCenterWaterfallOnTune') !== '0'
+    } catch {
+      return true
+    }
   }
   const autoCenterWaterfallOnTune = ref<boolean>(_readAutoCenterWaterfallOnTune())
   // Set the toggle. When turning it ON while the demod sits off-centre, retune
@@ -91,7 +95,9 @@ export const useSdrStore = defineStore('sdr', () => {
   // offset). Pure cache write here — DB persistence is the control's job.
   function setAutoCenterWaterfallOnTune(on: boolean) {
     autoCenterWaterfallOnTune.value = on
-    try { localStorage.setItem('sdrAutoCenterWaterfallOnTune', on ? '1' : '0') } catch {}
+    try {
+      localStorage.setItem('sdrAutoCenterWaterfallOnTune', on ? '1' : '0')
+    } catch {}
     if (on && tuningOffsetHz.value !== 0) {
       tuningOffsetHz.value = 0
       requestTune(currentFreqHz.value)
@@ -112,7 +118,9 @@ export const useSdrStore = defineStore('sdr', () => {
       if (typeof v === 'boolean' && v !== autoCenterWaterfallOnTune.value) {
         setAutoCenterWaterfallOnTune(v)
       }
-    } catch { /* offline / transient — keep current value */ }
+    } catch {
+      /* offline / transient — keep current value */
+    }
   }
 
   // "Full waterfall update" toggle (matches SDR++ User Guide v1.1 p. 34). When
@@ -121,12 +129,18 @@ export const useSdrStore = defineStore('sdr', () => {
   // pre-zoom rows staying horizontally-stretched. Default ON in Sentinel
   // (SDR++'s own default is OFF, but Sentinel users see a cleaner zoom UX).
   function _readFullWaterfallUpdate(): boolean {
-    try { return localStorage.getItem('sdrFullWaterfallUpdate') !== '0' } catch { return true }
+    try {
+      return localStorage.getItem('sdrFullWaterfallUpdate') !== '0'
+    } catch {
+      return true
+    }
   }
   const fullWaterfallUpdate = ref<boolean>(_readFullWaterfallUpdate())
   function setFullWaterfallUpdate(on: boolean) {
     fullWaterfallUpdate.value = on
-    try { localStorage.setItem('sdrFullWaterfallUpdate', on ? '1' : '0') } catch {}
+    try {
+      localStorage.setItem('sdrFullWaterfallUpdate', on ? '1' : '0')
+    } catch {}
   }
   // Mirror of hydrateAutoCenterFromDb — keeps the live toggle in sync after a
   // config JSON upload replaces the DB row.
@@ -139,19 +153,27 @@ export const useSdrStore = defineStore('sdr', () => {
       if (typeof v === 'boolean' && v !== fullWaterfallUpdate.value) {
         setFullWaterfallUpdate(v)
       }
-    } catch { /* offline / transient — keep current value */ }
+    } catch {
+      /* offline / transient — keep current value */
+    }
   }
 
   // Waterfall overlay visibility toggles (bandplan strip and known-frequency
   // labels). Same persistence pattern as fullWaterfallUpdate: localStorage for
   // instant restore, DB hydrate on config upload. Default ON.
   function _readShowBandPlan(): boolean {
-    try { return localStorage.getItem('sdrShowBandPlan') !== '0' } catch { return true }
+    try {
+      return localStorage.getItem('sdrShowBandPlan') !== '0'
+    } catch {
+      return true
+    }
   }
   const showBandPlan = ref<boolean>(_readShowBandPlan())
   function setShowBandPlan(on: boolean) {
     showBandPlan.value = on
-    try { localStorage.setItem('sdrShowBandPlan', on ? '1' : '0') } catch {}
+    try {
+      localStorage.setItem('sdrShowBandPlan', on ? '1' : '0')
+    } catch {}
   }
   async function hydrateShowBandPlanFromDb(): Promise<void> {
     try {
@@ -160,16 +182,24 @@ export const useSdrStore = defineStore('sdr', () => {
       const data = await res.json()
       const v = data?.showBandPlan
       if (typeof v === 'boolean' && v !== showBandPlan.value) setShowBandPlan(v)
-    } catch { /* offline / transient */ }
+    } catch {
+      /* offline / transient */
+    }
   }
 
   function _readShowKnownFreqs(): boolean {
-    try { return localStorage.getItem('sdrShowKnownFreqs') !== '0' } catch { return true }
+    try {
+      return localStorage.getItem('sdrShowKnownFreqs') !== '0'
+    } catch {
+      return true
+    }
   }
   const showKnownFreqs = ref<boolean>(_readShowKnownFreqs())
   function setShowKnownFreqs(on: boolean) {
     showKnownFreqs.value = on
-    try { localStorage.setItem('sdrShowKnownFreqs', on ? '1' : '0') } catch {}
+    try {
+      localStorage.setItem('sdrShowKnownFreqs', on ? '1' : '0')
+    } catch {}
   }
   async function hydrateShowKnownFreqsFromDb(): Promise<void> {
     try {
@@ -178,7 +208,9 @@ export const useSdrStore = defineStore('sdr', () => {
       const data = await res.json()
       const v = data?.showKnownFreqs
       if (typeof v === 'boolean' && v !== showKnownFreqs.value) setShowKnownFreqs(v)
-    } catch { /* offline / transient */ }
+    } catch {
+      /* offline / transient */
+    }
   }
 
   // Resume delay (seconds) for scan + search auto-resume. When the radio locks
@@ -191,13 +223,17 @@ export const useSdrStore = defineStore('sdr', () => {
       const raw = localStorage.getItem('sdrResumeDelaySec')
       const n = raw == null ? 0 : parseInt(raw, 10)
       return isFinite(n) && n >= 0 ? n : 0
-    } catch { return 0 }
+    } catch {
+      return 0
+    }
   }
   const resumeDelaySec = ref<number>(_readResumeDelaySec())
   function setResumeDelaySec(v: number) {
     const clamped = isFinite(v) && v >= 0 ? Math.floor(v) : 0
     resumeDelaySec.value = clamped
-    try { localStorage.setItem('sdrResumeDelaySec', String(clamped)) } catch {}
+    try {
+      localStorage.setItem('sdrResumeDelaySec', String(clamped))
+    } catch {}
   }
   async function hydrateResumeDelaySecFromDb(): Promise<void> {
     try {
@@ -208,7 +244,9 @@ export const useSdrStore = defineStore('sdr', () => {
       if (typeof v === 'number' && v >= 0 && v !== resumeDelaySec.value) {
         setResumeDelaySec(v)
       }
-    } catch { /* offline / transient */ }
+    } catch {
+      /* offline / transient */
+    }
   }
 
   // Waterfall view settings (Zoom / Max / Min sliders in SdrWaterfall). These
@@ -226,15 +264,28 @@ export const useSdrStore = defineStore('sdr', () => {
       if (raw == null) return fallback
       const n = parseFloat(raw)
       return isFinite(n) ? n : fallback
-    } catch { return fallback }
+    } catch {
+      return fallback
+    }
   }
   const viewZoom = ref(_readNum('sdrViewZoom', 1))
   const viewZmin = ref(_readNum('sdrViewZmin', 0))
   const viewZmax = ref(_readNum('sdrViewZmax', 0))
-  const viewAutoScale = ref<boolean>((() => {
-    try { return localStorage.getItem('sdrViewAutoScale') !== '0' } catch { return true }
-  })())
-  function setViewSettings(s: { zoom?: number; zmin?: number; zmax?: number; autoScale?: boolean }) {
+  const viewAutoScale = ref<boolean>(
+    (() => {
+      try {
+        return localStorage.getItem('sdrViewAutoScale') !== '0'
+      } catch {
+        return true
+      }
+    })(),
+  )
+  function setViewSettings(s: {
+    zoom?: number
+    zmin?: number
+    zmax?: number
+    autoScale?: boolean
+  }) {
     if (s.zoom !== undefined) viewZoom.value = s.zoom
     if (s.zmin !== undefined) viewZmin.value = s.zmin
     if (s.zmax !== undefined) viewZmax.value = s.zmax
@@ -300,7 +351,8 @@ export const useSdrStore = defineStore('sdr', () => {
 
   function _persistSession() {
     try {
-      if (currentRadioId.value !== null) sessionStorage.setItem('sdrLastRadioId', String(currentRadioId.value))
+      if (currentRadioId.value !== null)
+        sessionStorage.setItem('sdrLastRadioId', String(currentRadioId.value))
       sessionStorage.setItem('sdrLastFreqHz', String(currentFreqHz.value))
       sessionStorage.setItem('sdrLastMode', currentMode.value)
       sessionStorage.setItem('sdrPlaying', playing.value ? '1' : '0')
@@ -381,20 +433,63 @@ export const useSdrStore = defineStore('sdr', () => {
   _restoreSession()
 
   return {
-    radios, groups, frequencies, currentRadioId, playing, connected,
-    currentFreqHz, currentMode, currentGain, currentSquelch, panelOpen, sampleRate,
-    lastSpectrum, searchSweeping, searchLowHz, searchHighHz, searchCurrentHz,
-    scanSweeping, scanGroupNames,
-    bwHz, tuneRequest, bwRequest, fftSizeRequest,
-    autoCenterWaterfallOnTune, setAutoCenterWaterfallOnTune, hydrateAutoCenterFromDb,
-    fullWaterfallUpdate, setFullWaterfallUpdate, hydrateFullWaterfallUpdateFromDb,
-    showBandPlan, setShowBandPlan, hydrateShowBandPlanFromDb,
-    showKnownFreqs, setShowKnownFreqs, hydrateShowKnownFreqsFromDb,
-    resumeDelaySec, setResumeDelaySec, hydrateResumeDelaySecFromDb,
-    viewZoom, viewZmin, viewZmax, viewAutoScale, setViewSettings,
-    tuningOffsetHz, setTuningOffsetHz,
-    setRadio, setFrequency, setMode, setPlaying, setConnected, setSpectrum,
-    setBandwidthHz, requestTune, requestBandwidth, requestFftSize,
-    loadRadios, loadGroups, loadFrequencies,
+    radios,
+    groups,
+    frequencies,
+    currentRadioId,
+    playing,
+    connected,
+    currentFreqHz,
+    currentMode,
+    currentGain,
+    currentSquelch,
+    panelOpen,
+    sampleRate,
+    lastSpectrum,
+    searchSweeping,
+    searchLowHz,
+    searchHighHz,
+    searchCurrentHz,
+    scanSweeping,
+    scanGroupNames,
+    bwHz,
+    tuneRequest,
+    bwRequest,
+    fftSizeRequest,
+    autoCenterWaterfallOnTune,
+    setAutoCenterWaterfallOnTune,
+    hydrateAutoCenterFromDb,
+    fullWaterfallUpdate,
+    setFullWaterfallUpdate,
+    hydrateFullWaterfallUpdateFromDb,
+    showBandPlan,
+    setShowBandPlan,
+    hydrateShowBandPlanFromDb,
+    showKnownFreqs,
+    setShowKnownFreqs,
+    hydrateShowKnownFreqsFromDb,
+    resumeDelaySec,
+    setResumeDelaySec,
+    hydrateResumeDelaySecFromDb,
+    viewZoom,
+    viewZmin,
+    viewZmax,
+    viewAutoScale,
+    setViewSettings,
+    tuningOffsetHz,
+    setTuningOffsetHz,
+    setRadio,
+    setFrequency,
+    setMode,
+    setPlaying,
+    setConnected,
+    setSpectrum,
+    setBandwidthHz,
+    requestTune,
+    requestBandwidth,
+    requestFftSize,
+    loadRadios,
+    loadGroups,
+    loadFrequencies,
   }
 })

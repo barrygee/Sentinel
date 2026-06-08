@@ -48,8 +48,26 @@ export const DEFAULT_OVERHEAD_ALERT_RADIUS_NM = 10
 
 const DEFAULT_LABEL_FIELDS: AdsbLabelFields = { civil: ['type'], mil: ['type'] }
 const DEFAULT_TAG_FIELDS: AdsbTagFields = {
-  civil: { callsign: true, altitude: false, speed: false, heading: false, aircraftType: false, registration: false, squawk: false, category: false },
-  mil:   { callsign: true, altitude: false, speed: false, heading: false, aircraftType: true,  registration: false, squawk: false, category: false },
+  civil: {
+    callsign: true,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: false,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
+  mil: {
+    callsign: true,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: true,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
 }
 
 const DEFAULTS: OverlayStates = {
@@ -68,9 +86,11 @@ const DEFAULTS: OverlayStates = {
 
 function migrateOverlays(parsed: unknown): Partial<OverlayStates> {
   const obj = parsed as Partial<OverlayStates> & { overheadAlerts?: boolean }
-  if (typeof obj.overheadAlerts === 'boolean'
-      && obj.overheadAlertsCivil === undefined
-      && obj.overheadAlertsMil === undefined) {
+  if (
+    typeof obj.overheadAlerts === 'boolean' &&
+    obj.overheadAlertsCivil === undefined &&
+    obj.overheadAlertsMil === undefined
+  ) {
     obj.overheadAlertsCivil = obj.overheadAlerts
     obj.overheadAlertsMil = obj.overheadAlerts
   }
@@ -82,7 +102,7 @@ function migrateLabelFields(parsed: unknown): Partial<AdsbLabelFields> {
   const obj = parsed as Partial<AdsbLabelFields>
   return {
     civil: Array.isArray(obj.civil) ? obj.civil : DEFAULT_LABEL_FIELDS.civil,
-    mil:   Array.isArray(obj.mil)   ? obj.mil   : DEFAULT_LABEL_FIELDS.mil,
+    mil: Array.isArray(obj.mil) ? obj.mil : DEFAULT_LABEL_FIELDS.mil,
   }
 }
 
@@ -93,15 +113,23 @@ function isTagFieldMap(v: unknown): v is AdsbTagFieldMap {
 function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
   const obj = parsed as Partial<AdsbTagFields>
   return {
-    civil: isTagFieldMap(obj.civil) ? { ...DEFAULT_TAG_FIELDS.civil, ...obj.civil } : { ...DEFAULT_TAG_FIELDS.civil },
-    mil:   isTagFieldMap(obj.mil)   ? { ...DEFAULT_TAG_FIELDS.mil,   ...obj.mil   } : { ...DEFAULT_TAG_FIELDS.mil },
+    civil: isTagFieldMap(obj.civil)
+      ? { ...DEFAULT_TAG_FIELDS.civil, ...obj.civil }
+      : { ...DEFAULT_TAG_FIELDS.civil },
+    mil: isTagFieldMap(obj.mil)
+      ? { ...DEFAULT_TAG_FIELDS.mil, ...obj.mil }
+      : { ...DEFAULT_TAG_FIELDS.mil },
   }
 }
 
 const LS_REPLAY_ENABLED_KEY = 'airReplayEnabled'
 
 function readPersistedReplayEnabled(): boolean {
-  try { return localStorage.getItem(LS_REPLAY_ENABLED_KEY) === '1' } catch { return false }
+  try {
+    return localStorage.getItem(LS_REPLAY_ENABLED_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 function readPersistedRadius(): number {
@@ -117,8 +145,16 @@ function readPersistedRadius(): number {
 
 export const useAirStore = defineStore('air', () => {
   const overlayStates = usePersistedObject<OverlayStates>(LS_KEY, DEFAULTS, migrateOverlays)
-  const adsbLabelFields = usePersistedObject<AdsbLabelFields>(LS_LABEL_FIELDS_KEY, DEFAULT_LABEL_FIELDS, migrateLabelFields)
-  const adsbTagFields = usePersistedObject<AdsbTagFields>(LS_TAG_FIELDS_KEY, DEFAULT_TAG_FIELDS, migrateTagFields)
+  const adsbLabelFields = usePersistedObject<AdsbLabelFields>(
+    LS_LABEL_FIELDS_KEY,
+    DEFAULT_LABEL_FIELDS,
+    migrateLabelFields,
+  )
+  const adsbTagFields = usePersistedObject<AdsbTagFields>(
+    LS_TAG_FIELDS_KEY,
+    DEFAULT_TAG_FIELDS,
+    migrateTagFields,
+  )
   const overheadAlertRadiusNm = ref<number>(readPersistedRadius())
   // Replay (flight history recording + REPLAY tab). Opt-in, default OFF.
   // localStorage for instant restore; DB hydrate happens in main.ts at startup.
@@ -143,13 +179,17 @@ export const useAirStore = defineStore('air', () => {
 
   function setReplayEnabled(on: boolean) {
     replayEnabled.value = on
-    try { localStorage.setItem(LS_REPLAY_ENABLED_KEY, on ? '1' : '0') } catch {}
+    try {
+      localStorage.setItem(LS_REPLAY_ENABLED_KEY, on ? '1' : '0')
+    } catch {}
   }
 
   function setOverheadAlertRadiusNm(nm: number) {
     if (!Number.isFinite(nm) || nm <= 0) return
     overheadAlertRadiusNm.value = nm
-    try { localStorage.setItem(LS_OVERHEAD_RADIUS_KEY, String(nm)) } catch {}
+    try {
+      localStorage.setItem(LS_OVERHEAD_RADIUS_KEY, String(nm))
+    } catch {}
   }
 
   function setFilter(query: string) {
@@ -166,5 +206,24 @@ export const useAirStore = defineStore('air', () => {
     pitch.value = currentPitch
   }
 
-  return { overlayStates, adsbLabelFields, adsbTagFields, overheadAlertRadiusNm, replayEnabled, filterQuery, filterOpen, mapCenter, mapZoom, pitch, setOverlay, setAdsbLabelFields, setAdsbTagFields, setOverheadAlertRadiusNm, setReplayEnabled, setFilter, toggleFilter, saveMapState }
+  return {
+    overlayStates,
+    adsbLabelFields,
+    adsbTagFields,
+    overheadAlertRadiusNm,
+    replayEnabled,
+    filterQuery,
+    filterOpen,
+    mapCenter,
+    mapZoom,
+    pitch,
+    setOverlay,
+    setAdsbLabelFields,
+    setAdsbTagFields,
+    setOverheadAlertRadiusNm,
+    setReplayEnabled,
+    setFilter,
+    toggleFilter,
+    saveMapState,
+  }
 })

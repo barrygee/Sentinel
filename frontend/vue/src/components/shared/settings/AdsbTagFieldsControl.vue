@@ -13,20 +13,42 @@
         </div>
         <div class="adsb-tf-cell">
           <label class="adsb-tf-check">
-            <input type="checkbox" class="adsb-tf-input" :checked="fields.civil[opt.key]" @change="toggle('civil', opt.key)">
+            <input
+              type="checkbox"
+              class="adsb-tf-input"
+              :checked="fields.civil[opt.key]"
+              @change="toggle('civil', opt.key)"
+            />
             <span class="adsb-tf-box">
               <svg v-if="fields.civil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
-                <path d="M1 2.5L3 4.5L7 0.5" stroke="#00aaff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path
+                  d="M1 2.5L3 4.5L7 0.5"
+                  stroke="#00aaff"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </span>
           </label>
         </div>
         <div class="adsb-tf-cell">
           <label class="adsb-tf-check">
-            <input type="checkbox" class="adsb-tf-input" :checked="fields.mil[opt.key]" @change="toggle('mil', opt.key)">
+            <input
+              type="checkbox"
+              class="adsb-tf-input"
+              :checked="fields.mil[opt.key]"
+              @change="toggle('mil', opt.key)"
+            />
             <span class="adsb-tf-box adsb-tf-box--mil">
               <svg v-if="fields.mil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
-                <path d="M1 2.5L3 4.5L7 0.5" stroke="#c8ff00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path
+                  d="M1 2.5L3 4.5L7 0.5"
+                  stroke="#c8ff00"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </span>
           </label>
@@ -46,28 +68,33 @@ const emit = defineEmits<{ stage: [fn: () => void] }>()
 
 const fields = ref<AdsbTagFields>({
   civil: { ...airStore.adsbTagFields.civil },
-  mil:   { ...airStore.adsbTagFields.mil },
+  mil: { ...airStore.adsbTagFields.mil },
 })
 
 const OPTIONS: Array<{ key: keyof AdsbTagFieldMap; abbr: string; label: string }> = [
-  { key: 'callsign',     abbr: 'CSS', label: 'Callsign' },
-  { key: 'altitude',     abbr: 'ALT', label: 'Altitude' },
-  { key: 'speed',        abbr: 'SPD', label: 'Speed' },
-  { key: 'heading',      abbr: 'HDG', label: 'Heading' },
+  { key: 'callsign', abbr: 'CSS', label: 'Callsign' },
+  { key: 'altitude', abbr: 'ALT', label: 'Altitude' },
+  { key: 'speed', abbr: 'SPD', label: 'Speed' },
+  { key: 'heading', abbr: 'HDG', label: 'Heading' },
   { key: 'aircraftType', abbr: 'TYP', label: 'Aircraft Type' },
   { key: 'registration', abbr: 'REG', label: 'Registration' },
-  { key: 'squawk',       abbr: 'SQK', label: 'Squawk' },
-  { key: 'category',     abbr: 'CAT', label: 'Category' },
+  { key: 'squawk', abbr: 'SQK', label: 'Squawk' },
+  { key: 'category', abbr: 'CAT', label: 'Category' },
 ]
 
 onMounted(async () => {
   const data = await settingsApi.getNamespace('air')
   const remote = data?.labelDataPoints as AdsbTagFields | undefined
-  if (remote && typeof remote === 'object' && !Array.isArray(remote) &&
-      typeof remote.civil === 'object' && typeof remote.mil === 'object') {
+  if (
+    remote &&
+    typeof remote === 'object' &&
+    !Array.isArray(remote) &&
+    typeof remote.civil === 'object' &&
+    typeof remote.mil === 'object'
+  ) {
     fields.value = {
       civil: { ...airStore.adsbTagFields.civil, ...remote.civil },
-      mil:   { ...airStore.adsbTagFields.mil,   ...remote.mil },
+      mil: { ...airStore.adsbTagFields.mil, ...remote.mil },
     }
     airStore.setAdsbTagFields({ ...fields.value })
     window.dispatchEvent(new CustomEvent('adsb:tagFieldsChanged', { detail: { ...fields.value } }))
@@ -123,8 +150,12 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   padding-left: 0;
   padding-right: 0;
 }
-.adsb-tf-header-col--civil { color: rgba(0, 170, 255, 0.5); }
-.adsb-tf-header-col--mil   { color: rgba(200, 255, 0, 0.5); }
+.adsb-tf-header-col--civil {
+  color: rgba(0, 170, 255, 0.5);
+}
+.adsb-tf-header-col--mil {
+  color: rgba(200, 255, 0, 0.5);
+}
 .adsb-tf-row {
   display: grid;
   grid-template-columns: 1fr 80px 80px;
@@ -133,8 +164,12 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   background: rgba(255, 255, 255, 0.02);
   transition: background 0.1s;
 }
-.adsb-tf-row:last-child { border-bottom: none; }
-.adsb-tf-row:hover { background: rgba(255, 255, 255, 0.05); }
+.adsb-tf-row:last-child {
+  border-bottom: none;
+}
+.adsb-tf-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
 .adsb-tf-row-label {
   display: flex;
   align-items: center;
@@ -168,7 +203,9 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   display: flex;
   align-items: center;
 }
-.adsb-tf-input { display: none; }
+.adsb-tf-input {
+  display: none;
+}
 .adsb-tf-box {
   width: 14px;
   height: 14px;
@@ -178,7 +215,9 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .adsb-tf-input:checked + .adsb-tf-box {
   background: rgba(0, 170, 255, 0.1);

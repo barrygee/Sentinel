@@ -15,12 +15,30 @@ import mx from 'sigplot/js/mx'
 const _origDrawaxis = mx.drawaxis
 mx.drawaxis = function (
   Gx: unknown,
-  Mx: { stk: Array<{ x1: number; y1: number; x2: number; y2: number }>; level: number; active_canvas: HTMLCanvasElement; fg: string; bg: string; width: number; height: number },
+  Mx: {
+    stk: Array<{ x1: number; y1: number; x2: number; y2: number }>
+    level: number
+    active_canvas: HTMLCanvasElement
+    fg: string
+    bg: string
+    width: number
+    height: number
+  },
   xdiv: number,
   ydiv: number,
   xlab: number,
   ylab: number,
-  flags: { noaxisbox?: boolean; exactbox?: boolean; grid?: boolean | string; noxtics?: boolean; noytics?: boolean; noxtlab?: boolean; noytlab?: boolean; noxplab?: boolean; noyplab?: boolean },
+  flags: {
+    noaxisbox?: boolean
+    exactbox?: boolean
+    grid?: boolean | string
+    noxtics?: boolean
+    noytics?: boolean
+    noxtlab?: boolean
+    noytlab?: boolean
+    noxplab?: boolean
+    noyplab?: boolean
+  },
 ) {
   // Waterfall identifier: fg == bg (we set both to BG so axis chrome is
   // invisible while still reserving the gutter for layout alignment with the
@@ -64,7 +82,10 @@ mx.drawaxis = function (
 const _origMxText = mx.text
 mx.text = function (
   Mx: {
-    b: number; l: number; text_h: number; text_w: number
+    b: number
+    l: number
+    text_h: number
+    text_w: number
     canvas?: HTMLCanvasElement
   },
   x: number,
@@ -86,15 +107,18 @@ mx.text = function (
   // x is just outside Mx.l — excluding it would leave the first label
   // un-centered (drifts to the left edge of the data box).
   const isXAxisLabel =
-    typeof lbl === 'string' && /^-?\d+\.?\d*$/.test(lbl.trim()) &&
-    typeof Mx?.b === 'number' && typeof Mx?.text_h === 'number' &&
-    y > Mx.b + Mx.text_h * 0.5 && y < Mx.b + Mx.text_h * 2
+    typeof lbl === 'string' &&
+    /^-?\d+\.?\d*$/.test(lbl.trim()) &&
+    typeof Mx?.b === 'number' &&
+    typeof Mx?.text_h === 'number' &&
+    y > Mx.b + Mx.text_h * 0.5 &&
+    y < Mx.b + Mx.text_h * 2
   // Capture the ORIGINAL label length before any rewrite — sigplot used this
   // length to compute the x it passed in (x = tick − round(origLen/2)*text_w),
   // so recovering the tick position must use the same length. Rewriting first
   // and then using lbl.length here would offset the tick by ±text_w whenever
   // the rewrite changes the character count (e.g. "124." → "124.0").
-  const origLen = typeof lbl === 'string' ? lbl.length : 0
+  const _origLen = typeof lbl === 'string' ? lbl.length : 0
   if (typeof lbl === 'string' && /^-?\d+\.$/.test(lbl.trim())) {
     // sigplot's trimlabel() appends a trailing "." to integer tick labels.
     // On the x-axis (MHz) keep one decimal place ("344." → "344.0") so labels
@@ -128,10 +152,8 @@ const searchOverlayLowMHz = computed(() =>
 const searchOverlayHighMHz = computed(() =>
   store.searchHighHz != null ? (store.searchHighHz / 1e6).toFixed(4) : '—',
 )
-const searchOverlayActiveMHz = computed(() =>
-  store.searchCurrentHz != null
-    ? (store.searchCurrentHz / 1e6).toFixed(4) + ' MHz'
-    : '— MHz',
+const _searchOverlayActiveMHz = computed(() =>
+  store.searchCurrentHz != null ? (store.searchCurrentHz / 1e6).toFixed(4) + ' MHz' : '— MHz',
 )
 const searchOverlayProgressPct = computed(() => {
   const lo = store.searchLowHz
@@ -145,10 +167,12 @@ const searchOverlayProgressPct = computed(() => {
 // ── RF band plan ─────────────────────────────────────────────────────────────
 // Reference allocations used to label the spectrum (e.g. "Medium Wave"). Sourced
 // from the sdr.bandPlan config setting (seeded from backend/default_config.json).
-interface RfBand { name: string; startHz: number; endHz: number }
-const bandPlan = computed<RfBand[]>(() =>
-  settings.getSetting<RfBand[]>('sdr', 'bandPlan', []),
-)
+interface RfBand {
+  name: string
+  startHz: number
+  endHz: number
+}
+const bandPlan = computed<RfBand[]>(() => settings.getSetting<RfBand[]>('sdr', 'bandPlan', []))
 
 // Live frequency span of the current spectrum frame (center ± sample_rate/2),
 // tracked so the axis scaling and the band overlay follow tuning.
@@ -202,7 +226,11 @@ const spectrumStyle = computed(() => ({
 
 // ── Layout: track the SDR side panel open/closed state ───────────────────────
 function _readSidebarOpen(): boolean {
-  try { return sessionStorage.getItem('sentinel_sidebar_open') === '1' } catch { return false }
+  try {
+    return sessionStorage.getItem('sentinel_sidebar_open') === '1'
+  } catch {
+    return false
+  }
 }
 const panelOpen = ref<boolean>(_readSidebarOpen())
 useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
@@ -228,7 +256,7 @@ useDocumentEvent('sentinel:config-uploaded', () => {
 // for an 8-bit RTL-SDR — the dBFS dynamic range of the ADC). The waterfall
 // starts in auto-scale (autol) so it always has contrast on first frame; the
 // first slider drag switches it to the fixed range.
-const zmin = ref(0)  // seeded from DEVICE_DB_RANGE below
+const zmin = ref(0) // seeded from DEVICE_DB_RANGE below
 const zmax = ref(0)
 const autoScale = ref(true)
 
@@ -240,11 +268,15 @@ const autoScale = ref(true)
 // zmin/zmax refs still carry the actual dB values.
 const zmaxSlider = computed({
   get: () => -zmax.value,
-  set: (v: number) => { zmax.value = -v },
+  set: (v: number) => {
+    zmax.value = -v
+  },
 })
 const zminSlider = computed({
   get: () => -zmin.value,
-  set: (v: number) => { zmin.value = -v },
+  set: (v: number) => {
+    zmin.value = -v
+  },
 })
 
 // ── Zoom — horizontal (frequency) zoom into the selected frequency ───────────
@@ -284,7 +316,7 @@ function zoomWindowHz(lo: number, hi: number): { winLo: number; winHi: number } 
   const win = zoom.value <= ZOOM_MIN ? hi - lo : (hi - lo) / zoom.value
   const halfWin = win / 2
   // Base centre: span midpoint at zoom <= 1 (full span), else the selected freq.
-  const sel = zoom.value <= ZOOM_MIN ? (lo + hi) / 2 : (store.currentFreqHz || (lo + hi) / 2)
+  const sel = zoom.value <= ZOOM_MIN ? (lo + hi) / 2 : store.currentFreqHz || (lo + hi) / 2
   // Zoom clamp: keep [centre-halfWin, centre+halfWin] inside [lo, hi].
   const clamped = Math.min(hi - halfWin, Math.max(lo + halfWin, sel))
   // Live pan offset is added AFTER the clamp so the drag can slide past edges.
@@ -305,8 +337,16 @@ function applyZoom() {
   // per-frame reload — see the level>=1 note below). Only when fully unzoomed
   // AND not panning do we restore the full-span base view.
   if (zoom.value <= ZOOM_MIN && livePanOffsetHz.value === 0) {
-    try { specPlot?.unzoom() } catch { /* noop */ }
-    try { wfPlot?.unzoom() } catch { /* noop */ }
+    try {
+      specPlot?.unzoom()
+    } catch {
+      /* noop */
+    }
+    try {
+      wfPlot?.unzoom()
+    } catch {
+      /* noop */
+    }
     return
   }
   // Window centred on the selected frequency, clamped to the span edges.
@@ -330,10 +370,26 @@ function applyZoom() {
   // Mx.level >= 1 where reload()/push() won't touch the window. Re-running this
   // on every slider tick keeps the stack one level deep (unzoom pops back to 0).
   // y left undefined => keep the full vertical (dB / history) range.
-  try { specPlot?.unzoom() } catch { /* noop */ }
-  try { wfPlot?.unzoom() } catch { /* noop */ }
-  try { specPlot?.zoom({ x: x1MHz }, { x: x2MHz }, false) } catch { /* noop */ }
-  try { wfPlot?.zoom({ x: x1Hz }, { x: x2Hz }, false) } catch { /* noop */ }
+  try {
+    specPlot?.unzoom()
+  } catch {
+    /* noop */
+  }
+  try {
+    wfPlot?.unzoom()
+  } catch {
+    /* noop */
+  }
+  try {
+    specPlot?.zoom({ x: x1MHz }, { x: x2MHz }, false)
+  } catch {
+    /* noop */
+  }
+  try {
+    wfPlot?.zoom({ x: x1Hz }, { x: x2Hz }, false)
+  } catch {
+    /* noop */
+  }
 }
 // Waterfall colour auto-scale window (frames). sigplot's autol:N recomputes
 // the z colour range every ~N frames. A small N (was 5) chases the noise
@@ -358,10 +414,10 @@ const WF_AUTOL = 100
 // ydiv is recomputed live from (max - min) / 20 in applySpecRange().
 type SdrDeviceId = 'rtl_tcp' | 'hackrf' | 'airspy' | 'sdrplay'
 const DEVICE_DB_RANGE: Record<SdrDeviceId, { ymin: number; ymax: number }> = {
-  rtl_tcp:  { ymin: -100, ymax: 0 }, // 8-bit IQ (only device wired today)
-  hackrf:   { ymin: -100, ymax: 0 }, // 8-bit IQ  — placeholder
-  airspy:   { ymin: -120, ymax: 0 }, // 12-bit IQ — placeholder
-  sdrplay:  { ymin: -140, ymax: 0 }, // 14-bit IQ — placeholder
+  rtl_tcp: { ymin: -100, ymax: 0 }, // 8-bit IQ (only device wired today)
+  hackrf: { ymin: -100, ymax: 0 }, // 8-bit IQ  — placeholder
+  airspy: { ymin: -120, ymax: 0 }, // 12-bit IQ — placeholder
+  sdrplay: { ymin: -140, ymax: 0 }, // 14-bit IQ — placeholder
 }
 const ACTIVE_DEVICE: SdrDeviceId = 'rtl_tcp'
 const SPEC_YMIN_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymin
@@ -388,8 +444,16 @@ function applySpecRange(lo: number, hi: number) {
   if (!(hi > lo)) return
   const span = hi - lo
   const ydiv = -Math.max(1, Math.round(span / 20))
-  try { specPlot?.change_settings({ ymin: lo, ymax: hi, ydiv }) } catch { /* noop */ }
-  try { wfPlot?.change_settings({ autol: -1, zmin: lo, zmax: hi }) } catch { /* noop */ }
+  try {
+    specPlot?.change_settings({ ymin: lo, ymax: hi, ydiv })
+  } catch {
+    /* noop */
+  }
+  try {
+    wfPlot?.change_settings({ autol: -1, zmin: lo, zmax: hi })
+  } catch {
+    /* noop */
+  }
 }
 
 // ── Plot instances & layer uuids — deliberately NON-reactive ─────────────────
@@ -408,8 +472,8 @@ let ro: ResizeObserver | null = null
 // layer x is in raw Hz. With mode:'absolute' the accordion positions itself in
 // the plot's x data units, so each instance gets its centre/width in that
 // plot's units. Single source of truth is the store (currentFreqHz + bwHz).
-let specAcc: AccordionPlugin | null = null   // MHz spectrum plot — shaded passband
-let wfAcc: AccordionPlugin | null = null     // Hz waterfall plot — shaded passband
+let specAcc: AccordionPlugin | null = null // MHz spectrum plot — shaded passband
+let wfAcc: AccordionPlugin | null = null // Hz waterfall plot — shaded passband
 // Carrier-line accordions: zero-shade, single line drawn on the actual carrier
 // frequency. Decoupled from the passband shading so SSB modes (USB/LSB) can
 // shift the shaded rectangle to one side while keeping the tuning line on the
@@ -440,8 +504,8 @@ function carrierFromBracketHz(centerHz: number, widthHz: number, mode: SdrMode) 
 // positioning under zoom/tune for free.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let knownFreqPlugin: any = null
-let lastCommittedFreqHz = 0
-let lastCommittedBwHz = 0
+let _lastCommittedFreqHz = 0
+let _lastCommittedBwHz = 0
 // Independent drag baseline, snapshotted on mousedown over an accordion. The
 // mouseup handler diffs the live centre/width against THIS — not against
 // lastCommitted*, which applyMarker() overwrites on every store change (and a
@@ -471,20 +535,7 @@ const MIN_BW_HZ = 200
 // label box), matching the map's "SET LOCATION" pop-up style. AnnotationPlugin
 // is kept attached but empty (vertical line removed; the SVG ring is the
 // frequency indicator).
-const KNOWN_FREQ_MAX_ROWS = 3
-
-// Shared off-screen 2D context used to measure the rendered pixel width of
-// label text. Created lazily so SSR/jsdom paths never touch document. Cheap to
-// keep around — the canvas isn't attached anywhere.
-let _labelMeasureCtx: CanvasRenderingContext2D | null = null
-function labelMeasureCtx(): CanvasRenderingContext2D {
-  if (!_labelMeasureCtx) {
-    const c = document.createElement('canvas')
-    _labelMeasureCtx = c.getContext('2d')!
-    _labelMeasureCtx.font = '700 11px "Barlow", sans-serif'
-  }
-  return _labelMeasureCtx
-}
+const _KNOWN_FREQ_MAX_ROWS = 3
 
 // Visible known frequencies for the HTML label overlay: zoom-aware leftPct
 // matching visibleBands math, plus a staggered `row` index so clustered labels
@@ -527,7 +578,11 @@ const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
 function syncKnownFrequencies() {
   if (!knownFreqPlugin) return
   knownFreqPlugin.clear_annotations()
-  try { specPlot?.redraw() } catch { /* noop */ }
+  try {
+    specPlot?.redraw()
+  } catch {
+    /* noop */
+  }
 }
 
 // Push the store's tuned freq + demod bandwidth onto BOTH accordions, each in
@@ -538,8 +593,7 @@ function applyMarker() {
   if (!specAcc || !wfAcc) return
   const fHz = store.currentFreqHz
   const bHz = Math.max(MIN_BW_HZ, store.bwHz || 10000)
-  const span =
-    store.sampleRate || (spanEndHz.value - spanStartHz.value) || bHz
+  const span = store.sampleRate || spanEndHz.value - spanStartHz.value || bHz
   // Display-only frequency: while live-panning the freq axis (drag), the visible
   // window slides by livePanOffsetHz but the tuned freq hasn't changed yet. Shift
   // the marker's drawn position by the SAME offset so the bar stays on the same
@@ -581,8 +635,8 @@ function applyMarker() {
   } finally {
     suppressAccEvents = false
   }
-  lastCommittedFreqHz = fHz
-  lastCommittedBwHz = bHz
+  _lastCommittedFreqHz = fHz
+  _lastCommittedBwHz = bHz
 }
 
 // Bands that intersect the visible (zoom-aware) frequency window, each with
@@ -636,8 +690,10 @@ const freqTicks = computed(() => {
   // mx.tics nice-number pick: sig = 10^floor(log10(winMHz/ndiv)); ddf =
   // (winMHz/ndiv)/sig; dtic = {1, 2, 2.5, 5, 10} * sig based on ddf bands.
   const df = winMHz / ndiv
-  const nsig = df < 1 ? Math.ceil(Math.log10(Math.max(df, 1e-36))) - 1
-                      : Math.floor(Math.log10(Math.max(df, 1e-36)))
+  const nsig =
+    df < 1
+      ? Math.ceil(Math.log10(Math.max(df, 1e-36))) - 1
+      : Math.floor(Math.log10(Math.max(df, 1e-36)))
   const sig = Math.pow(10, nsig)
   const ddf = df / sig
   let dticMHz: number
@@ -649,7 +705,10 @@ const freqTicks = computed(() => {
   const stepHz = dticMHz * HZ_PER_MHZ
   const first = Math.ceil(winLo / stepHz) * stepHz
   // Decimal places needed to render dticMHz without rounding (e.g. 0.025 → 3).
-  const decimals = Math.max(1, Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)))
+  const decimals = Math.max(
+    1,
+    Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)),
+  )
   const ticks: { key: string; leftPct: number; label: string }[] = []
   for (let f = first; f <= winHi; f += stepHz) {
     ticks.push({
@@ -769,10 +828,8 @@ function onPlotMouseUp(e: MouseEvent) {
   // recorded mdownEl); the pan handles tuning itself, so don't also click-tune.
   if (freqDragActive) return
   // Moved more than the slop? It was a drag/pan, not a click.
-  if (
-    Math.abs(e.clientX - mdownX) > CLICK_SLOP_PX ||
-    Math.abs(e.clientY - mdownY) > CLICK_SLOP_PX
-  ) return
+  if (Math.abs(e.clientX - mdownX) > CLICK_SLOP_PX || Math.abs(e.clientY - mdownY) > CLICK_SLOP_PX)
+    return
   if (!store.playing) return
   const lo = spanStartHz.value
   const hi = spanEndHz.value
@@ -846,8 +903,8 @@ function freqDragFlush() {
   // clamp to the loaded span lives inside zoomWindowHz, so the live preview
   // never shows blank edges.
   livePanOffsetHz.value = -freqDragDx * freqDragHzPerPx
-  applyZoom()      // re-window the spectrum + waterfall raster in place
-  applyMarker()    // re-pin the bar at screen centre (dispFHz += offset)
+  applyZoom() // re-window the spectrum + waterfall raster in place
+  applyMarker() // re-pin the bar at screen centre (dispFHz += offset)
 }
 
 // Returns true (and arms the pan) when the mousedown lands in the bottom
@@ -893,7 +950,10 @@ useDocumentEvent('mouseup', () => {
   if (!freqDragActive) return
   freqDragActive = false
   freqDragging.value = false
-  if (freqDragRaf) { cancelAnimationFrame(freqDragRaf); freqDragRaf = 0 }
+  if (freqDragRaf) {
+    cancelAnimationFrame(freqDragRaf)
+    freqDragRaf = 0
+  }
   // Commit the hardware retune ONCE, to the final panned centre using the RAW
   // (unclamped) drag so a fling past the loaded span still retunes there. A
   // freq-axis pan means "move the hardware centre", so force auto-centre
@@ -915,7 +975,7 @@ useDocumentEvent('mouseup', () => {
 // hardware retune is committed once, debounced ~250ms after the last tick.
 // Scroll UP → pan toward HIGHER frequency (window centre increases); scroll DOWN
 // → lower. (One notch ≈ a small fraction of the visible window.)
-let wheelPanCenterHz = 0      // running committed-centre target during a burst
+let wheelPanCenterHz = 0 // running committed-centre target during a burst
 let wheelPanActive = false
 let wheelCommitTimer: ReturnType<typeof setTimeout> | null = null
 let wheelRaf = 0
@@ -954,7 +1014,7 @@ function onPlotWheel(e: WheelEvent) {
     wheelPanCenterHz = (lo + hi) / 2 + livePanOffsetHz.value
   }
   wheelPanCenterHz -= stepHz
-  freqDragging.value = true   // reuse the grabbing-cursor affordance
+  freqDragging.value = true // reuse the grabbing-cursor affordance
   if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelFlush)
   // Debounced single hardware commit after the burst settles.
   if (wheelCommitTimer) clearTimeout(wheelCommitTimer)
@@ -962,7 +1022,10 @@ function onPlotWheel(e: WheelEvent) {
     wheelCommitTimer = null
     wheelPanActive = false
     freqDragging.value = false
-    if (wheelRaf) { cancelAnimationFrame(wheelRaf); wheelRaf = 0 }
+    if (wheelRaf) {
+      cancelAnimationFrame(wheelRaf)
+      wheelRaf = 0
+    }
     // Keep livePanOffsetHz held until the new centred frame lands (reset in the
     // lastSpectrum watch), so no snap-back. center=true forces the retune.
     store.setTuningOffsetHz(0)
@@ -977,9 +1040,11 @@ function onPlotWheel(e: WheelEvent) {
 // plugin base reads it the same way (this._plot._Mx), so this is the
 // supported-by-precedent path.
 function syncBandInset() {
-  const mx = (specPlot as unknown as {
-    _Mx?: { l: number; r: number; t: number; b: number; width: number; height: number }
-  } | null)?._Mx
+  const mx = (
+    specPlot as unknown as {
+      _Mx?: { l: number; r: number; t: number; b: number; width: number; height: number }
+    } | null
+  )?._Mx
   if (!mx || !mx.width) return
   bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
   bandInsetRightPx.value = Math.max(0, Math.ceil(mx.width - mx.r))
@@ -994,7 +1059,10 @@ function syncBandInset() {
   if (dataBoxHeightPx > 0 && yRangeDb > 0) {
     const TARGET_DB = -100
     const dbFromBottom = TARGET_DB - SPEC_YMIN_DB
-    bandHeightPx.value = Math.max(20, Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 4)
+    bandHeightPx.value = Math.max(
+      20,
+      Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 4,
+    )
   }
   // Known-freq labels (TRANSATLANTIC etc.) anchor one division up from the
   // data-box floor. This MUST be pinned to a FIXED fraction of the data box,
@@ -1008,8 +1076,10 @@ function syncBandInset() {
     const ndiv = Math.max(1, Math.round(staticSpanDb / 20))
     // One division above the floor = 1/ndiv of the data-box height.
     const gridlineFromBoxBottomPx = dataBoxHeightPx / ndiv
-    firstGridlineFromBottomPx.value =
-      Math.max(0, Math.round(gridlineFromBoxBottomPx + (mx.height - mx.b)))
+    firstGridlineFromBottomPx.value = Math.max(
+      0,
+      Math.round(gridlineFromBoxBottomPx + (mx.height - mx.b)),
+    )
   }
 }
 
@@ -1076,9 +1146,7 @@ useDocumentEvent('mousemove', () => {
       //   LSB: rawCenter - rawWidth/2  (below the carrier)
       // New width = distance from carrier to that outer edge.
       carrierHz = dragBaseFreqHz
-      const outerHz = mode === 'USB'
-        ? rawCenterHz + rawWidthHz / 2
-        : rawCenterHz - rawWidthHz / 2
+      const outerHz = mode === 'USB' ? rawCenterHz + rawWidthHz / 2 : rawCenterHz - rawWidthHz / 2
       widthHz = Math.max(MIN_BW_HZ, Math.abs(outerHz - carrierHz))
     } else if (isSSB) {
       // Move: sigplot moved the bracket centre; the carrier must trail it by
@@ -1173,8 +1241,8 @@ useDocumentEvent('mouseup', () => {
   if (!freqMoved && !bwMoved) return
   if (freqMoved) store.requestTune(Math.round(carrierHz))
   if (bwMoved) store.requestBandwidth(Math.round(bw))
-  lastCommittedFreqHz = carrierHz
-  lastCommittedBwHz = bw
+  _lastCommittedFreqHz = carrierHz
+  _lastCommittedBwHz = bw
   // Re-sync both plots immediately so the un-dragged plot follows now (don't
   // wait for the debounced backend echo). Re-derive the bracket geometry from
   // the carrier — for SSB, resizing must keep the carrier-side edge anchored
@@ -1289,8 +1357,16 @@ function scheduleDesiredBins() {
 function buildPipes(n: number) {
   if (!specPlot || !wfPlot) return
   if (subsize) {
-    try { specPlot.remove_layer(specUuid) } catch { /* noop */ }
-    try { wfPlot.remove_layer(wfUuid) } catch { /* noop */ }
+    try {
+      specPlot.remove_layer(specUuid)
+    } catch {
+      /* noop */
+    }
+    try {
+      wfPlot.remove_layer(wfUuid)
+    } catch {
+      /* noop */
+    }
   }
   subsize = n
   // Spectrum: 1-D line trace. Per the SigPlot developer-tips guidance for
@@ -1426,7 +1502,8 @@ function initPlots() {
     ymax: (specPlot as unknown as { _Gx: { ymax: number } })?._Gx?.ymax,
     autoy: (specPlot as unknown as { _Gx: { autoy: number } })?._Gx?.autoy,
     autol: (specPlot as unknown as { _Gx: { autol: number } })?._Gx?.autol,
-    stk0: (specPlot as unknown as { _Mx: { stk: Array<{ ymin: number; ymax: number }> } })?._Mx?.stk?.[0],
+    stk0: (specPlot as unknown as { _Mx: { stk: Array<{ ymin: number; ymax: number }> } })?._Mx
+      ?.stk?.[0],
   })
 
   // Publish the canvas-sized FFT bin target now so the backend can switch as
@@ -1475,7 +1552,11 @@ function initPlots() {
   }
   const wfCarStyle = {
     ...carCommon,
-    center_line_style: { strokeStyle: 'rgba(200,255,0,0.35)', lineWidth: 1, lineCap: 'butt' as const },
+    center_line_style: {
+      strokeStyle: 'rgba(200,255,0,0.35)',
+      lineWidth: 1,
+      lineCap: 'butt' as const,
+    },
   }
   specAcc = new Acc({ ...accCommon })
   wfAcc = new Acc({ ...wfAccStyle })
@@ -1493,7 +1574,8 @@ function initPlots() {
   // frequency_hz / 1e6. We rebuild the annotation list whenever store.frequencies
   // changes; pan/zoom are handled natively by sigplot.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const AnnotationPlugin = (sigplot.plugins as unknown as { AnnotationPlugin: any }).AnnotationPlugin
+  const AnnotationPlugin = (sigplot.plugins as unknown as { AnnotationPlugin: any })
+    .AnnotationPlugin
   knownFreqPlugin = new AnnotationPlugin({ display: true })
   specPlot.add_plugin(knownFreqPlugin, 2)
   syncKnownFrequencies()
@@ -1520,13 +1602,17 @@ function initPlots() {
   // BOTH plots must use the same factor — see the note at wfPlot creation
   // about Mx.l alignment between spectrum and waterfall.
   const installMarginTweaks = (plot: Plot) => {
-    const Mx = (plot as unknown as {
-      _Mx: { l: number; r: number; t: number; text_w: number; text_h: number; width: number }
-    })._Mx
+    const Mx = (
+      plot as unknown as {
+        _Mx: { l: number; r: number; t: number; text_w: number; text_h: number; width: number }
+      }
+    )._Mx
     let _l = Mx.l
     Object.defineProperty(Mx, 'l', {
       configurable: true,
-      get() { return _l },
+      get() {
+        return _l
+      },
       set(v: number) {
         const tw = Mx.text_w || 1
         _l = v > 1 && Math.abs(v - tw * 6) < tw ? tw * 4.5 : v
@@ -1537,7 +1623,9 @@ function initPlots() {
     let _t = Mx.t
     Object.defineProperty(Mx, 't', {
       configurable: true,
-      get() { return _t },
+      get() {
+        return _t
+      },
       set(v: number) {
         const th = Mx.text_h || 12
         _t = Math.max(v, Math.round(th * 1.2))
@@ -1547,7 +1635,9 @@ function initPlots() {
     let _r = Mx.r
     Object.defineProperty(Mx, 'r', {
       configurable: true,
-      get() { return _r },
+      get() {
+        return _r
+      },
       set(v: number) {
         _r = Math.max(v, Mx.width - 1)
       },
@@ -1561,10 +1651,13 @@ function initPlots() {
     let _b = (Mx as unknown as { b: number }).b
     Object.defineProperty(Mx, 'b', {
       configurable: true,
-      get() { return _b },
+      get() {
+        return _b
+      },
       set(v: number) {
         const th = Mx.text_h || 12
-        const desired = ((plot as unknown as { _Mx: { height: number } })._Mx.height) - Math.round(th * 3.2)
+        const desired =
+          (plot as unknown as { _Mx: { height: number } })._Mx.height - Math.round(th * 3.2)
         _b = Math.min(v, desired)
       },
     })
@@ -1628,7 +1721,6 @@ let pendingFrame: { bins: number[] } | null = null
 let drawRaf = 0
 let lastRowMs = 0
 
-
 function drawLoop() {
   drawRaf = 0
   const frame = pendingFrame
@@ -1650,7 +1742,15 @@ let lastSampleRate = 0
 watch(
   () => store.lastSpectrum,
   (frame) => {
-    if (!store.playing || (store.searchSweeping || store.scanSweeping) || !frame || !specPlot || !wfPlot) return
+    if (
+      !store.playing ||
+      store.searchSweeping ||
+      store.scanSweeping ||
+      !frame ||
+      !specPlot ||
+      !wfPlot
+    )
+      return
 
     // Update the frequency span (drives the axis scaling + band overlay).
     // sample_rate spans the full FFT; bin 0 sits at center - rate/2.
@@ -1660,8 +1760,7 @@ watch(
 
     // Rebuild the layers when the bin count OR the tuning/scale changes so the
     // axis and waterfall stay aligned to the real frequencies.
-    const scaleChanged =
-      frame.center_hz !== lastCenterHz || frame.sample_rate !== lastSampleRate
+    const scaleChanged = frame.center_hz !== lastCenterHz || frame.sample_rate !== lastSampleRate
     // A new span centre means a committed drag-pan (or any retune) has landed:
     // the real span now carries the offset, so clear the live pan to avoid a
     // double-shift. Guard against an in-flight drag (a mid-drag backend retune
@@ -1707,13 +1806,17 @@ watch(
       // symptom is an empty band growing up from the bottom of the
       // waterfall. Mirror the stk[0] update into the active level so the zoom
       // window tracks live data.
-      const wfMx = (wfPlot as unknown as {
-        _Mx: { level: number; stk: Array<{ ymin: number; ymax: number }> }
-        _Gx: { lyr: Array<{ ymin: number; ymax: number }> }
-      })._Mx
-      const wfGx = (wfPlot as unknown as {
-        _Gx: { lyr: Array<{ ymin: number; ymax: number }> }
-      })._Gx
+      const wfMx = (
+        wfPlot as unknown as {
+          _Mx: { level: number; stk: Array<{ ymin: number; ymax: number }> }
+          _Gx: { lyr: Array<{ ymin: number; ymax: number }> }
+        }
+      )._Mx
+      const wfGx = (
+        wfPlot as unknown as {
+          _Gx: { lyr: Array<{ ymin: number; ymax: number }> }
+        }
+      )._Gx
       if (wfMx.level > 0 && wfGx.lyr.length > 0 && wfMx.stk[wfMx.level]) {
         wfMx.stk[wfMx.level].ymin = wfGx.lyr[0].ymin
         wfMx.stk[wfMx.level].ymax = wfGx.lyr[0].ymax
@@ -1733,10 +1836,17 @@ watch(
   (isPlaying) => {
     if (isPlaying || !specPlot || !wfPlot || !subsize) return
     // Drop any frame queued for the next paint so it can't draw post-stop.
-    if (drawRaf) { cancelAnimationFrame(drawRaf); drawRaf = 0 }
+    if (drawRaf) {
+      cancelAnimationFrame(drawRaf)
+      drawRaf = 0
+    }
     pendingFrame = null
     const blank = new Float32Array(subsize)
-    try { specPlot.reload(specUuid, blank) } catch { /* noop */ }
+    try {
+      specPlot.reload(specUuid, blank)
+    } catch {
+      /* noop */
+    }
     // Rebuild the waterfall pipe to clear its scroll history.
     try {
       wfPlot.remove_layer(wfUuid)
@@ -1756,7 +1866,9 @@ watch(
         { drawmode: 'falling', framesize: subsize },
       )
       wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     // Reset Min/Max to device defaults and re-enable waterfall auto-scale, so
     // the next play starts with a fresh canvas. The watcher on [zmin, zmax]
     // would re-disable auto-scale, so suppress it for this programmatic reset
@@ -1776,7 +1888,9 @@ watch(
         ymax: SPEC_YMAX_DB,
         ydiv: -Math.max(1, Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20)),
       })
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     // Hide the marker while stopped (the pipe rebuild dropped its canvas draw
     // anyway); applyMarker reads store.playing for visibility.
     applyMarker()
@@ -1787,8 +1901,11 @@ watch(
 // status reconcile — all flow into the store) and play/stop visibility. Skip
 // while WE are mid programmatic write to avoid feeding our own change back.
 watch(
-  () => [store.currentFreqHz, store.bwHz, store.sampleRate, store.playing, store.currentMode] as const,
-  () => { if (!suppressAccEvents) applyMarker() },
+  () =>
+    [store.currentFreqHz, store.bwHz, store.sampleRate, store.playing, store.currentMode] as const,
+  () => {
+    if (!suppressAccEvents) applyMarker()
+  },
 )
 
 // Moving Min or Max retargets BOTH the spectrum y-axis and the waterfall
@@ -1800,8 +1917,12 @@ watch(
 // moving one short of it (Min raised into Max stops at Max-1, not bumping Max
 // upward).
 let lastTouched: 'min' | 'max' | null = null
-watch(zmin, () => { lastTouched = 'min' })
-watch(zmax, () => { lastTouched = 'max' })
+watch(zmin, () => {
+  lastTouched = 'min'
+})
+watch(zmax, () => {
+  lastTouched = 'max'
+})
 
 watch([zmin, zmax], ([lo, hi]) => {
   // Guard against the user dragging one slider past the other: clamp the
@@ -1809,9 +1930,15 @@ watch([zmin, zmax], ([lo, hi]) => {
   // SDR++ behaviour — see User Guide v1.1 p. 31 (Min/Max are independent
   // endpoints; raising Min into Max does not push Max).
   if (hi <= lo) {
-    if (lastTouched === 'min') { zmin.value = hi - 1; return }
-    if (lastTouched === 'max') { zmax.value = lo + 1; return }
-    return  // unknown source — bail out without thrashing either slider
+    if (lastTouched === 'min') {
+      zmin.value = hi - 1
+      return
+    }
+    if (lastTouched === 'max') {
+      zmax.value = lo + 1
+      return
+    }
+    return // unknown source — bail out without thrashing either slider
   }
   autoScale.value = false
   applySpecRange(lo, hi)
@@ -1843,16 +1970,22 @@ watch(zoom, (z) => {
 // the zoom viewport would stay pinned to the previous frequency. No-op at
 // zoom <= 1 (applyZoom takes the unzoom path). The overlay computeds already
 // track currentFreqHz reactively via zoomWindowHz().
-watch(() => store.currentFreqHz, () => {
-  if (zoom.value > ZOOM_MIN) applyZoom()
-})
+watch(
+  () => store.currentFreqHz,
+  () => {
+    if (zoom.value > ZOOM_MIN) applyZoom()
+  },
+)
 
 // Toggling Full Waterfall Update ON mid-session: refresh the bin target
 // immediately so the raster snaps to sharp at the current zoom without
 // waiting for the next zoom action.
-watch(() => store.fullWaterfallUpdate, (on) => {
-  if (on) scheduleDesiredBins()
-})
+watch(
+  () => store.fullWaterfallUpdate,
+  (on) => {
+    if (on) scheduleDesiredBins()
+  },
+)
 
 // Rebuild known-frequency annotations when the manager list changes. Pan/zoom
 // don't need a rebuild — sigplot re-runs the plugin's draw on every redraw and
@@ -1870,10 +2003,26 @@ onBeforeUnmount(() => {
   ro = null
   controlsRo?.disconnect()
   controlsRo = null
-  try { if (specAcc) specPlot?.remove_plugin(specAcc) } catch { /* noop */ }
-  try { if (wfAcc) wfPlot?.remove_plugin(wfAcc) } catch { /* noop */ }
-  try { if (specCar) specPlot?.remove_plugin(specCar) } catch { /* noop */ }
-  try { if (wfCar) wfPlot?.remove_plugin(wfCar) } catch { /* noop */ }
+  try {
+    if (specAcc) specPlot?.remove_plugin(specAcc)
+  } catch {
+    /* noop */
+  }
+  try {
+    if (wfAcc) wfPlot?.remove_plugin(wfAcc)
+  } catch {
+    /* noop */
+  }
+  try {
+    if (specCar) specPlot?.remove_plugin(specCar)
+  } catch {
+    /* noop */
+  }
+  try {
+    if (wfCar) wfPlot?.remove_plugin(wfCar)
+  } catch {
+    /* noop */
+  }
   // sigplot's AnnotationPlugin registers a document `mouseup` listener in init
   // but never removes it in dispose() — after remove_plugin() zeroes its
   // `annotations` array, the stale listener throws on the next mouseup. Detach
@@ -1882,17 +2031,39 @@ onBeforeUnmount(() => {
     if (knownFreqPlugin?.onmouseup) {
       document.removeEventListener('mouseup', knownFreqPlugin.onmouseup, false)
     }
-  } catch { /* noop */ }
-  try { if (knownFreqPlugin) specPlot?.remove_plugin(knownFreqPlugin) } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
+  try {
+    if (knownFreqPlugin) specPlot?.remove_plugin(knownFreqPlugin)
+  } catch {
+    /* noop */
+  }
   specAcc = null
   wfAcc = null
   specCar = null
   wfCar = null
   knownFreqPlugin = null
-  try { specPlot?.remove_layer(specUuid) } catch { /* noop */ }
-  try { wfPlot?.remove_layer(wfUuid) } catch { /* noop */ }
-  try { specPlot?.disable_listeners() } catch { /* noop */ }
-  try { wfPlot?.disable_listeners() } catch { /* noop */ }
+  try {
+    specPlot?.remove_layer(specUuid)
+  } catch {
+    /* noop */
+  }
+  try {
+    wfPlot?.remove_layer(wfUuid)
+  } catch {
+    /* noop */
+  }
+  try {
+    specPlot?.disable_listeners()
+  } catch {
+    /* noop */
+  }
+  try {
+    wfPlot?.disable_listeners()
+  } catch {
+    /* noop */
+  }
   specPlot = null
   wfPlot = null
 })
@@ -1910,8 +2081,17 @@ onBeforeUnmount(() => {
           <div class="sdr-wf-search-overlay-headline">
             Spectrum and waterfall paused during active search.
           </div>
-          <div class="sdr-wf-search-overlay-progress" :aria-valuenow="searchOverlayProgressPct" aria-valuemin="0" aria-valuemax="100" role="progressbar">
-            <div class="sdr-wf-search-overlay-progress-fill" :style="{ width: searchOverlayProgressPct + '%' }"></div>
+          <div
+            class="sdr-wf-search-overlay-progress"
+            :aria-valuenow="searchOverlayProgressPct"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            role="progressbar"
+          >
+            <div
+              class="sdr-wf-search-overlay-progress-fill"
+              :style="{ width: searchOverlayProgressPct + '%' }"
+            ></div>
           </div>
           <div class="sdr-wf-search-overlay-range">
             <span class="sdr-wf-search-overlay-range-val">{{ searchOverlayLowMHz }}</span>
@@ -1933,22 +2113,23 @@ onBeforeUnmount(() => {
               v-for="(name, idx) in store.scanGroupNames"
               :key="name + idx"
               class="sdr-scan-group-chip sdr-scan-group-chip-active"
-            >{{ name }}</span>
+              >{{ name }}</span
+            >
           </div>
         </div>
       </div>
     </div>
-    <div class="sdr-wf-controls" ref="controlsEl">
+    <div ref="controlsEl" class="sdr-wf-controls">
       <div class="sdr-wf-ctl">
         <span class="sdr-wf-ctl-label">Zoom</span>
         <div class="sdr-wf-slider-wrap">
           <input
+            v-model.number="zoom"
             class="sdr-wf-slider"
             type="range"
             :min="ZOOM_MIN"
             :max="ZOOM_MAX"
             step="0.5"
-            v-model.number="zoom"
             :aria-label="`Zoom ${zoom}x`"
           />
         </div>
@@ -1957,12 +2138,12 @@ onBeforeUnmount(() => {
         <span class="sdr-wf-ctl-label">Max</span>
         <div class="sdr-wf-slider-wrap">
           <input
+            v-model.number="zmaxSlider"
             class="sdr-wf-slider"
             type="range"
             min="0"
             max="80"
             step="1"
-            v-model.number="zmaxSlider"
             :aria-label="`Max ${zmax} dB`"
           />
         </div>
@@ -1971,12 +2152,12 @@ onBeforeUnmount(() => {
         <span class="sdr-wf-ctl-label">Min</span>
         <div class="sdr-wf-slider-wrap">
           <input
+            v-model.number="zminSlider"
             class="sdr-wf-slider"
             type="range"
             min="20"
             max="120"
             step="1"
-            v-model.number="zminSlider"
             :aria-label="`Min ${zmin} dB`"
           />
         </div>
@@ -1992,7 +2173,11 @@ onBeforeUnmount(() => {
       @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     >
-      <div v-if="store.showBandPlan && visibleBands.length > 0" class="sdr-wf-band-overlay" :style="bandOverlayStyle">
+      <div
+        v-if="store.showBandPlan && visibleBands.length > 0"
+        class="sdr-wf-band-overlay"
+        :style="bandOverlayStyle"
+      >
         <div
           v-for="b in visibleBands"
           :key="b.key"
@@ -2015,7 +2200,8 @@ onBeforeUnmount(() => {
           :key="`l-${t.key}`"
           class="sdr-wf-freq-label"
           :style="{ left: t.leftPct + '%' }"
-        >{{ t.label }}</span>
+          >{{ t.label }}</span
+        >
       </div>
       <div
         v-if="store.showKnownFreqs && visibleKnownFreqs.length > 0"
@@ -2029,7 +2215,14 @@ onBeforeUnmount(() => {
           :style="{ left: f.leftPct + '%' }"
           :title="f.label"
         >
-          <svg class="sdr-wf-known-marker-ring" width="14" height="14" viewBox="0 0 14 14" overflow="visible" aria-hidden="true">
+          <svg
+            class="sdr-wf-known-marker-ring"
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            overflow="visible"
+            aria-hidden="true"
+          >
             <circle cx="7" cy="7" r="5" fill="none" stroke="#c8ff00" stroke-width="1.5" />
             <circle cx="7" cy="7" r="1.5" fill="#ffffff" />
           </svg>

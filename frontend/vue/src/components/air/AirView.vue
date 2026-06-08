@@ -5,11 +5,11 @@
     <NoUrlOverlay domain="air" />
     <Teleport v-if="teleportReady" to="#msb-pane-search">
       <AirFilter
+        ref="airFilterRef"
         :adsb-control="adsbControlRef"
         :airports-control="airportsControlRef"
         :military-bases-control="milBasesControlRef"
         :get-map="() => airMapRef?.getMap?.() ?? null"
-        ref="airFilterRef"
       />
     </Teleport>
     <Teleport v-if="teleportReady" to="#msb-pane-playback">
@@ -30,7 +30,7 @@ import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import type { AirportsToggleControl } from './controls/airports/AirportsControl'
 import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
 
-const airMapRef    = ref<InstanceType<typeof AirMap> | null>(null)
+const airMapRef = ref<InstanceType<typeof AirMap> | null>(null)
 const airFilterRef = ref<InstanceType<typeof AirFilter> | null>(null)
 const teleportReady = ref(!!document.getElementById('msb-pane-search'))
 let _unmounted = false
@@ -41,8 +41,9 @@ if (!teleportReady.value) {
   onMounted(() => {
     function poll() {
       if (_unmounted) return
-      if (document.getElementById('msb-pane-search')) { teleportReady.value = true }
-      else requestAnimationFrame(poll)
+      if (document.getElementById('msb-pane-search')) {
+        teleportReady.value = true
+      } else requestAnimationFrame(poll)
     }
     requestAnimationFrame(poll)
   })
@@ -56,16 +57,20 @@ onBeforeUnmount(() => {
 // Stable proxy passed to AirSideMenu — markRaw prevents Vue from tracking
 // mutations, so nulling airMapRef during unmount never triggers a re-render
 // of AirSideMenu while it is also being torn down.
-const airMapProxy = markRaw({ get current() { return airMapRef.value } })
+const airMapProxy = markRaw({
+  get current() {
+    return airMapRef.value
+  },
+})
 
 // Reactive refs for controls — updated once the map signals data is ready
 
-const adsbControlRef     = shallowRef<AdsbLiveControl | null>(null)
+const adsbControlRef = shallowRef<AdsbLiveControl | null>(null)
 const airportsControlRef = shallowRef<AirportsToggleControl | null>(null)
 const milBasesControlRef = shallowRef<MilitaryBasesToggleControl | null>(null)
 
 function syncControls() {
-  adsbControlRef.value     = airMapRef.value?.getAdsbControl?.() ?? null
+  adsbControlRef.value = airMapRef.value?.getAdsbControl?.() ?? null
   airportsControlRef.value = airMapRef.value?.getAirports?.() ?? null
   milBasesControlRef.value = airMapRef.value?.getMilBases?.() ?? null
 }
@@ -81,8 +86,12 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 // Listen for side-menu open-search events
-function onOpenSearch() { airFilterRef.value?.focus() }
-function onOpenFilter() { airFilterRef.value?.focus() }
+function onOpenSearch() {
+  airFilterRef.value?.focus()
+}
+function onOpenFilter() {
+  airFilterRef.value?.focus()
+}
 
 // Airport marker click on the map → expand that airport's accordion in the
 // SEARCH list. MapSidebar handles opening the panel on the search tab.

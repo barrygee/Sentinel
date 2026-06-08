@@ -11,7 +11,7 @@
         autocomplete="off"
         @input="onInput"
         @keydown.enter="emit('commit')"
-      >
+      />
     </div>
   </div>
 </template>
@@ -36,7 +36,9 @@ onMounted(async () => {
   const data = await settingsApi.getNamespace('app')
   if (data?.connectivityProbeUrl && !urlValue.value) {
     urlValue.value = data.connectivityProbeUrl as string
-    try { localStorage.setItem(LS_KEY, urlValue.value) } catch {}
+    try {
+      localStorage.setItem(LS_KEY, urlValue.value)
+    } catch {}
   }
 })
 
@@ -45,10 +47,14 @@ function onInput(): void {
     const val = urlValue.value.trim()
     if (val) {
       new URL(val)
-      try { localStorage.setItem(LS_KEY, val) } catch {}
+      try {
+        localStorage.setItem(LS_KEY, val)
+      } catch {}
       settingsApi.put('app', 'connectivityProbeUrl', val)
     } else {
-      try { localStorage.removeItem(LS_KEY) } catch {}
+      try {
+        localStorage.removeItem(LS_KEY)
+      } catch {}
       settingsApi.put('app', 'connectivityProbeUrl', '')
     }
   })

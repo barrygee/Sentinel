@@ -11,7 +11,9 @@
       @keydown.tab="onTab"
     ></textarea>
     <div class="settings-config-action-row">
-      <button class="settings-config-btn" @click="toggleVisible">{{ visible ? 'HIDE' : 'EDIT' }}</button>
+      <button class="settings-config-btn" @click="toggleVisible">
+        {{ visible ? 'HIDE' : 'EDIT' }}
+      </button>
       <button class="settings-config-btn" @click="exportData">EXPORT</button>
       <span v-if="error" class="satradio-error">{{ error }}</span>
     </div>
@@ -50,9 +52,16 @@ async function load(): Promise<void> {
 }
 
 onMounted(load)
-watch(() => store.open, (isOpen) => { if (isOpen) load() })
+watch(
+  () => store.open,
+  (isOpen) => {
+    if (isOpen) load()
+  },
+)
 
-function toggleVisible(): void { visible.value = !visible.value }
+function toggleVisible(): void {
+  visible.value = !visible.value
+}
 
 // Trap Tab so it indents the JSON instead of moving focus (same as the app
 // config editor).
@@ -101,7 +110,8 @@ function onEdit(): void {
       body: JSON.stringify(parsed),
     })
     if (!res.ok) {
-      const msg = (await res.json().catch(() => ({})) as { detail?: string }).detail ?? res.statusText
+      const msg =
+        ((await res.json().catch(() => ({}))) as { detail?: string }).detail ?? res.statusText
       error.value = 'Save failed: ' + msg
       throw new Error(msg)
     }
@@ -118,7 +128,16 @@ async function exportData(): Promise<void> {
   const content = text.value
   if ('showSaveFilePicker' in window) {
     try {
-      const handle = await (window as any).showSaveFilePicker({
+      // The File System Access API isn't in the TS DOM lib; cast to its shape.
+      const picker = (
+        window as unknown as {
+          showSaveFilePicker: (options: {
+            suggestedName?: string
+            types?: { description: string; accept: Record<string, string[]> }[]
+          }) => Promise<FileSystemFileHandle>
+        }
+      ).showSaveFilePicker
+      const handle = await picker({
         suggestedName: props.filename,
         types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
       })
@@ -126,8 +145,8 @@ async function exportData(): Promise<void> {
       await writable.write(content)
       await writable.close()
       return
-    } catch (err: any) {
-      if (err.name === 'AbortError') return
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
     }
   }
   const blob = new Blob([content], { type: 'application/json' })

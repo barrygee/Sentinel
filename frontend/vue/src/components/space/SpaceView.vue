@@ -7,17 +7,17 @@
     <SatInfoPanel :satellite-control="satelliteControl" />
     <Teleport v-if="teleportReady" to="#msb-pane-search">
       <SpaceFilter
+        ref="spaceFilterRef"
         :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
-        ref="spaceFilterRef"
       />
     </Teleport>
     <Teleport v-if="teleportReady" to="#msb-pane-passes">
       <SpacePasses
+        ref="spacePassesRef"
         :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
         :is-visible="true"
-        ref="spacePassesRef"
       />
     </Teleport>
   </div>
@@ -36,7 +36,7 @@ import SatInfoPanel from './SatInfoPanel.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 
-const spaceMapRef    = ref<InstanceType<typeof SpaceMap> | null>(null)
+const spaceMapRef = ref<InstanceType<typeof SpaceMap> | null>(null)
 const spaceFilterRef = ref<InstanceType<typeof SpaceFilter> | null>(null)
 const spacePassesRef = ref<InstanceType<typeof SpacePasses> | null>(null)
 const teleportReady = ref(!!document.getElementById('msb-pane-search'))
@@ -46,8 +46,9 @@ if (!teleportReady.value) {
   onMounted(() => {
     function poll() {
       if (_unmounted) return
-      if (document.getElementById('msb-pane-search')) { teleportReady.value = true }
-      else requestAnimationFrame(poll)
+      if (document.getElementById('msb-pane-search')) {
+        teleportReady.value = true
+      } else requestAnimationFrame(poll)
     }
     requestAnimationFrame(poll)
   })
@@ -55,7 +56,11 @@ if (!teleportReady.value) {
 
 // Stable proxy — markRaw prevents Vue tracking mutations, so unmounting SpaceMap
 // never triggers re-renders of sibling/child components via prop change.
-const spaceMapProxy = markRaw({ get current() { return spaceMapRef.value } })
+const spaceMapProxy = markRaw({
+  get current() {
+    return spaceMapRef.value
+  },
+})
 
 // satelliteControl is updated imperatively (not via computed) so it never
 // re-renders children during teardown when spaceMapRef goes null.
@@ -65,7 +70,12 @@ const satelliteControl = shallowRef<SatelliteControl | null>(null)
 // of SpaceMap (which nulls spaceMapRef) never triggers a child re-render.
 const stopWatch = watch(
   () => spaceMapRef.value?.satelliteControlReactive ?? null,
-  (ctrl) => { if (ctrl) { satelliteControl.value = ctrl; stopWatch() } },
+  (ctrl) => {
+    if (ctrl) {
+      satelliteControl.value = ctrl
+      stopWatch()
+    }
+  },
 )
 onBeforeUnmount(() => {
   stopWatch()

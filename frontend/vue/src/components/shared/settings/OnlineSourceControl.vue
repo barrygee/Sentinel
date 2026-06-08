@@ -11,7 +11,7 @@
         autocomplete="off"
         @input="onInput"
         @keydown.enter="emit('commit')"
-      >
+      />
     </div>
   </div>
 </template>
@@ -27,7 +27,7 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-const _key   = onlineKey(props.ns)
+const _key = onlineKey(props.ns)
 const LS_KEY = `sentinel_${props.ns}_${_key}`
 const urlValue = ref('')
 
@@ -40,7 +40,9 @@ try {
   const saved = localStorage.getItem(LS_KEY)
   if (saved && !(noDefault && isPlaceholder(saved))) urlValue.value = saved
   else if (noDefault && saved && isPlaceholder(saved)) {
-    try { localStorage.removeItem(LS_KEY) } catch {}
+    try {
+      localStorage.removeItem(LS_KEY)
+    } catch {}
   }
 } catch {}
 
@@ -50,9 +52,13 @@ onMounted(async () => {
   const backendVal = data[_key] as string
   if (backendVal && !isPlaceholder(backendVal) && !urlValue.value) {
     urlValue.value = backendVal
-    try { localStorage.setItem(LS_KEY, backendVal) } catch {}
+    try {
+      localStorage.setItem(LS_KEY, backendVal)
+    } catch {}
   } else if (noDefault && backendVal && isPlaceholder(backendVal)) {
-    try { localStorage.removeItem(LS_KEY) } catch {}
+    try {
+      localStorage.removeItem(LS_KEY)
+    } catch {}
     settingsApi.put(props.ns, _key, '')
   }
 })
@@ -62,10 +68,14 @@ function onInput(): void {
     const val = urlValue.value.trim()
     if (val) {
       new URL(val)
-      try { localStorage.setItem(LS_KEY, val) } catch {}
+      try {
+        localStorage.setItem(LS_KEY, val)
+      } catch {}
       settingsApi.put(props.ns, _key, val)
     } else {
-      try { localStorage.removeItem(LS_KEY) } catch {}
+      try {
+        localStorage.removeItem(LS_KEY)
+      } catch {}
       settingsApi.put(props.ns, _key, '')
     }
   })

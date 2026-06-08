@@ -10,7 +10,7 @@
         spellcheck="false"
         @input="onInput"
         @keydown.enter="emit('commit')"
-      >
+      />
     </div>
     <div class="settings-location-row">
       <span class="settings-location-label">LON</span>
@@ -22,7 +22,7 @@
         spellcheck="false"
         @input="onInput"
         @keydown.enter="emit('commit')"
-      >
+      />
     </div>
   </div>
 </template>
@@ -44,7 +44,12 @@ const lonValue = ref('')
 try {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (raw) {
-    const loc = JSON.parse(raw) as { latitude?: number; longitude?: number; lon?: number; lat?: number }
+    const loc = JSON.parse(raw) as {
+      latitude?: number
+      longitude?: number
+      lon?: number
+      lat?: number
+    }
     const lat = loc.latitude ?? loc.lat
     const lon = loc.longitude ?? loc.lon
     if (lat != null) latValue.value = lat.toFixed(5)
@@ -86,7 +91,9 @@ function onInput(): void {
   if (isValidLatLon(lat, lon)) {
     _selfSetting = true
     try {
-      window.dispatchEvent(new CustomEvent('sentinel:setUserLocation', { detail: { longitude: lon, latitude: lat } }))
+      window.dispatchEvent(
+        new CustomEvent('sentinel:setUserLocation', { detail: { longitude: lon, latitude: lat } }),
+      )
     } finally {
       _selfSetting = false
     }
@@ -105,14 +112,22 @@ function onInput(): void {
     const lon = parseFloat(lonStr)
     if (isNaN(lat) || lat < -90 || lat > 90) throw new Error('INVALID LAT')
     if (isNaN(lon) || lon < -180 || lon > 180) throw new Error('INVALID LON')
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ longitude: lon, latitude: lat, ts: Date.now(), manual: true })) } catch {}
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ longitude: lon, latitude: lat, ts: Date.now(), manual: true }),
+      )
+    } catch {}
     return settingsApi.put('app', 'location', { latitude: lat, longitude: lon })
   })
 }
 
 function onLocationSynced(e: Event): void {
   if (_selfSetting) return // ignore the echo of our own typed value
-  const { longitude, latitude } = (e as CustomEvent).detail as { longitude: number; latitude: number }
+  const { longitude, latitude } = (e as CustomEvent).detail as {
+    longitude: number
+    latitude: number
+  }
   latValue.value = latitude.toFixed(5)
   lonValue.value = longitude.toFixed(5)
 }

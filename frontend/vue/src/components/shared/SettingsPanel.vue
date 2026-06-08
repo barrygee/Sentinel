@@ -7,17 +7,30 @@
         class="settings-nav-item"
         :class="{ active: activeSection === s.key }"
         @click="selectSection(s.key)"
-      >{{ s.label }}</div>
+      >
+        {{ s.label }}
+      </div>
     </div>
 
     <div id="settings-content">
       <div id="settings-section-heading">{{ sectionHeading }}</div>
 
-      <div id="settings-search-wrap" :class="{ 'settings-search-wrap--hidden': activeSection !== 'app' && !searchQuery }">
+      <div
+        id="settings-search-wrap"
+        :class="{ 'settings-search-wrap--hidden': activeSection !== 'app' && !searchQuery }"
+      >
         <div id="settings-search-inner">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
-            <line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2" />
+            <line
+              x1="9.5"
+              y1="9.5"
+              x2="13"
+              y2="13"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+            />
           </svg>
           <input
             id="settings-search-input"
@@ -28,7 +41,7 @@
             autocomplete="off"
             spellcheck="false"
             @keydown.escape="store.closePanel()"
-          >
+          />
           <button
             id="settings-search-clear"
             aria-label="Clear search"
@@ -36,8 +49,24 @@
             @click="clearSearch"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-              <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <line
+                x1="2"
+                y1="2"
+                x2="10"
+                y2="10"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <line
+                x1="10"
+                y1="2"
+                x2="2"
+                y2="10"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -72,10 +101,15 @@
           <template v-else>
             <template v-for="(item, idx) in currentSectionItems" :key="item.id">
               <div
-                v-if="item.groupLabel !== undefined && item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel"
+                v-if="
+                  item.groupLabel !== undefined &&
+                  item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel
+                "
                 class="settings-group-label"
                 :class="{ 'settings-group-label--spaced': idx > 0 }"
-              >{{ item.groupLabel }}</div>
+              >
+                {{ item.groupLabel }}
+              </div>
               <SettingRow
                 :item="item"
                 :pending="pending"
@@ -87,7 +121,7 @@
         </template>
       </div>
 
-      <div id="settings-footer" v-show="!searchQuery.trim()">
+      <div v-show="!searchQuery.trim()" id="settings-footer">
         <span id="settings-apply-status" :class="applyStatusClass">{{ applyStatusMsg }}</span>
         <button id="settings-apply-btn" @click="commitAll">APPLY CHANGES</button>
       </div>
@@ -97,10 +131,9 @@
 
 <script setup lang="ts">
 import './SettingsPanel.css'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
-import * as settingsApi from '@/services/settingsApi'
 import SettingRow from './settings/SettingRow.vue'
 
 const store = useSettingsStore()
@@ -113,14 +146,17 @@ const pending = ref<Map<string, () => Promise<unknown> | void>>(new Map())
 const applyStatusMsg = ref('')
 const applyStatusClass = ref('')
 
-interface NavSection { key: string; label: string }
+interface NavSection {
+  key: string
+  label: string
+}
 const NAV_SECTIONS: NavSection[] = [
-  { key: 'app',   label: 'App Settings' },
-  { key: 'air',   label: 'AIR' },
+  { key: 'app', label: 'App Settings' },
+  { key: 'air', label: 'AIR' },
   { key: 'space', label: 'SPACE' },
-  { key: 'sea',   label: 'SEA' },
-  { key: 'land',  label: 'LAND' },
-  { key: 'sdr',   label: 'SDR' },
+  { key: 'sea', label: 'SEA' },
+  { key: 'land', label: 'LAND' },
+  { key: 'sdr', label: 'SDR' },
 ]
 
 export interface SettingItem {
@@ -137,79 +173,339 @@ export interface SettingItem {
 }
 
 const ALL_SETTINGS: SettingItem[] = [
-  { section: 'app', sectionLabel: 'App Settings', id: 'connectivity-mode', label: 'Connectivity Mode', desc: 'Use online or off grid data sources across the app', type: 'connectivity-toggle' },
-  { section: 'app', sectionLabel: 'App Settings', id: 'app-connectivity-probe', label: 'Connectivity Probe URL', desc: 'URL polled every 2 seconds to detect internet access', type: 'probe-url' },
-  { section: 'app', sectionLabel: 'App Settings', id: 'location', label: 'My Location', desc: 'Set a fixed latitude / longitude for your position', type: 'location' },
-  { section: 'app', sectionLabel: 'App Settings', id: 'notification-sound', label: 'Notification Sound', desc: 'Play a subtle blip when a new alert or notification arrives', type: 'notification-sound' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-overhead-alerts', label: 'Overhead Aircraft Alerts', desc: 'Notify when aircraft are within range of your location, and show the zone on the map', type: 'overhead-alerts-toggle', groupLabel: 'ALERTS' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-overhead-alert-radius', label: 'Overhead Alert Radius', desc: 'Distance from your location (in nautical miles) used to trigger overhead aircraft alerts and define the zone shown on the map', type: 'overhead-alert-radius' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-tag-fields', label: 'Label Data Points', desc: 'Choose which data fields appear on aircraft labels for civil and military aircraft', type: 'air-tag-fields', groupLabel: 'LABELS' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-replay-toggle', label: 'Flight Replay', desc: 'Record aircraft movements to the database so you can replay them later via the REPLAY tab. When off, no flight history is recorded and the REPLAY tab is hidden. Off by default.', type: 'air-replay-toggle', groupLabel: 'REPLAY' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'air', groupLabel: 'DATA SOURCES' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-online-source', label: 'Online Data Source', desc: 'URL for live air data feed', type: 'online-source', ns: 'air', defaultUrl: 'https://api.airplanes.live/v2' },
-  { section: 'air', sectionLabel: 'AIR', id: 'air-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for air data', type: 'offline-source', ns: 'air', defaultUrl: '' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-online-source', label: 'Online Data Source', desc: 'URL to fetch TLE data from — select a category and click UPDATE TLE', type: 'space-tle-online', groupLabel: 'DATA SOURCES' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-manual-tle', label: 'TLE Import', desc: 'Upload a .txt file of TLE data', type: 'space-tle-manual' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-database', label: 'TLE Database', desc: 'Satellite count, sources, and per-category last-updated times. Clear all data, or clear a single category (e.g. space station, amateur radio).', type: 'space-tle-db' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-uncategorised', label: 'Uncategorised Satellites', desc: 'Assign categories to satellites imported without one', type: 'space-tle-uncat' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-tle-satlist', label: 'Satellite List', desc: 'Full list of all TLE records stored in the database', type: 'space-tle-satlist' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-sat-radio-file', label: 'Satellite Frequencies (JSON)', desc: 'Bulk-edit all satellite frequencies as raw JSON. Saved to backend/data/satellite_radio.json and the database.', type: 'space-sat-radio-file', groupLabel: 'SATELLITE DATA' },
-  { section: 'space', sectionLabel: 'SPACE', id: 'space-filter-hover-preview', label: 'Filter Hover Behaviour', desc: 'When hovering over a satellite in the search results, choose whether the map stays in place or flies to that satellite', type: 'space-hover-preview', groupLabel: 'FILTER HOVER' },
-  { section: 'sea', sectionLabel: 'SEA', id: 'sea-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'sea' },
-  { section: 'sea', sectionLabel: 'SEA', id: 'sea-online-source', label: 'Online Data Source', desc: 'URL for live sea data feed', type: 'online-source', ns: 'sea', defaultUrl: '' },
-  { section: 'sea', sectionLabel: 'SEA', id: 'sea-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for sea data', type: 'offline-source', ns: 'sea', defaultUrl: '' },
-  { section: 'land', sectionLabel: 'LAND', id: 'land-source-override', label: 'Source Override', desc: 'Override the app-level connectivity mode for this domain', type: 'source-override', ns: 'land' },
-  { section: 'land', sectionLabel: 'LAND', id: 'land-online-source', label: 'Online Data Source', desc: 'URL for live land data feed', type: 'online-source', ns: 'land', defaultUrl: '' },
-  { section: 'land', sectionLabel: 'LAND', id: 'land-offline-source', label: 'Off Grid Data Source', desc: 'Local server URL and port for land data', type: 'offline-source', ns: 'land', defaultUrl: '' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-devices', label: 'SDR Devices', desc: 'Configure RTL-SDR devices reachable via rtl_tcp', type: 'sdr-devices', groupLabel: 'DEVICES' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-autocenter', label: 'Auto-center on Tune', desc: 'When ON, clicking the spectrum/waterfall re-centers the display on the new frequency. When OFF, the display stays put and the radio tunes to the clicked frequency where you clicked it.', type: 'sdr-autocenter', groupLabel: 'WATERFALL' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-full-waterfall-update', label: 'Full Waterfall Update', desc: 'When ON, the waterfall history clears each time you change Zoom so new rows fill the new viewport cleanly. When OFF (the SDR++ default), the existing rows stay stretched and only new rows are drawn at the new zoom level.', type: 'sdr-full-waterfall-update' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-show-bandplan', label: 'Show Band Plan', desc: 'Show the coloured RF band-plan strip (Air Band, FM Broadcast, etc.) along the bottom of the spectrum.', type: 'sdr-show-bandplan' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-show-known-freqs', label: 'Show Known Frequencies', desc: 'Show labels on the spectrum for the frequencies tracked in your Frequency Manager.', type: 'sdr-show-known-freqs' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-resume-delay', label: 'Resume Delay', desc: 'When scan or search locks on a signal, wait this many seconds after the signal drops before continuing. 0 resumes immediately on drop. You can always press HOLD/RESUME to force-continue.', type: 'sdr-resume-delay', groupLabel: 'SCAN & SEARCH' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-frequencies-file', label: 'Frequencies & Groups (JSON)', desc: 'Bulk-edit frequency groups, stored frequencies, and search ranges as raw JSON. Saved to backend/data/sdr_frequencies.json and the database.', type: 'sdr-frequencies-file', groupLabel: 'FREQUENCY DATA' },
-  { section: 'sdr', sectionLabel: 'SDR', id: 'sdr-bandplan-file', label: 'Band Plan (JSON)', desc: 'Bulk-edit the coloured RF band-plan strip as raw JSON. Saved to backend/data/sdr_bandplan.json and the database.', type: 'sdr-bandplan-file' },
-  { section: 'app', sectionLabel: 'App Settings', id: 'config-current', label: 'Application Config', desc: 'Settings currently stored in the database', type: 'config-current' },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'connectivity-mode',
+    label: 'Connectivity Mode',
+    desc: 'Use online or off grid data sources across the app',
+    type: 'connectivity-toggle',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'app-connectivity-probe',
+    label: 'Connectivity Probe URL',
+    desc: 'URL polled every 2 seconds to detect internet access',
+    type: 'probe-url',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'location',
+    label: 'My Location',
+    desc: 'Set a fixed latitude / longitude for your position',
+    type: 'location',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'notification-sound',
+    label: 'Notification Sound',
+    desc: 'Play a subtle blip when a new alert or notification arrives',
+    type: 'notification-sound',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-overhead-alerts',
+    label: 'Overhead Aircraft Alerts',
+    desc: 'Notify when aircraft are within range of your location, and show the zone on the map',
+    type: 'overhead-alerts-toggle',
+    groupLabel: 'ALERTS',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-overhead-alert-radius',
+    label: 'Overhead Alert Radius',
+    desc: 'Distance from your location (in nautical miles) used to trigger overhead aircraft alerts and define the zone shown on the map',
+    type: 'overhead-alert-radius',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-tag-fields',
+    label: 'Label Data Points',
+    desc: 'Choose which data fields appear on aircraft labels for civil and military aircraft',
+    type: 'air-tag-fields',
+    groupLabel: 'LABELS',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-replay-toggle',
+    label: 'Flight Replay',
+    desc: 'Record aircraft movements to the database so you can replay them later via the REPLAY tab. When off, no flight history is recorded and the REPLAY tab is hidden. Off by default.',
+    type: 'air-replay-toggle',
+    groupLabel: 'REPLAY',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-source-override',
+    label: 'Source Override',
+    desc: 'Override the app-level connectivity mode for this domain',
+    type: 'source-override',
+    ns: 'air',
+    groupLabel: 'DATA SOURCES',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-online-source',
+    label: 'Online Data Source',
+    desc: 'URL for live air data feed',
+    type: 'online-source',
+    ns: 'air',
+    defaultUrl: 'https://api.airplanes.live/v2',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
+    id: 'air-offline-source',
+    label: 'Off Grid Data Source',
+    desc: 'Local server URL and port for air data',
+    type: 'offline-source',
+    ns: 'air',
+    defaultUrl: '',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-online-source',
+    label: 'Online Data Source',
+    desc: 'URL to fetch TLE data from — select a category and click UPDATE TLE',
+    type: 'space-tle-online',
+    groupLabel: 'DATA SOURCES',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-manual-tle',
+    label: 'TLE Import',
+    desc: 'Upload a .txt file of TLE data',
+    type: 'space-tle-manual',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-tle-database',
+    label: 'TLE Database',
+    desc: 'Satellite count, sources, and per-category last-updated times. Clear all data, or clear a single category (e.g. space station, amateur radio).',
+    type: 'space-tle-db',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-tle-uncategorised',
+    label: 'Uncategorised Satellites',
+    desc: 'Assign categories to satellites imported without one',
+    type: 'space-tle-uncat',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-tle-satlist',
+    label: 'Satellite List',
+    desc: 'Full list of all TLE records stored in the database',
+    type: 'space-tle-satlist',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-sat-radio-file',
+    label: 'Satellite Frequencies (JSON)',
+    desc: 'Bulk-edit all satellite frequencies as raw JSON. Saved to backend/data/satellite_radio.json and the database.',
+    type: 'space-sat-radio-file',
+    groupLabel: 'SATELLITE DATA',
+  },
+  {
+    section: 'space',
+    sectionLabel: 'SPACE',
+    id: 'space-filter-hover-preview',
+    label: 'Filter Hover Behaviour',
+    desc: 'When hovering over a satellite in the search results, choose whether the map stays in place or flies to that satellite',
+    type: 'space-hover-preview',
+    groupLabel: 'FILTER HOVER',
+  },
+  {
+    section: 'sea',
+    sectionLabel: 'SEA',
+    id: 'sea-source-override',
+    label: 'Source Override',
+    desc: 'Override the app-level connectivity mode for this domain',
+    type: 'source-override',
+    ns: 'sea',
+  },
+  {
+    section: 'sea',
+    sectionLabel: 'SEA',
+    id: 'sea-online-source',
+    label: 'Online Data Source',
+    desc: 'URL for live sea data feed',
+    type: 'online-source',
+    ns: 'sea',
+    defaultUrl: '',
+  },
+  {
+    section: 'sea',
+    sectionLabel: 'SEA',
+    id: 'sea-offline-source',
+    label: 'Off Grid Data Source',
+    desc: 'Local server URL and port for sea data',
+    type: 'offline-source',
+    ns: 'sea',
+    defaultUrl: '',
+  },
+  {
+    section: 'land',
+    sectionLabel: 'LAND',
+    id: 'land-source-override',
+    label: 'Source Override',
+    desc: 'Override the app-level connectivity mode for this domain',
+    type: 'source-override',
+    ns: 'land',
+  },
+  {
+    section: 'land',
+    sectionLabel: 'LAND',
+    id: 'land-online-source',
+    label: 'Online Data Source',
+    desc: 'URL for live land data feed',
+    type: 'online-source',
+    ns: 'land',
+    defaultUrl: '',
+  },
+  {
+    section: 'land',
+    sectionLabel: 'LAND',
+    id: 'land-offline-source',
+    label: 'Off Grid Data Source',
+    desc: 'Local server URL and port for land data',
+    type: 'offline-source',
+    ns: 'land',
+    defaultUrl: '',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-devices',
+    label: 'SDR Devices',
+    desc: 'Configure RTL-SDR devices reachable via rtl_tcp',
+    type: 'sdr-devices',
+    groupLabel: 'DEVICES',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-autocenter',
+    label: 'Auto-center on Tune',
+    desc: 'When ON, clicking the spectrum/waterfall re-centers the display on the new frequency. When OFF, the display stays put and the radio tunes to the clicked frequency where you clicked it.',
+    type: 'sdr-autocenter',
+    groupLabel: 'WATERFALL',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-full-waterfall-update',
+    label: 'Full Waterfall Update',
+    desc: 'When ON, the waterfall history clears each time you change Zoom so new rows fill the new viewport cleanly. When OFF (the SDR++ default), the existing rows stay stretched and only new rows are drawn at the new zoom level.',
+    type: 'sdr-full-waterfall-update',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-show-bandplan',
+    label: 'Show Band Plan',
+    desc: 'Show the coloured RF band-plan strip (Air Band, FM Broadcast, etc.) along the bottom of the spectrum.',
+    type: 'sdr-show-bandplan',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-show-known-freqs',
+    label: 'Show Known Frequencies',
+    desc: 'Show labels on the spectrum for the frequencies tracked in your Frequency Manager.',
+    type: 'sdr-show-known-freqs',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-resume-delay',
+    label: 'Resume Delay',
+    desc: 'When scan or search locks on a signal, wait this many seconds after the signal drops before continuing. 0 resumes immediately on drop. You can always press HOLD/RESUME to force-continue.',
+    type: 'sdr-resume-delay',
+    groupLabel: 'SCAN & SEARCH',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-frequencies-file',
+    label: 'Frequencies & Groups (JSON)',
+    desc: 'Bulk-edit frequency groups, stored frequencies, and search ranges as raw JSON. Saved to backend/data/sdr_frequencies.json and the database.',
+    type: 'sdr-frequencies-file',
+    groupLabel: 'FREQUENCY DATA',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-bandplan-file',
+    label: 'Band Plan (JSON)',
+    desc: 'Bulk-edit the coloured RF band-plan strip as raw JSON. Saved to backend/data/sdr_bandplan.json and the database.',
+    type: 'sdr-bandplan-file',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'config-current',
+    label: 'Application Config',
+    desc: 'Settings currently stored in the database',
+    type: 'config-current',
+  },
 ]
 
 const DOMAIN_SECTIONS = new Set(['air', 'space', 'sea', 'land', 'sdr'])
 const visibleSections = computed(() =>
-  NAV_SECTIONS.filter(s => !DOMAIN_SECTIONS.has(s.key) || appStore.enabledDomains.includes(s.key))
+  NAV_SECTIONS.filter(
+    (s) => !DOMAIN_SECTIONS.has(s.key) || appStore.enabledDomains.includes(s.key),
+  ),
 )
 
 const sectionHeading = computed(() => {
   if (searchQuery.value.trim()) return 'SEARCH RESULTS'
-  const s = NAV_SECTIONS.find(n => n.key === activeSection.value)
+  const s = NAV_SECTIONS.find((n) => n.key === activeSection.value)
   if (!s) return activeSection.value
   return s.key === 'app' ? s.label : s.label + ' SETTINGS'
 })
 
 const currentSectionItems = computed(() =>
-  ALL_SETTINGS.filter(s => s.section === activeSection.value)
+  ALL_SETTINGS.filter((s) => s.section === activeSection.value),
 )
 
 const searchResults = computed<SettingItem[]>(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return []
-  return ALL_SETTINGS.filter(s =>
-    (!DOMAIN_SECTIONS.has(s.section) || appStore.enabledDomains.includes(s.section)) &&
-    (s.label.toLowerCase().includes(q) ||
-    s.desc.toLowerCase().includes(q) ||
-    s.sectionLabel.toLowerCase().includes(q))
+  return ALL_SETTINGS.filter(
+    (s) =>
+      (!DOMAIN_SECTIONS.has(s.section) || appStore.enabledDomains.includes(s.section)) &&
+      (s.label.toLowerCase().includes(q) ||
+        s.desc.toLowerCase().includes(q) ||
+        s.sectionLabel.toLowerCase().includes(q)),
   )
 })
 
 const searchResultGroups = computed(() => {
   const groups: Record<string, { section: string; sectionLabel: string; items: SettingItem[] }> = {}
   const order: string[] = []
-  searchResults.value.forEach(item => {
+  searchResults.value.forEach((item) => {
     if (!groups[item.section]) {
       groups[item.section] = { section: item.section, sectionLabel: item.sectionLabel, items: [] }
       order.push(item.section)
     }
     groups[item.section].items.push(item)
   })
-  return order.map(k => groups[k])
+  return order.map((k) => groups[k])
 })
 
 function selectSection(key: string): void {
@@ -243,7 +539,7 @@ async function commitAll(): Promise<void> {
   }
   const promises: Promise<unknown>[] = []
   let hasError = false
-  pending.value.forEach(fn => {
+  pending.value.forEach((fn) => {
     try {
       const result = fn()
       if (result && typeof (result as Promise<unknown>).then === 'function') {
@@ -253,7 +549,10 @@ async function commitAll(): Promise<void> {
       hasError = true
     }
   })
-  if (hasError) { showApplyStatus('ERROR', true); return }
+  if (hasError) {
+    showApplyStatus('ERROR', true)
+    return
+  }
   try {
     await Promise.all(promises)
   } catch {
@@ -265,29 +564,34 @@ async function commitAll(): Promise<void> {
   // Hold long enough for the SAVED confirmation to be clearly visible before the
   // page reloads (the reload re-hydrates settings that need a fresh app start).
   setTimeout(() => {
-    try { sessionStorage.setItem('sentinel_settings_reopen', activeSection.value) } catch {}
+    try {
+      sessionStorage.setItem('sentinel_settings_reopen', activeSection.value)
+    } catch {}
     location.reload()
   }, 1200)
 }
 
-watch(() => store.open, (isOpen) => {
-  if (isOpen) {
-    setTimeout(() => searchInputRef.value?.focus(), 50)
-    if (store.activeSection) {
-      activeSection.value = store.activeSection
-    }
-    try {
-      const reopenSection = sessionStorage.getItem('sentinel_settings_reopen')
-      if (reopenSection) {
-        sessionStorage.removeItem('sentinel_settings_reopen')
-        activeSection.value = reopenSection
+watch(
+  () => store.open,
+  (isOpen) => {
+    if (isOpen) {
+      setTimeout(() => searchInputRef.value?.focus(), 50)
+      if (store.activeSection) {
+        activeSection.value = store.activeSection
       }
-    } catch {}
-  } else {
-    searchQuery.value = ''
-    pending.value.clear()
-  }
-})
+      try {
+        const reopenSection = sessionStorage.getItem('sentinel_settings_reopen')
+        if (reopenSection) {
+          sessionStorage.removeItem('sentinel_settings_reopen')
+          activeSection.value = reopenSection
+        }
+      } catch {}
+    } else {
+      searchQuery.value = ''
+      pending.value.clear()
+    }
+  },
+)
 
 // A location set elsewhere (right-click, config hydration) supersedes any
 // typed-but-unapplied LAT/LON, so drop the staged 'location' edit. The field
@@ -298,4 +602,3 @@ window.addEventListener('settings:locationSynced', () => {
   pending.value.delete('location')
 })
 </script>
-

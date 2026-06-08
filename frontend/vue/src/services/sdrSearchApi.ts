@@ -21,7 +21,7 @@ const BASE = '/api/sdr/search-ranges'
 export async function listSearchRanges(): Promise<SdrSearchRange[]> {
   const res = await fetch(BASE)
   if (!res.ok) return []
-  return await res.json() as SdrSearchRange[]
+  return (await res.json()) as SdrSearchRange[]
 }
 
 export async function createSearchRange(body: SdrSearchRangeInput): Promise<SdrSearchRange | null> {
@@ -31,17 +31,20 @@ export async function createSearchRange(body: SdrSearchRangeInput): Promise<SdrS
     body: JSON.stringify(body),
   })
   if (!res.ok) return null
-  return await res.json() as SdrSearchRange
+  return (await res.json()) as SdrSearchRange
 }
 
-export async function updateSearchRange(id: number, body: SdrSearchRangeInput): Promise<SdrSearchRange | null> {
+export async function updateSearchRange(
+  id: number,
+  body: SdrSearchRangeInput,
+): Promise<SdrSearchRange | null> {
   const res = await fetch(`${BASE}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   if (!res.ok) return null
-  return await res.json() as SdrSearchRange
+  return (await res.json()) as SdrSearchRange
 }
 
 export async function deleteSearchRange(id: number): Promise<boolean> {

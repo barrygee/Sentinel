@@ -30,12 +30,12 @@ const RING_DISTANCES_NM: readonly number[] = [50, 100, 150, 200, 250];
 
 /** Convert degrees to radians. */
 function _toRad(degrees: number): number {
-    return degrees * Math.PI / 180;
+    return (degrees * Math.PI) / 180;
 }
 
 /** Convert radians to degrees. */
 function _toDeg(radians: number): number {
-    return radians * 180 / Math.PI;
+    return (radians * 180) / Math.PI;
 }
 
 /**
@@ -43,11 +43,7 @@ function _toDeg(radians: number): number {
  * Earth's surface centred at (lng, lat) with the given radius in nautical miles.
  * The Earth's radius used is 3440.065 nm (mean spherical radius).
  */
-function generateGeodesicCircle(
-    lng: number,
-    lat: number,
-    radiusNm: number,
-): LngLat[] {
+function generateGeodesicCircle(lng: number, lat: number, radiusNm: number): LngLat[] {
     const angularDistanceRad = radiusNm / 3440.065;
     const latRad = _toRad(lat);
     const lngRad = _toRad(lng);
@@ -56,7 +52,7 @@ function generateGeodesicCircle(
         const bearingRad = _toRad(i * 2);
         const lat2 = Math.asin(
             Math.sin(latRad) * Math.cos(angularDistanceRad) +
-            Math.cos(latRad) * Math.sin(angularDistanceRad) * Math.cos(bearingRad),
+                Math.cos(latRad) * Math.sin(angularDistanceRad) * Math.cos(bearingRad),
         );
         const lng2 =
             lngRad +
@@ -70,8 +66,22 @@ function generateGeodesicCircle(
 }
 
 interface RingsGeoJSON {
-    lines:  { type: 'FeatureCollection'; features: Array<{ type: 'Feature'; geometry: { type: 'LineString'; coordinates: LngLat[] }; properties: Record<string, unknown> }> };
-    labels: { type: 'FeatureCollection'; features: Array<{ type: 'Feature'; geometry: { type: 'Point'; coordinates: LngLat }; properties: { label: string } }> };
+    lines: {
+        type: 'FeatureCollection';
+        features: Array<{
+            type: 'Feature';
+            geometry: { type: 'LineString'; coordinates: LngLat[] };
+            properties: Record<string, unknown>;
+        }>;
+    };
+    labels: {
+        type: 'FeatureCollection';
+        features: Array<{
+            type: 'Feature';
+            geometry: { type: 'Point'; coordinates: LngLat };
+            properties: { label: string };
+        }>;
+    };
 }
 
 /**
@@ -79,12 +89,12 @@ interface RingsGeoJSON {
  * north-point labels for each ring.
  */
 function buildRingsGeoJSON(lng: number, lat: number): RingsGeoJSON {
-    const lines:  RingsGeoJSON['lines']  = { type: 'FeatureCollection', features: [] };
+    const lines: RingsGeoJSON['lines'] = { type: 'FeatureCollection', features: [] };
     const labels: RingsGeoJSON['labels'] = { type: 'FeatureCollection', features: [] };
     const latR = _toRad(lat);
     const lngR = _toRad(lng);
 
-    RING_DISTANCES_NM.forEach(nm => {
+    RING_DISTANCES_NM.forEach((nm) => {
         const angularDistanceRad = nm / 3440.065;
 
         lines.features.push({
@@ -95,7 +105,7 @@ function buildRingsGeoJSON(lng: number, lat: number): RingsGeoJSON {
 
         const lat2 = Math.asin(
             Math.sin(latR) * Math.cos(angularDistanceRad) +
-            Math.cos(latR) * Math.sin(angularDistanceRad),
+                Math.cos(latR) * Math.sin(angularDistanceRad),
         );
         labels.features.push({
             type: 'Feature',
@@ -114,12 +124,16 @@ function buildRingsGeoJSON(lng: number, lat: number): RingsGeoJSON {
  */
 function computeCentroid(coordinates: number[][][]): LngLat {
     const ring = coordinates[0];
-    let area = 0, centroidX = 0, centroidY = 0;
+    let area = 0,
+        centroidX = 0,
+        centroidY = 0;
     for (let i = 0; i < ring.length - 1; i++) {
-        const x0 = ring[i][0],     y0 = ring[i][1];
-        const x1 = ring[i + 1][0], y1 = ring[i + 1][1];
+        const x0 = ring[i][0],
+            y0 = ring[i][1];
+        const x1 = ring[i + 1][0],
+            y1 = ring[i + 1][1];
         const cross = x0 * y1 - x1 * y0;
-        area      += cross;
+        area += cross;
         centroidX += (x0 + x1) * cross;
         centroidY += (y0 + y1) * cross;
     }
@@ -133,19 +147,20 @@ function computeCentroid(coordinates: number[][][]): LngLat {
  */
 function computeTextRotate(coordinates: number[][][]): number {
     const ring = coordinates[0];
-    let maxLen = -1, bearing = 0;
+    let maxLen = -1,
+        bearing = 0;
     for (let i = 0; i < ring.length - 1; i++) {
         const dLng = ring[i + 1][0] - ring[i][0];
         const dLat = ring[i + 1][1] - ring[i][1];
-        const len  = Math.sqrt(dLng * dLng + dLat * dLat);
+        const len = Math.sqrt(dLng * dLng + dLat * dLat);
         if (len > maxLen) {
             maxLen = len;
             const midLat = (ring[i][1] + ring[i + 1][1]) / 2;
-            bearing = Math.atan2(dLng * Math.cos(midLat * Math.PI / 180), dLat) * 180 / Math.PI;
+            bearing = (Math.atan2(dLng * Math.cos((midLat * Math.PI) / 180), dLat) * 180) / Math.PI;
         }
     }
     let textRotation = bearing - 90;
-    if (textRotation >   90) textRotation -= 180;
+    if (textRotation > 90) textRotation -= 180;
     if (textRotation <= -90) textRotation += 180;
     return Math.round(textRotation * 10) / 10;
 }
@@ -161,10 +176,10 @@ function computeLongestEdge(coordinates: number[][][]): [LngLat, LngLat] {
     for (let i = 0; i < ring.length - 1; i++) {
         const dLng = ring[i + 1][0] - ring[i][0];
         const dLat = ring[i + 1][1] - ring[i][1];
-        const len  = Math.sqrt(dLng * dLng + dLat * dLat);
+        const len = Math.sqrt(dLng * dLng + dLat * dLat);
         if (len > maxLen) {
             maxLen = len;
-            p0 = [ring[i][0],     ring[i][1]];
+            p0 = [ring[i][0], ring[i][1]];
             p1 = [ring[i + 1][0], ring[i + 1][1]];
         }
     }
@@ -178,15 +193,13 @@ function computeLongestEdge(coordinates: number[][][]): [LngLat, LngLat] {
  * Used to verify that geodesic circle points are approximately the right distance
  * from the centre.
  */
-function haversineDistanceNm(
-    [lng1, lat1]: LngLat,
-    [lng2, lat2]: LngLat,
-): number {
-    const R  = 3440.065; // Earth radius in nm
-    const φ1 = _toRad(lat1), φ2 = _toRad(lat2);
+function haversineDistanceNm([lng1, lat1]: LngLat, [lng2, lat2]: LngLat): number {
+    const R = 3440.065; // Earth radius in nm
+    const φ1 = _toRad(lat1),
+        φ2 = _toRad(lat2);
     const Δφ = _toRad(lat2 - lat1);
     const Δλ = _toRad(lng2 - lng1);
-    const a  = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -216,10 +229,7 @@ describe('_toRad — degree-to-radian conversion', () => {
 
     test('is the exact inverse of _toDeg for an arbitrary value', () => {
         const originalDegrees = 137.5;
-        expect(_toRad(_toDeg(_toRad(originalDegrees)))).toBeCloseTo(
-            _toRad(originalDegrees),
-            10,
-        );
+        expect(_toRad(_toDeg(_toRad(originalDegrees)))).toBeCloseTo(_toRad(originalDegrees), 10);
     });
 });
 
@@ -249,21 +259,13 @@ describe('generateGeodesicCircle — great-circle ring generation', () => {
     const radiusOneHundredNm = 100;
 
     test('returns exactly 181 points (bearings 0° through 360° in 2° steps)', () => {
-        const circlePoints = generateGeodesicCircle(
-            ukCentreLng,
-            ukCentreLat,
-            radiusOneHundredNm,
-        );
+        const circlePoints = generateGeodesicCircle(ukCentreLng, ukCentreLat, radiusOneHundredNm);
         expect(circlePoints).toHaveLength(181);
     });
 
     test('every point in the circle is a [lng, lat] tuple with two numeric elements', () => {
-        const circlePoints = generateGeodesicCircle(
-            ukCentreLng,
-            ukCentreLat,
-            radiusOneHundredNm,
-        );
-        circlePoints.forEach((point, pointIndex) => {
+        const circlePoints = generateGeodesicCircle(ukCentreLng, ukCentreLat, radiusOneHundredNm);
+        circlePoints.forEach((point, _pointIndex) => {
             expect(point).toHaveLength(2);
             expect(typeof point[0]).toBe('number');
             expect(typeof point[1]).toBe('number');
@@ -275,32 +277,26 @@ describe('generateGeodesicCircle — great-circle ring generation', () => {
 
     test(
         'every point in the circle is within 0.5 nm of the requested radius ' +
-        '(haversine check against the centre)',
+            '(haversine check against the centre)',
         () => {
             const centre: LngLat = [ukCentreLng, ukCentreLat];
-            const circlePoints   = generateGeodesicCircle(
+            const circlePoints = generateGeodesicCircle(
                 ukCentreLng,
                 ukCentreLat,
                 radiusOneHundredNm,
             );
             const toleranceNm = 0.5;
-            circlePoints.forEach(point => {
+            circlePoints.forEach((point) => {
                 const actualDistanceNm = haversineDistanceNm(centre, point);
-                expect(Math.abs(actualDistanceNm - radiusOneHundredNm)).toBeLessThan(
-                    toleranceNm,
-                );
+                expect(Math.abs(actualDistanceNm - radiusOneHundredNm)).toBeLessThan(toleranceNm);
             });
         },
     );
 
     test('first and last points are equal (the ring closes on itself)', () => {
-        const circlePoints = generateGeodesicCircle(
-            ukCentreLng,
-            ukCentreLat,
-            radiusOneHundredNm,
-        );
+        const circlePoints = generateGeodesicCircle(ukCentreLng, ukCentreLat, radiusOneHundredNm);
         const firstPoint = circlePoints[0];
-        const lastPoint  = circlePoints[circlePoints.length - 1];
+        const lastPoint = circlePoints[circlePoints.length - 1];
         expect(firstPoint[0]).toBeCloseTo(lastPoint[0], 6);
         expect(firstPoint[1]).toBeCloseTo(lastPoint[1], 6);
     });
@@ -309,7 +305,7 @@ describe('generateGeodesicCircle — great-circle ring generation', () => {
         const tinyRadiusNm = 1;
         const circlePoints = generateGeodesicCircle(0, 0, tinyRadiusNm);
         expect(circlePoints).toHaveLength(181);
-        circlePoints.forEach(point => {
+        circlePoints.forEach((point) => {
             expect(Number.isFinite(point[0])).toBe(true);
             expect(Number.isFinite(point[1])).toBe(true);
         });
@@ -317,13 +313,9 @@ describe('generateGeodesicCircle — great-circle ring generation', () => {
 
     test('a large radius (250 nm) still produces 181 finite points', () => {
         const largeRadiusNm = 250;
-        const circlePoints  = generateGeodesicCircle(
-            ukCentreLng,
-            ukCentreLat,
-            largeRadiusNm,
-        );
+        const circlePoints = generateGeodesicCircle(ukCentreLng, ukCentreLat, largeRadiusNm);
         expect(circlePoints).toHaveLength(181);
-        circlePoints.forEach(point => {
+        circlePoints.forEach((point) => {
             expect(Number.isFinite(point[0])).toBe(true);
             expect(Number.isFinite(point[1])).toBe(true);
         });
@@ -332,7 +324,7 @@ describe('generateGeodesicCircle — great-circle ring generation', () => {
     test('circles centred at the equator (lat = 0) produce valid coordinates', () => {
         const circlePoints = generateGeodesicCircle(0, 0, radiusOneHundredNm);
         expect(circlePoints).toHaveLength(181);
-        circlePoints.forEach(point => {
+        circlePoints.forEach((point) => {
             // Latitude values must remain within [-90, 90]
             expect(point[1]).toBeGreaterThanOrEqual(-90);
             expect(point[1]).toBeLessThanOrEqual(90);
@@ -341,7 +333,7 @@ describe('generateGeodesicCircle — great-circle ring generation', () => {
 
     test('circles centred at a negative longitude produce valid coordinates', () => {
         const circlePoints = generateGeodesicCircle(-10, 51, radiusOneHundredNm);
-        circlePoints.forEach(point => {
+        circlePoints.forEach((point) => {
             expect(Number.isFinite(point[0])).toBe(true);
             expect(Number.isFinite(point[1])).toBe(true);
         });
@@ -372,7 +364,7 @@ describe('buildRingsGeoJSON — range-ring GeoJSON construction', () => {
 
     test('each line feature contains a LineString geometry with 181 coordinates', () => {
         const { lines } = buildRingsGeoJSON(centreLng, centreLat);
-        lines.features.forEach((lineFeature, featureIndex) => {
+        lines.features.forEach((lineFeature, _featureIndex) => {
             expect(lineFeature.geometry.type).toBe('LineString');
             expect(lineFeature.geometry.coordinates).toHaveLength(181);
         });
@@ -380,7 +372,7 @@ describe('buildRingsGeoJSON — range-ring GeoJSON construction', () => {
 
     test('each label feature contains a Point geometry', () => {
         const { labels } = buildRingsGeoJSON(centreLng, centreLat);
-        labels.features.forEach(labelFeature => {
+        labels.features.forEach((labelFeature) => {
             expect(labelFeature.geometry.type).toBe('Point');
             expect(labelFeature.geometry.coordinates).toHaveLength(2);
         });
@@ -388,14 +380,14 @@ describe('buildRingsGeoJSON — range-ring GeoJSON construction', () => {
 
     test('label text values match the expected "N nm" pattern for each ring distance', () => {
         const { labels } = buildRingsGeoJSON(centreLng, centreLat);
-        const expectedLabels = RING_DISTANCES_NM.map(nm => `${nm} nm`);
-        const actualLabels   = labels.features.map(f => f.properties.label);
+        const expectedLabels = RING_DISTANCES_NM.map((nm) => `${nm} nm`);
+        const actualLabels = labels.features.map((f) => f.properties.label);
         expect(actualLabels).toEqual(expectedLabels);
     });
 
     test('label points are directly north of the centre (same longitude)', () => {
         const { labels } = buildRingsGeoJSON(centreLng, centreLat);
-        labels.features.forEach(labelFeature => {
+        labels.features.forEach((labelFeature) => {
             // The label is placed at bearing 0° (true north), so longitude equals centre lng
             expect(labelFeature.geometry.coordinates[0]).toBeCloseTo(centreLng, 6);
         });
@@ -403,7 +395,7 @@ describe('buildRingsGeoJSON — range-ring GeoJSON construction', () => {
 
     test('label latitudes are north of the centre (larger latitude value)', () => {
         const { labels } = buildRingsGeoJSON(centreLng, centreLat);
-        labels.features.forEach(labelFeature => {
+        labels.features.forEach((labelFeature) => {
             expect(labelFeature.geometry.coordinates[1]).toBeGreaterThan(centreLat);
         });
     });
@@ -412,7 +404,7 @@ describe('buildRingsGeoJSON — range-ring GeoJSON construction', () => {
         const { labels } = buildRingsGeoJSON(centreLng, centreLat);
         for (let i = 1; i < labels.features.length; i++) {
             const previousRingLat = labels.features[i - 1].geometry.coordinates[1];
-            const currentRingLat  = labels.features[i].geometry.coordinates[1];
+            const currentRingLat = labels.features[i].geometry.coordinates[1];
             expect(currentRingLat).toBeGreaterThan(previousRingLat);
         }
     });
@@ -424,9 +416,9 @@ describe('computeCentroid — shoelace-formula area-weighted centroid', () => {
         // A counter-clockwise unit square: corners at (±0.5, ±0.5), ring closed
         const unitSquareRing = [
             [-0.5, -0.5],
-            [ 0.5, -0.5],
-            [ 0.5,  0.5],
-            [-0.5,  0.5],
+            [0.5, -0.5],
+            [0.5, 0.5],
+            [-0.5, 0.5],
             [-0.5, -0.5], // closing vertex
         ];
         const [centroidLng, centroidLat] = computeCentroid([unitSquareRing]);
@@ -478,7 +470,13 @@ describe('computeCentroid — shoelace-formula area-weighted centroid', () => {
     });
 
     test('returns a tuple with exactly two numeric elements', () => {
-        const ring = [[0,0],[1,0],[1,1],[0,1],[0,0]];
+        const ring = [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 1],
+            [0, 0],
+        ];
         const centroid = computeCentroid([ring]);
         expect(centroid).toHaveLength(2);
         expect(typeof centroid[0]).toBe('number');
@@ -492,13 +490,37 @@ describe('computeTextRotate — bearing aligned to polygon longest edge', () => 
         // Test with several polygon orientations to verify the normalisation clamp
         const polygonRings = [
             // Horizontal rectangle — longest edge is horizontal, expect ≈ 0°
-            [[[0,0],[10,0],[10,1],[0,1],[0,0]]],
+            [
+                [
+                    [0, 0],
+                    [10, 0],
+                    [10, 1],
+                    [0, 1],
+                    [0, 0],
+                ],
+            ],
             // Vertical rectangle — longest edge is vertical, expect ≈ 0° (90−90=0)
-            [[[0,0],[1,0],[1,10],[0,10],[0,0]]],
+            [
+                [
+                    [0, 0],
+                    [1, 0],
+                    [1, 10],
+                    [0, 10],
+                    [0, 0],
+                ],
+            ],
             // Diagonal rectangle tilted ~45°
-            [[[0,0],[5,5],[6,4],[1,-1],[0,0]]],
+            [
+                [
+                    [0, 0],
+                    [5, 5],
+                    [6, 4],
+                    [1, -1],
+                    [0, 0],
+                ],
+            ],
         ];
-        polygonRings.forEach(coordinates => {
+        polygonRings.forEach((coordinates) => {
             const rotation = computeTextRotate(coordinates);
             expect(rotation).toBeGreaterThan(-90);
             expect(rotation).toBeLessThanOrEqual(90);
@@ -507,13 +529,29 @@ describe('computeTextRotate — bearing aligned to polygon longest edge', () => 
 
     test('horizontal rectangle produces a rotation close to 0°', () => {
         // Longest edge runs along the x-axis → bearing ≈ 90° → rotation ≈ 90 − 90 = 0°
-        const horizontalRectangleRing = [[[0,0],[10,0],[10,1],[0,1],[0,0]]];
+        const horizontalRectangleRing = [
+            [
+                [0, 0],
+                [10, 0],
+                [10, 1],
+                [0, 1],
+                [0, 0],
+            ],
+        ];
         const rotation = computeTextRotate(horizontalRectangleRing);
         expect(Math.abs(rotation)).toBeLessThan(5); // should be ≈ 0°
     });
 
     test('returns a number rounded to one decimal place', () => {
-        const rectangleRing = [[[0,0],[3,0],[3,1],[0,1],[0,0]]];
+        const rectangleRing = [
+            [
+                [0, 0],
+                [3, 0],
+                [3, 1],
+                [0, 1],
+                [0, 0],
+            ],
+        ];
         const rotation = computeTextRotate(rectangleRing);
         // Verify no more than one decimal digit of precision
         const roundedToOneDecimal = Math.round(rotation * 10) / 10;
@@ -521,8 +559,16 @@ describe('computeTextRotate — bearing aligned to polygon longest edge', () => 
     });
 
     test('result is a finite number for any valid closed polygon ring', () => {
-        const squareRing = [[[0,0],[1,0],[1,1],[0,1],[0,0]]];
-        const rotation   = computeTextRotate(squareRing);
+        const squareRing = [
+            [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+            ],
+        ];
+        const rotation = computeTextRotate(squareRing);
         expect(Number.isFinite(rotation)).toBe(true);
     });
 });
@@ -533,7 +579,15 @@ describe('computeLongestEdge — endpoints of polygon longest edge', () => {
         // Rectangle: width = 10 units, height = 1 unit
         // The longest edges are the top and bottom (length 10); the first one
         // found (index 0→1) should be returned.
-        const wideRectangleRing = [[[0,0],[10,0],[10,1],[0,1],[0,0]]];
+        const wideRectangleRing = [
+            [
+                [0, 0],
+                [10, 0],
+                [10, 1],
+                [0, 1],
+                [0, 0],
+            ],
+        ];
         const [edgeStart, edgeEnd] = computeLongestEdge(wideRectangleRing);
         // The bottom edge from (0,0) to (10,0) has length 10
         expect(edgeStart).toEqual([0, 0]);
@@ -541,7 +595,15 @@ describe('computeLongestEdge — endpoints of polygon longest edge', () => {
     });
 
     test('returns an array of exactly two [lng, lat] tuples', () => {
-        const squareRing = [[[0,0],[1,0],[1,1],[0,1],[0,0]]];
+        const squareRing = [
+            [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+            ],
+        ];
         const longestEdge = computeLongestEdge(squareRing);
         expect(longestEdge).toHaveLength(2);
         expect(longestEdge[0]).toHaveLength(2);
@@ -549,9 +611,16 @@ describe('computeLongestEdge — endpoints of polygon longest edge', () => {
     });
 
     test('each endpoint element is a finite number', () => {
-        const triangleRing = [[[0,0],[5,0],[2.5,4],[0,0]]];
+        const triangleRing = [
+            [
+                [0, 0],
+                [5, 0],
+                [2.5, 4],
+                [0, 0],
+            ],
+        ];
         const [p0, p1] = computeLongestEdge(triangleRing);
-        [p0, p1].forEach(point => {
+        [p0, p1].forEach((point) => {
             expect(Number.isFinite(point[0])).toBe(true);
             expect(Number.isFinite(point[1])).toBe(true);
         });
@@ -559,7 +628,15 @@ describe('computeLongestEdge — endpoints of polygon longest edge', () => {
 
     test('longest edge of a tall rectangle is correctly identified as the vertical side', () => {
         // Rectangle: width = 1, height = 10 — the tall sides are longest
-        const tallRectangleRing = [[[0,0],[1,0],[1,10],[0,10],[0,0]]];
+        const tallRectangleRing = [
+            [
+                [0, 0],
+                [1, 0],
+                [1, 10],
+                [0, 10],
+                [0, 0],
+            ],
+        ];
         const [edgeStart, edgeEnd] = computeLongestEdge(tallRectangleRing);
         // Edge from (1,0)→(1,10) has length 10 and occurs at index 1→2
         expect(edgeStart).toEqual([1, 0]);
@@ -568,7 +645,15 @@ describe('computeLongestEdge — endpoints of polygon longest edge', () => {
 
     test('when all edges are equal length (square) the first edge is returned', () => {
         // All edges of a unit square have length 1; the first one (0→1) should win.
-        const unitSquareRing = [[[0,0],[1,0],[1,1],[0,1],[0,0]]];
+        const unitSquareRing = [
+            [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+            ],
+        ];
         const [edgeStart, edgeEnd] = computeLongestEdge(unitSquareRing);
         expect(edgeStart).toEqual([0, 0]);
         expect(edgeEnd).toEqual([1, 0]);
@@ -577,7 +662,14 @@ describe('computeLongestEdge — endpoints of polygon longest edge', () => {
     test('diagonal edge is correctly identified when it is the longest', () => {
         // Triangle with vertices (0,0), (3,0), (0,4).
         // Edges: bottom=3, left=4, hypotenuse=5. Hypotenuse wins.
-        const rightTriangleRing = [[[0,0],[3,0],[0,4],[0,0]]];
+        const rightTriangleRing = [
+            [
+                [0, 0],
+                [3, 0],
+                [0, 4],
+                [0, 0],
+            ],
+        ];
         const [edgeStart, edgeEnd] = computeLongestEdge(rightTriangleRing);
         expect(edgeStart).toEqual([3, 0]);
         expect(edgeEnd).toEqual([0, 4]);
@@ -595,7 +687,7 @@ describe('RING_DISTANCES_NM — ring distance constant array', () => {
     });
 
     test('all values are positive integers', () => {
-        RING_DISTANCES_NM.forEach(distanceNm => {
+        RING_DISTANCES_NM.forEach((distanceNm) => {
             expect(distanceNm).toBeGreaterThan(0);
             expect(Number.isInteger(distanceNm)).toBe(true);
         });

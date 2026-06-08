@@ -76,7 +76,6 @@
   flex-shrink: 0;
 }
 
-
 /* The slider is rotated into this wrapper; its rendered width = the wrapper's
  * pixel HEIGHT. Fixed short height so each track is compact and the stack sits
  * near the top of the spectrum. */

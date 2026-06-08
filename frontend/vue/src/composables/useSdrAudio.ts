@@ -39,7 +39,7 @@ let _recChunks: Float32Array[] = []
 // Power/squelch callbacks (set by SdrPanel)
 let _onPower: ((dbfs: number, squelchOpen: boolean) => void) | null = null
 let _onSquelchChange: ((open: boolean) => void) | null = null
-let _onRecChunk: ((samples: Float32Array) => void) | null = null
+const _onRecChunk: ((samples: Float32Array) => void) | null = null
 
 // ── AudioWorklet processor (inlined) ─────────────────────────────────────────
 const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends AudioWorkletProcessor {
@@ -190,13 +190,22 @@ function _encodeWav(chunks: Float32Array[], sampleRate: number): Blob {
   const numBytes = totalSamples * 2
   const buf = new ArrayBuffer(44 + numBytes)
   const view = new DataView(buf)
-  const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)) }
-  writeStr(0, 'RIFF'); view.setUint32(4, 36 + numBytes, true)
-  writeStr(8, 'WAVE'); writeStr(12, 'fmt ')
-  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true)
-  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true)
-  view.setUint16(32, 2, true); view.setUint16(34, 16, true)
-  writeStr(36, 'data'); view.setUint32(40, numBytes, true)
+  const writeStr = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i))
+  }
+  writeStr(0, 'RIFF')
+  view.setUint32(4, 36 + numBytes, true)
+  writeStr(8, 'WAVE')
+  writeStr(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, sampleRate * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  writeStr(36, 'data')
+  view.setUint32(40, numBytes, true)
   let off = 44
   for (const chunk of chunks) {
     for (let i = 0; i < chunk.length; i++) {
@@ -210,14 +219,23 @@ function _encodeWav(chunks: Float32Array[], sampleRate: number): Blob {
 // ── Gesture listeners for AudioContext resume ──────────────────────────────────
 function _resumeOnGesture() {
   if (!_ctx || _ctx.state !== 'suspended') return
-  _ctx.resume().then(() => { if (_worklet) _worklet.port.postMessage({ type: 'reset' }) }).catch(() => {})
+  _ctx
+    .resume()
+    .then(() => {
+      if (_worklet) _worklet.port.postMessage({ type: 'reset' })
+    })
+    .catch(() => {})
 }
 const _gestureEvents = ['pointerdown', 'touchend', 'keydown'] as const
 function _addGestureListeners() {
-  _gestureEvents.forEach(ev => window.addEventListener(ev, _resumeOnGesture, { capture: true, passive: true }))
+  _gestureEvents.forEach((ev) =>
+    window.addEventListener(ev, _resumeOnGesture, { capture: true, passive: true }),
+  )
 }
 function _removeGestureListeners() {
-  _gestureEvents.forEach(ev => window.removeEventListener(ev, _resumeOnGesture, { capture: true }))
+  _gestureEvents.forEach((ev) =>
+    window.removeEventListener(ev, _resumeOnGesture, { capture: true }),
+  )
 }
 function _watchContextState() {
   if (!_ctx) return
@@ -231,8 +249,14 @@ function _watchContextState() {
 
 // ── IQ Socket ────────────────────────────────────────────────────────────────
 function _openIqSocket(radioId: number) {
-  if (_iqReconnectTimer) { clearTimeout(_iqReconnectTimer); _iqReconnectTimer = null }
-  if (_iqSocket) { _iqSocket.close(); _iqSocket = null }
+  if (_iqReconnectTimer) {
+    clearTimeout(_iqReconnectTimer)
+    _iqReconnectTimer = null
+  }
+  if (_iqSocket) {
+    _iqSocket.close()
+    _iqSocket = null
+  }
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
   const ws = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}/iq`)
   ws.binaryType = 'arraybuffer'
@@ -253,16 +277,29 @@ function _openIqSocket(radioId: number) {
     const i = new Float32Array(n)
     const q = new Float32Array(n)
     for (let k = 0; k < n; k++) {
-      i[k] = (iqBytes[k * 2]     - 127.5) / 127.5
+      i[k] = (iqBytes[k * 2] - 127.5) / 127.5
       q[k] = (iqBytes[k * 2 + 1] - 127.5) / 127.5
     }
-    _worklet!.port.postMessage({ type: 'iq', i: i.buffer, q: q.buffer, mode: _mode, squelch_dbfs: _squelch, sample_rate: sampleRate, offset_hz: _offsetHz }, [i.buffer, q.buffer])
+    _worklet!.port.postMessage(
+      {
+        type: 'iq',
+        i: i.buffer,
+        q: q.buffer,
+        mode: _mode,
+        squelch_dbfs: _squelch,
+        sample_rate: sampleRate,
+        offset_hz: _offsetHz,
+      },
+      [i.buffer, q.buffer],
+    )
   })
   ws.addEventListener('close', () => {
     _iqSocket = null
     const delay = _iqReconnectDelay
     _iqReconnectDelay = Math.min(_iqReconnectDelay * 2, IQ_RECONNECT_MAX)
-    _iqReconnectTimer = setTimeout(() => { if (_radioId === radioId) _openIqSocket(radioId) }, delay)
+    _iqReconnectTimer = setTimeout(() => {
+      if (_radioId === radioId) _openIqSocket(radioId)
+    }, delay)
   })
   ws.addEventListener('error', () => {})
 }
@@ -275,14 +312,20 @@ async function _initAudio() {
     const blobUrl = URL.createObjectURL(blob)
     if (!_ctx) {
       const earlyCtx = (window as Window & { _sdrEarlyCtx?: AudioContext })._sdrEarlyCtx
-      if (earlyCtx) { _ctx = earlyCtx; delete (window as Window & { _sdrEarlyCtx?: AudioContext })._sdrEarlyCtx }
-      else _ctx = new AudioContext({ sampleRate: 48000 })
+      if (earlyCtx) {
+        _ctx = earlyCtx
+        delete (window as Window & { _sdrEarlyCtx?: AudioContext })._sdrEarlyCtx
+      } else _ctx = new AudioContext({ sampleRate: 48000 })
       _watchContextState()
     }
     _ctx.resume().catch(() => {})
     await _ctx.audioWorklet.addModule(blobUrl)
     URL.revokeObjectURL(blobUrl)
-    _worklet = new AudioWorkletNode(_ctx, 'sdr-demod-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] })
+    _worklet = new AudioWorkletNode(_ctx, 'sdr-demod-processor', {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+    })
     _gain = _ctx.createGain()
     _gain.gain.value = _liveMuted ? 0 : _volume
     _worklet.connect(_gain)
@@ -292,7 +335,8 @@ async function _initAudio() {
       if (!msg) return
       if (msg.type === 'power') _onPower?.(msg.dbfs as number, msg.squelchOpen as boolean)
       if (msg.type === 'squelch_change') _onSquelchChange?.(msg.open as boolean)
-      if (msg.type === 'pcm_chunk' && _collectingChunks) _recChunks.push(new Float32Array(msg.samples))
+      if (msg.type === 'pcm_chunk' && _collectingChunks)
+        _recChunks.push(new Float32Array(msg.samples))
       if (msg.type === 'pcm_chunk') _onRecChunk?.(new Float32Array(msg.samples))
     }
     _ready = true
@@ -328,11 +372,24 @@ export function useSdrAudio() {
   }
 
   function stop() {
-    if (_iqSocket) { _iqSocket.close(); _iqSocket = null }
+    if (_iqSocket) {
+      _iqSocket.close()
+      _iqSocket = null
+    }
     _ready = false
-    if (_worklet) { _worklet.port.onmessage = null; _worklet.disconnect(); _worklet = null }
-    if (_gain)    { _gain.disconnect(); _gain = null }
-    if (_ctx)     { _ctx.close(); _ctx = null }
+    if (_worklet) {
+      _worklet.port.onmessage = null
+      _worklet.disconnect()
+      _worklet = null
+    }
+    if (_gain) {
+      _gain.disconnect()
+      _gain = null
+    }
+    if (_ctx) {
+      _ctx.close()
+      _ctx = null
+    }
     sdrStore.setPlaying(false)
     _addGestureListeners()
   }
@@ -382,13 +439,21 @@ export function useSdrAudio() {
     if (_worklet) _worklet.port.postMessage({ type: 'offset', offset_hz: hz })
   }
 
-  function onPower(cb: (dbfs: number, squelchOpen: boolean) => void) { _onPower = cb }
-  function onSquelchChange(cb: (open: boolean) => void) { _onSquelchChange = cb }
+  function onPower(cb: (dbfs: number, squelchOpen: boolean) => void) {
+    _onPower = cb
+  }
+  function onSquelchChange(cb: (open: boolean) => void) {
+    _onSquelchChange = cb
+  }
 
   async function startRecording(metadata: {
-    radio_id?: number | null; radio_name?: string
-    frequency_hz?: number; mode?: string; gain_db?: number
-    squelch_dbfs?: number; sample_rate?: number
+    radio_id?: number | null
+    radio_name?: string
+    frequency_hz?: number
+    mode?: string
+    gain_db?: number
+    squelch_dbfs?: number
+    sample_rate?: number
   }): Promise<number | null> {
     if (!_ready || !_worklet) return null
     try {
@@ -396,42 +461,56 @@ export function useSdrAudio() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          radio_id:     metadata.radio_id ?? null,
-          radio_name:   metadata.radio_name || '',
+          radio_id: metadata.radio_id ?? null,
+          radio_name: metadata.radio_name || '',
           frequency_hz: metadata.frequency_hz || 0,
-          mode:         metadata.mode || 'AM',
-          gain_db:      metadata.gain_db ?? 30.0,
+          mode: metadata.mode || 'AM',
+          gain_db: metadata.gain_db ?? 30.0,
           squelch_dbfs: metadata.squelch_dbfs ?? -60.0,
-          sample_rate:  metadata.sample_rate || 2048000,
+          sample_rate: metadata.sample_rate || 2048000,
         }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json() as { id: number }
+      const data = (await res.json()) as { id: number }
       _recId = data.id
-    } catch { return null }
-    _isRecording = true; _collectingChunks = true; _recChunks = []; _recStartTime = new Date()
+    } catch {
+      return null
+    }
+    _isRecording = true
+    _collectingChunks = true
+    _recChunks = []
+    _recStartTime = new Date()
     _worklet.port.postMessage({ type: 'rec_start' })
     return _recId
   }
 
   async function stopRecording(metadata: {
-    frequency_hz?: number; mode?: string; name?: string
+    frequency_hz?: number
+    mode?: string
+    name?: string
   }): Promise<unknown> {
     if (!_isRecording) return null
     _isRecording = false
     const endTime = new Date()
     if (_worklet) _worklet.port.postMessage({ type: 'rec_stop' })
-    await new Promise(r => setTimeout(r, 400))
+    await new Promise((r) => setTimeout(r, 400))
     _collectingChunks = false
-    const startedAt = (_recStartTime || endTime).toISOString().replace(/\.\d{3}Z$/, 'Z')
-    const endedAt   = endTime.toISOString().replace(/\.\d{3}Z$/, 'Z')
-    const freqMhz   = metadata.frequency_hz ? (metadata.frequency_hz / 1e6).toFixed(3) : null
-    const mode      = metadata.mode || null
-    const defaultName = [freqMhz ? `${freqMhz} MHz` : null, mode].filter(Boolean).join(' · ') || 'Recording'
-    const chunks = _recChunks; _recChunks = []
-    const recId = _recId; _recId = null; _recStartTime = null
+    // NOTE: computed but not currently sent to the backend (only ended_at is). Latent.
+    const _startedAt = (_recStartTime || endTime).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    const endedAt = endTime.toISOString().replace(/\.\d{3}Z$/, 'Z')
+    const freqMhz = metadata.frequency_hz ? (metadata.frequency_hz / 1e6).toFixed(3) : null
+    const mode = metadata.mode || null
+    const defaultName =
+      [freqMhz ? `${freqMhz} MHz` : null, mode].filter(Boolean).join(' · ') || 'Recording'
+    const chunks = _recChunks
+    _recChunks = []
+    const recId = _recId
+    _recId = null
+    _recStartTime = null
     if (chunks.length === 0) {
-      try { await fetch(`/api/sdr/recordings/${recId}`, { method: 'DELETE' }) } catch {}
+      try {
+        await fetch(`/api/sdr/recordings/${recId}`, { method: 'DELETE' })
+      } catch {}
       return null
     }
     let totalSamples = 0
@@ -449,17 +528,35 @@ export function useSdrAudio() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
     } catch {
-      try { await fetch(`/api/sdr/recordings/${recId}`, { method: 'DELETE' }) } catch {}
+      try {
+        await fetch(`/api/sdr/recordings/${recId}`, { method: 'DELETE' })
+      } catch {}
       return null
     }
   }
 
-  function isReady() { return _ready }
-  function isPlaying() { return sdrStore.playing }
+  function isReady() {
+    return _ready
+  }
+  function isPlaying() {
+    return sdrStore.playing
+  }
 
   return {
-    initAudio, stop, setRadioId, setMode, setSquelch, setVolume, setLiveMuted,
-    setBandwidthHz, setOffsetHz,
-    startRecording, stopRecording, onPower, onSquelchChange, isReady, isPlaying,
+    initAudio,
+    stop,
+    setRadioId,
+    setMode,
+    setSquelch,
+    setVolume,
+    setLiveMuted,
+    setBandwidthHz,
+    setOffsetHz,
+    startRecording,
+    stopRecording,
+    onPower,
+    onSquelchChange,
+    isReady,
+    isPlaying,
   }
 }

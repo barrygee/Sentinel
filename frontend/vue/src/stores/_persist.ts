@@ -2,11 +2,7 @@ import { ref, watch, type Ref } from 'vue'
 
 type Migrate<T> = (parsed: unknown) => Partial<T> | null
 
-function readFromStorage<T extends object>(
-  key: string,
-  defaults: T,
-  migrate?: Migrate<T>,
-): T {
+function readFromStorage<T extends object>(key: string, defaults: T, migrate?: Migrate<T>): T {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return { ...defaults }
@@ -22,7 +18,9 @@ function readFromStorage<T extends object>(
 }
 
 function writeToStorage(key: string, value: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {}
 }
 
 export function usePersistedObject<T extends object>(
@@ -35,7 +33,13 @@ export function usePersistedObject<T extends object>(
   // A queued (pre-flush) write is dropped if the component unmounts before the
   // flush, which is exactly what happens when a state change is immediately
   // followed by navigating away — the change would never reach localStorage.
-  watch(state, (next) => { writeToStorage(key, next) }, { deep: true, flush: 'sync' })
+  watch(
+    state,
+    (next) => {
+      writeToStorage(key, next)
+    },
+    { deep: true, flush: 'sync' },
+  )
   return state
 }
 
@@ -60,7 +64,13 @@ export function usePersistedRef<T extends string | number | boolean>(
   // flush:'sync' so the write lands immediately — a change made just before
   // navigating away (which unmounts the owning component) would otherwise lose
   // its queued pre-flush write. See usePersistedObject for the full rationale.
-  watch(state, (next) => { writeToStorage(key, next) }, { flush: 'sync' })
+  watch(
+    state,
+    (next) => {
+      writeToStorage(key, next)
+    },
+    { flush: 'sync' },
+  )
   return state
 }
 
@@ -73,12 +83,19 @@ export function usePersistedStringSet(key: string): Ref<Set<string>> {
     const raw = localStorage.getItem(key)
     if (raw) {
       const parsed = JSON.parse(raw) as unknown
-      if (Array.isArray(parsed)) initial = new Set(parsed.filter((x): x is string => typeof x === 'string'))
+      if (Array.isArray(parsed))
+        initial = new Set(parsed.filter((x): x is string => typeof x === 'string'))
     }
   } catch {}
   const state = ref(initial) as Ref<Set<string>>
   // flush:'sync' — see usePersistedObject. A chip toggled right before navigating
   // away must persist immediately or its write is dropped on unmount.
-  watch(state, (next) => { writeToStorage(key, [...next]) }, { deep: true, flush: 'sync' })
+  watch(
+    state,
+    (next) => {
+      writeToStorage(key, [...next])
+    },
+    { deep: true, flush: 'sync' },
+  )
   return state
 }
