@@ -9,15 +9,16 @@ module.exports = {
     // Use ts-jest to transpile TypeScript test files on the fly.
     // Passing the tsconfig here is the non-deprecated approach (replaces globals.ts-jest).
     transform: {
-        '^.+\\.tsx?$': ['ts-jest', {
-            // Point ts-jest at the test-specific tsconfig so the compiler options are
-            // compatible with CommonJS modules (Jest cannot load ES2020 modules natively)
-            tsconfig: '<rootDir>/tsconfig.test.json',
-        }],
+        '^.+\\.tsx?$': [
+            'ts-jest',
+            {
+                // Point ts-jest at the test-specific tsconfig so the compiler options are
+                // compatible with CommonJS modules (Jest cannot load ES2020 modules natively)
+                tsconfig: '<rootDir>/tsconfig.test.json',
+            },
+        ],
     },
 
     // Collect coverage from the TypeScript source files under frontend/
-    collectCoverageFrom: [
-        'frontend/**/*.ts',
-    ],
+    collectCoverageFrom: ['frontend/**/*.ts'],
 };

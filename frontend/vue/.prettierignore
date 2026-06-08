@@ -1,0 +1,11 @@
+# Build output (Vite writes the SPA bundle to ../../frontend/spa-dist).
+dist
+../spa-dist
+../../frontend/spa-dist
+
+# Dependencies and lockfiles.
+node_modules
+package-lock.json
+
+# Static assets served verbatim (tiles, sprites, fonts, PMTiles).
+public
