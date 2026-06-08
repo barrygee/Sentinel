@@ -1,0 +1,936 @@
+# Changelog
+
+All notable changes to this project are documented in this file. It is updated
+automatically on every pull request from the [Conventional Commits](https://www.conventionalcommits.org)
+in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
+
+
+## [Unreleased]
+
+### Features
+
+- Enhance SDR panel functionality and improve device control
+- Add frequency group filtering to SdrPanel
+- Add edit button for frequency rows and adjust styles
+- Add frequency import functionality via CHIRP and Sentinel files
+- Normalize sdr.frequencies config to flat shape on startup
+- Add rename-stable Unicode slug to frequency groups
+- Add app.location to config JSON with full sync
+- Implement auto-center on tune feature
+- Hide map sidebar button when sidebar is open
+- Add cursor resize affordance for accordion edges in waterfall component
+- Implement static dB axis for spectrum plot
+- Add FFT size request handling for waterfall visualization
+- Enhance frequency input handling and styling
+- Enhance band overlay styling and functionality in SdrWaterfall component
+- Add sample rate selection to SDR panel
+- Add full waterfall update toggle for cleaner zoom experience
+- Increase maximum FFT bins to 32768 for improved resolution at high zoom levels
+- Add known-frequency labels to spectrum display
+- Add settings for band plan and known frequencies visibility
+- Synchronize overlay visibility flags with DB on config upload
+- Enhance frequency label rendering in SdrWaterfall component
+- Enhance SdrWaterfall component with carrier-line support for SSB modes
+- Update SDR band plan and frequencies for amateur radio
+- Enhance frequency manager UI and functionality
+- Add notes textarea to SdrPanel for frequency editing
+- Add validation and error handling for frequency form inputs
+- Refactor frequency row interaction and add play button
+- Add search ranges functionality to Frequency Manager tab
+- Enhance search ranges section with accordion toggle and layout adjustments
+- Add search functionality to frequency manager and search ranges
+- Add custom step dropdown for frequency adjustment in SdrPanel
+- Enhance SDR search functionality and UI feedback
+- Enhance search functionality in SdrPanel and SdrWaterfall
+- Enhance satellite pass notifications and radio information display
+- Add SatPolarPlot component for visualizing satellite sky tracks
+- Enhance handling for space domain data absence
+- Add satellite frequencies management to settings panel
+- Add JSON data controls for satellite frequencies and band plan
+- Add notification sound settings and functionality
+- Implement aircraft event detection and notifications
+- Update notification handling and improve satellite pass notification logic
+- Integrate air notification store and enhance aircraft event handling
+- Integrate settings store with API settings fetch
+- Enhance frequency tick formatting in SdrWaterfall component
+- Implement frequency axis drag-pan functionality
+- Implement mouse-wheel panning for frequency window in SdrWaterfall component
+- Add scroll-to-tune functionality for frequency input
+- Enhance satellite pass computation with backscan for accurate AOS detection
+- Implement satellite auto-tuning feature
+- Enhance auto-tune functionality and notifications
+- Enhance auto-tuning functionality with LOS restore mechanism
+- Persist satellite follow state across section changes
+- Implement collapsible sections in AirFilter and SpaceFilter components
+- Enhance search functionality in AirFilter and SpaceFilter components
+- Enhance notification management for satellite pass tracking and auto-tuning
+- Implement auto-tune lock-in conflict detection and UI warnings
+- Enhance satellite notifications and auto-tuning functionality
+- Add reachability probe for SDR connection status
+- Enhance Space section with persistent UI state and improved satellite handling
+- Improve radio tab state management on SDR route transitions
+- Persist waterfall view settings in local storage
+- Synchronize aircraft filter state between map and search results
+- Add flight replay functionality with toggle in settings
+- Enhance SDR panel with improved styling and audio control
+- Add SDR recordings section with playback and editing capabilities
+- Enhance airport filter with inline accordion for frequencies
+- Enhance auto-tune and recording functionality
+- Enhance TLE database controls with category-specific clear functionality
+- Update SDR frequencies and groups for enhanced coverage and organization
+
+### Bug Fixes
+
+- Fix toolt ips
+- Fixes
+- Fix plane data
+- Fix jumping back planes
+- Fix
+- Fix
+- Fix tracking label bug
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fix sea section
+- Fixes
+- Fix day night overlay
+- Fixes
+- Fix config and settings menu options
+- Fix air offline screen
+- Fix docs menu
+- Fix config
+- Fix hide setting on apply changes
+- Fix closing side panel
+- Fix settings close on apply changes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fix data background transparency
+- Fix config
+- Fixes
+- Fixes
+- Fixes
+- Fix page hang
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fix red connected dot
+- Fixes
+- Fix sdr
+- Fixes
+- Fix jumpy audio
+- Fixes
+- Fix recording
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fix sdr retune on new page load
+- Fix map
+- Fix track line
+- Fix track
+- Fix signal bar
+- Fixes
+- Fixes
+- Fix plane labels and icons
+- Fix sdr radio side panel
+- Fix untrack in space side panel
+- Fix satellite data and hover in side panel
+- Fix sat data
+- Fix tracked sat
+- Fix plane tracking
+- Fix missing arrow on tracked plane
+- Fix panel close on track
+- Fix map side menu
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Fixed tracking label
+- Fix aircraft data ui
+- Fixes
+- Fixes
+- Fix location searh data panel display
+- Fix aircraft movemnet bug
+- Fix offgrid mode for air
+- Fix aircraft label hover
+- Fix reply bugs
+- Fix aircraft stop on click
+- Fix replay
+- Fix replay
+- Fix air replay
+- Fix ground trakc on sats
+- Fixes
+- Fix
+- Fix untrack aircraft
+- Fix location marker
+- Fixes
+- Fix map line
+- Fix alignment in memory side panel
+- Fix save group name - sdr
+- Fix - disconnected sdr when audio stop
+- Fixes
+- Fixes
+- Fixes
+- Fixes
+- Resolve graceful-shutdown hang on reload/SIGTERM
+- Make sdr.groups authoritative on import; live config preview
+- Sync browser GPS fixes to fields and config
+- Fix sdr
+- Fix waterfall and spectrum
+- Patch sigplot's label rendering to remove trailing dot from integer tick labels
+- Adjust label positioning and gutter size in sigplot
+- Adjust frequency tick spacing to 0.1 MHz steps
+- Enhance label positioning and adjust device DB ranges
+- Improve x-axis label positioning in SdrWaterfall component
+- Update dB range handling for waterfall and spectrum display
+- Adjust FFT size rounding and implement Welch-style averaging for spectrum computation
+- Improve slider collision handling for zmin and zmax
+- Adjust padding for improved layout spacing
+- Increase padding for better spacing in the layout
+- Fix issue with scanner
+- Fix mobile styles
+- Fixes
+- Handle radio connection errors and improve TLE data polling
+- Clarify comments in fetchPasses function regarding category filtering
+- Prevent duplicate AOS fires during in-progress satellite passes
+- Update empty state message for SDR recordings section
+- Update CLAUDE.md and README.md for accurate frontend description; rename backend service to app in docker-compose.yml
+
+### Chores
+
+- Stop tracking SQLite WAL/SHM files
+
+### Other
+
+- Initial commit
+- Updated ui
+- Ui tweeks
+- Add A2A refuleing tracks
+- Ui style updates
+- Add AWACS orbits
+- Add show hide button for map layers
+- Update UI
+- Update ui colours
+- Align AARA labels in boxes
+- Update font
+- Update app to remember show/hide choices and page refresh
+- Update location marker
+- Add logo.svg
+- Update page ui
+- Update ui
+- Fix missing tiles
+- Add home location button to navigation menu
+- Reduce logo size
+- Detect online / offline mode
+- Update location marker
+- Updates
+- Update footer
+- Update north/south ireland border line
+- Add favicon
+- Updates
+- Update styles to darken map ui
+- Update footer section name to [AIR]
+- Add nav links
+- Update map button positioning
+- Small update
+- Update zoom level restrictions for offline
+- Map updates
+- Update offline map, add airports
+- Add additional airports and update text colour
+- Reorder map buttons
+- Update labels
+- Reduce the logo font size
+- Reduce logo font weight
+- Update location marker text margin
+- Update airport show hide button text
+- Update airport names
+- Update README.md
+- Add screenshot
+- Add screenshot
+- Update README.md
+- Remove files
+- UPDATE FAVICON
+- Update favicon
+- Update RAF
+- Update logo animation
+- Update logo animation
+- Update animations
+- Add live data from airplanes.live api
+- Update nutton label from RAF to MIL
+- Tracking updates
+- Update plane label styles
+- Add show hide button for plane labels
+- Update font width
+- Resinstate selected plane data box
+- Update font fir plane label
+- Bug fix
+- Data tracking data box
+- Update tracking data box styles
+- Update tracking dots to green
+- Display data on hover
+- Update tracking label
+- Update data panel for mobile devices
+- Merge pull request #1 from barrygee/feature/adsb-live-feed
+- UI Tweeks
+- Update styles
+- Add UNTRACK button
+- Update data panel transparency
+- Airport links, data and zoom
+- Update RAF links, data, zoom
+- Updte data labels
+- Menu updates
+- Add menu tool tips
+- Minor update
+- Update
+- Update transparency
+- Update location marker
+- Update location marker
+- Update track link
+- Updte grid
+- Notificatiosn and marker updates
+- UI tweaks
+- UI updates
+- Update notifications
+- UPdate UI
+- Update notifications
+- Update styles
+- Updates
+- Update notifications
+- Update callsign label
+- Update notification
+- Update tracking on page refresh
+- Update notification bell icon on page refresh
+- Update radar blip triangle
+- Update
+- Persist tracking on page refresh
+- Update tracking and notifications
+- Update notification count
+- Update tracked plane data panel
+- Update notifications for tracking
+- Update notification style
+- Tweaks
+- Bug fix
+- Bug fix
+- Location marker bug fix
+- Update notifications count and title
+- Add 7700 Highlighting
+- Updates
+- Fix mobile notifications
+- Updates
+- Add filter functinoality
+- UPDATE laad type to civil
+- Fixes
+- Fix show / hide all
+- Update UI
+- Update show hide functionality
+- Fix positioning
+- Update
+- Update filter box
+- Fix
+- Update frequencies
+- Update filter box styles
+- Update tracking box alignment on screen sizes
+- Fix tracking box changing position when filter box appears
+- Update tracking box alignment
+- Update menu hint and label
+- Add more
+- Update more styles
+- Fix tracking box width
+- Update
+- Update element alignment in tracking box
+- Fix data outside of box bounds
+- Merge pull request #2 from barrygee/fix/bug-fix
+- Add tracking panel update
+- Update styles
+- Update tool top visiblity
+- Big fix moving planes
+- Bug fix
+- Fixes
+- Merge pull request #3 from barrygee/fix/plane-positions
+- Update icone for none plane items
+- Add ground vehicle toggle to expanded menu
+- Merge pull request #4 from barrygee/feature/arrivals-departures-data
+- Add type to milair planes
+- Align tracking label
+- Fix
+- FIX MENU ORDERING
+- Enable manual location setting
+- Update footer buttons
+- Add new dir structure
+- Update dir structure
+- Update readme with data sources
+- Comment main.js
+- Add styles to comments
+- Add zoom on angle for tracked airports and planes
+- Update layout
+- Update emergency plane label sytyle
+- Update aara labels
+- Updates
+- 3d fixes
+- Add comments
+- Update filter box add keyboard interaction
+- Remove + - buttons from 3d view control
+- Update side menu styles
+- Update hide layers
+- Update EGNT ATIS frequency
+- Fix flickering when inactive
+- Update range ring transparency
+- Bug fixes
+- Big fixes
+- Big fix
+- Add backend
+- Refactor
+- Components
+- Refactor
+- Merge pull request #5 from barrygee/refactor/backend
+- Convert to typescript
+- Bug fix
+- Remove unused js files
+- Refector variable names to meaningful variable names
+- Merge pull request #6 from barrygee/refactor/typescript
+- Add docs
+- Update docs
+- Merge pull request #7 from barrygee/feature/refactor-backend
+- Add placeholder map for each section
+- Merge pull request #8 from barrygee/feature/template-remaining-sections
+- Bug fix
+- Merge pull request #9 from barrygee/fix/plane-jump-when-no-data-received
+- Refactor
+- Clean up
+- Bug fixes
+- Bug fixes
+- Refactor
+- Refactor
+- Refactor
+- Refactor
+- Rename RAF military-bases
+- Refactor
+- Refactor
+- Refactor
+- Update docs
+- Refactor
+- Update download world tiles and docs
+- Remove unused files
+- Update README.md
+- Add frontend TS Jest unit tests
+- Update tests directory
+- Merge pull request #10 from barrygee/tests/add-jest-tests
+- Bug fix
+- Bug fix
+- Bug fix
+- Add logo to readme
+- Bug fix - missing plane icons on reload
+- Updates
+- Add ISS trakcing in space section
+- Update UI
+- Update location names
+- Add user location to space map
+- Update satellite footproint style
+- Fix zoom level
+- Update satellite icon colour
+- Update day/night overlay
+- Update night overlay styling
+- Update styles
+- Fixes
+- Fix ground track
+- Update default zoom level
+- Add SDR section - coming soon
+- Merge pull request #11 from barrygee/feature/space
+- Remember filters on page refresh/reload
+- Add initial settings section
+- UI bug fix
+- Update layout of settings
+- Update settings
+- Fix space section overlays appearence
+- Bug fixes
+- Add persistent data
+- Update settings layout
+- Update docs
+- Merge pull request #12 from barrygee/feature/settings
+- Update js to ts
+- Update details box
+- Various sat updates
+- Bug fixes and add ts
+- Satellite data box style fix
+- Update tracking
+- Updates
+- Update tracking functionality space
+- Merge pull request #13 from barrygee/js-to-ts
+- Update go to my location side menu icon in space section
+- Update tooltip position
+- Remove unneeded buttons from side menu
+- Merge pull request #14 from barrygee/space
+- Update notification functionality
+- Fixes
+- Updates
+- Updates
+- Various fixes
+- Settinsg UI updates
+- Add data source URL:PORT for each section online / offline
+- Update settings layout
+- Updates
+- Add apply changes button
+- Update location marker
+- Fix city names
+- Update data source URLS and store in db
+- App settings
+- Update app settings
+- Update ui
+- Fixes
+- Tweaks
+- Remove online/offline from the footer
+- Remove settings search from aditional sections
+- Clean up
+- Merge pull request #15 from barrygee/feature/settings
+- Fix location marker update
+- Bug fix online / offline
+- Update missing data source url error messages in the UI
+- Tweaks
+- Fix online offline map clearing
+- Various space setting updates and fixes
+- Remove unused section in space settings
+- UI fixes
+- Update UI
+- Update UI
+- Update UI
+- Update space map to return to default position when untracking a satellite
+- UI updates
+- Ui updates
+- Update styles
+- Update space settings layouts
+- Merge pull request #16 from barrygee/fix/bugs
+- Bug fixes space settings
+- Update spacing
+- Fix space settings
+- Fix
+- Remove edit category
+- Update TLE IMPORT section
+- Remove default urls in sea and land
+- Update
+- Refactor
+- Update no tle data message
+- No data message
+- Land onlien url fix
+- LAND online offline
+- Fix air section no data
+- Add holding screen for SDR section
+- Merge pull request #17 from barrygee/refactor
+- Air fixes
+- Air fixes
+- Air fixes
+- Updates
+- Merge pull request #18 from barrygee/refactor
+- Logo update
+- Update logo
+- Update favicon
+- Merge pull request #19 from barrygee/update/logo
+- Delete docs
+- Update documentation
+- UPDATE DOCUMENTATION
+- Update doc charts
+- Add toggle for docs and settings sections
+- Merge pull request #20 from barrygee/update/docs
+- Update search
+- Increase smoothness of ground track
+- Update filte to include category
+- Merge pull request #21 from barrygee/feature/space-filter
+- Update docs
+- Update config.
+- Update config
+- Various fixes
+- Input fixes
+- Merge pull request #22 from barrygee/feature/config
+- Update config
+- UI updates
+- Update settings config
+- Update ui
+- Update docs
+- Wip - fixing night day space map
+- Merge pull request #23 from barrygee/config-feature-toggle
+- Plane fixes
+- Merge pull request #24 from barrygee/air-map-5-second-pause-fix
+- Merge pull request #25 from barrygee/fix/satellite-notifications
+- View oreview of sat location on filter results
+- Add filter hover behaviour in space settings
+- Update docs
+- Remove heading
+- Merge pull request #26 from barrygee/space-preview-location-on-search
+- Auto reload app when config change made
+- Merge pull request #27 from barrygee/fix/config-settings-options
+- Update offline map tiles
+- Merge pull request #28 from barrygee/update-map-tiles
+- Update readme and docs with map tile details
+- Flip epxand/minimise side menu icon
+- Remove charts / diagrams from docs
+- Various updates
+- Fixes
+- Code refactor
+- Refactor
+- Update config
+- Update filter buttons
+- Merge pull request #29 from barrygee/code-review
+- Add side bar
+- Update side panel
+- Side panel fixes
+- Updates
+- Bug fixes
+- Verious fixes
+- Fixes
+- Merge pull request #30 from barrygee/feature/map-side-bar
+- Space search result hover fixes
+- Update alignment
+- Fix closing side panel on untrack
+- Update settings text description
+- Layout fixes
+- Update layout
+- Update layout
+- Update style
+- Merge pull request #31 from barrygee/fixes
+- Update side menu font
+- Update untrack
+- Updates
+- Update tracking panel functionality
+- Layout updates
+- Updates
+- Dont auto track iss
+- ADD 3D GLOBE
+- Update styles and 3d globe
+- Merge pull request #32 from barrygee/feature/space-3d-globe
+- Add passes to space
+- Updates
+- Uopdate default globe zoom level
+- Update buttons
+- Add animtation to panel open close
+- Update map
+- Ui updates
+- Update
+- Space bug fixes
+- Add sat data to side panel
+- Updates
+- Update
+- Update
+- Update layout
+- Sdr features
+- Update sdr section
+- Additional fixes
+- Audio fix
+- Ui updates
+- Ui updates
+- Update sdr
+- Updates
+- Remove spectrum
+- Audio fixes
+- Reset signal meter
+- Updated connected status only when actual connetion made
+- Merge pull request #33 from barrygee/feature/sdr
+- Update default config fro local sdr ip and port
+- Bug fixes
+- Ui fixes
+- Bug fixes
+- Bug fixes
+- Fix ui bugs
+- ui fixes
+- Merge pull request #34 from barrygee/feature/sdr-updates
+- Updates
+- Clear signal bar on stop
+- Audio fixes
+- Updates
+- Audio fixes
+- UI tweaks
+- Add vox
+- Merge pull request #35 from barrygee/feature/sdr-section-updates
+- Rename variables and functions
+- Rename variables and functions
+- Updates
+- Merge pull request #36 from barrygee/refactor
+- Updates
+- Add mini player
+- Mini player updates
+- Update side panel with radio section
+- Updates
+- Update logo
+- Update logo
+- Update logo
+- Update logo
+- Update logo
+- Update logo
+- Update header
+- Merge pull request #37 from barrygee/sdr-updates
+- Update margin
+- Sdr fixes
+- Sdr updates
+- Add ip address to radio list
+- Pre filter available radios
+- Merge pull request #38 from barrygee/feature/add-target-ip
+- Tabs
+- Footprint fixes
+- Merge pull request #39 from barrygee/fix/sat-footprint
+- Side panel ui updates
+- Merge pull request #40 from barrygee/update/side-panel
+- Add vue
+- Major refactor
+- Update location marker
+- Remove radio tab
+- Only display radio controls in sdr section
+- Air fixes
+- Remove unneeded info box
+- Remove count from tabs in side panel
+- Add device status indicator in sdr settings
+- Updates
+- Update duration before start tracking satellite
+- Update side panel
+- Remove hide all button
+- Bug fixes
+- Bug fixes
+- Update margin
+- Ui updates for air section
+- Various ui updates
+- Various ui updates
+- Ui tweaks
+- Ui fixes
+- Update config input size
+- Aircraft label fix
+- Map fixes
+- Ui fixes for aircraft
+- Update ui
+- Update aircraft ui elements
+- Aircraft ui updates
+- Update UI
+- Update click aircraft functionality
+- Update ui
+- Ui update
+- Aircraft notifications icon update
+- Aircraft ui fixes
+- Ui fixes
+- Remove footer text
+- Add additional air settinsg to app config
+- Various changes
+- Track fixes
+- Aircraft fixes
+- Aircraft fixes - untrack data fields
+- Track and dots fix
+- Aircraft track fixes
+- Aircraft ui fixes on click
+- Add set my location
+- Update playback in side panel
+- Updates
+- Playback air
+- Smooth playback
+- Update fixes
+- Remove marker from logo
+- Playback fixes
+- Playback timeline fixes
+- Replay uopdates
+- Aircraft map fix
+- Aircraft map fixes
+- Aircraft fixes
+- Rename file
+- Update logo text
+- Polar sat footprint fix
+- Space section fixes
+- Update space side panel
+- Update space side opanel ui
+- Up[date ground track
+- Add overhead notifications
+- Air side panel update
+- Update alert circle styling
+- Update side panel
+- Various refactor updates
+- Ui fixes and refactor
+- Add pytest infrastructure for backend tests
+- Add characterization tests for backend routers and satellite service
+- Extract shared error-handler decorators and UserSettings helpers
+- Extract _nonblank_lines helper in tle service
+- Add ruff + mypy to backend toolchain and apply ruff sweep
+- Settings ui update
+- Side menu updates
+- Update ui
+- Update replay icon
+- Update side panel icon colour
+- Ui update
+- Side poanle icon updates
+- Sid epanel tab icon updates
+- Align logo
+- Add margin
+- Update aircraft callsign spacing
+- Update spacing
+- Include set location on space map
+- Update set location maerker
+- Update marker
+- Show city names by default in space map
+- Updte header logo
+- Updates removing notifications
+- Update overhead aircraft alert
+- Overhead alerts settings
+- Sdr - memory
+- Memory updates
+- Updates sdr
+- Adr updates
+- Sdr - memories section UI updates
+- Sdr UI updates
+- Update groups buttons
+- Sdr updates
+- Sdr - ui position tweaks
+- Update logo text
+- Sdr ui tweaks
+- Ui updates
+- Sdr radio layout update
+- SDR - reposition volume and squelch controls
+- Sdr updates
+- Small updates
+- Updates
+- Reposition elements
+- Ui updates
+- Update sdr radio controls
+- Auto change input freq to 4 decimal places
+- Ui updates
+- Sdr ui tweaks
+- Sdr radio updates
+- Embed fonts and update styles
+- Updates
+- Display only groups with frequencies
+- Update ui
+- Ui updates
+- Update side panel
+- Refactor scanner controls in SdrPanel.vue and update styles in SdrPanel.css
+- Refactor SdrPanel styles for improved UI responsiveness and hover effects
+- Refactor SdrPanel: Adjust styles and reorganize scan controls
+- Enhance button hover effects for enabled states in SdrPanel.css
+- Refactor code structure for improved readability and maintainability
+- Refactor SdrPanel.vue: Remove frequency search input and related logic
+- Add new JavaScript file for frontend SPA assets
+- Enhance SDR Frequency Panel: Improve layout and add inline editing functionality
+- Refactor SdrPanel CSS for improved layout and readability
+- Update label color in SdrPanel.css for improved visibility
+- Update SdrPanel styles: change background and text color for improved visibility; add background to add frequency body
+- Enable tabbing in application config text area
+- Merge pull request #41 from barrygee/new/refactor-with-vuejs
+- Waterfall and spectrum initial setup
+- Update spectrum - wip
+- Spectrum ui updates
+- Remove unneeded spectrum data
+- Update side panel ui
+- Update side panel
+- Update spectrum font
+- Update controls
+- Sdr updates, tuning bar
+- Refactor SDR panel and waterfall components for improved drag handling
+- Updates
+- Remove DocsPanel component and related functionality; update AppFooter and router configuration accordingly.
+- Enhance SdrWaterfall visual styling
+- Enhance SdrWaterfall component layout and axis rendering
+- Update SdrWaterfall.vue styles for improved visibility
+- Enhance grid line visibility in SdrWaterfall plots
+- Adjust vertical positioning of text in SdrWaterfall component for improved alignment
+- Enhance SdrWaterfall component with band overlay and improved styling
+- Refactor SdrWaterfall.vue: Update band overlay styles and adjust plot rendering
+- Refactor SdrPanel.vue for improved frequency tuning responsiveness and update SdrWaterfall.css to adjust z-index for spectrum display
+- Refactor SdrWaterfall styles and improve audio buffering logic
+- Enhance x-axis tick label positioning and gutter spacing
+- Refactor x-axis label handling in SdrWaterfall.vue
+- Enhance audio processing with fractional resampling and reset state management
+- Enhance SdrWaterfall styling: increase background opacity, adjust font weight, and improve text rendering
+- Add vertical tick lines in the frequency label gutter for improved visualization
+- Refactor font-weight in SdrPanel and SettingsPanel CSS for consistency
+- Enhance SDR audio processing with integer IQ decimation and effective sample rate adjustments
+- Enhance waterfall plot rendering by suppressing axis ticks and grid lines
+- Refactor SDR waterfall and spectrum Min/Max handling to align with SDR++ semantics
+- Fix zoom functionality in SdrWaterfall component to handle different x-units for spectrum and waterfall plots
+- Prevent right-click unzoom behavior in SdrWaterfall component and disable marquee zoom actions in sigplot configuration
+- Refactor dB slider bindings in SdrWaterfall component for natural user experience
+- Refactor zoom handling in SdrWaterfall.vue to preserve waterfall history
+- Enhance SdrWaterfall.vue for improved tick label positioning and frequency tick calculation
+- Enhance raster smoothing and bin management in SdrWaterfall component
+- Refactor SDR Waterfall component styles and known-frequency markers
+- Refactor SDR Waterfall CSS and Vue component for improved frequency label positioning
+- Enhance zoom functionality in SdrWaterfall component
+- Refactor known-frequency label positioning in SdrWaterfall.vue
+- Enhance low-pass filter logic in SDR audio processing
+- Refactor RF band plan logic to use an empty fallback array instead of default bands
+- Merge pull request #42 from barrygee/sdr-waterfall
+- Enhance SdrWaterfall component styling with new background and label adjustments
+- Enhance SDR Panel functionality and improve UI styling
+- Enhance SdrWaterfall overlay with background image and blur effect
+- Enhance NoUrlOverlay component styling and messaging
+- Update background
+- Bug fixes
+- Update contour background page
+- Update search raneg inputs
+- Update font style
+- Add accordian for saved searches
+- Bug fix
+- Updated saved searches
+- Up search controls
+- Ui fixes
+- Ui updates scanner
+- Remove border-top style from SpaceFilter and SpacePasses components for a cleaner design.
+- Merge pull request #43 from barrygee/feature/sdr
+- Merge pull request #44 from barrygee/offgrid-bug-fix-space
+- Merge pull request #45 from barrygee/feature/add-perm-record-of-sat-frequencies
+- Merge pull request #46 from barrygee/fix/console-error
+- Remove TypeScript configuration and Vite setup files for the Vue frontend
+- Merge pull request #47 from barrygee/fix/alert-notification-bug
+- Enhance SdrPanel button styling and label
+- Enhance SDR Panel UI and functionality
+- Fix frequency input behavior on initial status update
+- Adjust footer positioning in SpacePasses.css to align with design specifications
+- Enhance frequency tuning responsiveness during drag-pan actions
+- Fix chevron positioning and adjust height for SpacePasses component
+- Enhance satellite filtering by adding match scoring
+- Enhance squelch handling during scan/search operations
+- Refactor frequency tuning functionality: separate playFreq from tuneToFreq
+- Add category filter chips to SpacePasses component
+- Merge pull request #48 from barrygee/feature/auto-tune-sdr-for-satellite-pass
+- Refactor mouse event handlers in SatelliteControl to simplify cursor management
+- Refactor ADS-B filter state restoration
+- Merge pull request #49 from barrygee/feature/add-replay-toggle
+- Refactor SdrClipsSection to use inline edit accordion for clip name and notes
+- Enhance airport accordion body styling and animation
+- Refactor SettingsPanel and remove SpaceSatelliteRadioControl component
+- Refactor satellite track and footprint visibility handling
+- Enhance Waterfall Plot Styles for Improved Visual Clarity
+- Merge pull request #50 from barrygee/update/recordings-layout
+- Refactor API endpoints and tests for air, SDR, and settings routers
+- Merge pull request #51 from barrygee/add/claude-config
+
+### Refactoring
+
+- Refactor and fixes
+- Refactor
+- Rename memory references to frequency manager in SdrPanel component
+- Move frequencies into app config JSON, remove import UI
+- Separate tab switching logic to maintain panel state
+- Simplify UI and improve search functionality
+- Remove search functionality from SdrPanel.vue
+- Simplify openAccordion function in SpaceFilter and SpacePasses components
+- Update SdrClipsSection to enhance note display and editing experience
+- Streamline README structure and enhance domain descriptions
+
+### Styling
+
+- Enhance SdrPanel layout and styling for improved UX
+- Adjust padding in SdrRadio section and update button disable logic
+- Adjust padding for scan and settings controls in SdrPanel.css
+- Update font sizes and colors in SdrPanel.css
+- Adjust button dimensions and padding in SdrPanel.css; remove redundant filter title in SdrPanel.vue
+- Increase padding in SdrPanel for improved touch target size
+- Update SdrPanel styles for improved UI consistency
+- Update SdrWaterfall CSS and Vue component for improved overlay appearance
+- Update SdrWaterfall slider appearance for improved aesthetics
+- Adjust padding in SdrPanel.css for improved layout
+- Update padding for frequency manager filter and group pill components
+- Enhance SdrPanel component with new search range styles and structure
+- Update SdrPanel and SdrWaterfall styles; improve user location timeout
+- Update SdrPanel layout and button styles for better alignment
+- Align text to the left in empty state components and adjust padding for no passes
