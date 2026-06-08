@@ -1,0 +1,52 @@
+# Auto-updates CHANGELOG.md on every pull request from the branch's Conventional
+# Commits, using git-cliff + cliff.toml. Creates the file if missing and commits
+# it back to the PR branch. Installed by the release-engineer (changelog-standards).
+name: changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Needed to push the regenerated CHANGELOG.md back to the PR branch.
+permissions:
+  contents: write
+
+# Avoid overlapping runs on rapid pushes to the same PR.
+concurrency:
+  group: changelog-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    # PRs from forks can't receive a write-back commit (read-only GITHUB_TOKEN),
+    # so only run for same-repo branches; forks regenerate when the branch lands.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Check out the PR branch (full history for git-cliff)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate CHANGELOG.md from Conventional Commits
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Commit the updated changelog if it changed
+        run: |
+          if [ -n "$(git status --porcelain CHANGELOG.md)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add CHANGELOG.md
+            # [skip ci] + GITHUB_TOKEN's recursion guard prevent re-trigger loops.
+            git commit -m "chore(changelog): update CHANGELOG.md [skip ci]"
+            git push origin HEAD:${{ github.head_ref }}
+          else
+            echo "CHANGELOG.md already up to date — nothing to commit."
+          fi
