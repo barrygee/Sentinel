@@ -25,8 +25,8 @@ from backend.database import get_db
 from backend.error_handlers import handle_service_errors, handle_unexpected_errors
 from backend.models import SatelliteCatalogue, TleCache
 from backend.services import daynight as dn_service
-from backend.services import satellite as sat_service
 from backend.services import sat_radio
+from backend.services import satellite as sat_service
 from backend.services import tle as tle_service
 from backend.utils import resolve_domain_urls
 from fastapi import APIRouter, Body, Depends, Query
@@ -68,15 +68,19 @@ async def _get_satellite_data(
     tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
     _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
-    position    = sat_service.compute_position(line1, line2)
+    position = sat_service.compute_position(line1, line2)
     ground_track = sat_service.compute_ground_track(line1, line2)
-    footprint   = sat_service.compute_footprint(
-        position["lat"], position["lon"], position["alt_km"]
-    )
+    footprint = sat_service.compute_footprint(position["lat"], position["lon"], position["alt_km"])
     if obs_lat is not None and obs_lon is not None:
-        position.update(sat_service.compute_look_angles(
-            position["lat"], position["lon"], position["alt_km"], obs_lat, obs_lon,
-        ))
+        position.update(
+            sat_service.compute_look_angles(
+                position["lat"],
+                position["lon"],
+                position["alt_km"],
+                obs_lat,
+                obs_lon,
+            )
+        )
     return {"position": position, "ground_track": ground_track, "footprint": footprint}
 
 
@@ -144,19 +148,22 @@ async def _compute_passes_response(
     _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
     passes = sat_service.compute_passes(
-        line1, line2,
+        line1,
+        line2,
         obs_lat=lat,
         obs_lon=lon,
         lookahead_hours=hours,
         min_elevation_deg=min_el,
     )
-    return JSONResponse({
-        "passes":          passes,
-        "obs_lat":         lat,
-        "obs_lon":         lon,
-        "lookahead_hours": hours,
-        "computed_at":     datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    })
+    return JSONResponse(
+        {
+            "passes": passes,
+            "obs_lat": lat,
+            "obs_lon": lon,
+            "lookahead_hours": hours,
+            "computed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+    )
 
 
 @router.get("/iss/passes")
@@ -226,26 +233,34 @@ async def get_multi_satellite_passes(
     # Single query to get matching satellites
     result = await db.execute(
         select(
-            SatelliteCatalogue.norad_id, SatelliteCatalogue.name, SatelliteCatalogue.category,
-            SatelliteCatalogue.uplink_hz, SatelliteCatalogue.uplink_mode,
-            SatelliteCatalogue.downlink_hz, SatelliteCatalogue.downlink_mode,
-            SatelliteCatalogue.ctcss_hz, SatelliteCatalogue.transponder_type,
-            SatelliteCatalogue.beacon_hz, SatelliteCatalogue.packet_info,
-            SatelliteCatalogue.radio_status, SatelliteCatalogue.radio_notes,
-        )
-        .where(SatelliteCatalogue.category.in_(category_filter))
+            SatelliteCatalogue.norad_id,
+            SatelliteCatalogue.name,
+            SatelliteCatalogue.category,
+            SatelliteCatalogue.uplink_hz,
+            SatelliteCatalogue.uplink_mode,
+            SatelliteCatalogue.downlink_hz,
+            SatelliteCatalogue.downlink_mode,
+            SatelliteCatalogue.ctcss_hz,
+            SatelliteCatalogue.transponder_type,
+            SatelliteCatalogue.beacon_hz,
+            SatelliteCatalogue.packet_info,
+            SatelliteCatalogue.radio_status,
+            SatelliteCatalogue.radio_notes,
+        ).where(SatelliteCatalogue.category.in_(category_filter))
     )
     satellites = result.all()
 
     if not satellites:
-        return JSONResponse({
-            "passes": [],
-            "obs_lat": lat,
-            "obs_lon": lon,
-            "lookahead_hours": hours,
-            "satellite_count": 0,
-            "computed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        })
+        return JSONResponse(
+            {
+                "passes": [],
+                "obs_lat": lat,
+                "obs_lon": lon,
+                "lookahead_hours": hours,
+                "satellite_count": 0,
+                "computed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+        )
 
     online_url, _ = await resolve_domain_urls("space", db)
     all_passes = []
@@ -256,7 +271,8 @@ async def get_multi_satellite_passes(
             tle_text = await tle_service.fetch_tle(norad_id, db, online_url)
             _, line1, line2 = tle_service.parse_tle_lines(tle_text)
             passes = sat_service.compute_passes(
-                line1, line2,
+                line1,
+                line2,
                 obs_lat=lat,
                 obs_lon=lon,
                 lookahead_hours=hours,
@@ -270,16 +286,16 @@ async def get_multi_satellite_passes(
                 p["norad_id"] = norad_id
                 p["name"] = name
                 p["category"] = category
-                p["uplink_hz"]        = row[3]
-                p["uplink_mode"]      = row[4]
-                p["downlink_hz"]      = row[5]
-                p["downlink_mode"]    = row[6]
-                p["ctcss_hz"]         = row[7]
+                p["uplink_hz"] = row[3]
+                p["uplink_mode"] = row[4]
+                p["downlink_hz"] = row[5]
+                p["downlink_mode"] = row[6]
+                p["ctcss_hz"] = row[7]
                 p["transponder_type"] = row[8]
-                p["beacon_hz"]        = row[9]
-                p["packet_info"]      = row[10]
-                p["radio_status"]     = row[11]
-                p["radio_notes"]      = row[12]
+                p["beacon_hz"] = row[9]
+                p["packet_info"] = row[10]
+                p["radio_status"] = row[11]
+                p["radio_notes"] = row[12]
             all_passes.extend(passes)
         except (RuntimeError, ValueError):
             continue
@@ -287,14 +303,16 @@ async def get_multi_satellite_passes(
     all_passes.sort(key=lambda p: p["aos_unix_ms"])
     all_passes = all_passes[:limit]
 
-    return JSONResponse({
-        "passes": all_passes,
-        "obs_lat": lat,
-        "obs_lon": lon,
-        "lookahead_hours": hours,
-        "satellite_count": len(satellites),
-        "computed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    })
+    return JSONResponse(
+        {
+            "passes": all_passes,
+            "obs_lat": lat,
+            "obs_lon": lon,
+            "lookahead_hours": hours,
+            "satellite_count": len(satellites),
+            "computed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+    )
 
 
 @router.get("/daynight")
@@ -312,6 +330,7 @@ async def get_daynight():
 
 # ── TLE management endpoints ─────────────────────────────────────────────────
 
+
 @router.get("/tle/status")
 @handle_unexpected_errors
 async def get_tle_status(db: AsyncSession = Depends(get_db)):
@@ -324,9 +343,7 @@ async def get_tle_status(db: AsyncSession = Depends(get_db)):
     total_result = await db.execute(select(func.count()).select_from(TleCache))
     total = total_result.scalar() or 0
 
-    source_result = await db.execute(
-        select(TleCache.source, func.count()).group_by(TleCache.source)
-    )
+    source_result = await db.execute(select(TleCache.source, func.count()).group_by(TleCache.source))
     source_counts = dict(source_result.all())
 
     # Per-category stats — one query using COALESCE to treat NULL as 'unknown'
@@ -338,27 +355,25 @@ async def get_tle_status(db: AsyncSession = Depends(get_db)):
             func.max(SatelliteCatalogue.updated_at).label("last_updated"),
         ).group_by(category_col)
     )
-    category_stats = {
-        row.cat: {"count": row.count, "last_updated": row.last_updated or 0}
-        for row in cat_result.all()
-    }
+    category_stats = {row.cat: {"count": row.count, "last_updated": row.last_updated or 0} for row in cat_result.all()}
 
     # Uncategorised count comes directly from the category_stats dict
     uncategorised_count = 0
     if "unknown" in category_stats:
         # Count only true NULLs — re-query so we don't conflate NULL with explicit 'unknown'
         unc_result = await db.execute(
-            select(func.count()).select_from(SatelliteCatalogue)
-            .where(SatelliteCatalogue.category.is_(None))
+            select(func.count()).select_from(SatelliteCatalogue).where(SatelliteCatalogue.category.is_(None))
         )
         uncategorised_count = unc_result.scalar() or 0
 
-    return JSONResponse({
-        "total":         total,
-        "uncategorised": uncategorised_count,
-        "by_source":     source_counts,
-        "by_category":   category_stats,
-    })
+    return JSONResponse(
+        {
+            "total": total,
+            "uncategorised": uncategorised_count,
+            "by_source": source_counts,
+            "by_category": category_stats,
+        }
+    )
 
 
 @router.get("/tle/list")
@@ -368,32 +383,32 @@ async def get_tle_list(db: AsyncSession = Depends(get_db)):
 
     Used by the satellite list summary panel in settings.
     """
-    result = await db.execute(
-        select(SatelliteCatalogue).order_by(SatelliteCatalogue.name)
-    )
+    result = await db.execute(select(SatelliteCatalogue).order_by(SatelliteCatalogue.name))
     rows = result.scalars().all()
-    return JSONResponse({
-        "satellites": [
-            {
-                "norad_id":         r.norad_id,
-                "name":             r.name,
-                "category":         r.category,
-                "name_source":      r.name_source,
-                "updated_at":       r.updated_at,
-                "uplink_hz":        r.uplink_hz,
-                "uplink_mode":      r.uplink_mode,
-                "downlink_hz":      r.downlink_hz,
-                "downlink_mode":    r.downlink_mode,
-                "ctcss_hz":         r.ctcss_hz,
-                "transponder_type": r.transponder_type,
-                "beacon_hz":        r.beacon_hz,
-                "packet_info":      r.packet_info,
-                "radio_status":     r.radio_status,
-                "radio_notes":      r.radio_notes,
-            }
-            for r in rows
-        ]
-    })
+    return JSONResponse(
+        {
+            "satellites": [
+                {
+                    "norad_id": r.norad_id,
+                    "name": r.name,
+                    "category": r.category,
+                    "name_source": r.name_source,
+                    "updated_at": r.updated_at,
+                    "uplink_hz": r.uplink_hz,
+                    "uplink_mode": r.uplink_mode,
+                    "downlink_hz": r.downlink_hz,
+                    "downlink_mode": r.downlink_mode,
+                    "ctcss_hz": r.ctcss_hz,
+                    "transponder_type": r.transponder_type,
+                    "beacon_hz": r.beacon_hz,
+                    "packet_info": r.packet_info,
+                    "radio_status": r.radio_status,
+                    "radio_notes": r.radio_notes,
+                }
+                for r in rows
+            ]
+        }
+    )
 
 
 @router.get("/tle/uncategorised")
@@ -405,17 +420,10 @@ async def get_tle_uncategorised(db: AsyncSession = Depends(get_db)):
     can assign categories without being prompted during the original upload.
     """
     result = await db.execute(
-        select(SatelliteCatalogue)
-        .where(SatelliteCatalogue.category.is_(None))
-        .order_by(SatelliteCatalogue.name)
+        select(SatelliteCatalogue).where(SatelliteCatalogue.category.is_(None)).order_by(SatelliteCatalogue.name)
     )
     rows = result.scalars().all()
-    return JSONResponse({
-        "satellites": [
-            {"norad_id": r.norad_id, "name": r.name}
-            for r in rows
-        ]
-    })
+    return JSONResponse({"satellites": [{"norad_id": r.norad_id, "name": r.name} for r in rows]})
 
 
 @router.post("/tle/fetch")
@@ -432,7 +440,7 @@ async def fetch_tle_from_url(
     source priority unless category is null/active (treated as 'active' priority).
     """
     try:
-        url      = (body.get("url") or "").strip()
+        url = (body.get("url") or "").strip()
         category = body.get("category") or None
 
         if not url:
@@ -450,10 +458,12 @@ async def fetch_tle_from_url(
         cat_source = "celestrak_group" if (category and category != "active") else "active"
         counts = await tle_service.fetch_tle_from_url(url, category, cat_source, db)
 
-        return JSONResponse({
-            "inserted": counts["inserted"],
-            "updated":  counts["updated"],
-        })
+        return JSONResponse(
+            {
+                "inserted": counts["inserted"],
+                "updated": counts["updated"],
+            }
+        )
 
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=422)
@@ -476,7 +486,7 @@ async def store_tle_manual(
     are updated (newer TLE wins), no existing records are deleted.
     """
     try:
-        text     = (body.get("text") or "").strip()
+        text = (body.get("text") or "").strip()
         category = body.get("category") or None
 
         if not text:
@@ -491,16 +501,20 @@ async def store_tle_manual(
         entries = tle_service.validate_tle_text(text)
         cat_source = "user" if category else None
         counts = await tle_service.store_tle_bulk(
-            entries, source="manual",
-            category=category, category_source=cat_source,
+            entries,
+            source="manual",
+            category=category,
+            category_source=cat_source,
             db=db,
         )
 
-        return JSONResponse({
-            "inserted": counts["inserted"],
-            "updated":  counts["updated"],
-            "total":    len(entries),
-        })
+        return JSONResponse(
+            {
+                "inserted": counts["inserted"],
+                "updated": counts["updated"],
+                "total": len(entries),
+            }
+        )
 
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=422)
@@ -527,7 +541,7 @@ async def patch_tle_category(
     if not assignments:
         return JSONResponse({"error": "assignments array is required"}, status_code=400)
 
-    ts      = now_ms()
+    ts = now_ms()
     updated = 0
     skipped = 0
     invalid = []
@@ -553,17 +567,15 @@ async def patch_tle_category(
 
     # Fetch all relevant satellites in one query instead of one per assignment
     norad_ids = [norad_id for norad_id, _ in valid_assignments]
-    result = await db.execute(
-        select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id.in_(norad_ids))
-    )
+    result = await db.execute(select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id.in_(norad_ids)))
     rows_by_id = {row.norad_id: row for row in result.scalars().all()}
 
     for norad_id, category in valid_assignments:
         row = rows_by_id.get(norad_id)
         if row and tle_service._category_beats(category, "user", row.category, row.category_source):
-            row.category        = category
+            row.category = category
             row.category_source = "user"
-            row.updated_at      = ts
+            row.updated_at = ts
             updated += 1
 
     await db.commit()
@@ -584,7 +596,7 @@ async def patch_tle_satellite(
     Category follows the same priority rules as the bulk category endpoint.
     """
     norad_id = str(body.get("norad_id") or "").strip()
-    name     = (body.get("name") or "").strip() or None
+    name = (body.get("name") or "").strip() or None
     category = (body.get("category") or "").strip() or None
 
     if not norad_id:
@@ -595,9 +607,7 @@ async def patch_tle_satellite(
             status_code=400,
         )
 
-    result = await db.execute(
-        select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id == norad_id)
-    )
+    result = await db.execute(select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id == norad_id))
     row = result.scalar_one_or_none()
     if not row:
         return JSONResponse({"error": "Satellite not found"}, status_code=404)
@@ -605,22 +615,24 @@ async def patch_tle_satellite(
     ts = now_ms()
 
     if name:
-        row.name        = name
+        row.name = name
         row.name_source = "user"
 
     if category is not None:
         if tle_service._category_beats(category, "user", row.category, row.category_source):
-            row.category        = category
+            row.category = category
             row.category_source = "user"
 
     row.updated_at = ts
     await db.commit()
 
-    return JSONResponse({
-        "norad_id": row.norad_id,
-        "name":     row.name,
-        "category": row.category,
-    })
+    return JSONResponse(
+        {
+            "norad_id": row.norad_id,
+            "name": row.name,
+            "category": row.category,
+        }
+    )
 
 
 @router.get("/radio/file")
@@ -682,9 +694,7 @@ async def clear_tle_data(
         )
 
     cat_filter = (
-        SatelliteCatalogue.category.is_(None)
-        if category == "unknown"
-        else SatelliteCatalogue.category == category
+        SatelliteCatalogue.category.is_(None) if category == "unknown" else SatelliteCatalogue.category == category
     )
 
     # Gather the NORAD IDs in this category so we can also drop their cached TLE

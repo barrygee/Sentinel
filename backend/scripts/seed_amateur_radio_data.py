@@ -10,6 +10,7 @@ Idempotent: re-running overwrites the radio columns with the latest values
 in the JSON. Adds the radio columns to the table if they don't exist yet
 (matches the migration logic in database.py).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -20,22 +21,29 @@ import time
 from pathlib import Path
 
 _RADIO_FIELDS = (
-    "uplink_hz", "uplink_mode", "downlink_hz", "downlink_mode",
-    "ctcss_hz", "transponder_type", "beacon_hz", "packet_info",
-    "radio_status", "radio_notes",
+    "uplink_hz",
+    "uplink_mode",
+    "downlink_hz",
+    "downlink_mode",
+    "ctcss_hz",
+    "transponder_type",
+    "beacon_hz",
+    "packet_info",
+    "radio_status",
+    "radio_notes",
 )
 
 _COL_TYPES = {
-    "uplink_hz":        "INTEGER",
-    "uplink_mode":      "TEXT",
-    "downlink_hz":      "INTEGER",
-    "downlink_mode":    "TEXT",
-    "ctcss_hz":         "REAL",
+    "uplink_hz": "INTEGER",
+    "uplink_mode": "TEXT",
+    "downlink_hz": "INTEGER",
+    "downlink_mode": "TEXT",
+    "ctcss_hz": "REAL",
     "transponder_type": "TEXT",
-    "beacon_hz":        "INTEGER",
-    "packet_info":      "TEXT",
-    "radio_status":     "TEXT",
-    "radio_notes":      "TEXT",
+    "beacon_hz": "INTEGER",
+    "packet_info": "TEXT",
+    "radio_status": "TEXT",
+    "radio_notes": "TEXT",
 }
 
 
@@ -49,7 +57,7 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Seed radio info into Sentinel DB")
-    ap.add_argument("--db",   required=True, help="Path to sentinel.db")
+    ap.add_argument("--db", required=True, help="Path to sentinel.db")
     ap.add_argument("--json", required=True, help="Path to amateur_radio_data.json")
     args = ap.parse_args()
 
@@ -61,9 +69,7 @@ def main() -> int:
         applied = 0
         skipped = 0
         for norad_id, info in data.items():
-            row = conn.execute(
-                "SELECT 1 FROM satellite_catalogue WHERE norad_id = ?", (norad_id,)
-            ).fetchone()
+            row = conn.execute("SELECT 1 FROM satellite_catalogue WHERE norad_id = ?", (norad_id,)).fetchone()
             if not row:
                 print(f"  - skip {norad_id}: not in catalogue", file=sys.stderr)
                 skipped += 1
@@ -85,8 +91,7 @@ def main() -> int:
             )
             applied += 1
         conn.commit()
-        print(f"✓ updated {applied} satellites; skipped {skipped} not in catalogue",
-              file=sys.stderr)
+        print(f"✓ updated {applied} satellites; skipped {skipped} not in catalogue", file=sys.stderr)
     finally:
         conn.close()
     return 0

@@ -19,6 +19,7 @@ Usage:
     # (Legacy) directly apply the merge into a DB's store + catalogue columns:
     python backend/scripts/apply_satellite_radio.py --db /app/data/sentinel.db
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,9 +30,16 @@ import time
 from pathlib import Path
 
 RADIO_FIELDS = (
-    "uplink_hz", "uplink_mode", "downlink_hz", "downlink_mode",
-    "ctcss_hz", "transponder_type", "beacon_hz", "packet_info",
-    "radio_status", "radio_notes",
+    "uplink_hz",
+    "uplink_mode",
+    "downlink_hz",
+    "downlink_mode",
+    "ctcss_hz",
+    "transponder_type",
+    "beacon_hz",
+    "packet_info",
+    "radio_status",
+    "radio_notes",
 )
 
 _DATA = Path(__file__).resolve().parent.parent / "data"
@@ -96,9 +104,7 @@ def rebuild_file() -> int:
     payload: dict = {"_comment": _FILE_COMMENT}
     for nid in sorted(radio_map, key=lambda x: int(x)):
         payload[nid] = radio_map[nid]
-    _RADIO_FILE.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    _RADIO_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"✓ wrote {len(radio_map)} satellites to {_RADIO_FILE}", file=sys.stderr)
     return 0
 
@@ -106,8 +112,11 @@ def rebuild_file() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Build/apply curated satellite radio frequencies")
     ap.add_argument("--db", help="Path to sentinel.db (legacy direct-apply mode)")
-    ap.add_argument("--rebuild-file", action="store_true",
-                    help="Regenerate backend/data/satellite_radio.json from the curated sources")
+    ap.add_argument(
+        "--rebuild-file",
+        action="store_true",
+        help="Regenerate backend/data/satellite_radio.json from the curated sources",
+    )
     ap.add_argument("--dry-run", action="store_true", help="Report only; write nothing")
     args = ap.parse_args()
 
@@ -127,8 +136,10 @@ def main() -> int:
 
         print(f"  {len(present)} match the catalogue; {len(missing)} not present", file=sys.stderr)
         if missing:
-            print(f"  not-in-catalogue (skipped): {', '.join(missing[:20])}"
-                  + (" …" if len(missing) > 20 else ""), file=sys.stderr)
+            print(
+                f"  not-in-catalogue (skipped): {', '.join(missing[:20])}" + (" …" if len(missing) > 20 else ""),
+                file=sys.stderr,
+            )
 
         if args.dry_run:
             print("dry-run: no changes written", file=sys.stderr)
@@ -173,9 +184,7 @@ def main() -> int:
             sets.append("updated_at = ?")
             vals.append(now_ms)
             vals.append(nid)
-            conn.execute(
-                f"UPDATE satellite_catalogue SET {', '.join(sets)} WHERE norad_id = ?", vals
-            )
+            conn.execute(f"UPDATE satellite_catalogue SET {', '.join(sets)} WHERE norad_id = ?", vals)
             applied += 1
 
         conn.commit()

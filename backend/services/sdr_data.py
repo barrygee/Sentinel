@@ -16,6 +16,7 @@ Each file seeds the DB on startup and is written back on every edit (atomic,
 fail-soft) — the same pattern as backend/services/sat_radio.py. The DB /
 UserSettings copy stays authoritative at runtime.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -40,6 +41,7 @@ _BAND_COMMENT = (
 
 
 # ── sdr_frequencies.json (groups + frequencies + searchRanges) ──────────────
+
 
 def load_sdr_frequencies_file() -> dict[str, list]:
     """Read sdr_frequencies.json as {groups, frequencies, searchRanges}.
@@ -92,25 +94,28 @@ async def reconcile_search_ranges(db: AsyncSession, ranges: list) -> None:
             label = str(entry.get("label", "")).strip()
             if not label or low <= 0 or high <= low or step <= 0:
                 continue
-            db.add(SdrSearchRange(
-                label          = label[:60],
-                low_hz         = low,
-                high_hz        = high,
-                step_hz        = step,
-                mode           = str(entry.get("mode", "NFM")),
-                threshold_dbfs = float(entry.get("threshold_dbfs", -35.0)),
-                dwell_ms       = int(entry.get("dwell_ms", 250)),
-                band_name      = str(entry.get("band_name", "")),
-                enabled        = bool(entry.get("enabled", True)),
-                notes          = str(entry.get("notes", ""))[:500],
-                sort_order     = idx,
-                created_at     = ts,
-            ))
+            db.add(
+                SdrSearchRange(
+                    label=label[:60],
+                    low_hz=low,
+                    high_hz=high,
+                    step_hz=step,
+                    mode=str(entry.get("mode", "NFM")),
+                    threshold_dbfs=float(entry.get("threshold_dbfs", -35.0)),
+                    dwell_ms=int(entry.get("dwell_ms", 250)),
+                    band_name=str(entry.get("band_name", "")),
+                    enabled=bool(entry.get("enabled", True)),
+                    notes=str(entry.get("notes", ""))[:500],
+                    sort_order=idx,
+                    created_at=ts,
+                )
+            )
         except (TypeError, ValueError):
             continue
 
 
 # ── sdr_bandplan.json (bandPlan) ────────────────────────────────────────────
+
 
 def load_sdr_bandplan_file() -> list:
     """Read sdr_bandplan.json's `bandPlan` array (empty list if missing/bad)."""

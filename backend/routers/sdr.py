@@ -52,15 +52,16 @@ router = APIRouter(tags=["sdr"])
 
 # ── Pydantic request schemas ──────────────────────────────────────────────────
 
+
 class RadioIn(BaseModel):
     name: str
     host: str
     port: int = 1234
     description: str = ""
     enabled: bool = True
-    bandwidth: int | None   = None
-    rf_gain:   float | None = None
-    agc:       bool | None  = None
+    bandwidth: int | None = None
+    rf_gain: float | None = None
+    agc: bool | None = None
 
 
 class GroupIn(BaseModel):
@@ -72,6 +73,7 @@ class GroupIn(BaseModel):
     @classmethod
     def _validate_name(cls, v: str) -> str:
         from backend.utils import InvalidGroupName, clean_group_name
+
         try:
             return clean_group_name(v)
         except InvalidGroupName as exc:
@@ -106,12 +108,12 @@ class SearchRangeIn(BaseModel):
 
 class ConnectIn(BaseModel):
     radio_id: int
-    frequency_hz: int | None = None   # None = preserve current freq
-    mode: str | None = None           # None = preserve current mode
-    gain_db: float | None = None      # None = preserve current gain
-    gain_auto: bool | None = None     # None = preserve current AGC state
+    frequency_hz: int | None = None  # None = preserve current freq
+    mode: str | None = None  # None = preserve current mode
+    gain_db: float | None = None  # None = preserve current gain
+    gain_auto: bool | None = None  # None = preserve current AGC state
     squelch_dbfs: float = -60.0
-    sample_rate: int | None = None    # None = preserve current sample rate
+    sample_rate: int | None = None  # None = preserve current sample rate
 
 
 class DisconnectIn(BaseModel):
@@ -146,16 +148,14 @@ class RecordingPatchIn(BaseModel):
         if v is None:
             return None
         # Drop C0/C1 control chars except tab (\t) and newline (\n).
-        cleaned = "".join(
-            ch for ch in v
-            if ch in ("\t", "\n") or (ord(ch) >= 0x20 and ord(ch) != 0x7F)
-        ).strip()
+        cleaned = "".join(ch for ch in v if ch in ("\t", "\n") or (ord(ch) >= 0x20 and ord(ch) != 0x7F)).strip()
         if len(cleaned) > 250:
             raise ValueError("text too long (max 250 characters)")
         return cleaned
 
 
 # ── Radio helpers — read/write sdr.radios from UserSettings ──────────────────
+
 
 async def _get_radios(db: AsyncSession) -> list[dict]:
     """Read the sdr.radios array from UserSettings. Returns [] if not set."""
@@ -218,9 +218,11 @@ async def _load_freq_group_map(db: AsyncSession) -> dict[int, list[int]]:
 
 
 async def _set_freq_groups(db: AsyncSession, freq_id: int, group_ids: list[int]) -> None:
-    existing = (await db.execute(
-        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)
-    )).scalars().all()
+    existing = (
+        (await db.execute(select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)))
+        .scalars()
+        .all()
+    )
     for link in existing:
         await db.delete(link)
     seen: set[int] = set()
@@ -233,24 +235,24 @@ async def _set_freq_groups(db: AsyncSession, freq_id: int, group_ids: list[int])
 
 def _recording_to_dict(r: SdrRecording) -> dict:
     return {
-        "id":                  r.id,
-        "name":                r.name,
-        "notes":               r.notes,
-        "radio_id":            r.radio_id,
-        "radio_name":          r.radio_name,
-        "frequency_hz":        r.frequency_hz,
-        "mode":                r.mode,
-        "gain_db":             r.gain_db,
-        "squelch_dbfs":        r.squelch_dbfs,
-        "sample_rate":         r.sample_rate,
-        "started_at":          r.started_at,
-        "ended_at":            r.ended_at,
-        "duration_s":          r.duration_s,
-        "file_size_bytes":     r.file_size_bytes,
-        "has_iq_file":         r.has_iq_file,
-        "iq_file_size_bytes":  r.iq_file_size_bytes,
-        "status":              r.status,
-        "created_at":          r.created_at,
+        "id": r.id,
+        "name": r.name,
+        "notes": r.notes,
+        "radio_id": r.radio_id,
+        "radio_name": r.radio_name,
+        "frequency_hz": r.frequency_hz,
+        "mode": r.mode,
+        "gain_db": r.gain_db,
+        "squelch_dbfs": r.squelch_dbfs,
+        "sample_rate": r.sample_rate,
+        "started_at": r.started_at,
+        "ended_at": r.ended_at,
+        "duration_s": r.duration_s,
+        "file_size_bytes": r.file_size_bytes,
+        "has_iq_file": r.has_iq_file,
+        "iq_file_size_bytes": r.iq_file_size_bytes,
+        "status": r.status,
+        "created_at": r.created_at,
     }
 
 
@@ -268,6 +270,7 @@ _active_iq_recordings: dict[int, asyncio.Queue] = {}
 
 
 # ── Radio CRUD — backed by UserSettings sdr.radios ───────────────────────────
+
 
 @router.get("/api/sdr/radios")
 async def list_radios(db: AsyncSession = Depends(get_db)):
@@ -306,6 +309,7 @@ async def delete_radio(radio_id: int, db: AsyncSession = Depends(get_db)):
 
 # ── Group CRUD ────────────────────────────────────────────────────────────────
 
+
 @router.get("/api/sdr/groups")
 async def list_groups(db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(select(SdrFrequencyGroup).order_by(SdrFrequencyGroup.sort_order))).scalars().all()
@@ -315,6 +319,7 @@ async def list_groups(db: AsyncSession = Depends(get_db)):
 @router.post("/api/sdr/groups", status_code=201)
 async def create_group(body: GroupIn, db: AsyncSession = Depends(get_db)):
     from backend.utils import slugify
+
     # Slug is derived once from the name and stays stable across later renames.
     existing = set((await db.execute(select(SdrFrequencyGroup.slug))).scalars().all())
     base = slugify(body.name) or "group"
@@ -348,12 +353,16 @@ async def delete_group(group_id: int, db: AsyncSession = Depends(get_db)):
     if not row:
         raise HTTPException(404, "Group not found")
     # Ungroup any frequencies that belonged to this group
-    freqs = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.group_id == group_id))).scalars().all()
+    freqs = (
+        (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.group_id == group_id))).scalars().all()
+    )
     for freq in freqs:
         freq.group_id = None
-    links = (await db.execute(
-        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.group_id == group_id)
-    )).scalars().all()
+    links = (
+        (await db.execute(select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.group_id == group_id)))
+        .scalars()
+        .all()
+    )
     for link in links:
         await db.delete(link)
     await db.delete(row)
@@ -362,6 +371,7 @@ async def delete_group(group_id: int, db: AsyncSession = Depends(get_db)):
 
 
 # ── Frequency CRUD ────────────────────────────────────────────────────────────
+
 
 def _resolve_group_ids(body: FrequencyIn) -> list[int]:
     if body.group_ids is not None:
@@ -373,7 +383,15 @@ def _resolve_group_ids(body: FrequencyIn) -> list[int]:
 
 @router.get("/api/sdr/frequencies")
 async def list_frequencies(db: AsyncSession = Depends(get_db)):
-    rows = (await db.execute(select(SdrStoredFrequency).order_by(SdrStoredFrequency.group_id, SdrStoredFrequency.frequency_hz))).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(SdrStoredFrequency).order_by(SdrStoredFrequency.group_id, SdrStoredFrequency.frequency_hz)
+            )
+        )
+        .scalars()
+        .all()
+    )
     group_map = await _load_freq_group_map(db)
     return JSONResponse([_freq_to_dict(freq, group_map.get(freq.id, [])) for freq in rows])
 
@@ -415,9 +433,11 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(SdrStoredFrequency).where(SdrStoredFrequency.id == freq_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Frequency not found")
-    links = (await db.execute(
-        select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)
-    )).scalars().all()
+    links = (
+        (await db.execute(select(SdrFrequencyGroupLink).where(SdrFrequencyGroupLink.frequency_id == freq_id)))
+        .scalars()
+        .all()
+    )
     for link in links:
         await db.delete(link)
     await db.delete(row)
@@ -427,29 +447,32 @@ async def delete_frequency(freq_id: int, db: AsyncSession = Depends(get_db)):
 
 # ── Search Range CRUD ─────────────────────────────────────────────────────────
 
+
 def _search_range_to_dict(r: SdrSearchRange) -> dict:
     return {
-        "id":             r.id,
-        "label":          r.label,
-        "low_hz":         r.low_hz,
-        "high_hz":        r.high_hz,
-        "step_hz":        r.step_hz,
-        "mode":           r.mode,
+        "id": r.id,
+        "label": r.label,
+        "low_hz": r.low_hz,
+        "high_hz": r.high_hz,
+        "step_hz": r.step_hz,
+        "mode": r.mode,
         "threshold_dbfs": r.threshold_dbfs,
-        "dwell_ms":       r.dwell_ms,
-        "band_name":      r.band_name,
-        "enabled":        r.enabled,
-        "notes":          r.notes,
-        "sort_order":     r.sort_order,
-        "created_at":     r.created_at,
+        "dwell_ms": r.dwell_ms,
+        "band_name": r.band_name,
+        "enabled": r.enabled,
+        "notes": r.notes,
+        "sort_order": r.sort_order,
+        "created_at": r.created_at,
     }
 
 
 @router.get("/api/sdr/search-ranges")
 async def list_search_ranges(db: AsyncSession = Depends(get_db)):
-    rows = (await db.execute(
-        select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)
-    )).scalars().all()
+    rows = (
+        (await db.execute(select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)))
+        .scalars()
+        .all()
+    )
     return JSONResponse([_search_range_to_dict(r) for r in rows])
 
 
@@ -496,15 +519,18 @@ async def delete_search_range(range_id: int, db: AsyncSession = Depends(get_db))
 
 # ── Bulk data editors (textarea JSON for Settings > SDR) ──────────────────────
 
+
 @router.get("/api/sdr/data/frequencies")
 async def get_sdr_data_frequencies(db: AsyncSession = Depends(get_db)):
     """Return {groups, frequencies, searchRanges} as the textarea source — the
     current DB state mirrored into the flat config representation."""
-    return JSONResponse({
-        "groups":       await get_setting(db, "sdr", "groups", default=[]),
-        "frequencies":  await get_setting(db, "sdr", "frequencies", default=[]),
-        "searchRanges": await get_setting(db, "sdr", "searchRanges", default=[]),
-    })
+    return JSONResponse(
+        {
+            "groups": await get_setting(db, "sdr", "groups", default=[]),
+            "frequencies": await get_setting(db, "sdr", "frequencies", default=[]),
+            "searchRanges": await get_setting(db, "sdr", "searchRanges", default=[]),
+        }
+    )
 
 
 @router.post("/api/sdr/data/frequencies")
@@ -525,7 +551,7 @@ async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db
     await _reconcile_sdr_frequencies(db, freqs, groups)
     await reconcile_search_ranges(db, ranges)
     await db.commit()
-    await _sync_groups(db)          # mirrors groups+frequencies, writes the file
+    await _sync_groups(db)  # mirrors groups+frequencies, writes the file
     await sync_sdr_search_ranges_to_config(db)
     return JSONResponse({"status": "ok"})
 
@@ -534,6 +560,7 @@ async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db
 async def get_sdr_data_bandplan(db: AsyncSession = Depends(get_db)):
     """Return {bandPlan} as the textarea source."""
     from backend.services.sdr_data import get_bandplan
+
     return JSONResponse({"bandPlan": await get_bandplan(db)})
 
 
@@ -541,6 +568,7 @@ async def get_sdr_data_bandplan(db: AsyncSession = Depends(get_db)):
 async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
     """Replace the band plan from an edited JSON object {bandPlan: [...]}."""
     from backend.services.sdr_data import set_bandplan
+
     if not isinstance(body, dict) or not isinstance(body.get("bandPlan"), list):
         raise HTTPException(400, "Body must be a JSON object with a bandPlan array")
     await set_bandplan(db, body["bandPlan"])
@@ -549,13 +577,18 @@ async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
 
 # ── Recording CRUD + file serving ────────────────────────────────────────────
 
+
 @router.get("/api/sdr/recordings")
 async def list_recordings(db: AsyncSession = Depends(get_db)):
-    rows = (await db.execute(
-        select(SdrRecording)
-        .where(SdrRecording.status == "complete")
-        .order_by(SdrRecording.created_at.desc())
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(SdrRecording).where(SdrRecording.status == "complete").order_by(SdrRecording.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
     return JSONResponse([_recording_to_dict(r) for r in rows])
 
 
@@ -612,17 +645,15 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
 
 @router.post("/api/sdr/recordings/stop")
 async def stop_recording(
-    recording_id: int        = Form(...),
-    file: UploadFile         = File(...),
-    name: str                = Form(""),
-    ended_at: str            = Form(""),
-    duration_s: float        = Form(0.0),
-    db: AsyncSession         = Depends(get_db),
+    recording_id: int = Form(...),
+    file: UploadFile = File(...),
+    name: str = Form(""),
+    ended_at: str = Form(""),
+    duration_s: float = Form(0.0),
+    db: AsyncSession = Depends(get_db),
 ):
     """Finalise a recording: upload WAV, stop IQ capture, update DB row."""
-    row = (await db.execute(
-        select(SdrRecording).where(SdrRecording.id == recording_id)
-    )).scalar_one_or_none()
+    row = (await db.execute(select(SdrRecording).where(SdrRecording.id == recording_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
 
@@ -671,9 +702,7 @@ async def stop_recording(
 
 @router.patch("/api/sdr/recordings/{rec_id}")
 async def update_recording(rec_id: int, body: RecordingPatchIn, db: AsyncSession = Depends(get_db)):
-    row = (await db.execute(
-        select(SdrRecording).where(SdrRecording.id == rec_id)
-    )).scalar_one_or_none()
+    row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
     if body.name is not None:
@@ -687,9 +716,7 @@ async def update_recording(rec_id: int, body: RecordingPatchIn, db: AsyncSession
 
 @router.delete("/api/sdr/recordings/{rec_id}", status_code=204)
 async def delete_recording(rec_id: int, db: AsyncSession = Depends(get_db)):
-    row = (await db.execute(
-        select(SdrRecording).where(SdrRecording.id == rec_id)
-    )).scalar_one_or_none()
+    row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
     rdir = _recordings_dir()
@@ -703,9 +730,7 @@ async def delete_recording(rec_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/api/sdr/recordings/{rec_id}/file")
 async def get_recording_wav(rec_id: int, db: AsyncSession = Depends(get_db)):
-    row = (await db.execute(
-        select(SdrRecording).where(SdrRecording.id == rec_id)
-    )).scalar_one_or_none()
+    row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
     wav_path = _recordings_dir() / f"{rec_id}.wav"
@@ -717,9 +742,7 @@ async def get_recording_wav(rec_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/api/sdr/recordings/{rec_id}/iq")
 async def get_recording_iq(rec_id: int, db: AsyncSession = Depends(get_db)):
-    row = (await db.execute(
-        select(SdrRecording).where(SdrRecording.id == rec_id)
-    )).scalar_one_or_none()
+    row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row or not row.has_iq_file:
         raise HTTPException(404, "IQ file not found")
     iq_path = _recordings_dir() / f"{rec_id}.u8"
@@ -730,6 +753,7 @@ async def get_recording_iq(rec_id: int, db: AsyncSession = Depends(get_db)):
 
 
 # ── Connection control ────────────────────────────────────────────────────────
+
 
 @router.post("/api/sdr/connect")
 async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
@@ -775,9 +799,8 @@ async def radio_status(radio_id: int, db: AsyncSession = Depends(get_db)):
     return JSONResponse({"radio_id": radio_id, "radio_name": radio["name"], **status})
 
 
-
-
 # ── WebSocket bridge ──────────────────────────────────────────────────────────
+
 
 async def _resolve_broadcaster(
     radio_id: int,
@@ -789,13 +812,16 @@ async def _resolve_broadcaster(
     Returns (broadcaster, radio_dict) on success, or (None, None) on failure.
     """
     from backend.database import AsyncSessionLocal
+
     async with AsyncSessionLocal() as db:
         radios = await _get_radios(db)
     radio = _get_radio_by_id(radios, radio_id)
 
     if not radio:
         try:
-            await websocket.send_text(json.dumps({"type": "error", "code": "NOT_FOUND", "message": f"Radio {radio_id} not found"}))
+            await websocket.send_text(
+                json.dumps({"type": "error", "code": "NOT_FOUND", "message": f"Radio {radio_id} not found"})
+            )
         except Exception:
             pass
         try:
@@ -850,7 +876,7 @@ async def sdr_iq_websocket(radio_id: int, websocket: WebSocket):
     try:
         while True:
             payload = await queue.get()
-            if payload is None:      # recording stopped / broadcaster shutdown
+            if payload is None:  # recording stopped / broadcaster shutdown
                 break
             try:
                 await websocket.send_bytes(payload)
@@ -894,17 +920,21 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     # Send initial status — connected=False until the first spectrum frame confirms
     # data is actually flowing from the physical device
     try:
-        await websocket.send_text(json.dumps({
-            "type": "status",
-            "connected": False,
-            "radio_id": radio["id"],
-            "radio_name": radio["name"],
-            "center_hz": conn.center_hz,
-            "sample_rate": conn.sample_rate,
-            "mode": conn.mode,
-            "gain_db": conn.gain_db,
-            "gain_auto": conn.gain_auto,
-        }))
+        await websocket.send_text(
+            json.dumps(
+                {
+                    "type": "status",
+                    "connected": False,
+                    "radio_id": radio["id"],
+                    "radio_name": radio["name"],
+                    "center_hz": conn.center_hz,
+                    "sample_rate": conn.sample_rate,
+                    "mode": conn.mode,
+                    "gain_db": conn.gain_db,
+                    "gain_auto": conn.gain_auto,
+                }
+            )
+        )
     except WebSocketDisconnect:
         return
 
@@ -949,7 +979,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     try:
         while True:
             frame = await queue.get()
-            if frame is None:        # broadcaster stopped (server shutdown)
+            if frame is None:  # broadcaster stopped (server shutdown)
                 break
             try:
                 await websocket.send_text(json.dumps(frame))

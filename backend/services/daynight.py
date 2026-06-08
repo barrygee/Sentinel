@@ -25,18 +25,12 @@ def _solar_position(dt: datetime) -> tuple[float, float]:
     # Day-angle in radians (Spencer 1971 approximation)
     day_angle_rad = math.radians((360.0 / 365.0) * (doy - 80))
     declination_deg = (
-        23.45 * math.sin(day_angle_rad)
-        - 0.39 * math.sin(2 * day_angle_rad)
-        + 0.07 * math.sin(4 * day_angle_rad)
+        23.45 * math.sin(day_angle_rad) - 0.39 * math.sin(2 * day_angle_rad) + 0.07 * math.sin(4 * day_angle_rad)
     )
-    eot_minutes = (
-        9.87 * math.sin(2 * day_angle_rad)
-        - 7.53 * math.cos(day_angle_rad)
-        - 1.5  * math.sin(day_angle_rad)
-    )
+    eot_minutes = 9.87 * math.sin(2 * day_angle_rad) - 7.53 * math.cos(day_angle_rad) - 1.5 * math.sin(day_angle_rad)
     solar_noon_utc = 12.0 - eot_minutes / 60.0
     subsolar_lon = (solar_noon_utc - hour_utc) * 15.0
-    while subsolar_lon >  180:
+    while subsolar_lon > 180:
         subsolar_lon -= 360
     while subsolar_lon < -180:
         subsolar_lon += 360
@@ -100,12 +94,14 @@ def compute_terminator() -> dict:
         if anti_lon > 180:
             anti_lon -= 360.0
 
-        lo = anti_lon - 90.0   # left edge of night band
-        hi = anti_lon + 90.0   # right edge of night band
+        lo = anti_lon - 90.0  # left edge of night band
+        hi = anti_lon + 90.0  # right edge of night band
 
         def _norm(lon: float) -> float:
-            while lon >  180: lon -= 360
-            while lon < -180: lon += 360
+            while lon > 180:
+                lon -= 360
+            while lon < -180:
+                lon += 360
             return lon
 
         lo = _norm(lo)
@@ -149,15 +145,10 @@ def compute_terminator() -> dict:
     # Insert a midpoint at lon=0 to avoid any 360° jump being interpreted
     # as an antimeridian crossing by renderers.
 
-    ring = (
-        term_pts
-        + [[180.0, pole_lat], [0.0, pole_lat], [-180.0, pole_lat]]
-        + [term_pts[0]]
-    )
+    ring = term_pts + [[180.0, pole_lat], [0.0, pole_lat], [-180.0, pole_lat]] + [term_pts[0]]
 
     # Verify no antimeridian crossings (should never happen with this construction)
-    crossings = [i for i in range(1, len(ring))
-                 if abs(ring[i][0] - ring[i - 1][0]) > 180]
+    crossings = [i for i in range(1, len(ring)) if abs(ring[i][0] - ring[i - 1][0]) > 180]
     if crossings:
         raise RuntimeError(f"Unexpected antimeridian crossing at indices: {crossings}")
 

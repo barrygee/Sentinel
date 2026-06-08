@@ -9,9 +9,9 @@ from backend.models import AirAircraft, AirFlight, AirSnapshot
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-FLIGHT_GAP_MS       = 10 * 60 * 1000   # 10-min absence → new flight session
-SNAPSHOT_INTERVAL_MS = 10 * 1000        # max one snapshot per aircraft per 10s
-MAX_HISTORY_DAYS    = 30
+FLIGHT_GAP_MS = 10 * 60 * 1000  # 10-min absence → new flight session
+SNAPSHOT_INTERVAL_MS = 10 * 1000  # max one snapshot per aircraft per 10s
+MAX_HISTORY_DAYS = 30
 
 
 def _reg_key(ac: dict) -> str:
@@ -39,9 +39,9 @@ async def record_aircraft_batch(
         if not reg:
             continue
 
-        hex_val   = (ac.get("hex") or "").strip()
-        type_code = (ac.get("t")   or "").strip()
-        callsign  = (ac.get("flight") or "").strip()
+        hex_val = (ac.get("hex") or "").strip()
+        type_code = (ac.get("t") or "").strip()
+        callsign = (ac.get("flight") or "").strip()
 
         # 1. Upsert air_aircraft row
         result = await db.execute(select(AirAircraft).where(AirAircraft.registration == reg))
@@ -70,10 +70,7 @@ async def record_aircraft_batch(
 
         # 2. Find most recent flight session for this registration
         flight_result = await db.execute(
-            select(AirFlight)
-            .where(AirFlight.registration == reg)
-            .order_by(AirFlight.last_active_at.desc())
-            .limit(1)
+            select(AirFlight).where(AirFlight.registration == reg).order_by(AirFlight.last_active_at.desc()).limit(1)
         )
         flight = flight_result.scalar_one_or_none()
 
@@ -102,17 +99,19 @@ async def record_aircraft_batch(
             if isinstance(alt, str):
                 alt = None  # "ground" string → store NULL
 
-            db.add(AirSnapshot(
-                flight_id=flight.id,
-                ts=now,
-                lat=lat,
-                lon=lon,
-                alt_baro=int(alt) if alt is not None else None,
-                gs=ac.get("gs"),
-                track=ac.get("track"),
-                baro_rate=ac.get("baro_rate"),
-                squawk=ac.get("squawk") or None,
-            ))
+            db.add(
+                AirSnapshot(
+                    flight_id=flight.id,
+                    ts=now,
+                    lat=lat,
+                    lon=lon,
+                    alt_baro=int(alt) if alt is not None else None,
+                    gs=ac.get("gs"),
+                    track=ac.get("track"),
+                    baro_rate=ac.get("baro_rate"),
+                    squawk=ac.get("squawk") or None,
+                )
+            )
             flight.snapshot_count += 1
 
         # 5. Always update last_active_at
@@ -129,23 +128,15 @@ async def cleanup_old_snapshots(max_days: int = MAX_HISTORY_DAYS) -> None:
 
     async with AsyncSessionLocal() as db:
         # Find old flight IDs
-        old_flights_result = await db.execute(
-            select(AirFlight.id).where(AirFlight.last_active_at < cutoff_ms)
-        )
+        old_flights_result = await db.execute(select(AirFlight.id).where(AirFlight.last_active_at < cutoff_ms))
         old_flight_ids = [row[0] for row in old_flights_result.all()]
 
         if old_flight_ids:
-            await db.execute(
-                delete(AirSnapshot).where(AirSnapshot.flight_id.in_(old_flight_ids))
-            )
-            await db.execute(
-                delete(AirFlight).where(AirFlight.id.in_(old_flight_ids))
-            )
+            await db.execute(delete(AirSnapshot).where(AirSnapshot.flight_id.in_(old_flight_ids)))
+            await db.execute(delete(AirFlight).where(AirFlight.id.in_(old_flight_ids)))
 
         # Prune aircraft that have no remaining flights
-        aircraft_with_flights_result = await db.execute(
-            select(AirFlight.aircraft_id).distinct()
-        )
+        aircraft_with_flights_result = await db.execute(select(AirFlight.aircraft_id).distinct())
         active_aircraft_ids = {row[0] for row in aircraft_with_flights_result.all()}
 
         orphan_result = await db.execute(select(AirAircraft.id))
@@ -153,8 +144,6 @@ async def cleanup_old_snapshots(max_days: int = MAX_HISTORY_DAYS) -> None:
         orphan_ids = [aid for aid in all_aircraft_ids if aid not in active_aircraft_ids]
 
         if orphan_ids:
-            await db.execute(
-                delete(AirAircraft).where(AirAircraft.id.in_(orphan_ids))
-            )
+            await db.execute(delete(AirAircraft).where(AirAircraft.id.in_(orphan_ids)))
 
         await db.commit()

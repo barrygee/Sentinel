@@ -7,7 +7,14 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from backend.database import backfill_satellite_radio_store, create_tables, migrate_sdr_radios_to_settings, seed_default_settings, seed_sdr_bandplan_from_file, seed_sdr_data_from_files
+from backend.database import (
+    backfill_satellite_radio_store,
+    create_tables,
+    migrate_sdr_radios_to_settings,
+    seed_default_settings,
+    seed_sdr_bandplan_from_file,
+    seed_sdr_data_from_files,
+)
 from backend.routers import air, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
@@ -18,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 ROOT_DIR = Path(__file__).parent.parent
-SPA_DIR  = ROOT_DIR / "frontend" / "spa-dist"
+SPA_DIR = ROOT_DIR / "frontend" / "spa-dist"
 
 
 async def _daily_cleanup_loop() -> None:

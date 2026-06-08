@@ -32,6 +32,7 @@ def _sqlite_pragmas(dbapi_conn, _record):  # pragma: no cover — driver-level h
     cur.execute("PRAGMA synchronous=NORMAL")
     cur.close()
 
+
 # Session factory used by all request handlers via Depends(get_db)
 AsyncSessionLocal = sessionmaker(
     bind=engine,
@@ -42,6 +43,7 @@ AsyncSessionLocal = sessionmaker(
 
 class Base(DeclarativeBase):
     """Declarative base class — all ORM models inherit from this."""
+
     pass
 
 
@@ -49,13 +51,12 @@ async def create_tables():
     """Create all database tables on startup if they do not already exist."""
     async with engine.begin() as conn:
         from backend import models  # noqa: F401 — import triggers model registration with Base
+
         await conn.run_sync(Base.metadata.create_all)
         # Add name_source column to satellite_catalogue if it doesn't exist yet
         # (SQLite create_all does not add new columns to existing tables)
         try:
-            await conn.execute(
-                sa_text("ALTER TABLE satellite_catalogue ADD COLUMN name_source TEXT")
-            )
+            await conn.execute(sa_text("ALTER TABLE satellite_catalogue ADD COLUMN name_source TEXT"))
         except OperationalError:
             # Column already exists — raised by SQLite on duplicate ALTER TABLE
             pass
@@ -84,9 +85,10 @@ async def create_tables():
         # empty). Slug is rename-stable, so only populate where still blank.
         try:
             from backend.utils import slugify
-            rows = (await conn.execute(sa_text(
-                "SELECT id, name FROM sdr_frequency_groups WHERE slug = '' OR slug IS NULL"
-            ))).all()
+
+            rows = (
+                await conn.execute(sa_text("SELECT id, name FROM sdr_frequency_groups WHERE slug = '' OR slug IS NULL"))
+            ).all()
             for gid, name in rows:
                 await conn.execute(
                     sa_text("UPDATE sdr_frequency_groups SET slug = :s WHERE id = :i"),
@@ -95,10 +97,12 @@ async def create_tables():
         except OperationalError:
             pass
         try:
-            await conn.execute(sa_text(
-                "INSERT OR IGNORE INTO sdr_frequency_group_links (frequency_id, group_id) "
-                "SELECT id, group_id FROM sdr_stored_frequencies WHERE group_id IS NOT NULL"
-            ))
+            await conn.execute(
+                sa_text(
+                    "INSERT OR IGNORE INTO sdr_frequency_group_links (frequency_id, group_id) "
+                    "SELECT id, group_id FROM sdr_stored_frequencies WHERE group_id IS NOT NULL"
+                )
+            )
         except OperationalError:
             pass
         for idx_sql in [
@@ -144,7 +148,7 @@ def _build_default_settings() -> list[tuple[str, str, object]]:
     rows = _parse_config_file(_CONFIG_PATH)
     # Allow env/config.py values to override the JSON file for API URLs
     overrides = {
-        ("air",   "onlineDataSourceURL"): settings.adsb_upstream_base,
+        ("air", "onlineDataSourceURL"): settings.adsb_upstream_base,
         ("space", "onlineUrl"): settings.celestrak_iss_url,
     }
     result = []
@@ -174,10 +178,12 @@ async def migrate_sdr_radios_to_settings() -> None:
 
         # Read rows from sdr_radios (table may not exist on a fresh install)
         try:
-            result = await session.execute(sa_text(
-                "SELECT id, name, host, port, description, enabled, bandwidth, rf_gain, agc, created_at "
-                "FROM sdr_radios ORDER BY created_at"
-            ))
+            result = await session.execute(
+                sa_text(
+                    "SELECT id, name, host, port, description, enabled, bandwidth, rf_gain, agc, created_at "
+                    "FROM sdr_radios ORDER BY created_at"
+                )
+            )
             rows = result.mappings().fetchall()
         except Exception:
             return  # table doesn't exist yet — nothing to migrate
@@ -187,25 +193,29 @@ async def migrate_sdr_radios_to_settings() -> None:
 
         radios = []
         for row in rows:
-            radios.append({
-                "id":          row["id"],
-                "name":        row["name"],
-                "host":        row["host"],
-                "port":        row["port"],
-                "description": row["description"] or "",
-                "enabled":     bool(row["enabled"]),
-                "bandwidth":   row["bandwidth"],
-                "rf_gain":     row["rf_gain"],
-                "agc":         bool(row["agc"]) if row["agc"] is not None else None,
-                "created_at":  row["created_at"],
-            })
+            radios.append(
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "host": row["host"],
+                    "port": row["port"],
+                    "description": row["description"] or "",
+                    "enabled": bool(row["enabled"]),
+                    "bandwidth": row["bandwidth"],
+                    "rf_gain": row["rf_gain"],
+                    "agc": bool(row["agc"]) if row["agc"] is not None else None,
+                    "created_at": row["created_at"],
+                }
+            )
 
-        session.add(UserSettings(
-            namespace="sdr",
-            key="radios",
-            value=json.dumps(radios),
-            updated_at=int(time.time() * 1000),
-        ))
+        session.add(
+            UserSettings(
+                namespace="sdr",
+                key="radios",
+                value=json.dumps(radios),
+                updated_at=int(time.time() * 1000),
+            )
+        )
         await session.commit()
 
 
@@ -228,9 +238,11 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
         SdrStoredFrequency,
     )
 
-    groups = (await session.execute(
-        select(SdrFrequencyGroup).order_by(SdrFrequencyGroup.sort_order, SdrFrequencyGroup.id)
-    )).scalars().all()
+    groups = (
+        (await session.execute(select(SdrFrequencyGroup).order_by(SdrFrequencyGroup.sort_order, SdrFrequencyGroup.id)))
+        .scalars()
+        .all()
+    )
     slug_by_id = {g.id: g.slug for g in groups}
 
     links = (await session.execute(select(SdrFrequencyGroupLink))).scalars().all()
@@ -238,9 +250,9 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     for link in links:
         group_ids_by_freq.setdefault(link.frequency_id, []).append(link.group_id)
 
-    freqs = (await session.execute(
-        select(SdrStoredFrequency).order_by(SdrStoredFrequency.frequency_hz)
-    )).scalars().all()
+    freqs = (
+        (await session.execute(select(SdrStoredFrequency).order_by(SdrStoredFrequency.frequency_hz))).scalars().all()
+    )
 
     payload = []
     for f in freqs:
@@ -250,20 +262,20 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
         if f.group_id is not None and f.group_id not in gids:
             gids.append(f.group_id)
         slugs = [slug_by_id[gid] for gid in slug_by_id if gid in gids]
-        payload.append({
-            "label": f.label,
-            "frequency_hz": f.frequency_hz,
-            "mode": f.mode,
-            "notes": f.notes,
-            "groups": slugs,
-        })
+        payload.append(
+            {
+                "label": f.label,
+                "frequency_hz": f.frequency_hz,
+                "mode": f.mode,
+                "notes": f.notes,
+                "groups": slugs,
+            }
+        )
 
     await upsert_setting(session, "sdr", "frequencies", payload)
     # Mirror the group catalogue as {name, slug} so the config is self-contained
     # and frequency slug refs resolve to readable names on re-import.
-    await upsert_setting(session, "sdr", "groups", [
-        {"name": g.name, "slug": g.slug} for g in groups
-    ])
+    await upsert_setting(session, "sdr", "groups", [{"name": g.name, "slug": g.slug} for g in groups])
     await session.commit()
 
 
@@ -274,21 +286,26 @@ async def sync_sdr_search_ranges_to_config(session: AsyncSession) -> None:
     from backend.db_helpers import upsert_setting  # avoid circular import
     from backend.models import SdrSearchRange  # avoid circular import
 
-    rows = (await session.execute(
-        select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)
-    )).scalars().all()
-    payload = [{
-        "label":          r.label,
-        "low_hz":         r.low_hz,
-        "high_hz":        r.high_hz,
-        "step_hz":        r.step_hz,
-        "mode":           r.mode,
-        "threshold_dbfs": r.threshold_dbfs,
-        "dwell_ms":       r.dwell_ms,
-        "band_name":      r.band_name,
-        "enabled":        r.enabled,
-        "notes":          r.notes,
-    } for r in rows]
+    rows = (
+        (await session.execute(select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)))
+        .scalars()
+        .all()
+    )
+    payload = [
+        {
+            "label": r.label,
+            "low_hz": r.low_hz,
+            "high_hz": r.high_hz,
+            "step_hz": r.step_hz,
+            "mode": r.mode,
+            "threshold_dbfs": r.threshold_dbfs,
+            "dwell_ms": r.dwell_ms,
+            "band_name": r.band_name,
+            "enabled": r.enabled,
+            "notes": r.notes,
+        }
+        for r in rows
+    ]
     await upsert_setting(session, "sdr", "searchRanges", payload)
     await session.commit()
 
@@ -313,10 +330,8 @@ async def seed_sdr_data_from_files() -> None:
     data = load_sdr_frequencies_file()
 
     async with AsyncSessionLocal() as session:
-        groups_empty = (await session.execute(
-            select(SdrFrequencyGroup).limit(1))).scalar_one_or_none() is None
-        ranges_empty = (await session.execute(
-            select(SdrSearchRange).limit(1))).scalar_one_or_none() is None
+        groups_empty = (await session.execute(select(SdrFrequencyGroup).limit(1))).scalar_one_or_none() is None
+        ranges_empty = (await session.execute(select(SdrSearchRange).limit(1))).scalar_one_or_none() is None
 
         if groups_empty and (data["groups"] or data["frequencies"]):
             # Rebuild groups + frequencies from the file (catalogue authoritative).
@@ -381,7 +396,7 @@ async def seed_default_settings() -> None:
 
     # Rename air domain keys introduced in the onlineDataSourceURL/offgridDataSourceURL refactor.
     _RENAMES = [
-        ("air", "onlineUrl",     "onlineDataSourceURL"),
+        ("air", "onlineUrl", "onlineDataSourceURL"),
         ("air", "offgridSource", "offgridDataSourceURL"),
     ]
     async with AsyncSessionLocal() as session:
@@ -421,13 +436,13 @@ async def seed_default_settings() -> None:
     _OBSOLETE_KEYS = [
         ("space", "offgridSource"),
         ("space", "offlineSource"),
-        ("sdr",   "offlineSource"),
-        ("sdr",   "initialGroups"),
-        ("sdr",   "autoCenter"),
-        ("sea",   "onlineUrl"),
-        ("sea",   "offgridSource"),
-        ("land",  "onlineUrl"),
-        ("land",  "offgridSource"),
+        ("sdr", "offlineSource"),
+        ("sdr", "initialGroups"),
+        ("sdr", "autoCenter"),
+        ("sea", "onlineUrl"),
+        ("sea", "offgridSource"),
+        ("land", "onlineUrl"),
+        ("land", "offgridSource"),
     ]
     async with AsyncSessionLocal() as session:
         for namespace, key in _OBSOLETE_KEYS:
@@ -452,12 +467,12 @@ async def seed_default_settings() -> None:
                 )
             )
             if result.scalar_one_or_none() is None:
-                session.add(UserSettings(
-                    namespace=namespace,
-                    key=key,
-                    value=json.dumps(value),
-                    updated_at=ts,
-                ))
+                session.add(
+                    UserSettings(
+                        namespace=namespace,
+                        key=key,
+                        value=json.dumps(value),
+                        updated_at=ts,
+                    )
+                )
         await session.commit()
-
-

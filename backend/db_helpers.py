@@ -5,6 +5,7 @@ by (namespace, key) and parse the JSON-encoded value. This module collapses
 the duplicated `select(UserSettings).where(...)` + json.loads/dumps pattern
 into a small surface area.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -77,12 +78,14 @@ async def upsert_setting(
                 row.value = value_str
                 row.updated_at = ts
             else:
-                db.add(UserSettings(
-                    namespace=namespace,
-                    key=key,
-                    value=value_str,
-                    updated_at=ts,
-                ))
+                db.add(
+                    UserSettings(
+                        namespace=namespace,
+                        key=key,
+                        value=value_str,
+                        updated_at=ts,
+                    )
+                )
             await db.commit()
             return
         except OperationalError:

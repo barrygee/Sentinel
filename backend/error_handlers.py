@@ -4,6 +4,7 @@ The space router has ~10 identical try/except blocks that map RuntimeError →
 503 and any other Exception → 500. This module collapses that pattern into a
 single decorator so router code stays focused on the success path.
 """
+
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
@@ -25,6 +26,7 @@ def handle_service_errors(fn: F) -> F:
         503: {"error": str(e)}
         500: {"error": f"Unexpected error: {e}"}
     """
+
     @wraps(fn)
     async def wrapper(*args, **kwargs):
         try:
@@ -33,6 +35,7 @@ def handle_service_errors(fn: F) -> F:
             return JSONResponse({"error": str(e)}, status_code=503)
         except Exception as e:
             return JSONResponse({"error": f"Unexpected error: {e}"}, status_code=500)
+
     return wrapper  # type: ignore[return-value]
 
 
@@ -42,10 +45,12 @@ def handle_unexpected_errors(fn: F) -> F:
     Used by endpoints that don't distinguish RuntimeError from other failures
     (e.g. simple DB-only queries that wrap everything in `except Exception`).
     """
+
     @wraps(fn)
     async def wrapper(*args, **kwargs):
         try:
             return await fn(*args, **kwargs)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
+
     return wrapper  # type: ignore[return-value]
