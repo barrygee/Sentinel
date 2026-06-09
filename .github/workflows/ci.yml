@@ -1,0 +1,88 @@
+# Continuous integration — lint, format, typecheck, build and test gates for all
+# three code contexts (backend Python, the Vue SPA, the root helper tests).
+# Runs on every PR and on pushes to main. mypy is intentionally NOT a gate
+# (informational only, ~90 known errors); ruff check IS gating.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (ruff + pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Lint (ruff check)
+        run: uv run --project backend ruff check backend
+
+      - name: Format check (ruff format)
+        run: uv run --project backend ruff format --check backend
+
+      - name: Tests (pytest)
+        # pytest.ini sets pythonpath=. — run from the repo root, as documented.
+        run: uv run --project backend pytest
+
+  frontend-vue:
+    name: frontend-vue (eslint + vue-tsc + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/vue
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/vue/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint (ESLint + Prettier)
+        run: npm run lint
+
+      - name: Typecheck (vue-tsc)
+        run: npm run typecheck
+
+      - name: Build (Vite)
+        run: npm run build
+
+  root-helpers:
+    name: root-helpers (eslint + jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Lint (ESLint + Prettier)
+        run: npm run lint
+
+      # No typecheck step: the legacy root `tsc` build has no tsconfig.json; the
+      # helpers are type-checked by ts-jest (tsconfig.test.json) when tests run.
+      - name: Tests (jest)
+        run: npm test
