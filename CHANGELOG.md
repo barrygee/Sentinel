@@ -211,6 +211,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 
 - Stop tracking SQLite WAL/SHM files
 - Add ESLint + Prettier to frontend and root contexts
+- Add husky + lint-staged pre-commit gate
 
 ### Other
 
@@ -906,6 +907,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #51 from barrygee/add/claude-config
 - Merge pull request #52 from barrygee/chore/add-changelog
 - Merge pull request #53 from barrygee/chore/linting-foundation
+- Merge pull request #54 from barrygee/ci/base-pipeline
 
 ### Refactoring
 
