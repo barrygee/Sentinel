@@ -1,0 +1,388 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useSdrStore } from './sdr'
+
+type SdrStore = ReturnType<typeof useSdrStore>
+
+function stubFetch(payload: unknown, ok = true) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
+}
+
+describe('sdr store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }))
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('has the expected defaults', () => {
+    const store = useSdrStore()
+    expect(store.radios).toEqual([])
+    expect(store.currentFreqHz).toBe(100_000_000)
+    expect(store.currentMode).toBe('WFM')
+    expect(store.sampleRate).toBe(2_048_000)
+    expect(store.autoCenterWaterfallOnTune).toBe(true)
+    expect(store.fullWaterfallUpdate).toBe(true)
+    expect(store.showBandPlan).toBe(true)
+    expect(store.showKnownFreqs).toBe(true)
+    expect(store.resumeDelaySec).toBe(0)
+    expect(store.viewZoom).toBe(1)
+    expect(store.viewAutoScale).toBe(true)
+  })
+
+  // ── persisted boolean toggles (read on init) ───────────────────────────────
+  const boolReads: Array<{ name: string; lsKey: string; read: (s: SdrStore) => boolean }> = [
+    {
+      name: 'autoCenter',
+      lsKey: 'sdrAutoCenterWaterfallOnTune',
+      read: (s) => s.autoCenterWaterfallOnTune,
+    },
+    { name: 'fullWaterfall', lsKey: 'sdrFullWaterfallUpdate', read: (s) => s.fullWaterfallUpdate },
+    { name: 'showBandPlan', lsKey: 'sdrShowBandPlan', read: (s) => s.showBandPlan },
+    { name: 'showKnownFreqs', lsKey: 'sdrShowKnownFreqs', read: (s) => s.showKnownFreqs },
+    { name: 'viewAutoScale', lsKey: 'sdrViewAutoScale', read: (s) => s.viewAutoScale },
+  ]
+  it.each(boolReads)('reads $name as false when stored as "0"', ({ lsKey, read }) => {
+    localStorage.setItem(lsKey, '0')
+    expect(read(useSdrStore())).toBe(false)
+  })
+
+  it('defaults all toggles to true when localStorage read throws', () => {
+    vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const store = useSdrStore()
+    expect(store.autoCenterWaterfallOnTune).toBe(true)
+    expect(store.fullWaterfallUpdate).toBe(true)
+    expect(store.showBandPlan).toBe(true)
+    expect(store.showKnownFreqs).toBe(true)
+    expect(store.viewAutoScale).toBe(true)
+    expect(store.resumeDelaySec).toBe(0)
+  })
+
+  // ── simple boolean setters (set ref + persist, swallow failures) ───────────
+  const boolSetters: Array<{
+    name: string
+    lsKey: string
+    apply: (s: SdrStore, on: boolean) => void
+    read: (s: SdrStore) => boolean
+  }> = [
+    {
+      name: 'setFullWaterfallUpdate',
+      lsKey: 'sdrFullWaterfallUpdate',
+      apply: (s, on) => s.setFullWaterfallUpdate(on),
+      read: (s) => s.fullWaterfallUpdate,
+    },
+    {
+      name: 'setShowBandPlan',
+      lsKey: 'sdrShowBandPlan',
+      apply: (s, on) => s.setShowBandPlan(on),
+      read: (s) => s.showBandPlan,
+    },
+    {
+      name: 'setShowKnownFreqs',
+      lsKey: 'sdrShowKnownFreqs',
+      apply: (s, on) => s.setShowKnownFreqs(on),
+      read: (s) => s.showKnownFreqs,
+    },
+  ]
+  it.each(boolSetters)('$name updates the ref and persists', ({ lsKey, apply, read }) => {
+    const store = useSdrStore()
+    apply(store, false)
+    expect(read(store)).toBe(false)
+    expect(localStorage.getItem(lsKey)).toBe('0')
+    apply(store, true)
+    expect(localStorage.getItem(lsKey)).toBe('1')
+  })
+  it.each(boolSetters)('$name swallows write failures', ({ apply, read }) => {
+    const store = useSdrStore()
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    expect(() => apply(store, false)).not.toThrow()
+    expect(read(store)).toBe(false)
+  })
+
+  describe('setAutoCenterWaterfallOnTune', () => {
+    it('persists the flag', () => {
+      const store = useSdrStore()
+      store.setAutoCenterWaterfallOnTune(false)
+      expect(store.autoCenterWaterfallOnTune).toBe(false)
+      expect(localStorage.getItem('sdrAutoCenterWaterfallOnTune')).toBe('0')
+    })
+
+    it('clears a non-zero tuning offset and re-tunes when turned on', () => {
+      const store = useSdrStore()
+      store.setTuningOffsetHz(5000)
+      store.setAutoCenterWaterfallOnTune(true)
+      expect(store.tuningOffsetHz).toBe(0)
+      expect(store.tuneRequest?.hz).toBe(store.currentFreqHz)
+    })
+
+    it('does not re-tune when the offset is already zero', () => {
+      const store = useSdrStore()
+      store.setAutoCenterWaterfallOnTune(true)
+      expect(store.tuneRequest).toBeNull()
+    })
+
+    it('swallows write failures', () => {
+      const store = useSdrStore()
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+      expect(() => store.setAutoCenterWaterfallOnTune(false)).not.toThrow()
+    })
+  })
+
+  // ── hydrate-from-DB for the boolean toggles ────────────────────────────────
+  const hydrateBool: Array<{
+    name: string
+    dbKey: string
+    hydrate: (s: SdrStore) => Promise<void>
+    read: (s: SdrStore) => boolean
+  }> = [
+    {
+      name: 'autoCenter',
+      dbKey: 'autoCenterWaterfallOnTune',
+      hydrate: (s) => s.hydrateAutoCenterFromDb(),
+      read: (s) => s.autoCenterWaterfallOnTune,
+    },
+    {
+      name: 'fullWaterfall',
+      dbKey: 'fullWaterfallUpdate',
+      hydrate: (s) => s.hydrateFullWaterfallUpdateFromDb(),
+      read: (s) => s.fullWaterfallUpdate,
+    },
+    {
+      name: 'showBandPlan',
+      dbKey: 'showBandPlan',
+      hydrate: (s) => s.hydrateShowBandPlanFromDb(),
+      read: (s) => s.showBandPlan,
+    },
+    {
+      name: 'showKnownFreqs',
+      dbKey: 'showKnownFreqs',
+      hydrate: (s) => s.hydrateShowKnownFreqsFromDb(),
+      read: (s) => s.showKnownFreqs,
+    },
+  ]
+  it.each(hydrateBool)(
+    'hydrate $name applies a differing DB value',
+    async ({ dbKey, hydrate, read }) => {
+      stubFetch({ [dbKey]: false })
+      const store = useSdrStore()
+      await hydrate(store)
+      expect(read(store)).toBe(false)
+    },
+  )
+  it.each(hydrateBool)(
+    'hydrate $name ignores a non-boolean DB value',
+    async ({ dbKey, hydrate, read }) => {
+      stubFetch({ [dbKey]: 'nope' })
+      const store = useSdrStore()
+      await hydrate(store)
+      expect(read(store)).toBe(true)
+    },
+  )
+  it.each(hydrateBool)(
+    'hydrate $name returns early on a non-ok response',
+    async ({ hydrate, read }) => {
+      stubFetch({}, false)
+      const store = useSdrStore()
+      await hydrate(store)
+      expect(read(store)).toBe(true)
+    },
+  )
+  it.each(hydrateBool)('hydrate $name swallows fetch errors', async ({ hydrate, read }) => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const store = useSdrStore()
+    await expect(hydrate(store)).resolves.toBeUndefined()
+    expect(read(store)).toBe(true)
+  })
+
+  // ── resume delay (numeric) ─────────────────────────────────────────────────
+  describe('resumeDelaySec', () => {
+    it('reads a valid stored value', () => {
+      localStorage.setItem('sdrResumeDelaySec', '5')
+      expect(useSdrStore().resumeDelaySec).toBe(5)
+    })
+    it('falls back to 0 for a negative or non-numeric stored value', () => {
+      localStorage.setItem('sdrResumeDelaySec', '-3')
+      expect(useSdrStore().resumeDelaySec).toBe(0)
+      localStorage.clear()
+      localStorage.setItem('sdrResumeDelaySec', 'abc')
+      expect(useSdrStore().resumeDelaySec).toBe(0)
+    })
+    it('clamps and floors values on set', () => {
+      const store = useSdrStore()
+      store.setResumeDelaySec(7.9)
+      expect(store.resumeDelaySec).toBe(7)
+      expect(localStorage.getItem('sdrResumeDelaySec')).toBe('7')
+      store.setResumeDelaySec(-1)
+      expect(store.resumeDelaySec).toBe(0)
+    })
+    it('swallows write failures', () => {
+      const store = useSdrStore()
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+      expect(() => store.setResumeDelaySec(3)).not.toThrow()
+    })
+    it('hydrates a valid value from the DB', async () => {
+      stubFetch({ resumeDelaySec: 9 })
+      const store = useSdrStore()
+      await store.hydrateResumeDelaySecFromDb()
+      expect(store.resumeDelaySec).toBe(9)
+    })
+    it('ignores an invalid DB value, non-ok, and errors', async () => {
+      stubFetch({ resumeDelaySec: -1 })
+      const store = useSdrStore()
+      await store.hydrateResumeDelaySecFromDb()
+      expect(store.resumeDelaySec).toBe(0)
+      stubFetch({}, false)
+      await store.hydrateResumeDelaySecFromDb()
+      expect(store.resumeDelaySec).toBe(0)
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      await expect(store.hydrateResumeDelaySecFromDb()).resolves.toBeUndefined()
+    })
+  })
+
+  // ── view settings ──────────────────────────────────────────────────────────
+  describe('view settings', () => {
+    it('reads numeric view settings, falling back on bad values', () => {
+      localStorage.setItem('sdrViewZoom', '4')
+      localStorage.setItem('sdrViewZmin', 'NaNish')
+      const store = useSdrStore()
+      expect(store.viewZoom).toBe(4)
+      expect(store.viewZmin).toBe(0) // fallback for non-finite
+    })
+    it('setViewSettings updates only the provided fields and persists', () => {
+      const store = useSdrStore()
+      store.setViewSettings({ zoom: 3 })
+      expect(store.viewZoom).toBe(3)
+      expect(store.viewZmin).toBe(0) // untouched
+      store.setViewSettings({ zmin: -10, zmax: 5, autoScale: false })
+      expect(store.viewZmin).toBe(-10)
+      expect(store.viewZmax).toBe(5)
+      expect(store.viewAutoScale).toBe(false)
+      expect(localStorage.getItem('sdrViewAutoScale')).toBe('0')
+    })
+    it('swallows write failures', () => {
+      const store = useSdrStore()
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+      expect(() => store.setViewSettings({ zoom: 2 })).not.toThrow()
+    })
+  })
+
+  // ── session restore / persist ──────────────────────────────────────────────
+  describe('session', () => {
+    it('restores radio/freq/mode/playing from sessionStorage on init', () => {
+      sessionStorage.setItem('sdrLastRadioId', '7')
+      sessionStorage.setItem('sdrLastFreqHz', '88500000')
+      sessionStorage.setItem('sdrLastMode', 'AM')
+      sessionStorage.setItem('sdrPlaying', '1')
+      const store = useSdrStore()
+      expect(store.currentRadioId).toBe(7)
+      expect(store.currentFreqHz).toBe(88500000)
+      expect(store.currentMode).toBe('AM')
+      expect(store.playing).toBe(true)
+    })
+    it('swallows sessionStorage read errors on init', () => {
+      vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(() => useSdrStore()).not.toThrow()
+    })
+    it('setRadio persists the radio id', () => {
+      const store = useSdrStore()
+      store.setRadio(3)
+      expect(store.currentRadioId).toBe(3)
+      expect(sessionStorage.getItem('sdrLastRadioId')).toBe('3')
+    })
+    it('setFrequency persists without a radio id when none is set', () => {
+      const store = useSdrStore()
+      store.setFrequency(99_000_000)
+      expect(store.currentFreqHz).toBe(99_000_000)
+      expect(sessionStorage.getItem('sdrLastFreqHz')).toBe('99000000')
+      expect(sessionStorage.getItem('sdrLastRadioId')).toBeNull()
+    })
+    it('setMode and setPlaying persist', () => {
+      const store = useSdrStore()
+      store.setMode('USB')
+      store.setPlaying(true)
+      expect(sessionStorage.getItem('sdrLastMode')).toBe('USB')
+      expect(sessionStorage.getItem('sdrPlaying')).toBe('1')
+    })
+    it('swallows sessionStorage write errors', () => {
+      const store = useSdrStore()
+      vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(() => store.setRadio(1)).not.toThrow()
+    })
+  })
+
+  // ── simple mirror setters + request channels ───────────────────────────────
+  it('setConnected, setBandwidthHz, setTuningOffsetHz and setSpectrum update refs', () => {
+    const store = useSdrStore()
+    store.setConnected(true)
+    expect(store.connected).toBe(true)
+    store.setBandwidthHz(12345)
+    expect(store.bwHz).toBe(12345)
+    store.setTuningOffsetHz(250)
+    expect(store.tuningOffsetHz).toBe(250)
+    const frame = { bins: [1, 2], center_hz: 1, sample_rate: 2, ts: 3 }
+    store.setSpectrum(frame)
+    expect(store.lastSpectrum).toBe(frame)
+  })
+
+  it('requestTune/requestBandwidth/requestFftSize set monotonically-nonced requests', () => {
+    const store = useSdrStore()
+    store.requestTune(101_000_000)
+    expect(store.tuneRequest).toMatchObject({ hz: 101_000_000, center: false })
+    store.requestTune(102_000_000, true)
+    expect(store.tuneRequest).toMatchObject({ hz: 102_000_000, center: true })
+    expect(store.tuneRequest!.nonce).toBeGreaterThan(1)
+
+    store.requestBandwidth(15000)
+    expect(store.bwRequest).toMatchObject({ hz: 15000 })
+    store.requestFftSize(4096)
+    expect(store.fftSizeRequest).toMatchObject({ bins: 4096 })
+  })
+
+  // ── REST loaders ────────────────────────────────────────────────────────────
+  const loaders: Array<{
+    name: string
+    load: (s: SdrStore) => Promise<void>
+    read: (s: SdrStore) => unknown[]
+  }> = [
+    { name: 'loadRadios', load: (s) => s.loadRadios(), read: (s) => s.radios },
+    { name: 'loadGroups', load: (s) => s.loadGroups(), read: (s) => s.groups },
+    { name: 'loadFrequencies', load: (s) => s.loadFrequencies(), read: (s) => s.frequencies },
+  ]
+  it.each(loaders)('$name stores the fetched rows on success', async ({ load, read }) => {
+    stubFetch([{ id: 1 }])
+    const store = useSdrStore()
+    await load(store)
+    expect(read(store)).toEqual([{ id: 1 }])
+  })
+  it.each(loaders)('$name leaves state unchanged on a non-ok response', async ({ load, read }) => {
+    stubFetch([{ id: 1 }], false)
+    const store = useSdrStore()
+    await load(store)
+    expect(read(store)).toEqual([])
+  })
+  it.each(loaders)('$name swallows fetch errors', async ({ load, read }) => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const store = useSdrStore()
+    await expect(load(store)).resolves.toBeUndefined()
+    expect(read(store)).toEqual([])
+  })
+})
