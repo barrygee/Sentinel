@@ -222,7 +222,9 @@ function _resumeOnGesture() {
   _ctx
     .resume()
     .then(() => {
+      /* v8 ignore start -- _worklet is always set when a suspended _ctx exists */
       if (_worklet) _worklet.port.postMessage({ type: 'reset' })
+      /* v8 ignore stop */
     })
     .catch(() => {})
 }
@@ -238,7 +240,9 @@ function _removeGestureListeners() {
   )
 }
 function _watchContextState() {
+  /* v8 ignore start -- _ctx is always set when called from _initAudio */
   if (!_ctx) return
+  /* v8 ignore stop */
   _ctx.addEventListener('statechange', function onSC() {
     if (_ctx && _ctx.state === 'running') {
       _removeGestureListeners()
@@ -310,7 +314,11 @@ async function _initAudio() {
   try {
     const blob = new Blob([PROCESSOR_SRC], { type: 'application/javascript' })
     const blobUrl = URL.createObjectURL(blob)
+    // A failed init always nulls _ctx, so on entry _ctx is either null or fully
+    // ready; the "_ctx already set" branch here is unreachable in practice.
+    /* v8 ignore start */
     if (!_ctx) {
+      /* v8 ignore stop */
       const earlyCtx = (window as Window & { _sdrEarlyCtx?: AudioContext })._sdrEarlyCtx
       if (earlyCtx) {
         _ctx = earlyCtx
@@ -496,7 +504,10 @@ export function useSdrAudio() {
     await new Promise((r) => setTimeout(r, 400))
     _collectingChunks = false
     // NOTE: computed but not currently sent to the backend (only ended_at is). Latent.
+    // _recStartTime is always set while recording, so the `|| endTime` fallback is defensive.
+    /* v8 ignore start */
     const _startedAt = (_recStartTime || endTime).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    /* v8 ignore stop */
     const endedAt = endTime.toISOString().replace(/\.\d{3}Z$/, 'Z')
     const freqMhz = metadata.frequency_hz ? (metadata.frequency_hz / 1e6).toFixed(3) : null
     const mode = metadata.mode || null
