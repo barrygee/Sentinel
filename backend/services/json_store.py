@@ -10,6 +10,7 @@ The runtime DB / UserSettings copy remains authoritative at runtime, so a
 read-only filesystem (a baked-image deploy without the backend bind mount) is
 tolerated: writes fail soft (log + return False) rather than raising.
 """
+
 from __future__ import annotations
 
 import json

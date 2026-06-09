@@ -23,13 +23,17 @@ import { onlineKey, offgridKey } from '@/utils/domainKeys'
 
 const props = defineProps<{ domain: string }>()
 
-const appStore      = useAppStore()
+const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 
 const hasUrl = ref(true)
 
 function _readSourceOverride(): string {
-  try { return localStorage.getItem(`sentinel_${props.domain}_sourceOverride`) || 'auto' } catch { return 'auto' }
+  try {
+    return localStorage.getItem(`sentinel_${props.domain}_sourceOverride`) || 'auto'
+  } catch {
+    return 'auto'
+  }
 }
 
 const _sourceOverride = ref(_readSourceOverride())
@@ -46,7 +50,7 @@ function _effectiveMode(): string {
 const _isSpace = props.domain === 'space'
 
 const title = computed(() =>
-  _isSpace ? 'No satellite data available.' : 'No data source configured.'
+  _isSpace ? 'No satellite data available.' : 'No data source configured.',
 )
 
 const message = computed(() => {
@@ -65,27 +69,39 @@ function _isPlaceholder(url: string): boolean {
 }
 
 function _lsGet(key: string): string {
-  try { return localStorage.getItem(key) || '' } catch { return '' }
+  try {
+    return localStorage.getItem(key) || ''
+  } catch {
+    return ''
+  }
 }
 
 function check() {
-  const ns    = props.domain
-  const mode  = _effectiveMode()
+  const ns = props.domain
+  const mode = _effectiveMode()
   const _oKey = offgridKey(ns)
   const _nKey = onlineKey(ns)
 
   // Space data is served from the local TLE database, not a configured URL.
   // Without backend access we can't know if the DB has data, so assume it does
   // and let checkWithBackend() correct it — never block on a missing URL.
-  if (_isSpace) { hasUrl.value = true; return }
+  if (_isSpace) {
+    hasUrl.value = true
+    return
+  }
 
   if (mode === 'offgrid') {
     const raw = _lsGet(`sentinel_${ns}_${_oKey}`)
-    if (!raw) { hasUrl.value = false; return }
+    if (!raw) {
+      hasUrl.value = false
+      return
+    }
     try {
       const src = JSON.parse(raw)
       hasUrl.value = !!(src?.url && !_isPlaceholder(src.url))
-    } catch { hasUrl.value = false }
+    } catch {
+      hasUrl.value = false
+    }
   } else {
     const url = _lsGet(`sentinel_${ns}_${_nKey}`)
     hasUrl.value = url.length > 0 && !_isPlaceholder(url)
@@ -93,8 +109,8 @@ function check() {
 }
 
 async function checkWithBackend() {
-  const ns    = props.domain
-  const mode  = _effectiveMode()
+  const ns = props.domain
+  const mode = _effectiveMode()
   const _oKey = offgridKey(ns)
   const _nKey = onlineKey(ns)
 
@@ -103,8 +119,11 @@ async function checkWithBackend() {
   if (_isSpace) {
     try {
       const res = await fetch('/api/space/tle/status')
-      if (!res.ok) { hasUrl.value = true; return }
-      const data = await res.json() as { total?: number }
+      if (!res.ok) {
+        hasUrl.value = true
+        return
+      }
+      const data = (await res.json()) as { total?: number }
       hasUrl.value = (data.total ?? 0) > 0
     } catch {
       // Backend unreachable — don't block the section on a transient failure.
@@ -114,9 +133,12 @@ async function checkWithBackend() {
   }
 
   try {
-    const res  = await fetch(`/api/settings/${ns}`)
-    if (!res.ok) { check(); return }
-    const data = await res.json() as Record<string, unknown>
+    const res = await fetch(`/api/settings/${ns}`)
+    if (!res.ok) {
+      check()
+      return
+    }
+    const data = (await res.json()) as Record<string, unknown>
     let backendUrl = ''
     if (mode === 'offgrid') {
       const src = data[_oKey] as { url?: string } | undefined
@@ -133,7 +155,9 @@ async function checkWithBackend() {
     } else {
       hasUrl.value = false
     }
-  } catch { check() }
+  } catch {
+    check()
+  }
 }
 
 function openSettings() {
@@ -145,14 +169,23 @@ function onSettingsClosed() {
   checkWithBackend()
 }
 
-watch(() => appStore.connectivityMode, () => { checkWithBackend() })
-watch(_sourceOverride, () => { checkWithBackend() })
+watch(
+  () => appStore.connectivityMode,
+  () => {
+    checkWithBackend()
+  },
+)
+watch(_sourceOverride, () => {
+  checkWithBackend()
+})
 
 onMounted(() => {
   checkWithBackend()
   window.addEventListener('sentinel:sourceOverrideChanged', onSettingsClosed)
 })
-onUnmounted(() => { window.removeEventListener('sentinel:sourceOverrideChanged', onSettingsClosed) })
+onUnmounted(() => {
+  window.removeEventListener('sentinel:sourceOverrideChanged', onSettingsClosed)
+})
 
 useDocumentEvent('settings-panel-closed', onSettingsClosed)
 </script>

@@ -10,7 +10,7 @@
       autocomplete="off"
       @input="onInput"
       @keydown.enter="emit('commit')"
-    >
+    />
     <span class="oar-label">NM</span>
   </div>
 </template>
@@ -44,7 +44,7 @@ interface OverheadAlertsConfig {
 
 function readOverhead(data: Record<string, unknown> | null): OverheadAlertsConfig {
   const v = data?.overheadAlerts
-  return (v && typeof v === 'object' && !Array.isArray(v)) ? v as OverheadAlertsConfig : {}
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as OverheadAlertsConfig) : {}
 }
 
 onMounted(async () => {
@@ -103,7 +103,9 @@ function onInput(e: Event): void {
   letter-spacing: 0.05em;
   text-align: right;
   outline: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .oar-input:focus {
   border-color: rgba(200, 255, 0, 0.6);

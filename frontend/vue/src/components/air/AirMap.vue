@@ -27,41 +27,40 @@ import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 
-import { ResetViewControl }          from './controls/reset-view/ResetViewControl'
-import { NamesToggleControl }         from './controls/names/NamesToggleControl'
-import { RoadsToggleControl }         from './controls/roads/RoadsToggleControl'
-import { RangeRingsControl }          from './controls/range-rings/RangeRingsControl'
-import { OverheadZoneControl }        from './controls/overhead-zone/OverheadZoneControl'
-import { AdsbLabelsToggleControl }    from './controls/adsb-labels/AdsbLabelsToggleControl'
-import { ClearOverlaysControl }       from './controls/clear-overlays/ClearOverlaysControl'
-import { AirportsToggleControl }      from './controls/airports/AirportsControl'
+import { NamesToggleControl } from './controls/names/NamesToggleControl'
+import { RoadsToggleControl } from './controls/roads/RoadsToggleControl'
+import { RangeRingsControl } from './controls/range-rings/RangeRingsControl'
+import { OverheadZoneControl } from './controls/overhead-zone/OverheadZoneControl'
+import { AdsbLabelsToggleControl } from './controls/adsb-labels/AdsbLabelsToggleControl'
+import { ClearOverlaysControl } from './controls/clear-overlays/ClearOverlaysControl'
+import { AirportsToggleControl } from './controls/airports/AirportsControl'
 import { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
-import { AaraToggleControl }          from './controls/aara/AaraControl'
-import { AwacToggleControl }          from './controls/awacs/AwacControl'
-import { AdsbLiveControl }            from './controls/adsb/AdsbLiveControl'
-import { AirMultiPlaybackControl }    from './controls/adsb/AirMultiPlaybackControl'
+import { AaraToggleControl } from './controls/aara/AaraControl'
+import { AwacToggleControl } from './controls/awacs/AwacControl'
+import { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
+import { AirMultiPlaybackControl } from './controls/adsb/AirMultiPlaybackControl'
 import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
 
-const appStore           = useAppStore()
-const airStore           = useAirStore()
+const appStore = useAppStore()
+const airStore = useAirStore()
 const notificationsStore = useNotificationsStore()
-const airNotifStore      = useAirNotifStore()
-const trackingStore      = useTrackingStore()
-const settingsStore      = useSettingsStore()
-const playbackStore      = usePlaybackStore()
+const airNotifStore = useAirNotifStore()
+const trackingStore = useTrackingStore()
+const settingsStore = useSettingsStore()
+const playbackStore = usePlaybackStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const STYLE_ONLINE  = '/assets/fiord-online.json'
+const STYLE_ONLINE = '/assets/fiord-online.json'
 const STYLE_OFFLINE = '/assets/fiord.json'
 
-const styleUrl = computed(() => appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE)
+const styleUrl = computed(() => (appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE))
 
 // 3D state — plain variables, never reactive
-let _tiltActive  = localStorage.getItem('sentinel_3d') === '1'
+let _tiltActive = localStorage.getItem('sentinel_3d') === '1'
 let _targetPitch = _tiltActive ? 45 : 0
 
-const is3DActive     = () => _tiltActive
+const is3DActive = () => _tiltActive
 const getTargetPitch = () => _targetPitch
 
 // User location
@@ -80,34 +79,43 @@ let _multiPlaybackControl: AirMultiPlaybackControl | null = null
 let _playbackTimer: ReturnType<typeof setTimeout> | null = null
 
 // Control instances — plain variables, initialised in onStyleLoaded
-let adsbControl:         AdsbLiveControl | null            = null
-let adsbLabelsControl:   AdsbLabelsToggleControl | null    = null
-let rangeRingsControl:   RangeRingsControl | null          = null
-let overheadZoneControl: OverheadZoneControl | null        = null
-let roadsControl:        RoadsToggleControl | null         = null
-let namesControl:        NamesToggleControl | null         = null
-let airportsControl:     AirportsToggleControl | null      = null
+let adsbControl: AdsbLiveControl | null = null
+let adsbLabelsControl: AdsbLabelsToggleControl | null = null
+let rangeRingsControl: RangeRingsControl | null = null
+let overheadZoneControl: OverheadZoneControl | null = null
+let roadsControl: RoadsToggleControl | null = null
+let namesControl: NamesToggleControl | null = null
+let airportsControl: AirportsToggleControl | null = null
 let militaryBasesControl: MilitaryBasesToggleControl | null = null
-let aaraControl:         AaraToggleControl | null          = null
-let awacsControl:        AwacToggleControl | null          = null
-let clearControl:        ClearOverlaysControl | null       = null
+let aaraControl: AaraToggleControl | null = null
+let awacsControl: AwacToggleControl | null = null
+let clearControl: ClearOverlaysControl | null = null
 
 // Expose for AirSideMenu
-const getAdsbControl    = () => adsbControl
-const getAdsbLabels     = () => adsbLabelsControl
-const getRangeRings     = () => rangeRingsControl
-const getRoadsControl   = () => roadsControl
-const getNamesControl   = () => namesControl
-const getAirports       = () => airportsControl
-const getMilBases       = () => militaryBasesControl
-const getAara           = () => aaraControl
-const getAwacs          = () => awacsControl
-const getClearControl   = () => clearControl
+const getAdsbControl = () => adsbControl
+const getAdsbLabels = () => adsbLabelsControl
+const getRangeRings = () => rangeRingsControl
+const getRoadsControl = () => roadsControl
+const getNamesControl = () => namesControl
+const getAirports = () => airportsControl
+const getMilBases = () => militaryBasesControl
+const getAara = () => aaraControl
+const getAwacs = () => awacsControl
+const getClearControl = () => clearControl
 
 defineExpose({
-  getAdsbControl, getAdsbLabels, getRangeRings, getRoadsControl,
-  getNamesControl, getAirports, getMilBases, getAara, getAwacs, getClearControl,
-  is3DActive, getTargetPitch,
+  getAdsbControl,
+  getAdsbLabels,
+  getRangeRings,
+  getRoadsControl,
+  getNamesControl,
+  getAirports,
+  getMilBases,
+  getAara,
+  getAwacs,
+  getClearControl,
+  is3DActive,
+  getTargetPitch,
   set3DActive(active: boolean) {
     const m = _map
     if (!m) return
@@ -123,7 +131,9 @@ defineExpose({
       m.easeTo({ pitch: 0, bearing: 0, duration: 600 })
     }
   },
-  setTargetPitch(p: number) { _targetPitch = p },
+  setTargetPitch(p: number) {
+    _targetPitch = p
+  },
   getMap: () => _map,
 })
 
@@ -177,9 +187,10 @@ function onStyleLoaded(m: MapLibreGlMap) {
   )
 
   // Wire labels back to adsb
-  ;(adsbLabelsControl as unknown as { _adsbControl: AdsbLiveControl | null })._adsbControl = adsbControl
+  ;(adsbLabelsControl as unknown as { _adsbControl: AdsbLiveControl | null })._adsbControl =
+    adsbControl
 
-  rangeRingsControl    = new RangeRingsControl(airStore, getUserLocation)
+  rangeRingsControl = new RangeRingsControl(airStore, getUserLocation)
   const initialLoc = getUserLocation()
   overheadZoneControl = new OverheadZoneControl(
     airStore.overlayStates.overheadAlertsCivil || airStore.overlayStates.overheadAlertsMil,
@@ -190,24 +201,26 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // any section). AirMap keeps only the visual OverheadZoneControl ring. We
   // still register the aircraft-click handler so clicking an overhead alert
   // selects the plane while the Air map is mounted.
-  registerAircraftClickHandler((hex: string) => { adsbControl?.selectByHex(hex) })
-  roadsControl         = new RoadsToggleControl(airStore)
-  namesControl         = new NamesToggleControl(airStore)
-  airportsControl      = new AirportsToggleControl(airStore)
+  registerAircraftClickHandler((hex: string) => {
+    adsbControl?.selectByHex(hex)
+  })
+  roadsControl = new RoadsToggleControl(airStore)
+  namesControl = new NamesToggleControl(airStore)
+  airportsControl = new AirportsToggleControl(airStore)
   militaryBasesControl = new MilitaryBasesToggleControl(airStore, is3DActive)
-  aaraControl          = new AaraToggleControl(airStore)
-  awacsControl         = new AwacToggleControl(airStore)
+  aaraControl = new AaraToggleControl(airStore)
+  awacsControl = new AwacToggleControl(airStore)
 
   clearControl = new ClearOverlaysControl({
-    adsb:          adsbControl,
-    adsbLabels:    adsbLabelsControl,
-    roads:         roadsControl,
-    names:         namesControl,
-    rangeRings:    rangeRingsControl,
-    airports:      airportsControl,
+    adsb: adsbControl,
+    adsbLabels: adsbLabelsControl,
+    roads: roadsControl,
+    names: namesControl,
+    rangeRings: rangeRingsControl,
+    airports: airportsControl,
     militaryBases: militaryBasesControl,
-    aara:          aaraControl,
-    awacs:         awacsControl,
+    aara: aaraControl,
+    awacs: awacsControl,
   })
 
   // Initialise each control (onAdd sets this.map and triggers layer/source setup).
@@ -245,7 +258,6 @@ function onStyleLoaded(m: MapLibreGlMap) {
       adsbControl?.handleConnectivityChange()
     })
   }
-
 }
 
 async function _loadMultiPlayback(): Promise<void> {
@@ -254,8 +266,13 @@ async function _loadMultiPlayback(): Promise<void> {
     return
   }
   try {
-    const resp = await fetch(`/api/air/snapshots?start_ms=${playbackStore.pendingStartMs}&end_ms=${playbackStore.pendingEndMs}`)
-    if (!resp.ok) { playbackStore.exit(); return }
+    const resp = await fetch(
+      `/api/air/snapshots?start_ms=${playbackStore.pendingStartMs}&end_ms=${playbackStore.pendingEndMs}`,
+    )
+    if (!resp.ok) {
+      playbackStore.exit()
+      return
+    }
     const data = await resp.json()
     playbackStore.setData(data)
     settingsStore.closePanel()
@@ -263,7 +280,9 @@ async function _loadMultiPlayback(): Promise<void> {
     _multiPlaybackControl = new AirMultiPlaybackControl(_map, adsbControl)
     _multiPlaybackControl.renderAtTime(playbackStore.cursorMs!, playbackStore.aircraft)
     playbackStore.play()
-  } catch { playbackStore.exit() }
+  } catch {
+    playbackStore.exit()
+  }
 }
 
 const PLAYBACK_TICK_MS = 100
@@ -272,11 +291,14 @@ function _schedulePlaybackTick(): void {
   _stopPlaybackTimer()
   if (playbackStore.status !== 'playing') return
   const cursor = playbackStore.cursorMs!
-  const end    = playbackStore.windowEndMs!
-  if (cursor >= end) { playbackStore.pause(); return }
+  const end = playbackStore.windowEndMs!
+  if (cursor >= end) {
+    playbackStore.pause()
+    return
+  }
 
   _playbackTimer = setTimeout(() => {
-    const speed      = PLAYBACK_SPEEDS[playbackStore.speedIdx]
+    const speed = PLAYBACK_SPEEDS[playbackStore.speedIdx]
     const nextCursor = Math.min(end, cursor + PLAYBACK_TICK_MS * speed)
     playbackStore.seek(nextCursor)
     _multiPlaybackControl?.renderAtTime(nextCursor, playbackStore.aircraft)
@@ -285,9 +307,11 @@ function _schedulePlaybackTick(): void {
 }
 
 function _stopPlaybackTimer(): void {
-  if (_playbackTimer) { clearTimeout(_playbackTimer); _playbackTimer = null }
+  if (_playbackTimer) {
+    clearTimeout(_playbackTimer)
+    _playbackTimer = null
+  }
 }
-
 
 // Drop the marker + hide the location-anchored overlays. Bound both to the
 // userLocation watcher (null transition) and to sentinel:userLocationCleared
@@ -301,60 +325,81 @@ function _clearLocationVisuals(): void {
 
 onMounted(() => {
   window.addEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
-  watch(userLocation, (loc) => {
-    if (!loc) {
-      // Location was cleared (e.g. config emptied). Drop the marker AND hide
-      // the range rings / overhead zone — otherwise they linger at the old
-      // centre (or snap to map-centre) until GPS provides a new fix.
-      _clearLocationVisuals()
-      return
-    }
-    rangeRingsControl?.updateCenter(loc.lon, loc.lat)
-    overheadZoneControl?.updateCenter(loc.lon, loc.lat)
-    _locationMarker.update(loc.lon, loc.lat)
-    // Location is back — restore overlays per the user's own toggles.
-    rangeRingsControl?.setLocationAvailable(true)
-    overheadZoneControl?.setVisible(
-      airStore.overlayStates.overheadAlertsCivil || airStore.overlayStates.overheadAlertsMil,
-    )
-  }, { immediate: true })
+  watch(
+    userLocation,
+    (loc) => {
+      if (!loc) {
+        // Location was cleared (e.g. config emptied). Drop the marker AND hide
+        // the range rings / overhead zone — otherwise they linger at the old
+        // centre (or snap to map-centre) until GPS provides a new fix.
+        _clearLocationVisuals()
+        return
+      }
+      rangeRingsControl?.updateCenter(loc.lon, loc.lat)
+      overheadZoneControl?.updateCenter(loc.lon, loc.lat)
+      _locationMarker.update(loc.lon, loc.lat)
+      // Location is back — restore overlays per the user's own toggles.
+      rangeRingsControl?.setLocationAvailable(true)
+      overheadZoneControl?.setVisible(
+        airStore.overlayStates.overheadAlertsCivil || airStore.overlayStates.overheadAlertsMil,
+      )
+    },
+    { immediate: true },
+  )
 
   // Only the visual ring is driven here; overhead-alert detection lives in
   // useAirAlertsService.
   watch(
-    () => [airStore.overlayStates.overheadAlertsCivil, airStore.overlayStates.overheadAlertsMil] as const,
-    ([civil, mil]) => { overheadZoneControl?.setVisible(civil || mil) },
+    () =>
+      [
+        airStore.overlayStates.overheadAlertsCivil,
+        airStore.overlayStates.overheadAlertsMil,
+      ] as const,
+    ([civil, mil]) => {
+      overheadZoneControl?.setVisible(civil || mil)
+    },
   )
 
   watch(
     () => airStore.overheadAlertRadiusNm,
-    (nm) => { overheadZoneControl?.setRadiusNm(nm) },
+    (nm) => {
+      overheadZoneControl?.setRadiusNm(nm)
+    },
   )
 
-  watch(() => playbackStore.status, async (status) => {
-    if (status === 'loading') {
-      adsbControl?.pauseLive()
-      await _loadMultiPlayback()
-    } else if (status === 'idle') {
-      _stopPlaybackTimer()
-      _multiPlaybackControl?.destroy()
-      _multiPlaybackControl = null
-    } else if (status === 'playing') {
-      _schedulePlaybackTick()
-    } else if (status === 'paused') {
-      _stopPlaybackTimer()
-    }
-  })
+  watch(
+    () => playbackStore.status,
+    async (status) => {
+      if (status === 'loading') {
+        adsbControl?.pauseLive()
+        await _loadMultiPlayback()
+      } else if (status === 'idle') {
+        _stopPlaybackTimer()
+        _multiPlaybackControl?.destroy()
+        _multiPlaybackControl = null
+      } else if (status === 'playing') {
+        _schedulePlaybackTick()
+      } else if (status === 'paused') {
+        _stopPlaybackTimer()
+      }
+    },
+  )
 
-  watch(() => playbackStore.speedIdx, () => {
-    if (playbackStore.status === 'playing') _schedulePlaybackTick()
-  })
+  watch(
+    () => playbackStore.speedIdx,
+    () => {
+      if (playbackStore.status === 'playing') _schedulePlaybackTick()
+    },
+  )
 
-  watch(() => playbackStore.cursorMs, (ms) => {
-    // Handles manual scrubbing (timer tick calls renderAtTime directly)
-    if (ms !== null && _multiPlaybackControl && playbackStore.status !== 'playing')
-      _multiPlaybackControl.renderAtTime(ms, playbackStore.aircraft)
-  })
+  watch(
+    () => playbackStore.cursorMs,
+    (ms) => {
+      // Handles manual scrubbing (timer tick calls renderAtTime directly)
+      if (ms !== null && _multiPlaybackControl && playbackStore.status !== 'playing')
+        _multiPlaybackControl.renderAtTime(ms, playbackStore.aircraft)
+    },
+  )
 })
 
 onBeforeUnmount(() => {
@@ -379,16 +424,16 @@ onBeforeUnmount(() => {
   aaraControl?.onRemove()
   awacsControl?.onRemove()
   overheadZoneControl?.onRemove()
-  adsbControl         = null
-  adsbLabelsControl   = null
-  rangeRingsControl   = null
+  adsbControl = null
+  adsbLabelsControl = null
+  rangeRingsControl = null
   overheadZoneControl = null
-  roadsControl        = null
-  namesControl        = null
-  airportsControl     = null
+  roadsControl = null
+  namesControl = null
+  airportsControl = null
   militaryBasesControl = null
-  aaraControl         = null
-  awacsControl        = null
-  clearControl        = null
+  aaraControl = null
+  awacsControl = null
+  clearControl = null
 })
 </script>

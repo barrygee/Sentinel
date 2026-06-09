@@ -9,12 +9,12 @@ import { useAppStore } from '@/stores/app'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/',       redirect: '/air/' },
-    { path: '/air/',   component: AirView,   meta: { domain: 'air'   } },
+    { path: '/', redirect: '/air/' },
+    { path: '/air/', component: AirView, meta: { domain: 'air' } },
     { path: '/space/', component: SpaceView, meta: { domain: 'space' } },
-    { path: '/sea/',   component: SeaView,   meta: { domain: 'sea'   } },
-    { path: '/land/',  component: LandView,  meta: { domain: 'land'  } },
-    { path: '/sdr/',   component: SdrView,   meta: { domain: 'sdr'   } },
+    { path: '/sea/', component: SeaView, meta: { domain: 'sea' } },
+    { path: '/land/', component: LandView, meta: { domain: 'land' } },
+    { path: '/sdr/', component: SdrView, meta: { domain: 'sdr' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

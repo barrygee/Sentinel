@@ -1,0 +1,10 @@
+# Each sub-project owns its own formatting; the root config only covers the
+# legacy TypeScript helpers under tests/ and root-level config files.
+node_modules
+frontend
+backend
+coverage
+
+# Generated / committed bundle and lockfiles.
+package-lock.json
+CHANGELOG.md

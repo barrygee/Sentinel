@@ -9,7 +9,7 @@ export interface UserLocation {
 }
 
 const LOCATION_LS_KEY = 'sentinel_user_location'
-const GPS_EXPIRY_MS   = 5 * 60 * 1000
+const GPS_EXPIRY_MS = 5 * 60 * 1000
 // watchPosition fires every few seconds; persist the GPS fix to the config
 // DB at most once per minute (the fields still update live every tick).
 const GPS_PERSIST_INTERVAL_MS = 60 * 1000
@@ -19,11 +19,18 @@ function _loadFromStorage(): UserLocation | null {
   try {
     const raw = localStorage.getItem(LOCATION_LS_KEY)
     if (!raw) return null
-    const saved = JSON.parse(raw) as { longitude: number; latitude: number; ts: number; manual?: boolean }
+    const saved = JSON.parse(raw) as {
+      longitude: number
+      latitude: number
+      ts: number
+      manual?: boolean
+    }
     if (!saved.longitude || !saved.latitude) return null
     if (!saved.manual && Date.now() - (saved.ts || 0) > GPS_EXPIRY_MS) return null
     return { lon: saved.longitude, lat: saved.latitude, accuracy: 0 }
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 // Module-level shared state — all callers see the same location.
@@ -38,15 +45,22 @@ let _manualOverride = (() => {
     const raw = localStorage.getItem(LOCATION_LS_KEY)
     if (!raw) return false
     return (JSON.parse(raw) as { manual?: boolean }).manual === true
-  } catch { return false }
+  } catch {
+    return false
+  }
 })()
 
 function _saveToStorage(loc: UserLocation, manual: boolean): void {
   try {
-    localStorage.setItem(LOCATION_LS_KEY, JSON.stringify({
-      longitude: loc.lon, latitude: loc.lat,
-      ts: Date.now(), manual,
-    }))
+    localStorage.setItem(
+      LOCATION_LS_KEY,
+      JSON.stringify({
+        longitude: loc.lon,
+        latitude: loc.lat,
+        ts: Date.now(),
+        manual,
+      }),
+    )
   } catch {}
 }
 
@@ -55,7 +69,9 @@ function _saveToStorage(loc: UserLocation, manual: boolean): void {
  * event (maps listen for it). Dispatch that event to trigger a clear; this
  * function is the listener's effect and must not re-dispatch (would loop). */
 function _clearStoredLocation(): void {
-  try { localStorage.removeItem(LOCATION_LS_KEY) } catch {}
+  try {
+    localStorage.removeItem(LOCATION_LS_KEY)
+  } catch {}
   _manualOverride = false
   sharedLocation.value = null
 }
@@ -70,7 +86,12 @@ window.addEventListener('sentinel:userLocationCleared', () => {
 })
 
 window.addEventListener('sentinel:setUserLocation', (e: Event) => {
-  const { longitude, latitude, persist, manual } = (e as CustomEvent).detail as { longitude: number; latitude: number; persist?: boolean; manual?: boolean }
+  const { longitude, latitude, persist, manual } = (e as CustomEvent).detail as {
+    longitude: number
+    latitude: number
+    persist?: boolean
+    manual?: boolean
+  }
   // Config hydration passes manual:false so a later GPS fix can still update;
   // UI/right-click sets (the default) are a manual override that wins over GPS.
   const isManual = manual !== false
@@ -81,9 +102,11 @@ window.addEventListener('sentinel:setUserLocation', (e: Event) => {
   if (isManual) _manualOverride = true
   // Keep the Settings > My Location LAT/LON inputs in sync with any set
   // (right-click, config hydration, etc.) — LocationControl listens for this.
-  window.dispatchEvent(new CustomEvent('settings:locationSynced', {
-    detail: { longitude, latitude },
-  }))
+  window.dispatchEvent(
+    new CustomEvent('settings:locationSynced', {
+      detail: { longitude, latitude },
+    }),
+  )
   if (persist !== false) {
     // Persist to backend so opening Settings later doesn't overwrite with stale server value.
     fetch('/api/settings/app/location', {
@@ -108,9 +131,11 @@ function _startWatch(highAccuracy: boolean): void {
       _saveToStorage(loc, false)
       // Keep the Settings > My Location LAT/LON inputs in sync on every tick
       // (cheap, local — LocationControl listens for this).
-      window.dispatchEvent(new CustomEvent('settings:locationSynced', {
-        detail: { longitude: loc.lon, latitude: loc.lat },
-      }))
+      window.dispatchEvent(
+        new CustomEvent('settings:locationSynced', {
+          detail: { longitude: loc.lon, latitude: loc.lat },
+        }),
+      )
       // Persist the GPS fix to the config DB, throttled to once per minute so
       // watchPosition's frequent ticks don't spam the backend.
       const nowMs = Date.now()
@@ -126,7 +151,10 @@ function _startWatch(highAccuracy: boolean): void {
     (err) => {
       if (err.code === err.TIMEOUT && highAccuracy) {
         // High-accuracy GPS timed out (common on desktop) — retry with network location.
-        if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null }
+        if (_watchId !== null) {
+          navigator.geolocation.clearWatch(_watchId)
+          _watchId = null
+        }
         _startWatch(false)
         return
       }
@@ -173,9 +201,11 @@ async function hydrateFromConfig(): Promise<void> {
 
   if (isValidLatLon(lat, lon)) {
     if (_manualOverride) return // a genuine in-session manual set wins over config
-    window.dispatchEvent(new CustomEvent('sentinel:setUserLocation', {
-      detail: { longitude: lon, latitude: lat, persist: false, manual: false },
-    }))
+    window.dispatchEvent(
+      new CustomEvent('sentinel:setUserLocation', {
+        detail: { longitude: lon, latitude: lat, persist: false, manual: false },
+      }),
+    )
     return
   }
 

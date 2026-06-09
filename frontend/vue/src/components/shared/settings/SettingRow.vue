@@ -4,15 +4,52 @@
       <div class="settings-item-label">{{ item.label }}</div>
       <div v-if="item.desc" class="settings-item-desc">{{ item.desc }}</div>
     </div>
-    <ConnectivityToggle v-if="item.type === 'connectivity-toggle'" @stage="emit('stage', item.id, $event)" />
-    <OverheadAlertsToggleControl v-else-if="item.type === 'overhead-alerts-toggle'" @stage="emit('stage', item.id, $event)" />
-    <OverheadAlertRadiusControl v-else-if="item.type === 'overhead-alert-radius'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
-    <ProbeUrlControl v-else-if="item.type === 'probe-url'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
-    <LocationControl v-else-if="item.type === 'location'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
-    <NotificationSoundControl v-else-if="item.type === 'notification-sound'" @stage="emit('stage', item.id, $event)" />
-    <SourceOverrideControl v-else-if="item.type === 'source-override'" :ns="item.ns!" @stage="emit('stage', item.id, $event)" />
-    <OnlineSourceControl v-else-if="item.type === 'online-source'" :ns="item.ns!" :default-url="item.defaultUrl ?? ''" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
-    <OfflineSourceControl v-else-if="item.type === 'offline-source'" :ns="item.ns!" :default-url="item.defaultUrl ?? ''" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
+    <ConnectivityToggle
+      v-if="item.type === 'connectivity-toggle'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <OverheadAlertsToggleControl
+      v-else-if="item.type === 'overhead-alerts-toggle'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <OverheadAlertRadiusControl
+      v-else-if="item.type === 'overhead-alert-radius'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
+    <ProbeUrlControl
+      v-else-if="item.type === 'probe-url'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
+    <LocationControl
+      v-else-if="item.type === 'location'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
+    <NotificationSoundControl
+      v-else-if="item.type === 'notification-sound'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <SourceOverrideControl
+      v-else-if="item.type === 'source-override'"
+      :ns="item.ns!"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <OnlineSourceControl
+      v-else-if="item.type === 'online-source'"
+      :ns="item.ns!"
+      :default-url="item.defaultUrl ?? ''"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
+    <OfflineSourceControl
+      v-else-if="item.type === 'offline-source'"
+      :ns="item.ns!"
+      :default-url="item.defaultUrl ?? ''"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
     <SpaceTleOnlineControl v-else-if="item.type === 'space-tle-online'" />
     <SpaceTleManualControl v-else-if="item.type === 'space-tle-manual'" />
     <SpaceTleDatabaseControl v-else-if="item.type === 'space-tle-db'" />
@@ -20,30 +57,67 @@
     <SpaceTleSatListControl v-else-if="item.type === 'space-tle-satlist'" />
     <JsonDataControl
       v-else-if="item.type === 'space-sat-radio-file'"
-      get-url="/api/space/radio/file" post-url="/api/space/radio/file" filename="satellite_radio.json"
+      get-url="/api/space/radio/file"
+      post-url="/api/space/radio/file"
+      filename="satellite_radio.json"
       @stage="emit('stage', item.id, $event)"
     />
-    <SpaceHoverPreviewControl v-else-if="item.type === 'space-hover-preview'" @stage="emit('stage', item.id, $event)" />
-    <AdsbLabelFieldsControl v-else-if="item.type === 'air-label-fields'" @stage="emit('stage', item.id, $event)" />
-    <AdsbTagFieldsControl v-else-if="item.type === 'air-tag-fields'" @stage="emit('stage', item.id, $event)" />
-    <AirReplayToggleControl v-else-if="item.type === 'air-replay-toggle'" @stage="emit('stage', item.id, $event)" />
+    <SpaceHoverPreviewControl
+      v-else-if="item.type === 'space-hover-preview'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <AdsbLabelFieldsControl
+      v-else-if="item.type === 'air-label-fields'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <AdsbTagFieldsControl
+      v-else-if="item.type === 'air-tag-fields'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <AirReplayToggleControl
+      v-else-if="item.type === 'air-replay-toggle'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
-    <SdrAutoCenterControl v-else-if="item.type === 'sdr-autocenter'" @stage="emit('stage', item.id, $event)" />
-    <SdrFullWaterfallUpdateControl v-else-if="item.type === 'sdr-full-waterfall-update'" @stage="emit('stage', item.id, $event)" />
-    <SdrShowBandPlanControl v-else-if="item.type === 'sdr-show-bandplan'" @stage="emit('stage', item.id, $event)" />
-    <SdrShowKnownFreqsControl v-else-if="item.type === 'sdr-show-known-freqs'" @stage="emit('stage', item.id, $event)" />
-    <SdrResumeDelayControl v-else-if="item.type === 'sdr-resume-delay'" @stage="emit('stage', item.id, $event)" @commit="emit('commit')" />
+    <SdrAutoCenterControl
+      v-else-if="item.type === 'sdr-autocenter'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <SdrFullWaterfallUpdateControl
+      v-else-if="item.type === 'sdr-full-waterfall-update'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <SdrShowBandPlanControl
+      v-else-if="item.type === 'sdr-show-bandplan'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <SdrShowKnownFreqsControl
+      v-else-if="item.type === 'sdr-show-known-freqs'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <SdrResumeDelayControl
+      v-else-if="item.type === 'sdr-resume-delay'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
     <JsonDataControl
       v-else-if="item.type === 'sdr-frequencies-file'"
-      get-url="/api/sdr/data/frequencies" post-url="/api/sdr/data/frequencies" filename="sdr_frequencies.json"
+      get-url="/api/sdr/data/frequencies"
+      post-url="/api/sdr/data/frequencies"
+      filename="sdr_frequencies.json"
       @stage="emit('stage', item.id, $event)"
     />
     <JsonDataControl
       v-else-if="item.type === 'sdr-bandplan-file'"
-      get-url="/api/sdr/data/bandplan" post-url="/api/sdr/data/bandplan" filename="sdr_bandplan.json"
+      get-url="/api/sdr/data/bandplan"
+      post-url="/api/sdr/data/bandplan"
+      filename="sdr_bandplan.json"
       @stage="emit('stage', item.id, $event)"
     />
-    <ConfigCurrentControl v-else-if="item.type === 'config-current'" @stage="emit('stage', item.id, $event)" />
+    <ConfigCurrentControl
+      v-else-if="item.type === 'config-current'"
+      @stage="emit('stage', item.id, $event)"
+    />
   </div>
 </template>
 
@@ -76,12 +150,24 @@ import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
 
-const props = defineProps<{ item: SettingItem; pending: Map<string, () => Promise<unknown> | void> }>()
+const props = defineProps<{
+  item: SettingItem
+  pending: Map<string, () => Promise<unknown> | void>
+}>()
 const emit = defineEmits<{
   stage: [id: string, fn: () => Promise<unknown> | void]
   commit: []
 }>()
 
-const WIDE_TYPES = new Set(['sdr-devices', 'space-tle-online', 'space-tle-manual', 'space-tle-satlist', 'space-sat-radio-file', 'sdr-frequencies-file', 'sdr-bandplan-file', 'config-current'])
+const WIDE_TYPES = new Set([
+  'sdr-devices',
+  'space-tle-online',
+  'space-tle-manual',
+  'space-tle-satlist',
+  'space-sat-radio-file',
+  'sdr-frequencies-file',
+  'sdr-bandplan-file',
+  'config-current',
+])
 const isWide = WIDE_TYPES.has(props.item.type)
 </script>

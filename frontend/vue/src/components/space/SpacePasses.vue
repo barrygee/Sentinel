@@ -1,12 +1,16 @@
 <template>
-  <div v-if="statusText" id="spp-status-bar" :class="{ 'spp-loading': loading }">{{ statusText }}</div>
+  <div v-if="statusText" id="spp-status-bar" :class="{ 'spp-loading': loading }">
+    {{ statusText }}
+  </div>
   <div v-if="!message && categoryFilters.length > 1" class="spp-cat-filter-row">
     <button
       type="button"
       class="spp-cat-filter-chip"
       :class="{ 'spp-cat-filter-chip-active': activeFilters.size === 0 }"
       @click="selectAllCategories"
-    >ALL</button>
+    >
+      ALL
+    </button>
     <button
       v-for="cat in categoryFilters"
       :key="cat"
@@ -14,12 +18,16 @@
       class="spp-cat-filter-chip"
       :class="{ 'spp-cat-filter-chip-active': activeFilters.has(cat) }"
       @click="toggleCategoryFilter(cat)"
-    >{{ categoryLabel(cat) }}</button>
+    >
+      {{ categoryLabel(cat) }}
+    </button>
   </div>
   <div id="spp-list">
     <div v-if="message" class="spp-message">
       <div>{{ message }}</div>
-      <button v-if="showSetLocationBtn" class="spp-action-btn" @click="requestLocation">SET LOCATION</button>
+      <button v-if="showSetLocationBtn" class="spp-action-btn" @click="requestLocation">
+        SET LOCATION
+      </button>
     </div>
     <template v-else>
       <div
@@ -42,7 +50,9 @@
             <div class="spp-pass-aos" :class="{ 'spp-in-progress': isInProgress(pass) }">
               {{ aosText(pass) }}
             </div>
-            <div class="spp-pass-detail">{{ formatPassDuration(pass.duration_s) }} · {{ pass.max_elevation_deg.toFixed(1) }}°</div>
+            <div class="spp-pass-detail">
+              {{ formatPassDuration(pass.duration_s) }} · {{ pass.max_elevation_deg.toFixed(1) }}°
+            </div>
           </div>
           <span class="spp-pass-chevron">
             <ChevronIcon />
@@ -86,13 +96,23 @@
               <template v-if="pass.uplink_hz">
                 <div class="spp-acc-cell">
                   <div class="spp-acc-cell-label">UPLINK</div>
-                  <div class="spp-acc-cell-value">{{ formatHz(pass.uplink_hz) }}<span v-if="pass.uplink_mode" class="spp-acc-cell-mode"> · {{ pass.uplink_mode }}</span></div>
+                  <div class="spp-acc-cell-value">
+                    {{ formatHz(pass.uplink_hz)
+                    }}<span v-if="pass.uplink_mode" class="spp-acc-cell-mode">
+                      · {{ pass.uplink_mode }}</span
+                    >
+                  </div>
                 </div>
               </template>
               <template v-if="pass.downlink_hz">
                 <div class="spp-acc-cell">
                   <div class="spp-acc-cell-label">DOWNLINK</div>
-                  <div class="spp-acc-cell-value">{{ formatHz(pass.downlink_hz) }}<span v-if="pass.downlink_mode" class="spp-acc-cell-mode"> · {{ pass.downlink_mode }}</span></div>
+                  <div class="spp-acc-cell-value">
+                    {{ formatHz(pass.downlink_hz)
+                    }}<span v-if="pass.downlink_mode" class="spp-acc-cell-mode">
+                      · {{ pass.downlink_mode }}</span
+                    >
+                  </div>
                 </div>
               </template>
               <template v-if="pass.ctcss_hz">
@@ -135,17 +155,48 @@
           </div>
           <div class="spp-acc-section spp-acc-section--track">
             <div class="spp-acc-track-row">
-              <button class="spp-acc-track-btn" :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }" @click.stop="trackSat(pass)">{{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}</button>
+              <button
+                class="spp-acc-track-btn"
+                :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }"
+                @click.stop="trackSat(pass)"
+              >
+                {{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}
+              </button>
               <button
                 class="spp-acc-notif-btn"
-                :class="{ 'spp-acc-notif-btn--active': notifNoradId === pass.norad_id, 'spp-acc-notif-btn--last': !pass.downlink_hz }"
-                :aria-label="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
-                :data-tooltip="notifNoradId === pass.norad_id ? 'Disable pass notifications' : 'Enable pass notifications'"
+                :class="{
+                  'spp-acc-notif-btn--active': notifNoradId === pass.norad_id,
+                  'spp-acc-notif-btn--last': !pass.downlink_hz,
+                }"
+                :aria-label="
+                  notifNoradId === pass.norad_id
+                    ? 'Disable pass notifications'
+                    : 'Enable pass notifications'
+                "
+                :data-tooltip="
+                  notifNoradId === pass.norad_id
+                    ? 'Disable pass notifications'
+                    : 'Enable pass notifications'
+                "
                 @click.stop="togglePassNotif(pass)"
               >
-                <svg width="14" height="14" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>
-                  <path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 13 13"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M5 10.5a1.5 1.5 0 0 0 3 0"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    fill="none"
+                  />
                 </svg>
               </button>
               <button
@@ -156,12 +207,56 @@
                 :data-tooltip="autoTuneLabel()"
                 @click.stop="toggleAutoTune(pass)"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <path d="M5 7h14v12H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" fill="none"/>
-                  <line x1="6" y1="7" x2="17" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  <circle cx="9" cy="13" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
-                  <line x1="15.5" y1="11" x2="17" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  <line x1="15.5" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M5 7h14v12H5z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="miter"
+                    fill="none"
+                  />
+                  <line
+                    x1="6"
+                    y1="7"
+                    x2="17"
+                    y2="3"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <circle
+                    cx="9"
+                    cy="13"
+                    r="3"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    fill="none"
+                  />
+                  <line
+                    x1="15.5"
+                    y1="11"
+                    x2="17"
+                    y2="11"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="15.5"
+                    y1="15"
+                    x2="17"
+                    y2="15"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
                 </svg>
               </button>
               <button
@@ -173,16 +268,47 @@
                 data-tooltip="Record pass"
                 @click.stop="toggleRecord(pass)"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <circle cx="12" cy="12" r="6" fill="currentColor"/>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="6" fill="currentColor" />
                 </svg>
               </button>
             </div>
-            <div v-if="isArmed(pass.norad_id) && conflictText(pass.norad_id)" class="spp-acc-autotune-warn">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-                <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor"/>
+            <div
+              v-if="isArmed(pass.norad_id) && conflictText(pass.norad_id)"
+              class="spp-acc-autotune-warn"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 3 2 20h20L12 3Z"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linejoin="round"
+                  fill="none"
+                />
+                <line
+                  x1="12"
+                  y1="9"
+                  x2="12"
+                  y2="14"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor" />
               </svg>
               <span>{{ conflictText(pass.norad_id) }}</span>
             </div>
@@ -190,7 +316,9 @@
           <div class="spp-acc-section spp-acc-section--polar">
             <div class="spp-acc-section-title spp-acc-polar-title">
               <span>{{ polarTitle }}</span>
-              <span v-if="polarPass" class="spp-acc-polar-maxel">MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span>
+              <span v-if="polarPass" class="spp-acc-polar-maxel"
+                >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
+              >
             </div>
             <SatPolarPlot
               v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
@@ -204,26 +332,32 @@
           <div class="spp-acc-section spp-acc-section--passes">
             <div class="spp-acc-section-title spp-acc-passes-title">
               <span>UPCOMING PASSES</span>
-              <span class="spp-acc-status" :class="{ 'spp-acc-status-loading': accLoading }">{{ accStatus }}</span>
+              <span class="spp-acc-status" :class="{ 'spp-acc-status-loading': accLoading }">{{
+                accStatus
+              }}</span>
             </div>
             <div class="spp-acc-pass-list">
-              <div v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')" class="spp-acc-no-passes">
+              <div
+                v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')"
+                class="spp-acc-no-passes"
+              >
                 No passes in the next 24 hours.
               </div>
-              <div
-                v-for="(ap, i) in accPasses"
-                :key="i"
-                class="spp-acc-pass-card"
-              >
+              <div v-for="(ap, i) in accPasses" :key="i" class="spp-acc-pass-card">
                 <div class="spp-acc-pass-times">
                   <div class="spp-acc-pass-aos-row">
                     <span class="spp-acc-pass-date">{{ formatPassDate(ap.aos_utc) }}</span>
                     <span class="spp-acc-pass-time">{{ formatPassTime(ap.aos_utc) }}</span>
                   </div>
-                  <div class="spp-acc-pass-los">LOS {{ formatPassTime(ap.los_utc) }} · {{ formatPassDuration(ap.duration_s) }}</div>
+                  <div class="spp-acc-pass-los">
+                    LOS {{ formatPassTime(ap.los_utc) }} · {{ formatPassDuration(ap.duration_s) }}
+                  </div>
                 </div>
                 <div class="spp-acc-pass-meta">
-                  <div class="spp-acc-pass-countdown" :class="{ 'spp-in-progress': accPassIsNow(ap, now) }">
+                  <div
+                    class="spp-acc-pass-countdown"
+                    :class="{ 'spp-in-progress': accPassIsNow(ap, now) }"
+                  >
                     {{ accPassIsNow(ap, now) ? 'NOW' : formatPassCountdown(ap.aos_unix_ms - now) }}
                   </div>
                   <div class="spp-acc-pass-maxel">MAX {{ ap.max_elevation_deg.toFixed(1) }}°</div>
@@ -242,7 +376,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isPassNotifEnabled, isAutoTuneEnabled, setAutoTuneEnabled, isRecordOnPassEnabled, setRecordOnPassEnabled } from './controls/satellite/passNotifStore'
+import {
+  isPassNotifEnabled,
+  isAutoTuneEnabled,
+  setAutoTuneEnabled,
+  isRecordOnPassEnabled,
+  setRecordOnPassEnabled,
+} from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
@@ -276,10 +416,10 @@ const props = defineProps<{
 }>()
 
 // ---- State ----
-const passes          = ref<SatPass[]>([])
-const loading         = ref(false)
-const statusText      = ref('')
-const message         = ref('')
+const passes = ref<SatPass[]>([])
+const loading = ref(false)
+const statusText = ref('')
+const message = ref('')
 const showSetLocationBtn = ref(false)
 
 // Pass-query controls and filter chips persist so the Passes pane resumes with
@@ -290,15 +430,16 @@ const spaceStore = useSpaceStore()
 const {
   passesMinEl: minEl,
   passesHours: hours,
-  passesFiltersOpen: filtersExpanded,
+  passesFiltersOpen: _filtersExpanded,
   passesActiveFilters: activeFilters,
 } = storeToRefs(spaceStore)
 
 const categoryFilters = computed<string[]>(() => {
   const present = new Set<string>()
   for (const p of passes.value) present.add(p.category || 'unknown')
-  return SATELLITE_CATEGORY_ORDER.filter(c => present.has(c))
-    .concat([...present].filter(c => !SATELLITE_CATEGORY_ORDER.includes(c)))
+  return SATELLITE_CATEGORY_ORDER.filter((c) => present.has(c)).concat(
+    [...present].filter((c) => !SATELLITE_CATEGORY_ORDER.includes(c)),
+  )
 })
 
 function categoryLabel(cat: string): string {
@@ -319,7 +460,7 @@ function toggleCategoryFilter(cat: string): void {
 const visiblePasses = computed<SatPass[]>(() =>
   activeFilters.value.size === 0
     ? passes.value
-    : passes.value.filter(p => activeFilters.value.has(p.category || 'unknown')),
+    : passes.value.filter((p) => activeFilters.value.has(p.category || 'unknown')),
 )
 
 // Note: we deliberately do NOT auto-prune activeFilters when a category is
@@ -337,12 +478,12 @@ const { passesExpandedKey: expandedKey } = storeToRefs(spaceStore)
 const liveTelemetry = ref<Record<string, string>>({})
 
 const accLoading = ref(false)
-const accStatus  = ref('COMPUTING PASSES…')
-const accPasses  = ref<AccPass[]>([])
+const accStatus = ref('COMPUTING PASSES…')
+const accPasses = ref<AccPass[]>([])
 
 const now = ref(Date.now())
 const followedNoradId = ref<string | null>(props.satelliteControl?.followedNoradId ?? null)
-const notifNoradId    = ref<string | null>(
+const notifNoradId = ref<string | null>(
   props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
 )
 // Multiple sats can be auto-tune armed at once (the store/background service
@@ -398,7 +539,7 @@ function conflictText(noradId: string): string {
 // Persistent "armed" alert-card wording. One card per satellite represents the
 // auto-tune arming; record folds into its detail rather than adding a 2nd card.
 const ARMED_DETAIL_AUTOTUNE = 'Auto-tune on pass enabled'
-const ARMED_DETAIL_RECORD   = 'Auto-tune and record on pass enabled'
+const ARMED_DETAIL_RECORD = 'Auto-tune and record on pass enabled'
 function isArmedCardDetail(detail: string): boolean {
   return detail === ARMED_DETAIL_AUTOTUNE || detail === ARMED_DETAIL_RECORD
 }
@@ -414,10 +555,16 @@ function toggleAutoTune(pass: SatPass): void {
     downlinkMode: pass.downlink_mode ?? undefined,
   })
   armedTick.value++
-  document.dispatchEvent(new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }))
+  document.dispatchEvent(
+    new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }),
+  )
   if (enabled) {
     notificationsStore.add({
-      type: 'autotune', title: name, detail: ARMED_DETAIL_AUTOTUNE, noradId, satName: name,
+      type: 'autotune',
+      title: name,
+      detail: ARMED_DETAIL_AUTOTUNE,
+      noradId,
+      satName: name,
     })
   } else {
     // Remove the persistent armed card so the alerts list stays in sync. Record
@@ -425,8 +572,8 @@ function toggleAutoTune(pass: SatPass): void {
     // either wording. The live pass/tune trace alerts share the noradId but have
     // a different detail, so they're left untouched.
     notificationsStore.items
-      .filter(i => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail))
-      .forEach(i => notificationsStore.dismiss(i.id))
+      .filter((i) => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail))
+      .forEach((i) => notificationsStore.dismiss(i.id))
   }
 }
 
@@ -441,13 +588,15 @@ function toggleRecord(pass: SatPass): void {
   armedTick.value++
   // Notify the alerts service so enabling record mid-pass starts recording the
   // overhead pass now, rather than only taking effect on the next pass.
-  document.dispatchEvent(new CustomEvent('satellite-record-on-pass-changed', { detail: { noradId, enabled } }))
+  document.dispatchEvent(
+    new CustomEvent('satellite-record-on-pass-changed', { detail: { noradId, enabled } }),
+  )
   // Don't add a second card for record — fold its state into the existing
   // auto-tune armed card by retitling its detail. If for some reason that card
   // is gone (e.g. dismissed), add a fresh one with the combined wording.
   const detail = enabled ? ARMED_DETAIL_RECORD : ARMED_DETAIL_AUTOTUNE
   const existing = notificationsStore.items.find(
-    i => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail),
+    (i) => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail),
   )
   if (existing) {
     notificationsStore.update({ id: existing.id, detail })
@@ -463,9 +612,9 @@ const liveAzEl = ref<SkyPoint | null>(null)
 // The pass to plot: the active (in-progress) pass if there is one, else the next.
 const polarPass = computed<AccPass | null>(() => {
   if (!accPasses.value.length) return null
-  const active = accPasses.value.find(ap => accPassIsNow(ap, now.value))
+  const active = accPasses.value.find((ap) => accPassIsNow(ap, now.value))
   if (active) return active
-  return accPasses.value.find(ap => ap.aos_unix_ms > now.value) ?? null
+  return accPasses.value.find((ap) => ap.aos_unix_ms > now.value) ?? null
 })
 
 const polarTitle = computed(() => {
@@ -491,13 +640,23 @@ function formatHz(hz: number | null | undefined): string {
 }
 
 function hasRadioInfo(p: SatPass): boolean {
-  return !!(p.uplink_hz || p.downlink_hz || p.beacon_hz ||
-    p.transponder_type || p.packet_info || p.radio_status || p.radio_notes)
+  return !!(
+    p.uplink_hz ||
+    p.downlink_hz ||
+    p.beacon_hz ||
+    p.transponder_type ||
+    p.packet_info ||
+    p.radio_status ||
+    p.radio_notes
+  )
 }
 
 function splitNotes(s: string | null | undefined): string[] {
   if (!s) return []
-  return s.split(/\s*;\s*/).map(x => x.trim()).filter(Boolean)
+  return s
+    .split(/\s*;\s*/)
+    .map((x) => x.trim())
+    .filter(Boolean)
 }
 
 function formatStatus(s: string | null | undefined): string {
@@ -518,7 +677,10 @@ async function fetchPasses(): Promise<void> {
   fetchAbort = new AbortController()
   const abort = fetchAbort
   const loc = props.getUserLocation()
-  if (!loc) { showNoLocation(); return }
+  if (!loc) {
+    showNoLocation()
+    return
+  }
   const [lon, lat] = loc
   loading.value = true
   statusText.value = 'COMPUTING PASSES…'
@@ -531,15 +693,26 @@ async function fetchPasses(): Promise<void> {
     const resp = await fetch(url, { signal: abort.signal })
     if (abort.signal.aborted) return
     if (!resp.ok) {
-      const data = await resp.json().catch(() => ({})) as { error?: string; no_tle_data?: boolean }
-      if (data.no_tle_data) { message.value = 'No TLE data. Import satellites in Settings.'; return }
+      const data = (await resp.json().catch(() => ({}))) as {
+        error?: string
+        no_tle_data?: boolean
+      }
+      if (data.no_tle_data) {
+        message.value = 'No TLE data. Import satellites in Settings.'
+        return
+      }
       message.value = `Error ${resp.status} — ${data.error || 'Failed to load passes'}`
       return
     }
-    const data = await resp.json() as { passes: SatPass[]; satellite_count: number; computed_at: string }
+    const data = (await resp.json()) as {
+      passes: SatPass[]
+      satellite_count: number
+      computed_at: string
+    }
     passes.value = data.passes || []
     statusText.value = ''
-    if (!passes.value.length) message.value = 'No passes found. Try broader categories, lower elevation, or longer window.'
+    if (!passes.value.length)
+      message.value = 'No passes found. Try broader categories, lower elevation, or longer window.'
     restoreExpandedAccordion()
   } catch (e: unknown) {
     if (e instanceof Error && e.name === 'AbortError') return
@@ -557,9 +730,13 @@ function showNoLocation(): void {
     locationPoll = setInterval(() => {
       n++
       if (props.getUserLocation()) {
-        clearInterval(locationPoll!); locationPoll = null
+        clearInterval(locationPoll!)
+        locationPoll = null
         void fetchPasses()
-      } else if (n > 120) { clearInterval(locationPoll!); locationPoll = null }
+      } else if (n > 120) {
+        clearInterval(locationPoll!)
+        locationPoll = null
+      }
     }, 500)
   }
 }
@@ -572,7 +749,10 @@ function requestLocation(): void {
 function collapseExpanded(): void {
   expandedKey.value = ''
   accPasses.value = []
-  if (accFetchAbort) { accFetchAbort.abort(); accFetchAbort = null }
+  if (accFetchAbort) {
+    accFetchAbort.abort()
+    accFetchAbort = null
+  }
 }
 
 // Open a pass card's accordion: select the sat on the map and load its passes /
@@ -608,14 +788,21 @@ function onCardClick(pass: SatPass): void {
 function restoreExpandedAccordion(): void {
   const key = expandedKey.value
   if (!key) return
-  const exact = passes.value.find(p => passKey(p) === key)
-  if (exact) { openAccordion(exact); return }
+  const exact = passes.value.find((p) => passKey(p) === key)
+  if (exact) {
+    openAccordion(exact)
+    return
+  }
   const noradId = key.slice(0, key.lastIndexOf('_'))
   const targetAos = Number(key.slice(key.lastIndexOf('_') + 1))
-  const sameSat = passes.value.filter(p => p.norad_id === noradId)
-  if (sameSat.length === 0) { expandedKey.value = ''; return }
+  const sameSat = passes.value.filter((p) => p.norad_id === noradId)
+  if (sameSat.length === 0) {
+    expandedKey.value = ''
+    return
+  }
   const nearest = sameSat.reduce((best, p) =>
-    Math.abs(p.aos_unix_ms - targetAos) < Math.abs(best.aos_unix_ms - targetAos) ? p : best)
+    Math.abs(p.aos_unix_ms - targetAos) < Math.abs(best.aos_unix_ms - targetAos) ? p : best,
+  )
   openAccordion(nearest)
 }
 
@@ -624,15 +811,26 @@ async function fetchAccordionPasses(noradId: string): Promise<void> {
   accFetchAbort = new AbortController()
   const abort = accFetchAbort
   const loc = props.getUserLocation()
-  if (!loc) { accStatus.value = 'SET LOCATION TO CALCULATE PASSES'; accLoading.value = false; return }
+  if (!loc) {
+    accStatus.value = 'SET LOCATION TO CALCULATE PASSES'
+    accLoading.value = false
+    return
+  }
   const [lon, lat] = loc
   try {
     const url = `/api/space/satellite/${encodeURIComponent(noradId)}/passes?lat=${lat}&lon=${lon}&hours=24&min_el=0`
     const resp = await fetch(url, { signal: abort.signal })
     if (abort.signal.aborted) return
-    if (!resp.ok) { accStatus.value = 'COULD NOT LOAD PASSES'; accLoading.value = false; return }
-    const data = await resp.json() as { passes: AccPass[]; computed_at: string }
-    const t = new Date(data.computed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    if (!resp.ok) {
+      accStatus.value = 'COULD NOT LOAD PASSES'
+      accLoading.value = false
+      return
+    }
+    const data = (await resp.json()) as { passes: AccPass[]; computed_at: string }
+    const t = new Date(data.computed_at).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
     accStatus.value = `NEXT 24H · UPDATED ${t}`
     accPasses.value = data.passes || []
     accLoading.value = false
@@ -661,21 +859,37 @@ function togglePassNotif(pass: SatPass): void {
 }
 
 function onMouseEnter(pass: SatPass): void {
-  if (clearPreviewTimer) { clearTimeout(clearPreviewTimer); clearPreviewTimer = null }
+  if (clearPreviewTimer) {
+    clearTimeout(clearPreviewTimer)
+    clearPreviewTimer = null
+  }
   props.satelliteControl?.previewSatellite(pass.norad_id, pass.name || pass.norad_id)
 }
 
 function onMouseLeave(): void {
   if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
-  clearPreviewTimer = setTimeout(() => { clearPreviewTimer = null; props.satelliteControl?.clearPreview() }, 50)
+  clearPreviewTimer = setTimeout(() => {
+    clearPreviewTimer = null
+    props.satelliteControl?.clearPreview()
+  }, 50)
 }
 
 function onSatPositionUpdate(e: Event): void {
   if (!expandedKey.value) return
-  const { noradId, position } = (e as CustomEvent<{
-    noradId: string
-    position: { alt_km: number; velocity_kms: number; track_deg: number; lat: number; lon: number; az?: number; el?: number }
-  }>).detail
+  const { noradId, position } = (
+    e as CustomEvent<{
+      noradId: string
+      position: {
+        alt_km: number
+        velocity_kms: number
+        track_deg: number
+        lat: number
+        lon: number
+        az?: number
+        el?: number
+      }
+    }>
+  ).detail
   if (!expandedKey.value.startsWith(noradId)) return
   liveTelemetry.value = {
     alt: `${position.alt_km} km`,
@@ -686,9 +900,8 @@ function onSatPositionUpdate(e: Event): void {
   }
   // Use the backend-computed look-angles when present (exact); otherwise leave
   // the live marker off rather than guessing.
-  liveAzEl.value = (position.az != null && position.el != null)
-    ? { az: position.az, el: position.el }
-    : null
+  liveAzEl.value =
+    position.az != null && position.el != null ? { az: position.az, el: position.el } : null
 }
 
 onMounted(() => {
@@ -696,7 +909,12 @@ onMounted(() => {
   if (loc) void fetchPasses()
   else showNoLocation()
 
-  refreshInterval = setInterval(() => { void fetchPasses() }, 5 * 60 * 1000)
+  refreshInterval = setInterval(
+    () => {
+      void fetchPasses()
+    },
+    5 * 60 * 1000,
+  )
   tickInterval = setInterval(() => {
     now.value = Date.now()
     passes.value = [...passes.value]
@@ -719,13 +937,22 @@ useDocumentEvent('satellite-follow-changed', (e: Event) => {
 })
 useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
   const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
-  notifNoradId.value = enabled ? noradId : (notifNoradId.value === noradId ? null : notifNoradId.value)
+  notifNoradId.value = enabled
+    ? noradId
+    : notifNoradId.value === noradId
+      ? null
+      : notifNoradId.value
 })
 useDocumentEvent('satellite-auto-tune-changed', () => {
   // Re-read armed state from the store (another component may have toggled).
   armedTick.value++
 })
 
-defineExpose({ fetchPasses, minEl, hours, SATELLITE_CATEGORY_ORDER, SATELLITE_CATEGORY_DISPLAY_NAMES })
+defineExpose({
+  fetchPasses,
+  minEl,
+  hours,
+  SATELLITE_CATEGORY_ORDER,
+  SATELLITE_CATEGORY_DISPLAY_NAMES,
+})
 </script>
-

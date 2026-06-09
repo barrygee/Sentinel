@@ -10,6 +10,7 @@ The output JSON is consumed by seed_amateur_radio_data.py which writes the
 results into a Sentinel SQLite database. Splitting fetch from seed lets us
 re-seed any DB file (dev / staging / prod) without re-hitting SatNOGS.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,8 +18,8 @@ import json
 import re
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -109,7 +110,7 @@ def _summarise(transmitters: list[dict[str, Any]]) -> dict[str, Any]:
         if baud:
             parts.append(f"{int(baud)} baud")
         if packet.get("downlink_low") and packet.get("downlink_low") != out.get("downlink_hz"):
-            parts.append(f"DL {packet['downlink_low']/1e6:.4f} MHz")
+            parts.append(f"DL {packet['downlink_low'] / 1e6:.4f} MHz")
         out["packet_info"] = " · ".join(parts) or None
 
     # Compact one-line summary of all alive transmitters for the notes field
@@ -140,8 +141,7 @@ def _pick_primary(alive: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not alive:
         return None
     # Prefer transceivers (both uplink + downlink) — these are repeaters/transponders
-    transceivers = [t for t in alive if t.get("uplink_low") and t.get("downlink_low")
-                    and (t.get("status") == "active")]
+    transceivers = [t for t in alive if t.get("uplink_low") and t.get("downlink_low") and (t.get("status") == "active")]
     if transceivers:
         # FM repeater first (most useful for casual operators), then Linear
         for pref in ("FM", "FMN"):
@@ -181,15 +181,19 @@ def _classify_transponder(t: dict[str, Any]) -> str | None:
 def _is_beacon(t: dict[str, Any]) -> bool:
     desc = (t.get("description") or "").upper()
     mode = (t.get("mode") or "").upper()
-    return ("BEACON" in desc or "CW" in desc or "TLM" in desc or "TELEMETRY" in desc
-            or mode == "CW")
+    return "BEACON" in desc or "CW" in desc or "TLM" in desc or "TELEMETRY" in desc or mode == "CW"
 
 
 def _is_packet(t: dict[str, Any]) -> bool:
     desc = (t.get("description") or "").upper()
     mode = (t.get("mode") or "").upper()
-    return ("APRS" in desc or "DIGI" in desc or "PACKET" in desc or "SSTV" in desc
-            or mode in ("AFSK", "GMSK", "FSK", "G3RUH", "BPSK", "1K2 AFSK", "9K6 GMSK"))
+    return (
+        "APRS" in desc
+        or "DIGI" in desc
+        or "PACKET" in desc
+        or "SSTV" in desc
+        or mode in ("AFSK", "GMSK", "FSK", "G3RUH", "BPSK", "1K2 AFSK", "9K6 GMSK")
+    )
 
 
 def _find_first(seq, pred):

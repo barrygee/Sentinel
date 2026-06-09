@@ -47,9 +47,7 @@ _CATEGORY_PRIORITY = {
 }
 
 # Actual category values (excludes 'user', which is a category_source sentinel, and None)
-VALID_CATEGORIES: frozenset[str] = frozenset(
-    k for k in _CATEGORY_PRIORITY if k is not None and k != "user"
-)
+VALID_CATEGORIES: frozenset[str] = frozenset(k for k in _CATEGORY_PRIORITY if k is not None and k != "user")
 
 # category_source priority
 _SOURCE_PRIORITY = {
@@ -61,8 +59,7 @@ _SOURCE_PRIORITY = {
 }
 
 
-def _category_beats(new_cat: str | None, new_src: str | None,
-                    old_cat: str | None, old_src: str | None) -> bool:
+def _category_beats(new_cat: str | None, new_src: str | None, old_cat: str | None, old_src: str | None) -> bool:
     """Return True if the new category/source should overwrite the existing one.
 
     Category priority always takes precedence over source priority: a more
@@ -89,6 +86,7 @@ def _category_beats(new_cat: str | None, new_src: str | None,
 
 # ── TLE validation ───────────────────────────────────────────────────────────
 
+
 def _nonblank_lines(tle_text: str) -> list[str]:
     """Strip whitespace and drop blank lines from a TLE text block."""
     return [ln.strip() for ln in tle_text.strip().splitlines() if ln.strip()]
@@ -109,7 +107,7 @@ def validate_tle_text(tle_text: str) -> list[tuple[str, str, str]]:
     entries: list[tuple[str, str, str]] = []
     i = 0
     while i + 2 < len(lines):
-        name  = lines[i]
+        name = lines[i]
         line1 = lines[i + 1]
         line2 = lines[i + 2]
 
@@ -156,6 +154,7 @@ def _norad_from_line1(line1: str) -> str:
 
 # ── Bulk upsert ──────────────────────────────────────────────────────────────
 
+
 async def store_tle_bulk(
     entries: list[tuple[str, str, str]],
     source: str,
@@ -182,36 +181,32 @@ async def store_tle_bulk(
     # Pre-fetch all existing rows in two bulk queries to avoid N+1 per entry.
     norad_ids = [_norad_from_line1(line1) for _, line1, _ in entries]
 
-    tle_result = await db.execute(
-        select(TleCache).where(TleCache.cache_key.in_(norad_ids))
-    )
+    tle_result = await db.execute(select(TleCache).where(TleCache.cache_key.in_(norad_ids)))
     existing_tle: dict[str, TleCache] = {r.cache_key: r for r in tle_result.scalars().all()}
 
-    cat_result = await db.execute(
-        select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id.in_(norad_ids))
-    )
+    cat_result = await db.execute(select(SatelliteCatalogue).where(SatelliteCatalogue.norad_id.in_(norad_ids)))
     existing_cat: dict[str, SatelliteCatalogue] = {r.norad_id: r for r in cat_result.scalars().all()}
 
     for name, line1, line2 in entries:
         norad_id = _norad_from_line1(line1)
-        payload  = f"{name}\n{line1}\n{line2}"
-        expires  = ts + ttl
+        payload = f"{name}\n{line1}\n{line2}"
+        expires = ts + ttl
 
         # ── tle_cache upsert ─────────────────────────────────────────────
         tle_row = existing_tle.get(norad_id)
         if tle_row:
-            tle_row.payload    = payload
-            tle_row.source     = source
+            tle_row.payload = payload
+            tle_row.source = source
             tle_row.fetched_at = ts
             tle_row.expires_at = expires
             updated += 1
         else:
             new_row = TleCache(
-                cache_key  = norad_id,
-                payload    = payload,
-                source     = source,
-                fetched_at = ts,
-                expires_at = expires,
+                cache_key=norad_id,
+                payload=payload,
+                source=source,
+                fetched_at=ts,
+                expires_at=expires,
             )
             db.add(new_row)
             existing_tle[norad_id] = new_row  # prevent duplicates if same NORAD appears twice
@@ -225,15 +220,15 @@ async def store_tle_bulk(
                 cat_row.name = name
             cat_row.updated_at = ts
             if _category_beats(category, category_source, cat_row.category, cat_row.category_source):
-                cat_row.category        = category
+                cat_row.category = category
                 cat_row.category_source = category_source
         else:
             new_cat = SatelliteCatalogue(
-                norad_id        = norad_id,
-                name            = name,
-                category        = category,
-                category_source = category_source,
-                updated_at      = ts,
+                norad_id=norad_id,
+                name=name,
+                category=category,
+                category_source=category_source,
+                updated_at=ts,
             )
             db.add(new_cat)
             existing_cat[norad_id] = new_cat  # prevent duplicates if same NORAD appears twice
@@ -250,6 +245,7 @@ async def store_tle_bulk(
 
 
 # ── Single-satellite fetch (used by /api/space/iss) ──────────────────────────
+
 
 async def fetch_tle(
     norad_id: str,
@@ -268,9 +264,7 @@ async def fetch_tle(
     Returns a string with three newline-separated lines: name, TLE1, TLE2.
     Raises RuntimeError if data is unavailable.
     """
-    result = await db.execute(
-        select(TleCache).where(TleCache.cache_key == norad_id)
-    )
+    result = await db.execute(select(TleCache).where(TleCache.cache_key == norad_id))
     row = result.scalar_one_or_none()
 
     # Manual/upload/url entries: serve as long as within their long TTL
@@ -282,10 +276,12 @@ async def fetch_tle(
         return row.payload
 
     # Cache miss or expired online entry — try to fetch from upstream
-    default_url = settings.celestrak_iss_url if norad_id == "25544" else (
-        f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad_id}&FORMAT=tle"
+    default_url = (
+        settings.celestrak_iss_url
+        if norad_id == "25544"
+        else (f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad_id}&FORMAT=tle")
     )
-    primary   = online_url if online_url else default_url
+    primary = online_url if online_url else default_url
     fetch_urls = [u for u in [primary, offline_url] if u]
 
     for url in fetch_urls:
@@ -299,20 +295,18 @@ async def fetch_tle(
             entries = validate_tle_text(text)
             # Infer category for well-known satellites when fetching individually
             inferred = _KNOWN_SATELLITE_CATEGORIES.get(norad_id)
-            inferred_category        = inferred[0] if inferred else None
+            inferred_category = inferred[0] if inferred else None
             inferred_category_source = inferred[1] if inferred else None
-            await store_tle_bulk(entries, source="online",
-                                 category=inferred_category,
-                                 category_source=inferred_category_source, db=db)
+            await store_tle_bulk(
+                entries, source="online", category=inferred_category, category_source=inferred_category_source, db=db
+            )
             # Return the specific NORAD entry we need
             for name, line1, line2 in entries:
                 if _norad_from_line1(line1) == norad_id:
                     return f"{name}\n{line1}\n{line2}"
 
             # Fallback: re-query the DB after bulk store committed it
-            db_result = await db.execute(
-                select(TleCache).where(TleCache.cache_key == norad_id)
-            )
+            db_result = await db.execute(select(TleCache).where(TleCache.cache_key == norad_id))
             refreshed_row = db_result.scalar_one_or_none()
             if refreshed_row:
                 return refreshed_row.payload
@@ -324,12 +318,11 @@ async def fetch_tle(
     if row and is_within_stale(row.fetched_at, settings.tle_stale_ms):
         return row.payload
 
-    raise RuntimeError(
-        f"TLE unavailable for NORAD {norad_id}: upstream failed and no usable cache"
-    )
+    raise RuntimeError(f"TLE unavailable for NORAD {norad_id}: upstream failed and no usable cache")
 
 
 # ── Fetch from arbitrary URL (for manual URL fetch endpoint) ─────────────────
+
 
 async def fetch_tle_from_url(
     url: str,
@@ -348,5 +341,4 @@ async def fetch_tle_from_url(
         text = resp.text.strip()
 
     entries = validate_tle_text(text)
-    return await store_tle_bulk(entries, source="url",
-                                category=category, category_source=category_source, db=db)
+    return await store_tle_bulk(entries, source="url", category=category, category_source=category_source, db=db)

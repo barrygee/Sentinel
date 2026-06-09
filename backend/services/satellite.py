@@ -79,7 +79,7 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
     r, v = result
     now = datetime.now(UTC)
     lat, lon, alt_km = _eci_to_geodetic(r, now)
-    velocity_kms = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+    velocity_kms = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
 
     # Compute heading: propagate 10 seconds ahead for bearing estimate
     fr_ahead = fr + 10.0 / 86400.0  # +10 seconds in fractional days
@@ -89,10 +89,12 @@ def compute_position(tle_line1: str, tle_line2: str) -> dict:
         r_ahead, _ = result_ahead
         lat_ahead, lon_ahead, _ = _eci_to_geodetic(r_ahead, now + timedelta(seconds=10))
         dlon_rad = math.radians(lon_ahead - lon)
-        lat_rad  = math.radians(lat)
+        lat_rad = math.radians(lat)
         lat_ahead_rad = math.radians(lat_ahead)
         x = math.sin(dlon_rad) * math.cos(lat_ahead_rad)
-        y = math.cos(lat_rad) * math.sin(lat_ahead_rad) - math.sin(lat_rad) * math.cos(lat_ahead_rad) * math.cos(dlon_rad)
+        y = math.cos(lat_rad) * math.sin(lat_ahead_rad) - math.sin(lat_rad) * math.cos(lat_ahead_rad) * math.cos(
+            dlon_rad
+        )
         track_deg = (math.degrees(math.atan2(x, y)) + 360) % 360
 
     return {
@@ -138,9 +140,9 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     time_step_min = period_min / 360.0
 
     for track_type, start_min, end_min in [
-        ("orbit0",   -period_min,             0.0),
-        ("orbit1",          0.0,       period_min),
-        ("orbit2",   period_min,   2 * period_min),
+        ("orbit0", -period_min, 0.0),
+        ("orbit1", 0.0, period_min),
+        ("orbit2", period_min, 2 * period_min),
         ("orbit3", 2 * period_min, 3 * period_min),
     ]:
         coords: list[list[float]] = []
@@ -178,11 +180,13 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
             t += time_step_min
 
         if len(coords) >= 2:
-            features.append({
-                "type": "Feature",
-                "geometry": {"type": "LineString", "coordinates": coords},
-                "properties": {"track": track_type},
-            })
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "LineString", "coordinates": coords},
+                    "properties": {"track": track_type},
+                }
+            )
 
     return {"type": "FeatureCollection", "features": features}
 
@@ -201,14 +205,10 @@ def _elevation_deg(dist_rad: float, alt_km: float) -> float:
     """Return observer elevation angle (degrees) given angular distance from sub-satellite point."""
     if dist_rad <= 0:
         return 90.0
-    return math.degrees(math.atan(
-        (math.cos(dist_rad) - (_RE_KM / (_RE_KM + alt_km))) / math.sin(dist_rad)
-    ))
+    return math.degrees(math.atan((math.cos(dist_rad) - (_RE_KM / (_RE_KM + alt_km))) / math.sin(dist_rad)))
 
 
-def compute_look_angles(
-    sat_lat: float, sat_lon: float, sat_alt_km: float, obs_lat: float, obs_lon: float
-) -> dict:
+def compute_look_angles(sat_lat: float, sat_lon: float, sat_alt_km: float, obs_lat: float, obs_lon: float) -> dict:
     """Return observer-relative look angles for a satellite sub-point.
 
     Returns {"az": azimuth_deg (0=N, clockwise), "el": elevation_deg}. Elevation
@@ -346,11 +346,7 @@ def compute_passes(
         if visible and not prev_visible:
             # AOS transition. At the very first sample we can't bracket the rise,
             # so fall back to the sample offset itself.
-            aos_s = (
-                _refine_transition(offset_s - 60.0, offset_s)
-                if minute > -backscan_minutes
-                else offset_s
-            )
+            aos_s = _refine_transition(offset_s - 60.0, offset_s) if minute > -backscan_minutes else offset_s
             pass_start_s = aos_s
             pass_samples = [(offset_s, elev)]
         elif visible and prev_visible:
@@ -380,16 +376,18 @@ def compute_passes(
                 aos_dt = now + timedelta(seconds=pass_start_s)
                 los_dt = now + timedelta(seconds=los_s)
                 max_el_dt = now + timedelta(seconds=max_elev_s)
-                passes.append({
-                    "aos_utc":           aos_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "los_utc":           los_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "aos_unix_ms":       int(aos_dt.timestamp() * 1000),
-                    "los_unix_ms":       int(los_dt.timestamp() * 1000),
-                    "duration_s":        int(los_s - pass_start_s),
-                    "max_elevation_deg": round(max_elev, 1),
-                    "max_el_utc":        max_el_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "sky_track":         _sky_track(pass_start_s, los_s),
-                })
+                passes.append(
+                    {
+                        "aos_utc": aos_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "los_utc": los_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "aos_unix_ms": int(aos_dt.timestamp() * 1000),
+                        "los_unix_ms": int(los_dt.timestamp() * 1000),
+                        "duration_s": int(los_s - pass_start_s),
+                        "max_elevation_deg": round(max_elev, 1),
+                        "max_el_utc": max_el_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "sky_track": _sky_track(pass_start_s, los_s),
+                    }
+                )
                 if len(passes) >= 10:
                     break
 
@@ -425,8 +423,7 @@ def compute_footprint(lat: float, lon: float, alt_km: float) -> dict:
     for i in range(181):
         bearing_rad = math.radians(i * 2)
         lat2 = math.asin(
-            math.sin(lat_rad) * math.cos(radius_rad)
-            + math.cos(lat_rad) * math.sin(radius_rad) * math.cos(bearing_rad)
+            math.sin(lat_rad) * math.cos(radius_rad) + math.cos(lat_rad) * math.sin(radius_rad) * math.cos(bearing_rad)
         )
         lon2_rad = lon_rad + math.atan2(
             math.sin(bearing_rad) * math.sin(radius_rad) * math.cos(lat_rad),
@@ -455,10 +452,7 @@ def compute_footprint(lat: float, lon: float, alt_km: float) -> dict:
         return [round(L, 4), round(A, 4)]
 
     def _ring_signed_area(ring: list[list[float]]) -> float:
-        return sum(
-            (ring[i + 1][0] - ring[i][0]) * (ring[i + 1][1] + ring[i][1])
-            for i in range(len(ring) - 1)
-        ) / 2
+        return sum((ring[i + 1][0] - ring[i][0]) * (ring[i + 1][1] + ring[i][1]) for i in range(len(ring) - 1)) / 2
 
     def _ensure_ccw(ring: list[list[float]]) -> list[list[float]]:
         # Positive shoelace area (in lon=x, lat=y coords) means clockwise; reverse.

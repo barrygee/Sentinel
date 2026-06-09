@@ -1,7 +1,13 @@
 import { useNotificationsStore } from '@/stores/notifications'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { SatellitePassScheduler } from '@/components/space/controls/satellite/SatellitePassScheduler'
-import { getAllPassNotifs, updatePassNotifName, isPassNotifEnabled, isAutoTuneEnabled, isRecordOnPassEnabled } from '@/components/space/controls/satellite/passNotifStore'
+import {
+  getAllPassNotifs,
+  updatePassNotifName,
+  isPassNotifEnabled,
+  isAutoTuneEnabled,
+  isRecordOnPassEnabled,
+} from '@/components/space/controls/satellite/passNotifStore'
 
 // App-level background service that drives per-satellite pass alerts for EVERY
 // satellite the user has enabled — regardless of which section is active and
@@ -34,14 +40,25 @@ function _ensureDownlinkCache(): void {
   _downlinkFetch = (async () => {
     try {
       const resp = await fetch('/api/space/tle/list')
-      if (!resp.ok) { _downlinkCache = {}; return }
-      const data = await resp.json() as { satellites?: Array<{ norad_id: string; downlink_hz?: number | null; downlink_mode?: string | null }> }
+      if (!resp.ok) {
+        _downlinkCache = {}
+        return
+      }
+      const data = (await resp.json()) as {
+        satellites?: Array<{
+          norad_id: string
+          downlink_hz?: number | null
+          downlink_mode?: string | null
+        }>
+      }
       const map: Record<string, { hz: number; mode: string }> = {}
       for (const s of data.satellites ?? []) {
         if (s.downlink_hz) map[s.norad_id] = { hz: s.downlink_hz, mode: s.downlink_mode || 'NFM' }
       }
       _downlinkCache = map
-    } catch { _downlinkCache = {} }
+    } catch {
+      _downlinkCache = {}
+    }
   })()
 }
 
@@ -59,7 +76,10 @@ function _syncScheduler(noradId: string, name: string): void {
   const existing = _schedulers.get(noradId)
 
   if (!wantBell && !wantAutoTune) {
-    if (existing) { existing.stop(); _schedulers.delete(noradId) }
+    if (existing) {
+      existing.stop()
+      _schedulers.delete(noradId)
+    }
     return
   }
   if (existing) return // already running; tracks read the flags live

@@ -1,33 +1,42 @@
 <template>
   <div class="sdr-recordings-search-wrap">
     <input
+      v-model="recordingsFilter"
       class="sdr-recordings-search-input"
       type="text"
       placeholder="NOTES · MODE"
       autocomplete="off"
       spellcheck="false"
-      v-model="recordingsFilter"
-    >
+    />
     <button
       v-if="recordingsFilter"
       class="sdr-recordings-search-clear"
       aria-label="Clear filter"
       @click="recordingsFilter = ''"
-    >✕</button>
+    >
+      ✕
+    </button>
   </div>
   <div class="sdr-recordings-body">
-    <div ref="recordingsListWrapRef" id="sdr-recordings-list-wrap" @scroll="updateScrollHint">
+    <div id="sdr-recordings-list-wrap" ref="recordingsListWrapRef" @scroll="updateScrollHint">
       <!-- Live recording row -->
       <div v-if="liveRecording" class="sdr-recording-row sdr-recording-live">
         <div class="sdr-recording-content">
           <div class="sdr-recording-head">
             <div class="sdr-recording-freq">
-              <span class="sdr-recording-freq-num">{{ (liveRecording.frequency_hz / 1e6).toFixed(4) }}</span>
+              <span class="sdr-recording-freq-num">{{
+                (liveRecording.frequency_hz / 1e6).toFixed(4)
+              }}</span>
               <span class="sdr-recording-freq-unit">MHz</span>
-              <span v-if="liveRecording.mode" class="sdr-recording-freq-mode">- {{ liveRecording.mode }}</span>
+              <span v-if="liveRecording.mode" class="sdr-recording-freq-mode"
+                >- {{ liveRecording.mode }}</span
+              >
             </div>
             <span class="sdr-recording-live-status">
-              <span class="sdr-recording-live-dot" :class="{ 'sdr-recording-live-dot--waiting': !recSquelchOpen }"></span>
+              <span
+                class="sdr-recording-live-dot"
+                :class="{ 'sdr-recording-live-dot--waiting': !recSquelchOpen }"
+              ></span>
               {{ recSquelchOpen ? 'Recording' : 'Waiting' }}
             </span>
           </div>
@@ -46,8 +55,21 @@
             </div>
           </dl>
           <div class="sdr-recording-controls">
-            <button class="sdr-recording-stop" title="Stop recording" aria-label="Stop recording" @click.stop="emit('stop-recording')">
-              <svg width="11" height="11" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" rx="1"/></svg>
+            <button
+              class="sdr-recording-stop"
+              title="Stop recording"
+              aria-label="Stop recording"
+              @click.stop="emit('stop-recording')"
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 10 10"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <rect x="1.5" y="1.5" width="7" height="7" rx="1" />
+              </svg>
               STOP
             </button>
           </div>
@@ -71,34 +93,89 @@
               <span v-if="c.mode" class="sdr-recording-freq-mode">- {{ c.mode }}</span>
             </div>
             <div class="sdr-recording-actions">
-              <button class="sdr-recording-edit" :class="{ 'sdr-recording-edit--active': editingRecId === c.id }" data-tooltip="Edit" aria-label="Edit" @click.stop="toggleEditAccordion(c)">&#x270E;</button>
+              <button
+                class="sdr-recording-edit"
+                :class="{ 'sdr-recording-edit--active': editingRecId === c.id }"
+                data-tooltip="Edit"
+                aria-label="Edit"
+                @click.stop="toggleEditAccordion(c)"
+              >
+                &#x270E;
+              </button>
               <!-- Inline delete confirm: bin → check/cancel pair. Click bin to arm,
                    click again (✓) to confirm, ✕ to cancel. -->
               <template v-if="confirmDelId === c.id">
-                <button class="sdr-recording-del sdr-recording-del--confirm" data-tooltip="Confirm delete" aria-label="Confirm delete" @click.stop="confirmInlineDelete(c)">
-                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M2.5 7.5l3 3 6-7"/>
+                <button
+                  class="sdr-recording-del sdr-recording-del--confirm"
+                  data-tooltip="Confirm delete"
+                  aria-label="Confirm delete"
+                  @click.stop="confirmInlineDelete(c)"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M2.5 7.5l3 3 6-7" />
                   </svg>
                 </button>
-                <button class="sdr-recording-del sdr-recording-del--cancel" data-tooltip="Cancel" aria-label="Cancel delete" @click.stop="confirmDelId = null">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
-                    <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
+                <button
+                  class="sdr-recording-del sdr-recording-del--cancel"
+                  data-tooltip="Cancel"
+                  aria-label="Cancel delete"
+                  @click.stop="confirmDelId = null"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
                   </svg>
                 </button>
               </template>
-              <button v-else class="sdr-recording-del" data-tooltip="Delete" aria-label="Delete" @click.stop="confirmDelId = c.id">
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M2 3.5h10"/>
-                  <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3"/>
-                  <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1"/>
-                  <path d="M6 6v4M8 6v4"/>
+              <button
+                v-else
+                class="sdr-recording-del"
+                data-tooltip="Delete"
+                aria-label="Delete"
+                @click.stop="confirmDelId = c.id"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M2 3.5h10" />
+                  <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
+                  <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
+                  <path d="M6 6v4M8 6v4" />
                 </svg>
               </button>
             </div>
           </div>
 
           <!-- Custom name (if any), radio freq-name style. -->
-          <div v-if="recordingCustomName(c)" class="sdr-recording-subname">{{ recordingCustomName(c) }}</div>
+          <div v-if="recordingCustomName(c)" class="sdr-recording-subname">
+            {{ recordingCustomName(c) }}
+          </div>
 
           <dl class="sdr-recording-meta">
             <div class="sdr-recording-meta-row">
@@ -129,27 +206,76 @@
             <div v-if="recmodNotes.trim()" class="sdr-recording-note-label">NOTES</div>
             <textarea
               ref="recmodNoteRef"
+              v-model="recmodNotes"
               class="sdr-recording-edit-note"
               rows="2"
               maxlength="250"
               placeholder="Add a note…"
-              v-model="recmodNotes"
               @keydown.esc="closeEditAccordion"
             ></textarea>
             <div class="sdr-recording-edit-actions">
-              <button class="sdr-panel-btn sdr-recording-edit-cancel" @click.stop="closeEditAccordion">CANCEL</button>
-              <button class="sdr-panel-btn sdr-editfreq-save-btn sdr-recording-edit-save" @click.stop="saveEditAccordion">SAVE</button>
+              <button
+                class="sdr-panel-btn sdr-recording-edit-cancel"
+                @click.stop="closeEditAccordion"
+              >
+                CANCEL
+              </button>
+              <button
+                class="sdr-panel-btn sdr-editfreq-save-btn sdr-recording-edit-save"
+                @click.stop="saveEditAccordion"
+              >
+                SAVE
+              </button>
             </div>
           </div>
 
           <!-- Play + download (WAV/IQ) as pill buttons, beneath the meta. -->
           <div class="sdr-recording-controls">
-            <button class="sdr-recording-play" :title="playingRecordingId === c.id ? 'Stop' : 'Play'" :aria-label="playingRecordingId === c.id ? 'Stop' : 'Play'" @click.stop="toggleRecordingPlay(c)">
-              <svg v-if="playingRecordingId !== c.id" width="13" height="13" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><polygon points="2,1 9,5 2,9"/></svg>
-              <svg v-else width="13" height="13" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><rect x="1.5" y="1.5" width="3" height="7"/><rect x="5.5" y="1.5" width="3" height="7"/></svg>
+            <button
+              class="sdr-recording-play"
+              :title="playingRecordingId === c.id ? 'Stop' : 'Play'"
+              :aria-label="playingRecordingId === c.id ? 'Stop' : 'Play'"
+              @click.stop="toggleRecordingPlay(c)"
+            >
+              <svg
+                v-if="playingRecordingId !== c.id"
+                width="13"
+                height="13"
+                viewBox="0 0 10 10"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <polygon points="2,1 9,5 2,9" />
+              </svg>
+              <svg
+                v-else
+                width="13"
+                height="13"
+                viewBox="0 0 10 10"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <rect x="1.5" y="1.5" width="3" height="7" />
+                <rect x="5.5" y="1.5" width="3" height="7" />
+              </svg>
             </button>
-            <button class="sdr-recording-export" title="Download WAV" aria-label="Download WAV" @click.stop="downloadRecording(c, 'wav')">DOWNLOAD</button>
-            <button v-if="c.has_iq_file" class="sdr-recording-iq" title="Download IQ" aria-label="Download IQ" @click.stop="downloadRecording(c, 'iq')">IQ</button>
+            <button
+              class="sdr-recording-export"
+              title="Download WAV"
+              aria-label="Download WAV"
+              @click.stop="downloadRecording(c, 'wav')"
+            >
+              DOWNLOAD
+            </button>
+            <button
+              v-if="c.has_iq_file"
+              class="sdr-recording-iq"
+              title="Download IQ"
+              aria-label="Download IQ"
+              @click.stop="downloadRecording(c, 'iq')"
+            >
+              IQ
+            </button>
           </div>
 
           <!-- SIGNAL-style block progress bar (click to seek), shown while playing.
@@ -164,27 +290,39 @@
                 :class="{ 'sdr-recording-seg--on': i <= recordingLitSegs }"
               ></div>
             </div>
-            <span class="sdr-recording-time">{{ fmtTime(recordingCurrentTime) }} / {{ fmtTime(recordingDuration) }}</span>
+            <span class="sdr-recording-time"
+              >{{ fmtTime(recordingCurrentTime) }} / {{ fmtTime(recordingDuration) }}</span
+            >
           </div>
         </div>
         <audio
-          :ref="el => setRecordingAudioRef(c.id, el as HTMLAudioElement | null)"
+          :ref="(el) => setRecordingAudioRef(c.id, el as HTMLAudioElement | null)"
           :src="`/api/sdr/recordings/${c.id}/file`"
-          style="display:none"
+          style="display: none"
           @loadedmetadata="onAudioMeta(c.id)"
           @timeupdate="onAudioTimeUpdate(c.id)"
           @ended="onAudioEnded(c.id)"
         ></audio>
       </div>
 
-      <div v-if="!liveRecording && filteredRecordings.length === 0" id="sdr-recordings-empty" class="sdr-panel-empty">
+      <div
+        v-if="!liveRecording && filteredRecordings.length === 0"
+        id="sdr-recordings-empty"
+        class="sdr-panel-empty"
+      >
         No recordings.
       </div>
     </div>
-    <div ref="scrollHintRef" id="sdr-recordings-scroll-hint" style="display:none">
+    <div id="sdr-recordings-scroll-hint" ref="scrollHintRef" style="display: none">
       MORE
       <svg id="sdr-recordings-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none">
-        <polyline points="1,2.5 4,5.5 7,2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline
+          points="1,2.5 4,5.5 7,2.5"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </div>
   </div>
@@ -194,9 +332,17 @@
 import { ref, computed, nextTick, watch } from 'vue'
 
 interface SdrRecording {
-  id: number; name: string; notes: string; frequency_hz: number; mode: string;
-  duration_s: number; file_size_bytes: number; started_at: string; has_iq_file: boolean;
-  radio_id: number | null; radio_name: string
+  id: number
+  name: string
+  notes: string
+  frequency_hz: number
+  mode: string
+  duration_s: number
+  file_size_bytes: number
+  started_at: string
+  has_iq_file: boolean
+  radio_id: number | null
+  radio_name: string
 }
 
 interface LiveRecording {
@@ -205,7 +351,7 @@ interface LiveRecording {
   startedAt: string
 }
 
-const props = defineProps<{
+const _props = defineProps<{
   liveRecording: LiveRecording | null
   recSquelchOpen: boolean
   liveElapsedS: number
@@ -220,27 +366,28 @@ const emit = defineEmits<{
 
 // ── Recordings state ───────────────────────────────────────────────────────────────
 
-const recordings        = ref<SdrRecording[]>([])
-const recordingsFilter  = ref('')
+const recordings = ref<SdrRecording[]>([])
+const recordingsFilter = ref('')
 const filteredRecordings = computed(() => {
   const q = recordingsFilter.value.toLowerCase()
   if (!q) return recordings.value
-  return recordings.value.filter(c =>
-    (c.name || '').toLowerCase().includes(q) ||
-    (c.notes || '').toLowerCase().includes(q) ||
-    (c.radio_name || '').toLowerCase().includes(q) ||
-    (c.mode || '').toLowerCase().includes(q)
+  return recordings.value.filter(
+    (c) =>
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.notes || '').toLowerCase().includes(q) ||
+      (c.radio_name || '').toLowerCase().includes(q) ||
+      (c.mode || '').toLowerCase().includes(q),
   )
 })
 
-const playingRecordingId   = ref<number | null>(null)
+const playingRecordingId = ref<number | null>(null)
 const recordingCurrentTime = ref(0)
-const recordingDuration    = ref(0)
-const recordingAudioRefs   = new Map<number, HTMLAudioElement>()
+const recordingDuration = ref(0)
+const recordingAudioRefs = new Map<number, HTMLAudioElement>()
 const recordingProgressPct = computed(() =>
   recordingDuration.value > 0
     ? Math.min(100, Math.max(0, (recordingCurrentTime.value / recordingDuration.value) * 100))
-    : 0
+    : 0,
 )
 
 // How many of the RECORDING_PROGRESS_SEGS blocks are lit for the current position.
@@ -254,17 +401,17 @@ watch(playingRecordingId, (id, prev) => {
 })
 
 const recordingsListWrapRef = ref<HTMLElement | null>(null)
-const scrollHintRef    = ref<HTMLElement | null>(null)
+const scrollHintRef = ref<HTMLElement | null>(null)
 
 // ── Inline edit accordion state ───────────────────────────────────────────────
 // editingRecId is the recording whose edit panel is expanded (null = none open).
 
 // recmodName holds the recording's existing name unchanged — the accordion only edits
 // the note, but the PATCH endpoint requires a name, so we round-trip it.
-const recmodName       = ref('')
-const recmodNotes      = ref('')
-const recmodNoteRef    = ref<HTMLTextAreaElement | null>(null)
-const editingRecId     = ref<number | null>(null)
+const recmodName = ref('')
+const recmodNotes = ref('')
+const recmodNoteRef = ref<HTMLTextAreaElement | null>(null)
+const editingRecId = ref<number | null>(null)
 
 // ── Inline delete confirm ─────────────────────────────────────────────────────
 // The recording whose bin icon is "armed" — swaps it for a ✓ / ✕ pair until confirmed.
@@ -295,7 +442,8 @@ function recordingCustomName(c: SdrRecording): string {
 }
 
 function fmtDuration(s: number): string {
-  const m = Math.floor(s / 60), sec = Math.round(s % 60)
+  const m = Math.floor(s / 60),
+    sec = Math.round(s % 60)
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
@@ -306,7 +454,8 @@ function fmtBytes(b: number): string {
 }
 
 function fmtTime(s: number): string {
-  const m = Math.floor(s / 60), sec = Math.floor(s % 60)
+  const m = Math.floor(s / 60),
+    sec = Math.floor(s % 60)
   return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0')
 }
 
@@ -331,17 +480,22 @@ function toggleRecordingPlay(c: SdrRecording): void {
   const a = recordingAudioRefs.get(c.id)
   if (!a) return
   if (playingRecordingId.value === c.id) {
-    a.pause(); a.currentTime = 0; playingRecordingId.value = null
+    a.pause()
+    a.currentTime = 0
+    playingRecordingId.value = null
   } else {
     if (playingRecordingId.value !== null) {
       const prev = recordingAudioRefs.get(playingRecordingId.value)
-      if (prev) { prev.pause(); prev.currentTime = 0 }
+      if (prev) {
+        prev.pause()
+        prev.currentTime = 0
+      }
     }
     playingRecordingId.value = c.id
     recordingCurrentTime.value = 0
     // Seed duration from metadata if already loaded, else fall back to the
     // recorded duration_s so the end time is populated immediately.
-    recordingDuration.value = isFiniteDuration(a.duration) ? a.duration : (c.duration_s || 0)
+    recordingDuration.value = isFiniteDuration(a.duration) ? a.duration : c.duration_s || 0
     a.play()
   }
 }
@@ -351,26 +505,34 @@ function isFiniteDuration(d: number): boolean {
 }
 
 function onAudioMeta(id: number): void {
-  const a = recordingAudioRefs.get(id); if (!a) return
-  if (playingRecordingId.value === id && isFiniteDuration(a.duration)) recordingDuration.value = a.duration
+  const a = recordingAudioRefs.get(id)
+  if (!a) return
+  if (playingRecordingId.value === id && isFiniteDuration(a.duration))
+    recordingDuration.value = a.duration
 }
 
 function onAudioTimeUpdate(id: number): void {
   if (playingRecordingId.value !== id) return
-  const a = recordingAudioRefs.get(id); if (!a) return
+  const a = recordingAudioRefs.get(id)
+  if (!a) return
   recordingCurrentTime.value = a.currentTime
   // Streamed WAVs may only expose a finite duration once playback begins.
-  if (isFiniteDuration(a.duration) && a.duration !== recordingDuration.value) recordingDuration.value = a.duration
+  if (isFiniteDuration(a.duration) && a.duration !== recordingDuration.value)
+    recordingDuration.value = a.duration
 }
 
 function onAudioEnded(id: number): void {
-  if (playingRecordingId.value === id) { playingRecordingId.value = null; recordingCurrentTime.value = 0 }
+  if (playingRecordingId.value === id) {
+    playingRecordingId.value = null
+    recordingCurrentTime.value = 0
+  }
 }
 
 // Click anywhere on the block bar to seek to that fraction of the recording.
 function seekRecordingBar(e: MouseEvent): void {
   if (playingRecordingId.value === null || recordingDuration.value <= 0) return
-  const a = recordingAudioRefs.get(playingRecordingId.value); if (!a) return
+  const a = recordingAudioRefs.get(playingRecordingId.value)
+  if (!a) return
   const el = e.currentTarget as HTMLElement
   const rect = el.getBoundingClientRect()
   const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
@@ -379,7 +541,7 @@ function seekRecordingBar(e: MouseEvent): void {
 
 function downloadRecording(c: SdrRecording, type: 'wav' | 'iq'): void {
   const a = document.createElement('a')
-  a.href     = type === 'wav' ? `/api/sdr/recordings/${c.id}/file` : `/api/sdr/recordings/${c.id}/iq`
+  a.href = type === 'wav' ? `/api/sdr/recordings/${c.id}/file` : `/api/sdr/recordings/${c.id}/iq`
   a.download = `${c.name}.${type === 'wav' ? 'wav' : 'u8'}`
   a.click()
 }
@@ -387,11 +549,12 @@ function downloadRecording(c: SdrRecording, type: 'wav' | 'iq'): void {
 // ── Scroll hint ───────────────────────────────────────────────────────────────
 
 function updateScrollHint(): void {
-  const wrap = recordingsListWrapRef.value; const hint = scrollHintRef.value
+  const wrap = recordingsListWrapRef.value
+  const hint = scrollHintRef.value
   if (!wrap || !hint) return
   const hasOverflow = wrap.scrollHeight > wrap.clientHeight + 2
   const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 4
-  hint.style.display = (hasOverflow && !atBottom) ? 'flex' : 'none'
+  hint.style.display = hasOverflow && !atBottom ? 'flex' : 'none'
 }
 
 // ── Inline edit accordion ─────────────────────────────────────────────────────
@@ -399,21 +562,27 @@ function updateScrollHint(): void {
 // Toggle the edit panel for a recording. Opening seeds the inputs from the recording and
 // closes any other open panel; clicking the pencil again collapses it.
 function toggleEditAccordion(c: SdrRecording): void {
-  if (editingRecId.value === c.id) { closeEditAccordion(); return }
+  if (editingRecId.value === c.id) {
+    closeEditAccordion()
+    return
+  }
   editingRecId.value = c.id
-  recmodName.value   = c.name || ''
-  recmodNotes.value  = c.notes || ''
+  recmodName.value = c.name || ''
+  recmodNotes.value = c.notes || ''
   nextTick(() => recmodNoteRef.value?.focus())
 }
 
-function closeEditAccordion(): void { editingRecId.value = null }
+function closeEditAccordion(): void {
+  editingRecId.value = null
+}
 
 async function saveEditAccordion(): Promise<void> {
   const name = recmodName.value.trim()
   if (!name || editingRecId.value === null) return
   try {
     await fetch(`/api/sdr/recordings/${editingRecId.value}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, notes: recmodNotes.value.trim() }),
     })
     closeEditAccordion()

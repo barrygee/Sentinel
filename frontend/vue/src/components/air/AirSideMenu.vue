@@ -1,18 +1,19 @@
 <template>
   <div id="side-menu" :class="{ expanded }">
-
     <!-- Group 1: expand / collapse toggle -->
-    <div class="sm-group" id="sm-group-toggle">
+    <div id="sm-group-toggle" class="sm-group">
       <button
         id="side-menu-toggle"
         :data-tooltip="expanded ? 'COLLAPSE MENU' : 'EXPAND MENU'"
         @click="expanded = !expanded"
-      >{{ expanded ? '›' : '‹' }}</button>
+      >
+        {{ expanded ? '›' : '‹' }}
+      </button>
     </div>
 
     <!-- Group 2: zoom + location -->
-    <div class="sm-group" id="sm-group-nav">
-      <button class="sm-nav-btn" data-tooltip="ZOOM IN"  @click="getMap()?.zoomIn()">+</button>
+    <div id="sm-group-nav" class="sm-group">
+      <button class="sm-nav-btn" data-tooltip="ZOOM IN" @click="getMap()?.zoomIn()">+</button>
       <button class="sm-nav-btn" data-tooltip="ZOOM OUT" @click="getMap()?.zoomOut()">−</button>
       <button
         class="sm-nav-btn"
@@ -41,7 +42,7 @@
         data-tooltip="GROUND VEHICLES"
         @click="toggleGround"
       >
-        <span class="sm-icon" style="--sm-icon-size:8px">GND</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px">GND</span>
         <span class="sm-label">GROUND VEHICLES</span>
       </button>
 
@@ -52,18 +53,21 @@
         data-tooltip="TOWERS"
         @click="toggleTowers"
       >
-        <span class="sm-icon" style="--sm-icon-size:8px">TWR</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px">TWR</span>
         <span class="sm-label">TOWERS</span>
       </button>
 
       <!-- CALLSIGNS (expanded-only) -->
       <button
         class="sm-btn sm-expanded-only"
-        :class="{ active: planesOn && airStore.overlayStates.adsbLabels, 'sm-planes-off': !planesOn }"
+        :class="{
+          active: planesOn && airStore.overlayStates.adsbLabels,
+          'sm-planes-off': !planesOn,
+        }"
         data-tooltip="CALLSIGNS"
         @click="toggleLabels"
       >
-        <span class="sm-icon" style="--sm-icon-size:8px">CALL</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px">CALL</span>
         <span class="sm-label">CALLSIGNS</span>
       </button>
 
@@ -74,7 +78,7 @@
         data-tooltip="RANGE RING"
         @click="mapRef.value?.getRangeRings()?.handleClickPublic()"
       >
-        <span class="sm-icon" style="--sm-icon-size:16px">◎</span>
+        <span class="sm-icon" style="--sm-icon-size: 16px">◎</span>
         <span class="sm-label">RANGE RING</span>
       </button>
 
@@ -85,7 +89,7 @@
         data-tooltip="A2A REFUELING"
         @click="mapRef.value?.getAara()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size:16px">=</span>
+        <span class="sm-icon" style="--sm-icon-size: 16px">=</span>
         <span class="sm-label">A2A REFUELING</span>
       </button>
 
@@ -96,7 +100,7 @@
         data-tooltip="AWACS"
         @click="mapRef.value?.getAwacs()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size:16px">○</span>
+        <span class="sm-icon" style="--sm-icon-size: 16px">○</span>
         <span class="sm-label">AWACS</span>
       </button>
 
@@ -116,7 +120,7 @@
         data-tooltip="AIRPORTS"
         @click="mapRef.value?.getAirports()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size:8px">CVL</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px">CVL</span>
         <span class="sm-label">AIRPORTS</span>
       </button>
 
@@ -127,7 +131,7 @@
         data-tooltip="MILITARY BASES"
         @click="mapRef.value?.getMilBases()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size:8px">MIL</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px">MIL</span>
         <span class="sm-label">MILITARY BASES</span>
       </button>
 
@@ -138,7 +142,7 @@
         data-tooltip="LOCATIONS"
         @click="mapRef.value?.getNamesControl()?.handleClickPublic()"
       >
-        <span class="sm-icon" style="--sm-icon-size:14px">N</span>
+        <span class="sm-icon" style="--sm-icon-size: 14px">N</span>
         <span class="sm-label">LOCATIONS</span>
       </button>
 
@@ -149,17 +153,17 @@
         data-tooltip="ROADS"
         @click="mapRef.value?.getRoadsControl()?.handleClickPublic()"
       >
-        <span class="sm-icon" style="--sm-icon-size:14px">R</span>
+        <span class="sm-icon" style="--sm-icon-size: 14px">R</span>
         <span class="sm-label">ROADS</span>
       </button>
     </div>
 
     <!-- Group 5: filter mode flyout + filter button -->
-    <div class="sm-group" style="position:relative">
+    <div class="sm-group" style="position: relative">
       <button
+        id="sm-filter-btn"
         class="sm-btn enabled"
         :class="{ 'filter-flyout-open': flyoutOpen }"
-        id="sm-filter-btn"
         data-tooltip="FILTER"
         @mouseenter="showFlyout"
         @mouseleave="startHideFlyout"
@@ -183,35 +187,31 @@
           :class="{ active: isFilterModeActive(mode.value) }"
           :data-mode="mode.value"
           @click.stop="setFilterMode(mode.value)"
-        >{{ mode.label }}</button>
+        >
+          {{ mode.label }}
+        </button>
       </div>
     </div>
 
     <!-- Group 6: search button -->
     <div class="sm-group">
-      <button
-        class="sm-btn enabled"
-        id="sm-search-btn"
-        data-tooltip="SEARCH"
-        @click="openSearch"
-      >
+      <button id="sm-search-btn" class="sm-btn enabled" data-tooltip="SEARCH" @click="openSearch">
         <span class="sm-icon" v-html="SEARCH_SVG" />
         <span class="sm-label">SEARCH</span>
       </button>
     </div>
-
   </div>
 
   <!-- 3D controls widget (fixed bottom-right) -->
   <div id="map-3d-controls" :class="{ 'map-3d-controls--hidden': !tiltActive }">
     <span />
-    <button class="map-3d-btn" data-tooltip="TILT UP"      @click="tiltBy(10)">↑</button>
+    <button class="map-3d-btn" data-tooltip="TILT UP" @click="tiltBy(10)">↑</button>
     <span />
-    <button class="map-3d-btn" data-tooltip="ROTATE LEFT"  @click="rotateBy(-15)">↺</button>
+    <button class="map-3d-btn" data-tooltip="ROTATE LEFT" @click="rotateBy(-15)">↺</button>
     <button class="map-3d-btn" data-tooltip="RESET BEARING" @click="resetBearing">⌖</button>
     <button class="map-3d-btn" data-tooltip="ROTATE RIGHT" @click="rotateBy(15)">↻</button>
     <span />
-    <button class="map-3d-btn" data-tooltip="TILT DOWN"    @click="tiltBy(-10)">↓</button>
+    <button class="map-3d-btn" data-tooltip="TILT DOWN" @click="tiltBy(-10)">↓</button>
     <span />
   </div>
 </template>
@@ -229,16 +229,20 @@ const props = defineProps<{
 }>()
 
 // Non-reactive accessor — reads through the proxy at call-time only
-const mapRef = { get value() { return props.mapRef.current } }
+const mapRef = {
+  get value() {
+    return props.mapRef.current
+  },
+}
 
 const airStore = useAirStore()
 const { location: userLocation } = useUserLocation()
 
-const expanded  = ref(false)
+const expanded = ref(false)
 const tiltActive = ref(localStorage.getItem('sentinel_3d') === '1')
-const cleared    = ref(false)
-const locActive  = computed(() => userLocation.value !== null)
-const hideGnd    = ref(false)
+const cleared = ref(false)
+const locActive = computed(() => userLocation.value !== null)
+const hideGnd = ref(false)
 const hideTowers = ref(false)
 const flyoutOpen = ref(false)
 let flyoutTimer: ReturnType<typeof setTimeout> | null = null
@@ -257,9 +261,9 @@ const FILTER_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" 
 const SEARCH_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
 
 const filterModes = [
-  { value: 'all',  label: 'ALL' },
+  { value: 'all', label: 'ALL' },
   { value: 'civil', label: 'CIVIL' },
-  { value: 'mil',  label: 'MILITARY' },
+  { value: 'mil', label: 'MILITARY' },
 ] as const
 
 // ---- Map access helpers ----
@@ -268,10 +272,18 @@ function getMap() {
   return m?.getMap?.() ?? null
 }
 function getAdsb() {
-  return mapRef.value?.getAdsbControl?.() as import('./controls/adsb/AdsbLiveControl').AdsbLiveControl | null ?? null
+  return (
+    (mapRef.value?.getAdsbControl?.() as
+      | import('./controls/adsb/AdsbLiveControl').AdsbLiveControl
+      | null) ?? null
+  )
 }
 function getAdsbLabels() {
-  return mapRef.value?.getAdsbLabels?.() as import('./controls/adsb-labels/AdsbLabelsToggleControl').AdsbLabelsToggleControl | null ?? null
+  return (
+    (mapRef.value?.getAdsbLabels?.() as
+      | import('./controls/adsb-labels/AdsbLabelsToggleControl').AdsbLabelsToggleControl
+      | null) ?? null
+  )
 }
 
 // ---- Location ----
@@ -340,8 +352,12 @@ function resetBearing() {
 }
 
 // ---- Clear overlays ----
-function toggleClear() {
-  const ctrl = mapRef.value?.getClearControl?.() as import('./controls/clear-overlays/ClearOverlaysControl').ClearOverlaysControl | null ?? null
+// Currently unwired (no template binding); retained for the clear-overlays control.
+function _toggleClear() {
+  const ctrl =
+    (mapRef.value?.getClearControl?.() as
+      | import('./controls/clear-overlays/ClearOverlaysControl').ClearOverlaysControl
+      | null) ?? null
   if (!ctrl) return
   ctrl.toggle()
   cleared.value = ctrl._cleared
@@ -349,12 +365,17 @@ function toggleClear() {
 
 // ---- Filter flyout ----
 function showFlyout() {
-  if (flyoutTimer) { clearTimeout(flyoutTimer); flyoutTimer = null }
+  if (flyoutTimer) {
+    clearTimeout(flyoutTimer)
+    flyoutTimer = null
+  }
   flyoutOpen.value = true
 }
 
 function startHideFlyout() {
-  flyoutTimer = setTimeout(() => { flyoutOpen.value = false }, 120)
+  flyoutTimer = setTimeout(() => {
+    flyoutOpen.value = false
+  }, 120)
 }
 
 function isFilterModeActive(mode: string): boolean {
@@ -377,10 +398,13 @@ function _saveFilter() {
   const c = getAdsb()
   if (!c) return
   try {
-    localStorage.setItem('adsbFilter', JSON.stringify({
-      typeFilter: c._typeFilter,
-      allHidden:  c._allHidden,
-    }))
+    localStorage.setItem(
+      'adsbFilter',
+      JSON.stringify({
+        typeFilter: c._typeFilter,
+        allHidden: c._allHidden,
+      }),
+    )
   } catch {}
 }
 
@@ -408,426 +432,439 @@ function openSearch() {
 
 <style>
 #side-menu {
-    position: fixed;
-    top: 80px;
-    right: 14px;
-    z-index: 1002;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
+  position: fixed;
+  top: 80px;
+  right: 14px;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
 }
 
 .sm-group {
-    background: transparent;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    gap: 4px;
-    width: calc((148px - 8px) / 3);
-    transition: width 0.2s ease;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 4px;
+  width: calc((148px - 8px) / 3);
+  transition: width 0.2s ease;
 }
 
 #side-menu.expanded .sm-group {
-    width: 148px;
+  width: 148px;
 }
 
 #side-menu.expanded #sm-group-nav {
-    flex-direction: row;
-    gap: 4px;
-    background: transparent;
-    border-color: transparent;
+  flex-direction: row;
+  gap: 4px;
+  background: transparent;
+  border-color: transparent;
 }
 
 #side-menu.expanded .sm-nav-btn {
-    flex: 1;
-    width: auto;
+  flex: 1;
+  width: auto;
 }
 
 #side-menu.expanded #sm-group-toggle {
-    gap: 0;
-    width: calc((148px - 8px) / 3);
+  gap: 0;
+  width: calc((148px - 8px) / 3);
 }
 
 #side-menu-toggle {
-    width: 100%;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: rgba(255,255,255,0.35);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 14px;
-    font-weight: 400;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s, background 0.2s;
+  width: 100%;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.2s,
+    background 0.2s;
 }
 
 #side-menu-toggle:hover {
-    background: #111;
-    color: var(--color-text-muted);
+  background: #111;
+  color: var(--color-text-muted);
 }
 
 .sm-nav-btn {
-    flex: none;
-    width: 100%;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: rgba(255,255,255,0.6);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 18px;
-    font-weight: 300;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s, color 0.2s;
+  flex: none;
+  width: 100%;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .sm-nav-btn:hover {
-    background: #111;
-    color: #fff;
+  background: #111;
+  color: #fff;
 }
 
 .sm-nav-btn.active {
-    background: #111;
-    color: var(--color-accent);
+  background: #111;
+  color: var(--color-accent);
 }
 
 #side-menu .sm-btn {
-    width: 100%;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: #fff;
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s, opacity 0.2s, color 0.2s;
-    opacity: 1;
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 0;
+  width: 100%;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: #fff;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s,
+    opacity 0.2s,
+    color 0.2s;
+  opacity: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0;
 }
 
 #side-menu .sm-btn:hover {
-    background: #111;
+  background: #111;
 }
 
 #side-menu .sm-btn.active {
-    opacity: 1;
-    color: rgba(200, 255, 0, 0.75);
+  opacity: 1;
+  color: rgba(200, 255, 0, 0.75);
 }
 
 #side-menu .sm-btn.enabled {
-    opacity: 1;
+  opacity: 1;
 }
 
 #side-menu .sm-btn.sm-planes-off {
-    opacity: 0.1;
-    pointer-events: none;
+  opacity: 0.1;
+  pointer-events: none;
 }
 
 #side-menu .sm-btn .sm-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 29px;
-    flex-shrink: 0;
-    font-size: var(--sm-icon-size, 14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  flex-shrink: 0;
+  font-size: var(--sm-icon-size, 14px);
 }
 
 #side-menu .sm-btn .sm-icon svg {
-    display: block;
-    flex-shrink: 0;
-    width: auto;
-    height: 15px;
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: 15px;
 }
 
 #side-menu .sm-btn .sm-label {
-    display: none;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+  display: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
 }
 
 #side-menu.expanded .sm-btn {
-    justify-content: flex-start;
-    padding: 0 14px;
+  justify-content: flex-start;
+  padding: 0 14px;
 }
 
 #side-menu.expanded .sm-btn .sm-icon {
-    display: none;
+  display: none;
 }
 
 #side-menu.expanded .sm-btn .sm-label {
-    display: flex;
+  display: flex;
 }
 
 #side-menu .sm-btn.sm-expanded-only {
-    display: none;
+  display: none;
 }
 #side-menu.expanded .sm-btn.sm-expanded-only {
-    display: flex;
+  display: flex;
 }
 
 #side-menu:not(.expanded) .sm-btn[data-tooltip],
 #side-menu:not(.expanded) .sm-nav-btn[data-tooltip],
 #side-menu:not(.expanded) #side-menu-toggle[data-tooltip],
 #side-menu.expanded .sm-nav-btn[data-tooltip] {
-    position: relative;
+  position: relative;
 }
 
 #side-menu:not(.expanded) .sm-btn[data-tooltip]::before,
 #side-menu:not(.expanded) .sm-nav-btn[data-tooltip]::before,
 #side-menu:not(.expanded) #side-menu-toggle[data-tooltip]::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    right: calc(100% + 8px);
-    top: 50%;
-    transform: translateY(-50%);
-    background: #000;
-    color: var(--color-text-muted);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 0 10px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 1002;
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 10px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1002;
 }
 
 #side-menu:not(.expanded) .sm-btn[data-tooltip]:hover::before,
 #side-menu:not(.expanded) .sm-nav-btn[data-tooltip]:hover::before,
 #side-menu:not(.expanded) #side-menu-toggle[data-tooltip]:hover::before {
-    opacity: 1;
+  opacity: 1;
 }
 
 #side-menu.expanded #sm-group-nav .sm-nav-btn[data-tooltip],
 #side-menu.expanded #side-menu-toggle[data-tooltip] {
-    position: relative;
+  position: relative;
 }
 
 #side-menu.expanded #sm-group-nav .sm-nav-btn[data-tooltip]::before,
 #side-menu.expanded #side-menu-toggle[data-tooltip]::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #000;
-    color: var(--color-text-muted);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 0 10px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 1002;
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 10px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1002;
 }
 
 #side-menu.expanded #sm-group-nav .sm-nav-btn:nth-child(1)[data-tooltip]::before {
-    right: calc(100% + 8px);
+  right: calc(100% + 8px);
 }
 
 #side-menu.expanded #sm-group-nav .sm-nav-btn:nth-child(2)[data-tooltip]::before {
-    right: calc(100% + 8px + 50.67px);
+  right: calc(100% + 8px + 50.67px);
 }
 
 #side-menu.expanded #sm-group-nav .sm-nav-btn:nth-child(3)[data-tooltip]::before {
-    right: calc(100% + 8px + 101.33px);
+  right: calc(100% + 8px + 101.33px);
 }
 
 #side-menu.expanded #side-menu-toggle[data-tooltip]::before {
-    right: calc(100% + 8px);
+  right: calc(100% + 8px);
 }
 
 #side-menu.expanded #sm-group-nav .sm-nav-btn[data-tooltip]:hover::before,
 #side-menu.expanded #side-menu-toggle[data-tooltip]:hover::before {
-    opacity: 1;
+  opacity: 1;
 }
 
 .sm-group:has(#sm-filter-btn) {
-    position: relative;
+  position: relative;
 }
 
 #filter-mode-flyout {
-    position: absolute;
-    right: calc(100% + 8px);
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    background: transparent;
-    pointer-events: none;
-    width: 0;
-    overflow: hidden;
-    transition: width 0.2s ease;
-    z-index: 1002;
-    white-space: nowrap;
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: transparent;
+  pointer-events: none;
+  width: 0;
+  overflow: hidden;
+  transition: width 0.2s ease;
+  z-index: 1002;
+  white-space: nowrap;
 }
 
 #filter-mode-flyout.filter-flyout-visible {
-    width: 80px;
-    pointer-events: auto;
+  width: 80px;
+  pointer-events: auto;
 }
 
 #sm-filter-btn.filter-flyout-open::before {
-    opacity: 0 !important;
+  opacity: 0 !important;
 }
 
 .filter-flyout-btn {
-    background: #000;
-    border: none;
-    cursor: pointer;
-    color: rgba(255, 255, 255, 0.35);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    padding: 0 14px;
-    height: 36px;
-    width: 80px;
-    display: flex;
-    align-items: center;
-    text-transform: uppercase;
-    transition: color 0.15s, background 0.15s;
+  background: #000;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 0 14px;
+  height: 36px;
+  width: 80px;
+  display: flex;
+  align-items: center;
+  text-transform: uppercase;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .filter-flyout-btn:hover {
-    color: #fff;
+  color: #fff;
 }
 
 .filter-flyout-btn.active {
-    color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 #map-3d-controls {
-    position: fixed;
-    bottom: calc(44px + 14px);
-    right: 14px;
-    z-index: 1002;
-    display: grid;
-    grid-template-columns: repeat(3, 36px);
-    grid-template-rows: repeat(3, 36px);
-    gap: 4px;
+  position: fixed;
+  bottom: calc(44px + 14px);
+  right: 14px;
+  z-index: 1002;
+  display: grid;
+  grid-template-columns: repeat(3, 36px);
+  grid-template-rows: repeat(3, 36px);
+  gap: 4px;
 }
 
 #map-3d-controls.map-3d-controls--hidden {
-    display: none;
+  display: none;
 }
 
 .map-3d-btn {
-    width: 36px;
-    height: 36px;
-    background: #000;
-    border: none;
-    color: rgba(255, 255, 255, 0.6);
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, color 0.15s;
-    position: relative;
+  width: 36px;
+  height: 36px;
+  background: #000;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  position: relative;
 }
 
 .map-3d-btn:hover {
-    background: #111;
-    color: var(--color-accent);
+  background: #111;
+  color: var(--color-accent);
 }
 
 .map-3d-btn:active {
-    background: #1a1a1a;
-    color: var(--color-accent);
+  background: #1a1a1a;
+  color: var(--color-accent);
 }
 
 .map-3d-btn[data-tooltip]::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #000;
-    color: var(--color-text-muted);
-    font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 0 10px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 10001;
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 10px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10001;
 }
 
 .map-3d-btn[data-tooltip]:hover::before {
-    opacity: 1;
+  opacity: 1;
 }
 
 /* ---- ≤768px: shrink the side menu, suppress hover tooltips ---- */
 @media (max-width: 768px) {
-    #side-menu {
-        top: auto;
-        bottom: calc(var(--footer-height) + 8px);
-        right: 8px;
-        gap: 3px;
-    }
-    /* When user explicitly expands, allow it to grow; otherwise stay compact */
-    #side-menu:not(.expanded) .sm-group {
-        width: 36px;
-    }
-    #side-menu:not(.expanded) #sm-group-toggle {
-        width: 36px;
-    }
-    #side-menu .sm-btn,
-    #side-menu .sm-nav-btn,
-    #side-menu-toggle {
-        height: 32px;
-    }
-    /* Hover-only tooltips are not useful on touch — hide them */
-    #side-menu [data-tooltip]::before {
-        display: none !important;
-    }
-    /* Map-3d button if it leaks outside the menu */
-    .map-3d-btn[data-tooltip]::before { display: none !important; }
+  #side-menu {
+    top: auto;
+    bottom: calc(var(--footer-height) + 8px);
+    right: 8px;
+    gap: 3px;
+  }
+  /* When user explicitly expands, allow it to grow; otherwise stay compact */
+  #side-menu:not(.expanded) .sm-group {
+    width: 36px;
+  }
+  #side-menu:not(.expanded) #sm-group-toggle {
+    width: 36px;
+  }
+  #side-menu .sm-btn,
+  #side-menu .sm-nav-btn,
+  #side-menu-toggle {
+    height: 32px;
+  }
+  /* Hover-only tooltips are not useful on touch — hide them */
+  #side-menu [data-tooltip]::before {
+    display: none !important;
+  }
+  /* Map-3d button if it leaks outside the menu */
+  .map-3d-btn[data-tooltip]::before {
+    display: none !important;
+  }
 }
 
 /* ---- ≤480px: hide labels/menu in expanded mode would overflow; keep compact ---- */
 @media (max-width: 480px) {
-    #side-menu.expanded .sm-group {
-        width: 120px;
-    }
-    #side-menu .sm-btn {
-        font-size: 11px;
-    }
+  #side-menu.expanded .sm-group {
+    width: 120px;
+  }
+  #side-menu .sm-btn {
+    font-size: 11px;
+  }
 }
 </style>

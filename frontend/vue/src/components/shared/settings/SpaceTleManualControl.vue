@@ -7,15 +7,23 @@
         accept=".tle,.txt"
         class="tle-file-input"
         @change="onFileChange"
-      >
+      />
       <label for="tle-file-input" class="tle-file-label">CHOOSE FILE</label>
       <span class="tle-file-name">{{ fileName }}</span>
     </div>
     <div class="tle-cat-row-ctrl">
       <span class="settings-datasource-label tle-inline-label">CATEGORY</span>
-      <div class="tle-dropdown" :class="{ 'tle-dropdown--open': dropOpen }" tabindex="0" @blur="dropOpen = false">
+      <div
+        class="tle-dropdown"
+        :class="{ 'tle-dropdown--open': dropOpen }"
+        tabindex="0"
+        @blur="dropOpen = false"
+      >
         <div class="tle-dropdown-selected" @mousedown.prevent="dropOpen = !dropOpen">
-          <span class="tle-dropdown-selected-text" :class="{ 'tle-dropdown-selected-text--chosen': selectedCategory }">
+          <span
+            class="tle-dropdown-selected-text"
+            :class="{ 'tle-dropdown-selected-text--chosen': selectedCategory }"
+          >
             {{ selectedCategoryLabel }}
           </span>
           <span class="tle-dropdown-arrow"></span>
@@ -26,17 +34,23 @@
             :key="opt.value"
             class="tle-dropdown-item"
             @mousedown.prevent="selectCategory(opt.value)"
-          >{{ opt.label }}</div>
+          >
+            {{ opt.label }}
+          </div>
         </div>
       </div>
       <button
         class="tle-action-btn tle-action-btn--primary"
         :disabled="applyLoading || !fileText"
         @click="apply"
-      >{{ applyLoading ? 'UPDATING…' : 'UPDATE TLE' }}</button>
+      >
+        {{ applyLoading ? 'UPDATING…' : 'UPDATE TLE' }}
+      </button>
     </div>
     <div class="tle-status-line">
-      <span v-if="statusMsg" class="tle-status-badge" :class="'tle-status-badge--' + statusType">{{ statusMsg }}</span>
+      <span v-if="statusMsg" class="tle-status-badge" :class="'tle-status-badge--' + statusType">{{
+        statusMsg
+      }}</span>
     </div>
   </div>
 </template>
@@ -45,15 +59,15 @@
 import { ref, computed } from 'vue'
 
 const TLE_CATEGORIES = [
-  { value: 'active',        label: 'All Active (no category)' },
+  { value: 'active', label: 'All Active (no category)' },
   { value: 'space_station', label: 'Space Stations' },
-  { value: 'amateur',       label: 'Amateur Radio' },
-  { value: 'weather',       label: 'Weather' },
-  { value: 'military',      label: 'Military' },
-  { value: 'navigation',    label: 'Navigation (GNSS)' },
-  { value: 'science',       label: 'Science' },
-  { value: 'cubesat',       label: 'CubeSats' },
-  { value: 'unknown',       label: 'Unknown' },
+  { value: 'amateur', label: 'Amateur Radio' },
+  { value: 'weather', label: 'Weather' },
+  { value: 'military', label: 'Military' },
+  { value: 'navigation', label: 'Navigation (GNSS)' },
+  { value: 'science', label: 'Science' },
+  { value: 'cubesat', label: 'CubeSats' },
+  { value: 'unknown', label: 'Unknown' },
 ]
 
 const selectedCategory = ref('active')
@@ -64,8 +78,9 @@ const applyLoading = ref(false)
 const statusMsg = ref('')
 const statusType = ref<'ok' | 'error' | 'info'>('ok')
 
-const selectedCategoryLabel = computed(() =>
-  TLE_CATEGORIES.find(c => c.value === selectedCategory.value)?.label ?? selectedCategory.value
+const selectedCategoryLabel = computed(
+  () =>
+    TLE_CATEGORIES.find((c) => c.value === selectedCategory.value)?.label ?? selectedCategory.value,
 )
 
 function selectCategory(val: string): void {
@@ -78,12 +93,18 @@ function onFileChange(e: Event): void {
   if (!file) return
   fileName.value = file.name
   const reader = new FileReader()
-  reader.onload = (ev) => { fileText.value = (ev.target?.result as string) ?? '' }
+  reader.onload = (ev) => {
+    fileText.value = (ev.target?.result as string) ?? ''
+  }
   reader.readAsText(file)
 }
 
 async function apply(): Promise<void> {
-  if (!fileText.value) { statusMsg.value = 'Choose a file first'; statusType.value = 'error'; return }
+  if (!fileText.value) {
+    statusMsg.value = 'Choose a file first'
+    statusType.value = 'error'
+    return
+  }
   applyLoading.value = true
   statusMsg.value = ''
   try {
@@ -92,7 +113,12 @@ async function apply(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: fileText.value, category: selectedCategory.value || null }),
     })
-    const data = await resp.json() as { inserted?: number; updated?: number; total?: number; error?: string }
+    const data = (await resp.json()) as {
+      inserted?: number
+      updated?: number
+      total?: number
+      error?: string
+    }
     if (!resp.ok) throw new Error(data.error || resp.statusText)
     statusMsg.value = `${data.total ?? 0} satellites processed · ${data.inserted ?? 0} new · ${data.updated ?? 0} updated`
     statusType.value = 'ok'

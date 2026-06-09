@@ -15,6 +15,7 @@ TLE (re)import, the map is applied back onto the catalogue rows
 This mirrors the SDR pattern (table mirrored into UserSettings, restored on
 re-import) — see backend/database.py:sync_sdr_groups_to_config.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -26,9 +27,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Single source of truth for the editable radio fields. Mirrors the columns on
 # SatelliteCatalogue (models.py) and the entries in the radio JSON file.
 RADIO_FIELDS: tuple[str, ...] = (
-    "uplink_hz", "uplink_mode", "downlink_hz", "downlink_mode",
-    "ctcss_hz", "transponder_type", "beacon_hz", "packet_info",
-    "radio_status", "radio_notes",
+    "uplink_hz",
+    "uplink_mode",
+    "downlink_hz",
+    "downlink_mode",
+    "ctcss_hz",
+    "transponder_type",
+    "beacon_hz",
+    "packet_info",
+    "radio_status",
+    "radio_notes",
 )
 
 _NAMESPACE = "space"

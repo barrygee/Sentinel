@@ -9,55 +9,55 @@ import SdrPanel from './SdrPanel.vue'
 
 <style>
 .sdr-tab-status-right {
-    display: flex;
-    align-items: center;
-    margin-left: auto;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 #sdr-tab-recordings-scroll-hint {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 6px 0 4px;
-    font-family: var(--font-primary, 'Barlow', sans-serif);
-    font-size: 8px;
-    letter-spacing: 0.14em;
-    color: rgba(255,255,255,0.2);
-    cursor: default;
-    user-select: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 0 4px;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: default;
+  user-select: none;
 }
 
 #sdr-tab-recordings-list-wrap {
-    max-height: 260px;
-    overflow-y: auto;
-    scrollbar-width: none;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 #sdr-tab-recordings-list-wrap::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 #msb-pane-radio .sdr-mini-section {
-    padding: 10px 20px;
+  padding: 10px 20px;
 }
 
 #msb-pane-radio .sdr-group-toggle {
-    padding-left: 20px;
-    padding-right: 20px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 #msb-pane-radio #sdr-tab-recordings-list,
 #msb-pane-radio #sdr-tab-recordings-empty {
-    padding-left: 0;
-    padding-right: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* The recording row's inner .sdr-recording-content / .sdr-recording-live own the horizontal
    inset now (matching the search wrap's 24px left / 20px right); the row itself
    spans full width so titles line up with the NAME header. */
 #msb-pane-radio .sdr-recording-row {
-    padding-left: 0;
-    padding-right: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 </style>

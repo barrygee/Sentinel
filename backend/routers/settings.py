@@ -10,6 +10,7 @@ Endpoints:
 """
 
 import json
+from functools import lru_cache
 from typing import Any
 
 from backend.cache import now_ms
@@ -24,8 +25,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # ── Request body schemas ───────────────────────────────────────────────────────
 
+
 class SettingValueIn(BaseModel):
     """Body for PUT /api/settings/{namespace}/{key}."""
+
     value: Any  # accepts bool, str, dict, list — stored as JSON string
 
 
@@ -33,6 +36,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _validated_location(value: Any) -> dict:
     """Normalise/validate an app.location value.
@@ -65,9 +69,7 @@ def _validated_location(value: Any) -> dict:
         lat = float(lat_raw)
         lon = float(lon_raw)
     except (TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=400, detail="latitude/longitude must be numbers"
-        ) from exc
+        raise HTTPException(status_code=400, detail="latitude/longitude must be numbers") from exc
 
     if not (-90 <= lat <= 90):
         raise HTTPException(status_code=400, detail="latitude out of range [-90, 90]")
@@ -75,8 +77,6 @@ def _validated_location(value: Any) -> dict:
         raise HTTPException(status_code=400, detail="longitude out of range [-180, 180]")
 
     return {"latitude": lat, "longitude": lon}
-
-from functools import lru_cache
 
 
 @lru_cache(maxsize=1)
@@ -95,11 +95,7 @@ def _canonical_key_order() -> dict[str, list[str]]:
         raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
     except Exception:
         return {}
-    return {
-        ns: list(entries.keys())
-        for ns, entries in raw.items()
-        if isinstance(entries, dict)
-    }
+    return {ns: list(entries.keys()) for ns, entries in raw.items() if isinstance(entries, dict)}
 
 
 def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
@@ -119,17 +115,13 @@ def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
     rank = {k: i for i, k in enumerate(order)}
     # Stable sort: known keys by template position, unknown keys after, each
     # group preserving the row order they came in with.
-    return dict(
-        sorted(parsed.items(), key=lambda kv: rank.get(kv[0], len(order)))
-    )
+    return dict(sorted(parsed.items(), key=lambda kv: rank.get(kv[0], len(order))))
 
 
 _VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
 
 
-async def _reconcile_sdr_frequencies(
-    db: AsyncSession, payload: list, catalogue: list | None = None
-) -> None:
+async def _reconcile_sdr_frequencies(db: AsyncSession, payload: list, catalogue: list | None = None) -> None:
     """Rebuild SDR groups + stored frequencies to match the flat config
     payload (a list of {label, frequency_hz, mode, notes, groups:[slug, ...]}).
 
@@ -210,8 +202,11 @@ async def _reconcile_sdr_frequencies(
         group = by_slug.get(slug)
         if group is None:
             group = SdrFrequencyGroup(
-                name=name_by_slug.get(slug, slug), slug=slug, color="#c8ff00",
-                sort_order=next_sort, created_at=ts,
+                name=name_by_slug.get(slug, slug),
+                slug=slug,
+                color="#c8ff00",
+                sort_order=next_sort,
+                created_at=ts,
             )
             next_sort += 1
             db.add(group)
@@ -271,6 +266,7 @@ async def _reconcile_sdr_frequencies(
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
+
 
 @router.get("")
 async def get_all_settings(db: AsyncSession = Depends(get_db)):
@@ -379,12 +375,14 @@ async def config_upload(
                 row.value = value_str
                 row.updated_at = ts
             else:
-                db.add(UserSettings(
-                    namespace=namespace,
-                    key=key,
-                    value=value_str,
-                    updated_at=ts,
-                ))
+                db.add(
+                    UserSettings(
+                        namespace=namespace,
+                        key=key,
+                        value=value_str,
+                        updated_at=ts,
+                    )
+                )
 
     await db.commit()
 
@@ -393,12 +391,11 @@ async def config_upload(
 
 # ── Namespace / key endpoints (registered after /config/* to avoid shadowing) ─
 
+
 @router.get("/{namespace}")
 async def get_namespace_settings(namespace: str, db: AsyncSession = Depends(get_db)):
     """Return settings for a single namespace as { key: value }."""
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.namespace == namespace)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.namespace == namespace))
     rows = result.scalars().all()
     return JSONResponse(_rows_to_namespace_dict(rows, namespace))
 

@@ -11,14 +11,16 @@
       @keydown.tab="onTab"
     ></textarea>
     <div class="settings-config-action-row">
-      <button class="settings-config-btn" @click="toggleVisible">{{ visible ? 'HIDE' : 'EDIT' }}</button>
+      <button class="settings-config-btn" @click="toggleVisible">
+        {{ visible ? 'HIDE' : 'EDIT' }}
+      </button>
       <button class="settings-config-btn" @click="exportConfig">EXPORT</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { isValidLatLon } from '@/utils/locationUtils'
 
@@ -40,7 +42,9 @@ const visible = ref(false)
 // auto-refresh — that would silently discard their unsaved changes.
 const dirty = ref(false)
 
-try { visible.value = sessionStorage.getItem(SS_KEY) === '1' } catch {}
+try {
+  visible.value = sessionStorage.getItem(SS_KEY) === '1'
+} catch {}
 
 // Single source of truth for fetching the live config. Re-invoked on panel
 // open and before export so the preview/export always reflect current state
@@ -61,13 +65,18 @@ onMounted(loadPreview)
 
 // Settings panel stays mounted (CSS toggle); refetch each time it reopens so
 // a config changed elsewhere (SDR panel) is reflected without a remount.
-watch(() => store.open, (isOpen) => {
-  if (isOpen) loadPreview()
-})
+watch(
+  () => store.open,
+  (isOpen) => {
+    if (isOpen) loadPreview()
+  },
+)
 
 function toggleVisible(): void {
   visible.value = !visible.value
-  try { sessionStorage.setItem(SS_KEY, visible.value ? '1' : '0') } catch {}
+  try {
+    sessionStorage.setItem(SS_KEY, visible.value ? '1' : '0')
+  } catch {}
 }
 
 // Trap Tab so it indents the JSON instead of moving focus out of the editor.
@@ -84,9 +93,10 @@ function onTab(e: KeyboardEvent): void {
     // Outdent every line touched by the selection.
     const block = value.slice(lineStart, end)
     const outdented = block.replace(/^( {1,2}|\t)/gm, '')
-    const removedFirst = block.length - block.split('\n')[0].length === 0
-      ? block.split('\n')[0].length - outdented.split('\n')[0].length
-      : 0
+    const removedFirst =
+      block.length - block.split('\n')[0].length === 0
+        ? block.split('\n')[0].length - outdented.split('\n')[0].length
+        : 0
     ta.value = value.slice(0, lineStart) + outdented + value.slice(end)
     ta.selectionStart = Math.max(lineStart, start - removedFirst)
     ta.selectionEnd = lineStart + outdented.length
@@ -117,22 +127,23 @@ function onEdit(): void {
     const lat = parseFloat(String(cfgLoc?.latitude))
     const lon = parseFloat(String(cfgLoc?.longitude))
     if (!cfgLoc || !isValidLatLon(lat, lon)) {
-      try { localStorage.removeItem(LOCATION_LS_KEY) } catch {}
+      try {
+        localStorage.removeItem(LOCATION_LS_KEY)
+      } catch {}
     }
     const blob = new Blob([configText.value], { type: 'application/json' })
     const file = new File([blob], 'sentinel_config.json', { type: 'application/json' })
     const fd = new FormData()
     fd.append('file', file)
-    return fetch('/api/settings/config/upload', { method: 'POST', body: fd })
-      .then((res) => {
-        // The upload replaced DB settings, but running stores still hold their
-        // own cached copies (e.g. the sdr store's autoCenterWaterfallOnTune
-        // localStorage fast-path). Broadcast so they re-hydrate from the DB —
-        // otherwise editing a setting via this JSON editor has no effect on the
-        // live UI until reload. Listeners refetch their namespace.
-        if (res.ok) document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
-        return res
-      })
+    return fetch('/api/settings/config/upload', { method: 'POST', body: fd }).then((res) => {
+      // The upload replaced DB settings, but running stores still hold their
+      // own cached copies (e.g. the sdr store's autoCenterWaterfallOnTune
+      // localStorage fast-path). Broadcast so they re-hydrate from the DB —
+      // otherwise editing a setting via this JSON editor has no effect on the
+      // live UI until reload. Listeners refetch their namespace.
+      if (res.ok) document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      return res
+    })
   })
 }
 
@@ -144,7 +155,16 @@ async function exportConfig(): Promise<void> {
   const content = configText.value
   if ('showSaveFilePicker' in window) {
     try {
-      const handle = await (window as any).showSaveFilePicker({
+      // The File System Access API isn't in the TS DOM lib; cast to its shape.
+      const picker = (
+        window as unknown as {
+          showSaveFilePicker: (options: {
+            suggestedName?: string
+            types?: { description: string; accept: Record<string, string[]> }[]
+          }) => Promise<FileSystemFileHandle>
+        }
+      ).showSaveFilePicker
+      const handle = await picker({
         suggestedName: 'sentinel_config.json',
         types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
       })
@@ -152,8 +172,8 @@ async function exportConfig(): Promise<void> {
       await writable.write(content)
       await writable.close()
       return
-    } catch (err: any) {
-      if (err.name === 'AbortError') return
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
     }
   }
   const blob = new Blob([content], { type: 'application/json' })

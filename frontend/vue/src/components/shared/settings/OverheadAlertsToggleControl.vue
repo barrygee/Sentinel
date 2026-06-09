@@ -9,7 +9,9 @@
         :aria-checked="civil"
         aria-label="Toggle civil overhead aircraft alerts"
         @click="toggle('civil')"
-      ><span class="oa-thumb"></span></button>
+      >
+        <span class="oa-thumb"></span>
+      </button>
     </div>
     <div class="oa-row">
       <span class="oa-label">MILITARY</span>
@@ -20,7 +22,9 @@
         :aria-checked="mil"
         aria-label="Toggle military overhead aircraft alerts"
         @click="toggle('mil')"
-      ><span class="oa-thumb"></span></button>
+      >
+        <span class="oa-thumb"></span>
+      </button>
     </div>
   </div>
 </template>
@@ -34,7 +38,7 @@ const airStore = useAirStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 const civil = ref<boolean>(airStore.overlayStates.overheadAlertsCivil)
-const mil   = ref<boolean>(airStore.overlayStates.overheadAlertsMil)
+const mil = ref<boolean>(airStore.overlayStates.overheadAlertsMil)
 
 interface OverheadAlertsConfig {
   civil?: boolean
@@ -44,7 +48,7 @@ interface OverheadAlertsConfig {
 
 function readOverhead(data: Record<string, unknown> | null): OverheadAlertsConfig {
   const v = data?.overheadAlerts
-  return (v && typeof v === 'object' && !Array.isArray(v)) ? v as OverheadAlertsConfig : {}
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as OverheadAlertsConfig) : {}
 }
 
 onMounted(async () => {
@@ -59,7 +63,12 @@ onMounted(async () => {
     airStore.setOverlay('overheadAlertsMil', oa.mil)
   }
   // Remove legacy flat keys (pre-nesting) so the JSON config has no duplicates.
-  if (data && ('overheadAlertsCivil' in data || 'overheadAlertsMil' in data || 'overheadAlertRadiusNm' in data)) {
+  if (
+    data &&
+    ('overheadAlertsCivil' in data ||
+      'overheadAlertsMil' in data ||
+      'overheadAlertRadiusNm' in data)
+  ) {
     if ('overheadAlertsCivil' in data) settingsApi.del('air', 'overheadAlertsCivil')
     if ('overheadAlertsMil' in data) settingsApi.del('air', 'overheadAlertsMil')
     if ('overheadAlertRadiusNm' in data) settingsApi.del('air', 'overheadAlertRadiusNm')
@@ -116,7 +125,9 @@ function toggle(kind: 'civil' | 'mil'): void {
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 .oa-track--civil.is-on {
   background: rgba(0, 170, 255, 0.2);
@@ -134,8 +145,16 @@ function toggle(kind: 'civil' | 'mil'): void {
   height: 12px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.55);
-  transition: left 0.15s, background 0.15s;
+  transition:
+    left 0.15s,
+    background 0.15s;
 }
-.oa-track--civil.is-on .oa-thumb { background: #00aaff; left: 20px; }
-.oa-track--mil.is-on   .oa-thumb { background: #c8ff00; left: 20px; }
+.oa-track--civil.is-on .oa-thumb {
+  background: #00aaff;
+  left: 20px;
+}
+.oa-track--mil.is-on .oa-thumb {
+  background: #c8ff00;
+  left: 20px;
+}
 </style>

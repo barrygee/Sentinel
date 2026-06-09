@@ -12,7 +12,7 @@ export interface TrackingItem {
   name: string
   domain: 'air' | 'space' | 'sea' | 'land'
   fields: TrackingField[]
-  onUntrack?: () => void  // not persisted
+  onUntrack?: () => void // not persisted
 }
 
 const LS_KEY = 'trackingItems'
@@ -23,14 +23,20 @@ function _loadStored(): StoredItem[] {
   try {
     const raw = localStorage.getItem(LS_KEY)
     return raw ? (JSON.parse(raw) as StoredItem[]) : []
-  } catch { return [] }
+  } catch {
+    return []
+  }
 }
 
 function _persist(live: Map<string, TrackingItem>): void {
-  const existing = _loadStored().filter(i => !live.has(i.id))
+  const existing = _loadStored().filter((i) => !live.has(i.id))
   const liveArr: StoredItem[] = []
-  live.forEach(item => liveArr.push({ id: item.id, name: item.name, domain: item.domain, fields: item.fields }))
-  try { localStorage.setItem(LS_KEY, JSON.stringify([...existing, ...liveArr])) } catch {}
+  live.forEach((item) =>
+    liveArr.push({ id: item.id, name: item.name, domain: item.domain, fields: item.fields }),
+  )
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify([...existing, ...liveArr]))
+  } catch {}
 }
 
 export const useTrackingStore = defineStore('tracking', () => {
@@ -45,9 +51,11 @@ export const useTrackingStore = defineStore('tracking', () => {
     void _storedVersion.value
     const stored = _loadStored()
     const liveIds = new Set(_live.value.keys())
-    const readOnly = stored.filter(i => !liveIds.has(i.id))
+    const readOnly = stored.filter((i) => !liveIds.has(i.id))
     const liveArr: StoredItem[] = []
-    _live.value.forEach(item => liveArr.push({ id: item.id, name: item.name, domain: item.domain, fields: item.fields }))
+    _live.value.forEach((item) =>
+      liveArr.push({ id: item.id, name: item.name, domain: item.domain, fields: item.fields }),
+    )
     return [...liveArr, ...readOnly]
   })
 
@@ -70,8 +78,10 @@ export const useTrackingStore = defineStore('tracking', () => {
   function unregister(id: string): void {
     const wasLive = _live.value.has(id)
     _live.value.delete(id)
-    const stored = _loadStored().filter(i => i.id !== id)
-    try { localStorage.setItem(LS_KEY, JSON.stringify(stored)) } catch {}
+    const stored = _loadStored().filter((i) => i.id !== id)
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(stored))
+    } catch {}
     // If the item was only in localStorage (not live), _live.value.delete is a no-op
     // and Vue won't trigger reactivity, so bump _storedVersion to force allItems to re-evaluate.
     if (!wasLive) _storedVersion.value++
@@ -103,5 +113,17 @@ export const useTrackingStore = defineStore('tracking', () => {
     panelOpen.value = !panelOpen.value
   }
 
-  return { panelOpen, allItems, count, isLive, getLiveItem, register, unregister, updateFields, untrackItem, deactivate, togglePanel }
+  return {
+    panelOpen,
+    allItems,
+    count,
+    isLive,
+    getLiveItem,
+    register,
+    unregister,
+    updateFields,
+    untrackItem,
+    deactivate,
+    togglePanel,
+  }
 })

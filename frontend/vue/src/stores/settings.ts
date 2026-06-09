@@ -50,5 +50,16 @@ export const useSettingsStore = defineStore('settings', () => {
     } catch {}
   }
 
-  return { open, activeSection, allSettings, openPanel, closePanel, togglePanel, setSetting, getSetting, loadAll, put }
+  return {
+    open,
+    activeSection,
+    allSettings,
+    openPanel,
+    closePanel,
+    togglePanel,
+    setSetting,
+    getSetting,
+    loadAll,
+    put,
+  }
 })

@@ -1,9 +1,9 @@
 import maplibregl from 'maplibre-gl'
 
 function _buildElement(cssClass: string): HTMLElement {
-    const wrapper = document.createElement('div')
-    wrapper.className = cssClass
-    wrapper.innerHTML = `
+  const wrapper = document.createElement('div')
+  wrapper.className = cssClass
+  wrapper.innerHTML = `
         <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" overflow="visible">
             <circle cx="30" cy="30" r="14"
                 fill="none" stroke="#c8ff00" stroke-width="2"
@@ -13,47 +13,47 @@ function _buildElement(cssClass: string): HTMLElement {
                 fill="white"
                 style="animation: marker-dot-pulse 2s ease-in-out 0.6s infinite" />
         </svg>`
-    return wrapper
+  return wrapper
 }
 
 export class UserLocationMarker {
-    private _marker: maplibregl.Marker | null = null
-    private _map: maplibregl.Map | null = null
-    private _cssClass: string
+  private _marker: maplibregl.Marker | null = null
+  private _map: maplibregl.Map | null = null
+  private _cssClass: string
 
-    constructor(cssClass = 'user-location-marker') {
-        this._cssClass = cssClass
-    }
+  constructor(cssClass = 'user-location-marker') {
+    this._cssClass = cssClass
+  }
 
-    addTo(map: maplibregl.Map): void {
-        this._map = map
-    }
+  addTo(map: maplibregl.Map): void {
+    this._map = map
+  }
 
-    update(lon: number, lat: number): void {
-        if (!this._map) return
-        if (!this._marker) {
-            const el = _buildElement(this._cssClass)
-            this._marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-                .setLngLat([lon, lat])
-                .addTo(this._map)
-        } else {
-            this._marker.setLngLat([lon, lat])
-        }
+  update(lon: number, lat: number): void {
+    if (!this._map) return
+    if (!this._marker) {
+      const el = _buildElement(this._cssClass)
+      this._marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lon, lat])
+        .addTo(this._map)
+    } else {
+      this._marker.setLngLat([lon, lat])
     }
+  }
 
-    /**
-     * Remove the rendered marker but keep the map reference, so a later
-     * update() (e.g. a GPS fix after the config location was cleared) can
-     * re-create it. Use destroy() for teardown that also drops the map.
-     */
-    remove(): void {
-        this._marker?.remove()
-        this._marker = null
-    }
+  /**
+   * Remove the rendered marker but keep the map reference, so a later
+   * update() (e.g. a GPS fix after the config location was cleared) can
+   * re-create it. Use destroy() for teardown that also drops the map.
+   */
+  remove(): void {
+    this._marker?.remove()
+    this._marker = null
+  }
 
-    /** Full teardown — removes the marker and releases the map reference. */
-    destroy(): void {
-        this.remove()
-        this._map = null
-    }
+  /** Full teardown — removes the marker and releases the map reference. */
+  destroy(): void {
+    this.remove()
+    this._map = null
+  }
 }

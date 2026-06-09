@@ -210,6 +210,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 ### Chores
 
 - Stop tracking SQLite WAL/SHM files
+- Add ESLint + Prettier to frontend and root contexts
 
 ### Other
 
@@ -903,6 +904,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #50 from barrygee/update/recordings-layout
 - Refactor API endpoints and tests for air, SDR, and settings routers
 - Merge pull request #51 from barrygee/add/claude-config
+- Merge pull request #52 from barrygee/chore/add-changelog
 
 ### Refactoring
 
@@ -916,6 +918,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Simplify openAccordion function in SpaceFilter and SpacePasses components
 - Update SdrClipsSection to enhance note display and editing experience
 - Streamline README structure and enhance domain descriptions
+
+### Build System
+
+- Rebuild SPA bundle for reformatted source
 
 ### Styling
 
@@ -934,3 +940,5 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update SdrPanel and SdrWaterfall styles; improve user location timeout
 - Update SdrPanel layout and button styles for better alignment
 - Align text to the left in empty state components and adjust padding for no passes
+- Adopt ruff format and reformat Python sources
+- Apply Prettier and resolve ESLint findings

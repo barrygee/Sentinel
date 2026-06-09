@@ -4,10 +4,10 @@ import { isPassNotifEnabled, setPassNotifEnabled } from './passNotifStore'
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
 
 export interface SatellitePassNotifierContext {
-    notificationsStore: NotificationsStore
-    getUserLocation: () => [number, number] | null
-    getActiveNoradId: () => string
-    getActiveSatName: () => string
+  notificationsStore: NotificationsStore
+  getUserLocation: () => [number, number] | null
+  getActiveNoradId: () => string
+  getActiveSatName: () => string
 }
 
 // Owns the on-map bell button + enabled flag for the ACTIVE satellite's pass
@@ -17,90 +17,118 @@ export interface SatellitePassNotifierContext {
 // therefore only persists the enabled flag and dispatches the
 // `satellite-pass-notif-changed` event the service listens to.
 export class SatellitePassNotifier {
-    private _ctx: SatellitePassNotifierContext
+  private _ctx: SatellitePassNotifierContext
 
-    constructor(ctx: SatellitePassNotifierContext) {
-        this._ctx = ctx
-    }
+  constructor(ctx: SatellitePassNotifierContext) {
+    this._ctx = ctx
+  }
 
-    get enabled(): boolean {
-        return isPassNotifEnabled(this._ctx.getActiveNoradId())
-    }
+  get enabled(): boolean {
+    return isPassNotifEnabled(this._ctx.getActiveNoradId())
+  }
 
-    // Retained for call-site compatibility; scheduling now lives in the service.
-    onActivated(): void {}
-    stop(): void {}
+  // Retained for call-site compatibility; scheduling now lives in the service.
+  onActivated(): void {}
+  stop(): void {}
 
-    // Wire the bell-button found inside a hover-tag element.
-    wireButton(el: HTMLElement): void {
-        const btn = el.querySelector('.iss-notif-btn')
-        if (!btn) return
-        btn.addEventListener('mousedown', (e) => e.stopPropagation())
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation()
-            this.toggle()
-            const svg = btn.querySelector('svg')
-            if (svg) {
-                ;(btn as HTMLElement).classList.toggle('iss-notif-btn--active', this.enabled)
-                const existingSlash = svg.querySelector('line')
-                if (this.enabled && existingSlash) existingSlash.remove()
-                else if (!this.enabled && !existingSlash) {
-                    const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-                    slash.setAttribute('x1', '1.5'); slash.setAttribute('y1', '1.5')
-                    slash.setAttribute('x2', '11.5'); slash.setAttribute('y2', '11.5')
-                    slash.setAttribute('stroke', 'currentColor'); slash.setAttribute('stroke-width', '1.5')
-                    slash.setAttribute('stroke-linecap', 'square')
-                    svg.appendChild(slash)
-                }
-            }
-        })
-    }
+  // Wire the bell-button found inside a hover-tag element.
+  wireButton(el: HTMLElement): void {
+    const btn = el.querySelector('.iss-notif-btn')
+    if (!btn) return
+    btn.addEventListener('mousedown', (e) => e.stopPropagation())
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.toggle()
+      const svg = btn.querySelector('svg')
+      if (svg) {
+        ;(btn as HTMLElement).classList.toggle('iss-notif-btn--active', this.enabled)
+        const existingSlash = svg.querySelector('line')
+        if (this.enabled && existingSlash) existingSlash.remove()
+        else if (!this.enabled && !existingSlash) {
+          const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+          slash.setAttribute('x1', '1.5')
+          slash.setAttribute('y1', '1.5')
+          slash.setAttribute('x2', '11.5')
+          slash.setAttribute('y2', '11.5')
+          slash.setAttribute('stroke', 'currentColor')
+          slash.setAttribute('stroke-width', '1.5')
+          slash.setAttribute('stroke-linecap', 'square')
+          svg.appendChild(slash)
+        }
+      }
+    })
+  }
 
-    toggleEnabled(): void { this.toggle() }
+  toggleEnabled(): void {
+    this.toggle()
+  }
 
-    // Remove the persistent "Pass notifications enabled" alert for a satellite
-    // when its notifications are turned off, so the alerts list stays in sync.
-    private _dismissEnabledAlert(noradId: string): void {
-        const { notificationsStore } = this._ctx
-        const stale = notificationsStore.items
-            .filter(i => i.type === 'tracking' && i.noradId === noradId && i.detail === 'Pass notifications enabled')
-            .map(i => i.id)
-        stale.forEach(id => notificationsStore.dismiss(id))
-    }
+  // Remove the persistent "Pass notifications enabled" alert for a satellite
+  // when its notifications are turned off, so the alerts list stays in sync.
+  private _dismissEnabledAlert(noradId: string): void {
+    const { notificationsStore } = this._ctx
+    const stale = notificationsStore.items
+      .filter(
+        (i) =>
+          i.type === 'tracking' &&
+          i.noradId === noradId &&
+          i.detail === 'Pass notifications enabled',
+      )
+      .map((i) => i.id)
+    stale.forEach((id) => notificationsStore.dismiss(id))
+  }
 
-    private toggle(): void {
-        const { notificationsStore, getUserLocation, getActiveNoradId, getActiveSatName } = this._ctx
-        const noradId = getActiveNoradId()
-        const name = getActiveSatName()
-        if (this.enabled) {
+  private toggle(): void {
+    const { notificationsStore, getUserLocation, getActiveNoradId, getActiveSatName } = this._ctx
+    const noradId = getActiveNoradId()
+    const name = getActiveSatName()
+    if (this.enabled) {
+      setPassNotifEnabled(noradId, false)
+      this._dismissEnabledAlert(noradId)
+      document.dispatchEvent(
+        new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }),
+      )
+    } else {
+      const loc = getUserLocation()
+      if (!loc) {
+        // Defer enabling until a location is available.
+        const poller = setInterval(() => {
+          if (getUserLocation()) {
+            clearInterval(poller)
+            setPassNotifEnabled(noradId, true, name)
+            document.dispatchEvent(
+              new CustomEvent('satellite-pass-notif-changed', {
+                detail: { noradId, enabled: true },
+              }),
+            )
+          }
+        }, 500)
+        setTimeout(() => clearInterval(poller), 30000)
+        return
+      }
+      setPassNotifEnabled(noradId, true, name)
+      document.dispatchEvent(
+        new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: true } }),
+      )
+      notificationsStore.add({
+        type: 'tracking',
+        title: name,
+        detail: 'Pass notifications enabled',
+        noradId,
+        // Target this specific satellite (not whichever is active later).
+        action: {
+          label: 'DISABLE NOTIFICATIONS',
+          callback: () => {
             setPassNotifEnabled(noradId, false)
             this._dismissEnabledAlert(noradId)
-            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
-        } else {
-            const loc = getUserLocation()
-            if (!loc) {
-                // Defer enabling until a location is available.
-                const poller = setInterval(() => {
-                    if (getUserLocation()) {
-                        clearInterval(poller)
-                        setPassNotifEnabled(noradId, true, name)
-                        document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: true } }))
-                    }
-                }, 500)
-                setTimeout(() => clearInterval(poller), 30000)
-                return
-            }
-            setPassNotifEnabled(noradId, true, name)
-            document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: true } }))
-            notificationsStore.add({
-                type: 'tracking', title: name, detail: 'Pass notifications enabled', noradId,
-                // Target this specific satellite (not whichever is active later).
-                action: { label: 'DISABLE NOTIFICATIONS', callback: () => {
-                    setPassNotifEnabled(noradId, false)
-                    this._dismissEnabledAlert(noradId)
-                    document.dispatchEvent(new CustomEvent('satellite-pass-notif-changed', { detail: { noradId, enabled: false } }))
-                } },
-            })
-        }
+            document.dispatchEvent(
+              new CustomEvent('satellite-pass-notif-changed', {
+                detail: { noradId, enabled: false },
+              }),
+            )
+          },
+        },
+      })
     }
+  }
 }

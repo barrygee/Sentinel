@@ -44,21 +44,39 @@ const airStore = useAirStore()
 const settingsStore = useSettingsStore()
 
 const DEFAULT_LABEL_DATA_POINTS = {
-  civil: { callsign: true, altitude: false, speed: false, heading: false, aircraftType: false, registration: false, squawk: false, category: false },
-  mil:   { callsign: true, altitude: false, speed: false, heading: false, aircraftType: true,  registration: false, squawk: false, category: false },
+  civil: {
+    callsign: true,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: false,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
+  mil: {
+    callsign: true,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: true,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
 }
 
 ;(async () => {
   try {
     const res = await fetch('/api/settings')
     if (res.ok) {
-      const data = await res.json() as Record<string, Record<string, unknown>>
+      const data = (await res.json()) as Record<string, Record<string, unknown>>
       // Seed the settings store from this same payload so reads like
       // sdr.bandPlan (waterfall band strip) and app.connectivityProbeUrl
       // resolve to the persisted values instead of their fallbacks. Nothing
       // else calls loadAll(), so without this the store stays empty.
       settingsStore.allSettings = data
-      const enabled = ALL_DOMAINS.filter(d => {
+      const enabled = ALL_DOMAINS.filter((d) => {
         const val = data[d]?.enabled
         if (typeof val === 'boolean') return val
         // Key absent from DB — fall back to per-domain default.
@@ -70,7 +88,9 @@ const DEFAULT_LABEL_DATA_POINTS = {
       // set from another session doesn't get overridden by a stale localStorage value.
       const backendMode = data.app?.connectivityMode as string | undefined
       if (backendMode && (['auto', 'online', 'offgrid'] as string[]).includes(backendMode)) {
-        try { localStorage.setItem('sentinel_app_connectivityMode', backendMode) } catch {}
+        try {
+          localStorage.setItem('sentinel_app_connectivityMode', backendMode)
+        } catch {}
         appStore.setConnectivityMode(backendMode as ConnectivityMode)
       }
 
@@ -84,11 +104,16 @@ const DEFAULT_LABEL_DATA_POINTS = {
 
       // Hydrate labelDataPoints from API into store before first render.
       const remote = data.air?.labelDataPoints as AdsbTagFields | undefined
-      if (remote && typeof remote === 'object' && !Array.isArray(remote) &&
-          typeof remote.civil === 'object' && typeof remote.mil === 'object') {
+      if (
+        remote &&
+        typeof remote === 'object' &&
+        !Array.isArray(remote) &&
+        typeof remote.civil === 'object' &&
+        typeof remote.mil === 'object'
+      ) {
         airStore.setAdsbTagFields({
           civil: { ...DEFAULT_LABEL_DATA_POINTS.civil, ...(remote.civil as object) },
-          mil:   { ...DEFAULT_LABEL_DATA_POINTS.mil,   ...(remote.mil   as object) },
+          mil: { ...DEFAULT_LABEL_DATA_POINTS.mil, ...(remote.mil as object) },
         })
       } else {
         // Seed labelDataPoints into the DB if not yet stored.

@@ -9,7 +9,9 @@
         :aria-checked="on"
         aria-label="Toggle auto-center the spectrum and waterfall on the tuned frequency"
         @click="toggle"
-      ><span class="ac-thumb"></span></button>
+      >
+        <span class="ac-thumb"></span>
+      </button>
     </div>
   </div>
 </template>
@@ -87,7 +89,9 @@ function toggle(): void {
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 .ac-track.is-on {
   background: rgba(200, 255, 0, 0.2);
@@ -101,7 +105,12 @@ function toggle(): void {
   height: 12px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.55);
-  transition: left 0.15s, background 0.15s;
+  transition:
+    left 0.15s,
+    background 0.15s;
 }
-.ac-track.is-on .ac-thumb { background: #c8ff00; left: 20px; }
+.ac-track.is-on .ac-thumb {
+  background: #c8ff00;
+  left: 20px;
+}
 </style>

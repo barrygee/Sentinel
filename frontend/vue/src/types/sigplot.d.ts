@@ -42,10 +42,7 @@ declare module 'sigplot' {
     constructor(element: HTMLElement, options?: SigPlotOptions)
 
     /** Create a streaming pipe layer; returns the layer uuid string. */
-    overlay_pipe(
-      overrides?: SigPlotOverrides,
-      layerOptions?: SigPlotLayerOptions,
-    ): string
+    overlay_pipe(overrides?: SigPlotOverrides, layerOptions?: SigPlotLayerOptions): string
 
     /** Create a static array layer; returns the layer uuid string. */
     overlay_array(
@@ -76,11 +73,7 @@ declare module 'sigplot' {
 
     /** Zoom to a data-coordinate box. Omit x/y to keep that axis full-range;
      *  continuous=true updates the current zoom level in place. */
-    zoom(
-      ul: { x?: number; y?: number },
-      lr: { x?: number; y?: number },
-      continuous?: boolean,
-    ): void
+    zoom(ul: { x?: number; y?: number }, lr: { x?: number; y?: number }, continuous?: boolean): void
 
     /** Unzoom one or more levels (all if omitted). */
     unzoom(levels?: number): void

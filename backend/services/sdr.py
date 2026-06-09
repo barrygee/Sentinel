@@ -28,14 +28,14 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # Default FFT parameters
-DEFAULT_FFT_SIZE    = 1024   # bins used for spectrum display
-MIN_FFT_SIZE        = 1024   # client-requested floor (one bin / ~1 device px on small displays)
-MAX_FFT_SIZE        = 32768  # ceiling: CPU cost grows with FFT size. 32k keeps
-                             # the waterfall crisp out to ~16x zoom on a 2000-px
-                             # canvas; SDR++ uses 65k+, but 32k is the sweet
-                             # spot between Pi CPU load and visual fidelity.
-                             # Tried 65536 — Pi can't keep up: FFT frames drop
-                             # and audio chops on wide bandwidths.
+DEFAULT_FFT_SIZE = 1024  # bins used for spectrum display
+MIN_FFT_SIZE = 1024  # client-requested floor (one bin / ~1 device px on small displays)
+MAX_FFT_SIZE = 32768  # ceiling: CPU cost grows with FFT size. 32k keeps
+# the waterfall crisp out to ~16x zoom on a 2000-px
+# canvas; SDR++ uses 65k+, but 32k is the sweet
+# spot between Pi CPU load and visual fidelity.
+# Tried 65536 — Pi can't keep up: FFT frames drop
+# and audio chops on wide bandwidths.
 DEFAULT_SAMPLE_RATE = 2_048_000
 # One spectrum frame is produced per IQ read. Sizing the read by a fixed
 # SAMPLE COUNT made the frame rate collapse whenever the sample rate dropped:
@@ -45,8 +45,8 @@ DEFAULT_SAMPLE_RATE = 2_048_000
 # the read by TIME so the frame rate stays ~constant regardless of sample
 # rate. ~40ms ≈ 25 fps, matching the client's waterfall cap.
 READ_CHUNK_TARGET_MS = 40
-READ_CHUNK_MIN_SAMPLES = 4096       # floor: must stay ≥ fft_size and efficient
-READ_CHUNK_MAX_SAMPLES = 131072     # ceiling: bound latency / memory
+READ_CHUNK_MIN_SAMPLES = 4096  # floor: must stay ≥ fft_size and efficient
+READ_CHUNK_MAX_SAMPLES = 131072  # ceiling: bound latency / memory
 
 # Connection cache: key = "host:port"
 _connections: dict[str, RtlTcpConnection] = {}
@@ -89,8 +89,8 @@ class RtlTcpConnection:
                 # every connect path produce a healthy stream from the start.
                 # (_send_command needs connected+writer, both set above; we're
                 # inside _lock but _send_command doesn't take it — safe.)
-                await self._send_command(0x02, self.sample_rate)   # set sample rate
-                await self._send_command(0x01, self.center_hz)     # set frequency
+                await self._send_command(0x02, self.sample_rate)  # set sample rate
+                await self._send_command(0x01, self.center_hz)  # set frequency
             except Exception as exc:
                 self.connected = False
                 raise ConnectionError(f"Cannot connect to rtl_tcp at {self.host}:{self.port}: {exc}") from exc
@@ -175,13 +175,14 @@ class RtlTcpConnection:
 
 # ── Fan-out broadcaster ───────────────────────────────────────────────────────
 
+
 class RadioBroadcaster:
     """Single read loop per radio; fans computed frames and raw IQ to subscriber queues."""
 
     def __init__(self, conn: RtlTcpConnection) -> None:
         self._conn = conn
-        self._subscribers:    list[asyncio.Queue] = []   # FFT JSON frames
-        self._iq_subscribers: list[asyncio.Queue] = []   # raw IQ bytes
+        self._subscribers: list[asyncio.Queue] = []  # FFT JSON frames
+        self._iq_subscribers: list[asyncio.Queue] = []  # raw IQ bytes
         self._task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
 
@@ -226,13 +227,14 @@ class RadioBroadcaster:
         payload and writes only the raw uint8 IQ bytes.
         """
         import aiofiles
+
         try:
             async with aiofiles.open(file_path, "wb") as f:
                 while True:
                     payload = await q.get()
-                    if payload is None:      # sentinel → recording stopped
+                    if payload is None:  # sentinel → recording stopped
                         break
-                    await f.write(payload[8:])   # skip 8-byte header, write raw IQ
+                    await f.write(payload[8:])  # skip 8-byte header, write raw IQ
         except Exception as exc:
             logger.warning("IQ file write error (%s): %s", file_path, exc)
 
@@ -240,7 +242,7 @@ class RadioBroadcaster:
         """Unsubscribe the recording queue and signal the drain task to finish."""
         self.unsubscribe_iq(q)
         try:
-            q.put_nowait(None)   # sentinel to unblock the drain coroutine
+            q.put_nowait(None)  # sentinel to unblock the drain coroutine
         except asyncio.QueueFull:
             pass
 
@@ -335,6 +337,7 @@ class RadioBroadcaster:
         if not self._iq_subscribers:
             return
         import struct
+
         header = struct.pack("<II", sample_rate, center_hz)
         payload = header + raw_iq
         for q in list(self._iq_subscribers):
@@ -342,6 +345,7 @@ class RadioBroadcaster:
 
 
 # ── FFT ───────────────────────────────────────────────────────────────────────
+
 
 def _iq_bytes_to_complex(raw: bytes) -> np.ndarray:
     """Convert raw rtl_tcp 8-bit IQ bytes to normalised complex float array."""
@@ -373,7 +377,7 @@ def compute_fft_frame(
     window = _hann_window(n_fft)
     power_sum = np.zeros(n_fft, dtype=np.float64)
     for k in range(n_avg):
-        seg = iq_all[k * n_fft:(k + 1) * n_fft] * window
+        seg = iq_all[k * n_fft : (k + 1) * n_fft] * window
         spectrum = np.fft.fftshift(np.fft.fft(seg, n=n_fft))
         power_sum += np.abs(spectrum) ** 2
     power_avg = power_sum / n_avg
@@ -381,7 +385,7 @@ def compute_fft_frame(
     # and a Hann window (coherent gain 0.5), a full-scale tone produces a bin
     # magnitude of N/4, i.e. power N²/16. Subtract that to anchor 0 dBFS at
     # the ADC ceiling, matching SDR#/SDR++/GQRX conventions.
-    fs_power_db = 10.0 * np.log10((n_fft ** 2) / 16.0)
+    fs_power_db = 10.0 * np.log10((n_fft**2) / 16.0)
     power_db = 10.0 * np.log10(power_avg + 1e-12) - fs_power_db
     return {
         "type": "spectrum",
@@ -393,6 +397,7 @@ def compute_fft_frame(
 
 
 # ── Connection cache helpers ──────────────────────────────────────────────────
+
 
 def get_connection(host: str, port: int) -> RtlTcpConnection | None:
     return _connections.get(f"{host}:{port}")

@@ -47,6 +47,15 @@ ignore = [
 # emit log messages during their own initialisation.
 "main.py" = ["E402"]
 
+[tool.ruff.format]
+# ruff format is the single source of Python formatting truth (adopted in the
+# linting-foundation retrofit). Style matches Black: double quotes, space
+# indentation, magic trailing commas honoured. Line length comes from
+# [tool.ruff].line-length (120). CI runs `ruff format --check backend`.
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
 [tool.mypy]
 python_version = "3.12"
 exclude = ["\\.venv", "__pycache__"]

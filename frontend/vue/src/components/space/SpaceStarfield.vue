@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvasRef" id="space-starfield" />
+  <canvas id="space-starfield" ref="canvasRef" />
 </template>
 
 <script setup lang="ts">
@@ -9,14 +9,19 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
-interface Star { x: number; y: number; r: number; opacity: number }
+interface Star {
+  x: number
+  y: number
+  r: number
+  opacity: number
+}
 let stars: Star[] = []
 let animFrame: number | null = null
 
 function resize() {
   const canvas = canvasRef.value
   if (!canvas) return
-  canvas.width  = window.innerWidth
+  canvas.width = window.innerWidth
   canvas.height = window.innerHeight
   draw()
 }
@@ -30,9 +35,11 @@ function draw(offsetX = 0, offsetY = 0) {
   for (const s of stars) {
     ctx.beginPath()
     ctx.arc(
-      ((s.x + offsetX * 0.04) % canvas.width + canvas.width) % canvas.width,
-      ((s.y + offsetY * 0.04) % canvas.height + canvas.height) % canvas.height,
-      s.r, 0, Math.PI * 2,
+      (((s.x + offsetX * 0.04) % canvas.width) + canvas.width) % canvas.width,
+      (((s.y + offsetY * 0.04) % canvas.height) + canvas.height) % canvas.height,
+      s.r,
+      0,
+      Math.PI * 2,
     )
     ctx.fillStyle = `rgba(255,255,255,${s.opacity})`
     ctx.fill()

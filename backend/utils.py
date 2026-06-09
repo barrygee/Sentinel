@@ -27,8 +27,7 @@ def slugify(value: str) -> str:
     # Decompose, drop combining marks (café -> cafe), recompose. This only
     # affects characters that *have* a canonical decomposition, so scripts
     # without separable diacritics (Cyrillic, CJK, Arabic, …) pass through.
-    s = "".join(c for c in unicodedata.normalize("NFKD", s)
-                if not unicodedata.combining(c))
+    s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
     s = unicodedata.normalize("NFKC", s)
     # \w is Unicode-aware (letters/digits/underscore in any script); turn
     # everything else into hyphens, then treat underscore as a separator too.
@@ -66,20 +65,14 @@ def clean_group_name(value: object) -> str:
     # characters. Cf = format chars (zero-width, joiners); Cc = control; bidi
     # overrides (U+202A–202E, U+2066–2069) are Cf and thus covered, but list
     # them explicitly for clarity / defence in depth.
-    _BIDI = {"‪", "‫", "‬", "‭", "‮",
-             "⁦", "⁧", "⁨", "⁩"}
-    s = "".join(
-        ch for ch in s
-        if ch not in _BIDI and unicodedata.category(ch) not in ("Cc", "Cf")
-    )
+    _BIDI = {"‪", "‫", "‬", "‭", "‮", "⁦", "⁧", "⁨", "⁩"}
+    s = "".join(ch for ch in s if ch not in _BIDI and unicodedata.category(ch) not in ("Cc", "Cf"))
     # Collapse internal whitespace runs to single spaces; trim ends.
     s = " ".join(s.split())
     if not s:
         raise InvalidGroupName("name must not be empty or whitespace-only")
     if len(s) > GROUP_NAME_MAX_LEN:
-        raise InvalidGroupName(
-            f"name must be at most {GROUP_NAME_MAX_LEN} characters"
-        )
+        raise InvalidGroupName(f"name must be at most {GROUP_NAME_MAX_LEN} characters")
     return s
 
 
@@ -111,8 +104,8 @@ async def resolve_domain_urls(
     """
     result = await db.execute(
         select(UserSettings).where(
-            (UserSettings.namespace == domain) |
-            ((UserSettings.namespace == "app") & (UserSettings.key == "connectivityMode"))
+            (UserSettings.namespace == domain)
+            | ((UserSettings.namespace == "app") & (UserSettings.key == "connectivityMode"))
         )
     )
     rows = result.scalars().all()
@@ -132,7 +125,7 @@ async def resolve_domain_urls(
     else:
         effective_mode = settings_map.get("app.connectivityMode", "online") or "online"
 
-    _online_key  = {"air": "onlineDataSourceURL"}.get(domain, "onlineUrl")
+    _online_key = {"air": "onlineDataSourceURL"}.get(domain, "onlineUrl")
     _offgrid_key = {"air": "offgridDataSourceURL"}.get(domain, "offgridSource")
 
     online = _valid_url(settings_map.get(f"{domain}.{_online_key}")) or _valid_url(online_default)

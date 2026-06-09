@@ -16,15 +16,21 @@ function _loadHexes(): string[] {
     const raw = localStorage.getItem(LS_HEXES_KEY)
     const arr = raw ? (JSON.parse(raw) as unknown) : []
     return Array.isArray(arr) ? arr.filter((h): h is string => typeof h === 'string') : []
-  } catch { return [] }
+  } catch {
+    return []
+  }
 }
 
 function _loadCallsigns(): Record<string, string> {
   try {
     const raw = localStorage.getItem(LS_CALLSIGNS_KEY)
     const obj = raw ? (JSON.parse(raw) as unknown) : {}
-    return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? (obj as Record<string, string>) : {}
-  } catch { return {} }
+    return obj && typeof obj === 'object' && !Array.isArray(obj)
+      ? (obj as Record<string, string>)
+      : {}
+  } catch {
+    return {}
+  }
 }
 
 export const useAirNotifStore = defineStore('airNotif', () => {
@@ -36,10 +42,14 @@ export const useAirNotifStore = defineStore('airNotif', () => {
   const count = computed(() => enabledHexes.value.size)
 
   function _saveHexes(): void {
-    try { localStorage.setItem(LS_HEXES_KEY, JSON.stringify([...enabledHexes.value])) } catch {}
+    try {
+      localStorage.setItem(LS_HEXES_KEY, JSON.stringify([...enabledHexes.value]))
+    } catch {}
   }
   function _saveCallsigns(): void {
-    try { localStorage.setItem(LS_CALLSIGNS_KEY, JSON.stringify(callsigns.value)) } catch {}
+    try {
+      localStorage.setItem(LS_CALLSIGNS_KEY, JSON.stringify(callsigns.value))
+    } catch {}
   }
 
   function isEnabled(hex: string): boolean {

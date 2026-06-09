@@ -1,7 +1,7 @@
 <template>
   <header id="nav">
     <div id="nav-logo">
-      <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL">
+      <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL" />
     </div>
     <nav id="nav-right">
       <RouterLink
@@ -11,7 +11,8 @@
         class="nav-link"
         active-class="nav-link--active"
         :data-domain="domain"
-      >{{ label }}</RouterLink>
+        >{{ label }}</RouterLink
+      >
     </nav>
   </header>
 
@@ -23,10 +24,7 @@
     </template>
   </MapSidebar>
 
-  <AppFooter
-    :sidebar-open="sidebarOpen"
-    @toggle-sidebar="sidebarRef?.toggle()"
-  />
+  <AppFooter :sidebar-open="sidebarOpen" @toggle-sidebar="sidebarRef?.toggle()" />
 
   <SettingsPanel />
 </template>
@@ -67,18 +65,23 @@ onMounted(async () => {
 // Added when geolocation can't provide a fix and none is set; auto-dismissed
 // the moment a location is obtained (right-click, Settings, or a GPS fix).
 let _locNotifId: string | null = null
-watch(locationUnavailable, (unavailable) => {
-  if (unavailable && !_locNotifId) {
-    _locNotifId = notificationsStore.add({
-      type: 'system',
-      title: 'LOCATION UNAVAILABLE',
-      detail: 'No location is set and the browser could not provide one. Right-click the map to set a location, or enable location access.',
-    })
-  } else if (!unavailable && _locNotifId) {
-    notificationsStore.dismiss(_locNotifId)
-    _locNotifId = null
-  }
-}, { immediate: true })
+watch(
+  locationUnavailable,
+  (unavailable) => {
+    if (unavailable && !_locNotifId) {
+      _locNotifId = notificationsStore.add({
+        type: 'system',
+        title: 'LOCATION UNAVAILABLE',
+        detail:
+          'No location is set and the browser could not provide one. Right-click the map to set a location, or enable location access.',
+      })
+    } else if (!unavailable && _locNotifId) {
+      notificationsStore.dismiss(_locNotifId)
+      _locNotifId = null
+    }
+  },
+  { immediate: true },
+)
 
 useDocumentEvent('air-open-search', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('open-space-search', () => sidebarRef.value?.switchTab('search'))
@@ -98,14 +101,14 @@ const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)
 const sidebarOpen = computed(() => sidebarRef.value?.open ?? false)
 
 const ALL_NAV_DOMAINS: [string, string][] = [
-  ['air',   'AIR'],
+  ['air', 'AIR'],
   ['space', 'SPACE'],
-  ['sea',   'SEA'],
-  ['land',  'LAND'],
-  ['sdr',   'SDR'],
+  ['sea', 'SEA'],
+  ['land', 'LAND'],
+  ['sdr', 'SDR'],
 ]
 
 const navDomains = computed(() =>
-  ALL_NAV_DOMAINS.filter(([d]) => appStore.enabledDomains.includes(d))
+  ALL_NAV_DOMAINS.filter(([d]) => appStore.enabledDomains.includes(d)),
 )
 </script>
