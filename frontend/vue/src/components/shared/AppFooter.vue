@@ -72,5 +72,9 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 
+// Vue coerces an absent boolean prop to false, so the `?? false` fallback path
+// is unreachable from tests.
+/* v8 ignore start */
 const sidebarOpen = computed(() => props.sidebarOpen ?? false)
+/* v8 ignore stop */
 </script>
