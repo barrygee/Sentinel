@@ -905,6 +905,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Refactor API endpoints and tests for air, SDR, and settings routers
 - Merge pull request #51 from barrygee/add/claude-config
 - Merge pull request #52 from barrygee/chore/add-changelog
+- Merge pull request #53 from barrygee/chore/linting-foundation
 
 ### Refactoring
 
@@ -922,6 +923,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 ### Build System
 
 - Rebuild SPA bundle for reformatted source
+
+### Continuous Integration
+
+- Add base pipeline (lint, format, typecheck, build, test)
 
 ### Styling
 
