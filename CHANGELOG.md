@@ -911,6 +911,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #55 from barrygee/chore/pre-commit-hooks
 - Merge pull request #56 from barrygee/test/vue-harness
 - Merge pull request #57 from barrygee/test/vue-backfill-stores
+- Merge pull request #58 from barrygee/test/vue-backfill-composables
 
 ### Refactoring
 
@@ -930,6 +931,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add Vue test harness (vitest + @vue/test-utils + jest-axe)
 - Backfill all Pinia stores to 100% coverage
 - Backfill utils and composables to 100% (excl. useSdrAudio)
+- Backfill useSdrAudio to 100%
 
 ### Build System
 
