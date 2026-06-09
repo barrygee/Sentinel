@@ -32,9 +32,12 @@ const delayInput = ref<string>(String(sdr.resumeDelaySec))
 const isValid = computed(() => {
   const v = delayInput.value.trim()
   if (v === '') return false
+  /* v8 ignore start -- defensive: onInput strips every non-digit before this
+     computed is read, so a non-numeric or negative value can never reach here */
   if (!/^\d+$/.test(v)) return false
   const n = Number(v)
   return Number.isFinite(n) && n >= 0
+  /* v8 ignore stop */
 })
 
 async function syncFromDb(): Promise<void> {
