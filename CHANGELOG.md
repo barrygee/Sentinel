@@ -912,6 +912,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #56 from barrygee/test/vue-harness
 - Merge pull request #57 from barrygee/test/vue-backfill-stores
 - Merge pull request #58 from barrygee/test/vue-backfill-composables
+- Merge pull request #59 from barrygee/test/vue-backfill-sdr-audio
 
 ### Refactoring
 
@@ -932,6 +933,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill all Pinia stores to 100% coverage
 - Backfill utils and composables to 100% (excl. useSdrAudio)
 - Backfill useSdrAudio to 100%
+- Component + jest-axe test pattern, leaf components to 100%
 
 ### Build System
 
