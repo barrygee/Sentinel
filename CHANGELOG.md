@@ -908,6 +908,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #52 from barrygee/chore/add-changelog
 - Merge pull request #53 from barrygee/chore/linting-foundation
 - Merge pull request #54 from barrygee/ci/base-pipeline
+- Merge pull request #55 from barrygee/chore/pre-commit-hooks
 
 ### Refactoring
 
@@ -921,6 +922,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Simplify openAccordion function in SpaceFilter and SpacePasses components
 - Update SdrClipsSection to enhance note display and editing experience
 - Streamline README structure and enhance domain descriptions
+
+### Tests
+
+- Add Vue test harness (vitest + @vue/test-utils + jest-axe)
 
 ### Build System
 
