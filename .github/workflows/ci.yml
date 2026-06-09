@@ -40,7 +40,7 @@ jobs:
         run: uv run --project backend pytest
 
   frontend-vue:
-    name: frontend-vue (eslint + vue-tsc + build)
+    name: frontend-vue (eslint + vue-tsc + test + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,6 +61,11 @@ jobs:
 
       - name: Typecheck (vue-tsc)
         run: npm run typecheck
+
+      - name: Tests + coverage (vitest)
+        # Coverage thresholds (vitest.config.ts) gate this — a ratchet raised to
+        # 100% as the per-domain backfill lands.
+        run: npm run test:coverage
 
       - name: Build (Vite)
         run: npm run build
