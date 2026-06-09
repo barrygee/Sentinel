@@ -14,6 +14,7 @@ export default tseslint.config(
       'dist/**',
       'node_modules/**',
       'public/**',
+      'coverage/**',
       // The committed SPA bundle Vite emits two levels up.
       '../../frontend/spa-dist/**',
     ],

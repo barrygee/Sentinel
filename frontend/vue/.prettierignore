@@ -3,6 +3,9 @@ dist
 ../spa-dist
 ../../frontend/spa-dist
 
+# Test coverage report (vitest).
+coverage
+
 # Dependencies and lockfiles.
 node_modules
 package-lock.json
