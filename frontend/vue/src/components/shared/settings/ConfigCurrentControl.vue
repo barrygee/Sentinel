@@ -83,7 +83,10 @@ function toggleVisible(): void {
 // Shift+Tab outdents. Multi-line selections are indented/outdented as a block.
 function onTab(e: KeyboardEvent): void {
   const ta = taRef.value
+  /* v8 ignore start -- defensive: the textarea ref is always set while the
+     keydown handler is attached, so ta is never null here */
   if (!ta) return
+  /* v8 ignore stop */
   e.preventDefault()
   const { selectionStart: start, selectionEnd: end, value } = ta
   const lineStart = value.lastIndexOf('\n', start - 1) + 1

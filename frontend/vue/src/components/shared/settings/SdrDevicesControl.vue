@@ -191,10 +191,13 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  /* v8 ignore start -- defensive: pollTimer is always assigned in onMounted
+     before this teardown runs, so the null guard is never false here */
   if (pollTimer !== null) {
     clearInterval(pollTimer)
     pollTimer = null
   }
+  /* v8 ignore stop */
   document.removeEventListener('sdr:radios-changed', onRadiosChanged)
 })
 </script>

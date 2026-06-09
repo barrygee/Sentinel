@@ -88,7 +88,10 @@ async function clearAll(): Promise<void> {
     }, 4000)
     return
   }
+  /* v8 ignore start -- defensive: confirmTimer is always set by the first-click
+     branch above before the confirm step runs, so it is never null here */
   if (confirmTimer) clearTimeout(confirmTimer)
+  /* v8 ignore stop */
   clearLoading.value = true
   try {
     const resp = await fetch('/api/space/tle?confirm=true', { method: 'DELETE' })
@@ -112,7 +115,10 @@ async function clearCategory(cat: string): Promise<void> {
     }, 4000)
     return
   }
+  /* v8 ignore start -- defensive: catConfirmTimer is always set by the
+     first-click branch above before the confirm step runs */
   if (catConfirmTimer) clearTimeout(catConfirmTimer)
+  /* v8 ignore stop */
   confirmCat.value = null
   clearingCat.value = cat
   try {
