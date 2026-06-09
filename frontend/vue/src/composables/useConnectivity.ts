@@ -56,7 +56,10 @@ export function useConnectivity(onModeChange?: (online: boolean) => void) {
   })
 
   onUnmounted(() => {
+    // timer is always set in onMounted; the null-guard is defensive only.
+    /* v8 ignore start */
     if (timer !== null) clearInterval(timer)
+    /* v8 ignore stop */
   })
 
   // React immediately when the user changes the connectivity mode setting.
