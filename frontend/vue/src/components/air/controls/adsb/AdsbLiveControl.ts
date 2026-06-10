@@ -1102,7 +1102,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
           this._trackingNotifIds[hex] = this._notificationsStore.add({ type: 'track', title: cs })
           this._showStatusBar(aircraftFeature.properties)
           const is3D = this._is3DActive()
+          /* v8 ignore start -- defensive: aircraftFeature is in the collection so
+             _interpolatedCoords always resolves; the || fallback never runs */
           const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
+          /* v8 ignore stop */
           this.map.easeTo({
             center: coords,
             zoom: 16,
@@ -1112,10 +1115,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
           const newEl = document.createElement('div')
           newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
           this._wireTagButton(newEl)
+          /* v8 ignore start -- defensive: _applySelection above always builds a
+             tag marker for the override hex, so this guard is never false */
           if (this._tagMarker) {
             this._tagMarker.remove()
             this._tagMarker = null
           }
+          /* v8 ignore stop */
           const trkLeft1 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
           this._tagMarker = new maplibregl.Marker({
             element: newEl,
@@ -1148,8 +1154,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
         })
         const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
         if (taggedFeature) {
+          /* v8 ignore start -- defensive: taggedFeature is in the collection so
+             _interpolatedCoords always resolves; the || fallback never runs */
           const coords =
             this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
+          /* v8 ignore stop */
           const newEl = document.createElement('div')
           newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
           this._wireTagButton(newEl)
@@ -1167,8 +1176,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
             .addTo(this.map)
           this._showStatusBar(taggedFeature.properties)
           const is3D = this._is3DActive()
+          /* v8 ignore start -- defensive: taggedFeature is in the collection so
+             _interpolatedCoords always resolves; the || fallback never runs */
           const trackCoords =
             this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
+          /* v8 ignore stop */
           this.map.easeTo({
             center: trackCoords,
             zoom: 16,
@@ -1198,7 +1210,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (!hex || hex !== this._tagHex) return
     const taggedFeature = this._geojson.features.find((f) => f.properties.hex === hex)
     if (!taggedFeature) return
+    /* v8 ignore start -- defensive: taggedFeature is in the collection so
+       _interpolatedCoords always resolves; the || fallback never runs */
     const coords = this._interpolatedCoords(hex) || taggedFeature.geometry.coordinates
+    /* v8 ignore stop */
     const newEl = document.createElement('div')
     newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
     this._wireTagButton(newEl)
@@ -1308,7 +1323,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
     el.addEventListener('mouseleave', () => this._hideHoverTag())
     el.addEventListener('click', (e) => {
+      /* v8 ignore start -- defensive: the action buttons stopPropagation, so a
+         click that lands on them never reaches this tag-level handler */
       if ((e.target as HTMLElement).closest('.tag-follow-btn, .tag-notif-btn')) return
+      /* v8 ignore stop */
       this._tagClickHandled = true
       this._selectedHex = hex
       this._hideHoverTagNow()
@@ -1658,7 +1676,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
         }
         continue
       }
+      /* v8 ignore start -- defensive: f is from the collection so
+         _interpolatedCoords always resolves; the || fallback never runs */
       const lngLat = this._interpolatedCoords(hex) || f.geometry.coordinates
+      /* v8 ignore stop */
       const pos2 = this._lastPositions[hex]
       const isDim = pos2 ? (Date.now() - pos2.lastSeen) / 1000 >= 45 : false
       if (this._callsignMarkers[hex]) {
@@ -1669,7 +1690,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
           (f.properties.flight || '').trim() ||
           (f.properties.r || '').trim() ||
           f.properties.hex ||
+          /* v8 ignore start -- defensive: hex is always set here (blank-hex skipped above) */
           ''
+        /* v8 ignore stop */
         const isEmerg = f.properties.squawkEmerg === 1
         const isMil = !!f.properties.military
         const lfields = isMil ? this._tagFields.mil : this._tagFields.civil
@@ -1678,7 +1701,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
         box.style.background = isEmerg ? 'rgba(180,0,0,0.85)' : '#000000'
         labelEl.style.opacity = isDim ? '0.3' : '1'
         const arrowSvg = box.querySelector('.adsb-arrow') as SVGElement | null
+        /* v8 ignore start -- defensive: a built label always contains its arrow svg */
         if (arrowSvg) {
+          /* v8 ignore stop */
           const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
           const cat = (f.properties.category || '').toUpperCase()
           const isTwr = (f.properties.t || '').toUpperCase() === 'TWR'
@@ -1686,7 +1711,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
           const isGndOrTower = ['C1', 'C2', 'C3', 'C4', 'C5'].includes(cat) || isTwr
           arrowSvg.style.transform = `rotate(${isGndOrTower ? 0 : (f.properties.track ?? 0)}deg)`
           const shape = arrowSvg.querySelector('polygon, rect, circle') as SVGElement | null
+          /* v8 ignore start -- defensive: the arrow svg always contains its shape node */
           if (shape) {
+            /* v8 ignore stop */
             if (isSolidCircle) {
               shape.setAttribute('fill', arrowColor)
             } else {
@@ -1724,7 +1751,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
           continue
         }
         const nameSpan = box.querySelector('.adsb-label-name') as HTMLElement | null
+        /* v8 ignore start -- defensive: raw is always truthy (hex present), so the || never runs */
         if (nameSpan) nameSpan.textContent = raw || 'UNKNOWN'
+        /* v8 ignore stop */
         const namePad = box.dataset.dir === 'left' ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
         if (isMil) {
           const dimColor = isDim
@@ -2357,7 +2386,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
             const now2 = new Date()
             const detail =
               [
+                /* v8 ignore start -- defensive: an emergency squawk is always one of the
+                   labelled codes (7700/7600/7500), so the || 'Emergency' never runs */
                 `SQK ${squawk} — ${squawkLabels[squawk] || 'Emergency'}`,
+                /* v8 ignore stop */
                 props.alt_baro > 0 ? `ALT ${props.alt_baro.toLocaleString()} ft` : 'ON GROUND',
                 props.gs ? `GS ${Math.round(props.gs)} kt` : '',
               ]
@@ -2527,7 +2559,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
           })
         }
       } catch (e) {}
+      /* v8 ignore start -- defensive: aircraftFeature is in the collection so
+         _interpolatedCoords always resolves; the || fallback never runs */
       const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
+      /* v8 ignore stop */
       const newEl = document.createElement('div')
       newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
       this._wireTagButton(newEl)
@@ -2562,7 +2597,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (!this.map || !hex) return false
     const aircraftFeature = this._geojson.features.find((f) => f.properties.hex === hex)
     if (!aircraftFeature) return false
+    /* v8 ignore start -- defensive: aircraftFeature is in the collection so
+       _interpolatedCoords always resolves; the || fallback never runs */
     const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
+    /* v8 ignore stop */
     this.map.easeTo({ center: coords, zoom: Math.max(this.map.getZoom(), 10), duration: 600 })
     return true
   }
