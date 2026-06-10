@@ -20,8 +20,18 @@
         :class="{ active: locActive }"
         data-tooltip="GO TO MY LOCATION"
         @click="goToLocation"
-        v-html="LOC_SVG"
-      />
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8" />
+          <circle cx="10" cy="10" r="2" fill="white" />
+        </svg>
+      </button>
     </div>
 
     <!-- Group 3: overlay toggles -->
@@ -32,8 +42,44 @@
         :class="{ active: airStore.overlayStates.adsb }"
         data-tooltip="PLANES"
         @click="togglePlanes"
-        v-html="PLANE_SVG_WRAP"
-      />
+      >
+        <span class="sm-icon">
+          <svg
+            width="16"
+            height="15"
+            viewBox="0 0 56 52"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <polygon points="28,18 35,36 28,33 21,36" fill="#ffffff" />
+            <polyline
+              points="10,0 0,0 0,10"
+              stroke="rgba(200,255,0,0.75)"
+              stroke-width="3"
+              stroke-linecap="square"
+            />
+            <polyline
+              points="46,0 56,0 56,10"
+              stroke="rgba(200,255,0,0.75)"
+              stroke-width="3"
+              stroke-linecap="square"
+            />
+            <polyline
+              points="10,52 0,52 0,42"
+              stroke="rgba(200,255,0,0.75)"
+              stroke-width="3"
+              stroke-linecap="square"
+            />
+            <polyline
+              points="46,52 56,52 56,42"
+              stroke="rgba(200,255,0,0.75)"
+              stroke-width="3"
+              stroke-linecap="square"
+            />
+          </svg>
+        </span>
+        <span class="sm-label">PLANES</span>
+      </button>
 
       <!-- GROUND VEHICLES (expanded-only) -->
       <button
@@ -110,8 +156,27 @@
         :class="{ active: tiltActive }"
         data-tooltip="3D VIEW"
         @click="toggle3D"
-        v-html="CUBE_SVG_WRAP"
-      />
+      >
+        <span class="sm-icon">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <polygon
+              points="7,1 13,4.5 13,9.5 7,13 1,9.5 1,4.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+              fill="none"
+            />
+            <polyline points="7,1 7,7" stroke="currentColor" stroke-width="1.2" />
+            <polyline points="1,4.5 7,7 13,4.5" stroke="currentColor" stroke-width="1.2" />
+          </svg>
+        </span>
+        <span class="sm-label">3D VIEW</span>
+      </button>
 
       <!-- AIRPORTS (expanded-only) -->
       <button
@@ -169,7 +234,43 @@
         @mouseleave="startHideFlyout"
         @click="openFilter"
       >
-        <span class="sm-icon" v-html="FILTER_SVG" />
+        <span class="sm-icon">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <line
+              x1="1"
+              y1="3.5"
+              x2="14"
+              y2="3.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <line
+              x1="3.5"
+              y1="7.5"
+              x2="11.5"
+              y2="7.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <line
+              x1="6"
+              y1="11.5"
+              x2="9"
+              y2="11.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
         <span class="sm-label">FILTER</span>
       </button>
 
@@ -196,7 +297,26 @@
     <!-- Group 6: search button -->
     <div class="sm-group">
       <button id="sm-search-btn" class="sm-btn enabled" data-tooltip="SEARCH" @click="openSearch">
-        <span class="sm-icon" v-html="SEARCH_SVG" />
+        <span class="sm-icon">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" />
+            <line
+              x1="10"
+              y1="10"
+              x2="14"
+              y2="14"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
         <span class="sm-label">SEARCH</span>
       </button>
     </div>
@@ -248,17 +368,6 @@ const flyoutOpen = ref(false)
 let flyoutTimer: ReturnType<typeof setTimeout> | null = null
 
 const planesOn = computed(() => airStore.overlayStates.adsb)
-
-// ---- SVG constants ----
-const LOC_SVG = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`
-
-const PLANE_SVG_WRAP = `<span class="sm-icon"><svg width="16" height="15" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="28,18 35,36 28,33 21,36" fill="#ffffff"/><polyline points="10,0 0,0 0,10" stroke="rgba(200,255,0,0.75)" stroke-width="3" stroke-linecap="square"/><polyline points="46,0 56,0 56,10" stroke="rgba(200,255,0,0.75)" stroke-width="3" stroke-linecap="square"/><polyline points="10,52 0,52 0,42" stroke="rgba(200,255,0,0.75)" stroke-width="3" stroke-linecap="square"/><polyline points="46,52 56,52 56,42" stroke="rgba(200,255,0,0.75)" stroke-width="3" stroke-linecap="square"/></svg></span><span class="sm-label">PLANES</span>`
-
-const CUBE_SVG_WRAP = `<span class="sm-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="7,1 13,4.5 13,9.5 7,13 1,9.5 1,4.5" stroke="currentColor" stroke-width="1.2" fill="none"/><polyline points="7,1 7,7" stroke="currentColor" stroke-width="1.2"/><polyline points="1,4.5 7,7 13,4.5" stroke="currentColor" stroke-width="1.2"/></svg></span><span class="sm-label">3D VIEW</span>`
-
-const FILTER_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="1" y1="3.5" x2="14" y2="3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="3.5" y1="7.5" x2="11.5" y2="7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="6" y1="11.5" x2="9" y2="11.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
-
-const SEARCH_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
 
 const filterModes = [
   { value: 'all', label: 'ALL' },
