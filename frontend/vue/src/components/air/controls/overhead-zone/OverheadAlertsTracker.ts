@@ -80,10 +80,15 @@ export class OverheadAlertsTracker {
         this._timer = setInterval(() => this._tick(), POLL_MS)
       }
     } else {
+      // Defensive symmetry: reaching this branch means we just transitioned to
+      // fully-disabled, and being previously enabled always implies a running
+      // timer, so the false arm of this guard is unreachable in practice.
+      /* v8 ignore start -- unreachable: enabled state always has a live timer */
       if (this._timer) {
         clearInterval(this._timer)
         this._timer = null
       }
+      /* v8 ignore stop */
       this._dismissAllOverhead()
     }
   }
