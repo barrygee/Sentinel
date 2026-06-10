@@ -918,6 +918,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #63 from barrygee/chore/actions-node24
 - Merge branch 'main' into test/vue-backfill-panels
 - Merge pull request #62 from barrygee/test/vue-backfill-panels
+- Merge pull request #64 from barrygee/test/vue-backfill-air-controls
 
 ### Refactoring
 
@@ -942,6 +943,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill shared settings/ controls to 100% coverage
 - Backfill shared panels to 100% coverage
 - Backfill air-control foundation to 100% coverage (slice 6d-1)
+- Backfill mid-size air controls to 100% coverage (slice 6d-2)
 
 ### Build System
 
