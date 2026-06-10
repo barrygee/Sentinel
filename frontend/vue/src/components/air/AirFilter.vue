@@ -46,11 +46,17 @@
             class="filter-result-item"
             :class="{ 'keyboard-focused': focusedKey === r.hex }"
           >
-            <div
-              class="filter-result-icon filter-icon-plane"
-              @click="selectPlane(r)"
-              v-html="PLANE_ICON"
-            />
+            <div class="filter-result-icon filter-icon-plane" @click="selectPlane(r)">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 56 52"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
+              </svg>
+            </div>
             <div class="filter-result-info" @click="selectPlane(r)">
               <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
               <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
@@ -61,8 +67,37 @@
               aria-label="Toggle notifications"
               @mousedown.stop
               @click.stop="toggleNotif(r.hex)"
-              v-html="bellSvg(r.hex)"
-            />
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 13 13"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M5 10.5a1.5 1.5 0 0 0 3 0"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  fill="none"
+                />
+                <!-- Strike-through shown when notifications for this aircraft are off. -->
+                <line
+                  v-if="!notifEnabled.has(r.hex)"
+                  x1="1.5"
+                  y1="1.5"
+                  x2="11.5"
+                  y2="11.5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="square"
+                />
+              </svg>
+            </button>
           </div>
         </template>
       </template>
@@ -89,11 +124,19 @@
                 'filter-result-item--open': expandedAirport === r.icao,
               }"
             >
-              <div
-                class="filter-result-icon filter-icon-airport"
-                @click="toggleAirport(r)"
-                v-html="AIRPORT_ICON"
-              />
+              <div class="filter-result-icon filter-icon-airport" @click="toggleAirport(r)">
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 13 13"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4" />
+                  <line x1="6.5" y1="2" x2="6.5" y2="11" stroke="currentColor" stroke-width="1.2" />
+                  <line x1="2" y1="6.5" x2="11" y2="6.5" stroke="currentColor" stroke-width="1.2" />
+                </svg>
+              </div>
               <div class="filter-result-info" @click="toggleAirport(r)">
                 <div class="filter-result-primary">{{ r.icao }}</div>
                 <div class="filter-result-secondary">
@@ -169,11 +212,22 @@
             class="filter-result-item"
             :class="{ 'keyboard-focused': focusedKey === r.name }"
           >
-            <div
-              class="filter-result-icon filter-icon-mil"
-              @click="selectMil(r)"
-              v-html="MIL_ICON"
-            />
+            <div class="filter-result-icon filter-icon-mil" @click="selectMil(r)">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 13 13"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <polygon
+                  points="6.5,1.5 12,11.5 1,11.5"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  fill="none"
+                />
+              </svg>
+            </div>
             <div class="filter-result-info" @click="selectMil(r)">
               <div class="filter-result-primary">
                 {{ r.icao || r.name.toUpperCase().slice(0, 6) }}
@@ -410,24 +464,6 @@ watch([query, planes, airports, milBases], () => {
   }
   if (changed) collapsed.value = collapsedNext
 })
-
-// ---- SVG icons ----
-const PLANE_ICON = `<svg width="11" height="11" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="28,18 35,36 28,33 21,36" fill="currentColor"/></svg>`
-const AIRPORT_ICON = `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4"/><line x1="6.5" y1="2" x2="6.5" y2="11" stroke="currentColor" stroke-width="1.2"/><line x1="2" y1="6.5" x2="11" y2="6.5" stroke="currentColor" stroke-width="1.2"/></svg>`
-const MIL_ICON = `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="6.5,1.5 12,11.5 1,11.5" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>`
-
-function bellSvg(hex: string): string {
-  const on = notifEnabled.value.has(hex)
-  return (
-    `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
-    `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
-    `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
-    (on
-      ? ''
-      : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
-    `</svg>`
-  )
-}
 
 function planeSecondary(r: PlaneResult): string {
   const parts: string[] = []

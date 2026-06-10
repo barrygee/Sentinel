@@ -35,8 +35,18 @@
         data-tooltip="Go to my location"
         :class="{ active: locActive }"
         @click="goToLocation"
-        v-html="LOC_SVG"
-      />
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8" />
+          <circle cx="10" cy="10" r="2" fill="white" />
+        </svg>
+      </button>
     </div>
 
     <!-- Group 3: ground track + footprint (expanded only) -->
@@ -47,7 +57,31 @@
         :class="{ active: trackActive }"
         @click="toggleTrack"
       >
-        <span class="sm-icon" v-html="TRACK_SVG" />
+        <span class="sm-icon">
+          <svg
+            width="16"
+            height="14"
+            viewBox="0 0 24 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
+              stroke="#ffffff"
+              stroke-width="2"
+              stroke-dasharray="3,2"
+              fill="none"
+            />
+            <path
+              d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
+              stroke="#c8ff00"
+              stroke-width="2"
+              fill="none"
+              stroke-dashoffset="5"
+              stroke-dasharray="3,20"
+            />
+          </svg>
+        </span>
         <span class="sm-label">GROUND TRACK</span>
       </button>
       <button
@@ -56,7 +90,26 @@
         :class="{ active: footprintActive }"
         @click="toggleFootprint"
       >
-        <span class="sm-icon" v-html="FOOTPRINT_SVG" />
+        <span class="sm-icon">
+          <svg
+            width="16"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="rgba(200,255,0,0.6)"
+              stroke-width="1.5"
+              stroke-dasharray="3,2"
+              fill="none"
+            />
+            <circle cx="12" cy="12" r="2" fill="#c8ff00" />
+          </svg>
+        </span>
         <span class="sm-label">FOOTPRINT</span>
       </button>
     </div>
@@ -69,7 +122,17 @@
         :class="{ active: daynightActive }"
         @click="toggleDaynight"
       >
-        <span class="sm-icon" v-html="MOON_SVG" />
+        <span class="sm-icon">
+          <svg
+            width="13"
+            height="14"
+            viewBox="0 0 20 22"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M15 2C10 2 5 6.5 5 12s5 10 10 10c-6 0-11-4.5-11-10S9 2 15 2z" fill="#ffffff" />
+          </svg>
+        </span>
         <span class="sm-label">DAY / NIGHT</span>
       </button>
       <button
@@ -86,7 +149,26 @@
     <!-- Group 5: satellite search -->
     <div id="ssm-group-filter" class="sm-group">
       <button id="ssm-filter-btn" class="sm-btn enabled" data-tooltip="SEARCH" @click="openSearch">
-        <span class="sm-icon" v-html="FILTER_SVG" />
+        <span class="sm-icon">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" />
+            <line
+              x1="10"
+              y1="10"
+              x2="14"
+              y2="14"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
         <span class="sm-label">SEARCH</span>
       </button>
     </div>
@@ -129,24 +211,6 @@ const _SAT_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xm
   <line x1="12" y1="2"  x2="12" y2="8"  stroke="rgba(200,255,0,0.5)" stroke-width="1.5"/>
   <line x1="12" y1="16" x2="12" y2="22" stroke="rgba(200,255,0,0.5)" stroke-width="1.5"/>
 </svg>`
-
-const TRACK_SVG = `<svg width="16" height="14" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4" stroke="#ffffff" stroke-width="2" stroke-dasharray="3,2" fill="none"/>
-  <path d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4" stroke="#c8ff00" stroke-width="2" fill="none" stroke-dashoffset="5" stroke-dasharray="3,20"/>
-</svg>`
-
-const FOOTPRINT_SVG = `<svg width="16" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="12" cy="12" r="9" stroke="rgba(200,255,0,0.6)" stroke-width="1.5" stroke-dasharray="3,2" fill="none"/>
-  <circle cx="12" cy="12" r="2" fill="#c8ff00"/>
-</svg>`
-
-const MOON_SVG = `<svg width="13" height="14" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M15 2C10 2 5 6.5 5 12s5 10 10 10c-6 0-11-4.5-11-10S9 2 15 2z" fill="#ffffff"/>
-</svg>`
-
-const LOC_SVG = `<svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8"/><circle cx="10" cy="10" r="2" fill="white"/></svg>`
-
-const FILTER_SVG = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
 
 function goToLocation(): void {
   // Trigger location fly — MapSidebar will dispatch an event or the satelliteControl handles it
