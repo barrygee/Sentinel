@@ -946,6 +946,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 ### Continuous Integration
 
 - Add base pipeline (lint, format, typecheck, build, test)
+- Bump actions to Node 24 runtime majors
+- Pin setup-uv to exact v8.2.0 tag
 
 ### Styling
 
