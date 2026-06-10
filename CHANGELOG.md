@@ -919,6 +919,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge branch 'main' into test/vue-backfill-panels
 - Merge pull request #62 from barrygee/test/vue-backfill-panels
 - Merge pull request #64 from barrygee/test/vue-backfill-air-controls
+- Merge pull request #65 from barrygee/test/vue-backfill-air-controls-2
 
 ### Refactoring
 
@@ -932,6 +933,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Simplify openAccordion function in SpaceFilter and SpacePasses components
 - Update SdrClipsSection to enhance note display and editing experience
 - Streamline README structure and enhance domain descriptions
+- Inline SVG icons, drop v-html (fixes vue/no-v-html)
 
 ### Tests
 
