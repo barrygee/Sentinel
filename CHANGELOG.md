@@ -919,6 +919,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge branch 'main' into test/vue-backfill-panels
 - Merge pull request #62 from barrygee/test/vue-backfill-panels
 - Merge pull request #64 from barrygee/test/vue-backfill-air-controls
+- Merge pull request #65 from barrygee/test/vue-backfill-air-controls-2
 
 ### Refactoring
 
@@ -944,6 +945,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill shared panels to 100% coverage
 - Backfill air-control foundation to 100% coverage (slice 6d-1)
 - Backfill mid-size air controls to 100% coverage (slice 6d-2)
+- Backfill AARA + Airports controls to 100% coverage (slice 6d-3a)
 
 ### Build System
 
