@@ -521,7 +521,10 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 function scrollToFocused() {
+  /* v8 ignore start -- defensive: resultsRef is always bound and every caller
+     sets focusedKey before invoking, so this guard is never the path taken. */
   if (!resultsRef.value || !focusedKey.value) return
+  /* v8 ignore stop */
   // requestAnimationFrame to let Vue render the class change first
   requestAnimationFrame(() => {
     const el = resultsRef.value?.querySelector('.keyboard-focused') as HTMLElement | null
