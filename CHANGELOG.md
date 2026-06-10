@@ -914,6 +914,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #58 from barrygee/test/vue-backfill-composables
 - Merge pull request #59 from barrygee/test/vue-backfill-sdr-audio
 - Merge pull request #60 from barrygee/test/vue-backfill-shared
+- Merge pull request #61 from barrygee/test/vue-backfill-settings-controls
 
 ### Refactoring
 
@@ -944,6 +945,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 ### Continuous Integration
 
 - Add base pipeline (lint, format, typecheck, build, test)
+- Bump actions to Node 24 runtime majors
+- Pin setup-uv to exact v8.2.0 tag
 
 ### Styling
 
