@@ -31,10 +31,10 @@ export default mergeConfig(
         // any regression. Each per-domain backfill PR (6a–6f) raises these as it
         // adds tests; phase 6g sets them all to 100.
         thresholds: {
-          lines: 21,
-          functions: 25,
-          branches: 18,
-          statements: 20,
+          lines: 25,
+          functions: 30,
+          branches: 21,
+          statements: 25,
         },
       },
     },

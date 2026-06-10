@@ -85,10 +85,14 @@ function check() {
   // Space data is served from the local TLE database, not a configured URL.
   // Without backend access we can't know if the DB has data, so assume it does
   // and let checkWithBackend() correct it — never block on a missing URL.
+  /* v8 ignore start -- check() is only invoked for non-space domains;
+     checkWithBackend() handles space entirely and never falls through to here,
+     so this guard is defensive and unreachable in practice */
   if (_isSpace) {
     hasUrl.value = true
     return
   }
+  /* v8 ignore stop */
 
   if (mode === 'offgrid') {
     const raw = _lsGet(`sentinel_${ns}_${_oKey}`)

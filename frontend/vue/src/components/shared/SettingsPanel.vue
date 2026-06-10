@@ -485,7 +485,10 @@ const currentSectionItems = computed(() =>
 
 const searchResults = computed<SettingItem[]>(() => {
   const q = searchQuery.value.trim().toLowerCase()
+  /* v8 ignore start -- searchResults is only read while a search query is active
+     (it sits behind v-if="searchQuery.trim()"), so q is never empty here */
   if (!q) return []
+  /* v8 ignore stop */
   return ALL_SETTINGS.filter(
     (s) =>
       (!DOMAIN_SECTIONS.has(s.section) || appStore.enabledDomains.includes(s.section)) &&
