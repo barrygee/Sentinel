@@ -915,6 +915,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #59 from barrygee/test/vue-backfill-sdr-audio
 - Merge pull request #60 from barrygee/test/vue-backfill-shared
 - Merge pull request #61 from barrygee/test/vue-backfill-settings-controls
+- Merge pull request #63 from barrygee/chore/actions-node24
+- Merge branch 'main' into test/vue-backfill-panels
 
 ### Refactoring
 
