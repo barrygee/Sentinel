@@ -278,7 +278,11 @@ function computeTextRotate(coordinates: number[][][]): number {
     }
   }
   let textRotation = bearing - 90
+  // `bearing` comes from atan2, so it is at most 180°, which caps textRotation at
+  // 90° — the >90 normalisation can never fire here, but is kept for symmetry.
+  /* v8 ignore start -- unreachable: bearing ≤ 180 means textRotation ≤ 90 */
   if (textRotation > 90) textRotation -= 180
+  /* v8 ignore stop */
   if (textRotation <= -90) textRotation += 180
   return Math.round(textRotation * 10) / 10
 }
