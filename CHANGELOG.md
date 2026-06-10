@@ -922,6 +922,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #65 from barrygee/test/vue-backfill-air-controls-2
 - Merge pull request #66 from barrygee/test/vue-backfill-air-aara-airports
 - Merge pull request #67 from barrygee/chore/inline-svg-icons
+- Merge pull request #68 from barrygee/test/vue-backfill-air-awac
 
 ### Refactoring
 
@@ -950,6 +951,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill mid-size air controls to 100% coverage (slice 6d-2)
 - Backfill AARA + Airports controls to 100% coverage (slice 6d-3a)
 - AwacControl to 100% (slice 6d-3b)
+- AdsbLiveControl to 100% (slice 6d-3c)
 
 ### Build System
 
