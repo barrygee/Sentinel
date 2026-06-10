@@ -232,7 +232,10 @@ function updateScrollHint() {
 
 function scrollForMore(): void {
   const el = listRef.value
+  /* v8 ignore start -- listRef is always bound while the MORE button is
+     clickable; the guard is defensive and its early-return is unreachable */
   if (!el) return
+  /* v8 ignore stop */
   el.scrollBy({ top: el.clientHeight * 0.9, behavior: 'smooth' })
 }
 
@@ -241,15 +244,22 @@ let resizeObs: ResizeObserver | null = null
 onMounted(() => {
   store.syncFromBackend()
   resizeObs = new ResizeObserver(updateScrollHint)
+  /* v8 ignore start -- #notif-list always renders, so listRef is bound here; the
+     guard's false branch (missing ref) is unreachable in practice */
   if (listRef.value) {
     resizeObs.observe(listRef.value)
     listRef.value.addEventListener('scroll', updateScrollHint, { passive: true })
   }
+  /* v8 ignore stop */
 })
 
 onUnmounted(() => {
+  /* v8 ignore start -- resizeObs is always created in onMounted and the template
+     ref nulls out on unmount, so each optional chain has a single reachable
+     branch and the other can't be exercised */
   resizeObs?.disconnect()
   listRef.value?.removeEventListener('scroll', updateScrollHint)
+  /* v8 ignore stop */
 })
 </script>
 

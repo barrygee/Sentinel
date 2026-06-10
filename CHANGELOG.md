@@ -915,6 +915,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #59 from barrygee/test/vue-backfill-sdr-audio
 - Merge pull request #60 from barrygee/test/vue-backfill-shared
 - Merge pull request #61 from barrygee/test/vue-backfill-settings-controls
+- Merge pull request #63 from barrygee/chore/actions-node24
+- Merge branch 'main' into test/vue-backfill-panels
 
 ### Refactoring
 
@@ -937,6 +939,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill useSdrAudio to 100%
 - Component + jest-axe test pattern, leaf components to 100%
 - Backfill shared settings/ controls to 100% coverage
+- Backfill shared panels to 100% coverage
 
 ### Build System
 
