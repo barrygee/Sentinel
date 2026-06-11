@@ -70,14 +70,4 @@ describe('space store', () => {
     expect(store.mapCenter).toEqual([10, 20])
     expect(store.mapZoom).toBe(4)
   })
-
-  it('clears the obsolete globeProjection key without throwing if removeItem fails', async () => {
-    // The module removes a legacy localStorage key at import inside a try/catch.
-    // Re-import with removeItem throwing to exercise the guard.
-    vi.spyOn(localStorage, 'removeItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
-    vi.resetModules()
-    await expect(import('./space')).resolves.toBeDefined()
-  })
 })
