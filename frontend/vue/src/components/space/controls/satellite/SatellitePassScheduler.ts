@@ -177,10 +177,15 @@ class ActionTrack {
     if (delay <= 0) {
       // Fire-point already past. Only fire if a late fire is still useful
       // (see lateFireUntil) — e.g. a "5 min before AOS" heads-up is pointless
-      // once AOS has passed, but an auto-tune mid-pass is still wanted. Either
-      // way, advance past this pass so we don't reconsider it next refresh.
+      // once AOS has passed, but an auto-tune mid-pass is still wanted. Then
+      // recurse for the pass *after* this one. The cutoff is relative to this
+      // pass's AOS (not `now`): with a non-zero lead, a pass 1–5 min out has its
+      // fire-point behind us yet its AOS still ahead of `now + 60s`, so a
+      // `now`-relative filter would re-select the same pass forever (infinite
+      // recursion). Matching the setTimeout branch's `next.aos + 60s` guarantees
+      // `next` strictly advances each step.
       this._maybeFire(next, now < this.lateFireUntil(next))
-      const remaining = passes.filter((p) => p.aos_unix_ms > now + 60000)
+      const remaining = passes.filter((p) => p.aos_unix_ms > next.aos_unix_ms + 60000)
       if (remaining.length > 0) this.schedule(remaining)
       return
     }

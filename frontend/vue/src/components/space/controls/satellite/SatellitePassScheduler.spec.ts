@@ -3,15 +3,6 @@ import { setActivePinia, createPinia } from 'pinia'
 import { SatellitePassScheduler, type SatellitePassSchedulerCtx } from './SatellitePassScheduler'
 import { useNotificationsStore } from '@/stores/notifications'
 
-// NOTE on test pass timing: the heads-up track's `delay <= 0` branch filters its
-// "remaining" passes by `aos > now + 60000` (not by advancing past the pass it
-// just handled). For the heads-up lead of 5 min, a pass whose AOS sits in the
-// (now+60s, now+5min) window therefore re-selects itself forever — a latent
-// infinite recursion swallowed by _fetchAndSchedule's try/catch in production.
-// Tests must keep heads-up passes either overhead/within-60s (delay<=0 path that
-// terminates) or >5 min out (the setTimeout path), so this defect is never
-// triggered by the harness. Flagged for a separate fix; not changed in this
-// test-backfill slice.
 const HEADS_UP_LEAD_MS = 5 * 60 * 1000
 const REFRESH_MS = 5 * 60 * 1000
 const T0 = 1_700_000_000_000
@@ -266,13 +257,44 @@ describe('SatellitePassScheduler heads-up track', () => {
 
   it('fires immediately for a pass whose fire-point is already past but AOS is still ahead', async () => {
     // AOS in 30s (< the 5-min lead) so the fire-point is already behind us, yet a
-    // heads-up is still useful because AOS has not arrived. (Kept inside 60s of
-    // now so the heads-up track's delay<=0 path terminates — see the file note.)
+    // heads-up is still useful because AOS has not arrived.
     fetchResponse = { ok: true, body: { passes: [makePass(30_000, 600_000)] } }
     flags = { headsUp: true, autoTune: false, record: false }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
     expect(notificationsStore.items.some((i) => i.title === 'ISS (ZARYA) PASS')).toBe(true)
+    scheduler.stop()
+  })
+
+  it('handles (without infinite recursion) a pass 1–5 min out whose fire-point is past', async () => {
+    // Regression: AOS in 2 min, inside the (now+60s, now+lead) window. The
+    // heads-up fire-point (AOS − 5 min) is behind us but AOS is still ahead, so
+    // the delay<=0 path runs. It must fire once and terminate — previously this
+    // re-selected the same pass forever (a now+60s-relative remaining filter).
+    fetchResponse = { ok: true, body: { passes: [makePass(120_000, 720_000)] } }
+    flags = { headsUp: true, autoTune: false, record: false }
+    const scheduler = new SatellitePassScheduler(makeCtx())
+    await startAndFlush(scheduler)
+    expect(notificationsStore.items.filter((i) => i.title === 'ISS (ZARYA) PASS')).toHaveLength(1)
+    scheduler.stop()
+  })
+
+  it('recurses to the next pass (advancing, not looping) from the delay<=0 path', async () => {
+    // Two passes both in the (now+60s, now+lead) window, so the FIRST is handled
+    // via the delay<=0 branch and its `remaining` recursion then processes the
+    // SECOND. The recursion must advance past pass1 and terminate. Pass1 fires;
+    // pass2's heads-up is correctly deduped by the LOS guard (its fire-point
+    // falls inside pass1's window). The key assertion is that this returns at all
+    // — before the fix it re-selected pass1 forever and blew the stack.
+    fetchResponse = {
+      ok: true,
+      body: { passes: [makePass(120_000, 720_000), makePass(240_000, 840_000)] },
+    }
+    flags = { headsUp: true, autoTune: false, record: false }
+    const scheduler = new SatellitePassScheduler(makeCtx())
+    await startAndFlush(scheduler)
+    // Exactly one heads-up (pass1); the recursion terminated rather than looping.
+    expect(notificationsStore.items.filter((i) => i.title === 'ISS (ZARYA) PASS')).toHaveLength(1)
     scheduler.stop()
   })
 
