@@ -942,6 +942,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update SdrClipsSection to enhance note display and editing experience
 - Streamline README structure and enhance domain descriptions
 - Inline SVG icons, drop v-html (fixes vue/no-v-html)
+- Remove orphaned globe-view starfield
 
 ### Tests
 
