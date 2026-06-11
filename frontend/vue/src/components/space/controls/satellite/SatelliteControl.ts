@@ -41,14 +41,11 @@ export class SatelliteControl extends SentinelControlBase {
   footprintVisible: boolean
 
   private _spaceStore: SpaceStore
-  private _notificationsStore: NotificationsStore
   private _trackingStore: TrackingStore
   private _getUserLocation: () => [number, number] | null
   private _onSwitchSat: ((noradId: string, name: string) => void) | null
 
   private _pollInterval: ReturnType<typeof setInterval> | null = null
-  private _tagMarker: maplibregl.Marker | null = null
-  private _hoverTagMarker: maplibregl.Marker | null = null
   _lastPosition: IssPosition | null = null
   private _labelMarker: maplibregl.Marker | null = null
   _followEnabled = false
@@ -61,7 +58,6 @@ export class SatelliteControl extends SentinelControlBase {
   // position arrives to pan the satellite into the centre of the viewport a
   // single time — without engaging continuous follow (see _fetch).
   private _pendingCenterOnce = false
-  private _hoverHideTimer: ReturnType<typeof setTimeout> | null = null
   _activeNoradId = '25544'
   _activeSatName = 'ISS (ZARYA)'
 
@@ -69,7 +65,6 @@ export class SatelliteControl extends SentinelControlBase {
   private _trackGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
   private _footprintGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
-  private _trackingNotifId: string | null = null
   private _onShowTracksChanged: ((e: Event) => void) | null = null
   // Set when the backend reports an empty TLE database (503 no_tle_data). While
   // paused the 5s poll loop is stopped — polling an empty DB only spams the
@@ -90,7 +85,6 @@ export class SatelliteControl extends SentinelControlBase {
   ) {
     super()
     this._spaceStore = spaceStore
-    this._notificationsStore = notificationsStore
     this._trackingStore = trackingStore
     this._getUserLocation = getUserLocation
     this._onSwitchSat = onSwitchSat
@@ -172,13 +166,8 @@ export class SatelliteControl extends SentinelControlBase {
     // tracking panel as a read-only item when navigating to another section.
     if (this._followEnabled) {
       this._followEnabled = false
-      if (this._trackingNotifId) {
-        this._notificationsStore.dismiss(this._trackingNotifId)
-        this._trackingNotifId = null
-      }
       this._trackingStore.deactivate('space')
     }
-    this._hideHoverTagNow()
     this._hideLabel()
     this._passNotifier.stop()
     if (this._onShowTracksChanged) {
@@ -467,15 +456,11 @@ export class SatelliteControl extends SentinelControlBase {
       }
 
       if (!this._previewNoradId) {
-        if (this.issVisible && !this._hoverTagMarker && !this._followEnabled) {
+        if (this.issVisible && !this._followEnabled) {
           this._showLabel(position.lon, position.lat)
         } else if (this.issVisible && this._labelMarker) {
           this._labelMarker.setLngLat([position.lon, position.lat])
         }
-      }
-      if (this._hoverTagMarker) {
-        this._hoverTagMarker.setLngLat([position.lon, position.lat])
-        this._updateHoverTagContent(position)
       }
       if (this._followEnabled && !this._previewNoradId) {
         if (!this._labelMarker) {
@@ -553,133 +538,6 @@ export class SatelliteControl extends SentinelControlBase {
     }
   }
 
-  // ---- Hover tag ----
-  private _tagHTML(p: IssPosition, isTracking: boolean): string {
-    const trkText = isTracking ? 'TRACKING' : 'TRACK'
-    const trkClass = isTracking ? 'iss-track-btn iss-track-btn--active' : 'iss-track-btn'
-    const bellSlash = this._passNotifier.enabled
-      ? ''
-      : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`
-    const bellClass = this._passNotifier.enabled
-      ? 'iss-notif-btn iss-notif-btn--active'
-      : 'iss-notif-btn'
-    const rows: [string, string][] = [
-      ['ALT', `${p.alt_km} km`],
-      ['VEL', `${p.velocity_kms} km/s`],
-      ['HDG', `${p.track_deg}°`],
-      ['LAT', `${p.lat}°`],
-      ['LON', `${p.lon}°`],
-    ]
-    const rowsHTML = rows
-      .map(
-        ([lbl, val]) =>
-          `<div class="iss-tag-row"><span class="iss-tag-lbl">${lbl}</span><span class="iss-tag-val" data-field="${lbl}">${val}</span></div>`,
-      )
-      .join('')
-    return (
-      `<div class="iss-tag">` +
-      `<div class="iss-tag-header"><span class="iss-tag-name">${this._activeSatName}</span>` +
-      `<div class="iss-tag-actions">` +
-      `<button class="${bellClass}" aria-label="Toggle pass notifications">` +
-      `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">` +
-      `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
-      `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
-      bellSlash +
-      `</svg></button>` +
-      `<button class="${trkClass}">${trkText}</button></div></div>` +
-      `<div class="iss-tag-rows">${rowsHTML}</div></div>`
-    )
-  }
-
-  private _showHoverTag(e: maplibregl.MapLayerMouseEvent): void {
-    if (!e.features?.length) return
-    if (this._followEnabled) return
-    if (this._hoverHideTimer) {
-      clearTimeout(this._hoverHideTimer)
-      this._hoverHideTimer = null
-    }
-    if (this._hoverTagMarker) return
-
-    const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat]
-    const props: IssPosition = this._lastPosition
-      ? { ...this._lastPosition }
-      : {
-          ...(e.features[0].properties as Omit<IssPosition, 'lat' | 'lon'>),
-          lon: coords[0],
-          lat: coords[1],
-        }
-
-    if (this._labelMarker) this._labelMarker.getElement().classList.add('iss-label--hidden')
-    const el = document.createElement('div')
-    el.className = 'iss-tag-wrap'
-    el.innerHTML = this._tagHTML(props, false)
-    el.addEventListener('mouseenter', () => {
-      if (this._hoverHideTimer) {
-        clearTimeout(this._hoverHideTimer)
-        this._hoverHideTimer = null
-      }
-    })
-    el.addEventListener('mouseleave', () => this._scheduleHideHoverTag())
-    this._wireTrackButton(el, props)
-    this._passNotifier.wireButton(el)
-
-    const markerCoords: [number, number] = this._lastPosition
-      ? [this._lastPosition.lon, this._lastPosition.lat]
-      : coords
-    this._hoverTagMarker = new maplibregl.Marker({
-      element: el,
-      anchor: 'top-left',
-      offset: [26, -13],
-    })
-      .setLngLat(markerCoords)
-      .addTo(this.map)
-  }
-
-  private _scheduleHideHoverTag(): void {
-    if (this._hoverHideTimer) clearTimeout(this._hoverHideTimer)
-    this._hoverHideTimer = setTimeout(() => {
-      this._hoverHideTimer = null
-      this._hideHoverTagNow()
-    }, 400)
-  }
-
-  private _hideHoverTagNow(): void {
-    if (this._hoverTagMarker) {
-      this._hoverTagMarker.remove()
-      this._hoverTagMarker = null
-    }
-    if (!this._followEnabled && this._labelMarker) {
-      this._labelMarker.getElement().classList.remove('iss-label--hidden')
-    }
-  }
-
-  private _updateHoverTagContent(position: IssPosition): void {
-    if (!this._hoverTagMarker) return
-    const el = this._hoverTagMarker.getElement()
-    const vals: Record<string, string> = {
-      ALT: `${position.alt_km} km`,
-      VEL: `${position.velocity_kms} km/s`,
-      HDG: `${position.track_deg}°`,
-      LAT: `${position.lat}°`,
-      LON: `${position.lon}°`,
-    }
-    el.querySelectorAll<HTMLElement>('.iss-tag-val').forEach((span) => {
-      const field = span.dataset['field']
-      if (field && vals[field] !== undefined) span.textContent = vals[field]
-    })
-  }
-
-  private _wireTrackButton(el: HTMLElement, _props: IssPosition): void {
-    const btn = el.querySelector('.iss-track-btn')
-    if (!btn) return
-    btn.addEventListener('mousedown', (e) => e.stopPropagation())
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this._hideHoverTagNow()
-      this._startFollowing()
-    })
-  }
-
   get isFollowing(): boolean {
     return this._followEnabled
   }
@@ -696,26 +554,6 @@ export class SatelliteControl extends SentinelControlBase {
 
   togglePassNotifications(): void {
     this._passNotifier.toggleEnabled()
-    // Sync the on-map hover-tag bell visual if it's currently rendered
-    const el = this._hoverTagMarker?.getElement()
-    const btn = el?.querySelector('.iss-notif-btn') as HTMLElement | null
-    const svg = btn?.querySelector('svg')
-    if (btn && svg) {
-      btn.classList.toggle('iss-notif-btn--active', this._passNotifier.enabled)
-      const existingSlash = svg.querySelector('line')
-      if (this._passNotifier.enabled && existingSlash) existingSlash.remove()
-      else if (!this._passNotifier.enabled && !existingSlash) {
-        const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-        slash.setAttribute('x1', '1.5')
-        slash.setAttribute('y1', '1.5')
-        slash.setAttribute('x2', '11.5')
-        slash.setAttribute('y2', '11.5')
-        slash.setAttribute('stroke', 'currentColor')
-        slash.setAttribute('stroke-width', '1.5')
-        slash.setAttribute('stroke-linecap', 'square')
-        svg.appendChild(slash)
-      }
-    }
   }
 
   stopFollowing(): void {
@@ -724,7 +562,11 @@ export class SatelliteControl extends SentinelControlBase {
 
   // ---- Following ----
   private _startFollowing(_restoring = false): void {
+    // Defensive: every caller guards on a known position before invoking us
+    // (switchSatellite, the pending-restore path, the _fetch re-init path).
+    /* v8 ignore start */
     if (!this._lastPosition) return
+    /* v8 ignore stop */
     this._followEnabled = true
     const pos = this._lastPosition
     const coords: [number, number] = [pos.lon, pos.lat]
@@ -733,7 +575,12 @@ export class SatelliteControl extends SentinelControlBase {
       e.stopPropagation()
       this._stopFollowing()
     })
+    // Defensive: the live follow entry points all clear the label first
+    // (switchSatellite._hideLabel) or run before one is shown (pending restore),
+    // so no marker exists here in practice.
+    /* v8 ignore start */
     if (this._labelMarker) this._labelMarker.remove()
+    /* v8 ignore stop */
     this._labelMarker = new maplibregl.Marker({
       element: newLabelEl,
       anchor: 'left',
@@ -743,10 +590,6 @@ export class SatelliteControl extends SentinelControlBase {
       .addTo(this.map)
     this.map.easeTo({ center: coords, duration: 600 })
     this._showStatusBar(pos)
-    if (this._trackingNotifId) {
-      this._notificationsStore.dismiss(this._trackingNotifId)
-      this._trackingNotifId = null
-    }
     this._saveFollowState()
     document.dispatchEvent(
       new CustomEvent('satellite-follow-changed', {
@@ -767,10 +610,6 @@ export class SatelliteControl extends SentinelControlBase {
       })
         .setLngLat([this._lastPosition.lon, this._lastPosition.lat])
         .addTo(this.map)
-    }
-    if (this._trackingNotifId) {
-      this._notificationsStore.dismiss(this._trackingNotifId)
-      this._trackingNotifId = null
     }
     this._hideStatusBar()
     this.map.easeTo({ center: [12, 20], zoom: 2, duration: 600 })
@@ -855,7 +694,11 @@ export class SatelliteControl extends SentinelControlBase {
       const resp = await fetch(endpoint, { signal: abort.signal })
       if (!resp.ok || abort.signal.aborted) return
       const data = (await resp.json()) as IssApiResponse
+      // Defensive: any change to _previewNoradId aborts this controller, so the
+      // not-ok/aborted guard above already returns for every superseding case.
+      /* v8 ignore start */
       if (abort.signal.aborted || this._previewNoradId !== noradId) return
+      /* v8 ignore stop */
 
       const { position, ground_track, footprint } = data
       this._previewPositions.set(noradId, position)
@@ -908,7 +751,9 @@ export class SatelliteControl extends SentinelControlBase {
         if (noradId !== this._activeNoradId) {
           this._labelMarker.setLngLat([position.lon, position.lat])
           const spans = this._labelMarker.getElement().querySelectorAll('span')
+          /* v8 ignore start -- spans[0] (the name span) is always present in a label */
           if (spans[0]) spans[0].textContent = name || noradId
+          /* v8 ignore stop */
           if (spans[1]) (spans[1] as HTMLElement).classList.add('iss-tracking-badge--hidden')
         }
       }
@@ -929,10 +774,14 @@ export class SatelliteControl extends SentinelControlBase {
 
   clearPreview(): void {
     if (!this._previewNoradId) return
+    // Defensive: _previewAbort is set whenever _previewNoradId is, so it is
+    // always present here.
+    /* v8 ignore start */
     if (this._previewAbort) {
       this._previewAbort.abort()
       this._previewAbort = null
     }
+    /* v8 ignore stop */
     this._previewNoradId = null
 
     const issSource = this.map.getSource('iss-live') as maplibregl.GeoJSONSource | undefined
@@ -962,10 +811,15 @@ export class SatelliteControl extends SentinelControlBase {
 
     if (this._labelMarker) {
       const spans = this._labelMarker.getElement().querySelectorAll('span')
+      /* v8 ignore start -- the name span is always present on a label */
       if (spans[0]) spans[0].textContent = this._activeSatName
+      /* v8 ignore stop */
       if (spans[1]) (spans[1] as HTMLElement).classList.remove('iss-tracking-badge--hidden')
+      // Defensive: a visible label always has a known last position.
+      /* v8 ignore start */
       if (this._lastPosition)
         this._labelMarker.setLngLat([this._lastPosition.lon, this._lastPosition.lat])
+      /* v8 ignore stop */
     }
 
     let hoverPreference = 'stay'
@@ -991,7 +845,6 @@ export class SatelliteControl extends SentinelControlBase {
     // An explicit switch supersedes any pending restore-on-remount follow.
     this._pendingFollowRestore = false
     if (this._followEnabled) this._stopFollowing()
-    this._hideHoverTagNow()
     this._hideLabel()
     if (follow) this._followEnabled = true
 
@@ -1044,18 +897,18 @@ export class SatelliteControl extends SentinelControlBase {
   // without engaging continuous follow/tracking. Used when an alert is
   // clicked — the user wants to see the subject, not lock onto it.
   focusSatellite(noradId: string, name: string): void {
+    // switchSatellite(follow=false) stops any active follow, so we're never
+    // following on return — just recentre once on the subject.
     this.switchSatellite(noradId, name, false)
-    if (!this._followEnabled) {
-      if (this._lastPosition) {
-        this.map.flyTo({
-          center: [this._lastPosition.lon, this._lastPosition.lat],
-          zoom: Math.max(this.map.getZoom(), 2),
-          duration: 800,
-        })
-      } else {
-        // Position not known yet (fresh switch) — centre on first fetch.
-        this._pendingCenterOnce = true
-      }
+    if (this._lastPosition) {
+      this.map.flyTo({
+        center: [this._lastPosition.lon, this._lastPosition.lat],
+        zoom: Math.max(this.map.getZoom(), 2),
+        duration: 800,
+      })
+    } else {
+      // Position not known yet (fresh switch) — centre on first fetch.
+      this._pendingCenterOnce = true
     }
   }
 
@@ -1087,7 +940,6 @@ export class SatelliteControl extends SentinelControlBase {
     if (!this.issVisible) {
       this._stopPolling()
       this._stopFollowing()
-      this._hideHoverTagNow()
       this._hideLabel()
       this._activeNoradId = '25544'
       this._activeSatName = 'ISS (ZARYA)'

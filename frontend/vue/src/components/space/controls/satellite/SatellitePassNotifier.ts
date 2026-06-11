@@ -31,34 +31,6 @@ export class SatellitePassNotifier {
   onActivated(): void {}
   stop(): void {}
 
-  // Wire the bell-button found inside a hover-tag element.
-  wireButton(el: HTMLElement): void {
-    const btn = el.querySelector('.iss-notif-btn')
-    if (!btn) return
-    btn.addEventListener('mousedown', (e) => e.stopPropagation())
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.toggle()
-      const svg = btn.querySelector('svg')
-      if (svg) {
-        ;(btn as HTMLElement).classList.toggle('iss-notif-btn--active', this.enabled)
-        const existingSlash = svg.querySelector('line')
-        if (this.enabled && existingSlash) existingSlash.remove()
-        else if (!this.enabled && !existingSlash) {
-          const slash = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-          slash.setAttribute('x1', '1.5')
-          slash.setAttribute('y1', '1.5')
-          slash.setAttribute('x2', '11.5')
-          slash.setAttribute('y2', '11.5')
-          slash.setAttribute('stroke', 'currentColor')
-          slash.setAttribute('stroke-width', '1.5')
-          slash.setAttribute('stroke-linecap', 'square')
-          svg.appendChild(slash)
-        }
-      }
-    })
-  }
-
   toggleEnabled(): void {
     this.toggle()
   }
