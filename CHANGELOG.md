@@ -206,6 +206,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Prevent duplicate AOS fires during in-progress satellite passes
 - Update empty state message for SDR recordings section
 - Update CLAUDE.md and README.md for accurate frontend description; rename backend service to app in docker-compose.yml
+- Stop heads-up scheduler infinite-recursing on a 1–5 min-out pass
+- Alert per pass — dedup heads-up/auto-tune by pass, not a global mark
 
 ### Chores
 
@@ -924,6 +926,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #67 from barrygee/chore/inline-svg-icons
 - Merge pull request #68 from barrygee/test/vue-backfill-air-awac
 - Merge pull request #69 from barrygee/test/vue-backfill-air-adsb-live
+- Merge pull request #70 from barrygee/test/vue-backfill-air-vue-components
 
 ### Refactoring
 
@@ -954,6 +957,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - AwacControl to 100% (slice 6d-3b)
 - AdsbLiveControl to 100% (slice 6d-3c)
 - Backfill air .vue components to 100% coverage (slice 6d-4)
+- Backfill space-domain foundation to 100% coverage (slice 6e-1)
 
 ### Build System
 
