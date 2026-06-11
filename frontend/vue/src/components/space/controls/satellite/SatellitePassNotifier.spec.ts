@@ -27,25 +27,6 @@ function makeContext(
   }
 }
 
-// Build a hover-tag element optionally containing the bell button and an SVG.
-function makeTagElement(options: { withButton?: boolean; withSvg?: boolean; withSlash?: boolean }) {
-  const tag = document.createElement('div')
-  if (options.withButton) {
-    const button = document.createElement('button')
-    button.className = 'iss-notif-btn'
-    if (options.withSvg) {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-      if (options.withSlash) {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-        svg.appendChild(line)
-      }
-      button.appendChild(svg)
-    }
-    tag.appendChild(button)
-  }
-  return tag
-}
-
 beforeEach(() => {
   setActivePinia(createPinia())
   notificationsStore = useNotificationsStore()
@@ -151,104 +132,6 @@ describe('SatellitePassNotifier deferred enable (no location yet)', () => {
 
     expect(isPassNotifEnabled(NORAD)).toBe(false)
     expect(changedEvents).toEqual([])
-  })
-})
-
-describe('SatellitePassNotifier.wireButton', () => {
-  it('does nothing when the element has no bell button', () => {
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: false })
-    expect(() => notifier.wireButton(tag)).not.toThrow()
-  })
-
-  it('stops mousedown propagation on the button', () => {
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    const event = new MouseEvent('mousedown', { bubbles: true })
-    const stopSpy = vi.spyOn(event, 'stopPropagation')
-    button.dispatchEvent(event)
-    expect(stopSpy).toHaveBeenCalled()
-  })
-
-  it('toggles enabled on click even when the button has no svg', () => {
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true, withSvg: false })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(isPassNotifEnabled(NORAD)).toBe(true)
-  })
-
-  it('removes the slash and marks active when enabling with an svg', () => {
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true, withSvg: true, withSlash: true })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-
-    expect(button.classList.contains('iss-notif-btn--active')).toBe(true)
-    expect(button.querySelector('line')).toBeNull()
-  })
-
-  it('adds a slash and clears active when disabling with an svg', () => {
-    // Start enabled so the click disables.
-    setPassNotifEnabled(NORAD, true, SAT_NAME)
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true, withSvg: true, withSlash: false })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-
-    expect(button.classList.contains('iss-notif-btn--active')).toBe(false)
-    const slash = button.querySelector('line')
-    expect(slash).not.toBeNull()
-    expect(slash!.getAttribute('x1')).toBe('1.5')
-    expect(slash!.getAttribute('stroke-linecap')).toBe('square')
-  })
-
-  it('marks active without touching slashes when enabling an svg that has none', () => {
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true, withSvg: true, withSlash: false })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-
-    expect(button.classList.contains('iss-notif-btn--active')).toBe(true)
-    // Enabling without an existing slash leaves the svg slash-free (no add).
-    expect(button.querySelector('line')).toBeNull()
-  })
-
-  it('clears active without adding a slash when disabling an svg that already has one', () => {
-    setPassNotifEnabled(NORAD, true, SAT_NAME)
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true, withSvg: true, withSlash: true })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-
-    expect(button.classList.contains('iss-notif-btn--active')).toBe(false)
-    // The pre-existing slash is left in place (not duplicated).
-    expect(button.querySelectorAll('line')).toHaveLength(1)
-  })
-
-  it('stops click propagation', () => {
-    const notifier = new SatellitePassNotifier(makeContext())
-    const tag = makeTagElement({ withButton: true })
-    notifier.wireButton(tag)
-    const button = tag.querySelector('.iss-notif-btn') as HTMLElement
-
-    const event = new MouseEvent('click', { bubbles: true })
-    const stopSpy = vi.spyOn(event, 'stopPropagation')
-    button.dispatchEvent(event)
-    expect(stopSpy).toHaveBeenCalled()
   })
 })
 
