@@ -280,21 +280,39 @@ describe('SatellitePassScheduler heads-up track', () => {
   })
 
   it('recurses to the next pass (advancing, not looping) from the delay<=0 path', async () => {
-    // Two passes both in the (now+60s, now+lead) window, so the FIRST is handled
-    // via the delay<=0 branch and its `remaining` recursion then processes the
-    // SECOND. The recursion must advance past pass1 and terminate. Pass1 fires;
-    // pass2's heads-up is correctly deduped by the LOS guard (its fire-point
-    // falls inside pass1's window). The key assertion is that this returns at all
-    // — before the fix it re-selected pass1 forever and blew the stack.
+    // Two sequential passes both inside the lead window, so the FIRST is handled
+    // via the delay<=0 branch and its `remaining` recursion processes the SECOND.
+    // The recursion must advance past pass1 and terminate; both passes get a
+    // heads-up (per-pass alerting). Before the fix this re-selected pass1 forever
+    // and blew the stack.
     fetchResponse = {
       ok: true,
-      body: { passes: [makePass(120_000, 720_000), makePass(240_000, 840_000)] },
+      body: { passes: [makePass(60_000, 180_000), makePass(240_000, 360_000)] },
     }
     flags = { headsUp: true, autoTune: false, record: false }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
-    // Exactly one heads-up (pass1); the recursion terminated rather than looping.
+    expect(notificationsStore.items.filter((i) => i.title === 'ISS (ZARYA) PASS')).toHaveLength(2)
+    scheduler.stop()
+  })
+
+  it('alerts for every distinct pass even when a later fire-point falls inside the earlier pass window', async () => {
+    // pass1: AOS +6 min, LOS +8 min → heads-up fires at +1 min.
+    // pass2: AOS +9 min, LOS +11 min → heads-up fires at +4 min, which is BEFORE
+    // pass1's LOS (+8 min). The old global "fired-through-LOS" mark swallowed
+    // pass2's alert; per-pass dedup must let it through. Both fire-points land
+    // before the +5 min refresh, so no re-fetch perturbs the count.
+    fetchResponse = {
+      ok: true,
+      body: { passes: [makePass(360_000, 480_000), makePass(540_000, 660_000)] },
+    }
+    flags = { headsUp: true, autoTune: false, record: false }
+    const scheduler = new SatellitePassScheduler(makeCtx())
+    await startAndFlush(scheduler)
+    await vi.advanceTimersByTimeAsync(60_000) // pass1 fire-point
     expect(notificationsStore.items.filter((i) => i.title === 'ISS (ZARYA) PASS')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(180_000) // pass2 fire-point (+4 min total)
+    expect(notificationsStore.items.filter((i) => i.title === 'ISS (ZARYA) PASS')).toHaveLength(2)
     scheduler.stop()
   })
 
@@ -460,6 +478,24 @@ describe('SatellitePassScheduler.refireAutoTuneForCurrentPass', () => {
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
     expect(tuneEvents).toHaveLength(2)
+    scheduler.stop()
+  })
+
+  it('does not resurrect an already-ended pass on refire', async () => {
+    // Pass overhead at start (tunes once), then time advances past its LOS with
+    // no refresh in between, so its fired-LOS entry is still in the set but now
+    // in the past. A refire must NOT re-fire it (the `los > now` guard skips it).
+    fetchResponse = { ok: true, body: { passes: [makePass(-30_000, 30_000)] } }
+    flags = { headsUp: false, autoTune: true, record: false }
+    const scheduler = new SatellitePassScheduler(makeCtx())
+    await startAndFlush(scheduler)
+    expect(tuneEvents).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(60_000) // past LOS (no refresh yet)
+
+    scheduler.refireAutoTuneForCurrentPass()
+    await vi.advanceTimersByTimeAsync(0)
+    // The ended pass is not re-tuned.
+    expect(tuneEvents).toHaveLength(1)
     scheduler.stop()
   })
 

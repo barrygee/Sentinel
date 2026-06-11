@@ -141,12 +141,18 @@ export class SatellitePassScheduler {
 }
 
 // A single fire-once-per-pass timeline: arm a timeout `leadMs` before each AOS
-// and invoke `fire(pass)` then, skipping when `enabled()` is false. Guards on the
+// and invoke `fire(pass)` then, skipping when `enabled()` is false. Dedups by the
 // fired pass's LOS rather than exact AOS — AOS can drift for an in-progress pass
-// across refreshes (backscan detection), but LOS is stable, so we don't re-fire
-// until past it. This is what stopped the duplicate-alert-per-refresh bug.
+// across refreshes (backscan detection), but LOS is stable, so the same pass is
+// recognised and not re-fired. This is what stopped the duplicate-alert-per-
+// refresh bug.
+//
+// Dedup is PER PASS (a Set of fired LOS times), not a single high-water mark: a
+// distinct later pass must still fire even when its fire-point falls inside an
+// earlier pass's window (e.g. two passes < lead minutes apart). A global
+// "fired-through" timestamp wrongly swallowed the second pass's alert.
 class ActionTrack {
-  protected _firedThroughLos = 0
+  protected _firedPassLos = new Set<number>()
   private _timeout: ReturnType<typeof setTimeout> | null = null
 
   constructor(
@@ -168,8 +174,11 @@ class ActionTrack {
       this._timeout = null
     }
     const now = Date.now()
+    // Drop dedup entries for passes that have fully ended, so the Set stays
+    // bounded over a long-running refresh loop.
+    for (const los of this._firedPassLos) if (los <= now) this._firedPassLos.delete(los)
     // Earliest pass still relevant (LOS in the future). Its fire-point is
-    // AOS − lead; if that's already past we fire now (the LOS guard prevents
+    // AOS − lead; if that's already past we fire now (the dedup set prevents
     // re-firing one we've handled). Then recurse for the pass after it.
     const next = passes.find((p) => p.los_unix_ms > now)
     if (!next) return
@@ -204,10 +213,10 @@ class ActionTrack {
   }
 
   private _maybeFire(pass: IssPass, useful: boolean): void {
-    if (Date.now() < this._firedThroughLos) return
-    // Advance the guard even when not firing, so a stale/missed pass isn't
-    // re-evaluated on every refresh while it's still overhead.
-    this._firedThroughLos = pass.los_unix_ms
+    if (this._firedPassLos.has(pass.los_unix_ms)) return
+    // Record even when not firing, so a stale/missed pass isn't re-evaluated on
+    // every refresh while it's still overhead.
+    this._firedPassLos.add(pass.los_unix_ms)
     if (useful && this._enabled()) this._fire(pass)
   }
 }
@@ -235,15 +244,15 @@ class AutoTuneTrack extends ActionTrack {
     }
   }
 
-  // Clear the fired-guard for a pass currently overhead so the next schedule()
+  // Forget the dedup entry for a pass currently overhead so the next schedule()
   // re-fires it. Used when a toggle (auto-tune/record) is flipped on mid-pass:
-  // _firedThroughLos has already advanced past the overhead pass (the guard
-  // advances even when not firing), so without this the current pass is never
-  // reconsidered. Only rolls the guard back to `now` — never resurrects a pass
-  // whose LOS is already behind us. Also clears the armed LOS restore so the
-  // re-fire arms a fresh one.
+  // the overhead pass was already recorded as fired (the set is populated even
+  // when not firing), so without this it's never reconsidered. Only drops
+  // entries whose LOS is still ahead of `now` — never resurrects a pass whose
+  // LOS is already behind us. Also clears the armed LOS restore so the re-fire
+  // arms a fresh one.
   forgetCurrentPass(now: number): void {
-    if (this._firedThroughLos > now) this._firedThroughLos = now
+    for (const los of this._firedPassLos) if (los > now) this._firedPassLos.delete(los)
     this._lastFiredLos = 0
     if (this._losTimeout) {
       clearTimeout(this._losTimeout)
