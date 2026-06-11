@@ -972,6 +972,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 ### Build System
 
 - Rebuild SPA bundle for reformatted source
+- Rebuild SPA bundle after hover-tag/CSS removal
 
 ### Continuous Integration
 
