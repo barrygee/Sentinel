@@ -206,6 +206,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Prevent duplicate AOS fires during in-progress satellite passes
 - Update empty state message for SDR recordings section
 - Update CLAUDE.md and README.md for accurate frontend description; rename backend service to app in docker-compose.yml
+- Stop heads-up scheduler infinite-recursing on a 1–5 min-out pass
 
 ### Chores
 
