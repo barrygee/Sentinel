@@ -78,7 +78,6 @@ function mountView() {
       stubs: {
         SpaceMap: SpaceMapStub,
         SpaceFilter: SpaceFilterStub,
-        SpaceStarfield: InertStub,
         SpaceSideMenu: SpaceSideMenuStub,
         SpacePasses: InertStub,
         SatInfoPanel: InertStub,

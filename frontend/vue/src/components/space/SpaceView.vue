@@ -1,6 +1,5 @@
 <template>
   <div id="map-wrap" data-domain="space">
-    <SpaceStarfield />
     <SpaceMap ref="spaceMapRef" />
     <SpaceSideMenu :map-ref="spaceMapProxy" />
     <NoUrlOverlay domain="space" />
@@ -27,7 +26,6 @@
 import { ref, shallowRef, markRaw, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import SpaceStarfield from './SpaceStarfield.vue'
 import SpaceMap from './SpaceMap.vue'
 import SpaceSideMenu from './SpaceSideMenu.vue'
 import SpaceFilter from './SpaceFilter.vue'
