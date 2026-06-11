@@ -1,6 +1,5 @@
 <template>
   <div id="map-wrap" data-domain="space">
-    <SpaceStarfield />
     <SpaceMap ref="spaceMapRef" />
     <SpaceSideMenu :map-ref="spaceMapProxy" />
     <NoUrlOverlay domain="space" />
@@ -27,7 +26,6 @@
 import { ref, shallowRef, markRaw, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import SpaceStarfield from './SpaceStarfield.vue'
 import SpaceMap from './SpaceMap.vue'
 import SpaceSideMenu from './SpaceSideMenu.vue'
 import SpaceFilter from './SpaceFilter.vue'
@@ -71,10 +69,15 @@ const satelliteControl = shallowRef<SatelliteControl | null>(null)
 const stopWatch = watch(
   () => spaceMapRef.value?.satelliteControlReactive ?? null,
   (ctrl) => {
+    // The source is only ever a truthy control or null (coerced via `?? null`),
+    // and the watch stops on the first truthy value, so the callback never runs
+    // with a falsy ctrl — the guard is defensive.
+    /* v8 ignore start */
     if (ctrl) {
       satelliteControl.value = ctrl
       stopWatch()
     }
+    /* v8 ignore stop */
   },
 )
 onBeforeUnmount(() => {

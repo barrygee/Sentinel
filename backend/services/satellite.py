@@ -118,7 +118,7 @@ def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
       - orbit3:  2T..3T      minutes  → properties.track = 'orbit3'  (orbit after next)
 
     Longitudes are unwrapped (allowed to exceed ±180°) so MapLibre can draw a
-    continuous line with renderWorldCopies and in globe projection.
+    continuous line with renderWorldCopies.
 
     Unwrapping uses the shortest-path difference between consecutive raw lons
     (always in [-180, 180]) so it works correctly at all latitudes and

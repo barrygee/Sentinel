@@ -4,10 +4,6 @@ import { usePersistedObject, usePersistedRef, usePersistedStringSet } from './_p
 
 const LS_OVERLAYS = 'sentinel_space_overlayStates'
 
-try {
-  localStorage.removeItem('sentinel_space_globeProjection')
-} catch {}
-
 export interface SpaceOverlayStates {
   iss: boolean
   groundTrack: boolean
