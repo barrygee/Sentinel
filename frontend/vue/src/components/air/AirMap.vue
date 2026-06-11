@@ -289,7 +289,11 @@ const PLAYBACK_TICK_MS = 100
 
 function _schedulePlaybackTick(): void {
   _stopPlaybackTimer()
+  /* v8 ignore start -- defensive: every caller (status watch, speed watch, the
+     tick's own reschedule) only invokes this while status is 'playing', so the
+     guard is never the path taken. */
   if (playbackStore.status !== 'playing') return
+  /* v8 ignore stop */
   const cursor = playbackStore.cursorMs!
   const end = playbackStore.windowEndMs!
   if (cursor >= end) {

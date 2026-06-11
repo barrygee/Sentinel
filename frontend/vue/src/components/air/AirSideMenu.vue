@@ -462,6 +462,8 @@ function resetBearing() {
 
 // ---- Clear overlays ----
 // Currently unwired (no template binding); retained for the clear-overlays control.
+/* v8 ignore start -- dead code: no template binding and not exposed, so there is
+   no path to invoke this from a test. Kept for the clear-overlays control. */
 function _toggleClear() {
   const ctrl =
     (mapRef.value?.getClearControl?.() as
@@ -471,6 +473,7 @@ function _toggleClear() {
   ctrl.toggle()
   cleared.value = ctrl._cleared
 }
+/* v8 ignore stop */
 
 // ---- Filter flyout ----
 function showFlyout() {
@@ -505,7 +508,10 @@ function setFilterMode(mode: string) {
 
 function _saveFilter() {
   const c = getAdsb()
+  /* v8 ignore start -- defensive: the only caller (setFilterMode) already returns
+     early when there is no control, so this guard is never the path taken. */
   if (!c) return
+  /* v8 ignore stop */
   try {
     localStorage.setItem(
       'adsbFilter',
