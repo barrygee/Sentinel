@@ -945,6 +945,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove orphaned globe-view starfield
 - Drop the legacy globeProjection localStorage cleanup
 
+### Documentation
+
+- Drop stale globe-projection mention in ground-track comment
+
 ### Tests
 
 - Add Vue test harness (vitest + @vue/test-utils + jest-axe)
