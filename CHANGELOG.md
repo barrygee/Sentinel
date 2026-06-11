@@ -927,6 +927,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #68 from barrygee/test/vue-backfill-air-awac
 - Merge pull request #69 from barrygee/test/vue-backfill-air-adsb-live
 - Merge pull request #70 from barrygee/test/vue-backfill-air-vue-components
+- Merge pull request #71 from barrygee/test/vue-backfill-space-foundation
 
 ### Refactoring
 
@@ -958,6 +959,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - AdsbLiveControl to 100% (slice 6d-3c)
 - Backfill air .vue components to 100% coverage (slice 6d-4)
 - Backfill space-domain foundation to 100% coverage (slice 6e-1)
+- Backfill space mid .vue components to 100% coverage (slice 6e-2)
 
 ### Build System
 
