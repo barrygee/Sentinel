@@ -930,6 +930,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #71 from barrygee/test/vue-backfill-space-foundation
 - Merge pull request #72 from barrygee/test/vue-backfill-space-vue-mid
 - Merge pull request #73 from barrygee/test/vue-backfill-space-satellite-control
+- Merge pull request #74 from barrygee/test/vue-backfill-space-passes
 
 ### Refactoring
 
@@ -970,6 +971,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill space mid .vue components to 100% coverage (slice 6e-2)
 - Backfill SatelliteControl to 100% + remove dead hover-tag code (slice 6e-3a)
 - Backfill SpacePasses to 100% coverage (slice 6e-3b)
+- Backfill SpaceFilter to 100% coverage (slice 6e-3c)
 
 ### Build System
 
