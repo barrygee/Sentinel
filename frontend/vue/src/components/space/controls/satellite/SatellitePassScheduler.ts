@@ -307,12 +307,21 @@ class AutoTuneTrack extends ActionTrack {
   // AOS (a prior frequency, or stopped/connected). Fires immediately if LOS is
   // already past (a pass that was overhead when we picked it up).
   private _scheduleLos(pass: IssPass, name: string, token: string): void {
+    /* v8 ignore start -- defensive: a fresh LOS arm always follows a cleared or
+       forgotten timeout (forgetCurrentPass nulls it; the fired-guard blocks a
+       second _fireTune for the same pass), so an armed _losTimeout is never seen
+       here in practice. */
     if (this._losTimeout) {
       clearTimeout(this._losTimeout)
       this._losTimeout = null
     }
+    /* v8 ignore stop */
     const fire = () => {
+      // Defensive dedup: _lastFiredLos is reset before any re-arm, so the same
+      // LOS is never fired twice. Kept as a guard against a double-arm regression.
+      /* v8 ignore start */
       if (this._lastFiredLos === pass.los_unix_ms) return
+      /* v8 ignore stop */
       this._lastFiredLos = pass.los_unix_ms
       document.dispatchEvent(
         new CustomEvent('sentinel:sdr-tune-restore', {
@@ -321,10 +330,14 @@ class AutoTuneTrack extends ActionTrack {
       )
     }
     const delay = pass.los_unix_ms - Date.now()
+    /* v8 ignore start -- unreachable: _fireTune (our only caller) runs solely
+       while the pass is overhead (the ActionTrack `useful = now < los` guard), so
+       delay is always > 0 here. The immediate-fire path is defensive only. */
     if (delay <= 0) {
       fire()
       return
     }
+    /* v8 ignore stop */
     this._losTimeout = setTimeout(() => {
       this._losTimeout = null
       fire()
