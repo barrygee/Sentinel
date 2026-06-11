@@ -16,11 +16,13 @@ interface Star {
   opacity: number
 }
 let stars: Star[] = []
-let animFrame: number | null = null
 
 function resize() {
   const canvas = canvasRef.value
+  /* v8 ignore start -- defensive: canvasRef is always populated after mount, the
+     only context resize() runs in (onMounted + the window listener it adds). */
   if (!canvas) return
+  /* v8 ignore stop */
   canvas.width = window.innerWidth
   canvas.height = window.innerHeight
   draw()
@@ -48,7 +50,10 @@ function draw(offsetX = 0, offsetY = 0) {
 
 function init() {
   const canvas = canvasRef.value
+  /* v8 ignore start -- defensive: init() only runs from onMounted, where
+     canvasRef is already populated. */
   if (!canvas) return
+  /* v8 ignore stop */
   stars = Array.from({ length: 220 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
@@ -66,7 +71,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', resize)
-  if (animFrame !== null) cancelAnimationFrame(animFrame)
 })
 
 defineExpose({ draw })
