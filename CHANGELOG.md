@@ -207,6 +207,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update empty state message for SDR recordings section
 - Update CLAUDE.md and README.md for accurate frontend description; rename backend service to app in docker-compose.yml
 - Stop heads-up scheduler infinite-recursing on a 1–5 min-out pass
+- Alert per pass — dedup heads-up/auto-tune by pass, not a global mark
 
 ### Chores
 
