@@ -924,6 +924,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #67 from barrygee/chore/inline-svg-icons
 - Merge pull request #68 from barrygee/test/vue-backfill-air-awac
 - Merge pull request #69 from barrygee/test/vue-backfill-air-adsb-live
+- Merge pull request #70 from barrygee/test/vue-backfill-air-vue-components
 
 ### Refactoring
 
@@ -954,6 +955,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - AwacControl to 100% (slice 6d-3b)
 - AdsbLiveControl to 100% (slice 6d-3c)
 - Backfill air .vue components to 100% coverage (slice 6d-4)
+- Backfill space-domain foundation to 100% coverage (slice 6e-1)
 
 ### Build System
 
