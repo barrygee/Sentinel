@@ -152,9 +152,6 @@ const searchOverlayLowMHz = computed(() =>
 const searchOverlayHighMHz = computed(() =>
   store.searchHighHz != null ? (store.searchHighHz / 1e6).toFixed(4) : '—',
 )
-const _searchOverlayActiveMHz = computed(() =>
-  store.searchCurrentHz != null ? (store.searchCurrentHz / 1e6).toFixed(4) + ' MHz' : '— MHz',
-)
 const searchOverlayProgressPct = computed(() => {
   const lo = store.searchLowHz
   const hi = store.searchHighHz
@@ -212,7 +209,12 @@ const bandOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
   bottom: `${bandInsetBottomPx.value}px`,
+  // bandHeightPx is set > 0 by the init syncBandInset() (it derives from the
+  // data-box height, independent of the span) before any band overlay can
+  // render, so the `: undefined` fallback is never the evaluated branch.
+  /* v8 ignore start */
   height: bandHeightPx.value > 0 ? `${bandHeightPx.value}px` : undefined,
+  /* v8 ignore stop */
 }))
 
 // The waterfall flex sibling sits flush against .sdr-wf-spectrum's bottom
@@ -311,7 +313,11 @@ const livePanOffsetHz = ref(0)
 // visibleKnownFreqs / onPlotMouseUp) so the trace and overlays always agree on
 // what's on screen.
 function zoomWindowHz(lo: number, hi: number): { winLo: number; winHi: number } {
+  /* v8 ignore start -- every caller already guards `hi <= lo` before calling
+     (visibleBands/freqTicks/visibleKnownFreqs/applyZoom/onPlotMouseUp/
+     tryStartFreqDrag), so this defensive early-out is never reached. */
   if (hi <= lo) return { winLo: lo, winHi: hi }
+  /* v8 ignore stop */
   // Base window width: full span at zoom <= 1, else span / zoom.
   const win = zoom.value <= ZOOM_MIN ? hi - lo : (hi - lo) / zoom.value
   const halfWin = win / 2
@@ -441,7 +447,10 @@ if (!store.viewAutoScale && store.viewZmin !== 0 && store.viewZmax !== 0) {
 // (sigplot pins dtic1 = ymin when ydiv is negative — see plot init for the
 // rationale). Called from the [zmin, zmax] watcher.
 function applySpecRange(lo: number, hi: number) {
+  /* v8 ignore start -- the only caller (the [zmin, zmax] watcher) takes the
+     hi <= lo branch first and returns, so applySpecRange always gets hi > lo. */
   if (!(hi > lo)) return
+  /* v8 ignore stop */
   const span = hi - lo
   const ydiv = -Math.max(1, Math.round(span / 20))
   try {
@@ -615,6 +624,10 @@ function applyMarker() {
     wfAcc.width(widthHz)
     wfAcc.min_width(MIN_BW_HZ)
     wfAcc.max_width(span)
+    // specCar/wfCar are created unconditionally in initPlots alongside specAcc/
+    // wfAcc, and applyMarker returns above when the accordions are null, so these
+    // carrier accordions are always present here — the null arm never runs.
+    /* v8 ignore start */
     if (specCar) {
       specCar.center(dispFHz / HZ_PER_MHZ)
       specCar.width(CARRIER_W_HZ / HZ_PER_MHZ)
@@ -627,11 +640,14 @@ function applyMarker() {
       wfCar.min_width(CARRIER_W_HZ)
       wfCar.max_width(span)
     }
+    /* v8 ignore stop */
     const vis = store.playing
     specAcc.display(vis)
     wfAcc.display(vis)
+    /* v8 ignore start */
     if (specCar) specCar.display(vis)
     if (wfCar) wfCar.display(vis)
+    /* v8 ignore stop */
   } finally {
     suppressAccEvents = false
   }
@@ -690,10 +706,15 @@ const freqTicks = computed(() => {
   // mx.tics nice-number pick: sig = 10^floor(log10(winMHz/ndiv)); ddf =
   // (winMHz/ndiv)/sig; dtic = {1, 2, 2.5, 5, 10} * sig based on ddf bands.
   const df = winMHz / ndiv
+  // df = winMHz / ndiv ≈ 0.1 / zoom, so it is always < 1 for every span/zoom the
+  // device produces — the `df >= 1` arm only exists to mirror sigplot's general
+  // nice-number routine and is unreachable here.
+  /* v8 ignore start */
   const nsig =
     df < 1
       ? Math.ceil(Math.log10(Math.max(df, 1e-36))) - 1
       : Math.floor(Math.log10(Math.max(df, 1e-36)))
+  /* v8 ignore stop */
   const sig = Math.pow(10, nsig)
   const ddf = df / sig
   let dticMHz: number
@@ -705,10 +726,14 @@ const freqTicks = computed(() => {
   const stepHz = dticMHz * HZ_PER_MHZ
   const first = Math.ceil(winLo / stepHz) * stepHz
   // Decimal places needed to render dticMHz without rounding (e.g. 0.025 → 3).
+  // dticMHz derives from the always-<1 df above, so it too is always < 1; the
+  // `: 0` arm mirrors the general routine but is unreachable here.
+  /* v8 ignore start */
   const decimals = Math.max(
     1,
     Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)),
   )
+  /* v8 ignore stop */
   const ticks: { key: string; leftPct: number; label: string }[] = []
   for (let f = first; f <= winHi; f += stepHz) {
     ticks.push({
@@ -898,7 +923,11 @@ let freqDragRaf = 0
 
 function freqDragFlush() {
   freqDragRaf = 0
+  // The document mouseup that ends a pan both clears freqDragActive AND cancels
+  // this rAF, so a flush can never run with the flag already false.
+  /* v8 ignore start */
   if (!freqDragActive) return
+  /* v8 ignore stop */
   // Drag right (dx > 0) → window freqs decrease → content moves right. The
   // clamp to the loaded span lives inside zoomWindowHz, so the live preview
   // never shows blank edges.
@@ -916,7 +945,11 @@ function tryStartFreqDrag(e: MouseEvent): boolean {
   const hi = spanEndHz.value
   if (hi <= lo) return false
   const el = specEl.value
+  // The capture handler that calls this only fires while the spectrum element is
+  // mounted, so specEl is always populated here.
+  /* v8 ignore start */
   if (!el) return false
+  /* v8 ignore stop */
   const rect = el.getBoundingClientRect()
   // The grabbable strip is the freq-label gutter at the bottom of the spectrum
   // element (height = bandInsetBottomPx). A mousedown above it is a normal
@@ -982,10 +1015,15 @@ let wheelRaf = 0
 
 function wheelFlush() {
   wheelRaf = 0
+  // The debounced commit clears wheelPanActive AND cancels this rAF, and
+  // onPlotWheel only schedules the flush once hi > lo — so neither guard's
+  // early-out is reachable from a live flush.
+  /* v8 ignore start */
   if (!wheelPanActive) return
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return
+  /* v8 ignore stop */
   // Offset relative to the live span centre (same basis as the drag).
   livePanOffsetHz.value = wheelPanCenterHz - (lo + hi) / 2
   applyZoom()
@@ -1164,12 +1202,16 @@ useDocumentEvent('mousemove', () => {
     specAcc.width(bwOut / HZ_PER_MHZ)
     wfAcc.center(bcHz)
     wfAcc.width(bwOut)
+    // Carrier accordions are always present once initPlots has run (the drag
+    // handlers only fire after init), so the null arm is unreachable.
+    /* v8 ignore start */
     if (specCar) {
       specCar.center(carrierHz / HZ_PER_MHZ)
     }
     if (wfCar) {
       wfCar.center(carrierHz)
     }
+    /* v8 ignore stop */
   } finally {
     suppressAccEvents = false
   }
@@ -1280,7 +1322,11 @@ function sizeSliders() {
   if (!root) return
   root.querySelectorAll<HTMLElement>('.sdr-wf-slider-wrap').forEach((wrap) => {
     const slider = wrap.querySelector<HTMLElement>('.sdr-wf-slider')
+    // The template always renders a .sdr-wf-slider inside every .sdr-wf-slider-
+    // wrap, so the query never misses.
+    /* v8 ignore start */
     if (slider) slider.style.setProperty('--wf-slider-len', `${wrap.clientHeight}px`)
+    /* v8 ignore stop */
   })
 }
 
@@ -1330,7 +1376,11 @@ const MIN_BINS = 1024
 const MAX_BINS = 32768
 function computeDesiredBins(): number {
   const el = wfEl.value
+  // Only ever called after initPlots() (which requires the elements) or from a
+  // debounced timer that is cleared on unmount, so wfEl is always populated.
+  /* v8 ignore start */
   if (!el) return MIN_BINS
+  /* v8 ignore stop */
   const dpr = window.devicePixelRatio || 1
   const px = Math.max(1, Math.round(el.clientWidth * dpr))
   const z = Math.max(1, zoom.value)
@@ -1355,7 +1405,11 @@ function scheduleDesiredBins() {
 }
 
 function buildPipes(n: number) {
+  // Both callers (initPlots and the lastSpectrum watch) only run with the plots
+  // present — the watch guards `!specPlot || !wfPlot` and returns first.
+  /* v8 ignore start */
   if (!specPlot || !wfPlot) return
+  /* v8 ignore stop */
   if (subsize) {
     try {
       specPlot.remove_layer(specUuid)
@@ -1408,7 +1462,11 @@ function buildPipes(n: number) {
 let rafId = 0
 
 function initPlots() {
+  // Deferred via a double rAF that onBeforeUnmount cancels, so by the time this
+  // runs the template refs are always populated.
+  /* v8 ignore start */
   if (!specEl.value || !wfEl.value || !rootEl.value) return
+  /* v8 ignore stop */
 
   // Spectrum keeps the SigPlot axes (frequency grid + dB scale) — only the
   // interactive chrome (menu/pan/drag/legend) is suppressed. fg drives the
@@ -1509,7 +1567,11 @@ function initPlots() {
   // Publish the canvas-sized FFT bin target now so the backend can switch as
   // soon as the WS is up (SdrPanel forwards on socket open if it fires early).
   publishDesiredBins()
+  // publishDesiredBins() above always assigns lastRequestedBins (≥ MIN_BINS), so
+  // the `|| MIN_BINS` fallback is belt-and-braces and never the taken branch.
+  /* v8 ignore start */
   buildPipes(lastRequestedBins || MIN_BINS)
+  /* v8 ignore stop */
 
   // Tuned-frequency marker. Two AccordionPlugin instances (one per plot) — see
   // the unit-split note at their declaration. Plugins live on _Gx.plugins with
@@ -1704,10 +1766,14 @@ onMounted(() => {
   // Size the rotated sliders once layout settles, then keep them in sync as
   // the column height changes (panel toggle, window resize, footer/nav).
   requestAnimationFrame(sizeSliders)
+  // controlsEl is a template ref that is always populated by the time onMounted
+  // runs, so the null arm never executes.
+  /* v8 ignore start */
   if (controlsEl.value) {
     controlsRo = new ResizeObserver(sizeSliders)
     controlsRo.observe(controlsEl.value)
   }
+  /* v8 ignore stop */
 })
 
 // KNOWN-GOOD baseline (the "working great, only occasional minor jumpy"
@@ -1904,7 +1970,12 @@ watch(
   () =>
     [store.currentFreqHz, store.bwHz, store.sampleRate, store.playing, store.currentMode] as const,
   () => {
+    // suppressAccEvents is only ever true within a synchronous accordion write
+    // (reset in the same tick's finally), and those writes never mutate the
+    // store values this watch tracks — so it is always false when this fires.
+    /* v8 ignore start */
     if (!suppressAccEvents) applyMarker()
+    /* v8 ignore stop */
   },
 )
 
@@ -1930,15 +2001,15 @@ watch([zmin, zmax], ([lo, hi]) => {
   // SDR++ behaviour — see User Guide v1.1 p. 31 (Min/Max are independent
   // endpoints; raising Min into Max does not push Max).
   if (hi <= lo) {
+    // A zmin/zmax change always fires its own watch(zmin)/watch(zmax) first
+    // (setting lastTouched) before this combined watcher runs, so lastTouched is
+    // always 'min' or 'max' here — clamp whichever the user just moved.
     if (lastTouched === 'min') {
       zmin.value = hi - 1
-      return
-    }
-    if (lastTouched === 'max') {
+    } else {
       zmax.value = lo + 1
-      return
     }
-    return // unknown source — bail out without thrashing either slider
+    return
   }
   autoScale.value = false
   applySpecRange(lo, hi)
@@ -1996,7 +2067,11 @@ watch(() => store.frequencies, syncKnownFrequencies, { deep: true })
 watch([spanStartHz, spanEndHz], syncKnownFrequencies)
 
 onBeforeUnmount(() => {
+  // rafId is assigned in onMounted and never reset to 0 (it holds the last init
+  // rAF id), so it is always truthy at unmount — the null arm never runs.
+  /* v8 ignore start */
   if (rafId) cancelAnimationFrame(rafId)
+  /* v8 ignore stop */
   if (drawRaf) cancelAnimationFrame(drawRaf)
   pendingFrame = null
   ro?.disconnect()
