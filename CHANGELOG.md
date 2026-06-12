@@ -934,6 +934,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #75 from barrygee/test/vue-backfill-space-filter
 - Merge pull request #76 from barrygee/test/vue-backfill-sdr-foundation
 - Merge pull request #77 from barrygee/test/vue-backfill-sdr-recordings
+- Merge pull request #78 from barrygee/test/vue-backfill-sdr-waterfall
 
 ### Refactoring
 
@@ -978,6 +979,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill SDR foundation to 100% coverage (slice 6f-1)
 - Backfill SdrRecordingsSection to 100% + fix edit-note focus (slice 6f-2)
 - Backfill SdrWaterfall to 100% coverage (slice 6f-3a)
+- Backfill SdrPanel near-total coverage + remove dead code (slice 6f-3b)
 
 ### Build System
 
