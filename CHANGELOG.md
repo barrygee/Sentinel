@@ -932,6 +932,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #73 from barrygee/test/vue-backfill-space-satellite-control
 - Merge pull request #74 from barrygee/test/vue-backfill-space-passes
 - Merge pull request #75 from barrygee/test/vue-backfill-space-filter
+- Merge pull request #76 from barrygee/test/vue-backfill-sdr-foundation
 
 ### Refactoring
 
@@ -974,6 +975,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill SpacePasses to 100% coverage (slice 6e-3b)
 - Backfill SpaceFilter to 100% coverage (slice 6e-3c)
 - Backfill SDR foundation to 100% coverage (slice 6f-1)
+- Backfill SdrRecordingsSection to 100% + fix edit-note focus (slice 6f-2)
 
 ### Build System
 
