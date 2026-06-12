@@ -204,8 +204,11 @@
                controls. Note only — flat input, no border box. -->
           <div v-if="editingRecId === c.id" class="sdr-recording-edit-panel" @click.stop>
             <div v-if="recmodNotes.trim()" class="sdr-recording-note-label">NOTES</div>
+            <!-- Function ref (not a string ref): this textarea is inside the row v-for, so a
+                 string ref would be collected into an array (ref_for) and `.focus()` below
+                 would throw. Matches the audio element's function-ref pattern. -->
             <textarea
-              ref="recmodNoteRef"
+              :ref="(el) => (recmodNoteRef = el as HTMLTextAreaElement | null)"
               v-model="recmodNotes"
               class="sdr-recording-edit-note"
               rows="2"
@@ -478,7 +481,10 @@ function setRecordingAudioRef(id: number, el: HTMLAudioElement | null): void {
 
 function toggleRecordingPlay(c: SdrRecording): void {
   const a = recordingAudioRefs.get(c.id)
+  /* v8 ignore start -- defensive: every saved row renders its own <audio> whose function ref
+     registers it, so the element is always present for a row whose play button can be clicked. */
   if (!a) return
+  /* v8 ignore stop */
   if (playingRecordingId.value === c.id) {
     a.pause()
     a.currentTime = 0
@@ -486,10 +492,13 @@ function toggleRecordingPlay(c: SdrRecording): void {
   } else {
     if (playingRecordingId.value !== null) {
       const prev = recordingAudioRefs.get(playingRecordingId.value)
+      /* v8 ignore start -- defensive: the previously-playing id always has its <audio>
+         registered in the ref map. */
       if (prev) {
         prev.pause()
         prev.currentTime = 0
       }
+      /* v8 ignore stop */
     }
     playingRecordingId.value = c.id
     recordingCurrentTime.value = 0
@@ -506,7 +515,9 @@ function isFiniteDuration(d: number): boolean {
 
 function onAudioMeta(id: number): void {
   const a = recordingAudioRefs.get(id)
+  /* v8 ignore start -- defensive: the event fires from the row's own registered <audio>. */
   if (!a) return
+  /* v8 ignore stop */
   if (playingRecordingId.value === id && isFiniteDuration(a.duration))
     recordingDuration.value = a.duration
 }
@@ -514,7 +525,9 @@ function onAudioMeta(id: number): void {
 function onAudioTimeUpdate(id: number): void {
   if (playingRecordingId.value !== id) return
   const a = recordingAudioRefs.get(id)
+  /* v8 ignore start -- defensive: the event fires from the row's own registered <audio>. */
   if (!a) return
+  /* v8 ignore stop */
   recordingCurrentTime.value = a.currentTime
   // Streamed WAVs may only expose a finite duration once playback begins.
   if (isFiniteDuration(a.duration) && a.duration !== recordingDuration.value)
@@ -532,7 +545,10 @@ function onAudioEnded(id: number): void {
 function seekRecordingBar(e: MouseEvent): void {
   if (playingRecordingId.value === null || recordingDuration.value <= 0) return
   const a = recordingAudioRefs.get(playingRecordingId.value)
+  /* v8 ignore start -- defensive: the seek bar only renders for the playing row, whose
+     <audio> is registered. */
   if (!a) return
+  /* v8 ignore stop */
   const el = e.currentTarget as HTMLElement
   const rect = el.getBoundingClientRect()
   const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
@@ -551,7 +567,10 @@ function downloadRecording(c: SdrRecording, type: 'wav' | 'iq'): void {
 function updateScrollHint(): void {
   const wrap = recordingsListWrapRef.value
   const hint = scrollHintRef.value
+  /* v8 ignore start -- defensive: both elements are always present in the template (not
+     behind a v-if), so the refs are set whenever this runs. */
   if (!wrap || !hint) return
+  /* v8 ignore stop */
   const hasOverflow = wrap.scrollHeight > wrap.clientHeight + 2
   const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 4
   hint.style.display = hasOverflow && !atBottom ? 'flex' : 'none'
@@ -578,7 +597,11 @@ function closeEditAccordion(): void {
 
 async function saveEditAccordion(): Promise<void> {
   const name = recmodName.value.trim()
-  if (!name || editingRecId.value === null) return
+  if (!name) return
+  /* v8 ignore start -- editingRecId is non-null whenever the SAVE button (its only caller)
+     is rendered; this guard exists to narrow the type for the request URL below. */
+  if (editingRecId.value === null) return
+  /* v8 ignore stop */
   try {
     await fetch(`/api/sdr/recordings/${editingRecId.value}`, {
       method: 'PATCH',
