@@ -28,17 +28,27 @@ You only need `--build` when **dependencies** change (`pyproject.toml` / `packag
 Note: `frontend/spa-dist/` (the built bundle) **is committed** and is what the backend serves in production — rebuild and commit it when shipping a frontend change.
 
 ## Test & lint
-Run from the repo **root** (tests need `pythonpath=.`), and pass `--project backend` so uv uses the backend venv — the project's `pyproject.toml` lives in `backend/`, so a bare `uv run` from the root resolves to the wrong interpreter (an unrelated `~/.venv` / system pytest).
+Run backend commands from the repo **root** (tests need `pythonpath=.`), and pass `--project backend` so uv uses the backend venv — the project's `pyproject.toml` lives in `backend/`, so a bare `uv run` from the root resolves to the wrong interpreter (an unrelated `~/.venv` / system pytest).
 ```bash
+# Backend (root)
 uv run --project backend pytest                                  # all backend tests
 uv run --project backend pytest tests/backend/test_routers_air.py::test_name   # single test
-uv run --project backend ruff check backend                      # lint (conservative: E,F,I,UP,B)
+uv run --project backend ruff check backend                      # lint (conservative: E,F,I,UP,B) — GATING
+uv run --project backend ruff format --check backend             # format check — GATING (ruff format is the Python formatter)
 uv run --project backend mypy backend                            # informational only, NOT gating (~90 known errors)
-npm test                                                          # jest: frontend helper unit tests in tests/
+
+# Vue SPA (run from frontend/vue/) — the application
+cd frontend/vue && npm run lint                                  # ESLint + Prettier --check
+cd frontend/vue && npm run typecheck                             # vue-tsc --noEmit
+cd frontend/vue && npm run test:coverage                         # vitest — GATED AT 100% coverage (CI fails on any drop)
+
+# Root helpers
+npm test                                                         # jest: standalone TS helpers in tests/
 ```
+All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to `main`; ruff check + `ruff format --check` + pytest (backend), ESLint/Prettier + vue-tsc + vitest@100% + Vite build (SPA), and ESLint/Prettier + jest (root) are gating. mypy is not. A **husky** pre-commit hook (`.husky/pre-commit` + `.lintstagedrc.json`) mirrors the format/lint gates on staged files across both npm contexts. `CHANGELOG.md` is regenerated automatically from Conventional Commits on every PR (`.github/workflows/changelog.yml`, git-cliff) — don't hand-edit it. See `CONTRIBUTING.md` for the full contributor workflow and conventions; new code is expected to ship at 100% frontend coverage.
 
 ## Two npm contexts — don't confuse them
-- **`frontend/vue/`** — the real app (Vite + Vue 3 + Pinia + vue-router).
+- **`frontend/vue/`** — the real app (Vite + Vue 3 + Pinia + vue-router); tested with **vitest** (100% coverage gate) + ESLint/Prettier + `vue-tsc`.
 - **Repo-root `package.json`** — legacy `tsc`/`jest` for standalone TS helpers tested in `tests/frontend/`. Not the app build.
 
 ## Architecture
@@ -59,4 +69,6 @@ npm test                                                          # jest: fronte
 
 ## Conventions
 - Run all `uv` commands from the **repo root** with `--project backend` (see Test & lint for why).
-- ruff is intentionally minimal; mypy is informational, not CI-gating.
+- ruff lint is intentionally minimal (`E,F,I,UP,B`); `ruff format` IS gating; mypy is informational, not CI-gating.
+- Frontend coverage is gated at **100%** (`frontend/vue/vitest.config.ts`) — new SPA code ships with tests that keep every threshold at 100, and every component ships a `jest-axe` accessibility test. Use `/* v8 ignore start … stop */` (not the single-line `next` form, which this vitest setup ignores) for genuinely unreachable defensive branches, with a reason.
+- Conventional Commits are load-bearing: `CHANGELOG.md` is generated from them — don't hand-edit it. Branch off `main`; never commit to `main`. See `CONTRIBUTING.md`.
