@@ -27,14 +27,14 @@ export default mergeConfig(
           'src/test/**',
           'src/**/*.{test,spec}.{ts,vue}',
         ],
-        // Ratchet floor — set at the harness's current coverage so CI fails on
-        // any regression. Each per-domain backfill PR (6a–6f) raises these as it
-        // adds tests; phase 6g sets them all to 100.
+        // Full coverage gate — the backfill is complete (phases 6a–6g), so every
+        // source file is exercised. CI fails on any drop below 100%, which keeps
+        // new code shipping with its tests rather than eroding the floor.
         thresholds: {
-          lines: 99,
-          functions: 98,
-          branches: 99,
-          statements: 99,
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
         },
       },
     },
