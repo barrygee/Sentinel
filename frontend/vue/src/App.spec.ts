@@ -127,8 +127,11 @@ import App from './App.vue'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
 
-function mountApp() {
+function mountApp(options: { attach?: boolean } = {}) {
   return mount(App, {
+    // Attach to the document only when a test asserts real focus movement
+    // (jsdom only tracks document.activeElement for connected elements).
+    attachTo: options.attach ? document.body : undefined,
     global: {
       stubs: {
         MapSidebar: MapSidebarStub,
@@ -256,6 +259,66 @@ describe('App', () => {
       mountApp()
       await nextTick()
       expect(addSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('app shell accessibility', () => {
+    it('renders a skip-to-content link as the first element targeting the main region', () => {
+      const wrapper = mountApp()
+      const skipLink = wrapper.find('a.skip-link')
+      expect(skipLink.exists()).toBe(true)
+      expect(skipLink.attributes('href')).toBe('#main')
+      expect(skipLink.text()).toBe('Skip to main content')
+      // It must be the very first node so it's the first stop in the tab order.
+      expect(wrapper.element.firstElementChild).toBe(skipLink.element)
+    })
+
+    it('wraps the routed view in a focusable <main id="main"> landmark', () => {
+      const wrapper = mountApp()
+      const main = wrapper.find('main#main')
+      expect(main.exists()).toBe(true)
+      expect(main.attributes('tabindex')).toBe('-1')
+    })
+
+    it('names the domain nav landmark', () => {
+      const wrapper = mountApp()
+      expect(wrapper.find('nav').attributes('aria-label')).toBe('Domains')
+    })
+
+    it('sets a per-view document title on mount and updates it on navigation', async () => {
+      mountApp()
+      expect(document.title).toBe('SENTINEL — AIR')
+
+      shared.route!.path = '/sdr/'
+      await nextTick()
+      expect(document.title).toBe('SENTINEL — SDR')
+    })
+
+    it('falls back to the bare app title for an unrecognised route', async () => {
+      mountApp()
+      shared.route!.path = '/unknown/'
+      await nextTick()
+      expect(document.title).toBe('SENTINEL')
+    })
+
+    it('falls back to the bare app title for the segment-less root path', async () => {
+      mountApp()
+      // '/'.split('/') has no truthy segment → titleForPath's `?? ''` fallback.
+      shared.route!.path = '/'
+      await nextTick()
+      expect(document.title).toBe('SENTINEL')
+    })
+
+    it('does not move focus on initial mount but moves it to main on navigation', async () => {
+      const wrapper = mountApp({ attach: true })
+      const main = wrapper.get('#main').element
+      // Immediate watch ran (previousPath undefined) → focus must NOT have moved.
+      expect(document.activeElement).not.toBe(main)
+
+      shared.route!.path = '/space/'
+      await nextTick() // route watcher runs, schedules the focus() on nextTick
+      await nextTick() // inner nextTick callback runs
+      expect(document.activeElement).toBe(main)
     })
   })
 

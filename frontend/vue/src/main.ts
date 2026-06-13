@@ -6,6 +6,9 @@ import * as pmtiles from 'pmtiles'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './assets/fonts.css'
 import './assets/styles.css'
+// Global a11y baseline (focus-visible, reduced motion, skip-link/sr-only
+// utilities) — imported last so its focus ring overrides component resets.
+import './assets/a11y.css'
 
 import App from './App.vue'
 import router from './router'
