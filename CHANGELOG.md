@@ -935,6 +935,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #76 from barrygee/test/vue-backfill-sdr-foundation
 - Merge pull request #77 from barrygee/test/vue-backfill-sdr-recordings
 - Merge pull request #78 from barrygee/test/vue-backfill-sdr-waterfall
+- Merge pull request #79 from barrygee/test/vue-backfill-sdr-panel
 
 ### Refactoring
 
@@ -981,6 +982,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill SdrWaterfall to 100% coverage (slice 6f-3a)
 - Backfill SdrPanel near-total coverage + remove dead code (slice 6f-3b)
 - Bring SdrPanel to verified 100% coverage (slice 6f-3b)
+- Backfill App/Sea/Land to 100% and raise coverage gate to 100 (slice 6g)
 
 ### Build System
 
