@@ -5,6 +5,7 @@
       <button
         id="side-menu-toggle"
         :data-tooltip="expanded ? 'COLLAPSE MENU' : 'EXPAND MENU'"
+        :aria-label="expanded ? 'Collapse menu' : 'Expand menu'"
         @click="expanded = !expanded"
       >
         {{ expanded ? '›' : '‹' }}
@@ -13,12 +14,27 @@
 
     <!-- Group 2: zoom + location -->
     <div id="sm-group-nav" class="sm-group">
-      <button class="sm-nav-btn" data-tooltip="ZOOM IN" @click="getMap()?.zoomIn()">+</button>
-      <button class="sm-nav-btn" data-tooltip="ZOOM OUT" @click="getMap()?.zoomOut()">−</button>
+      <button
+        class="sm-nav-btn"
+        data-tooltip="ZOOM IN"
+        aria-label="Zoom in"
+        @click="getMap()?.zoomIn()"
+      >
+        +
+      </button>
+      <button
+        class="sm-nav-btn"
+        data-tooltip="ZOOM OUT"
+        aria-label="Zoom out"
+        @click="getMap()?.zoomOut()"
+      >
+        −
+      </button>
       <button
         class="sm-nav-btn"
         :class="{ active: locActive }"
         data-tooltip="GO TO MY LOCATION"
+        aria-label="Go to my location"
         @click="goToLocation"
       >
         <svg
@@ -41,9 +57,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: airStore.overlayStates.adsb }"
         data-tooltip="PLANES"
+        aria-label="Planes"
         @click="togglePlanes"
       >
-        <span class="sm-icon">
+        <span class="sm-icon" aria-hidden="true">
           <svg
             width="16"
             height="15"
@@ -86,9 +103,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: !hideGnd }"
         data-tooltip="GROUND VEHICLES"
+        aria-label="Ground vehicles"
         @click="toggleGround"
       >
-        <span class="sm-icon" style="--sm-icon-size: 8px">GND</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px" aria-hidden="true">GND</span>
         <span class="sm-label">GROUND VEHICLES</span>
       </button>
 
@@ -97,9 +115,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: !hideTowers }"
         data-tooltip="TOWERS"
+        aria-label="Towers"
         @click="toggleTowers"
       >
-        <span class="sm-icon" style="--sm-icon-size: 8px">TWR</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px" aria-hidden="true">TWR</span>
         <span class="sm-label">TOWERS</span>
       </button>
 
@@ -111,9 +130,10 @@
           'sm-planes-off': !planesOn,
         }"
         data-tooltip="CALLSIGNS"
+        aria-label="Callsigns"
         @click="toggleLabels"
       >
-        <span class="sm-icon" style="--sm-icon-size: 8px">CALL</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px" aria-hidden="true">CALL</span>
         <span class="sm-label">CALLSIGNS</span>
       </button>
 
@@ -122,9 +142,10 @@
         class="sm-btn"
         :class="{ active: airStore.overlayStates.rangeRings }"
         data-tooltip="RANGE RING"
+        aria-label="Range ring"
         @click="mapRef.value?.getRangeRings()?.handleClickPublic()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 16px">◎</span>
+        <span class="sm-icon" style="--sm-icon-size: 16px" aria-hidden="true">◎</span>
         <span class="sm-label">RANGE RING</span>
       </button>
 
@@ -133,9 +154,10 @@
         class="sm-btn"
         :class="{ active: airStore.overlayStates.aara }"
         data-tooltip="A2A REFUELING"
+        aria-label="A2A refueling"
         @click="mapRef.value?.getAara()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 16px">=</span>
+        <span class="sm-icon" style="--sm-icon-size: 16px" aria-hidden="true">=</span>
         <span class="sm-label">A2A REFUELING</span>
       </button>
 
@@ -144,9 +166,10 @@
         class="sm-btn"
         :class="{ active: airStore.overlayStates.awacs }"
         data-tooltip="AWACS"
+        aria-label="AWACS"
         @click="mapRef.value?.getAwacs()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 16px">○</span>
+        <span class="sm-icon" style="--sm-icon-size: 16px" aria-hidden="true">○</span>
         <span class="sm-label">AWACS</span>
       </button>
 
@@ -155,9 +178,10 @@
         class="sm-btn"
         :class="{ active: tiltActive }"
         data-tooltip="3D VIEW"
+        aria-label="3D view"
         @click="toggle3D"
       >
-        <span class="sm-icon">
+        <span class="sm-icon" aria-hidden="true">
           <svg
             width="14"
             height="14"
@@ -183,9 +207,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: airStore.overlayStates.airports }"
         data-tooltip="AIRPORTS"
+        aria-label="Airports"
         @click="mapRef.value?.getAirports()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 8px">CVL</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px" aria-hidden="true">CVL</span>
         <span class="sm-label">AIRPORTS</span>
       </button>
 
@@ -194,9 +219,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: airStore.overlayStates.militaryBases }"
         data-tooltip="MILITARY BASES"
+        aria-label="Military bases"
         @click="mapRef.value?.getMilBases()?.toggle()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 8px">MIL</span>
+        <span class="sm-icon" style="--sm-icon-size: 8px" aria-hidden="true">MIL</span>
         <span class="sm-label">MILITARY BASES</span>
       </button>
 
@@ -205,9 +231,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: airStore.overlayStates.names }"
         data-tooltip="LOCATIONS"
+        aria-label="Locations"
         @click="mapRef.value?.getNamesControl()?.handleClickPublic()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 14px">N</span>
+        <span class="sm-icon" style="--sm-icon-size: 14px" aria-hidden="true">N</span>
         <span class="sm-label">LOCATIONS</span>
       </button>
 
@@ -216,9 +243,10 @@
         class="sm-btn sm-expanded-only"
         :class="{ active: airStore.overlayStates.roads }"
         data-tooltip="ROADS"
+        aria-label="Roads"
         @click="mapRef.value?.getRoadsControl()?.handleClickPublic()"
       >
-        <span class="sm-icon" style="--sm-icon-size: 14px">R</span>
+        <span class="sm-icon" style="--sm-icon-size: 14px" aria-hidden="true">R</span>
         <span class="sm-label">ROADS</span>
       </button>
     </div>
@@ -230,11 +258,12 @@
         class="sm-btn enabled"
         :class="{ 'filter-flyout-open': flyoutOpen }"
         data-tooltip="FILTER"
+        aria-label="Filter"
         @mouseenter="showFlyout"
         @mouseleave="startHideFlyout"
         @click="openFilter"
       >
-        <span class="sm-icon">
+        <span class="sm-icon" aria-hidden="true">
           <svg
             width="15"
             height="15"
@@ -296,8 +325,14 @@
 
     <!-- Group 6: search button -->
     <div class="sm-group">
-      <button id="sm-search-btn" class="sm-btn enabled" data-tooltip="SEARCH" @click="openSearch">
-        <span class="sm-icon">
+      <button
+        id="sm-search-btn"
+        class="sm-btn enabled"
+        data-tooltip="SEARCH"
+        aria-label="Search"
+        @click="openSearch"
+      >
+        <span class="sm-icon" aria-hidden="true">
           <svg
             width="15"
             height="15"
@@ -325,13 +360,38 @@
   <!-- 3D controls widget (fixed bottom-right) -->
   <div id="map-3d-controls" :class="{ 'map-3d-controls--hidden': !tiltActive }">
     <span />
-    <button class="map-3d-btn" data-tooltip="TILT UP" @click="tiltBy(10)">↑</button>
+    <button class="map-3d-btn" data-tooltip="TILT UP" aria-label="Tilt up" @click="tiltBy(10)">
+      ↑
+    </button>
     <span />
-    <button class="map-3d-btn" data-tooltip="ROTATE LEFT" @click="rotateBy(-15)">↺</button>
-    <button class="map-3d-btn" data-tooltip="RESET BEARING" @click="resetBearing">⌖</button>
-    <button class="map-3d-btn" data-tooltip="ROTATE RIGHT" @click="rotateBy(15)">↻</button>
+    <button
+      class="map-3d-btn"
+      data-tooltip="ROTATE LEFT"
+      aria-label="Rotate left"
+      @click="rotateBy(-15)"
+    >
+      ↺
+    </button>
+    <button
+      class="map-3d-btn"
+      data-tooltip="RESET BEARING"
+      aria-label="Reset bearing"
+      @click="resetBearing"
+    >
+      ⌖
+    </button>
+    <button
+      class="map-3d-btn"
+      data-tooltip="ROTATE RIGHT"
+      aria-label="Rotate right"
+      @click="rotateBy(15)"
+    >
+      ↻
+    </button>
     <span />
-    <button class="map-3d-btn" data-tooltip="TILT DOWN" @click="tiltBy(-10)">↓</button>
+    <button class="map-3d-btn" data-tooltip="TILT DOWN" aria-label="Tilt down" @click="tiltBy(-10)">
+      ↓
+    </button>
     <span />
   </div>
 </template>

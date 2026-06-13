@@ -108,7 +108,7 @@ describe('SdrResumeDelayControl', () => {
     // the smoke test still guards every other rule.
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

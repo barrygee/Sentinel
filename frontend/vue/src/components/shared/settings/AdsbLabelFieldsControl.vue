@@ -22,6 +22,7 @@
             <input
               type="checkbox"
               class="adsb-lf-input"
+              :aria-label="`${opt.label} — civil`"
               :checked="fields.civil.includes(opt.value)"
               @change="toggle('civil', opt.value)"
             />
@@ -49,6 +50,7 @@
             <input
               type="checkbox"
               class="adsb-lf-input"
+              :aria-label="`${opt.label} — military`"
               :checked="fields.mil.includes(opt.value)"
               @change="toggle('mil', opt.value)"
             />

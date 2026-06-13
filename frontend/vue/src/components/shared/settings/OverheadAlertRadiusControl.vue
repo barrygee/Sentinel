@@ -5,6 +5,7 @@
       type="text"
       inputmode="numeric"
       class="oar-input"
+      aria-label="Overhead alert radius in nautical miles"
       :class="{ 'oar-input--invalid': !isValid }"
       spellcheck="false"
       autocomplete="off"

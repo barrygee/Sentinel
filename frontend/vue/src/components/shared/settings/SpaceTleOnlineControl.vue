@@ -6,6 +6,7 @@
         v-model="urlValue"
         type="url"
         class="settings-datasource-input"
+        aria-label="TLE online source URL"
         placeholder="https://celestrak.org/..."
         spellcheck="false"
         autocomplete="off"

@@ -5,6 +5,7 @@
       ref="inputRef"
       v-model="query"
       type="text"
+      aria-label="Filter satellites by name, NORAD ID or category"
       placeholder="SATELLITE NAME · NORAD ID · CATEGORY"
       autocomplete="off"
       spellcheck="false"

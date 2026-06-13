@@ -4,6 +4,7 @@
       ref="taRef"
       v-model="configText"
       class="settings-config-preview settings-config-preview--textarea"
+      aria-label="Editable app configuration JSON"
       :class="{ 'settings-config-preview--hidden': !visible }"
       spellcheck="false"
       autocomplete="off"

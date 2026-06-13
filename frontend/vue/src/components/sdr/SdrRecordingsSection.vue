@@ -4,6 +4,7 @@
       v-model="recordingsFilter"
       class="sdr-recordings-search-input"
       type="text"
+      aria-label="Filter recordings by notes or mode"
       placeholder="NOTES · MODE"
       autocomplete="off"
       spellcheck="false"
@@ -213,6 +214,7 @@
               class="sdr-recording-edit-note"
               rows="2"
               maxlength="250"
+              aria-label="Recording note"
               placeholder="Add a note…"
               @keydown.esc="closeEditAccordion"
             ></textarea>

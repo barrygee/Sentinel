@@ -733,7 +733,7 @@ describe('SdrRecordingsSection — accessibility', () => {
     await wrapper.vm.$nextTick()
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

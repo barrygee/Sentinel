@@ -348,7 +348,7 @@ describe('SdrWaterfall — mount & init', () => {
     // deferred to the phase-7/8 a11y sweep, every other rule stays on.
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

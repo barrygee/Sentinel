@@ -376,6 +376,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     this.button = document.createElement('button')
     this.button.title = 'Toggle live ADS-B aircraft'
+    // 'ADS' is a terse glyph; expose the full descriptive name to AT (WCAG 4.1.2).
+    this.button.setAttribute('aria-label', 'Toggle live ADS-B aircraft')
     this.button.textContent = 'ADS'
     this.button.style.cssText =
       'width:29px;height:29px;border:none;background:#000;cursor:pointer;font-size:8px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:opacity 0.2s,color 0.2s'

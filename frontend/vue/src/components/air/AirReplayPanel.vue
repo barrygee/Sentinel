@@ -386,6 +386,7 @@
             class="apb-transport-btn apb-transport-btn--play"
             :disabled="isActive || !canLoad || isLoading"
             title="Start replay"
+            aria-label="Start replay"
             @click="loadPlayback"
           >
             <svg
@@ -415,6 +416,7 @@
             class="apb-transport-btn apb-transport-btn--stop"
             :disabled="!isActive"
             title="Stop replay"
+            aria-label="Stop replay"
             @click="playbackStore.exit()"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">

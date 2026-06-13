@@ -6,6 +6,7 @@
         v-model="urlValue"
         type="url"
         class="settings-datasource-input"
+        aria-label="Online source URL"
         :placeholder="props.defaultUrl || 'https://'"
         spellcheck="false"
         autocomplete="off"

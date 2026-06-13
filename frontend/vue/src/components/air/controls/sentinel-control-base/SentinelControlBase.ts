@@ -22,6 +22,10 @@ export abstract class SentinelControlBase implements maplibregl.IControl {
 
     this.button = document.createElement('button')
     this.button.title = this.buttonTitle
+    // The visible button content is an icon/SVG/short glyph, so `title` alone is
+    // an unreliable accessible name (some screen readers ignore it). Expose the
+    // descriptive title programmatically as the accessible name (WCAG 4.1.2).
+    this.button.setAttribute('aria-label', this.buttonTitle)
     this.button.style.cssText =
       'width:29px;height:29px;border:none;background:#000;cursor:pointer;' +
       'font-size:16px;font-weight:bold;display:flex;align-items:center;' +
