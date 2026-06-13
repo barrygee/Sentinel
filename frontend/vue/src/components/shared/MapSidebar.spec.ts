@@ -89,6 +89,21 @@ describe('MapSidebar', () => {
       expect(sessionStorage.getItem(OPEN_KEY)).toBe('1')
     })
 
+    it('exposes the disclosure state of each rail tab via aria-expanded/aria-controls', async () => {
+      const wrapper = mountSidebar()
+      const trackingBtn = wrapper.find('.msb-rail-btn[data-tab="tracking"]')
+      // Collapsed: the panel is closed, so the tab is not expanded.
+      expect(trackingBtn.attributes('aria-expanded')).toBe('false')
+      expect(trackingBtn.attributes('aria-controls')).toBe('msb-pane-tracking')
+
+      await trackingBtn.trigger('click')
+      expect(trackingBtn.attributes('aria-expanded')).toBe('true')
+      // Sibling tabs stay collapsed.
+      expect(wrapper.find('.msb-rail-btn[data-tab="search"]').attributes('aria-expanded')).toBe(
+        'false',
+      )
+    })
+
     it('opens the notifications panel only for the alerts tab', async () => {
       const wrapper = mountSidebar()
       const notifStore = useNotificationsStore()

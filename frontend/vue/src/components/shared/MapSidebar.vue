@@ -11,6 +11,8 @@
       :data-tab="tab.id"
       :data-tooltip="tab.label"
       :aria-label="tab.label"
+      :aria-expanded="activeTab === tab.id && open"
+      :aria-controls="`msb-pane-${tab.id}`"
       @click="switchTab(tab.id)"
     >
       <!-- search -->

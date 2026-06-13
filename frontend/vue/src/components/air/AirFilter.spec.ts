@@ -203,6 +203,15 @@ describe('AirFilter', () => {
       expect(heading.classes()).not.toContain('filter-section-label--collapsed')
     })
 
+    it('exposes the section disclosure state via aria-expanded', async () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const heading = wrapper.findAll('.filter-section-label')[0]!
+      // Sections start expanded.
+      expect(heading.attributes('aria-expanded')).toBe('true')
+      await heading.trigger('click') // collapse
+      expect(heading.attributes('aria-expanded')).toBe('false')
+    })
+
     it('auto-opens a collapsed section that gains matches, then re-collapses it', async () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()))
       const aircraftHeading = wrapper.findAll('.filter-section-label')[0]!

@@ -211,6 +211,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - App-shell semantics, visible focus & reduced motion (phase 8-1)
 - Programmatic names & labels for controls and inputs (phase 8-2)
 - Document structure — per-view h1 & landmark regions (phase 8-3)
+- Announce dynamic updates & expose disclosure state (phase 8-4a)
 
 ### Chores
 
@@ -944,6 +945,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #82 from barrygee/a11y/phase-7-audit-report
 - Merge pull request #83 from barrygee/a11y/phase-8-1-shell-focus-motion
 - Merge pull request #84 from barrygee/a11y/phase-8-2-names-labels
+- Merge pull request #85 from barrygee/a11y/phase-8-3-structure
 
 ### Refactoring
 
