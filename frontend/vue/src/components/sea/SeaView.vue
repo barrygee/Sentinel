@@ -5,6 +5,7 @@
     <MapLibreMap
       ref="mapRef"
       :style-url="styleUrl"
+      region-label="Sea domain map"
       :center="[-2, 54]"
       :zoom="5"
       @map-created="onMapCreated"

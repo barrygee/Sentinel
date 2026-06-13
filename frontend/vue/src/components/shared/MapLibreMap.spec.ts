@@ -28,6 +28,7 @@ vi.mock('maplibre-gl', () => {
 })
 
 import MapLibreMap from './MapLibreMap.vue'
+import { axe } from 'jest-axe'
 
 const STYLE = 'https://tiles.example/style.json'
 
@@ -42,7 +43,14 @@ describe('MapLibreMap', () => {
 
   it('creates a map with prop-driven view options and attribution disabled', () => {
     mount(MapLibreMap, {
-      props: { styleUrl: STYLE, center: [10, 20], zoom: 9, pitch: 45, bearing: 30 },
+      props: {
+        styleUrl: STYLE,
+        regionLabel: 'Test map',
+        center: [10, 20],
+        zoom: 9,
+        pitch: 45,
+        bearing: 30,
+      },
     })
     const created = mapRegistry.instances[0]!
     expect(created.options).toMatchObject({
@@ -57,7 +65,7 @@ describe('MapLibreMap', () => {
   })
 
   it('falls back to default view options when view props are omitted', () => {
-    mount(MapLibreMap, { props: { styleUrl: STYLE } })
+    mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
     expect(mapRegistry.instances[0]!.options).toMatchObject({
       center: [0, 51.5],
       zoom: 6,
@@ -67,7 +75,7 @@ describe('MapLibreMap', () => {
   })
 
   it('emits map-created and exposes the instance via window.map and getMap()', () => {
-    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE } })
+    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
     const created = mapRegistry.instances[0]!
     expect(wrapper.emitted('map-created')).toHaveLength(1)
     expect(wrapper.emitted('map-created')![0]![0]).toBe(created)
@@ -76,7 +84,7 @@ describe('MapLibreMap', () => {
   })
 
   it('resizes on the load event and emits style-loaded on style.load', () => {
-    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE } })
+    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
     const created = mapRegistry.instances[0]!
 
     created.handlers.load!()
@@ -88,7 +96,7 @@ describe('MapLibreMap', () => {
   })
 
   it('removes the map and emits map-removed on unmount', () => {
-    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE } })
+    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
     const created = mapRegistry.instances[0]!
     wrapper.unmount()
     expect(created.remove).toHaveBeenCalledOnce()
@@ -96,7 +104,7 @@ describe('MapLibreMap', () => {
   })
 
   it('guards the load/style.load handlers once the map has been torn down', () => {
-    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE } })
+    const wrapper = mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
     const created = mapRegistry.instances[0]!
     // Capture the handlers, then unmount so the module-level `map` becomes null.
     const loadHandler = created.handlers.load!
@@ -109,5 +117,46 @@ describe('MapLibreMap', () => {
     styleLoadHandler()
     expect(created.resize).not.toHaveBeenCalled()
     expect(wrapper.emitted('style-loaded')).toBeUndefined()
+  })
+
+  describe('accessible region', () => {
+    it('names the map container as a region and omits aria-describedby with no description', () => {
+      const wrapper = mount(MapLibreMap, {
+        props: { styleUrl: STYLE, regionLabel: 'Air domain map' },
+      })
+      const container = wrapper.find('.map-container')
+      expect(container.attributes('role')).toBe('region')
+      expect(container.attributes('aria-label')).toBe('Air domain map')
+      expect(container.attributes('aria-describedby')).toBeUndefined()
+      expect(wrapper.find('p.sr-only').exists()).toBe(false)
+    })
+
+    it('renders a visually-hidden description wired via aria-describedby', () => {
+      const wrapper = mount(MapLibreMap, {
+        props: {
+          styleUrl: STYLE,
+          regionLabel: 'Air domain map',
+          regionDescription: 'Aircraft are also listed in the Search panel.',
+        },
+      })
+      const description = wrapper.find('p.sr-only')
+      expect(description.exists()).toBe(true)
+      expect(description.text()).toBe('Aircraft are also listed in the Search panel.')
+      // The description is programmatically associated with the region.
+      expect(wrapper.find('.map-container').attributes('aria-describedby')).toBe(
+        description.attributes('id'),
+      )
+    })
+
+    it('has no accessibility violations', async () => {
+      const wrapper = mount(MapLibreMap, {
+        props: {
+          styleUrl: STYLE,
+          regionLabel: 'Air domain map',
+          regionDescription: 'Aircraft are also listed in the Search panel.',
+        },
+      })
+      expect(await axe(wrapper.html())).toHaveNoViolations()
+    })
   })
 })
