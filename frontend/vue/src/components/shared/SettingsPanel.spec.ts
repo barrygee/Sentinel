@@ -9,8 +9,11 @@ import { useAppStore } from '@/stores/app'
 
 // SettingRow and its many control children are covered by their own specs; stub
 // it so this spec exercises only SettingsPanel's own section/search/commit logic.
-function mountPanel() {
-  return mount(SettingsPanel, { global: { stubs: { SettingRow: true } } })
+function mountPanel({ attach = false }: { attach?: boolean } = {}) {
+  return mount(SettingsPanel, {
+    attachTo: attach ? document.body : undefined,
+    global: { stubs: { SettingRow: true } },
+  })
 }
 
 const reload = vi.fn()
@@ -120,12 +123,13 @@ describe('SettingsPanel', () => {
       expect((input.element as HTMLInputElement).value).toBe('')
     })
 
-    it('closes the panel when Escape is pressed in the search box', async () => {
+    it('closes the panel when Escape is pressed inside the dialog', async () => {
       const store = useSettingsStore()
       store.openPanel()
       const closeSpy = vi.spyOn(store, 'closePanel')
       const wrapper = mountPanel()
-      await wrapper.find('#settings-search-input').trigger('keydown.escape')
+      // Escape bubbles to the dialog container's keydown handler.
+      await wrapper.find('#settings-panel').trigger('keydown', { key: 'Escape' })
       expect(closeSpy).toHaveBeenCalledOnce()
     })
 
@@ -260,6 +264,58 @@ describe('SettingsPanel', () => {
     })
   })
 
+  describe('dialog semantics & focus', () => {
+    it('exposes the panel as a labelled modal dialog', () => {
+      const wrapper = mountPanel()
+      const panel = wrapper.find('#settings-panel')
+      expect(panel.attributes('role')).toBe('dialog')
+      expect(panel.attributes('aria-modal')).toBe('true')
+      expect(panel.attributes('aria-labelledby')).toBe('settings-section-heading')
+    })
+
+    it('closes the panel from the close button', async () => {
+      const store = useSettingsStore()
+      store.openPanel()
+      const closeSpy = vi.spyOn(store, 'closePanel')
+      const wrapper = mountPanel()
+      await wrapper.find('.settings-close-btn').trigger('click')
+      expect(closeSpy).toHaveBeenCalledOnce()
+    })
+
+    it('moves focus to the search field when opened on the App section', async () => {
+      const store = useSettingsStore()
+      const wrapper = mountPanel({ attach: true })
+      store.openPanel('app')
+      await flushPromises()
+      expect(document.activeElement).toBe(wrapper.find('#settings-search-input').element)
+    })
+
+    it('moves focus to the close button when opened on a section without search', async () => {
+      const store = useSettingsStore()
+      const wrapper = mountPanel({ attach: true })
+      store.openPanel('sdr')
+      await flushPromises()
+      expect(document.activeElement).toBe(wrapper.find('.settings-close-btn').element)
+    })
+
+    it('restores focus to the opening trigger when closed', async () => {
+      const trigger = document.createElement('button')
+      document.body.appendChild(trigger)
+      trigger.focus()
+
+      const store = useSettingsStore()
+      mountPanel({ attach: true })
+      store.openPanel('app')
+      await flushPromises()
+      expect(document.activeElement).not.toBe(trigger)
+
+      store.closePanel()
+      await flushPromises()
+      expect(document.activeElement).toBe(trigger)
+      trigger.remove()
+    })
+  })
+
   describe('locationSynced event', () => {
     it('drops a staged location edit when the panel is open on App settings', async () => {
       const store = useSettingsStore()
@@ -289,10 +345,8 @@ describe('SettingsPanel', () => {
 
   it('has no accessibility violations', async () => {
     const wrapper = mountPanel()
-    expect(
-      await axe(wrapper.html(), {
-        rules: { region: { enabled: false } },
-      }),
-    ).toHaveNoViolations()
+    // `region` is enabled: the panel is a role="dialog", whose content axe
+    // exempts from the landmark requirement (phase 8-4b).
+    expect(await axe(wrapper.html())).toHaveNoViolations()
   })
 })
