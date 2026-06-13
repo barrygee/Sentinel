@@ -1,5 +1,6 @@
 <template>
   <div id="map-wrap" data-domain="air">
+    <h1 class="sr-only">Air — live aircraft tracking</h1>
     <AirMap ref="airMapRef" />
     <AirSideMenu :map-ref="airMapProxy" />
     <NoUrlOverlay domain="air" />

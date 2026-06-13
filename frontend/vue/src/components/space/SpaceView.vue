@@ -1,5 +1,6 @@
 <template>
   <div id="map-wrap" data-domain="space">
+    <h1 class="sr-only">Space — satellite tracking</h1>
     <SpaceMap ref="spaceMapRef" />
     <SpaceSideMenu :map-ref="spaceMapProxy" />
     <NoUrlOverlay domain="space" />

@@ -37,4 +37,12 @@ describe('SdrView', () => {
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
   })
+
+  it('exposes a single screen-reader heading for the view', () => {
+    const wrapper = mount(SdrView)
+    const heading = wrapper.find('h1')
+    expect(heading.exists()).toBe(true)
+    expect(heading.classes()).toContain('sr-only')
+    expect(heading.text()).toBe('SDR — radio spectrum')
+  })
 })
