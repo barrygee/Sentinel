@@ -39,9 +39,14 @@
         :data-los-ms="pass.los_unix_ms"
         @mouseenter="onMouseEnter(pass)"
         @mouseleave="onMouseLeave"
-        @click="onCardClick(pass)"
       >
-        <div class="spp-pass-card-header">
+        <button
+          type="button"
+          class="spp-pass-card-header"
+          :aria-expanded="expandedKey === passKey(pass)"
+          :aria-controls="`spp-body-${passKey(pass)}`"
+          @click="onCardClick(pass)"
+        >
           <div class="spp-pass-info">
             <div class="spp-pass-primary">{{ pass.name || pass.norad_id }}</div>
             <div class="spp-pass-secondary">{{ passSecondary(pass) }}</div>
@@ -57,9 +62,13 @@
           <span class="spp-pass-chevron">
             <ChevronIcon />
           </span>
-        </div>
+        </button>
         <!-- Expanded accordion -->
-        <div v-if="expandedKey === passKey(pass)" class="spp-acc-body">
+        <div
+          v-if="expandedKey === passKey(pass)"
+          :id="`spp-body-${passKey(pass)}`"
+          class="spp-acc-body"
+        >
           <div class="spp-acc-section">
             <div class="spp-acc-section-title">POSITION DATA</div>
             <div class="spp-acc-grid spp-acc-grid--three">

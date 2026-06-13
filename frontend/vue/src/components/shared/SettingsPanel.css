@@ -1034,6 +1034,12 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  /* Disclosure button reset. */
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
 }
 .tle-info-toggle {
   display: inline-flex;

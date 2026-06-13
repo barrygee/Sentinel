@@ -110,6 +110,20 @@ describe('SpaceTleOnlineControl', () => {
     expect(wrapper.find('.tle-dropdown--open').exists()).toBe(false)
   })
 
+  it('toggles the source-URL info as a disclosure button with aria-expanded/controls', async () => {
+    const wrapper = mount(SpaceTleOnlineControl)
+    await flushPromises()
+    const header = wrapper.find('.tle-info-row-header')
+    expect(header.element.tagName).toBe('BUTTON')
+    expect(header.attributes('aria-expanded')).toBe('false')
+    expect(header.attributes('aria-controls')).toBe('tle-info-panel')
+    expect(wrapper.find('#tle-info-panel').exists()).toBe(false)
+
+    await header.trigger('click')
+    expect(wrapper.find('.tle-info-row-header').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('#tle-info-panel').exists()).toBe(true)
+  })
+
   it('refuses to fetch when the URL is empty', async () => {
     const wrapper = mount(SpaceTleOnlineControl)
     await flushPromises()

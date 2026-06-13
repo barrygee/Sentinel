@@ -54,10 +54,16 @@
       }}</span>
     </div>
     <div class="tle-info-row">
-      <div class="tle-info-row-header" @click="infoOpen = !infoOpen">
+      <button
+        type="button"
+        class="tle-info-row-header"
+        :aria-expanded="infoOpen"
+        aria-controls="tle-info-panel"
+        @click="infoOpen = !infoOpen"
+      >
         <span class="tle-info-label">View Celestrak source URLs</span>
         <span class="tle-info-chevron" :class="{ 'tle-info-chevron--open': infoOpen }">
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
             <polyline
               points="1,2.5 4,5.5 7,2.5"
               stroke="currentColor"
@@ -67,8 +73,8 @@
             />
           </svg>
         </span>
-      </div>
-      <div v-if="infoOpen" class="tle-info-panel">
+      </button>
+      <div v-if="infoOpen" id="tle-info-panel" class="tle-info-panel">
         <div class="tle-info-list">
           <div
             v-for="cat in TLE_CATEGORIES.filter((c) => c.value && effectiveUrls[c.value])"
