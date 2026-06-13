@@ -366,6 +366,7 @@ describe('AdsbLiveControl.onAdd / onRemove', () => {
   it('builds the button and registers field-change listeners', () => {
     const { control, map } = mounted()
     expect(control.button.textContent).toBe('ADS')
+    expect(control.button.getAttribute('aria-label')).toBe('Toggle live ADS-B aircraft')
     expect(control.container).toBeTruthy()
     // The style was loaded, so layers were initialised immediately.
     expect(map.sources.has('adsb-live')).toBe(true)

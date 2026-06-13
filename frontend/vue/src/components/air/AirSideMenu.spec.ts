@@ -349,7 +349,7 @@ describe('AirSideMenu', () => {
     // pre-existing gap deferred to the phase 7/8 a11y remediation.
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, 'button-name': { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

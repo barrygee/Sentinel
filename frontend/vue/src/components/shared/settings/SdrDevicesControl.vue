@@ -33,6 +33,7 @@
             class="sdr-device-btn"
             :class="{ 'sdr-device-btn--active': openId === r.id }"
             title="Edit"
+            aria-label="Edit device"
             @click="toggleEdit(r.id)"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -48,6 +49,7 @@
             v-if="confirmId !== r.id"
             class="sdr-device-btn sdr-device-btn--danger"
             title="Delete"
+            aria-label="Delete device"
             @click="startDelete(r.id)"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">

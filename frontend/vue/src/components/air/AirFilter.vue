@@ -4,6 +4,7 @@
       id="filter-input"
       ref="inputRef"
       type="text"
+      aria-label="Filter aircraft by callsign, ICAO or squawk"
       placeholder="CALLSIGN · ICAO · SQUAWK"
       autocomplete="off"
       spellcheck="false"

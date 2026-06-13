@@ -177,6 +177,7 @@
               v-model="freqInputVal"
               class="sdr-freq-input-large"
               type="text"
+              aria-label="Tuned frequency in MHz"
               size="8"
               placeholder=""
               autocomplete="off"
@@ -197,6 +198,7 @@
               class="sdr-mode-pill sdr-tune-btn"
               type="button"
               title="Tune"
+              aria-label="Tune"
               :disabled="controlsDisabled || playing || scanActive || searchActive"
               @click="tune"
             >
@@ -208,6 +210,7 @@
               class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
               type="button"
               title="Stop audio"
+              aria-label="Stop audio"
               :disabled="!playing && !scanActive && !searchActive"
               @click="stop"
             >
@@ -219,7 +222,8 @@
               class="sdr-mode-pill sdr-tune-btn sdr-rec-btn"
               :class="{ 'sdr-rec-btn--active': isRecording }"
               type="button"
-              title="Record"
+              :title="isRecording ? 'Stop recording' : 'Record'"
+              :aria-label="isRecording ? 'Stop recording' : 'Record'"
               :disabled="!playing && !scanActive && !searchActive"
               @click="toggleRecording"
             >
@@ -293,6 +297,7 @@
               <input
                 class="sdr-panel-slider"
                 type="range"
+                aria-label="Volume"
                 min="0"
                 max="200"
                 step="1"
@@ -313,6 +318,7 @@
               <input
                 class="sdr-panel-slider"
                 type="range"
+                aria-label="Squelch in dBFS"
                 min="-120"
                 max="0"
                 step="1"
@@ -335,6 +341,7 @@
               <input
                 class="sdr-panel-slider"
                 type="range"
+                aria-label="Bandwidth"
                 min="1000"
                 :max="bwMax"
                 step="500"
@@ -409,6 +416,7 @@
               <input
                 class="sdr-panel-slider"
                 type="range"
+                aria-label="RF gain in dB"
                 min="-1"
                 max="49"
                 step="0.5"
@@ -555,6 +563,7 @@
                 <input
                   v-model="adhocLowMhz"
                   class="sdr-panel-input sdr-search-adhoc-input"
+                  aria-label="Search range low frequency in MHz"
                   type="number"
                   step="0.0001"
                   required
@@ -566,6 +575,7 @@
                 <input
                   v-model="adhocHighMhz"
                   class="sdr-panel-input sdr-search-adhoc-input"
+                  aria-label="Search range high frequency in MHz"
                   type="number"
                   step="0.0001"
                   required
@@ -807,6 +817,7 @@
                     class="sdr-panel-input"
                     :class="{ 'sdr-input-error': efErrors.label }"
                     type="text"
+                    aria-label="Frequency label"
                     placeholder="Label…"
                     maxlength="60"
                     style="width: 100%"
@@ -820,6 +831,7 @@
                     class="sdr-panel-input"
                     :class="{ 'sdr-input-error': efErrors.freq }"
                     type="text"
+                    aria-label="Frequency in MHz"
                     placeholder="118.3800"
                     autocomplete="off"
                     style="width: 100%"
@@ -870,6 +882,7 @@
                     v-model="efNotes"
                     class="sdr-panel-input sdr-panel-textarea"
                     :class="{ 'sdr-input-error': efErrors.notes }"
+                    aria-label="Frequency notes"
                     placeholder="Notes…"
                     rows="4"
                     style="width: 100%"
@@ -924,6 +937,7 @@
                 class="sdr-panel-input"
                 :class="{ 'sdr-input-error': efErrors.label }"
                 type="text"
+                aria-label="Frequency label"
                 placeholder="Label…"
                 maxlength="60"
                 style="width: 100%"
@@ -938,6 +952,7 @@
                 class="sdr-panel-input"
                 :class="{ 'sdr-input-error': efErrors.freq }"
                 type="text"
+                aria-label="Frequency in MHz"
                 placeholder="118.3800"
                 autocomplete="off"
                 style="width: 100%"
@@ -996,6 +1011,7 @@
                 v-model="efNotes"
                 class="sdr-panel-input sdr-panel-textarea"
                 :class="{ 'sdr-input-error': efErrors.notes }"
+                aria-label="Frequency notes"
                 placeholder="Notes…"
                 rows="4"
                 style="width: 100%"
@@ -1086,6 +1102,7 @@
                     v-model="rangeEditor.label"
                     class="sdr-panel-input"
                     type="text"
+                    aria-label="Range label"
                     placeholder="e.g. Air Band"
                     maxlength="60"
                     style="width: 100%"
@@ -1098,6 +1115,7 @@
                       v-model="rangeEditor.low_mhz"
                       class="sdr-panel-input"
                       type="number"
+                      aria-label="Range low frequency in MHz"
                       step="0.0001"
                       style="width: 100%"
                     />
@@ -1108,6 +1126,7 @@
                       v-model="rangeEditor.high_mhz"
                       class="sdr-panel-input"
                       type="number"
+                      aria-label="Range high frequency in MHz"
                       step="0.0001"
                       style="width: 100%"
                     />
@@ -1140,6 +1159,7 @@
                       type="number"
                       step="10"
                       min="50"
+                      aria-label="Dwell time in milliseconds"
                       style="width: 100%"
                     />
                   </div>
@@ -1166,6 +1186,7 @@
                     class="sdr-panel-input"
                     type="number"
                     step="1"
+                    aria-label="Threshold in dBFS"
                     style="width: 100%"
                   />
                 </div>
@@ -1175,6 +1196,7 @@
                     v-model="rangeEditor.notes"
                     class="sdr-panel-input sdr-panel-textarea"
                     rows="3"
+                    aria-label="Range notes"
                     style="width: 100%"
                   ></textarea>
                 </div>
@@ -1216,6 +1238,7 @@
                 v-model="rangeEditor.label"
                 class="sdr-panel-input"
                 type="text"
+                aria-label="Range label"
                 placeholder="e.g. Air Band"
                 maxlength="60"
                 style="width: 100%"
@@ -1228,6 +1251,7 @@
                   v-model="rangeEditor.low_mhz"
                   class="sdr-panel-input"
                   type="number"
+                  aria-label="Range low frequency in MHz"
                   step="0.0001"
                   style="width: 100%"
                 />
@@ -1238,6 +1262,7 @@
                   v-model="rangeEditor.high_mhz"
                   class="sdr-panel-input"
                   type="number"
+                  aria-label="Range high frequency in MHz"
                   step="0.0001"
                   style="width: 100%"
                 />
@@ -1270,6 +1295,7 @@
                   type="number"
                   step="10"
                   min="50"
+                  aria-label="Dwell time in milliseconds"
                   style="width: 100%"
                 />
               </div>
@@ -1296,6 +1322,7 @@
                 class="sdr-panel-input"
                 type="number"
                 step="1"
+                aria-label="Threshold in dBFS"
                 style="width: 100%"
               />
             </div>
@@ -1305,6 +1332,7 @@
                 v-model="rangeEditor.notes"
                 class="sdr-panel-input sdr-panel-textarea"
                 rows="3"
+                aria-label="Range notes"
                 style="width: 100%"
               ></textarea>
             </div>
@@ -1330,6 +1358,7 @@
               <button
                 class="sdr-group-pill-edit"
                 title="Rename group"
+                aria-label="Rename group"
                 @click.stop="startEditGroupRow(g)"
               >
                 &#x270E;
@@ -1337,6 +1366,7 @@
               <button
                 class="sdr-group-pill-del"
                 title="Delete group"
+                aria-label="Delete group"
                 @click.stop="deleteGroup(g.id)"
               >
                 &#x2715;
@@ -1350,6 +1380,7 @@
             v-model="newGroupName"
             class="sdr-panel-input"
             type="text"
+            aria-label="New group name"
             placeholder="Group name…"
             maxlength="40"
             @keydown.enter="submitGroupRow"

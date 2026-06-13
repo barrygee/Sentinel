@@ -5,6 +5,7 @@
       <button
         id="space-side-menu-toggle"
         :data-tooltip="expanded ? 'COLLAPSE MENU' : 'EXPAND MENU'"
+        :aria-label="expanded ? 'Collapse menu' : 'Expand menu'"
         @click="expanded = !expanded"
       >
         {{ expanded ? '›' : '‹' }}
@@ -16,6 +17,7 @@
       <button
         class="sm-nav-btn"
         title="Zoom in"
+        aria-label="Zoom in"
         data-tooltip="Zoom in"
         @click="mapRef.value?.getMap()?.zoomIn()"
       >
@@ -24,6 +26,7 @@
       <button
         class="sm-nav-btn"
         title="Zoom out"
+        aria-label="Zoom out"
         data-tooltip="Zoom out"
         @click="mapRef.value?.getMap()?.zoomOut()"
       >
@@ -32,6 +35,7 @@
       <button
         class="sm-nav-btn"
         title="Go to my location"
+        aria-label="Go to my location"
         data-tooltip="Go to my location"
         :class="{ active: locActive }"
         @click="goToLocation"

@@ -781,7 +781,7 @@ describe('AirReplayPanel', () => {
     await flushPromises()
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, 'button-name': { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

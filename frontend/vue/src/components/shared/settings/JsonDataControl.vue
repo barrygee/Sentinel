@@ -4,6 +4,7 @@
       ref="taRef"
       v-model="text"
       class="settings-config-preview settings-config-preview--textarea"
+      :aria-label="`Editable JSON data (${filename})`"
       :class="{ 'settings-config-preview--hidden': !visible }"
       spellcheck="false"
       autocomplete="off"

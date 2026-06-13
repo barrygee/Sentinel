@@ -114,7 +114,7 @@ describe('OverheadAlertRadiusControl', () => {
     // every other rule is still asserted.
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

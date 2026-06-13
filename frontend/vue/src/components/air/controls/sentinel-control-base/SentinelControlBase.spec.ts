@@ -51,6 +51,12 @@ describe('SentinelControlBase.onAdd', () => {
     expect(control.button.title).toBe('Test control title')
   })
 
+  it('exposes buttonTitle as the accessible name via aria-label', () => {
+    const control = new TestControl()
+    control.onAdd(fakeMap())
+    expect(control.button.getAttribute('aria-label')).toBe('Test control title')
+  })
+
   it('renders a plain label via textContent', () => {
     const control = new TestControl('R')
     control.onAdd(fakeMap())

@@ -6,6 +6,7 @@
       inputmode="numeric"
       maxlength="3"
       class="rd-input"
+      aria-label="Resume delay in seconds"
       :class="{ 'rd-input--invalid': !isValid }"
       spellcheck="false"
       autocomplete="off"

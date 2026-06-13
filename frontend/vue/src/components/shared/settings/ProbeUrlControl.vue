@@ -6,6 +6,7 @@
         v-model="urlValue"
         type="url"
         class="settings-datasource-input"
+        aria-label="Connectivity probe URL"
         placeholder="https://"
         spellcheck="false"
         autocomplete="off"

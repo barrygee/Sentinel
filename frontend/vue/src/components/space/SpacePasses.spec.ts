@@ -1473,7 +1473,7 @@ describe('SpacePasses — accessibility', () => {
     const wrapper = await mountReady()
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })
@@ -1507,7 +1507,7 @@ describe('SpacePasses — accessibility', () => {
     await expandFirstCard(wrapper)
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

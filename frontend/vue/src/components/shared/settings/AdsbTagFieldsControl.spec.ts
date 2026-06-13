@@ -90,7 +90,7 @@ describe('AdsbTagFieldsControl', () => {
     // known gap deferred to the a11y remediation phase.
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

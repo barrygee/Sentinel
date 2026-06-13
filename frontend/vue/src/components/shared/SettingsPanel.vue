@@ -37,6 +37,7 @@
             ref="searchInputRef"
             v-model="searchQuery"
             type="text"
+            aria-label="Search settings"
             placeholder="SEARCH SETTINGS"
             autocomplete="off"
             spellcheck="false"

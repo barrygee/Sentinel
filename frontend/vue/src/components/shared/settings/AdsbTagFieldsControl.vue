@@ -16,6 +16,7 @@
             <input
               type="checkbox"
               class="adsb-tf-input"
+              :aria-label="`${opt.label} — civil`"
               :checked="fields.civil[opt.key]"
               @change="toggle('civil', opt.key)"
             />
@@ -37,6 +38,7 @@
             <input
               type="checkbox"
               class="adsb-tf-input"
+              :aria-label="`${opt.label} — military`"
               :checked="fields.mil[opt.key]"
               @change="toggle('mil', opt.key)"
             />

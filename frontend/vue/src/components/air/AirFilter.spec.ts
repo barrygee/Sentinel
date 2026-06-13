@@ -634,7 +634,7 @@ describe('AirFilter', () => {
     // rely on titles/markup — a pre-existing gap for the phase 7/8 a11y work.
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, 'button-name': { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

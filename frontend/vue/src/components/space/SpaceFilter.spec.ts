@@ -1581,7 +1581,7 @@ describe('SpaceFilter — accessibility', () => {
     const wrapper = await mountReady()
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })
@@ -1613,7 +1613,7 @@ describe('SpaceFilter — accessibility', () => {
     await expandFirstItem(wrapper)
     expect(
       await axe(wrapper.html(), {
-        rules: { region: { enabled: false }, label: { enabled: false } },
+        rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
   })

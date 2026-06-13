@@ -7,6 +7,7 @@
           v-model="searchQuery"
           type="text"
           class="settings-datasource-input"
+          aria-label="Search satellites by name, NORAD ID or category"
           placeholder="Filter by name, NORAD ID or category…"
           spellcheck="false"
         />
