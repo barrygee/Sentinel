@@ -5,7 +5,12 @@
       ref="inputRef"
       v-model="query"
       type="text"
+      role="combobox"
       aria-label="Filter satellites by name, NORAD ID or category"
+      aria-autocomplete="list"
+      :aria-expanded="listboxShown"
+      :aria-controls="listboxShown ? 'space-filter-listbox' : undefined"
+      :aria-activedescendant="activeDescId"
       placeholder="SATELLITE NAME · NORAD ID · CATEGORY"
       autocomplete="off"
       spellcheck="false"
@@ -21,15 +26,32 @@
     </button>
   </div>
   <div id="space-filter-results">
+    <!-- Empty structural listbox: it OWNS the option rows below via aria-owns.
+         The rows can't live inside it because each carries non-option chrome
+         (category header buttons, and — when expanded — an accordion of track /
+         notify / auto-tune / record buttons) that a listbox/option subtree may
+         not contain. -->
+    <div
+      v-if="listboxShown"
+      id="space-filter-listbox"
+      role="listbox"
+      aria-label="Satellites"
+      :aria-owns="ownedOptionIds"
+    ></div>
+
     <template v-if="!loaded">
       <div class="space-filter-no-results">Loading satellite database…</div>
     </template>
     <template v-else-if="results.length === 0">
       <div class="space-filter-no-results">No satellites found</div>
     </template>
-    <template v-else>
-      <template v-for="group in groupedResults" :key="group.cat">
-        <button class="space-filter-section-label" @click="toggleSection(group.cat)">
+    <div v-else class="space-filter-results-body">
+      <div v-for="group in groupedResults" :key="group.cat" class="space-filter-result-group">
+        <button
+          class="space-filter-section-label"
+          :aria-expanded="!collapsedCats.has(group.cat)"
+          @click="toggleSection(group.cat)"
+        >
           <span>{{ group.label }}</span>
           <ChevronIcon
             class="space-filter-section-chevron"
@@ -49,13 +71,24 @@
             @mouseleave="onMouseLeave"
             @click="onItemClick(sat)"
           >
-            <div class="space-filter-result-info">
-              <div class="space-filter-result-primary">{{ sat.name || sat.norad_id }}</div>
-              <div class="space-filter-result-secondary">{{ satSecondary(sat) }}</div>
+            <!-- The option is just the row header (identity + chevron); the
+                 expanded accordion is a sibling so its buttons aren't nested
+                 inside the option. -->
+            <div
+              :id="`space-filter-opt-${sat.norad_id}`"
+              role="option"
+              :aria-selected="focusedNoradId === sat.norad_id"
+              :aria-label="satOptionLabel(sat)"
+              class="space-filter-result-option"
+            >
+              <div class="space-filter-result-info">
+                <div class="space-filter-result-primary">{{ sat.name || sat.norad_id }}</div>
+                <div class="space-filter-result-secondary">{{ satSecondary(sat) }}</div>
+              </div>
+              <span class="sfr-item-chevron">
+                <ChevronIcon />
+              </span>
             </div>
-            <span class="sfr-item-chevron">
-              <ChevronIcon />
-            </span>
             <!-- Expanded accordion body -->
             <div v-if="expandedNoradId === sat.norad_id" class="sfr-accordion-body">
               <div class="sfr-acc-section">
@@ -384,8 +417,8 @@
             </div>
           </div>
         </template>
-      </template>
-    </template>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -870,6 +903,43 @@ function satSecondary(sat: SatEntry): string {
   return catLabel ? `${catLabel} · NORAD ${sat.norad_id}` : `NORAD ${sat.norad_id}`
 }
 
+// Each result row is a role="option". An explicit aria-label keeps the option's
+// accessible name to the satellite identity (otherwise it would absorb the whole
+// expanded accordion); the open/closed state is announced too since an option
+// cannot carry aria-expanded.
+function satOptionLabel(sat: SatEntry): string {
+  const state = expandedNoradId.value === sat.norad_id ? 'expanded' : 'collapsed'
+  return `${sat.name || sat.norad_id}, ${satSecondary(sat)}, ${state}`
+}
+
+// Space-separated ids of every option row currently rendered (collapsed
+// categories render none), in visual order. The listbox claims these via
+// aria-owns — they live outside it in the DOM so the surrounding header / action
+// buttons stay valid.
+const ownedOptionIds = computed<string>(() =>
+  groupedResults.value
+    .filter((group) => !collapsedCats.value.has(group.cat))
+    .flatMap((group) => group.sats.map((sat) => `space-filter-opt-${sat.norad_id}`))
+    .join(' '),
+)
+
+// The combobox popup (listbox) is only present when at least one option is
+// rendered — an empty listbox would fail aria-required-children, and a combobox
+// with no visible options should report aria-expanded=false.
+const listboxShown = computed<boolean>(() => ownedOptionIds.value.length > 0)
+
+// Id of the option the search input is virtually focused on (roving keyboard
+// nav), surfaced via aria-activedescendant. Only references an option that is
+// actually rendered (its category section is expanded), else undefined.
+const activeDescId = computed<string | undefined>(() => {
+  const id = focusedNoradId.value
+  if (!id) return undefined
+  const rendered = groupedResults.value.some(
+    (group) => !collapsedCats.value.has(group.cat) && group.sats.some((s) => s.norad_id === id),
+  )
+  return rendered ? `space-filter-opt-${id}` : undefined
+})
+
 function onMouseEnter(sat: SatEntry): void {
   if (clearPreviewTimer) {
     clearTimeout(clearPreviewTimer)
@@ -1222,6 +1292,16 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   display: none;
 }
 
+/* The visual body and its per-category groups carry the vertical stacking that
+   used to sit directly on #space-filter-results (now just the scroll container),
+   so the visual layout is unchanged. #space-filter-listbox is an empty aria-owns
+   host and takes no space. */
+.space-filter-results-body,
+.space-filter-result-group {
+  display: flex;
+  flex-direction: column;
+}
+
 .space-filter-section-label {
   display: flex;
   align-items: center;
@@ -1247,7 +1327,9 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   opacity: 0.8;
 }
 
-.space-filter-section-label:first-child {
+/* The section button is now the first child of its category group wrapper, so
+   scope the extra top padding to the first group rather than a bare :first-child. */
+.space-filter-result-group:first-child .space-filter-section-label {
   padding-top: 24px;
 }
 
@@ -1270,7 +1352,10 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   transition: background 0.12s;
 }
 
-.space-filter-result-item > .space-filter-result-info {
+/* The option wrapper holds the row header (identity text + chevron); the chevron
+   is absolutely positioned against the .space-filter-result-item, so the option
+   itself stays unpositioned. */
+.space-filter-result-option > .space-filter-result-info {
   display: flex;
   flex-direction: column;
   gap: 1px;
