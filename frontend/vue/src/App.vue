@@ -22,11 +22,13 @@
     <RouterView />
   </main>
 
-  <MapSidebar ref="sidebarRef" :hide-tabs="isSdrRoute">
-    <template #radio>
-      <SdrTabPanel />
-    </template>
-  </MapSidebar>
+  <aside class="app-sidebar-region" aria-label="Map controls">
+    <MapSidebar ref="sidebarRef" :hide-tabs="isSdrRoute">
+      <template #radio>
+        <SdrTabPanel />
+      </template>
+    </MapSidebar>
+  </aside>
 
   <AppFooter :sidebar-open="sidebarOpen" @toggle-sidebar="sidebarRef?.toggle()" />
 

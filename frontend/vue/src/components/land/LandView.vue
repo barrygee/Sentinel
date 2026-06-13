@@ -1,5 +1,6 @@
 <template>
   <div id="map-wrap" data-domain="land">
+    <h1 class="sr-only">Land domain</h1>
     <NoUrlOverlay domain="land" />
     <MapLibreMap
       ref="mapRef"

@@ -95,13 +95,18 @@ const AppFooterStub = defineComponent({
   emits: ['toggle-sidebar'],
   setup(props, { emit }) {
     footerProps = props
-    // A button so a click maps to the toggle-sidebar emit App listens for.
+    // Render a <footer> (contentinfo landmark) wrapping the toggle button, so
+    // the stub faithfully reflects the real AppFooter's landmark — the App
+    // accessibility test enables the `region` rule (phase 8-3). The button
+    // maps a click to the toggle-sidebar emit App listens for.
     return () =>
-      h('button', {
-        class: 'footer-stub',
-        'aria-label': 'Toggle sidebar',
-        onClick: () => emit('toggle-sidebar'),
-      })
+      h('footer', { class: 'footer-stub-region' }, [
+        h('button', {
+          class: 'footer-stub',
+          'aria-label': 'Toggle sidebar',
+          onClick: () => emit('toggle-sidebar'),
+        }),
+      ])
   },
 })
 
@@ -285,6 +290,15 @@ describe('App', () => {
       expect(wrapper.find('nav').attributes('aria-label')).toBe('Domains')
     })
 
+    it('wraps the sidebar in a named complementary landmark', () => {
+      const wrapper = mountApp()
+      const sidebarRegion = wrapper.find('aside.app-sidebar-region')
+      expect(sidebarRegion.exists()).toBe(true)
+      expect(sidebarRegion.attributes('aria-label')).toBe('Map controls')
+      // The sidebar itself renders inside the landmark.
+      expect(sidebarRegion.find('.map-sidebar-stub').exists()).toBe(true)
+    })
+
     it('sets a per-view document title on mount and updates it on navigation', async () => {
       mountApp()
       expect(document.title).toBe('SENTINEL — AIR')
@@ -325,8 +339,9 @@ describe('App', () => {
   it('has no accessibility violations', async () => {
     const wrapper = mountApp()
     await flushPromises()
-    expect(
-      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
-    ).toHaveNoViolations()
+    // `region` is enabled here (phase 8-3): the shell wraps every top-level
+    // area in a landmark (banner header, main, the complementary sidebar
+    // <aside>, and the contentinfo footer), so no content sits outside one.
+    expect(await axe(wrapper.html())).toHaveNoViolations()
   })
 })
