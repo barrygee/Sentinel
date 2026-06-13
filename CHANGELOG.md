@@ -937,6 +937,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #78 from barrygee/test/vue-backfill-sdr-waterfall
 - Merge pull request #79 from barrygee/test/vue-backfill-sdr-panel
 - Merge pull request #80 from barrygee/test/vue-backfill-app-scaffold-views
+- Merge pull request #81 from barrygee/docs/standards-retrofit-phase-9
 
 ### Refactoring
 
@@ -958,6 +959,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 
 - Drop stale globe-projection mention in ground-track comment
 - Add CONTRIBUTING and document the standards now in place (phase 9)
+- Add WCAG 2.2 AA accessibility audit report (phase 7)
 
 ### Tests
 
