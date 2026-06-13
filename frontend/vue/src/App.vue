@@ -1,9 +1,11 @@
 <template>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
   <header id="nav">
     <div id="nav-logo">
       <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL" />
     </div>
-    <nav id="nav-right">
+    <nav id="nav-right" aria-label="Domains">
       <RouterLink
         v-for="[domain, label] in navDomains"
         :key="domain"
@@ -16,7 +18,9 @@
     </nav>
   </header>
 
-  <RouterView />
+  <main id="main" ref="mainRef" tabindex="-1">
+    <RouterView />
+  </main>
 
   <MapSidebar ref="sidebarRef" :hide-tabs="isSdrRoute">
     <template #radio>
@@ -30,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
@@ -110,5 +114,30 @@ const ALL_NAV_DOMAINS: [string, string][] = [
 
 const navDomains = computed(() =>
   ALL_NAV_DOMAINS.filter(([d]) => appStore.enabledDomains.includes(d)),
+)
+
+// The routed view container. Focus moves here on navigation so screen-reader
+// and keyboard users land on the new view rather than staying on the old one.
+const mainRef = ref<HTMLElement | null>(null)
+
+/** Per-view document title (WCAG 2.4.2): "SENTINEL — AIR" etc., or "SENTINEL". */
+function titleForPath(path: string): string {
+  const segment = path.split('/').filter(Boolean)[0] ?? ''
+  const entry = ALL_NAV_DOMAINS.find(([domain]) => domain === segment)
+  return entry ? `SENTINEL — ${entry[1]}` : 'SENTINEL'
+}
+
+// Announce SPA navigation to assistive tech: set the page title immediately, and
+// on an actual route change (not the initial load) move focus to the main region
+// so the change isn't silent. WCAG 2.4.2 Page Titled / 2.4.3 Focus Order.
+watch(
+  () => route.path,
+  (path, previousPath) => {
+    document.title = titleForPath(path)
+    if (previousPath !== undefined) {
+      nextTick(() => mainRef.value?.focus())
+    }
+  },
+  { immediate: true },
 )
 </script>
