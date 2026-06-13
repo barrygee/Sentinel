@@ -135,17 +135,36 @@ Once running, open **Settings** (gear icon, bottom-right) and set *My Location* 
 
 ---
 
-## Testing
+## Testing & quality gates
 
-Run from the repo **root**. Pass `--project backend` so `uv` uses the backend virtualenv (the Python project's `pyproject.toml` lives in `backend/`):
+Sentinel has three tooling contexts — the **backend** (uv/pytest/ruff), the **Vue SPA** (`frontend/vue/`: vitest/ESLint/`vue-tsc`), and the legacy **root helpers** (jest). CI (`.github/workflows/ci.yml`) runs every gate below on each pull request and on pushes to `main`.
+
+**Backend** — run from the repo **root**, passing `--project backend` so `uv` uses the backend virtualenv (the Python project's `pyproject.toml` lives in `backend/`):
 
 ```bash
-uv run --project backend pytest                 # backend tests
+uv run --project backend pytest                  # backend tests
 uv run --project backend pytest tests/backend/test_routers_air.py::test_name   # single test
-uv run --project backend ruff check backend     # lint
-npm test                                         # frontend helper unit tests (jest)
-cd frontend/vue && npm run typecheck             # SPA type-check (vue-tsc)
+uv run --project backend ruff check backend      # lint (gating)
+uv run --project backend ruff format --check backend   # format check (gating)
 ```
+
+**Vue SPA** (`frontend/vue/`) — the application:
+
+```bash
+cd frontend/vue
+npm run lint          # ESLint + Prettier --check
+npm run typecheck     # vue-tsc --noEmit
+npm run test:coverage # vitest — gated at 100% coverage (CI fails on any drop)
+```
+
+**Root helpers** — the standalone TypeScript helpers in `tests/`:
+
+```bash
+npm run lint          # ESLint + Prettier --check
+npm test              # jest
+```
+
+Tooling in place: **ESLint + Prettier** (JS/TS/Vue) and **ruff** — including `ruff format` as the source of Python formatting — for linting/formatting; a **husky** pre-commit hook that mirrors the format/lint gates on staged files; the **vitest 100% coverage gate**; **mypy** (informational, not gating); and an automated **CHANGELOG** that regenerates from Conventional Commits on every PR. New code is expected to ship at 100% coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, commit/PR conventions, and the two npm contexts.
 
 ---
 
@@ -244,3 +263,9 @@ pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles \
 SQLite tables are created automatically from the ORM models on startup:
 
 `adsb_cache` · `tle_cache` · `satellite_catalogue` · `air_messages` · `air_tracking` · `air_aircraft` · `air_flights` · `air_snapshots` · `sdr_radios` · `sdr_frequency_groups` · `sdr_stored_frequencies` · `sdr_frequency_group_links` · `sdr_search_ranges` · `sdr_recordings` · `user_settings`
+
+---
+
+## Contributing
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for first-time setup, the three tooling contexts, the lint/format/test gates, the 100% coverage expectation for new code, and the commit/branch/PR conventions. In short: branch off `main`, use [Conventional Commits](https://www.conventionalcommits.org) (the changelog is generated from them), ship new code with its tests, and make the CI gates pass before opening a PR.
