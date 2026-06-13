@@ -422,6 +422,15 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
     expect(toggle.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
   })
 
+  it('reflects the settings accordion state via aria-expanded/aria-controls', async () => {
+    const { wrapper } = await mountConnected()
+    const toggle = wrapper.find('.sdr-frequency-manager-accordion-toggle')
+    expect(toggle.attributes('aria-controls')).toBe('sdr-settings-section')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+  })
+
   it('drives the signal meter from the audio power callback', async () => {
     const { wrapper } = await mountConnected()
     expect(audioMock._powerCb).toBeTypeOf('function')

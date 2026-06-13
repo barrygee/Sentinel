@@ -33,6 +33,12 @@
   <AppFooter :sidebar-open="sidebarOpen" @toggle-sidebar="sidebarRef?.toggle()" />
 
   <SettingsPanel />
+
+  <!-- App-level screen-reader announcer (WCAG 4.1.3): notifications/alerts change
+       the DOM silently for sighted users; these visually-hidden live regions speak
+       each new notification. Polite for status, assertive for urgent (emergency). -->
+  <div class="sr-only" role="status" aria-live="polite">{{ politeAnnouncement }}</div>
+  <div class="sr-only" role="alert" aria-live="assertive">{{ assertiveAnnouncement }}</div>
 </template>
 
 <script setup lang="ts">
@@ -87,6 +93,23 @@ watch(
     }
   },
   { immediate: true },
+)
+
+// Screen-reader announcer: mirror each new notification into the polite or
+// assertive live region above. Driven by the store's `liveAnnouncement` signal,
+// which only fires for newly-added notifications (not reloaded-from-storage).
+const politeAnnouncement = ref('')
+const assertiveAnnouncement = ref('')
+watch(
+  () => notificationsStore.liveAnnouncement,
+  (announcement) => {
+    if (!announcement) return
+    if (announcement.assertive) {
+      assertiveAnnouncement.value = announcement.message
+    } else {
+      politeAnnouncement.value = announcement.message
+    }
+  },
 )
 
 useDocumentEvent('air-open-search', () => sidebarRef.value?.switchTab('search'))

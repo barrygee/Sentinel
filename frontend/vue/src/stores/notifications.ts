@@ -134,6 +134,14 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const visible = computed(() => [...items.value].sort((a, b) => b.ts - a.ts))
   const total = computed(() => items.value.length)
 
+  // Drives the app-level screen-reader announcer (App.vue): `add()` sets this so
+  // each NEW notification is spoken (WCAG 4.1.3 Status Messages). `seq` makes the
+  // object identity change on every add so the watcher fires even for repeated
+  // text; `assertive` routes urgent (emergency) alerts to the assertive region.
+  // Reloaded-from-storage items never pass through `add()`, so they aren't spoken.
+  const liveAnnouncement = ref<{ message: string; assertive: boolean; seq: number } | null>(null)
+  let _announceSeq = 0
+
   function getLabelForType(type: string): string {
     const map: Record<string, string> = {
       flight: 'LANDED',
@@ -167,6 +175,13 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
     items.value.unshift(item)
     _save(items.value)
+
+    _announceSeq += 1
+    liveAnnouncement.value = {
+      message: item.detail ? `${item.title}. ${item.detail}` : item.title,
+      assertive: item.type === 'emergency',
+      seq: _announceSeq,
+    }
 
     if (useAppStore().notificationSound) playNotificationSound(item.type === 'emergency')
 
@@ -297,6 +312,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     unreadCount,
     visible,
     total,
+    liveAnnouncement,
     getLabelForType,
     add,
     update,

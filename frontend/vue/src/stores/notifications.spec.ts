@@ -140,6 +140,35 @@ describe('notifications store', () => {
       store.add({ title: 'Quiet' })
       expect(playNotificationSound).not.toHaveBeenCalled()
     })
+
+    it('publishes a polite live announcement combining title and detail', () => {
+      const store = useNotificationsStore()
+      store.add({ title: 'Pass starting', detail: 'ISS overhead in 5 min' })
+      expect(store.liveAnnouncement).toEqual({
+        message: 'Pass starting. ISS overhead in 5 min',
+        assertive: false,
+        seq: 1,
+      })
+    })
+
+    it('announces title only when there is no detail', () => {
+      const store = useNotificationsStore()
+      store.add({ title: 'Tracking on' })
+      expect(store.liveAnnouncement?.message).toBe('Tracking on')
+    })
+
+    it('routes emergency notifications to the assertive announcer', () => {
+      const store = useNotificationsStore()
+      store.add({ type: 'emergency', title: 'Squawk 7700' })
+      expect(store.liveAnnouncement?.assertive).toBe(true)
+    })
+
+    it('bumps the announcement seq on each add so repeated text re-announces', () => {
+      const store = useNotificationsStore()
+      store.add({ title: 'Same' })
+      store.add({ title: 'Same' })
+      expect(store.liveAnnouncement?.seq).toBe(2)
+    })
   })
 
   describe('update', () => {

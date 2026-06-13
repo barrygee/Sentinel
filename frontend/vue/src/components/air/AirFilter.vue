@@ -32,6 +32,7 @@
         <button
           class="filter-section-label"
           :class="{ 'filter-section-label--collapsed': collapsed.has('aircraft') }"
+          :aria-expanded="!collapsed.has('aircraft')"
           @click="toggleSection('aircraft')"
         >
           <span>AIRCRAFT</span>
@@ -108,6 +109,7 @@
         <button
           class="filter-section-label"
           :class="{ 'filter-section-label--collapsed': collapsed.has('airports') }"
+          :aria-expanded="!collapsed.has('airports')"
           @click="toggleSection('airports')"
         >
           <span>AIRPORTS</span>
@@ -198,6 +200,7 @@
         <button
           class="filter-section-label"
           :class="{ 'filter-section-label--collapsed': collapsed.has('mil') }"
+          :aria-expanded="!collapsed.has('mil')"
           @click="toggleSection('mil')"
         >
           <span>MILITARY BASES</span>

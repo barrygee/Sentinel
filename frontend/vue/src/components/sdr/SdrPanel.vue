@@ -278,6 +278,8 @@
             type="button"
             class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
             :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': settingsSectionExpanded }"
+            :aria-expanded="settingsSectionExpanded"
+            aria-controls="sdr-settings-section"
             @click="settingsSectionExpanded = !settingsSectionExpanded"
           >
             <label class="sdr-field-label sdr-frequency-manager-scanner-title">SETTINGS</label>
@@ -285,7 +287,7 @@
               <ChevronIcon />
             </span>
           </button>
-          <div v-show="settingsSectionExpanded">
+          <div v-show="settingsSectionExpanded" id="sdr-settings-section">
             <!-- Volume -->
             <div class="sdr-radio-section">
               <div class="sdr-slider-header">
@@ -449,6 +451,8 @@
             type="button"
             class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
             :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': scannerSectionExpanded }"
+            :aria-expanded="scannerSectionExpanded"
+            aria-controls="sdr-scanner-section"
             @click="scannerSectionExpanded = !scannerSectionExpanded"
           >
             <label class="sdr-field-label sdr-frequency-manager-scanner-title">SCANNER</label>
@@ -468,7 +472,7 @@
               <ChevronIcon />
             </span>
           </button>
-          <div v-show="scannerSectionExpanded">
+          <div v-show="scannerSectionExpanded" id="sdr-scanner-section">
             <div class="sdr-scan-subsection-label">GROUPS</div>
             <div class="sdr-scan-groups-row">
               <button
@@ -537,6 +541,8 @@
             type="button"
             class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
             :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': searchSectionExpanded }"
+            :aria-expanded="searchSectionExpanded"
+            aria-controls="sdr-search-section"
             @click="searchSectionExpanded = !searchSectionExpanded"
           >
             <label class="sdr-field-label sdr-frequency-manager-scanner-title">SEARCH</label>
@@ -556,7 +562,7 @@
               <ChevronIcon />
             </span>
           </button>
-          <div v-show="searchSectionExpanded">
+          <div v-show="searchSectionExpanded" id="sdr-search-section">
             <div class="sdr-search-adhoc-row">
               <div class="sdr-search-adhoc-col">
                 <label class="sdr-field-label">LOW (MHz)</label>
@@ -641,6 +647,8 @@
                 type="button"
                 class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
                 :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': savedRangesExpanded }"
+                :aria-expanded="savedRangesExpanded"
+                aria-controls="sdr-saved-ranges-section"
                 @click="savedRangesExpanded = !savedRangesExpanded"
               >
                 <label class="sdr-field-label sdr-frequency-manager-scanner-title"
@@ -650,7 +658,7 @@
                   <ChevronIcon />
                 </span>
               </button>
-              <div v-show="savedRangesExpanded">
+              <div v-show="savedRangesExpanded" id="sdr-saved-ranges-section">
                 <div v-if="searchRanges.length > 0" class="sdr-search-range-list">
                   <div
                     v-for="r in searchRanges"
