@@ -117,7 +117,14 @@
               'sdr-device-dropdown--loading': radiosLoading,
               'sdr-device-dropdown--open': deviceMenuOpen,
             }"
+            role="combobox"
             tabindex="0"
+            aria-label="Radio device"
+            aria-haspopup="listbox"
+            aria-controls="sdr-device-listbox"
+            aria-owns="sdr-device-listbox"
+            :aria-expanded="deviceMenuOpen"
+            :aria-activedescendant="deviceActiveDescId"
             @click.stop="toggleDeviceMenu"
             @keydown="onDeviceDropdownKey"
           >
@@ -143,28 +150,45 @@
               :style="deviceMenuStyle"
               @click.stop
             >
-              <div
-                class="sdr-device-menu-item sdr-device-menu-placeholder"
-                @click="selectRadio(null)"
-              >
-                — select radio —
-              </div>
-              <template v-if="menuCheckingRadios">
-                <div class="sdr-device-menu-item sdr-device-menu-placeholder">checking radios…</div>
-              </template>
-              <template v-else-if="menuRadios.length === 0">
-                <div class="sdr-device-menu-item sdr-device-menu-placeholder">no radios online</div>
-              </template>
-              <template v-else>
+              <div id="sdr-device-listbox" role="listbox" aria-label="Available radios">
                 <div
-                  v-for="r in menuRadios"
+                  :id="deviceOptionId(0)"
+                  role="option"
+                  class="sdr-device-menu-item sdr-device-menu-placeholder"
+                  :class="{ 'sdr-device-menu-item--active': deviceHighlight === 0 }"
+                  :aria-selected="deviceHighlight === 0"
+                  @click="selectRadio(null)"
+                  @mousemove="deviceHighlight = 0"
+                >
+                  — select radio —
+                </div>
+                <div
+                  v-for="(r, index) in menuRadios"
+                  :id="deviceOptionId(index + 1)"
                   :key="r.id"
+                  role="option"
                   class="sdr-device-menu-item"
+                  :class="{ 'sdr-device-menu-item--active': deviceHighlight === index + 1 }"
+                  :aria-selected="deviceHighlight === index + 1"
                   @click="selectRadio(r)"
+                  @mousemove="deviceHighlight = index + 1"
                 >
                   {{ r.name }}<span class="sdr-device-menu-item-host">{{ r.host }}</span>
                 </div>
-              </template>
+              </div>
+              <!-- Non-selectable status notes live outside the listbox. -->
+              <div
+                v-if="menuCheckingRadios"
+                class="sdr-device-menu-item sdr-device-menu-placeholder"
+              >
+                checking radios…
+              </div>
+              <div
+                v-else-if="menuRadios.length === 0"
+                class="sdr-device-menu-item sdr-device-menu-placeholder"
+              >
+                no radios online
+              </div>
             </div>
           </Teleport>
         </div>
@@ -1779,6 +1803,9 @@ const signalAudible = computed(
 const deviceDropdownRef = ref<HTMLElement | null>(null)
 const deviceMenuRef = ref<HTMLElement | null>(null)
 const deviceMenuOpen = ref(false)
+// Keyboard-highlighted option in the device listbox (select-only combobox):
+// 0 = the "select radio" placeholder, 1..N = menuRadios[index-1].
+const deviceHighlight = ref(0)
 const radiosLoading = ref(true)
 const menuRadios = ref<SdrRadio[]>([])
 const menuCheckingRadios = ref(false)
@@ -2685,14 +2712,39 @@ function positionDeviceMenu() {
   }
 }
 
+// The device listbox always has the placeholder (index 0) plus one option per
+// online radio. The active-descendant id is clamped so it always references a
+// rendered option (radios can load in after the menu opens).
+const deviceOptionCount = computed(() => 1 + menuRadios.value.length)
+function deviceOptionId(index: number): string {
+  return `sdr-device-opt-${index}`
+}
+const deviceActiveDescId = computed(() =>
+  deviceMenuOpen.value
+    ? deviceOptionId(Math.min(deviceHighlight.value, deviceOptionCount.value - 1))
+    : undefined,
+)
+
+function openDeviceMenu() {
+  positionDeviceMenu()
+  deviceHighlight.value = 0
+  deviceMenuOpen.value = true
+  probeMenuRadios()
+}
+
 function toggleDeviceMenu() {
   if (deviceMenuOpen.value) {
     closeDeviceMenu()
     return
   }
-  positionDeviceMenu()
-  deviceMenuOpen.value = true
-  probeMenuRadios()
+  openDeviceMenu()
+}
+
+function selectHighlightedRadio() {
+  const index = deviceHighlight.value
+  // `index` is clamped to 0..menuRadios.length by the key handler, so a non-zero
+  // index always maps to a present radio.
+  selectRadio(index === 0 ? null : menuRadios.value[index - 1]!)
 }
 
 function closeDeviceMenu() {
@@ -2740,11 +2792,37 @@ async function probeMenuRadios() {
 }
 
 function onDeviceDropdownKey(e: KeyboardEvent) {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    toggleDeviceMenu()
+  if (!deviceMenuOpen.value) {
+    // Closed: Enter/Space/Arrow keys open the listbox.
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      openDeviceMenu()
+    }
+    return
   }
-  if (e.key === 'Escape') closeDeviceMenu()
+  // Open: arrow keys move the highlight, Enter/Space selects, Escape/Tab close.
+  const count = deviceOptionCount.value
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    deviceHighlight.value = (deviceHighlight.value + 1) % count
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    deviceHighlight.value = (deviceHighlight.value - 1 + count) % count
+  } else if (e.key === 'Home') {
+    e.preventDefault()
+    deviceHighlight.value = 0
+  } else if (e.key === 'End') {
+    e.preventDefault()
+    deviceHighlight.value = count - 1
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    selectHighlightedRadio()
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    closeDeviceMenu()
+  } else if (e.key === 'Tab') {
+    closeDeviceMenu()
+  }
 }
 
 function onDocumentClick() {
