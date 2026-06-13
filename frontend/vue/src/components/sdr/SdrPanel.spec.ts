@@ -1070,6 +1070,127 @@ describe('SdrPanel — device dropdown menu', () => {
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-device-menu')).toBeNull()
   })
+
+  it('exposes the trigger as a combobox controlling a listbox of options', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    expect(dd.attributes('role')).toBe('combobox')
+    expect(dd.attributes('aria-haspopup')).toBe('listbox')
+    expect(dd.attributes('aria-expanded')).toBe('false')
+    expect(dd.attributes('aria-activedescendant')).toBeUndefined()
+
+    await dd.trigger('click')
+    await flushPromises()
+    expect(dd.attributes('aria-expanded')).toBe('true')
+    // The placeholder is highlighted first.
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-0')
+    const listbox = document.querySelector('#sdr-device-listbox')!
+    expect(listbox.getAttribute('role')).toBe('listbox')
+    expect(listbox.querySelectorAll('[role="option"]').length).toBe(3) // placeholder + 2 radios
+  })
+
+  it('opens from the closed state with ArrowDown or ArrowUp', async () => {
+    const wrapper = await mountTwoRadios()
+    await deviceDropdown(wrapper).trigger('keydown', { key: 'ArrowDown' })
+    await flushPromises()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+
+    const wrapper2 = await mountTwoRadios()
+    await deviceDropdown(wrapper2).trigger('keydown', { key: 'ArrowUp' })
+    await flushPromises()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+  })
+
+  it('ignores other keys when closed and when open', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    // Closed: a non-activating key does nothing.
+    await dd.trigger('keydown', { key: 'a' })
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    // Open: an unhandled key leaves the menu open and the highlight unchanged.
+    await dd.trigger('click')
+    await flushPromises()
+    await dd.trigger('keydown', { key: 'ArrowDown' })
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-1')
+    await dd.trigger('keydown', { key: 'x' })
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-1')
+  })
+
+  it('moves the highlight with arrows/Home/End and wraps', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    await dd.trigger('click')
+    await flushPromises()
+
+    await dd.trigger('keydown', { key: 'ArrowDown' })
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-1')
+    await dd.trigger('keydown', { key: 'End' })
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-2')
+    // Wrap forward from the last option back to the placeholder.
+    await dd.trigger('keydown', { key: 'ArrowDown' })
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-0')
+    // Wrap backward from the placeholder to the last option.
+    await dd.trigger('keydown', { key: 'ArrowUp' })
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-2')
+    await dd.trigger('keydown', { key: 'Home' })
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-0')
+  })
+
+  it('selects the highlighted radio with Enter', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    await dd.trigger('click')
+    await flushPromises()
+    await dd.trigger('keydown', { key: 'ArrowDown' }) // highlight first radio
+    await dd.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(dd.find('.sdr-device-dropdown-text').text()).not.toContain('select radio')
+    expect(sockets.length).toBeGreaterThan(0)
+  })
+
+  it('selects the placeholder (clears) with Space on the first option', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    // Pick a radio first so clearing is observable.
+    await dd.trigger('click')
+    await flushPromises()
+    await dd.trigger('keydown', { key: 'ArrowDown' })
+    await dd.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    // Reopen and select the placeholder (highlight 0) with Space.
+    await dd.trigger('click')
+    await flushPromises()
+    await dd.trigger('keydown', { key: ' ' })
+    await flushPromises()
+    expect(dd.find('.sdr-device-dropdown-text').text()).toContain('select radio')
+  })
+
+  it('closes the menu on Tab', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    await dd.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    await dd.trigger('keydown', { key: 'Tab' })
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+  })
+
+  it('syncs the highlight to the option under the pointer', async () => {
+    const wrapper = await mountTwoRadios()
+    const dd = deviceDropdown(wrapper)
+    await dd.trigger('click')
+    await flushPromises()
+    const options = document.querySelectorAll('#sdr-device-listbox [role="option"]')
+    // Hover the second radio (index 2), then the placeholder (index 0).
+    options[2]!.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-2')
+    options[0]!.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-0')
+  })
 })
 
 // =============================================================================
