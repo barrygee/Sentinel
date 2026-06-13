@@ -32,8 +32,8 @@ export default mergeConfig(
         // adds tests; phase 6g sets them all to 100.
         thresholds: {
           lines: 99,
-          functions: 97,
-          branches: 98,
+          functions: 98,
+          branches: 99,
           statements: 99,
         },
       },

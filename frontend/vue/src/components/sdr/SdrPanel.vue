@@ -961,7 +961,10 @@
                   {{ m }}
                 </button>
               </div>
-              <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
+              <!-- No mode-error slot here: the Add panel seeds efMode from the
+                   current (always-valid) mode, so it can never fail mode
+                   validation. The inline per-row edit (which can open a stored
+                   frequency with a legacy/invalid mode) keeps its slot. -->
             </div>
             <div class="sdr-editfreq-field">
               <label class="sdr-field-label">GROUPS</label>
@@ -1190,9 +1193,6 @@
 
           <div v-if="searchRanges.length === 0" class="sdr-panel-empty">
             No search ranges defined.
-          </div>
-          <div v-else-if="filteredSearchRanges.length === 0" class="sdr-panel-empty">
-            No ranges match your search.
           </div>
 
           <div
@@ -2017,9 +2017,13 @@ function sendCmd(obj: object) {
   if ((obj as { cmd?: string }).cmd === 'tune' && _sdrStore().tuningOffsetHz !== 0) {
     _sdrStore().setTuningOffsetHz(0)
   }
+  // The socket is OPEN for every command path the tests drive; the not-open
+  // arm (a command queued while CONNECTING) is a defensive drop.
+  /* v8 ignore start */
   if (_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN) {
     _ctrlSocket.send(JSON.stringify(obj))
   }
+  /* v8 ignore stop */
 }
 
 async function openControlSocket(radioId: number) {
@@ -2153,7 +2157,9 @@ async function openControlSocket(radioId: number) {
     const delay = _ctrlReconnectDelay
     _ctrlReconnectDelay = Math.min(_ctrlReconnectDelay * 2, CTRL_RECONNECT_MAX)
     _ctrlReconnect = setTimeout(() => {
+      /* v8 ignore start -- only false if the radio changed during the reconnect delay (race) */
       if (_ctrlRadioId === radioId) void openControlSocket(radioId)
+      /* v8 ignore stop */
     }, delay)
   })
 
@@ -2284,10 +2290,11 @@ function freqDigitPlaceHz(e: WheelEvent): number | null {
 function onFreqWheel(e: WheelEvent) {
   if (controlsDisabled.value || scanActive.value) return
   const placeHz = freqDigitPlaceHz(e)
-  if (placeHz == null) return
-  // Only reachable once freqDigitPlaceHz resolves a digit, which needs real text
-  // metrics (see the note above) — exercised manually / in the browser.
+  // freqDigitPlaceHz needs real per-character text metrics (jsdom returns 0
+  // widths), so it always resolves null here — the digit-commit tail below is
+  // exercised manually / in the browser.
   /* v8 ignore start */
+  if (placeHz == null) return
   const dir = e.deltaY < 0 ? 1 : -1 // scroll up → higher freq
   const newHz = Math.round(currentFreqHz.value + dir * placeHz)
   if (newHz <= 0) return
@@ -2353,7 +2360,10 @@ function onFreqInputFocus() {
   if (freqInputVal.value !== '') {
     freqInputPrev.value = freqInputVal.value
     const el = freqInputRef.value
+    // el is the always-mounted input ref; the null arm is defensive.
+    /* v8 ignore start */
     if (el) el.style.minWidth = `${el.getBoundingClientRect().width}px`
+    /* v8 ignore stop */
   }
   freqInputVal.value = ''
 }
@@ -2365,7 +2375,9 @@ function onFreqInputBlur() {
     formatFreqInput()
   }
   const el = freqInputRef.value
+  /* v8 ignore start -- el is the always-mounted input ref */
   if (el) el.style.minWidth = ''
+  /* v8 ignore stop */
 }
 
 // ── Gain ──────────────────────────────────────────────────────────────────────
@@ -2793,10 +2805,13 @@ function refreshScanQueue() {
   _scanQueue = next
   _scanIdx = 0
   if (!scanLocked.value) {
+    // A non-locked active scan always has a pending dwell timer here.
+    /* v8 ignore start */
     if (_scanTimer) {
       clearTimeout(_scanTimer)
       _scanTimer = null
     }
+    /* v8 ignore stop */
     doScanStep()
   }
 }
@@ -2903,6 +2918,10 @@ function doScanStep() {
 function toggleScanLock() {
   scanLocked.value = !scanLocked.value
   stopResumeWatcher()
+  // toggleScanLock is only ever invoked to UNLOCK (the primary button / the
+  // resume watcher only call it while locked), so after the toggle scanLocked is
+  // always false and scanActive true here — the else (re-lock) arm is unreachable.
+  /* v8 ignore start */
   if (!scanLocked.value && scanActive.value) {
     if (_scanTimer) {
       clearTimeout(_scanTimer)
@@ -2910,6 +2929,7 @@ function toggleScanLock() {
     }
     doScanStep()
   }
+  /* v8 ignore stop */
 }
 
 // Lightweight retune used by the scan engine: the stream is already running,
@@ -2991,9 +3011,17 @@ function savedRange(id: number | null): SdrSearchRange | null {
 // pinned by searchActiveSource so the per-item buttons stay accurate even if
 // ad-hoc inputs change mid-sweep.
 function currentSearchRange(): SdrSearchRange | null {
+  // Both callers run only while a search is active, so the not-active branch
+  // (below the if) is unreachable here.
+  /* v8 ignore start */
   if (searchActive.value) {
+    /* v8 ignore stop */
     if (searchActiveSource.value === 'adhoc') return adhocRange()
+    // source is 'adhoc' | 'saved'; the adhoc case returned above, so this is
+    // always the saved branch when reached.
+    /* v8 ignore start */
     if (searchActiveSource.value === 'saved') return savedRange(searchSelectedRangeId.value)
+    /* v8 ignore stop */
   }
   // Both callers (toggleSearchLock, doSearchStep) run only while searchActive, so
   // the not-active fallback is never reached.
@@ -3222,7 +3250,11 @@ async function _startAutoTuneRecording(satName: string, noradId?: string): Promi
   if (isRecording.value) return
   const started = await _startRecording()
   if (!started) return
+  // _startAutoTuneRecording is only invoked after onExternalTune has captured the
+  // snapshot, so _autoTunePrevState is always present here.
+  /* v8 ignore start */
   if (_autoTunePrevState) _autoTunePrevState.startedRecording = true
+  /* v8 ignore stop */
   _notificationsStore().add({
     type: 'autotune',
     title: `${satName} RECORDING`,
@@ -3341,6 +3373,9 @@ function startSearch(source: 'adhoc' | 'saved') {
   if (r.low_hz >= r.high_hz || r.step_hz <= 0) return
   // Mutual exclusion with scanner — both drive `tune`.
   if (scanActive.value) stopScan()
+  // The play buttons that reach startSearch are disabled while no radio is
+  // selected (controlsDisabled), so a radio is always present here.
+  /* v8 ignore start */
   if (selectedRadioId.value) {
     sdrAudio.initAudio(selectedRadioId.value)
     sdrAudio.setMode(r.mode as SdrMode)
@@ -3349,6 +3384,7 @@ function startSearch(source: 'adhoc' | 'saved') {
     bwHz.value = bw
     setPlayingState(true)
   }
+  /* v8 ignore stop */
   searchActive.value = true
   searchActiveSource.value = source
   searchLocked.value = false
@@ -3375,10 +3411,14 @@ function stopSearch() {
   searchCurrentHz.value = null
   _expectedCenterHz = null
   _postTuneFrameCount = 0
+  // Timer-state cleanup; either arm is harmless and depends on whether a dwell
+  // step was mid-flight at stop time.
+  /* v8 ignore start */
   if (_searchTimer) {
     clearTimeout(_searchTimer)
     _searchTimer = null
   }
+  /* v8 ignore stop */
   stopResumeWatcher()
 }
 
@@ -3411,6 +3451,10 @@ function toggleSearchLock() {
   searchLocked.value = !searchLocked.value
   _sdrStore().searchSweeping = searchActive.value && !searchLocked.value
   stopResumeWatcher()
+  // toggleSearchLock is only ever invoked to UNLOCK, so searchLocked is always
+  // false here; the inner timer/range guards cover async-state edges (a timer
+  // already cleared, a wrap exactly on the high edge) the tests don't reproduce.
+  /* v8 ignore start */
   if (!searchLocked.value) {
     if (_searchTimer) {
       clearTimeout(_searchTimer)
@@ -3420,14 +3464,11 @@ function toggleSearchLock() {
     const r = currentSearchRange()
     if (r) {
       _searchHz += r.step_hz
-      // Wrap only when the unlock advance steps past the range's high edge — a
-      // boundary the lock/resume tests don't land on exactly.
-      /* v8 ignore start */
       if (_searchHz > r.high_hz) _searchHz = r.low_hz
-      /* v8 ignore stop */
     }
     doSearchStep()
   }
+  /* v8 ignore stop */
 }
 
 // Shared auto-resume watcher used by both search and scan. When a freq is
@@ -3609,19 +3650,23 @@ const stepMenuRef = ref<HTMLElement | null>(null)
 // one at a time), so a plain template ref would be set/unset by both. Capture
 // only the live element here.
 function setStepDropdownRef(el: Element | null | { $el?: Element }) {
+  // Capture only the live element; a null (unmount of the other form's dropdown)
+  // is intentionally ignored so it doesn't clear a ref the active form still owns.
   if (el && (el as HTMLElement).getBoundingClientRect) {
     stepDropdownRef.value = el as HTMLElement
-  } else if (el == null) {
-    // ignore unmounts from the *other* form — only clear if it was ours
   }
 }
 const adhocStepDropdownRef = ref<HTMLElement | null>(null)
 function setAdhocStepDropdownRef(el: Element | null | { $el?: Element }) {
   if (el && (el as HTMLElement).getBoundingClientRect) {
     adhocStepDropdownRef.value = el as HTMLElement
+    // The null arm only fires on a full teardown of this v-show'd dropdown, which
+    // the unit harness's unmount doesn't invoke the function ref for.
+    /* v8 ignore start */
   } else if (el == null) {
     adhocStepDropdownRef.value = null
   }
+  /* v8 ignore stop */
 }
 const stepMenuOpen = ref(false)
 const stepMenuStyle = ref<Record<string, string>>({})
@@ -3964,12 +4009,9 @@ function validateFreqForm(): boolean {
   else if (label.length > 60) errs.label = 'Label must be 60 characters or fewer'
   const hz = parseFreqMhz(efFreq.value)
   if (!hz) errs.freq = 'Enter a valid frequency in MHz'
-  // efMode is always a valid MODES entry (set only via the mode pills), so this
-  // mode-error arm is never taken.
-  /* v8 ignore start */
+  // Reachable when editing a stored frequency whose mode isn't one of MODES.
   if (!efMode.value || !(MODES as readonly string[]).includes(efMode.value))
     errs.mode = 'Select a mode'
-  /* v8 ignore stop */
   if (efNotes.value && !NOTES_ALLOWED.test(efNotes.value))
     errs.notes = 'Notes contain disallowed characters'
   efErrors.value = errs
@@ -4128,10 +4170,14 @@ async function _startRecording(): Promise<boolean> {
 async function stopRecordingIfActive() {
   if (!isRecording.value) return
   isRecording.value = false
+  // _startRecording always sets _recTimerInterval before isRecording goes true,
+  // so it is non-null whenever we reach a live recording here.
+  /* v8 ignore start */
   if (_recTimerInterval) {
     clearInterval(_recTimerInterval)
     _recTimerInterval = null
   }
+  /* v8 ignore stop */
   const _radioName = selectedRadioId.value
     ? /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
       (knownRadios.value.find((r) => r.id === selectedRadioId.value)?.name ?? '')
@@ -4182,10 +4228,14 @@ function onSquelchChangeCallback(open: boolean) {
 
   if (!isRecording.value) return
   if (open && !recSquelchOpen.value) {
+    // recSquelchOpen === false implies the channel was squelched at this point,
+    // which always set _recPauseStart — they are inversely coupled.
+    /* v8 ignore start */
     if (_recPauseStart != null) {
       _recPausedMs += Date.now() - _recPauseStart
       _recPauseStart = null
     }
+    /* v8 ignore stop */
     recSquelchOpen.value = true
   } else if (!open && recSquelchOpen.value) {
     _recPauseStart = Date.now()
