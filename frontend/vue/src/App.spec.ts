@@ -267,6 +267,37 @@ describe('App', () => {
     })
   })
 
+  describe('screen-reader announcer', () => {
+    it('speaks a new notification through the polite live region', async () => {
+      const notifications = useNotificationsStore()
+      const wrapper = mountApp()
+      notifications.add({ title: 'Pass', detail: 'ISS overhead' })
+      await nextTick()
+      expect(wrapper.find('[role="status"][aria-live="polite"]').text()).toBe('Pass. ISS overhead')
+    })
+
+    it('speaks an emergency notification through the assertive live region', async () => {
+      const notifications = useNotificationsStore()
+      const wrapper = mountApp()
+      notifications.add({ type: 'emergency', title: 'Squawk 7700' })
+      await nextTick()
+      expect(wrapper.find('[role="alert"][aria-live="assertive"]').text()).toBe('Squawk 7700')
+      // The polite region is left untouched for an assertive alert.
+      expect(wrapper.find('[role="status"][aria-live="polite"]').text()).toBe('')
+    })
+
+    it('ignores a null announcement signal (no spurious update)', async () => {
+      const notifications = useNotificationsStore()
+      const wrapper = mountApp()
+      notifications.add({ title: 'First' })
+      await nextTick()
+      notifications.liveAnnouncement = null
+      await nextTick()
+      // The polite region keeps the last real message; the null is a no-op.
+      expect(wrapper.find('[role="status"][aria-live="polite"]').text()).toBe('First')
+    })
+  })
+
   describe('app shell accessibility', () => {
     it('renders a skip-to-content link as the first element targeting the main region', () => {
       const wrapper = mountApp()

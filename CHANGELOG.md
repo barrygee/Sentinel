@@ -211,7 +211,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - App-shell semantics, visible focus & reduced motion (phase 8-1)
 - Programmatic names & labels for controls and inputs (phase 8-2)
 - Document structure — per-view h1 & landmark regions (phase 8-3)
-- Modal dialog pattern for the settings panel (phase 8-4b)
+- Announce dynamic updates & expose disclosure state (phase 8-4a)
 
 ### Chores
 
