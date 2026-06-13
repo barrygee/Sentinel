@@ -980,6 +980,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill SdrRecordingsSection to 100% + fix edit-note focus (slice 6f-2)
 - Backfill SdrWaterfall to 100% coverage (slice 6f-3a)
 - Backfill SdrPanel near-total coverage + remove dead code (slice 6f-3b)
+- Bring SdrPanel to verified 100% coverage (slice 6f-3b)
 
 ### Build System
 
