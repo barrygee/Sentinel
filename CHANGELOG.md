@@ -215,6 +215,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Announce dynamic updates & expose disclosure state (phase 8-4a)
 - Accessible name & data alternative for the map (phase 8-5)
 - Make plain accordions real disclosure buttons (phase 8-6a)
+- SDR radio picker becomes a keyboard combobox (phase 8-6b)
 
 ### Chores
 
@@ -953,6 +954,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into a11y/phase-8-4b-dialog
 - Merge pull request #87 from barrygee/a11y/phase-8-4b-dialog
 - Merge pull request #88 from barrygee/a11y/phase-8-5-map-alt
+- Merge pull request #89 from barrygee/a11y/phase-8-6a-space-disclosures
 
 ### Refactoring
 
