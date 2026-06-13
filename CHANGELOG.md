@@ -209,6 +209,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop heads-up scheduler infinite-recursing on a 1–5 min-out pass
 - Alert per pass — dedup heads-up/auto-tune by pass, not a global mark
 - App-shell semantics, visible focus & reduced motion (phase 8-1)
+- Programmatic names & labels for controls and inputs (phase 8-2)
 
 ### Chores
 
@@ -940,6 +941,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #80 from barrygee/test/vue-backfill-app-scaffold-views
 - Merge pull request #81 from barrygee/docs/standards-retrofit-phase-9
 - Merge pull request #82 from barrygee/a11y/phase-7-audit-report
+- Merge pull request #83 from barrygee/a11y/phase-8-1-shell-focus-motion
 
 ### Refactoring
 
