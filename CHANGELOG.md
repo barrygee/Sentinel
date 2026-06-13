@@ -214,6 +214,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Modal dialog pattern for the settings panel (phase 8-4b)
 - Announce dynamic updates & expose disclosure state (phase 8-4a)
 - Accessible name & data alternative for the map (phase 8-5)
+- Make plain accordions real disclosure buttons (phase 8-6a)
 
 ### Chores
 
@@ -951,6 +952,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #86 from barrygee/a11y/phase-8-4a-live-regions-expanded
 - Merge remote-tracking branch 'origin/main' into a11y/phase-8-4b-dialog
 - Merge pull request #87 from barrygee/a11y/phase-8-4b-dialog
+- Merge pull request #88 from barrygee/a11y/phase-8-5-map-alt
 
 ### Refactoring
 

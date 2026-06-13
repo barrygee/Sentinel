@@ -147,7 +147,7 @@ async function mountReady(opts: MountOpts = {}): Promise<VueWrapper> {
 
 // Expand the first pass card and flush the accordion fetch.
 async function expandFirstCard(wrapper: VueWrapper): Promise<void> {
-  await wrapper.find('.spp-pass-card').trigger('click')
+  await wrapper.find('.spp-pass-card-header').trigger('click')
   await flushPromises()
   await wrapper.vm.$nextTick()
 }
@@ -465,9 +465,24 @@ describe('SpacePasses — accordion expand/collapse', () => {
     const wrapper = await mountReady()
     await expandFirstCard(wrapper)
     expect(wrapper.find('.spp-acc-body').exists()).toBe(true)
-    await wrapper.find('.spp-pass-card').trigger('click')
+    await wrapper.find('.spp-pass-card-header').trigger('click')
     await flushPromises()
     expect(wrapper.find('.spp-acc-body').exists()).toBe(false)
+  })
+
+  it('exposes each card header as a disclosure button with aria-expanded/controls', async () => {
+    const wrapper = await mountReady()
+    const header = wrapper.find('.spp-pass-card-header')
+    // The header is a real button, so it is keyboard-operable natively.
+    expect(header.element.tagName).toBe('BUTTON')
+    expect(header.attributes('aria-expanded')).toBe('false')
+    const controlledId = header.attributes('aria-controls')!
+    expect(controlledId).toBeTruthy()
+
+    await expandFirstCard(wrapper)
+    expect(wrapper.find('.spp-pass-card-header').attributes('aria-expanded')).toBe('true')
+    // aria-controls points at the expanded body.
+    expect(wrapper.find('.spp-acc-body').attributes('id')).toBe(controlledId)
   })
 
   it('works without a satellite control (null-prop path)', async () => {
@@ -1000,7 +1015,7 @@ describe('SpacePasses — auto-tune conflict warning', () => {
     vi.mocked(isAutoTuneEnabled).mockReturnValue(true) // both armed
     const wrapper = await mountReady()
     // Expand the ISS card (first).
-    await wrapper.findAll('.spp-pass-card')[0].trigger('click')
+    await wrapper.findAll('.spp-pass-card-header')[0].trigger('click')
     await flushPromises()
     await wrapper.vm.$nextTick()
     const warn = wrapper.find('.spp-acc-autotune-warn')
@@ -1039,7 +1054,7 @@ describe('SpacePasses — auto-tune conflict warning', () => {
     }
     vi.mocked(isAutoTuneEnabled).mockReturnValue(true)
     const wrapper = await mountReady()
-    await wrapper.findAll('.spp-pass-card')[0].trigger('click') // sat A
+    await wrapper.findAll('.spp-pass-card-header')[0].trigger('click') // sat A
     await flushPromises()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.spp-acc-autotune-warn').text()).toContain('+1 more')
@@ -1224,7 +1239,7 @@ describe('SpacePasses — lifecycle & status bar', () => {
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
     // Open an accordion (creates accFetchAbort) and schedule a clear-preview timer.
-    await wrapper.find('.spp-pass-card').trigger('click')
+    await wrapper.find('.spp-pass-card-header').trigger('click')
     await flushPromises()
     await wrapper.find('.spp-pass-card').trigger('mouseleave')
     wrapper.unmount()
@@ -1435,7 +1450,7 @@ describe('SpacePasses — branch edge cases', () => {
       (noradId: string) => noradId === '1' || noradId === '3',
     )
     const wrapper = await mountReady()
-    await wrapper.findAll('.spp-pass-card')[0].trigger('click') // expand sat A
+    await wrapper.findAll('.spp-pass-card-header')[0].trigger('click') // expand sat A
     await flushPromises()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.spp-acc-autotune-warn').text()).toContain('Overlaps C')

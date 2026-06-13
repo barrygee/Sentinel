@@ -343,6 +343,14 @@
   align-items: center;
   gap: 12px;
   padding: 13px 52px 13px 28px;
+  /* Disclosure button reset — the header is a full-width <button>. */
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .spp-pass-card:first-child .spp-pass-card-header {
