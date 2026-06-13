@@ -5,6 +5,7 @@
     <MapLibreMap
       ref="mapRef"
       :style-url="styleUrl"
+      region-label="Land domain map"
       :center="[-2, 54]"
       :zoom="6"
       @map-created="onMapCreated"

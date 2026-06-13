@@ -1,20 +1,44 @@
 <template>
-  <div ref="containerRef" class="map-container" />
+  <!-- The WebGL canvas is opaque to assistive tech, so the container is exposed
+       as a named region (WCAG 1.1.1 / 4.1.2) with an optional visually-hidden
+       description that points screen-reader users at the accessible list/table
+       equivalents of the on-map entities (the sidebar panels). -->
+  <div
+    ref="containerRef"
+    class="map-container"
+    role="region"
+    :aria-label="regionLabel"
+    :aria-describedby="regionDescription ? descriptionId : undefined"
+  >
+    <p v-if="regionDescription" :id="descriptionId" class="sr-only">{{ regionDescription }}</p>
+  </div>
 </template>
 
 <script setup lang="ts">
 // IMPORTANT: The MapLibre Map instance is stored as a plain module-level variable.
 // Never put it in ref() or reactive() — Vue's Proxy wrapping breaks WebGL internals.
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, useId } from 'vue'
 import maplibregl, { type Map } from 'maplibre-gl'
 
+// `regionLabel`/`regionDescription` are deliberately NOT named `ariaLabel` etc.:
+// `aria-*` attributes on a component fall through to the root element instead of
+// binding to a prop, so an `aria`-prefixed prop name would never receive a value.
 const props = defineProps<{
   styleUrl: string
+  /** Accessible name for the map region (e.g. "Air domain map"). */
+  regionLabel: string
+  /**
+   * Optional visually-hidden description, surfaced via aria-describedby — used to
+   * direct assistive-tech users to the list/table alternative of the map's data.
+   */
+  regionDescription?: string
   center?: [number, number]
   zoom?: number
   pitch?: number
   bearing?: number
 }>()
+
+const descriptionId = useId()
 
 const emit = defineEmits<{
   'map-created': [map: Map]

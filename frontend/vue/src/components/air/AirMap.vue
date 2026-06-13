@@ -2,6 +2,8 @@
   <MapLibreMap
     ref="mapRef"
     :style-url="styleUrl"
+    region-label="Air domain map — live aircraft"
+    region-description="Interactive map of live aircraft. The same aircraft are also listed, with full details and keyboard access, in the Search panel of the map sidebar."
     :center="airStore.mapCenter ?? [-2, 54]"
     :zoom="airStore.mapZoom ?? 6"
     :pitch="airStore.pitch"
