@@ -936,6 +936,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #77 from barrygee/test/vue-backfill-sdr-recordings
 - Merge pull request #78 from barrygee/test/vue-backfill-sdr-waterfall
 - Merge pull request #79 from barrygee/test/vue-backfill-sdr-panel
+- Merge pull request #80 from barrygee/test/vue-backfill-app-scaffold-views
 
 ### Refactoring
 
@@ -956,6 +957,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 ### Documentation
 
 - Drop stale globe-projection mention in ground-track comment
+- Add CONTRIBUTING and document the standards now in place (phase 9)
 
 ### Tests
 
