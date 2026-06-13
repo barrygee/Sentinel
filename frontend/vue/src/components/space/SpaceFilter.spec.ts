@@ -566,6 +566,76 @@ describe('SpaceFilter — keyboard navigation', () => {
 })
 
 // =============================================================================
+describe('SpaceFilter — combobox / listbox semantics', () => {
+  function multiSat() {
+    listResult.body = {
+      satellites: [
+        makeSat({ norad_id: '1', name: 'ALPHA', category: 'active' }),
+        makeSat({ norad_id: '2', name: 'BRAVO', category: 'active' }),
+      ],
+    }
+  }
+
+  it('marks the input as a combobox controlling the listbox', async () => {
+    multiSat()
+    const wrapper = await mountReady()
+    const input = wrapper.find('#space-filter-input')
+    expect(input.attributes('role')).toBe('combobox')
+    expect(input.attributes('aria-autocomplete')).toBe('list')
+    expect(input.attributes('aria-expanded')).toBe('true')
+    expect(input.attributes('aria-controls')).toBe('space-filter-listbox')
+  })
+
+  it('exposes each row as an option the listbox owns via aria-owns', async () => {
+    multiSat()
+    const wrapper = await mountReady()
+    const listbox = wrapper.find('#space-filter-listbox')
+    expect(listbox.attributes('role')).toBe('listbox')
+    const owned = listbox.attributes('aria-owns') ?? ''
+    expect(owned).toContain('space-filter-opt-1')
+    expect(owned).toContain('space-filter-opt-2')
+    const options = wrapper.findAll('[role="option"]')
+    expect(options).toHaveLength(2)
+    expect(options[0].attributes('id')).toBe('space-filter-opt-1')
+    expect(options[0].attributes('aria-selected')).toBe('false')
+  })
+
+  it('hides the listbox and reports collapsed when there are no results', async () => {
+    listResult.body = { satellites: [] }
+    const wrapper = await mountReady()
+    expect(wrapper.find('#space-filter-listbox').exists()).toBe(false)
+    const input = wrapper.find('#space-filter-input')
+    expect(input.attributes('aria-expanded')).toBe('false')
+    expect(input.attributes('aria-controls')).toBeUndefined()
+  })
+
+  it('points aria-activedescendant at the focused option and marks it selected', async () => {
+    multiSat()
+    const wrapper = await mountReady()
+    const input = wrapper.find('#space-filter-input')
+    await input.trigger('keydown', { key: 'ArrowDown' }) // focus ALPHA
+    await wrapper.vm.$nextTick()
+    expect(input.attributes('aria-activedescendant')).toBe('space-filter-opt-1')
+    expect(wrapper.find('#space-filter-opt-1').attributes('aria-selected')).toBe('true')
+  })
+
+  it('drops aria-activedescendant when the focused row is collapsed out of view', async () => {
+    multiSat()
+    const wrapper = await mountReady()
+    const input = wrapper.find('#space-filter-input')
+    await input.trigger('keydown', { key: 'ArrowDown' }) // focus ALPHA
+    await wrapper.vm.$nextTick()
+    expect(input.attributes('aria-activedescendant')).toBe('space-filter-opt-1')
+    // Collapse the (only) category — the focused option is no longer rendered.
+    await wrapper.find('.space-filter-section-label').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(input.attributes('aria-activedescendant')).toBeUndefined()
+    // With every option collapsed away the listbox is gone too.
+    expect(wrapper.find('#space-filter-listbox').exists()).toBe(false)
+  })
+})
+
+// =============================================================================
 describe('SpaceFilter — accordion expand/collapse', () => {
   it('expands an item on click, selecting the satellite and fetching its passes', async () => {
     const control = makeFakeControl()

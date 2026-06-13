@@ -334,6 +334,80 @@ describe('AirFilter', () => {
     })
   })
 
+  describe('combobox / listbox semantics', () => {
+    it('marks the input as a combobox controlling the listbox', () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const input = wrapper.find('#filter-input')
+      expect(input.attributes('role')).toBe('combobox')
+      expect(input.attributes('aria-autocomplete')).toBe('list')
+      expect(input.attributes('aria-expanded')).toBe('true')
+      expect(input.attributes('aria-controls')).toBe('filter-listbox')
+    })
+
+    it('exposes the rows as options the listbox owns via aria-owns', () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const listbox = wrapper.find('#filter-listbox')
+      expect(listbox.attributes('role')).toBe('listbox')
+      const owned = listbox.attributes('aria-owns') ?? ''
+      // 4 planes + 1 airport + 1 base, each a real option id the listbox owns.
+      expect(owned).toContain('filter-opt-plane-0')
+      expect(owned).toContain('filter-opt-airport-0')
+      expect(owned).toContain('filter-opt-mil-0')
+      const options = wrapper.findAll('[role="option"]')
+      expect(options).toHaveLength(6)
+      expect(options[0]!.attributes('id')).toBe('filter-opt-plane-0')
+      expect(options[0]!.attributes('aria-selected')).toBe('false')
+    })
+
+    it('hides the listbox and reports collapsed when there are no results', async () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      await wrapper.find('#filter-input').setValue('ZZZZZZ')
+      expect(wrapper.find('#filter-listbox').exists()).toBe(false)
+      const input = wrapper.find('#filter-input')
+      expect(input.attributes('aria-expanded')).toBe('false')
+      expect(input.attributes('aria-controls')).toBeUndefined()
+    })
+
+    it('points aria-activedescendant at the focused option and marks it selected', async () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const input = wrapper.find('#filter-input')
+      await input.trigger('keydown', { key: 'ArrowDown' }) // focus first plane
+      await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBe('filter-opt-plane-0')
+      expect(wrapper.find('#filter-opt-plane-0').attributes('aria-selected')).toBe('true')
+    })
+
+    it('drops aria-activedescendant when the focused row is collapsed out of view', async () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const input = wrapper.find('#filter-input')
+      await input.trigger('keydown', { key: 'ArrowDown' }) // focus first plane
+      await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBe('filter-opt-plane-0')
+      // Collapse every section — the focused plane is no longer rendered, so the
+      // activedescendant must not dangle at a removed option id.
+      for (const heading of wrapper.findAll('.filter-section-label')) {
+        await heading.trigger('click')
+      }
+      await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBeUndefined()
+    })
+
+    it('drops aria-activedescendant when the focused aircraft leaves the data', async () => {
+      const adsb = makeAdsb(defaultPlanes())
+      const wrapper = mountFilter(adsb)
+      const input = wrapper.find('#filter-input')
+      await input.trigger('keydown', { key: 'ArrowDown' }) // focus first plane (aa1)
+      await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBe('filter-opt-plane-0')
+      // Refresh with the focused aircraft gone while its section stays open: the
+      // stale key matches no rendered option.
+      adsb._geojson.features = [planeFeature({ hex: 'ee5', flight: 'XYZ5', category: 'A3' })]
+      document.dispatchEvent(new CustomEvent('adsb-data-update'))
+      await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBeUndefined()
+    })
+  })
+
   describe('clear button', () => {
     it('clears the query and refocuses the input', async () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()), () => makeMap(), document.body)
