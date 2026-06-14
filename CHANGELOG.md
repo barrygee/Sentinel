@@ -962,6 +962,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #92 from barrygee/a11y/phase-8-6d-target-sizes
 - Merge remote-tracking branch 'origin/main' into a11y/phase-8-7-live-axe-e2e
 - Merge branch 'a11y/phase-8-7-live-axe-e2e' of https://github.com/barrygee/Sentinel into a11y/phase-8-7-live-axe-e2e
+- Merge pull request #93 from barrygee/a11y/phase-8-7-live-axe-e2e
 
 ### Refactoring
 
@@ -984,6 +985,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop stale globe-projection mention in ground-track comment
 - Add CONTRIBUTING and document the standards now in place (phase 9)
 - Add WCAG 2.2 AA accessibility audit report (phase 7)
+- Add ADR recording the webapp-standards retrofit decision
 
 ### Tests
 
