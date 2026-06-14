@@ -128,9 +128,19 @@ npm run lint          # ESLint + Prettier --check (gating)
 npm run typecheck     # vue-tsc --noEmit (gating)
 npm run test:coverage # vitest with the 100% coverage gate (gating)
 npm run build         # Vite production build (gating)
+npm run test:e2e      # live axe-core a11y audit in a browser (NOT gating — see below)
 ```
 
 Use `npm run lint:fix` / `npm run format` to auto-fix lint and formatting.
+
+`npm run test:e2e` is the **live accessibility audit** (Playwright + axe-core). It
+runs the real axe engine in a browser over every domain view, catching the
+layout-dependent WCAG rules jsdom-based `jest-axe` can't (colour contrast,
+target size). It needs a browser binary (`npx playwright install chromium`, or
+`PLAYWRIGHT_CHANNEL=chrome` to use system Chrome) and so is **not** in the gating
+CI run — run it locally before shipping UI changes. Full instructions, including
+how to audit against the live backend with `A11Y_BASE_URL`, are in the
+[README](README.md#live-accessibility-audit-playwright--axe-core).
 
 ### Root helpers (repo root)
 

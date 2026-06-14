@@ -4,18 +4,17 @@
    across all CSS files in the project.
    ============================================================ */
 :root {
-    --color-accent:       #c8ff00;
-    --color-bg:           #000000;
-    --color-text:         rgba(255, 255, 255, 0.9);
-    --color-text-muted:   rgba(255, 255, 255, 0.75);
-    --color-border:       rgba(255, 255, 255, 0.08);
-    --color-border-mid:   rgba(255, 255, 255, 0.1);
-    --font-primary:       'Barlow', 'Helvetica Neue', Arial, sans-serif;
-    --font-condensed:     'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
-    --nav-height:         68px;
-    --footer-height:      44px;
+    --color-accent: #c8ff00;
+    --color-bg: #000000;
+    --color-text: rgba(255, 255, 255, 0.9);
+    --color-text-muted: rgba(255, 255, 255, 0.75);
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-mid: rgba(255, 255, 255, 0.1);
+    --font-primary: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+    --font-condensed: 'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
+    --nav-height: 68px;
+    --footer-height: 44px;
 }
-
 
 /* ============================================================
    UTILITY
@@ -23,7 +22,6 @@
 .hidden {
     display: none !important;
 }
-
 
 /* ============================================================
    BASE RESET
@@ -44,11 +42,10 @@ html {
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden;       /* map fills the viewport — no page scroll */
+    overflow: hidden; /* map fills the viewport — no page scroll */
     background: #000;
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
 }
-
 
 /* ============================================================
    NAVIGATION HEADER
@@ -106,7 +103,10 @@ html {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     text-decoration: none;
-    color: rgba(255, 255, 255, 0.3);
+    /* WCAG 1.4.3 (AA): on the black nav bar, white at 0.3 alpha is only 2.48:1.
+       0.6 alpha (~#999 on #000) clears the 4.5:1 text bar while staying visibly
+       dimmer than the hovered (0.75) and active (lime) states. */
+    color: rgba(255, 255, 255, 0.6);
     transition: color 0.2s;
 }
 
@@ -122,7 +122,6 @@ html {
 .nav-link--active:hover {
     color: var(--color-accent);
 }
-
 
 /* ============================================================
    FOOTER
@@ -160,7 +159,6 @@ html {
     gap: 16px;
 }
 
-
 /* Generic dim footer label (e.g. "LOC:" prefix) */
 .footer-label {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -183,8 +181,10 @@ html {
 
 /* ---- Footer tooltip shared rule (applies to both notif + tracking buttons) ----
    Only show tooltip when neither panel is open. */
-#footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active)) #notif-toggle-btn[data-tooltip]:hover::before,
-#footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active)) #tracking-toggle-btn[data-tooltip]:hover::before {
+#footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active))
+    #notif-toggle-btn[data-tooltip]:hover::before,
+#footer-left:not(:has(.notif-btn-active)):not(:has(.tracking-btn-active))
+    #tracking-toggle-btn[data-tooltip]:hover::before {
     opacity: 1;
 }
 
@@ -265,7 +265,9 @@ html {
     color: #fff;
     opacity: 0.6;
     text-decoration: none;
-    transition: background 0.2s, opacity 0.2s;
+    transition:
+        background 0.2s,
+        opacity 0.2s;
     flex-shrink: 0;
     margin: 4px 0;
     position: relative;
@@ -327,7 +329,9 @@ html {
     justify-content: center;
     color: #fff;
     opacity: 0.6;
-    transition: background 0.2s, opacity 0.2s;
+    transition:
+        background 0.2s,
+        opacity 0.2s;
     flex-shrink: 0;
     margin: 4px 0;
     position: relative;
@@ -365,7 +369,6 @@ html {
 #settings-btn[data-tooltip]:hover::before {
     opacity: 1;
 }
-
 
 /* ============================================================
    NO-URL OVERLAY — shown when active mode has no data source URL
@@ -463,7 +466,9 @@ html {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background 0.15s, transform 0.15s;
+    transition:
+        background 0.15s,
+        transform 0.15s;
 }
 
 .no-url-overlay-btn-arrow {
@@ -475,7 +480,6 @@ html {
     background: #d8ff33;
     transform: translateY(-1px);
 }
-
 
 /* ============================================================
    RESPONSIVE — small screens
@@ -501,7 +505,7 @@ html {
 /* ---- ≤1024px (tablet landscape) ---- */
 @media (max-width: 1024px) {
     :root {
-        --nav-height:    56px;
+        --nav-height: 56px;
         --footer-height: 40px;
     }
     #nav {
@@ -509,13 +513,21 @@ html {
         padding-left: 6px;
         padding-right: 16px;
     }
-    #logo-img    { height: 44px; margin-top: 2px; }
-    #nav-right   { gap: 20px; }
+    #logo-img {
+        height: 44px;
+        margin-top: 2px;
+    }
+    #nav-right {
+        gap: 20px;
+    }
     #footer {
         height: calc(40px + env(safe-area-inset-bottom));
         padding: 0 16px;
     }
-    .no-url-overlay { top: 56px; bottom: 40px; }
+    .no-url-overlay {
+        top: 56px;
+        bottom: 40px;
+    }
 }
 
 /* ---- ≤768px (phones / tablet portrait) ---- */
@@ -524,9 +536,16 @@ html {
         padding-left: 4px;
         padding-right: 10px;
     }
-    #logo-img            { height: 38px; }
-    #nav-right           { gap: 14px; }
-    .nav-link            { font-size: 9px; letter-spacing: 0.14em; }
+    #logo-img {
+        height: 38px;
+    }
+    #nav-right {
+        gap: 14px;
+    }
+    .nav-link {
+        font-size: 9px;
+        letter-spacing: 0.14em;
+    }
 
     #footer {
         padding: 0 10px;
@@ -536,8 +555,10 @@ html {
         gap: 8px;
     }
     /* drop the "LOC:" prefix label on phones, truncate the coord value */
-    #footer-right .footer-label { display: none; }
-    #footer-right .footer-code  {
+    #footer-right .footer-label {
+        display: none;
+    }
+    #footer-right .footer-code {
         max-width: 42vw;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -560,21 +581,40 @@ html {
     }
 
     /* No-url overlay: tighter text padding */
-    .no-url-overlay-box { padding: 20px 20px; gap: 14px; }
-    .no-url-overlay-msg { font-size: 12px; max-width: 90vw; }
+    .no-url-overlay-box {
+        padding: 20px 20px;
+        gap: 14px;
+    }
+    .no-url-overlay-msg {
+        font-size: 12px;
+        max-width: 90vw;
+    }
 }
 
 /* ---- ≤480px (small phones) ---- */
 @media (max-width: 480px) {
     /* Compress nav so 5 link labels + logo all fit at 375px */
-    #nav        { padding: env(safe-area-inset-top) 6px 0 4px; }
-    #logo-img   { height: 28px; }
-    #nav-right  { gap: 8px; }
-    .nav-link   { font-size: 8px; letter-spacing: 0.04em; }
+    #nav {
+        padding: env(safe-area-inset-top) 6px 0 4px;
+    }
+    #logo-img {
+        height: 28px;
+    }
+    #nav-right {
+        gap: 8px;
+    }
+    .nav-link {
+        font-size: 8px;
+        letter-spacing: 0.04em;
+    }
 
     /* Footer: hide center cluster + connection label; keep toggles + coord */
-    #footer-center { display: none; }
-    #footer        { padding: 0 6px; }
+    #footer-center {
+        display: none;
+    }
+    #footer {
+        padding: 0 6px;
+    }
 
     /* Sidebar rail relocates to bottom of viewport as a horizontal strip */
     #map-sidebar-rail {
@@ -613,7 +653,7 @@ html {
     }
 
     /* SDR domain keeps the rail hidden, so the sidebar fills bottom directly */
-    body[data-domain="sdr"] #map-sidebar {
+    body[data-domain='sdr'] #map-sidebar {
         bottom: calc(40px + env(safe-area-inset-bottom)) !important;
     }
 }

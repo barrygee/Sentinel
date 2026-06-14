@@ -152,7 +152,13 @@
 
     <!-- Group 5: satellite search -->
     <div id="ssm-group-filter" class="sm-group">
-      <button id="ssm-filter-btn" class="sm-btn enabled" data-tooltip="SEARCH" @click="openSearch">
+      <button
+        id="ssm-filter-btn"
+        class="sm-btn enabled"
+        data-tooltip="SEARCH"
+        aria-label="Search"
+        @click="openSearch"
+      >
         <span class="sm-icon">
           <svg
             width="15"
