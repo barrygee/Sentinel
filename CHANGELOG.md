@@ -217,6 +217,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make plain accordions real disclosure buttons (phase 8-6a)
 - SDR radio picker becomes a keyboard combobox (phase 8-6b)
 - AirFilter & SpaceFilter search lists become ARIA comboboxes (phase 8-6c)
+- Enforce 24×24px minimum target size on icon buttons (phase 8-6d)
 
 ### Chores
 
