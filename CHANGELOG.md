@@ -959,6 +959,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #89 from barrygee/a11y/phase-8-6a-space-disclosures
 - Merge pull request #90 from barrygee/a11y/phase-8-6b-sdr-combobox
 - Merge pull request #91 from barrygee/a11y/phase-8-6c-search-listboxes
+- Merge pull request #92 from barrygee/a11y/phase-8-6d-target-sizes
+- Merge remote-tracking branch 'origin/main' into a11y/phase-8-7-live-axe-e2e
+- Merge branch 'a11y/phase-8-7-live-axe-e2e' of https://github.com/barrygee/Sentinel into a11y/phase-8-7-live-axe-e2e
 
 ### Refactoring
 
