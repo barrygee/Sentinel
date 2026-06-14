@@ -218,6 +218,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - SDR radio picker becomes a keyboard combobox (phase 8-6b)
 - AirFilter & SpaceFilter search lists become ARIA comboboxes (phase 8-6c)
 - Enforce 24×24px minimum target size on icon buttons (phase 8-6d)
+- Patch Dependabot security vulnerabilities
+- Regenerate vue lockfile for clean npm ci on vite 8
 
 ### Chores
 
@@ -963,6 +965,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into a11y/phase-8-7-live-axe-e2e
 - Merge branch 'a11y/phase-8-7-live-axe-e2e' of https://github.com/barrygee/Sentinel into a11y/phase-8-7-live-axe-e2e
 - Merge pull request #93 from barrygee/a11y/phase-8-7-live-axe-e2e
+- Merge pull request #94 from barrygee/docs/adr-standards-retrofit
 
 ### Refactoring
 
