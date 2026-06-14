@@ -1021,6 +1021,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add base pipeline (lint, format, typecheck, build, test)
 - Bump actions to Node 24 runtime majors
 - Pin setup-uv to exact v8.2.0 tag
+- Gate the live axe-core audit in CI on every PR and push
 
 ### Styling
 
