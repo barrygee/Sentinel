@@ -957,6 +957,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #88 from barrygee/a11y/phase-8-5-map-alt
 - Merge pull request #89 from barrygee/a11y/phase-8-6a-space-disclosures
 - Merge pull request #90 from barrygee/a11y/phase-8-6b-sdr-combobox
+- Merge pull request #91 from barrygee/a11y/phase-8-6c-search-listboxes
 
 ### Refactoring
 
@@ -1006,6 +1007,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Backfill SdrPanel near-total coverage + remove dead code (slice 6f-3b)
 - Bring SdrPanel to verified 100% coverage (slice 6f-3b)
 - Backfill App/Sea/Land to 100% and raise coverage gate to 100 (slice 6g)
+- Add live axe-core audit (Playwright) + fix two issues it found
 
 ### Build System
 
