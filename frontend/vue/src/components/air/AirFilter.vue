@@ -4,7 +4,12 @@
       id="filter-input"
       ref="inputRef"
       type="text"
+      role="combobox"
       aria-label="Filter aircraft by callsign, ICAO or squawk"
+      aria-autocomplete="list"
+      :aria-expanded="listboxShown"
+      :aria-controls="listboxShown ? 'filter-listbox' : undefined"
+      :aria-activedescendant="activeDescId"
       placeholder="CALLSIGN · ICAO · SQUAWK"
       autocomplete="off"
       spellcheck="false"
@@ -23,111 +28,76 @@
   </div>
 
   <div id="filter-results" ref="resultsRef">
-    <template v-if="!results.length">
-      <div class="filter-no-results">No results</div>
-    </template>
-    <template v-else>
-      <!-- Aircraft section -->
-      <template v-if="planes.length">
-        <button
-          class="filter-section-label"
-          :class="{ 'filter-section-label--collapsed': collapsed.has('aircraft') }"
-          :aria-expanded="!collapsed.has('aircraft')"
-          @click="toggleSection('aircraft')"
-        >
-          <span>AIRCRAFT</span>
-          <ChevronIcon
-            class="filter-section-chevron"
-            :class="{ 'filter-section-chevron--collapsed': collapsed.has('aircraft') }"
-          />
-        </button>
-        <template v-if="!collapsed.has('aircraft')">
-          <div
-            v-for="r in planes"
-            :key="r.hex"
-            class="filter-result-item"
-            :class="{ 'keyboard-focused': focusedKey === r.hex }"
-          >
-            <div class="filter-result-icon filter-icon-plane" @click="selectPlane(r)">
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 56 52"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
-              </svg>
-            </div>
-            <div class="filter-result-info" @click="selectPlane(r)">
-              <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
-              <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
-            </div>
-            <button
-              class="filter-action-btn filter-bell-btn"
-              :class="{ 'filter-bell-btn--active': notifEnabled.has(r.hex) }"
-              aria-label="Toggle notifications"
-              @mousedown.stop
-              @click.stop="toggleNotif(r.hex)"
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 13 13"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                  fill="currentColor"
-                />
-                <path
-                  d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                  stroke="currentColor"
-                  stroke-width="1"
-                  fill="none"
-                />
-                <!-- Strike-through shown when notifications for this aircraft are off. -->
-                <line
-                  v-if="!notifEnabled.has(r.hex)"
-                  x1="1.5"
-                  y1="1.5"
-                  x2="11.5"
-                  y2="11.5"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="square"
-                />
-              </svg>
-            </button>
-          </div>
-        </template>
-      </template>
+    <!-- The listbox is an empty structural element that OWNS the option rows
+         below via aria-owns. The rows can't sit *inside* it because each row
+         carries non-option chrome (section header buttons, the per-row bell
+         button) that a listbox/option subtree may not contain — aria-owns lets
+         the combobox expose them as options while keeping that chrome valid. -->
+    <div
+      v-if="listboxShown"
+      id="filter-listbox"
+      role="listbox"
+      aria-label="Aircraft, airports and military bases"
+      :aria-owns="ownedOptionIds"
+    ></div>
 
-      <!-- Airports section -->
-      <template v-if="airports.length">
-        <button
-          class="filter-section-label"
-          :class="{ 'filter-section-label--collapsed': collapsed.has('airports') }"
-          :aria-expanded="!collapsed.has('airports')"
-          @click="toggleSection('airports')"
-        >
-          <span>AIRPORTS</span>
-          <ChevronIcon
-            class="filter-section-chevron"
-            :class="{ 'filter-section-chevron--collapsed': collapsed.has('airports') }"
-          />
-        </button>
-        <template v-if="!collapsed.has('airports')">
-          <template v-for="r in airports" :key="r.icao">
+    <div class="filter-results-body">
+      <template v-if="!results.length">
+        <div class="filter-no-results">No results</div>
+      </template>
+      <template v-else>
+        <!-- Aircraft section -->
+        <div v-if="planes.length" class="filter-result-group">
+          <button
+            class="filter-section-label"
+            :class="{ 'filter-section-label--collapsed': collapsed.has('aircraft') }"
+            :aria-expanded="!collapsed.has('aircraft')"
+            @click="toggleSection('aircraft')"
+          >
+            <span>AIRCRAFT</span>
+            <ChevronIcon
+              class="filter-section-chevron"
+              :class="{ 'filter-section-chevron--collapsed': collapsed.has('aircraft') }"
+            />
+          </button>
+          <template v-if="!collapsed.has('aircraft')">
             <div
+              v-for="(r, index) in planes"
+              :key="r.hex"
               class="filter-result-item"
-              :class="{
-                'keyboard-focused': focusedKey === r.icao,
-                'filter-result-item--open': expandedAirport === r.icao,
-              }"
+              :class="{ 'keyboard-focused': focusedKey === r.hex }"
             >
-              <div class="filter-result-icon filter-icon-airport" @click="toggleAirport(r)">
+              <div
+                :id="`filter-opt-plane-${index}`"
+                role="option"
+                :aria-selected="focusedKey === r.hex"
+                :aria-label="planeOptionLabel(r)"
+                class="filter-result-option"
+                @click="selectPlane(r)"
+              >
+                <div class="filter-result-icon filter-icon-plane">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 56 52"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
+                  </svg>
+                </div>
+                <div class="filter-result-info">
+                  <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
+                  <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
+                </div>
+              </div>
+              <button
+                class="filter-action-btn filter-bell-btn"
+                :class="{ 'filter-bell-btn--active': notifEnabled.has(r.hex) }"
+                aria-label="Toggle notifications"
+                @mousedown.stop
+                @click.stop="toggleNotif(r.hex)"
+              >
                 <svg
                   width="11"
                   height="11"
@@ -135,114 +105,205 @@
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4" />
-                  <line x1="6.5" y1="2" x2="6.5" y2="11" stroke="currentColor" stroke-width="1.2" />
-                  <line x1="2" y1="6.5" x2="11" y2="6.5" stroke="currentColor" stroke-width="1.2" />
+                  <path
+                    d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M5 10.5a1.5 1.5 0 0 0 3 0"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    fill="none"
+                  />
+                  <!-- Strike-through shown when notifications for this aircraft are off. -->
+                  <line
+                    v-if="!notifEnabled.has(r.hex)"
+                    x1="1.5"
+                    y1="1.5"
+                    x2="11.5"
+                    y2="11.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="square"
+                  />
                 </svg>
-              </div>
-              <div class="filter-result-info" @click="toggleAirport(r)">
-                <div class="filter-result-primary">{{ r.icao }}</div>
-                <div class="filter-result-secondary">
-                  {{ r.name.toUpperCase() }}{{ r.iata ? ' · ' + r.iata : '' }}
-                </div>
-              </div>
-              <ChevronIcon
-                class="filter-result-chevron"
-                :class="{ 'filter-result-chevron--open': expandedAirport === r.icao }"
-                @click="toggleAirport(r)"
-              />
+              </button>
             </div>
-            <!-- Inline accordion: location + clickable frequencies (matches the
-             space satellite detail panel styling). -->
-            <div v-if="expandedAirport === r.icao" class="apt-acc-body">
-              <div class="apt-acc-section">
-                <div class="apt-acc-section-title">LOCATION</div>
-                <div class="apt-acc-grid apt-acc-grid--two">
-                  <div class="apt-acc-cell">
-                    <div class="apt-acc-cell-label">LATITUDE</div>
-                    <div class="apt-acc-cell-value">{{ formatLat(r.coords[1]) }}</div>
+          </template>
+        </div>
+
+        <!-- Airports section -->
+        <div v-if="airports.length" class="filter-result-group">
+          <button
+            class="filter-section-label"
+            :class="{ 'filter-section-label--collapsed': collapsed.has('airports') }"
+            :aria-expanded="!collapsed.has('airports')"
+            @click="toggleSection('airports')"
+          >
+            <span>AIRPORTS</span>
+            <ChevronIcon
+              class="filter-section-chevron"
+              :class="{ 'filter-section-chevron--collapsed': collapsed.has('airports') }"
+            />
+          </button>
+          <template v-if="!collapsed.has('airports')">
+            <template v-for="(r, index) in airports" :key="r.icao">
+              <div
+                class="filter-result-item"
+                :class="{
+                  'keyboard-focused': focusedKey === r.icao,
+                  'filter-result-item--open': expandedAirport === r.icao,
+                }"
+              >
+                <div
+                  :id="`filter-opt-airport-${index}`"
+                  role="option"
+                  :aria-selected="focusedKey === r.icao"
+                  :aria-label="airportOptionLabel(r)"
+                  class="filter-result-option"
+                  @click="toggleAirport(r)"
+                >
+                  <div class="filter-result-icon filter-icon-airport">
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 13 13"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4" />
+                      <line
+                        x1="6.5"
+                        y1="2"
+                        x2="6.5"
+                        y2="11"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                      <line
+                        x1="2"
+                        y1="6.5"
+                        x2="11"
+                        y2="6.5"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                      />
+                    </svg>
                   </div>
-                  <div class="apt-acc-cell">
-                    <div class="apt-acc-cell-label">LONGITUDE</div>
-                    <div class="apt-acc-cell-value">{{ formatLon(r.coords[0]) }}</div>
+                  <div class="filter-result-info">
+                    <div class="filter-result-primary">{{ r.icao }}</div>
+                    <div class="filter-result-secondary">
+                      {{ r.name.toUpperCase() }}{{ r.iata ? ' · ' + r.iata : '' }}
+                    </div>
+                  </div>
+                  <ChevronIcon
+                    class="filter-result-chevron"
+                    :class="{ 'filter-result-chevron--open': expandedAirport === r.icao }"
+                  />
+                </div>
+              </div>
+              <!-- Inline accordion: location + clickable frequencies (matches the
+               space satellite detail panel styling). Sits outside the option so
+               its tunable frequency buttons aren't nested inside a listbox option. -->
+              <div v-if="expandedAirport === r.icao" class="apt-acc-body">
+                <div class="apt-acc-section">
+                  <div class="apt-acc-section-title">LOCATION</div>
+                  <div class="apt-acc-grid apt-acc-grid--two">
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">LATITUDE</div>
+                      <div class="apt-acc-cell-value">{{ formatLat(r.coords[1]) }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">LONGITUDE</div>
+                      <div class="apt-acc-cell-value">{{ formatLon(r.coords[0]) }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="apt-acc-section">
+                  <div class="apt-acc-section-title">FREQUENCIES</div>
+                  <div class="apt-acc-grid apt-acc-grid--two">
+                    <button
+                      v-for="f in airportFreqs(r)"
+                      :key="f.label"
+                      class="apt-acc-cell apt-acc-freq"
+                      :title="
+                        sdrConnected ? `Tune to ${f.display} ${f.mode}` : 'Connect an SDR to tune'
+                      "
+                      @click="tuneFreq(r, f)"
+                    >
+                      <div class="apt-acc-cell-label">{{ f.label.toUpperCase() }}</div>
+                      <div class="apt-acc-cell-value">
+                        {{ f.display }}<span class="apt-acc-cell-mode"> · {{ f.mode }}</span>
+                      </div>
+                    </button>
+                  </div>
+                  <div v-if="tuneNotice === r.icao" class="apt-acc-notice">
+                    Connect an SDR before tuning
                   </div>
                 </div>
               </div>
-              <div class="apt-acc-section">
-                <div class="apt-acc-section-title">FREQUENCIES</div>
-                <div class="apt-acc-grid apt-acc-grid--two">
-                  <button
-                    v-for="f in airportFreqs(r)"
-                    :key="f.label"
-                    class="apt-acc-cell apt-acc-freq"
-                    :title="
-                      sdrConnected ? `Tune to ${f.display} ${f.mode}` : 'Connect an SDR to tune'
-                    "
-                    @click="tuneFreq(r, f)"
+            </template>
+          </template>
+        </div>
+
+        <!-- Military bases section -->
+        <div v-if="milBases.length" class="filter-result-group">
+          <button
+            class="filter-section-label"
+            :class="{ 'filter-section-label--collapsed': collapsed.has('mil') }"
+            :aria-expanded="!collapsed.has('mil')"
+            @click="toggleSection('mil')"
+          >
+            <span>MILITARY BASES</span>
+            <ChevronIcon
+              class="filter-section-chevron"
+              :class="{ 'filter-section-chevron--collapsed': collapsed.has('mil') }"
+            />
+          </button>
+          <template v-if="!collapsed.has('mil')">
+            <div
+              v-for="(r, index) in milBases"
+              :key="r.name"
+              class="filter-result-item"
+              :class="{ 'keyboard-focused': focusedKey === r.name }"
+            >
+              <div
+                :id="`filter-opt-mil-${index}`"
+                role="option"
+                :aria-selected="focusedKey === r.name"
+                :aria-label="milOptionLabel(r)"
+                class="filter-result-option"
+                @click="selectMil(r)"
+              >
+                <div class="filter-result-icon filter-icon-mil">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 13 13"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
                   >
-                    <div class="apt-acc-cell-label">{{ f.label.toUpperCase() }}</div>
-                    <div class="apt-acc-cell-value">
-                      {{ f.display }}<span class="apt-acc-cell-mode"> · {{ f.mode }}</span>
-                    </div>
-                  </button>
+                    <polygon
+                      points="6.5,1.5 12,11.5 1,11.5"
+                      stroke="currentColor"
+                      stroke-width="1.3"
+                      fill="none"
+                    />
+                  </svg>
                 </div>
-                <div v-if="tuneNotice === r.icao" class="apt-acc-notice">
-                  Connect an SDR before tuning
+                <div class="filter-result-info">
+                  <div class="filter-result-primary">
+                    {{ r.icao || r.name.toUpperCase().slice(0, 6) }}
+                  </div>
+                  <div class="filter-result-secondary">{{ r.name.toUpperCase() }}</div>
                 </div>
+                <div class="filter-result-badge">MIL</div>
               </div>
             </div>
           </template>
-        </template>
+        </div>
       </template>
-
-      <!-- Military bases section -->
-      <template v-if="milBases.length">
-        <button
-          class="filter-section-label"
-          :class="{ 'filter-section-label--collapsed': collapsed.has('mil') }"
-          :aria-expanded="!collapsed.has('mil')"
-          @click="toggleSection('mil')"
-        >
-          <span>MILITARY BASES</span>
-          <ChevronIcon
-            class="filter-section-chevron"
-            :class="{ 'filter-section-chevron--collapsed': collapsed.has('mil') }"
-          />
-        </button>
-        <template v-if="!collapsed.has('mil')">
-          <div
-            v-for="r in milBases"
-            :key="r.name"
-            class="filter-result-item"
-            :class="{ 'keyboard-focused': focusedKey === r.name }"
-          >
-            <div class="filter-result-icon filter-icon-mil" @click="selectMil(r)">
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 13 13"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <polygon
-                  points="6.5,1.5 12,11.5 1,11.5"
-                  stroke="currentColor"
-                  stroke-width="1.3"
-                  fill="none"
-                />
-              </svg>
-            </div>
-            <div class="filter-result-info" @click="selectMil(r)">
-              <div class="filter-result-primary">
-                {{ r.icao || r.name.toUpperCase().slice(0, 6) }}
-              </div>
-              <div class="filter-result-secondary">{{ r.name.toUpperCase() }}</div>
-            </div>
-            <div class="filter-result-badge">MIL</div>
-          </div>
-        </template>
-      </template>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -476,6 +537,71 @@ function planeSecondary(r: PlaneResult): string {
   if (r.squawk) parts.push('SQK ' + r.squawk)
   return parts.join(' · ')
 }
+
+// ---- Listbox option accessible names ----
+// Each result row is a role="option"; an explicit aria-label gives it a clean,
+// stable accessible name (otherwise the name would absorb the nested bell button
+// and, for airports, the whole expanded accordion). Expandable rows (airports)
+// also announce their open/closed state, since an option cannot carry
+// aria-expanded.
+function planeOptionLabel(r: PlaneResult): string {
+  const secondary = planeSecondary(r)
+  const primary = r.callsign || r.hex
+  return secondary ? `${primary}, ${secondary}` : primary
+}
+function airportOptionLabel(r: AirportResult): string {
+  const iata = r.iata ? ` ${r.iata}` : ''
+  const state = expandedAirport.value === r.icao ? 'expanded' : 'collapsed'
+  return `${r.icao}, ${r.name.toUpperCase()}${iata}, ${state}`
+}
+function milOptionLabel(r: MilResult): string {
+  const primary = r.icao || r.name.toUpperCase().slice(0, 6)
+  return `${primary}, ${r.name.toUpperCase()}`
+}
+
+// Space-separated ids of every option row currently rendered (a collapsed
+// section renders none), in visual order. The listbox claims these as its
+// children via aria-owns — they live outside it in the DOM so the section/bell
+// chrome around them stays valid.
+const ownedOptionIds = computed<string>(() => {
+  const ids: string[] = []
+  if (!collapsed.value.has('aircraft'))
+    planes.value.forEach((_r, index) => ids.push(`filter-opt-plane-${index}`))
+  if (!collapsed.value.has('airports'))
+    airports.value.forEach((_r, index) => ids.push(`filter-opt-airport-${index}`))
+  if (!collapsed.value.has('mil'))
+    milBases.value.forEach((_r, index) => ids.push(`filter-opt-mil-${index}`))
+  return ids.join(' ')
+})
+
+// The combobox popup (listbox) is only present when at least one option is
+// actually rendered — an empty listbox would fail aria-required-children, and a
+// combobox with no visible options should report aria-expanded=false.
+const listboxShown = computed<boolean>(() => ownedOptionIds.value.length > 0)
+
+// The id of the option the search input is virtually focused on (roving keyboard
+// nav), exposed to assistive tech via aria-activedescendant on the combobox.
+// Returns undefined when nothing is focused or the focused key is no longer in
+// the rendered results.
+const activeDescId = computed<string | undefined>(() => {
+  const key = focusedKey.value
+  if (!key) return undefined
+  // Collapsed sections render no option rows, so never point activedescendant at
+  // one — that would be a dangling IDREF.
+  if (!collapsed.value.has('aircraft')) {
+    const planeIdx = planes.value.findIndex((r) => r.hex === key)
+    if (planeIdx >= 0) return `filter-opt-plane-${planeIdx}`
+  }
+  if (!collapsed.value.has('airports')) {
+    const airportIdx = airports.value.findIndex((r) => r.icao === key)
+    if (airportIdx >= 0) return `filter-opt-airport-${airportIdx}`
+  }
+  if (!collapsed.value.has('mil')) {
+    const milIdx = milBases.value.findIndex((r) => r.name === key)
+    if (milIdx >= 0) return `filter-opt-mil-${milIdx}`
+  }
+  return undefined
+})
 
 // ---- Input handlers ----
 function onInput(e: Event) {
@@ -789,13 +915,34 @@ defineExpose({
   max-height: 340px;
   overflow-y: auto;
   scrollbar-width: none;
+}
+
+#filter-results::-webkit-scrollbar {
+  display: none;
+}
+
+/* The visual body and its per-section groups carry the column layout + 1px
+   seams that used to live on #filter-results (now just the scroll container).
+   Both the body (between sections) and each section (button → rows → accordion)
+   keep a 1px gap so the thin dark separators read identically. #filter-listbox
+   is an empty aria-owns host and takes no space. */
+.filter-results-body,
+.filter-result-group {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-#filter-results::-webkit-scrollbar {
-  display: none;
+/* The selectable part of a row (role="option"): icon + text. It stretches to
+   fill the row; the per-row bell button sits beside it (a sibling) so it is not
+   nested inside the option. */
+.filter-result-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
 }
 
 .filter-section-label {
@@ -822,7 +969,10 @@ defineExpose({
   opacity: 0.8;
 }
 
-.filter-section-label:first-child {
+/* A touch more breathing room above the very first section heading. The section
+   button is now the first child of its group wrapper, so scope to the first
+   group rather than a bare :first-child. */
+.filter-result-group:first-child .filter-section-label {
   padding-top: 24px;
 }
 
