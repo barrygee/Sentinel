@@ -966,6 +966,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge branch 'a11y/phase-8-7-live-axe-e2e' of https://github.com/barrygee/Sentinel into a11y/phase-8-7-live-axe-e2e
 - Merge pull request #93 from barrygee/a11y/phase-8-7-live-axe-e2e
 - Merge pull request #94 from barrygee/docs/adr-standards-retrofit
+- Merge pull request #95 from barrygee/chore/dependabot-security-patches
 
 ### Refactoring
 
@@ -1030,6 +1031,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Bump actions to Node 24 runtime majors
 - Pin setup-uv to exact v8.2.0 tag
 - Gate the live axe-core audit in CI on every PR and push
+- Bump Node 20 actions to Node 24 versions
 
 ### Styling
 
