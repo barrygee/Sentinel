@@ -137,9 +137,11 @@ Use `npm run lint:fix` / `npm run format` to auto-fix lint and formatting.
 runs the real axe engine in a browser over every domain view, catching the
 layout-dependent WCAG rules jsdom-based `jest-axe` can't (colour contrast,
 target size). It needs a browser binary (`npx playwright install chromium`, or
-`PLAYWRIGHT_CHANNEL=chrome` to use system Chrome) and so is **not** in the gating
-CI run — run it locally before shipping UI changes. Full instructions, including
-how to audit against the live backend with `A11Y_BASE_URL`, are in the
+`PLAYWRIGHT_CHANNEL=chrome` to use system Chrome). It **runs in CI and gates every
+PR and push to `main`** (the `frontend-vue` job installs Chromium and runs it
+after the build); run it locally first to catch failures early. Full
+instructions, including how to audit against the live backend with
+`A11Y_BASE_URL`, are in the
 [README](README.md#live-accessibility-audit-playwright--axe-core).
 
 ### Root helpers (repo root)
@@ -247,7 +249,8 @@ optional body explaining the why
 | ESLint | ✅ `--fix` (root `tests/`) | ✅ |
 | ruff check + format | ✅ `--fix` + format (backend) | ✅ check + `--check` |
 | vue-tsc typecheck | — | ✅ |
-| vitest (100% coverage) | — | ✅ |
+| vitest (100% coverage, incl. jest-axe) | — | ✅ |
+| live a11y audit (Playwright + axe-core) | — | ✅ (`frontend-vue` job) |
 | jest (root helpers) | — | ✅ |
 | pytest (backend) | — | ✅ |
 | CHANGELOG regenerate | — | ✅ (changelog workflow) |

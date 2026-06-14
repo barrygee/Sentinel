@@ -194,7 +194,7 @@ uv run --project backend uvicorn backend.main:app --port 8080
 A11Y_BASE_URL=http://localhost:8080 npm run test:e2e
 ```
 
-This suite is **not** part of the gating CI workflow (it needs a browser binary and a running server); run it locally before shipping UI changes, and pair it with a manual screen-reader pass for anything axe can't assert (a *wrong* label, an illogical focus order).
+This suite **runs in CI** (`.github/workflows/ci.yml` — the `frontend-vue` job installs Chromium and runs it after the build), so it **gates every pull request and push to `main`** alongside lint/typecheck/coverage. Run it locally before pushing UI changes to catch failures early, and pair it with a manual screen-reader pass for anything axe can't assert (a *wrong* label, an illogical focus order).
 
 **Root helpers** — the standalone TypeScript helpers in `tests/`:
 
