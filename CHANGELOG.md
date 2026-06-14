@@ -219,6 +219,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - AirFilter & SpaceFilter search lists become ARIA comboboxes (phase 8-6c)
 - Enforce 24×24px minimum target size on icon buttons (phase 8-6d)
 - Patch Dependabot security vulnerabilities
+- Regenerate vue lockfile for clean npm ci on vite 8
 
 ### Chores
 
