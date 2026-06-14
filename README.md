@@ -157,6 +157,45 @@ npm run typecheck     # vue-tsc --noEmit
 npm run test:coverage # vitest — gated at 100% coverage (CI fails on any drop)
 ```
 
+Every component also ships an in-process **`jest-axe`** accessibility test that runs as part of `npm run test:coverage`. Because jsdom does not compute layout, those tests cannot evaluate layout-dependent WCAG rules (colour contrast, target size). The **live accessibility audit** below covers that gap by running the real **axe-core** engine in a real browser.
+
+#### Live accessibility audit (Playwright + axe-core)
+
+`npm run test:e2e` (config: `frontend/vue/playwright.config.ts`, specs in `frontend/vue/e2e/`) drives the running app in Chromium, runs axe-core (WCAG 2.0/2.1/2.2 **Level AA**) over every domain view, and checks the keyboard fundamentals (skip link, route-change focus move + page title). Real-browser rendering catches what jsdom can't — colour-contrast and **target-size (2.5.8)** failures, and accessible-name gaps that only appear once CSS (`display:none` on collapsed labels) is actually applied.
+
+One-time browser install (downloads the Playwright-bundled Chromium):
+
+```bash
+cd frontend/vue
+npm ci                          # if you haven't installed deps yet
+npx playwright install chromium
+```
+
+> No bundled browser? Set `PLAYWRIGHT_CHANNEL=chrome` to drive a system-installed Google Chrome instead, e.g. `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`.
+
+**Self-contained run (no backend needed).** Audits the committed SPA bundle served by `vite preview` — enough for the structural audit (landmarks, headings, names/roles, focus, contrast, target size are all client-rendered). Playwright starts and stops the preview server for you:
+
+```bash
+cd frontend/vue
+npm run build        # only if you've changed source since the last build
+npm run test:e2e     # builds nothing itself — serves frontend/spa-dist via vite preview
+npm run test:e2e:report   # open the HTML report from the last run
+```
+
+**Full live pass against the real backend (live map tiles + data).** Start the app, then point the audit at it with `A11Y_BASE_URL` (Playwright then skips its own preview server):
+
+```bash
+# 1. start the app — Docker:
+docker compose up -d                       # app on http://localhost:8080
+#    …or non-Docker (from the repo root):
+uv run --project backend uvicorn backend.main:app --port 8080
+
+# 2. run the audit against it (from frontend/vue):
+A11Y_BASE_URL=http://localhost:8080 npm run test:e2e
+```
+
+This suite **runs in CI** (`.github/workflows/ci.yml` — the `frontend-vue` job installs Chromium and runs it after the build), so it **gates every pull request and push to `main`** alongside lint/typecheck/coverage. Run it locally before pushing UI changes to catch failures early, and pair it with a manual screen-reader pass for anything axe can't assert (a *wrong* label, an illogical focus order).
+
 **Root helpers** — the standalone TypeScript helpers in `tests/`:
 
 ```bash
