@@ -2092,18 +2092,27 @@
   border: none;
   padding: 0 5px;
   height: 100%;
+  /* WCAG 2.5.8 (AA): widen the hit area to ≥24px (height is already the 28px
+     pill height); glyph size unchanged. */
+  min-width: 24px;
   cursor: pointer;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.2);
   transition: color 0.15s;
   display: flex;
   align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
 .sdr-freq-row-edit {
   align-self: flex-start;
-  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* WCAG 2.5.8 (AA): ≥24×24px hit area; glyph size unchanged. */
+  min-width: 24px;
+  min-height: 24px;
   padding: 0 4px;
   font-size: 12px;
   margin-top: 2px;
@@ -2679,8 +2688,13 @@
   transition: color 0.15s;
   display: flex;
   align-items: center;
+  justify-content: center;
   line-height: 1;
   flex-shrink: 0;
+  /* WCAG 2.5.8 Target Size (AA): keep a ≥24×24px hit area. The glyph stays the
+     same visual size — the extra is transparent, centred padding. */
+  min-width: 24px;
+  min-height: 24px;
 }
 
 /* Flat dark tooltip — matches .sdr-rail-btn / #radio-mini-btn. Drops below the

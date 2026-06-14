@@ -95,6 +95,13 @@
   font-size: 18px;
   line-height: 1;
   padding: 0 4px;
+  /* WCAG 2.5.8 Target Size (AA): the month arrows are only ~18px tall on their
+     own — give them a ≥24×24px hit area; arrow glyph stays the same size. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
   transition: color 0.12s;
 }
 
