@@ -970,6 +970,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #96 from barrygee/ci/node24-actions
 - Merge pull request #97 from barrygee/test/e2e-playwright-suite
 - Merge remote-tracking branch 'origin/main' into test/e2e-fullstack-smoke
+- Merge remote-tracking branch 'origin/test/e2e-fullstack-smoke' into test/e2e-fullstack-smoke
 
 ### Refactoring
 
