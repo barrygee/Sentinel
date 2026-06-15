@@ -204,6 +204,24 @@
       ]
     },
     {
+      "label": "Shanwick - Oceanic Clearance - Northern Tracks",
+      "frequency_hz": 120350000,
+      "mode": "AM",
+      "notes": "- Northern Tracks",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Galloway North",
+      "frequency_hz": 121375000,
+      "mode": "AM",
+      "notes": "- South West Scotland, Solway Firth, and Dumfries tracking zone\n- FL245 and below",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
       "label": "Tees Air to Air",
       "frequency_hz": 122350000,
       "mode": "AM",
@@ -213,10 +231,28 @@
       ]
     },
     {
-      "label": "Oceanic Clearance",
+      "label": "Scottish - Antrim Low",
+      "frequency_hz": 123775000,
+      "mode": "AM",
+      "notes": "- South West oceanic approaches over the North Channel\n- FL150 and below",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Shanwick - Oceanic Clearance",
       "frequency_hz": 123950000,
       "mode": "AM",
-      "notes": "",
+      "notes": "- Primary Clearance Delivery for Western-registered states",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Shanwick - Oceanic Clearance -  Southern Tracks",
+      "frequency_hz": 124175000,
+      "mode": "AM",
+      "notes": "- Southern Tracks",
       "groups": [
         "airband"
       ]
@@ -233,10 +269,91 @@
       ]
     },
     {
-      "label": "Scottish control",
+      "label": "Scottish - Tay East",
       "frequency_hz": 124500000,
       "mode": "AM",
-      "notes": "",
+      "notes": "- East Central zone covering Fife and Dundee transit sectors\n- FL150 and below",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Galloway South",
+      "frequency_hz": 124825000,
+      "mode": "AM",
+      "notes": "- South West transit routing (Handles primary Central Belt departures moving south)\n- FL245 and below",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Talla South",
+      "frequency_hz": 126300000,
+      "mode": "AM",
+      "notes": "- South west Scotland / Northern England borders\n- FL70 to FL245",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Montrose South",
+      "frequency_hz": 126925000,
+      "mode": "AM",
+      "notes": "- East Coast of Scotland\n- Primary trunk lines for north-south overflights\n- FL245 and above",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - West coast low",
+      "frequency_hz": 127275000,
+      "mode": "AM",
+      "notes": "- Western Isles and rugged Highlands lower level transit airways\n- FL195 and below",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Shanwick - Oceanic Clearance",
+      "frequency_hz": 127650000,
+      "mode": "AM",
+      "notes": "- Primary Clearance Delivery for Eastern-registered states",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Shanwick Control",
+      "frequency_hz": 127900000,
+      "mode": "AM",
+      "notes": "- General Position Reporting",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Talla North",
+      "frequency_hz": 130975000,
+      "mode": "AM",
+      "notes": "- South West Scotland\n- FL70 to FL245",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Montrose North",
+      "frequency_hz": 132490000,
+      "mode": "AM",
+      "notes": "- North Sea sectors east of Aberdeen / Northern oil field transit lines\n- FL255 and above",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Hebrides",
+      "frequency_hz": 133675000,
+      "mode": "AM",
+      "notes": "- North West Scotland, Atlantic boundary transition corridors\n- FL245 and above",
       "groups": [
         "airband"
       ]
@@ -260,7 +377,35 @@
       ]
     },
     {
-      "label": "North East ICF Radar",
+      "label": "Scottish Military Radar North",
+      "frequency_hz": 134475000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "milair"
+      ]
+    },
+    {
+      "label": "Scottish - Tyne",
+      "frequency_hz": 134775000,
+      "mode": "AM",
+      "notes": "- South East Scotland and Newcastle boundary airspace tracking\n- FL55 to FL245",
+      "groups": [
+        "north-east",
+        "airband"
+      ]
+    },
+    {
+      "label": "Scottish - Moray",
+      "frequency_hz": 134850000,
+      "mode": "AM",
+      "notes": "- North East Scotland, Moray Firth basin and coastal approaches\n- FL245 and above",
+      "groups": [
+        "airband"
+      ]
+    },
+    {
+      "label": "Swanwick North East ICF Radar",
       "frequency_hz": 135075000,
       "mode": "AM",
       "notes": "",
@@ -269,10 +414,10 @@
       ]
     },
     {
-      "label": "Scottish",
+      "label": "Scottish - Dean Cross South",
       "frequency_hz": 135525000,
       "mode": "AM",
-      "notes": "",
+      "notes": "- Southern Scotland / Northern England FIR boundary lines\n- FL245 and above",
       "groups": [
         "airband"
       ]
@@ -287,10 +432,10 @@
       ]
     },
     {
-      "label": "Scottish",
-      "frequency_hz": 135851000,
+      "label": "Scottish - Dean Cross North",
+      "frequency_hz": 135850000,
       "mode": "AM",
-      "notes": "",
+      "notes": "- Scottish Borders region\n- Manages inbound routes merging from the south\n- FL245 and above",
       "groups": [
         "airband"
       ]
@@ -337,6 +482,7 @@
       "mode": "NFM",
       "notes": "",
       "groups": [
+        "north-east",
         "maritime"
       ]
     },
@@ -346,6 +492,7 @@
       "mode": "NFM",
       "notes": "",
       "groups": [
+        "north-east",
         "maritime"
       ]
     },
@@ -377,8 +524,44 @@
       ]
     },
     {
+      "label": "Swanwick North East",
+      "frequency_hz": 270050000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "milair"
+      ]
+    },
+    {
+      "label": "Swanwick North",
+      "frequency_hz": 277775000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "milair"
+      ]
+    },
+    {
+      "label": "Air to Air Refueling",
+      "frequency_hz": 343650000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "milair"
+      ]
+    },
+    {
       "label": "Air to Air",
       "frequency_hz": 344450000,
+      "mode": "AM",
+      "notes": "",
+      "groups": [
+        "milair"
+      ]
+    },
+    {
+      "label": "Scottish Military Radar",
+      "frequency_hz": 371875000,
       "mode": "AM",
       "notes": "",
       "groups": [
