@@ -30,7 +30,11 @@
     </MapSidebar>
   </aside>
 
-  <AppFooter :sidebar-open="sidebarOpen" @toggle-sidebar="sidebarRef?.toggle()" />
+  <AppFooter
+    :sidebar-open="sidebarOpen"
+    :sdr-section-active="isSdrRoute"
+    @toggle-sidebar="sidebarRef?.toggle()"
+  />
 
   <SettingsPanel />
 
