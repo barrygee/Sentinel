@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "group_id": 1,
+    "label": "Air Traffic Control",
+    "frequency_hz": 121500000,
+    "mode": "AM"
+  },
+  {
+    "id": 2,
+    "group_id": null,
+    "label": "NOAA Weather",
+    "frequency_hz": 162550000,
+    "mode": "WFM"
+  }
+]

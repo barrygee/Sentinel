@@ -1,0 +1,20 @@
+[
+  {
+    "norad_id": "25544",
+    "name": "ISS (ZARYA)",
+    "aos_unix_ms": 1750000000000,
+    "los_unix_ms": 1750000600000,
+    "duration_s": 600,
+    "max_elevation_deg": 42.5,
+    "category": "stations"
+  },
+  {
+    "norad_id": "43013",
+    "name": "NOAA 20",
+    "aos_unix_ms": 1750003600000,
+    "los_unix_ms": 1750004200000,
+    "duration_s": 600,
+    "max_elevation_deg": 18.3,
+    "category": "weather"
+  }
+]
