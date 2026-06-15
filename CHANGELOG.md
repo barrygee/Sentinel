@@ -968,6 +968,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #94 from barrygee/docs/adr-standards-retrofit
 - Merge pull request #95 from barrygee/chore/dependabot-security-patches
 - Merge pull request #96 from barrygee/ci/node24-actions
+- Merge pull request #97 from barrygee/test/e2e-playwright-suite
+- Merge remote-tracking branch 'origin/main' into test/e2e-fullstack-smoke
+- Merge remote-tracking branch 'origin/test/e2e-fullstack-smoke' into test/e2e-fullstack-smoke
 
 ### Refactoring
 
@@ -1019,6 +1022,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Bring SdrPanel to verified 100% coverage (slice 6f-3b)
 - Backfill App/Sea/Land to 100% and raise coverage gate to 100 (slice 6g)
 - Add live axe-core audit (Playwright) + fix two issues it found
+- Add full-stack integration smoke suite with real FastAPI backend
 - Add Playwright end-to-end suite covering all domains
 
 ### Build System
