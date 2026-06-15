@@ -33,6 +33,16 @@
     <div id="footer-center"></div>
 
     <div id="footer-right">
+      <div
+        v-if="sdrIndicatorVisible"
+        id="footer-sdr"
+        class="footer-sdr"
+        role="status"
+        :aria-label="sdrIndicatorAriaLabel"
+      >
+        <span class="footer-code footer-sdr-freq">{{ sdrFreqDisplay }}</span>
+        <span v-if="sdrFreqName" class="footer-code footer-sdr-name">{{ sdrFreqName }}</span>
+      </div>
       <button
         id="settings-btn"
         aria-label="Settings"
@@ -63,18 +73,58 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useSdrStore } from '@/stores/sdr'
 
-const props = defineProps<{ sidebarOpen?: boolean }>()
+const props = defineProps<{ sidebarOpen?: boolean; sdrSectionActive?: boolean }>()
 
 const emit = defineEmits<{
   'toggle-sidebar': []
 }>()
 
 const settingsStore = useSettingsStore()
+const sdrStore = useSdrStore()
 
 // Vue coerces an absent boolean prop to false, so the `?? false` fallback path
 // is unreachable from tests.
 /* v8 ignore start */
 const sidebarOpen = computed(() => props.sidebarOpen ?? false)
 /* v8 ignore stop */
+
+// True when the radio is streaming AND parked on a single frequency — i.e.
+// tuned to one channel, or locked onto a signal during a scan or search. While
+// a scan/search is mid-sweep (hopping between frequencies) the store's scan/
+// searchSweeping flags are set, so this stays false until it stops on one.
+const sdrParkedOnFreq = computed<boolean>(
+  () =>
+    sdrStore.playing &&
+    !sdrStore.scanSweeping &&
+    !sdrStore.searchSweeping &&
+    sdrStore.currentFreqHz > 0,
+)
+
+// Known label for the tuned frequency, matched against the saved frequency list
+// by exact frequency; empty when it isn't a saved one (e.g. a manual tune or an
+// arbitrary search step). Only read while the indicator is rendered, where the
+// frequency is necessarily active.
+const sdrFreqName = computed<string>(
+  () =>
+    sdrStore.frequencies.find((freq) => freq.frequency_hz === sdrStore.currentFreqHz)?.label ?? '',
+)
+
+// "145.800 MHz" — matches the radio panel's own tuned-frequency formatting.
+const sdrFreqDisplay = computed<string>(() => `${(sdrStore.currentFreqHz / 1e6).toFixed(3)} MHz`)
+
+// Hidden only on the SDR section's RADIO tab — that panel already shows the
+// tuned frequency, so footer copy would be redundant there. It still shows on
+// the SDR section's other tabs (Frequency Manager, Search Ranges, …) and on
+// every other section.
+const sdrIndicatorVisible = computed<boolean>(
+  () => sdrParkedOnFreq.value && !(props.sdrSectionActive && sdrStore.activeTab === 'radio'),
+)
+
+const sdrIndicatorAriaLabel = computed<string>(() =>
+  sdrFreqName.value
+    ? `SDR active on ${sdrFreqDisplay.value}, ${sdrFreqName.value}`
+    : `SDR active on ${sdrFreqDisplay.value}`,
+)
 </script>

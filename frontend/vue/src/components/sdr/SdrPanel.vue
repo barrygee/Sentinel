@@ -1475,7 +1475,7 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
-import type { SdrMode } from '@/stores/sdr'
+import type { SdrMode, SdrTab } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {
@@ -1568,7 +1568,6 @@ const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
-type SdrTab = 'radio' | 'frequency-manager' | 'search-ranges' | 'groups' | 'recordings'
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio', label: 'RADIO' },
@@ -1585,8 +1584,12 @@ function _restoreSdrTab(): SdrTab {
   return 'radio'
 }
 const activeSdrTab = ref<SdrTab>(_restoreSdrTab())
+// Seed the store mirror so the footer indicator reflects the restored tab from
+// first paint (before any user tab switch).
+_sdrStore().setActiveTab(activeSdrTab.value)
 function switchSdrTab(tab: SdrTab) {
   activeSdrTab.value = tab
+  _sdrStore().setActiveTab(tab)
   try {
     sessionStorage.setItem(SDR_TAB_KEY, tab)
   } catch {}

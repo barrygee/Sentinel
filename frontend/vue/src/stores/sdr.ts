@@ -27,6 +27,8 @@ export interface SdrStoredFrequency {
 
 export type SdrMode = 'NFM' | 'WFM' | 'AM' | 'USB' | 'LSB' | 'CW'
 
+export type SdrTab = 'radio' | 'frequency-manager' | 'search-ranges' | 'groups' | 'recordings'
+
 export interface SdrSpectrumFrame {
   bins: number[]
   center_hz: number
@@ -47,6 +49,15 @@ export const useSdrStore = defineStore('sdr', () => {
   const currentSquelch = ref(-60)
   const panelOpen = ref(false)
   const sampleRate = ref(2_048_000)
+
+  // Which tab the SDR side panel is showing (RADIO / FREQUENCY MANAGER / …).
+  // Mirrored here from SdrPanel so siblings — notably the footer's tuned-
+  // frequency indicator — can tell the RADIO tab (where the panel already shows
+  // the frequency) apart from the other tabs (where the footer should show it).
+  const activeTab = ref<SdrTab>('radio')
+  function setActiveTab(tab: SdrTab) {
+    activeTab.value = tab
+  }
 
   // Demod (audio filter) bandwidth mirror. The authoritative copy is the local
   // `bwHz` ref in SdrPanel.vue; the panel pushes it here so the spectrum/
@@ -445,6 +456,8 @@ export const useSdrStore = defineStore('sdr', () => {
     currentSquelch,
     panelOpen,
     sampleRate,
+    activeTab,
+    setActiveTab,
     lastSpectrum,
     searchSweeping,
     searchLowHz,

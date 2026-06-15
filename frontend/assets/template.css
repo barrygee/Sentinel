@@ -370,6 +370,30 @@ html {
     opacity: 1;
 }
 
+/* ---- SDR active-frequency indicator (footer-right) ----
+   Shows the frequency (and known name, if any) the radio is currently parked
+   on, surfaced from any section except the SDR view itself. */
+#footer-sdr {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+#footer-sdr .footer-sdr-freq {
+    color: var(--color-accent);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+#footer-sdr .footer-sdr-name {
+    color: rgba(255, 255, 255, 0.45);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 22vw;
+}
+
 /* ============================================================
    NO-URL OVERLAY — shown when active mode has no data source URL
    ============================================================ */
