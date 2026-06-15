@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "name": "Aviation",
+    "slug": "aviation",
+    "sort_order": 0
+  },
+  {
+    "id": 2,
+    "name": "Weather",
+    "slug": "weather",
+    "sort_order": 1
+  }
+]

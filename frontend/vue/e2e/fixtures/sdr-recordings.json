@@ -1,0 +1,11 @@
+[
+  {
+    "id": "rec-001",
+    "filename": "sentinel_121.500MHz_AM_20240101T120000.wav",
+    "frequency_hz": 121500000,
+    "mode": "AM",
+    "started_at": "2024-01-01T12:00:00",
+    "duration_s": 30,
+    "size_bytes": 2880000
+  }
+]
