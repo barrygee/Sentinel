@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "label": "Aviation Band",
+    "start_hz": 118000000,
+    "end_hz": 137000000,
+    "mode": "AM",
+    "step_hz": 25000
+  }
+]
