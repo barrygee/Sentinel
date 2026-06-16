@@ -234,10 +234,12 @@ optional body explaining the why
 - **Self-review the diff first** — read it as if you were the reviewer.
 - All CI gates above must pass. New code must be covered (100% on the frontend).
 - **The CHANGELOG updates itself** — a GitHub Action (git-cliff,
-  `.github/workflows/changelog.yml`) regenerates `CHANGELOG.md` from your branch's
-  Conventional Commits and commits it back to the PR branch on every push. Don't
-  hand-edit `CHANGELOG.md`; just write good commit messages. (Its commit is
-  marked `[skip ci]`, so it won't loop.)
+  `.github/workflows/changelog.yml`) regenerates `CHANGELOG.md` from the repo's
+  Conventional Commits **after each merge to `main`** and commits it back to
+  `main`. It deliberately does **not** touch your PR branch, so your local
+  checkout never falls behind a bot commit. Don't hand-edit `CHANGELOG.md`; just
+  write good commit messages. (Its commit is marked `[skip ci]`, so it won't
+  loop.)
 
 ---
 
@@ -253,7 +255,7 @@ optional body explaining the why
 | live a11y audit (Playwright + axe-core) | — | ✅ (`frontend-vue` job) |
 | jest (root helpers) | — | ✅ |
 | pytest (backend) | — | ✅ |
-| CHANGELOG regenerate | — | ✅ (changelog workflow) |
+| CHANGELOG regenerate | — | ✅ (changelog workflow, push to `main` only) |
 
 The pre-commit hook is a fast mirror of the formatting/lint gates on *staged*
 files only (two `lint-staged` passes — one in `frontend/vue/`, one at the root —
