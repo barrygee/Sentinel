@@ -150,6 +150,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _airNotifStore!: AirNotifStore
   private _tagClickHandled = false
   private _trackingRestored = false
+  private _isolationRestored = false
   _trackingNotifIds: Record<string, string> | null = null
 
   _onPlaybackSelectionChange: (() => void) | null = null
@@ -1845,6 +1846,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   _applySelection(): void {
     if (!this.map) return
+    // Persist the isolation so it survives leaving and returning to the Air
+    // section. Empty when nothing is isolated, so it only restores when active.
+    this._airStore.mapIsolatedHex = this._isolatedHex ?? ''
     this._applyTypeFilter()
     this._updateCallsignMarkers()
     if (this._selectedHex) {
@@ -2221,6 +2225,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
                 this._selectedHex = null
                 this._isolatedHex = null
                 this._followEnabled = false
+                // The isolated aircraft is gone — drop the persisted isolation so
+                // it isn't re-applied to a vanished hex on the next visit.
+                this._airStore.mapIsolatedHex = ''
                 this._hideSelectedTag()
                 this._hideStatusBar()
               }
@@ -2342,6 +2349,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
       this._lastFetchTime = Date.now()
       this._restoreTrackingState()
+      this._restoreIsolationState()
       this._rebuildTrails()
       if (this._tagHex && this._tagMarker) {
         const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
@@ -2432,6 +2440,26 @@ export class AdsbLiveControl implements maplibregl.IControl {
           )
       }
     } catch (e) {}
+  }
+
+  // Re-isolate the aircraft the user had isolated on the map (map-click "show only
+  // this one") before leaving the Air section. Runs once per control instance, but
+  // waits until the aircraft is actually in the feed so the isolate filter has a
+  // feature to show — retrying on later polls until then. A following/tracked
+  // aircraft restores via its own path, so isolation defers to it.
+  private _restoreIsolationState(): void {
+    if (this._isolationRestored) return
+    const hex = this._airStore.mapIsolatedHex
+    if (!hex || this._followEnabled) {
+      this._isolationRestored = true
+      return
+    }
+    const present = this._geojson.features.some((f) => f.properties.hex === hex)
+    if (!present) return
+    this._isolationRestored = true
+    this._selectedHex = hex
+    this._isolatedHex = hex
+    this._applySelection()
   }
 
   private _restoreTrackingState(): void {

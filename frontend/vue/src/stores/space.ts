@@ -38,6 +38,13 @@ export const useSpaceStore = defineStore('space', () => {
   const searchQuery = usePersistedRef<string>('sentinel_space_filterQuery', '')
   const searchExpandedNorad = usePersistedRef<string>('sentinel_space_filterExpandedNorad', '')
   const searchCollapsedCats = usePersistedStringSet('sentinel_space_filterCollapsedCats')
+  // Whether the search categories have been seeded to their default-collapsed state.
+  // Categories default to collapsed for a fresh user; once seeded this stays true so a
+  // returning user's manual expand/collapse choices are preserved across reloads.
+  const searchCatsCollapsedSeeded = usePersistedRef<boolean>(
+    'sentinel_space_filterCatsCollapsedSeeded',
+    false,
+  )
 
   // PASSES pane (SpacePasses)
   const passesMinEl = usePersistedRef<number>('sentinel_space_passesMinEl', 35)
@@ -77,6 +84,7 @@ export const useSpaceStore = defineStore('space', () => {
     searchQuery,
     searchExpandedNorad,
     searchCollapsedCats,
+    searchCatsCollapsedSeeded,
     passesMinEl,
     passesHours,
     passesFiltersOpen,

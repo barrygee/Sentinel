@@ -67,6 +67,7 @@
                 :class="{
                   'keyboard-focused': focusedKey === r.hex,
                   'filter-result-item--open': expandedPlane === r.hex,
+                  'filter-result-item--emergency': r.emergency,
                 }"
               >
                 <div
@@ -104,7 +105,10 @@
               <div
                 v-if="expandedPlane === r.hex"
                 class="apt-acc-body acft-acc-body"
-                :class="{ 'acft-acc-body--stale': signalLost }"
+                :class="{
+                  'acft-acc-body--stale': signalLost,
+                  'acft-acc-body--emergency': r.emergency,
+                }"
               >
                 <div v-if="signalLost" class="acft-acc-signal-lost" role="status">SIGNAL LOST</div>
                 <div class="apt-acc-section">
@@ -125,7 +129,6 @@
                   </div>
                 </div>
                 <div class="apt-acc-section">
-                  <div class="apt-acc-section-title">FLIGHT</div>
                   <div class="apt-acc-grid apt-acc-grid--three">
                     <div class="apt-acc-cell">
                       <div class="apt-acc-cell-label">ALTITUDE</div>
@@ -142,7 +145,7 @@
                   </div>
                 </div>
                 <div class="apt-acc-section">
-                  <div class="apt-acc-section-title">IDENT</div>
+                  <div class="apt-acc-section-title">IDENTIFICATION</div>
                   <div class="apt-acc-grid apt-acc-grid--two">
                     <div class="apt-acc-cell">
                       <div class="apt-acc-cell-label">TYPE</div>
@@ -478,9 +481,11 @@ import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesCont
 import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import type { AirportsToggleControl } from './controls/airports/AirportsControl'
 import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
+import { storeToRefs } from 'pinia'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useSdrStore } from '@/stores/sdr'
+import { useAirStore } from '@/stores/air'
 
 interface PlaneResult {
   kind: 'plane'
@@ -518,6 +523,7 @@ const props = defineProps<{
 const notificationsStore = useNotificationsStore()
 const airNotifStore = useAirNotifStore()
 const sdrStore = useSdrStore()
+const airStore = useAirStore()
 
 // Which airport row is expanded (by ICAO), and which one is currently showing
 // the "connect an SDR" inline notice.
@@ -553,16 +559,29 @@ const EMPTY_AIRCRAFT_DATA: AircraftLiveData = {
   category: '—',
   squawk: '—',
 }
-// Hex of the aircraft whose accordion is expanded, or null when none is open.
-const expandedPlane = ref<string | null>(null)
+// Hex of the aircraft whose accordion is expanded (null when none), and its
+// last-known search-result snapshot — both backed by the persisted air store so
+// the selection is restored when returning to Air from another section. The
+// snapshot keeps the row (and accordion) rendered if the aircraft briefly leaves
+// the live list, and lets the restored row render before the feed repopulates.
+const { searchExpandedPlane } = storeToRefs(airStore)
+const expandedPlane = computed<string | null>({
+  get: () => searchExpandedPlane.value.hex || null,
+  set: (value) => {
+    searchExpandedPlane.value = { ...searchExpandedPlane.value, hex: value ?? '' }
+  },
+})
+const expandedPlaneSnapshot = computed<PlaneResult | null>({
+  get: () => searchExpandedPlane.value.snapshot,
+  set: (value) => {
+    searchExpandedPlane.value = { ...searchExpandedPlane.value, snapshot: value }
+  },
+})
 // Always a full object (placeholder when nothing is expanded) so the template
 // reads fields directly without null-guards.
 const liveAircraftData = ref<AircraftLiveData>({ ...EMPTY_AIRCRAFT_DATA })
 // True when the expanded aircraft has dropped out of the live feed.
 const signalLost = ref(false)
-// Last-known search-result entry for the expanded aircraft, used to keep its row
-// (and accordion) rendered if it briefly leaves the live list.
-const expandedPlaneSnapshot = ref<PlaneResult | null>(null)
 // Once an expanded aircraft drops out of the feed we show SIGNAL LOST for a short
 // grace window — long enough to ride out a brief dropout — then remove the row so
 // a permanently-lost aircraft doesn't linger at the end of the list forever.
@@ -583,8 +602,12 @@ const resultsRef = ref<HTMLElement | null>(null)
 const query = ref('')
 const focusedKey = ref<string | null>(null)
 
-// Collapsed group headings. Sections default to expanded; a key present here is collapsed.
-const collapsed = ref<Set<string>>(new Set())
+// Collapsed group headings (persisted on the air store; a key present here is
+// collapsed). Groups default to collapsed on first ever mount — see the seed in
+// onMounted below. The search watcher auto-opens a section while it has matches,
+// then re-collapses it once the query is cleared.
+const { searchCollapsedGroups: collapsed, searchGroupsCollapsedSeeded: collapsedSeeded } =
+  storeToRefs(airStore)
 // Sections collapsed by the user but force-opened by the search auto-expand. They
 // re-collapse once their matches go away, unless the user manually toggles them.
 const autoOpened = ref<Set<string>>(new Set())
@@ -1202,7 +1225,15 @@ watch(
   { immediate: true },
 )
 
-onMounted(refreshAircraft)
+onMounted(() => {
+  // On first ever mount, collapse every group so the search list opens closed.
+  // Subsequent mounts respect whatever the user has since expanded/collapsed.
+  if (!collapsedSeeded.value) {
+    collapsed.value = new Set(['aircraft', 'airports', 'mil'])
+    collapsedSeeded.value = true
+  }
+  refreshAircraft()
+})
 
 // Expand a specific airport's accordion by ICAO (driven by a map marker click)
 // and scroll it into view. Clears any active search so the row is in the list.
@@ -1442,6 +1473,13 @@ defineExpose({
   flex-shrink: 0;
 }
 
+/* Emergency squawk (7500/7600/7700): the aircraft goes red on the map, so flag it
+   the same way in the side panel — callsign in the row and the detail accordion's
+   section headings. #ff4040 matches the map's emergency callsign label colour. */
+.filter-result-item--emergency .filter-result-primary {
+  color: #ff4040;
+}
+
 .filter-result-secondary {
   font-size: 10px;
   font-weight: 400;
@@ -1530,6 +1568,12 @@ defineExpose({
   letter-spacing: 0.18em;
   color: var(--color-accent);
   text-transform: uppercase;
+}
+
+/* POSITION / IDENTIFICATION headings go red for an aircraft with an emergency
+   squawk, matching the red callsign and the map marker. */
+.acft-acc-body--emergency .apt-acc-section-title {
+  color: #ff4040;
 }
 
 .apt-acc-grid {
@@ -1633,8 +1677,17 @@ defineExpose({
 }
 
 .acft-acc-action-section {
-  padding-top: 16px;
-  padding-bottom: 20px;
+  padding-top: 8px;
+  padding-bottom: 0;
+  /* Pull the button row left so its boxes left-align with the section text
+     above (overrides the 24px left padding inherited from .apt-acc-section). */
+  padding-left: 16px;
+}
+
+/* The aircraft accordion ends on the action row, so it needs less bottom
+   breathing room than the airport accordion (which ends on a data grid). */
+.acft-acc-body {
+  padding-bottom: 16px;
 }
 
 .acft-acc-action-row {

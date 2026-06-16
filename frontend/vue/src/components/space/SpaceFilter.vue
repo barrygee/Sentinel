@@ -563,6 +563,7 @@ const {
   searchQuery: query,
   searchExpandedNorad: expandedNoradId,
   searchCollapsedCats: collapsedCats,
+  searchCatsCollapsedSeeded: collapsedCatsSeeded,
 } = storeToRefs(spaceStore)
 const satellites = ref<SatEntry[]>([])
 const loaded = ref(false)
@@ -1198,6 +1199,12 @@ function onSettingsPanelClosed(): void {
 }
 
 onMounted(() => {
+  // On first ever mount, collapse every category so the Search pane opens closed.
+  // Subsequent mounts respect whatever the user has since expanded/collapsed.
+  if (!collapsedCatsSeeded.value) {
+    collapsedCats.value = new Set(SATELLITE_CATEGORY_ORDER)
+    collapsedCatsSeeded.value = true
+  }
   void loadSatellites()
   countdownTick = setInterval(() => {
     now.value = Date.now()

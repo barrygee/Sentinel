@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePersistedObject } from './_persist'
+import { usePersistedObject, usePersistedRef, usePersistedStringSet } from './_persist'
 
 export interface OverlayStates {
   adsb: boolean
@@ -17,6 +17,27 @@ export interface OverlayStates {
 }
 
 export type AdsbLabelField = 'type' | 'alt'
+
+// Last-known search-result entry for an expanded aircraft, persisted so the
+// selection survives navigating away from Air and back. Structurally matches
+// AirFilter's PlaneResult, kept here (not imported from the .vue) so the store
+// has no component dependency.
+export interface SearchExpandedPlaneSnapshot {
+  kind: 'plane'
+  hex: string
+  callsign: string
+  reg: string
+  squawk: string
+  emergency: boolean
+  coords: [number, number]
+}
+
+// The expanded aircraft in the Air search list: its hex (empty when none) plus a
+// snapshot so the row can render even before the live feed repopulates on restore.
+export interface SearchExpandedPlane {
+  hex: string
+  snapshot: SearchExpandedPlaneSnapshot | null
+}
 
 export interface AdsbLabelFields {
   civil: AdsbLabelField[]
@@ -161,6 +182,24 @@ export const useAirStore = defineStore('air', () => {
   const replayEnabled = ref<boolean>(readPersistedReplayEnabled())
   const filterQuery = ref('')
   const filterOpen = ref(false)
+  // Which search groups (aircraft / airports / military bases) are collapsed, plus
+  // a one-time seed flag. Groups default to collapsed for a fresh user; once seeded
+  // this stays true so a returning user's expand/collapse choices are preserved.
+  const searchCollapsedGroups = usePersistedStringSet('sentinel_air_filterCollapsedGroups')
+  const searchGroupsCollapsedSeeded = usePersistedRef<boolean>(
+    'sentinel_air_filterGroupsCollapsedSeeded',
+    false,
+  )
+  // The aircraft whose detail accordion is open in the search list, persisted so
+  // the selection is restored when returning to Air from another section.
+  const searchExpandedPlane = usePersistedObject<SearchExpandedPlane>(
+    'sentinel_air_filterExpandedPlane',
+    { hex: '', snapshot: null },
+  )
+  // Hex of the aircraft isolated on the map (map-click "show only this one"), or
+  // empty when none. Persisted so the isolation is restored when returning to Air
+  // — but only when it was actually active, since it is empty otherwise.
+  const mapIsolatedHex = usePersistedRef<string>('sentinel_air_mapIsolatedHex', '')
   const mapCenter = ref<[number, number] | null>(null)
   const mapZoom = ref<number | null>(null)
   const pitch = ref(0)
@@ -214,6 +253,10 @@ export const useAirStore = defineStore('air', () => {
     replayEnabled,
     filterQuery,
     filterOpen,
+    searchCollapsedGroups,
+    searchGroupsCollapsedSeeded,
+    searchExpandedPlane,
+    mapIsolatedHex,
     mapCenter,
     mapZoom,
     pitch,

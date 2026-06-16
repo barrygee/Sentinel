@@ -69,7 +69,6 @@
                 v-else
                 class="notif-dismiss"
                 aria-label="Dismiss"
-                data-tooltip="Dismiss"
                 @click.stop="store.dismiss(item.id)"
               >
                 ✕
@@ -560,36 +559,6 @@ onUnmounted(() => {
 
 .notif-header:has(.notif-action:hover) .notif-label-disable {
   display: inline;
-}
-
-.notif-action[data-tooltip]::before,
-.notif-dismiss[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10002;
-}
-
-.notif-action[data-tooltip]:hover::before,
-.notif-dismiss[data-tooltip]:hover::before {
-  opacity: 1;
 }
 
 @keyframes notif-bell-pulse {

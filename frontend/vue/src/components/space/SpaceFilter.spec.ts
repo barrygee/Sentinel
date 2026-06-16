@@ -167,6 +167,10 @@ async function expandFirstItem(wrapper: VueWrapper): Promise<void> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Categories now collapse by default on first mount. Mark seeding as already done
+  // so the bulk of tests start with their sections expanded; the default-collapsed
+  // behaviour has its own dedicated tests that clear this flag.
+  localStorage.setItem('sentinel_space_filterCatsCollapsedSeeded', 'true')
   vi.mocked(isPassNotifEnabled).mockReturnValue(false)
   vi.mocked(isAutoTuneEnabled).mockReturnValue(false)
   vi.mocked(isRecordOnPassEnabled).mockReturnValue(false)
@@ -632,6 +636,28 @@ describe('SpaceFilter — combobox / listbox semantics', () => {
     expect(input.attributes('aria-activedescendant')).toBeUndefined()
     // With every option collapsed away the listbox is gone too.
     expect(wrapper.find('#space-filter-listbox').exists()).toBe(false)
+  })
+
+  it('collapses every category by default on first ever mount', async () => {
+    // Clear the seed flag set in beforeEach so the fresh-user default is observable.
+    localStorage.removeItem('sentinel_space_filterCatsCollapsedSeeded')
+    const wrapper = mountFilter()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    // The section heading renders, but its options are collapsed out of view.
+    expect(wrapper.find('.space-filter-section-label').exists()).toBe(true)
+    expect(wrapper.find('.space-filter-result-item').exists()).toBe(false)
+    expect(useSpaceStore().searchCatsCollapsedSeeded).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('keeps a returning user’s expanded categories instead of re-collapsing', async () => {
+    // beforeEach already marked seeding done; nothing is collapsed, so the category stays open.
+    const wrapper = mountFilter()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.space-filter-result-item').exists()).toBe(true)
+    wrapper.unmount()
   })
 })
 
