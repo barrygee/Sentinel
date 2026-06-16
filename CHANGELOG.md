@@ -83,6 +83,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make TRACK SATELLITE an icon button matching the bell
 - Live aircraft accordion in the search list with map-click open
 - Remove bell and track buttons from on-hover aircraft tag
+- Persist search selection/isolation and refine detail panel
 
 ### Bug Fixes
 
@@ -983,6 +984,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #101 from barrygee/feat/space-track-button-icon
 - Merge pull request #102 from barrygee/ci/changelog-on-merge
 - Merge pull request #103 from barrygee/feat/air-hover-tag-no-action-buttons
+- Merge pull request #104 from barrygee/feat/air-side-panel-ux
 
 ### Refactoring
 
