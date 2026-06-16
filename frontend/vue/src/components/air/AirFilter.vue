@@ -47,7 +47,7 @@
       </template>
       <template v-else>
         <!-- Aircraft section -->
-        <div v-if="planes.length" class="filter-result-group">
+        <div v-if="displayPlanes.length" class="filter-result-group">
           <button
             class="filter-section-label"
             :class="{ 'filter-section-label--collapsed': collapsed.has('aircraft') }"
@@ -61,74 +61,236 @@
             />
           </button>
           <template v-if="!collapsed.has('aircraft')">
-            <div
-              v-for="(r, index) in planes"
-              :key="r.hex"
-              class="filter-result-item"
-              :class="{ 'keyboard-focused': focusedKey === r.hex }"
-            >
+            <template v-for="(r, index) in displayPlanes" :key="r.hex">
               <div
-                :id="`filter-opt-plane-${index}`"
-                role="option"
-                :aria-selected="focusedKey === r.hex"
-                :aria-label="planeOptionLabel(r)"
-                class="filter-result-option"
-                @click="selectPlane(r)"
+                class="filter-result-item"
+                :class="{
+                  'keyboard-focused': focusedKey === r.hex,
+                  'filter-result-item--open': expandedPlane === r.hex,
+                }"
               >
-                <div class="filter-result-icon filter-icon-plane">
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 56 52"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
-                  </svg>
-                </div>
-                <div class="filter-result-info">
-                  <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
-                  <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
+                <div
+                  :id="`filter-opt-plane-${index}`"
+                  role="option"
+                  :aria-selected="focusedKey === r.hex"
+                  :aria-label="planeOptionLabel(r)"
+                  class="filter-result-option"
+                  @click="selectPlane(r)"
+                >
+                  <div class="filter-result-icon filter-icon-plane">
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 56 52"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div class="filter-result-info">
+                    <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
+                    <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
+                  </div>
+                  <ChevronIcon
+                    class="filter-result-chevron"
+                    :class="{ 'filter-result-chevron--open': expandedPlane === r.hex }"
+                  />
                 </div>
               </div>
-              <button
-                class="filter-action-btn filter-bell-btn"
-                :class="{ 'filter-bell-btn--active': notifEnabled.has(r.hex) }"
-                aria-label="Toggle notifications"
-                @mousedown.stop
-                @click.stop="toggleNotif(r.hex)"
+              <!-- Inline accordion of live telemetry + controls. Sits outside the
+                   option (like the airport accordion) so its buttons aren't nested
+                   inside a listbox option. Data re-renders each ADS-B poll. -->
+              <div
+                v-if="expandedPlane === r.hex"
+                class="apt-acc-body acft-acc-body"
+                :class="{ 'acft-acc-body--stale': signalLost }"
               >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 13 13"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                    fill="currentColor"
-                  />
-                  <path
-                    d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                    stroke="currentColor"
-                    stroke-width="1"
-                    fill="none"
-                  />
-                  <!-- Strike-through shown when notifications for this aircraft are off. -->
-                  <line
-                    v-if="!notifEnabled.has(r.hex)"
-                    x1="1.5"
-                    y1="1.5"
-                    x2="11.5"
-                    y2="11.5"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="square"
-                  />
-                </svg>
-              </button>
-            </div>
+                <div v-if="signalLost" class="acft-acc-signal-lost" role="status">SIGNAL LOST</div>
+                <div class="apt-acc-section">
+                  <div class="apt-acc-section-title">POSITION</div>
+                  <div class="apt-acc-grid apt-acc-grid--three">
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">LATITUDE</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.lat }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">LONGITUDE</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.lon }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">HEADING</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.hdg }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="apt-acc-section">
+                  <div class="apt-acc-section-title">FLIGHT</div>
+                  <div class="apt-acc-grid apt-acc-grid--three">
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">ALTITUDE</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.alt }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">SPEED</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.spd }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">VERTICAL</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.vrate }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="apt-acc-section">
+                  <div class="apt-acc-section-title">IDENT</div>
+                  <div class="apt-acc-grid apt-acc-grid--two">
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">TYPE</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.type }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">REGISTRATION</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.reg }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">CATEGORY</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.category }}</div>
+                    </div>
+                    <div class="apt-acc-cell">
+                      <div class="apt-acc-cell-label">SQUAWK</div>
+                      <div class="apt-acc-cell-value">{{ liveAircraftData.squawk }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="apt-acc-section acft-acc-action-section">
+                  <div class="acft-acc-action-row">
+                    <button
+                      class="acft-acc-btn"
+                      :class="{ 'acft-acc-btn--active': followedHex === r.hex }"
+                      :aria-label="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
+                      :data-tooltip="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
+                      @click.stop="toggleTrack(r.hex)"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linejoin="round"
+                          fill="none"
+                        />
+                        <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+                      </svg>
+                    </button>
+                    <button
+                      class="acft-acc-btn"
+                      :class="{ 'acft-acc-btn--active': notifEnabled.has(r.hex) }"
+                      :aria-label="
+                        notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
+                      "
+                      :data-tooltip="
+                        notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
+                      "
+                      @click.stop="toggleNotif(r.hex)"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 13 13"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                          fill="currentColor"
+                        />
+                        <path
+                          d="M5 10.5a1.5 1.5 0 0 0 3 0"
+                          stroke="currentColor"
+                          stroke-width="1"
+                          fill="none"
+                        />
+                        <!-- Strike-through shown when notifications for this aircraft are off. -->
+                        <line
+                          v-if="!notifEnabled.has(r.hex)"
+                          x1="1.5"
+                          y1="1.5"
+                          x2="11.5"
+                          y2="11.5"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="square"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      class="acft-acc-btn"
+                      aria-label="Centre on map"
+                      data-tooltip="Centre on map"
+                      @click.stop="centrePlane(r)"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="4"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          fill="none"
+                        />
+                        <line
+                          x1="12"
+                          y1="2"
+                          x2="12"
+                          y2="6"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                        />
+                        <line
+                          x1="12"
+                          y1="18"
+                          x2="12"
+                          y2="22"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                        />
+                        <line
+                          x1="2"
+                          y1="12"
+                          x2="6"
+                          y2="12"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                        />
+                        <line
+                          x1="18"
+                          y1="12"
+                          x2="22"
+                          y2="12"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
           </template>
         </div>
 
@@ -308,7 +470,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
@@ -362,6 +524,58 @@ const sdrStore = useSdrStore()
 const expandedAirport = ref<string | null>(null)
 const tuneNotice = ref<string | null>(null)
 
+// Live telemetry shown in an expanded aircraft row's accordion. The formatted
+// snapshot is held separately from the raw feed so that when the aircraft drops
+// out of coverage we can keep showing its last-known values (dimmed) and flag
+// the dropout, rather than blanking the panel.
+interface AircraftLiveData {
+  lat: string
+  lon: string
+  hdg: string
+  alt: string
+  spd: string
+  vrate: string
+  type: string
+  reg: string
+  category: string
+  squawk: string
+}
+// Placeholder shown for any field with no live value (em dashes throughout).
+const EMPTY_AIRCRAFT_DATA: AircraftLiveData = {
+  lat: '—',
+  lon: '—',
+  hdg: '—',
+  alt: '—',
+  spd: '—',
+  vrate: '—',
+  type: '—',
+  reg: '—',
+  category: '—',
+  squawk: '—',
+}
+// Hex of the aircraft whose accordion is expanded, or null when none is open.
+const expandedPlane = ref<string | null>(null)
+// Always a full object (placeholder when nothing is expanded) so the template
+// reads fields directly without null-guards.
+const liveAircraftData = ref<AircraftLiveData>({ ...EMPTY_AIRCRAFT_DATA })
+// True when the expanded aircraft has dropped out of the live feed.
+const signalLost = ref(false)
+// Last-known search-result entry for the expanded aircraft, used to keep its row
+// (and accordion) rendered if it briefly leaves the live list.
+const expandedPlaneSnapshot = ref<PlaneResult | null>(null)
+// Once an expanded aircraft drops out of the feed we show SIGNAL LOST for a short
+// grace window — long enough to ride out a brief dropout — then remove the row so
+// a permanently-lost aircraft doesn't linger at the end of the list forever.
+const SIGNAL_LOST_GRACE_MS = 15000
+let signalLostTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearSignalLostTimer() {
+  if (signalLostTimer !== null) {
+    clearTimeout(signalLostTimer)
+    signalLostTimer = null
+  }
+}
+
 const sdrConnected = computed(() => sdrStore.connected)
 
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -389,6 +603,11 @@ function sectionKey(r: { kind: string }): string {
 // Notification opt-in state — sourced from the persisted airNotif store.
 const notifEnabled = computed(() => airNotifStore.enabledHexes)
 
+// Hex of the aircraft the map is currently following, or null. The control is a
+// plain (non-reactive) class, so this mirror is refreshed from it on every data
+// update and updated optimistically when the track button is clicked.
+const followedHex = ref<string | null>(null)
+
 // Aircraft data — refreshed on adsb-data-update event
 const aircraftFeatures = ref<
   Array<{ properties: Record<string, unknown>; geometry: { coordinates: [number, number] } }>
@@ -404,6 +623,7 @@ function refreshFilterState() {
   if (props.adsbControl) {
     typeFilter.value = props.adsbControl._typeFilter
     allHidden.value = props.adsbControl._allHidden
+    followedHex.value = props.adsbControl._followEnabled ? props.adsbControl._selectedHex : null
   }
 }
 
@@ -415,6 +635,7 @@ function refreshAircraft() {
     aircraftFeatures.value = []
   }
   refreshFilterState()
+  refreshExpandedPlane()
 }
 
 function onMsbTabSwitch(e: Event): void {
@@ -434,15 +655,18 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
 
   // Aircraft — gated by the map's active filter (ALL hides everything; CIVIL/MIL
   // restrict to planes matching the military flag, excluding ground/tower like the map).
+  const planeResults: PlaneResult[] = []
   for (const f of aircraftFeatures.value) {
     if (allHidden.value) break
     const p = f.properties
     const category = ((p.category as string) || '').trim()
     const t = ((p.t as string) || '').trim()
+    // The list shows only aircraft — never ground vehicles (C1/C2) or
+    // tower/static emitters (C3-C5, TWR), regardless of the ALL/CIVIL/MIL filter.
     const isGnd = category === 'C1' || category === 'C2'
     const isTower = ['C3', 'C4', 'C5'].includes(category) || t === 'TWR'
+    if (isGnd || isTower) continue
     if (typeFilter.value !== 'all') {
-      if (isGnd || isTower) continue
       const isMil = !!p.military
       if (typeFilter.value === 'mil' && !isMil) continue
       if (typeFilter.value === 'civil' && isMil) continue
@@ -452,7 +676,7 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
     const reg = ((p.r as string) || '').trim()
     const squawk = ((p.squawk as string) || '').trim()
     if (!q || [callsign, hex, reg, squawk].some((v) => v.toLowerCase().includes(q))) {
-      out.push({
+      planeResults.push({
         kind: 'plane',
         hex,
         callsign,
@@ -463,6 +687,11 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
       })
     }
   }
+  // Stable ordering so rows keep their place as the feed reorders/repopulates
+  // each poll — otherwise an open accordion would jump around as aircraft come
+  // and go.
+  planeResults.sort(comparePlanes)
+  out.push(...planeResults)
 
   // Airports
   for (const f of AIRPORTS_DATA.features) {
@@ -497,7 +726,29 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
   return out
 })
 
+// Row ordering: by callsign (falling back to the immutable hex when an aircraft
+// has not broadcast one yet), then hex as a stable tie-break.
+function comparePlanes(first: PlaneResult, second: PlaneResult): number {
+  return (
+    (first.callsign || first.hex).localeCompare(second.callsign || second.hex) ||
+    first.hex.localeCompare(second.hex)
+  )
+}
+
 const planes = computed(() => results.value.filter((r) => r.kind === 'plane') as PlaneResult[])
+
+// The aircraft rows actually rendered. The expanded (selected) aircraft is
+// pinned to the top so its open accordion never moves as the rest of the list
+// reorders/repopulates each poll. The pinned row uses its live data when still
+// in the feed, or the last-known snapshot when it has briefly dropped out (so it
+// stays visible while SIGNAL LOST shows). All other aircraft follow in sort order.
+const displayPlanes = computed<PlaneResult[]>(() => {
+  const live = planes.value
+  const snapshot = expandedPlaneSnapshot.value
+  if (!snapshot) return live
+  const pinned = live.find((r) => r.hex === snapshot.hex) ?? snapshot
+  return [pinned, ...live.filter((r) => r.hex !== snapshot.hex)]
+})
 const airports = computed(
   () => results.value.filter((r) => r.kind === 'airport') as AirportResult[],
 )
@@ -566,7 +817,7 @@ function milOptionLabel(r: MilResult): string {
 const ownedOptionIds = computed<string>(() => {
   const ids: string[] = []
   if (!collapsed.value.has('aircraft'))
-    planes.value.forEach((_r, index) => ids.push(`filter-opt-plane-${index}`))
+    displayPlanes.value.forEach((_r, index) => ids.push(`filter-opt-plane-${index}`))
   if (!collapsed.value.has('airports'))
     airports.value.forEach((_r, index) => ids.push(`filter-opt-airport-${index}`))
   if (!collapsed.value.has('mil'))
@@ -589,7 +840,7 @@ const activeDescId = computed<string | undefined>(() => {
   // Collapsed sections render no option rows, so never point activedescendant at
   // one — that would be a dangling IDREF.
   if (!collapsed.value.has('aircraft')) {
-    const planeIdx = planes.value.findIndex((r) => r.hex === key)
+    const planeIdx = displayPlanes.value.findIndex((r) => r.hex === key)
     if (planeIdx >= 0) return `filter-opt-plane-${planeIdx}`
   }
   if (!collapsed.value.has('airports')) {
@@ -662,6 +913,17 @@ function scrollToFocused() {
   })
 }
 
+// Scroll the currently-open accordion row into view. The expanded aircraft is
+// pinned to the top of the list, so when a row deep in a scrolled list is opened
+// the list jumps back up to reveal it (otherwise the accordion opens off-screen
+// and it looks like nothing happened).
+function scrollOpenRowIntoView() {
+  requestAnimationFrame(() => {
+    const el = resultsRef.value?.querySelector('.filter-result-item--open') as HTMLElement | null
+    el?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
 function activateResult(r: PlaneResult | AirportResult | MilResult) {
   if (r.kind === 'plane') selectPlane(r)
   if (r.kind === 'airport') toggleAirport(r)
@@ -669,13 +931,90 @@ function activateResult(r: PlaneResult | AirportResult | MilResult) {
 }
 
 // ---- Selection actions ----
+// Clicking a plane row toggles its live-telemetry accordion and, on open,
+// centres the map on the aircraft (matching the airport rows' behaviour).
 function selectPlane(r: PlaneResult) {
+  if (expandedPlane.value === r.hex) {
+    expandedPlane.value = null
+    refreshExpandedPlane()
+    return
+  }
+  expandedPlane.value = r.hex
+  // Capture the clicked row so it stays rendered (with last-known telemetry) if
+  // the aircraft later drops out of the live list.
+  expandedPlaneSnapshot.value = r
+  refreshExpandedPlane()
+  centrePlane(r)
+  // The row is now pinned to the top — bring it (and its accordion) into view.
+  scrollOpenRowIntoView()
+}
+
+// Ease the map to an aircraft, preferring the control's interpolated position
+// over the (older) snapshot coordinates from the search result.
+function centrePlane(r: PlaneResult) {
   const c = props.adsbControl
   if (!c) return
   const coords = c._interpolatedCoords(r.hex) ?? r.coords
   const m = props.getMap()
   if (m) m.easeTo({ center: coords, zoom: Math.max(m.getZoom(), 10), duration: 600 })
 }
+
+// Locate the live feature for a hex in the current ADS-B snapshot.
+function findAircraftFeature(hex: string) {
+  return aircraftFeatures.value.find((f) => f.properties.hex === hex)
+}
+
+// Format an aircraft's raw properties into the labelled values the accordion
+// shows. Missing/zero numeric fields render as an em dash rather than "0".
+function formatAircraftLiveData(feature: {
+  properties: Record<string, unknown>
+  geometry: { coordinates: [number, number] }
+}): AircraftLiveData {
+  const p = feature.properties
+  const [lon, lat] = feature.geometry.coordinates
+  return {
+    lat: formatLat(lat),
+    lon: formatLon(lon),
+    hdg: formatHeading(p.track),
+    alt: formatAltitude(p.alt_baro),
+    spd: formatSpeed(p.gs),
+    vrate: formatVerticalRate(p.baro_rate),
+    type: ((p.t as string) || '').trim() || '—',
+    reg: ((p.r as string) || '').trim() || '—',
+    category: ((p.category as string) || '').trim() || '—',
+    squawk: ((p.squawk as string) || '').trim() || '—',
+  }
+}
+
+// Refresh the expanded aircraft's telemetry from the latest feed. Keeps the last
+// known values and flags SIGNAL LOST when the aircraft is no longer present.
+function refreshExpandedPlane() {
+  const hex = expandedPlane.value
+  if (!hex) {
+    liveAircraftData.value = { ...EMPTY_AIRCRAFT_DATA }
+    expandedPlaneSnapshot.value = null
+    signalLost.value = false
+    clearSignalLostTimer()
+    return
+  }
+  const feature = findAircraftFeature(hex)
+  signalLost.value = !feature
+  if (feature) {
+    // Live again: refresh values and cancel any pending removal.
+    liveAircraftData.value = formatAircraftLiveData(feature)
+    clearSignalLostTimer()
+  } else if (signalLostTimer === null) {
+    // Just dropped out: keep the last-known values, and schedule removal of the
+    // row if the aircraft doesn't return within the grace window.
+    signalLostTimer = setTimeout(() => {
+      signalLostTimer = null
+      expandedPlane.value = null
+      refreshExpandedPlane()
+    }, SIGNAL_LOST_GRACE_MS)
+  }
+}
+
+onUnmounted(clearSignalLostTimer)
 
 function fitBoundsWithPadding(bounds: [number, number, number, number]) {
   const m = props.getMap()
@@ -743,6 +1082,37 @@ function formatLon(lon: number): string {
   return `${Math.abs(lon).toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`
 }
 
+// Coerce a feed value to a finite number, or null when absent/non-numeric.
+function asFiniteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function formatHeading(track: unknown): string {
+  const value = asFiniteNumber(track)
+  return value === null ? '—' : `${Math.round(value)}°`
+}
+
+function formatAltitude(altBaro: unknown): string {
+  const value = asFiniteNumber(altBaro)
+  if (value === null) return '—'
+  // alt_baro of 0 (or below) means on/near the ground in the ADS-B feed.
+  return value <= 0 ? 'GND' : `${Math.round(value).toLocaleString('en-US')} ft`
+}
+
+function formatSpeed(groundSpeed: unknown): string {
+  const value = asFiniteNumber(groundSpeed)
+  return value === null ? '—' : `${Math.round(value)} kt`
+}
+
+function formatVerticalRate(baroRate: unknown): string {
+  const value = asFiniteNumber(baroRate)
+  if (value === null) return '—'
+  const rounded = Math.round(value)
+  // Show an explicit + for climbs so the sign reads at a glance.
+  const sign = rounded > 0 ? '+' : ''
+  return `${sign}${rounded.toLocaleString('en-US')} fpm`
+}
+
 // Tune the connected SDR to a clicked frequency. If no radio is connected, show
 // a subtle inline notice instead of attempting to tune.
 function tuneFreq(r: AirportResult, f: AirportFreq) {
@@ -765,6 +1135,17 @@ function tuneFreq(r: AirportResult, f: AirportFreq) {
 
 function selectMil(r: MilResult) {
   fitBoundsWithPadding(r.bounds)
+}
+
+// ---- Tracking (track button) ----
+// Toggle following the aircraft on the map. Delegates to the live control, then
+// mirrors the resulting follow state back into the local reactive flag so the
+// button's active styling updates immediately.
+function toggleTrack(hex: string) {
+  const c = props.adsbControl
+  if (!c) return
+  c.toggleFollowByHex(hex)
+  followedHex.value = c.isFollowingHex(hex) ? hex : null
 }
 
 // ---- Notifications (bell button) ----
@@ -837,16 +1218,33 @@ function expandAirport(icao: string) {
   }
   expandedAirport.value = icao
   tuneNotice.value = null
-  requestAnimationFrame(() => {
-    const el = resultsRef.value?.querySelector('.filter-result-item--open') as HTMLElement | null
-    el?.scrollIntoView({ block: 'nearest' })
-  })
+  scrollOpenRowIntoView()
 }
 
-// Expose focus method for keyboard shortcut
+// Expand a specific aircraft's accordion by hex (driven by a map aircraft click)
+// and scroll it into view. Clears any active search and un-collapses the aircraft
+// section, then pins the aircraft to the top via the snapshot. A no-op if the hex
+// isn't a listed aircraft (e.g. a ground vehicle or tower, which the list omits).
+function expandAircraft(hex: string) {
+  query.value = ''
+  if (collapsed.value.has('aircraft')) {
+    const next = new Set(collapsed.value)
+    next.delete('aircraft')
+    collapsed.value = next
+  }
+  const liveResult = planes.value.find((r) => r.hex === hex)
+  if (!liveResult) return
+  expandedPlane.value = hex
+  expandedPlaneSnapshot.value = liveResult
+  refreshExpandedPlane()
+  scrollOpenRowIntoView()
+}
+
+// Expose methods driven by map-marker clicks + the focus keyboard shortcut.
 defineExpose({
   focus: () => inputRef.value?.focus(),
   expandAirport,
+  expandAircraft,
 })
 </script>
 
@@ -1019,44 +1417,6 @@ defineExpose({
   cursor: pointer;
 }
 
-.filter-action-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  /* Right padding 0 so the bell icon lines up with the group-heading chevron
-       (both ~20px from the row edge); extra hit area kept on the left. */
-  padding: 6px 0 6px 12px;
-  margin-right: -1px;
-  flex-shrink: 0;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.3);
-  transition: color 0.15s;
-}
-
-.filter-action-btn:hover {
-  color: #fff !important;
-}
-
-.filter-bell-btn.filter-bell-btn--active {
-  color: #c8ff00;
-}
-
-.filter-bell-btn.filter-bell-btn--active:hover {
-  color: #c8ff00 !important;
-}
-
-.filter-track-btn {
-  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-  padding: 6px 0;
-}
-
 .filter-result-icon {
   display: none;
   cursor: pointer;
@@ -1182,6 +1542,10 @@ defineExpose({
   grid-template-columns: 1fr 1fr;
 }
 
+.apt-acc-grid--three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .apt-acc-cell {
   display: flex;
   flex-direction: column;
@@ -1247,5 +1611,97 @@ defineExpose({
   color: rgba(255, 255, 255, 0.25);
   text-align: center;
   text-transform: uppercase;
+}
+
+/* ---- Aircraft live-telemetry accordion ---- */
+/* When the aircraft drops out of the feed, dim the (last-known) values. */
+.acft-acc-body--stale .apt-acc-cell-value {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.acft-acc-signal-lost {
+  margin: 12px 24px 0 24px;
+  padding: 6px 10px;
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ff4040;
+  background: rgba(255, 64, 64, 0.1);
+  border-left: 2px solid #ff4040;
+}
+
+.acft-acc-action-section {
+  padding-top: 16px;
+  padding-bottom: 20px;
+}
+
+.acft-acc-action-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* 44px square controls matching the satellite list-item accordion buttons. */
+.acft-acc-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  background: #0d1015;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.acft-acc-btn:hover {
+  color: var(--color-accent);
+  background: #05070a;
+}
+
+.acft-acc-btn.acft-acc-btn--active {
+  color: var(--color-accent);
+  background: rgba(200, 255, 0, 0.12);
+}
+
+.acft-acc-btn.acft-acc-btn--active:hover {
+  background: rgba(200, 255, 0, 0.18);
+}
+
+/* Hover tooltip, left-anchored to the button (matches the satellite buttons). */
+.acft-acc-btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 14px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10002;
+}
+
+.acft-acc-btn[data-tooltip]:hover::before {
+  opacity: 1;
 }
 </style>

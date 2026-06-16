@@ -694,6 +694,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._isolatedHex = hex
         this._hideHoverTag()
         this._applySelection()
+        this._emitOpenInPanel(hex)
       }
 
       this.map.on('click', 'adsb-hit', handleAircraftClick)
@@ -1007,6 +1008,87 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (!is3D && this.map) this.map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
   }
 
+  // ---- Programmatic follow (search list track button + tag override) ----
+
+  /**
+   * Start following the aircraft with the given hex, switching away from any
+   * currently-followed aircraft. Mirrors the tag follow button's override path:
+   * pans/zooms to the aircraft, shows its status bar, enables its notification,
+   * and builds the tracking tag marker. A no-op tag rebuild is left to callers.
+   */
+  private _startFollowingHex(hex: string): void {
+    if (this._tagHex && this._trackingNotifIds && this._trackingNotifIds[this._tagHex]) {
+      this._notificationsStore.dismiss(this._trackingNotifIds[this._tagHex])
+      delete this._trackingNotifIds[this._tagHex]
+    }
+    if (this._tagHex) this._notifEnabled.delete(this._tagHex)
+    this._selectedHex = hex
+    this._hideHoverTagNow()
+    this._applySelection()
+    this._followEnabled = true
+    this._notifEnabled.add(hex)
+    const aircraftFeature = this._geojson.features.find((f) => f.properties.hex === hex)
+    if (aircraftFeature) {
+      const cs =
+        (aircraftFeature.properties.flight || '').trim() ||
+        (aircraftFeature.properties.r || '').trim() ||
+        hex
+      if (!this._trackingNotifIds) this._trackingNotifIds = {}
+      if (this._trackingNotifIds[hex]) this._notificationsStore.dismiss(this._trackingNotifIds[hex])
+      this._trackingNotifIds[hex] = this._notificationsStore.add({ type: 'track', title: cs })
+      this._showStatusBar(aircraftFeature.properties)
+      const is3D = this._is3DActive()
+      /* v8 ignore start -- defensive: aircraftFeature is in the collection so
+         _interpolatedCoords always resolves; the || fallback never runs */
+      const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
+      /* v8 ignore stop */
+      this.map.easeTo({
+        center: coords,
+        zoom: 16,
+        ...(is3D ? { pitch: 45 } : {}),
+        duration: 600,
+      })
+      const newEl = document.createElement('div')
+      newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
+      this._wireTagButton(newEl)
+      /* v8 ignore start -- defensive: _applySelection above always builds a
+         tag marker for the followed hex, so this guard is never false */
+      if (this._tagMarker) {
+        this._tagMarker.remove()
+        this._tagMarker = null
+      }
+      /* v8 ignore stop */
+      const trkLeft = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
+      this._tagMarker = new maplibregl.Marker({
+        element: newEl,
+        anchor: trkLeft ? 'right' : 'left',
+        offset: trkLeft ? [13, 0] : [-13, 0],
+      })
+        .setLngLat(coords)
+        .addTo(this.map)
+    }
+    this._saveTrackingState()
+  }
+
+  /**
+   * Toggle following the aircraft with the given hex from outside the map tag UI
+   * (the search list's track button). Following the currently-followed aircraft
+   * untracks it; otherwise it switches to following the given aircraft.
+   */
+  toggleFollowByHex(hex: string): void {
+    if (!this.map || !hex) return
+    if (this._followEnabled && this._selectedHex === hex) {
+      this._handleUntrack()
+      return
+    }
+    this._startFollowingHex(hex)
+  }
+
+  /** True when the given aircraft is the one currently being followed. */
+  isFollowingHex(hex: string): boolean {
+    return this._followEnabled && this._selectedHex === hex
+  }
+
   // ---- Tag button wiring ----
 
   private _wireTagButton(el: HTMLElement, overrideHex: string | null = null): void {
@@ -1082,58 +1164,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       if (!hex) return
 
       if (overrideHex && overrideHex !== this._selectedHex) {
-        if (this._tagHex && this._trackingNotifIds && this._trackingNotifIds[this._tagHex]) {
-          this._notificationsStore.dismiss(this._trackingNotifIds[this._tagHex])
-          delete this._trackingNotifIds[this._tagHex]
-        }
-        if (this._tagHex) this._notifEnabled.delete(this._tagHex)
-        this._selectedHex = overrideHex
-        this._hideHoverTagNow()
-        this._applySelection()
-        this._followEnabled = true
-        this._notifEnabled.add(hex)
-        const aircraftFeature = this._geojson.features.find((f) => f.properties.hex === hex)
-        if (aircraftFeature) {
-          const cs =
-            (aircraftFeature.properties.flight || '').trim() ||
-            (aircraftFeature.properties.r || '').trim() ||
-            hex
-          if (!this._trackingNotifIds) this._trackingNotifIds = {}
-          if (this._trackingNotifIds[hex])
-            this._notificationsStore.dismiss(this._trackingNotifIds[hex])
-          this._trackingNotifIds[hex] = this._notificationsStore.add({ type: 'track', title: cs })
-          this._showStatusBar(aircraftFeature.properties)
-          const is3D = this._is3DActive()
-          /* v8 ignore start -- defensive: aircraftFeature is in the collection so
-             _interpolatedCoords always resolves; the || fallback never runs */
-          const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
-          /* v8 ignore stop */
-          this.map.easeTo({
-            center: coords,
-            zoom: 16,
-            ...(is3D ? { pitch: 45 } : {}),
-            duration: 600,
-          })
-          const newEl = document.createElement('div')
-          newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
-          this._wireTagButton(newEl)
-          /* v8 ignore start -- defensive: _applySelection above always builds a
-             tag marker for the override hex, so this guard is never false */
-          if (this._tagMarker) {
-            this._tagMarker.remove()
-            this._tagMarker = null
-          }
-          /* v8 ignore stop */
-          const trkLeft1 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
-          this._tagMarker = new maplibregl.Marker({
-            element: newEl,
-            anchor: trkLeft1 ? 'right' : 'left',
-            offset: trkLeft1 ? [13, 0] : [-13, 0],
-          })
-            .setLngLat(coords)
-            .addTo(this.map)
-        }
-        this._saveTrackingState()
+        this._startFollowingHex(overrideHex)
         return
       }
 
@@ -1333,6 +1364,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._selectedHex = hex
       this._hideHoverTagNow()
       this._applySelection()
+      this._emitOpenInPanel(hex)
     })
     this._wireTagButton(el, hex)
     const hoverAnchor = fromLabel
@@ -1610,6 +1642,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._selectedHex = props.hex
       this._hideHoverTag()
       this._applySelection()
+      this._emitOpenInPanel(props.hex)
     })
     return el
   }
@@ -1923,6 +1956,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   // ---- Selection helpers ----
+
+  // Tell the side-panel SEARCH list (AirFilter) to open this aircraft's
+  // accordion. Emitted from every map gesture that selects an aircraft — the
+  // icon/arrow, the hover tag, and the callsign label — so a click on any of the
+  // aircraft's on-map data reveals it in the panel. MapSidebar opens the panel on
+  // the search tab in response.
+  private _emitOpenInPanel(hex: string): void {
+    document.dispatchEvent(new CustomEvent('air-open-aircraft', { detail: { hex } }))
+  }
 
   _applySelection(): void {
     if (!this.map) return
