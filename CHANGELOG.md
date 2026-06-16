@@ -78,6 +78,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Enhance auto-tune and recording functionality
 - Enhance TLE database controls with category-specific clear functionality
 - Update SDR frequencies and groups for enhanced coverage and organization
+- Show tuned frequency in footer outside the radio tab
+- Add Scottish/Shanwick sector and military frequencies
+- Make TRACK SATELLITE an icon button matching the bell
 
 ### Bug Fixes
 
@@ -226,6 +229,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop tracking SQLite WAL/SHM files
 - Add ESLint + Prettier to frontend and root contexts
 - Add husky + lint-staged pre-commit gate
+- Ignore test-results and allow npm verify commands
 
 ### Other
 
@@ -971,6 +975,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #97 from barrygee/test/e2e-playwright-suite
 - Merge remote-tracking branch 'origin/main' into test/e2e-fullstack-smoke
 - Merge remote-tracking branch 'origin/test/e2e-fullstack-smoke' into test/e2e-fullstack-smoke
+- Merge pull request #98 from barrygee/test/e2e-fullstack-smoke
+- Merge pull request #99 from barrygee/feat/footer-sdr-frequency-indicator
 
 ### Refactoring
 
