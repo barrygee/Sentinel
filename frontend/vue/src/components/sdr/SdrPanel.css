@@ -461,6 +461,9 @@
 .sdr-freq-name {
   margin-top: 4px;
   margin-bottom: 20px;
+  /* Nudge right so the first letter left-aligns with the first digit of the
+     frequency above — the large freq <input> sits ~4px in from the row edge. */
+  padding-left: 4px;
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 14px;
   font-weight: 400;
