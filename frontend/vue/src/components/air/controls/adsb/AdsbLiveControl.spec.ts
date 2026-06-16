@@ -901,6 +901,86 @@ describe('AdsbLiveControl map event handlers', () => {
   })
 })
 
+describe('AdsbLiveControl map isolation persistence + restore', () => {
+  const okJson = (ac: ApiEntry[]) =>
+    ({ ok: true, status: 200, json: () => Promise.resolve({ ac }) }) as Response
+
+  it('persists the isolated hex when an aircraft is isolated, and clears it on deselect', () => {
+    const { control } = mounted()
+    seedFeature(control)
+    control._selectedHex = 'abc123'
+    control._isolatedHex = 'abc123'
+    control._applySelection()
+    expect(airStore.mapIsolatedHex).toBe('abc123')
+
+    // Deselect: _applySelection persists the empty isolation.
+    control._selectedHex = null
+    control._isolatedHex = null
+    control._applySelection()
+    expect(airStore.mapIsolatedHex).toBe('')
+  })
+
+  it('restores isolation for the persisted aircraft once it is in the feed', async () => {
+    const { control } = mounted()
+    airStore.mapIsolatedHex = 'abc123'
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry()]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBe('abc123')
+    expect(control._selectedHex).toBe('abc123')
+  })
+
+  it('marks the restore done without isolating when nothing was isolated', async () => {
+    const { control } = mounted()
+    // mapIsolatedHex defaults to '' (nothing isolated before leaving).
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry()]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBeNull()
+    expect(priv(control)._isolationRestored).toBe(true)
+  })
+
+  it('defers isolation restore while an aircraft is being followed', async () => {
+    const { control } = mounted()
+    airStore.mapIsolatedHex = 'abc123'
+    control._followEnabled = true
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry()]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBeNull()
+    expect(priv(control)._isolationRestored).toBe(true)
+  })
+
+  it('waits for the persisted aircraft to appear, then restores it on a later poll', async () => {
+    const { control } = mounted()
+    airStore.mapIsolatedHex = 'zzz999'
+    // First poll: the isolated aircraft is not present yet — defer (retry).
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry()]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBeNull()
+    expect(priv(control)._isolationRestored).toBe(false)
+
+    // Second poll: it appears — now isolation restores.
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry({ hex: 'zzz999' })]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBe('zzz999')
+    expect(priv(control)._isolationRestored).toBe(true)
+  })
+
+  it('only restores isolation once per control instance', async () => {
+    const { control } = mounted()
+    airStore.mapIsolatedHex = 'abc123'
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry()]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBe('abc123')
+
+    // A later persisted change must not re-hijack the selection on the next poll.
+    airStore.mapIsolatedHex = 'zzz999'
+    control._selectedHex = null
+    control._isolatedHex = null
+    fetchMock.mockResolvedValueOnce(okJson([apiEntry(), apiEntry({ hex: 'zzz999' })]))
+    await priv(control)._fetch()
+    expect(control._isolatedHex).toBeNull()
+  })
+})
+
 describe('AdsbLiveControl._buildTagHTML', () => {
   it('renders a tracked emergency military tag (left facing)', () => {
     const { control } = mounted()

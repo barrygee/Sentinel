@@ -126,6 +126,10 @@ describe('AirFilter', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     localStorage.clear()
+    // Groups now collapse by default on first mount. Mark seeding as already done so
+    // the bulk of tests start with their sections expanded; the default-collapsed
+    // behaviour has its own dedicated tests that clear this flag.
+    localStorage.setItem('sentinel_air_filterGroupsCollapsedSeeded', 'true')
     document.body.innerHTML = ''
     // jsdom has no real scrollIntoView.
     Element.prototype.scrollIntoView = vi.fn()
@@ -271,6 +275,30 @@ describe('AirFilter', () => {
       expect(wrapper.findAll('.filter-section-label')[0]!.classes()).toContain(
         'filter-section-label--collapsed',
       )
+    })
+
+    it('collapses every group by default on first ever mount', async () => {
+      // Clear the seed flag set in beforeEach so the fresh-user default is observable.
+      localStorage.removeItem('sentinel_air_filterGroupsCollapsedSeeded')
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      await nextTick()
+      const headings = wrapper.findAll('.filter-section-label')
+      expect(headings.length).toBeGreaterThan(0)
+      for (const heading of headings) {
+        expect(heading.classes()).toContain('filter-section-label--collapsed')
+      }
+      // No option rows render while every group is collapsed.
+      expect(wrapper.findAll('.filter-result-option')).toHaveLength(0)
+    })
+
+    it('keeps a returning user’s expanded groups instead of re-collapsing', async () => {
+      // beforeEach already marked seeding done; nothing is collapsed, so groups stay open.
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      await nextTick()
+      expect(wrapper.findAll('.filter-section-label')[0]!.classes()).not.toContain(
+        'filter-section-label--collapsed',
+      )
+      expect(wrapper.findAll('.filter-result-option').length).toBeGreaterThan(0)
     })
   })
 
@@ -962,6 +990,76 @@ describe('AirFilter', () => {
       const wrapper = mountFilter(adsb, () => null)
       await openPlane(wrapper)
       await expect(accordionButton(wrapper, 'centre').trigger('click')).resolves.not.toThrow()
+    })
+  })
+
+  // The expanded aircraft is persisted on the air store (localStorage), so leaving
+  // Air for another section and returning restores the open detail accordion. A new
+  // mount with a fresh pinia (as on remount) hydrates that state from localStorage.
+  describe('persisted selection restore', () => {
+    it('restores the expanded aircraft on remount while it is still in the feed', async () => {
+      const first = mountFilter(makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1', t: 'A320' })]))
+      await openPlane(first)
+      expect(first.find('.acft-acc-body').exists()).toBe(true)
+      first.unmount()
+
+      // Remount (fresh pinia) — simulates navigating back to Air.
+      const second = mountFilter(
+        makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1', t: 'A320' })]),
+      )
+      await second.vm.$nextTick()
+      expect(second.find('.acft-acc-body').exists()).toBe(true)
+      expect(second.find('.filter-result-primary').text()).toBe('BAW1')
+      // The detail repopulates from the live feed (type cell shows the aircraft type).
+      expect(second.find('.acft-acc-body').text()).toContain('A320')
+      second.unmount()
+    })
+
+    it('restores the row from its snapshot when the aircraft has left the feed', async () => {
+      const first = mountFilter(makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' })]))
+      await openPlane(first)
+      first.unmount()
+
+      // Return with the aircraft no longer broadcasting (empty feed).
+      const second = mountFilter(makeAdsb([]))
+      await second.vm.$nextTick()
+      // The row still renders from the persisted snapshot and flags SIGNAL LOST.
+      expect(second.find('.acft-acc-body').exists()).toBe(true)
+      expect(second.find('.acft-acc-signal-lost').exists()).toBe(true)
+      expect(second.find('.filter-result-primary').text()).toBe('BAW1')
+      second.unmount()
+    })
+  })
+
+  // An aircraft squawking an emergency code goes red on the map; the side panel
+  // must echo that — the row callsign and the detail accordion's POSITION /
+  // IDENTIFICATION headings turn red via the --emergency modifier classes.
+  describe('emergency squawk styling', () => {
+    it('flags the row and accordion as emergency for an emergency squawk', async () => {
+      const wrapper = mountFilter(
+        makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1', squawk: '7700', emergency: '7700' })]),
+      )
+      const row = wrapper.find('.filter-result-item')
+      expect(row.classes()).toContain('filter-result-item--emergency')
+
+      await openPlane(wrapper)
+      const body = wrapper.find('.acft-acc-body')
+      expect(body.classes()).toContain('acft-acc-body--emergency')
+      // The section headings the user named are present inside the flagged body.
+      const titles = body.findAll('.apt-acc-section-title').map((node) => node.text())
+      expect(titles).toContain('POSITION')
+      expect(titles).toContain('IDENTIFICATION')
+    })
+
+    it('does not flag a normal (non-emergency) aircraft', async () => {
+      const wrapper = mountFilter(
+        makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1', squawk: '1000' })]),
+      )
+      expect(wrapper.find('.filter-result-item').classes()).not.toContain(
+        'filter-result-item--emergency',
+      )
+      await openPlane(wrapper)
+      expect(wrapper.find('.acft-acc-body').classes()).not.toContain('acft-acc-body--emergency')
     })
   })
 
