@@ -226,6 +226,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Enforce 24×24px minimum target size on icon buttons (phase 8-6d)
 - Patch Dependabot security vulnerabilities
 - Regenerate vue lockfile for clean npm ci on vite 8
+- Left-align tuned frequency name with frequency digits
 
 ### Chores
 
@@ -986,6 +987,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #103 from barrygee/feat/air-hover-tag-no-action-buttons
 - Merge pull request #104 from barrygee/feat/air-side-panel-ux
 - Merge pull request #105 from barrygee/fix/settings-close-btn-no-border
+- Merge pull request #106 from barrygee/fix/sdr-freq-name-alignment
 
 ### Refactoring
 
