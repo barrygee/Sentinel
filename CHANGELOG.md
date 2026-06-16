@@ -227,6 +227,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Patch Dependabot security vulnerabilities
 - Regenerate vue lockfile for clean npm ci on vite 8
 - Left-align tuned frequency name with frequency digits
+- Darken no-url overlay base to hide light line below header
 
 ### Chores
 
@@ -988,6 +989,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #104 from barrygee/feat/air-side-panel-ux
 - Merge pull request #105 from barrygee/fix/settings-close-btn-no-border
 - Merge pull request #106 from barrygee/fix/sdr-freq-name-alignment
+- Merge pull request #107 from barrygee/feat/sdr-contour-bg-almost-black
 
 ### Refactoring
 
@@ -1077,3 +1079,5 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Adopt ruff format and reformat Python sources
 - Apply Prettier and resolve ESLint findings
 - Remove border from settings close button
+- Darken contour scan-overlay background to near-black
+- Remove light border below header bar
