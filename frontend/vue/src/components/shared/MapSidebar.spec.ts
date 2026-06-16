@@ -294,6 +294,14 @@ describe('MapSidebar', () => {
       expect(wrapper.vm.activeTab).toBe('search')
     })
 
+    it('opens the search tab on an aircraft-open event', async () => {
+      const wrapper = mountSidebar()
+      document.dispatchEvent(new CustomEvent('air-open-aircraft'))
+      await flushPromises()
+      expect(wrapper.vm.open).toBe(true)
+      expect(wrapper.vm.activeTab).toBe('search')
+    })
+
     it('restores the entering domain tab on a domain-changed event', async () => {
       localStorage.setItem(TAB_MAP_KEY, JSON.stringify({ space: 'passes' }))
       const wrapper = mountSidebar()

@@ -327,9 +327,12 @@ useDocumentEvent('sentinel:sdr-toggle-panel', () => {
   toggle()
 })
 
-// Air-domain airport marker click: open the panel on the SEARCH tab so the
-// airport's accordion (AirFilter) is visible.
+// Air-domain airport / aircraft marker click: open the panel on the SEARCH tab
+// so the accordion (AirFilter) is visible.
 useDocumentEvent('air-open-airport', () => {
+  switchTab('search')
+})
+useDocumentEvent('air-open-aircraft', () => {
   switchTab('search')
 })
 

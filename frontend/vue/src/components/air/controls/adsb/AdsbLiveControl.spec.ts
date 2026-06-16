@@ -795,12 +795,17 @@ function props(overrides: PropsOverride = {}) {
 }
 
 describe('AdsbLiveControl map event handlers', () => {
-  it('selects an aircraft on a hit-layer click', () => {
+  it('selects an aircraft on a hit-layer click and opens its side-panel accordion', () => {
     const { control, map } = mounted()
     seedFeature(control)
+    const openHandler = vi.fn()
+    document.addEventListener('air-open-aircraft', openHandler)
     map.fire('click', 'adsb-hit', { features: [{ properties: { hex: 'abc123' } }] })
     expect(control._selectedHex).toBe('abc123')
     expect(control._isolatedHex).toBe('abc123')
+    expect(openHandler).toHaveBeenCalledTimes(1)
+    expect((openHandler.mock.calls[0]![0] as CustomEvent).detail).toEqual({ hex: 'abc123' })
+    document.removeEventListener('air-open-aircraft', openHandler)
   })
 
   it('ignores a hit-layer click with no features', () => {
@@ -1579,6 +1584,57 @@ describe('AdsbLiveControl follow-toggle in place', () => {
     expect(control._followEnabled).toBe(true)
   })
 
+  it('toggleFollowByHex starts following the given aircraft', () => {
+    const { control } = mounted()
+    seedFeature(control, { hex: 'new' })
+    enableAllFields(control)
+    control.toggleFollowByHex('new')
+    expect(control._selectedHex).toBe('new')
+    expect(control._followEnabled).toBe(true)
+    expect(control.isFollowingHex('new')).toBe(true)
+  })
+
+  it('toggleFollowByHex untracks when called on the followed aircraft', () => {
+    const { control } = mounted()
+    seedFeature(control, { hex: 'new' })
+    enableAllFields(control)
+    control.toggleFollowByHex('new')
+    expect(control.isFollowingHex('new')).toBe(true)
+    control.toggleFollowByHex('new')
+    expect(control._followEnabled).toBe(false)
+    expect(control._selectedHex).toBeNull()
+    expect(control.isFollowingHex('new')).toBe(false)
+  })
+
+  it('toggleFollowByHex switches from one followed aircraft to another', () => {
+    const { control } = mounted()
+    seedFeature(control, { hex: 'old' })
+    seedFeature(control, { hex: 'new' })
+    enableAllFields(control)
+    control.toggleFollowByHex('old')
+    expect(control.isFollowingHex('old')).toBe(true)
+    control.toggleFollowByHex('new')
+    expect(control.isFollowingHex('old')).toBe(false)
+    expect(control.isFollowingHex('new')).toBe(true)
+  })
+
+  it('toggleFollowByHex is a no-op without a hex', () => {
+    const { control } = mounted()
+    seedFeature(control)
+    enableAllFields(control)
+    control.toggleFollowByHex('')
+    expect(control._followEnabled).toBe(false)
+    expect(control._selectedHex).toBeNull()
+  })
+
+  it('isFollowingHex is false when following a different aircraft', () => {
+    const { control } = mounted()
+    seedFeature(control, { hex: 'old' })
+    enableAllFields(control)
+    control.toggleFollowByHex('old')
+    expect(control.isFollowingHex('other')).toBe(false)
+  })
+
   it('shows UNTRACK on hover for a tracking button', () => {
     const { control } = mounted()
     seedFeature(control)
@@ -1638,16 +1694,20 @@ describe('AdsbLiveControl callsign label button handlers', () => {
     expect(bell).toBeTruthy()
   })
 
-  it('wires the label hover and click handlers', () => {
+  it('wires the label hover and click handlers (and opens the side-panel accordion)', () => {
     const { control } = mounted()
     seedFeature(control, { hex: 'lab1' })
     enableAllFields(control)
+    const openHandler = vi.fn()
+    document.addEventListener('air-open-aircraft', openHandler)
     const el = priv(control)._buildCallsignLabelEl(control._geojson.features[0].properties)
     el.dispatchEvent(new MouseEvent('mouseenter'))
     expect(control._trailHex).toBe('lab1')
     el.dispatchEvent(new MouseEvent('mouseleave'))
     el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(control._selectedHex).toBe('lab1')
+    expect((openHandler.mock.calls.at(-1)![0] as CustomEvent).detail).toEqual({ hex: 'lab1' })
+    document.removeEventListener('air-open-aircraft', openHandler)
   })
 
   it('builds a label with callsign disabled', () => {
@@ -1793,15 +1853,19 @@ describe('AdsbLiveControl tag/hover hide branches', () => {
     expect(labelEl.style.visibility).toBe('')
   })
 
-  it('wires hover-tag element mouseenter/leave/click', () => {
+  it('wires hover-tag element mouseenter/leave/click (and opens the side-panel accordion)', () => {
     const { control } = mounted()
     const feature = seedFeature(control)
+    const openHandler = vi.fn()
+    document.addEventListener('air-open-aircraft', openHandler)
     priv(control)._showHoverTag(feature)
     const el = markerRegistry.instances.at(-1)!.options.element
     el.dispatchEvent(new MouseEvent('mouseenter'))
     el.dispatchEvent(new MouseEvent('mouseleave'))
     el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(control._selectedHex).toBe('abc123')
+    expect((openHandler.mock.calls.at(-1)![0] as CustomEvent).detail).toEqual({ hex: 'abc123' })
+    document.removeEventListener('air-open-aircraft', openHandler)
   })
 
   it('updates the status bar for the selected aircraft', () => {

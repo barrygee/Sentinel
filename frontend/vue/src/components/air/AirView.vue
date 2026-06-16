@@ -101,8 +101,16 @@ function onOpenAirport(e: Event) {
   if (icao) airFilterRef.value?.expandAirport(icao)
 }
 
+// Aircraft click on the map → expand that aircraft's accordion in the SEARCH
+// list. MapSidebar handles opening the panel on the search tab.
+function onOpenAircraft(e: Event) {
+  const hex = (e as CustomEvent<{ hex: string }>).detail?.hex
+  if (hex) airFilterRef.value?.expandAircraft(hex)
+}
+
 useDocumentEvent('keydown', onKeydown)
 useDocumentEvent('air-open-search', onOpenSearch)
 useDocumentEvent('air-open-filter', onOpenFilter)
 useDocumentEvent('air-open-airport', onOpenAirport)
+useDocumentEvent('air-open-aircraft', onOpenAircraft)
 </script>

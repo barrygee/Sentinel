@@ -59,6 +59,7 @@ const AirSideMenuStub = defineComponent({
 
 let focusSpy: ReturnType<typeof vi.fn>
 let expandAirportSpy: ReturnType<typeof vi.fn>
+let expandAircraftSpy: ReturnType<typeof vi.fn>
 
 // Captures the result of the get-map prop arrow so line 12's accessor is exercised.
 let lastGetMapResult: unknown
@@ -68,11 +69,12 @@ const AirFilterStub = defineComponent({
   setup(props, { expose }) {
     focusSpy = vi.fn()
     expandAirportSpy = vi.fn()
+    expandAircraftSpy = vi.fn()
     // Resolve once mounted, by which point AirView's airMapRef is populated.
     onMounted(() => {
       lastGetMapResult = props.getMap?.()
     })
-    expose({ focus: focusSpy, expandAirport: expandAirportSpy })
+    expose({ focus: focusSpy, expandAirport: expandAirportSpy, expandAircraft: expandAircraftSpy })
     return () => h('div', { class: 'air-filter-stub' })
   },
 })
@@ -228,6 +230,21 @@ describe('AirView', () => {
       document.dispatchEvent(new CustomEvent('air-open-airport', { detail: {} }))
       document.dispatchEvent(new CustomEvent('air-open-airport'))
       expect(expandAirportSpy).not.toHaveBeenCalled()
+    })
+
+    it('expands the aircraft accordion on air-open-aircraft with a hex', () => {
+      teleportTargets()
+      mountView()
+      document.dispatchEvent(new CustomEvent('air-open-aircraft', { detail: { hex: 'abc123' } }))
+      expect(expandAircraftSpy).toHaveBeenCalledWith('abc123')
+    })
+
+    it('ignores air-open-aircraft without a hex', () => {
+      teleportTargets()
+      mountView()
+      document.dispatchEvent(new CustomEvent('air-open-aircraft', { detail: {} }))
+      document.dispatchEvent(new CustomEvent('air-open-aircraft'))
+      expect(expandAircraftSpy).not.toHaveBeenCalled()
     })
   })
 
