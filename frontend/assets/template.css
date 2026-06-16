@@ -61,7 +61,6 @@ html {
     right: 0;
     height: 68px;
     background: #000000;
-    border-bottom: 1px solid var(--color-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -404,7 +403,9 @@ html {
     left: 0;
     right: 0;
     z-index: 500;
-    background-color: #38435c;
+    /* Match the darkened contour SVG's background fill so the blurred ::before
+       edge doesn't reveal a lighter band as a line below the header. */
+    background-color: #0c0e16;
     display: flex;
     align-items: center;
     justify-content: center;
