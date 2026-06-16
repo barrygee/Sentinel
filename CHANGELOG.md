@@ -985,6 +985,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #102 from barrygee/ci/changelog-on-merge
 - Merge pull request #103 from barrygee/feat/air-hover-tag-no-action-buttons
 - Merge pull request #104 from barrygee/feat/air-side-panel-ux
+- Merge pull request #105 from barrygee/fix/settings-close-btn-no-border
 
 ### Refactoring
 
@@ -1073,3 +1074,4 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Align text to the left in empty state components and adjust padding for no passes
 - Adopt ruff format and reformat Python sources
 - Apply Prettier and resolve ESLint findings
+- Remove border from settings close button
