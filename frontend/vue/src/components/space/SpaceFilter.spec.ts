@@ -936,7 +936,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
     const trackBtn = wrapper.find('.sfr-acc-track-btn')
-    expect(trackBtn.text()).toBe('UNTRACK SATELLITE')
+    expect(trackBtn.attributes('aria-label')).toBe('Untrack satellite')
     expect(trackBtn.classes()).toContain('sfr-acc-track-btn--active')
     await trackBtn.trigger('click')
     expect(control.stopFollowing).toHaveBeenCalled()
@@ -951,14 +951,14 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-track-btn').text()).toBe('UNTRACK SATELLITE')
+    expect(wrapper.find('.sfr-acc-track-btn').attributes('aria-label')).toBe('Untrack satellite')
     document.dispatchEvent(
       new CustomEvent('satellite-follow-changed', {
         detail: { noradId: '25544', following: false },
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-track-btn').text()).toBe('TRACK SATELLITE')
+    expect(wrapper.find('.sfr-acc-track-btn').attributes('aria-label')).toBe('Track satellite')
   })
 
   it('toggles pass notifications, switching satellite first when not active', async () => {

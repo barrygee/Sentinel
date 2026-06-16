@@ -199,9 +199,31 @@
                   <button
                     class="sfr-acc-track-btn"
                     :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }"
+                    :aria-label="
+                      followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
+                    "
+                    :data-tooltip="
+                      followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
+                    "
                     @click.stop="trackSat(sat)"
                   >
-                    {{ followedNoradId === sat.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linejoin="round"
+                        fill="none"
+                      />
+                      <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+                    </svg>
                   </button>
                   <button
                     class="sfr-acc-notif-btn"
@@ -1505,21 +1527,23 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .sfr-acc-track-row {
   display: flex;
   align-items: stretch;
+  justify-content: flex-start;
   gap: 8px;
 }
 
 .sfr-acc-track-btn {
-  flex: 1;
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
   background: #0d1015;
   border: none;
   cursor: pointer;
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.6);
-  padding: 12px;
-  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition:
     color 0.12s,
     background 0.12s;
@@ -1662,14 +1686,18 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 
 /* Styled tooltips for the notif / auto-tune icon buttons — matches the
    sidebar tab (rail) tooltip style. Positioned above the button row. */
+.sfr-acc-track-btn[data-tooltip]::before,
 .sfr-acc-notif-btn[data-tooltip]::before,
 .sfr-acc-autotune-btn[data-tooltip]::before,
 .sfr-acc-record-btn[data-tooltip]::before {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Left-anchor the tooltip to the hovered button's left edge (each button is
+     position:relative), so the label reads as belonging to that button rather
+     than floating centered. */
+  left: 0;
+  transform: none;
   background: #000;
   color: var(--color-text-muted);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -1688,6 +1716,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   z-index: 10002;
 }
 
+.sfr-acc-track-btn[data-tooltip]:hover::before,
 .sfr-acc-notif-btn[data-tooltip]:hover::before,
 .sfr-acc-autotune-btn[data-tooltip]:hover::before,
 .sfr-acc-record-btn[data-tooltip]:hover::before {

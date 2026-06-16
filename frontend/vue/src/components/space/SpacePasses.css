@@ -534,21 +534,23 @@
 .spp-acc-track-row {
   display: flex;
   align-items: stretch;
+  justify-content: flex-start;
   gap: 8px;
 }
 
 .spp-acc-track-btn {
-  flex: 1;
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
   background: #0d1015;
   border: none;
   cursor: pointer;
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.6);
-  padding: 12px;
-  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition:
     color 0.12s,
     background 0.12s;
@@ -691,18 +693,19 @@
 
 /* Styled tooltips for the notif / auto-tune icon buttons — matches the
    sidebar tab (rail) tooltip style. Positioned above the button row. */
+.spp-acc-track-btn[data-tooltip]::before,
 .spp-acc-notif-btn[data-tooltip]::before,
 .spp-acc-autotune-btn[data-tooltip]::before,
 .spp-acc-record-btn[data-tooltip]::before {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Left-anchor the tooltip to the hovered button's left edge (each button is
+     position:relative), so the label reads as belonging to that button rather
+     than floating centered. */
+  left: 0;
+  transform: none;
   background: #000;
-  /* override below: right-anchor so a wide tooltip never overflows the
-       panel's right edge (the notif btn is rightmost when the auto-tune
-       btn is hidden) */
   color: var(--color-text-muted);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
@@ -720,24 +723,11 @@
   z-index: 10002;
 }
 
+.spp-acc-track-btn[data-tooltip]:hover::before,
 .spp-acc-notif-btn[data-tooltip]:hover::before,
 .spp-acc-autotune-btn[data-tooltip]:hover::before,
 .spp-acc-record-btn[data-tooltip]:hover::before {
   opacity: 1;
-}
-
-/* The rightmost icon button's tooltip is wider than the button, so a centered
-   tooltip overflows the row's right edge and is clipped by #spp-list
-   (overflow-y:auto also clips horizontally). Right-anchor whichever button is
-   last so the tooltip grows leftward into available space and stays in-bounds.
-   Applies to the notif button when auto-tune is hidden, and to the auto-tune
-   button when it is shown. */
-.spp-acc-notif-btn--last[data-tooltip]::before,
-.spp-acc-autotune-btn[data-tooltip]:last-child::before,
-.spp-acc-record-btn[data-tooltip]:last-child::before {
-  left: auto;
-  right: 0;
-  transform: none;
 }
 
 .spp-acc-section--polar {
