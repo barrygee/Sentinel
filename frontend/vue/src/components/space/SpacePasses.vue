@@ -167,9 +167,31 @@
               <button
                 class="spp-acc-track-btn"
                 :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }"
+                :aria-label="
+                  followedNoradId === pass.norad_id ? 'Untrack satellite' : 'Track satellite'
+                "
+                :data-tooltip="
+                  followedNoradId === pass.norad_id ? 'Untrack satellite' : 'Track satellite'
+                "
                 @click.stop="trackSat(pass)"
               >
-                {{ followedNoradId === pass.norad_id ? 'UNTRACK SATELLITE' : 'TRACK SATELLITE' }}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                    fill="none"
+                  />
+                  <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+                </svg>
               </button>
               <button
                 class="spp-acc-notif-btn"
