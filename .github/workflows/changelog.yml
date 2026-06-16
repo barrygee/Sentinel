@@ -1,32 +1,38 @@
-# Auto-updates CHANGELOG.md on every pull request from the branch's Conventional
-# Commits, using git-cliff + cliff.toml. Creates the file if missing and commits
-# it back to the PR branch. Installed by the release-engineer (changelog-standards).
+# Auto-updates CHANGELOG.md after every merge to main, from the repo's
+# Conventional Commits, using git-cliff + cliff.toml. Creates the file if missing
+# and commits it back to main. Installed by the release-engineer
+# (changelog-standards).
+#
+# Why on push-to-main rather than per-PR: writing the changelog back to a PR
+# branch on every push left the branch ahead of the developer's local checkout,
+# so the next local push was rejected and the changelog had to be reconciled by
+# hand. Regenerating once on main keeps feature branches untouched — no
+# divergence, no manual overrides. Because PRs land as merge commits (not
+# squashed), main retains every original commit, so git-cliff grouping is
+# unchanged.
 name: changelog
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
 
-# Needed to push the regenerated CHANGELOG.md back to the PR branch.
+# Needed to push the regenerated CHANGELOG.md back to main.
 permissions:
   contents: write
 
-# Avoid overlapping runs on rapid pushes to the same PR.
+# Serialise runs so two quick merges to main don't race on the same file.
 concurrency:
-  group: changelog-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: changelog-main
+  cancel-in-progress: false
 
 jobs:
   update-changelog:
     runs-on: ubuntu-latest
-    # PRs from forks can't receive a write-back commit (read-only GITHUB_TOKEN),
-    # so only run for same-repo branches; forks regenerate when the branch lands.
-    if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - name: Check out the PR branch (full history for git-cliff)
+      - name: Check out main (full history for git-cliff)
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.head_ref }}
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -44,9 +50,10 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add CHANGELOG.md
-            # [skip ci] + GITHUB_TOKEN's recursion guard prevent re-trigger loops.
+            # [skip ci] keeps GitHub from re-triggering this push workflow, and
+            # GITHUB_TOKEN's recursion guard is a second line of defence.
             git commit -m "chore(changelog): update CHANGELOG.md [skip ci]"
-            git push origin HEAD:${{ github.head_ref }}
+            git push origin HEAD:main
           else
             echo "CHANGELOG.md already up to date — nothing to commit."
           fi

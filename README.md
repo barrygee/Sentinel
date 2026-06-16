@@ -203,7 +203,7 @@ npm run lint          # ESLint + Prettier --check
 npm test              # jest
 ```
 
-Tooling in place: **ESLint + Prettier** (JS/TS/Vue) and **ruff** — including `ruff format` as the source of Python formatting — for linting/formatting; a **husky** pre-commit hook that mirrors the format/lint gates on staged files; the **vitest 100% coverage gate**; **mypy** (informational, not gating); and an automated **CHANGELOG** that regenerates from Conventional Commits on every PR. New code is expected to ship at 100% coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, commit/PR conventions, and the two npm contexts.
+Tooling in place: **ESLint + Prettier** (JS/TS/Vue) and **ruff** — including `ruff format` as the source of Python formatting — for linting/formatting; a **husky** pre-commit hook that mirrors the format/lint gates on staged files; the **vitest 100% coverage gate**; **mypy** (informational, not gating); and an automated **CHANGELOG** that regenerates from Conventional Commits on every merge to `main`. New code is expected to ship at 100% coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, commit/PR conventions, and the two npm contexts.
 
 ---
 
