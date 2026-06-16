@@ -81,6 +81,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show tuned frequency in footer outside the radio tab
 - Add Scottish/Shanwick sector and military frequencies
 - Make TRACK SATELLITE an icon button matching the bell
+- Live aircraft accordion in the search list with map-click open
 
 ### Bug Fixes
 
@@ -977,6 +978,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/test/e2e-fullstack-smoke' into test/e2e-fullstack-smoke
 - Merge pull request #98 from barrygee/test/e2e-fullstack-smoke
 - Merge pull request #99 from barrygee/feat/footer-sdr-frequency-indicator
+- Merge pull request #100 from barrygee/feat/space-track-button-icon
+- Merge pull request #101 from barrygee/feat/space-track-button-icon
+- Merge pull request #102 from barrygee/ci/changelog-on-merge
 
 ### Refactoring
 
@@ -1044,6 +1048,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin setup-uv to exact v8.2.0 tag
 - Gate the live axe-core audit in CI on every PR and push
 - Bump Node 20 actions to Node 24 versions
+- Regenerate on merge to main instead of per-PR
 
 ### Styling
 
