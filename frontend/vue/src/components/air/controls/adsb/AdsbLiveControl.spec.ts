@@ -922,12 +922,14 @@ describe('AdsbLiveControl._buildTagHTML', () => {
     expect(html).toContain('TRACKING')
   })
 
-  it('renders a hover tag with bell + track buttons', () => {
+  it('renders an untracked, opted-out tag with no action buttons', () => {
     const { control } = mounted()
     enableAllFields(control)
-    const html = priv(control)._buildTagHTML(props(), undefined, true)
-    expect(html).toContain('tag-follow-btn')
-    expect(html).toContain('tag-notif-btn')
+    const html = priv(control)._buildTagHTML(props())
+    // The follow button only appears on the tracked tag, and the bell only when
+    // opted-in — neither applies here, and hover tags never carry action buttons.
+    expect(html).not.toContain('tag-follow-btn')
+    expect(html).not.toContain('tag-notif-btn')
   })
 
   it('shows the notification bell when the aircraft is opted-in', () => {
@@ -1021,32 +1023,6 @@ describe('AdsbLiveControl selection + tag wiring', () => {
     control._tagHex = 'other'
     control._rebuildTagForHex('abc123')
     expect(control._tagMarker).toBeNull()
-  })
-
-  it('wires the follow button on a hover tag to start tracking', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    priv(control)._showHoverTag(control._geojson.features[0])
-    const hoverEl = markerRegistry.instances.at(-1)!.options.element
-    const followBtn = hoverEl.querySelector('.tag-follow-btn') as HTMLElement
-    followBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
-    followBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._selectedHex).toBe('abc123')
-    expect(control._followEnabled).toBe(true)
-  })
-
-  it('wires the notification bell on a hover tag to toggle opt-in', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    priv(control)._showHoverTag(control._geojson.features[0])
-    const hoverEl = markerRegistry.instances.at(-1)!.options.element
-    const bell = hoverEl.querySelector('.tag-notif-btn') as HTMLElement
-    bell.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
-    bell.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(airNotifStore.isEnabled('abc123')).toBe(true)
-    // Toggle back off.
-    bell.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(airNotifStore.isEnabled('abc123')).toBe(false)
   })
 
   it('toggles follow off when the follow button is clicked while tracking', () => {
@@ -1549,41 +1525,6 @@ describe('AdsbLiveControl misc lifecycle branches', () => {
 })
 
 describe('AdsbLiveControl follow-toggle in place', () => {
-  it('starts following when the follow button on a non-tracked tag is clicked', () => {
-    const { control, map } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    control._allHidden = true
-    map.layers.add('adsb-trail-line')
-    map.layers.add('adsb-trail-dots')
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    control._selectedHex = 'abc123'
-    control._tagHex = 'abc123'
-    control._followEnabled = false
-    priv(control)._wireTagButton(el, 'abc123')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._followEnabled).toBe(true)
-    expect(map.easeTo).toHaveBeenCalled()
-  })
-
-  it('switches tracking to a different aircraft via the override path', () => {
-    const { control } = mounted()
-    seedFeature(control, { hex: 'old' })
-    seedFeature(control, { hex: 'new' })
-    enableAllFields(control)
-    airNotifStore.enable('old')
-    priv(control)._trackingNotifIds = { old: 'nid-old' }
-    control._tagHex = 'old'
-    control._selectedHex = 'old'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'new' }), undefined, true)
-    priv(control)._wireTagButton(el, 'new')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._selectedHex).toBe('new')
-    expect(control._followEnabled).toBe(true)
-  })
-
   it('toggleFollowByHex starts following the given aircraft', () => {
     const { control } = mounted()
     seedFeature(control, { hex: 'new' })
@@ -1592,6 +1533,37 @@ describe('AdsbLiveControl follow-toggle in place', () => {
     expect(control._selectedHex).toBe('new')
     expect(control._followEnabled).toBe(true)
     expect(control.isFollowingHex('new')).toBe(true)
+  })
+
+  it('toggleFollowByHex tolerates a target hex with no matching feature', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    expect(() => control.toggleFollowByHex('ghost')).not.toThrow()
+    // The follow flag is set before the feature lookup, so it still flips on.
+    expect(control._followEnabled).toBe(true)
+    expect(control._selectedHex).toBe('ghost')
+  })
+
+  it('toggleFollowByHex titles the tracking notif by registration then hex', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    seedFeature(control, { hex: 'reg1', flight: '', r: 'G-REG' })
+    seedFeature(control, { hex: 'hexonly', flight: '', r: '' })
+    control.toggleFollowByHex('reg1')
+    expect(notificationsStore.items.some((item) => item.title === 'G-REG')).toBe(true)
+    control.toggleFollowByHex('hexonly')
+    expect(notificationsStore.items.some((item) => item.title === 'hexonly')).toBe(true)
+  })
+
+  it('toggleFollowByHex dismisses a prior tracking notif for the target hex', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    seedFeature(control, { hex: 'tgt', flight: 'CALL1' })
+    const priorNotifId = notificationsStore.add({ type: 'tracking', title: 'stale' })
+    priv(control)._trackingNotifIds = { tgt: priorNotifId }
+    control.toggleFollowByHex('tgt')
+    expect(notificationsStore.items.some((item) => item.id === priorNotifId)).toBe(false)
+    expect(control._followEnabled).toBe(true)
   })
 
   it('toggleFollowByHex untracks when called on the followed aircraft', () => {
@@ -1645,25 +1617,15 @@ describe('AdsbLiveControl follow-toggle in place', () => {
     el.innerHTML = priv(control)._buildTagHTML(props())
     priv(control)._wireTagButton(el)
     const btn = el.querySelector('.tag-follow-btn') as HTMLElement
+    // mousedown is swallowed so it never bubbles to the map's drag/pan handlers.
+    const mousedown = new MouseEvent('mousedown', { bubbles: true })
+    const stopPropagation = vi.spyOn(mousedown, 'stopPropagation')
+    btn.dispatchEvent(mousedown)
+    expect(stopPropagation).toHaveBeenCalled()
     el.dispatchEvent(new MouseEvent('mouseenter'))
     expect(btn.textContent).toBe('UNTRACK')
     el.dispatchEvent(new MouseEvent('mouseleave'))
     expect(btn.textContent).toBe('TRACKING')
-  })
-
-  it('disables an already-enabled bell from the tag', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    airNotifStore.enable('abc123')
-    priv(control)._trackingNotifIds = { abc123: 'nid' }
-    const el = document.createElement('div')
-    // forHover renders both the follow and bell buttons (the bell is only wired
-    // when a follow button is present).
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el, 'abc123')
-    el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(airNotifStore.isEnabled('abc123')).toBe(false)
   })
 })
 
@@ -2173,51 +2135,6 @@ describe('AdsbLiveControl final branch sweep', () => {
     expect(airNotifStore.isEnabled('abc123')).toBe(false)
   })
 
-  it('enables a bell with a pre-existing tracking notif and runs its action', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    priv(control)._trackingNotifIds = {
-      abc123: notificationsStore.add({ type: 'tracking', title: 'x' }),
-    }
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el, 'abc123')
-    el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(airNotifStore.isEnabled('abc123')).toBe(true)
-    const trackingNotif = notificationsStore.items.find((i) => i.type === 'tracking' && i.action)!
-    trackingNotif.action!.callback()
-    expect(airNotifStore.isEnabled('abc123')).toBe(false)
-  })
-
-  it('bell falls back to the tag hex when the dataset hex is blank', () => {
-    const { control } = mounted()
-    seedFeature(control, { hex: '' })
-    enableAllFields(control)
-    control._tagHex = ''
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: '' }), undefined, true)
-    priv(control)._wireTagButton(el, '')
-    // No hex anywhere → handler returns early without throwing.
-    expect(() =>
-      el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true })),
-    ).not.toThrow()
-  })
-
-  it('follow click with no resolvable hex is a no-op', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    control._tagHex = null
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el, null)
-    expect(() =>
-      el
-        .querySelector('.tag-follow-btn')!
-        .dispatchEvent(new MouseEvent('click', { bubbles: true })),
-    ).not.toThrow()
-  })
-
   it('toggles follow OFF via the follow button when already tracking', () => {
     const { control } = mounted()
     seedFeature(control)
@@ -2230,39 +2147,6 @@ describe('AdsbLiveControl final branch sweep', () => {
     priv(control)._wireTagButton(el)
     el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(control._followEnabled).toBe(false)
-  })
-
-  it('override-track dismisses a prior tracking notif for the new hex', () => {
-    const { control } = mounted()
-    seedFeature(control, { hex: 'new' })
-    enableAllFields(control)
-    priv(control)._trackingNotifIds = {
-      new: notificationsStore.add({ type: 'tracking', title: 'n' }),
-    }
-    control._selectedHex = 'old'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'new' }), undefined, true)
-    priv(control)._wireTagButton(el, 'new')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._selectedHex).toBe('new')
-  })
-
-  it('follow ON dismisses a prior tracking notif and removes an existing marker', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    control._selectedHex = 'abc123'
-    control._applySelection() // creates an existing tag marker
-    control._tagHex = 'abc123'
-    control._followEnabled = false
-    priv(control)._trackingNotifIds = {
-      abc123: notificationsStore.add({ type: 'tracking', title: 'x' }),
-    }
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el)
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._followEnabled).toBe(true)
   })
 
   it('_rebuildTagForHex returns when the feature is gone', () => {
@@ -2284,18 +2168,6 @@ describe('AdsbLiveControl final branch sweep', () => {
     priv(control)._hideHoverTag() // sets a hide timer
     priv(control)._showHoverTag(feature) // should clear it
     expect(priv(control)._hoverHideTimer).toBeNull()
-  })
-
-  it('hover-tag click ignores clicks on the follow/bell buttons', () => {
-    const { control } = mounted()
-    const feature = seedFeature(control)
-    priv(control)._showHoverTag(feature)
-    const el = markerRegistry.instances.at(-1)!.options.element
-    const followBtn = el.querySelector('.tag-follow-btn')!
-    followBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    // The tag-level click handler bails out for button clicks, so it never sets
-    // its own selection guard (the follow button's own handler runs instead).
-    expect(priv(control)._tagClickHandled).toBe(false)
   })
 
   it('builds a right-facing emergency callsign label', () => {
@@ -2872,12 +2744,12 @@ describe('AdsbLiveControl tag HTML branch matrix', () => {
     expect(priv(control)._buildTagHTML(props({ t: 'TWR', category: 'C3' }))).toContain('<div')
   })
 
-  it('renders a non-emergency military hover tag', () => {
+  it('renders a non-emergency military opted-in tag with the bell', () => {
     const { control } = mounted()
     enableAllFields(control)
     airNotifStore.enable('abc123')
-    const html = priv(control)._buildTagHTML(props({ military: true }), undefined, true)
-    expect(html).toContain('tag-follow-btn')
+    const html = priv(control)._buildTagHTML(props({ military: true }))
+    expect(html).toContain('tag-notif-btn')
   })
 
   it('falls back from flight to registration for the callsign', () => {
@@ -3199,32 +3071,14 @@ describe('AdsbLiveControl branch completion: lifecycle + filters', () => {
 })
 
 describe('AdsbLiveControl branch completion: tag/marker geometry', () => {
-  it('renders right-facing tag geometry for a null-track aircraft (override track)', () => {
+  it('follow ON via toggleFollowByHex uses 3D pitch for a null-track aircraft', () => {
     is3D = true
-    const { control } = mounted()
-    seedFeature(control, { hex: 'new', track: null as any })
-    enableAllFields(control)
-    control._selectedHex = 'old'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'new', track: null }), undefined, true)
-    priv(control)._wireTagButton(el, 'new')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._selectedHex).toBe('new')
-  })
-
-  it('follow ON uses 3D pitch and right-facing geometry for a null-track aircraft', () => {
-    is3D = true
-    const { control } = mounted()
+    const { control, map } = mounted()
     seedFeature(control, { hex: 'abc123', track: null as any })
     enableAllFields(control)
-    control._selectedHex = 'abc123'
-    control._tagHex = 'abc123'
-    control._followEnabled = false
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ track: null }), undefined, true)
-    priv(control)._wireTagButton(el)
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    control.toggleFollowByHex('abc123')
     expect(control._followEnabled).toBe(true)
+    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ pitch: 45 }))
   })
 
   it('_rebuildTagForHex handles a null-track (right-facing) tracked aircraft', () => {
@@ -3618,61 +3472,6 @@ describe('AdsbLiveControl branch completion: tracking restore', () => {
   })
 })
 
-describe('AdsbLiveControl branch completion: bell + wiring guards', () => {
-  it('enables a bell with no pre-existing tracking notif id', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    priv(control)._trackingNotifIds = {}
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el, 'abc123')
-    el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(airNotifStore.isEnabled('abc123')).toBe(true)
-  })
-
-  it('disables a bell that has no tracking notif id', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    airNotifStore.enable('abc123')
-    priv(control)._trackingNotifIds = {}
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el, 'abc123')
-    el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(airNotifStore.isEnabled('abc123')).toBe(false)
-  })
-
-  it('follow override path tolerates a missing aircraft feature', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    control._selectedHex = 'old'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'ghost' }), undefined, true)
-    priv(control)._wireTagButton(el, 'ghost')
-    expect(() =>
-      el
-        .querySelector('.tag-follow-btn')!
-        .dispatchEvent(new MouseEvent('click', { bubbles: true })),
-    ).not.toThrow()
-  })
-
-  it('follow ON tolerates a missing tagged feature', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    control._tagHex = 'ghost'
-    control._followEnabled = false
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'ghost' }), undefined, true)
-    priv(control)._wireTagButton(el)
-    expect(() =>
-      el
-        .querySelector('.tag-follow-btn')!
-        .dispatchEvent(new MouseEvent('click', { bubbles: true })),
-    ).not.toThrow()
-  })
-})
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ===== Batch 8: branch completion II =====
@@ -3742,49 +3541,6 @@ describe('AdsbLiveControl branch completion II', () => {
     const hx = seedFeature(control, { hex: 'h1', flight: '', r: '' })
     priv(control)._showStatusBar(hx.properties)
     expect(trackingStore.isLive('air')).toBe(true)
-  })
-
-  it('override-tracks an aircraft identified only by registration then hex', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    const target = seedFeature(control, { hex: 'ov', flight: '', r: '' })
-    control._selectedHex = 'old'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'ov' }), undefined, true)
-    priv(control)._wireTagButton(el, 'ov')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(target).toBeTruthy()
-    expect(control._selectedHex).toBe('ov')
-  })
-
-  it('override-tracks with no existing tag marker present', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    seedFeature(control, { hex: 'ov2' })
-    control._selectedHex = 'old'
-    control._tagMarker = null
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'ov2' }), undefined, true)
-    priv(control)._wireTagButton(el, 'ov2')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._tagMarker).not.toBeNull()
-  })
-
-  it('follow ON for a registration-only aircraft under all-hidden with no trail', () => {
-    const { control, map } = mounted()
-    map.layers.add('adsb-trail-line')
-    map.layers.add('adsb-trail-dots')
-    seedFeature(control, { hex: 'abc123', flight: '', r: 'G-ONLY' })
-    enableAllFields(control)
-    control._allHidden = true
-    control._tagHex = 'abc123'
-    control._followEnabled = false
-    control._trailHex = null
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ flight: '', r: 'G-ONLY' }), undefined, true)
-    priv(control)._wireTagButton(el)
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._followEnabled).toBe(true)
   })
 
   it('_rebuildTagForHex anchors a non-tracked right-facing aircraft', () => {
@@ -4001,21 +3757,6 @@ describe('AdsbLiveControl branch completion II', () => {
     priv(control)._saveTrackingState()
     expect(localStorage.getItem('adsbTracking')).toContain('abc123')
   })
-
-  it('bell enable action callback tolerates a cleared trackingNotifIds map', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    enableAllFields(control)
-    priv(control)._trackingNotifIds = {}
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el, 'abc123')
-    el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    const notif = notificationsStore.items.find((i) => i.type === 'tracking' && i.action)!
-    priv(control)._trackingNotifIds = null
-    notif.action!.callback()
-    expect(airNotifStore.isEnabled('abc123')).toBe(false)
-  })
 })
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -4035,18 +3776,6 @@ describe('AdsbLiveControl branch completion III', () => {
     const { control } = mounted()
     priv(control)._showStatusBar(props({ flight: '', r: '', hex: '' }))
     expect(trackingStore.getLiveItem('air')!.name).toBe('UNKNOWN')
-  })
-
-  it('override-tracks an aircraft identified only by registration', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    seedFeature(control, { hex: 'ovr', flight: '', r: 'G-OVR' })
-    control._selectedHex = 'old'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'ovr' }), undefined, true)
-    priv(control)._wireTagButton(el, 'ovr')
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._selectedHex).toBe('ovr')
   })
 
   it('setAllHidden tolerates absent trail layers with a trail hex set', () => {
@@ -4160,7 +3889,6 @@ describe('AdsbLiveControl branch completion III', () => {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ===== Batch 10: branch completion IV =====
-/* eslint-disable @typescript-eslint/no-explicit-any */
 describe('AdsbLiveControl branch completion IV', () => {
   it('renders a tracked emergency-squawk tag', () => {
     const { control } = mounted()
@@ -4170,81 +3898,6 @@ describe('AdsbLiveControl branch completion IV', () => {
     expect(
       priv(control)._buildTagHTML(props({ squawkEmerg: 1, squawk: '7700', military: true })),
     ).toContain('TRACKING')
-  })
-
-  function bellClick(hexArg: string, featureOverrides: Record<string, unknown> = {}) {
-    const { control } = mounted()
-    enableAllFields(control)
-    if (featureOverrides.seed !== false)
-      seedFeature(control, { hex: hexArg, ...featureOverrides } as any)
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: hexArg }), undefined, true)
-    priv(control)._wireTagButton(el, hexArg)
-    el.querySelector('.tag-notif-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    return control
-  }
-
-  it('bell callsign falls back to registration', () => {
-    bellClick('b1', { flight: '', r: 'G-B1' })
-    expect(airNotifStore.isEnabled('b1')).toBe(true)
-  })
-
-  it('bell callsign falls back to hex', () => {
-    bellClick('b2', { flight: '', r: '' })
-    expect(airNotifStore.isEnabled('b2')).toBe(true)
-  })
-
-  it('bell callsign falls back to hex when the aircraft is absent', () => {
-    bellClick('ghostbell', { seed: false } as any)
-    expect(airNotifStore.isEnabled('ghostbell')).toBe(true)
-  })
-
-  it('follow ON trkCs falls back to the tag hex for a registration-less aircraft', () => {
-    const { control } = mounted()
-    enableAllFields(control)
-    seedFeature(control, { hex: 'abc123', flight: '', r: '' })
-    control._tagHex = 'abc123'
-    control._followEnabled = false
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ flight: '', r: '' }), undefined, true)
-    priv(control)._wireTagButton(el)
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(control._followEnabled).toBe(true)
-  })
-
-  it('follow ON shows the trail when all-hidden with a trail hex set', () => {
-    const { control, map } = mounted()
-    map.layers.add('adsb-trail-line')
-    map.layers.add('adsb-trail-dots')
-    seedFeature(control)
-    enableAllFields(control)
-    control._allHidden = true
-    control._tagHex = 'abc123'
-    control._followEnabled = false
-    control._trailHex = 'abc123'
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props(), undefined, true)
-    priv(control)._wireTagButton(el)
-    el.querySelector('.tag-follow-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-trail-line', 'visibility', 'visible')
-  })
-
-  it('follow ON under all-hidden with a missing feature and absent trail layers', () => {
-    const { control, map } = mounted()
-    map.layers.clear()
-    enableAllFields(control)
-    control._allHidden = true
-    control._tagHex = 'ghost'
-    control._followEnabled = false
-    control._tagMarker = null
-    const el = document.createElement('div')
-    el.innerHTML = priv(control)._buildTagHTML(props({ hex: 'ghost' }), undefined, true)
-    priv(control)._wireTagButton(el)
-    expect(() =>
-      el
-        .querySelector('.tag-follow-btn')!
-        .dispatchEvent(new MouseEvent('click', { bubbles: true })),
-    ).not.toThrow()
   })
 
   it('keeps civil padding when a removed sqk badge leaves other badges behind', () => {
@@ -4261,7 +3914,6 @@ describe('AdsbLiveControl branch completion IV', () => {
     expect(priv(control)._callsignMarkers['cpb']).toBeDefined()
   })
 })
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ===== Batch 11: last reachable branches =====
 describe('AdsbLiveControl branch completion V', () => {

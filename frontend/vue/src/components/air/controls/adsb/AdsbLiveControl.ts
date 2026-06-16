@@ -814,11 +814,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Data tag HTML builders ----
 
-  private _buildTagHTML(
-    props: AircraftProperties,
-    forceLeftFacing?: boolean,
-    forHover = false,
-  ): string {
+  private _buildTagHTML(props: AircraftProperties, forceLeftFacing?: boolean): string {
     const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
     const callsign = raw || 'UNKNOWN'
     const isEmergency = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
@@ -911,13 +907,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const callsignSpan = showCallsign
       ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPad};display:flex;align-items:center;">${callsign}</span>`
       : ''
-    const showBell = forHover ? !isTracked : notifOn && !isTracked
-    const activeBell = showBell ? bellBtn : ''
-    const activeTrack = isTracked || forHover ? trkBtn : ''
+    // Only the notification bell is shown on the untracked tag, and only when the
+    // aircraft is opted-in. The track button (and the bell on hover) live in the side
+    // panel now, so hover tags carry no action buttons. The tracked tag with its
+    // TRACKING/untrack button is built in the isTracked branch above.
+    const activeBell = notifOn ? bellBtn : ''
     const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
     const inner = leftFacing
-      ? `${activeTrack}${activeBell}${dataBadges}${callsignSpan}${arrowSvg}`
-      : `${arrowSvg}${callsignSpan}${dataBadges}${activeBell}${activeTrack}`
+      ? `${activeBell}${dataBadges}${callsignSpan}${arrowSvg}`
+      : `${arrowSvg}${callsignSpan}${dataBadges}${activeBell}`
     return (
       `<div style="background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:26px">` +
       `${inner}</div>`
@@ -1012,9 +1010,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   /**
    * Start following the aircraft with the given hex, switching away from any
-   * currently-followed aircraft. Mirrors the tag follow button's override path:
-   * pans/zooms to the aircraft, shows its status bar, enables its notification,
-   * and builds the tracking tag marker. A no-op tag rebuild is left to callers.
+   * currently-followed aircraft: pans/zooms to the aircraft, shows its status bar,
+   * enables its notification, and builds the tracking tag marker. A no-op tag
+   * rebuild is left to callers.
    */
   private _startFollowingHex(hex: string): void {
     if (this._tagHex && this._trackingNotifIds && this._trackingNotifIds[this._tagHex]) {
@@ -1091,151 +1089,30 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Tag button wiring ----
 
-  private _wireTagButton(el: HTMLElement, overrideHex: string | null = null): void {
-    const btn = el.querySelector('.tag-follow-btn')
+  /**
+   * Wire the follow button on a tag element. The button only renders on the
+   * tracked tag (labelled TRACKING), so it always shows UNTRACK on hover and
+   * untracks on click. Starting or switching tracking is initiated from the side
+   * panel ({@link toggleFollowByHex}), not the map tag. No-op when the element has
+   * no follow button (e.g. an untracked tag or a hover tag).
+   */
+  private _wireTagButton(el: HTMLElement): void {
+    const btn = el.querySelector('.tag-follow-btn') as HTMLElement | null
     if (!btn) return
-
-    const bellBtn = el.querySelector('.tag-notif-btn') as HTMLElement | null
-    if (bellBtn) {
-      bellBtn.addEventListener('mousedown', (e) => {
-        e.stopPropagation()
-      })
-      bellBtn.addEventListener('click', (e) => {
-        e.stopPropagation()
-        const hex = (bellBtn.dataset['hex'] || overrideHex || this._tagHex)!
-        if (!hex) return
-        const wasEnabled = this._notifEnabled.has(hex)
-        const aircraftFeature = this._geojson.features.find((f) => f.properties.hex === hex)
-        const callsign = aircraftFeature
-          ? (aircraftFeature.properties.flight || '').trim() ||
-            (aircraftFeature.properties.r || '').trim() ||
-            hex
-          : hex
-        if (!this._trackingNotifIds) this._trackingNotifIds = {}
-        if (wasEnabled) {
-          this._notifEnabled.delete(hex)
-          if (this._trackingNotifIds[hex]) {
-            this._notificationsStore.dismiss(this._trackingNotifIds[hex])
-            delete this._trackingNotifIds[hex]
-          }
-          this._notificationsStore.add({ type: 'notif-off', title: callsign })
-        } else {
-          this._notifEnabled.add(hex)
-          if (this._trackingNotifIds[hex])
-            this._notificationsStore.dismiss(this._trackingNotifIds[hex])
-          this._trackingNotifIds[hex] = this._notificationsStore.add({
-            type: 'tracking',
-            title: callsign,
-            action: {
-              label: 'DISABLE NOTIFICATIONS',
-              callback: () => {
-                this._notifEnabled.delete(hex)
-                if (this._trackingNotifIds) delete this._trackingNotifIds[hex]
-                this._rebuildTagForHex(hex)
-                this._updateCallsignMarkers()
-              },
-            },
-          })
-        }
-        const nowEnabled = this._notifEnabled.has(hex)
-        ;(bellBtn as HTMLElement).style.color = nowEnabled ? '#c8ff00' : 'rgba(255,255,255,0.3)'
-        const slash = bellBtn.querySelector('line')
-        if (slash) slash.setAttribute('display', nowEnabled ? 'none' : 'inline')
-        this._rebuildTagForHex(hex)
-        this._updateCallsignMarkers()
-      })
-    }
 
     btn.addEventListener('mousedown', (e) => {
       e.stopPropagation()
     })
-    if (btn.textContent === 'TRACKING') {
-      el.addEventListener('mouseenter', () => {
-        ;(btn as HTMLElement).textContent = 'UNTRACK'
-      })
-      el.addEventListener('mouseleave', () => {
-        ;(btn as HTMLElement).textContent = 'TRACKING'
-      })
-    }
-
+    el.addEventListener('mouseenter', () => {
+      btn.textContent = 'UNTRACK'
+    })
+    el.addEventListener('mouseleave', () => {
+      btn.textContent = 'TRACKING'
+    })
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
-      const hex = overrideHex || this._tagHex
-      if (!hex) return
-
-      if (overrideHex && overrideHex !== this._selectedHex) {
-        this._startFollowingHex(overrideHex)
-        return
-      }
-
-      this._followEnabled = !this._followEnabled
-      if (this._followEnabled && this._tagHex) {
-        // Toggling ON: start tracking
-        this._notifEnabled.add(this._tagHex)
-        const trkF = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
-        const trkCs = trkF
-          ? (trkF.properties.flight || '').trim() ||
-            (trkF.properties.r || '').trim() ||
-            this._tagHex
-          : this._tagHex!
-        if (!this._trackingNotifIds) this._trackingNotifIds = {}
-        if (this._trackingNotifIds[this._tagHex])
-          this._notificationsStore.dismiss(this._trackingNotifIds[this._tagHex])
-        this._trackingNotifIds[this._tagHex] = this._notificationsStore.add({
-          type: 'track',
-          title: trkCs,
-        })
-        const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
-        if (taggedFeature) {
-          /* v8 ignore start -- defensive: taggedFeature is in the collection so
-             _interpolatedCoords always resolves; the || fallback never runs */
-          const coords =
-            this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
-          /* v8 ignore stop */
-          const newEl = document.createElement('div')
-          newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
-          this._wireTagButton(newEl)
-          if (this._tagMarker) {
-            this._tagMarker.remove()
-            this._tagMarker = null
-          }
-          const trkLeft2 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-          this._tagMarker = new maplibregl.Marker({
-            element: newEl,
-            anchor: trkLeft2 ? 'right' : 'left',
-            offset: trkLeft2 ? [13, 0] : [-13, 0],
-          })
-            .setLngLat(coords)
-            .addTo(this.map)
-          this._showStatusBar(taggedFeature.properties)
-          const is3D = this._is3DActive()
-          /* v8 ignore start -- defensive: taggedFeature is in the collection so
-             _interpolatedCoords always resolves; the || fallback never runs */
-          const trackCoords =
-            this._interpolatedCoords(this._tagHex) || taggedFeature.geometry.coordinates
-          /* v8 ignore stop */
-          this.map.easeTo({
-            center: trackCoords,
-            zoom: 16,
-            ...(is3D ? { pitch: 45 } : {}),
-            duration: 600,
-          })
-        }
-        if (this._allHidden) {
-          this._applyTypeFilter()
-          const tagEl = this._tagMarker ? this._tagMarker.getElement() : null
-          if (tagEl) tagEl.style.visibility = ''
-          ;['adsb-trail-line', 'adsb-trail-dots'].forEach((id) => {
-            if (this.map.getLayer(id))
-              this.map.setLayoutProperty(id, 'visibility', this._trailHex ? 'visible' : 'none')
-          })
-        }
-        this._saveTrackingState()
-      } else {
-        // Toggling OFF: full cleanup via _handleUntrack
-        this._followEnabled = false
-        this._handleUntrack()
-      }
+      this._followEnabled = false
+      this._handleUntrack()
     })
   }
 
@@ -1344,7 +1221,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     wrapper.innerHTML = this._buildTagHTML(
       feature.properties,
       fromLabel ? hoverLeftFacing : undefined,
-      true,
     )
     const el = wrapper.firstElementChild as HTMLElement
     el.style.pointerEvents = 'auto'
@@ -1366,7 +1242,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._applySelection()
       this._emitOpenInPanel(hex)
     })
-    this._wireTagButton(el, hex)
+    // Hover tags carry no action buttons (no follow/bell), so there is nothing to
+    // wire — those actions live in the side panel.
     const hoverAnchor = fromLabel
       ? ((hoverLeftFacing ? 'right' : 'left') as 'right' | 'left')
       : ('top-left' as const)
