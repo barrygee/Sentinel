@@ -136,6 +136,12 @@ def post_event(ingest_url: str, secret: str, event: dict) -> bool:
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
             return 200 <= response.status < 300
+    except urllib.error.HTTPError as exc:
+        # 409 = "decode not active": the expected idle response while DIGITAL is
+        # off, so don't treat it as an error worth logging.
+        if exc.code != 409:
+            print(f"[decoder] ingest POST failed: {exc}", file=sys.stderr, flush=True)
+        return False
     except (urllib.error.URLError, OSError) as exc:
         print(f"[decoder] ingest POST failed: {exc}", file=sys.stderr, flush=True)
         return False

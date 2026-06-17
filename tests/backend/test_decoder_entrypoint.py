@@ -96,6 +96,21 @@ class TestPostEvent:
             ok = entrypoint.post_event("http://app/ingest", "secret", {"mode": "DMR"})
         assert ok is False
 
+    def test_http_409_is_quiet(self, capsys):
+        # 409 = "decode not active" (idle) — returns False without logging noise.
+        err = entrypoint.urllib.error.HTTPError("http://app/ingest", 409, "Conflict", {}, None)
+        with patch.object(entrypoint.urllib.request, "urlopen", side_effect=err):
+            ok = entrypoint.post_event("http://app/ingest", "secret", {"mode": "DMR"})
+        assert ok is False
+        assert "ingest POST failed" not in capsys.readouterr().err
+
+    def test_other_http_error_is_logged(self, capsys):
+        err = entrypoint.urllib.error.HTTPError("http://app/ingest", 500, "err", {}, None)
+        with patch.object(entrypoint.urllib.request, "urlopen", side_effect=err):
+            ok = entrypoint.post_event("http://app/ingest", "secret", {"mode": "DMR"})
+        assert ok is False
+        assert "ingest POST failed" in capsys.readouterr().err
+
 
 # ── build_dsd_command ─────────────────────────────────────────────────────────
 
