@@ -141,8 +141,27 @@ function clear() {
 .sdr-decode-table {
   width: 100%;
   border-collapse: collapse;
+  /* Fixed layout so the pinned header row and the scrolling body rows share
+     identical column widths (each row is laid out independently below). */
+  table-layout: fixed;
   font-size: 0.72rem;
   color: #cfd6dd;
+}
+
+/* The header stays put while only the rows scroll, so a long decoded-call list
+   never pushes the DMR Decoder accordion past the bottom of the view — the rows
+   scroll within a bounded region instead. */
+.sdr-decode-table thead tr,
+.sdr-decode-table tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.sdr-decode-table tbody {
+  display: block;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 
 .sdr-decode-table th,

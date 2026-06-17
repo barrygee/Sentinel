@@ -495,6 +495,16 @@ describe('SdrPanel — RADIO tab: digital decode', () => {
     expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
   })
 
+  it('toggles the DMR DECODER accordion body when its header is clicked', async () => {
+    const { wrapper } = await mountPlaying()
+    const header = wrapper.find('[aria-controls="sdr-decoder-section"]')
+    expect(header.attributes('aria-expanded')).toBe('false')
+    await header.trigger('click')
+    expect(header.attributes('aria-expanded')).toBe('true')
+    await header.trigger('click')
+    expect(header.attributes('aria-expanded')).toBe('false')
+  })
+
   it('selecting a different radio disables digital decode', async () => {
     const { wrapper } = await mountPlaying()
     await wrapper.find('.sdr-digital-btn').trigger('click')

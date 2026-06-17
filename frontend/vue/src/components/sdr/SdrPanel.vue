@@ -260,29 +260,6 @@
                 </template>
               </svg>
             </button>
-            <button
-              class="sdr-mode-pill sdr-tune-btn sdr-digital-btn"
-              :class="{ 'sdr-digital-btn--active': digitalEnabled }"
-              type="button"
-              :title="digitalEnabled ? 'Disable digital decoding' : 'Enable digital decoding'"
-              :aria-label="digitalEnabled ? 'Disable digital decoding' : 'Enable digital decoding'"
-              :aria-pressed="digitalEnabled"
-              :disabled="!playing"
-              @click="toggleDigital"
-            >
-              <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true">
-                <text
-                  x="6"
-                  y="8"
-                  text-anchor="middle"
-                  font-size="8"
-                  font-family="monospace"
-                  fill="currentColor"
-                >
-                  01
-                </text>
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -302,9 +279,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Digital decode output (shown only while digital decoding is on) -->
-        <SdrDecodePanel v-if="digitalEnabled" />
 
         <!-- Signal meter -->
         <div class="sdr-radio-section">
@@ -768,6 +742,73 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- DMR decoder controls (dsd-fme digital decode) -->
+        <div class="sdr-radio-section sdr-scan-controls">
+          <button
+            type="button"
+            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': decoderSectionExpanded }"
+            :aria-expanded="decoderSectionExpanded"
+            aria-controls="sdr-decoder-section"
+            @click="decoderSectionExpanded = !decoderSectionExpanded"
+          >
+            <label class="sdr-field-label sdr-frequency-manager-scanner-title">DMR DECODER</label>
+            <div v-show="digitalEnabled" class="sdr-scan-state-row">
+              <span class="sdr-scan-state-label">DECODING</span>
+              <div class="sdr-scan-indicator sdr-scan-running"></div>
+            </div>
+            <span class="sdr-frequency-manager-accordion-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          <div v-show="decoderSectionExpanded" id="sdr-decoder-section">
+            <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
+              <button
+                type="button"
+                class="sdr-search-adhoc-play sdr-digital-btn"
+                :class="{
+                  'sdr-search-adhoc-play--active': digitalEnabled,
+                  'sdr-digital-btn--active': digitalEnabled,
+                }"
+                :disabled="!playing"
+                :aria-pressed="digitalEnabled"
+                :aria-label="
+                  digitalEnabled ? 'Disable digital decoding' : 'Enable digital decoding'
+                "
+                :title="digitalEnabled ? 'Disable digital decoding' : 'Enable digital decoding'"
+                @click="toggleDigital"
+              >
+                <span class="sdr-search-adhoc-play-label">{{
+                  digitalEnabled ? 'Stop' : 'Decode'
+                }}</span>
+                <svg
+                  v-if="digitalEnabled"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 10 10"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <rect x="1" y="1" width="8" height="8" fill="currentColor" />
+                </svg>
+                <svg
+                  v-else
+                  width="10"
+                  height="10"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <polygon points="2,1 11,6 2,11" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Decoded event list (shown only while digital decoding is on) -->
+            <SdrDecodePanel v-if="digitalEnabled" />
           </div>
         </div>
       </div>
@@ -1737,6 +1778,7 @@ watch(
       scannerSectionExpanded.value = false
       searchSectionExpanded.value = false
       savedRangesExpanded.value = false
+      decoderSectionExpanded.value = false
     }
   },
 )
@@ -1908,6 +1950,7 @@ const freqs = ref<SdrStoredFrequency[]>([])
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
 const scannerSectionExpanded = ref(false)
+const decoderSectionExpanded = ref(false)
 const settingsSectionExpanded = ref(true)
 const newGroupName = ref('')
 
