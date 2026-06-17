@@ -29,14 +29,57 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import secrets
 import struct
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 from backend.config import settings
 from backend.services.sdr import RadioBroadcaster, _iq_bytes_to_complex
 
 logger = logging.getLogger(__name__)
+
+# Cached resolved ingest secret (see resolve_ingest_secret).
+_ingest_secret: str | None = None
+
+
+def resolve_ingest_secret() -> str:
+    """Return the shared secret authenticating decoder → backend ingest POSTs.
+
+    Precedence: an explicit ``decoder_ingest_secret`` setting wins (useful for
+    tests / pinning). Otherwise the secret is read from ``decoder_secret_file``;
+    if that file does not exist yet, a random one is generated and written there
+    (the decoder container mounts the same file via a shared volume). If the
+    path cannot be written (e.g. a non-container dev run with no volume), an
+    in-memory secret is used so the backend still functions. Cached after first
+    resolution so the value is stable for the process.
+    """
+    global _ingest_secret
+    if settings.decoder_ingest_secret:
+        return settings.decoder_ingest_secret
+    if _ingest_secret is not None:
+        return _ingest_secret
+    path = Path(settings.decoder_secret_file)
+    try:
+        if path.exists():
+            _ingest_secret = path.read_text().strip()
+        else:
+            generated = secrets.token_urlsafe(32)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(generated)
+            # World-readable on purpose: the decoder container runs as a
+            # different uid and mounts this shared volume to read the secret.
+            # The secret guards the network ingest path, not local file access
+            # within the trusted compose stack.
+            path.chmod(0o644)
+            _ingest_secret = generated
+    except OSError:
+        # No writable shared volume (e.g. local dev without the decoder) — fall
+        # back to an ephemeral secret so the backend still runs.
+        _ingest_secret = secrets.token_urlsafe(32)
+    return _ingest_secret
+
 
 # Output audio rate fed to dsd-fme — the SDR++ TCP-audio-sink convention is
 # 48 kHz mono s16, which dsd-fme's `-i tcp` input expects by default.
@@ -549,6 +592,16 @@ _bridges: dict[str, DigitalDecodeBridge] = {}
 def get_bridge(host: str, port: int) -> DigitalDecodeBridge | None:
     """Return the running bridge for this radio, or None."""
     return _bridges.get(f"{host}:{port}")
+
+
+def get_active_bridge() -> DigitalDecodeBridge | None:
+    """Return the single active bridge, or None.
+
+    Only one decode session runs at a time (one decoder container on the fixed
+    ports), so decoded events from the sidecar route here without needing to
+    know which radio they belong to.
+    """
+    return next(iter(_bridges.values()), None)
 
 
 async def get_or_create_bridge(host: str, port: int, broadcaster: RadioBroadcaster) -> DigitalDecodeBridge:

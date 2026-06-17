@@ -75,9 +75,7 @@ class TestPostEvent:
         with patch.object(
             entrypoint.urllib.request, "urlopen", return_value=fake_response
         ):
-            ok = entrypoint.post_event(
-                "http://app/ingest", "secret", 1, {"mode": "DMR"}
-            )
+            ok = entrypoint.post_event("http://app/ingest", "secret", {"mode": "DMR"})
         assert ok is True
 
     def test_non_2xx_returns_false(self):
@@ -88,18 +86,14 @@ class TestPostEvent:
         with patch.object(
             entrypoint.urllib.request, "urlopen", return_value=fake_response
         ):
-            ok = entrypoint.post_event(
-                "http://app/ingest", "secret", 1, {"mode": "DMR"}
-            )
+            ok = entrypoint.post_event("http://app/ingest", "secret", {"mode": "DMR"})
         assert ok is False
 
     def test_network_error_returns_false(self):
         with patch.object(
             entrypoint.urllib.request, "urlopen", side_effect=OSError("boom")
         ):
-            ok = entrypoint.post_event(
-                "http://app/ingest", "secret", 1, {"mode": "DMR"}
-            )
+            ok = entrypoint.post_event("http://app/ingest", "secret", {"mode": "DMR"})
         assert ok is False
 
 
@@ -130,10 +124,33 @@ class TestBuildDsdCommand:
         assert "-fr" in command and "-mc" in command
 
 
+# ── resolve_secret ──────────────────────────────────────────────────────────
+
+
+class TestResolveSecret:
+    def test_env_secret_takes_precedence(self, monkeypatch):
+        monkeypatch.setenv("INGEST_SECRET", "from-env")
+        monkeypatch.setenv("INGEST_SECRET_FILE", "/nonexistent")
+        assert entrypoint.resolve_secret() == "from-env"
+
+    def test_reads_secret_file(self, monkeypatch, tmp_path):
+        secret_file = tmp_path / "secret"
+        secret_file.write_text("from-file\n")
+        monkeypatch.delenv("INGEST_SECRET", raising=False)
+        monkeypatch.setenv("INGEST_SECRET_FILE", str(secret_file))
+        assert entrypoint.resolve_secret() == "from-file"
+
+    def test_returns_none_when_neither_set(self, monkeypatch):
+        monkeypatch.delenv("INGEST_SECRET", raising=False)
+        monkeypatch.delenv("INGEST_SECRET_FILE", raising=False)
+        assert entrypoint.resolve_secret() is None
+
+
 # ── main guard ────────────────────────────────────────────────────────────────
 
 
 class TestMainGuard:
     def test_main_refuses_without_secret(self, monkeypatch):
         monkeypatch.delenv("INGEST_SECRET", raising=False)
+        monkeypatch.delenv("INGEST_SECRET_FILE", raising=False)
         assert entrypoint.main() == 2

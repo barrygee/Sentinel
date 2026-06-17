@@ -13,8 +13,9 @@ Environment:
     IQ_PCM_HOST / IQ_PCM_PORT      backend PCM TCP feed dsd-fme connects to
     AUDIO_UDP_HOST / AUDIO_UDP_PORT where dsd-fme sends decoded voice (UDP)
     INGEST_URL                     backend decode-event ingest endpoint
-    INGEST_SECRET                  shared secret for the ingest endpoint
-    RADIO_ID                       radio id the decode session belongs to
+    INGEST_SECRET                  shared secret (explicit override)
+    INGEST_SECRET_FILE             path to the auto-generated shared secret file
+                                   (the backend writes it; preferred over env)
     DSD_EXTRA_ARGS                 optional extra dsd-fme args (space-separated)
 """
 
@@ -26,8 +27,38 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
+
+# How long to wait for the backend to write the shared secret file on startup.
+_SECRET_WAIT_SECONDS = 30
+
+
+def resolve_secret() -> str | None:
+    """Resolve the ingest secret from the env override or the shared file.
+
+    An explicit ``INGEST_SECRET`` wins. Otherwise read ``INGEST_SECRET_FILE``,
+    polling briefly because the backend writes it during its own startup and the
+    decoder may come up first. Returns None if neither yields a secret.
+    """
+    env_secret = os.environ.get("INGEST_SECRET", "").strip()
+    if env_secret:
+        return env_secret
+    path = os.environ.get("INGEST_SECRET_FILE", "").strip()
+    if not path:
+        return None
+    deadline = time.monotonic() + _SECRET_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        try:
+            contents = open(path, encoding="utf-8").read().strip()  # noqa: SIM115
+            if contents:
+                return contents
+        except OSError:
+            pass
+        time.sleep(1)
+    return None
+
 
 # ── dsd-fme log parsing ───────────────────────────────────────────────────────
 
@@ -87,9 +118,13 @@ def parse_dsd_line(line: str) -> dict | None:
 # ── backend ingest ────────────────────────────────────────────────────────────
 
 
-def post_event(ingest_url: str, secret: str, radio_id: int, event: dict) -> bool:
-    """POST one event to the backend ingest endpoint. Returns success."""
-    payload = json.dumps({"radio_id": radio_id, "event": event}).encode("utf-8")
+def post_event(ingest_url: str, secret: str, event: dict) -> bool:
+    """POST one event to the backend ingest endpoint. Returns success.
+
+    The backend routes the event to the single active decode session, so no
+    radio id is sent.
+    """
+    payload = json.dumps({"event": event}).encode("utf-8")
     request = urllib.request.Request(
         ingest_url,
         data=payload,
@@ -125,11 +160,10 @@ def build_dsd_command() -> list[str]:
 
 def main() -> int:
     ingest_url = os.environ.get("INGEST_URL", "http://app:8000/api/sdr/decode/ingest")
-    secret = os.environ.get("INGEST_SECRET", "")
-    radio_id = int(os.environ.get("RADIO_ID", "0") or "0")
+    secret = resolve_secret()
     if not secret:
         print(
-            "[decoder] INGEST_SECRET is not set — refusing to start",
+            "[decoder] no ingest secret (INGEST_SECRET / INGEST_SECRET_FILE) — refusing to start",
             file=sys.stderr,
             flush=True,
         )
@@ -137,9 +171,7 @@ def main() -> int:
 
     # Announce the vocoder this image was built with (always software mbelib for
     # dsd-fme), so the UI can show that voice decode is available.
-    post_event(
-        ingest_url, secret, radio_id, {"type": "decode_status", "vocoder": "mbelib"}
-    )
+    post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
 
     command = build_dsd_command()
     print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
@@ -151,7 +183,7 @@ def main() -> int:
         for line in process.stdout:
             event = parse_dsd_line(line)
             if event is not None:
-                post_event(ingest_url, secret, radio_id, event)
+                post_event(ingest_url, secret, event)
     except KeyboardInterrupt:
         pass
     finally:

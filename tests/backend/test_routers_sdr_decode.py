@@ -43,6 +43,7 @@ def _reset_decode_state():
     yield
     sdr_decode._bridges.clear()
     settings.decoder_ingest_secret = original_secret
+    sdr_decode._ingest_secret = None
 
 
 def _add_radio(client, host="h1", port=1234) -> int:
@@ -63,64 +64,51 @@ def _register_bridge(host="h1", port=1234) -> DigitalDecodeBridge:
 
 
 class TestIngest:
-    def test_disabled_when_no_secret_configured(self, client):
-        settings.decoder_ingest_secret = ""
-        radio_id = _add_radio(client)
+    def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
+        # If no secret can be resolved at all, ingestion is refused (fail closed).
+        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
         resp = client.post(
             "/api/sdr/decode/ingest",
-            json={"radio_id": radio_id, "event": {"mode": "DMR"}},
+            json={"event": {"mode": "DMR"}},
             headers={"X-Decode-Secret": "anything"},
         )
         assert resp.status_code == 503
 
     def test_bad_secret_rejected(self, client):
         settings.decoder_ingest_secret = "right-secret"
-        radio_id = _add_radio(client)
         resp = client.post(
             "/api/sdr/decode/ingest",
-            json={"radio_id": radio_id, "event": {"mode": "DMR"}},
+            json={"event": {"mode": "DMR"}},
             headers={"X-Decode-Secret": "wrong-secret"},
         )
         assert resp.status_code == 401
 
     def test_missing_secret_header_rejected(self, client):
         settings.decoder_ingest_secret = "right-secret"
-        radio_id = _add_radio(client)
         resp = client.post(
             "/api/sdr/decode/ingest",
-            json={"radio_id": radio_id, "event": {"mode": "DMR"}},
+            json={"event": {"mode": "DMR"}},
         )
         assert resp.status_code == 401
 
-    def test_unknown_radio_returns_404(self, client):
-        settings.decoder_ingest_secret = "s"
-        resp = client.post(
-            "/api/sdr/decode/ingest",
-            json={"radio_id": 999, "event": {"mode": "DMR"}},
-            headers={"X-Decode-Secret": "s"},
-        )
-        assert resp.status_code == 404
-
     def test_no_active_bridge_returns_409(self, client):
         settings.decoder_ingest_secret = "s"
-        radio_id = _add_radio(client)
         resp = client.post(
             "/api/sdr/decode/ingest",
-            json={"radio_id": radio_id, "event": {"mode": "DMR"}},
+            json={"event": {"mode": "DMR"}},
             headers={"X-Decode-Secret": "s"},
         )
         assert resp.status_code == 409
 
-    def test_success_publishes_event_to_bridge(self, client):
+    def test_success_publishes_event_to_active_bridge(self, client):
         settings.decoder_ingest_secret = "s"
-        radio_id = _add_radio(client)
         bridge = _register_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()  # drop the seeded status frame
 
         resp = client.post(
             "/api/sdr/decode/ingest",
-            json={"radio_id": radio_id, "event": {"mode": "P25", "talkgroup": 7}},
+            json={"event": {"mode": "P25", "talkgroup": 7}},
             headers={"X-Decode-Secret": "s"},
         )
         assert resp.status_code == 200
@@ -131,16 +119,12 @@ class TestIngest:
 
     def test_event_can_override_type(self, client):
         settings.decoder_ingest_secret = "s"
-        radio_id = _add_radio(client)
         bridge = _register_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()
         client.post(
             "/api/sdr/decode/ingest",
-            json={
-                "radio_id": radio_id,
-                "event": {"type": "decode_status", "decoder_reachable": True},
-            },
+            json={"event": {"type": "decode_status", "decoder_reachable": True}},
             headers={"X-Decode-Secret": "s"},
         )
         event = queue.get_nowait()
@@ -148,11 +132,10 @@ class TestIngest:
 
     def test_oversized_event_rejected(self, client):
         settings.decoder_ingest_secret = "s"
-        radio_id = _add_radio(client)
         _register_bridge()
         resp = client.post(
             "/api/sdr/decode/ingest",
-            json={"radio_id": radio_id, "event": {"blob": "x" * 5000}},
+            json={"event": {"blob": "x" * 5000}},
             headers={"X-Decode-Secret": "s"},
         )
         assert resp.status_code == 422

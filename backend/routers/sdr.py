@@ -127,10 +127,11 @@ class DecodeEventIn(BaseModel):
 
     ``event`` is the decoder-shaped payload (mode, talkgroup, source/dest IDs,
     sync state, …). It is constrained in size so a misbehaving sidecar cannot
-    flood the WS subscribers, and is required to be JSON-serialisable.
+    flood the WS subscribers, and is required to be JSON-serialisable. The
+    event is routed to the single active decode session, so no radio id is
+    needed (only one decoder runs at a time).
     """
 
-    radio_id: int
     event: dict
 
     @field_validator("event")
@@ -1049,26 +1050,23 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
 async def ingest_decode_event(
     body: DecodeEventIn,
     x_decode_secret: str = Header(default=""),
-    db: AsyncSession = Depends(get_db),
 ):
     """Receive a decoded event from the dsd-fme sidecar and fan it to WS clients.
 
     Authenticated with a shared secret. Fails closed: if no secret is configured,
-    ingestion is disabled entirely. The backend stays decoder-agnostic — it only
-    relays validated JSON onto the active bridge's event subscribers.
+    ingestion is disabled entirely. The event is routed to the single active
+    decode session — only one decoder runs at a time — so the sidecar needs no
+    knowledge of which radio is selected. The backend stays decoder-agnostic: it
+    only relays validated JSON onto the active bridge's event subscribers.
     """
-    secret = settings.decoder_ingest_secret
+    secret = sdr_decode.resolve_ingest_secret()
     if not secret:
         raise HTTPException(503, "decode ingestion disabled")
     if not secrets.compare_digest(x_decode_secret, secret):
         raise HTTPException(401, "invalid decode secret")
-    radios = await _get_radios(db)
-    radio = _get_radio_by_id(radios, body.radio_id)
-    if not radio:
-        raise HTTPException(404, "Radio not found")
-    bridge = sdr_decode.get_bridge(radio["host"], radio["port"])
+    bridge = sdr_decode.get_active_bridge()
     if bridge is None:
-        raise HTTPException(409, "decode not active for this radio")
+        raise HTTPException(409, "decode not active")
     # Default the frame type so the frontend can route it; the decoder may
     # override it (e.g. "decode_status") via its own "type" key.
     bridge.publish_event({"type": "decode_event", **body.event})

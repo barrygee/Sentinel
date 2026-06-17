@@ -30,9 +30,14 @@ class Settings(BaseSettings):
     # UDP port the backend listens on for decoded voice audio sent back by dsd-fme.
     decoder_audio_udp_port: int = 7356
     # Shared secret the decoder must present on POST /api/sdr/decode/ingest.
-    # Empty string disables decode-event ingestion (the metadata path is off
-    # until a secret is configured — fail closed, never accept unauthenticated).
+    # Normally left empty: the backend auto-generates one on startup and writes
+    # it to `decoder_secret_file` (a volume the decoder container also mounts),
+    # so neither side needs manual configuration. Set this to pin an explicit
+    # secret (it takes precedence over the generated file).
     decoder_ingest_secret: str = ""
+    # Path to the auto-generated/shared ingest secret. Mounted into both the app
+    # and decoder containers via a shared volume (see docker-compose.yml).
+    decoder_secret_file: str = "/run/decoder/secret"
     # Default channel bandwidth (Hz) used when digital decode is enabled.
     decoder_default_bw_hz: int = 12_500
 

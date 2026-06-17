@@ -144,22 +144,19 @@ compile — building the decoder is a deliberate local action that compiles
 alternative, and troubleshooting.
 
 ```bash
-# 1. one-time: create .env and set a random shared secret
-cp .env.example .env
-python3 -c "import secrets; print('SENTINEL_DECODER_SECRET=' + secrets.token_urlsafe(32))" >> .env
-
-# 2. build + run the app WITH the decoder (the --profile flag is the opt-in)
+# build + run the app WITH the decoder (the --profile flag is the opt-in)
 docker compose --profile decoder up --build -d     # app on :8080 + decoder sidecar
 
-# 3. in the SDR view: start a radio, tune a digital channel, click DIGITAL.
-#    Decoded call metadata appears in the decode panel and voice audio plays.
+# then, in the SDR view: start a radio, tune a digital channel, click DIGITAL.
+# Decoded call metadata appears in the decode panel and voice audio plays.
 
 # revert to app-only (decoder never starts without the profile):
 docker compose --profile decoder down && docker compose up -d
 ```
 
-Your normal `docker compose up --build` is unchanged and never builds or starts
-the decoder.
+No configuration is required — the decoder's ingest secret is auto-generated and
+shared between the containers via a Docker volume. Your normal
+`docker compose up --build` is unchanged and never builds or starts the decoder.
 
 ---
 

@@ -48,6 +48,9 @@ async def lifespan(app: FastAPI):
     await seed_sdr_data_from_files()
     await seed_sdr_bandplan_from_file()
     await backfill_satellite_radio_store()
+    # Materialise the digital-decode ingest secret (auto-generated into the shared
+    # volume the decoder container reads) so the sidecar can authenticate.
+    sdr_decode_service.resolve_ingest_secret()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the

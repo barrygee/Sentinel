@@ -11,11 +11,14 @@ services:
       - ./backend:/app/backend         # live-reload backend code
       - ./frontend/assets:/app/frontend/assets:ro  # tiles, sprites, fonts
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
+      - decoder_secret:/run/decoder    # shared auto-generated ingest secret
     environment:
       - DB_PATH=/app/data/sentinel.db
       - PYTHONUNBUFFERED=1
       # Digital-decode sidecar wiring (only used when the `decoder` profile runs).
-      # The secret authenticates the decoder's event POSTs; set it in .env.
+      # The ingest secret is auto-generated into /run/decoder (shared volume); no
+      # configuration needed. Optionally pin it by setting SENTINEL_DECODER_SECRET
+      # in .env (empty → use the auto-generated file).
       - DECODER_INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
       - DECODER_PCM_PORT=7355
       - DECODER_AUDIO_UDP_PORT=7356
@@ -38,12 +41,16 @@ services:
       - app
     environment:
       - INGEST_URL=http://app:8000/api/sdr/decode/ingest
+      # Reads the auto-generated secret the backend wrote to the shared volume;
+      # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
       - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
-      - RADIO_ID=${SENTINEL_DECODER_RADIO_ID:-1}
+      - INGEST_SECRET_FILE=/run/decoder/secret
       - IQ_PCM_HOST=app
       - IQ_PCM_PORT=7355
       - AUDIO_UDP_HOST=app
       - AUDIO_UDP_PORT=7356
+    volumes:
+      - decoder_secret:/run/decoder:ro
     # For a hardware AMBE dongle (license-clean alternative to software mbelib),
     # pass it through and add the matching dsd-fme flag via DSD_EXTRA_ARGS:
     # devices:
@@ -66,6 +73,7 @@ services:
 
 volumes:
   sentinel_db:
+  decoder_secret:
 
 networks:
   sentinel:

@@ -48,23 +48,10 @@ see "Hardware AMBE dongle" below.
 
 ## Step-by-step: enabling digital decode
 
-All commands run from the **repo root**.
+All commands run from the **repo root**. No configuration is required — the
+ingest secret is auto-generated (see "Security" below).
 
-### 1. Configure the shared secret (one-time)
-
-The decoder authenticates its event POSTs to the backend with a shared secret.
-
-```bash
-cp .env.example .env          # .env is git-ignored
-# set SENTINEL_DECODER_SECRET to a random value, e.g.:
-python3 -c "import secrets; print('SENTINEL_DECODER_SECRET=' + secrets.token_urlsafe(32))" >> .env
-# set SENTINEL_DECODER_RADIO_ID to the radio id you'll decode (default 1)
-```
-
-Both the `app` and `decoder` services read `SENTINEL_DECODER_SECRET` from `.env`,
-so they agree on the secret automatically.
-
-### 2. Build and start the app **with** the decoder
+### 1. Build and start the app **with** the decoder
 
 The decoder only builds/starts when you pass `--profile decoder`:
 
@@ -76,14 +63,14 @@ This builds the decoder image — i.e. **compiles mbelib + dsd-fme locally** (th
 opt-in step) — and starts it alongside the app on the internal network. Your
 normal `docker compose up --build` is unchanged and never touches the decoder.
 
-### 3. Use it
+### 2. Use it
 
 1. Open the app (http://localhost:8080), go to **SDR**, and start a radio.
 2. Tune to a known digital channel (e.g. a DMR/P25 control or voice channel).
 3. Click the **DIGITAL** button (next to REC). The decoded-events panel fills
    with mode/talkgroup/IDs/sync, and decoded **voice audio** plays.
 
-### 4. Stop / revert
+### 3. Stop / revert
 
 ```bash
 docker compose --profile decoder down        # stop everything incl. decoder
@@ -108,12 +95,20 @@ the chip, so no patented software is relied on at runtime.
 (Note: mbelib is still compiled because dsd-fme requires it to build; the dongle
 simply takes over the actual vocoding at runtime.)
 
+## Security
+
+The decoder authenticates its event POSTs to the backend with a shared secret,
+so nothing else on the network can inject fake decoded calls. **You don't set
+it:** on startup the backend generates a random secret and writes it to a Docker
+volume (`decoder_secret`) that the decoder mounts read-only and reads on launch.
+To pin an explicit value instead, set `SENTINEL_DECODER_SECRET` in `.env`
+(compose passes it to both services and it takes precedence over the file).
+
 ## Configuration
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `SENTINEL_DECODER_SECRET` | `.env` | Shared secret for event ingest (required) |
-| `SENTINEL_DECODER_RADIO_ID` | `.env` | Radio id the decode session belongs to |
+| `SENTINEL_DECODER_SECRET` | `.env` (optional) | Pin the ingest secret instead of auto-generating it |
 | `DSD_EXTRA_ARGS` | `decoder` env | Extra `dsd-fme` flags (e.g. trunking, dongle) |
 | `MBELIB_REF` / `DSDFME_REF` | build args | Pin the upstream git refs for reproducibility |
 
@@ -123,9 +118,10 @@ set in `docker-compose.yml` and only need changing if they clash on your host.
 ## Troubleshooting
 
 - **DIGITAL on but no decoded events / "decoder offline":** the decoder isn't
-  reachable. Confirm you started with `--profile decoder`, that
-  `SENTINEL_DECODER_SECRET` is set identically for both services, and check
-  `docker compose --profile decoder logs decoder`.
+  reachable. Confirm you started with `--profile decoder` and check
+  `docker compose --profile decoder logs decoder`. A `401` there means the secret
+  didn't sync — make sure the `app` container started (it writes the secret), then
+  `docker compose --profile decoder restart decoder`.
 - **No voice audio but metadata appears:** the channel may be encrypted, or the
   decoder may need a hardware dongle/specific flags for that protocol.
 - **Log format yields no events:** dsd-fme's wording varies by version. Pin

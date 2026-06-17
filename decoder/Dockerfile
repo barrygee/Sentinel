@@ -63,7 +63,6 @@ ENV IQ_PCM_HOST=app \
     IQ_PCM_PORT=7355 \
     AUDIO_UDP_HOST=app \
     AUDIO_UDP_PORT=7356 \
-    INGEST_URL=http://app:8000/api/sdr/decode/ingest \
-    RADIO_ID=0
+    INGEST_URL=http://app:8000/api/sdr/decode/ingest
 
 CMD ["python3", "/app/entrypoint.py"]
