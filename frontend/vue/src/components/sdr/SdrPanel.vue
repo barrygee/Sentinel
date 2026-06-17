@@ -260,6 +260,29 @@
                 </template>
               </svg>
             </button>
+            <button
+              class="sdr-mode-pill sdr-tune-btn sdr-digital-btn"
+              :class="{ 'sdr-digital-btn--active': digitalEnabled }"
+              type="button"
+              :title="digitalEnabled ? 'Disable digital decoding' : 'Enable digital decoding'"
+              :aria-label="digitalEnabled ? 'Disable digital decoding' : 'Enable digital decoding'"
+              :aria-pressed="digitalEnabled"
+              :disabled="!playing"
+              @click="toggleDigital"
+            >
+              <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true">
+                <text
+                  x="6"
+                  y="8"
+                  text-anchor="middle"
+                  font-size="8"
+                  font-family="monospace"
+                  fill="currentColor"
+                >
+                  01
+                </text>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -279,6 +302,9 @@
             </button>
           </div>
         </div>
+
+        <!-- Digital decode output (shown only while digital decoding is on) -->
+        <SdrDecodePanel v-if="digitalEnabled" />
 
         <!-- Signal meter -->
         <div class="sdr-radio-section">
@@ -1471,8 +1497,10 @@ import './SdrPanel.css'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
+import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
+import SdrDecodePanel from './SdrDecodePanel.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab } from '@/stores/sdr'
@@ -1513,6 +1541,7 @@ interface SdrStoredFrequency {
 defineProps<{ fullPage: boolean }>()
 
 const sdrAudio = useSdrAudio()
+const sdrDecode = useSdrDecode()
 
 // Lazy store accessor. MUST be declared here — above every watcher that calls
 // it — not lower in the file. `_sdrStore` is a hoisted function so it is
@@ -2095,6 +2124,53 @@ function sendCmd(obj: object) {
   /* v8 ignore stop */
 }
 
+// ── Digital decode (dsd-fme sidecar) ───────────────────────────────────────────
+
+// Mirrors the store toggle so the DIGITAL button reflects (and survives) it.
+const digitalEnabled = computed(() => _sdrStore().digitalEnabled)
+
+// Turn digital decoding on/off while the radio is running. Enabling tells the
+// backend to start the decode bridge (via the control socket), opens the decode
+// + decoded-audio sockets, and mutes the analog audio (the digital channel is
+// just noise to the ear). Disabling reverses all of it.
+function setDigital(on: boolean) {
+  _sdrStore().setDigitalEnabled(on)
+  if (on) {
+    _sdrStore().clearDecode()
+    sendCmd({
+      cmd: 'digital_decode',
+      enabled: true,
+      offset_hz: _sdrStore().tuningOffsetHz,
+      bw_hz: bwHz.value,
+      mode: currentMode.value,
+    })
+    if (selectedRadioId.value != null) sdrDecode.start(selectedRadioId.value)
+    sdrAudio.setLiveMuted(true)
+  } else {
+    sendCmd({ cmd: 'digital_decode', enabled: false })
+    sdrDecode.stop()
+    sdrAudio.setLiveMuted(false)
+    _sdrStore().clearDecode()
+  }
+}
+
+function toggleDigital() {
+  setDigital(!_sdrStore().digitalEnabled)
+}
+
+// When the user retunes the demod offset or changes bandwidth while decoding,
+// push the new channel to the backend so the server-side demod follows it
+// without restarting the session.
+watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode], () => {
+  if (!_sdrStore().digitalEnabled) return
+  sendCmd({
+    cmd: 'digital_channel',
+    offset_hz: _sdrStore().tuningOffsetHz,
+    bw_hz: bwHz.value,
+    mode: currentMode.value,
+  })
+})
+
 async function openControlSocket(radioId: number) {
   if (_ctrlReconnect) {
     clearTimeout(_ctrlReconnect)
@@ -2409,6 +2485,7 @@ function tune() {
 
 function stop() {
   _endRecordingOnManualChange()
+  if (_sdrStore().digitalEnabled) setDigital(false)
   if (scanActive.value) stopScan()
   if (searchActive.value) stopSearch()
   sdrAudio.stop()
@@ -2682,6 +2759,7 @@ function clearRadioSelection() {
 
 function selectRadio(r: SdrRadio | null) {
   closeDeviceMenu()
+  if (_sdrStore().digitalEnabled) setDigital(false)
   if (!r) {
     clearRadioSelection()
     return

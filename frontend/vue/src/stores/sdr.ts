@@ -36,6 +36,23 @@ export interface SdrSpectrumFrame {
   ts: number
 }
 
+// A decoded digital event relayed from the dsd-fme sidecar via the backend.
+// All call fields are optional — a single dsd-fme log line may carry any subset.
+export interface DecodeEvent {
+  type: string
+  mode?: string
+  talkgroup?: number
+  source?: number
+  color_code?: number
+  sync?: boolean
+  decoder_reachable?: boolean
+  vocoder?: string
+  ts: number
+}
+
+// Cap the in-memory decoded-event log so a long session can't grow unbounded.
+const DECODE_EVENTS_MAX = 200
+
 export const useSdrStore = defineStore('sdr', () => {
   const radios = ref<SdrRadio[]>([])
   const groups = ref<SdrFrequencyGroup[]>([])
@@ -319,6 +336,76 @@ export const useSdrStore = defineStore('sdr', () => {
     tuningOffsetHz.value = hz
   }
 
+  // ── Digital decode (dsd-fme sidecar) ──────────────────────────────────────
+  // User toggle for digital-mode decoding. Persisted in the `sdr` settings
+  // namespace; localStorage is a fast-path cache (same pattern as the waterfall
+  // toggles) so the button reflects the last state instantly on load, then the
+  // DB hydrate reconciles it. Default OFF.
+  function _readDigitalEnabled(): boolean {
+    try {
+      return localStorage.getItem('sdrDigitalEnabled') === '1'
+    } catch {
+      return false
+    }
+  }
+  const digitalEnabled = ref<boolean>(_readDigitalEnabled())
+  function setDigitalEnabled(on: boolean) {
+    digitalEnabled.value = on
+    try {
+      localStorage.setItem('sdrDigitalEnabled', on ? '1' : '0')
+    } catch {}
+  }
+  async function hydrateDigitalEnabledFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.digitalDecodeDefault
+      if (typeof v === 'boolean' && v !== digitalEnabled.value) setDigitalEnabled(v)
+    } catch {
+      /* offline / transient — keep current value */
+    }
+  }
+
+  // Live decoded-event log (newest first), plus the latest sync / decoder
+  // reachability state. Non-persisted — this is live session data.
+  const decodeEvents = ref<DecodeEvent[]>([])
+  const decodeSync = ref(false)
+  const decoderReachable = ref(false)
+
+  // Ingest one decoded frame from the decode WebSocket. A `decode_status` frame
+  // only updates reachability/sync (it is not shown as a call row); every other
+  // frame is prepended to the capped event log. Sync/reachability fields update
+  // the live indicators regardless of frame type.
+  function pushDecodeEvent(event: DecodeEvent) {
+    if (typeof event.decoder_reachable === 'boolean')
+      decoderReachable.value = event.decoder_reachable
+    if (typeof event.sync === 'boolean') decodeSync.value = event.sync
+    if (event.type === 'decode_status') return
+    const row: DecodeEvent = { ...event, ts: event.ts || Date.now() }
+    decodeEvents.value = [row, ...decodeEvents.value].slice(0, DECODE_EVENTS_MAX)
+  }
+
+  function setDecodeStatus(status: { decoder_reachable?: boolean; sync?: boolean }) {
+    if (typeof status.decoder_reachable === 'boolean')
+      decoderReachable.value = status.decoder_reachable
+    if (typeof status.sync === 'boolean') decodeSync.value = status.sync
+  }
+
+  // Reset the live decode state — called when digital decode is disabled or the
+  // radio changes, so a new session starts clean.
+  function clearDecode() {
+    decodeEvents.value = []
+    decodeSync.value = false
+    decoderReachable.value = false
+  }
+
+  // Clear only the event log (the user's "clear" button), leaving the live
+  // sync / reachability indicators intact since the decoder is still connected.
+  function clearDecodeEvents() {
+    decodeEvents.value = []
+  }
+
   // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
   // single ref (the bins array is NOT deep-tracked — consumers read it
   // imperatively in their render/push loop). See SdrWaterfall.vue.
@@ -491,6 +578,16 @@ export const useSdrStore = defineStore('sdr', () => {
     setViewSettings,
     tuningOffsetHz,
     setTuningOffsetHz,
+    digitalEnabled,
+    setDigitalEnabled,
+    hydrateDigitalEnabledFromDb,
+    decodeEvents,
+    decodeSync,
+    decoderReachable,
+    pushDecodeEvent,
+    setDecodeStatus,
+    clearDecode,
+    clearDecodeEvents,
     setRadio,
     setFrequency,
     setMode,

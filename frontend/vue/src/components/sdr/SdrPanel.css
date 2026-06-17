@@ -2282,6 +2282,21 @@
   }
 }
 
+/* Digital-decode toggle — cyan accent to distinguish it from the red REC. */
+.sdr-digital-btn {
+  color: rgba(100, 200, 255, 0.75);
+}
+
+.sdr-digital-btn:hover:not(:disabled) {
+  background: rgba(100, 200, 255, 0.15) !important;
+  color: #64c8ff;
+}
+
+.sdr-digital-btn--active {
+  background: rgba(100, 200, 255, 0.14) !important;
+  color: #64c8ff !important;
+}
+
 .sdr-rec-timer {
   font-family: 'Barlow Condensed', 'Barlow', monospace, sans-serif;
   font-size: 11px;

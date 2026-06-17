@@ -34,6 +34,15 @@ audioMock.onSquelchChange.mockImplementation((cb: (open: boolean) => void) => {
 })
 vi.mock('@/composables/useSdrAudio', () => ({ useSdrAudio: () => audioMock }))
 
+// ── useSdrDecode mock (the decode transport is its own 100%-covered unit) ───────
+const decodeMock = vi.hoisted(() => ({
+  start: vi.fn(),
+  stop: vi.fn(),
+  setVolume: vi.fn(),
+  isActive: vi.fn(() => false),
+}))
+vi.mock('@/composables/useSdrDecode', () => ({ useSdrDecode: () => decodeMock }))
+
 // ── vue-router useRoute ─────────────────────────────────────────────────────────
 const routeMock = vi.hoisted(() => ({ path: '/sdr' }))
 vi.mock('vue-router', () => ({ useRoute: () => routeMock }))
@@ -163,6 +172,10 @@ beforeEach(() => {
   }
   audioMock._powerCb = null
   audioMock._squelchCb = null
+  decodeMock.start.mockClear()
+  decodeMock.stop.mockClear()
+  decodeMock.setVolume.mockClear()
+  decodeMock.isActive.mockClear().mockReturnValue(false)
   // Re-establish default resolutions (mockResolvedValue / *Once from a prior test
   // persists through mockClear, which would otherwise bleed into later tests).
   audioMock.initAudio.mockResolvedValue(undefined)
@@ -379,6 +392,128 @@ describe('SdrPanel — RADIO tab: tune / stop / record', () => {
     await wrapper.find('.sdr-rec-btn').trigger('click')
     await flushPromises()
     expect(audioMock.stopRecording).toHaveBeenCalled()
+  })
+})
+
+// =============================================================================
+describe('SdrPanel — RADIO tab: digital decode', () => {
+  // Tune (which sets playing=true) so the DIGITAL button becomes enabled.
+  async function mountPlaying() {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    return { wrapper, socket }
+  }
+
+  function sentCmds(socket: FakeSocket) {
+    return socket.sent.map((s) => JSON.parse(s))
+  }
+
+  it('disables the DIGITAL button until the radio is playing', async () => {
+    const { wrapper } = await mountConnected()
+    const button = wrapper.find('.sdr-digital-btn')
+    expect((button.element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('enabling digital sends the command, starts decode, mutes live audio, shows the panel', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    expect((wrapper.find('.sdr-digital-btn').element as HTMLButtonElement).disabled).toBe(false)
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+
+    const cmd = sentCmds(socket).find((m) => m.cmd === 'digital_decode')
+    expect(cmd).toMatchObject({ enabled: true, mode: expect.any(String) })
+    expect(decodeMock.start).toHaveBeenCalledWith(1)
+    expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
+    expect(wrapper.find('.sdr-decode-panel').exists()).toBe(true)
+    expect(wrapper.find('.sdr-digital-btn').classes()).toContain('sdr-digital-btn--active')
+  })
+
+  it('disabling digital sends the command, stops decode and unmutes', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    audioMock.setLiveMuted.mockClear()
+
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    const cmd = sentCmds(socket).find((m) => m.cmd === 'digital_decode')
+    expect(cmd).toMatchObject({ enabled: false })
+    expect(decodeMock.stop).toHaveBeenCalled()
+    expect(audioMock.setLiveMuted).toHaveBeenCalledWith(false)
+    expect(wrapper.find('.sdr-decode-panel').exists()).toBe(false)
+  })
+
+  it('pushes a digital_channel command when the mode changes while decoding', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+
+    const nfmPill = wrapper
+      .findAll('.sdr-mode-pills .sdr-mode-pill')
+      .find((b) => b.text() === 'NFM')
+    await nfmPill!.trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((m) => m.cmd === 'digital_channel')).toBe(true)
+  })
+
+  it('does not push digital_channel when decoding is off', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    const nfmPill = wrapper
+      .findAll('.sdr-mode-pills .sdr-mode-pill')
+      .find((b) => b.text() === 'NFM')
+    await nfmPill!.trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((m) => m.cmd === 'digital_channel')).toBe(false)
+  })
+
+  it('stopping audio also disables digital decode', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    decodeMock.stop.mockClear()
+    socket.sent.length = 0
+
+    await wrapper.find('.sdr-stop-btn').trigger('click')
+    await flushPromises()
+    expect(decodeMock.stop).toHaveBeenCalled()
+    expect(sentCmds(socket).some((m) => m.cmd === 'digital_decode' && m.enabled === false)).toBe(
+      true,
+    )
+  })
+
+  it('enabling digital with no radio selected skips starting the decode transport', async () => {
+    fetchState.radios = [] // no auto-select → selectedRadioId stays null
+    const wrapper = await mountReady()
+    ;(wrapper.vm as unknown as { toggleDigital: () => void }).toggleDigital()
+    await flushPromises()
+    expect(decodeMock.start).not.toHaveBeenCalled()
+    expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
+  })
+
+  it('selecting a different radio disables digital decode', async () => {
+    const { wrapper } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    decodeMock.stop.mockClear()
+
+    // Re-selecting via the public API path used by the device dropdown.
+    const vm = wrapper.vm as unknown as {
+      selectRadio: (radio: {
+        id: number
+        name: string
+        host: string
+        port: number
+        enabled: boolean
+      }) => void
+    }
+    vm.selectRadio({ id: 2, name: 'Radio Two', host: '127.0.0.1', port: 1234, enabled: true })
+    await flushPromises()
+    expect(decodeMock.stop).toHaveBeenCalled()
   })
 })
 

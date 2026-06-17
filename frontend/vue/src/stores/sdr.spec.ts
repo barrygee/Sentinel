@@ -385,4 +385,128 @@ describe('sdr store', () => {
     await expect(load(store)).resolves.toBeUndefined()
     expect(read(store)).toEqual([])
   })
+
+  // ── digital decode ─────────────────────────────────────────────────────────
+  describe('digital decode', () => {
+    it('defaults digitalEnabled to false', () => {
+      expect(useSdrStore().digitalEnabled).toBe(false)
+    })
+
+    it('reads digitalEnabled=true from localStorage on init', () => {
+      localStorage.setItem('sdrDigitalEnabled', '1')
+      expect(useSdrStore().digitalEnabled).toBe(true)
+    })
+
+    it('falls back to false when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().digitalEnabled).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('setDigitalEnabled updates state and persists', () => {
+      const store = useSdrStore()
+      store.setDigitalEnabled(true)
+      expect(store.digitalEnabled).toBe(true)
+      expect(localStorage.getItem('sdrDigitalEnabled')).toBe('1')
+      store.setDigitalEnabled(false)
+      expect(localStorage.getItem('sdrDigitalEnabled')).toBe('0')
+    })
+
+    it('setDigitalEnabled swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setDigitalEnabled(true)).not.toThrow()
+      expect(store.digitalEnabled).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('hydrateDigitalEnabledFromDb applies the DB default', async () => {
+      stubFetch({ digitalDecodeDefault: true })
+      const store = useSdrStore()
+      await store.hydrateDigitalEnabledFromDb()
+      expect(store.digitalEnabled).toBe(true)
+    })
+
+    it('hydrateDigitalEnabledFromDb ignores a non-ok response', async () => {
+      stubFetch({ digitalDecodeDefault: true }, false)
+      const store = useSdrStore()
+      await store.hydrateDigitalEnabledFromDb()
+      expect(store.digitalEnabled).toBe(false)
+    })
+
+    it('hydrateDigitalEnabledFromDb ignores a non-boolean value', async () => {
+      stubFetch({ digitalDecodeDefault: 'yes' })
+      const store = useSdrStore()
+      await store.hydrateDigitalEnabledFromDb()
+      expect(store.digitalEnabled).toBe(false)
+    })
+
+    it('hydrateDigitalEnabledFromDb swallows fetch errors', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      await expect(store.hydrateDigitalEnabledFromDb()).resolves.toBeUndefined()
+      expect(store.digitalEnabled).toBe(false)
+    })
+
+    it('pushDecodeEvent prepends call rows and caps the log at 200', () => {
+      const store = useSdrStore()
+      for (let index = 0; index < 205; index++) {
+        store.pushDecodeEvent({ type: 'decode_event', talkgroup: index, ts: index })
+      }
+      expect(store.decodeEvents).toHaveLength(200)
+      // Newest first → the last pushed (talkgroup 204) is at the head.
+      expect(store.decodeEvents[0].talkgroup).toBe(204)
+    })
+
+    it('pushDecodeEvent stamps ts when missing', () => {
+      const store = useSdrStore()
+      vi.spyOn(Date, 'now').mockReturnValue(12345)
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR' } as never)
+      expect(store.decodeEvents[0].ts).toBe(12345)
+    })
+
+    it('pushDecodeEvent updates sync/reachability from any frame', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', sync: true, decoder_reachable: true, ts: 1 })
+      expect(store.decodeSync).toBe(true)
+      expect(store.decoderReachable).toBe(true)
+    })
+
+    it('pushDecodeEvent does not add a row for a decode_status frame', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_status', decoder_reachable: true, ts: 1 })
+      expect(store.decodeEvents).toHaveLength(0)
+      expect(store.decoderReachable).toBe(true)
+    })
+
+    it('setDecodeStatus updates only the provided fields', () => {
+      const store = useSdrStore()
+      store.setDecodeStatus({ decoder_reachable: true })
+      expect(store.decoderReachable).toBe(true)
+      expect(store.decodeSync).toBe(false)
+      store.setDecodeStatus({ sync: true })
+      expect(store.decodeSync).toBe(true)
+    })
+
+    it('clearDecode resets events, sync and reachability', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', sync: true, decoder_reachable: true, ts: 1 })
+      store.clearDecode()
+      expect(store.decodeEvents).toEqual([])
+      expect(store.decodeSync).toBe(false)
+      expect(store.decoderReachable).toBe(false)
+    })
+
+    it('clearDecodeEvents empties the log but keeps live status', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', decoder_reachable: true, ts: 1 })
+      store.clearDecodeEvents()
+      expect(store.decodeEvents).toEqual([])
+      expect(store.decoderReachable).toBe(true)
+    })
+  })
 })
