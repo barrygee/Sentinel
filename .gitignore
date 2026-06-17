@@ -11,3 +11,13 @@ __pycache__/
 *.db-shm
 *.db-wal
 .venv/
+
+# Local environment / secrets (never commit) — see .env.example
+.env
+.env.*
+!.env.example
+
+# Decoder build artifacts / locally-compiled vocoder (never commit — patent)
+decoder/build/
+**/mbelib/
+*.so

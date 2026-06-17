@@ -14,8 +14,43 @@ services:
     environment:
       - DB_PATH=/app/data/sentinel.db
       - PYTHONUNBUFFERED=1
+      # Digital-decode sidecar wiring (only used when the `decoder` profile runs).
+      # The secret authenticates the decoder's event POSTs; set it in .env.
+      - DECODER_INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - DECODER_PCM_PORT=7355
+      - DECODER_AUDIO_UDP_PORT=7356
     command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    networks:
+      - sentinel
+
+  # Digital-voice decoder (dsd-fme). OPT-IN: it only builds/starts when you pass
+  # `--profile decoder`, so it is never built by default or in CI. Building it
+  # compiles the patent-encumbered mbelib vocoder locally (dsd-fme requires it);
+  # the image stays on your machine. See decoder/README.md.
+  decoder:
+    build:
+      context: ./decoder
+      dockerfile: Dockerfile
+    container_name: sentinel-decoder
+    profiles: ["decoder"]
+    depends_on:
+      - app
+    environment:
+      - INGEST_URL=http://app:8000/api/sdr/decode/ingest
+      - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - RADIO_ID=${SENTINEL_DECODER_RADIO_ID:-1}
+      - IQ_PCM_HOST=app
+      - IQ_PCM_PORT=7355
+      - AUDIO_UDP_HOST=app
+      - AUDIO_UDP_PORT=7356
+    # For a hardware AMBE dongle (license-clean alternative to software mbelib),
+    # pass it through and add the matching dsd-fme flag via DSD_EXTRA_ARGS:
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    restart: unless-stopped
+    networks:
+      - sentinel
 
   # rtl-tcp:
   #   image: kosdk/rtl-tcp
@@ -26,6 +61,12 @@ services:
   #     - "4321:4321"
   #   command: rtl_tcp -a 0.0.0.0 -p 4321
   #   restart: unless-stopped
+  #   networks:
+  #     - sentinel
 
 volumes:
   sentinel_db:
+
+networks:
+  sentinel:
+    driver: bridge
