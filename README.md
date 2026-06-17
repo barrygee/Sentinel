@@ -139,13 +139,14 @@ Decoding digital voice/trunked modes (P25, DMR, NXDN, D-STAR, YSF, M17, …) run
 in a **separate, opt-in `dsd-fme` container**. It is **never built by default or
 in CI** because `dsd-fme` requires the patent-encumbered **`mbelib`** vocoder to
 compile — building the decoder is a deliberate local action that compiles
-`mbelib` on your own machine. The image is never published. See
-[`decoder/README.md`](decoder/README.md) for the full rationale, a hardware-AMBE-dongle
-alternative, and troubleshooting.
+`mbelib` on your own machine. The image is never published.
 
 ```bash
 # build + run the app WITH the decoder (the --profile flag is the opt-in)
 docker compose --profile decoder up --build -d     # app on :8080 + decoder sidecar
+
+# follow the decoder as it starts dsd-fme and connects
+docker compose --profile decoder logs -f decoder
 
 # then, in the SDR view: start a radio, tune a digital channel, click DIGITAL.
 # Decoded call metadata appears in the decode panel and voice audio plays.
@@ -154,9 +155,24 @@ docker compose --profile decoder up --build -d     # app on :8080 + decoder side
 docker compose --profile decoder down && docker compose up -d
 ```
 
-No configuration is required — the decoder's ingest secret is auto-generated and
-shared between the containers via a Docker volume. Your normal
-`docker compose up --build` is unchanged and never builds or starts the decoder.
+**No configuration is required.** The decoder's ingest secret is auto-generated
+by the backend and shared with the decoder via a Docker volume — you do **not**
+set `SENTINEL_DECODER_SECRET` (it exists only as an optional override). Your
+normal `docker compose up --build` is unchanged and never builds or starts the
+decoder.
+
+Notes when trying it:
+
+- **The first build is slow** — it compiles `mbelib` + `dsd-fme` from source in
+  the decoder image (several minutes, needs internet). Later runs are cached.
+- **You need a real digital signal.** With no DMR/P25/etc. transmission tuned in,
+  the panel just shows "no sync" — that's expected, not a fault.
+- A `401` in the decoder logs means the shared secret didn't sync: make sure the
+  `app` container started first (it writes the secret), then
+  `docker compose --profile decoder restart decoder`.
+
+See [`decoder/README.md`](decoder/README.md) for the full rationale, the
+hardware-AMBE-dongle alternative, and more troubleshooting.
 
 ---
 
