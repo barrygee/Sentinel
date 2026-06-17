@@ -19,6 +19,7 @@ from backend.routers import air, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
 from backend.services import sdr as sdr_service
+from backend.services import sdr_decode as sdr_decode_service
 from backend.services.flight_history import cleanup_old_snapshots
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -59,6 +60,7 @@ async def lifespan(app: FastAPI):
     def _chain(signum, frame):
         try:
             sdr_service.wake_all_subscribers()
+            sdr_decode_service.wake_all_decoders()
         except Exception:
             logging.getLogger(__name__).exception("wake_all_subscribers failed")
         prev = _orig_handlers.get(signum)
@@ -82,6 +84,7 @@ async def lifespan(app: FastAPI):
         await cleanup_task
     except asyncio.CancelledError:
         pass
+    await sdr_decode_service.shutdown_all_decoders()
     await sdr_service.shutdown_all()
 
 

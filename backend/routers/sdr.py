@@ -30,6 +30,7 @@ import asyncio
 import datetime
 import json
 import logging
+import secrets
 from pathlib import Path
 
 from backend.cache import now_ms
@@ -38,8 +39,9 @@ from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
+from backend.services import sdr_decode
 from backend.services.sdr_data import write_sdr_frequencies_file
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
@@ -118,6 +120,29 @@ class ConnectIn(BaseModel):
 
 class DisconnectIn(BaseModel):
     radio_id: int
+
+
+class DecodeEventIn(BaseModel):
+    """A decoded event POSTed by the dsd-fme sidecar's log parser.
+
+    ``event`` is the decoder-shaped payload (mode, talkgroup, source/dest IDs,
+    sync state, …). It is constrained in size so a misbehaving sidecar cannot
+    flood the WS subscribers, and is required to be JSON-serialisable.
+    """
+
+    radio_id: int
+    event: dict
+
+    @field_validator("event")
+    @classmethod
+    def _validate_event(cls, value: dict) -> dict:
+        try:
+            serialised = json.dumps(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("event must be JSON-serialisable") from exc
+        if len(serialised) > 4096:
+            raise ValueError("event too large (max 4096 bytes serialised)")
+        return value
 
 
 class RecordingStartIn(BaseModel):
@@ -966,6 +991,22 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                         await conn.set_sample_rate(int(msg["rate_hz"]))
                     elif cmd == "fft_size":
                         conn.set_fft_size(int(msg["bins"]))
+                    elif cmd == "digital_decode":
+                        if bool(msg.get("enabled")):
+                            bridge = await sdr_decode.get_or_create_bridge(radio["host"], radio["port"], broadcaster)
+                            await bridge.start(
+                                offset_hz=int(msg.get("offset_hz", 0) or 0),
+                                bw_hz=int(msg.get("bw_hz", 0) or 0) or None,
+                            )
+                        else:
+                            await sdr_decode.stop_bridge(radio["host"], radio["port"])
+                    elif cmd == "digital_channel":
+                        bridge = sdr_decode.get_bridge(radio["host"], radio["port"])
+                        if bridge is not None:
+                            bridge.set_channel(
+                                offset_hz=int(msg.get("offset_hz", 0) or 0),
+                                bw_hz=int(msg.get("bw_hz", 0) or 0) or None,
+                            )
                     elif cmd == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
                 except Exception as exc:
@@ -997,3 +1038,140 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
             await cmd_task
         except asyncio.CancelledError:
             pass
+        # A decode session must never outlive its control socket.
+        await sdr_decode.stop_bridge(radio["host"], radio["port"])
+
+
+# ── Digital decode (dsd-fme sidecar) ────────────────────────────────────────────
+
+
+@router.post("/api/sdr/decode/ingest")
+async def ingest_decode_event(
+    body: DecodeEventIn,
+    x_decode_secret: str = Header(default=""),
+    db: AsyncSession = Depends(get_db),
+):
+    """Receive a decoded event from the dsd-fme sidecar and fan it to WS clients.
+
+    Authenticated with a shared secret. Fails closed: if no secret is configured,
+    ingestion is disabled entirely. The backend stays decoder-agnostic — it only
+    relays validated JSON onto the active bridge's event subscribers.
+    """
+    secret = settings.decoder_ingest_secret
+    if not secret:
+        raise HTTPException(503, "decode ingestion disabled")
+    if not secrets.compare_digest(x_decode_secret, secret):
+        raise HTTPException(401, "invalid decode secret")
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, body.radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    bridge = sdr_decode.get_bridge(radio["host"], radio["port"])
+    if bridge is None:
+        raise HTTPException(409, "decode not active for this radio")
+    # Default the frame type so the frontend can route it; the decoder may
+    # override it (e.g. "decode_status") via its own "type" key.
+    bridge.publish_event({"type": "decode_event", **body.event})
+    return JSONResponse({"status": "ok"})
+
+
+@router.get("/api/sdr/decode/status/{radio_id}")
+async def decode_status(radio_id: int, db: AsyncSession = Depends(get_db)):
+    """Report whether digital decode is active for a radio and decoder reachability."""
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    bridge = sdr_decode.get_bridge(radio["host"], radio["port"])
+    return JSONResponse(
+        {
+            "radio_id": radio_id,
+            "active": bridge is not None,
+            "decoder_reachable": bool(bridge and bridge.decoder_reachable),
+        }
+    )
+
+
+async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_decode.DigitalDecodeBridge | None:
+    """Poll briefly for the bridge to appear (it is created by the control socket's
+    `digital_decode` command, which may race the opening of this socket)."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        bridge = sdr_decode.get_bridge(host, port)
+        if bridge is not None:
+            return bridge
+        await asyncio.sleep(0.1)
+    return None
+
+
+@router.websocket("/ws/sdr/{radio_id}/decode")
+async def sdr_decode_websocket(radio_id: int, websocket: WebSocket):
+    """Stream decoded events (text JSON) for a radio's active decode session.
+
+    Outbound: { type: "decode_event", … } and { type: "decode_status", decoder_reachable }.
+    """
+    await websocket.accept()
+    broadcaster, radio = await _resolve_broadcaster(radio_id, websocket)
+    if broadcaster is None:
+        return
+    bridge = await _wait_for_bridge(radio["host"], radio["port"])
+    if bridge is None:
+        try:
+            await websocket.send_text(
+                json.dumps({"type": "decode_status", "active": False, "decoder_reachable": False})
+            )
+        except Exception:
+            pass
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
+        return
+    queue = bridge.subscribe_events()
+    try:
+        while True:
+            event = await queue.get()
+            if event is None:  # bridge stopped
+                break
+            try:
+                await websocket.send_text(json.dumps(event))
+            except (WebSocketDisconnect, RuntimeError):
+                break
+    except (WebSocketDisconnect, asyncio.CancelledError):
+        pass
+    finally:
+        bridge.unsubscribe_events(queue)
+
+
+@router.websocket("/ws/sdr/{radio_id}/decode/audio")
+async def sdr_decode_audio_websocket(radio_id: int, websocket: WebSocket):
+    """Stream decoded voice PCM (binary) for a radio's active decode session.
+
+    Frames are the raw PCM datagrams dsd-fme emits over UDP (8 kHz s16 mono).
+    """
+    await websocket.accept()
+    broadcaster, radio = await _resolve_broadcaster(radio_id, websocket)
+    if broadcaster is None:
+        return
+    bridge = await _wait_for_bridge(radio["host"], radio["port"])
+    if bridge is None:
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
+        return
+    queue = bridge.subscribe_audio()
+    try:
+        while True:
+            payload = await queue.get()
+            if payload is None:  # bridge stopped
+                break
+            try:
+                await websocket.send_bytes(payload)
+            except (WebSocketDisconnect, RuntimeError):
+                break
+    except (WebSocketDisconnect, asyncio.CancelledError):
+        pass
+    finally:
+        bridge.unsubscribe_audio(queue)

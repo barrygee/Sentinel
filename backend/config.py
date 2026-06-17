@@ -22,6 +22,20 @@ class Settings(BaseSettings):
     # Celestrak TLE URL for the ISS (NORAD ID 25544)
     celestrak_iss_url: str = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
 
+    # ── Digital-decode sidecar (dsd-fme) ──────────────────────────────────────
+    # TCP port the backend listens on to serve FM-demodulated 48 kHz mono s16 PCM
+    # to the decoder container (dsd-fme connects here as a client; SDR++ "TCP
+    # audio sink" convention). Only reachable on the internal compose network.
+    decoder_pcm_port: int = 7355
+    # UDP port the backend listens on for decoded voice audio sent back by dsd-fme.
+    decoder_audio_udp_port: int = 7356
+    # Shared secret the decoder must present on POST /api/sdr/decode/ingest.
+    # Empty string disables decode-event ingestion (the metadata path is off
+    # until a secret is configured — fail closed, never accept unauthenticated).
+    decoder_ingest_secret: str = ""
+    # Default channel bandwidth (Hz) used when digital decode is enabled.
+    decoder_default_bw_hz: int = 12_500
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
