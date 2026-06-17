@@ -29,7 +29,7 @@ Optional **flight replay** (off by default, behind `air.replayEnabled`) records 
 Satellites are propagated from TLE data using **SGP4**. The default view tracks the ISS; any catalogued satellite can be selected by NORAD ID to show its current position, multi-orbit ground track, and visibility footprint. Pass prediction lists upcoming passes over your location, with heads-up notifications and optional **auto-tune** that drives the SDR to a satellite's downlink frequency during a pass. A day/night terminator overlay and full **TLE database management** (fetch from Celestrak, upload `.txt`, categorise, clear) are built in.
 
 ### SDR
-Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback.
+Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback. An optional **digital decode** mode (P25/DMR/NXDN/D-STAR/YSF via a separate `dsd-fme` container) surfaces decoded call metadata and voice — see [Digital decoding](#digital-decoding-optional).
 
 ---
 
@@ -132,6 +132,34 @@ npm run build                  # outputs to ../../frontend/spa-dist (committed, 
 > Outside the Vite dev server, the backend serves the **pre-built** bundle from `frontend/spa-dist/`. Rebuild (and commit) it when shipping a frontend change — a hard browser refresh then picks it up; no backend restart needed.
 
 Once running, open **Settings** (gear icon, bottom-right) and set *My Location* to your latitude/longitude.
+
+### Digital decoding (optional)
+
+Decoding digital voice/trunked modes (P25, DMR, NXDN, D-STAR, YSF, M17, …) runs
+in a **separate, opt-in `dsd-fme` container**. It is **never built by default or
+in CI** because `dsd-fme` requires the patent-encumbered **`mbelib`** vocoder to
+compile — building the decoder is a deliberate local action that compiles
+`mbelib` on your own machine. The image is never published. See
+[`decoder/README.md`](decoder/README.md) for the full rationale, a hardware-AMBE-dongle
+alternative, and troubleshooting.
+
+```bash
+# 1. one-time: create .env and set a random shared secret
+cp .env.example .env
+python3 -c "import secrets; print('SENTINEL_DECODER_SECRET=' + secrets.token_urlsafe(32))" >> .env
+
+# 2. build + run the app WITH the decoder (the --profile flag is the opt-in)
+docker compose --profile decoder up --build -d     # app on :8080 + decoder sidecar
+
+# 3. in the SDR view: start a radio, tune a digital channel, click DIGITAL.
+#    Decoded call metadata appears in the decode panel and voice audio plays.
+
+# revert to app-only (decoder never starts without the profile):
+docker compose --profile decoder down && docker compose up -d
+```
+
+Your normal `docker compose up --build` is unchanged and never builds or starts
+the decoder.
 
 ---
 
