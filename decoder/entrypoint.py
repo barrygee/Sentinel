@@ -23,10 +23,12 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import re
 import shlex
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -158,12 +160,28 @@ def build_dsd_command() -> list[str]:
     return command
 
 
-def run_dsd_once(ingest_url: str, secret: str) -> int:  # pragma: no cover - drives a subprocess
-    """Run dsd-fme once, echoing its output and POSTing parsed events.
+def _event_worker(ingest_url: str, secret: str, events: queue.Queue) -> None:  # pragma: no cover - thread
+    """Drain parsed events and POST them, off the dsd-fme read path.
+
+    Keeping the (blocking) HTTP POST off the stdout-reading loop is essential:
+    on a busy control channel dsd-fme emits log lines faster than they can be
+    POSTed, and blocking the read loop would backpressure dsd-fme's stdout and
+    stall its real-time decode (audible as slow/broken voice).
+    """
+    while True:
+        event = events.get()
+        if event is None:
+            return
+        post_event(ingest_url, secret, event)
+
+
+def run_dsd_once(events: queue.Queue) -> int:  # pragma: no cover - drives a subprocess
+    """Run dsd-fme once, echoing its output and queueing parsed events.
 
     dsd-fme's own log lines are echoed to stderr so the container log shows what
-    it is doing (and why it exits); recognised lines are also forwarded as events.
-    Returns the process exit code.
+    it is doing (and why it exits). Recognised lines are de-duplicated against the
+    previous event (the control channel repeats near-identical status lines) and
+    handed to the worker queue without ever blocking the read loop.
     """
     command = build_dsd_command()
     print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
@@ -171,13 +189,18 @@ def run_dsd_once(ingest_url: str, secret: str) -> int:  # pragma: no cover - dri
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
     )
     assert process.stdout is not None
+    last_event = None
     try:
         for line in process.stdout:
             sys.stderr.write(line)  # surface dsd-fme's raw output in the logs
             sys.stderr.flush()
             event = parse_dsd_line(line)
-            if event is not None:
-                post_event(ingest_url, secret, event)
+            if event is not None and event != last_event:
+                last_event = event
+                try:
+                    events.put_nowait(event)
+                except queue.Full:
+                    pass  # UI is a courtesy view — drop rather than stall decode
     finally:
         process.terminate()
         try:
@@ -198,6 +221,11 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
         )
         return 2
 
+    # One background poster for the whole process lifetime (bounded queue, drops
+    # when full so it never backpressures dsd-fme).
+    events: queue.Queue = queue.Queue(maxsize=256)
+    threading.Thread(target=_event_worker, args=(ingest_url, secret, events), daemon=True).start()
+
     # Supervise dsd-fme in-process: it exits whenever the backend PCM feed is
     # unavailable (i.e. digital decode is OFF, so nothing is listening on the PCM
     # port). Rather than letting the container die and thrash on restart, retry
@@ -208,7 +236,7 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
         # once a decode session is actually up (this 409s harmlessly when not).
         post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
         try:
-            run_dsd_once(ingest_url, secret)
+            run_dsd_once(events)
         except KeyboardInterrupt:
             return 0
         time.sleep(retry_seconds)

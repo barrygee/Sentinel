@@ -161,7 +161,7 @@ describe('useSdrDecode', () => {
     const decode = useSdrDecode()
     decode.start(1)
     sockets[1].emit('message', { data: s16Frame([16384, -16384, 0, 32767]) })
-    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 4, 8000)
+    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 4, 48000)
     const source = lastCtx?.createBufferSource.mock.results[0].value as FakeBufferSource
     expect(source.start).toHaveBeenCalled()
     expect(source.connect).toHaveBeenCalledWith(lastCtx?.gainNode)
@@ -184,11 +184,11 @@ describe('useSdrDecode', () => {
   it('advances the play head so consecutive frames are scheduled in order', () => {
     const decode = useSdrDecode()
     decode.start(1)
-    sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) }) // 4/8000 s
+    sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) }) // 4/48000 s
     sockets[1].emit('message', { data: s16Frame([5, 6, 7, 8]) })
     const sources = lastCtx?.createBufferSource.mock.results.map((r) => r.value as FakeBufferSource)
     expect(sources?.[0].start.mock.calls[0][0]).toBe(0)
-    expect(sources?.[1].start.mock.calls[0][0]).toBeCloseTo(4 / 8000)
+    expect(sources?.[1].start.mock.calls[0][0]).toBeCloseTo(4 / 48000)
   })
 
   it('stop closes sockets and the audio context', () => {

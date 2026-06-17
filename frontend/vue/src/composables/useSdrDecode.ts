@@ -14,8 +14,10 @@
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 
-// Sample rate of dsd-fme's decoded-voice UDP output ("short 8k/2").
-const DECODE_AUDIO_SR = 8000
+// Sample rate of dsd-fme's decoded-voice UDP "blaster" output. dsd-fme upsamples
+// synthesised voice to 48 kHz before blasting it, so the PCM frames are 48 kHz
+// mono s16 (playing them as 8 kHz stretched the audio ~6x — "very slow").
+const DECODE_AUDIO_SR = 48000
 
 let _eventsWs: WebSocket | null = null
 let _audioWs: WebSocket | null = null
