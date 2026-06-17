@@ -42,6 +42,10 @@ function _initAudio() {
   _gain.gain.value = _volume
   _gain.connect(_ctx.destination)
   _playHead = 0
+  // Some browsers start the context suspended even when created in a gesture;
+  // resume so scheduled PCM is actually heard. start() is called from the
+  // DIGITAL click handler, so this counts as a user-gesture resume.
+  _ctx.resume().catch(() => {})
 }
 
 // Decode one binary PCM frame (s16 LE mono @ 8 kHz) and schedule it for playback.

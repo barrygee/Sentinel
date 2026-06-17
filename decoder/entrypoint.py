@@ -158,7 +158,36 @@ def build_dsd_command() -> list[str]:
     return command
 
 
-def main() -> int:
+def run_dsd_once(ingest_url: str, secret: str) -> int:  # pragma: no cover - drives a subprocess
+    """Run dsd-fme once, echoing its output and POSTing parsed events.
+
+    dsd-fme's own log lines are echoed to stderr so the container log shows what
+    it is doing (and why it exits); recognised lines are also forwarded as events.
+    Returns the process exit code.
+    """
+    command = build_dsd_command()
+    print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
+    process = subprocess.Popen(  # noqa: S603 - command built from trusted env, not user input
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+    )
+    assert process.stdout is not None
+    try:
+        for line in process.stdout:
+            sys.stderr.write(line)  # surface dsd-fme's raw output in the logs
+            sys.stderr.flush()
+            event = parse_dsd_line(line)
+            if event is not None:
+                post_event(ingest_url, secret, event)
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+    return process.returncode or 0
+
+
+def main() -> int:  # pragma: no cover - container entrypoint loop
     ingest_url = os.environ.get("INGEST_URL", "http://app:8000/api/sdr/decode/ingest")
     secret = resolve_secret()
     if not secret:
@@ -169,31 +198,21 @@ def main() -> int:
         )
         return 2
 
-    # Announce the vocoder this image was built with (always software mbelib for
-    # dsd-fme), so the UI can show that voice decode is available.
-    post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
-
-    command = build_dsd_command()
-    print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
-    process = subprocess.Popen(  # noqa: S603 - command built from trusted env, not user input
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
-    )
-    assert process.stdout is not None
-    try:
-        for line in process.stdout:
-            event = parse_dsd_line(line)
-            if event is not None:
-                post_event(ingest_url, secret, event)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        process.terminate()
+    # Supervise dsd-fme in-process: it exits whenever the backend PCM feed is
+    # unavailable (i.e. digital decode is OFF, so nothing is listening on the PCM
+    # port). Rather than letting the container die and thrash on restart, retry
+    # here with a short backoff so it reconnects cleanly when decode is enabled.
+    retry_seconds = 3
+    while True:
+        # Re-announce the vocoder each cycle so the UI learns voice is available
+        # once a decode session is actually up (this 409s harmlessly when not).
+        post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
         try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-    return process.returncode or 0
+            run_dsd_once(ingest_url, secret)
+        except KeyboardInterrupt:
+            return 0
+        time.sleep(retry_seconds)
 
 
-if __name__ == "__main__":  # pragma: no cover - container entrypoint
+if __name__ == "__main__":
     sys.exit(main())

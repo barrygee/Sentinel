@@ -53,6 +53,7 @@ class FakeAudioContext {
   destination = {}
   closed = false
   gainNode = { gain: { value: -1 }, connect: vi.fn(), disconnect: vi.fn() }
+  resume = vi.fn(() => Promise.resolve())
   createGain = vi.fn(() => this.gainNode)
   createBuffer = vi.fn(
     (_channels: number, length: number, sampleRate: number) =>
@@ -109,6 +110,24 @@ describe('useSdrDecode', () => {
     decode.start(7)
     decode.start(7)
     expect(sockets).toHaveLength(2)
+  })
+
+  it('resumes the audio context on start', () => {
+    const decode = useSdrDecode()
+    decode.start(7)
+    expect(lastCtx?.resume).toHaveBeenCalled()
+  })
+
+  it('swallows a rejected resume', async () => {
+    vi.stubGlobal(
+      'AudioContext',
+      class extends FakeAudioContext {
+        resume = vi.fn(() => Promise.reject(new Error('blocked')))
+      } as unknown as typeof AudioContext,
+    )
+    const decode = useSdrDecode()
+    expect(() => decode.start(7)).not.toThrow()
+    await Promise.resolve()
   })
 
   it('restarts cleanly when the radio changes', () => {
