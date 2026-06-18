@@ -167,6 +167,30 @@ describe('useSdrDecode', () => {
     expect(source.connect).toHaveBeenCalledWith(lastCtx?.gainNode)
   })
 
+  it('plays DMR decoded voice at its native 8 kHz', () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    useSdrStore().pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+    sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) })
+    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 4, 8000)
+  })
+
+  it('matches the DMR mode case-insensitively', () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    useSdrStore().pushDecodeEvent({ type: 'decode_event', mode: 'dmr', ts: 1 })
+    sockets[1].emit('message', { data: s16Frame([1, 2]) })
+    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 2, 8000)
+  })
+
+  it('plays non-DMR (upsampled) decoded voice at 48 kHz', () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    useSdrStore().pushDecodeEvent({ type: 'decode_event', mode: 'P25', ts: 1 })
+    sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) })
+    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 4, 48000)
+  })
+
   it('ignores empty PCM frames', () => {
     const decode = useSdrDecode()
     decode.start(1)

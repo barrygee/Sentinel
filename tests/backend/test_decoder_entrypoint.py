@@ -63,6 +63,30 @@ class TestParseDsdLine:
         assert event["mode"] == "D-STAR"
 
 
+# ── build_log_event ───────────────────────────────────────────────────────────
+
+
+class TestBuildLogEvent:
+    def test_blank_line_returns_none(self):
+        assert entrypoint.build_log_event("   \n") is None
+
+    def test_empty_string_returns_none(self):
+        assert entrypoint.build_log_event("") is None
+
+    def test_wraps_line_as_log_event(self):
+        event = entrypoint.build_log_event("Sync: +DMR  slot1  [slot2] | Color Code=02 | IDLE\n")
+        assert event == {
+            "type": "log",
+            "line": "Sync: +DMR  slot1  [slot2] | Color Code=02 | IDLE",
+        }
+
+    def test_preserves_leading_whitespace_and_drops_trailing_newline(self):
+        # dsd-fme indents some lines (e.g. " SLCO NULL"); that spacing is kept,
+        # only the trailing newline is stripped.
+        event = entrypoint.build_log_event(" SLCO NULL\n")
+        assert event == {"type": "log", "line": " SLCO NULL"}
+
+
 # ── post_event ────────────────────────────────────────────────────────────────
 
 

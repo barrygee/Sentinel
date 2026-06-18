@@ -476,6 +476,70 @@ describe('sdr store', () => {
       expect(store.decoderReachable).toBe(true)
     })
 
+    it('pushDecodeEvent tracks the latest decoded mode', () => {
+      const store = useSdrStore()
+      expect(store.decodedMode).toBe('')
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+      expect(store.decodedMode).toBe('DMR')
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'P25', ts: 2 })
+      expect(store.decodedMode).toBe('P25')
+    })
+
+    it('pushDecodeEvent leaves the decoded mode unchanged for a mode-less frame', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+      store.pushDecodeEvent({ type: 'decode_event', sync: true, ts: 2 })
+      expect(store.decodedMode).toBe('DMR')
+    })
+
+    it('pushDecodeEvent routes a log frame to the log buffer, not the call rows', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'log', line: 'Sync: +DMR slot1 [slot2]', ts: 1 })
+      expect(store.decodeLogs).toEqual(['Sync: +DMR slot1 [slot2]'])
+      expect(store.decodeEvents).toHaveLength(0)
+    })
+
+    it('pushDecodeEvent keeps log lines newest-first', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'log', line: 'first', ts: 1 })
+      store.pushDecodeEvent({ type: 'log', line: 'second', ts: 2 })
+      expect(store.decodeLogs).toEqual(['second', 'first'])
+    })
+
+    it('pushDecodeEvent strips ANSI colour codes but keeps real bracketed tokens', () => {
+      const store = useSdrStore()
+      const esc = String.fromCharCode(27)
+      store.pushDecodeEvent({
+        type: 'log',
+        line: `${esc}[33mSync: +DMR [slot2] | Color Code=02${esc}[0m  `,
+        ts: 1,
+      })
+      // Colour codes gone, "[slot2]" preserved, trailing whitespace trimmed.
+      expect(store.decodeLogs).toEqual(['Sync: +DMR [slot2] | Color Code=02'])
+    })
+
+    it('pushDecodeEvent drops a log line that is only ANSI codes', () => {
+      const store = useSdrStore()
+      const esc = String.fromCharCode(27)
+      store.pushDecodeEvent({ type: 'log', line: `${esc}[0m${esc}[33m`, ts: 1 })
+      expect(store.decodeLogs).toEqual([])
+    })
+
+    it('pushDecodeEvent ignores a log frame with no line', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'log', ts: 1 })
+      expect(store.decodeLogs).toEqual([])
+    })
+
+    it('clearDecodeLogs empties the log buffer but keeps call rows', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+      store.pushDecodeEvent({ type: 'log', line: 'a line', ts: 2 })
+      store.clearDecodeLogs()
+      expect(store.decodeLogs).toEqual([])
+      expect(store.decodeEvents).toHaveLength(1)
+    })
+
     it('pushDecodeEvent does not add a row for a decode_status frame', () => {
       const store = useSdrStore()
       store.pushDecodeEvent({ type: 'decode_status', decoder_reachable: true, ts: 1 })
@@ -492,13 +556,20 @@ describe('sdr store', () => {
       expect(store.decodeSync).toBe(true)
     })
 
-    it('clearDecode resets events, sync and reachability', () => {
+    it('clearDecode resets events, sync, reachability and mode', () => {
       const store = useSdrStore()
-      store.pushDecodeEvent({ type: 'decode_event', sync: true, decoder_reachable: true, ts: 1 })
+      store.pushDecodeEvent({
+        type: 'decode_event',
+        mode: 'DMR',
+        sync: true,
+        decoder_reachable: true,
+        ts: 1,
+      })
       store.clearDecode()
       expect(store.decodeEvents).toEqual([])
       expect(store.decodeSync).toBe(false)
       expect(store.decoderReachable).toBe(false)
+      expect(store.decodedMode).toBe('')
     })
 
     it('clearDecodeEvents empties the log but keeps live status', () => {

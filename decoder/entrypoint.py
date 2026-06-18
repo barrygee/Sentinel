@@ -120,6 +120,20 @@ def parse_dsd_line(line: str) -> dict | None:
 # ── backend ingest ────────────────────────────────────────────────────────────
 
 
+def build_log_event(line: str) -> dict | None:
+    """Wrap one raw dsd-fme output line as a ``log`` event, or None if blank.
+
+    The browser's Decoder panel shows these verbatim (the same lines the
+    container log shows), so — unlike :func:`parse_dsd_line` — nothing is
+    extracted or normalised here. Trailing newlines are dropped; an
+    all-whitespace line yields no event so the log view stays free of blank rows.
+    """
+    text = line.rstrip("\n")
+    if not text.strip():
+        return None
+    return {"type": "log", "line": text}
+
+
 def post_event(ingest_url: str, secret: str, event: dict) -> bool:
     """POST one event to the backend ingest endpoint. Returns success.
 
@@ -185,9 +199,11 @@ def run_dsd_once(events: queue.Queue) -> int:  # pragma: no cover - drives a sub
     """Run dsd-fme once, echoing its output and queueing parsed events.
 
     dsd-fme's own log lines are echoed to stderr so the container log shows what
-    it is doing (and why it exits). Recognised lines are de-duplicated against the
-    previous event (the control channel repeats near-identical status lines) and
-    handed to the worker queue without ever blocking the read loop.
+    it is doing (and why it exits). Every non-blank line is also forwarded raw as
+    a ``log`` event for the browser's Decoder log view, while recognised lines are
+    additionally de-duplicated against the previous structured event (the control
+    channel repeats near-identical status lines) and surfaced as call rows. Both
+    are handed to the worker queue without ever blocking the read loop.
     """
     command = build_dsd_command()
     print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
@@ -200,6 +216,12 @@ def run_dsd_once(events: queue.Queue) -> int:  # pragma: no cover - drives a sub
         for line in process.stdout:
             sys.stderr.write(line)  # surface dsd-fme's raw output in the logs
             sys.stderr.flush()
+            log_event = build_log_event(line)
+            if log_event is not None:
+                try:
+                    events.put_nowait(log_event)
+                except queue.Full:
+                    pass  # log view is a courtesy — drop rather than stall decode
             event = parse_dsd_line(line)
             if event is not None and event != last_event:
                 last_event = event

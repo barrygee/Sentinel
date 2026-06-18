@@ -47,11 +47,27 @@ export interface DecodeEvent {
   sync?: boolean
   decoder_reachable?: boolean
   vocoder?: string
+  // Present only on `type: "log"` frames — one raw dsd-fme output line.
+  line?: string
   ts: number
 }
 
 // Cap the in-memory decoded-event log so a long session can't grow unbounded.
 const DECODE_EVENTS_MAX = 200
+
+// Cap the raw dsd-fme log buffer. Lines arrive far faster than call rows (the
+// control channel emits many status lines per second), so this is kept tighter
+// to bound memory and the rendered list.
+const DECODE_LOGS_MAX = 300
+
+// dsd-fme colourises its output with ANSI CSI escape sequences. Strip them so the
+// log view shows clean text instead of "[33m"/"[0m" litter. Anchored on the ESC
+// control char so real bracketed tokens (e.g. "[slot2]") are never touched.
+// eslint-disable-next-line no-control-regex -- matching the ESC control char is the intent
+const ANSI_ESCAPE_PATTERN = /\[[0-9;]*[A-Za-z]/g
+function stripAnsi(line: string): string {
+  return line.replace(ANSI_ESCAPE_PATTERN, '').trimEnd()
+}
 
 export const useSdrStore = defineStore('sdr', () => {
   const radios = ref<SdrRadio[]>([])
@@ -372,15 +388,31 @@ export const useSdrStore = defineStore('sdr', () => {
   const decodeEvents = ref<DecodeEvent[]>([])
   const decodeSync = ref(false)
   const decoderReachable = ref(false)
+  // Most-recently decoded protocol (e.g. "DMR", "P25"), upper-cased by the
+  // sidecar parser. Drives the decoded-voice playback sample rate, which differs
+  // per mode (dsd-fme upsamples most modes' UDP audio to 48 kHz but emits DMR at
+  // native 8 kHz). Empty until the first mode-bearing event arrives.
+  const decodedMode = ref('')
 
-  // Ingest one decoded frame from the decode WebSocket. A `decode_status` frame
-  // only updates reachability/sync (it is not shown as a call row); every other
-  // frame is prepended to the capped event log. Sync/reachability fields update
-  // the live indicators regardless of frame type.
+  // Raw dsd-fme output lines (newest first), shown in the Decoder log view.
+  // Non-persisted live session data, like decodeEvents.
+  const decodeLogs = ref<string[]>([])
+
+  // Ingest one decoded frame from the decode WebSocket. Sync/reachability/mode
+  // fields update the live indicators regardless of frame type. `type: "log"`
+  // frames carry a raw dsd-fme line and go only to the log buffer; `decode_status`
+  // frames update indicators and stop; every other frame is a call row prepended
+  // to the capped event log.
   function pushDecodeEvent(event: DecodeEvent) {
     if (typeof event.decoder_reachable === 'boolean')
       decoderReachable.value = event.decoder_reachable
     if (typeof event.sync === 'boolean') decodeSync.value = event.sync
+    if (event.mode) decodedMode.value = event.mode
+    if (event.type === 'log') {
+      const cleaned = event.line ? stripAnsi(event.line) : ''
+      if (cleaned) decodeLogs.value = [cleaned, ...decodeLogs.value].slice(0, DECODE_LOGS_MAX)
+      return
+    }
     if (event.type === 'decode_status') return
     const row: DecodeEvent = { ...event, ts: event.ts || Date.now() }
     decodeEvents.value = [row, ...decodeEvents.value].slice(0, DECODE_EVENTS_MAX)
@@ -396,14 +428,21 @@ export const useSdrStore = defineStore('sdr', () => {
   // radio changes, so a new session starts clean.
   function clearDecode() {
     decodeEvents.value = []
+    decodeLogs.value = []
     decodeSync.value = false
     decoderReachable.value = false
+    decodedMode.value = ''
   }
 
   // Clear only the event log (the user's "clear" button), leaving the live
   // sync / reachability indicators intact since the decoder is still connected.
   function clearDecodeEvents() {
     decodeEvents.value = []
+  }
+
+  // Clear only the raw log buffer (the log view's own "clear" button).
+  function clearDecodeLogs() {
+    decodeLogs.value = []
   }
 
   // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
@@ -582,12 +621,15 @@ export const useSdrStore = defineStore('sdr', () => {
     setDigitalEnabled,
     hydrateDigitalEnabledFromDb,
     decodeEvents,
+    decodeLogs,
     decodeSync,
     decoderReachable,
+    decodedMode,
     pushDecodeEvent,
     setDecodeStatus,
     clearDecode,
     clearDecodeEvents,
+    clearDecodeLogs,
     setRadio,
     setFrequency,
     setMode,

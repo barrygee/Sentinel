@@ -417,7 +417,7 @@ describe('SdrPanel — RADIO tab: digital decode', () => {
     expect((button.element as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('enabling digital sends the command, starts decode, mutes live audio, shows the panel', async () => {
+  it('enabling digital sends the command, starts decode, mutes live audio, activates the button', async () => {
     const { wrapper, socket } = await mountPlaying()
     expect((wrapper.find('.sdr-digital-btn').element as HTMLButtonElement).disabled).toBe(false)
     await wrapper.find('.sdr-digital-btn').trigger('click')
@@ -427,8 +427,10 @@ describe('SdrPanel — RADIO tab: digital decode', () => {
     expect(cmd).toMatchObject({ enabled: true, mode: expect.any(String) })
     expect(decodeMock.start).toHaveBeenCalledWith(1)
     expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
-    expect(wrapper.find('.sdr-decode-panel').exists()).toBe(true)
+    // The decoder dock lives in SdrView (driven by store.digitalEnabled); here we
+    // assert the inline Decode button reflects the active state.
     expect(wrapper.find('.sdr-digital-btn').classes()).toContain('sdr-digital-btn--active')
+    expect(wrapper.find('.sdr-digital-btn').attributes('aria-pressed')).toBe('true')
   })
 
   it('disabling digital sends the command, stops decode and unmutes', async () => {
@@ -444,7 +446,7 @@ describe('SdrPanel — RADIO tab: digital decode', () => {
     expect(cmd).toMatchObject({ enabled: false })
     expect(decodeMock.stop).toHaveBeenCalled()
     expect(audioMock.setLiveMuted).toHaveBeenCalledWith(false)
-    expect(wrapper.find('.sdr-decode-panel').exists()).toBe(false)
+    expect(wrapper.find('.sdr-digital-btn').classes()).not.toContain('sdr-digital-btn--active')
   })
 
   it('pushes a digital_channel command when the mode changes while decoding', async () => {
@@ -493,16 +495,6 @@ describe('SdrPanel — RADIO tab: digital decode', () => {
     await flushPromises()
     expect(decodeMock.start).not.toHaveBeenCalled()
     expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
-  })
-
-  it('toggles the DMR DECODER accordion body when its header is clicked', async () => {
-    const { wrapper } = await mountPlaying()
-    const header = wrapper.find('[aria-controls="sdr-decoder-section"]')
-    expect(header.attributes('aria-expanded')).toBe('false')
-    await header.trigger('click')
-    expect(header.attributes('aria-expanded')).toBe('true')
-    await header.trigger('click')
-    expect(header.attributes('aria-expanded')).toBe('false')
   })
 
   it('selecting a different radio disables digital decode', async () => {

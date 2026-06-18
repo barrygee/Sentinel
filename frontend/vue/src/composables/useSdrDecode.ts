@@ -3,21 +3,33 @@
 // Owns the two decode WebSockets that complement the control/IQ sockets in
 // useSdrAudio:
 //   /ws/sdr/{id}/decode        — decoded events (JSON) → the Pinia store
-//   /ws/sdr/{id}/decode/audio  — decoded voice PCM (binary, 8 kHz s16 mono)
+//   /ws/sdr/{id}/decode/audio  — decoded voice PCM (binary, s16 mono; 48 kHz for
+//                                most modes, 8 kHz for DMR — see _decodeAudioRate)
 //
 // Decoded voice is already demodulated by dsd-fme, so — unlike the IQ pipeline
 // in useSdrAudio — there is no NCO/LPF/discriminator here. We simply schedule
-// the incoming PCM onto AudioBufferSourceNodes; the AudioContext resamples 8 kHz
-// to its own rate on playback. Kept as plain module-level state (never reactive)
+// the incoming PCM onto AudioBufferSourceNodes tagged with the mode's source
+// rate; the AudioContext resamples to its own rate on playback. Kept as plain
+// module-level state (never reactive)
 // for the same reason useSdrAudio is: proxy-wrapping breaks the audio APIs.
 
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 
-// Sample rate of dsd-fme's decoded-voice UDP "blaster" output. dsd-fme upsamples
-// synthesised voice to 48 kHz before blasting it, so the PCM frames are 48 kHz
-// mono s16 (playing them as 8 kHz stretched the audio ~6x — "very slow").
-const DECODE_AUDIO_SR = 48000
+// Sample rate of dsd-fme's decoded-voice UDP "blaster" output. The rate is
+// mode-dependent: dsd-fme upsamples most modes' synthesised voice to 48 kHz
+// before blasting it, but emits DMR at its native 8 kHz. Playing DMR's 8 kHz
+// frames as 48 kHz ran the audio ~6x too fast ("squeaky"); playing the upsampled
+// modes as 8 kHz ran them ~6x too slow. So the rate is chosen per decoded mode.
+const DEFAULT_DECODE_AUDIO_SR = 48000
+const NATIVE_8K_MODES = new Set(['DMR'])
+
+// Resolve the playback sample rate for the currently-decoding mode. Modes dsd-fme
+// emits at native 8 kHz over UDP play at 8 kHz; everything else (upsampled to
+// 48 kHz) plays at 48 kHz. Unknown/empty mode falls back to the 48 kHz default.
+function _decodeAudioRate(mode: string): number {
+  return NATIVE_8K_MODES.has(mode.toUpperCase()) ? 8000 : DEFAULT_DECODE_AUDIO_SR
+}
 
 let _eventsWs: WebSocket | null = null
 let _audioWs: WebSocket | null = null
@@ -50,9 +62,10 @@ function _initAudio() {
   _ctx.resume().catch(() => {})
 }
 
-// Decode one binary PCM frame (s16 LE mono @ 8 kHz) and schedule it for playback.
-// A late frame can arrive after stop() tore the context down, hence the guard
-// (_gain is always set alongside _ctx by _initAudio).
+// Decode one binary PCM frame (s16 LE mono) and schedule it for playback at the
+// current mode's source rate (see _decodeAudioRate). A late frame can arrive
+// after stop() tore the context down, hence the guard (_gain is always set
+// alongside _ctx by _initAudio).
 function _schedulePcm(buffer: ArrayBuffer) {
   if (!_ctx) return
   const sampleCount = buffer.byteLength >> 1
@@ -62,7 +75,7 @@ function _schedulePcm(buffer: ArrayBuffer) {
   for (let index = 0; index < sampleCount; index++) {
     samples[index] = view.getInt16(index * 2, true) / 32768
   }
-  const audioBuffer = _ctx.createBuffer(1, sampleCount, DECODE_AUDIO_SR)
+  const audioBuffer = _ctx.createBuffer(1, sampleCount, _decodeAudioRate(useSdrStore().decodedMode))
   audioBuffer.getChannelData(0).set(samples)
   const source = _ctx.createBufferSource()
   source.buffer = audioBuffer
