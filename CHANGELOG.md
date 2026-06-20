@@ -85,6 +85,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove bell and track buttons from on-hover aircraft tag
 - Persist search selection/isolation and refine detail panel
 - Trunk tracking, side-by-side decoder dock, trunk-system accordion (#109)
+- Manage trunk channel maps as JSON in settings (#110)
 
 ### Bug Fixes
 
