@@ -80,6 +80,13 @@ function s16Frame(values: number[]): ArrayBuffer {
   return buffer
 }
 
+// Decode events are coalesced and flushed to the store once per animation frame.
+// The composable registers its flush callback before this one, so by the time
+// this resolves the buffered events have already been pushed.
+function flushFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()))
+}
+
 describe('useSdrDecode', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -139,21 +146,53 @@ describe('useSdrDecode', () => {
     expect(lastSocket().url).toContain('/ws/sdr/8/decode/audio')
   })
 
-  it('pushes parsed decode events to the store', () => {
+  it('pushes parsed decode events to the store on the next frame', async () => {
     const decode = useSdrDecode()
     decode.start(1)
     const store = useSdrStore()
     sockets[0].emit('message', {
       data: JSON.stringify({ type: 'decode_event', mode: 'DMR', ts: 1 }),
     })
+    // Buffered, not yet flushed: the store stays empty until the frame fires.
+    expect(store.decodeEvents).toHaveLength(0)
+    await flushFrame()
     expect(store.decodeEvents[0].mode).toBe('DMR')
   })
 
-  it('ignores malformed event JSON', () => {
+  it('coalesces a frame of events into a single store update, newest-first', async () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    const store = useSdrStore()
+    const pushSpy = vi.spyOn(store, 'pushDecodeEventBatch')
+    for (const talkgroup of [1, 2, 3]) {
+      sockets[0].emit('message', {
+        data: JSON.stringify({ type: 'decode_event', talkgroup, ts: talkgroup }),
+      })
+    }
+    await flushFrame()
+    // One batched mutation for the whole frame, not one per message.
+    expect(pushSpy).toHaveBeenCalledTimes(1)
+    expect(store.decodeEvents.map((event) => event.talkgroup)).toEqual([3, 2, 1])
+  })
+
+  it('ignores malformed event JSON', async () => {
     const decode = useSdrDecode()
     decode.start(1)
     const store = useSdrStore()
     sockets[0].emit('message', { data: 'not json' })
+    await flushFrame()
+    expect(store.decodeEvents).toHaveLength(0)
+  })
+
+  it('drops buffered events and cancels the pending flush on stop', async () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    const store = useSdrStore()
+    sockets[0].emit('message', {
+      data: JSON.stringify({ type: 'decode_event', mode: 'DMR', ts: 1 }),
+    })
+    decode.stop()
+    await flushFrame()
     expect(store.decodeEvents).toHaveLength(0)
   })
 
@@ -167,28 +206,26 @@ describe('useSdrDecode', () => {
     expect(source.connect).toHaveBeenCalledWith(lastCtx?.gainNode)
   })
 
-  it('plays DMR decoded voice at its native 8 kHz', () => {
+  it('falls back to 48 kHz until the backend reports a measured rate', () => {
     const decode = useSdrDecode()
     decode.start(1)
-    useSdrStore().pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
-    sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) })
-    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 4, 8000)
+    const store = useSdrStore()
+    // No measured rate yet (decodedAudioRate null), regardless of decoded mode.
+    for (const mode of ['DMR', 'dmr', 'P25']) {
+      store.pushDecodeEvent({ type: 'decode_event', mode, ts: 1 })
+      sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) })
+      expect(lastCtx?.createBuffer).toHaveBeenLastCalledWith(1, 4, 48000)
+    }
   })
 
-  it('matches the DMR mode case-insensitively', () => {
+  it('plays decoded voice at the backend-measured rate once reported', () => {
     const decode = useSdrDecode()
     decode.start(1)
-    useSdrStore().pushDecodeEvent({ type: 'decode_event', mode: 'dmr', ts: 1 })
-    sockets[1].emit('message', { data: s16Frame([1, 2]) })
-    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 2, 8000)
-  })
-
-  it('plays non-DMR (upsampled) decoded voice at 48 kHz', () => {
-    const decode = useSdrDecode()
-    decode.start(1)
-    useSdrStore().pushDecodeEvent({ type: 'decode_event', mode: 'P25', ts: 1 })
+    const store = useSdrStore()
+    // Backend measured dsd-fme's actual UDP rate and reported it; play at it.
+    store.pushDecodeEvent({ type: 'decode_status', audio_sample_rate: 16000, ts: 1 })
     sockets[1].emit('message', { data: s16Frame([1, 2, 3, 4]) })
-    expect(lastCtx?.createBuffer).toHaveBeenCalledWith(1, 4, 48000)
+    expect(lastCtx?.createBuffer).toHaveBeenLastCalledWith(1, 4, 16000)
   })
 
   it('ignores empty PCM frames', () => {
@@ -213,6 +250,31 @@ describe('useSdrDecode', () => {
     const sources = lastCtx?.createBufferSource.mock.results.map((r) => r.value as FakeBufferSource)
     expect(sources?.[0].start.mock.calls[0][0]).toBe(0)
     expect(sources?.[1].start.mock.calls[0][0]).toBeCloseTo(4 / 48000)
+  })
+
+  it('leads the play head by the jitter cushion on the first/underrun frame', () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    // Clock has advanced past the (zeroed) play head: an underrun. The frame
+    // should be scheduled a cushion (0.2 s) ahead of the clock, not flush to it.
+    lastCtx!.currentTime = 5
+    sockets[1].emit('message', { data: s16Frame([1, 2]) })
+    const source = lastCtx?.createBufferSource.mock.results[0].value as FakeBufferSource
+    expect(source.start.mock.calls[0][0]).toBeCloseTo(5.2)
+  })
+
+  it('resyncs to the cushion when the play head drifts too far ahead (overrun)', () => {
+    const decode = useSdrDecode()
+    decode.start(1)
+    // A 72000-sample 48 kHz frame is 1.5 s long, pushing the play head >1 s ahead
+    // of the clock (still at 0). The next frame must drop back to the cushion
+    // rather than scheduling 1.5 s out.
+    const longFrame = s16Frame(new Array(72000).fill(1))
+    sockets[1].emit('message', { data: longFrame })
+    sockets[1].emit('message', { data: s16Frame([1, 2]) })
+    const sources = lastCtx?.createBufferSource.mock.results.map((r) => r.value as FakeBufferSource)
+    expect(sources?.[0].start.mock.calls[0][0]).toBe(0) // first frame: no underrun at t=0
+    expect(sources?.[1].start.mock.calls[0][0]).toBeCloseTo(0.2) // resynced to cushion
   })
 
   it('stop closes sockets and the audio context', () => {

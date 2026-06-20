@@ -462,6 +462,37 @@ describe('sdr store', () => {
       expect(store.decodeEvents[0].talkgroup).toBe(204)
     })
 
+    it('pushDecodeEventBatch is a no-op for an empty batch', () => {
+      const store = useSdrStore()
+      store.pushDecodeEventBatch([])
+      expect(store.decodeEvents).toHaveLength(0)
+      expect(store.decodeLogs).toHaveLength(0)
+    })
+
+    it('pushDecodeEventBatch folds a frame of events newest-first across both buffers', () => {
+      const store = useSdrStore()
+      // Arrival order (oldest → newest): a call row, two log lines, another row.
+      store.pushDecodeEventBatch([
+        { type: 'decode_event', talkgroup: 1, ts: 1 },
+        { type: 'log', line: 'older', ts: 2 },
+        { type: 'log', line: 'newer', ts: 3 },
+        { type: 'decode_event', talkgroup: 2, ts: 4 },
+      ])
+      // Both buffers come out newest-first, regardless of interleaving.
+      expect(store.decodeEvents.map((event) => event.talkgroup)).toEqual([2, 1])
+      expect(store.decodeLogs).toEqual(['newer', 'older'])
+    })
+
+    it('pushDecodeEventBatch applies the last-in-batch indicator state', () => {
+      const store = useSdrStore()
+      store.pushDecodeEventBatch([
+        { type: 'decode_event', mode: 'DMR', sync: true, ts: 1 },
+        { type: 'decode_event', mode: 'P25', sync: false, ts: 2 },
+      ])
+      expect(store.decodedMode).toBe('P25')
+      expect(store.decodeSync).toBe(false)
+    })
+
     it('pushDecodeEvent stamps ts when missing', () => {
       const store = useSdrStore()
       vi.spyOn(Date, 'now').mockReturnValue(12345)
@@ -483,6 +514,20 @@ describe('sdr store', () => {
       expect(store.decodedMode).toBe('DMR')
       store.pushDecodeEvent({ type: 'decode_event', mode: 'P25', ts: 2 })
       expect(store.decodedMode).toBe('P25')
+    })
+
+    it('pushDecodeEvent records the backend-measured decoded-audio rate', () => {
+      const store = useSdrStore()
+      expect(store.decodedAudioRate).toBeNull()
+      store.pushDecodeEvent({ type: 'decode_status', audio_sample_rate: 16000, ts: 1 })
+      expect(store.decodedAudioRate).toBe(16000)
+    })
+
+    it('pushDecodeEvent leaves the decoded-audio rate untouched without the field', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_status', audio_sample_rate: 24000, ts: 1 })
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 2 })
+      expect(store.decodedAudioRate).toBe(24000)
     })
 
     it('pushDecodeEvent leaves the decoded mode unchanged for a mode-less frame', () => {
@@ -556,13 +601,14 @@ describe('sdr store', () => {
       expect(store.decodeSync).toBe(true)
     })
 
-    it('clearDecode resets events, sync, reachability and mode', () => {
+    it('clearDecode resets events, sync, reachability, mode and audio rate', () => {
       const store = useSdrStore()
       store.pushDecodeEvent({
         type: 'decode_event',
         mode: 'DMR',
         sync: true,
         decoder_reachable: true,
+        audio_sample_rate: 16000,
         ts: 1,
       })
       store.clearDecode()
@@ -570,6 +616,7 @@ describe('sdr store', () => {
       expect(store.decodeSync).toBe(false)
       expect(store.decoderReachable).toBe(false)
       expect(store.decodedMode).toBe('')
+      expect(store.decodedAudioRate).toBeNull()
     })
 
     it('clearDecodeEvents empties the log but keeps live status', () => {

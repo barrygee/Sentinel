@@ -31,6 +31,7 @@ import logging
 import math
 import secrets
 import struct
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -84,6 +85,10 @@ def resolve_ingest_secret() -> str:
 # Output audio rate fed to dsd-fme — the SDR++ TCP-audio-sink convention is
 # 48 kHz mono s16, which dsd-fme's `-i tcp` input expects by default.
 OUTPUT_RATE = 48000
+
+# Audio rate calculation configuration
+_AUDIO_RATE_MEASURE_SECONDS = 1.5
+_AUDIO_BYTES_PER_SAMPLE = 2
 
 # Default channel bandwidth for digital modes (Hz). DMR/P25/NXDN are all
 # ~12.5 kHz channels, so a 12.5 kHz LPF isolates one channel from the span.
@@ -378,6 +383,15 @@ class DigitalDecodeBridge:
         self._event_subs: list[asyncio.Queue] = []
         self._audio_subs: list[asyncio.Queue] = []
 
+        # Decoded-voice rate handling. dsd-fme's UDP blaster rate varies by
+        # build/protocol and isn't carried in the stream, so the bridge MEASURES
+        # the actual incoming rate, then resamples to a uniform 48 kHz before
+        # forwarding (so the browser always plays at one known rate). None until
+        # measured.
+        self._detected_input_rate: int | None = None
+        self._audio_measure_start: float | None = None
+        self._audio_measure_bytes = 0
+
     # ── lifecycle ──────────────────────────────────────────────────────────
     async def start(self, *, offset_hz: int = 0, bw_hz: int | None = None) -> None:
         """Begin demodulating and serving PCM. Idempotent while running."""
@@ -388,9 +402,12 @@ class DigitalDecodeBridge:
         if bw_hz:
             self._state.bw_hz = bw_hz
 
+        self._detected_input_rate = None
+        self._audio_measure_start = None
+        self._audio_measure_bytes = 0
+
         self._iq_queue = self._broadcaster.subscribe_iq()
         self._server = await asyncio.start_server(self._on_decoder_connection, host="0.0.0.0", port=self._pcm_port)
-        # Resolve the actually-bound port (supports port 0 in tests).
         self._pcm_port = self._server.sockets[0].getsockname()[1]
 
         loop = asyncio.get_running_loop()
@@ -402,11 +419,7 @@ class DigitalDecodeBridge:
 
         self._running = True
         self._demod_task = asyncio.create_task(self._run(), name="sdr-decode-demod")
-        logger.info(
-            "Digital decode bridge started (pcm tcp :%d, audio udp :%d)",
-            self._pcm_port,
-            self._audio_udp_port,
-        )
+        logger.info("Digital decode bridge started (pcm tcp :%d, audio udp :%d)", self._pcm_port, self._audio_udp_port)
 
     async def stop(self) -> None:
         """Stop demodulating, close sockets, and unblock subscriber drains."""
@@ -430,9 +443,6 @@ class DigitalDecodeBridge:
         if self._server is not None:
             self._server.close()
             try:
-                # wait_closed() can block on a still-open decoder connection
-                # (Python 3.12 waits for active handlers); cap it so shutdown
-                # never hangs — the socket is already closed for new accepts.
                 await asyncio.wait_for(self._server.wait_closed(), timeout=2.0)
             except Exception:
                 pass
@@ -467,17 +477,14 @@ class DigitalDecodeBridge:
 
     @property
     def pcm_port(self) -> int:
-        """TCP port the decoder connects to for PCM (resolved after start())."""
         return self._pcm_port
 
     @property
     def audio_udp_port(self) -> int:
-        """UDP port the backend listens on for decoded voice (resolved after start())."""
         return self._audio_udp_port
 
     # ── decoder TCP (PCM out) ──────────────────────────────────────────────
     async def _on_decoder_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        """Accept the dsd-fme PCM client. Only the latest connection is served."""
         peer = writer.get_extra_info("peername")
         logger.info("Decoder connected from %s", peer)
         if self._pcm_writer is not None:
@@ -488,7 +495,6 @@ class DigitalDecodeBridge:
         self._pcm_writer = writer
         self._decoder_connected = True
         self._publish_status()
-        # The decoder only consumes PCM; we read to detect EOF/disconnect.
         try:
             while await reader.read(4096):
                 pass
@@ -502,14 +508,12 @@ class DigitalDecodeBridge:
             logger.info("Decoder disconnected from %s", peer)
 
     async def _run(self) -> None:
-        """Demod loop: IQ chunk → PCM → decoder TCP. Skips work with no client."""
         assert self._iq_queue is not None
         try:
             while True:
                 payload = await self._iq_queue.get()
-                if payload is None:  # broadcaster shutdown
+                if payload is None:
                     break
-                # Skip the (CPU-heavy) demod entirely when no decoder is attached.
                 if self._pcm_writer is None or len(payload) < 8:
                     continue
                 sample_rate = struct.unpack("<I", payload[:4])[0]
@@ -524,7 +528,6 @@ class DigitalDecodeBridge:
                     writer.write(pcm)
                     await writer.drain()
                 except (ConnectionResetError, BrokenPipeError, OSError):
-                    # Decoder went away mid-stream — drop it and notify the UI.
                     if self._pcm_writer is writer:
                         self._pcm_writer = None
                         self._decoder_connected = False
@@ -534,15 +537,70 @@ class DigitalDecodeBridge:
 
     # ── decoded audio (UDP in) ─────────────────────────────────────────────
     def _on_decoded_audio(self, data: bytes) -> None:
+        """Resample one decoded-voice datagram to 48 kHz and fan it to WS clients.
+
+        While the incoming rate is still being measured, frames are dropped
+        rather than forwarded — playing them at the wrong (not-yet-known) rate
+        would be audible as a brief chipmunk/stretched burst.
+        """
+        if self._detected_input_rate is None:
+            self._measure_input_rate(len(data), time.monotonic())
+            return
+
         for queue in list(self._audio_subs):
-            RadioBroadcaster._put_dropping(queue, data)
+            RadioBroadcaster._put_dropping(queue, self._resample_to_output(data))
+
+    def _resample_to_output(self, data: bytes) -> bytes:
+        """Linearly resample s16 mono PCM from the measured input rate to OUTPUT_RATE.
+
+        dsd-fme's blaster rate varies, so the browser is given a single uniform
+        rate. A no-op when the measured rate already equals OUTPUT_RATE.
+        """
+        if self._detected_input_rate == OUTPUT_RATE or len(data) < _AUDIO_BYTES_PER_SAMPLE:
+            return data
+        input_samples = np.frombuffer(data, dtype="<i2")
+        source_length = len(input_samples)
+        assert self._detected_input_rate is not None  # forwarding only runs once measured
+        destination_length = round(source_length / self._detected_input_rate * OUTPUT_RATE)
+        positions = np.linspace(0, source_length - 1, num=destination_length)
+        resampled = np.interp(positions, np.arange(source_length), input_samples)
+        return resampled.astype("<i2").tobytes()
+
+    def _measure_input_rate(self, byte_count: int, now: float) -> None:
+        """Estimate dsd-fme's actual UDP output rate from real datagram throughput.
+
+        Measured once per session over a short window: the first datagram opens
+        the window, then bytes accumulate until ``_AUDIO_RATE_MEASURE_SECONDS``
+        have elapsed. The ACTUAL measured rate is used (not snapped to a preset),
+        so any real blaster rate resamples to the right pitch. ``now`` is injected
+        for deterministic testing.
+        """
+        if self._audio_measure_start is None:
+            self._audio_measure_start = now
+            self._audio_measure_bytes = 0
+            return
+
+        self._audio_measure_bytes += byte_count
+        elapsed = now - self._audio_measure_start
+        if elapsed < _AUDIO_RATE_MEASURE_SECONDS:
+            return
+
+        samples = self._audio_measure_bytes // _AUDIO_BYTES_PER_SAMPLE
+        if samples <= 0:  # window elapsed but no audio yet — keep measuring
+            return
+
+        self._detected_input_rate = round(samples / elapsed)
+        logger.info(
+            "Decoder input rate measured: %d Hz → resampling to %d Hz",
+            self._detected_input_rate,
+            OUTPUT_RATE,
+        )
+        self._publish_status()
 
     # ── event / audio subscriptions for the browser WS ─────────────────────
     def subscribe_events(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=64)
         self._event_subs.append(queue)
-        # Seed the new subscriber with current reachability so the UI is correct
-        # the instant it connects, without waiting for the next event.
         RadioBroadcaster._put_dropping(queue, self._status_frame())
         return queue
 
@@ -564,18 +622,22 @@ class DigitalDecodeBridge:
             pass
 
     def publish_event(self, event: dict) -> None:
-        """Fan a decoded event (from the sidecar log parser) to WS subscribers."""
         for queue in list(self._event_subs):
             RadioBroadcaster._put_dropping(queue, event)
 
     def _status_frame(self) -> dict:
-        return {"type": "decode_status", "decoder_reachable": self._decoder_connected}
+        # Decoded voice is always resampled to OUTPUT_RATE before the browser
+        # sees it, so the reported playback rate is constant.
+        return {
+            "type": "decode_status",
+            "decoder_reachable": self._decoder_connected,
+            "audio_sample_rate": OUTPUT_RATE,
+        }
 
     def _publish_status(self) -> None:
         self.publish_event(self._status_frame())
 
     def wake(self) -> None:
-        """Synchronously sentinel subscriber queues (safe from a signal handler)."""
         for queue in [*self._event_subs, *self._audio_subs]:
             try:
                 queue.put_nowait(None)
@@ -585,35 +647,22 @@ class DigitalDecodeBridge:
 
 # ── Bridge cache helpers ────────────────────────────────────────────────────────
 
-# Key = "host:port"; a single bridge is active at a time (one decoder container).
 _bridges: dict[str, DigitalDecodeBridge] = {}
 
 
 def get_bridge(host: str, port: int) -> DigitalDecodeBridge | None:
-    """Return the running bridge for this radio, or None."""
     return _bridges.get(f"{host}:{port}")
 
 
 def get_active_bridge() -> DigitalDecodeBridge | None:
-    """Return the single active bridge, or None.
-
-    Only one decode session runs at a time (one decoder container on the fixed
-    ports), so decoded events from the sidecar route here without needing to
-    know which radio they belong to.
-    """
     return next(iter(_bridges.values()), None)
 
 
 async def get_or_create_bridge(host: str, port: int, broadcaster: RadioBroadcaster) -> DigitalDecodeBridge:
-    """Return the bridge for this radio, creating it (and stopping any other) first.
-
-    Only one decoder container exists, so a bridge for a *different* radio is
-    stopped before a new one starts — this also frees the fixed PCM/UDP ports.
-    """
     key = f"{host}:{port}"
     for other_key in list(_bridges):
         if other_key != key:
-            await stop_bridge(*other_key.rsplit(":", 1))  # type: ignore[misc]
+            await stop_bridge(*other_key.rsplit(":", 1))
     bridge = _bridges.get(key)
     if bridge is None:
         bridge = DigitalDecodeBridge(broadcaster)
@@ -622,7 +671,6 @@ async def get_or_create_bridge(host: str, port: int, broadcaster: RadioBroadcast
 
 
 async def stop_bridge(host: str, port: int | str) -> None:
-    """Stop and remove the bridge for this radio, if any."""
     key = f"{host}:{int(port)}"
     bridge = _bridges.pop(key, None)
     if bridge is not None:
@@ -630,13 +678,11 @@ async def stop_bridge(host: str, port: int | str) -> None:
 
 
 def wake_all_decoders() -> None:
-    """Synchronously sentinel every bridge's subscriber queues (signal-safe)."""
     for bridge in list(_bridges.values()):
         bridge.wake()
 
 
 async def shutdown_all_decoders() -> None:
-    """Stop every bridge — called from the app lifespan on shutdown."""
     for key in list(_bridges):
         host, _, port = key.rpartition(":")
         try:

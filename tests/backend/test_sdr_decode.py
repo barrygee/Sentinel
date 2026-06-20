@@ -29,6 +29,8 @@ from backend.services.sdr_decode import (
     OUTPUT_RATE,
     DigitalDecodeBridge,
     DemodState,
+    _AUDIO_BYTES_PER_SAMPLE,
+    _AUDIO_RATE_MEASURE_SECONDS,
     _build_lpf_taps,
     _compute_iq_decim,
     demod_chunk,
@@ -337,6 +339,9 @@ class TestDigitalDecodeBridge:
         bridge = DigitalDecodeBridge(broadcaster, pcm_port=0, audio_udp_port=0)
         await bridge.start()
         try:
+            # Pin the measured rate to OUTPUT_RATE so the datagram is forwarded
+            # unchanged (and not dropped during rate measurement).
+            bridge._detected_input_rate = OUTPUT_RATE
             audio_queue = bridge.subscribe_audio()
             loop = asyncio.get_running_loop()
             transport, _ = await loop.create_datagram_endpoint(
@@ -349,6 +354,61 @@ class TestDigitalDecodeBridge:
             transport.close()
         finally:
             await bridge.stop()
+
+    async def test_measures_input_rate_from_throughput(self):
+        bridge = DigitalDecodeBridge(_FakeBroadcaster(), pcm_port=0, audio_udp_port=0)
+        events = bridge.subscribe_events()
+        events.get_nowait()  # drop the seeded status
+        window = _AUDIO_RATE_MEASURE_SECONDS
+        # First datagram only opens the window; the next supplies a window's worth
+        # of 16000 samples/sec → a measured input rate of 16000 Hz.
+        bridge._measure_input_rate(4, now=10.0)
+        assert bridge._detected_input_rate is None
+        bridge._measure_input_rate(
+            round(16000 * window) * _AUDIO_BYTES_PER_SAMPLE, now=10.0 + window
+        )
+        assert bridge._detected_input_rate == 16000
+        # The browser is told the uniform OUTPUT_RATE, not the raw input rate.
+        frame = events.get_nowait()
+        assert frame["type"] == "decode_status"
+        assert frame["audio_sample_rate"] == OUTPUT_RATE
+
+    async def test_audio_dropped_while_measuring_then_forwarded_once_known(self):
+        bridge = DigitalDecodeBridge(_FakeBroadcaster(), pcm_port=0, audio_udp_port=0)
+        audio = bridge.subscribe_audio()
+        # Before the rate is known, frames are dropped (and feed the measurement).
+        bridge._on_decoded_audio(b"\x01\x00\x02\x00")
+        assert audio.empty()
+        assert bridge._audio_measure_start is not None
+        # Once known (at OUTPUT_RATE → no resample), frames pass through unchanged.
+        bridge._detected_input_rate = OUTPUT_RATE
+        bridge._on_decoded_audio(b"\x03\x00\x04\x00")
+        assert audio.get_nowait() == b"\x03\x00\x04\x00"
+
+    async def test_keeps_measuring_until_audio_arrives(self):
+        bridge = DigitalDecodeBridge(_FakeBroadcaster(), pcm_port=0, audio_udp_port=0)
+        # Window elapses but no bytes accumulated → no rate yet, keep measuring.
+        bridge._measure_input_rate(0, now=100.0)
+        bridge._measure_input_rate(0, now=100.0 + _AUDIO_RATE_MEASURE_SECONDS + 0.1)
+        assert bridge._detected_input_rate is None
+
+    async def test_resample_to_output_upsamples_and_passes_through(self):
+        bridge = DigitalDecodeBridge(_FakeBroadcaster(), pcm_port=0, audio_udp_port=0)
+        # Half OUTPUT_RATE → twice the samples after resampling.
+        bridge._detected_input_rate = OUTPUT_RATE // 2
+        upsampled = bridge._resample_to_output(b"\x01\x00\x02\x00")  # 2 samples
+        assert len(upsampled) // _AUDIO_BYTES_PER_SAMPLE == 4
+        # Already at OUTPUT_RATE → returned unchanged.
+        bridge._detected_input_rate = OUTPUT_RATE
+        assert bridge._resample_to_output(b"\x05\x00") == b"\x05\x00"
+        # Sub-sample payload is too small to resample → returned unchanged.
+        bridge._detected_input_rate = OUTPUT_RATE // 2
+        assert bridge._resample_to_output(b"\x07") == b"\x07"
+
+    async def test_status_frame_reports_output_rate(self):
+        bridge = DigitalDecodeBridge(_FakeBroadcaster(), pcm_port=0, audio_udp_port=0)
+        seeded = bridge.subscribe_events().get_nowait()
+        assert seeded["audio_sample_rate"] == OUTPUT_RATE
 
     async def test_subscribe_events_seeds_status_frame(self):
         bridge = DigitalDecodeBridge(_FakeBroadcaster(), pcm_port=0, audio_udp_port=0)

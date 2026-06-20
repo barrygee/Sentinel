@@ -1146,7 +1146,7 @@ async def sdr_decode_websocket(radio_id: int, websocket: WebSocket):
 async def sdr_decode_audio_websocket(radio_id: int, websocket: WebSocket):
     """Stream decoded voice PCM (binary) for a radio's active decode session.
 
-    Frames are the raw PCM datagrams dsd-fme emits over UDP (8 kHz s16 mono).
+    Frames are the raw PCM datagrams dsd-fme emits over UDP (48 kHz s16 mono).
     """
     await websocket.accept()
     broadcaster, radio = await _resolve_broadcaster(radio_id, websocket)

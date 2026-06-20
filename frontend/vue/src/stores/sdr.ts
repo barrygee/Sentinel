@@ -47,6 +47,10 @@ export interface DecodeEvent {
   sync?: boolean
   decoder_reachable?: boolean
   vocoder?: string
+  // Measured playback rate (Hz) for decoded voice, reported by the backend on
+  // `decode_status` frames (see DigitalDecodeBridge._measure_audio_rate). The
+  // decode-audio player schedules PCM at this rate. Present once measured.
+  audio_sample_rate?: number
   // Present only on `type: "log"` frames — one raw dsd-fme output line.
   line?: string
   ts: number
@@ -394,28 +398,64 @@ export const useSdrStore = defineStore('sdr', () => {
   // native 8 kHz). Empty until the first mode-bearing event arrives.
   const decodedMode = ref('')
 
+  // Backend-measured playback sample rate (Hz) for decoded voice. Null until the
+  // backend has measured dsd-fme's actual UDP output rate (see
+  // DigitalDecodeBridge._measure_audio_rate); the decode-audio player falls back
+  // to a default until then. Measured per session, so it is reset on clear.
+  const decodedAudioRate = ref<number | null>(null)
+
   // Raw dsd-fme output lines (newest first), shown in the Decoder log view.
   // Non-persisted live session data, like decodeEvents.
   const decodeLogs = ref<string[]>([])
 
-  // Ingest one decoded frame from the decode WebSocket. Sync/reachability/mode
-  // fields update the live indicators regardless of frame type. `type: "log"`
-  // frames carry a raw dsd-fme line and go only to the log buffer; `decode_status`
-  // frames update indicators and stop; every other frame is a call row prepended
-  // to the capped event log.
-  function pushDecodeEvent(event: DecodeEvent) {
-    if (typeof event.decoder_reachable === 'boolean')
-      decoderReachable.value = event.decoder_reachable
-    if (typeof event.sync === 'boolean') decodeSync.value = event.sync
-    if (event.mode) decodedMode.value = event.mode
-    if (event.type === 'log') {
-      const cleaned = event.line ? stripAnsi(event.line) : ''
-      if (cleaned) decodeLogs.value = [cleaned, ...decodeLogs.value].slice(0, DECODE_LOGS_MAX)
-      return
+  // Ingest a batch of decoded frames from the decode WebSocket in a SINGLE
+  // reactive update. A busy control channel emits dozens of dsd-fme log lines a
+  // second; folding a whole frame's worth of messages into one mutation (one
+  // array rebuild per buffer, not one per message) is what keeps the decoder
+  // dock from re-rendering on every message and starving the spectrum/waterfall
+  // and decoded-audio scheduling on the shared main thread. Events arrive
+  // oldest-first; both buffers are kept newest-first and capped.
+  //
+  // Per frame: sync/reachability/mode fields update the live indicators
+  // (last-in-batch wins, matching sequential arrival) regardless of frame type;
+  // `type: "log"` frames carry a raw dsd-fme line and go only to the log buffer;
+  // `decode_status` frames update indicators only; every other frame is a call
+  // row.
+  function pushDecodeEventBatch(events: DecodeEvent[]) {
+    if (events.length === 0) return
+    const freshLogs: string[] = []
+    const freshRows: DecodeEvent[] = []
+    for (const event of events) {
+      if (typeof event.decoder_reachable === 'boolean')
+        decoderReachable.value = event.decoder_reachable
+      if (typeof event.sync === 'boolean') decodeSync.value = event.sync
+      if (event.mode) decodedMode.value = event.mode
+      if (typeof event.audio_sample_rate === 'number')
+        decodedAudioRate.value = event.audio_sample_rate
+      if (event.type === 'log') {
+        const cleaned = event.line ? stripAnsi(event.line) : ''
+        if (cleaned) freshLogs.push(cleaned)
+        continue
+      }
+      if (event.type === 'decode_status') continue
+      freshRows.push({ ...event, ts: event.ts || Date.now() })
     }
-    if (event.type === 'decode_status') return
-    const row: DecodeEvent = { ...event, ts: event.ts || Date.now() }
-    decodeEvents.value = [row, ...decodeEvents.value].slice(0, DECODE_EVENTS_MAX)
+    // Reverse so the batch's newest frame lands at the front, then prepend the
+    // existing (already newest-first) buffer and cap.
+    if (freshLogs.length > 0)
+      decodeLogs.value = [...freshLogs.reverse(), ...decodeLogs.value].slice(0, DECODE_LOGS_MAX)
+    if (freshRows.length > 0)
+      decodeEvents.value = [...freshRows.reverse(), ...decodeEvents.value].slice(
+        0,
+        DECODE_EVENTS_MAX,
+      )
+  }
+
+  // Ingest a single decoded frame. Thin wrapper over pushDecodeEventBatch so the
+  // routing/capping logic lives in one place; the WebSocket path batches a
+  // frame's worth of events via pushDecodeEventBatch directly.
+  function pushDecodeEvent(event: DecodeEvent) {
+    pushDecodeEventBatch([event])
   }
 
   function setDecodeStatus(status: { decoder_reachable?: boolean; sync?: boolean }) {
@@ -432,6 +472,7 @@ export const useSdrStore = defineStore('sdr', () => {
     decodeSync.value = false
     decoderReachable.value = false
     decodedMode.value = ''
+    decodedAudioRate.value = null
   }
 
   // Clear only the event log (the user's "clear" button), leaving the live
@@ -625,7 +666,9 @@ export const useSdrStore = defineStore('sdr', () => {
     decodeSync,
     decoderReachable,
     decodedMode,
+    decodedAudioRate,
     pushDecodeEvent,
+    pushDecodeEventBatch,
     setDecodeStatus,
     clearDecode,
     clearDecodeEvents,
