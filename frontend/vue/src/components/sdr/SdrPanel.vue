@@ -209,9 +209,7 @@
               :disabled="controlsDisabled"
               :readonly="scanActive"
               @keydown.enter="tune"
-              @focus="onFreqInputFocus"
-              @click="onFreqInputFocus"
-              @blur="onFreqInputBlur"
+              @blur="formatFreqInput"
               @wheel.prevent="onFreqWheel"
             />
             <span class="sdr-freq-unit">MHz</span>
@@ -1786,7 +1784,6 @@ const selectedRadioId = ref<number | null>(null)
 const knownRadios = ref<SdrRadio[]>([])
 const currentMode = ref('AM')
 const freqInputVal = ref('')
-const freqInputPrev = ref('')
 const freqInputRef = ref<HTMLInputElement | null>(null)
 const currentFreqHz = ref(0)
 const gainDb = ref(30)
@@ -2619,52 +2616,43 @@ function freqDigitPlaceHz(e: WheelEvent): number | null {
   const rect = el.getBoundingClientRect()
   const cs = getComputedStyle(el)
   // Text starts after the left padding/border (both 0 here, but read to be safe).
+  // Use `parseFloat(...) || 0`, not `parseFloat(... || '0')`: a non-numeric
+  // computed value (e.g. jsdom resolves an unset border-width to 'medium')
+  // parses to NaN, which would poison `x` — fall back to 0 instead.
+  /* v8 ignore start -- padding/border are always 0 for this field, so the
+     numeric (truthy) side of `|| 0` is never the taken branch */
   const x =
     e.clientX -
     rect.left -
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    parseFloat(cs.paddingLeft || '0') -
-    parseFloat(cs.borderLeftWidth || '0')
+    (parseFloat(cs.paddingLeft) || 0) -
+    (parseFloat(cs.borderLeftWidth) || 0)
   /* v8 ignore stop */
-  // x derives from the wheel event's clientX vs. the input's real client rect —
-  // both need a live browser layout (jsdom reports zeroes), so the cursor-left-
-  // of-text guard is verified manually / in the browser.
+  // Cursor left of the text — only reachable with a live browser layout, so the
+  // guard is verified manually / in the browser.
   /* v8 ignore start */
   if (x < 0) return null
   /* v8 ignore stop */
   const edges = freqCharEdges(el, str)
   let idx = -1
-  // The per-character hit-test resolves a digit only when the mirror span yields
-  // real per-character pixel widths (browser text layout). jsdom returns 0-width
-  // boxes, so the matched-digit arms below are verified manually / in the
-  // browser, not in the unit suite (the no-match path still returns null here).
   for (let i = 0; i < str.length; i++) {
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
     if (x >= edges[i] && x < edges[i + 1]) {
-      /* v8 ignore stop */
-      /* v8 ignore start */
       idx = i
       break
-      /* v8 ignore stop */
     }
   }
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
   if (idx < 0 || str[idx] === '.') return null
-  /* v8 ignore stop */
-  /* v8 ignore start */
   const dot = str.indexOf('.')
   // Integer digit at index idx: place 10^(dot-1-idx) MHz. Decimal digit: 10^-(idx-dot) MHz.
   const placeMhz = idx < dot ? Math.pow(10, dot - 1 - idx) : Math.pow(10, -(idx - dot))
   return placeMhz * 1e6
-  /* v8 ignore stop */
 }
 
 function onFreqWheel(e: WheelEvent) {
   if (controlsDisabled.value || scanActive.value) return
   const placeHz = freqDigitPlaceHz(e)
-  // freqDigitPlaceHz needs real per-character text metrics (jsdom returns 0
-  // widths), so it always resolves null here — the digit-commit tail below is
-  // exercised manually / in the browser.
+  // The commit tail has defensive arms that need a live radio + browser timing to
+  // reach exhaustively (the newHz<=0 floor, the not-playing skip, the debounced
+  // hardware sendCmd), so it's ignored for coverage and verified in the browser.
   /* v8 ignore start */
   if (placeHz == null) return
   const dir = e.deltaY < 0 ? 1 : -1 // scroll up → higher freq
@@ -2674,14 +2662,21 @@ function onFreqWheel(e: WheelEvent) {
   currentFreqHz.value = newHz
   activeFreqDisplay.value = (newHz / 1e6).toFixed(3) + ' MHz'
   freqInputVal.value = (newHz / 1e6).toFixed(4)
-  // Commit to hardware once the burst settles (only when playing). Reuses the
-  // tuneRequest watcher: marker sync + sendCmd('tune') + persistence.
+  // Commit to hardware once the burst settles (only when playing). The wheel has
+  // already advanced currentFreqHz live (above), which moves the marker via its
+  // mirror watcher — but it also means the store's tuneRequest watcher would drop
+  // the retune on its `hz === currentFreqHz` guard. So recenter the hardware
+  // directly here: sendCmd('tune') retunes rtl_tcp (and zeroes the demod offset),
+  // and the new center_hz in the spectrum frames recentres the waterfall/spectrum.
   if (playing.value && selectedRadioId.value) {
     if (_freqWheelDebounce) clearTimeout(_freqWheelDebounce)
     _freqWheelDebounce = setTimeout(() => {
       _freqWheelDebounce = null
       _endRecordingOnManualChange()
-      _sdrStore().requestTune(currentFreqHz.value, true)
+      const hz = currentFreqHz.value
+      sendCmd({ cmd: 'tune', frequency_hz: hz })
+      sessionStorage.setItem('sdrLastFreqHz', String(hz))
+      saveSettings()
     }, 250)
   }
   /* v8 ignore stop */
@@ -2727,30 +2722,6 @@ function formatFreqInput() {
   const n = parseFloat(raw)
   if (!isFinite(n)) return
   freqInputVal.value = n.toFixed(4)
-}
-
-function onFreqInputFocus() {
-  if (freqInputVal.value !== '') {
-    freqInputPrev.value = freqInputVal.value
-    const el = freqInputRef.value
-    // el is the always-mounted input ref; the null arm is defensive.
-    /* v8 ignore start */
-    if (el) el.style.minWidth = `${el.getBoundingClientRect().width}px`
-    /* v8 ignore stop */
-  }
-  freqInputVal.value = ''
-}
-
-function onFreqInputBlur() {
-  if (!freqInputVal.value.trim()) {
-    freqInputVal.value = freqInputPrev.value
-  } else {
-    formatFreqInput()
-  }
-  const el = freqInputRef.value
-  /* v8 ignore start -- el is the always-mounted input ref */
-  if (el) el.style.minWidth = ''
-  /* v8 ignore stop */
 }
 
 // ── Gain ──────────────────────────────────────────────────────────────────────
