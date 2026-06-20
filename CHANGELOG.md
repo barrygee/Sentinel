@@ -84,6 +84,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Live aircraft accordion in the search list with map-click open
 - Remove bell and track buttons from on-hover aircraft tag
 - Persist search selection/isolation and refine detail panel
+- Trunk tracking, side-by-side decoder dock, trunk-system accordion (#109)
 
 ### Bug Fixes
 
