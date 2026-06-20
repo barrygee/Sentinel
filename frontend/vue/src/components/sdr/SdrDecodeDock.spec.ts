@@ -18,45 +18,16 @@ describe('SdrDecodeDock', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders two tabs with the messages tab selected by default', () => {
+  it('renders both panels side by side, each headed and showing its own empty state', () => {
     const wrapper = mountDock()
-    const tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs).toHaveLength(2)
-    expect(tabs[0].text()).toBe('Decoded messages')
-    expect(tabs[1].text()).toBe('Logs')
-    expect(tabs[0].attributes('aria-selected')).toBe('true')
-    expect(tabs[1].attributes('aria-selected')).toBe('false')
-    // Messages empty state visible; logs panel hidden.
-    expect(wrapper.find('#sdr-dock-panel-messages .sdr-decode-empty').text()).toBe(
-      'No decoded events yet.',
-    )
-  })
-
-  it('switches between tabs on click', async () => {
-    const wrapper = mountDock()
-    await wrapper.find('#sdr-dock-tab-logs').trigger('click')
-    expect(wrapper.find('#sdr-dock-tab-logs').attributes('aria-selected')).toBe('true')
-    expect(wrapper.find('#sdr-dock-panel-logs .sdr-decode-empty').text()).toBe('No log output yet.')
-    // Click back to the messages tab.
-    await wrapper.find('#sdr-dock-tab-messages').trigger('click')
-    expect(wrapper.find('#sdr-dock-tab-messages').attributes('aria-selected')).toBe('true')
-  })
-
-  it('moves between tabs with the arrow keys (roving tabindex)', async () => {
-    const wrapper = mountDock()
-    const tablist = wrapper.find('[role="tablist"]')
-    await tablist.trigger('keydown', { key: 'ArrowRight' })
-    expect(wrapper.find('#sdr-dock-tab-logs').attributes('aria-selected')).toBe('true')
-    expect(wrapper.find('#sdr-dock-tab-logs').attributes('tabindex')).toBe('0')
-    expect(wrapper.find('#sdr-dock-tab-messages').attributes('tabindex')).toBe('-1')
-    await tablist.trigger('keydown', { key: 'ArrowLeft' })
-    expect(wrapper.find('#sdr-dock-tab-messages').attributes('aria-selected')).toBe('true')
-  })
-
-  it('ignores non-arrow keys on the tablist', async () => {
-    const wrapper = mountDock()
-    await wrapper.find('[role="tablist"]').trigger('keydown', { key: 'Enter' })
-    expect(wrapper.find('#sdr-dock-tab-messages').attributes('aria-selected')).toBe('true')
+    const columns = wrapper.findAll('.sdr-decode-dock-column')
+    expect(columns).toHaveLength(2)
+    // Both headings present at once — no tab switching.
+    expect(wrapper.find('#sdr-dock-heading-messages').text()).toBe('Decoded messages')
+    expect(wrapper.find('#sdr-dock-heading-logs').text()).toBe('Logs')
+    // Both empty states are visible simultaneously, one per column.
+    expect(columns[0].find('.sdr-decode-empty').text()).toBe('No decoded events yet.')
+    expect(columns[1].find('.sdr-decode-empty').text()).toBe('No log output yet.')
   })
 
   it('renders one table row per decoded event with its fields', async () => {
@@ -108,33 +79,74 @@ describe('SdrDecodeDock', () => {
     expect(lines[1].find('.sdr-sr-only').text()).toBe('Error:')
   })
 
-  it('Clear acts on the messages tab and is disabled when empty', async () => {
+  it('the messages Clear clears only events and is disabled when empty', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
-    const clear = wrapper.find('.sdr-decode-clear')
-    expect((clear.element as HTMLButtonElement).disabled).toBe(true)
+    // findAll order follows the template: [0] = messages column, [1] = logs column.
+    const messagesClear = wrapper.findAll('.sdr-decode-clear')[0]
+    expect((messagesClear.element as HTMLButtonElement).disabled).toBe(true)
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    expect((clear.element as HTMLButtonElement).disabled).toBe(false)
-    await clear.trigger('click')
+    expect((messagesClear.element as HTMLButtonElement).disabled).toBe(false)
+    await messagesClear.trigger('click')
     expect(store.decodeEvents).toEqual([])
-    expect(store.decodeLogs).toHaveLength(1) // logs untouched on the messages tab
+    expect(store.decodeLogs).toHaveLength(1) // logs untouched
   })
 
-  it('Clear acts on the logs tab when it is active', async () => {
+  it('the logs Clear clears only logs and is disabled when empty', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
-    await wrapper.find('#sdr-dock-tab-logs').trigger('click')
-    const clear = wrapper.find('.sdr-decode-clear')
-    expect((clear.element as HTMLButtonElement).disabled).toBe(true)
+    const logsClear = wrapper.findAll('.sdr-decode-clear')[1]
+    expect((logsClear.element as HTMLButtonElement).disabled).toBe(true)
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    expect((clear.element as HTMLButtonElement).disabled).toBe(false)
-    await clear.trigger('click')
+    expect((logsClear.element as HTMLButtonElement).disabled).toBe(false)
+    await logsClear.trigger('click')
     expect(store.decodeLogs).toEqual([])
-    expect(store.decodeEvents).toHaveLength(1) // messages untouched on the logs tab
+    expect(store.decodeEvents).toHaveLength(1) // messages untouched
+  })
+
+  it('hides the trunk indicator until trunk tracking is enabled', async () => {
+    const store = useSdrStore()
+    const wrapper = mountDock()
+    expect(wrapper.find('.sdr-decode-trunk').exists()).toBe(false)
+    store.setTrunkEnabled(true)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-trunk').exists()).toBe(true)
+  })
+
+  it('shows the waiting state when trunking with no channel followed yet', async () => {
+    const store = useSdrStore()
+    store.setTrunkEnabled(true)
+    const wrapper = mountDock()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-trunk').text()).toBe('Trunking — waiting for control channel')
+    // No channel followed → idle dot inside the trunk indicator.
+    expect(wrapper.find('.sdr-decode-trunk .sdr-decode-dot--idle').exists()).toBe(true)
+  })
+
+  it('shows the control-channel state with an idle dot and MHz frequency', async () => {
+    const store = useSdrStore()
+    store.setTrunkEnabled(true)
+    store.trunkFollowedHz = 453_012_500
+    store.trunkOnControlChannel = true
+    const wrapper = mountDock()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-trunk').text()).toBe('Control channel — 453.0125 MHz')
+    expect(wrapper.find('.sdr-decode-trunk .sdr-decode-dot--idle').exists()).toBe(true)
+  })
+
+  it('shows the following-call state with a synced dot when off the control channel', async () => {
+    const store = useSdrStore()
+    store.setTrunkEnabled(true)
+    store.trunkFollowedHz = 451_500_000
+    store.trunkOnControlChannel = false
+    const wrapper = mountDock()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-trunk').text()).toBe('Following call — 451.5000 MHz')
+    expect(wrapper.find('.sdr-decode-trunk .sdr-decode-dot--synced').exists()).toBe(true)
   })
 
   it('reflects the live status text and dot class', async () => {

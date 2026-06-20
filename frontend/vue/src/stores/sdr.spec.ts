@@ -493,6 +493,26 @@ describe('sdr store', () => {
       expect(store.decodeSync).toBe(false)
     })
 
+    it('a trunk_event updates the follow indicators without adding a call row', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({
+        type: 'trunk_event',
+        tuned_hz: 451_500_000,
+        is_control_channel: false,
+        ts: 1,
+      } as never)
+      expect(store.trunkFollowedHz).toBe(451_500_000)
+      expect(store.trunkOnControlChannel).toBe(false)
+      // It is a state change, not a decoded call — no table row.
+      expect(store.decodeEvents).toHaveLength(0)
+
+      // A control-channel return with no tuned_hz keeps the last frequency but
+      // flips the on-control flag (covers the non-number tuned_hz branch).
+      store.pushDecodeEvent({ type: 'trunk_event', is_control_channel: true, ts: 2 } as never)
+      expect(store.trunkFollowedHz).toBe(451_500_000)
+      expect(store.trunkOnControlChannel).toBe(true)
+    })
+
     it('pushDecodeEvent stamps ts when missing', () => {
       const store = useSdrStore()
       vi.spyOn(Date, 'now').mockReturnValue(12345)
