@@ -4,10 +4,15 @@ WebSocket endpoints (`/ws/sdr/...`) are not covered here — those require an
 active rtl_tcp connection and live IQ data. They'll be tested separately
 during Phase 2C when the router is split.
 """
+
 from __future__ import annotations
+
+from backend.config import settings
+from backend.services import sdr_channel_maps
 
 
 # ── Radios CRUD (stored as a settings.sdr.radios JSON blob) ──────────────────
+
 
 class TestRadiosCRUD:
     def test_list_empty(self, client):
@@ -26,8 +31,8 @@ class TestRadiosCRUD:
         assert isinstance(body["created_at"], int)
         assert body["name"] == "TestRadio"
         assert body["host"] == "192.168.1.10"
-        assert body["port"] == 1234        # default
-        assert body["enabled"] is True     # default
+        assert body["port"] == 1234  # default
+        assert body["enabled"] is True  # default
 
     def test_create_then_list(self, client):
         client.post("/api/sdr/radios", json={"name": "A", "host": "h1"})
@@ -38,7 +43,9 @@ class TestRadiosCRUD:
         assert len(set(ids)) == 2  # unique ids
 
     def test_update_radio(self, client):
-        created = client.post("/api/sdr/radios", json={"name": "A", "host": "h1"}).json()
+        created = client.post(
+            "/api/sdr/radios", json={"name": "A", "host": "h1"}
+        ).json()
         resp = client.put(
             f"/api/sdr/radios/{created['id']}",
             json={"name": "renamed", "host": "h1"},
@@ -51,7 +58,9 @@ class TestRadiosCRUD:
         assert resp.status_code == 404
 
     def test_delete_radio_returns_204(self, client):
-        created = client.post("/api/sdr/radios", json={"name": "A", "host": "h1"}).json()
+        created = client.post(
+            "/api/sdr/radios", json={"name": "A", "host": "h1"}
+        ).json()
         resp = client.delete(f"/api/sdr/radios/{created['id']}")
         assert resp.status_code == 204
         assert client.get("/api/sdr/radios").json() == []
@@ -62,6 +71,7 @@ class TestRadiosCRUD:
 
 
 # ── Groups CRUD ───────────────────────────────────────────────────────────────
+
 
 class TestGroupsCRUD:
     def test_list_empty(self, client):
@@ -145,6 +155,7 @@ class TestGroupsCRUD:
 
 # ── Frequencies CRUD ─────────────────────────────────────────────────────────
 
+
 class TestFrequenciesCRUD:
     def test_list_empty(self, client):
         assert client.get("/api/sdr/frequencies").json() == []
@@ -174,6 +185,7 @@ class TestFrequenciesCRUD:
 
 # ── Recordings (DB-only — file-system paths not exercised) ───────────────────
 
+
 class TestRecordingsList:
     def test_list_empty_returns_empty_list(self, client):
         resp = client.get("/api/sdr/recordings")
@@ -183,3 +195,59 @@ class TestRecordingsList:
     def test_get_unknown_file_returns_404(self, client):
         resp = client.get("/api/sdr/recordings/999/file")
         assert resp.status_code == 404
+
+
+# ── Trunk channel maps (JSON in DB ↔ CSV files for dsd-fme) ───────────────────
+
+
+class TestChannelMapsData:
+    def test_get_empty_when_nothing_stored_or_on_disk(
+        self, client, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "channel_maps_dir", str(tmp_path / "absent"))
+        resp = client.get("/api/sdr/data/channel-maps")
+        assert resp.status_code == 200
+        assert resp.json() == {"channel_maps": []}
+
+    def test_get_seeds_from_existing_csv_when_db_unset(
+        self, client, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "channel_maps_dir", str(tmp_path))
+        (tmp_path / "site.csv").write_text(
+            sdr_channel_maps.CHANNEL_MAP_HEADER + "\n1,858606250\n"
+        )
+        resp = client.get("/api/sdr/data/channel-maps")
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "channel_maps": [
+                {"name": "site", "channels": [{"lsn": 1, "frequency_hz": 858606250}]}
+            ]
+        }
+
+    def test_post_stores_in_db_and_writes_csv(self, client, tmp_path, monkeypatch):
+        maps_dir = tmp_path / "maps"
+        monkeypatch.setattr(settings, "channel_maps_dir", str(maps_dir))
+        payload = {
+            "channel_maps": [
+                {"name": "my-dmr", "channels": [{"lsn": 1, "frequency_hz": 858606250}]}
+            ]
+        }
+        resp = client.post("/api/sdr/data/channel-maps", json=payload)
+        assert resp.status_code == 200
+        # CSV rendered for dsd-fme...
+        assert (maps_dir / "my-dmr.csv").read_text() == (
+            sdr_channel_maps.CHANNEL_MAP_HEADER + "\n1,858606250\n"
+        )
+        # ...and the DB is now the source of truth on the next GET.
+        assert client.get("/api/sdr/data/channel-maps").json() == {
+            "channel_maps": payload["channel_maps"]
+        }
+
+    def test_post_invalid_payload_returns_400(self, client, tmp_path, monkeypatch):
+        monkeypatch.setattr(settings, "channel_maps_dir", str(tmp_path))
+        resp = client.post(
+            "/api/sdr/data/channel-maps",
+            json={"channel_maps": [{"name": "../x", "channels": []}]},
+        )
+        assert resp.status_code == 400
+        assert "invalid channel-map name" in resp.json()["detail"]

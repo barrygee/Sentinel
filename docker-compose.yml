@@ -12,7 +12,7 @@ services:
       - ./frontend/assets:/app/frontend/assets:ro  # tiles, sprites, fonts
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
       - decoder_secret:/run/decoder    # shared auto-generated ingest secret
-      - ./decoder/channel-maps:/app/channel-maps:ro  # trunking CSVs (listed for the UI)
+      - ./decoder/channel-maps:/app/channel-maps  # trunking CSVs (listed for the UI; writable so the JSON editor can render CSVs here)
     environment:
       - DB_PATH=/app/data/sentinel.db
       - PYTHONUNBUFFERED=1

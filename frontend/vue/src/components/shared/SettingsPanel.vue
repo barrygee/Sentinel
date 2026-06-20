@@ -497,6 +497,15 @@ const ALL_SETTINGS: SettingItem[] = [
     type: 'sdr-bandplan-file',
   },
   {
+    section: 'sdr',
+    sectionLabel: 'SDR',
+    id: 'sdr-channelmaps-file',
+    label: 'Trunk Channel Maps (JSON)',
+    desc: 'Add trunked-system channel maps as JSON — each map a name plus a list of {lsn, frequency_hz} pairs. Saved to the database and written out as the CSV files dsd-fme loads for trunk tracking (pick one in the SDR panel’s TRUNK control).',
+    type: 'sdr-channelmaps-file',
+    groupLabel: 'TRUNK DATA',
+  },
+  {
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'config-current',

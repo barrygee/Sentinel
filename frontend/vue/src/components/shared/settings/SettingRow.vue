@@ -114,6 +114,13 @@
       filename="sdr_bandplan.json"
       @stage="emit('stage', item.id, $event)"
     />
+    <JsonDataControl
+      v-else-if="item.type === 'sdr-channelmaps-file'"
+      get-url="/api/sdr/data/channel-maps"
+      post-url="/api/sdr/data/channel-maps"
+      filename="sdr_channel_maps.json"
+      @stage="emit('stage', item.id, $event)"
+    />
     <ConfigCurrentControl
       v-else-if="item.type === 'config-current'"
       @stage="emit('stage', item.id, $event)"
@@ -167,6 +174,7 @@ const WIDE_TYPES = new Set([
   'space-sat-radio-file',
   'sdr-frequencies-file',
   'sdr-bandplan-file',
+  'sdr-channelmaps-file',
   'config-current',
 ])
 const isWide = WIDE_TYPES.has(props.item.type)
