@@ -36,6 +36,14 @@
     {
       "name": "EGNT",
       "slug": "egnt"
+    },
+    {
+      "name": "Digital",
+      "slug": "digital"
+    },
+    {
+      "name": "DMR",
+      "slug": "dmr"
     }
   ],
   "frequencies": [
@@ -494,6 +502,26 @@
       "groups": [
         "north-east",
         "maritime"
+      ]
+    },
+    {
+      "label": "DMR - Sunderland?",
+      "frequency_hz": 165350500,
+      "mode": "NFM",
+      "notes": "",
+      "groups": [
+        "digital",
+        "dmr"
+      ]
+    },
+    {
+      "label": "Local DMR - Bus?",
+      "frequency_hz": 166112800,
+      "mode": "NFM",
+      "notes": "Could be busses",
+      "groups": [
+        "digital",
+        "dmr"
       ]
     },
     {

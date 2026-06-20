@@ -260,6 +260,50 @@
                 </template>
               </svg>
             </button>
+            <!-- Decode: toggles digital decoding AND shows/hides the decoder dock
+                 below the waterfall (both driven by digitalEnabled). -->
+            <button
+              class="sdr-mode-pill sdr-tune-btn sdr-digital-btn"
+              :class="{ 'sdr-digital-btn--active': digitalEnabled }"
+              type="button"
+              :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+              :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+              :aria-pressed="digitalEnabled"
+              :disabled="!playing"
+              @click="toggleDigital"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path
+                  d="M1 8H3V4H6V8H9V4H11"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <!-- Trunk: follow control-channel grants. Enabled only once digital
+                 decode is running and a channel map is chosen. -->
+            <button
+              class="sdr-mode-pill sdr-tune-btn sdr-trunk-btn"
+              :class="{ 'sdr-trunk-btn--active': trunkEnabled }"
+              type="button"
+              :title="trunkEnabled ? 'Stop trunk tracking' : 'Follow trunked system'"
+              :aria-label="trunkEnabled ? 'Stop trunk tracking' : 'Follow trunked system'"
+              :aria-pressed="trunkEnabled"
+              :disabled="!canEnableTrunk && !trunkEnabled"
+              @click="toggleTrunk"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path
+                  d="M6 1.5V10.5M6 1.5L3 4.5M6 1.5L9 4.5M2 8.5h8"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -742,6 +786,57 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Trunk-system channel-map picker. Lives in its own accordion below
+             SEARCH; only shown while digital decode is running (the trunk
+             control rides on the decode session). -->
+        <div v-if="digitalEnabled" class="sdr-radio-section sdr-trunk-section">
+          <button
+            type="button"
+            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
+            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': trunkSectionExpanded }"
+            :aria-expanded="trunkSectionExpanded"
+            aria-controls="sdr-trunk-section-body"
+            @click="trunkSectionExpanded = !trunkSectionExpanded"
+          >
+            <label class="sdr-field-label sdr-frequency-manager-scanner-title">TRUNK SYSTEM</label>
+            <span class="sdr-frequency-manager-accordion-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          <div v-show="trunkSectionExpanded" id="sdr-trunk-section-body">
+            <!-- Flat-dark custom dropdown matching the device/step pickers (the
+                 native <select> didn't match the panel theme). Disabled while
+                 trunking is active — the map can't change mid-follow. -->
+            <div
+              ref="trunkMapDropdownRef"
+              class="sdr-device-dropdown sdr-trunk-dropdown"
+              :class="{
+                'sdr-device-dropdown--open': trunkMapMenuOpen,
+                'sdr-device-dropdown--loading': trunkEnabled,
+              }"
+              tabindex="0"
+              role="combobox"
+              aria-label="Trunk channel map"
+              aria-haspopup="listbox"
+              aria-controls="sdr-trunk-map-listbox"
+              :aria-expanded="trunkMapMenuOpen"
+              @click.stop="trunkEnabled ? null : toggleTrunkMapMenu()"
+              @keydown="onTrunkMapDropdownKey"
+            >
+              <div class="sdr-device-dropdown-selected">
+                <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
+                  trunkMapLabel
+                }}</span>
+                <span class="sdr-device-dropdown-arrow"></span>
+              </div>
+            </div>
+            <p v-if="trunkChannelMaps.length === 0" class="sdr-trunk-hint">
+              Add a channel-map CSV to decoder/channel-maps to enable trunking.
+            </p>
+            <p v-if="trunkError" class="sdr-trunk-error" role="alert">{{ trunkError }}</p>
           </div>
         </div>
       </div>
@@ -1464,6 +1559,40 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Trunk channel-map dropdown menu (teleported so it overlays the side panel) -->
+  <Teleport to="body">
+    <div
+      v-if="trunkMapMenuOpen"
+      ref="trunkMapMenuRef"
+      class="sdr-device-menu sdr-device-menu--open sdr-trunk-menu"
+      :style="trunkMapMenuStyle"
+      @click.stop
+    >
+      <div id="sdr-trunk-map-listbox" role="listbox" aria-label="Channel maps">
+        <div
+          role="option"
+          class="sdr-device-menu-item"
+          :class="{ 'sdr-device-menu-item--selected': trunkChannelMap === '' }"
+          :aria-selected="trunkChannelMap === ''"
+          @click="pickTrunkMap('')"
+        >
+          No channel map
+        </div>
+        <div
+          v-for="name in trunkChannelMaps"
+          :key="name"
+          role="option"
+          class="sdr-device-menu-item"
+          :class="{ 'sdr-device-menu-item--selected': trunkChannelMap === name }"
+          :aria-selected="trunkChannelMap === name"
+          @click="pickTrunkMap(name)"
+        >
+          {{ name }}
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -1471,6 +1600,7 @@ import './SdrPanel.css'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
+import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
@@ -1513,6 +1643,7 @@ interface SdrStoredFrequency {
 defineProps<{ fullPage: boolean }>()
 
 const sdrAudio = useSdrAudio()
+const sdrDecode = useSdrDecode()
 
 // Lazy store accessor. MUST be declared here — above every watcher that calls
 // it — not lower in the file. `_sdrStore` is a hoisted function so it is
@@ -1708,6 +1839,7 @@ watch(
       scannerSectionExpanded.value = false
       searchSectionExpanded.value = false
       savedRangesExpanded.value = false
+      trunkSectionExpanded.value = false
     }
   },
 )
@@ -2095,6 +2227,166 @@ function sendCmd(obj: object) {
   /* v8 ignore stop */
 }
 
+// ── Digital decode (dsd-fme sidecar) ───────────────────────────────────────────
+
+// Mirrors the store toggle so the DIGITAL button reflects (and survives) it.
+const digitalEnabled = computed(() => _sdrStore().digitalEnabled)
+
+// Turn digital decoding on/off while the radio is running. Enabling tells the
+// backend to start the decode bridge (via the control socket), opens the decode
+// + decoded-audio sockets, and mutes the analog audio (the digital channel is
+// just noise to the ear). Disabling reverses all of it.
+function setDigital(on: boolean) {
+  _sdrStore().setDigitalEnabled(on)
+  if (on) {
+    _sdrStore().clearDecode()
+    sendCmd({
+      cmd: 'digital_decode',
+      enabled: true,
+      offset_hz: _sdrStore().tuningOffsetHz,
+      bw_hz: bwHz.value,
+      mode: currentMode.value,
+    })
+    if (selectedRadioId.value != null) sdrDecode.start(selectedRadioId.value)
+    sdrAudio.setLiveMuted(true)
+  } else {
+    sendCmd({ cmd: 'digital_decode', enabled: false })
+    sdrDecode.stop()
+    sdrAudio.setLiveMuted(false)
+    _sdrStore().clearDecode()
+  }
+}
+
+function toggleDigital() {
+  setDigital(!_sdrStore().digitalEnabled)
+}
+
+// ── Trunk tracking ─────────────────────────────────────────────────────────────
+
+const trunkEnabled = computed(() => _sdrStore().trunkEnabled)
+const trunkChannelMap = computed({
+  get: () => _sdrStore().trunkChannelMap,
+  set: (name: string) => _sdrStore().setTrunkChannelMap(name),
+})
+const trunkChannelMaps = computed(() => _sdrStore().trunkChannelMaps)
+const trunkError = computed(() => _sdrStore().trunkError)
+// Trunking can only be turned on once digital decode is running and a channel
+// map is chosen — the control surface for following grants rides on the decode
+// session, and dsd-fme cannot follow a system without its map.
+const canEnableTrunk = computed(() => digitalEnabled.value && trunkChannelMap.value !== '')
+
+// Trunk-system accordion (sits below SEARCH) + its flat-dark channel-map
+// dropdown, mirroring the device/step pickers' menu pattern.
+const trunkSectionExpanded = ref(false)
+const trunkMapDropdownRef = ref<HTMLElement | null>(null)
+const trunkMapMenuRef = ref<HTMLElement | null>(null)
+const trunkMapMenuOpen = ref(false)
+const trunkMapMenuStyle = ref<Record<string, string>>({})
+
+const trunkMapLabel = computed(() =>
+  trunkChannelMap.value === '' ? 'No channel map' : trunkChannelMap.value,
+)
+
+function positionTrunkMapMenu() {
+  const el = trunkMapDropdownRef.value
+  // The dropdown is rendered (accordion open) before the menu can be toggled,
+  // so its ref is always populated here.
+  /* v8 ignore start */
+  if (!el) return
+  /* v8 ignore stop */
+  const rect = el.getBoundingClientRect()
+  trunkMapMenuStyle.value = {
+    left: rect.left + 'px',
+    top: rect.bottom + 'px',
+    width: rect.width + 'px',
+  }
+}
+
+function toggleTrunkMapMenu() {
+  if (trunkMapMenuOpen.value) {
+    closeTrunkMapMenu()
+    return
+  }
+  positionTrunkMapMenu()
+  trunkMapMenuOpen.value = true
+}
+
+function closeTrunkMapMenu() {
+  trunkMapMenuOpen.value = false
+}
+
+function onTrunkMapDropdownKey(keyboardEvent: KeyboardEvent) {
+  if (trunkEnabled.value) return
+  if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+    keyboardEvent.preventDefault()
+    toggleTrunkMapMenu()
+  }
+  if (keyboardEvent.key === 'Escape') closeTrunkMapMenu()
+}
+
+function pickTrunkMap(name: string) {
+  closeTrunkMapMenu()
+  trunkChannelMap.value = name
+}
+
+// Fetch the channel-map filenames the backend offers (read from the mounted maps
+// directory) so the picker has options. Failures leave the list empty.
+async function loadChannelMaps() {
+  try {
+    const res = await fetch('/api/sdr/trunk/channel-maps')
+    if (!res.ok) return
+    const data = await res.json()
+    if (Array.isArray(data?.channel_maps)) _sdrStore().setTrunkChannelMaps(data.channel_maps)
+  } catch {
+    /* offline / transient — leave the picker empty */
+  }
+}
+
+// Turn trunk tracking on/off. Enabling tells the backend to start the rigctld
+// server and relaunch dsd-fme in trunk mode with the chosen channel map; the
+// decoder then follows control-channel grants. Requires digital decode already
+// running (the backend bounces the existing decode session to apply the flags).
+function setTrunk(on: boolean) {
+  _sdrStore().setTrunkError('')
+  if (on) {
+    if (!canEnableTrunk.value) return
+    _sdrStore().setTrunkEnabled(true)
+    sendCmd({
+      cmd: 'trunk_decode',
+      enabled: true,
+      channel_map: trunkChannelMap.value,
+      offset_hz: _sdrStore().tuningOffsetHz,
+      bw_hz: bwHz.value,
+    })
+  } else {
+    _sdrStore().setTrunkEnabled(false)
+    sendCmd({ cmd: 'trunk_decode', enabled: false })
+  }
+}
+
+function toggleTrunk() {
+  setTrunk(!_sdrStore().trunkEnabled)
+}
+
+// Turning digital decode off must also drop trunk tracking — it cannot run
+// without the underlying decode session.
+watch(digitalEnabled, (enabled) => {
+  if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
+})
+
+// When the user retunes the demod offset or changes bandwidth while decoding,
+// push the new channel to the backend so the server-side demod follows it
+// without restarting the session.
+watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode], () => {
+  if (!_sdrStore().digitalEnabled) return
+  sendCmd({
+    cmd: 'digital_channel',
+    offset_hz: _sdrStore().tuningOffsetHz,
+    bw_hz: bwHz.value,
+    mode: currentMode.value,
+  })
+})
+
 async function openControlSocket(radioId: number) {
   if (_ctrlReconnect) {
     clearTimeout(_ctrlReconnect)
@@ -2216,6 +2508,17 @@ async function openControlSocket(radioId: number) {
         setStatus(false)
         break
       case 'pong':
+        break
+      case 'trunk_status':
+        // Backend confirms (or rejects) a trunk_decode request. On rejection
+        // (e.g. missing channel map) it reports enabled:false + an error, so
+        // reconcile the toggle and surface the message.
+        if (msg.enabled === false) {
+          _sdrStore().setTrunkEnabled(false)
+          if (typeof msg.error === 'string') _sdrStore().setTrunkError(msg.error)
+        } else if (msg.enabled === true) {
+          _sdrStore().setTrunkEnabled(true)
+        }
         break
     }
   })
@@ -2409,6 +2712,7 @@ function tune() {
 
 function stop() {
   _endRecordingOnManualChange()
+  if (_sdrStore().digitalEnabled) setDigital(false)
   if (scanActive.value) stopScan()
   if (searchActive.value) stopSearch()
   sdrAudio.stop()
@@ -2682,6 +2986,7 @@ function clearRadioSelection() {
 
 function selectRadio(r: SdrRadio | null) {
   closeDeviceMenu()
+  if (_sdrStore().digitalEnabled) setDigital(false)
   if (!r) {
     clearRadioSelection()
     return
@@ -2832,6 +3137,7 @@ function onDocumentClick() {
   if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
   if (stepMenuOpen.value) closeStepMenu()
+  if (trunkMapMenuOpen.value) closeTrunkMapMenu()
 }
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
@@ -4387,6 +4693,7 @@ onMounted(() => {
 
   loadRadios()
   reloadData()
+  void loadChannelMaps()
 })
 
 onUnmounted(() => {

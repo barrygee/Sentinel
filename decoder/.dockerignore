@@ -1,0 +1,9 @@
+# Keep the decoder build context tiny — only the Dockerfile + entrypoint are
+# needed; everything is fetched/compiled inside the build. Never let a locally
+# compiled vocoder leak into the image.
+build/
+**/mbelib/
+*.so
+__pycache__/
+*.pyc
+README.md

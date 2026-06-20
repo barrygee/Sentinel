@@ -36,6 +36,48 @@ export interface SdrSpectrumFrame {
   ts: number
 }
 
+// A decoded digital event relayed from the dsd-fme sidecar via the backend.
+// All call fields are optional — a single dsd-fme log line may carry any subset.
+export interface DecodeEvent {
+  type: string
+  mode?: string
+  talkgroup?: number
+  source?: number
+  color_code?: number
+  sync?: boolean
+  decoder_reachable?: boolean
+  vocoder?: string
+  // Measured playback rate (Hz) for decoded voice, reported by the backend on
+  // `decode_status` frames (see DigitalDecodeBridge._measure_audio_rate). The
+  // decode-audio player schedules PCM at this rate. Present once measured.
+  audio_sample_rate?: number
+  // Present only on `type: "log"` frames — one raw dsd-fme output line.
+  line?: string
+  // Present only on `type: "trunk_event"` frames (trunk tracking): the absolute
+  // frequency the decoder just retuned to, and whether that is the control
+  // channel (a return) rather than a call's voice channel.
+  tuned_hz?: number
+  is_control_channel?: boolean
+  ts: number
+}
+
+// Cap the in-memory decoded-event log so a long session can't grow unbounded.
+const DECODE_EVENTS_MAX = 200
+
+// Cap the raw dsd-fme log buffer. Lines arrive far faster than call rows (the
+// control channel emits many status lines per second), so this is kept tighter
+// to bound memory and the rendered list.
+const DECODE_LOGS_MAX = 300
+
+// dsd-fme colourises its output with ANSI CSI escape sequences. Strip them so the
+// log view shows clean text instead of "[33m"/"[0m" litter. Anchored on the ESC
+// control char so real bracketed tokens (e.g. "[slot2]") are never touched.
+// eslint-disable-next-line no-control-regex -- matching the ESC control char is the intent
+const ANSI_ESCAPE_PATTERN = /\[[0-9;]*[A-Za-z]/g
+function stripAnsi(line: string): string {
+  return line.replace(ANSI_ESCAPE_PATTERN, '').trimEnd()
+}
+
 export const useSdrStore = defineStore('sdr', () => {
   const radios = ref<SdrRadio[]>([])
   const groups = ref<SdrFrequencyGroup[]>([])
@@ -319,6 +361,192 @@ export const useSdrStore = defineStore('sdr', () => {
     tuningOffsetHz.value = hz
   }
 
+  // ── Digital decode (dsd-fme sidecar) ──────────────────────────────────────
+  // User toggle for digital-mode decoding. Persisted in the `sdr` settings
+  // namespace; localStorage is a fast-path cache (same pattern as the waterfall
+  // toggles) so the button reflects the last state instantly on load, then the
+  // DB hydrate reconciles it. Default OFF.
+  function _readDigitalEnabled(): boolean {
+    try {
+      return localStorage.getItem('sdrDigitalEnabled') === '1'
+    } catch {
+      return false
+    }
+  }
+  const digitalEnabled = ref<boolean>(_readDigitalEnabled())
+  function setDigitalEnabled(on: boolean) {
+    digitalEnabled.value = on
+    try {
+      localStorage.setItem('sdrDigitalEnabled', on ? '1' : '0')
+    } catch {}
+  }
+  async function hydrateDigitalEnabledFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.digitalDecodeDefault
+      if (typeof v === 'boolean' && v !== digitalEnabled.value) setDigitalEnabled(v)
+    } catch {
+      /* offline / transient — keep current value */
+    }
+  }
+
+  // ── Trunk tracking (dsd-fme follows control-channel grants) ────────────────
+  // Whether trunk tracking is active. Not auto-persisted: trunking rides on an
+  // active decode session and a chosen channel map, so it is always started
+  // explicitly rather than restored on load.
+  const trunkEnabled = ref(false)
+  function setTrunkEnabled(on: boolean) {
+    trunkEnabled.value = on
+    if (!on) {
+      trunkFollowedHz.value = null
+      trunkOnControlChannel.value = false
+      trunkError.value = ''
+    }
+  }
+
+  // The selected channel-map CSV filename. Persisted as a convenience so the last
+  // system is preselected next time (it does not enable trunking on its own).
+  function _readTrunkChannelMap(): string {
+    try {
+      return localStorage.getItem('sdrTrunkChannelMap') ?? ''
+    } catch {
+      return ''
+    }
+  }
+  const trunkChannelMap = ref<string>(_readTrunkChannelMap())
+  function setTrunkChannelMap(name: string) {
+    trunkChannelMap.value = name
+    try {
+      localStorage.setItem('sdrTrunkChannelMap', name)
+    } catch {}
+  }
+
+  // CSV filenames offered in the channel-map picker, fetched from the backend.
+  const trunkChannelMaps = ref<string[]>([])
+  function setTrunkChannelMaps(names: string[]) {
+    trunkChannelMaps.value = names
+  }
+
+  // Live trunk indicators: the frequency currently followed and whether it is the
+  // control channel (vs an active call's voice channel). Reset per session.
+  const trunkFollowedHz = ref<number | null>(null)
+  const trunkOnControlChannel = ref(false)
+  // Last trunk error surfaced by the backend (e.g. missing channel map).
+  const trunkError = ref('')
+  function setTrunkError(message: string) {
+    trunkError.value = message
+  }
+
+  // Live decoded-event log (newest first), plus the latest sync / decoder
+  // reachability state. Non-persisted — this is live session data.
+  const decodeEvents = ref<DecodeEvent[]>([])
+  const decodeSync = ref(false)
+  const decoderReachable = ref(false)
+  // Most-recently decoded protocol (e.g. "DMR", "P25"), upper-cased by the
+  // sidecar parser. Drives the decoded-voice playback sample rate, which differs
+  // per mode (dsd-fme upsamples most modes' UDP audio to 48 kHz but emits DMR at
+  // native 8 kHz). Empty until the first mode-bearing event arrives.
+  const decodedMode = ref('')
+
+  // Backend-measured playback sample rate (Hz) for decoded voice. Null until the
+  // backend has measured dsd-fme's actual UDP output rate (see
+  // DigitalDecodeBridge._measure_audio_rate); the decode-audio player falls back
+  // to a default until then. Measured per session, so it is reset on clear.
+  const decodedAudioRate = ref<number | null>(null)
+
+  // Raw dsd-fme output lines (newest first), shown in the Decoder log view.
+  // Non-persisted live session data, like decodeEvents.
+  const decodeLogs = ref<string[]>([])
+
+  // Ingest a batch of decoded frames from the decode WebSocket in a SINGLE
+  // reactive update. A busy control channel emits dozens of dsd-fme log lines a
+  // second; folding a whole frame's worth of messages into one mutation (one
+  // array rebuild per buffer, not one per message) is what keeps the decoder
+  // dock from re-rendering on every message and starving the spectrum/waterfall
+  // and decoded-audio scheduling on the shared main thread. Events arrive
+  // oldest-first; both buffers are kept newest-first and capped.
+  //
+  // Per frame: sync/reachability/mode fields update the live indicators
+  // (last-in-batch wins, matching sequential arrival) regardless of frame type;
+  // `type: "log"` frames carry a raw dsd-fme line and go only to the log buffer;
+  // `decode_status` frames update indicators only; every other frame is a call
+  // row.
+  function pushDecodeEventBatch(events: DecodeEvent[]) {
+    if (events.length === 0) return
+    const freshLogs: string[] = []
+    const freshRows: DecodeEvent[] = []
+    for (const event of events) {
+      if (typeof event.decoder_reachable === 'boolean')
+        decoderReachable.value = event.decoder_reachable
+      if (typeof event.sync === 'boolean') decodeSync.value = event.sync
+      if (event.mode) decodedMode.value = event.mode
+      if (typeof event.audio_sample_rate === 'number')
+        decodedAudioRate.value = event.audio_sample_rate
+      if (event.type === 'log') {
+        const cleaned = event.line ? stripAnsi(event.line) : ''
+        if (cleaned) freshLogs.push(cleaned)
+        continue
+      }
+      if (event.type === 'decode_status') continue
+      if (event.type === 'trunk_event') {
+        // Trunk retune: update the "currently following" indicators only — it is
+        // a state change (which channel we are on), not a decoded call row.
+        if (typeof event.tuned_hz === 'number') trunkFollowedHz.value = event.tuned_hz
+        trunkOnControlChannel.value = event.is_control_channel === true
+        continue
+      }
+      freshRows.push({ ...event, ts: event.ts || Date.now() })
+    }
+    // Reverse so the batch's newest frame lands at the front, then prepend the
+    // existing (already newest-first) buffer and cap.
+    if (freshLogs.length > 0)
+      decodeLogs.value = [...freshLogs.reverse(), ...decodeLogs.value].slice(0, DECODE_LOGS_MAX)
+    if (freshRows.length > 0)
+      decodeEvents.value = [...freshRows.reverse(), ...decodeEvents.value].slice(
+        0,
+        DECODE_EVENTS_MAX,
+      )
+  }
+
+  // Ingest a single decoded frame. Thin wrapper over pushDecodeEventBatch so the
+  // routing/capping logic lives in one place; the WebSocket path batches a
+  // frame's worth of events via pushDecodeEventBatch directly.
+  function pushDecodeEvent(event: DecodeEvent) {
+    pushDecodeEventBatch([event])
+  }
+
+  function setDecodeStatus(status: { decoder_reachable?: boolean; sync?: boolean }) {
+    if (typeof status.decoder_reachable === 'boolean')
+      decoderReachable.value = status.decoder_reachable
+    if (typeof status.sync === 'boolean') decodeSync.value = status.sync
+  }
+
+  // Reset the live decode state — called when digital decode is disabled or the
+  // radio changes, so a new session starts clean.
+  function clearDecode() {
+    decodeEvents.value = []
+    decodeLogs.value = []
+    decodeSync.value = false
+    decoderReachable.value = false
+    decodedMode.value = ''
+    decodedAudioRate.value = null
+    trunkFollowedHz.value = null
+    trunkOnControlChannel.value = false
+  }
+
+  // Clear only the event log (the user's "clear" button), leaving the live
+  // sync / reachability indicators intact since the decoder is still connected.
+  function clearDecodeEvents() {
+    decodeEvents.value = []
+  }
+
+  // Clear only the raw log buffer (the log view's own "clear" button).
+  function clearDecodeLogs() {
+    decodeLogs.value = []
+  }
+
   // Latest spectrum frame from the control WebSocket. Non-persisted; held as a
   // single ref (the bins array is NOT deep-tracked — consumers read it
   // imperatively in their render/push loop). See SdrWaterfall.vue.
@@ -491,6 +719,31 @@ export const useSdrStore = defineStore('sdr', () => {
     setViewSettings,
     tuningOffsetHz,
     setTuningOffsetHz,
+    digitalEnabled,
+    setDigitalEnabled,
+    hydrateDigitalEnabledFromDb,
+    decodeEvents,
+    decodeLogs,
+    decodeSync,
+    decoderReachable,
+    decodedMode,
+    decodedAudioRate,
+    pushDecodeEvent,
+    pushDecodeEventBatch,
+    setDecodeStatus,
+    clearDecode,
+    clearDecodeEvents,
+    clearDecodeLogs,
+    trunkEnabled,
+    setTrunkEnabled,
+    trunkChannelMap,
+    setTrunkChannelMap,
+    trunkChannelMaps,
+    setTrunkChannelMaps,
+    trunkFollowedHz,
+    trunkOnControlChannel,
+    trunkError,
+    setTrunkError,
     setRadio,
     setFrequency,
     setMode,

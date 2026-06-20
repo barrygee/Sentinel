@@ -11,11 +11,69 @@ services:
       - ./backend:/app/backend         # live-reload backend code
       - ./frontend/assets:/app/frontend/assets:ro  # tiles, sprites, fonts
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
+      - decoder_secret:/run/decoder    # shared auto-generated ingest secret
+      - ./decoder/channel-maps:/app/channel-maps:ro  # trunking CSVs (listed for the UI)
     environment:
       - DB_PATH=/app/data/sentinel.db
       - PYTHONUNBUFFERED=1
+      - CHANNEL_MAPS_DIR=/app/channel-maps
+      # Digital-decode sidecar wiring (only used when the `decoder` profile runs).
+      # The ingest secret is auto-generated into /run/decoder (shared volume); no
+      # configuration needed. Optionally pin it by setting SENTINEL_DECODER_SECRET
+      # in .env (empty → use the auto-generated file).
+      - DECODER_INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - DECODER_PCM_PORT=7355
+      - DECODER_AUDIO_UDP_PORT=7356
+      # Port the backend's rigctld server listens on for trunk tracking; dsd-fme
+      # connects here (via the decoder's localhost forwarder) to drive retunes.
+      - DECODER_RIGCTL_PORT=4532
     command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    networks:
+      - sentinel
+
+  # Digital-voice decoder (dsd-fme). OPT-IN: it only builds/starts when you pass
+  # `--profile decoder`, so it is never built by default or in CI. Building it
+  # compiles the patent-encumbered mbelib vocoder locally (dsd-fme requires it);
+  # the image stays on your machine. See decoder/README.md.
+  decoder:
+    build:
+      context: ./decoder
+      dockerfile: Dockerfile
+    container_name: sentinel-decoder
+    profiles: ["decoder"]
+    depends_on:
+      - app
+    environment:
+      - INGEST_URL=http://app:8000/api/sdr/decode/ingest
+      # Reads the auto-generated secret the backend wrote to the shared volume;
+      # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
+      - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - INGEST_SECRET_FILE=/run/decoder/secret
+      - IQ_PCM_HOST=app
+      - IQ_PCM_PORT=7355
+      - AUDIO_UDP_HOST=app
+      - AUDIO_UDP_PORT=7356
+      # Trunk tracking: dsd-fme's rigctl client only dials localhost, so the
+      # supervisor proxies RIGCTL_PORT on localhost to the backend (RIGCTL_HOST).
+      # CONFIG_URL is polled each launch for the desired trunk state; channel-map
+      # CSVs are read from CHANNEL_MAPS_DIR (mounted below).
+      - RIGCTL_HOST=app
+      - RIGCTL_PORT=4532
+      - CONFIG_URL=http://app:8000/api/sdr/decode/config
+      - CHANNEL_MAPS_DIR=/app/channel-maps
+    volumes:
+      - decoder_secret:/run/decoder:ro
+      # Drop system-specific trunking CSVs (channel map + optional group list)
+      # here; select one in the SDR UI's TRUNK control. See decoder/README.md.
+      - ./decoder/channel-maps:/app/channel-maps:ro
+    # For a hardware AMBE dongle (license-clean alternative to software mbelib),
+    # pass it through and add the matching dsd-fme flag via DSD_EXTRA_ARGS:
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    restart: unless-stopped
+    networks:
+      - sentinel
 
   # rtl-tcp:
   #   image: kosdk/rtl-tcp
@@ -26,6 +84,13 @@ services:
   #     - "4321:4321"
   #   command: rtl_tcp -a 0.0.0.0 -p 4321
   #   restart: unless-stopped
+  #   networks:
+  #     - sentinel
 
 volumes:
   sentinel_db:
+  decoder_secret:
+
+networks:
+  sentinel:
+    driver: bridge

@@ -30,6 +30,13 @@
   left: 44px;
 }
 
+/* When the decoder dock is open below it, the waterfall yields the dock's height
+   (--sdr-dock-height, defined on #sdr-page) so the two never overlap. The
+   ResizeObserver on the spectrum/raster elements reflows sigplot on the change. */
+#sdr-waterfall.decode-open {
+  bottom: calc(var(--footer-height) + var(--sdr-dock-height));
+}
+
 /* Zoom / Max / Min controls — vertical sliders stacked on the right edge,
  * spanning the spectrum + waterfall. Matches the reference screenshot: a
  * narrow dark rounded-capsule track with a small blue rounded-rect handle and

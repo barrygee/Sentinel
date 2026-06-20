@@ -2148,7 +2148,11 @@ onBeforeUnmount(() => {
   <div
     id="sdr-waterfall"
     ref="rootEl"
-    :class="{ 'panel-closed': !panelOpen, 'edge-resize': nearEdge }"
+    :class="{
+      'panel-closed': !panelOpen,
+      'edge-resize': nearEdge,
+      'decode-open': store.digitalEnabled,
+    }"
   >
     <div v-if="store.searchSweeping" class="sdr-wf-search-overlay">
       <div class="sdr-wf-search-overlay-inner">

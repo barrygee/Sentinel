@@ -2,6 +2,11 @@
 # three code contexts (backend Python, the Vue SPA, the root helper tests).
 # Runs on every PR and on pushes to main. mypy is intentionally NOT a gate
 # (informational only, ~90 known errors); ruff check IS gating.
+#
+# NOTE: the digital-decode sidecar image (decoder/Dockerfile) is intentionally
+# NEVER built here. It compiles the patent-encumbered mbelib vocoder, which must
+# not be built in CI or published; it is an opt-in local build only (compose
+# `--profile decoder`). Do not add a decoder build/publish step.
 name: ci
 
 on:

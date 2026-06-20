@@ -34,6 +34,15 @@ audioMock.onSquelchChange.mockImplementation((cb: (open: boolean) => void) => {
 })
 vi.mock('@/composables/useSdrAudio', () => ({ useSdrAudio: () => audioMock }))
 
+// ── useSdrDecode mock (the decode transport is its own 100%-covered unit) ───────
+const decodeMock = vi.hoisted(() => ({
+  start: vi.fn(),
+  stop: vi.fn(),
+  setVolume: vi.fn(),
+  isActive: vi.fn(() => false),
+}))
+vi.mock('@/composables/useSdrDecode', () => ({ useSdrDecode: () => decodeMock }))
+
 // ── vue-router useRoute ─────────────────────────────────────────────────────────
 const routeMock = vi.hoisted(() => ({ path: '/sdr' }))
 vi.mock('vue-router', () => ({ useRoute: () => routeMock }))
@@ -163,6 +172,10 @@ beforeEach(() => {
   }
   audioMock._powerCb = null
   audioMock._squelchCb = null
+  decodeMock.start.mockClear()
+  decodeMock.stop.mockClear()
+  decodeMock.setVolume.mockClear()
+  decodeMock.isActive.mockClear().mockReturnValue(false)
   // Re-establish default resolutions (mockResolvedValue / *Once from a prior test
   // persists through mockClear, which would otherwise bleed into later tests).
   audioMock.initAudio.mockResolvedValue(undefined)
@@ -379,6 +392,130 @@ describe('SdrPanel — RADIO tab: tune / stop / record', () => {
     await wrapper.find('.sdr-rec-btn').trigger('click')
     await flushPromises()
     expect(audioMock.stopRecording).toHaveBeenCalled()
+  })
+})
+
+// =============================================================================
+describe('SdrPanel — RADIO tab: digital decode', () => {
+  // Tune (which sets playing=true) so the DIGITAL button becomes enabled.
+  async function mountPlaying() {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    return { wrapper, socket }
+  }
+
+  function sentCmds(socket: FakeSocket) {
+    return socket.sent.map((s) => JSON.parse(s))
+  }
+
+  it('disables the DIGITAL button until the radio is playing', async () => {
+    const { wrapper } = await mountConnected()
+    const button = wrapper.find('.sdr-digital-btn')
+    expect((button.element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('enabling digital sends the command, starts decode, mutes live audio, activates the button', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    expect((wrapper.find('.sdr-digital-btn').element as HTMLButtonElement).disabled).toBe(false)
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+
+    const cmd = sentCmds(socket).find((m) => m.cmd === 'digital_decode')
+    expect(cmd).toMatchObject({ enabled: true, mode: expect.any(String) })
+    expect(decodeMock.start).toHaveBeenCalledWith(1)
+    expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
+    // The decoder dock lives in SdrView (driven by store.digitalEnabled); here we
+    // assert the inline Decode button reflects the active state.
+    expect(wrapper.find('.sdr-digital-btn').classes()).toContain('sdr-digital-btn--active')
+    expect(wrapper.find('.sdr-digital-btn').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('disabling digital sends the command, stops decode and unmutes', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    audioMock.setLiveMuted.mockClear()
+
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    const cmd = sentCmds(socket).find((m) => m.cmd === 'digital_decode')
+    expect(cmd).toMatchObject({ enabled: false })
+    expect(decodeMock.stop).toHaveBeenCalled()
+    expect(audioMock.setLiveMuted).toHaveBeenCalledWith(false)
+    expect(wrapper.find('.sdr-digital-btn').classes()).not.toContain('sdr-digital-btn--active')
+  })
+
+  it('pushes a digital_channel command when the mode changes while decoding', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+
+    const nfmPill = wrapper
+      .findAll('.sdr-mode-pills .sdr-mode-pill')
+      .find((b) => b.text() === 'NFM')
+    await nfmPill!.trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((m) => m.cmd === 'digital_channel')).toBe(true)
+  })
+
+  it('does not push digital_channel when decoding is off', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    const nfmPill = wrapper
+      .findAll('.sdr-mode-pills .sdr-mode-pill')
+      .find((b) => b.text() === 'NFM')
+    await nfmPill!.trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((m) => m.cmd === 'digital_channel')).toBe(false)
+  })
+
+  it('stopping audio also disables digital decode', async () => {
+    const { wrapper, socket } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    decodeMock.stop.mockClear()
+    socket.sent.length = 0
+
+    await wrapper.find('.sdr-stop-btn').trigger('click')
+    await flushPromises()
+    expect(decodeMock.stop).toHaveBeenCalled()
+    expect(sentCmds(socket).some((m) => m.cmd === 'digital_decode' && m.enabled === false)).toBe(
+      true,
+    )
+  })
+
+  it('enabling digital with no radio selected skips starting the decode transport', async () => {
+    fetchState.radios = [] // no auto-select → selectedRadioId stays null
+    const wrapper = await mountReady()
+    ;(wrapper.vm as unknown as { toggleDigital: () => void }).toggleDigital()
+    await flushPromises()
+    expect(decodeMock.start).not.toHaveBeenCalled()
+    expect(audioMock.setLiveMuted).toHaveBeenCalledWith(true)
+  })
+
+  it('selecting a different radio disables digital decode', async () => {
+    const { wrapper } = await mountPlaying()
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    decodeMock.stop.mockClear()
+
+    // Re-selecting via the public API path used by the device dropdown.
+    const vm = wrapper.vm as unknown as {
+      selectRadio: (radio: {
+        id: number
+        name: string
+        host: string
+        port: number
+        enabled: boolean
+      }) => void
+    }
+    vm.selectRadio({ id: 2, name: 'Radio Two', host: '127.0.0.1', port: 1234, enabled: true })
+    await flushPromises()
+    expect(decodeMock.stop).toHaveBeenCalled()
   })
 })
 
@@ -1263,6 +1400,230 @@ describe('SdrPanel — step dropdown', () => {
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-step-menu')).not.toBeNull()
     await wrapper.find('.sdr-step-dropdown').trigger('keydown', { key: 'Escape' })
+  })
+})
+
+// =============================================================================
+describe('SdrPanel — trunk system', () => {
+  // Reach a decoding state (playing + digital on) so the trunk accordion
+  // renders, with the channel-maps endpoint returning the supplied maps.
+  async function mountDecoding(
+    maps: string[] = ['site-a.csv', 'site-b.csv'],
+  ): Promise<{ wrapper: VueWrapper; socket: FakeSocket }> {
+    fetchOverride = (url: string) =>
+      url === '/api/sdr/trunk/channel-maps'
+        ? Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ channel_maps: maps }),
+          })
+        : null
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    await wrapper.find('.sdr-digital-btn').trigger('click') // digitalEnabled → trunk section renders
+    await flushPromises()
+    socket.sent.length = 0
+    return { wrapper, socket }
+  }
+
+  // The trunk accordion header is identified by text (its index among the
+  // accordion toggles shifts with which sections are present).
+  function trunkHeader(wrapper: VueWrapper) {
+    return wrapper
+      .findAll('.sdr-scanner-header-row')
+      .find((header) => header.text().includes('TRUNK SYSTEM'))!
+  }
+
+  async function expandTrunk(wrapper: VueWrapper) {
+    await trunkHeader(wrapper).trigger('click')
+    await wrapper.vm.$nextTick()
+  }
+
+  function sentCmds(socket: FakeSocket) {
+    return socket.sent.map((raw) => JSON.parse(raw))
+  }
+
+  it('loads channel maps from the backend on mount', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv', 'site-b.csv'])
+    expect(useSdrStore().trunkChannelMaps).toEqual(['site-a.csv', 'site-b.csv'])
+    // The picker label defaults to the no-selection text.
+    await expandTrunk(wrapper)
+    expect(wrapper.find('.sdr-trunk-dropdown .sdr-device-dropdown-text').text()).toBe(
+      'No channel map',
+    )
+  })
+
+  it('leaves the picker empty when the channel-maps request fails', async () => {
+    fetchOverride = (url: string) =>
+      url === '/api/sdr/trunk/channel-maps'
+        ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
+        : null
+    await mountConnected()
+    await flushPromises()
+    expect(useSdrStore().trunkChannelMaps).toEqual([])
+  })
+
+  it('opens the channel-map dropdown and selects a map', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    const store = useSdrStore()
+    await expandTrunk(wrapper)
+    await wrapper.find('.sdr-trunk-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    const items = document.querySelectorAll('.sdr-trunk-menu .sdr-device-menu-item')
+    // 'No channel map' + the one map.
+    expect(items.length).toBe(2)
+    ;(items[1] as HTMLElement).click() // pickTrunkMap('site-a.csv')
+    await wrapper.vm.$nextTick()
+    expect(store.trunkChannelMap).toBe('site-a.csv')
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull() // closes on pick
+    // Label now reflects the chosen map.
+    expect(wrapper.find('.sdr-trunk-dropdown .sdr-device-dropdown-text').text()).toBe('site-a.csv')
+  })
+
+  it('can clear the selection back to no channel map', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    const store = useSdrStore()
+    store.setTrunkChannelMap('site-a.csv')
+    await expandTrunk(wrapper)
+    await wrapper.find('.sdr-trunk-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    const items = document.querySelectorAll('.sdr-trunk-menu .sdr-device-menu-item')
+    ;(items[0] as HTMLElement).click() // 'No channel map' → pickTrunkMap('')
+    await wrapper.vm.$nextTick()
+    expect(store.trunkChannelMap).toBe('')
+  })
+
+  it('toggles the dropdown closed on a second trigger click', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    await expandTrunk(wrapper)
+    const dropdown = wrapper.find('.sdr-trunk-dropdown')
+    await dropdown.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+    await dropdown.trigger('click') // toggle → close
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull()
+  })
+
+  it('opens via Enter and Space, ignores other keys, and closes on Escape', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    await expandTrunk(wrapper)
+    const dropdown = wrapper.find('.sdr-trunk-dropdown')
+
+    await dropdown.trigger('keydown', { key: 'Enter' })
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+    await dropdown.trigger('keydown', { key: 'Escape' })
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull()
+
+    await dropdown.trigger('keydown', { key: ' ' }) // Space also opens
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+
+    await dropdown.trigger('keydown', { key: 'a' }) // unrelated key: no change
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+  })
+
+  it('closes the dropdown on an outside document click', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    await expandTrunk(wrapper)
+    await wrapper.find('.sdr-trunk-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+    document.dispatchEvent(new MouseEvent('click'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull()
+  })
+
+  it('does not open the dropdown while trunk tracking is active', async () => {
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    const store = useSdrStore()
+    store.setTrunkChannelMap('site-a.csv')
+    store.setTrunkEnabled(true)
+    await expandTrunk(wrapper)
+    const dropdown = wrapper.find('.sdr-trunk-dropdown')
+    await dropdown.trigger('click') // guarded: trunkEnabled → null
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull()
+    await dropdown.trigger('keydown', { key: 'Enter' }) // key handler early-returns
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull()
+  })
+
+  it('enabling trunk sends a trunk_decode command and disabling stops it', async () => {
+    const { wrapper, socket } = await mountDecoding(['site-a.csv'])
+    const store = useSdrStore()
+    store.setTrunkChannelMap('site-a.csv')
+    await wrapper.vm.$nextTick()
+    socket.sent.length = 0
+
+    await wrapper.find('.sdr-trunk-btn').trigger('click') // toggleTrunk → setTrunk(true)
+    await flushPromises()
+    expect(store.trunkEnabled).toBe(true)
+    expect(sentCmds(socket).find((m) => m.cmd === 'trunk_decode')).toMatchObject({
+      enabled: true,
+      channel_map: 'site-a.csv',
+    })
+
+    socket.sent.length = 0
+    await wrapper.find('.sdr-trunk-btn').trigger('click') // setTrunk(false)
+    await flushPromises()
+    expect(store.trunkEnabled).toBe(false)
+    expect(sentCmds(socket).find((m) => m.cmd === 'trunk_decode')).toMatchObject({ enabled: false })
+  })
+
+  it('refuses to enable trunk without a channel map', async () => {
+    const { wrapper, socket } = await mountDecoding([]) // no maps → map stays ''
+    const store = useSdrStore()
+    socket.sent.length = 0
+    ;(wrapper.vm as unknown as { toggleTrunk: () => void }).toggleTrunk() // setTrunk(true), guarded
+    await flushPromises()
+    expect(store.trunkEnabled).toBe(false)
+    expect(sentCmds(socket).some((m) => m.cmd === 'trunk_decode')).toBe(false)
+  })
+
+  it('disabling digital decode also turns trunk tracking off', async () => {
+    const { wrapper, socket } = await mountDecoding(['site-a.csv'])
+    const store = useSdrStore()
+    store.setTrunkChannelMap('site-a.csv')
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-trunk-btn').trigger('click') // enable trunk
+    await flushPromises()
+    expect(store.trunkEnabled).toBe(true)
+
+    socket.sent.length = 0
+    await wrapper.find('.sdr-digital-btn').trigger('click') // digital off → watch drops trunk
+    await flushPromises()
+    expect(store.trunkEnabled).toBe(false)
+  })
+
+  it('reconciles trunk state from trunk_status messages', async () => {
+    const { wrapper, socket } = await mountDecoding(['site-a.csv'])
+    const store = useSdrStore()
+
+    socket.message({ type: 'trunk_status', enabled: true })
+    await wrapper.vm.$nextTick()
+    expect(store.trunkEnabled).toBe(true)
+
+    socket.message({ type: 'trunk_status', enabled: false, error: 'channel map not found' })
+    await wrapper.vm.$nextTick()
+    expect(store.trunkEnabled).toBe(false)
+    expect(store.trunkError).toBe('channel map not found')
+
+    // enabled:false with no error string: setTrunkEnabled(false) clears the
+    // error and the error branch is skipped (no new message surfaced).
+    socket.message({ type: 'trunk_status', enabled: false })
+    await wrapper.vm.$nextTick()
+    expect(store.trunkError).toBe('')
+
+    // A status with neither flag is a no-op (covers the else-if false branch).
+    socket.message({ type: 'trunk_status' })
+    await wrapper.vm.$nextTick()
+    expect(store.trunkEnabled).toBe(false)
   })
 })
 

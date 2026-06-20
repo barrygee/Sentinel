@@ -29,7 +29,7 @@ Optional **flight replay** (off by default, behind `air.replayEnabled`) records 
 Satellites are propagated from TLE data using **SGP4**. The default view tracks the ISS; any catalogued satellite can be selected by NORAD ID to show its current position, multi-orbit ground track, and visibility footprint. Pass prediction lists upcoming passes over your location, with heads-up notifications and optional **auto-tune** that drives the SDR to a satellite's downlink frequency during a pass. A day/night terminator overlay and full **TLE database management** (fetch from Celestrak, upload `.txt`, categorise, clear) are built in.
 
 ### SDR
-Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback.
+Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback. An optional **digital decode** mode (P25/DMR/NXDN/D-STAR/YSF via a separate `dsd-fme` container) surfaces decoded call metadata and voice — see [Digital decoding](#digital-decoding-optional).
 
 ---
 
@@ -132,6 +132,47 @@ npm run build                  # outputs to ../../frontend/spa-dist (committed, 
 > Outside the Vite dev server, the backend serves the **pre-built** bundle from `frontend/spa-dist/`. Rebuild (and commit) it when shipping a frontend change — a hard browser refresh then picks it up; no backend restart needed.
 
 Once running, open **Settings** (gear icon, bottom-right) and set *My Location* to your latitude/longitude.
+
+### Digital decoding (optional)
+
+Decoding digital voice/trunked modes (P25, DMR, NXDN, D-STAR, YSF, M17, …) runs
+in a **separate, opt-in `dsd-fme` container**. It is **never built by default or
+in CI** because `dsd-fme` requires the patent-encumbered **`mbelib`** vocoder to
+compile — building the decoder is a deliberate local action that compiles
+`mbelib` on your own machine. The image is never published.
+
+```bash
+# build + run the app WITH the decoder (the --profile flag is the opt-in)
+docker compose --profile decoder up --build -d     # app on :8080 + decoder sidecar
+
+# follow the decoder as it starts dsd-fme and connects
+docker compose --profile decoder logs -f decoder
+
+# then, in the SDR view: start a radio, tune a digital channel, click DIGITAL.
+# Decoded call metadata appears in the decode panel and voice audio plays.
+
+# revert to app-only (decoder never starts without the profile):
+docker compose --profile decoder down && docker compose up -d
+```
+
+**No configuration is required.** The decoder's ingest secret is auto-generated
+by the backend and shared with the decoder via a Docker volume — you do **not**
+set `SENTINEL_DECODER_SECRET` (it exists only as an optional override). Your
+normal `docker compose up --build` is unchanged and never builds or starts the
+decoder.
+
+Notes when trying it:
+
+- **The first build is slow** — it compiles `mbelib` + `dsd-fme` from source in
+  the decoder image (several minutes, needs internet). Later runs are cached.
+- **You need a real digital signal.** With no DMR/P25/etc. transmission tuned in,
+  the panel just shows "no sync" — that's expected, not a fault.
+- A `401` in the decoder logs means the shared secret didn't sync: make sure the
+  `app` container started first (it writes the secret), then
+  `docker compose --profile decoder restart decoder`.
+
+See [`decoder/README.md`](decoder/README.md) for the full rationale, the
+hardware-AMBE-dongle alternative, and more troubleshooting.
 
 ---
 

@@ -19,6 +19,7 @@ from backend.routers import air, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
 from backend.services import sdr as sdr_service
+from backend.services import sdr_decode as sdr_decode_service
 from backend.services.flight_history import cleanup_old_snapshots
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -47,6 +48,9 @@ async def lifespan(app: FastAPI):
     await seed_sdr_data_from_files()
     await seed_sdr_bandplan_from_file()
     await backfill_satellite_radio_store()
+    # Materialise the digital-decode ingest secret (auto-generated into the shared
+    # volume the decoder container reads) so the sidecar can authenticate.
+    sdr_decode_service.resolve_ingest_secret()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
@@ -59,6 +63,7 @@ async def lifespan(app: FastAPI):
     def _chain(signum, frame):
         try:
             sdr_service.wake_all_subscribers()
+            sdr_decode_service.wake_all_decoders()
         except Exception:
             logging.getLogger(__name__).exception("wake_all_subscribers failed")
         prev = _orig_handlers.get(signum)
@@ -82,6 +87,7 @@ async def lifespan(app: FastAPI):
         await cleanup_task
     except asyncio.CancelledError:
         pass
+    await sdr_decode_service.shutdown_all_decoders()
     await sdr_service.shutdown_all()
 
 
