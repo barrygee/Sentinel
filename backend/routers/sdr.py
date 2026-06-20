@@ -39,7 +39,7 @@ from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
 from backend.services import sdr as sdr_svc
-from backend.services import sdr_decode, sdr_rigctl
+from backend.services import sdr_channel_maps, sdr_decode, sdr_rigctl
 from backend.services.sdr_data import write_sdr_frequencies_file
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
@@ -598,6 +598,42 @@ async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
     if not isinstance(body, dict) or not isinstance(body.get("bandPlan"), list):
         raise HTTPException(400, "Body must be a JSON object with a bandPlan array")
     await set_bandplan(db, body["bandPlan"])
+    return JSONResponse({"status": "ok"})
+
+
+@router.get("/api/sdr/data/channel-maps")
+async def get_sdr_data_channel_maps(db: AsyncSession = Depends(get_db)):
+    """Return {channel_maps} as the editor source — trunk channel maps as JSON.
+
+    The DB is the source of truth once anything has been saved. Before that (no
+    DB value yet) we seed from any channel-map CSVs already present in the maps
+    directory, so hand-made maps appear in the editor and aren't lost on first
+    save.
+    """
+    stored = await get_setting(db, "sdr", "channel_maps", default=None)
+    if isinstance(stored, list):
+        return JSONResponse({"channel_maps": stored})
+    seeded = sdr_channel_maps.read_channel_maps_from_dir(Path(settings.channel_maps_dir))
+    return JSONResponse({"channel_maps": seeded})
+
+
+@router.post("/api/sdr/data/channel-maps")
+async def set_sdr_data_channel_maps(body: dict, db: AsyncSession = Depends(get_db)):
+    """Replace trunk channel maps from an edited JSON object {channel_maps: [...]}.
+
+    Validates the shape, stores it in the DB, then renders each map to the
+    ``<name>.csv`` file dsd-fme loads (pruning maps that were removed). The
+    rendered CSVs are what the TRUNK control lists and what trunk tracking uses.
+    """
+    try:
+        maps = sdr_channel_maps.validate_channel_maps_payload(body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await upsert_setting(db, "sdr", "channel_maps", maps)
+    try:
+        sdr_channel_maps.write_channel_maps_to_dir(Path(settings.channel_maps_dir), maps)
+    except OSError as exc:
+        raise HTTPException(500, f"could not write channel-map files: {exc}") from exc
     return JSONResponse({"status": "ok"})
 
 

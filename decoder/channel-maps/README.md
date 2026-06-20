@@ -1,15 +1,23 @@
 # Trunking channel maps
 
-Drop your **system-specific** trunking CSVs here. This directory is mounted
-read-only into the decoder container at `/app/channel-maps` (see
-`docker-compose.yml`), and you select a file in the SDR UI's **TRUNK** control.
-dsd-fme reads them via `-C` (channel map) and `-G` (group list).
+System-specific trunking CSVs live here. This directory is mounted into the
+decoder container at `/app/channel-maps` (read-only — dsd-fme reads them via `-C`
+channel map and `-G` group list) and into the app container (writable — the
+in-app editor renders CSVs here). You select a file in the SDR UI's **TRUNK**
+control.
 
-These files describe a **specific** trunked system (its channels and talkgroups)
-and cannot be auto-generated — you build them from the system's known
-frequencies. P25 systems can often self-derive channels from the control
-channel, but DMR Tier III / Capacity-Plus / Connect-Plus and EDACS require a
-channel map.
+**The recommended way to add a channel map is the in-app JSON editor:**
+**Settings → SDR → Trunk Channel Maps (JSON)** (see the main
+[`README.md`](../../README.md#trunk-tracking--channel-maps-dmr)). You edit the
+channels as `{lsn, frequency_hz}` JSON; the backend stores it in the database and
+**writes the `<name>.csv` files in this directory for you**. On first load (before
+anything is saved) any channel-map CSVs already here are imported into the editor,
+so hand-made files are picked up and not lost.
+
+You can still drop CSVs here by hand if you prefer — the format is below. Channel
+maps describe a **specific** trunked system. P25 can self-derive channels from
+the control channel (no map needed), but DMR Tier III / Capacity-Plus /
+Connect-Plus and EDACS require one.
 
 Only plain `*.csv` filenames are accepted (no sub-paths) — the name is validated
 on both the backend and the decoder before it is handed to dsd-fme.

@@ -74,6 +74,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sdr-resume-delay', SdrResumeDelayControl],
   ['sdr-frequencies-file', JsonDataControl],
   ['sdr-bandplan-file', JsonDataControl],
+  ['sdr-channelmaps-file', JsonDataControl],
   ['config-current', ConfigCurrentControl],
 ]
 

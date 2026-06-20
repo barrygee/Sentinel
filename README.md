@@ -174,6 +174,55 @@ Notes when trying it:
 See [`decoder/README.md`](decoder/README.md) for the full rationale, the
 hardware-AMBE-dongle alternative, and more troubleshooting.
 
+#### Trunk tracking & channel maps (DMR)
+
+On a **trunked** system, voice is not on a fixed frequency: a **control channel**
+announces which logical channel a call has been assigned to, and the receiver
+must retune to follow it. Sentinel does this with `dsd-fme` over the rigctl
+protocol — turn it on with the **TRUNK** control in the SDR panel (it rides on an
+active digital-decode session). See the SDR panel's TRUNK control once digital
+decode is running.
+
+**P25** can derive its channels from the control channel, so it needs no extra
+data. **DMR** (Tier III / Capacity-Plus / Connect-Plus) and **EDACS** cannot —
+the logical-channel-number → frequency mapping exists only in the operator's
+config and is never transmitted, so you must supply it as a **channel map**.
+
+**Adding a DMR channel map** — do it in the app, as JSON:
+
+1. Open **Settings → SDR → Trunk Channel Maps (JSON)** and click **EDIT**.
+2. Add one entry per system: a `name` plus the `lsn` (logical/slot channel
+   number) → `frequency_hz` pairs for that system:
+
+   ```json
+   {
+     "channel_maps": [
+       {
+         "name": "my-dmr-system",
+         "channels": [
+           { "lsn": 1, "frequency_hz": 858606250 },
+           { "lsn": 2, "frequency_hz": 858606250 },
+           { "lsn": 3, "frequency_hz": 859606250 }
+         ]
+       }
+     ]
+   }
+   ```
+
+3. **APPLY CHANGES.** The map is stored in the database and written out as the
+   CSV file `dsd-fme` actually loads (`decoder/channel-maps/<name>.csv`) — you
+   never edit CSV by hand. The new map then appears in the SDR panel's **TRUNK**
+   control; select it and enable trunk tracking.
+
+`name` must be a plain filename component (letters, digits, dot, dash,
+underscore); each `frequency_hz` is in Hz. Editing or removing a map and
+re-applying re-renders the CSVs to match.
+
+Where the LSN→frequency numbers come from: there is no universal feed, so you
+build the table from a system's known carriers — e.g. a community database such
+as RadioReference where coverage exists, or by observing which logical channel
+number `dsd-fme` reports on each carrier as you tune across the system.
+
 ---
 
 ## Testing & quality gates
