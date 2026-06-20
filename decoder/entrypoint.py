@@ -26,6 +26,7 @@ import os
 import queue
 import re
 import shlex
+import socket
 import subprocess
 import sys
 import threading
@@ -161,8 +162,31 @@ def post_event(ingest_url: str, secret: str, event: dict) -> bool:
         return False
 
 
-def build_dsd_command() -> list[str]:
-    """Assemble the dsd-fme command line from the environment."""
+def safe_csv_name(name: object) -> str | None:
+    """Return ``name`` if it is a safe bare CSV filename, else None.
+
+    The backend already validates these, but the value is interpolated into a
+    filesystem path handed to dsd-fme here, so it is re-checked: anything with a
+    path separator or ``..`` is rejected to prevent escaping the maps directory.
+    """
+    if not name:
+        return None
+    candidate = str(name).strip()
+    if not candidate or "/" in candidate or "\\" in candidate or ".." in candidate:
+        return None
+    return candidate
+
+
+def build_dsd_command(config: dict | None = None) -> list[str]:
+    """Assemble the dsd-fme command line from the environment and decode config.
+
+    ``config`` is the backend's decode config (``GET /api/sdr/decode/config``).
+    When ``config["trunk"]["enabled"]`` is set, the trunking + rigctl flags
+    (``-T``, ``-U <port>``, ``-C <map>``, optional ``-G <group>``) are appended so
+    dsd-fme follows control-channel grants; the channel map is resolved against
+    ``CHANNEL_MAPS_DIR``. dsd-fme's rigctl is localhost-only, so ``-U`` points at
+    the local forwarder port (see :func:`start_rigctl_forwarder`).
+    """
     iq_host = os.environ.get("IQ_PCM_HOST", "app")
     iq_port = os.environ.get("IQ_PCM_PORT", "7355")
     audio_host = os.environ.get("AUDIO_UDP_HOST", "app")
@@ -174,10 +198,95 @@ def build_dsd_command() -> list[str]:
         "-o",
         f"udp:{audio_host}:{audio_port}",
     ]
+
+    trunk = (config or {}).get("trunk") or {}
+    if trunk.get("enabled"):
+        rigctl_port = str((config or {}).get("rigctl_port") or os.environ.get("RIGCTL_PORT", "4532"))
+        maps_dir = os.environ.get("CHANNEL_MAPS_DIR", "/app/channel-maps")
+        command += ["-T", "-U", rigctl_port]
+        channel_map = safe_csv_name(trunk.get("channel_map"))
+        if channel_map:
+            command += ["-C", os.path.join(maps_dir, channel_map)]
+        group_list = safe_csv_name(trunk.get("group_list"))
+        if group_list:
+            command += ["-G", os.path.join(maps_dir, group_list)]
+
     extra = os.environ.get("DSD_EXTRA_ARGS", "").strip()
     if extra:
         command.extend(shlex.split(extra))
     return command
+
+
+def fetch_decode_config(config_url: str, secret: str) -> dict:
+    """GET the backend's decode config (trunk state + rigctl port). {} on failure.
+
+    Polled before each dsd-fme launch so a trunk toggle is picked up on the next
+    (re)connect. Network/parse failures are non-fatal — the decoder simply runs
+    in its previous (typically non-trunk) mode until the backend is reachable.
+    """
+    request = urllib.request.Request(config_url, headers={"X-Decode-Secret": secret}, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            if 200 <= response.status < 300:
+                return json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+        print(f"[decoder] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
+    return {}
+
+
+def _pump(source: socket.socket, destination: socket.socket) -> None:  # pragma: no cover - thread/socket I/O
+    """Copy bytes one way between two sockets until EOF, then half-close both."""
+    try:
+        while True:
+            data = source.recv(4096)
+            if not data:
+                break
+            destination.sendall(data)
+    except OSError:
+        pass
+    finally:
+        for sock in (source, destination):
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+
+def _forward_client(client: socket.socket, target_host: str, target_port: int) -> None:  # pragma: no cover - socket
+    """Bridge one accepted localhost client to the upstream rigctld server."""
+    try:
+        upstream = socket.create_connection((target_host, target_port), timeout=5)
+    except OSError as exc:
+        print(f"[decoder] rigctl forward to {target_host}:{target_port} failed: {exc}", file=sys.stderr, flush=True)
+        client.close()
+        return
+    threading.Thread(target=_pump, args=(client, upstream), daemon=True).start()
+    threading.Thread(target=_pump, args=(upstream, client), daemon=True).start()
+
+
+def start_rigctl_forwarder(listen_port: int, target_host: str, target_port: int) -> socket.socket:  # pragma: no cover - socket
+    """Forward 127.0.0.1:listen_port → target_host:target_port in a daemon thread.
+
+    dsd-fme's rigctl client is hardwired to ``localhost`` (``-U`` takes only a
+    port), but the backend's rigctld server lives in the app container. This thin
+    TCP proxy lets dsd-fme connect locally while the traffic reaches the backend.
+    """
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", listen_port))
+    listener.listen(8)
+
+    def _accept_loop() -> None:
+        while True:
+            try:
+                client, _ = listener.accept()
+            except OSError:
+                break
+            threading.Thread(target=_forward_client, args=(client, target_host, target_port), daemon=True).start()
+
+    threading.Thread(target=_accept_loop, daemon=True).start()
+    print(f"[decoder] rigctl forwarder 127.0.0.1:{listen_port} → {target_host}:{target_port}", file=sys.stderr, flush=True)
+    return listener
 
 
 def _event_worker(ingest_url: str, secret: str, events: queue.Queue) -> None:  # pragma: no cover - thread
@@ -195,7 +304,7 @@ def _event_worker(ingest_url: str, secret: str, events: queue.Queue) -> None:  #
         post_event(ingest_url, secret, event)
 
 
-def run_dsd_once(events: queue.Queue) -> int:  # pragma: no cover - drives a subprocess
+def run_dsd_once(events: queue.Queue, config: dict | None = None) -> int:  # pragma: no cover - drives a subprocess
     """Run dsd-fme once, echoing its output and queueing parsed events.
 
     dsd-fme's own log lines are echoed to stderr so the container log shows what
@@ -203,9 +312,10 @@ def run_dsd_once(events: queue.Queue) -> int:  # pragma: no cover - drives a sub
     a ``log`` event for the browser's Decoder log view, while recognised lines are
     additionally de-duplicated against the previous structured event (the control
     channel repeats near-identical status lines) and surfaced as call rows. Both
-    are handed to the worker queue without ever blocking the read loop.
+    are handed to the worker queue without ever blocking the read loop. ``config``
+    carries the backend's current trunk state, which shapes the launch flags.
     """
-    command = build_dsd_command()
+    command = build_dsd_command(config)
     print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
     process = subprocess.Popen(  # noqa: S603 - command built from trusted env, not user input
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
@@ -254,6 +364,16 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
     events: queue.Queue = queue.Queue(maxsize=256)
     threading.Thread(target=_event_worker, args=(ingest_url, secret, events), daemon=True).start()
 
+    # Start the rigctl forwarder once: dsd-fme's rigctl client only ever dials
+    # localhost, so we proxy that to the backend's rigctld server. Harmless when
+    # trunking is off — nothing connects to it until dsd-fme launches with `-U`.
+    rigctl_host = os.environ.get("RIGCTL_HOST", "app").strip()
+    rigctl_port = int(os.environ.get("RIGCTL_PORT", "4532"))
+    if rigctl_host:
+        start_rigctl_forwarder(rigctl_port, rigctl_host, rigctl_port)
+
+    config_url = os.environ.get("CONFIG_URL", "http://app:8000/api/sdr/decode/config")
+
     # Supervise dsd-fme in-process: it exits whenever the backend PCM feed is
     # unavailable (i.e. digital decode is OFF, so nothing is listening on the PCM
     # port). Rather than letting the container die and thrash on restart, retry
@@ -263,8 +383,11 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
         # Re-announce the vocoder each cycle so the UI learns voice is available
         # once a decode session is actually up (this 409s harmlessly when not).
         post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
+        # Re-read trunk state each cycle so a toggle is honoured on the next
+        # (re)launch — the backend bounces the PCM feed to force that relaunch.
+        config = fetch_decode_config(config_url, secret)
         try:
-            run_dsd_once(events)
+            run_dsd_once(events, config)
         except KeyboardInterrupt:
             return 0
         time.sleep(retry_seconds)

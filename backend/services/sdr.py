@@ -186,6 +186,11 @@ class RadioBroadcaster:
         self._task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
 
+    @property
+    def connection(self) -> RtlTcpConnection:
+        """The underlying rtl_tcp connection (center freq, sample rate, retune)."""
+        return self._conn
+
     def subscribe(self) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=4)
         self._subscribers.append(q)

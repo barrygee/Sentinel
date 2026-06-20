@@ -18,6 +18,7 @@ import asyncio
 import math
 import struct
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -581,3 +582,45 @@ class TestResolveIngestSecret:
         monkeypatch.setattr(Path, "write_text", _boom)
         secret = sdr_decode.resolve_ingest_secret()
         assert secret  # ephemeral in-memory secret, backend still works
+
+
+class _ConnStub:
+    center_hz = 100_000_000
+    sample_rate = 2_048_000
+
+
+class _BroadcasterWithConn(_FakeBroadcaster):
+    """IQ fan-out stub that also exposes a connection (for rigctl accessors)."""
+
+    connection = _ConnStub()
+
+
+class TestBridgeTrunkAccessors:
+    def test_connection_proxies_broadcaster(self):
+        broadcaster = _BroadcasterWithConn()
+        bridge = DigitalDecodeBridge(broadcaster, pcm_port=0, audio_udp_port=0)
+        assert bridge.connection is broadcaster.connection
+
+    def test_current_offset_reflects_set_channel(self):
+        bridge = DigitalDecodeBridge(_BroadcasterWithConn(), pcm_port=0, audio_udp_port=0)
+        assert bridge.current_offset_hz == 0
+        bridge.set_channel(offset_hz=12_345)
+        assert bridge.current_offset_hz == 12_345
+
+    def test_running_false_before_start(self):
+        bridge = DigitalDecodeBridge(_BroadcasterWithConn(), pcm_port=0, audio_udp_port=0)
+        assert bridge.running is False
+
+    def test_bounce_decoder_without_writer_returns_false(self):
+        bridge = DigitalDecodeBridge(_BroadcasterWithConn(), pcm_port=0, audio_udp_port=0)
+        assert bridge.bounce_decoder() is False
+
+    def test_bounce_decoder_closes_writer_and_clears_state(self):
+        bridge = DigitalDecodeBridge(_BroadcasterWithConn(), pcm_port=0, audio_udp_port=0)
+        writer = MagicMock()
+        bridge._pcm_writer = writer
+        bridge._decoder_connected = True
+        assert bridge.bounce_decoder() is True
+        writer.close.assert_called_once()
+        assert bridge._pcm_writer is None
+        assert bridge.decoder_reachable is False

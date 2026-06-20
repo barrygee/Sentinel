@@ -37,7 +37,7 @@ from pathlib import Path
 
 import numpy as np
 from backend.config import settings
-from backend.services.sdr import RadioBroadcaster, _iq_bytes_to_complex
+from backend.services.sdr import RadioBroadcaster, RtlTcpConnection, _iq_bytes_to_complex
 
 logger = logging.getLogger(__name__)
 
@@ -471,6 +471,32 @@ class DigitalDecodeBridge:
         if bw_hz:
             self._state.bw_hz = bw_hz
 
+    def bounce_decoder(self) -> bool:
+        """Drop the decoder's PCM connection so its supervisor relaunches dsd-fme.
+
+        dsd-fme's trunking/rigctl flags are fixed at launch, so toggling trunk
+        mode on an already-running decoder requires restarting dsd-fme. Closing
+        the PCM writer gives it EOF on its input; it exits and the sidecar
+        supervisor reconnects, re-reading the decode config (and thus the new
+        trunk flags). Returns False if no decoder is currently connected.
+        """
+        writer = self._pcm_writer
+        if writer is None:
+            return False
+        try:
+            writer.close()
+        except Exception:
+            pass
+        self._pcm_writer = None
+        self._decoder_connected = False
+        self._publish_status()
+        return True
+
+    @property
+    def running(self) -> bool:
+        """True once :meth:`start` has begun serving PCM (until :meth:`stop`)."""
+        return self._running
+
     @property
     def decoder_reachable(self) -> bool:
         return self._decoder_connected
@@ -482,6 +508,21 @@ class DigitalDecodeBridge:
     @property
     def audio_udp_port(self) -> int:
         return self._audio_udp_port
+
+    @property
+    def connection(self) -> RtlTcpConnection:
+        """The rtl_tcp connection backing this decode session (for rigctl retunes)."""
+        return self._broadcaster.connection
+
+    @property
+    def current_offset_hz(self) -> int:
+        """Current demod NCO offset from the hardware centre (Hz).
+
+        Combined with ``connection.center_hz`` this yields the absolute frequency
+        the decoder is presently demodulating — the value the rigctl server
+        reports back on a ``get_freq`` (``f``) query.
+        """
+        return self._state.offset_hz
 
     # ── decoder TCP (PCM out) ──────────────────────────────────────────────
     async def _on_decoder_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

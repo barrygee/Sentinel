@@ -4,141 +4,118 @@
     :class="{ 'panel-closed': !panelOpen }"
     aria-label="Decoder output"
   >
-    <div class="sdr-decode-dock-header">
-      <div
-        class="sdr-decode-dock-tabs"
-        role="tablist"
-        aria-label="Decoder views"
-        @keydown="onTabKeydown"
-      >
-        <button
-          id="sdr-dock-tab-messages"
-          ref="messagesTabRef"
-          type="button"
-          role="tab"
-          class="sdr-decode-dock-tab"
-          :class="{ 'sdr-decode-dock-tab--active': activeTab === 'messages' }"
-          :aria-selected="activeTab === 'messages'"
-          :tabindex="activeTab === 'messages' ? 0 : -1"
-          aria-controls="sdr-dock-panel-messages"
-          @click="activeTab = 'messages'"
-        >
-          Decoded messages
-        </button>
-        <button
-          id="sdr-dock-tab-logs"
-          ref="logsTabRef"
-          type="button"
-          role="tab"
-          class="sdr-decode-dock-tab"
-          :class="{ 'sdr-decode-dock-tab--active': activeTab === 'logs' }"
-          :aria-selected="activeTab === 'logs'"
-          :tabindex="activeTab === 'logs' ? 0 : -1"
-          aria-controls="sdr-dock-panel-logs"
-          @click="activeTab = 'logs'"
-        >
-          Logs
-        </button>
-      </div>
-
-      <!-- aria-live announces sync / decoder-reachability changes without
-           re-reading the whole table on every new row. -->
-      <p class="sdr-decode-status" aria-live="polite">
-        <span class="sdr-decode-dot" :class="statusClass" aria-hidden="true"></span>
-        {{ statusText }}
-      </p>
-
-      <button
-        class="sdr-decode-clear"
-        type="button"
-        :disabled="activeClearDisabled"
-        @click="clearActive"
-      >
-        Clear
-      </button>
-    </div>
-
-    <!-- ── Tab panel: decoded messages (structured call rows) ───────────────── -->
-    <div
-      v-show="activeTab === 'messages'"
-      id="sdr-dock-panel-messages"
-      role="tabpanel"
-      aria-labelledby="sdr-dock-tab-messages"
-      class="sdr-decode-dock-body"
-    >
-      <table class="sdr-decode-table">
-        <caption class="sdr-sr-only">
-          Decoded digital calls, newest first
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Time</th>
-            <th scope="col">Mode</th>
-            <th scope="col">Talkgroup</th>
-            <th scope="col">Source ID</th>
-            <th scope="col">CC</th>
-            <th scope="col">Sync</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="events.length === 0">
-            <td class="sdr-decode-empty" colspan="6">No decoded events yet.</td>
-          </tr>
-          <tr v-for="(event, index) in events" :key="`${event.ts}-${index}`">
-            <td>{{ formatTime(event.ts) }}</td>
-            <td>{{ event.mode ?? '—' }}</td>
-            <td>{{ event.talkgroup ?? '—' }}</td>
-            <td>{{ event.source ?? '—' }}</td>
-            <td>{{ event.color_code ?? '—' }}</td>
-            <td>{{ syncLabel(event) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- ── Tab panel: raw decoder logs (verbatim dsd-fme output) ────────────── -->
-    <div
-      v-show="activeTab === 'logs'"
-      id="sdr-dock-panel-logs"
-      role="tabpanel"
-      aria-labelledby="sdr-dock-tab-logs"
-      class="sdr-decode-dock-body"
-    >
-      <!-- aria-live off: the control channel emits many lines per second, so
-           announcing each would flood a screen reader — read on demand instead. -->
-      <div
-        class="sdr-decode-logs"
-        role="log"
-        aria-live="off"
-        aria-label="Raw decoder log, newest first"
-      >
-        <p v-if="logRows.length === 0" class="sdr-decode-empty">No log output yet.</p>
-        <ol v-else class="sdr-decode-log-list">
-          <li
-            v-for="(row, index) in logRows"
-            :key="index"
-            class="sdr-decode-log-line"
-            :class="{ 'sdr-decode-log-line--error': row.isError }"
+    <!-- Both panels are shown side by side so decoded calls and raw logs are
+         visible at once; each column is an independent region with its own
+         header and Clear button. -->
+    <div class="sdr-decode-dock-columns">
+      <!-- ── Column: decoded messages (structured call rows) ────────────────── -->
+      <section class="sdr-decode-dock-column" aria-labelledby="sdr-dock-heading-messages">
+        <div class="sdr-decode-dock-column-header">
+          <h2 id="sdr-dock-heading-messages" class="sdr-decode-dock-title">Decoded messages</h2>
+          <button
+            class="sdr-decode-clear"
+            type="button"
+            :disabled="events.length === 0"
+            @click="store.clearDecodeEvents()"
           >
-            <span v-if="row.isError" class="sdr-sr-only">Error: </span>{{ row.line }}
-          </li>
-        </ol>
-      </div>
+            Clear
+          </button>
+        </div>
+
+        <div class="sdr-decode-dock-body">
+          <table class="sdr-decode-table">
+            <caption class="sdr-sr-only">
+              Decoded digital calls, newest first
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Mode</th>
+                <th scope="col">Talkgroup</th>
+                <th scope="col">Source ID</th>
+                <th scope="col">CC</th>
+                <th scope="col">Sync</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="events.length === 0">
+                <td class="sdr-decode-empty" colspan="6">No decoded events yet.</td>
+              </tr>
+              <tr v-for="(event, index) in events" :key="`${event.ts}-${index}`">
+                <td>{{ formatTime(event.ts) }}</td>
+                <td>{{ event.mode ?? '—' }}</td>
+                <td>{{ event.talkgroup ?? '—' }}</td>
+                <td>{{ event.source ?? '—' }}</td>
+                <td>{{ event.color_code ?? '—' }}</td>
+                <td>{{ syncLabel(event) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── Column: raw decoder logs (verbatim dsd-fme output) ──────────────── -->
+      <section class="sdr-decode-dock-column" aria-labelledby="sdr-dock-heading-logs">
+        <div class="sdr-decode-dock-column-header">
+          <h2 id="sdr-dock-heading-logs" class="sdr-decode-dock-title">Logs</h2>
+
+          <!-- Trunk-tracking indicator: which channel the decoder is currently
+               following. aria-live announces grant/return transitions. -->
+          <p v-if="trunkEnabled" class="sdr-decode-trunk" aria-live="polite">
+            <span class="sdr-decode-dot" :class="trunkDotClass" aria-hidden="true"></span>
+            {{ trunkText }}
+          </p>
+
+          <!-- aria-live announces sync / decoder-reachability changes without
+               re-reading the whole log on every new line. -->
+          <p class="sdr-decode-status" aria-live="polite">
+            <span class="sdr-decode-dot" :class="statusClass" aria-hidden="true"></span>
+            {{ statusText }}
+          </p>
+
+          <button
+            class="sdr-decode-clear"
+            type="button"
+            :disabled="logRows.length === 0"
+            @click="store.clearDecodeLogs()"
+          >
+            Clear
+          </button>
+        </div>
+
+        <div class="sdr-decode-dock-body">
+          <!-- aria-live off: the control channel emits many lines per second, so
+               announcing each would flood a screen reader — read on demand instead. -->
+          <div
+            class="sdr-decode-logs"
+            role="log"
+            aria-live="off"
+            aria-label="Raw decoder log, newest first"
+          >
+            <p v-if="logRows.length === 0" class="sdr-decode-empty">No log output yet.</p>
+            <ol v-else class="sdr-decode-log-list">
+              <li
+                v-for="(row, index) in logRows"
+                :key="index"
+                class="sdr-decode-log-line"
+                :class="{ 'sdr-decode-log-line--error': row.isError }"
+              >
+                <span v-if="row.isError" class="sdr-sr-only">Error: </span>{{ row.line }}
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 
 const store = useSdrStore()
-
-type DockTab = 'messages' | 'logs'
-const activeTab = ref<DockTab>('messages')
-const messagesTabRef = ref<HTMLButtonElement | null>(null)
-const logsTabRef = ref<HTMLButtonElement | null>(null)
 
 const events = computed<DecodeEvent[]>(() => store.decodeEvents)
 
@@ -151,26 +128,6 @@ const logRows = computed(() =>
   store.decodeLogs.map((line) => ({ line, isError: ERROR_LOG_PATTERN.test(line) })),
 )
 
-// Clear acts on whichever tab is showing.
-const activeClearDisabled = computed(() =>
-  activeTab.value === 'messages' ? events.value.length === 0 : logRows.value.length === 0,
-)
-function clearActive() {
-  if (activeTab.value === 'messages') store.clearDecodeEvents()
-  else store.clearDecodeLogs()
-}
-
-// Roving-tabindex arrow-key navigation between the two tabs (WAI-ARIA tablist).
-function onTabKeydown(keyboardEvent: KeyboardEvent) {
-  if (keyboardEvent.key !== 'ArrowLeft' && keyboardEvent.key !== 'ArrowRight') return
-  keyboardEvent.preventDefault()
-  activeTab.value = activeTab.value === 'messages' ? 'logs' : 'messages'
-  nextTick(() => {
-    const target = activeTab.value === 'messages' ? messagesTabRef.value : logsTabRef.value
-    target?.focus()
-  })
-}
-
 // Live status, derived from reachability first then sync. Stated as text (not
 // colour alone) so it is meaningful without seeing the dot.
 const statusText = computed(() => {
@@ -181,6 +138,24 @@ const statusClass = computed(() => {
   if (!store.decoderReachable) return 'sdr-decode-dot--offline'
   return store.decodeSync ? 'sdr-decode-dot--synced' : 'sdr-decode-dot--idle'
 })
+
+// Trunk-tracking indicator. While following a system, show whether the decoder
+// is parked on the control channel or has followed a grant to a voice channel,
+// and the frequency in MHz.
+const trunkEnabled = computed(() => store.trunkEnabled)
+function formatMhz(frequencyHz: number): string {
+  return `${(frequencyHz / 1e6).toFixed(4)} MHz`
+}
+const trunkText = computed(() => {
+  if (store.trunkFollowedHz === null) return 'Trunking — waiting for control channel'
+  if (store.trunkOnControlChannel) return `Control channel — ${formatMhz(store.trunkFollowedHz)}`
+  return `Following call — ${formatMhz(store.trunkFollowedHz)}`
+})
+const trunkDotClass = computed(() =>
+  store.trunkFollowedHz !== null && !store.trunkOnControlChannel
+    ? 'sdr-decode-dot--synced'
+    : 'sdr-decode-dot--idle',
+)
 
 function formatTime(timestampMs: number): string {
   return new Date(timestampMs).toLocaleTimeString([], { hour12: false })
@@ -233,7 +208,27 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   left: 44px;
 }
 
-.sdr-decode-dock-header {
+/* The two panels sit side by side, each filling half the dock width and
+   scrolling independently. A divider separates them. */
+.sdr-decode-dock-columns {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.sdr-decode-dock-column {
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sdr-decode-dock-column + .sdr-decode-dock-column {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sdr-decode-dock-column-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -242,38 +237,15 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   flex: none;
 }
 
-.sdr-decode-dock-tabs {
-  display: flex;
-  gap: 0.25rem;
-}
-
-/* Match the side-panel section headers: uppercase Barlow, white when active,
-   dimmed (the app's interactive-control level) when not. */
-.sdr-decode-dock-tab {
-  background: transparent;
-  border: none;
+/* Match the side-panel section headers: uppercase Barlow, white. */
+.sdr-decode-dock-title {
+  margin: 0;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  padding: 0.4rem 0.5rem;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.sdr-decode-dock-tab:hover {
   color: #fff;
-}
-
-.sdr-decode-dock-tab--active {
-  color: #fff;
-}
-
-.sdr-decode-dock-tab:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 2px;
 }
 
 .sdr-decode-status {
@@ -284,6 +256,21 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   margin-left: auto;
   font-size: 0.75rem;
   color: #cfd6dd;
+}
+
+/* Trunk indicator sits just left of the sync status (which keeps margin-left
+   auto, pushing both to the right edge of the header). */
+.sdr-decode-trunk {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0 auto;
+  font-size: 0.75rem;
+  color: #cfd6dd;
+}
+
+.sdr-decode-trunk + .sdr-decode-status {
+  margin-left: 0.75rem;
 }
 
 .sdr-decode-dot {

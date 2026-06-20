@@ -3,6 +3,7 @@ pmtiles
 *.pmtiles
 node_modules/
 coverage/
+.coverage
 test-results/
 .DS_Store
 __pycache__/

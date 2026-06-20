@@ -2297,6 +2297,52 @@
   color: #64c8ff !important;
 }
 
+/* Trunk button — green family to distinguish following from plain decode. */
+.sdr-trunk-btn {
+  color: rgba(122, 224, 160, 0.75);
+}
+
+.sdr-trunk-btn:hover:not(:disabled) {
+  background: rgba(122, 224, 160, 0.15) !important;
+  color: #7ee0a0;
+}
+
+.sdr-trunk-btn--active {
+  background: rgba(122, 224, 160, 0.14) !important;
+  color: #7ee0a0 !important;
+}
+
+/* Match the tight header spacing of the SCANNER/SEARCH accordions (the base
+   .sdr-radio-section's 14px top padding otherwise leaves a big gap above). */
+.sdr-trunk-section {
+  padding: 0 20px;
+  margin-top: 1px;
+}
+
+/* Space the channel-map dropdown off the accordion header, and keep the
+   expanded body off the bottom edge (the header padding is now zero). */
+#sdr-trunk-section-body {
+  padding-bottom: 14px;
+}
+#sdr-trunk-section-body .sdr-trunk-dropdown {
+  margin-top: 8px;
+}
+
+.sdr-trunk-hint {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #8b95a1;
+}
+
+/* #ff6b6b clears AA on the dark panel; role="alert" announces it. */
+.sdr-trunk-error {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #ff6b6b;
+}
+
 .sdr-rec-timer {
   font-family: 'Barlow Condensed', 'Barlow', monospace, sans-serif;
   font-size: 11px;

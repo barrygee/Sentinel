@@ -505,6 +505,16 @@
       ]
     },
     {
+      "label": "DMR - Sunderland?",
+      "frequency_hz": 165350500,
+      "mode": "NFM",
+      "notes": "",
+      "groups": [
+        "digital",
+        "dmr"
+      ]
+    },
+    {
       "label": "Local DMR - Bus?",
       "frequency_hz": 166112800,
       "mode": "NFM",
