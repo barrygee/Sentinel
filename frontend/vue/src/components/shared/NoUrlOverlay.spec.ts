@@ -35,6 +35,9 @@ describe('NoUrlOverlay', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.useRealTimers()
+    // The overlay flags the shared document.body; clear it so the attribute can't
+    // leak into a later test that asserts on its absence.
+    delete document.body.dataset.noData
   })
 
   describe('checkWithBackend — non-space domains', () => {
@@ -318,6 +321,59 @@ describe('NoUrlOverlay', () => {
       window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
       await flushPromises()
       expect(fetchMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('no-data chrome flag on document.body', () => {
+    it('sets data-no-data on the body while the overlay is visible', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+      expect(document.body.dataset.noData).toBe('true')
+    })
+
+    it('leaves the body unflagged when the section has a valid source', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'https://feed.example' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      expect(document.body.dataset.noData).toBeUndefined()
+    })
+
+    it('clears the flag when a source is supplied and the overlay hides', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      // Online has no URL (overlay visible, flag set); offgrid does (overlay hides).
+      stubFetch(() =>
+        jsonResponse({
+          onlineDataSourceURL: 'http://',
+          offgridDataSourceURL: { url: 'http://local.box:8080' },
+        }),
+      )
+
+      await mountOverlay('air')
+      expect(document.body.dataset.noData).toBe('true')
+
+      appStore.setConnectivityMode('offgrid')
+      await flushPromises()
+      expect(document.body.dataset.noData).toBeUndefined()
+    })
+
+    it('clears the flag on unmount even while the overlay is still visible', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(document.body.dataset.noData).toBe('true')
+
+      wrapper.unmount()
+      expect(document.body.dataset.noData).toBeUndefined()
     })
   })
 
