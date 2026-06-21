@@ -1629,7 +1629,14 @@ describe('SdrPanel — trunk system', () => {
 
 // =============================================================================
 describe('SdrPanel — frequency input focus / scroll-to-tune', () => {
-  it('blanks the field on focus and restores it on blur', async () => {
+  it('exposes an accessible name on the frequency input', async () => {
+    const wrapper = await mountReady()
+    expect(wrapper.find('.sdr-freq-input-large').attributes('aria-label')).toBe(
+      'Tuned frequency in MHz',
+    )
+  })
+
+  it('keeps the frequency shown on focus (no blank-out)', async () => {
     const { wrapper, socket } = await mountConnected()
     socket.message({
       type: 'status',
@@ -1643,8 +1650,7 @@ describe('SdrPanel — frequency input focus / scroll-to-tune', () => {
     await wrapper.vm.$nextTick()
     const input = wrapper.find('.sdr-freq-input-large')
     await input.trigger('focus')
-    expect((input.element as HTMLInputElement).value).toBe('')
-    await input.trigger('blur')
+    // The field must stay populated — the old focus-blank behavior was reverted.
     expect((input.element as HTMLInputElement).value).toBe('100.0000')
   })
 
@@ -1677,6 +1683,45 @@ describe('SdrPanel — frequency input focus / scroll-to-tune', () => {
     await wrapper.vm.$nextTick()
     // Display updated live (freq stepped by the digit's place value).
     expect((input.element as HTMLInputElement).value).not.toBe('')
+  })
+
+  it('retunes the hardware to the stepped frequency after the wheel settles', async () => {
+    // Real per-character widths so the digit hit-test resolves to a place value.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const width = (this.textContent ?? '').length * 10
+      return {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: 12,
+        width,
+        height: 12,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    })
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.0000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    // Fake timers only now — before mount they stall the socket connect.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    socket.sent.length = 0 // drop the initial tune from the button
+    const input = wrapper.find('.sdr-freq-input-large')
+    // clientX 25 lands on the third character ("0", the 1-MHz digit of 100.0000);
+    // wheel-up steps +1 MHz → 101 MHz.
+    input.element.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 25 }))
+    await wrapper.vm.$nextTick()
+    expect((input.element as HTMLInputElement).value).toBe('101.0000') // stepped live
+    vi.advanceTimersByTime(250) // past the wheel-commit debounce
+    const tuneCmd = socket.sent.map((raw) => JSON.parse(raw)).find((msg) => msg.cmd === 'tune')
+    // The retune must actually be sent — the regression dropped it on the store's
+    // `hz === currentFreqHz` guard, so the spectrum/waterfall never followed.
+    expect(tuneCmd?.frequency_hz).toBe(101_000_000)
+    vi.useRealTimers()
   })
 
   it('ignores the wheel while controls are disabled', async () => {
@@ -4270,14 +4315,6 @@ describe('SdrPanel — if/else fall-through arms', () => {
       timestamp_ms: 1,
     })
     expect(store.lastSpectrum).toBeNull()
-  })
-
-  it('does not blank the freq input on focus when it is already empty', async () => {
-    const { wrapper } = await mountConnected()
-    const input = wrapper.find('.sdr-freq-input-large')
-    await input.setValue('') // already empty
-    await input.trigger('focus') // freqInputVal === '' → no prev capture
-    expect((input.element as HTMLInputElement).value).toBe('')
   })
 
   it('keeps a locked scan held when a group is toggled (no immediate re-step)', async () => {
