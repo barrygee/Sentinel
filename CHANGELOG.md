@@ -230,6 +230,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Regenerate vue lockfile for clean npm ci on vite 8
 - Left-align tuned frequency name with frequency digits
 - Darken no-url overlay base to hide light line below header
+- Revert freq-input focus treatment and repair scroll-to-tune (#111)
 
 ### Chores
 
