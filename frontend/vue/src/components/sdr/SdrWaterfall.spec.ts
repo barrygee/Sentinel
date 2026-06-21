@@ -1055,15 +1055,41 @@ describe('SdrWaterfall — restored view settings (manual range at mount)', () =
 
 // =============================================================================
 describe('SdrWaterfall — stop/play reset', () => {
-  it('blanks both plots and re-enables auto-scale when playback stops', async () => {
+  it('preserves a user-set Min/Max range across a stop (persists like Zoom)', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)
-    // Move a slider so zmin diverges from the device default (exercises reset).
-    await wrapper.findAll('input[type="range"]')[2].setValue(60)
-    const setView = vi.spyOn(store, 'setViewSettings')
+    // Adjust MIN only, leaving MAX at the device default (zmax = 0) — the exact
+    // case that used to be wiped on stop.
+    await wrapper.findAll('input[type="range"]')[2].setValue(60) // zmin = -60
+    await wrapper.vm.$nextTick()
     store.setPlaying(false)
     await wrapper.vm.$nextTick()
-    expect(setView).toHaveBeenCalledWith(expect.objectContaining({ autoScale: true }))
+    // The slider stays where the user left it and the store keeps the range, so a
+    // later remount (navigation / retune) restores it rather than reverting.
+    const minVal = (wrapper.findAll('input[type="range"]')[2].element as HTMLInputElement).value
+    expect(minVal).toBe('60')
+    expect(store.viewZmin).toBe(-60)
+    expect(store.viewAutoScale).toBe(false)
+    // On stop the blanked waterfall keeps the fixed range (autol disabled), not
+    // colour auto-scale.
+    const fixedCall = wfPlotInstance().calls.change_settings.find(
+      (c) => (c[0] as { autol?: number; zmin?: number }).zmin === -60,
+    )
+    expect(fixedCall).toBeTruthy()
+  })
+
+  it('colour auto-scales on stop when the user never set a range', async () => {
+    const { store } = mountWaterfall()
+    await playWithFrame(store)
+    store.setPlaying(false)
+    await flushPromises()
+    // autoScale untouched → the blanked waterfall re-enables colour auto-scale
+    // (WF_AUTOL = 100 in the component).
+    const autoCall = wfPlotInstance().calls.change_settings.find(
+      (c) => (c[0] as { autol?: number }).autol === 100,
+    )
+    expect(autoCall).toBeTruthy()
+    expect(store.viewAutoScale).toBe(true)
   })
 
   it('cancels a queued spectrum redraw on stop', async () => {
