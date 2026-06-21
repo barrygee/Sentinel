@@ -506,6 +506,18 @@ html {
     transform: translateY(-1px);
 }
 
+/* While a "no data source" overlay is active the section has nothing to show, so
+   suppress the surrounding map chrome: the sidebar rail + panel, the footer's
+   panel-toggle button, and the MapLibre controls. display:none (not just paint
+   over) also pulls these controls out of the tab order so nothing is focusable
+   behind the overlay. The flag is set by NoUrlOverlay on document.body. */
+body[data-no-data] #map-sidebar-rail,
+body[data-no-data] #map-sidebar,
+body[data-no-data] #map-sidebar-btn,
+body[data-no-data] .maplibregl-control-container {
+    display: none !important;
+}
+
 /* ============================================================
    RESPONSIVE — small screens
    Breakpoints (documentation):

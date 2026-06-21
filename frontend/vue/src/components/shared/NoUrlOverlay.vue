@@ -63,6 +63,19 @@ const message = computed(() => {
 })
 const visible = computed(() => !hasUrl.value)
 
+// While the overlay is up the section has no usable content, so the surrounding
+// map chrome (sidebar rail + panel, the footer's panel-toggle button, and the
+// MapLibre controls) must be suppressed rather than left peeking through or
+// focusable behind the overlay. A body-level flag drives that via global CSS,
+// mirroring how the router sets `body.dataset.domain`. Removing the attribute
+// (vs setting 'false') keeps the `body[data-no-data]` selector accurate.
+function syncNoDataChrome(isOverlayVisible: boolean): void {
+  if (isOverlayVisible) document.body.dataset.noData = 'true'
+  else delete document.body.dataset.noData
+}
+
+watch(visible, syncNoDataChrome)
+
 function _isPlaceholder(url: string): boolean {
   const t = url.trim()
   return !t || /^https?:\/\/?$/.test(t) || /^http:\/\/localhost\/?$/.test(t)
@@ -189,6 +202,9 @@ onMounted(() => {
 })
 onUnmounted(() => {
   window.removeEventListener('sentinel:sourceOverrideChanged', onSettingsClosed)
+  // Never leave the chrome hidden after the overlay's view is torn down (e.g.
+  // navigating to another section), regardless of the last `visible` value.
+  syncNoDataChrome(false)
 })
 
 useDocumentEvent('settings-panel-closed', onSettingsClosed)

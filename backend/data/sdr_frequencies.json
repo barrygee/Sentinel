@@ -38,10 +38,6 @@
       "slug": "egnt"
     },
     {
-      "name": "Digital",
-      "slug": "digital"
-    },
-    {
       "name": "DMR",
       "slug": "dmr"
     }
@@ -505,22 +501,32 @@
       ]
     },
     {
-      "label": "DMR - Sunderland?",
-      "frequency_hz": 165350500,
+      "label": "Stagecoach?",
+      "frequency_hz": 165350000,
       "mode": "NFM",
       "notes": "",
       "groups": [
-        "digital",
+        "north-east",
         "dmr"
       ]
     },
     {
-      "label": "Local DMR - Bus?",
-      "frequency_hz": 166112800,
+      "label": "Tyne Tunnel",
+      "frequency_hz": 165825000,
       "mode": "NFM",
-      "notes": "Could be busses",
+      "notes": "",
       "groups": [
-        "digital",
+        "north-east",
+        "dmr"
+      ]
+    },
+    {
+      "label": "Stagecoach",
+      "frequency_hz": 166112500,
+      "mode": "NFM",
+      "notes": "Stagecoach Tyne and Wear",
+      "groups": [
+        "north-east",
         "dmr"
       ]
     },

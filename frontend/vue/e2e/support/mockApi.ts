@@ -34,6 +34,37 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     })
   })
 
+  // Air-domain live/data endpoints. With a configured Air data source (set in the
+  // settings mocks below) the AdsbLiveControl and the app-level alerts service
+  // poll these on the /air/ route. Left unmocked, the SPA-fallback HTML response
+  // is non-deterministic and — worse — would let stale aircraft/emergency data
+  // surface as notifications. Empty payloads keep the alerts panel deterministic.
+  //   /api/air/adsb/point/{lat}/{lon}/{radius} → { ac: [] } (note the `ac` key)
+  await page.route('**/api/air/adsb/point/**', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ac: [] }) })
+  })
+  // /api/air/messages is the notifications sync source (notifications store).
+  await page.route('**/api/air/messages', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.route('**/api/air/messages/**', (route) => {
+    if (route.request().method() !== 'GET') void route.fulfill({ status: 204 })
+    else void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.route('**/api/air/tracking', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.route('**/api/air/tracking/**', (route) => {
+    if (route.request().method() !== 'GET') void route.fulfill({ status: 204 })
+    else void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.route('**/api/air/recordings/**', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.route('**/api/air/snapshots**', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+
   // Space TLE status — report data present so NoUrlOverlay hides
   await page.route('/api/space/tle/status', (route) => {
     void route.fulfill({
@@ -109,17 +140,38 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) })
   })
 
-  // Settings namespaces — return empty objects so panels render without errors
-  await page.route('/api/settings/air', (route) => {
-    void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
+  // Settings catch-all, registered FIRST so the per-namespace routes below
+  // (added later) take priority — Playwright matches most-recently-registered
+  // first. GET returns an empty object; PUT/DELETE are acknowledged silently.
+  await page.route('/api/settings/**', (route) => {
+    if (route.request().method() !== 'GET') {
+      void route.fulfill({ status: 204 })
+    } else {
+      void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
+    }
   })
-  await page.route('/api/settings/space', (route) => {
-    void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
+
+  // A configured data source is the app's normal operating state, so the default
+  // mocks supply one for the URL-gated domains (air/sea/land). This keeps the
+  // NoUrlOverlay hidden — and therefore the sidebar rail/panel and map controls
+  // visible — for the majority of tests that exercise that chrome. Tests that
+  // assert the overlay's presence override the relevant namespace with an empty
+  // URL in their own body (a later, higher-priority route registration).
+  const onlineDataSource = JSON.stringify({
+    onlineDataSourceURL: 'http://192.168.1.1:8080/data/source.json',
+  })
+  await page.route('/api/settings/air', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: onlineDataSource })
   })
   await page.route('/api/settings/sea', (route) => {
-    void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
+    void route.fulfill({ contentType: 'application/json', body: onlineDataSource })
   })
   await page.route('/api/settings/land', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: onlineDataSource })
+  })
+  // Space gates on the TLE database (see /api/space/tle/status above), not a URL,
+  // so its namespace stays empty. SDR and app have no NoUrlOverlay.
+  await page.route('/api/settings/space', (route) => {
     void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
   })
   await page.route('/api/settings/sdr', (route) => {
@@ -144,14 +196,6 @@ export async function installDefaultMocks(page: Page): Promise<void> {
         app: {},
       }),
     })
-  })
-  // Settings PUT/DELETE — acknowledge silently
-  await page.route('/api/settings/**', (route) => {
-    if (route.request().method() !== 'GET') {
-      void route.fulfill({ status: 204 })
-    } else {
-      void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
-    }
   })
 
   // Notifications sync — return empty list
