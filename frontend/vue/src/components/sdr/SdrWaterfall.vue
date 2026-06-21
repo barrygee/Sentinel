@@ -432,8 +432,13 @@ const SPEC_YMAX_DB = DEVICE_DB_RANGE[ACTIVE_DEVICE].ymax
 // the refs (above) and the DEVICE_DB_RANGE constants are declared. If the user
 // previously set a custom range this session (persisted in the store so it
 // survives navigating away from SDR and back), restore that instead so the
-// Zoom/Max/Min settings persist. autoScale false means a slider was touched.
-if (!store.viewAutoScale && store.viewZmin !== 0 && store.viewZmax !== 0) {
+// Zoom/Max/Min settings persist. autoScale is the authoritative "a slider was
+// touched" flag (defaults true, set false by the [zmin, zmax] watcher), so it
+// alone decides whether to restore. Do NOT also gate on the dB values being
+// non-zero: 0 dB is a legitimate endpoint (SPEC_YMAX_DB === 0, the default Max),
+// so adjusting only the Min slider leaves the persisted Max at 0 — a `zmax !== 0`
+// guard would then wrongly discard the restore and revert Min to its default.
+if (!store.viewAutoScale) {
   zmin.value = store.viewZmin
   zmax.value = store.viewZmax
   autoScale.value = false
@@ -1931,29 +1936,17 @@ watch(
         },
         { drawmode: 'falling', framesize: subsize },
       )
-      wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
-    } catch {
-      /* noop */
-    }
-    // Reset Min/Max to device defaults and re-enable waterfall auto-scale, so
-    // the next play starts with a fresh canvas. The watcher on [zmin, zmax]
-    // would re-disable auto-scale, so suppress it for this programmatic reset
-    // by setting autoScale AFTER the refs.
-    if (zmin.value !== SPEC_YMIN_DB || zmax.value !== SPEC_YMAX_DB) {
-      zmin.value = SPEC_YMIN_DB
-      zmax.value = SPEC_YMAX_DB
-    }
-    autoScale.value = true
-    // The [zmin, zmax] watcher above persisted autoScale=false; the stop reset
-    // re-enables auto-scale, so persist the cleared state to keep the store in
-    // step (next entry into SDR seeds from the device default range).
-    store.setViewSettings({ zmin: SPEC_YMIN_DB, zmax: SPEC_YMAX_DB, autoScale: true })
-    try {
-      specPlot.change_settings({
-        ymin: SPEC_YMIN_DB,
-        ymax: SPEC_YMAX_DB,
-        ydiv: -Math.max(1, Math.round((SPEC_YMAX_DB - SPEC_YMIN_DB) / 20)),
-      })
+      // Keep the user's Min/Max range on the blanked canvas. The Max/Min sliders
+      // are persisted UI preferences (like Zoom) — they MUST survive a stop, a
+      // retune (which can briefly drop playback), and navigating away and back.
+      // So do NOT reset zmin/zmax here: only colour-auto-scale when the user has
+      // never touched the sliders (autoScale still true), otherwise reapply their
+      // fixed range so the next play resumes exactly where they left it.
+      if (autoScale.value) {
+        wfPlot.change_settings({ cmap: 1, autol: WF_AUTOL })
+      } else {
+        wfPlot.change_settings({ cmap: 1, autol: -1, zmin: zmin.value, zmax: zmax.value })
+      }
     } catch {
       /* noop */
     }
