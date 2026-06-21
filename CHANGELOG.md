@@ -234,6 +234,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Decode dsd-fme stdout tolerantly to stop UTF-8 crash (#112)
 - Hide map chrome behind the no-data-source overlay (#113)
 - Align frequency/range edit button with play and delete icons (#114)
+- Persist waterfall Min/Max sliders across stop and remount (#115)
 
 ### Chores
 
