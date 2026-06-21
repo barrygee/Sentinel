@@ -317,8 +317,19 @@ def run_dsd_once(events: queue.Queue, config: dict | None = None) -> int:  # pra
     """
     command = build_dsd_command(config)
     print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
+    # dsd-fme intermixes raw (non-UTF-8) decoded-voice/control bytes into its
+    # stdout, so strict decoding (the `text=True` default) raises UnicodeDecodeError
+    # mid-stream and crashes the supervisor — the decoder then drops its PCM link
+    # and the UI shows "Decoder offline". Decode tolerantly: replace undecodable
+    # bytes rather than raising, so the read loop survives bad bytes.
     process = subprocess.Popen(  # noqa: S603 - command built from trusted env, not user input
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
     )
     assert process.stdout is not None
     last_event = None

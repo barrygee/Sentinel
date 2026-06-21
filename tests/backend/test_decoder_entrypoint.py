@@ -11,6 +11,8 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import queue as _queue
+
 
 _ENTRYPOINT_PATH = Path(__file__).resolve().parents[2] / "decoder" / "entrypoint.py"
 
@@ -183,6 +185,54 @@ class TestResolveSecret:
         monkeypatch.delenv("INGEST_SECRET", raising=False)
         monkeypatch.delenv("INGEST_SECRET_FILE", raising=False)
         assert entrypoint.resolve_secret() is None
+
+
+# ── run_dsd_once stdout decoding ──────────────────────────────────────────────
+
+
+class TestRunDsdOnceDecoding:
+    """Regression cover for the strict-UTF-8 crash.
+
+    dsd-fme intermixes raw, non-UTF-8 bytes (decoded voice/control data) into its
+    stdout. The supervisor must decode tolerantly (``errors="replace"``) — strict
+    decoding (the ``text=True`` default) raised ``UnicodeDecodeError`` mid-stream,
+    which escaped the read loop and killed the whole decoder process, dropping the
+    PCM link and stranding the UI on "Decoder offline".
+    """
+
+    @staticmethod
+    def _fake_process(stdout_lines):
+        process = MagicMock()
+        # Iterating the pipe yields already-decoded str lines (Popen does the
+        # decode); a line carrying the replacement char proves a previously
+        # undecodable byte now flows through instead of raising.
+        process.stdout = iter(stdout_lines)
+        process.returncode = 0
+        return process
+
+    def test_popen_decodes_with_errors_replace(self):
+        process = self._fake_process([])
+        with patch.object(entrypoint.subprocess, "Popen", return_value=process) as popen:
+            entrypoint.run_dsd_once(_queue.Queue())
+        # The exact kwargs that make the read loop tolerant of bad bytes; if any
+        # regresses (e.g. back to the strict-decode default) this assertion fails.
+        _, kwargs = popen.call_args
+        assert kwargs["text"] is True
+        assert kwargs["encoding"] == "utf-8"
+        assert kwargs["errors"] == "replace"
+
+    def test_undecodable_line_is_processed_not_raised(self):
+        # A line containing the replacement char (what errors="replace" produces
+        # from an undecodable byte) must still be parsed and queued, not crash.
+        events: _queue.Queue = _queue.Queue()
+        process = self._fake_process(["Sync: +DMR � garbled �\n"])
+        with patch.object(entrypoint.subprocess, "Popen", return_value=process):
+            returncode = entrypoint.run_dsd_once(events)
+        assert returncode == 0
+        # The line was forwarded as a log event rather than aborting the loop.
+        queued = events.get_nowait()
+        assert queued["type"] == "log"
+        assert "�" in queued["line"]
 
 
 # ── main guard ────────────────────────────────────────────────────────────────
