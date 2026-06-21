@@ -729,6 +729,16 @@ describe('SdrPanel — frequency manager tab', () => {
     expect(wrapper.find('.sdr-freq-editing').exists()).toBe(false)
   })
 
+  it('renders the row edit button as an accessible SVG pencil icon (aligned with play/delete)', async () => {
+    const { wrapper } = await mountWithData()
+    const editButton = wrapper.findAll('.sdr-freq-row-edit')[0]
+    // The pencil is an inline SVG (not a text glyph) so it baseline-aligns with
+    // the play SVG and × in the same row — see the alignment fix.
+    expect(editButton.find('svg').exists()).toBe(true)
+    expect(editButton.text()).toBe('')
+    expect(editButton.attributes('aria-label')).toBe('Edit frequency')
+  })
+
   it('deletes a frequency via the row delete button (DELETE)', async () => {
     const { wrapper } = await mountWithData()
     await wrapper.findAll('.sdr-freq-row-del')[0].trigger('click')
@@ -881,6 +891,14 @@ describe('SdrPanel — search ranges tab', () => {
     await wrapper.findAll('#sdr-search-range-list .sdr-freq-row-del')[0].trigger('click')
     await flushPromises()
     expect(searchApi.deleteSearchRange).toHaveBeenCalledWith(5)
+  })
+
+  it('renders the range edit button as an accessible SVG pencil icon', async () => {
+    const { wrapper } = await mountWithRanges()
+    const editButton = wrapper.findAll('#sdr-search-range-list .sdr-freq-row-edit')[0]
+    expect(editButton.find('svg').exists()).toBe(true)
+    expect(editButton.text()).toBe('')
+    expect(editButton.attributes('aria-label')).toBe('Edit range')
   })
 
   it('toggling the same range edit closes the editor', async () => {
