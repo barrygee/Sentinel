@@ -2118,13 +2118,16 @@
 .sdr-freq-row-edit {
   align-self: flex-start;
   display: flex;
-  align-items: center;
+  /* Top-align the glyph so it sits level with the play/delete icons in the
+     same row; the 24px hit area below is what centred it ~5px too low. */
+  align-items: flex-start;
   justify-content: center;
   /* WCAG 2.5.8 (AA): ≥24×24px hit area; glyph size unchanged. */
   min-width: 24px;
   min-height: 24px;
   padding: 0 4px;
   font-size: 12px;
+  line-height: 1;
   margin-top: 2px;
   flex-shrink: 0;
 }
