@@ -88,6 +88,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Manage trunk channel maps as JSON in settings (#110)
 - Dull spectrum, waterfall and decoder until tuned (#119)
 - Gate trunk tracking behind a settings toggle (#122)
+- Restyle known-frequency labels to dot + label pill (#126)
 
 ### Bug Fixes
 
