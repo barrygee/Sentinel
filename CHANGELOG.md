@@ -238,6 +238,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Persist waterfall Min/Max sliders across stop and remount (#115)
 - Newest-first logs with footer Clear, and round spectrum dB labels (#116)
 - Restore demod mode and bandwidth on page reload (#118)
+- Don't dim Zoom/Max/Min controls in not-playing state (#120)
 
 ### Chores
 
