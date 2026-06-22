@@ -200,11 +200,6 @@ const bandInsetTopPx = ref(0)
 // with the -100 dB horizontal gridline in the spectrum (data-box-relative).
 const bandHeightPx = ref(0)
 
-// Pixel distance from the BOTTOM of .sdr-wf-spectrum up to the first horizontal
-// dB gridline above the floor (one ydiv step above zmin). The freq labels are
-// centred on this line.
-const firstGridlineFromBottomPx = ref(0)
-
 // Style for the band-plan overlay (absolute-positioned div sitting on top of
 // the spectrum canvas). Insets follow the live data-box rectangle so the
 // strip always aligns with the plot's tick labels regardless of font scaling.
@@ -794,14 +789,15 @@ const tickGutterStyle = computed(() => ({
 }))
 
 // Inline style for the known-frequency label overlay — a zero-height strip
-// whose bottom edge sits one division up from the data-box floor; each marker
-// is centred vertically on that line (translateY(50%) in CSS). The vertical
-// anchor is a fixed fraction of the data box (see syncBandInset) so the labels
-// stay put when the Min/Max sliders move. Horizontal insets match the data box.
+// whose bottom edge sits on the data-box floor (the bottom line of the plot,
+// just above the frequency scale). Each ring rests just above that line and the
+// vertical label rises from it. bandInsetBottomPx is the height of the x-axis
+// tick gutter, so this tracks the floor as the layout/fonts change. Horizontal
+// insets match the data box.
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `${firstGridlineFromBottomPx.value}px`,
+  bottom: `${bandInsetBottomPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -1117,23 +1113,6 @@ function syncBandInset() {
     bandHeightPx.value = Math.max(
       20,
       Math.round((dbFromBottom / yRangeDb) * dataBoxHeightPx * 0.1875) + 4,
-    )
-  }
-  // Known-freq labels (TRANSATLANTIC etc.) anchor one division up from the
-  // data-box floor. This MUST be pinned to a FIXED fraction of the data box,
-  // NOT the live (zmax-zmin) slider span: the data box is a fixed pixel
-  // rectangle that always maps onto whatever range the Min/Max sliders set, so
-  // deriving the anchor from the live span makes the labels slide up/down as
-  // the user drags the sliders. Use the STATIC device dB range (same constants
-  // the band overlay uses) so the labels hold their vertical position.
-  if (dataBoxHeightPx > 0) {
-    const staticSpanDb = SPEC_YMAX_DB - SPEC_YMIN_DB
-    const ndiv = Math.max(1, Math.round(staticSpanDb / 20))
-    // One division above the floor = 1/ndiv of the data-box height.
-    const gridlineFromBoxBottomPx = dataBoxHeightPx / ndiv
-    firstGridlineFromBottomPx.value = Math.max(
-      0,
-      Math.round(gridlineFromBoxBottomPx + (mx.height - mx.b)),
     )
   }
 }

@@ -667,6 +667,9 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     const markers = wrapper.findAll('.sdr-wf-known-marker')
     expect(markers).toHaveLength(1)
     expect(markers[0].text()).toBe('ATIS')
+    // Each marker pairs the dot (SVG ring) with its label.
+    expect(markers[0].find('svg.sdr-wf-known-marker-ring').exists()).toBe(true)
+    expect(markers[0].find('.sdr-wf-known-marker-label').text()).toBe('ATIS')
   })
 
   it('renders frequency tick labels in the gutter', async () => {
