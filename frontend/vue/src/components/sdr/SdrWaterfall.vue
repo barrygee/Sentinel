@@ -1161,6 +1161,83 @@ function accIsEdgeDragging(a: AccordionPlugin | null): boolean {
 // the same native event), so by the time we run accIsDragging() it's already
 // true. We capture the CURRENT live centre/width as the baseline — this is the
 // value before the user moves the mouse — and freeze it for the whole drag.
+// Force-clear sigplot's internal accordion drag flags on both plots. sigplot's
+// Accordion._onDocMouseUp is dead code (`!dragging || !edge_dragging` is always
+// true since mousedown sets exactly one of them), so it never clears them
+// itself; any leftover flag makes the next mousemove re-drag the marker — the
+// "tuning bar stuck to the cursor" bug. Callers guard specAcc/wfAcc non-null.
+function clearAccDragFlags() {
+  for (const s of [specAcc, wfAcc] as unknown as AccDragState[]) {
+    s.dragging = false
+    s.edge_dragging = false
+  }
+}
+
+// End an accordion drag: read the final bracket geometry, commit a retune /
+// bandwidth change if it actually moved, re-sync both plots, and ALWAYS release
+// the sigplot drag flags (including the no-movement "click" path, which would
+// otherwise leave the bar glued to the cursor). Shared by the document mouseup
+// and the missed-mouseup recovery in the drag mousemove handler.
+function commitAccDrag() {
+  // Both callers (document mouseup, missed-up recovery) already guard the
+  // accordions non-null, so this is unreachable defensive narrowing for TS.
+  /* v8 ignore start */
+  if (!specAcc || !wfAcc) return
+  /* v8 ignore stop */
+  dragActive = false
+  // Read the final geometry from the WATERFALL accordion (Hz, no MHz rounding
+  // loss). The mousemove mirror keeps both accordions in lock-step, so either
+  // is authoritative; we pick Hz to avoid a float round-trip through MHz.
+  const mode = store.currentMode
+  const bw = wfAcc.width()
+  const carrierHz = carrierFromBracketHz(wfAcc.center(), bw, mode)
+  const freqMoved = Math.abs(carrierHz - dragBaseFreqHz) > 1
+  const bwMoved = Math.abs(bw - dragBaseBwHz) > 1
+  if (!freqMoved && !bwMoved) {
+    // A click / sub-1Hz nudge on the bar: nothing to commit, but the flags are
+    // still set from mousedown — clear them or the bar sticks to the cursor.
+    clearAccDragFlags()
+    return
+  }
+  if (freqMoved) store.requestTune(Math.round(carrierHz))
+  if (bwMoved) store.requestBandwidth(Math.round(bw))
+  _lastCommittedFreqHz = carrierHz
+  _lastCommittedBwHz = bw
+  // Re-sync both plots immediately so the un-dragged plot follows now (don't
+  // wait for the debounced backend echo). Re-derive the bracket geometry from
+  // the carrier — for SSB, resizing must keep the carrier-side edge anchored
+  // on the red line instead of drifting.
+  const { centerHz: syncCenterHz, widthHz: syncWidthHz } = bracketGeomHz(carrierHz, bw, mode)
+  suppressAccEvents = true
+  try {
+    specAcc.center(syncCenterHz / HZ_PER_MHZ)
+    specAcc.width(syncWidthHz / HZ_PER_MHZ)
+    wfAcc.center(syncCenterHz)
+    wfAcc.width(syncWidthHz)
+  } finally {
+    suppressAccEvents = false
+  }
+  clearAccDragFlags()
+}
+
+// Abort an in-progress drag WITHOUT committing — for a cancelled pointer gesture
+// (pointercancel, e.g. touch/pen taken over by the browser) or the window losing
+// focus (blur) mid-drag, where the last geometry can't be trusted. Release the
+// flags and snap both brackets back to the real tuned state (the store is the
+// source of truth via applyMarker), so the bar is never left glued to the cursor
+// or stranded at an uncommitted position.
+function abortAccDrag() {
+  if (!dragActive) return
+  // Once a drag is active the accordions exist (mousedown only sets dragActive
+  // after initPlots), so this null-check is unreachable defensive narrowing.
+  /* v8 ignore start */
+  if (!specAcc || !wfAcc) return
+  /* v8 ignore stop */
+  dragActive = false
+  clearAccDragFlags()
+  applyMarker()
+}
+
 useDocumentEvent('mousedown', () => {
   if (!specAcc || !wfAcc) return
   if (!accIsDragging(specAcc) && !accIsDragging(wfAcc)) return
@@ -1169,8 +1246,16 @@ useDocumentEvent('mousedown', () => {
   dragActive = true
 })
 
-useDocumentEvent('mousemove', () => {
+useDocumentEvent('mousemove', (e: Event) => {
   if (suppressAccEvents || !specAcc || !wfAcc) return
+  // Missed-mouseup recovery: releasing the button OUTSIDE the window never
+  // delivers a mouseup, so the drag stays "active" and the bar chases the cursor
+  // forever. A later mousemove with no button held (buttons === 0) means the
+  // drag really ended — commit it now instead of following the pointer.
+  if (dragActive && (e as MouseEvent).buttons === 0) {
+    commitAccDrag()
+    return
+  }
   const specDragging = accIsDragging(specAcc)
   const wfDragging = accIsDragging(wfAcc)
   if (!specDragging && !wfDragging) return
@@ -1288,42 +1373,17 @@ useDocumentEvent('mousemove', (e: Event) => {
 useDocumentEvent('mouseup', () => {
   if (suppressAccEvents || !specAcc || !wfAcc) return
   if (!dragActive) return // mouseup without a drag we initiated
-  dragActive = false
-  // Read the final geometry from the WATERFALL accordion (Hz, no MHz rounding
-  // loss). The mousemove mirror keeps both accordions in lock-step, so either
-  // is authoritative; we pick Hz to avoid a float round-trip through MHz.
-  const mode = store.currentMode
-  const bw = wfAcc.width()
-  const carrierHz = carrierFromBracketHz(wfAcc.center(), bw, mode)
-  const freqMoved = Math.abs(carrierHz - dragBaseFreqHz) > 1
-  const bwMoved = Math.abs(bw - dragBaseBwHz) > 1
-  if (!freqMoved && !bwMoved) return
-  if (freqMoved) store.requestTune(Math.round(carrierHz))
-  if (bwMoved) store.requestBandwidth(Math.round(bw))
-  _lastCommittedFreqHz = carrierHz
-  _lastCommittedBwHz = bw
-  // Re-sync both plots immediately so the un-dragged plot follows now (don't
-  // wait for the debounced backend echo). Re-derive the bracket geometry from
-  // the carrier — for SSB, resizing must keep the carrier-side edge anchored
-  // on the red line instead of drifting.
-  const { centerHz: syncCenterHz, widthHz: syncWidthHz } = bracketGeomHz(carrierHz, bw, mode)
-  suppressAccEvents = true
-  try {
-    specAcc.center(syncCenterHz / HZ_PER_MHZ)
-    specAcc.width(syncWidthHz / HZ_PER_MHZ)
-    wfAcc.center(syncCenterHz)
-    wfAcc.width(syncWidthHz)
-  } finally {
-    suppressAccEvents = false
-  }
-  // Drag-bug mitigation: _onDocMouseUp never resets these (dead code), so a
-  // stray later mousemove over the plot could re-drag the marker (and our
-  // mousemove mirror would chase it). Force-reset on every commit.
-  for (const s of [specAcc, wfAcc] as unknown as AccDragState[]) {
-    s.dragging = false
-    s.edge_dragging = false
-  }
+  commitAccDrag()
 })
+
+// Safety nets for drags that never get a normal mouseup. A cancelled pointer
+// gesture (browser takes over a touch/pen scroll) or the window losing focus
+// mid-drag (alt-tab, OS dialog) would otherwise leave sigplot's drag flag set
+// and the tuning bar glued to the cursor until a page refresh. Abort (no
+// commit) and snap the brackets back to the tuned state.
+useDocumentEvent('pointercancel', abortAccDrag)
+onMounted(() => window.addEventListener('blur', abortAccDrag))
+onBeforeUnmount(() => window.removeEventListener('blur', abortAccDrag))
 
 const rootEl = ref<HTMLElement | null>(null)
 const specEl = ref<HTMLElement | null>(null)
