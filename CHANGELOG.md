@@ -241,6 +241,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restore demod mode and bandwidth on page reload (#118)
 - Don't dim Zoom/Max/Min controls in not-playing state (#120)
 - Resolve Dependabot security advisories (pydantic-settings, undici, @babel/core) (#121)
+- Release a stuck tuning bar in the spectrum/waterfall (#125)
 
 ### Chores
 
