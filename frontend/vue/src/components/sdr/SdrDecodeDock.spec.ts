@@ -23,11 +23,12 @@ describe('SdrDecodeDock', () => {
     const columns = wrapper.findAll('.sdr-decode-dock-column')
     expect(columns).toHaveLength(2)
     // Visible titles are removed; the columns keep accessible names via aria-label.
-    expect(columns[0].attributes('aria-label')).toBe('Decoded messages')
-    expect(columns[1].attributes('aria-label')).toBe('Decoder logs')
+    // Logs sit on the left, decoded messages on the right.
+    expect(columns[0].attributes('aria-label')).toBe('Decoder logs')
+    expect(columns[1].attributes('aria-label')).toBe('Decoded messages')
     // Both empty states are visible simultaneously, one per column.
-    expect(columns[0].find('.sdr-decode-empty').text()).toBe('No messages to display.')
-    expect(columns[1].find('.sdr-decode-empty').text()).toBe('No logs to display.')
+    expect(columns[0].find('.sdr-decode-empty').text()).toBe('No logs to display.')
+    expect(columns[1].find('.sdr-decode-empty').text()).toBe('No messages to display.')
   })
 
   it('places each column Clear button in a footer below its list, not in the header', async () => {
@@ -121,8 +122,8 @@ describe('SdrDecodeDock', () => {
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    // findAll order follows the template: [0] = messages column, [1] = logs column.
-    const messagesClear = wrapper.findAll('.sdr-decode-clear')[0]
+    // findAll order follows the template: [0] = logs column, [1] = messages column.
+    const messagesClear = wrapper.findAll('.sdr-decode-clear')[1]
     await messagesClear.trigger('click')
     expect(store.decodeEvents).toEqual([])
     expect(store.decodeLogs).toHaveLength(1) // logs untouched
@@ -135,7 +136,7 @@ describe('SdrDecodeDock', () => {
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    const logsClear = wrapper.findAll('.sdr-decode-clear')[1]
+    const logsClear = wrapper.findAll('.sdr-decode-clear')[0]
     await logsClear.trigger('click')
     expect(store.decodeLogs).toEqual([])
     expect(store.decodeEvents).toHaveLength(1) // messages untouched

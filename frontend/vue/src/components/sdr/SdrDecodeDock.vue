@@ -8,57 +8,6 @@
          visible at once; each column is an independent region with its own
          header and Clear button. -->
     <div class="sdr-decode-dock-columns">
-      <!-- ── Column: decoded messages (structured call rows) ────────────────── -->
-      <section class="sdr-decode-dock-column" aria-label="Decoded messages">
-        <!-- Empty header keeps this column's body aligned with the logs column,
-             whose header carries the sync/trunk status. -->
-        <div class="sdr-decode-dock-column-header"></div>
-
-        <div ref="messagesBody" class="sdr-decode-dock-body">
-          <table class="sdr-decode-table">
-            <caption class="sdr-sr-only">
-              Decoded digital calls, newest last
-            </caption>
-            <!-- Headings are hidden while empty so the placeholder text aligns
-                 with the logs column's "No logs to display." -->
-            <thead v-if="events.length > 0">
-              <tr>
-                <th scope="col">Time</th>
-                <th scope="col">Mode</th>
-                <th scope="col">Talkgroup</th>
-                <th scope="col">Source ID</th>
-                <th scope="col">CC</th>
-                <th scope="col">Sync</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="events.length === 0">
-                <td class="sdr-decode-empty" colspan="6">No messages to display.</td>
-              </tr>
-              <tr v-for="(event, index) in events" :key="`${event.ts}-${index}`">
-                <td>{{ formatTime(event.ts) }}</td>
-                <td>{{ event.mode ?? '—' }}</td>
-                <td>{{ event.talkgroup ?? '—' }}</td>
-                <td>{{ event.source ?? '—' }}</td>
-                <td>{{ event.color_code ?? '—' }}</td>
-                <td>{{ syncLabel(event) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="sdr-decode-dock-column-footer">
-          <button
-            v-if="events.length > 0"
-            class="sdr-decode-clear"
-            type="button"
-            @click="store.clearDecodeEvents()"
-          >
-            Clear
-          </button>
-        </div>
-      </section>
-
       <!-- ── Column: raw decoder logs (verbatim dsd-fme output) ──────────────── -->
       <section class="sdr-decode-dock-column" aria-label="Decoder logs">
         <div class="sdr-decode-dock-column-header">
@@ -105,9 +54,94 @@
             v-if="logRows.length > 0"
             class="sdr-decode-clear"
             type="button"
+            data-tooltip="Clear"
+            aria-label="Clear"
             @click="store.clearDecodeLogs()"
           >
-            Clear
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 3.5h10" />
+              <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
+              <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
+              <path d="M6 6v4M8 6v4" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ── Column: decoded messages (structured call rows) ────────────────── -->
+      <section class="sdr-decode-dock-column" aria-label="Decoded messages">
+        <!-- Empty header keeps this column's body aligned with the logs column,
+             whose header carries the sync/trunk status. -->
+        <div class="sdr-decode-dock-column-header"></div>
+
+        <div ref="messagesBody" class="sdr-decode-dock-body">
+          <table class="sdr-decode-table">
+            <caption class="sdr-sr-only">
+              Decoded digital calls, newest last
+            </caption>
+            <!-- Headings are hidden while empty so the placeholder text aligns
+                 with the logs column's "No logs to display." -->
+            <thead v-if="events.length > 0">
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Mode</th>
+                <th scope="col">Talkgroup</th>
+                <th scope="col">Source ID</th>
+                <th scope="col">CC</th>
+                <th scope="col">Sync</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="events.length === 0">
+                <td class="sdr-decode-empty" colspan="6">No messages to display.</td>
+              </tr>
+              <tr v-for="(event, index) in events" :key="`${event.ts}-${index}`">
+                <td>{{ formatTime(event.ts) }}</td>
+                <td>{{ event.mode ?? '—' }}</td>
+                <td>{{ event.talkgroup ?? '—' }}</td>
+                <td>{{ event.source ?? '—' }}</td>
+                <td>{{ event.color_code ?? '—' }}</td>
+                <td>{{ syncLabel(event) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sdr-decode-dock-column-footer">
+          <button
+            v-if="events.length > 0"
+            class="sdr-decode-clear"
+            type="button"
+            data-tooltip="Clear"
+            aria-label="Clear"
+            @click="store.clearDecodeEvents()"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 3.5h10" />
+              <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
+              <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
+              <path d="M6 6v4M8 6v4" />
+            </svg>
           </button>
         </div>
       </section>
@@ -288,7 +322,6 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   align-items: center;
   gap: 0.4rem;
   margin: 0;
-  margin-left: auto;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 400;
@@ -297,23 +330,19 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   color: #cfd6dd;
 }
 
-/* Trunk indicator sits just left of the sync status (which keeps margin-left
-   auto, pushing both to the right edge of the header). Same label styling. */
+/* Trunk indicator sits just left of the sync status; both left-align at the
+   start of the header (the header's flex gap spaces them). Same label styling. */
 .sdr-decode-trunk {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  margin: 0 0 0 auto;
+  margin: 0;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #cfd6dd;
-}
-
-.sdr-decode-trunk + .sdr-decode-status {
-  margin-left: 0.75rem;
 }
 
 .sdr-decode-dot {
@@ -333,29 +362,56 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   background: #5ad17a;
 }
 
-/* Flat-dark action button, matching .sdr-mode-pill used across the panel. */
+/* Borderless transparent trash/bin icon button with a styled "Clear" tooltip
+   (data-tooltip) shown to the LEFT of the button. */
 .sdr-decode-clear {
-  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
   border: none;
+  color: rgba(255, 255, 255, 0.5);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0.25rem;
+  cursor: pointer;
+  flex: none;
+  transition: color 0.15s;
+}
+
+.sdr-decode-clear:hover {
+  color: #fff;
+}
+
+.sdr-decode-clear[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  background: rgba(10, 13, 20, 0.96);
+  color: #fff;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  padding: 0 10px;
   height: 24px;
-  padding: 0 0.7rem;
-  margin: 0.25rem;
-  cursor: pointer;
-  flex: none;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  display: flex;
+  align-items: center;
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10001;
 }
 
-.sdr-decode-clear:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+.sdr-decode-clear:hover[data-tooltip]::before {
+  opacity: 1;
 }
 
 /* Each tab panel fills the remaining dock height and scrolls internally
@@ -396,7 +452,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   color: #fff;
   /* Extra space below the heading row so it is not crowded against the first
      decoded message. */
-  padding-bottom: 1rem;
+  padding-bottom: 0.5rem;
 }
 
 /* Empty-state text matches the side-panel "No alerts" label (#msb-alerts-empty):
@@ -418,19 +474,30 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 .sdr-decode-log-list {
   list-style: none;
   margin: 0;
-  padding: 0.2rem 0.45rem;
+  /* Extra top padding puts vertical space between the status row (No sync …)
+     and the first log line. Applied to the list (not the empty <p>) so the
+     "No logs to display." placeholder still aligns with the messages column. */
+  padding: 5rem 0.45rem 0.2rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  /* Vertical breathing room between log rows. */
+  gap: 0.35rem;
   /* Size to the widest line (but never narrower than the panel) so each line
      stays on one row and the body scrolls horizontally instead of wrapping. */
   width: max-content;
   min-width: 100%;
 }
 
+/* Log lines share the empty-state / side-panel label styling (10px Barlow,
+   weight 400, 0.14em tracking, uppercase) so the decoder output reads in the
+   same voice as the rest of the dock. */
 .sdr-decode-log-line {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 0.68rem;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   line-height: 1.4;
   color: #b6c2cf;
   /* One line per entry: preserve dsd-fme's leading spaces/brackets and never
@@ -439,12 +506,10 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   padding: 0.05rem 0.1rem;
 }
 
-/* Error lines (CRC errors, lost sync, …): red, plus a left accent bar and an
-   sr-only "Error:" prefix so it is not colour-alone. #ff6b6b clears AA. */
+/* Error lines (CRC errors, lost sync, …): red, with an sr-only "Error:" prefix
+   so it is not colour-alone. #ff6b6b clears AA. */
 .sdr-decode-log-line--error {
   color: #ff6b6b;
-  border-left: 2px solid #ff6b6b;
-  padding-left: 0.3rem;
 }
 
 /* Scrollbars are hidden in both boxes — the bodies still scroll (and stay
