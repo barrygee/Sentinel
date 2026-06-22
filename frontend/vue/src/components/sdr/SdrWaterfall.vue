@@ -128,6 +128,12 @@ mx.text = function (
     // The first x-axis tick (xTIC.dtic1) bypasses trimlabel() and arrives as a
     // bare integer like "433". Pad it to "433.0" for consistency with the rest.
     lbl = lbl + '.0'
+  } else if (!isXAxisLabel && typeof lbl === 'string' && /^-?\d+\.\d+$/.test(lbl.trim())) {
+    // Y-axis dB tick labels: sigplot divides the (zmin..zmax) range by ydiv,
+    // which often yields fractional ticks (e.g. "-20.666667"). Round these to
+    // whole dB so the gutter reads cleanly; the divisions are tens of dB apart,
+    // so rounding never collides two adjacent ticks.
+    lbl = String(Math.round(parseFloat(lbl)))
   }
   if (isXAxisLabel) {
     // X-axis freq labels are rendered as HTML in the template (.sdr-wf-freq-label)
