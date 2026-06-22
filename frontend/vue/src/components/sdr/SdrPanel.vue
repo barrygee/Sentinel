@@ -280,9 +280,11 @@
                 />
               </svg>
             </button>
-            <!-- Trunk: follow control-channel grants. Enabled only once digital
+            <!-- Trunk: follow control-channel grants. Shown only when trunk
+                 tracking is enabled in Settings; enabled only once digital
                  decode is running and a channel map is chosen. -->
             <button
+              v-if="trunkTrackingEnabled"
               class="sdr-mode-pill sdr-tune-btn sdr-trunk-btn"
               :class="{ 'sdr-trunk-btn--active': trunkEnabled }"
               type="button"
@@ -788,9 +790,13 @@
         </div>
 
         <!-- Trunk-system channel-map picker. Lives in its own accordion below
-             SEARCH; only shown while digital decode is running (the trunk
-             control rides on the decode session). -->
-        <div v-if="digitalEnabled" class="sdr-radio-section sdr-trunk-section">
+             SEARCH; only shown when trunk tracking is enabled in Settings and
+             while digital decode is running (the trunk control rides on the
+             decode session). -->
+        <div
+          v-if="trunkTrackingEnabled && digitalEnabled"
+          class="sdr-radio-section sdr-trunk-section"
+        >
           <button
             type="button"
             class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
@@ -2270,6 +2276,9 @@ function toggleDigital() {
 
 // ── Trunk tracking ─────────────────────────────────────────────────────────────
 
+// Master feature flag (Settings → SDR → TRUNK DATA → Trunk Tracking). When OFF
+// the TRUNK button and the TRUNK SYSTEM section below are hidden entirely.
+const trunkTrackingEnabled = computed(() => _sdrStore().trunkTrackingEnabled)
 const trunkEnabled = computed(() => _sdrStore().trunkEnabled)
 const trunkChannelMap = computed({
   get: () => _sdrStore().trunkChannelMap,
@@ -2378,6 +2387,13 @@ function toggleTrunk() {
 // Turning digital decode off must also drop trunk tracking — it cannot run
 // without the underlying decode session.
 watch(digitalEnabled, (enabled) => {
+  if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
+})
+
+// Disabling the trunk-tracking feature while a follow is active must stop the
+// backend decode session too — the store clears local trunk state, but only the
+// panel owns the WS connection that tells dsd-fme to drop trunk mode.
+watch(trunkTrackingEnabled, (enabled) => {
   if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
 })
 

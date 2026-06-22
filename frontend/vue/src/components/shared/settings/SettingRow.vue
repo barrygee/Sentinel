@@ -114,6 +114,10 @@
       filename="sdr_bandplan.json"
       @stage="emit('stage', item.id, $event)"
     />
+    <SdrTrunkTrackingToggleControl
+      v-else-if="item.type === 'sdr-trunk-tracking-toggle'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <JsonDataControl
       v-else-if="item.type === 'sdr-channelmaps-file'"
       get-url="/api/sdr/data/channel-maps"
@@ -154,6 +158,7 @@ import SdrFullWaterfallUpdateControl from './SdrFullWaterfallUpdateControl.vue'
 import SdrShowBandPlanControl from './SdrShowBandPlanControl.vue'
 import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
+import SdrTrunkTrackingToggleControl from './SdrTrunkTrackingToggleControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
 

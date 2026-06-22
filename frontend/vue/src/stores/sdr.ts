@@ -393,6 +393,33 @@ export const useSdrStore = defineStore('sdr', () => {
   }
 
   // ── Trunk tracking (dsd-fme follows control-channel grants) ────────────────
+  // Master feature flag for the whole trunk-tracking surface (opt-in, default
+  // OFF — same shape as air.replayEnabled). When OFF the TRUNK button and the
+  // TRUNK SYSTEM channel-map picker are hidden in the SDR panel and the "Trunk
+  // Channel Maps (JSON)" config row is hidden in Settings. Lives in the `sdr`
+  // settings namespace; localStorage is a fast-path cache so the first render
+  // after load is correct before the async settings fetch resolves
+  // (SdrTrunkTrackingToggleControl reconciles it with the DB).
+  function _readTrunkTrackingEnabled(): boolean {
+    try {
+      return localStorage.getItem('sdrTrunkTrackingEnabled') === '1'
+    } catch {
+      return false
+    }
+  }
+  const trunkTrackingEnabled = ref<boolean>(_readTrunkTrackingEnabled())
+  function setTrunkTrackingEnabled(on: boolean) {
+    trunkTrackingEnabled.value = on
+    try {
+      localStorage.setItem('sdrTrunkTrackingEnabled', on ? '1' : '0')
+    } catch {}
+    // Stopping an active follow when the feature is switched off is left to the
+    // SDR panel (it watches this flag and owns the WS connection that tells
+    // dsd-fme to drop trunk mode) — same split as the digital-decode toggle.
+    // Clearing trunkEnabled here would pre-empt that watcher and skip the WS
+    // command, leaving the backend following with no UI.
+  }
+
   // Whether trunk tracking is active. Not auto-persisted: trunking rides on an
   // active decode session and a chosen channel map, so it is always started
   // explicitly rather than restored on load.
@@ -734,6 +761,8 @@ export const useSdrStore = defineStore('sdr', () => {
     clearDecode,
     clearDecodeEvents,
     clearDecodeLogs,
+    trunkTrackingEnabled,
+    setTrunkTrackingEnabled,
     trunkEnabled,
     setTrunkEnabled,
     trunkChannelMap,
