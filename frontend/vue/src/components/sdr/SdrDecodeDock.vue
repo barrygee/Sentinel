@@ -1,7 +1,7 @@
 <template>
   <section
     class="sdr-decode-dock"
-    :class="{ 'panel-closed': !panelOpen }"
+    :class="{ 'panel-closed': !panelOpen, 'not-playing': !store.playing }"
     aria-label="Decoder output"
   >
     <!-- Both panels are shown side by side so decoded calls and raw logs are
@@ -276,6 +276,18 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 
 .sdr-decode-dock.panel-closed {
   left: 44px;
+}
+
+/* Disabled / dulled state — matches the spectrum + waterfall while the radio is
+   not tuned (store.playing is false). The decoder boxes grey back and stop
+   accepting interaction so it's clear no decode is running yet. */
+.sdr-decode-dock.not-playing .sdr-decode-dock-columns {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
 }
 
 /* The two panels sit side by side, each filling half the dock width and

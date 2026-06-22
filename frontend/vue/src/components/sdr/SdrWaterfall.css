@@ -37,6 +37,22 @@
   bottom: calc(var(--footer-height) + var(--sdr-dock-height));
 }
 
+/* Disabled / dulled state — shown until the radio is tuned (the Tune button
+ * sets store.playing). The spectrum, waterfall raster and the Zoom/Max/Min
+ * controls are greyed back and made non-interactive so it's clear there's no
+ * live signal yet. Click-to-tune / drag / wheel handlers already no-op while
+ * !store.playing; pointer-events:none also drops the hover cursors. */
+#sdr-waterfall.not-playing .sdr-wf-controls,
+#sdr-waterfall.not-playing .sdr-wf-spectrum,
+#sdr-waterfall.not-playing .sdr-wf-raster {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
 /* Zoom / Max / Min controls — vertical sliders stacked on the right edge,
  * spanning the spectrum + waterfall. Matches the reference screenshot: a
  * narrow dark rounded-capsule track with a small blue rounded-rect handle and
