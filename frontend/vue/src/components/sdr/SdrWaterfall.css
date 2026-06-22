@@ -38,11 +38,15 @@
 }
 
 /* Disabled / dulled state — shown until the radio is tuned (the Tune button
- * sets store.playing). The spectrum, waterfall raster and the Zoom/Max/Min
- * controls are greyed back and made non-interactive so it's clear there's no
- * live signal yet. Click-to-tune / drag / wheel handlers already no-op while
- * !store.playing; pointer-events:none also drops the hover cursors. */
-#sdr-waterfall.not-playing .sdr-wf-controls,
+ * sets store.playing). The spectrum trace and waterfall raster are greyed back
+ * and made non-interactive so it's clear there's no live signal yet.
+ * Click-to-tune / drag / wheel handlers already no-op while !store.playing;
+ * pointer-events:none also drops the hover cursors.
+ *
+ * The Zoom/Max/Min controls are deliberately NOT dimmed: their text labels
+ * would blend toward the background under reduced opacity and fail WCAG 2.2 AA
+ * contrast (the live a11y audit flags them). Only the text-free plot areas are
+ * dulled. */
 #sdr-waterfall.not-playing .sdr-wf-spectrum,
 #sdr-waterfall.not-playing .sdr-wf-raster {
   opacity: 0.35;
