@@ -2157,6 +2157,7 @@ onBeforeUnmount(() => {
       'panel-closed': !panelOpen,
       'edge-resize': nearEdge,
       'decode-open': store.digitalEnabled,
+      'not-playing': !store.playing,
     }"
   >
     <div v-if="store.searchSweeping" class="sdr-wf-search-overlay">

@@ -720,6 +720,18 @@ describe('SdrWaterfall — document & sidebar events', () => {
     const { wrapper } = mountWaterfall()
     expect(wrapper.find('#sdr-waterfall').classes()).not.toContain('panel-closed')
   })
+
+  it('marks the waterfall not-playing until the radio is tuned, then clears it', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // Radio stopped at mount → the dulled/disabled state is on.
+    expect(wrapper.find('#sdr-waterfall').classes()).toContain('not-playing')
+    store.setPlaying(true)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#sdr-waterfall').classes()).not.toContain('not-playing')
+    store.setPlaying(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#sdr-waterfall').classes()).toContain('not-playing')
+  })
 })
 
 // =============================================================================

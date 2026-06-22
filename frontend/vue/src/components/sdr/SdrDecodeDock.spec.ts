@@ -214,6 +214,19 @@ describe('SdrDecodeDock', () => {
     expect(wrapper.find('.sdr-decode-dock').classes()).not.toContain('panel-closed')
   })
 
+  it('is dulled (not-playing) until the radio is tuned, then clears it', async () => {
+    const store = useSdrStore()
+    const wrapper = mountDock()
+    // Radio stopped at mount → the decoder boxes are in the disabled state.
+    expect(wrapper.find('.sdr-decode-dock').classes()).toContain('not-playing')
+    store.setPlaying(true)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-dock').classes()).not.toContain('not-playing')
+    store.setPlaying(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-dock').classes()).toContain('not-playing')
+  })
+
   it('removes the sidebar-state listener on unmount', () => {
     const wrapper = mountDock()
     wrapper.unmount()
