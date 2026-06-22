@@ -15,6 +15,9 @@
         "format:check": "prettier --check \"tests/**/*.ts\" \"*.{js,ts}\"",
         "prepare": "husky"
     },
+    "overrides": {
+        "@babel/core": "7.29.6"
+    },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@playwright/test": "^1.61.0",
