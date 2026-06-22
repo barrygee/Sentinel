@@ -315,6 +315,11 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   gap: 0.75rem;
   min-height: 1.6rem;
   padding: 0.3rem 0.45rem;
+  /* Spacing sits below the header (outside the scrolling body) so the gap
+     between the status row and the first row holds even when the log/message
+     body has scrolled to the bottom. Applied to both columns' headers (the
+     messages column's is empty) so the two bodies stay vertically aligned. */
+  margin-bottom: 0.75rem;
   flex: none;
 }
 
@@ -486,10 +491,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 .sdr-decode-log-list {
   list-style: none;
   margin: 0;
-  /* Extra top padding puts vertical space between the status row (No sync …)
-     and the first log line. Applied to the list (not the empty <p>) so the
-     "No logs to display." placeholder still aligns with the messages column. */
-  padding: 5rem 0.45rem 0.2rem;
+  padding: 0.2rem 0.45rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
