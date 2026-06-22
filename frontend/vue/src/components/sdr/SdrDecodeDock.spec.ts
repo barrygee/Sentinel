@@ -18,20 +18,24 @@ describe('SdrDecodeDock', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders both panels side by side, each headed and showing its own empty state', () => {
+  it('renders both panels side by side, each accessibly named and showing its own empty state', () => {
     const wrapper = mountDock()
     const columns = wrapper.findAll('.sdr-decode-dock-column')
     expect(columns).toHaveLength(2)
-    // Both headings present at once — no tab switching.
-    expect(wrapper.find('#sdr-dock-heading-messages').text()).toBe('Decoded messages')
-    expect(wrapper.find('#sdr-dock-heading-logs').text()).toBe('Logs')
+    // Visible titles are removed; the columns keep accessible names via aria-label.
+    expect(columns[0].attributes('aria-label')).toBe('Decoded messages')
+    expect(columns[1].attributes('aria-label')).toBe('Decoder logs')
     // Both empty states are visible simultaneously, one per column.
-    expect(columns[0].find('.sdr-decode-empty').text()).toBe('No decoded events yet.')
-    expect(columns[1].find('.sdr-decode-empty').text()).toBe('No log output yet.')
+    expect(columns[0].find('.sdr-decode-empty').text()).toBe('No messages to display.')
+    expect(columns[1].find('.sdr-decode-empty').text()).toBe('No logs to display.')
   })
 
-  it('places each column Clear button in a footer below its list, not in the header', () => {
+  it('places each column Clear button in a footer below its list, not in the header', async () => {
+    const store = useSdrStore()
     const wrapper = mountDock()
+    store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+    store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
+    await wrapper.vm.$nextTick()
     const footers = wrapper.findAll('.sdr-decode-dock-column-footer')
     expect(footers).toHaveLength(2)
     // Each footer owns exactly one Clear button; headers carry none.
@@ -109,30 +113,29 @@ describe('SdrDecodeDock', () => {
     expect(bodies[1].scrollTop).toBe(800)
   })
 
-  it('the messages Clear clears only events and is disabled when empty', async () => {
+  it('hides the messages Clear when empty and clears only events when shown', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
-    // findAll order follows the template: [0] = messages column, [1] = logs column.
-    const messagesClear = wrapper.findAll('.sdr-decode-clear')[0]
-    expect((messagesClear.element as HTMLButtonElement).disabled).toBe(true)
+    // No Clear button while the column is empty.
+    expect(wrapper.findAll('.sdr-decode-clear')).toHaveLength(0)
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    expect((messagesClear.element as HTMLButtonElement).disabled).toBe(false)
+    // findAll order follows the template: [0] = messages column, [1] = logs column.
+    const messagesClear = wrapper.findAll('.sdr-decode-clear')[0]
     await messagesClear.trigger('click')
     expect(store.decodeEvents).toEqual([])
     expect(store.decodeLogs).toHaveLength(1) // logs untouched
   })
 
-  it('the logs Clear clears only logs and is disabled when empty', async () => {
+  it('hides the logs Clear when empty and clears only logs when shown', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
-    const logsClear = wrapper.findAll('.sdr-decode-clear')[1]
-    expect((logsClear.element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.findAll('.sdr-decode-clear')).toHaveLength(0)
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    expect((logsClear.element as HTMLButtonElement).disabled).toBe(false)
+    const logsClear = wrapper.findAll('.sdr-decode-clear')[1]
     await logsClear.trigger('click')
     expect(store.decodeLogs).toEqual([])
     expect(store.decodeEvents).toHaveLength(1) // messages untouched

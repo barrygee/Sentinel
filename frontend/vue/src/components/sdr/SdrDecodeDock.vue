@@ -9,17 +9,19 @@
          header and Clear button. -->
     <div class="sdr-decode-dock-columns">
       <!-- ── Column: decoded messages (structured call rows) ────────────────── -->
-      <section class="sdr-decode-dock-column" aria-labelledby="sdr-dock-heading-messages">
-        <div class="sdr-decode-dock-column-header">
-          <h2 id="sdr-dock-heading-messages" class="sdr-decode-dock-title">Decoded messages</h2>
-        </div>
+      <section class="sdr-decode-dock-column" aria-label="Decoded messages">
+        <!-- Empty header keeps this column's body aligned with the logs column,
+             whose header carries the sync/trunk status. -->
+        <div class="sdr-decode-dock-column-header"></div>
 
         <div ref="messagesBody" class="sdr-decode-dock-body">
           <table class="sdr-decode-table">
             <caption class="sdr-sr-only">
               Decoded digital calls, newest last
             </caption>
-            <thead>
+            <!-- Headings are hidden while empty so the placeholder text aligns
+                 with the logs column's "No logs to display." -->
+            <thead v-if="events.length > 0">
               <tr>
                 <th scope="col">Time</th>
                 <th scope="col">Mode</th>
@@ -31,7 +33,7 @@
             </thead>
             <tbody>
               <tr v-if="events.length === 0">
-                <td class="sdr-decode-empty" colspan="6">No decoded events yet.</td>
+                <td class="sdr-decode-empty" colspan="6">No messages to display.</td>
               </tr>
               <tr v-for="(event, index) in events" :key="`${event.ts}-${index}`">
                 <td>{{ formatTime(event.ts) }}</td>
@@ -47,9 +49,9 @@
 
         <div class="sdr-decode-dock-column-footer">
           <button
+            v-if="events.length > 0"
             class="sdr-decode-clear"
             type="button"
-            :disabled="events.length === 0"
             @click="store.clearDecodeEvents()"
           >
             Clear
@@ -58,10 +60,8 @@
       </section>
 
       <!-- ── Column: raw decoder logs (verbatim dsd-fme output) ──────────────── -->
-      <section class="sdr-decode-dock-column" aria-labelledby="sdr-dock-heading-logs">
+      <section class="sdr-decode-dock-column" aria-label="Decoder logs">
         <div class="sdr-decode-dock-column-header">
-          <h2 id="sdr-dock-heading-logs" class="sdr-decode-dock-title">Logs</h2>
-
           <!-- Trunk-tracking indicator: which channel the decoder is currently
                following. aria-live announces grant/return transitions. -->
           <p v-if="trunkEnabled" class="sdr-decode-trunk" aria-live="polite">
@@ -86,7 +86,7 @@
             aria-live="off"
             aria-label="Raw decoder log, newest last"
           >
-            <p v-if="logRows.length === 0" class="sdr-decode-empty">No log output yet.</p>
+            <p v-if="logRows.length === 0" class="sdr-decode-empty">No logs to display.</p>
             <ol v-else class="sdr-decode-log-list">
               <li
                 v-for="(row, index) in logRows"
@@ -102,9 +102,9 @@
 
         <div class="sdr-decode-dock-column-footer">
           <button
+            v-if="logRows.length > 0"
             class="sdr-decode-clear"
             type="button"
-            :disabled="logRows.length === 0"
             @click="store.clearDecodeLogs()"
           >
             Clear
@@ -215,7 +215,15 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 /* Fixed strip docked at the bottom of the SDR page, below the waterfall. Its
    height (--sdr-dock-height, defined on #sdr-page) is ~1/3 of the waterfall's
    height; the waterfall raises its own bottom by the same amount when open. The
-   left edge follows the side panel (430px open / 44px tab-rail closed). */
+   left edge follows the side panel (430px open / 44px tab-rail closed).
+
+   The boxes are inset to line up with the waterfall DISPLAY (the sigplot data
+   box), not the waterfall element. The insets are published live by
+   #sdr-waterfall (syncBandInset → :root CSS vars); fallbacks are the default
+   sigplot margins:
+   - left: the spectrum's dB-axis gutter (sigplot _Mx.l, ~56px).
+   - right: the freq-label gutter (sigplot, ~12px) plus the 44px slider-control
+     column (#sdr-waterfall padding-right). */
 .sdr-decode-dock {
   position: fixed;
   left: 430px;
@@ -226,7 +234,8 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   display: flex;
   flex-direction: column;
   background: #0a0d14;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-left: var(--sdr-wf-inset-left, 56px);
+  padding-right: calc(44px + var(--sdr-wf-inset-right, 12px));
   box-sizing: border-box;
   z-index: 2;
 }
@@ -236,7 +245,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 }
 
 /* The two panels sit side by side, each filling half the dock width and
-   scrolling independently. A divider separates them. */
+   scrolling independently. */
 .sdr-decode-dock-columns {
   flex: 1;
   min-height: 0;
@@ -251,58 +260,55 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   flex-direction: column;
 }
 
-.sdr-decode-dock-column + .sdr-decode-dock-column {
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-}
-
+/* Header carries the logs column's sync/trunk status; the messages column's is
+   empty but kept (with a matching min-height) so both bodies start at the same
+   y. No borders — the boxes are free of horizontal/vertical rules. */
 .sdr-decode-dock-column-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.3rem 0.6rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 1.6rem;
+  padding: 0.3rem 0.45rem;
   flex: none;
 }
 
-/* Footer sits below the scrolling list and holds that column's Clear button. */
+/* Footer sits below the scrolling list and holds that column's Clear button.
+   No top border — boxes are kept free of horizontal rules. */
 .sdr-decode-dock-column-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 0.3rem 0.6rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.3rem 0.45rem;
   flex: none;
 }
 
-/* Match the side-panel field labels (e.g. SAMPLE RATE / BANDWIDTH): 9px Barlow,
-   weight 400, 0.18em tracking, uppercase, white. */
-.sdr-decode-dock-title {
-  margin: 0;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #fff;
-}
-
+/* Status text ("No sync" / "Synced — decoding") matches the case and font of the
+   column-heading labels: 9px Barlow, weight 400, 0.18em tracking, uppercase. */
 .sdr-decode-status {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   margin: 0;
   margin-left: auto;
-  font-size: 0.75rem;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: #cfd6dd;
 }
 
 /* Trunk indicator sits just left of the sync status (which keeps margin-left
-   auto, pushing both to the right edge of the header). */
+   auto, pushing both to the right edge of the header). Same label styling. */
 .sdr-decode-trunk {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   margin: 0 0 0 auto;
-  font-size: 0.75rem;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: #cfd6dd;
 }
 
@@ -339,6 +345,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   color: rgba(255, 255, 255, 0.5);
   height: 24px;
   padding: 0 0.7rem;
+  margin: 0.25rem;
   cursor: pointer;
   flex: none;
   transition:
@@ -346,14 +353,9 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
     color 0.15s;
 }
 
-.sdr-decode-clear:hover:not(:disabled) {
+.sdr-decode-clear:hover {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
-}
-
-.sdr-decode-clear:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* Each tab panel fills the remaining dock height and scrolls internally
@@ -392,11 +394,20 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #fff;
+  /* Extra space below the heading row so it is not crowded against the first
+     decoded message. */
+  padding-bottom: 1rem;
 }
 
+/* Empty-state text matches the side-panel "No alerts" label (#msb-alerts-empty):
+   10px Barlow, weight 400, 0.14em tracking, uppercase. */
 .sdr-decode-empty {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: #8b95a1;
-  font-style: italic;
   padding: 0.4rem 0.45rem;
 }
 
@@ -436,25 +447,13 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   padding-left: 0.3rem;
 }
 
-/* Thin scrollbar matching the app convention (see .sdr-device-menu). */
+/* Scrollbars are hidden in both boxes — the bodies still scroll (and stay
+   pinned to the newest row), the bar itself is just not drawn. */
 .sdr-decode-dock-body {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-width: none;
 }
 .sdr-decode-dock-body::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.sdr-decode-dock-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sdr-decode-dock-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-  border: 2px solid #13171f;
-}
-.sdr-decode-dock-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.32);
+  display: none;
 }
 
 /* Visually-hidden but available to assistive tech. */
