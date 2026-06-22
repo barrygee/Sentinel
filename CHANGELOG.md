@@ -86,6 +86,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Persist search selection/isolation and refine detail panel
 - Trunk tracking, side-by-side decoder dock, trunk-system accordion (#109)
 - Manage trunk channel maps as JSON in settings (#110)
+- Dull spectrum, waterfall and decoder until tuned (#119)
 
 ### Bug Fixes
 
