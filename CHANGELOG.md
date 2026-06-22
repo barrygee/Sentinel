@@ -87,6 +87,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Trunk tracking, side-by-side decoder dock, trunk-system accordion (#109)
 - Manage trunk channel maps as JSON in settings (#110)
 - Dull spectrum, waterfall and decoder until tuned (#119)
+- Gate trunk tracking behind a settings toggle (#122)
 
 ### Bug Fixes
 
@@ -239,6 +240,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Newest-first logs with footer Clear, and round spectrum dB labels (#116)
 - Restore demod mode and bandwidth on page reload (#118)
 - Don't dim Zoom/Max/Min controls in not-playing state (#120)
+- Resolve Dependabot security advisories (pydantic-settings, undici, @babel/core) (#121)
 
 ### Chores
 
@@ -1025,6 +1027,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add CONTRIBUTING and document the standards now in place (phase 9)
 - Add WCAG 2.2 AA accessibility audit report (phase 7)
 - Add ADR recording the webapp-standards retrofit decision
+- Require a feature branch for every change (#123)
 
 ### Tests
 
