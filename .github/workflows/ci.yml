@@ -57,7 +57,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: frontend/vue/.nvmrc
           cache: npm
           cache-dependency-path: frontend/vue/package-lock.json
 
@@ -113,7 +113,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
 

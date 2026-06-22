@@ -17,12 +17,19 @@ For *what the project is* and how to run it day-to-day, see the
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | latest | Python/backend dependency + venv management |
 | Python | 3.12+ | Backend (managed by uv) |
-| Node.js | 22+ | Frontend SPA + root helper tests (CI uses Node 22) |
+| Node.js | 20–22 (`nvm use` — see `.nvmrc`) | Frontend SPA + root helper tests; CI pins Node 22 |
 | Docker + Docker Compose | latest | Containerised run/build (optional for local dev) |
 
 You do **not** need a global Python or pytest install — always invoke Python
 tooling through `uv run --project backend …` so it resolves the backend venv (see
 [Two npm — and one uv — contexts](#two-npm--and-one-uv--contexts)).
+
+**Match the CI Node version.** Both npm contexts pin Node 20–22 / npm 10 via
+`engines` + an `engine-strict` `.npmrc`, and CI reads the version from `.nvmrc`.
+Run `nvm use` (or `nvm install`) before `npm install` so your locally generated
+`package-lock.json` matches what CI's `npm ci` expects — installing under a newer
+Node/npm (e.g. Node 24+/npm 11) is rejected with `EBADENGINE` rather than
+silently writing a lockfile CI can't install.
 
 ---
 
