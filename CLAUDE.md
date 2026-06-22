@@ -68,6 +68,7 @@ All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to 
 **Frontend (`frontend/vue/src/`).** Pinia `stores/` hold domain + cross-cutting state; `_persist.ts` backs selected state with localStorage, reconciled against the backend on load. **State that must survive teleport remounts (pane/tab selection) belongs in the store, not component refs.** Map features are class-based MapLibre `IControl`s under `components/<domain>/controls/<feature>/` extending a shared base — add features as controls, not inline in the view.
 
 ## Conventions
+- **Always work on a feature branch — never commit directly to `main`.** Before starting any new feature, fix, or edit (frontend, backend, or project config), create a branch off `main` (e.g. `feat/sdr-recording`, `fix/adsb-filter`, `chore/update-deps`). One branch per logical change; open a PR to merge back. This applies to every change, however small.
 - Run all `uv` commands from the **repo root** with `--project backend` (see Test & lint for why).
 - ruff lint is intentionally minimal (`E,F,I,UP,B`); `ruff format` IS gating; mypy is informational, not CI-gating.
 - Frontend coverage is gated at **100%** (`frontend/vue/vitest.config.ts`) — new SPA code ships with tests that keep every threshold at 100, and every component ships a `jest-axe` accessibility test. Use `/* v8 ignore start … stop */` (not the single-line `next` form, which this vitest setup ignores) for genuinely unreachable defensive branches, with a reason.
