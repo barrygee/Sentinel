@@ -30,6 +30,16 @@ describe('SdrDecodeDock', () => {
     expect(columns[1].find('.sdr-decode-empty').text()).toBe('No log output yet.')
   })
 
+  it('places each column Clear button in a footer below its list, not in the header', () => {
+    const wrapper = mountDock()
+    const footers = wrapper.findAll('.sdr-decode-dock-column-footer')
+    expect(footers).toHaveLength(2)
+    // Each footer owns exactly one Clear button; headers carry none.
+    expect(footers[0].find('.sdr-decode-clear').exists()).toBe(true)
+    expect(footers[1].find('.sdr-decode-clear').exists()).toBe(true)
+    expect(wrapper.findAll('.sdr-decode-dock-column-header .sdr-decode-clear')).toHaveLength(0)
+  })
+
   it('renders one table row per decoded event with its fields', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
@@ -72,7 +82,8 @@ describe('SdrDecodeDock', () => {
     store.pushDecodeEvent({ type: 'log', line: 'Inferred header parameters', ts: 3 })
     await wrapper.vm.$nextTick()
     const lines = wrapper.findAll('.sdr-decode-log-line')
-    // DOM order is newest-first; CSS column-reverse flips it visually.
+    // Newest-first in both DOM and visual order (top of the list), matching the
+    // decoded-messages table above it.
     expect(lines[0].text()).toContain('Inferred header parameters')
     expect(lines[0].classes()).not.toContain('sdr-decode-log-line--error') // "Inferred" embeds err
     expect(lines[1].classes()).toContain('sdr-decode-log-line--error') // CRC ERR

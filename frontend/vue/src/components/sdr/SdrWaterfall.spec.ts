@@ -181,7 +181,9 @@ vi.mock('sigplot', () => {
 vi.mock('sigplot/js/mx', () => {
   const mx = {
     drawaxis: vi.fn(() => 'AXIS'),
-    text: vi.fn(() => 'ORIG'),
+    // Echo the (possibly rewritten) label back so tests can observe how the
+    // override transformed it before delegating to sigplot's real draw.
+    text: vi.fn((_Mx: unknown, _x: number, _y: number, lbl: unknown) => lbl),
     textline: vi.fn(),
   }
   return { default: mx }
@@ -524,18 +526,30 @@ describe('SdrWaterfall — mx.drawaxis / mx.text overrides', () => {
   })
 
   it('strips the trailing dot from a y-axis "-30." label and delegates to sigplot', () => {
+    // Not an x-axis label → original draw runs with the dot stripped.
     const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, '-30.')
-    expect(ret).toBe('ORIG') // not an x-axis label → original draw runs
+    expect(ret).toBe('-30')
+  })
+
+  it('rounds a fractional y-axis dB label to whole dB and delegates to sigplot', () => {
+    // sigplot divides the dB range by ydiv and can emit ticks like "-20.666667";
+    // the override rounds these to whole dB so the gutter reads cleanly.
+    expect((mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, '-20.666667')).toBe(
+      '-21',
+    )
+    expect((mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, '-41.333333')).toBe(
+      '-41',
+    )
   })
 
   it('delegates a non-numeric label straight through', () => {
     const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, 'Hz', '#fff')
-    expect(ret).toBe('ORIG')
+    expect(ret).toBe('Hz')
   })
 
   it('delegates when the label is not a string', () => {
     const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, 42)
-    expect(ret).toBe('ORIG')
+    expect(ret).toBe(42)
   })
 })
 

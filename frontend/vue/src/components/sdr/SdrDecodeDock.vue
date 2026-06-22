@@ -12,14 +12,6 @@
       <section class="sdr-decode-dock-column" aria-labelledby="sdr-dock-heading-messages">
         <div class="sdr-decode-dock-column-header">
           <h2 id="sdr-dock-heading-messages" class="sdr-decode-dock-title">Decoded messages</h2>
-          <button
-            class="sdr-decode-clear"
-            type="button"
-            :disabled="events.length === 0"
-            @click="store.clearDecodeEvents()"
-          >
-            Clear
-          </button>
         </div>
 
         <div class="sdr-decode-dock-body">
@@ -52,6 +44,17 @@
             </tbody>
           </table>
         </div>
+
+        <div class="sdr-decode-dock-column-footer">
+          <button
+            class="sdr-decode-clear"
+            type="button"
+            :disabled="events.length === 0"
+            @click="store.clearDecodeEvents()"
+          >
+            Clear
+          </button>
+        </div>
       </section>
 
       <!-- ── Column: raw decoder logs (verbatim dsd-fme output) ──────────────── -->
@@ -72,15 +75,6 @@
             <span class="sdr-decode-dot" :class="statusClass" aria-hidden="true"></span>
             {{ statusText }}
           </p>
-
-          <button
-            class="sdr-decode-clear"
-            type="button"
-            :disabled="logRows.length === 0"
-            @click="store.clearDecodeLogs()"
-          >
-            Clear
-          </button>
         </div>
 
         <div class="sdr-decode-dock-body">
@@ -104,6 +98,17 @@
               </li>
             </ol>
           </div>
+        </div>
+
+        <div class="sdr-decode-dock-column-footer">
+          <button
+            class="sdr-decode-clear"
+            type="button"
+            :disabled="logRows.length === 0"
+            @click="store.clearDecodeLogs()"
+          >
+            Clear
+          </button>
         </div>
       </section>
     </div>
@@ -237,6 +242,15 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   flex: none;
 }
 
+/* Footer sits below the scrolling list and holds that column's Clear button. */
+.sdr-decode-dock-column-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.3rem 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex: none;
+}
+
 /* Match the side-panel section headers: uppercase Barlow, white. */
 .sdr-decode-dock-title {
   margin: 0;
@@ -365,7 +379,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   margin: 0;
   padding: 0.2rem 0.45rem;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: flex-start;
   /* Size to the widest line (but never narrower than the panel) so each line
      stays on one row and the body scrolls horizontally instead of wrapping. */
