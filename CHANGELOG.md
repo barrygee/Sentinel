@@ -998,6 +998,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #105 from barrygee/fix/settings-close-btn-no-border
 - Merge pull request #106 from barrygee/fix/sdr-freq-name-alignment
 - Merge pull request #107 from barrygee/feat/sdr-contour-bg-almost-black
+- Show decoder output newest-last with matching header styling (#117)
 
 ### Refactoring
 
