@@ -868,7 +868,7 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     // Simulate sigplot moving the spectrum accordion (MHz units).
     specAccordion()._center = 100.5 // MHz → 100.5 MHz carrier
     specAccordion()._width = 0.01
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
     expect(tuneSpy).toHaveBeenCalled()
     void wrapper
@@ -884,7 +884,7 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     wfAccordion().dragging = true
     specAccordion().dragging = false
     wfAccordion()._width = 40_000
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
     expect(bwSpy).toHaveBeenCalledWith(40_000)
     void wrapper
@@ -900,13 +900,13 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     specAccordion().edge_dragging = true
     specAccordion()._center = 100.51
     specAccordion()._width = 0.02
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
     // SSB move (no edge) on the waterfall accordion.
     specAccordion().edge_dragging = false
     wfAccordion().dragging = true
     specAccordion().dragging = false
     wfAccordion()._center = 100_020_000
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 540, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 540, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 540, clientY: 100 }))
     expect(true).toBe(true)
     void wrapper
@@ -921,7 +921,7 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     wfAccordion().dragging = true
     specAccordion().dragging = false
     wfAccordion()._center = 99_990_000
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 540, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 540, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 540, clientY: 100 }))
     expect(true).toBe(true)
     void wrapper
@@ -934,6 +934,66 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     await playWithFrame(store)
     const tuneSpy = vi.spyOn(store, 'requestTune')
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 500, clientY: 100 }))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    void wrapper
+  })
+
+  it('recovers from a missed mouseup when the button is released outside the window', async () => {
+    // Releasing the button outside the window never delivers a mouseup, so the
+    // drag would stay active and the bar would chase the cursor. A later
+    // mousemove with no button held (buttons === 0) must end the drag instead.
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    await startDrag(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    // The recovery path commits straight from the waterfall accordion (the
+    // live mousemove mirror is skipped), so move that accordion's centre.
+    wfAccordion()._center = 100_500_000
+    // No mouseup — just a moved pointer with the button no longer down.
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 0 }))
+    expect(tuneSpy).toHaveBeenCalled()
+    expect(specAccordion().dragging).toBe(false)
+    expect(wfAccordion().dragging).toBe(false)
+    void wrapper
+  })
+
+  it('aborts a drag and releases the bar when the pointer gesture is cancelled', async () => {
+    // A cancelled gesture (browser takes over a touch/pen scroll) must release
+    // the bar without committing the uncommitted geometry.
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    await startDrag(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    document.dispatchEvent(new Event('pointercancel'))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(specAccordion().dragging).toBe(false)
+    expect(specAccordion().edge_dragging).toBe(false)
+    expect(wfAccordion().dragging).toBe(false)
+    void wrapper
+  })
+
+  it('aborts a drag and releases the bar when the window loses focus mid-drag', async () => {
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    await startDrag(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    window.dispatchEvent(new Event('blur'))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(specAccordion().dragging).toBe(false)
+    expect(wfAccordion().dragging).toBe(false)
+    void wrapper
+  })
+
+  it('ignores a window blur when no drag is in progress', async () => {
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    expect(() => window.dispatchEvent(new Event('blur'))).not.toThrow()
     expect(tuneSpy).not.toHaveBeenCalled()
     void wrapper
   })
@@ -1620,7 +1680,7 @@ describe('SdrWaterfall — remaining branch coverage', () => {
     specAccordion().edge_dragging = true
     specAccordion()._center = 99.99
     specAccordion()._width = 0.02
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 480, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 480, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 480, clientY: 100 }))
     expect(true).toBe(true)
     void wrapper
