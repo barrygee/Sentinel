@@ -243,6 +243,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Don't dim Zoom/Max/Min controls in not-playing state (#120)
 - Resolve Dependabot security advisories (pydantic-settings, undici, @babel/core) (#121)
 - Release a stuck tuning bar in the spectrum/waterfall (#125)
+- Match decode toggle to mode-button green accent (#127)
 
 ### Chores
 
