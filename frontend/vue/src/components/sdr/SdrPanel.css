@@ -2292,19 +2292,20 @@
   }
 }
 
-/* Digital-decode toggle — cyan accent to distinguish it from the red REC. */
+/* Digital-decode toggle — green accent matching the mode pills, so the active
+   state reads the same as a selected mode button (green icon on green tint). */
 .sdr-digital-btn {
-  color: rgba(100, 200, 255, 0.75);
+  color: rgba(200, 255, 0, 0.75);
 }
 
 .sdr-digital-btn:hover:not(:disabled) {
-  background: rgba(100, 200, 255, 0.15) !important;
-  color: #64c8ff;
+  background: rgba(200, 255, 0, 0.15) !important;
+  color: #c8ff00;
 }
 
 .sdr-digital-btn--active {
-  background: rgba(100, 200, 255, 0.14) !important;
-  color: #64c8ff !important;
+  background: rgba(200, 255, 0, 0.12) !important;
+  color: #c8ff00 !important;
 }
 
 /* Trunk button — green family to distinguish following from plain decode. */
