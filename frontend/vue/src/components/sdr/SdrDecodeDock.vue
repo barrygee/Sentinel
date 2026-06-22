@@ -14,10 +14,10 @@
           <h2 id="sdr-dock-heading-messages" class="sdr-decode-dock-title">Decoded messages</h2>
         </div>
 
-        <div class="sdr-decode-dock-body">
+        <div ref="messagesBody" class="sdr-decode-dock-body">
           <table class="sdr-decode-table">
             <caption class="sdr-sr-only">
-              Decoded digital calls, newest first
+              Decoded digital calls, newest last
             </caption>
             <thead>
               <tr>
@@ -77,14 +77,14 @@
           </p>
         </div>
 
-        <div class="sdr-decode-dock-body">
+        <div ref="logsBody" class="sdr-decode-dock-body">
           <!-- aria-live off: the control channel emits many lines per second, so
                announcing each would flood a screen reader — read on demand instead. -->
           <div
             class="sdr-decode-logs"
             role="log"
             aria-live="off"
-            aria-label="Raw decoder log, newest first"
+            aria-label="Raw decoder log, newest last"
           >
             <p v-if="logRows.length === 0" class="sdr-decode-empty">No log output yet.</p>
             <ol v-else class="sdr-decode-log-list">
@@ -116,13 +116,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 
 const store = useSdrStore()
 
-const events = computed<DecodeEvent[]>(() => store.decodeEvents)
+// The store buffers newest-first (so the cap drops the oldest); the UI shows
+// newest LAST, so reverse a copy for display and keep the latest row pinned at
+// the bottom (see the scroll-to-bottom watchers).
+const events = computed<DecodeEvent[]>(() => [...store.decodeEvents].reverse())
 
 // dsd-fme flags decode problems with these tokens (e.g. "DCH (CRC ERR)",
 // "Sync: no sync"). Lines matching any are rendered red. Word-boundaried so
@@ -130,8 +133,22 @@ const events = computed<DecodeEvent[]>(() => store.decodeEvents)
 const ERROR_LOG_PATTERN =
   /\b(?:err|error|errors|fail|failed|failure|no sync|sync lost|invalid|timeout|unable|cannot)\b/i
 const logRows = computed(() =>
-  store.decodeLogs.map((line) => ({ line, isError: ERROR_LOG_PATTERN.test(line) })),
+  store.decodeLogs.map((line) => ({ line, isError: ERROR_LOG_PATTERN.test(line) })).reverse(),
 )
+
+// Scrollable bodies for each column; after new rows arrive we pin both to the
+// bottom so the most recent entry is always visible (newest-last ordering).
+const messagesBody = ref<HTMLElement | null>(null)
+const logsBody = ref<HTMLElement | null>(null)
+function scrollToBottom(element: HTMLElement | null): void {
+  /* v8 ignore start -- template refs are always bound when this runs; the null
+     guard is purely defensive */
+  if (!element) return
+  /* v8 ignore stop */
+  element.scrollTop = element.scrollHeight
+}
+watch(events, () => nextTick(() => scrollToBottom(messagesBody.value)))
+watch(logRows, () => nextTick(() => scrollToBottom(logsBody.value)))
 
 // Live status, derived from reachability first then sync. Stated as text (not
 // colour alone) so it is meaningful without seeing the dot.
@@ -185,7 +202,12 @@ const panelOpen = ref<boolean>(readSidebarOpen())
 function onSidebarState(domEvent: Event) {
   panelOpen.value = !!(domEvent as CustomEvent<{ open: boolean }>).detail?.open
 }
-onMounted(() => document.addEventListener('sentinel:sidebar-state', onSidebarState))
+onMounted(() => {
+  document.addEventListener('sentinel:sidebar-state', onSidebarState)
+  // Start pinned to the most recent entry in each column.
+  scrollToBottom(messagesBody.value)
+  scrollToBottom(logsBody.value)
+})
 onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSidebarState))
 </script>
 
@@ -251,12 +273,13 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   flex: none;
 }
 
-/* Match the side-panel section headers: uppercase Barlow, white. */
+/* Match the side-panel field labels (e.g. SAMPLE RATE / BANDWIDTH): 9px Barlow,
+   weight 400, 0.18em tracking, uppercase, white. */
 .sdr-decode-dock-title {
   margin: 0;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #fff;
@@ -349,19 +372,26 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   color: #cfd6dd;
 }
 
+/* No horizontal separators between rows — the row padding alone provides the
+   spacing (per design). */
 .sdr-decode-table th,
 .sdr-decode-table td {
   text-align: left;
   padding: 0.55rem 0.45rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Column headings match the side-panel field labels (SAMPLE RATE / BANDWIDTH):
+   9px Barlow, weight 400, 0.18em tracking, uppercase, white. */
 .sdr-decode-table thead th {
   position: sticky;
   top: 0;
   background: #0a0d14;
-  color: #8b95a1;
-  font-weight: 600;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
 }
 
 .sdr-decode-empty {

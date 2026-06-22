@@ -68,13 +68,14 @@ describe('SdrDecodeDock', () => {
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 2 })
     await wrapper.vm.$nextTick()
     const rows = wrapper.findAll('tbody tr')
-    // Newest first: row 0 = DMR (sync undefined → —), row 1 = sync:false (No)
-    expect(rows[0].findAll('td')[5].text()).toBe('—')
-    expect(rows[1].findAll('td')[1].text()).toBe('—') // mode missing
-    expect(rows[1].findAll('td')[5].text()).toBe('No')
+    // Newest last: row 0 = sync:false (mode missing → —, No), row 1 = DMR
+    // (sync undefined → —).
+    expect(rows[0].findAll('td')[1].text()).toBe('—') // mode missing
+    expect(rows[0].findAll('td')[5].text()).toBe('No')
+    expect(rows[1].findAll('td')[5].text()).toBe('—') // sync undefined
   })
 
-  it('renders raw log lines newest-first, with error lines flagged and a screen-reader prefix', async () => {
+  it('renders raw log lines newest-last, with error lines flagged and a screen-reader prefix', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
     store.pushDecodeEvent({ type: 'log', line: 'Sync: +DMR slot1 [slot2] | IDLE', ts: 1 })
@@ -82,12 +83,30 @@ describe('SdrDecodeDock', () => {
     store.pushDecodeEvent({ type: 'log', line: 'Inferred header parameters', ts: 3 })
     await wrapper.vm.$nextTick()
     const lines = wrapper.findAll('.sdr-decode-log-line')
-    // Newest-first in both DOM and visual order (top of the list), matching the
-    // decoded-messages table above it.
-    expect(lines[0].text()).toContain('Inferred header parameters')
-    expect(lines[0].classes()).not.toContain('sdr-decode-log-line--error') // "Inferred" embeds err
+    // Newest-last in both DOM and visual order: oldest at the top, newest at the
+    // bottom, matching the decoded-messages table above it.
+    expect(lines[0].text()).toContain('Sync: +DMR')
+    expect(lines[2].text()).toContain('Inferred header parameters')
+    expect(lines[2].classes()).not.toContain('sdr-decode-log-line--error') // "Inferred" embeds err
     expect(lines[1].classes()).toContain('sdr-decode-log-line--error') // CRC ERR
     expect(lines[1].find('.sdr-sr-only').text()).toBe('Error:')
+  })
+
+  it('pins both columns to the bottom so the newest entry stays visible as data arrives', async () => {
+    const store = useSdrStore()
+    const wrapper = mountDock()
+    const bodies = wrapper
+      .findAll('.sdr-decode-dock-body')
+      .map((body) => body.element as HTMLElement)
+    // jsdom does no layout, so fake a scrollable height to prove we scroll to it.
+    Object.defineProperty(bodies[0], 'scrollHeight', { configurable: true, value: 500 })
+    Object.defineProperty(bodies[1], 'scrollHeight', { configurable: true, value: 800 })
+    store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+    store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
+    await wrapper.vm.$nextTick() // watchers fire
+    await wrapper.vm.$nextTick() // inner nextTick scroll runs
+    expect(bodies[0].scrollTop).toBe(500)
+    expect(bodies[1].scrollTop).toBe(800)
   })
 
   it('the messages Clear clears only events and is disabled when empty', async () => {
