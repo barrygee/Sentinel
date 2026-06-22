@@ -28,6 +28,7 @@ import SdrFullWaterfallUpdateControl from './SdrFullWaterfallUpdateControl.vue'
 import SdrShowBandPlanControl from './SdrShowBandPlanControl.vue'
 import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
+import SdrTrunkTrackingToggleControl from './SdrTrunkTrackingToggleControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
 
@@ -72,6 +73,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sdr-show-bandplan', SdrShowBandPlanControl],
   ['sdr-show-known-freqs', SdrShowKnownFreqsControl],
   ['sdr-resume-delay', SdrResumeDelayControl],
+  ['sdr-trunk-tracking-toggle', SdrTrunkTrackingToggleControl],
   ['sdr-frequencies-file', JsonDataControl],
   ['sdr-bandplan-file', JsonDataControl],
   ['sdr-channelmaps-file', JsonDataControl],

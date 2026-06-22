@@ -647,4 +647,53 @@ describe('sdr store', () => {
       expect(store.decoderReachable).toBe(true)
     })
   })
+
+  describe('trunk tracking feature flag', () => {
+    it('defaults trunkTrackingEnabled to false', () => {
+      expect(useSdrStore().trunkTrackingEnabled).toBe(false)
+    })
+
+    it('reads trunkTrackingEnabled=true from localStorage on init', () => {
+      localStorage.setItem('sdrTrunkTrackingEnabled', '1')
+      expect(useSdrStore().trunkTrackingEnabled).toBe(true)
+    })
+
+    it('falls back to false when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().trunkTrackingEnabled).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('setTrunkTrackingEnabled updates state and persists both positions', () => {
+      const store = useSdrStore()
+      store.setTrunkTrackingEnabled(true)
+      expect(store.trunkTrackingEnabled).toBe(true)
+      expect(localStorage.getItem('sdrTrunkTrackingEnabled')).toBe('1')
+      store.setTrunkTrackingEnabled(false)
+      expect(store.trunkTrackingEnabled).toBe(false)
+      expect(localStorage.getItem('sdrTrunkTrackingEnabled')).toBe('0')
+    })
+
+    it('setTrunkTrackingEnabled swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setTrunkTrackingEnabled(true)).not.toThrow()
+      expect(store.trunkTrackingEnabled).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('disabling the feature does not itself clear an active follow (panel owns the stop)', () => {
+      const store = useSdrStore()
+      store.setTrunkTrackingEnabled(true)
+      store.setTrunkEnabled(true)
+      store.setTrunkTrackingEnabled(false)
+      // The store leaves trunkEnabled alone so the SDR panel's watcher can send
+      // the WS stop; clearing it here would skip that command.
+      expect(store.trunkEnabled).toBe(true)
+    })
+  })
 })
