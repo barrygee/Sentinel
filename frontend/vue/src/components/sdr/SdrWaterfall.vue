@@ -1289,6 +1289,19 @@ useDocumentEvent('mouseup', () => {
   if (suppressAccEvents || !specAcc || !wfAcc) return
   if (!dragActive) return // mouseup without a drag we initiated
   dragActive = false
+  // Drag-bug mitigation: sigplot's Accordion._onDocMouseUp is dead code
+  // (`!dragging || !edge_dragging` is always true since mousedown sets exactly
+  // one of them), so it NEVER clears these flags itself. If we leave one set, a
+  // later stray mousemove over the plot re-drags the marker (and our mousemove
+  // mirror chases it) — the "tuning bar stuck to the cursor" bug. This must run
+  // on EVERY mouseup that ended a drag, including the no-movement / click path
+  // below, so reset before any early return rather than only on commit.
+  const clearAccDragFlags = () => {
+    for (const s of [specAcc, wfAcc] as unknown as AccDragState[]) {
+      s.dragging = false
+      s.edge_dragging = false
+    }
+  }
   // Read the final geometry from the WATERFALL accordion (Hz, no MHz rounding
   // loss). The mousemove mirror keeps both accordions in lock-step, so either
   // is authoritative; we pick Hz to avoid a float round-trip through MHz.
@@ -1297,7 +1310,12 @@ useDocumentEvent('mouseup', () => {
   const carrierHz = carrierFromBracketHz(wfAcc.center(), bw, mode)
   const freqMoved = Math.abs(carrierHz - dragBaseFreqHz) > 1
   const bwMoved = Math.abs(bw - dragBaseBwHz) > 1
-  if (!freqMoved && !bwMoved) return
+  if (!freqMoved && !bwMoved) {
+    // A click / sub-1Hz nudge on the bar: nothing to commit, but the flags are
+    // still set from mousedown — clear them or the bar sticks to the cursor.
+    clearAccDragFlags()
+    return
+  }
   if (freqMoved) store.requestTune(Math.round(carrierHz))
   if (bwMoved) store.requestBandwidth(Math.round(bw))
   _lastCommittedFreqHz = carrierHz
@@ -1316,13 +1334,7 @@ useDocumentEvent('mouseup', () => {
   } finally {
     suppressAccEvents = false
   }
-  // Drag-bug mitigation: _onDocMouseUp never resets these (dead code), so a
-  // stray later mousemove over the plot could re-drag the marker (and our
-  // mousemove mirror would chase it). Force-reset on every commit.
-  for (const s of [specAcc, wfAcc] as unknown as AccDragState[]) {
-    s.dragging = false
-    s.edge_dragging = false
-  }
+  clearAccDragFlags()
 })
 
 const rootEl = ref<HTMLElement | null>(null)

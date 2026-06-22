@@ -937,6 +937,29 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     expect(tuneSpy).not.toHaveBeenCalled()
     void wrapper
   })
+
+  it('clears sigplot drag flags on a click that does not move the bracket (stuck-bar fix)', async () => {
+    // Regression: a mousedown sets sigplot's `dragging` flag, but if the bracket
+    // is released without moving past the 1Hz threshold the mouseup handler used
+    // to return early before resetting it — leaving the tuning bar glued to the
+    // cursor until a page refresh. The flags must be cleared on this path too.
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    await startDrag(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const bwSpy = vi.spyOn(store, 'requestBandwidth')
+    // No geometry change between mousedown and mouseup → a click, not a drag.
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 500, clientY: 100 }))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(bwSpy).not.toHaveBeenCalled()
+    // The bar is released: sigplot's internal drag flags are cleared on both plots.
+    expect(specAccordion().dragging).toBe(false)
+    expect(specAccordion().edge_dragging).toBe(false)
+    expect(wfAccordion().dragging).toBe(false)
+    expect(wfAccordion().edge_dragging).toBe(false)
+    void wrapper
+  })
 })
 
 // =============================================================================
