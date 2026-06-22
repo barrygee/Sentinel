@@ -1097,6 +1097,12 @@ function syncBandInset() {
   if (!mx || !mx.width) return
   bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
   bandInsetRightPx.value = Math.max(0, Math.ceil(mx.width - mx.r))
+  // Publish the live data-box insets so the decoder dock below can line its
+  // boxes up with the waterfall DISPLAY (not the waterfall element). Written to
+  // :root as CSS vars; the dock reads them with fallbacks. See SdrDecodeDock.
+  const rootStyle = document.documentElement.style
+  rootStyle.setProperty('--sdr-wf-inset-left', `${bandInsetLeftPx.value}px`)
+  rootStyle.setProperty('--sdr-wf-inset-right', `${bandInsetRightPx.value}px`)
   // mx.b is the pixel y of the data-box BOTTOM (sigplot draws ticks/labels
   // below it). Distance from the canvas/element bottom = height − b.
   bandInsetBottomPx.value = Math.max(0, Math.ceil(mx.height - mx.b))
