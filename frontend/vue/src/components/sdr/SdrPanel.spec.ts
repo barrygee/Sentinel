@@ -530,6 +530,18 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
     expect(audioMock.setMode).toHaveBeenCalledWith('NFM')
   })
 
+  it('persists the last mode marker when switching mode (kept in step for reload)', async () => {
+    sessionStorage.setItem('sdrLastMode', 'AM')
+    const { wrapper } = await mountConnected()
+    const nfmPill = wrapper
+      .findAll('.sdr-mode-pills .sdr-mode-pill')
+      .find((b) => b.text() === 'NFM')
+    await nfmPill!.trigger('click')
+    // setMode must update sdrLastMode too, so the reload-restore path never reads
+    // a stale value left behind by a mode change.
+    expect(sessionStorage.getItem('sdrLastMode')).toBe('NFM')
+  })
+
   it('adjusts volume, squelch, bandwidth and gain', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { wrapper, socket } = await mountConnected()
@@ -2472,12 +2484,33 @@ describe('SdrPanel — branch coverage B (modes, ranges, groups, recording)', ()
 
 // =============================================================================
 describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
-  it('resumes playback on socket open when sdrPlaying was set', async () => {
+  it('restores mode, bandwidth and backend mode-sync on socket open when sdrPlaying was set', async () => {
     sessionStorage.setItem('sdrPlaying', '1')
-    sessionStorage.setItem('sdrLastMode', 'NFM')
-    await mountConnected()
+    // The restored highlight (sdrSettings.mode) is authoritative — a stale
+    // sdrLastMode must not win, and the saved bandwidth must be re-applied.
+    sessionStorage.setItem(
+      'sdrSettings',
+      JSON.stringify({ mode: 'NFM', bwHz: 12_500, freqHz: 100_000_000 }),
+    )
+    sessionStorage.setItem('sdrLastMode', 'AM')
+    const { socket } = await mountConnected()
     expect(audioMock.initAudio).toHaveBeenCalled()
     expect(audioMock.setMode).toHaveBeenCalledWith('NFM')
+    // Bandwidth is pushed after initAudio resolves — without it the worklet
+    // stays at its 0 default (whole-span passthrough) and the audio is noise.
+    expect(audioMock.setBandwidthHz).toHaveBeenCalledWith(12_500)
+    // The backend is told the restored mode so its reported state cannot diverge
+    // from the highlighted button.
+    const modeCmd = socket.sent.map((raw) => JSON.parse(raw)).find((msg) => msg.cmd === 'mode')
+    expect(modeCmd).toEqual({ cmd: 'mode', mode: 'NFM' })
+  })
+
+  it('restores with the default bandwidth on socket open when none was saved', async () => {
+    sessionStorage.setItem('sdrPlaying', '1')
+    // No bwHz saved → bwHz keeps its 10 kHz ref default and that is re-applied.
+    sessionStorage.setItem('sdrSettings', JSON.stringify({ mode: 'NFM', freqHz: 100_000_000 }))
+    await mountConnected()
+    expect(audioMock.setBandwidthHz).toHaveBeenCalledWith(10_000)
   })
 
   it('drains a queued external tune once the socket opens', async () => {
@@ -2548,8 +2581,10 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
   })
 
   it('applies status only when the device reports connected', async () => {
+    sessionStorage.setItem('sdrLastMode', 'WFM')
     const { wrapper, socket } = await mountConnected()
     audioMock.setBandwidthHz.mockClear()
+    audioMock.setMode.mockClear()
     socket.message({
       type: 'status',
       connected: false,
@@ -2562,6 +2597,27 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
     await wrapper.vm.$nextTick()
     // connected:false → only the freq seed runs, hardware fields skipped.
     expect(audioMock.setBandwidthHz).not.toHaveBeenCalled()
+    // The default mode in a disconnected status frame must not clobber the
+    // restored demod mode or the persisted last-mode marker.
+    expect(audioMock.setMode).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('sdrLastMode')).toBe('WFM')
+  })
+
+  it('syncs the demod mode and last-mode marker from a connected status frame', async () => {
+    const { wrapper, socket } = await mountConnected()
+    audioMock.setMode.mockClear()
+    socket.message({
+      type: 'status',
+      connected: true,
+      center_hz: 100_000_000,
+      mode: 'WFM',
+      gain_db: 20,
+      gain_auto: false,
+      sample_rate: 2_048_000,
+    })
+    await wrapper.vm.$nextTick()
+    expect(audioMock.setMode).toHaveBeenCalledWith('WFM')
+    expect(sessionStorage.getItem('sdrLastMode')).toBe('WFM')
   })
 
   it('clamps bandwidth down when picking a lower sample rate', async () => {

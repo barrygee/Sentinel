@@ -501,6 +501,16 @@
       ]
     },
     {
+      "label": "Tyne tunnel mirror",
+      "frequency_hz": 165086900,
+      "mode": "NFM",
+      "notes": "",
+      "groups": [
+        "north-east",
+        "dmr"
+      ]
+    },
+    {
       "label": "Stagecoach?",
       "frequency_hz": 165350000,
       "mode": "NFM",
@@ -647,6 +657,16 @@
       "notes": "FM calling channel (U280)",
       "groups": [
         "amateur-radio"
+      ]
+    },
+    {
+      "label": "Shop watch?",
+      "frequency_hz": 456949800,
+      "mode": "NFM",
+      "notes": "",
+      "groups": [
+        "north-east",
+        "dmr"
       ]
     },
     {

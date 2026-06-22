@@ -2452,12 +2452,34 @@ async function openControlSocket(radioId: number) {
     // device is reachable — light the connection dot now (availability), rather
     // than waiting for the first spectrum frame that only flows once playing.
     void _probeReachability(radioId)
-    const lastMode = sessionStorage.getItem('sdrLastMode') || 'AM'
+    // The restored highlight (currentMode, from sdrSettings via restoreSettings)
+    // is the single source of truth — not sdrLastMode, which setMode does not
+    // update and can be stale after a mode change. Using it kept the audio/
+    // backend demod mode out of sync with the highlighted button across a reload.
+    const lastMode = currentMode.value as SdrMode
     if (!_isInitialised(radioId)) _markInitialised(radioId)
     if (sessionStorage.getItem('sdrPlaying') === '1') {
       playing.value = true
-      sdrAudio.setMode(lastMode as SdrMode)
-      sdrAudio.initAudio(radioId)
+      sdrAudio.setMode(lastMode)
+      // Restore the demod bandwidth as well. The backend only ever sends a single
+      // connected=false status frame (connected state is driven client-side by
+      // spectrum frames), so applyStatus never runs its bandwidth push on reload.
+      // Without this the worklet keeps its default bandwidth of 0 — which it
+      // treats as whole-span passthrough — so the audio is wideband noise that
+      // doesn't sound like the restored mode until the user re-clicks the mode
+      // button (the only other code path that sets the bandwidth). bwHz is the
+      // value restored by restoreSettings (or the sensible 10 kHz default). It
+      // must be pushed AFTER initAudio creates the worklet, hence the chain.
+      const restoredBwHz = bwHz.value
+      void Promise.resolve(sdrAudio.initAudio(radioId)).then(() => {
+        sdrAudio.setBandwidthHz(restoredBwHz)
+      })
+      // Re-assert the restored demod mode to the backend so its reported state
+      // matches the highlighted button. Without this, a backend connection that
+      // was recreated (defaulting to AM) reports a mode that diverges from the
+      // restored highlight, leaving the radio demodulating the wrong mode until
+      // the user re-clicks the mode button.
+      sendCmd({ cmd: 'mode', mode: lastMode })
     }
     // Replay the most recent waterfall-driven FFT size request, if any. The
     // waterfall publishes its target bin count on mount, which may have fired
@@ -2482,11 +2504,18 @@ async function openControlSocket(radioId: number) {
     switch (msg.type) {
       case 'status':
         applyStatus(msg)
-        sdrAudio.setMode(msg.mode as SdrMode)
+        // Only trust the device-reported mode once it's actually connected, to
+        // match applyStatus (which gates currentMode/the button highlight the
+        // same way). An initial connected=false status after a refresh carries
+        // the backend's default mode and must not clobber the restored demod
+        // mode — otherwise the highlight and the audio demod diverge.
+        if (msg.connected) {
+          sdrAudio.setMode(msg.mode as SdrMode)
+          sessionStorage.setItem('sdrLastMode', msg.mode)
+        }
         if (!sessionStorage.getItem('sdrLastFreqHz') || !currentFreqHz.value) {
           sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz))
         }
-        sessionStorage.setItem('sdrLastMode', msg.mode)
         break
       case 'spectrum':
         if (!_ctrlDataConfirmed) {
@@ -2858,6 +2887,10 @@ function pickSampleRate(v: number) {
 function setMode(m: string) {
   currentMode.value = m
   saveSettings()
+  // Keep the session's last-mode marker in step with the highlighted button so
+  // the reload restore path (which seeds the audio/backend demod mode) never
+  // reads a stale value left behind by a mode change.
+  sessionStorage.setItem('sdrLastMode', m)
   sendCmd({ cmd: 'mode', mode: m })
   sdrAudio.setMode(m as SdrMode)
   const bw = defaultBwHz(m)
