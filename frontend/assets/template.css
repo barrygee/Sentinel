@@ -345,8 +345,9 @@ html {
 #settings-btn[data-tooltip]::before {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
+    top: 50%;
+    right: calc(100% + 6px);
+    transform: translateY(-50%);
     background: #000;
     color: var(--color-text-muted);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
