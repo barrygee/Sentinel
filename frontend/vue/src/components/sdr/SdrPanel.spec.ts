@@ -1595,19 +1595,31 @@ describe('SdrPanel — trunk system', () => {
     await wrapper.vm.$nextTick()
     socket.sent.length = 0
 
-    await wrapper.find('.sdr-trunk-btn').trigger('click') // toggleTrunk → setTrunk(true)
+    const followButton = wrapper.find('.sdr-trunk-follow-btn')
+    // Idle label/state before following.
+    expect(followButton.text()).toBe('FOLLOW SYSTEM')
+    expect(followButton.attributes('aria-pressed')).toBe('false')
+
+    await followButton.trigger('click') // toggleTrunk → setTrunk(true)
     await flushPromises()
     expect(store.trunkEnabled).toBe(true)
     expect(sentCmds(socket).find((m) => m.cmd === 'trunk_decode')).toMatchObject({
       enabled: true,
       channel_map: 'site-a.csv',
     })
+    // Label, pressed state and active class reflect the live follow.
+    expect(followButton.text()).toBe('FOLLOWING SYSTEM')
+    expect(followButton.attributes('aria-pressed')).toBe('true')
+    expect(followButton.classes()).toContain('sdr-trunk-follow-btn--active')
 
     socket.sent.length = 0
-    await wrapper.find('.sdr-trunk-btn').trigger('click') // setTrunk(false)
+    await followButton.trigger('click') // setTrunk(false)
     await flushPromises()
     expect(store.trunkEnabled).toBe(false)
     expect(sentCmds(socket).find((m) => m.cmd === 'trunk_decode')).toMatchObject({ enabled: false })
+    expect(followButton.text()).toBe('FOLLOW SYSTEM')
+    expect(followButton.attributes('aria-pressed')).toBe('false')
+    expect(followButton.classes()).not.toContain('sdr-trunk-follow-btn--active')
   })
 
   it('refuses to enable trunk without a channel map', async () => {
@@ -1625,7 +1637,7 @@ describe('SdrPanel — trunk system', () => {
     const store = useSdrStore()
     store.setTrunkChannelMap('site-a.csv')
     await wrapper.vm.$nextTick()
-    await wrapper.find('.sdr-trunk-btn').trigger('click') // enable trunk
+    await wrapper.find('.sdr-trunk-follow-btn').trigger('click') // enable trunk
     await flushPromises()
     expect(store.trunkEnabled).toBe(true)
 
@@ -1663,13 +1675,13 @@ describe('SdrPanel — trunk system', () => {
   it('hides the TRUNK button and TRUNK SYSTEM section when the feature flag is off', async () => {
     const { wrapper, socket } = await mountDecoding(['site-a.csv'])
     // Decoding is active and the flag is on, so both are present first.
-    expect(wrapper.find('.sdr-trunk-btn').exists()).toBe(true)
+    expect(wrapper.find('.sdr-trunk-follow-btn').exists()).toBe(true)
     expect(wrapper.find('.sdr-trunk-section').exists()).toBe(true)
 
     socket.sent.length = 0
     useSdrStore().setTrunkTrackingEnabled(false)
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sdr-trunk-btn').exists()).toBe(false)
+    expect(wrapper.find('.sdr-trunk-follow-btn').exists()).toBe(false)
     expect(wrapper.find('.sdr-trunk-section').exists()).toBe(false)
     // Nothing was being followed, so the watcher must not send a stop command.
     expect(sentCmds(socket).some((m) => m.cmd === 'trunk_decode')).toBe(false)
@@ -1680,7 +1692,7 @@ describe('SdrPanel — trunk system', () => {
     const store = useSdrStore()
     store.setTrunkChannelMap('site-a.csv')
     await wrapper.vm.$nextTick()
-    await wrapper.find('.sdr-trunk-btn').trigger('click') // enable trunk
+    await wrapper.find('.sdr-trunk-follow-btn').trigger('click') // enable trunk
     await flushPromises()
     expect(store.trunkEnabled).toBe(true)
 
