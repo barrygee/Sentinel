@@ -49,48 +49,49 @@
           </div>
         </div>
 
-        <div class="sdr-decode-dock-column-footer">
-          <button
-            v-if="logRows.length > 0"
-            class="sdr-decode-clear"
-            type="button"
-            data-tooltip="Clear"
-            aria-label="Clear"
-            @click="store.clearDecodeLogs()"
+        <!-- Floated to the column's top-right (aligned with the status row), but
+             kept last in the DOM so it follows the log content in reading order. -->
+        <button
+          v-if="logRows.length > 0"
+          class="sdr-decode-clear"
+          type="button"
+          data-tooltip="Clear"
+          aria-label="Clear"
+          @click="store.clearDecodeLogs()"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 14 14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M2 3.5h10" />
-              <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
-              <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
-              <path d="M6 6v4M8 6v4" />
-            </svg>
-          </button>
-        </div>
+            <path d="M2 3.5h10" />
+            <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
+            <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
+            <path d="M6 6v4M8 6v4" />
+          </svg>
+        </button>
       </section>
 
       <!-- ── Column: decoded messages (structured call rows) ────────────────── -->
       <section class="sdr-decode-dock-column" aria-label="Decoded messages">
-        <!-- Empty header keeps this column's body aligned with the logs column,
-             whose header carries the sync/trunk status. -->
-        <div class="sdr-decode-dock-column-header"></div>
-
+        <!-- No header band here: the table's heading row stands in for it (its
+             padding reproduces the logs header geometry, so the headings line up
+             with the "Synced…" status row — see .sdr-decode-table thead th). -->
         <div ref="messagesBody" class="sdr-decode-dock-body">
           <table class="sdr-decode-table">
             <caption class="sdr-sr-only">
               Decoded digital calls, newest last
             </caption>
-            <!-- Headings are hidden while empty so the placeholder text aligns
-                 with the logs column's "No logs to display." -->
+            <!-- Headings show only when there are messages. When empty the thead
+                 is hidden and the placeholder is padded down on its own (see
+                 .sdr-decode-table .sdr-decode-empty) so it still lines up with
+                 the logs column's first line. -->
             <thead v-if="events.length > 0">
               <tr>
                 <th scope="col">Time</th>
@@ -117,33 +118,35 @@
           </table>
         </div>
 
-        <div class="sdr-decode-dock-column-footer">
-          <button
-            v-if="events.length > 0"
-            class="sdr-decode-clear"
-            type="button"
-            data-tooltip="Clear"
-            aria-label="Clear"
-            @click="store.clearDecodeEvents()"
+        <!-- Floated to the column's top-right (aligned with the status row), but
+             kept last in the DOM so it follows the message content in reading
+             order. It sits in the empty right edge of the SYNC column, clear of
+             the left-aligned heading text. -->
+        <button
+          v-if="events.length > 0"
+          class="sdr-decode-clear"
+          type="button"
+          data-tooltip="Clear"
+          aria-label="Clear"
+          @click="store.clearDecodeEvents()"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 14 14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M2 3.5h10" />
-              <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
-              <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
-              <path d="M6 6v4M8 6v4" />
-            </svg>
-          </button>
-        </div>
+            <path d="M2 3.5h10" />
+            <path d="M5.5 3.5V2.2a.7.7 0 0 1 .7-.7h1.6a.7.7 0 0 1 .7.7v1.3" />
+            <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
+            <path d="M6 6v4M8 6v4" />
+          </svg>
+        </button>
       </section>
     </div>
   </section>
@@ -299,6 +302,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 }
 
 .sdr-decode-dock-column {
+  position: relative;
   flex: 1 1 50%;
   min-width: 0;
   min-height: 0;
@@ -306,9 +310,10 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   flex-direction: column;
 }
 
-/* Header carries the logs column's sync/trunk status; the messages column's is
-   empty but kept (with a matching min-height) so both bodies start at the same
-   y. No borders — the boxes are free of horizontal/vertical rules. */
+/* Header carries the logs column's sync/trunk status. The messages column has no
+   header band — its table heading row stands in for it (see thead padding), so
+   the two columns' top rows line up. No borders — the boxes are free of
+   horizontal/vertical rules. */
 .sdr-decode-dock-column-header {
   display: flex;
   align-items: center;
@@ -316,19 +321,9 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   min-height: 1.6rem;
   padding: 0.3rem 0.45rem;
   /* Spacing sits below the header (outside the scrolling body) so the gap
-     between the status row and the first row holds even when the log/message
-     body has scrolled to the bottom. Applied to both columns' headers (the
-     messages column's is empty) so the two bodies stay vertically aligned. */
+     between the status row and the first log line holds even when the body has
+     scrolled to the bottom. */
   margin-bottom: 0.75rem;
-  flex: none;
-}
-
-/* Footer sits below the scrolling list and holds that column's Clear button.
-   No top border — boxes are kept free of horizontal rules. */
-.sdr-decode-dock-column-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.3rem 0.45rem;
   flex: none;
 }
 
@@ -380,9 +375,18 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 }
 
 /* Borderless transparent trash/bin icon button with a styled "Clear" tooltip
-   (data-tooltip) shown to the LEFT of the button. */
+   (data-tooltip) shown to the LEFT of the button. Floated to the column's
+   top-right, vertically centred on the status row (its ~24px box centred on the
+   status text's ~1.1rem centre → top 0.35rem). Still a positioned ancestor for
+   the tooltip's absolute ::before. */
 .sdr-decode-clear {
-  position: relative;
+  position: absolute;
+  top: 0.35rem;
+  /* Inset from the column's right edge so the logs bin clears the messages
+     column's "TIME" heading next to it (the columns butt together at the 50%
+     line); also keeps the messages bin off the far edge. */
+  right: 0.75rem;
+  z-index: 5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -392,7 +396,6 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   width: 24px;
   height: 24px;
   padding: 0;
-  margin: 0.25rem;
   cursor: pointer;
   flex: none;
   transition: color 0.15s;
@@ -443,16 +446,40 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 0.72rem;
-  color: #cfd6dd;
+  /* Body cells read in the same voice as the raw log lines so the two columns
+     match: 10px Barlow, weight 400, 0.14em tracking, uppercase, line-height 1.4.
+     thead overrides size/tracking/colour below for the column headings. */
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: #b6c2cf;
+  /* The list scrolls newest-last and pins its last row to the body bottom. The
+     logs column's list has 0.2rem bottom padding, lifting its last line that far
+     off the floor; mirror it here so the bottom-anchored rows in the two columns
+     line up (without it the right column reads 0.2rem lower). */
+  padding-bottom: 0.2rem;
 }
 
 /* No horizontal separators between rows — the row padding alone provides the
-   spacing (per design). */
+   spacing (per design). The logs column's text-to-text gap is its 0.35rem flex
+   gap plus the log line's 0.1rem padding (≈0.45rem); two adjacent table rows
+   reproduce that with 0.225rem top+bottom padding, so the two columns share a
+   row pitch. */
 .sdr-decode-table th,
 .sdr-decode-table td {
   text-align: left;
-  padding: 0.55rem 0.45rem;
+  padding: 0.225rem 0.45rem;
+}
+
+/* When the messages list is empty the thead is hidden (headings only show with
+   data), so nothing holds the header-zone height. Pad the placeholder down by
+   that height (~the thead's 0.7 + ~0.79 + 1.5rem) so "No messages to display"
+   still lines up with the logs column's first line. */
+.sdr-decode-table .sdr-decode-empty {
+  padding-top: 3.2rem;
 }
 
 /* Column headings match the side-panel field labels (SAMPLE RATE / BANDWIDTH):
@@ -467,9 +494,13 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #fff;
-  /* Extra space below the heading row so it is not crowded against the first
-     decoded message. */
-  padding-bottom: 0.5rem;
+  /* The messages column has no header band of its own, so the heading row stands
+     in for it: this padding reproduces the logs header geometry. The top padding
+     drops the headings to the same height as the logs "Synced…" status row, and
+     the bottom padding reproduces the status-to-first-log-line gap so the first
+     message lines up with the first log line. Sticky, so the labels stay put
+     while the rows scroll under them. */
+  padding: 0.7rem 0.45rem 1.5rem;
 }
 
 /* Empty-state text matches the side-panel "No alerts" label (#msb-alerts-empty):
