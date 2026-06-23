@@ -222,10 +222,11 @@ const bandOverlayStyle = computed(() => ({
 // edge. The spectrum's freq labels are now HTML (.sdr-wf-freq-label), drawn
 // INSIDE this element's own gutter (.sdr-wf-tick-gutter, bottom-anchored), so
 // the margin no longer has to clear canvas-drawn labels — it's pure spacing
-// between the labels and the waterfall. Use HALF the label-gutter height so
-// the top gap is tight while keeping the labels clear of the raster.
+// between the labels and the waterfall. Keep it to a small fixed gap so the
+// waterfall sits right beneath the freq labels (clear, but nearly touching).
+const spectrumGapPx = computed(() => (bandInsetBottomPx.value > 0 ? 4 : 0))
 const spectrumStyle = computed(() => ({
-  marginBottom: `${Math.round(bandInsetBottomPx.value / 2)}px`,
+  marginBottom: `${spectrumGapPx.value}px`,
 }))
 
 // The waterfall canvas reserves an (invisible, bg-coloured) x-axis label gutter
@@ -800,15 +801,18 @@ const tickGutterStyle = computed(() => ({
 }))
 
 // Inline style for the known-frequency label overlay — a zero-height strip
-// whose bottom edge sits on the data-box floor (the bottom line of the plot,
-// just above the frequency scale). Each ring rests just above that line and the
-// vertical label rises from it. bandInsetBottomPx is the height of the x-axis
-// tick gutter, so this tracks the floor as the layout/fonts change. Horizontal
-// insets match the data box.
+// whose reference line sits on the TOP edge of the spectrum's data box, so the
+// markers render as a layer over the top of the spectrum trace (where the noise
+// floor sits, clear of real signals lower down). The overlay is a child of the
+// spectrum, so `top` is measured from the spectrum's content-box top; offsetting
+// by bandInsetTopPx (the data-box top, mx.t) drops the line to the start of the
+// plot area. The markers then hang a fixed margin below that line (see
+// .sdr-wf-known-marker top), matching the gap they previously had from the
+// waterfall's top edge. Horizontal insets match the data box.
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `${bandInsetBottomPx.value}px`,
+  top: `${bandInsetTopPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the

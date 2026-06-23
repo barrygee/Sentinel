@@ -190,8 +190,8 @@
    * waterfall (flex: 1 1 auto) absorbs any remaining vertical space. Kept just
    * tall enough to read the FFT trace + its freq-label gutter — every pixel
    * trimmed here is handed to the waterfall raster below. */
-  flex: 0 0 170px;
-  min-height: 170px;
+  flex: 0 0 240px;
+  min-height: 240px;
   width: 100%;
   /* Bottom margin is set inline from spectrumStyle (= bandInsetBottomPx) so
    * the gap between spectrum and waterfall auto-matches sigplot's freq-label
@@ -297,9 +297,10 @@
 
 /* Known-frequency label overlay — a green SVG ring (white-dot centre) tucked
  * into the left end of a dark rounded label pill, inset from the pill's left
- * edge by the same gap it has above/below. Zero-height strip: its bottom edge sits on the
- * data-box floor (knownFreqOverlayStyle pushes `bottom` in); each marker is
- * lifted a little off that line. */
+ * edge by the same gap it has above/below. Zero-height strip whose reference
+ * line sits on the spectrum data-box top (knownFreqOverlayStyle anchors `top`
+ * to bandInsetTopPx); the markers then hang a fixed margin below that line so
+ * they read as a layer over the top of the spectrum trace. */
 .sdr-wf-known-overlay {
   position: absolute;
   height: 0;
@@ -309,14 +310,16 @@
 
 .sdr-wf-known-marker {
   position: absolute;
-  bottom: 0;
+  /* Sit in from the spectrum data-box top (the overlay's reference line), so the
+   * marker layers over the top of the spectrum trace with clear breathing room
+   * above — the same gap it previously had below the waterfall's top edge. */
+  top: 20px;
   display: flex;
   flex-direction: row;
   align-items: center;
-  /* Centre the ring on the frequency pixel (`left` is the freq pixel; shift left
-   * half the 14px ring) and lift it off the bottom line (the overlay's bottom
-   * edge) for a clear gap. The label sits to the right of the ring. */
-  transform: translate(-7px, -10px);
+  /* Centre the ring on the frequency pixel: `left` is the freq pixel, shift left
+   * half the 14px ring. The label sits to the right of the ring. */
+  transform: translateX(-7px);
 }
 
 .sdr-wf-known-marker-ring {

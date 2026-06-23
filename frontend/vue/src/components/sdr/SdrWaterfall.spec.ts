@@ -672,6 +672,23 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(markers[0].find('.sdr-wf-known-marker-label').text()).toBe('ATIS')
   })
 
+  it('anchors the known-frequency overlay to the spectrum data-box top, not the bottom', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const overlay = wrapper.find('.sdr-wf-known-overlay')
+    expect(overlay.exists()).toBe(true)
+    // The labels now sit at the top of the spectrum (anchored to the data-box top,
+    // bandInsetTopPx), not at the waterfall's top edge (the old `bottom` anchor).
+    const overlayStyle = overlay.attributes('style') ?? ''
+    expect(overlayStyle).toMatch(/top:\s*\d+px/)
+    expect(overlayStyle).not.toContain('bottom')
+  })
+
   it('renders frequency tick labels in the gutter', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)
@@ -1516,13 +1533,23 @@ describe('SdrWaterfall — spectrum/waterfall gap sizing', () => {
     return Number((match as RegExpMatchArray)[1])
   }
 
-  it('sets the spectrum bottom margin to half the label-gutter height', async () => {
+  it('sets a fixed 4px spectrum bottom margin once the gutter is measured', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store) // a draw pass runs syncBandInset → measures the gutter
     const gutter = measuredGutterPx(wrapper)
-    expect(gutter).toBeGreaterThan(0) // layout settled, so the ratio is meaningful
+    expect(gutter).toBeGreaterThan(0) // layout settled, so the gap is the live branch
     const spectrumStyle = wrapper.find('.sdr-wf-spectrum').attributes('style') ?? ''
-    expect(spectrumStyle).toContain(`margin-bottom: ${Math.round(gutter / 2)}px`)
+    // The waterfall sits tight under the freq labels: a small constant gap,
+    // independent of the (zoom-dependent) gutter height.
+    expect(spectrumStyle).toContain('margin-bottom: 4px')
+  })
+
+  it('keeps the spectrum bottom margin at 0 before the gutter is measured', () => {
+    // No draw pass has run, so bandInsetBottomPx is still 0 (pre-draw default);
+    // the gap must collapse to 0 rather than the 4px live value.
+    const { wrapper } = mountWaterfall()
+    const spectrumStyle = wrapper.find('.sdr-wf-spectrum').attributes('style') ?? ''
+    expect(spectrumStyle).toContain('margin-bottom: 0px')
   })
 
   it('crops 25% off the waterfall bottom via a negative raster margin', async () => {

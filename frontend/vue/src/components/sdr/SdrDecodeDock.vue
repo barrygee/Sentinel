@@ -273,6 +273,9 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   background: #0a0d14;
   padding-left: var(--sdr-wf-inset-left, 56px);
   padding-right: calc(44px + var(--sdr-wf-inset-right, 12px));
+  /* Gap between the last decode row and the footer bar below, so the rows don't
+     sit flush against the footer. */
+  padding-bottom: 0.75rem;
   box-sizing: border-box;
   z-index: 2;
 }
