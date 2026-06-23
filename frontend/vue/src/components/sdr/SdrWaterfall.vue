@@ -801,19 +801,18 @@ const tickGutterStyle = computed(() => ({
 }))
 
 // Inline style for the known-frequency label overlay — a zero-height strip
-// whose reference line sits on the TOP edge of the waterfall, so the markers
-// render as a layer over the waterfall raster (the spectrum's z-index:2 stacking
-// context paints this overlay above the raster) rather than inside the spectrum
-// where they collided with the band-name bar. The overlay is a child of the
-// spectrum, so its `bottom` is measured from the spectrum's content-box floor; a
-// negative offset equal to the spectrum→waterfall gap (spectrumGapPx) drops the
-// line to the waterfall's top edge. The markers are then inset slightly downward
-// from that line (see .sdr-wf-known-marker top). Horizontal insets match the
-// data box.
+// whose reference line sits on the TOP edge of the spectrum's data box, so the
+// markers render as a layer over the top of the spectrum trace (where the noise
+// floor sits, clear of real signals lower down). The overlay is a child of the
+// spectrum, so `top` is measured from the spectrum's content-box top; offsetting
+// by bandInsetTopPx (the data-box top, mx.t) drops the line to the start of the
+// plot area. The markers then hang a fixed margin below that line (see
+// .sdr-wf-known-marker top), matching the gap they previously had from the
+// waterfall's top edge. Horizontal insets match the data box.
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  bottom: `-${spectrumGapPx.value}px`,
+  top: `${bandInsetTopPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the

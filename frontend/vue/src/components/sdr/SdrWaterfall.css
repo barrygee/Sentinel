@@ -298,9 +298,9 @@
 /* Known-frequency label overlay — a green SVG ring (white-dot centre) tucked
  * into the left end of a dark rounded label pill, inset from the pill's left
  * edge by the same gap it has above/below. Zero-height strip whose reference
- * line sits on the waterfall's top edge (knownFreqOverlayStyle pushes a negative
- * `bottom` equal to the spectrum→waterfall gap); the markers then hang slightly
- * below that line so they read as a layer over the top of the waterfall. */
+ * line sits on the spectrum data-box top (knownFreqOverlayStyle anchors `top`
+ * to bandInsetTopPx); the markers then hang a fixed margin below that line so
+ * they read as a layer over the top of the spectrum trace. */
 .sdr-wf-known-overlay {
   position: absolute;
   height: 0;
@@ -310,8 +310,9 @@
 
 .sdr-wf-known-marker {
   position: absolute;
-  /* Sit in from the waterfall's top edge (the overlay's reference line), so the
-   * marker layers over the top of the raster with clear breathing room above. */
+  /* Sit in from the spectrum data-box top (the overlay's reference line), so the
+   * marker layers over the top of the spectrum trace with clear breathing room
+   * above — the same gap it previously had below the waterfall's top edge. */
   top: 20px;
   display: flex;
   flex-direction: row;

@@ -672,6 +672,23 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(markers[0].find('.sdr-wf-known-marker-label').text()).toBe('ATIS')
   })
 
+  it('anchors the known-frequency overlay to the spectrum data-box top, not the bottom', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const overlay = wrapper.find('.sdr-wf-known-overlay')
+    expect(overlay.exists()).toBe(true)
+    // The labels now sit at the top of the spectrum (anchored to the data-box top,
+    // bandInsetTopPx), not at the waterfall's top edge (the old `bottom` anchor).
+    const overlayStyle = overlay.attributes('style') ?? ''
+    expect(overlayStyle).toMatch(/top:\s*\d+px/)
+    expect(overlayStyle).not.toContain('bottom')
+  })
+
   it('renders frequency tick labels in the gutter', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)
