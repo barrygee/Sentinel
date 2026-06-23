@@ -222,9 +222,9 @@ const bandOverlayStyle = computed(() => ({
 // edge. The spectrum's freq labels are now HTML (.sdr-wf-freq-label), drawn
 // INSIDE this element's own gutter (.sdr-wf-tick-gutter, bottom-anchored), so
 // the margin no longer has to clear canvas-drawn labels — it's pure spacing
-// between the labels and the waterfall. Use HALF the label-gutter height so
-// the top gap is tight while keeping the labels clear of the raster.
-const spectrumGapPx = computed(() => Math.round(bandInsetBottomPx.value / 2))
+// between the labels and the waterfall. Keep it to a small fixed gap so the
+// waterfall sits right beneath the freq labels (clear, but nearly touching).
+const spectrumGapPx = computed(() => (bandInsetBottomPx.value > 0 ? 4 : 0))
 const spectrumStyle = computed(() => ({
   marginBottom: `${spectrumGapPx.value}px`,
 }))
