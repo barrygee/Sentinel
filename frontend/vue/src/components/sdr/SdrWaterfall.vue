@@ -219,12 +219,23 @@ const bandOverlayStyle = computed(() => ({
 }))
 
 // The waterfall flex sibling sits flush against .sdr-wf-spectrum's bottom
-// edge — sigplot draws the spectrum's x-axis frequency labels in the bottom
-// gutter of its canvas, so without margin the waterfall covers them. Margin
-// matches the live label-gutter height (height − Mx.b, same value used for
-// the band overlay's bottom inset) so the gap is always exactly enough.
+// edge. The spectrum's freq labels are now HTML (.sdr-wf-freq-label), drawn
+// INSIDE this element's own gutter (.sdr-wf-tick-gutter, bottom-anchored), so
+// the margin no longer has to clear canvas-drawn labels — it's pure spacing
+// between the labels and the waterfall. Use HALF the label-gutter height so
+// the top gap is tight while keeping the labels clear of the raster.
 const spectrumStyle = computed(() => ({
-  marginBottom: `${bandInsetBottomPx.value}px`,
+  marginBottom: `${Math.round(bandInsetBottomPx.value / 2)}px`,
+}))
+
+// The waterfall canvas reserves an (invisible, bg-coloured) x-axis label gutter
+// at its BOTTOM — the same height the spectrum reserves (bandInsetBottomPx),
+// since both plots share the axis spec. That gutter reads as dead space below
+// the raster. The #sdr-waterfall container is overflow:hidden, so a negative
+// margin-bottom lets the raster extend past the clip edge, cropping ~25% of
+// that gutter (the canvas grows to fit, pushing its gutter below the clip).
+const rasterStyle = computed(() => ({
+  marginBottom: `${-Math.round(bandInsetBottomPx.value * 0.25)}px`,
 }))
 
 // ── Layout: track the SDR side panel open/closed state ───────────────────────
@@ -2357,6 +2368,7 @@ onBeforeUnmount(() => {
     <div
       ref="wfEl"
       class="sdr-wf-raster"
+      :style="rasterStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
       @wheel.capture="onPlotWheel"

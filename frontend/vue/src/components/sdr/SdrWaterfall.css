@@ -187,9 +187,11 @@
   /* Fixed height (not flex %): sigplot sizes its canvas from clientHeight, so
    * a viewport-relative spectrum reflows the canvas on every window resize.
    * Pinning to a constant keeps the FFT view stable at any browser size; the
-   * waterfall (flex: 1 1 auto) absorbs any remaining vertical space. */
-  flex: 0 0 350px;
-  min-height: 350px;
+   * waterfall (flex: 1 1 auto) absorbs any remaining vertical space. Kept just
+   * tall enough to read the FFT trace + its freq-label gutter — every pixel
+   * trimmed here is handed to the waterfall raster below. */
+  flex: 0 0 170px;
+  min-height: 170px;
   width: 100%;
   /* Bottom margin is set inline from spectrumStyle (= bandInsetBottomPx) so
    * the gap between spectrum and waterfall auto-matches sigplot's freq-label
