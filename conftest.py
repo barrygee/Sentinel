@@ -4,6 +4,7 @@
 SQLite database. The schema is created from the live ORM models, so any model
 change is automatically reflected in tests. Each test gets a fresh database.
 """
+
 from __future__ import annotations
 
 from typing import AsyncGenerator
@@ -39,10 +40,30 @@ async def db_setup(test_engine):
     await test_engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def isolate_sdr_data_files(tmp_path, monkeypatch):
+    """Keep tests from clobbering the committed SDR seed files.
+
+    Frequency CRUD and the config reconcile write the curated source-of-truth
+    files (backend/data/sdr_frequencies.json and sdr_bandplan.json) back to disk
+    via sdr_data.write_sdr_frequencies_file / write_sdr_bandplan_file — they read
+    the module-level path globals at call time. Without isolation a test run
+    would overwrite those seed files with whatever the in-memory test DB held
+    (e.g. a single test frequency). Redirect both paths into a per-test tmp dir;
+    monkeypatch reverts them afterwards.
+    """
+    from backend.services import sdr_data
+
+    monkeypatch.setattr(sdr_data, "FREQUENCIES_FILE", tmp_path / "sdr_frequencies.json")
+    monkeypatch.setattr(sdr_data, "BANDPLAN_FILE", tmp_path / "sdr_bandplan.json")
+
+
 @pytest.fixture()
 def client(test_engine, db_setup) -> TestClient:
     """FastAPI TestClient with `get_db` overridden to use the in-memory engine."""
-    TestSession = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+    TestSession = sessionmaker(
+        bind=test_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with TestSession() as session:
