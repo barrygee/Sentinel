@@ -245,6 +245,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Release a stuck tuning bar in the spectrum/waterfall (#125)
 - Match decode toggle to mode-button green accent (#127)
 - Hold decoder status-to-list gap when log body scrolls (#129)
+- Align decoder messages with logs and move Clear buttons to the top (#130)
 
 ### Chores
 
