@@ -169,13 +169,6 @@ const searchInputRef = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const closeBtnRef = ref<HTMLButtonElement | null>(null)
 
-// The search field is hidden (display:none) on non-app sections with no active
-// query, so it can't be the first-focus target there; fall back to the close
-// button, which is always present.
-const searchFieldVisible = computed(
-  () => activeSection.value === 'app' || searchQuery.value.trim().length > 0,
-)
-
 // Modal-dialog behaviour: trap focus while open, Escape to close, restore focus
 // to the trigger on close (WCAG 4.1.2 / 2.4.3 / 2.1.2). The panel is display:none
 // when closed, so it leaves the a11y tree without needing aria-hidden.
@@ -183,7 +176,10 @@ const { onKeydown } = useDialog({
   isOpen: computed(() => store.open),
   container: panelRef,
   onClose: () => store.closePanel(),
-  initialFocus: () => (searchFieldVisible.value ? searchInputRef.value : closeBtnRef.value),
+  // Focus the dialog container (tabindex="-1") rather than the search field, so
+  // the modal focus contract still holds (focus enters the dialog, Escape +
+  // tab-trapping work) without auto-highlighting the search input on open.
+  initialFocus: () => panelRef.value,
 })
 const pending = ref<Map<string, () => Promise<unknown> | void>>(new Map())
 const applyStatusMsg = ref('')
