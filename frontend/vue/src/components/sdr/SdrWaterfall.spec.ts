@@ -1504,6 +1504,40 @@ describe('SdrWaterfall — syncBandInset guard', () => {
 })
 
 // =============================================================================
+describe('SdrWaterfall — spectrum/waterfall gap sizing', () => {
+  // Read the live label-gutter height the component measured (bandInsetBottomPx),
+  // surfaced as the tick-gutter overlay's inline `height`. Both gap styles derive
+  // from it, so asserting against the measured value keeps the test independent
+  // of the mock's exact pixel math while still proving the ratios.
+  function measuredGutterPx(wrapper: VueWrapper): number {
+    const gutterStyle = wrapper.find('.sdr-wf-tick-gutter').attributes('style') ?? ''
+    const match = gutterStyle.match(/height:\s*(\d+)px/)
+    expect(match).not.toBeNull()
+    return Number((match as RegExpMatchArray)[1])
+  }
+
+  it('sets the spectrum bottom margin to half the label-gutter height', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store) // a draw pass runs syncBandInset → measures the gutter
+    const gutter = measuredGutterPx(wrapper)
+    expect(gutter).toBeGreaterThan(0) // layout settled, so the ratio is meaningful
+    const spectrumStyle = wrapper.find('.sdr-wf-spectrum').attributes('style') ?? ''
+    expect(spectrumStyle).toContain(`margin-bottom: ${Math.round(gutter / 2)}px`)
+  })
+
+  it('crops 25% off the waterfall bottom via a negative raster margin', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const gutter = measuredGutterPx(wrapper)
+    expect(gutter).toBeGreaterThan(0)
+    const rasterStyle = wrapper.find('.sdr-wf-raster').attributes('style') ?? ''
+    // Negative margin lets the raster extend past the overflow:hidden clip edge,
+    // hiding ~a quarter of sigplot's reserved (invisible) bottom gutter.
+    expect(rasterStyle).toContain(`margin-bottom: ${-Math.round(gutter * 0.25)}px`)
+  })
+})
+
+// =============================================================================
 describe('SdrWaterfall — installMarginTweaks Mx accessor setters', () => {
   it('clamps the left/top/right/bottom data-box margins', async () => {
     const { store } = mountWaterfall()
