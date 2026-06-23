@@ -247,6 +247,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Match decode toggle to mode-button green accent (#127)
 - Hold decoder status-to-list gap when log body scrolls (#129)
 - Align decoder messages with logs and move Clear buttons to the top (#130)
+- Tighten spectrum height and waterfall gaps (#133)
+- Stop auto-highlighting the search input on open (#135)
 
 ### Chores
 
