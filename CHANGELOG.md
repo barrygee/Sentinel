@@ -1014,6 +1014,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #107 from barrygee/feat/sdr-contour-bg-almost-black
 - Show decoder output newest-last with matching header styling (#117)
 - Feat/sdr per frequency settings (#132)
+- Feat/sdr spectrum known freq layout (#134)
 
 ### Refactoring
 
