@@ -31,18 +31,31 @@ describe('SdrDecodeDock', () => {
     expect(columns[1].find('.sdr-decode-empty').text()).toBe('No messages to display.')
   })
 
-  it('places each column Clear button in a footer below its list, not in the header', async () => {
+  it('floats each column Clear button at the column top, not in a footer or the header', async () => {
     const store = useSdrStore()
     const wrapper = mountDock()
     store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
     store.pushDecodeEvent({ type: 'log', line: 'a log line', ts: 2 })
     await wrapper.vm.$nextTick()
-    const footers = wrapper.findAll('.sdr-decode-dock-column-footer')
-    expect(footers).toHaveLength(2)
-    // Each footer owns exactly one Clear button; headers carry none.
-    expect(footers[0].find('.sdr-decode-clear').exists()).toBe(true)
-    expect(footers[1].find('.sdr-decode-clear').exists()).toBe(true)
+    const columns = wrapper.findAll('.sdr-decode-dock-column')
+    // Each column owns exactly one Clear button as a direct child (top-right
+    // float), not wrapped in a footer and not nested in the status header.
+    expect(columns[0].findAll('.sdr-decode-clear')).toHaveLength(1)
+    expect(columns[1].findAll('.sdr-decode-clear')).toHaveLength(1)
+    expect(wrapper.findAll('.sdr-decode-dock-column-footer')).toHaveLength(0)
     expect(wrapper.findAll('.sdr-decode-dock-column-header .sdr-decode-clear')).toHaveLength(0)
+  })
+
+  it('shows the messages column headings only once there are messages', async () => {
+    const store = useSdrStore()
+    const wrapper = mountDock()
+    // Empty: the heading row is hidden so the placeholder stands alone.
+    expect(wrapper.find('.sdr-decode-table thead').exists()).toBe(false)
+    store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+    await wrapper.vm.$nextTick()
+    // With data: the six column labels appear, in order.
+    const headings = wrapper.findAll('.sdr-decode-table thead th').map((heading) => heading.text())
+    expect(headings).toEqual(['Time', 'Mode', 'Talkgroup', 'Source ID', 'CC', 'Sync'])
   })
 
   it('renders one table row per decoded event with its fields', async () => {
