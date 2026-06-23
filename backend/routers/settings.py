@@ -120,6 +120,37 @@ def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
 
 _VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
 
+# Per-mode demod bandwidth defaults (Hz), mirroring defaultBwHz() in the SPA
+# (frontend/vue/src/components/sdr/sdrPanelUtils.ts). Used when an imported
+# frequency omits an explicit bandwidth.
+_DEFAULT_BW_BY_MODE = {
+    "WFM": 500_000,
+    "NFM": 12_500,
+    "AM": 10_000,
+    "USB": 3_000,
+    "LSB": 3_000,
+    "CW": 500,
+}
+
+
+def _coerce_float(value: object, default: float) -> float:
+    """Best-effort float coercion for hand-written/imported config values.
+    Returns ``default`` for missing or non-numeric input."""
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_optional_int(value: object, default: int) -> int:
+    """Best-effort int coercion; returns ``default`` for missing/non-numeric
+    input. Used for bandwidth/sample_rate so an omitted value is filled with a
+    sensible concrete default rather than left NULL."""
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
 
 async def _reconcile_sdr_frequencies(db: AsyncSession, payload: list, catalogue: list | None = None) -> None:
     """Rebuild SDR groups + stored frequencies to match the flat config
@@ -251,6 +282,15 @@ async def _reconcile_sdr_frequencies(db: AsyncSession, payload: list, catalogue:
             label=label[:60],
             frequency_hz=hz,
             mode=mode,
+            squelch=_coerce_float(item.get("squelch"), -60.0),
+            gain=_coerce_float(item.get("gain"), 30.0),
+            bandwidth=_coerce_optional_int(item.get("bandwidth"), _DEFAULT_BW_BY_MODE.get(mode, 10000)),
+            sample_rate=_coerce_optional_int(item.get("sample_rate"), 2_048_000),
+            volume=int(_coerce_float(item.get("volume"), 80.0)),
+            zoom=_coerce_float(item.get("zoom"), 1.0),
+            zmin=_coerce_float(item.get("zmin"), 0.0),
+            zmax=_coerce_float(item.get("zmax"), 0.0),
+            scannable=bool(item.get("scannable", True)),
             notes=str(item.get("notes", ""))[:500],
             created_at=ts,
         )

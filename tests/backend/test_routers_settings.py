@@ -3,6 +3,7 @@
 Pins the JSON shapes and status codes of every endpoint so the Phase 2B
 refactor (db_helpers, error_handlers) cannot silently change the API contract.
 """
+
 from __future__ import annotations
 
 import io
@@ -10,6 +11,7 @@ import json
 
 
 # ── GET /api/settings ─────────────────────────────────────────────────────────
+
 
 class TestGetAllSettings:
     def test_empty_database_returns_empty_object(self, client):
@@ -25,12 +27,13 @@ class TestGetAllSettings:
         resp = client.get("/api/settings")
         assert resp.status_code == 200
         assert resp.json() == {
-            "air":   {"foo": "bar", "baz": 42},
+            "air": {"foo": "bar", "baz": 42},
             "space": {"qux": True},
         }
 
 
 # ── GET /api/settings/{namespace} ─────────────────────────────────────────────
+
 
 class TestGetNamespace:
     def test_unknown_namespace_returns_empty_object(self, client):
@@ -45,7 +48,7 @@ class TestGetNamespace:
         resp = client.get("/api/settings/air")
         assert resp.status_code == 200
         assert resp.json() == {
-            "onlineUrl":  "https://example.com",
+            "onlineUrl": "https://example.com",
             "offgridUrl": "",
         }
 
@@ -58,6 +61,7 @@ class TestGetNamespace:
 
 
 # ── PUT /api/settings/{namespace}/{key} ───────────────────────────────────────
+
 
 class TestUpsertSetting:
     def test_insert_returns_ok(self, client):
@@ -86,6 +90,7 @@ class TestUpsertSetting:
 
 
 # ── app.location validation (PUT + config upload) ─────────────────────────────
+
 
 class TestAppLocationValidation:
     def test_valid_pair_is_stored(self, client):
@@ -140,18 +145,34 @@ class TestAppLocationValidation:
     def test_upload_with_invalid_location_returns_400(self, client):
         resp = client.post(
             "/api/settings/config/upload",
-            files={"file": ("config.json", io.BytesIO(
-                json.dumps({"app": {"location": {"latitude": 999, "longitude": 0}}}).encode()
-            ), "application/json")},
+            files={
+                "file": (
+                    "config.json",
+                    io.BytesIO(
+                        json.dumps(
+                            {"app": {"location": {"latitude": 999, "longitude": 0}}}
+                        ).encode()
+                    ),
+                    "application/json",
+                )
+            },
         )
         assert resp.status_code == 400
 
     def test_upload_with_valid_location_persists(self, client):
         client.post(
             "/api/settings/config/upload",
-            files={"file": ("config.json", io.BytesIO(
-                json.dumps({"app": {"location": {"latitude": 1.5, "longitude": 2.5}}}).encode()
-            ), "application/json")},
+            files={
+                "file": (
+                    "config.json",
+                    io.BytesIO(
+                        json.dumps(
+                            {"app": {"location": {"latitude": 1.5, "longitude": 2.5}}}
+                        ).encode()
+                    ),
+                    "application/json",
+                )
+            },
         )
         assert client.get("/api/settings/app").json() == {
             "location": {"latitude": 1.5, "longitude": 2.5}
@@ -159,6 +180,7 @@ class TestAppLocationValidation:
 
 
 # ── GET /api/settings/config/preview ──────────────────────────────────────────
+
 
 class TestConfigPreview:
     def test_returns_json_content_type(self, client):
@@ -179,11 +201,18 @@ class TestConfigPreview:
 
 # ── POST /api/settings/config/upload ──────────────────────────────────────────
 
+
 class TestConfigUpload:
     def _upload(self, client, payload):
         return client.post(
             "/api/settings/config/upload",
-            files={"file": ("config.json", io.BytesIO(json.dumps(payload).encode()), "application/json")},
+            files={
+                "file": (
+                    "config.json",
+                    io.BytesIO(json.dumps(payload).encode()),
+                    "application/json",
+                )
+            },
         )
 
     def test_returns_status_ok(self, client):
@@ -193,12 +222,17 @@ class TestConfigUpload:
 
     def test_settings_are_persisted_after_upload(self, client):
         self._upload(client, {"air": {"a": 1, "b": 2}, "space": {"c": 3}})
-        assert client.get("/api/settings").json() == {"air": {"a": 1, "b": 2}, "space": {"c": 3}}
+        assert client.get("/api/settings").json() == {
+            "air": {"a": 1, "b": 2},
+            "space": {"c": 3},
+        }
 
     def test_invalid_json_returns_400(self, client):
         resp = client.post(
             "/api/settings/config/upload",
-            files={"file": ("config.json", io.BytesIO(b"not json"), "application/json")},
+            files={
+                "file": ("config.json", io.BytesIO(b"not json"), "application/json")
+            },
         )
         assert resp.status_code == 400
 
@@ -296,3 +330,126 @@ class TestConfigUpload:
         assert self._set_sdr_data(client, payload).status_code == 200
         slugs = {g["slug"] for g in client.get("/api/sdr/groups").json()}
         assert "foo" in slugs
+
+    # ── per-frequency tuning settings on reconcile ────────────────────────────
+    def test_reconcile_parses_per_frequency_settings(self, client):
+        payload = {
+            "groups": [{"name": "Airband", "slug": "airband"}],
+            "frequencies": [
+                {
+                    "label": "EGNT Tower",
+                    "frequency_hz": 119700000,
+                    "mode": "AM",
+                    "groups": ["airband"],
+                    "squelch": -45.0,
+                    "gain": 28.0,
+                    "bandwidth": 8000,
+                    "sample_rate": 1024000,
+                    "volume": 55,
+                    "zoom": 2.5,
+                    "zmin": -80.0,
+                    "zmax": -10.0,
+                    "scannable": False,
+                },
+            ],
+        }
+        assert self._set_sdr_data(client, payload).status_code == 200
+        freq = client.get("/api/sdr/frequencies").json()[0]
+        assert freq["squelch"] == -45.0
+        assert freq["gain"] == 28.0
+        assert freq["bandwidth"] == 8000
+        assert freq["sample_rate"] == 1024000
+        assert freq["volume"] == 55
+        assert freq["zoom"] == 2.5
+        assert freq["zmin"] == -80.0
+        assert freq["zmax"] == -10.0
+        assert freq["scannable"] is False
+
+    def test_reconcile_defaults_bandwidth_per_mode_when_omitted(self, client):
+        payload = {
+            "groups": [],
+            "frequencies": [
+                {
+                    "label": "NFM ch",
+                    "frequency_hz": 145000000,
+                    "mode": "NFM",
+                    "groups": [],
+                },
+                {
+                    "label": "AM ch",
+                    "frequency_hz": 119000000,
+                    "mode": "AM",
+                    "groups": [],
+                },
+            ],
+        }
+        assert self._set_sdr_data(client, payload).status_code == 200
+        by_label = {f["label"]: f for f in client.get("/api/sdr/frequencies").json()}
+        # Bandwidth is keyed off the mode when the entry omits it (matches defaultBwHz).
+        assert by_label["NFM ch"]["bandwidth"] == 12500
+        assert by_label["AM ch"]["bandwidth"] == 10000
+        # The rest take their concrete defaults.
+        assert by_label["AM ch"]["sample_rate"] == 2048000
+        assert by_label["AM ch"]["volume"] == 80
+        assert by_label["AM ch"]["zoom"] == 1.0
+        assert by_label["AM ch"]["zmin"] == 0.0
+        assert by_label["AM ch"]["zmax"] == 0.0
+
+    def test_reconcile_coerces_invalid_setting_values_to_defaults(self, client):
+        payload = {
+            "groups": [],
+            "frequencies": [
+                {
+                    "label": "Bad",
+                    "frequency_hz": 119000000,
+                    "mode": "AM",
+                    "groups": [],
+                    "squelch": "loud",
+                    "gain": None,
+                    "bandwidth": "wide",
+                    "sample_rate": "fast",
+                    "volume": "max",
+                    "zoom": "x",
+                    "zmin": None,
+                    "zmax": "y",
+                },
+            ],
+        }
+        assert self._set_sdr_data(client, payload).status_code == 200
+        freq = client.get("/api/sdr/frequencies").json()[0]
+        assert freq["squelch"] == -60.0
+        assert freq["gain"] == 30.0
+        assert freq["bandwidth"] == 10000  # AM per-mode default
+        assert freq["sample_rate"] == 2048000
+        assert freq["volume"] == 80
+        assert freq["zoom"] == 1.0
+        assert freq["zmin"] == 0.0
+        assert freq["zmax"] == 0.0
+
+
+class TestSettingCoercionHelpers:
+    def test_coerce_float_parses_or_falls_back(self):
+        from backend.routers.settings import _coerce_float
+
+        assert _coerce_float("12.5", 0.0) == 12.5
+        assert _coerce_float(7, 0.0) == 7.0
+        assert _coerce_float("not-a-number", -1.0) == -1.0
+        assert _coerce_float(None, -2.0) == -2.0
+
+    def test_coerce_optional_int_parses_or_falls_back(self):
+        from backend.routers.settings import _coerce_optional_int
+
+        assert _coerce_optional_int("2048000", 0) == 2048000
+        assert _coerce_optional_int(1536000, 0) == 1536000
+        assert _coerce_optional_int("bad", 99) == 99
+        assert _coerce_optional_int(None, 99) == 99
+
+    def test_default_bandwidth_by_mode_matches_frontend(self):
+        from backend.routers.settings import _DEFAULT_BW_BY_MODE
+
+        assert _DEFAULT_BW_BY_MODE["WFM"] == 500_000
+        assert _DEFAULT_BW_BY_MODE["NFM"] == 12_500
+        assert _DEFAULT_BW_BY_MODE["AM"] == 10_000
+        assert _DEFAULT_BW_BY_MODE["USB"] == 3_000
+        assert _DEFAULT_BW_BY_MODE["LSB"] == 3_000
+        assert _DEFAULT_BW_BY_MODE["CW"] == 500

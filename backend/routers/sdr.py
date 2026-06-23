@@ -90,6 +90,12 @@ class FrequencyIn(BaseModel):
     mode: str = "AM"
     squelch: float = -60.0
     gain: float = 30.0
+    bandwidth: int | None = None  # demod bandwidth Hz; None = per-mode default
+    sample_rate: int | None = None  # device sample rate Hz; None = keep current
+    volume: int = 80  # audio volume 0-100 (%)
+    zoom: float = 1.0  # waterfall zoom factor
+    zmin: float = 0.0  # waterfall Min dB (0 = auto/unset)
+    zmax: float = 0.0  # waterfall Max dB (0 = auto/unset)
     scannable: bool = True
     notes: str = ""
 
@@ -229,6 +235,12 @@ def _freq_to_dict(f: SdrStoredFrequency, group_ids: list[int] | None = None) -> 
         "mode": f.mode,
         "squelch": f.squelch,
         "gain": f.gain,
+        "bandwidth": f.bandwidth,
+        "sample_rate": f.sample_rate,
+        "volume": f.volume,
+        "zoom": f.zoom,
+        "zmin": f.zmin,
+        "zmax": f.zmax,
         "scannable": f.scannable,
         "notes": f.notes,
         "created_at": f.created_at,

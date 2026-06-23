@@ -145,7 +145,18 @@ class SdrStoredFrequency(Base):
     frequency_hz = Column(Integer, nullable=False)  # stored as integer Hz e.g. 118050000
     mode = Column(Text, nullable=False, default="AM")  # AM|NFM|WFM|USB|LSB|CW
     squelch = Column(Float, nullable=False, default=-60.0)  # dBFS threshold
-    gain = Column(Float, nullable=False, default=30.0)  # dB; use -1.0 for auto
+    gain = Column(Float, nullable=False, default=30.0)  # dB RF gain; use -1.0 for auto (AGC)
+    # Per-frequency tuning settings, applied when the user clicks the frequency
+    # or a scan stops on it. bandwidth/sample_rate are nullable so an unset value
+    # falls back to the live/per-mode default; the rest carry concrete defaults.
+    bandwidth = Column(
+        Integer, nullable=True, default=None
+    )  # demod (audio filter) bandwidth Hz; None = per-mode default
+    sample_rate = Column(Integer, nullable=True, default=None)  # device sample rate Hz; None = keep current
+    volume = Column(Integer, nullable=False, default=80)  # audio volume 0-100 (%)
+    zoom = Column(Float, nullable=False, default=1.0)  # waterfall zoom factor
+    zmin = Column(Float, nullable=False, default=0.0)  # waterfall Min dB (0 = auto/unset)
+    zmax = Column(Float, nullable=False, default=0.0)  # waterfall Max dB (0 = auto/unset)
     scannable = Column(Boolean, nullable=False, default=True)
     notes = Column(Text, nullable=False, default="")
     created_at = Column(Integer, nullable=False)  # Unix ms

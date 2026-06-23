@@ -76,11 +76,36 @@ async def create_tables():
             "ALTER TABLE satellite_catalogue ADD COLUMN packet_info TEXT",
             "ALTER TABLE satellite_catalogue ADD COLUMN radio_status TEXT",
             "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
+            # Per-frequency tuning settings (applied on click / scan-stop).
+            "ALTER TABLE sdr_stored_frequencies ADD COLUMN bandwidth INTEGER",
+            "ALTER TABLE sdr_stored_frequencies ADD COLUMN sample_rate INTEGER",
+            "ALTER TABLE sdr_stored_frequencies ADD COLUMN volume INTEGER NOT NULL DEFAULT 80",
+            "ALTER TABLE sdr_stored_frequencies ADD COLUMN zoom REAL NOT NULL DEFAULT 1.0",
+            "ALTER TABLE sdr_stored_frequencies ADD COLUMN zmin REAL NOT NULL DEFAULT 0.0",
+            "ALTER TABLE sdr_stored_frequencies ADD COLUMN zmax REAL NOT NULL DEFAULT 0.0",
         ]:
             try:
                 await conn.execute(sa_text(col_sql))
             except OperationalError:
                 pass
+        # Backfill the newly-added per-frequency settings for rows created before
+        # the columns existed, so existing saved frequencies carry sensible values
+        # (bandwidth keyed off the demodulation mode, matching defaultBwHz() in the
+        # SPA). Idempotent: only touches rows still NULL after the ALTER above.
+        try:
+            await conn.execute(
+                sa_text(
+                    "UPDATE sdr_stored_frequencies SET bandwidth = CASE mode "
+                    "WHEN 'WFM' THEN 500000 WHEN 'NFM' THEN 12500 WHEN 'AM' THEN 10000 "
+                    "WHEN 'USB' THEN 3000 WHEN 'LSB' THEN 3000 WHEN 'CW' THEN 500 "
+                    "ELSE 10000 END WHERE bandwidth IS NULL"
+                )
+            )
+            await conn.execute(
+                sa_text("UPDATE sdr_stored_frequencies SET sample_rate = 2048000 WHERE sample_rate IS NULL")
+            )
+        except OperationalError:
+            pass
         # Backfill slugs for groups created before the column existed (or seeded
         # empty). Slug is rename-stable, so only populate where still blank.
         try:
@@ -267,6 +292,15 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
                 "label": f.label,
                 "frequency_hz": f.frequency_hz,
                 "mode": f.mode,
+                "squelch": f.squelch,
+                "gain": f.gain,
+                "bandwidth": f.bandwidth,
+                "sample_rate": f.sample_rate,
+                "volume": f.volume,
+                "zoom": f.zoom,
+                "zmin": f.zmin,
+                "zmax": f.zmax,
+                "scannable": f.scannable,
                 "notes": f.notes,
                 "groups": slugs,
             }

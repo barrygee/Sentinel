@@ -1024,6 +1024,156 @@
                   ></textarea>
                   <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
                 </div>
+                <div class="sdr-editfreq-field">
+                  <button
+                    type="button"
+                    class="sdr-ef-settings-toggle"
+                    :aria-expanded="efSettingsExpanded"
+                    aria-controls="sdr-ef-settings-section"
+                    @click="efSettingsExpanded = !efSettingsExpanded"
+                  >
+                    <span class="sdr-ef-settings-toggle-title">RADIO SETTINGS</span>
+                    <ChevronIcon :open="efSettingsExpanded" />
+                  </button>
+                  <div
+                    v-show="efSettingsExpanded"
+                    id="sdr-ef-settings-section"
+                    class="sdr-ef-settings-grid"
+                  >
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">RF GAIN (dB)</span>
+                      <input
+                        v-model="efGainDb"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        step="0.1"
+                        :disabled="efGainAuto"
+                        aria-label="RF gain in dB"
+                      />
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">AUTO (AGC)</span>
+                      <div class="sdr-ef-toggle-wrap">
+                        <button
+                          type="button"
+                          class="sdr-ef-toggle"
+                          :class="{ 'is-on': efGainAuto }"
+                          role="switch"
+                          :aria-checked="efGainAuto"
+                          aria-label="Auto gain (AGC)"
+                          @click="efGainAuto = !efGainAuto"
+                        >
+                          <span class="sdr-ef-toggle-thumb"></span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">BANDWIDTH (kHz)</span>
+                      <input
+                        v-model="efBwKhz"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        aria-label="Demod bandwidth in kHz"
+                      />
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">SQUELCH (dBFS)</span>
+                      <input
+                        v-model="efSquelch"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        aria-label="Squelch threshold in dBFS"
+                      />
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">VOLUME (%)</span>
+                      <input
+                        v-model="efVolume"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        min="0"
+                        max="100"
+                        aria-label="Volume percent"
+                      />
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">SAMPLE RATE</span>
+                      <!-- Custom dropdown (NOT native <select>): native option
+                           lists are UA-rendered and can't be themed; reuse the
+                           app's flat-dark device-dropdown primitives instead. -->
+                      <div
+                        class="sdr-device-dropdown sdr-ef-setting-dropdown"
+                        :class="{ 'sdr-device-dropdown--open': efSampleRateMenuOpen }"
+                        tabindex="0"
+                        role="button"
+                        aria-haspopup="listbox"
+                        :aria-expanded="efSampleRateMenuOpen"
+                        aria-label="Device sample rate"
+                        @click.stop="toggleEfSampleRateMenu"
+                        @keydown="onEfSampleRateDropdownKey"
+                      >
+                        <div class="sdr-device-dropdown-selected">
+                          <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
+                            formatBwHz(efSampleRate)
+                          }}</span>
+                          <span class="sdr-device-dropdown-arrow"></span>
+                        </div>
+                      </div>
+                      <Teleport to="body">
+                        <div
+                          v-if="efSampleRateMenuOpen"
+                          class="sdr-device-menu sdr-device-menu--open"
+                          role="listbox"
+                          :style="efSampleRateMenuStyle"
+                          @click.stop
+                        >
+                          <div
+                            v-for="rate in SAMPLE_RATE_OPTIONS"
+                            :key="rate"
+                            class="sdr-device-menu-item"
+                            :class="{ 'sdr-device-menu-item--selected': rate === efSampleRate }"
+                            role="option"
+                            :aria-selected="rate === efSampleRate"
+                            @click="pickEfSampleRate(rate)"
+                          >
+                            {{ formatBwHz(rate) }}
+                          </div>
+                        </div>
+                      </Teleport>
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">ZOOM</span>
+                      <input
+                        v-model="efZoom"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        aria-label="Waterfall zoom"
+                      />
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">WF MIN (dB)</span>
+                      <input
+                        v-model="efZmin"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        aria-label="Waterfall minimum dB"
+                      />
+                    </div>
+                    <div class="sdr-ef-setting">
+                      <span class="sdr-field-label">WF MAX (dB)</span>
+                      <input
+                        v-model="efZmax"
+                        class="sdr-panel-input sdr-ef-setting-input"
+                        type="number"
+                        aria-label="Waterfall maximum dB"
+                      />
+                    </div>
+                  </div>
+                </div>
                 <div class="sdr-editfreq-actions">
                   <div class="sdr-editfreq-actions-right">
                     <button class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
@@ -1152,6 +1302,156 @@
                 style="width: 100%"
               ></textarea>
               <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
+            </div>
+            <div class="sdr-editfreq-field">
+              <button
+                type="button"
+                class="sdr-ef-settings-toggle"
+                :aria-expanded="efSettingsExpanded"
+                aria-controls="sdr-ef-settings-section"
+                @click="efSettingsExpanded = !efSettingsExpanded"
+              >
+                <span class="sdr-ef-settings-toggle-title">RADIO SETTINGS</span>
+                <ChevronIcon :open="efSettingsExpanded" />
+              </button>
+              <div
+                v-show="efSettingsExpanded"
+                id="sdr-ef-settings-section"
+                class="sdr-ef-settings-grid"
+              >
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">RF GAIN (dB)</span>
+                  <input
+                    v-model="efGainDb"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    step="0.1"
+                    :disabled="efGainAuto"
+                    aria-label="RF gain in dB"
+                  />
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">AUTO (AGC)</span>
+                  <div class="sdr-ef-toggle-wrap">
+                    <button
+                      type="button"
+                      class="sdr-ef-toggle"
+                      :class="{ 'is-on': efGainAuto }"
+                      role="switch"
+                      :aria-checked="efGainAuto"
+                      aria-label="Auto gain (AGC)"
+                      @click="efGainAuto = !efGainAuto"
+                    >
+                      <span class="sdr-ef-toggle-thumb"></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">BANDWIDTH (kHz)</span>
+                  <input
+                    v-model="efBwKhz"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    aria-label="Demod bandwidth in kHz"
+                  />
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">SQUELCH (dBFS)</span>
+                  <input
+                    v-model="efSquelch"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    aria-label="Squelch threshold in dBFS"
+                  />
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">VOLUME (%)</span>
+                  <input
+                    v-model="efVolume"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    aria-label="Volume percent"
+                  />
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">SAMPLE RATE</span>
+                  <!-- Custom dropdown (NOT native <select>): native option
+                       lists are UA-rendered and can't be themed; reuse the
+                       app's flat-dark device-dropdown primitives instead. -->
+                  <div
+                    class="sdr-device-dropdown sdr-ef-setting-dropdown"
+                    :class="{ 'sdr-device-dropdown--open': efSampleRateMenuOpen }"
+                    tabindex="0"
+                    role="button"
+                    aria-haspopup="listbox"
+                    :aria-expanded="efSampleRateMenuOpen"
+                    aria-label="Device sample rate"
+                    @click.stop="toggleEfSampleRateMenu"
+                    @keydown="onEfSampleRateDropdownKey"
+                  >
+                    <div class="sdr-device-dropdown-selected">
+                      <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
+                        formatBwHz(efSampleRate)
+                      }}</span>
+                      <span class="sdr-device-dropdown-arrow"></span>
+                    </div>
+                  </div>
+                  <Teleport to="body">
+                    <div
+                      v-if="efSampleRateMenuOpen"
+                      class="sdr-device-menu sdr-device-menu--open"
+                      role="listbox"
+                      :style="efSampleRateMenuStyle"
+                      @click.stop
+                    >
+                      <div
+                        v-for="rate in SAMPLE_RATE_OPTIONS"
+                        :key="rate"
+                        class="sdr-device-menu-item"
+                        :class="{ 'sdr-device-menu-item--selected': rate === efSampleRate }"
+                        role="option"
+                        :aria-selected="rate === efSampleRate"
+                        @click="pickEfSampleRate(rate)"
+                      >
+                        {{ formatBwHz(rate) }}
+                      </div>
+                    </div>
+                  </Teleport>
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">ZOOM</span>
+                  <input
+                    v-model="efZoom"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    aria-label="Waterfall zoom"
+                  />
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">WF MIN (dB)</span>
+                  <input
+                    v-model="efZmin"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    aria-label="Waterfall minimum dB"
+                  />
+                </div>
+                <div class="sdr-ef-setting">
+                  <span class="sdr-field-label">WF MAX (dB)</span>
+                  <input
+                    v-model="efZmax"
+                    class="sdr-panel-input sdr-ef-setting-input"
+                    type="number"
+                    aria-label="Waterfall maximum dB"
+                  />
+                </div>
+              </div>
             </div>
             <div class="sdr-editfreq-actions">
               <div class="sdr-editfreq-actions-right">
@@ -1651,6 +1951,12 @@ interface SdrStoredFrequency {
   group_id?: number | null
   squelch?: number
   gain?: number
+  bandwidth?: number | null
+  sample_rate?: number | null
+  volume?: number
+  zoom?: number
+  zmin?: number
+  zmax?: number
   notes?: string
 }
 defineProps<{ fullPage: boolean }>()
@@ -2115,6 +2421,31 @@ const efFreq = ref('')
 const efMode = ref('AM')
 const efGroupIds = ref<number[]>([])
 const efNotes = ref('')
+// Per-frequency tuning settings captured in the add/edit form. Seeded from the
+// live radio settings when adding, or the stored values when editing. Kept as
+// strings (parsed on save) to mirror the freq input; efGainAuto toggles AGC
+// (stored as gain = -1), and efSampleRate is a concrete option value.
+const efGainDb = ref('30')
+const efGainAuto = ref(false)
+const efBwKhz = ref('10')
+const efSquelch = ref('-60')
+const efVolume = ref('80')
+const efSampleRate = ref<number>(2048000)
+// Custom flat-dark dropdown for the form's SAMPLE RATE (mirrors the RADIO tab's
+// device dropdown — see toggleSampleRateMenu — so the menu matches the app
+// theme rather than the unstyleable native <select> popup). Bound to the form's
+// efSampleRate rather than the live radio. The menu is positioned from the
+// triggering event's currentTarget (not a template ref) because the per-row
+// edit form lives in a v-for, where a ref would resolve to an array.
+const efSampleRateMenuOpen = ref(false)
+const efSampleRateMenuStyle = ref<Record<string, string>>({})
+// Whether the "RADIO SETTINGS" accordion inside the add/edit form is expanded.
+// Collapsed by default to keep the form compact; shared by both forms (only one
+// is open at a time).
+const efSettingsExpanded = ref(false)
+const efZoom = ref('1')
+const efZmin = ref('0')
+const efZmax = ref('0')
 const efErrors = ref<{ label?: string; freq?: string; mode?: string; notes?: string }>({})
 const NOTES_ALLOWED = /^[A-Za-z0-9\s.,!?\-_():;/@]*$/
 watch(efLabel, () => {
@@ -2897,6 +3228,54 @@ function pickSampleRate(v: number) {
   sendCmd({ cmd: 'sample_rate', rate_hz: v })
 }
 
+// ── Add/edit form SAMPLE RATE dropdown ─────────────────────────────────────────
+// Mirrors the RADIO tab's sample-rate dropdown above, but writes the form's
+// efSampleRate (not the live radio) and has no controlsDisabled gate — it edits
+// a stored frequency, not the connected device.
+
+// Position the teleported menu under the dropdown. The element is taken from the
+// triggering event's currentTarget rather than a template ref: the per-row edit
+// form lives inside a v-for, where Vue would make a template ref an *array* of
+// elements (no getBoundingClientRect), so currentTarget is the reliable handle.
+function positionEfSampleRateMenu(dropdownEl: HTMLElement) {
+  const rect = dropdownEl.getBoundingClientRect()
+  efSampleRateMenuStyle.value = {
+    left: rect.left + 'px',
+    top: rect.bottom + 'px',
+    width: rect.width + 'px',
+  }
+}
+
+function toggleEfSampleRateMenu(event: MouseEvent | KeyboardEvent) {
+  if (efSampleRateMenuOpen.value) {
+    closeEfSampleRateMenu()
+    return
+  }
+  positionEfSampleRateMenu(event.currentTarget as HTMLElement)
+  efSampleRateMenuOpen.value = true
+}
+
+function closeEfSampleRateMenu() {
+  efSampleRateMenuOpen.value = false
+}
+
+function onEfSampleRateDropdownKey(event: KeyboardEvent) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleEfSampleRateMenu(event)
+  }
+  if (event.key === 'Escape') closeEfSampleRateMenu()
+}
+
+function pickEfSampleRate(rate: number) {
+  closeEfSampleRateMenu()
+  // The menu only ever offers SAMPLE_RATE_OPTIONS values.
+  /* v8 ignore start */
+  if (!SAMPLE_RATE_OPTIONS.includes(rate as (typeof SAMPLE_RATE_OPTIONS)[number])) return
+  /* v8 ignore stop */
+  efSampleRate.value = rate
+}
+
 // ── Mode ──────────────────────────────────────────────────────────────────────
 
 function setMode(m: string) {
@@ -3165,6 +3544,7 @@ function onDeviceDropdownKey(e: KeyboardEvent) {
 function onDocumentClick() {
   if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
+  if (efSampleRateMenuOpen.value) closeEfSampleRateMenu()
   if (stepMenuOpen.value) closeStepMenu()
   if (trunkMapMenuOpen.value) closeTrunkMapMenu()
 }
@@ -3390,6 +3770,61 @@ function toggleScanLock() {
 // Lightweight retune used by the scan engine: the stream is already running,
 // so this only moves the receiver — it must NOT (re)init audio or toggle the
 // playing state on every scan step.
+// Apply a stored frequency's saved tuning settings (RF gain, demod bandwidth,
+// squelch, volume, device sample rate, and the waterfall zoom/min/max view) to
+// the live radio. Used both when the user clicks a saved frequency and when a
+// scan lands on one. Each setting is applied only when it differs from the
+// current value, so a scan across frequencies that all share the defaults does
+// not spam the backend with redundant commands.
+function applyStoredFreqSettings(f: SdrStoredFrequency) {
+  if (typeof f.gain === 'number') {
+    const auto = f.gain < 0
+    if (f.gain !== gainDb.value || auto !== gainAuto.value) {
+      gainDb.value = f.gain
+      gainAuto.value = auto
+      sendCmd({ cmd: 'gain', gain_db: auto ? null : f.gain })
+    }
+  }
+  if (typeof f.squelch === 'number' && f.squelch !== squelch.value) {
+    squelch.value = f.squelch
+    sendCmd({ cmd: 'squelch', squelch_dbfs: f.squelch })
+    sdrAudio.setSquelch(f.squelch)
+  }
+  // Device sample rate first so the bandwidth ceiling (bwMax) is correct before
+  // the demod bandwidth below is applied/clamped.
+  const rate = f.sample_rate
+  if (
+    typeof rate === 'number' &&
+    rate !== sampleRateHz.value &&
+    SAMPLE_RATE_OPTIONS.includes(rate as (typeof SAMPLE_RATE_OPTIONS)[number])
+  ) {
+    sampleRateHz.value = rate
+    bwMax.value = rate
+    sendCmd({ cmd: 'sample_rate', rate_hz: rate })
+  }
+  const bw = typeof f.bandwidth === 'number' ? f.bandwidth : defaultBwHz(f.mode)
+  const clampedBw = Math.min(bw, bwMax.value)
+  if (clampedBw !== bwHz.value) {
+    bwHz.value = clampedBw
+    sdrAudio.setBandwidthHz(clampedBw)
+  }
+  if (typeof f.volume === 'number' && f.volume !== volume.value) {
+    volume.value = f.volume
+    sdrAudio.setVolume(f.volume / 100)
+  }
+  // Waterfall view (zoom / Min / Max). Written through the store so the
+  // SdrWaterfall sibling picks them up; setViewSettings is a no-op-cheap ref +
+  // localStorage write, but only call it when something actually changed.
+  const store = _sdrStore()
+  const zoom = typeof f.zoom === 'number' ? f.zoom : store.viewZoom
+  const zmin = typeof f.zmin === 'number' ? f.zmin : store.viewZmin
+  const zmax = typeof f.zmax === 'number' ? f.zmax : store.viewZmax
+  if (zoom !== store.viewZoom || zmin !== store.viewZmin || zmax !== store.viewZmax) {
+    // A non-zero Min/Max means the user pinned the scale for this frequency.
+    store.setViewSettings({ zoom, zmin, zmax, autoScale: zmin === 0 && zmax === 0 })
+  }
+}
+
 function tuneToFreq(f: SdrStoredFrequency) {
   currentFreqHz.value = f.frequency_hz
   currentMode.value = f.mode
@@ -3397,6 +3832,7 @@ function tuneToFreq(f: SdrStoredFrequency) {
   activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
   sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
   sendCmd({ cmd: 'mode', mode: f.mode })
+  applyStoredFreqSettings(f)
 }
 
 // Play button on a saved frequency row: tune AND start the audio stream.
@@ -3411,15 +3847,15 @@ function playFreq(f: SdrStoredFrequency) {
   activeFreqDisplay.value = (f.frequency_hz / 1e6).toFixed(3) + ' MHz'
   sdrAudio.initAudio(selectedRadioId.value)
   sdrAudio.setMode(f.mode as SdrMode)
-  const bw = defaultBwHz(f.mode)
-  sdrAudio.setBandwidthHz(bw)
-  bwHz.value = bw
   setPlayingState(true)
   sessionStorage.setItem('sdrLastFreqHz', String(f.frequency_hz))
   sessionStorage.setItem('sdrLastMode', f.mode)
-  saveSettings()
   sendCmd({ cmd: 'tune', frequency_hz: f.frequency_hz })
   sendCmd({ cmd: 'mode', mode: f.mode })
+  // Apply this frequency's saved tuning settings (gain/bw/squelch/volume/
+  // sample rate + waterfall view), then persist the resulting live state.
+  applyStoredFreqSettings(f)
+  saveSettings()
 }
 
 // ── Search engine (low/high range sweep with stop-on-signal) ─────────────────
@@ -4426,6 +4862,16 @@ function openAddFreqPanel() {
   /* v8 ignore stop */
   efGroupIds.value = []
   efNotes.value = ''
+  // New frequencies default their tuning settings to the live radio settings.
+  efGainAuto.value = gainAuto.value
+  efGainDb.value = String(gainDb.value)
+  efBwKhz.value = String(bwHz.value / 1000)
+  efSquelch.value = String(squelch.value)
+  efVolume.value = String(volume.value)
+  efSampleRate.value = sampleRateHz.value
+  efZoom.value = String(_sdrStore().viewZoom)
+  efZmin.value = String(_sdrStore().viewZmin)
+  efZmax.value = String(_sdrStore().viewZmax)
   efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
@@ -4438,6 +4884,17 @@ function openEditFreqPanel(f: SdrStoredFrequency) {
   efMode.value = f.mode
   efGroupIds.value = (f.group_ids || []).filter((id) => id !== 0)
   efNotes.value = f.notes ?? ''
+  // Seed the settings from the stored values, falling back to the live settings
+  // for anything a legacy row (predating these fields) didn't carry.
+  efGainAuto.value = (f.gain ?? gainDb.value) < 0
+  efGainDb.value = String(f.gain ?? gainDb.value)
+  efBwKhz.value = String((f.bandwidth ?? bwHz.value) / 1000)
+  efSquelch.value = String(f.squelch ?? squelch.value)
+  efVolume.value = String(f.volume ?? volume.value)
+  efSampleRate.value = f.sample_rate ?? sampleRateHz.value
+  efZoom.value = String(f.zoom ?? _sdrStore().viewZoom)
+  efZmin.value = String(f.zmin ?? _sdrStore().viewZmin)
+  efZmax.value = String(f.zmax ?? _sdrStore().viewZmax)
   efErrors.value = {}
   efOpen.value = true
   switchSdrTab('frequency-manager')
@@ -4479,6 +4936,29 @@ function toggleEfGroup(id: number) {
   else efGroupIds.value = efGroupIds.value.filter((i) => i !== id)
 }
 
+// Parse the per-frequency tuning settings from the add/edit form into the API
+// shape. Each value falls back to a sensible default if the field was cleared
+// or non-numeric, so a malformed entry never blocks the save.
+function freqSettingsPayload() {
+  const gain = efGainAuto.value ? -1 : numOr(efGainDb.value, 30)
+  const volume = Math.min(100, Math.max(0, Math.round(numOr(efVolume.value, 80))))
+  return {
+    squelch: numOr(efSquelch.value, -60),
+    gain,
+    bandwidth: Math.round(numOr(efBwKhz.value, 10) * 1000),
+    sample_rate: efSampleRate.value,
+    volume,
+    zoom: numOr(efZoom.value, 1),
+    zmin: numOr(efZmin.value, 0),
+    zmax: numOr(efZmax.value, 0),
+  }
+}
+
+function numOr(raw: string, fallback: number): number {
+  const parsed = parseFloat(raw)
+  return isFinite(parsed) ? parsed : fallback
+}
+
 async function saveFreq() {
   if (!validateFreqForm()) return
   const label = efLabel.value.trim()
@@ -4498,8 +4978,7 @@ async function saveFreq() {
           frequency_hz: hz,
           mode: efMode.value,
           group_ids: efGroupIds.value,
-          squelch: existing?.squelch ?? squelch.value,
-          gain: existing?.gain ?? gainDb.value,
+          ...freqSettingsPayload(),
           /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
           scannable: existing?.scannable ?? true,
           /* v8 ignore stop */
@@ -4514,8 +4993,7 @@ async function saveFreq() {
           label,
           frequency_hz: hz,
           mode: efMode.value,
-          squelch: squelch.value,
-          gain: gainDb.value,
+          ...freqSettingsPayload(),
           scannable: true,
           group_ids: efGroupIds.value,
           notes: efNotes.value,
