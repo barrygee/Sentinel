@@ -280,30 +280,6 @@
                 />
               </svg>
             </button>
-            <!-- Trunk: follow control-channel grants. Shown only when trunk
-                 tracking is enabled in Settings; enabled only once digital
-                 decode is running and a channel map is chosen. -->
-            <button
-              v-if="trunkTrackingEnabled"
-              class="sdr-mode-pill sdr-tune-btn sdr-trunk-btn"
-              :class="{ 'sdr-trunk-btn--active': trunkEnabled }"
-              type="button"
-              :title="trunkEnabled ? 'Stop trunk tracking' : 'Follow trunked system'"
-              :aria-label="trunkEnabled ? 'Stop trunk tracking' : 'Follow trunked system'"
-              :aria-pressed="trunkEnabled"
-              :disabled="!canEnableTrunk && !trunkEnabled"
-              @click="toggleTrunk"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path
-                  d="M6 1.5V10.5M6 1.5L3 4.5M6 1.5L9 4.5M2 8.5h8"
-                  stroke="currentColor"
-                  stroke-width="1.3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -837,6 +813,29 @@
                 <span class="sdr-device-dropdown-arrow"></span>
               </div>
             </div>
+            <!-- Follow the trunked system's control-channel grants. Enabled
+                 only once digital decode is running and a channel map is
+                 chosen (canEnableTrunk). -->
+            <button
+              class="sdr-trunk-follow-btn"
+              :class="{ 'sdr-trunk-follow-btn--active': trunkEnabled }"
+              type="button"
+              :title="trunkEnabled ? 'Stop trunk tracking' : 'Follow trunked system'"
+              :aria-pressed="trunkEnabled"
+              :disabled="!canEnableTrunk && !trunkEnabled"
+              @click="toggleTrunk"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path
+                  d="M6 1.5V10.5M6 1.5L3 4.5M6 1.5L9 4.5M2 8.5h8"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>{{ trunkEnabled ? 'FOLLOWING SYSTEM' : 'FOLLOW SYSTEM' }}</span>
+            </button>
             <p v-if="trunkChannelMaps.length === 0" class="sdr-trunk-hint">
               Add a channel-map CSV to decoder/channel-maps to enable trunking.
             </p>
