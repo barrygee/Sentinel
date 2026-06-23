@@ -334,20 +334,20 @@ describe('SettingsPanel', () => {
       expect(closeSpy).toHaveBeenCalledOnce()
     })
 
-    it('moves focus to the search field when opened on the App section', async () => {
+    it('moves focus to the dialog container (not the search field) when opened on the App section', async () => {
       const store = useSettingsStore()
       const wrapper = mountPanel({ attach: true })
       store.openPanel('app')
       await flushPromises()
-      expect(document.activeElement).toBe(wrapper.find('#settings-search-input').element)
+      expect(document.activeElement).toBe(wrapper.find('#settings-panel').element)
     })
 
-    it('moves focus to the close button when opened on a section without search', async () => {
+    it('moves focus to the dialog container when opened on a section without search', async () => {
       const store = useSettingsStore()
       const wrapper = mountPanel({ attach: true })
       store.openPanel('sdr')
       await flushPromises()
-      expect(document.activeElement).toBe(wrapper.find('.settings-close-btn').element)
+      expect(document.activeElement).toBe(wrapper.find('#settings-panel').element)
     })
 
     it('restores focus to the opening trigger when closed', async () => {
