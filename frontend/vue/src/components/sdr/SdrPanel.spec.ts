@@ -4750,3 +4750,300 @@ describe('SdrPanel — step-dropdown ref teardown', () => {
     expect(() => wrapper.unmount()).not.toThrow()
   })
 })
+
+// =============================================================================
+describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, apply)', () => {
+  // A stored frequency carrying every per-frequency setting, all differing from
+  // the component's live defaults (gain 30 / squelch -30 / vol 80 / sr 2.048M /
+  // bw 10k / view 1,0,0) so each "apply" branch is exercised.
+  const FULL = {
+    gain: 25,
+    squelch: -40,
+    bandwidth: 8000,
+    sample_rate: 1_024_000,
+    volume: 50,
+    zoom: 2,
+    zmin: -80,
+    zmax: -10,
+  }
+
+  async function mountWithFreqs(freqs: Array<Record<string, unknown>>) {
+    fetchState.frequencies = freqs
+    fetchState.groups = [makeGroup()]
+    return mountConnected()
+  }
+
+  async function openAddPanel(wrapper: VueWrapper) {
+    await wrapper.find('#sdr-radio-add-freq').trigger('click')
+    await wrapper.vm.$nextTick()
+    return wrapper.find('#sdr-editfreq-body')
+  }
+
+  function inputByLabel(root: ReturnType<VueWrapper['find']>, label: string): HTMLInputElement {
+    return root.find(`input[aria-label="${label}"]`).element as HTMLInputElement
+  }
+
+  it('collapses RADIO SETTINGS by default, expands on click, seeded from live settings', async () => {
+    const { wrapper } = await mountWithFreqs([])
+    const body = await openAddPanel(wrapper)
+    const section = body.find('#sdr-ef-settings-section')
+    expect(section.exists()).toBe(true)
+    expect(section.isVisible()).toBe(false)
+    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    expect(body.find('#sdr-ef-settings-section').isVisible()).toBe(true)
+    expect(inputByLabel(body, 'RF gain in dB').value).toBe('30')
+    expect(inputByLabel(body, 'Squelch threshold in dBFS').value).toBe('-30')
+    expect(inputByLabel(body, 'Volume percent').value).toBe('80')
+    expect(body.find('.sdr-ef-setting-dropdown .sdr-device-dropdown-text').text()).toBe('2.05 MHz')
+  })
+
+  it('opens the sample-rate dropdown, picks a rate, and supports keyboard + outside-click close', async () => {
+    const { wrapper } = await mountWithFreqs([])
+    const body = await openAddPanel(wrapper)
+    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    const dropdown = body.find('.sdr-ef-setting-dropdown')
+    await dropdown.trigger('click')
+    await wrapper.vm.$nextTick()
+    const items = Array.from(
+      document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+    ) as HTMLElement[]
+    expect(items.length).toBeGreaterThan(0)
+    const unselected = items.find((el) => !el.classList.contains('sdr-device-menu-item--selected'))!
+    const chosenText = unselected.textContent!.trim()
+    unselected.click()
+    await wrapper.vm.$nextTick()
+    expect(body.find('.sdr-ef-setting-dropdown .sdr-device-dropdown-text').text()).toBe(chosenText)
+    // Keyboard: Enter opens, Escape closes.
+    await dropdown.trigger('keydown', { key: 'Enter' })
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    await dropdown.trigger('keydown', { key: 'Escape' })
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    // Space opens, an outside document click closes (onDocumentClick).
+    await dropdown.trigger('keydown', { key: ' ' })
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    document.dispatchEvent(new MouseEvent('click'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    // Clicking an open dropdown toggles it closed.
+    await dropdown.trigger('click')
+    await wrapper.vm.$nextTick()
+    await dropdown.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+  })
+
+  it('toggles AUTO (AGC) in the add form and disables the RF gain input', async () => {
+    const { wrapper } = await mountWithFreqs([])
+    const body = await openAddPanel(wrapper)
+    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    const toggle = body.find('.sdr-ef-toggle')
+    expect(toggle.classes()).not.toContain('is-on')
+    await toggle.trigger('click')
+    expect(toggle.classes()).toContain('is-on')
+    expect(inputByLabel(body, 'RF gain in dB').disabled).toBe(true)
+  })
+
+  it('includes the per-frequency settings in the POST payload', async () => {
+    const { wrapper } = await mountWithFreqs([])
+    const body = await openAddPanel(wrapper)
+    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await wrapper.find('#sdr-ef-label').setValue('My Freq')
+    await wrapper.find('#sdr-ef-freq').setValue('145.500')
+    await body.find('input[aria-label="RF gain in dB"]').setValue('40')
+    await body.find('input[aria-label="Demod bandwidth in kHz"]').setValue('15')
+    await body.find('input[aria-label="Squelch threshold in dBFS"]').setValue('-50')
+    await body.find('input[aria-label="Volume percent"]').setValue('70')
+    await body.find('input[aria-label="Waterfall zoom"]').setValue('3')
+    await body.find('input[aria-label="Waterfall minimum dB"]').setValue('-90')
+    await body.find('input[aria-label="Waterfall maximum dB"]').setValue('-5')
+    const dropdown = body.find('.sdr-ef-setting-dropdown')
+    await dropdown.trigger('click')
+    await wrapper.vm.$nextTick()
+    const item = (
+      Array.from(
+        document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+      ) as HTMLElement[]
+    ).find((el) => el.textContent!.includes('1.54'))!
+    item.click()
+    await wrapper.vm.$nextTick()
+    await wrapper.find('#sdr-ef-save').trigger('click')
+    await flushPromises()
+    const post = fetchCalls.find(
+      (c) => c.url === '/api/sdr/frequencies' && c.opts?.method === 'POST',
+    )!
+    expect(JSON.parse(post.opts!.body as string)).toMatchObject({
+      gain: 40,
+      bandwidth: 15_000,
+      squelch: -50,
+      volume: 70,
+      zoom: 3,
+      zmin: -90,
+      zmax: -5,
+      sample_rate: 1_536_000,
+    })
+  })
+
+  it('falls back to defaults for cleared numeric fields and sends gain -1 with AGC on', async () => {
+    const { wrapper } = await mountWithFreqs([])
+    const body = await openAddPanel(wrapper)
+    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await wrapper.find('#sdr-ef-label').setValue('AGC Freq')
+    await wrapper.find('#sdr-ef-freq').setValue('120.000')
+    await body.find('.sdr-ef-toggle').trigger('click') // AGC on → gain -1
+    await body.find('input[aria-label="Demod bandwidth in kHz"]').setValue('')
+    await body.find('input[aria-label="Squelch threshold in dBFS"]').setValue('')
+    await body.find('input[aria-label="Waterfall zoom"]').setValue('')
+    await wrapper.find('#sdr-ef-save').trigger('click')
+    await flushPromises()
+    const post = fetchCalls
+      .filter((c) => c.url === '/api/sdr/frequencies' && c.opts?.method === 'POST')
+      .pop()!
+    const body_ = JSON.parse(post.opts!.body as string)
+    expect(body_.gain).toBe(-1)
+    expect(body_.bandwidth).toBe(10_000)
+    expect(body_.squelch).toBe(-60)
+    expect(body_.zoom).toBe(1)
+  })
+
+  it('edit form seeds settings from the stored row, and from live settings when absent', async () => {
+    const { wrapper } = await mountWithFreqs([
+      makeFreq({ id: 20, label: 'Full', ...FULL, gain: -1 }),
+      makeFreq({ id: 21, label: 'Bare' }),
+    ])
+    await wrapper.findAll('.sdr-freq-row-edit')[0].trigger('click')
+    await wrapper.vm.$nextTick()
+    const editBody = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
+    await editBody.find('.sdr-ef-settings-toggle').trigger('click')
+    // gain -1 → AGC toggle on; bandwidth 8000 Hz → 8 kHz in the field.
+    expect(editBody.find('.sdr-ef-toggle').classes()).toContain('is-on')
+    expect(inputByLabel(editBody, 'Demod bandwidth in kHz').value).toBe('8')
+    // Re-open on the bare row → fields fall back to the live defaults.
+    await wrapper.findAll('.sdr-freq-row-edit')[0].trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.findAll('.sdr-freq-row-edit')[1].trigger('click')
+    await wrapper.vm.$nextTick()
+    const bareBody = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
+    await bareBody.find('.sdr-ef-settings-toggle').trigger('click')
+    expect(inputByLabel(bareBody, 'RF gain in dB').value).toBe('30')
+  })
+
+  it('edit form: all setting fields, AUTO toggle and sample-rate dropdown feed the PUT payload', async () => {
+    const { wrapper } = await mountWithFreqs([makeFreq({ id: 22, label: 'Edit Me', ...FULL })])
+    await wrapper.findAll('.sdr-freq-row-edit')[0].trigger('click')
+    await wrapper.vm.$nextTick()
+    const editBody = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
+    await editBody.find('.sdr-ef-settings-toggle').trigger('click')
+    // Edit every numeric field (drives each field's v-model in the edit form).
+    await editBody.find('input[aria-label="RF gain in dB"]').setValue('42')
+    await editBody.find('input[aria-label="Demod bandwidth in kHz"]').setValue('20')
+    await editBody.find('input[aria-label="Squelch threshold in dBFS"]').setValue('-55')
+    await editBody.find('input[aria-label="Volume percent"]').setValue('65')
+    await editBody.find('input[aria-label="Waterfall zoom"]').setValue('5')
+    await editBody.find('input[aria-label="Waterfall minimum dB"]').setValue('-70')
+    await editBody.find('input[aria-label="Waterfall maximum dB"]').setValue('-8')
+    await editBody.find('.sdr-ef-toggle').trigger('click') // FULL.gain 25 (off) → on → gain -1
+    const dropdown = editBody.find('.sdr-ef-setting-dropdown')
+    await dropdown.trigger('click')
+    await wrapper.vm.$nextTick()
+    const item = (
+      Array.from(
+        document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+      ) as HTMLElement[]
+    ).find((el) => !el.classList.contains('sdr-device-menu-item--selected'))!
+    item.click()
+    await wrapper.vm.$nextTick()
+    await editBody.find('.sdr-editfreq-save-btn').trigger('click')
+    await flushPromises()
+    const put = fetchCalls.find(
+      (c) => c.url === '/api/sdr/frequencies/22' && c.opts?.method === 'PUT',
+    )!
+    expect(JSON.parse(put.opts!.body as string)).toMatchObject({
+      gain: -1,
+      bandwidth: 20_000,
+      squelch: -55,
+      volume: 65,
+      zoom: 5,
+      zmin: -70,
+      zmax: -8,
+    })
+  })
+
+  // ── applyStoredFreqSettings, exercised through the row Play button ────────────
+  async function playFirst(wrapper: VueWrapper, socket: FakeSocket) {
+    socket.sent.length = 0
+    audioMock.setSquelch.mockClear()
+    audioMock.setBandwidthHz.mockClear()
+    audioMock.setVolume.mockClear()
+    await wrapper.findAll('.sdr-freq-row-play')[0].trigger('click')
+    await flushPromises()
+  }
+
+  it('applies all stored settings on play (manual gain, retune, bandwidth, volume, view)', async () => {
+    const { wrapper, socket } = await mountWithFreqs([makeFreq({ id: 30, ...FULL })])
+    const store = useSdrStore()
+    await playFirst(wrapper, socket)
+    const cmds = socket.sent.map((sent) => JSON.parse(sent))
+    expect(cmds.find((cmd) => cmd.cmd === 'gain')?.gain_db).toBe(25)
+    expect(cmds.find((cmd) => cmd.cmd === 'squelch')?.squelch_dbfs).toBe(-40)
+    expect(cmds.find((cmd) => cmd.cmd === 'sample_rate')?.rate_hz).toBe(1_024_000)
+    expect(audioMock.setSquelch).toHaveBeenCalledWith(-40)
+    expect(audioMock.setBandwidthHz).toHaveBeenCalledWith(8000)
+    expect(audioMock.setVolume).toHaveBeenCalledWith(0.5)
+    expect(store.viewZoom).toBe(2)
+    expect(store.viewZmin).toBe(-80)
+    expect(store.viewZmax).toBe(-10)
+  })
+
+  it('applies AGC (gain -1 → null) and an auto-scaled view on play', async () => {
+    const { wrapper, socket } = await mountWithFreqs([makeFreq({ id: 31, gain: -1, zoom: 4 })])
+    const store = useSdrStore()
+    await playFirst(wrapper, socket)
+    const gainCmd = socket.sent.map((sent) => JSON.parse(sent)).find((cmd) => cmd.cmd === 'gain')
+    expect(gainCmd).toBeTruthy()
+    expect(gainCmd.gain_db).toBeNull()
+    expect(store.viewZoom).toBe(4)
+  })
+
+  it('skips redundant commands when stored settings equal the live ones', async () => {
+    const { wrapper, socket } = await mountWithFreqs([
+      makeFreq({
+        id: 32,
+        gain: 30,
+        squelch: -30,
+        bandwidth: 10_000,
+        sample_rate: 2_048_000,
+        volume: 80,
+        zoom: 1,
+        zmin: 0,
+        zmax: 0,
+      }),
+    ])
+    await playFirst(wrapper, socket)
+    const cmds = socket.sent.map((sent) => JSON.parse(sent)).map((cmd) => cmd.cmd)
+    expect(cmds).not.toContain('gain')
+    expect(cmds).not.toContain('squelch')
+    expect(cmds).not.toContain('sample_rate')
+    expect(audioMock.setSquelch).not.toHaveBeenCalled()
+    expect(audioMock.setBandwidthHz).not.toHaveBeenCalled()
+    expect(audioMock.setVolume).not.toHaveBeenCalled()
+  })
+
+  it('ignores an out-of-range sample rate and falls back to the per-mode bandwidth', async () => {
+    const { wrapper, socket } = await mountWithFreqs([
+      makeFreq({ id: 33, mode: 'AM', sample_rate: 999_999 }),
+    ])
+    await playFirst(wrapper, socket)
+    const cmds = socket.sent.map((sent) => JSON.parse(sent)).map((cmd) => cmd.cmd)
+    expect(cmds).not.toContain('sample_rate')
+  })
+
+  it('the expanded RADIO SETTINGS form has no accessibility violations', async () => {
+    const { wrapper } = await mountWithFreqs([])
+    const body = await openAddPanel(wrapper)
+    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    expect(await axe(body.html(), { rules: { region: { enabled: false } } })).toHaveNoViolations()
+  })
+})

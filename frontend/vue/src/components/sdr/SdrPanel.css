@@ -1430,9 +1430,12 @@
 }
 
 .sdr-editfreq-body.expanded {
-  max-height: 600px;
+  /* Tall enough to fit the RADIO SETTINGS grid plus the label/freq/mode/groups/
+     notes fields without clipping the last rows (overflow is hidden for the
+     expand animation). */
+  max-height: 1600px;
   opacity: 1;
-  padding: 20px 28px 12px;
+  padding: 20px 28px 28px;
 }
 
 .sdr-addfreq-body {
@@ -1477,6 +1480,133 @@
   font-family: inherit;
   line-height: 1.4;
   white-space: pre-wrap;
+}
+
+/* Per-frequency tuning settings (RF gain / bandwidth / squelch / volume /
+   sample rate / waterfall view) in the add & edit frequency forms. Two-column
+   grid of labelled compact inputs. */
+.sdr-ef-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Match the 20px field-to-field rhythm of the form, and a 12px column gap. */
+  gap: 20px 12px;
+}
+
+.sdr-ef-setting {
+  display: flex;
+  flex-direction: column;
+  /* Label spacing comes from .sdr-field-label's margin-bottom (10px), matching
+     the FREQ/LABEL fields above — no extra gap here. */
+  gap: 0;
+  min-width: 0;
+}
+
+.sdr-editfreq-body .sdr-ef-setting-input {
+  width: 100%;
+}
+
+/* SAMPLE RATE custom dropdown: match the 36px height of the sibling inputs (the
+   base device-dropdown is 34px). */
+.sdr-ef-setting .sdr-ef-setting-dropdown {
+  height: 36px;
+}
+
+/* Number inputs: no spinner arrows (Chrome/Safari + Firefox). */
+.sdr-editfreq-body .sdr-ef-setting-input[type='number']::-webkit-outer-spin-button,
+.sdr-editfreq-body .sdr-ef-setting-input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sdr-editfreq-body .sdr-ef-setting-input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* "RADIO SETTINGS" accordion header inside the add/edit form. Self-contained
+   (not the full-bleed freq-manager accordion) so it fits the form's padding. */
+.sdr-ef-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  /* ChevronIcon strokes with currentColor. */
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.sdr-ef-settings-toggle-title {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+/* Gap between the header and the grid when the accordion is expanded. */
+.sdr-ef-settings-toggle + .sdr-ef-settings-grid {
+  margin-top: 4px;
+}
+
+/* Center the toggle vertically against the RF GAIN input beside it: the wrapper
+   matches the input's 36px height so the shorter (18px) toggle sits mid-input. */
+.sdr-ef-toggle-wrap {
+  display: flex;
+  align-items: center;
+  height: 36px;
+}
+
+/* AUTO (AGC) toggle switch — matches the app's settings toggles (pill track,
+   green when on). */
+.sdr-ef-toggle {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.sdr-ef-toggle.is-on {
+  background: rgba(200, 255, 0, 0.2);
+  border-color: rgba(200, 255, 0, 0.6);
+}
+
+.sdr-ef-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  transition:
+    left 0.15s,
+    background 0.15s;
+}
+
+.sdr-ef-toggle.is-on .sdr-ef-toggle-thumb {
+  background: #c8ff00;
+  left: 20px;
+}
+
+/* Single column on the narrowest screens so the inputs stay usable. */
+@media (max-width: 360px) {
+  .sdr-ef-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .sdr-editfreq-body .sdr-panel-input.sdr-input-error,

@@ -171,6 +171,103 @@ class TestFrequenciesCRUD:
         assert body["frequency_hz"] == 93_500_000
         assert body["mode"] == "WFM"
 
+    def test_create_persists_per_frequency_settings(self, client):
+        resp = client.post(
+            "/api/sdr/frequencies",
+            json={
+                "label": "Tower",
+                "frequency_hz": 119_700_000,
+                "mode": "AM",
+                "squelch": -45.0,
+                "gain": 28.0,
+                "bandwidth": 8000,
+                "sample_rate": 1_024_000,
+                "volume": 55,
+                "zoom": 2.5,
+                "zmin": -80.0,
+                "zmax": -10.0,
+            },
+        )
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["squelch"] == -45.0
+        assert body["gain"] == 28.0
+        assert body["bandwidth"] == 8000
+        assert body["sample_rate"] == 1_024_000
+        assert body["volume"] == 55
+        assert body["zoom"] == 2.5
+        assert body["zmin"] == -80.0
+        assert body["zmax"] == -10.0
+
+    def test_create_applies_setting_defaults(self, client):
+        body = client.post(
+            "/api/sdr/frequencies",
+            json={"label": "X", "frequency_hz": 1_000_000, "mode": "AM"},
+        ).json()
+        # bandwidth/sample_rate are nullable (fall back at tune time); the rest
+        # carry concrete defaults.
+        assert body["bandwidth"] is None
+        assert body["sample_rate"] is None
+        assert body["volume"] == 80
+        assert body["zoom"] == 1.0
+        assert body["zmin"] == 0.0
+        assert body["zmax"] == 0.0
+
+    def test_update_per_frequency_settings(self, client):
+        created = client.post(
+            "/api/sdr/frequencies",
+            json={"label": "X", "frequency_hz": 1_000_000, "mode": "AM"},
+        ).json()
+        resp = client.put(
+            f"/api/sdr/frequencies/{created['id']}",
+            json={
+                "label": "X",
+                "frequency_hz": 1_000_000,
+                "mode": "AM",
+                "bandwidth": 12_500,
+                "sample_rate": 1_536_000,
+                "volume": 40,
+                "zoom": 3.0,
+                "zmin": -90.0,
+                "zmax": -5.0,
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["bandwidth"] == 12_500
+        assert body["sample_rate"] == 1_536_000
+        assert body["volume"] == 40
+        assert body["zoom"] == 3.0
+        assert body["zmin"] == -90.0
+        assert body["zmax"] == -5.0
+
+    def test_settings_mirrored_into_config_namespace(self, client):
+        # create_frequency write-throughs into UserSettings (sdr.frequencies); the
+        # mirror must carry the new per-frequency settings, not just label/mode.
+        client.post(
+            "/api/sdr/frequencies",
+            json={
+                "label": "Tower",
+                "frequency_hz": 119_700_000,
+                "mode": "AM",
+                "bandwidth": 8000,
+                "sample_rate": 1_024_000,
+                "volume": 55,
+                "zoom": 2.0,
+                "zmin": -70.0,
+                "zmax": -10.0,
+            },
+        )
+        freqs = client.get("/api/settings/sdr").json()["frequencies"]
+        assert len(freqs) == 1
+        entry = freqs[0]
+        assert entry["bandwidth"] == 8000
+        assert entry["sample_rate"] == 1_024_000
+        assert entry["volume"] == 55
+        assert entry["zoom"] == 2.0
+        assert entry["zmin"] == -70.0
+        assert entry["zmax"] == -10.0
+
     def test_update_unknown_returns_404(self, client):
         resp = client.put(
             "/api/sdr/frequencies/999",

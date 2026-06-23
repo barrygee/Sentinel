@@ -23,6 +23,18 @@ export interface SdrStoredFrequency {
   label: string
   frequency_hz: number
   mode: string
+  // Per-frequency tuning settings, applied when the frequency is clicked or a
+  // scan stops on it. bandwidth/sample_rate may be null (fall back to the live
+  // / per-mode default); the rest carry concrete values.
+  squelch?: number
+  gain?: number
+  bandwidth?: number | null
+  sample_rate?: number | null
+  volume?: number
+  zoom?: number
+  zmin?: number
+  zmax?: number
+  scannable?: boolean
 }
 
 export type SdrMode = 'NFM' | 'WFM' | 'AM' | 'USB' | 'LSB' | 'CW'
