@@ -600,6 +600,45 @@ describe('SdrWaterfall — search & scan overlays', () => {
     expect(wrapper.find('.sdr-wf-scan-overlay-groups').exists()).toBe(true)
     expect(wrapper.findAll('.sdr-scan-group-chip')).toHaveLength(2)
   })
+
+  it('dulls the plots and disables the Zoom/Max/Min sliders while searching', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // A search sweeps while the radio is playing, so the sliders are otherwise
+    // enabled — the sweep is what disables them.
+    store.setPlaying(true)
+    store.searchSweeping = true
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#sdr-waterfall').classes()).toContain('sweeping')
+    const sliders = wrapper.findAll('input[type="range"]')
+    expect(sliders).toHaveLength(3)
+    for (const slider of sliders) {
+      expect((slider.element as HTMLInputElement).disabled).toBe(true)
+    }
+  })
+
+  it('dulls the plots and disables the sliders while group scanning', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setPlaying(true)
+    store.scanSweeping = true
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#sdr-waterfall').classes()).toContain('sweeping')
+    for (const slider of wrapper.findAll('input[type="range"]')) {
+      expect((slider.element as HTMLInputElement).disabled).toBe(true)
+    }
+  })
+
+  it('leaves the plots live and the sliders enabled when not sweeping', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setPlaying(true)
+    store.searchSweeping = false
+    store.scanSweeping = false
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#sdr-waterfall').classes()).not.toContain('sweeping')
+    expect(wrapper.find('.sdr-wf-search-overlay').exists()).toBe(false)
+    for (const slider of wrapper.findAll('input[type="range"]')) {
+      expect((slider.element as HTMLInputElement).disabled).toBe(false)
+    }
+  })
 })
 
 // =============================================================================
