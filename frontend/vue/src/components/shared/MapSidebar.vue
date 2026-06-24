@@ -456,9 +456,12 @@ defineExpose({
   border-radius: 6px;
 }
 
-/* Align footer side-panel button with the vertical rail column */
+/* Align the footer's edge buttons with the vertical rail columns: the
+   side-panel button under the 44px left rail (#map-sidebar-rail), and the
+   settings button under the 44px right rail (#side-menu in Air/Space). */
 #footer {
   padding-left: 0;
+  padding-right: 0;
 }
 
 #footer-left {
@@ -466,6 +469,12 @@ defineExpose({
 }
 
 #footer-left > #map-sidebar-btn {
+  width: 44px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+#footer-right > #settings-btn {
   width: 44px;
   margin: 0;
   flex-shrink: 0;
