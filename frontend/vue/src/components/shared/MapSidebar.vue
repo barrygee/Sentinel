@@ -843,6 +843,15 @@ body[data-domain='sdr'] #map-sidebar {
     width: auto;
     right: 0;
   }
+  /* Air & Space render a 44px right-edge control rail above the sidebar; keep the
+     drawer clear of it so the rail can't cover the drawer's close button.
+     !important: the ≤480 `#map-sidebar { right: 0 }` rule below otherwise wins
+     despite this rule's higher specificity (the bundled sheet repeats the
+     MapSidebar block, so a later same-specificity copy re-asserts right: 0). */
+  body[data-domain='air'] #map-sidebar,
+  body[data-domain='space'] #map-sidebar {
+    right: 44px !important;
+  }
   .msb-mobile-close {
     display: flex;
     align-items: center;

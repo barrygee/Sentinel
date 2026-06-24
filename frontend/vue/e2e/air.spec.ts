@@ -23,35 +23,38 @@ test.describe('Air domain', () => {
     await expect(mapRegion).toBeAttached()
   })
 
-  test('AirSideMenu expand/collapse toggle changes aria-label', async ({ page }) => {
+  test('AirSideMenu MAP LAYERS accordion expands on click', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
-    // Initially collapsed — button says "Expand menu"
-    const toggleButton = page.getByRole('button', { name: /expand menu/i })
-    await expect(toggleButton).toBeVisible()
+    // The rail no longer expands/collapses; overlays live in a MAP LAYERS
+    // accordion that toggles on click (aria-expanded reflects the state).
+    const layersButton = page.getByRole('button', { name: /map layers/i })
+    await expect(layersButton).toBeVisible()
+    await expect(layersButton).toHaveAttribute('aria-expanded', 'false')
 
-    // Click to expand
-    await toggleButton.click()
+    await layersButton.click()
+    await expect(layersButton).toHaveAttribute('aria-expanded', 'true')
+    // A grouped overlay toggle (e.g. Aircraft) is now revealed.
+    await expect(page.getByRole('button', { name: /^aircraft$/i })).toBeVisible()
 
-    // Now it should say "Collapse menu"
-    await expect(page.getByRole('button', { name: /collapse menu/i })).toBeVisible()
-
-    // Click to collapse again
-    await page.getByRole('button', { name: /collapse menu/i }).click()
-    await expect(page.getByRole('button', { name: /expand menu/i })).toBeVisible()
+    await layersButton.click()
+    await expect(layersButton).toHaveAttribute('aria-expanded', 'false')
   })
 
-  test('AirSideMenu has overlay filter buttons for civil and military', async ({ page }) => {
+  test('AirSideMenu FILTER accordion exposes civil and military aircraft modes', async ({
+    page,
+  }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
-    // The overlay filter buttons (CIVIL / MILITARY / ALL) are always visible in
-    // the side menu, unlike the sm-expanded-only "Planes" toggle which only shows
-    // when the menu is expanded. These three filter buttons gate the track display.
-    await expect(page.getByRole('button', { name: /^civil$/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^military$/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^all$/i })).toBeVisible()
+    // The aircraft-filter modes live inside the FILTER accordion, revealed when
+    // the FILTER icon is clicked.
+    await page.getByRole('button', { name: /^filter aircraft$/i }).click()
+
+    await expect(page.getByRole('button', { name: /civil aircraft only/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /military aircraft only/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /show all aircraft/i })).toBeVisible()
   })
 
   test('filter combobox is rendered in the SEARCH sidebar pane', async ({ page }) => {
