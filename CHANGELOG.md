@@ -1113,3 +1113,4 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Align settings button with side-menu icon rail (#139)
 - Make scanner play button icon-only and match saved-ranges size (#140)
 - Dark-grey search inputs matching the SEARCH tab height (#141)
+- Match side-panel tab icon colours to air and space rails (#142)
