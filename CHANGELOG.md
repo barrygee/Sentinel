@@ -1110,3 +1110,4 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove border from settings close button
 - Darken contour scan-overlay background to near-black
 - Remove light border below header bar
+- Align settings button with side-menu icon rail (#139)
