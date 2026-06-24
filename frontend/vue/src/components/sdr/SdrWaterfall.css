@@ -49,8 +49,14 @@
  * background and fail WCAG 2.2 AA contrast (the live a11y audit flags it). Only
  * the text-free plot areas and the colour-bearing slider track/thumb are
  * dulled. */
+/* The same dulled, non-interactive treatment also applies while a search/group
+ * scan is sweeping (`.sweeping`): the spectrum + waterfall freeze, so they drop
+ * to the disabled dark state with the search/scan info box floating above —
+ * rather than being hidden behind an opaque contour overlay. */
 #sdr-waterfall.not-playing .sdr-wf-spectrum,
-#sdr-waterfall.not-playing .sdr-wf-raster {
+#sdr-waterfall.not-playing .sdr-wf-raster,
+#sdr-waterfall.sweeping .sdr-wf-spectrum,
+#sdr-waterfall.sweeping .sdr-wf-raster {
   opacity: 0.35;
   filter: grayscale(0.6);
   pointer-events: none;
@@ -392,6 +398,10 @@
   cursor: ew-resize;
 }
 
+/* During a sweep the spectrum/waterfall stay visible (dulled to the disabled
+ * dark state via the `.sweeping` rule above), so this overlay is transparent —
+ * it only centres the info box (its own `.sdr-wf-search-overlay-stack` carries
+ * the opaque black panel). No background fill or contour image here. */
 .sdr-wf-search-overlay {
   position: absolute;
   inset: 0;
@@ -400,21 +410,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #070d1f;
   overflow: hidden;
-}
-
-.sdr-wf-search-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url('/assets/sentinel-contour-background.svg');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 100% 100%;
-  filter: blur(0.6px);
-  pointer-events: none;
-  z-index: 0;
 }
 
 .sdr-wf-search-overlay-inner {
