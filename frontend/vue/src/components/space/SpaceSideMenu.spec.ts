@@ -61,25 +61,38 @@ beforeEach(() => {
 })
 
 describe('SpaceSideMenu rail', () => {
-  it('renders every control as an always-visible icon button with a tooltip', () => {
+  it('renders the rail controls and groups the overlays into the MAP LAYERS accordion', () => {
     const wrapper = mountMenu(makeMapProxy(makeControls()))
     expect(wrapper.find('#space-side-menu').exists()).toBe(true)
     // No expand/collapse toggle on the rail.
     expect(wrapper.find('#space-side-menu-toggle').exists()).toBe(false)
-    for (const label of [
-      'Zoom in',
-      'Zoom out',
-      'Go to my location',
-      'GROUND TRACK',
-      'FOOTPRINT',
-      'DAY / NIGHT',
-      'LOCATIONS',
-    ]) {
+    // Top-level rail buttons.
+    for (const label of ['Zoom in', 'Zoom out', 'Go to my location', 'MAP LAYERS']) {
       const button = wrapper.find(`button[data-tooltip="${label}"]`)
       expect(button.exists()).toBe(true)
-      // The label survives only as the accessible name + hover tooltip.
       expect(button.attributes('aria-label')).toBeTruthy()
     }
+    // The satellite overlays live inside the MAP LAYERS accordion panel.
+    for (const label of ['GROUND TRACK', 'FOOTPRINT', 'DAY / NIGHT', 'LOCATIONS']) {
+      const subButton = wrapper.find(`#space-layers-panel button[data-tooltip="${label}"]`)
+      expect(subButton.exists()).toBe(true)
+      expect(subButton.attributes('aria-label')).toBeTruthy()
+    }
+  })
+
+  it('expands the MAP LAYERS accordion on click and highlights the button while open', async () => {
+    const wrapper = mountMenu(makeMapProxy(makeControls()))
+    const button = wrapper.find('#space-layers-btn')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(button.classes()).not.toContain('active')
+
+    await button.trigger('click')
+    expect(button.attributes('aria-expanded')).toBe('true')
+    expect(button.classes()).toContain('active')
+
+    await button.trigger('click')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(button.classes()).not.toContain('active')
   })
 })
 

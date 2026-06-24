@@ -41,88 +41,20 @@
       </svg>
     </button>
 
+    <!-- MAP LAYERS group: a click-to-expand accordion of the satellite overlays
+         (ground track, footprint, day/night, place names). -->
     <button
+      id="space-layers-btn"
       class="sm-btn"
-      data-tooltip="GROUND TRACK"
-      aria-label="Ground track"
-      :class="{ active: trackActive }"
-      @click="toggleTrack"
+      :class="{ active: layersAccordionOpen }"
+      data-tooltip="MAP LAYERS"
+      aria-label="Map layers"
+      aria-controls="space-layers-panel"
+      :aria-expanded="layersAccordionOpen"
+      @click="toggleLayersAccordion"
     >
       <svg
-        width="18"
-        height="16"
-        viewBox="0 0 24 16"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-dasharray="3,2"
-          fill="none"
-        />
-      </svg>
-    </button>
-    <button
-      class="sm-btn"
-      data-tooltip="FOOTPRINT"
-      aria-label="Footprint"
-      :class="{ active: footprintActive }"
-      @click="toggleFootprint"
-    >
-      <svg
-        width="18"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <circle
-          cx="12"
-          cy="12"
-          r="9"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-dasharray="3,2"
-          fill="none"
-        />
-        <circle cx="12" cy="12" r="2" fill="currentColor" />
-      </svg>
-    </button>
-
-    <button
-      class="sm-btn"
-      data-tooltip="DAY / NIGHT"
-      aria-label="Day / night"
-      :class="{ active: daynightActive }"
-      @click="toggleDaynight"
-    >
-      <svg
-        width="15"
-        height="16"
-        viewBox="0 0 20 22"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M15 2C10 2 5 6.5 5 12s5 10 10 10c-6 0-11-4.5-11-10S9 2 15 2z"
-          fill="currentColor"
-        />
-      </svg>
-    </button>
-    <button
-      class="sm-btn"
-      data-tooltip="LOCATIONS"
-      aria-label="Locations"
-      :class="{ active: namesActive }"
-      @click="toggleNames"
-    >
-      <svg
-        width="15"
+        width="16"
         height="16"
         viewBox="0 0 24 24"
         fill="none"
@@ -130,15 +62,129 @@
         aria-hidden="true"
       >
         <path
-          d="M12 22C12 22 19 14 19 9A7 7 0 1 0 5 9C5 14 12 22 12 22Z"
+          d="M12 3 L21 8 L12 13 L3 8 Z"
           stroke="currentColor"
           stroke-width="1.6"
           stroke-linejoin="round"
           fill="none"
         />
-        <circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none" />
+        <path d="M3 12 L12 17 L21 12" stroke="currentColor" stroke-width="1.6" fill="none" />
+        <path d="M3 16 L12 21 L21 16" stroke="currentColor" stroke-width="1.6" fill="none" />
       </svg>
     </button>
+
+    <div v-show="layersAccordionOpen" id="space-layers-panel" class="sm-accordion-panel">
+      <button
+        class="sm-btn sm-sub-btn"
+        data-tooltip="GROUND TRACK"
+        aria-label="Ground track"
+        :class="{ active: trackActive }"
+        @click="toggleTrack"
+      >
+        <svg
+          width="18"
+          height="16"
+          viewBox="0 0 24 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-dasharray="3,2"
+            fill="none"
+          />
+        </svg>
+      </button>
+      <button
+        class="sm-btn sm-sub-btn"
+        data-tooltip="FOOTPRINT"
+        aria-label="Footprint"
+        :class="{ active: footprintActive }"
+        @click="toggleFootprint"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <!-- Satellite beaming a coverage cone down to its ground footprint. -->
+          <circle cx="12" cy="3.5" r="2" fill="currentColor" />
+          <path
+            d="M10.5 5 L5 15.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <path
+            d="M13.5 5 L19 15.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <ellipse
+            cx="12"
+            cy="17"
+            rx="7.5"
+            ry="2.8"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-dasharray="3,2"
+            fill="none"
+          />
+        </svg>
+      </button>
+      <button
+        class="sm-btn sm-sub-btn"
+        data-tooltip="DAY / NIGHT"
+        aria-label="Day / night"
+        :class="{ active: daynightActive }"
+        @click="toggleDaynight"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <!-- Half-lit globe — the day/night terminator. -->
+          <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 2.5 A9.5 9.5 0 0 1 12 21.5 Z" fill="currentColor" />
+        </svg>
+      </button>
+      <button
+        class="sm-btn sm-sub-btn"
+        data-tooltip="LOCATIONS"
+        aria-label="Locations"
+        :class="{ active: namesActive }"
+        @click="toggleNames"
+      >
+        <svg
+          width="15"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 22.5 C12 22.5 20 13.5 20 8.5 A8 8 0 1 0 4 8.5 C4 13.5 12 22.5 12 22.5Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+            fill="none"
+          />
+          <circle cx="12" cy="8.5" r="2.6" stroke="currentColor" stroke-width="1.8" fill="none" />
+        </svg>
+      </button>
+    </div>
   </nav>
 </template>
 
@@ -146,6 +192,7 @@
 import { computed } from 'vue'
 import { useSpaceStore } from '@/stores/space'
 import { useUserLocation } from '@/composables/useUserLocation'
+import { useDisclosure } from '@/composables/useDisclosure'
 import type SpaceMap from './SpaceMap.vue'
 
 // markRaw proxy from SpaceView — .current is non-reactive, preventing re-renders during teardown
@@ -166,6 +213,10 @@ const trackActive = computed(() => spaceStore.overlayStates.groundTrack)
 const footprintActive = computed(() => spaceStore.overlayStates.footprint)
 const daynightActive = computed(() => spaceStore.overlayStates.daynight)
 const namesActive = computed(() => spaceStore.overlayStates.names)
+
+// The satellite overlays expand from a single MAP LAYERS icon accordion; the
+// group button is highlighted (green) while its panel is open.
+const { open: layersAccordionOpen, toggle: toggleLayersAccordion } = useDisclosure()
 
 function goToLocation(): void {
   // Trigger location fly — MapSidebar will dispatch an event or the satelliteControl handles it
@@ -249,6 +300,20 @@ function toggleNames(): void {
   display: block;
   height: 19px;
   width: auto;
+}
+
+/* MAP LAYERS accordion: sub-items stack vertically on a grey panel (the side
+   panel's grey), pushing nothing below since it's the last group. */
+#space-side-menu .sm-accordion-panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--color-border);
+}
+
+/* Sub-items sit on the grey panel, so their hover needs a stronger background. */
+#space-side-menu .sm-sub-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Hover tooltip — opens to the left of the right-edge rail. */

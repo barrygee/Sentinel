@@ -274,7 +274,7 @@
       id="sm-layers-btn"
       class="sm-btn"
       :class="{ active: layersAccordionOpen }"
-      data-tooltip="LAYERS"
+      data-tooltip="MAP LAYERS"
       aria-label="Map layers"
       aria-controls="layers-panel"
       :aria-expanded="layersAccordionOpen"

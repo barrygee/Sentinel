@@ -119,7 +119,7 @@ describe('AirSideMenu', () => {
         'A2A REFUELING',
         'AWACS',
         '3D VIEW',
-        'LAYERS',
+        'MAP LAYERS',
         'FILTER',
       ]) {
         const button = wrapper.find(tip(label))
@@ -333,7 +333,7 @@ describe('AirSideMenu', () => {
         'A2A REFUELING',
         'AWACS',
         '3D VIEW',
-        'LAYERS',
+        'MAP LAYERS',
         'FILTER',
         'TILT UP',
         'ROTATE LEFT',
