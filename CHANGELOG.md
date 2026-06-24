@@ -258,6 +258,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add husky + lint-staged pre-commit gate
 - Ignore test-results and allow npm verify commands
 - Pin Node/npm toolchain to CI to stop lockfile drift (#124)
+- Update frequency preset defaults (#138)
 
 ### Other
 
