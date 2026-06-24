@@ -1111,3 +1111,4 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Darken contour scan-overlay background to near-black
 - Remove light border below header bar
 - Align settings button with side-menu icon rail (#139)
+- Make scanner play button icon-only and match saved-ranges size (#140)
