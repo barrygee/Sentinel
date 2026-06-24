@@ -553,7 +553,6 @@
                 :title="scanActive ? 'Stop scan' : 'Start scan'"
                 @click="onScanPrimaryClick"
               >
-                <span class="sdr-search-adhoc-play-label">{{ scanActive ? 'Stop' : 'Scan' }}</span>
                 <svg
                   v-if="scanActive"
                   width="10"

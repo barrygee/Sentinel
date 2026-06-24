@@ -955,6 +955,17 @@ describe('SdrPanel — scanner', () => {
     expect(store.scanGroupNames).toEqual(['All'])
   })
 
+  it('renders the primary scan button icon-only, without a SCAN/STOP text label', async () => {
+    const { wrapper } = await mountScannable()
+    const scanBtn = wrapper.find('.sdr-scan-btns-row--left .sdr-search-adhoc-play')
+    expect(scanBtn.exists()).toBe(true)
+    // The button shows only the play/stop SVG — no text label (matching the
+    // search-section button). Guards against the removed "Scan"/"Stop" label.
+    expect(scanBtn.find('.sdr-search-adhoc-play-label').exists()).toBe(false)
+    expect(scanBtn.text()).toBe('')
+    expect(scanBtn.find('svg').exists()).toBe(true)
+  })
+
   it('starts and stops the scanner from the primary button', async () => {
     const { wrapper, socket } = await mountScannable()
     const scanBtn = wrapper.find('.sdr-search-adhoc-play')
