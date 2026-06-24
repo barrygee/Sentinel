@@ -1015,6 +1015,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show decoder output newest-last with matching header styling (#117)
 - Feat/sdr per frequency settings (#132)
 - Feat/sdr spectrum known freq layout (#134)
+- Feat/map side rail icons (#136)
 
 ### Refactoring
 
