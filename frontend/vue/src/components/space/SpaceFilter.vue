@@ -1253,10 +1253,26 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 48px;
+  /* Match the height of the SEARCH rail tab's green active background (.msb-rail-btn). */
+  height: 40px;
   padding: 0 20px 0 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #101318;
   box-sizing: border-box;
+  transition: background 0.12s;
+}
+
+/* Keyboard-focus affordance for the search box. The global a11y green focus ring
+   (assets/a11y.css :focus-visible) is removed on the input below; lightening the
+   filled dark-grey row on focus keeps a visible, non-green focus indicator
+   (WCAG 2.4.7) for keyboard and mouse alike. */
+#space-filter-input-wrap:focus-within {
+  background: #171a21;
+}
+
+/* Drop the green outline when the input is focused/clicked — the row's
+   background change is the focus indicator instead. */
+#space-filter-input:focus-visible {
+  outline: none !important;
 }
 
 #space-filter-icon {
