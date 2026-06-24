@@ -111,6 +111,28 @@ describe('useSdrAudio', () => {
       expect(lastCtx).toBe(firstCtx)
     })
 
+    it('coalesces concurrent init calls so the worklet module is added once', async () => {
+      // Gate addModule so the second initAudio arrives while the first is still
+      // in flight — without coalescing this would register the processor twice.
+      let resolveAddModule: () => void = () => {}
+      const gate = new Promise<void>((resolve) => {
+        resolveAddModule = resolve
+      })
+      class GatedCtx extends FakeAudioContext {
+        audioWorklet = { addModule: vi.fn(() => gate) }
+      }
+      vi.stubGlobal('AudioContext', GatedCtx)
+
+      const audio = await loadAudio()
+      const first = audio.initAudio()
+      const second = audio.initAudio()
+      resolveAddModule()
+      await Promise.all([first, second])
+
+      expect(lastCtx?.audioWorklet.addModule).toHaveBeenCalledTimes(1)
+      expect(audio.isReady()).toBe(true)
+    })
+
     it('adopts a pre-created early AudioContext', async () => {
       const early = new FakeAudioContext()
       ;(window as unknown as { _sdrEarlyCtx?: unknown })._sdrEarlyCtx = early
