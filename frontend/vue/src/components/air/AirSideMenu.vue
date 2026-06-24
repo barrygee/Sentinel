@@ -95,7 +95,7 @@
         class="sm-btn sm-sub-btn"
         :class="{ active: isFilterModeActive('all') }"
         data-mode="all"
-        data-tooltip="ALL"
+        data-tooltip="ALL AIRCRAFT"
         aria-label="Show all aircraft"
         @click="setFilterMode('all')"
       >
@@ -107,24 +107,17 @@
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
         >
-          <rect x="4" y="4" width="6.5" height="6.5" stroke="currentColor" stroke-width="1.5" />
-          <rect x="13.5" y="4" width="6.5" height="6.5" stroke="currentColor" stroke-width="1.5" />
-          <rect x="4" y="13.5" width="6.5" height="6.5" stroke="currentColor" stroke-width="1.5" />
-          <rect
-            x="13.5"
-            y="13.5"
-            width="6.5"
-            height="6.5"
-            stroke="currentColor"
-            stroke-width="1.5"
-          />
+          <rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+          <rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+          <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+          <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
         </svg>
       </button>
       <button
         class="sm-btn sm-sub-btn"
         :class="{ active: isFilterModeActive('civil') }"
         data-mode="civil"
-        data-tooltip="CIVIL"
+        data-tooltip="CIVIL AIRCRAFT"
         aria-label="Civil aircraft only"
         @click="setFilterMode('civil')"
       >
@@ -146,7 +139,7 @@
         class="sm-btn sm-sub-btn"
         :class="{ active: isFilterModeActive('mil') }"
         data-mode="mil"
-        data-tooltip="MILITARY"
+        data-tooltip="MILITARY AIRCRAFT"
         aria-label="Military aircraft only"
         @click="setFilterMode('mil')"
       >
@@ -200,17 +193,21 @@
       @click="mapRef.value?.getAara()?.toggle()"
     >
       <svg
-        width="17"
+        width="14"
         height="16"
         viewBox="0 0 24 24"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <line x1="2" y1="6" x2="14" y2="6" stroke="currentColor" stroke-width="1.6" />
-        <line x1="9" y1="6" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" />
-        <line x1="12" y1="18" x2="22" y2="18" stroke="currentColor" stroke-width="1.6" />
-        <line x1="17" y1="13.5" x2="17" y2="18" stroke="currentColor" stroke-width="1.6" />
+        <!-- Fuel droplet — the air-to-air refuelling track. -->
+        <path
+          d="M12 2 C7 9 5 12 5 15 a7 7 0 1 0 14 0 c0 -3 -2 -6 -7 -13 z"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linejoin="round"
+          fill="none"
+        />
       </svg>
     </button>
 
@@ -223,16 +220,23 @@
       @click="mapRef.value?.getAwacs()?.toggle()"
     >
       <svg
-        width="17"
+        width="16"
         height="16"
         viewBox="0 0 24 24"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <ellipse cx="12" cy="8" rx="8" ry="3" stroke="currentColor" stroke-width="1.6" />
-        <line x1="12" y1="8" x2="12" y2="20" stroke="currentColor" stroke-width="1.6" />
-        <line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="1.6" />
+        <!-- Mirrors the AWACS map overlay: a circle with a semi-transparent fill. -->
+        <circle
+          cx="12"
+          cy="12"
+          r="8"
+          fill="currentColor"
+          fill-opacity="0.2"
+          stroke="currentColor"
+          stroke-width="1.6"
+        />
       </svg>
     </button>
 
@@ -301,8 +305,8 @@
         class="sm-btn sm-sub-btn"
         :class="{ active: airStore.overlayStates.adsb }"
         data-loc="planes"
-        data-tooltip="PLANES"
-        aria-label="Planes"
+        data-tooltip="AIRCRAFT"
+        aria-label="Aircraft"
         @click="togglePlanes"
       >
         <svg
@@ -415,15 +419,39 @@
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
         >
+          <!-- Control tower — the airport facility. Sized to fill the viewBox so
+               it matches the visual weight of the other sub-menu icons. -->
           <path
-            d="M9 21 V8 L12 5 L15 8 V21"
+            d="M6 13 L18 13 L16 7 L8 7 Z"
             stroke="currentColor"
             stroke-width="1.6"
             stroke-linejoin="round"
             fill="none"
           />
-          <line x1="6" y1="21" x2="18" y2="21" stroke="currentColor" stroke-width="1.6" />
-          <path d="M12 5 V2 L16 3.5 L12 5Z" fill="currentColor" />
+          <path
+            d="M10 13 L9 21.5 M14 13 L15 21.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <line
+            x1="4.5"
+            y1="21.5"
+            x2="19.5"
+            y2="21.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <line
+            x1="12"
+            y1="7"
+            x2="12"
+            y2="2.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
         </svg>
       </button>
       <button

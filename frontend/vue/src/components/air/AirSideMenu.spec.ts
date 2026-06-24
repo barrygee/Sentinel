@@ -170,7 +170,7 @@ describe('AirSideMenu', () => {
     })
 
     it('toggles planes and syncs the label control', async () => {
-      await wrapper.find(tip('PLANES')).trigger('click')
+      await wrapper.find(tip('AIRCRAFT')).trigger('click')
       expect(controls.adsb.toggle).toHaveBeenCalled()
       expect(controls.labels.syncToAdsb).toHaveBeenCalledWith(true)
     })
@@ -178,7 +178,7 @@ describe('AirSideMenu', () => {
     it('toggles planes without throwing when no label control is present', async () => {
       const localControls = makeControls()
       const localWrapper = mountMenu({ ...makeAirMap(localControls), getAdsbLabels: () => null })
-      await localWrapper.find(tip('PLANES')).trigger('click')
+      await localWrapper.find(tip('AIRCRAFT')).trigger('click')
       expect(localControls.adsb.toggle).toHaveBeenCalled()
       expect(localControls.labels.syncToAdsb).not.toHaveBeenCalled()
     })
