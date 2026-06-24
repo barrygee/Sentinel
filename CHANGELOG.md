@@ -90,6 +90,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Gate trunk tracking behind a settings toggle (#122)
 - Restyle known-frequency labels to dot + label pill (#126)
 - Relocate trunk follow button into TRUNK SYSTEM accordion (#131)
+- Disable zoom/max/min sliders while the radio is stopped (#143)
 
 ### Bug Fixes
 
