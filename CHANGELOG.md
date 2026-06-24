@@ -1112,3 +1112,4 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove light border below header bar
 - Align settings button with side-menu icon rail (#139)
 - Make scanner play button icon-only and match saved-ranges size (#140)
+- Dark-grey search inputs matching the SEARCH tab height (#141)
