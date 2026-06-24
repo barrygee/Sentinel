@@ -606,6 +606,8 @@ describe('SdrWaterfall — search & scan overlays', () => {
 describe('SdrWaterfall — sliders (Zoom / Max / Min)', () => {
   it('moving the Max slider applies a new dB range to both plots and persists it', async () => {
     const { wrapper, store } = mountWaterfall()
+    store.setPlaying(true) // sliders are disabled until the radio is playing
+    await wrapper.vm.$nextTick()
     const setView = vi.spyOn(store, 'setViewSettings')
     const maxSlider = wrapper.findAll('input[type="range"]')[1]
     await maxSlider.setValue(40) // zmaxSlider stores magnitude → zmax = -40
@@ -617,7 +619,9 @@ describe('SdrWaterfall — sliders (Zoom / Max / Min)', () => {
   })
 
   it('clamps Min when raised past Max (leaves a 1 dB gap)', async () => {
-    const { wrapper } = mountWaterfall()
+    const { wrapper, store } = mountWaterfall()
+    store.setPlaying(true) // sliders are disabled until the radio is playing
+    await wrapper.vm.$nextTick()
     // Lower Max to -80 first, then raise Min to -20 so the Min endpoint crosses
     // above Max → clamp to Max-1 = -81.
     await wrapper.findAll('input[type="range"]')[1].setValue(80) // zmax = -80
@@ -628,7 +632,9 @@ describe('SdrWaterfall — sliders (Zoom / Max / Min)', () => {
   })
 
   it('clamps Max when lowered below Min', async () => {
-    const { wrapper } = mountWaterfall()
+    const { wrapper, store } = mountWaterfall()
+    store.setPlaying(true) // sliders are disabled until the radio is playing
+    await wrapper.vm.$nextTick()
     // Raise Min to -20 first, then lower Max to -30 so Max crosses below Min →
     // clamp to Min+1 = -19.
     await wrapper.findAll('input[type="range"]')[2].setValue(20) // zmin = -20
@@ -636,6 +642,29 @@ describe('SdrWaterfall — sliders (Zoom / Max / Min)', () => {
     await wrapper.vm.$nextTick()
     const maxAfter = (wrapper.findAll('input[type="range"]')[1].element as HTMLInputElement).value
     expect(maxAfter).toBe('19') // zmax clamped to -19 → magnitude 19
+  })
+
+  it('disables the Zoom/Max/Min sliders until the radio is playing, then re-enables them', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // Radio stopped at mount → all three sliders share the dulled/disabled state.
+    const disabledAtMount = wrapper
+      .findAll('input[type="range"]')
+      .map((slider) => (slider.element as HTMLInputElement).disabled)
+    expect(disabledAtMount).toEqual([true, true, true])
+
+    store.setPlaying(true)
+    await wrapper.vm.$nextTick()
+    const enabledWhilePlaying = wrapper
+      .findAll('input[type="range"]')
+      .map((slider) => (slider.element as HTMLInputElement).disabled)
+    expect(enabledWhilePlaying).toEqual([false, false, false])
+
+    store.setPlaying(false)
+    await wrapper.vm.$nextTick()
+    const disabledAfterStop = wrapper
+      .findAll('input[type="range"]')
+      .map((slider) => (slider.element as HTMLInputElement).disabled)
+    expect(disabledAfterStop).toEqual([true, true, true])
   })
 })
 
@@ -1240,8 +1269,11 @@ describe('SdrWaterfall — stop/play reset', () => {
 // =============================================================================
 describe('SdrWaterfall — zoom / frequency / full-update watchers', () => {
   it('applyZoom takes the no-op path when zoom changes with no span yet', async () => {
-    const { wrapper } = mountWaterfall()
-    // No frame → span is 0; moving zoom hits the hi<=lo early return.
+    const { wrapper, store } = mountWaterfall()
+    // Playing enables the slider, but with no frame the span is still 0, so
+    // moving zoom hits the hi<=lo early return.
+    store.setPlaying(true)
+    await wrapper.vm.$nextTick()
     await wrapper.findAll('input[type="range"]')[0].setValue(5)
     expect(specPlot().calls.unzoom).toBeUndefined()
   })
