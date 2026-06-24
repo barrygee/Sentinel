@@ -1344,7 +1344,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--color-accent);
+  color: #fff;
   padding: 22px 20px 12px 24px;
   text-transform: uppercase;
   text-align: left;

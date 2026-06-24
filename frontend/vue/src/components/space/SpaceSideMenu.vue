@@ -1,195 +1,198 @@
 <template>
-  <div id="space-side-menu" :class="{ expanded }">
-    <!-- Group 1: expand/collapse toggle -->
-    <div id="ssm-group-toggle" class="sm-group">
-      <button
-        id="space-side-menu-toggle"
-        :data-tooltip="expanded ? 'COLLAPSE MENU' : 'EXPAND MENU'"
-        :aria-label="expanded ? 'Collapse menu' : 'Expand menu'"
-        @click="expanded = !expanded"
+  <!-- Fixed icon rail pinned to the right edge, mirroring the left #map-sidebar-rail.
+       Every control is always visible as an icon; the full label is the hover tooltip. -->
+  <nav id="space-side-menu" aria-label="Space map controls">
+    <button
+      class="sm-btn sm-glyph"
+      title="Zoom in"
+      aria-label="Zoom in"
+      data-tooltip="Zoom in"
+      @click="mapRef.value?.getMap()?.zoomIn()"
+    >
+      +
+    </button>
+    <button
+      class="sm-btn sm-glyph"
+      title="Zoom out"
+      aria-label="Zoom out"
+      data-tooltip="Zoom out"
+      @click="mapRef.value?.getMap()?.zoomOut()"
+    >
+      −
+    </button>
+    <button
+      class="sm-btn"
+      title="Go to my location"
+      aria-label="Go to my location"
+      data-tooltip="Go to my location"
+      :class="{ active: locActive }"
+      @click="goToLocation"
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 20 20"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
       >
-        {{ expanded ? '›' : '‹' }}
-      </button>
-    </div>
+        <circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8" />
+        <circle cx="10" cy="10" r="2" fill="white" />
+      </svg>
+    </button>
 
-    <!-- Group 2: zoom / go-to-location nav -->
-    <div id="ssm-group-nav" class="sm-group">
-      <button
-        class="sm-nav-btn"
-        title="Zoom in"
-        aria-label="Zoom in"
-        data-tooltip="Zoom in"
-        @click="mapRef.value?.getMap()?.zoomIn()"
+    <!-- MAP LAYERS group: a click-to-expand accordion of the satellite overlays
+         (ground track, footprint, day/night, place names). -->
+    <button
+      id="space-layers-btn"
+      class="sm-btn"
+      :class="{ active: layersAccordionOpen }"
+      data-tooltip="MAP LAYERS"
+      aria-label="Map layers"
+      aria-controls="space-layers-panel"
+      :aria-expanded="layersAccordionOpen"
+      @click="toggleLayersAccordion"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
       >
-        +
-      </button>
-      <button
-        class="sm-nav-btn"
-        title="Zoom out"
-        aria-label="Zoom out"
-        data-tooltip="Zoom out"
-        @click="mapRef.value?.getMap()?.zoomOut()"
-      >
-        −
-      </button>
-      <button
-        class="sm-nav-btn"
-        title="Go to my location"
-        aria-label="Go to my location"
-        data-tooltip="Go to my location"
-        :class="{ active: locActive }"
-        @click="goToLocation"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 20 20"
+        <path
+          d="M12 3 L21 8 L12 13 L3 8 Z"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linejoin="round"
           fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8" />
-          <circle cx="10" cy="10" r="2" fill="white" />
-        </svg>
-      </button>
-    </div>
+        />
+        <path d="M3 12 L12 17 L21 12" stroke="currentColor" stroke-width="1.6" fill="none" />
+        <path d="M3 16 L12 21 L21 16" stroke="currentColor" stroke-width="1.6" fill="none" />
+      </svg>
+    </button>
 
-    <!-- Group 3: ground track + footprint (expanded only) -->
-    <div id="ssm-group-iss" class="sm-group">
+    <div v-show="layersAccordionOpen" id="space-layers-panel" class="sm-accordion-panel">
       <button
-        class="sm-btn"
+        class="sm-btn sm-sub-btn"
         data-tooltip="GROUND TRACK"
+        aria-label="Ground track"
         :class="{ active: trackActive }"
         @click="toggleTrack"
       >
-        <span class="sm-icon">
-          <svg
-            width="16"
-            height="14"
-            viewBox="0 0 24 16"
+        <svg
+          width="18"
+          height="16"
+          viewBox="0 0 24 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-dasharray="3,2"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
-              stroke="#ffffff"
-              stroke-width="2"
-              stroke-dasharray="3,2"
-              fill="none"
-            />
-            <path
-              d="M2 14 C6 10, 10 6, 14 6 S20 8 22 4"
-              stroke="#c8ff00"
-              stroke-width="2"
-              fill="none"
-              stroke-dashoffset="5"
-              stroke-dasharray="3,20"
-            />
-          </svg>
-        </span>
-        <span class="sm-label">GROUND TRACK</span>
+          />
+        </svg>
       </button>
       <button
-        class="sm-btn"
+        class="sm-btn sm-sub-btn"
         data-tooltip="FOOTPRINT"
+        aria-label="Footprint"
         :class="{ active: footprintActive }"
         @click="toggleFootprint"
       >
-        <span class="sm-icon">
-          <svg
-            width="16"
-            height="14"
-            viewBox="0 0 24 24"
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <!-- Satellite beaming a coverage cone down to its ground footprint. -->
+          <circle cx="12" cy="3.5" r="2" fill="currentColor" />
+          <path
+            d="M10.5 5 L5 15.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <path
+            d="M13.5 5 L19 15.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <ellipse
+            cx="12"
+            cy="17"
+            rx="7.5"
+            ry="2.8"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-dasharray="3,2"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              stroke="rgba(200,255,0,0.6)"
-              stroke-width="1.5"
-              stroke-dasharray="3,2"
-              fill="none"
-            />
-            <circle cx="12" cy="12" r="2" fill="#c8ff00" />
-          </svg>
-        </span>
-        <span class="sm-label">FOOTPRINT</span>
+          />
+        </svg>
       </button>
-    </div>
-
-    <!-- Group 4: day/night + locations (expanded only) -->
-    <div id="ssm-group-daynight" class="sm-group">
       <button
-        class="sm-btn"
+        class="sm-btn sm-sub-btn"
         data-tooltip="DAY / NIGHT"
+        aria-label="Day / night"
         :class="{ active: daynightActive }"
         @click="toggleDaynight"
       >
-        <span class="sm-icon">
-          <svg
-            width="13"
-            height="14"
-            viewBox="0 0 20 22"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M15 2C10 2 5 6.5 5 12s5 10 10 10c-6 0-11-4.5-11-10S9 2 15 2z" fill="#ffffff" />
-          </svg>
-        </span>
-        <span class="sm-label">DAY / NIGHT</span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <!-- Half-lit globe — the day/night terminator. -->
+          <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 2.5 A9.5 9.5 0 0 1 12 21.5 Z" fill="currentColor" />
+        </svg>
       </button>
       <button
-        class="sm-btn"
+        class="sm-btn sm-sub-btn"
         data-tooltip="LOCATIONS"
+        aria-label="Locations"
         :class="{ active: namesActive }"
         @click="toggleNames"
       >
-        <span class="sm-icon" style="--sm-icon-size: 14px">N</span>
-        <span class="sm-label">LOCATIONS</span>
-      </button>
-    </div>
-
-    <!-- Group 5: satellite search -->
-    <div id="ssm-group-filter" class="sm-group">
-      <button
-        id="ssm-filter-btn"
-        class="sm-btn enabled"
-        data-tooltip="SEARCH"
-        aria-label="Search"
-        @click="openSearch"
-      >
-        <span class="sm-icon">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 15 15"
+        <svg
+          width="15"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 22.5 C12 22.5 20 13.5 20 8.5 A8 8 0 1 0 4 8.5 C4 13.5 12 22.5 12 22.5Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" />
-            <line
-              x1="10"
-              y1="10"
-              x2="14"
-              y2="14"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
-          </svg>
-        </span>
-        <span class="sm-label">SEARCH</span>
+          />
+          <circle cx="12" cy="8.5" r="2.6" stroke="currentColor" stroke-width="1.8" fill="none" />
+        </svg>
       </button>
     </div>
-  </div>
+  </nav>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useSpaceStore } from '@/stores/space'
 import { useUserLocation } from '@/composables/useUserLocation'
+import { useDisclosure } from '@/composables/useDisclosure'
 import type SpaceMap from './SpaceMap.vue'
 
 // markRaw proxy from SpaceView — .current is non-reactive, preventing re-renders during teardown
@@ -204,9 +207,6 @@ const mapRef = {
 const spaceStore = useSpaceStore()
 const { location: userLocation } = useUserLocation()
 
-// Expanded/collapsed state lives on the (always-alive) store so it survives
-// navigating away from Space and a full refresh, regardless of remount timing.
-const { sideMenuExpanded: expanded } = storeToRefs(spaceStore)
 const locActive = computed(() => userLocation.value !== null)
 
 const trackActive = computed(() => spaceStore.overlayStates.groundTrack)
@@ -214,13 +214,9 @@ const footprintActive = computed(() => spaceStore.overlayStates.footprint)
 const daynightActive = computed(() => spaceStore.overlayStates.daynight)
 const namesActive = computed(() => spaceStore.overlayStates.names)
 
-const _SAT_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="10" width="4" height="4" fill="#c8ff00"/>
-  <rect x="2"  y="10" width="7" height="4" fill="rgba(200,255,0,0.5)"/>
-  <rect x="15" y="10" width="7" height="4" fill="rgba(200,255,0,0.5)"/>
-  <line x1="12" y1="2"  x2="12" y2="8"  stroke="rgba(200,255,0,0.5)" stroke-width="1.5"/>
-  <line x1="12" y1="16" x2="12" y2="22" stroke="rgba(200,255,0,0.5)" stroke-width="1.5"/>
-</svg>`
+// The satellite overlays expand from a single MAP LAYERS icon accordion; the
+// group button is highlighted (green) while its panel is open.
+const { open: layersAccordionOpen, toggle: toggleLayersAccordion } = useDisclosure()
 
 function goToLocation(): void {
   // Trigger location fly — MapSidebar will dispatch an event or the satelliteControl handles it
@@ -242,262 +238,125 @@ function toggleDaynight(): void {
 function toggleNames(): void {
   mapRef.value?.getNamesControl()?.handleClickPublic()
 }
-
-function openSearch(): void {
-  document.dispatchEvent(new CustomEvent('open-space-search'))
-}
 </script>
 
 <style>
+/* Fixed icon rail mirroring #map-sidebar-rail, pinned to the right edge. */
 #space-side-menu {
   position: fixed;
-  top: 80px;
-  right: 14px;
-  z-index: 1002;
+  top: var(--nav-height);
+  bottom: var(--footer-height);
+  right: 0;
+  width: 44px;
+  background: rgba(10, 13, 20, 0.98);
+  z-index: 1003;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-}
-
-#space-side-menu .sm-group {
-  background: transparent;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  gap: 4px;
-  width: calc((148px - 8px) / 3);
-  transition: width 0.2s ease;
-}
-
-#space-side-menu.expanded .sm-group {
-  width: 148px;
-}
-
-#space-side-menu.expanded #ssm-group-nav {
-  flex-direction: row;
-  gap: 4px;
-  background: transparent;
-  border-color: transparent;
-}
-
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn {
-  flex: 1;
-  width: auto;
-}
-
-#space-side-menu.expanded #ssm-group-toggle {
-  gap: 0;
-  width: calc((148px - 8px) / 3);
-}
-
-#space-side-menu-toggle {
-  width: 100%;
-  height: 36px;
-  background: #000;
-  border: none;
-  color: rgba(255, 255, 255, 0.35);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.2s,
-    background 0.2s;
-}
-
-#space-side-menu-toggle:hover {
-  background: #111;
-  color: var(--color-text-muted);
-}
-
-#space-side-menu .sm-nav-btn {
-  flex: none;
-  width: 100%;
-  height: 36px;
-  background: #000;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 18px;
-  font-weight: 300;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-#space-side-menu .sm-nav-btn:hover {
-  background: #111;
-  color: #fff;
+  align-items: stretch;
+  box-sizing: border-box;
 }
 
 #space-side-menu .sm-btn {
+  height: 40px;
   width: 100%;
-  height: 36px;
-  background: #000;
+  flex-shrink: 0;
+  background: none;
   border: none;
   color: #fff;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.08em;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background 0.2s,
-    opacity 0.2s,
-    color 0.2s;
-  opacity: 1;
-  flex-shrink: 0;
-  white-space: nowrap;
+  position: relative;
   padding: 0;
+  transition: color 0.15s;
 }
 
+#space-side-menu .sm-btn.sm-glyph {
+  font-size: 18px;
+  font-weight: 300;
+}
+
+/* Hover matches the left side panel's buttons: a subtle grey background + muted
+   icon. Active stays green and wins the icon colour even while hovered. */
 #space-side-menu .sm-btn:hover {
-  background: #111;
+  color: var(--color-text-muted);
+  background: var(--color-border);
 }
 
 #space-side-menu .sm-btn.active {
-  opacity: 1;
-  color: rgba(200, 255, 0, 0.75);
+  color: var(--color-accent);
 }
 
-#space-side-menu .sm-btn .sm-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 29px;
-  flex-shrink: 0;
-  font-size: var(--sm-icon-size, 14px);
+#space-side-menu .sm-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
-#space-side-menu .sm-btn .sm-icon svg {
+/* Match the left side panel's icon size (19px), regardless of each SVG's own
+   width/height attributes; width auto keeps non-square icons in proportion. */
+#space-side-menu .sm-btn svg {
   display: block;
-  flex-shrink: 0;
+  height: 19px;
   width: auto;
-  height: 15px;
 }
 
-#space-side-menu .sm-btn .sm-label {
-  display: none;
+/* MAP LAYERS accordion: sub-items stack vertically on a grey panel (the side
+   panel's grey), pushing nothing below since it's the last group. */
+#space-side-menu .sm-accordion-panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--color-border);
+}
+
+/* Sub-items sit on the grey panel, so their hover needs a stronger background. */
+#space-side-menu .sm-sub-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Hover tooltip — opens to the left of the right-edge rail. */
+#space-side-menu .sm-btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.14em;
-}
-
-#space-side-menu.expanded .sm-btn {
-  justify-content: flex-start;
+  text-transform: uppercase;
+  white-space: nowrap;
   padding: 0 14px;
-}
-
-#space-side-menu.expanded .sm-btn .sm-icon {
-  display: none;
-}
-
-#space-side-menu.expanded .sm-btn .sm-label {
-  display: flex;
-}
-
-#space-side-menu:not(.expanded) #ssm-group-iss,
-#space-side-menu:not(.expanded) #ssm-group-daynight {
-  display: none;
-}
-
-#space-side-menu:not(.expanded) .sm-btn[data-tooltip],
-#space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip],
-#space-side-menu:not(.expanded) #space-side-menu-toggle[data-tooltip],
-#space-side-menu.expanded .sm-nav-btn[data-tooltip] {
-  position: relative;
-}
-
-#space-side-menu:not(.expanded) .sm-btn[data-tooltip]::before,
-#space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip]::before,
-#space-side-menu:not(.expanded) #space-side-menu-toggle[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 10px;
   height: 28px;
   display: flex;
   align-items: center;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
-  z-index: 1002;
+  z-index: 10001;
 }
 
-#space-side-menu:not(.expanded) .sm-btn[data-tooltip]:hover::before,
-#space-side-menu:not(.expanded) .sm-nav-btn[data-tooltip]:hover::before,
-#space-side-menu:not(.expanded) #space-side-menu-toggle[data-tooltip]:hover::before {
+#space-side-menu .sm-btn[data-tooltip]:hover::before {
   opacity: 1;
 }
 
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn[data-tooltip],
-#space-side-menu.expanded #space-side-menu-toggle[data-tooltip] {
-  position: relative;
+/* Touch screens: hover tooltips aren't useful. */
+@media (max-width: 768px) {
+  #space-side-menu .sm-btn[data-tooltip]::before {
+    display: none !important;
+  }
 }
 
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn[data-tooltip]::before,
-#space-side-menu.expanded #space-side-menu-toggle[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 10px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 1002;
-}
-
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(1)[data-tooltip]::before {
-  right: calc(100% + 8px);
-}
-
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(2)[data-tooltip]::before {
-  right: calc(100% + 8px + 50.67px);
-}
-
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn:nth-child(3)[data-tooltip]::before {
-  right: calc(100% + 8px + 101.33px);
-}
-
-#space-side-menu.expanded #space-side-menu-toggle[data-tooltip]::before {
-  right: calc(100% + 8px);
-}
-
-#space-side-menu.expanded #ssm-group-nav .sm-nav-btn[data-tooltip]:hover::before,
-#space-side-menu.expanded #space-side-menu-toggle[data-tooltip]:hover::before {
-  opacity: 1;
+/* ≤480px: the left rail becomes a full-width bottom bar — lift the right rail
+   clear of it so the two don't overlap in the bottom-right corner. */
+@media (max-width: 480px) {
+  #space-side-menu {
+    bottom: calc(var(--footer-height) + 44px);
+  }
 }
 </style>

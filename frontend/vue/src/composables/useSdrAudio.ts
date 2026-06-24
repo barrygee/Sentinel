@@ -19,6 +19,9 @@ let _liveMuted = false
 let _iqSocket: WebSocket | null = null
 let _radioId: number | null = null
 let _ready = false
+// In-flight audio init, shared by concurrent callers so the worklet module is
+// only added once per context (a second addModule() throws "already registered").
+let _initPromise: Promise<void> | null = null
 let _mode = 'AM'
 let _squelch = -120
 // Demod frequency offset from the hardware centre (Hz). Non-zero only when
@@ -309,8 +312,20 @@ function _openIqSocket(radioId: number) {
 }
 
 // ── Audio init ────────────────────────────────────────────────────────────────
-async function _initAudio() {
-  if (_ctx && _ready) return
+// Coalesce concurrent init calls: a second initAudio() that arrives while the
+// first is still awaiting addModule() would otherwise add the worklet module to
+// the same context twice, throwing "AudioWorkletProcessor ... already registered".
+function _initAudio(): Promise<void> {
+  if (_ctx && _ready) return Promise.resolve()
+  if (!_initPromise) {
+    _initPromise = _doInitAudio().finally(() => {
+      _initPromise = null
+    })
+  }
+  return _initPromise
+}
+
+async function _doInitAudio() {
   try {
     const blob = new Blob([PROCESSOR_SRC], { type: 'application/javascript' })
     const blobUrl = URL.createObjectURL(blob)

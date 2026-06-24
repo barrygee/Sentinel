@@ -32,7 +32,6 @@ export const useSpaceStore = defineStore('space', () => {
   // store — a singleton created once for the app's lifetime — rather than in the
   // teleported SpaceFilter/SpacePasses components, whose mount timing is fragile:
   // holding the state here makes restore independent of when those panes remount.
-  const sideMenuExpanded = usePersistedRef<boolean>('sentinel_space_sideMenuExpanded', false)
 
   // SEARCH pane (SpaceFilter)
   const searchQuery = usePersistedRef<string>('sentinel_space_filterQuery', '')
@@ -80,7 +79,6 @@ export const useSpaceStore = defineStore('space', () => {
     setFilter,
     toggleFilter,
     saveMapState,
-    sideMenuExpanded,
     searchQuery,
     searchExpandedNorad,
     searchCollapsedCats,

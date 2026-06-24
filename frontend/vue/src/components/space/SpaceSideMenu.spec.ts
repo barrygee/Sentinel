@@ -60,26 +60,39 @@ beforeEach(() => {
   localStorage.clear()
 })
 
-describe('SpaceSideMenu expand/collapse', () => {
-  it('reflects the persisted expanded state and toggles it on click', async () => {
+describe('SpaceSideMenu rail', () => {
+  it('renders the rail controls and groups the overlays into the MAP LAYERS accordion', () => {
     const wrapper = mountMenu(makeMapProxy(makeControls()))
-    const root = wrapper.find('#space-side-menu')
-    expect(root.classes()).not.toContain('expanded')
-
-    await wrapper.find('#space-side-menu-toggle').trigger('click')
-    expect(spaceStore.sideMenuExpanded).toBe(true)
-    expect(wrapper.find('#space-side-menu').classes()).toContain('expanded')
-
-    await wrapper.find('#space-side-menu-toggle').trigger('click')
-    expect(spaceStore.sideMenuExpanded).toBe(false)
+    expect(wrapper.find('#space-side-menu').exists()).toBe(true)
+    // No expand/collapse toggle on the rail.
+    expect(wrapper.find('#space-side-menu-toggle').exists()).toBe(false)
+    // Top-level rail buttons.
+    for (const label of ['Zoom in', 'Zoom out', 'Go to my location', 'MAP LAYERS']) {
+      const button = wrapper.find(`button[data-tooltip="${label}"]`)
+      expect(button.exists()).toBe(true)
+      expect(button.attributes('aria-label')).toBeTruthy()
+    }
+    // The satellite overlays live inside the MAP LAYERS accordion panel.
+    for (const label of ['GROUND TRACK', 'FOOTPRINT', 'DAY / NIGHT', 'LOCATIONS']) {
+      const subButton = wrapper.find(`#space-layers-panel button[data-tooltip="${label}"]`)
+      expect(subButton.exists()).toBe(true)
+      expect(subButton.attributes('aria-label')).toBeTruthy()
+    }
   })
 
-  it('shows the collapse glyph and tooltip when already expanded', () => {
-    spaceStore.sideMenuExpanded = true
+  it('expands the MAP LAYERS accordion on click and highlights the button while open', async () => {
     const wrapper = mountMenu(makeMapProxy(makeControls()))
-    const toggle = wrapper.find('#space-side-menu-toggle')
-    expect(toggle.text()).toBe('›')
-    expect(toggle.attributes('data-tooltip')).toBe('COLLAPSE MENU')
+    const button = wrapper.find('#space-layers-btn')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(button.classes()).not.toContain('active')
+
+    await button.trigger('click')
+    expect(button.attributes('aria-expanded')).toBe('true')
+    expect(button.classes()).toContain('active')
+
+    await button.trigger('click')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(button.classes()).not.toContain('active')
   })
 })
 
@@ -130,7 +143,6 @@ describe('SpaceSideMenu location button', () => {
 describe('SpaceSideMenu overlay toggles', () => {
   it('delegates ground-track, footprint, day/night and locations to their controls', async () => {
     const controls = makeControls()
-    spaceStore.sideMenuExpanded = true // reveal the iss + daynight groups
     const wrapper = mountMenu(makeMapProxy(controls))
 
     await wrapper.find('button[data-tooltip="GROUND TRACK"]').trigger('click')
@@ -145,7 +157,6 @@ describe('SpaceSideMenu overlay toggles', () => {
   })
 
   it('is a no-op for every overlay toggle when no map ref is present', async () => {
-    spaceStore.sideMenuExpanded = true
     const wrapper = mountMenu({ current: null })
     await wrapper.find('button[data-tooltip="GROUND TRACK"]').trigger('click')
     await wrapper.find('button[data-tooltip="FOOTPRINT"]').trigger('click')
@@ -156,7 +167,6 @@ describe('SpaceSideMenu overlay toggles', () => {
   })
 
   it('reflects each overlay active state from the store', () => {
-    spaceStore.sideMenuExpanded = true
     spaceStore.overlayStates.groundTrack = true
     spaceStore.overlayStates.footprint = false
     spaceStore.overlayStates.daynight = true
@@ -169,20 +179,8 @@ describe('SpaceSideMenu overlay toggles', () => {
   })
 })
 
-describe('SpaceSideMenu search', () => {
-  it('dispatches open-space-search when the search button is clicked', async () => {
-    const handler = vi.fn()
-    document.addEventListener('open-space-search', handler)
-    const wrapper = mountMenu(makeMapProxy(makeControls()))
-    await wrapper.find('#ssm-filter-btn').trigger('click')
-    expect(handler).toHaveBeenCalledTimes(1)
-    document.removeEventListener('open-space-search', handler)
-  })
-})
-
 describe('SpaceSideMenu accessibility', () => {
-  it('has no axe violations when expanded', async () => {
-    spaceStore.sideMenuExpanded = true
+  it('has no axe violations', async () => {
     const wrapper = mountMenu(makeMapProxy(makeControls()))
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),

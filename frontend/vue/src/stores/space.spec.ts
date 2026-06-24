@@ -32,7 +32,6 @@ describe('space store', () => {
 
   it('has the expected persisted pane defaults', () => {
     const store = useSpaceStore()
-    expect(store.sideMenuExpanded).toBe(false)
     expect(store.searchQuery).toBe('')
     expect(store.searchExpandedNorad).toBe('')
     expect(store.searchCollapsedCats).toBeInstanceOf(Set)
