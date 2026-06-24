@@ -863,30 +863,11 @@
     color 0.12s;
 }
 
-.sdr-search-adhoc-play:has(.sdr-search-adhoc-play-label) {
-  width: auto;
-  padding: 0 14px;
-}
-
-.sdr-search-adhoc-play-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* Scan button (the only labelled play button in the scanner row): lighter
-   weight and a shorter button than the shared 38px play-button square. */
-.sdr-scan-btns-row--right .sdr-search-adhoc-play,
-.sdr-scan-btns-row--left .sdr-search-adhoc-play {
-  height: 30px;
-}
-
-.sdr-scan-btns-row--right .sdr-search-adhoc-play-label,
-.sdr-scan-btns-row--left .sdr-search-adhoc-play-label {
-  font-weight: 400;
-  font-size: 9px;
-  letter-spacing: 0.14em;
+/* Scanner-row play button: 28px square, matching the saved-ranges play buttons. */
+.sdr-scan-btns-row--left .sdr-search-adhoc-play,
+.sdr-scan-btns-row--right .sdr-search-adhoc-play {
+  width: 28px;
+  height: 28px;
 }
 
 .sdr-search-adhoc-play:hover:not(:disabled) {
