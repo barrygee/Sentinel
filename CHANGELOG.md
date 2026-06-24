@@ -249,6 +249,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Align decoder messages with logs and move Clear buttons to the top (#130)
 - Tighten spectrum height and waterfall gaps (#133)
 - Stop auto-highlighting the search input on open (#135)
+- Repair air rail e2e tests and mobile sidebar overlap (#137)
 
 ### Chores
 
