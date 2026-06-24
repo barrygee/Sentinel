@@ -2524,7 +2524,7 @@
   height: 40px;
   flex: 0 0 auto;
   padding: 0 20px 0 24px;
-  background: #101318;
+  background: #000;
   box-sizing: border-box;
   transition: background 0.12s;
 }
@@ -2534,7 +2534,7 @@
    filled dark-grey row on focus keeps a visible, non-green focus indicator
    (WCAG 2.4.7) for keyboard and mouse alike. */
 .sdr-recordings-search-wrap:focus-within {
-  background: #171a21;
+  background: #0d0f14;
 }
 
 /* Drop the green outline when the input is focused/clicked — the row's

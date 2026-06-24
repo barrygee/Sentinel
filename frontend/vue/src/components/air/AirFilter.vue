@@ -1287,7 +1287,7 @@ defineExpose({
   /* Match the height of the SEARCH rail tab's green active background (.msb-rail-btn). */
   height: 40px;
   padding: 0 20px 0 24px;
-  background: #101318;
+  background: #000;
   box-sizing: border-box;
   transition: background 0.12s;
 }
@@ -1297,7 +1297,7 @@ defineExpose({
    filled dark-grey row on focus keeps a visible, non-green focus indicator
    (WCAG 2.4.7) for keyboard and mouse alike. */
 #filter-input-wrap:focus-within {
-  background: #171a21;
+  background: #0d0f14;
 }
 
 /* Drop the green outline when the input is focused/clicked — the row's
