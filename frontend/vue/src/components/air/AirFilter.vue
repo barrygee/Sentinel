@@ -1284,10 +1284,19 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 48px;
+  /* Match the height of the SEARCH rail tab's green active background (.msb-rail-btn). */
+  height: 40px;
   padding: 0 20px 0 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #000;
   box-sizing: border-box;
+  transition: background 0.12s;
+}
+
+/* Drop the green a11y focus ring (assets/a11y.css :focus-visible); the input row
+   stays black on focus. The accent text caret is the visible focus cue for this
+   text field (WCAG 2.4.7). */
+#filter-input:focus-visible {
+  outline: none !important;
 }
 
 #filter-icon {
