@@ -91,6 +91,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restyle known-frequency labels to dot + label pill (#126)
 - Relocate trunk follow button into TRUNK SYSTEM accordion (#131)
 - Disable zoom/max/min sliders while the radio is stopped (#143)
+- Show dulled live view during search/scan sweep (#144)
 
 ### Bug Fixes
 
