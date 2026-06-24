@@ -2269,6 +2269,7 @@ onBeforeUnmount(() => {
             :min="ZOOM_MIN"
             :max="ZOOM_MAX"
             step="0.5"
+            :disabled="!store.playing"
             :aria-label="`Zoom ${zoom}x`"
           />
         </div>
@@ -2283,6 +2284,7 @@ onBeforeUnmount(() => {
             min="0"
             max="80"
             step="1"
+            :disabled="!store.playing"
             :aria-label="`Max ${zmax} dB`"
           />
         </div>
@@ -2297,6 +2299,7 @@ onBeforeUnmount(() => {
             min="20"
             max="120"
             step="1"
+            :disabled="!store.playing"
             :aria-label="`Min ${zmin} dB`"
           />
         </div>

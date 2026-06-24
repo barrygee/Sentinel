@@ -43,9 +43,11 @@
  * Click-to-tune / drag / wheel handlers already no-op while !store.playing;
  * pointer-events:none also drops the hover cursors.
  *
- * The Zoom/Max/Min controls are deliberately NOT dimmed: their text labels
- * would blend toward the background under reduced opacity and fail WCAG 2.2 AA
- * contrast (the live a11y audit flags them). Only the text-free plot areas are
+ * The Zoom/Max/Min slider graphics are dimmed in the same state (see the
+ * .sdr-wf-slider:disabled rule below), but their ZOOM/MAX/MIN text labels are
+ * deliberately left at full contrast: dimmed text would blend toward the
+ * background and fail WCAG 2.2 AA contrast (the live a11y audit flags it). Only
+ * the text-free plot areas and the colour-bearing slider track/thumb are
  * dulled. */
 #sdr-waterfall.not-playing .sdr-wf-spectrum,
 #sdr-waterfall.not-playing .sdr-wf-raster {
@@ -139,6 +141,28 @@
   cursor: pointer;
   margin: 0;
   box-sizing: border-box;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
+/* Disabled / dulled state — applied (via :disabled bound to !store.playing) while
+ * the radio isn't playing, so the Zoom/Max/Min sliders go dark alongside the
+ * spectrum + waterfall. Only the colour-bearing track + thumb are dimmed; the
+ * ZOOM/MAX/MIN text labels stay at full contrast (see the note above the
+ * .not-playing spectrum rule re: WCAG 2.2 AA). */
+.sdr-wf-slider:disabled {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+  cursor: not-allowed;
+}
+
+.sdr-wf-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+.sdr-wf-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
 }
 
 .sdr-wf-slider::-webkit-slider-runnable-track {
