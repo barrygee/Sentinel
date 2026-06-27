@@ -46,7 +46,10 @@ _BAND_COMMENT = (
 def load_sdr_frequencies_file() -> dict[str, list]:
     """Read sdr_frequencies.json as {groups, frequencies, searchRanges}.
 
-    Returns empty lists for any missing/bad section so startup never fails.
+    The file is runtime-owned and git-ignored: it's absent on a fresh clone
+    (the DB seeds empty and the runtime writes the file on first boot / first
+    edit). Returns empty lists for any missing/bad section so startup never
+    fails.
     """
     raw = load_json_file(FREQUENCIES_FILE)
     if not isinstance(raw, dict):
