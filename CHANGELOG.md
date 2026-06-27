@@ -253,6 +253,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop auto-highlighting the search input on open (#135)
 - Repair air rail e2e tests and mobile sidebar overlap (#137)
 - Stagger overlapping known-freq spectrum labels (#145)
+- Reflect real radio reachability in status dot and dropdown (#147)
 
 ### Chores
 
