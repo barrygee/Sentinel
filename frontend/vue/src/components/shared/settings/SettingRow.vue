@@ -129,6 +129,7 @@
       v-else-if="item.type === 'config-current'"
       @stage="emit('stage', item.id, $event)"
     />
+    <ExportAllControl v-else-if="item.type === 'export-all'" />
   </div>
 </template>
 
@@ -160,6 +161,7 @@ import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import SdrTrunkTrackingToggleControl from './SdrTrunkTrackingToggleControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
+import ExportAllControl from './ExportAllControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
 
 const props = defineProps<{
