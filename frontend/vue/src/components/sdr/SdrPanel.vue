@@ -176,18 +176,12 @@
                   {{ r.name }}<span class="sdr-device-menu-item-host">{{ r.host }}</span>
                 </div>
               </div>
-              <!-- Non-selectable status notes live outside the listbox. -->
+              <!-- Non-selectable status note lives outside the listbox. -->
               <div
-                v-if="menuCheckingRadios"
+                v-if="menuRadios.length === 0"
                 class="sdr-device-menu-item sdr-device-menu-placeholder"
               >
-                checking radios…
-              </div>
-              <div
-                v-else-if="menuRadios.length === 0"
-                class="sdr-device-menu-item sdr-device-menu-placeholder"
-              >
-                no radios online
+                no radios configured
               </div>
             </div>
           </Teleport>
@@ -2014,11 +2008,6 @@ let _autoTunePrevState: {
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
-const ONLINE_CACHE_KEY = 'sdrOnlineRadioIds'
-// The online-radios cache only de-dupes rapid reopens of the dropdown; it must NOT
-// outlive a radio going offline. A short TTL forces a fresh reachability probe on
-// essentially every deliberate reopen, so an unavailable radio drops out at once.
-const ONLINE_CACHE_TTL_MS = 3000
 
 // ── Active tab ────────────────────────────────────────────────────────────────
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
@@ -2264,7 +2253,6 @@ const deviceMenuOpen = ref(false)
 const deviceHighlight = ref(0)
 const radiosLoading = ref(true)
 const menuRadios = ref<SdrRadio[]>([])
-const menuCheckingRadios = ref(false)
 const deviceMenuStyle = ref<Record<string, string>>({})
 const deviceDropdownLabel = ref('loading…')
 
@@ -3448,7 +3436,7 @@ function openDeviceMenu() {
   positionDeviceMenu()
   deviceHighlight.value = 0
   deviceMenuOpen.value = true
-  probeMenuRadios()
+  populateMenuRadios()
 }
 
 function toggleDeviceMenu() {
@@ -3470,52 +3458,14 @@ function closeDeviceMenu() {
   deviceMenuOpen.value = false
 }
 
-async function probeMenuRadios() {
-  const enabled = knownRadios.value.filter((r) => r.enabled)
-  let cachedIds: number[] | null = null
-  try {
-    const raw = sessionStorage.getItem(ONLINE_CACHE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as { ids: number[]; ts: number }
-      // Honour the cache only within its short TTL; a stale entry must re-probe so
-      // a radio that has since gone offline can't linger in the list.
-      if (parsed && Date.now() - parsed.ts < ONLINE_CACHE_TTL_MS) cachedIds = parsed.ids
-    }
-  } catch (_) {}
-  if (cachedIds !== null) {
-    menuRadios.value = enabled.filter((r) => (cachedIds as number[]).includes(r.id))
-    return
-  }
-  menuCheckingRadios.value = true
-  const results = await Promise.allSettled(
-    // Read-only reachability probe (a direct local-IP/port check on the backend) —
-    // never POST /api/sdr/connect just to populate the menu, which would open a real
-    // connection as a side effect. Matches the Settings dot and works offgrid.
-    enabled.map((r) =>
-      fetch(`/api/sdr/status/${r.id}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => (data && (data.connected === true || data.reachable === true) ? r : null))
-        .catch(() => null),
-    ),
-  )
-  const online = results
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    .map((r) => (r.status === 'fulfilled' ? r.value : null))
-    /* v8 ignore stop */
-    .filter((r): r is SdrRadio => r !== null)
-  try {
-    sessionStorage.setItem(
-      ONLINE_CACHE_KEY,
-      JSON.stringify({ ids: online.map((r) => r.id), ts: Date.now() }),
-    )
-  } catch (_) {}
-  menuCheckingRadios.value = false
-  // Guards a menu that was closed mid-probe; in the unit suite the probe
-  // resolves while the menu is still open, so this race-guard isn't hit.
-  /* v8 ignore start */
-  if (!deviceMenuOpen.value) return
-  /* v8 ignore stop */
-  menuRadios.value = online
+// List every enabled radio. We deliberately do NOT probe reachability here:
+// rtl_tcp is single-client, so opening a throwaway probe socket to a radio (then
+// closing it) disturbs the dongle and made the immediately-following control
+// connect fail — the user had to select the radio twice before it connected.
+// Reachability is shown by the device dot once a radio is selected and the real
+// control connection is established; the menu just lists what's configured.
+function populateMenuRadios() {
+  menuRadios.value = knownRadios.value.filter((r) => r.enabled)
 }
 
 function onDeviceDropdownKey(e: KeyboardEvent) {
@@ -5190,9 +5140,6 @@ function onSquelchChangeCallback(open: boolean) {
 // ── Event handlers ────────────────────────────────────────────────────────────
 
 function onRadiosChanged() {
-  try {
-    sessionStorage.removeItem(ONLINE_CACHE_KEY)
-  } catch (_) {}
   loadRadios()
 }
 
