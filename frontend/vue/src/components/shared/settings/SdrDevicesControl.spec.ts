@@ -222,6 +222,29 @@ describe('SdrDevicesControl', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/sdr/status/1')
   })
 
+  it('skips an overlapping poll tick while a previous status sweep is still in flight', async () => {
+    vi.useFakeTimers()
+    // Hold the status request open so the first sweep never resolves; the next
+    // poll tick must short-circuit on the in-flight guard rather than re-fetch.
+    let statusCalls = 0
+    const fetchMock = vi.fn((url: string, init?: FetchOptions) => {
+      if (url === '/api/sdr/radios' && !init) {
+        return Promise.resolve({ ok: true, json: async () => [RADIO] })
+      }
+      if (url.startsWith('/api/sdr/status/')) {
+        statusCalls += 1
+        return new Promise(() => {}) // never resolves
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    mount(SdrDevicesControl)
+    await vi.runOnlyPendingTimersAsync() // load() → first checkStatuses (stays in flight)
+    expect(statusCalls).toBe(1)
+    await vi.advanceTimersByTimeAsync(3000) // poll tick fires while still in flight
+    expect(statusCalls).toBe(1) // guard skipped the overlapping sweep
+  })
+
   it('reloads on an external sdr:radios-changed event', async () => {
     const fetchMock = routeFetch({ radios: [RADIO] })
     const wrapper = mount(SdrDevicesControl)

@@ -132,6 +132,15 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     })
   })
 
+  // SDR reachability probe — the Settings dot and the radio dropdown poll this
+  // per radio; default every radio to reachable so stubbed radios appear online.
+  await page.route('/api/sdr/status/*', (route) => {
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ connected: true, reachable: true }),
+    })
+  })
+
   // SDR connect/disconnect
   await page.route('/api/sdr/connect', (route) => {
     void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) })

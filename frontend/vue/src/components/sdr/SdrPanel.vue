@@ -176,18 +176,12 @@
                   {{ r.name }}<span class="sdr-device-menu-item-host">{{ r.host }}</span>
                 </div>
               </div>
-              <!-- Non-selectable status notes live outside the listbox. -->
+              <!-- Non-selectable status note lives outside the listbox. -->
               <div
-                v-if="menuCheckingRadios"
+                v-if="menuRadios.length === 0"
                 class="sdr-device-menu-item sdr-device-menu-placeholder"
               >
-                checking radios…
-              </div>
-              <div
-                v-else-if="menuRadios.length === 0"
-                class="sdr-device-menu-item sdr-device-menu-placeholder"
-              >
-                no radios online
+                no radios configured
               </div>
             </div>
           </Teleport>
@@ -2014,7 +2008,6 @@ let _autoTunePrevState: {
 
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
-const ONLINE_CACHE_KEY = 'sdrOnlineRadioIds'
 
 // ── Active tab ────────────────────────────────────────────────────────────────
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
@@ -2260,7 +2253,6 @@ const deviceMenuOpen = ref(false)
 const deviceHighlight = ref(0)
 const radiosLoading = ref(true)
 const menuRadios = ref<SdrRadio[]>([])
-const menuCheckingRadios = ref(false)
 const deviceMenuStyle = ref<Record<string, string>>({})
 const deviceDropdownLabel = ref('loading…')
 
@@ -2905,6 +2897,12 @@ async function openControlSocket(radioId: number) {
   })
 
   ws.addEventListener('close', () => {
+    // Ignore the close of a socket we've already switched away from. Selecting a
+    // different radio closes the previous radio's socket; that close fires after
+    // _ctrlRadioId has moved on, so without this guard it would setStatus(false)
+    // and re-disable the controls that selectRadio just enabled for the new radio
+    // (the "select the other radio twice before controls enable" bug).
+    if (_ctrlRadioId !== radioId) return
     setStatus(false)
     if (_ctrlReconnect) clearTimeout(_ctrlReconnect)
     const delay = _ctrlReconnectDelay
@@ -2917,6 +2915,9 @@ async function openControlSocket(radioId: number) {
   })
 
   ws.addEventListener('error', () => {
+    // Same supersede guard as 'close': a stale socket must not reset the status
+    // for the radio that's now selected.
+    if (_ctrlRadioId !== radioId) return
     setStatus(false)
   })
 }
@@ -3444,7 +3445,7 @@ function openDeviceMenu() {
   positionDeviceMenu()
   deviceHighlight.value = 0
   deviceMenuOpen.value = true
-  probeMenuRadios()
+  populateMenuRadios()
 }
 
 function toggleDeviceMenu() {
@@ -3466,44 +3467,14 @@ function closeDeviceMenu() {
   deviceMenuOpen.value = false
 }
 
-async function probeMenuRadios() {
-  const enabled = knownRadios.value.filter((r) => r.enabled)
-  let cachedIds: number[] | null = null
-  try {
-    const raw = sessionStorage.getItem(ONLINE_CACHE_KEY)
-    if (raw) cachedIds = JSON.parse(raw)
-  } catch (_) {}
-  if (cachedIds !== null) {
-    menuRadios.value = enabled.filter((r) => (cachedIds as number[]).includes(r.id))
-    return
-  }
-  menuCheckingRadios.value = true
-  const results = await Promise.allSettled(
-    enabled.map((r) =>
-      fetch('/api/sdr/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ radio_id: r.id }),
-      })
-        .then((res) => (res.ok ? r : null))
-        .catch(() => null),
-    ),
-  )
-  const online = results
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    .map((r) => (r.status === 'fulfilled' ? r.value : null))
-    /* v8 ignore stop */
-    .filter((r): r is SdrRadio => r !== null)
-  try {
-    sessionStorage.setItem(ONLINE_CACHE_KEY, JSON.stringify(online.map((r) => r.id)))
-  } catch (_) {}
-  menuCheckingRadios.value = false
-  // Guards a menu that was closed mid-probe; in the unit suite the probe
-  // resolves while the menu is still open, so this race-guard isn't hit.
-  /* v8 ignore start */
-  if (!deviceMenuOpen.value) return
-  /* v8 ignore stop */
-  menuRadios.value = online
+// List every enabled radio. We deliberately do NOT probe reachability here:
+// rtl_tcp is single-client, so opening a throwaway probe socket to a radio (then
+// closing it) disturbs the dongle and made the immediately-following control
+// connect fail — the user had to select the radio twice before it connected.
+// Reachability is shown by the device dot once a radio is selected and the real
+// control connection is established; the menu just lists what's configured.
+function populateMenuRadios() {
+  menuRadios.value = knownRadios.value.filter((r) => r.enabled)
 }
 
 function onDeviceDropdownKey(e: KeyboardEvent) {
@@ -5178,9 +5149,6 @@ function onSquelchChangeCallback(open: boolean) {
 // ── Event handlers ────────────────────────────────────────────────────────────
 
 function onRadiosChanged() {
-  try {
-    sessionStorage.removeItem(ONLINE_CACHE_KEY)
-  } catch (_) {}
   loadRadios()
 }
 

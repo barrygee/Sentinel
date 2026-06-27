@@ -1206,14 +1206,73 @@ describe('SdrPanel — device dropdown menu', () => {
     expect(sockets.length).toBeGreaterThan(0)
   })
 
-  it('uses the cached online-radio list when present', async () => {
-    sessionStorage.setItem('sdrOnlineRadioIds', JSON.stringify([2]))
+  it('lists every enabled radio without probing (no status/connect calls)', async () => {
+    // rtl_tcp is single-client: probing the dropdown disturbed the dongle and
+    // broke the immediately-following control connect. Opening the menu must make
+    // no reachability calls and simply show all enabled radios.
     const wrapper = await mountTwoRadios()
+    fetchCalls.length = 0
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
     const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
-    // placeholder + only radio 2 (id 2 in cache).
+    // placeholder + both enabled radios.
+    expect(items.length).toBe(3)
+    expect(fetchCalls.some((call) => call.url.startsWith('/api/sdr/status/'))).toBe(false)
+    expect(fetchCalls.some((call) => call.url === '/api/sdr/connect')).toBe(false)
+  })
+
+  it('omits a disabled radio from the menu', async () => {
+    fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1', enabled: false })]
+    const wrapper = await mountReady()
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    // placeholder + only the enabled radio.
     expect(items.length).toBe(2)
+  })
+
+  it('shows "no radios configured" when no radios are enabled', async () => {
+    fetchState.radios = [makeRadio({ enabled: false })]
+    const wrapper = await mountReady()
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.sdr-device-menu')?.textContent).toContain(
+      'no radios configured',
+    )
+  })
+
+  async function selectMenuRadio(wrapper: VueWrapper, optionIndex: number): Promise<void> {
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    ;(items[optionIndex] as HTMLElement).click()
+    await flushPromises()
+  }
+
+  it('keeps controls enabled after switching to the second radio (superseded close ignored)', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1) // first radio
+    const socketA = lastSocket()
+    socketA.open()
+    await flushPromises()
+    await selectMenuRadio(wrapper, 2) // second radio — closes socketA, opens socketB
+    // socketA's close fires asynchronously, after _ctrlRadioId moved to radio 2.
+    // It must NOT re-disable the controls that selecting radio 2 just enabled.
+    socketA.fire('close')
+    await flushPromises()
+    expect(wrapper.find('.sdr-freq-input-large').attributes('disabled')).toBeUndefined()
+  })
+
+  it('ignores an error from a superseded radio socket', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1)
+    const socketA = lastSocket()
+    socketA.open()
+    await flushPromises()
+    await selectMenuRadio(wrapper, 2)
+    socketA.fire('error')
+    await flushPromises()
+    expect(wrapper.find('.sdr-freq-input-large').attributes('disabled')).toBeUndefined()
   })
 
   it('clears the selection via the placeholder', async () => {
@@ -1840,13 +1899,11 @@ describe('SdrPanel — squelch callback & radios-changed event', () => {
     expect(store.searchSweeping).toBe(false)
   })
 
-  it('reloads radios and clears the online cache on a radios-changed event', async () => {
+  it('reloads radios on a radios-changed event', async () => {
     await mountReady()
-    sessionStorage.setItem('sdrOnlineRadioIds', JSON.stringify([1]))
     fetchCalls.length = 0
     document.dispatchEvent(new CustomEvent('sdr:radios-changed'))
     await flushPromises()
-    expect(sessionStorage.getItem('sdrOnlineRadioIds')).toBeNull()
     expect(fetchCalls.some((c) => c.url === '/api/sdr/radios')).toBe(true)
   })
 })
@@ -3322,17 +3379,6 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
     await flushPromises()
     expect(sockets.length).toBeGreaterThan(0) // selectRadio(first enabled) opened a socket
   })
-
-  it('swallows a failed reachability probe in the menu', async () => {
-    fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1' })]
-    fetchOverride = (url) =>
-      url === '/api/sdr/connect' ? Promise.reject(new Error('offline')) : null
-    const wrapper = await mountReady()
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
-    await flushPromises()
-    // probeMenuRadios caught the rejections → "no radios online".
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
-  })
 })
 
 // =============================================================================
@@ -4110,19 +4156,6 @@ describe('SdrPanel — remaining reachable branch arms', () => {
     await wrapper.find('#sdr-radio-add-freq').trigger('click') // openAddFreqPanel (currentFreqHz set)
     await wrapper.vm.$nextTick()
     expect((wrapper.find('#sdr-ef-freq').element as HTMLInputElement).value).toBe('145.5000')
-  })
-
-  it('treats a non-OK connect probe as offline in the device menu', async () => {
-    fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1' })]
-    fetchOverride = (url) =>
-      url === '/api/sdr/connect'
-        ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
-        : null
-    const wrapper = await mountReady()
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
-    await flushPromises()
-    // probeMenuRadios maps the non-OK responses to null → "no radios online".
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
   })
 
   it('defaults the satellite name when an external restore omits it', async () => {

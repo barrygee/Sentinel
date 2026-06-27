@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 import time
 from dataclasses import dataclass, field
 
@@ -54,6 +55,39 @@ _connections: dict[str, RtlTcpConnection] = {}
 _broadcasters: dict[str, RadioBroadcaster] = {}
 
 
+def _enable_tcp_keepalive(writer: asyncio.StreamWriter) -> None:
+    """Turn on aggressive TCP keepalive for an rtl_tcp socket.
+
+    rtl_tcp radios live on the LAN, and a reboot or power-off leaves a half-open
+    connection: the peer is gone but our socket stays ESTABLISHED, so a blocked
+    ``readexactly`` waits the full read timeout (~10s) before erroring. During that
+    window the connection still reports ``connected`` and the status dot stays
+    green. Keepalive makes the OS probe the dead peer and fail the socket within a
+    few seconds, so the broadcaster detects the drop (and the dot turns red) fast.
+
+    Best-effort and portable: the per-idle/interval/count options are Linux-only
+    (the deployment target); each is guarded so dev on macOS/other platforms still
+    enables plain SO_KEEPALIVE without raising.
+    """
+    sock = writer.get_extra_info("socket")
+    if sock is None:  # pragma: no cover - always a real socket outside tests
+        return
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        # ~2s idle, then probe every 1s, dead after 3 failures ≈ 5s detection.
+        # Safe to be this aggressive on a LAN: a healthy 25fps stream never idles
+        # long enough to probe, and a live-but-paused peer still ACKs the probes,
+        # so this only trips when the radio is genuinely gone.
+        if hasattr(socket, "TCP_KEEPIDLE"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 2)
+        if hasattr(socket, "TCP_KEEPINTVL"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
+        if hasattr(socket, "TCP_KEEPCNT"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+    except OSError as exc:  # pragma: no cover - setsockopt rarely fails
+        logger.debug("Could not set TCP keepalive: %s", exc)
+
+
 @dataclass
 class RtlTcpConnection:
     host: str
@@ -79,6 +113,7 @@ class RtlTcpConnection:
                     timeout=5.0,
                 )
                 self.connected = True
+                _enable_tcp_keepalive(self.writer)
                 logger.info("Connected to rtl_tcp at %s:%d", self.host, self.port)
                 # rtl_tcp sends a 12-byte magic header on connect — discard it
                 await asyncio.wait_for(self.reader.read(12), timeout=3.0)
@@ -293,14 +328,24 @@ class RadioBroadcaster:
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
-                    # Dongle briefly stops sending during retune — skip this chunk
-                    logger.debug("rtl_tcp incomplete read during retune, skipping")
+                    # readexactly raises this only at EOF. If the reader is at EOF
+                    # the rtl_tcp stream has closed (radio rebooted/unplugged) and
+                    # never recovers — treat it as a disconnect. Skipping it (the
+                    # old "retune" behaviour) span-locked the loop on repeated EOF,
+                    # leaving conn.connected True forever so the status dot stayed
+                    # green. Only a partial read that is NOT at EOF is a transient
+                    # blip worth skipping.
+                    if conn.reader is None or conn.reader.at_eof():
+                        logger.warning("rtl_tcp stream closed (%s:%d)", conn.host, conn.port)
+                        self._broadcast({"type": "error", "code": "READ_ERROR", "message": "stream closed"})
+                        await conn.disconnect()
+                        break
+                    logger.debug("rtl_tcp incomplete read, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
                     logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
-                    conn.connected = False
-                    err_frame = {"type": "error", "code": "READ_ERROR", "message": str(exc)}
-                    self._broadcast(err_frame)
+                    self._broadcast({"type": "error", "code": "READ_ERROR", "message": str(exc)})
+                    await conn.disconnect()
                     break
 
                 # FFT uses only the first fft_size samples from the chunk.
@@ -443,15 +488,30 @@ def connection_status(host: str, port: int) -> dict:
     }
 
 
+# rtl_tcp announces itself on connect with a 12-byte dongle-info block whose
+# first 4 bytes are the ASCII magic "RTL0" (followed by tuner type + gain count).
+# We validate this so reachability means "a live rtl_tcp dongle answered", not
+# merely "some TCP port is open" — an unplugged dongle or an unrelated listener
+# would otherwise read as online.
+_RTL_TCP_MAGIC = b"RTL0"
+_RTL_TCP_HEADER_LEN = 12
+
+
 async def reachability_status(host: str, port: int, timeout: float = 1.5) -> dict:
     """Status for the Settings device list.
 
     If a live stream is already running for this radio, report its rich state
     (same as connection_status). Otherwise do a lightweight TCP probe so the
     Settings dot reflects *reachability* of the rtl_tcp host:port rather than
-    "is the panel currently streaming this radio". The probe opens and
-    immediately closes a socket — it never leaves a persistent connection
-    behind (that would race the broadcaster's exclusive rtl_tcp session).
+    "is the panel currently streaming this radio".
+
+    The probe is a direct TCP connection to the configured host:port, so it works
+    for LAN/localhost radios regardless of internet connectivity — that is the
+    "ping the local IP" behaviour the SDR section relies on in offgrid mode. It
+    reads and validates the rtl_tcp ``RTL0`` magic header to confirm a real dongle
+    is answering, then immediately closes the socket — it never leaves a
+    persistent connection behind (that would race the broadcaster's exclusive
+    rtl_tcp session).
     """
     live = connection_status(host, port)
     if live.get("connected"):
@@ -459,11 +519,16 @@ async def reachability_status(host: str, port: int, timeout: float = 1.5) -> dic
     try:
         fut = asyncio.open_connection(host, port)
         reader, writer = await asyncio.wait_for(fut, timeout=timeout)
-        writer.close()
         try:
-            await writer.wait_closed()
-        except Exception:
-            pass
+            header = await asyncio.wait_for(reader.readexactly(_RTL_TCP_HEADER_LEN), timeout=timeout)
+        finally:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+        if header[:4] != _RTL_TCP_MAGIC:
+            return {"connected": False}
         return {"connected": True, "reachable": True}
     except Exception:
         return {"connected": False}

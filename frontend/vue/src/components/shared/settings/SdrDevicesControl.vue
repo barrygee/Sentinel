@@ -119,22 +119,33 @@ const openId = ref<number | 'new' | null>(null)
 const confirmId = ref<number | null>(null)
 const statusMap = ref<Record<number, boolean | null>>({})
 
+// Guards the 3s poll: each per-radio probe waits on a backend TCP connect (up to
+// ~1.5s × radios), so a slow network could let ticks pile up. Skip a tick while a
+// previous sweep is still in flight rather than stacking overlapping requests.
+let statusCheckInFlight = false
+
 async function checkStatuses(ids: number[]): Promise<void> {
-  await Promise.all(
-    ids.map(async (id) => {
-      try {
-        const res = await fetch(`/api/sdr/status/${id}`)
-        if (!res.ok) {
+  if (statusCheckInFlight) return
+  statusCheckInFlight = true
+  try {
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const res = await fetch(`/api/sdr/status/${id}`)
+          if (!res.ok) {
+            statusMap.value[id] = false
+            return
+          }
+          const data = await res.json()
+          statusMap.value[id] = data.connected === true
+        } catch {
           statusMap.value[id] = false
-          return
         }
-        const data = await res.json()
-        statusMap.value[id] = data.connected === true
-      } catch {
-        statusMap.value[id] = false
-      }
-    }),
-  )
+      }),
+    )
+  } finally {
+    statusCheckInFlight = false
+  }
 }
 
 async function load(): Promise<void> {
