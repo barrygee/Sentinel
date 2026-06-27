@@ -337,16 +337,15 @@ class RadioBroadcaster:
                     # blip worth skipping.
                     if conn.reader is None or conn.reader.at_eof():
                         logger.warning("rtl_tcp stream closed (%s:%d)", conn.host, conn.port)
-                        conn.connected = False
                         self._broadcast({"type": "error", "code": "READ_ERROR", "message": "stream closed"})
+                        await conn.disconnect()
                         break
                     logger.debug("rtl_tcp incomplete read, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
                     logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
-                    conn.connected = False
-                    err_frame = {"type": "error", "code": "READ_ERROR", "message": str(exc)}
-                    self._broadcast(err_frame)
+                    self._broadcast({"type": "error", "code": "READ_ERROR", "message": str(exc)})
+                    await conn.disconnect()
                     break
 
                 # FFT uses only the first fft_size samples from the chunk.

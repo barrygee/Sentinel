@@ -21,6 +21,19 @@ class _EofReader:
         raise asyncio.IncompleteReadError(partial=b"", expected=num_bytes)
 
 
+class _RecordingWriter:
+    """A StreamWriter stand-in that records whether it was closed."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        return None
+
+
 class _PartialThenDataReader:
     """Raises a non-EOF IncompleteReadError once, then streams data forever."""
 
@@ -37,16 +50,22 @@ class _PartialThenDataReader:
         return b"\x00" * num_bytes
 
 
-async def test_broadcaster_marks_disconnected_when_stream_closes():
+async def test_broadcaster_marks_disconnected_and_closes_socket_when_stream_closes():
     conn = sdr_svc.RtlTcpConnection(host="10.0.0.9", port=1234)
     conn.connected = True
     conn.reader = _EofReader()  # type: ignore[assignment]
+    writer = _RecordingWriter()
+    conn.writer = writer  # type: ignore[assignment]
     broadcaster = sdr_svc.RadioBroadcaster(conn)
 
     # Must return promptly; before the fix this looped forever on EOF and hung.
     await asyncio.wait_for(broadcaster._run(), timeout=2.0)
 
     assert conn.connected is False
+    # The socket must be closed so single-client rtl_tcp frees its slot and the
+    # next reconnect is accepted — otherwise the dot never recovers to green.
+    assert writer.closed is True
+    assert conn.writer is None
 
 
 async def test_broadcaster_skips_a_non_eof_partial_read_and_keeps_running():
