@@ -1241,6 +1241,40 @@ describe('SdrPanel — device dropdown menu', () => {
     )
   })
 
+  async function selectMenuRadio(wrapper: VueWrapper, optionIndex: number): Promise<void> {
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    ;(items[optionIndex] as HTMLElement).click()
+    await flushPromises()
+  }
+
+  it('keeps controls enabled after switching to the second radio (superseded close ignored)', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1) // first radio
+    const socketA = lastSocket()
+    socketA.open()
+    await flushPromises()
+    await selectMenuRadio(wrapper, 2) // second radio — closes socketA, opens socketB
+    // socketA's close fires asynchronously, after _ctrlRadioId moved to radio 2.
+    // It must NOT re-disable the controls that selecting radio 2 just enabled.
+    socketA.fire('close')
+    await flushPromises()
+    expect(wrapper.find('.sdr-freq-input-large').attributes('disabled')).toBeUndefined()
+  })
+
+  it('ignores an error from a superseded radio socket', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1)
+    const socketA = lastSocket()
+    socketA.open()
+    await flushPromises()
+    await selectMenuRadio(wrapper, 2)
+    socketA.fire('error')
+    await flushPromises()
+    expect(wrapper.find('.sdr-freq-input-large').attributes('disabled')).toBeUndefined()
+  })
+
   it('clears the selection via the placeholder', async () => {
     const wrapper = await mountTwoRadios()
     await deviceDropdown(wrapper).trigger('click')

@@ -2897,6 +2897,12 @@ async function openControlSocket(radioId: number) {
   })
 
   ws.addEventListener('close', () => {
+    // Ignore the close of a socket we've already switched away from. Selecting a
+    // different radio closes the previous radio's socket; that close fires after
+    // _ctrlRadioId has moved on, so without this guard it would setStatus(false)
+    // and re-disable the controls that selectRadio just enabled for the new radio
+    // (the "select the other radio twice before controls enable" bug).
+    if (_ctrlRadioId !== radioId) return
     setStatus(false)
     if (_ctrlReconnect) clearTimeout(_ctrlReconnect)
     const delay = _ctrlReconnectDelay
@@ -2909,6 +2915,9 @@ async function openControlSocket(radioId: number) {
   })
 
   ws.addEventListener('error', () => {
+    // Same supersede guard as 'close': a stale socket must not reset the status
+    // for the radio that's now selected.
+    if (_ctrlRadioId !== radioId) return
     setStatus(false)
   })
 }
