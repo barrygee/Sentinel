@@ -328,8 +328,19 @@ class RadioBroadcaster:
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
-                    # Dongle briefly stops sending during retune — skip this chunk
-                    logger.debug("rtl_tcp incomplete read during retune, skipping")
+                    # readexactly raises this only at EOF. If the reader is at EOF
+                    # the rtl_tcp stream has closed (radio rebooted/unplugged) and
+                    # never recovers — treat it as a disconnect. Skipping it (the
+                    # old "retune" behaviour) span-locked the loop on repeated EOF,
+                    # leaving conn.connected True forever so the status dot stayed
+                    # green. Only a partial read that is NOT at EOF is a transient
+                    # blip worth skipping.
+                    if conn.reader is None or conn.reader.at_eof():
+                        logger.warning("rtl_tcp stream closed (%s:%d)", conn.host, conn.port)
+                        conn.connected = False
+                        self._broadcast({"type": "error", "code": "READ_ERROR", "message": "stream closed"})
+                        break
+                    logger.debug("rtl_tcp incomplete read, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
                     logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
