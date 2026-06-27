@@ -12,6 +12,8 @@ __pycache__/
 *.db-shm
 *.db-wal
 .venv/
+./backend/default_config.json
+./backend/data/sdr_frequencies.json
 
 # Local environment / secrets (never commit) — see .env.example
 .env

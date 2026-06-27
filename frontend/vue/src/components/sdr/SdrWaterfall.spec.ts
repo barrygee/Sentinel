@@ -763,6 +763,93 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('.sdr-wf-freq-label').length).toBeGreaterThan(0)
   })
+
+  // Reads the inline `top` (px) each known-freq marker is positioned at — the
+  // per-row vertical offset that staggers clustered labels. Markers render in
+  // ascending-frequency order, so the returned array matches that order.
+  function markerTops(wrapper: VueWrapper): number[] {
+    return wrapper.findAll('.sdr-wf-known-marker').map((marker) => {
+      const match = /top:\s*([\d.]+)px/.exec(marker.attributes('style') ?? '')
+      return match ? Number(match[1]) : NaN
+    })
+  }
+
+  it('staggers overlapping known-freq labels onto separate rows', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // Two long labels only 10 kHz apart in a 2.048 MHz window — their pills span
+    // far more horizontal space than that gap, so they must not share a row.
+    store.frequencies = [
+      {
+        id: 1,
+        group_id: null,
+        label: 'SHANWICK – OCEANIC CLEARANCE',
+        frequency_hz: 99_200_000,
+        mode: 'AM',
+      },
+      {
+        id: 2,
+        group_id: null,
+        label: 'SCOTTISH – ANTRIM LOW',
+        frequency_hz: 99_210_000,
+        mode: 'AM',
+      },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const tops = markerTops(wrapper)
+    expect(tops).toHaveLength(2)
+    // Lower-frequency label sits on the base row; the colliding one drops a row.
+    expect(tops[0]).toBe(20)
+    expect(tops[1]).toBe(44)
+  })
+
+  it('keeps non-overlapping known-freq labels on the single top row', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // Two short labels far apart in the window — no pixel collision, so the
+    // stagger must NOT fire (both stay on the base row).
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 99_100_000, mode: 'AM' },
+      { id: 2, group_id: null, label: 'TWR', frequency_hz: 100_900_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    expect(markerTops(wrapper)).toEqual([20, 20])
+  })
+
+  it('reuses the base row once a later label clears the cluster', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // Two colliding labels open rows 0 and 1; a third far enough right clears
+    // row 0's pill and packs back onto it rather than opening a needless row.
+    store.frequencies = [
+      {
+        id: 1,
+        group_id: null,
+        label: 'SHANWICK – OCEANIC CLEARANCE',
+        frequency_hz: 99_200_000,
+        mode: 'AM',
+      },
+      {
+        id: 2,
+        group_id: null,
+        label: 'SCOTTISH – ANTRIM LOW',
+        frequency_hz: 99_250_000,
+        mode: 'AM',
+      },
+      {
+        id: 3,
+        group_id: null,
+        label: 'SCOTTISH – TAY EAST',
+        frequency_hz: 100_100_000,
+        mode: 'AM',
+      },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    expect(markerTops(wrapper)).toEqual([20, 44, 20])
+  })
 })
 
 // =============================================================================

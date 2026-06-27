@@ -200,6 +200,12 @@ const bandInsetBottomPx = ref(0)
 // Distance from the TOP of .sdr-wf-spectrum to the top of the data box (mx.t).
 // Used to anchor the band-plan strip to the data-box top.
 const bandInsetTopPx = ref(0)
+// Width of the spectrum's data box in pixels (mx.r − mx.l). Drives the
+// known-frequency label overlap test below: leftPct is a percentage, but
+// deciding whether two label pills collide is a pixel question (pill widths vs.
+// the available horizontal space), so the row-stagger math converts percentages
+// to pixels through this. Measured after layout in syncBandInset().
+const dataBoxWidthPx = ref(0)
 // Height of the band overlay in pixels. Set so the top of the strip aligns
 // with the -100 dB horizontal gridline in the spectrum (data-box-relative).
 const bandHeightPx = ref(0)
@@ -557,27 +563,39 @@ let suppressAccEvents = false
 const nearEdge = ref(false)
 const MIN_BW_HZ = 200
 
-// Render one known-frequency marker (line + label) onto an off-screen canvas.
-// AnnotationPlugin draws it centred on (pxl.x, pxl.y), so we build the marker
-// with the vertical line dead-centre horizontally — the line then lands exactly
-// on the frequency pixel. The label sits on the right of the line. `rowOffset`
-// shifts the canvas vertically by N×rowHeight so clustered labels stagger.
 // Known-frequency markers — rendered as HTML in the template (SVG ring +
 // label box), matching the map's "SET LOCATION" pop-up style. AnnotationPlugin
 // is kept attached but empty (vertical line removed; the SVG ring is the
 // frequency indicator).
-const _KNOWN_FREQ_MAX_ROWS = 3
+
+// ── Known-freq label stagger geometry ───────────────────────────────────────
+// When several saved frequencies fall close together in the visible window
+// their label pills would overlap into an unreadable smear. We pack them onto
+// stacked rows — but ONLY where they actually collide; clear labels stay on the
+// single top row. Each occupied row drops the marker by KNOWN_ROW_HEIGHT_PX.
+const KNOWN_MARKER_TOP_PX = 20 // base offset below the data-box top (row 0)
+const KNOWN_ROW_HEIGHT_PX = 24 // ≈ pill height + gap, so stacked rows read clearly apart
+const KNOWN_MARKER_GAP_PX = 6 // minimum horizontal breathing room between same-row pills
+// Approximate rendered width (px) of a marker pill: ring/padding chrome plus the
+// label text at the pill's 700 11px Barlow. A per-char estimate (not canvas
+// measureText) keeps this a PURE function — deterministic under test and free of
+// jsdom canvas stubs — and the gap above absorbs the approximation error.
+const KNOWN_MARKER_CHROME_PX = 31 // ring + horizontal padding (see .sdr-wf-known-marker-label)
+const KNOWN_MARKER_CHAR_PX = 6.6 // avg glyph advance for Barlow 700 11px, uppercase
+function estimateMarkerWidthPx(label: string): number {
+  return KNOWN_MARKER_CHROME_PX + label.length * KNOWN_MARKER_CHAR_PX
+}
 
 // Visible known frequencies for the HTML label overlay: zoom-aware leftPct
-// matching visibleBands math, plus a staggered `row` index so clustered labels
-// don't overlap. Returns the same data set used to drive the canvas annotations
-// (kept consistent so the line + label always pair up).
+// matching visibleBands math, plus a `row` index (and its pixel `topPx`) that
+// staggers clustered labels so they never overlap.
 interface KnownFreqEntry {
   key: string
   label: string
   frequencyHz: number
   leftPct: number
   row: number
+  topPx: number
 }
 const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
   const lo = spanStartHz.value
@@ -585,18 +603,39 @@ const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
   if (hi <= lo) return []
   const { winLo, winHi } = zoomWindowHz(lo, hi)
   const w = winHi - winLo
-  // All markers sit on a single row by default. The CSS uses `flex-end` and
-  // `flex-wrap` on the overlay so when labels would overlap, the browser wraps
-  // them to additional rows automatically — no manual stagger math required.
+  // The data box's pixel width — overlap is a pixel question, so percentages are
+  // projected onto it below. Whenever a marker is in-window the spectrum has had
+  // a frame, and the same frame that sets the span (cleared the hi<=lo guard
+  // above) also populated dataBoxWidthPx, so it is > 0 here.
+  const boxWidthPx = dataBoxWidthPx.value
+  // Greedy interval-graph row packing: walking the in-window markers left → right,
+  // place each pill on the LOWEST row whose previous pill clears it (right edge +
+  // gap ≤ this pill's left edge); if none clears, open a NEW row. This guarantees
+  // zero overlap with the fewest rows, and collapses to a single row when nothing
+  // collides. Rows are unbounded so a dense cluster is always fully separated.
+  const rowRightEdges: number[] = []
+  const inWindow = store.frequencies
+    .filter((f) => f.frequency_hz >= winLo && f.frequency_hz <= winHi)
+    .sort((a, b) => a.frequency_hz - b.frequency_hz)
   const out: KnownFreqEntry[] = []
-  for (const f of store.frequencies) {
-    if (f.frequency_hz < winLo || f.frequency_hz > winHi) continue
+  for (const f of inWindow) {
+    const leftPct = ((f.frequency_hz - winLo) / w) * 100
+    const leftPx = (leftPct / 100) * boxWidthPx
+    const rightPx = leftPx + estimateMarkerWidthPx(f.label)
+    let row = rowRightEdges.findIndex((edge) => edge + KNOWN_MARKER_GAP_PX <= leftPx)
+    if (row === -1) {
+      row = rowRightEdges.length
+      rowRightEdges.push(rightPx)
+    } else {
+      rowRightEdges[row] = rightPx
+    }
     out.push({
       key: String(f.id),
       label: f.label,
       frequencyHz: f.frequency_hz,
-      leftPct: ((f.frequency_hz - winLo) / w) * 100,
-      row: 0,
+      leftPct,
+      row,
+      topPx: KNOWN_MARKER_TOP_PX + row * KNOWN_ROW_HEIGHT_PX,
     })
   }
   return out
@@ -1112,6 +1151,10 @@ function syncBandInset() {
   if (!mx || !mx.width) return
   bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
   bandInsetRightPx.value = Math.max(0, Math.ceil(mx.width - mx.r))
+  // Pixel width of the data box (mx.r − mx.l) — the horizontal space the
+  // known-freq label overlay maps its percentage positions onto for overlap
+  // detection (see visibleKnownFreqs).
+  dataBoxWidthPx.value = Math.max(0, Math.floor(mx.r - mx.l))
   // Publish the live data-box insets so the decoder dock below can line its
   // boxes up with the waterfall DISPLAY (not the waterfall element). Written to
   // :root as CSS vars; the dock reads them with fallbacks. See SdrDecodeDock.
@@ -2359,7 +2402,7 @@ onBeforeUnmount(() => {
           v-for="f in visibleKnownFreqs"
           :key="f.key"
           class="sdr-wf-known-marker"
-          :style="{ left: f.leftPct + '%' }"
+          :style="{ left: f.leftPct + '%', top: f.topPx + 'px' }"
           :title="f.label"
         >
           <svg
