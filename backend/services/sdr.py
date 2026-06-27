@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 import time
 from dataclasses import dataclass, field
 
@@ -54,6 +55,39 @@ _connections: dict[str, RtlTcpConnection] = {}
 _broadcasters: dict[str, RadioBroadcaster] = {}
 
 
+def _enable_tcp_keepalive(writer: asyncio.StreamWriter) -> None:
+    """Turn on aggressive TCP keepalive for an rtl_tcp socket.
+
+    rtl_tcp radios live on the LAN, and a reboot or power-off leaves a half-open
+    connection: the peer is gone but our socket stays ESTABLISHED, so a blocked
+    ``readexactly`` waits the full read timeout (~10s) before erroring. During that
+    window the connection still reports ``connected`` and the status dot stays
+    green. Keepalive makes the OS probe the dead peer and fail the socket within a
+    few seconds, so the broadcaster detects the drop (and the dot turns red) fast.
+
+    Best-effort and portable: the per-idle/interval/count options are Linux-only
+    (the deployment target); each is guarded so dev on macOS/other platforms still
+    enables plain SO_KEEPALIVE without raising.
+    """
+    sock = writer.get_extra_info("socket")
+    if sock is None:  # pragma: no cover - always a real socket outside tests
+        return
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        # ~2s idle, then probe every 1s, dead after 3 failures ≈ 5s detection.
+        # Safe to be this aggressive on a LAN: a healthy 25fps stream never idles
+        # long enough to probe, and a live-but-paused peer still ACKs the probes,
+        # so this only trips when the radio is genuinely gone.
+        if hasattr(socket, "TCP_KEEPIDLE"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 2)
+        if hasattr(socket, "TCP_KEEPINTVL"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
+        if hasattr(socket, "TCP_KEEPCNT"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+    except OSError as exc:  # pragma: no cover - setsockopt rarely fails
+        logger.debug("Could not set TCP keepalive: %s", exc)
+
+
 @dataclass
 class RtlTcpConnection:
     host: str
@@ -79,6 +113,7 @@ class RtlTcpConnection:
                     timeout=5.0,
                 )
                 self.connected = True
+                _enable_tcp_keepalive(self.writer)
                 logger.info("Connected to rtl_tcp at %s:%d", self.host, self.port)
                 # rtl_tcp sends a 12-byte magic header on connect — discard it
                 await asyncio.wait_for(self.reader.read(12), timeout=3.0)

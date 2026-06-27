@@ -7,6 +7,7 @@ declaring a radio reachable — a bare open port must NOT read as online.
 """
 
 import asyncio
+import socket
 
 from backend.services import sdr as sdr_svc
 
@@ -14,7 +15,9 @@ from backend.services import sdr as sdr_svc
 async def _serve_once(payload: bytes) -> tuple[asyncio.AbstractServer, int]:
     """Start a throwaway TCP server that writes ``payload`` to the first client."""
 
-    async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def handle(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         if payload:
             writer.write(payload)
             await writer.drain()
@@ -29,7 +32,9 @@ async def _serve_once(payload: bytes) -> tuple[asyncio.AbstractServer, int]:
 
 async def test_reachable_when_rtl_tcp_header_present():
     # 12-byte header: "RTL0" magic + tuner type + gain count.
-    server, port = await _serve_once(b"RTL0" + b"\x00\x00\x00\x05" + b"\x00\x00\x00\x1d")
+    server, port = await _serve_once(
+        b"RTL0" + b"\x00\x00\x00\x05" + b"\x00\x00\x00\x1d"
+    )
     try:
         result = await sdr_svc.reachability_status("127.0.0.1", port)
     finally:
@@ -68,6 +73,33 @@ async def test_not_reachable_when_connection_refused():
     await probe_server.wait_closed()
     result = await sdr_svc.reachability_status("127.0.0.1", port, timeout=0.3)
     assert result == {"connected": False}
+
+
+async def test_enable_tcp_keepalive_sets_socket_option():
+    # A real connected socket pair: the helper must flip SO_KEEPALIVE on so the OS
+    # detects a rebooted/unplugged radio quickly instead of blocking the read.
+    server, port = await _serve_once(b"")
+    try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        sdr_svc._enable_tcp_keepalive(writer)
+        sock = writer.get_extra_info("socket")
+        # Enabled = any non-zero (Linux reports 1; macOS reports a different
+        # non-zero flag value), so assert "on" rather than an exact value.
+        assert sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+async def test_enable_tcp_keepalive_tolerates_missing_socket():
+    # Defensive: a writer without an underlying socket must not raise.
+    class _NoSocketWriter:
+        def get_extra_info(self, _name: str) -> None:
+            return None
+
+    sdr_svc._enable_tcp_keepalive(_NoSocketWriter())  # type: ignore[arg-type]
 
 
 async def test_live_broadcaster_fast_path_skips_probe(monkeypatch):
