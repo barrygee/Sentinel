@@ -12,8 +12,12 @@ __pycache__/
 *.db-shm
 *.db-wal
 .venv/
-./backend/default_config.json
-./backend/data/sdr_frequencies.json
+
+# Runtime-owned SDR catalogue: the backend rewrites this on every boot
+# (mirrors the DB back to disk), so it's machine-local noise. The committed
+# sdr_frequencies.seed.json carries the canonical defaults a fresh clone seeds
+# from. (Leading-slash anchors to the repo root; `./` would NOT match.)
+/backend/data/sdr_frequencies.json
 
 # Local environment / secrets (never commit) — see .env.example
 .env
