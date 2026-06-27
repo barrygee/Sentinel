@@ -252,6 +252,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Tighten spectrum height and waterfall gaps (#133)
 - Stop auto-highlighting the search input on open (#135)
 - Repair air rail e2e tests and mobile sidebar overlap (#137)
+- Stagger overlapping known-freq spectrum labels (#145)
 
 ### Chores
 
