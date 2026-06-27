@@ -1206,14 +1206,73 @@ describe('SdrPanel — device dropdown menu', () => {
     expect(sockets.length).toBeGreaterThan(0)
   })
 
-  it('uses the cached online-radio list when present', async () => {
-    sessionStorage.setItem('sdrOnlineRadioIds', JSON.stringify([2]))
+  it('uses the cached online-radio list while the cache is fresh', async () => {
+    // Fresh cache (ts = now) → short-circuit the probe and trust the cached ids.
+    sessionStorage.setItem('sdrOnlineRadioIds', JSON.stringify({ ids: [2], ts: Date.now() }))
     const wrapper = await mountTwoRadios()
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
     const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
     // placeholder + only radio 2 (id 2 in cache).
     expect(items.length).toBe(2)
+  })
+
+  it('re-probes when the cached online-radio list is stale (older than the TTL)', async () => {
+    // Stale cache (ts well past the 3s TTL) must be ignored and a fresh probe run.
+    sessionStorage.setItem(
+      'sdrOnlineRadioIds',
+      JSON.stringify({ ids: [2], ts: Date.now() - 60_000 }),
+    )
+    const wrapper = await mountTwoRadios()
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    // Default status route reports every radio reachable, so the stale [2]-only
+    // cache is discarded and both radios reappear (placeholder + 2 radios).
+    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    expect(items.length).toBe(3)
+  })
+
+  it('ignores a legacy bare-array cache and re-probes', async () => {
+    // Pre-TTL caches stored a bare id array with no timestamp; it must not be
+    // honoured (no ts → treated as stale) so the list reflects a fresh probe.
+    sessionStorage.setItem('sdrOnlineRadioIds', JSON.stringify([2]))
+    const wrapper = await mountTwoRadios()
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    expect(items.length).toBe(3)
+  })
+
+  it('probes radios via the read-only status endpoint, never POST /api/sdr/connect', async () => {
+    const wrapper = await mountTwoRadios()
+    fetchCalls.length = 0
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    const statusProbes = fetchCalls.filter((call) => call.url.startsWith('/api/sdr/status/'))
+    const connectProbes = fetchCalls.filter((call) => call.url === '/api/sdr/connect')
+    expect(statusProbes.length).toBeGreaterThan(0)
+    expect(connectProbes.length).toBe(0)
+    // The fresh probe result is persisted with a timestamp for the TTL cache.
+    const cached = JSON.parse(sessionStorage.getItem('sdrOnlineRadioIds') as string)
+    expect(Array.isArray(cached.ids)).toBe(true)
+    expect(typeof cached.ts).toBe('number')
+  })
+
+  it('drops an unreachable radio from the menu after re-probe', async () => {
+    const wrapper = await mountTwoRadios()
+    // Radio is reported offline by the status probe → excluded from the menu.
+    fetchOverride = (url: string) =>
+      url.startsWith('/api/sdr/status/')
+        ? Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ connected: false }),
+          })
+        : null
+    await deviceDropdown(wrapper).trigger('click')
+    await flushPromises()
+    // Both radios report offline → menuRadios empty → "no radios online" note.
+    expect(document.querySelector('.sdr-device-menu')?.textContent).toContain('no radios online')
   })
 
   it('clears the selection via the placeholder', async () => {
@@ -3326,12 +3385,12 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
   it('swallows a failed reachability probe in the menu', async () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1' })]
     fetchOverride = (url) =>
-      url === '/api/sdr/connect' ? Promise.reject(new Error('offline')) : null
+      url.startsWith('/api/sdr/status/') ? Promise.reject(new Error('offline')) : null
     const wrapper = await mountReady()
     await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
     await flushPromises()
     // probeMenuRadios caught the rejections → "no radios online".
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.sdr-device-menu')?.textContent).toContain('no radios online')
   })
 })
 
@@ -4112,17 +4171,17 @@ describe('SdrPanel — remaining reachable branch arms', () => {
     expect((wrapper.find('#sdr-ef-freq').element as HTMLInputElement).value).toBe('145.5000')
   })
 
-  it('treats a non-OK connect probe as offline in the device menu', async () => {
+  it('treats a non-OK status probe as offline in the device menu', async () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1' })]
     fetchOverride = (url) =>
-      url === '/api/sdr/connect'
+      url.startsWith('/api/sdr/status/')
         ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
         : null
     const wrapper = await mountReady()
     await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
     await flushPromises()
     // probeMenuRadios maps the non-OK responses to null → "no radios online".
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.sdr-device-menu')?.textContent).toContain('no radios online')
   })
 
   it('defaults the satellite name when an external restore omits it', async () => {

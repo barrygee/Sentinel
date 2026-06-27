@@ -2015,6 +2015,10 @@ let _autoTunePrevState: {
 const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
 const SIGNAL_SEGS = 36
 const ONLINE_CACHE_KEY = 'sdrOnlineRadioIds'
+// The online-radios cache only de-dupes rapid reopens of the dropdown; it must NOT
+// outlive a radio going offline. A short TTL forces a fresh reachability probe on
+// essentially every deliberate reopen, so an unavailable radio drops out at once.
+const ONLINE_CACHE_TTL_MS = 3000
 
 // ── Active tab ────────────────────────────────────────────────────────────────
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
@@ -3471,7 +3475,12 @@ async function probeMenuRadios() {
   let cachedIds: number[] | null = null
   try {
     const raw = sessionStorage.getItem(ONLINE_CACHE_KEY)
-    if (raw) cachedIds = JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { ids: number[]; ts: number }
+      // Honour the cache only within its short TTL; a stale entry must re-probe so
+      // a radio that has since gone offline can't linger in the list.
+      if (parsed && Date.now() - parsed.ts < ONLINE_CACHE_TTL_MS) cachedIds = parsed.ids
+    }
   } catch (_) {}
   if (cachedIds !== null) {
     menuRadios.value = enabled.filter((r) => (cachedIds as number[]).includes(r.id))
@@ -3479,13 +3488,13 @@ async function probeMenuRadios() {
   }
   menuCheckingRadios.value = true
   const results = await Promise.allSettled(
+    // Read-only reachability probe (a direct local-IP/port check on the backend) —
+    // never POST /api/sdr/connect just to populate the menu, which would open a real
+    // connection as a side effect. Matches the Settings dot and works offgrid.
     enabled.map((r) =>
-      fetch('/api/sdr/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ radio_id: r.id }),
-      })
-        .then((res) => (res.ok ? r : null))
+      fetch(`/api/sdr/status/${r.id}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => (data && (data.connected === true || data.reachable === true) ? r : null))
         .catch(() => null),
     ),
   )
@@ -3495,7 +3504,10 @@ async function probeMenuRadios() {
     /* v8 ignore stop */
     .filter((r): r is SdrRadio => r !== null)
   try {
-    sessionStorage.setItem(ONLINE_CACHE_KEY, JSON.stringify(online.map((r) => r.id)))
+    sessionStorage.setItem(
+      ONLINE_CACHE_KEY,
+      JSON.stringify({ ids: online.map((r) => r.id), ts: Date.now() }),
+    )
   } catch (_) {}
   menuCheckingRadios.value = false
   // Guards a menu that was closed mid-probe; in the unit suite the probe
