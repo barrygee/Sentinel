@@ -40,189 +40,17 @@
     {
       "name": "DMR",
       "slug": "dmr"
+    },
+    {
+      "name": "Repeater",
+      "slug": "amateur-radio-repeater"
+    },
+    {
+      "name": "Belfast",
+      "slug": "belfast"
     }
   ],
   "frequencies": [
-    {
-      "label": "40m SSB Calling",
-      "frequency_hz": 7090000,
-      "mode": "LSB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "SSB calling frequency",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "20m FT8",
-      "frequency_hz": 14074000,
-      "mode": "USB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "FT8",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "20m IBP Beacons",
-      "frequency_hz": 14100000,
-      "mode": "CW",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 500,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "NCDXF international beacon project",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "20m SSB Calling",
-      "frequency_hz": 14285000,
-      "mode": "USB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "SSB calling frequency",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "12m FT8",
-      "frequency_hz": 24915000,
-      "mode": "USB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "FT8",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "12m IBP Beacons",
-      "frequency_hz": 24930000,
-      "mode": "CW",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 500,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "NCDXF international beacon project",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "10m FT8",
-      "frequency_hz": 28074000,
-      "mode": "USB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "FT8",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "10m IBP Beacons",
-      "frequency_hz": 28200000,
-      "mode": "CW",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 500,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "NCDXF international beacon project",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "10m SSB Calling",
-      "frequency_hz": 28490000,
-      "mode": "USB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "SSB calling frequency",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "10m FM Calling",
-      "frequency_hz": 29600000,
-      "mode": "NFM",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 12500,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "FM calling",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
     {
       "label": "6m SSB Calling",
       "frequency_hz": 50200000,
@@ -237,24 +65,6 @@
       "zmax": 0.0,
       "scannable": true,
       "notes": "SSB centre of activity",
-      "groups": [
-        "amateur-radio"
-      ]
-    },
-    {
-      "label": "6m FT8",
-      "frequency_hz": 50313000,
-      "mode": "USB",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 3000,
-      "sample_rate": 2048000,
-      "volume": 175,
-      "zoom": 1.0,
-      "zmin": 0.0,
-      "zmax": 0.0,
-      "scannable": true,
-      "notes": "FT8",
       "groups": [
         "amateur-radio"
       ]
@@ -388,16 +198,16 @@
       ]
     },
     {
-      "label": "Tees Air to Air",
+      "label": "Tees Air-to-Air",
       "frequency_hz": 122350000,
       "mode": "AM",
-      "squelch": -20.0,
-      "gain": 30.0,
-      "bandwidth": 10000,
+      "squelch": -40.0,
+      "gain": 45.5,
+      "bandwidth": 8723,
       "sample_rate": 2048000,
-      "volume": 175,
+      "volume": 100,
       "zoom": 1.0,
-      "zmin": 0.0,
+      "zmin": -76.0,
       "zmax": 0.0,
       "scannable": true,
       "notes": "",
@@ -823,6 +633,24 @@
       ]
     },
     {
+      "label": "Tees Air-to-Air",
+      "frequency_hz": 142650000,
+      "mode": "AM",
+      "squelch": -20.0,
+      "gain": 30.0,
+      "bandwidth": 10000,
+      "sample_rate": 2048000,
+      "volume": 100,
+      "zoom": 1.0,
+      "zmin": 0.0,
+      "zmax": 0.0,
+      "scannable": true,
+      "notes": "",
+      "groups": [
+        "milair"
+      ]
+    },
+    {
       "label": "2m FT8",
       "frequency_hz": 144174000,
       "mode": "USB",
@@ -892,6 +720,26 @@
       "notes": "FM calling channel (V40)",
       "groups": [
         "amateur-radio"
+      ]
+    },
+    {
+      "label": "GB3UK - Washington",
+      "frequency_hz": 145612500,
+      "mode": "NFM",
+      "squelch": -20.0,
+      "gain": 30.0,
+      "bandwidth": 3000,
+      "sample_rate": 2048000,
+      "volume": 100,
+      "zoom": 1.0,
+      "zmin": 0.0,
+      "zmax": 0.0,
+      "scannable": true,
+      "notes": "RX: 145.0125\nCTCSS: 118.8Hz",
+      "groups": [
+        "amateur-radio",
+        "north-east",
+        "amateur-radio-repeater"
       ]
     },
     {
@@ -1099,20 +947,21 @@
       ]
     },
     {
-      "label": "Air to Air Refueling",
+      "label": "Tartan Air-to-Air Refueling",
       "frequency_hz": 343650000,
       "mode": "AM",
       "squelch": -20.0,
       "gain": 30.0,
-      "bandwidth": 10000,
+      "bandwidth": 12500,
       "sample_rate": 2048000,
-      "volume": 175,
+      "volume": 100,
       "zoom": 1.0,
-      "zmin": 0.0,
+      "zmin": -87.0,
       "zmax": 0.0,
       "scannable": true,
       "notes": "",
       "groups": [
+        "air-to-air-refueling",
         "milair"
       ]
     },
@@ -1196,15 +1045,16 @@
       "gain": 30.0,
       "bandwidth": 12500,
       "sample_rate": 2048000,
-      "volume": 175,
+      "volume": 100,
       "zoom": 1.0,
       "zmin": 0.0,
       "zmax": 0.0,
       "scannable": true,
-      "notes": "",
+      "notes": "RX: 438.4875\nCTCSS: 118.8Hz",
       "groups": [
         "amateur-radio",
-        "north-east"
+        "north-east",
+        "amateur-radio-repeater"
       ]
     },
     {
@@ -1233,15 +1083,36 @@
       "gain": 30.0,
       "bandwidth": 12500,
       "sample_rate": 2048000,
-      "volume": 175,
+      "volume": 100,
       "zoom": 1.0,
       "zmin": 0.0,
       "zmax": 0.0,
       "scannable": true,
-      "notes": "",
+      "notes": "RX: 434.6000\nCTCSS: 118.8Hz",
       "groups": [
         "amateur-radio",
-        "north-east"
+        "north-east",
+        "amateur-radio-repeater"
+      ]
+    },
+    {
+      "label": "GB3TS - Sunderland",
+      "frequency_hz": 433175000,
+      "mode": "NFM",
+      "squelch": -48.0,
+      "gain": 33.0,
+      "bandwidth": 12500,
+      "sample_rate": 2048000,
+      "volume": 100,
+      "zoom": 1.0,
+      "zmin": -90.0,
+      "zmax": 0.0,
+      "scannable": true,
+      "notes": "RX: 434.77500\t\n1.600Mhz\t\n118.8Hz",
+      "groups": [
+        "amateur-radio",
+        "north-east",
+        "amateur-radio-repeater"
       ]
     },
     {
@@ -1263,6 +1134,45 @@
       ]
     },
     {
+      "label": "GB7GW - Washington",
+      "frequency_hz": 438412500,
+      "mode": "NFM",
+      "squelch": -20.0,
+      "gain": 30.0,
+      "bandwidth": 12500,
+      "sample_rate": 2048000,
+      "volume": 100,
+      "zoom": 1.0,
+      "zmin": 0.0,
+      "zmax": 0.0,
+      "scannable": true,
+      "notes": "CTCSS: 103.5 Hz\nD-Star\n\nDMR Connectivity: \nFREESTAR and colour code: 10\n\nYaesu Fusion",
+      "groups": [
+        "amateur-radio",
+        "north-east",
+        "amateur-radio-repeater"
+      ]
+    },
+    {
+      "label": "Queens",
+      "frequency_hz": 453162000,
+      "mode": "NFM",
+      "squelch": -120.0,
+      "gain": -1.0,
+      "bandwidth": 24601,
+      "sample_rate": 2048000,
+      "volume": 100,
+      "zoom": 1.0,
+      "zmin": -63.0,
+      "zmax": 0.0,
+      "scannable": true,
+      "notes": "",
+      "groups": [
+        "dmr",
+        "belfast"
+      ]
+    },
+    {
       "label": "Shop watch?",
       "frequency_hz": 453449200,
       "mode": "NFM",
@@ -1279,6 +1189,25 @@
       "groups": [
         "north-east",
         "dmr"
+      ]
+    },
+    {
+      "label": "Queens",
+      "frequency_hz": 455762000,
+      "mode": "NFM",
+      "squelch": -48.0,
+      "gain": 49.0,
+      "bandwidth": 24601,
+      "sample_rate": 2048000,
+      "volume": 100,
+      "zoom": 1.0,
+      "zmin": -74.0,
+      "zmax": 0.0,
+      "scannable": true,
+      "notes": "",
+      "groups": [
+        "dmr",
+        "belfast"
       ]
     },
     {

@@ -340,10 +340,10 @@
 
 .sdr-wf-known-marker {
   position: absolute;
-  /* Sit in from the spectrum data-box top (the overlay's reference line), so the
-   * marker layers over the top of the spectrum trace with clear breathing room
-   * above — the same gap it previously had below the waterfall's top edge. */
-  top: 20px;
+  /* `top` is set inline per-marker (knownFreqOverlay topPx): a base offset in
+   * from the spectrum data-box top so the marker layers over the top of the
+   * trace with breathing room above, plus a per-row drop that staggers clustered
+   * labels downward so their pills never overlap. */
   display: flex;
   flex-direction: row;
   align-items: center;
