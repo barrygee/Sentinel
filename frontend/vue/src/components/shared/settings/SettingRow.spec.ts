@@ -30,6 +30,7 @@ import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import SdrTrunkTrackingToggleControl from './SdrTrunkTrackingToggleControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
+import ExportAllControl from './ExportAllControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
 
 function mountRow(item: Partial<SettingItem> & { type: string }) {
@@ -78,6 +79,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sdr-bandplan-file', JsonDataControl],
   ['sdr-channelmaps-file', JsonDataControl],
   ['config-current', ConfigCurrentControl],
+  ['export-all', ExportAllControl],
 ]
 
 describe('SettingRow', () => {

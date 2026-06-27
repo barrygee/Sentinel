@@ -520,6 +520,14 @@ const ALL_SETTINGS: SettingItem[] = [
     desc: 'Settings currently stored in the database',
     type: 'config-current',
   },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'export-all',
+    label: 'Export All Configuration',
+    desc: 'Back up your full configuration to a single folder you choose:',
+    type: 'export-all',
+  },
 ]
 
 const DOMAIN_SECTIONS = new Set(['air', 'space', 'sea', 'land', 'sdr'])
