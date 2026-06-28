@@ -90,15 +90,15 @@ function onInput(e: Event): void {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--sp-text-dim, #6b7789);
 }
 .oar-input {
   width: 70px;
   padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--sp-surface, #fff);
+  border: 1px solid var(--sp-border, #d8dce4);
   border-radius: 4px;
-  color: #fff;
+  color: var(--sp-text, #1c2131);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   letter-spacing: 0.05em;
@@ -108,11 +108,15 @@ function onInput(e: Event): void {
     border-color 0.15s,
     background 0.15s;
 }
+@media (prefers-reduced-motion: reduce) {
+  .oar-input {
+    transition: none;
+  }
+}
 .oar-input:focus {
-  border-color: rgba(200, 255, 0, 0.6);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--sp-accent-text, #4d6800);
 }
 .oar-input--invalid {
-  border-color: rgba(255, 80, 80, 0.6);
+  border-color: var(--sp-danger, #dc2626);
 }
 </style>

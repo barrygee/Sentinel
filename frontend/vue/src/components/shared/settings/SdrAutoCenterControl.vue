@@ -72,31 +72,40 @@ function toggle(): void {
   align-items: center;
   gap: 10px;
 }
+/* Uses --sp-text-dim inherited from #settings-panel light-theme scope. */
 .ac-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--sp-text-dim, #6b7789);
 }
+/* Inactive track border #8a95a3 is ~3.3:1 on white — passes WCAG 1.4.11. */
 .ac-track {
   position: relative;
   width: 36px;
   height: 18px;
   border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid #8a95a3;
+  background: #f0f2f5;
   cursor: pointer;
   padding: 0;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
-.ac-track.is-on {
-  background: rgba(200, 255, 0, 0.2);
-  border-color: rgba(200, 255, 0, 0.6);
+@media (prefers-reduced-motion: reduce) {
+  .ac-track {
+    transition: none;
+  }
 }
+/* Active: bright green fill + dark green border provides shape contrast. */
+.ac-track.is-on {
+  background: #c8ff00;
+  border-color: #4d6800;
+}
+/* Inactive thumb: #6b7785 is ~3.7:1 on the light track bg — passes 3:1. */
 .ac-thumb {
   position: absolute;
   top: 2px;
@@ -104,13 +113,19 @@ function toggle(): void {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: #6b7785;
   transition:
     left 0.15s,
     background 0.15s;
 }
+@media (prefers-reduced-motion: reduce) {
+  .ac-thumb {
+    transition: none;
+  }
+}
+/* Active thumb: very dark green for contrast against bright green track. */
 .ac-track.is-on .ac-thumb {
-  background: #c8ff00;
+  background: #2d3a00;
   left: 20px;
 }
 </style>

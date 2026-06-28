@@ -1,4 +1,48 @@
+/* ============================================================
+   SETTINGS PANEL — Light theme, scoped to #settings-panel
+
+   Global design tokens (--color-accent, --color-bg, etc.) are
+   intentionally NOT used here; they theme the dark main app.
+   All colours are defined as local --sp-* custom properties so
+   the light panel is fully self-contained and changes here
+   never leak into the rest of the UI.
+
+   Green contrast decisions
+   ------------------------
+   --sp-accent (#c8ff00) is the brand "bright green". On white
+   its luminance contrast is ~1.1:1 — unusable for text or
+   small-detail elements. All text-mode / small-element green
+   uses --sp-accent-text (#4d6800) which has ~6.4:1 on white,
+   safely clearing WCAG AA 4.5:1.  The bright green is kept for
+   large decorative fills (toggle tracks when on, etc.) where
+   the element shape/border carries the contrast burden instead.
+   ============================================================ */
+
 #settings-panel {
+  /* ------------------------------------------------------------------
+     Local light-theme tokens
+     --sp-accent-text: #4d6800 ≈ 6.4:1 on white (WCAG AA ✓)
+     --sp-accent:      #c8ff00 — decorative fills, large shapes only
+     ------------------------------------------------------------------ */
+  --sp-bg: #f4f5f7;
+  --sp-sidebar-bg: #ebedf0;
+  --sp-surface: #ffffff;
+  --sp-border: #d8dce4;
+  --sp-border-subtle: #e8eaee;
+  --sp-text: #1c2131;
+  --sp-text-muted: #3d4a5c;
+  --sp-text-dim: #6b7789;
+  --sp-accent: #c8ff00;
+  --sp-accent-text: #4d6800;
+  --sp-accent-subtle: rgba(77, 104, 0, 0.08);
+  --sp-accent-border: rgba(77, 104, 0, 0.3);
+  --sp-danger: #dc2626;
+  --sp-danger-subtle: rgba(220, 38, 38, 0.08);
+  --sp-warning-text: #92400e;
+  --sp-warning-bg: rgba(251, 191, 36, 0.1);
+  --sp-warning-border: rgba(217, 119, 6, 0.35);
+  --sp-code-bg: #f0f2f5;
+
   position: fixed;
   top: 68px;
   bottom: 44px;
@@ -7,37 +51,16 @@
   z-index: 10000;
   display: none;
   flex-direction: row;
-  background-color: #38435c;
+  background-color: var(--sp-bg);
 }
 
 #settings-panel.settings-panel-visible {
   display: flex;
 }
 
-/* Dialog close affordance — pinned to the panel's top-right corner. 30x30px
-   clears the AA target-size minimum. */
-.settings-close-btn {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  z-index: 1;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.settings-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
+/* ============================================================
+   SIDEBAR NAV
+   ============================================================ */
 
 #settings-sidebar,
 #settings-content {
@@ -45,13 +68,13 @@
 }
 
 #settings-sidebar {
-  width: 325px;
+  width: 280px;
   flex-shrink: 0;
-  border-right: 1px solid var(--color-border);
-  background: rgba(0, 0, 0, 0.15);
+  border-right: 1px solid var(--sp-border);
+  background: var(--sp-sidebar-bg);
   display: flex;
   flex-direction: column;
-  padding: 24px 0;
+  padding: 20px 0;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -66,8 +89,8 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.3);
-  padding: 11px 24px;
+  color: var(--sp-text-dim);
+  padding: 11px 20px;
   cursor: pointer;
   transition:
     color 0.15s,
@@ -76,22 +99,35 @@
   user-select: none;
 }
 
-.settings-nav-item:hover {
-  color: var(--color-text-muted);
-  background: rgba(255, 255, 255, 0.04);
+@media (prefers-reduced-motion: reduce) {
+  .settings-nav-item {
+    transition: none;
+  }
 }
 
-.settings-nav-item.active {
-  color: var(--color-accent);
-  border-left-color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.04);
+.settings-nav-item:hover {
+  color: var(--sp-text-muted);
+  background: rgba(0, 0, 0, 0.04);
 }
+
+/* Active indicator uses the darkened green — bright #c8ff00 has only
+   ~1:1 contrast against the light sidebar background. */
+.settings-nav-item.active {
+  color: var(--sp-accent-text);
+  border-left-color: var(--sp-accent-text);
+  background: var(--sp-accent-subtle);
+}
+
+/* ============================================================
+   CONTENT AREA
+   ============================================================ */
 
 #settings-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background: var(--sp-bg);
 }
 
 #settings-section-heading {
@@ -100,18 +136,22 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
-  padding: 36px 48px 0;
+  color: var(--sp-text);
+  padding: 28px 36px 0;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+/* ============================================================
+   SEARCH BAR
+   ============================================================ */
+
 #settings-search-wrap {
   display: flex;
   align-items: center;
-  padding: 36px 48px 48px;
+  padding: 20px 36px 0;
   flex-shrink: 0;
 }
 
@@ -123,16 +163,28 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 420px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+  width: 400px;
+  max-width: 100%;
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
+  border-radius: 4px;
   padding: 8px 12px;
+  transition: border-color 0.15s;
+}
+
+#settings-search-inner:focus-within {
+  border-color: var(--sp-accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #settings-search-inner {
+    transition: none;
+  }
 }
 
 #settings-search-inner svg {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sp-text-dim);
 }
 
 #settings-search-input {
@@ -140,17 +192,17 @@
   background: none;
   border: none;
   outline: none;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--sp-text);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 16px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  caret-color: var(--color-accent);
+  caret-color: var(--sp-accent-text);
   min-width: 0;
 }
 
 #settings-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
   font-size: 13px;
   letter-spacing: 0.14em;
 }
@@ -160,7 +212,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
   display: none;
   align-items: center;
   justify-content: center;
@@ -173,18 +225,41 @@
 }
 
 #settings-search-clear:hover {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--sp-text-muted);
 }
+
+/* ============================================================
+   SETTINGS BODY — responsive CSS grid
+
+   Each .settings-item is a flat card in the grid.
+   Group/section labels and wide items always span all columns
+   via grid-column: 1 / -1 so groupings still read correctly.
+   ============================================================ */
 
 #settings-body {
   flex: 1;
   overflow-y: auto;
-  scrollbar-width: none;
+  padding: 20px 32px 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sp-border) transparent;
 }
 
 #settings-body::-webkit-scrollbar {
-  display: none;
+  width: 4px;
 }
+
+#settings-body::-webkit-scrollbar-thumb {
+  background: var(--sp-border);
+  border-radius: 2px;
+}
+
+/* ============================================================
+   FOOTER — APPLY CHANGES
+   ============================================================ */
 
 #settings-footer {
   flex-shrink: 0;
@@ -192,7 +267,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
-  padding: 16px 32px;
+  padding: 14px 28px;
+  border-top: 1px solid var(--sp-border);
+  background: var(--sp-surface);
 }
 
 #settings-apply-status {
@@ -205,20 +282,28 @@
   transition: color 0.2s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  #settings-apply-status {
+    transition: none;
+  }
+}
+
 #settings-apply-status.settings-apply-status--ok {
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
 }
 
 #settings-apply-status.settings-apply-status--error {
-  color: rgba(255, 80, 80, 0.9);
+  color: var(--sp-danger);
 }
 
+/* Bright #c8ff00 text on white is ~1.1:1 contrast — fails AA.
+   Use the darkened --sp-accent-text (#4d6800) for button text. */
 #settings-apply-btn {
   background: none;
-  border: 1px solid rgba(200, 255, 0, 0.4);
+  border: 1px solid var(--sp-accent-border);
   border-radius: 3px;
   padding: 9px 24px;
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -227,69 +312,97 @@
   cursor: pointer;
   transition:
     background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    border-color 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #settings-apply-btn {
+    transition: none;
+  }
 }
 
 #settings-apply-btn:hover {
-  background: rgba(200, 255, 0, 0.08);
-  border-color: rgba(200, 255, 0, 0.7);
-  color: var(--color-accent);
+  background: var(--sp-accent-subtle);
+  border-color: var(--sp-accent-text);
 }
 
+/* ============================================================
+   SECTION / GROUP LABELS — always span all grid columns
+   ============================================================ */
+
 .settings-section-label {
+  grid-column: 1 / -1;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.3);
-  padding: 48px 48px 24px;
+  color: var(--sp-text-dim);
+  padding: 16px 0 4px;
   text-transform: uppercase;
 }
 
 .settings-group-label {
+  grid-column: 1 / -1;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-text-dim);
   text-transform: uppercase;
-  padding: 20px 48px 4px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--sp-border-subtle);
+  margin-top: 4px;
 }
 
 .settings-group-label--spaced {
-  padding-top: 72px;
+  margin-top: 8px;
 }
 
+/* ============================================================
+   SETTING ITEM — flat card cell in the grid
+   ============================================================ */
+
 .settings-item {
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
+  border-radius: 6px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 24px 48px;
-  gap: 16px;
-  max-width: 640px;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.settings-item + .settings-item {
-  padding-top: 48px;
+/* Wide items (JSON editors, device lists, sat lists, config preview)
+   always span the full grid width so they aren't cramped. */
+.settings-item--wide {
+  grid-column: 1 / -1;
 }
 
-.settings-item:last-child {
-  padding-bottom: 48px;
+.settings-empty {
+  grid-column: 1 / -1;
+  padding: 32px 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--sp-text-dim);
+  text-transform: uppercase;
 }
 
 .settings-item-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .settings-item-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.1em;
-  color: var(--color-text-muted);
+  color: var(--sp-text-muted);
   text-transform: uppercase;
 }
 
@@ -297,8 +410,9 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.03em;
+  color: var(--sp-text-dim);
+  line-height: 1.5;
 }
 
 .settings-result-breadcrumb {
@@ -306,20 +420,14 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-text-dim);
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 
-.settings-empty {
-  padding: 32px 48px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.15);
-  text-transform: uppercase;
-}
+/* ============================================================
+   LOCATION CONTROL
+   ============================================================ */
 
 .settings-location-wrap {
   display: flex;
@@ -333,8 +441,8 @@
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
 }
 
@@ -343,12 +451,12 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   text-transform: uppercase;
   padding: 0 10px;
   flex-shrink: 0;
   user-select: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--sp-border);
 }
 
 .settings-location-input {
@@ -356,25 +464,29 @@
   background: none;
   border: none;
   padding: 9px 12px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--sp-text);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.08em;
   outline: none;
-  caret-color: var(--color-accent);
+  caret-color: var(--sp-accent-text);
   min-width: 0;
 }
 
 .settings-location-row:focus-within {
-  border-color: rgba(200, 255, 0, 0.4);
+  border-color: var(--sp-accent-text);
 }
 
 .settings-location-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-text-dim);
   font-size: 11px;
   letter-spacing: 0.14em;
 }
+
+/* ============================================================
+   THEME SWITCH (structural; preserved for layout compat)
+   ============================================================ */
 
 .settings-theme-switch {
   display: flex;
@@ -388,16 +500,18 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
   user-select: none;
 }
 
+/* Toggle tracks: inactive border uses a medium gray (#8a95a3) which
+   has ~3.3:1 on white — above WCAG 1.4.11 non-text minimum of 3:1. */
 .settings-theme-track {
   position: relative;
   width: 44px;
   height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--sp-code-bg);
+  border: 1.5px solid #8a95a3;
   border-radius: 12px;
   cursor: pointer;
   transition:
@@ -406,11 +520,18 @@
   padding: 0;
 }
 
-.settings-theme-track.is-dark {
-  background: rgba(200, 255, 0, 0.15);
-  border-color: rgba(200, 255, 0, 0.4);
+@media (prefers-reduced-motion: reduce) {
+  .settings-theme-track {
+    transition: none;
+  }
 }
 
+.settings-theme-track.is-dark {
+  background: var(--sp-accent);
+  border-color: var(--sp-accent-text);
+}
+
+/* Inactive thumb: #6b7785 has ~3.7:1 on the light track bg — passes 3:1. */
 .settings-theme-thumb {
   position: absolute;
   top: 3px;
@@ -418,16 +539,27 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
+  background: #6b7785;
   transition:
     transform 0.2s,
     background 0.2s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .settings-theme-thumb {
+    transition: none;
+  }
+}
+
+/* Active thumb: very dark green against bright green track. */
 .settings-theme-track.is-dark .settings-theme-thumb {
   transform: translateX(20px);
-  background: var(--color-accent);
+  background: #2d3a00;
 }
+
+/* ============================================================
+   DATA SOURCE CONTROLS
+   ============================================================ */
 
 .settings-datasource-wrap {
   display: flex;
@@ -441,13 +573,13 @@
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
 }
 
 .settings-datasource-row:focus-within {
-  border-color: rgba(200, 255, 0, 0.4);
+  border-color: var(--sp-accent-text);
 }
 
 .settings-datasource-label {
@@ -455,12 +587,12 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   text-transform: uppercase;
   padding: 0 10px;
   flex-shrink: 0;
   user-select: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--sp-border);
 }
 
 .settings-datasource-input {
@@ -468,18 +600,18 @@
   background: none;
   border: none;
   padding: 9px 12px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--sp-text);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.08em;
   outline: none;
-  caret-color: var(--color-accent);
+  caret-color: var(--sp-accent-text);
   min-width: 0;
 }
 
 .settings-datasource-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-text-dim);
   font-size: 11px;
   letter-spacing: 0.14em;
 }
@@ -497,12 +629,16 @@
 }
 
 .settings-datasource-status--ok {
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
 }
 
 .settings-datasource-status--err {
-  color: rgba(255, 80, 80, 0.9);
+  color: var(--sp-danger);
 }
+
+/* ============================================================
+   CONNECTIVITY TOGGLE
+   ============================================================ */
 
 .settings-connectivity-wrap {
   display: flex;
@@ -522,7 +658,7 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
   user-select: none;
 }
 
@@ -530,8 +666,8 @@
   position: relative;
   width: 44px;
   height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--sp-code-bg);
+  border: 1.5px solid #8a95a3;
   border-radius: 12px;
   cursor: pointer;
   transition:
@@ -540,9 +676,15 @@
   padding: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .settings-connectivity-track {
+    transition: none;
+  }
+}
+
 .settings-connectivity-track.is-online {
-  background: rgba(200, 255, 0, 0.15);
-  border-color: rgba(200, 255, 0, 0.4);
+  background: var(--sp-accent);
+  border-color: var(--sp-accent-text);
 }
 
 .settings-connectivity-thumb {
@@ -552,15 +694,21 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
+  background: #6b7785;
   transition:
     transform 0.2s,
     background 0.2s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .settings-connectivity-thumb {
+    transition: none;
+  }
+}
+
 .settings-connectivity-track.is-online .settings-connectivity-thumb {
   transform: translateX(20px);
-  background: var(--color-accent);
+  background: #2d3a00;
 }
 
 .settings-connectivity-override-summary {
@@ -568,8 +716,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--sp-code-bg);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   max-width: 420px;
 }
@@ -580,7 +728,7 @@
   font-weight: 400;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--sp-text-dim);
   margin-bottom: 4px;
 }
 
@@ -595,13 +743,13 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sp-text-dim);
   width: 52px;
 }
 
 .settings-conn-override-arrow {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-text-dim);
   width: 32px;
   text-align: center;
   flex-shrink: 0;
@@ -615,10 +763,10 @@
 }
 
 .settings-conn-override-val--online {
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
 }
 .settings-conn-override-val--offline {
-  color: rgba(255, 80, 80, 0.8);
+  color: var(--sp-danger);
 }
 
 .settings-connectivity-warning {
@@ -626,8 +774,8 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(255, 160, 0, 0.08);
-  border: 1px solid rgba(255, 160, 0, 0.35);
+  background: var(--sp-warning-bg);
+  border: 1px solid var(--sp-warning-border);
   border-radius: 3px;
   max-width: 420px;
 }
@@ -637,14 +785,14 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: rgba(255, 200, 80, 0.9);
+  color: var(--sp-warning-text);
   line-height: 1.5;
 }
 
 .settings-connectivity-warning-btn {
   align-self: flex-start;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   padding: 6px 16px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -657,26 +805,36 @@
     background 0.15s,
     border-color 0.15s,
     color 0.15s;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--sp-text-muted);
   display: inline-block;
   margin-right: 8px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .settings-connectivity-warning-btn {
+    transition: none;
+  }
+}
+
 .settings-connectivity-warning-btn--confirm {
-  border-color: rgba(200, 255, 0, 0.4);
-  color: var(--color-accent);
+  border-color: var(--sp-accent-border);
+  color: var(--sp-accent-text);
 }
 
 .settings-connectivity-warning-btn--confirm:hover {
-  background: rgba(200, 255, 0, 0.08);
-  border-color: rgba(200, 255, 0, 0.7);
+  background: var(--sp-accent-subtle);
+  border-color: var(--sp-accent-text);
 }
 
 .settings-connectivity-warning-btn--cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.04);
+  border-color: #9aa3b0;
+  color: var(--sp-text);
 }
+
+/* ============================================================
+   SOURCE OVERRIDE
+   ============================================================ */
 
 .settings-source-override-wrap {
   display: flex;
@@ -688,23 +846,23 @@
   display: flex;
   flex-direction: row;
   gap: 0;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   overflow: hidden;
   width: fit-content;
 }
 
 .settings-source-override-btn {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--sp-code-bg);
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--sp-border);
   padding: 7px 16px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -712,18 +870,24 @@
   user-select: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .settings-source-override-btn {
+    transition: none;
+  }
+}
+
 .settings-source-override-btn:last-child {
   border-right: none;
 }
 
 .settings-source-override-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: var(--color-text-muted);
+  background: var(--sp-border-subtle);
+  color: var(--sp-text-muted);
 }
 
 .settings-source-override-btn.is-active {
-  background: rgba(200, 255, 0, 0.12);
-  color: var(--color-accent);
+  background: var(--sp-accent-subtle);
+  color: var(--sp-accent-text);
 }
 
 .settings-source-override-note {
@@ -731,9 +895,13 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: rgba(255, 200, 80, 0.75);
+  color: var(--sp-warning-text);
   font-style: italic;
 }
+
+/* ============================================================
+   SETTINGS BUTTON (nav toggle — lives outside the panel)
+   ============================================================ */
 
 #settings-btn.settings-btn-active {
   opacity: 1;
@@ -746,11 +914,15 @@
   opacity: 0 !important;
 }
 
+/* ============================================================
+   TLE — action buttons
+   ============================================================ */
+
 .tle-action-btn {
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--sp-code-bg);
   border: none;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 1px solid var(--sp-border);
   padding: 0 16px;
   height: 37px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -758,7 +930,7 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sp-text-dim);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -766,50 +938,61 @@
     color 0.15s;
   user-select: none;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-action-btn {
+    transition: none;
+  }
+}
+
 .tle-action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--sp-border-subtle);
+  color: var(--sp-text-muted);
 }
 .tle-action-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
 .tle-action-btn--primary {
-  background: rgba(200, 255, 0, 0.08);
-  color: var(--color-accent);
-  border-left-color: rgba(200, 255, 0, 0.2);
+  background: var(--sp-accent-subtle);
+  color: var(--sp-accent-text);
+  border-left-color: var(--sp-accent-border);
 }
 .tle-action-btn--primary:hover:not(:disabled) {
-  background: rgba(200, 255, 0, 0.15);
-  color: var(--color-accent);
+  background: rgba(77, 104, 0, 0.14);
+  color: var(--sp-accent-text);
 }
 .tle-action-btn--danger {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 80, 80, 0.25);
-  color: rgba(255, 100, 100, 0.7);
+  background: var(--sp-surface);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: rgba(185, 28, 28, 0.9);
   height: 34px;
   padding: 0 16px;
 }
 .tle-action-btn--danger:hover:not(:disabled) {
-  background: rgba(255, 60, 60, 0.1);
-  border-color: rgba(255, 80, 80, 0.5);
-  color: rgba(255, 120, 120, 0.9);
+  background: var(--sp-danger-subtle);
+  border-color: rgba(220, 38, 38, 0.55);
+  color: #b91c1c;
 }
 .tle-action-btn--confirm {
-  background: rgba(255, 140, 0, 0.1);
-  border-color: rgba(255, 140, 0, 0.4);
-  color: rgba(255, 180, 0, 0.9);
+  background: rgba(255, 140, 0, 0.08);
+  border-color: rgba(217, 119, 6, 0.4);
+  color: var(--sp-warning-text);
 }
+
+/* ============================================================
+   TLE — uncategorised satellite native select
+   ============================================================ */
 
 .tle-uncat-select {
   flex: 1;
   min-width: 0;
   height: 37px;
   padding: 0 28px 0 10px;
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: var(--sp-code-bg);
   border: none;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.65);
+  border-left: 1px solid var(--sp-border);
+  color: var(--sp-text-muted);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -819,18 +1002,18 @@
   outline: none;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(107,119,137,0.6)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
 }
 .tle-uncat-select:focus {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  background-color: var(--sp-border-subtle);
+  color: var(--sp-text);
   outline: none;
 }
 .tle-uncat-select option {
-  background-color: #222831;
-  color: rgba(255, 255, 255, 0.85);
+  background-color: var(--sp-surface);
+  color: var(--sp-text);
   font-family: 'Barlow', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
@@ -838,6 +1021,10 @@
   text-transform: none;
   padding: 6px 8px;
 }
+
+/* ============================================================
+   TLE — custom dropdown
+   ============================================================ */
 
 .tle-dropdown {
   position: relative;
@@ -854,9 +1041,9 @@
   align-items: center;
   justify-content: space-between;
   height: 100%;
-  padding: 0 10px 0 10px;
-  background-color: rgba(255, 255, 255, 0.04);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 10px;
+  background-color: var(--sp-code-bg);
+  border-left: 1px solid var(--sp-border);
 }
 
 .tle-dropdown-selected-text {
@@ -865,7 +1052,7 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -874,7 +1061,7 @@
 }
 
 .tle-dropdown-selected-text--chosen {
-  color: var(--color-text-muted);
+  color: var(--sp-text-muted);
 }
 
 .tle-dropdown-arrow {
@@ -882,10 +1069,16 @@
   width: 8px;
   height: 5px;
   margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(107,119,137,0.6)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   transition: transform 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-dropdown-arrow {
+    transition: none;
+  }
 }
 
 .tle-dropdown--open .tle-dropdown-arrow {
@@ -893,20 +1086,21 @@
 }
 
 .tle-dropdown--open .tle-dropdown-selected {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: var(--sp-border-subtle);
 }
 
 .tle-dropdown-menu {
   display: none;
   position: absolute;
   z-index: 99999;
-  background: #222831;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
   border-top: none;
   overflow-y: auto;
   max-height: 240px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: var(--sp-border) transparent;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .tle-dropdown-menu::-webkit-scrollbar {
@@ -916,7 +1110,7 @@
   background: transparent;
 }
 .tle-dropdown-menu::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--sp-border);
   border-radius: 2px;
 }
 
@@ -931,7 +1125,7 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--sp-text-muted);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -939,22 +1133,32 @@
     color 0.1s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .tle-dropdown-item {
+    transition: none;
+  }
+}
+
 .tle-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
+  background: var(--sp-code-bg);
+  color: var(--sp-text);
 }
 
 .tle-dropdown-item--placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
 }
+
+/* ============================================================
+   TLE — inline row control group
+   ============================================================ */
 
 .tle-cat-row-ctrl {
   display: inline-flex;
   align-items: center;
   gap: 0;
   align-self: flex-start;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--sp-code-bg);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   margin-top: 12px;
   overflow: visible;
@@ -968,16 +1172,20 @@
   border-radius: 0 2px 2px 0;
 }
 .tle-cat-row-ctrl:focus-within {
-  border-color: rgba(200, 255, 0, 0.4);
+  border-color: var(--sp-accent-text);
 }
 
 .tle-inline-label {
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--sp-border);
   white-space: nowrap;
   height: 37px;
   display: flex;
   align-items: center;
 }
+
+/* ============================================================
+   TLE — status badges
+   ============================================================ */
 
 .tle-status-line {
   min-height: 18px;
@@ -993,23 +1201,27 @@
   border-radius: 2px;
 }
 .tle-status-badge--ok {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.07);
+  color: var(--sp-accent-text);
+  background: rgba(77, 104, 0, 0.1);
 }
 .tle-status-badge--error {
-  color: rgba(255, 100, 100, 0.9);
-  background: rgba(255, 60, 60, 0.07);
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
 }
 .tle-status-badge--info {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
 }
+
+/* ============================================================
+   TLE — section headings within wide items
+   ============================================================ */
 
 .tle-section-heading {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: var(--color-text-muted);
+  color: var(--sp-text-muted);
   text-transform: uppercase;
   margin-top: 40px;
   margin-bottom: 10px;
@@ -1018,6 +1230,10 @@
 .tle-section-heading:first-child {
   margin-top: 0;
 }
+
+/* ============================================================
+   TLE Online — source URL row
+   ============================================================ */
 
 .tle-online-wrap {
   max-width: 860px;
@@ -1034,7 +1250,6 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  /* Disclosure button reset. */
   background: none;
   border: none;
   color: inherit;
@@ -1048,10 +1263,10 @@
   width: 16px;
   height: 16px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--sp-border);
   border-radius: 50%;
   background: transparent;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--sp-text-dim);
   cursor: pointer;
   transition:
     color 0.15s,
@@ -1059,38 +1274,59 @@
   flex-shrink: 0;
   line-height: 1;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-info-toggle {
+    transition: none;
+  }
+}
+
 .tle-info-toggle:hover,
 .tle-info-toggle--active {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
+  color: var(--sp-accent-text);
+  border-color: var(--sp-accent-text);
 }
 .tle-info-chevron {
   display: inline-flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   transition:
     transform 0.2s ease,
     color 0.15s;
   line-height: 0;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-info-chevron {
+    transition: none;
+  }
+}
+
 .tle-info-chevron--open {
   transform: rotate(180deg);
 }
 .tle-info-row-header:hover .tle-info-chevron {
-  color: rgba(200, 255, 0, 0.6);
+  color: var(--sp-accent-text);
 }
 .tle-info-label {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   user-select: none;
   transition: color 0.15s;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-info-label {
+    transition: none;
+  }
+}
+
 .tle-info-row-header:hover .tle-info-label,
 .tle-info-toggle--active ~ .tle-info-label {
-  color: rgba(200, 255, 0, 0.6);
+  color: var(--sp-accent-text);
 }
 .tle-info-panel {
   margin-top: 8px;
@@ -1115,27 +1351,31 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--sp-text-dim);
   flex-shrink: 0;
 }
 .tle-info-list-sep {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-border);
   flex-shrink: 0;
 }
 .tle-info-table-url {
-  color: rgba(200, 255, 0, 0.7);
+  color: var(--sp-accent-text);
   text-decoration: none;
   font-family: 'Barlow', 'Helvetica Neue', Arial, monospace;
   font-size: 11px;
   word-break: break-all;
 }
 .tle-info-table-url:hover {
-  color: var(--color-accent);
+  color: #2d4a00;
   text-decoration: underline;
 }
+
+/* ============================================================
+   TLE Manual — file upload
+   ============================================================ */
 
 .tle-manual-wrap {
   display: flex;
@@ -1147,8 +1387,8 @@
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   margin-top: 12px;
   overflow: hidden;
@@ -1160,10 +1400,10 @@
   flex-shrink: 0;
   height: 37px;
   padding: 0 16px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--sp-code-bg);
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  border-right: 1px solid var(--sp-border);
+  color: var(--sp-text-dim);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -1177,21 +1417,32 @@
     color 0.15s;
   user-select: none;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-file-label {
+    transition: none;
+  }
+}
+
 .tle-file-label:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--sp-border-subtle);
+  color: var(--sp-text-muted);
 }
 .tle-file-name {
   flex: 1;
   padding: 0 12px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--sp-text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.04em;
 }
+
+/* ============================================================
+   TLE Database — category table
+   ============================================================ */
 
 .tle-db-wrap {
   display: flex;
@@ -1204,14 +1455,14 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--sp-text-dim);
 }
 
 .tle-cat-table {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -1220,14 +1471,14 @@
   grid-template-columns: 1fr 48px 90px 58px;
   align-items: center;
   padding: 7px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--sp-border-subtle);
+  background: var(--sp-surface);
 }
 .tle-cat-row:last-child {
   border-bottom: none;
 }
 .tle-cat-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--sp-code-bg);
 }
 .tle-cat-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -1235,20 +1486,20 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--sp-text-muted);
 }
 .tle-cat-count {
   font-family: 'Barlow Condensed', 'Barlow', Arial, sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
   text-align: right;
   padding-right: 16px;
 }
 .tle-cat-age {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   text-align: right;
   letter-spacing: 0.04em;
 }
@@ -1259,9 +1510,9 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--sp-text-dim);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   padding: 2px 7px;
   cursor: pointer;
@@ -1271,20 +1522,31 @@
     background 0.15s;
   white-space: nowrap;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-cat-clear {
+    transition: none;
+  }
+}
+
 .tle-cat-clear:hover:not(:disabled) {
-  color: rgba(255, 120, 120, 0.9);
-  border-color: rgba(255, 80, 80, 0.5);
-  background: rgba(255, 60, 60, 0.1);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(220, 38, 38, 0.06);
 }
 .tle-cat-clear:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .tle-cat-clear--confirm {
-  color: rgba(255, 180, 0, 0.9);
-  background: rgba(255, 140, 0, 0.1);
-  border-color: rgba(255, 140, 0, 0.4);
+  color: var(--sp-warning-text);
+  background: rgba(255, 140, 0, 0.08);
+  border-color: rgba(217, 119, 6, 0.4);
 }
+
+/* ============================================================
+   TLE — Uncategorised satellite list
+   ============================================================ */
 
 .tle-uncat-wrap {
   display: flex;
@@ -1297,7 +1559,7 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--sp-text-dim);
   text-decoration: none;
 }
 .tle-uncat-list {
@@ -1306,10 +1568,10 @@
   gap: 0;
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: var(--sp-border) transparent;
 }
 .tle-uncat-list::-webkit-scrollbar {
   width: 4px;
@@ -1318,7 +1580,7 @@
   background: transparent;
 }
 .tle-uncat-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--sp-border);
   border-radius: 2px;
 }
 .tle-uncat-row {
@@ -1328,21 +1590,21 @@
   overflow: visible;
   gap: 0;
   padding: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--sp-border-subtle);
+  background: var(--sp-surface);
   overflow: hidden;
 }
 .tle-uncat-row:last-child {
   border-bottom: none;
 }
 .tle-uncat-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--sp-code-bg);
 }
 .tle-uncat-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--sp-text-muted);
   padding: 0 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -1352,7 +1614,7 @@
 .tle-uncat-id {
   font-family: 'Courier New', monospace;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--sp-text-dim);
   text-align: right;
   padding-right: 8px;
   letter-spacing: 0.04em;
@@ -1363,23 +1625,28 @@
 }
 .tle-uncat-row .tle-uncat-drop .tle-dropdown-selected {
   height: 34px;
-  border-left: 1px solid var(--color-border);
-  background-color: rgba(255, 255, 255, 0.03);
+  border-left: 1px solid var(--sp-border);
+  background-color: var(--sp-surface);
 }
 .tle-uncat-row .tle-uncat-drop .tle-dropdown-selected-text {
   font-size: 9px;
   letter-spacing: 0.1em;
 }
 
-.settings-item--wide {
-  max-width: none !important;
-}
+/* ============================================================
+   Wide item size constraints
+   ============================================================ */
+
 .settings-item--wide .tle-manual-wrap,
 .settings-item--wide .tle-satlist-wrap,
 .settings-item--wide .tle-online-wrap,
 .settings-item--wide .sdr-devices-wrap {
   max-width: 680px;
 }
+
+/* ============================================================
+   TLE — Satellite list
+   ============================================================ */
 
 .tle-satlist-wrap {
   display: flex;
@@ -1392,16 +1659,23 @@
   align-items: center;
   justify-content: space-between;
   padding: 9px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--sp-code-bg);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
   max-width: 860px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-satlist-header {
+    transition: none;
+  }
+}
+
 .tle-satlist-header:hover {
-  background: var(--color-border);
+  background: var(--sp-border-subtle);
 }
 
 .tle-satlist-header-label {
@@ -1410,15 +1684,22 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--sp-text-dim);
 }
 
 .tle-satlist-chevron {
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--sp-text-dim);
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tle-satlist-chevron {
+    transition: none;
+  }
+}
+
 .tle-satlist-chevron--open {
   transform: rotate(90deg);
 }
@@ -1444,16 +1725,16 @@
   gap: 0;
   max-height: 360px;
   overflow-y: auto;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  scrollbar-color: var(--sp-border) transparent;
 }
 .tle-satlist-table::-webkit-scrollbar {
   width: 4px;
 }
 .tle-satlist-table::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--sp-border);
   border-radius: 2px;
 }
 
@@ -1462,21 +1743,21 @@
   grid-template-columns: 1fr 60px 130px 72px;
   align-items: center;
   padding: 7px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--sp-border-subtle);
+  background: var(--sp-surface);
 }
 .tle-satlist-row:last-child {
   border-bottom: none;
 }
 .tle-satlist-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--sp-code-bg);
 }
 
 .tle-satlist-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: var(--sp-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1485,7 +1766,7 @@
 .tle-satlist-id {
   font-family: 'Courier New', monospace;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--sp-text-dim);
   text-align: left;
 }
 .tle-satlist-cat {
@@ -1494,15 +1775,15 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(200, 255, 0, 0.6);
+  color: var(--sp-accent-text);
 }
 .tle-satlist-cat--none {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--sp-text-dim);
 }
 .tle-satlist-age {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   text-align: right;
   letter-spacing: 0.04em;
 }
@@ -1510,7 +1791,7 @@
 .tle-satlist-count {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   letter-spacing: 0.06em;
   text-align: right;
 }
@@ -1519,13 +1800,17 @@
   padding: 16px 12px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   letter-spacing: 0.06em;
 }
 
 .tle-satlist-name--user {
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--sp-accent-text);
 }
+
+/* ============================================================
+   Config preview / JSON editor
+   ============================================================ */
 
 .settings-config-wrap {
   display: flex;
@@ -1544,7 +1829,7 @@
   min-height: 520px;
   box-sizing: border-box;
   outline: none;
-  caret-color: var(--color-accent);
+  caret-color: var(--sp-accent-text);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif !important;
   font-size: 13px !important;
   font-weight: 400;
@@ -1552,24 +1837,24 @@
 }
 
 .settings-config-preview--textarea:focus {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--sp-accent-text);
 }
 
 .settings-config-preview {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--sp-code-bg);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   padding: 16px;
   font-family: 'Barlow Condensed', 'Barlow', monospace;
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--sp-text-muted);
   white-space: pre;
   overflow: auto;
   max-height: 600px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: var(--sp-border) transparent;
 }
 
 .settings-config-action-row {
@@ -1583,10 +1868,10 @@
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   padding: 9px 20px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--sp-text-muted);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -1602,11 +1887,21 @@
   align-self: flex-start;
 }
 
-.settings-config-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.9);
+@media (prefers-reduced-motion: reduce) {
+  .settings-config-btn {
+    transition: none;
+  }
 }
+
+.settings-config-btn:hover {
+  background: var(--sp-code-bg);
+  border-color: #9aa3b0;
+  color: var(--sp-text);
+}
+
+/* ============================================================
+   SDR Devices
+   ============================================================ */
 
 .sdr-devices-wrap {
   display: flex;
@@ -1626,7 +1921,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   padding: 4px 0 12px;
 }
 
@@ -1652,7 +1947,7 @@
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--sp-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1664,23 +1959,29 @@
   border: none;
   padding: 4px 5px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: color 0.12s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sdr-device-btn {
+    transition: none;
+  }
+}
+
 .sdr-device-btn:hover {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--sp-text);
 }
 
 .sdr-device-btn--active {
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
 }
 
 .sdr-device-btn--danger:hover {
-  color: rgba(255, 90, 90, 0.85);
+  color: var(--sp-danger);
 }
 
 .sdr-device-confirm {
@@ -1695,16 +1996,16 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.16em;
-  color: rgba(255, 90, 90, 0.7);
+  color: #b91c1c;
   text-transform: uppercase;
 }
 
 .sdr-device-confirm-btn {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--sp-border);
   border-radius: 2px;
   padding: 3px 9px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--sp-text-dim);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -1717,21 +2018,27 @@
     color 0.12s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sdr-device-confirm-btn {
+    transition: none;
+  }
+}
+
 .sdr-device-confirm-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--sp-code-bg);
+  border-color: #9aa3b0;
+  color: var(--sp-text);
 }
 
 .sdr-device-confirm-btn--yes {
-  border-color: rgba(255, 60, 60, 0.35);
-  color: rgba(255, 90, 90, 0.8);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #b91c1c;
 }
 
 .sdr-device-confirm-btn--yes:hover {
-  background: rgba(255, 60, 60, 0.1);
-  border-color: rgba(255, 60, 60, 0.6);
-  color: rgba(255, 110, 110, 0.95);
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.6);
+  color: #991b1b;
 }
 
 .sdr-devices-accordion {
@@ -1757,35 +2064,41 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--sp-text-dim);
   width: 110px;
   flex-shrink: 0;
 }
 
 .sdr-devices-form-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   padding: 6px 10px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--sp-text);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0.04em;
   outline: none;
-  caret-color: var(--color-accent);
+  caret-color: var(--sp-accent-text);
   transition: border-color 0.15s;
   min-width: 0;
   -moz-appearance: textfield;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sdr-devices-form-input {
+    transition: none;
+  }
+}
+
 .sdr-devices-form-input:focus {
-  border-color: rgba(200, 255, 0, 0.3);
+  border-color: var(--sp-accent-text);
 }
 
 .sdr-devices-form-input::placeholder {
-  color: rgba(255, 255, 255, 0.18);
+  color: var(--sp-text-dim);
 }
 
 .sdr-devices-form-input::-webkit-outer-spin-button,
@@ -1801,10 +2114,10 @@
 
 .sdr-devices-enabled-btn {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--sp-border);
   border-radius: 2px;
   padding: 5px 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--sp-text-dim);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -1817,15 +2130,21 @@
     color 0.12s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sdr-devices-enabled-btn {
+    transition: none;
+  }
+}
+
 .sdr-devices-enabled-btn:hover {
-  color: rgba(255, 255, 255, 0.6);
-  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--sp-text-muted);
+  border-color: #9aa3b0;
 }
 
 .sdr-devices-enabled-btn.is-active {
-  background: rgba(200, 255, 0, 0.08);
-  border-color: rgba(200, 255, 0, 0.45);
-  color: var(--color-accent);
+  background: var(--sp-accent-subtle);
+  border-color: var(--sp-accent-border);
+  color: var(--sp-accent-text);
 }
 
 .sdr-devices-agc-row {
@@ -1844,12 +2163,13 @@
   display: none;
 }
 
+/* Checkbox border: #8a95a3 is ~3.3:1 on white — passes 3:1 non-text. */
 .sdr-devices-agc-box {
   width: 14px;
   height: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #8a95a3;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--sp-surface);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1859,18 +2179,25 @@
     background 0.15s;
 }
 
-.sdr-devices-agc-input:checked + .sdr-devices-agc-box {
-  background: rgba(200, 255, 0, 0.12);
-  border-color: rgba(200, 255, 0, 0.6);
+@media (prefers-reduced-motion: reduce) {
+  .sdr-devices-agc-box {
+    transition: none;
+  }
 }
 
+.sdr-devices-agc-input:checked + .sdr-devices-agc-box {
+  background: rgba(77, 104, 0, 0.12);
+  border-color: var(--sp-accent-text);
+}
+
+/* Checkmark uses the darkened green for contrast against the tinted fill. */
 .sdr-devices-agc-input:checked + .sdr-devices-agc-box::after {
   content: '';
   display: block;
   width: 8px;
   height: 5px;
-  border-left: 1.5px solid #c8ff00;
-  border-bottom: 1.5px solid #c8ff00;
+  border-left: 1.5px solid #4d6800;
+  border-bottom: 1.5px solid #4d6800;
   transform: rotate(-45deg) translateY(-1px);
 }
 
@@ -1878,7 +2205,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sp-text-dim);
   letter-spacing: 0.06em;
 }
 
@@ -1887,7 +2214,7 @@
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
-  color: rgba(255, 80, 80, 0.9);
+  color: var(--sp-danger);
   padding: 0;
   margin-left: 124px;
 }
@@ -1902,10 +2229,10 @@
 
 .sdr-devices-btn {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--sp-border);
   border-radius: 3px;
   padding: 7px 16px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sp-text-dim);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -1918,27 +2245,33 @@
     color 0.12s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sdr-devices-btn {
+    transition: none;
+  }
+}
+
 .sdr-devices-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--sp-code-bg);
+  border-color: #9aa3b0;
+  color: var(--sp-text-muted);
 }
 
 .sdr-devices-btn--primary {
-  border-color: rgba(200, 255, 0, 0.4);
-  color: var(--color-accent);
+  border-color: var(--sp-accent-border);
+  color: var(--sp-accent-text);
 }
 
 .sdr-devices-btn--primary:hover {
-  background: rgba(200, 255, 0, 0.07);
-  border-color: rgba(200, 255, 0, 0.7);
+  background: var(--sp-accent-subtle);
+  border-color: var(--sp-accent-text);
 }
 
 .sdr-devices-add-btn {
   background: none;
   border: none;
   padding: 4px 0;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--sp-text-dim);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -1949,38 +2282,54 @@
   align-self: flex-start;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sdr-devices-add-btn {
+    transition: none;
+  }
+}
+
 .sdr-devices-add-btn:hover {
-  color: var(--color-accent);
+  color: var(--sp-accent-text);
 }
 
 /* ============================================================
    RESPONSIVE — settings panel on small screens
    ============================================================ */
+
 @media (max-width: 1024px) {
   #settings-panel {
     top: var(--nav-height);
     bottom: var(--footer-height);
   }
   #settings-sidebar {
-    width: 220px;
+    width: 200px;
+  }
+  #settings-section-heading {
+    padding: 24px 28px 0;
+  }
+  #settings-search-wrap {
+    padding: 16px 28px 0;
+  }
+  #settings-body {
+    padding: 16px 24px 32px;
   }
 }
 
 @media (max-width: 768px) {
-  /* Stack: sidebar nav on top as a horizontal scroll bar, content below */
+  /* Stack: sidebar nav on top as horizontal scroll strip, content below. */
   #settings-panel {
     flex-direction: column;
   }
   #settings-sidebar {
     width: 100%;
-    max-height: 56px;
+    max-height: 52px;
     flex-direction: row;
-    padding: 8px 12px;
+    padding: 6px 12px;
     gap: 6px;
     overflow-x: auto;
     overflow-y: hidden;
     border-right: none;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--sp-border);
     flex-shrink: 0;
   }
   .settings-nav-item {
@@ -1991,16 +2340,33 @@
     border-bottom: 2px solid transparent;
   }
   .settings-nav-item.active {
-    border-bottom-color: var(--color-accent);
+    border-bottom-color: var(--sp-accent-text);
   }
-  #settings-content {
-    padding: 16px;
+  #settings-section-heading {
+    padding: 16px 16px 0;
+    font-size: 15px;
+  }
+  #settings-search-wrap {
+    padding: 12px 16px 0;
+  }
+  #settings-search-inner {
+    width: 100%;
+    max-width: 100%;
+  }
+  /* Single column on mobile: no point auto-fitting narrow cards. */
+  #settings-body {
+    padding: 12px 16px 24px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  #settings-footer {
+    padding: 12px 16px;
   }
 }
 
 @media (max-width: 480px) {
   #settings-sidebar {
-    padding: 6px 8px;
+    padding: 4px 8px;
   }
   .settings-nav-item {
     font-size: 9px;

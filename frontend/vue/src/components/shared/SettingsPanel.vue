@@ -9,18 +9,6 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <button
-      ref="closeBtnRef"
-      type="button"
-      class="settings-close-btn"
-      aria-label="Close settings"
-      @click="store.closePanel()"
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" />
-        <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.6" />
-      </svg>
-    </button>
     <div id="settings-sidebar">
       <div
         v-for="s in visibleSections"
@@ -167,11 +155,11 @@ const activeSection = ref('app')
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-const closeBtnRef = ref<HTMLButtonElement | null>(null)
 
 // Modal-dialog behaviour: trap focus while open, Escape to close, restore focus
 // to the trigger on close (WCAG 4.1.2 / 2.4.3 / 2.1.2). The panel is display:none
 // when closed, so it leaves the a11y tree without needing aria-hidden.
+// Keyboard path: Escape always closes; the settings toggle button re-opens.
 const { onKeydown } = useDialog({
   isOpen: computed(() => store.open),
   container: panelRef,

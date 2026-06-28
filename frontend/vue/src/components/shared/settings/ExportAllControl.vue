@@ -131,12 +131,12 @@ async function exportAllConfigs(): Promise<void> {
   padding-left: 18px;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--text-dim, #9aa);
+  color: var(--sp-text-muted, #3d4a5c);
 }
 
 .settings-export-all-files code {
   font-family: var(--mono-font, monospace);
-  color: var(--text, #cdd);
+  color: var(--sp-text, #1c2131);
 }
 
 .settings-export-all-action {
@@ -147,6 +147,6 @@ async function exportAllConfigs(): Promise<void> {
 
 .settings-export-all-status {
   font-size: 11px;
-  color: var(--text-dim, #9aa);
+  color: var(--sp-text-dim, #6b7789);
 }
 </style>

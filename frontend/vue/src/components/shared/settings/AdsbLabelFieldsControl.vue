@@ -36,7 +36,7 @@
               >
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
-                  stroke="#00aaff"
+                  stroke="#0066b3"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -64,7 +64,7 @@
               >
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
-                  stroke="#c8ff00"
+                  stroke="#4d6800"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -114,7 +114,7 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
 .adsb-lf-table {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--sp-border, #d8dce4);
   border-radius: 3px;
   overflow: hidden;
   width: fit-content;
@@ -123,8 +123,8 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
 .adsb-lf-header {
   display: grid;
   grid-template-columns: 1fr 80px 80px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--sp-code-bg, #f0f2f5);
+  border-bottom: 1px solid var(--sp-border, #d8dce4);
 }
 .adsb-lf-header-field,
 .adsb-lf-header-col {
@@ -134,32 +134,39 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   padding: 7px 16px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--sp-text-dim, #6b7789);
 }
 .adsb-lf-header-col {
   text-align: center;
   padding-left: 0;
   padding-right: 0;
 }
+/* Civil blue header: #0066b3 is ~4.6:1 on white — passes AA. */
 .adsb-lf-header-col--civil {
-  color: rgba(0, 170, 255, 0.5);
+  color: #0066b3;
 }
+/* Mil green header: #4d6800 is ~6.4:1 on white — passes AA. */
 .adsb-lf-header-col--mil {
-  color: rgba(200, 255, 0, 0.5);
+  color: var(--sp-accent-text, #4d6800);
 }
 .adsb-lf-row {
   display: grid;
   grid-template-columns: 1fr 80px 80px;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--sp-border-subtle, #e8eaee);
+  background: var(--sp-surface, #fff);
   transition: background 0.1s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .adsb-lf-row {
+    transition: none;
+  }
 }
 .adsb-lf-row:last-child {
   border-bottom: none;
 }
 .adsb-lf-row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--sp-code-bg, #f0f2f5);
 }
 .adsb-lf-row-label {
   display: flex;
@@ -173,7 +180,7 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--sp-text-muted, #3d4a5c);
 }
 .adsb-lf-preview {
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
@@ -183,17 +190,20 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   padding: 1px 5px;
   border-radius: 2px;
 }
+/* Light civil chip: dark blue text on a pale blue tint. */
 .adsb-lf-preview--civil {
-  background: #002244;
-  color: #00aaff;
+  background: rgba(0, 102, 179, 0.1);
+  color: #0066b3;
 }
+/* Light mil chip: dark green text on a pale green tint. */
 .adsb-lf-preview--mil {
-  background: #4d6600;
-  color: #c8ff00;
+  background: rgba(77, 104, 0, 0.1);
+  color: var(--sp-accent-text, #4d6800);
 }
+/* Altitude chip: neutral muted style on light backgrounds. */
 .adsb-lf-preview--alt {
-  background: rgba(0, 0, 0, 0.5);
-  color: rgba(255, 255, 255, 0.45);
+  background: var(--sp-code-bg, #f0f2f5);
+  color: var(--sp-text-dim, #6b7789);
 }
 .adsb-lf-cell {
   display: flex;
@@ -212,9 +222,9 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
 .adsb-lf-box {
   width: 14px;
   height: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #8a95a3;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--sp-surface, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,13 +232,18 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
     border-color 0.15s,
     background 0.15s;
 }
+@media (prefers-reduced-motion: reduce) {
+  .adsb-lf-box {
+    transition: none;
+  }
+}
 .adsb-lf-input:checked + .adsb-lf-box {
-  background: rgba(0, 170, 255, 0.1);
-  border-color: rgba(0, 170, 255, 0.5);
+  background: rgba(0, 102, 179, 0.1);
+  border-color: #0066b3;
 }
 .adsb-lf-input:checked + .adsb-lf-box--mil {
-  background: rgba(200, 255, 0, 0.1);
-  border-color: rgba(200, 255, 0, 0.5);
+  background: rgba(77, 104, 0, 0.1);
+  border-color: var(--sp-accent-text, #4d6800);
 }
 
 @media (max-width: 480px) {

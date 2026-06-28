@@ -69,24 +69,29 @@ function toggle(): void {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--sp-text-dim, #6b7789);
 }
 .ac-track {
   position: relative;
   width: 36px;
   height: 18px;
   border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid #8a95a3;
+  background: #f0f2f5;
   cursor: pointer;
   padding: 0;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
+@media (prefers-reduced-motion: reduce) {
+  .ac-track {
+    transition: none;
+  }
+}
 .ac-track.is-on {
-  background: rgba(200, 255, 0, 0.2);
-  border-color: rgba(200, 255, 0, 0.6);
+  background: #c8ff00;
+  border-color: #4d6800;
 }
 .ac-thumb {
   position: absolute;
@@ -95,13 +100,18 @@ function toggle(): void {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: #6b7785;
   transition:
     left 0.15s,
     background 0.15s;
 }
+@media (prefers-reduced-motion: reduce) {
+  .ac-thumb {
+    transition: none;
+  }
+}
 .ac-track.is-on .ac-thumb {
-  background: #c8ff00;
+  background: #2d3a00;
   left: 20px;
 }
 </style>
