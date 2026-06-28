@@ -14,7 +14,7 @@
       </button>
     </div>
     <div class="oa-row">
-      <span class="oa-label">MILITARY</span>
+      <span class="oa-label">MIL</span>
       <button
         class="oa-track oa-track--mil"
         :class="{ 'is-on': mil }"
@@ -128,7 +128,7 @@ function toggle(kind: 'civil' | 'mil'): void {
   transition: background 0.18s;
 }
 .oa-track--civil.is-on {
-  background: #00aaff;
+  background: #c8ff00;
 }
 .oa-track--mil.is-on {
   background: #c8ff00;
@@ -146,7 +146,7 @@ function toggle(kind: 'civil' | 'mil'): void {
     background 0.18s;
 }
 .oa-track--civil.is-on .oa-thumb {
-  background: #ffffff;
+  background: #0a0c10;
   left: 24px;
 }
 .oa-track--mil.is-on .oa-thumb {

@@ -137,7 +137,7 @@
         </template>
       </div>
 
-      <div v-show="!searchQuery.trim()" id="settings-footer">
+      <div id="settings-footer">
         <span id="settings-apply-status" :class="applyStatusClass">{{ applyStatusMsg }}</span>
         <button id="settings-apply-btn" @click="commitAll">APPLY CHANGES</button>
       </div>
@@ -225,18 +225,18 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'app',
     sectionLabel: 'App Settings',
-    id: 'location',
-    label: 'My Location',
-    desc: 'Set a fixed latitude / longitude for your position',
-    type: 'location',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
     id: 'notification-sound',
     label: 'Notification Sound',
     desc: 'Play a subtle blip when a new alert or notification arrives',
     type: 'notification-sound',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'location',
+    label: 'My Location',
+    desc: 'Set a fixed latitude / longitude for your position',
+    type: 'location',
   },
   {
     section: 'air',
@@ -327,22 +327,6 @@ const ALL_SETTINGS: SettingItem[] = [
     label: 'TLE Database',
     desc: 'Satellite count, sources, and per-category last-updated times. Clear all data, or clear a single category (e.g. space station, amateur radio).',
     type: 'space-tle-db',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-tle-uncategorised',
-    label: 'Uncategorised Satellites',
-    desc: 'Assign categories to satellites imported without one',
-    type: 'space-tle-uncat',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-tle-satlist',
-    label: 'Satellite List',
-    desc: 'Full list of all TLE records stored in the database',
-    type: 'space-tle-satlist',
   },
   {
     section: 'space',

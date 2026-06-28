@@ -1,5 +1,12 @@
 <template>
-  <div class="settings-item" :class="{ 'settings-item--wide': isWide }">
+  <div
+    class="settings-item"
+    :class="{
+      'settings-item--wide': isWide,
+      'settings-item--half': isHalf,
+      'settings-item--triple': isTriple,
+    }"
+  >
     <div class="settings-item-info">
       <div class="settings-item-label">{{ item.label }}</div>
       <div v-if="item.desc" class="settings-item-desc">{{ item.desc }}</div>
@@ -173,16 +180,27 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-const WIDE_TYPES = new Set([
+const WIDE_TYPES = new Set(['sdr-channelmaps-file'])
+const TRIPLE_TYPES = new Set(['space-sat-radio-file'])
+const HALF_TYPES = new Set([
   'sdr-devices',
-  'space-tle-online',
-  'space-tle-manual',
-  'space-tle-satlist',
-  'space-sat-radio-file',
   'sdr-frequencies-file',
   'sdr-bandplan-file',
-  'sdr-channelmaps-file',
+  'sdr-trunk-tracking-toggle',
+  'sdr-resume-delay',
+  'sdr-autocenter',
+  'sdr-full-waterfall-update',
+  'sdr-show-bandplan',
+  'sdr-show-known-freqs',
+  'space-tle-online',
+  'space-tle-manual',
+  'space-tle-db',
+  'air-tag-fields',
+  'export-all',
   'config-current',
+  'location',
 ])
 const isWide = WIDE_TYPES.has(props.item.type)
+const isTriple = TRIPLE_TYPES.has(props.item.type)
+const isHalf = HALF_TYPES.has(props.item.type)
 </script>

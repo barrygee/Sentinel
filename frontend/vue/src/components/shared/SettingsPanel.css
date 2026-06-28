@@ -32,6 +32,13 @@
   display: flex;
 }
 
+/* The panel receives programmatic focus (tabindex="-1") on open via useDialog.
+   Suppress the global :focus-visible ring — a modal container doesn't need a
+   visible focus indicator; focus management is handled internally. */
+#settings-panel:focus-visible {
+  outline: none !important;
+}
+
 #settings-sidebar,
 #settings-content {
   position: relative;
@@ -112,8 +119,10 @@
 }
 
 #settings-search-wrap {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-width: 1480px;
   padding: 26px 44px 0;
   flex-shrink: 0;
 }
@@ -123,11 +132,10 @@
 }
 
 #settings-search-inner {
+  grid-column: span 2;
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  max-width: 560px;
   background: #ffffff;
   border-radius: 8px;
   box-shadow:
@@ -209,7 +217,7 @@
   /* Stretch cards so every card in a row matches the tallest one's height. */
   align-items: stretch;
   max-width: 1480px;
-  margin: 0 auto;
+  margin: 0;
   padding: 26px 44px 110px;
 }
 
@@ -285,7 +293,7 @@
 }
 
 .settings-group-label--spaced {
-  padding-top: 18px;
+  padding-top: 30px;
 }
 
 /* The card. */
@@ -293,7 +301,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 14px;
+  gap: 12px;
   padding: 22px;
   background: #ffffff;
   border-radius: 8px;
@@ -302,15 +310,27 @@
     0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-/* Wide controls (tables, JSON editors, device list) span the row. */
+/* Full-row controls (TLE editors, channel maps, etc.). */
 .settings-item--wide {
   grid-column: 1 / -1;
+}
+
+/* Two-column controls (JSON editors, device list). */
+.settings-item--half {
+  grid-column: span 2;
+}
+
+/* Three-column controls. */
+.settings-item--triple {
+  grid-column: span 3;
 }
 
 .settings-item-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Grow to fill remaining card height so the control below is pinned to the bottom. */
+  flex: 1;
 }
 
 .settings-item-label {
@@ -353,12 +373,13 @@
 /* ── Location & data-source labelled inputs ───────────────────────── */
 .settings-location-wrap {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   width: 100%;
 }
 
 .settings-location-row {
+  flex: 1;
   display: flex;
   align-items: stretch;
   gap: 0;
@@ -992,8 +1013,7 @@
 }
 
 .tle-status-line {
-  min-height: 18px;
-  margin-top: 4px;
+  min-height: 0;
 }
 .tle-status-badge {
   display: inline-block;
@@ -1039,7 +1059,6 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin-top: 2px;
 }
 .tle-info-row-header {
   display: inline-flex;
@@ -1152,6 +1171,7 @@
 .tle-manual-wrap {
   display: flex;
   flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
@@ -1162,22 +1182,20 @@
   background: #eeece7;
   border-radius: 6px;
   overflow: hidden;
-  margin-top: 12px;
 }
 .tle-file-input {
   display: none;
 }
 .tle-file-label {
   flex-shrink: 0;
-  height: 37px;
-  padding: 0 18px;
-  background: rgba(16, 19, 29, 0.05);
+  padding: 0 12px;
+  background: none;
   border: none;
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(16, 19, 29, 0.35);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
@@ -1188,21 +1206,21 @@
   user-select: none;
 }
 .tle-file-label:hover {
-  background: rgba(16, 19, 29, 0.1);
-  color: rgba(16, 19, 29, 0.9);
+  color: rgba(16, 19, 29, 0.7);
 }
 .tle-file-name {
   flex: 1;
-  padding: 0 14px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
+  font-weight: 400;
   color: rgba(16, 19, 29, 0.35);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 
 .tle-db-wrap {
@@ -1375,29 +1393,25 @@
   gap: 0;
 }
 
-.tle-satlist-header {
-  display: flex;
+.tle-satlist-toggle-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 11px 14px;
-  background: rgba(16, 19, 29, 0.04);
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
   border-radius: 6px;
+  background: rgba(16, 19, 29, 0.06);
+  color: rgba(16, 19, 29, 0.5);
   cursor: pointer;
-  user-select: none;
-  transition: background 0.15s;
-  max-width: 860px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  flex-shrink: 0;
 }
-.tle-satlist-header:hover {
-  background: rgba(16, 19, 29, 0.07);
-}
-
-.tle-satlist-header-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.6);
+.tle-satlist-toggle-btn:hover {
+  background: rgba(16, 19, 29, 0.1);
+  color: rgba(16, 19, 29, 0.8);
 }
 
 .tle-satlist-chevron {
@@ -1942,10 +1956,14 @@
   .settings-grid {
     padding: 22px 24px 90px;
   }
-  #settings-section-heading,
+  #settings-section-heading {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
   #settings-search-wrap {
     padding-left: 24px;
     padding-right: 24px;
+    gap: 16px;
   }
   #settings-footer {
     padding-left: 24px;

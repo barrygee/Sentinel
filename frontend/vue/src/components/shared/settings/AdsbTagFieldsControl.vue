@@ -4,7 +4,7 @@
       <div class="adsb-tf-header">
         <div class="adsb-tf-header-field">Field</div>
         <div class="adsb-tf-header-col adsb-tf-header-col--civil">Civil</div>
-        <div class="adsb-tf-header-col adsb-tf-header-col--mil">Military</div>
+        <div class="adsb-tf-header-col adsb-tf-header-col--mil">Mil</div>
       </div>
       <div v-for="opt in OPTIONS" :key="opt.key" class="adsb-tf-row">
         <div class="adsb-tf-row-label">
@@ -24,7 +24,7 @@
               <svg v-if="fields.civil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
-                  stroke="#ffffff"
+                  stroke="#0a0c10"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -148,10 +148,10 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   text-align: center;
 }
 .adsb-tf-header-col--civil {
-  color: #1f8fd0;
+  color: #c8ff00;
 }
 .adsb-tf-header-col--mil {
-  color: #5a8a00;
+  color: #c8ff00;
 }
 .adsb-tf-row {
   display: grid;
@@ -213,7 +213,7 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   transition: background 0.15s;
 }
 .adsb-tf-input:checked + .adsb-tf-box {
-  background: #00aaff;
+  background: #c8ff00;
 }
 .adsb-tf-input:checked + .adsb-tf-box--mil {
   background: #c8ff00;
