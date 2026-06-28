@@ -106,55 +106,51 @@ function toggle(kind: 'civil' | 'mil'): void {
 .oa-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 .oa-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(16, 19, 29, 0.6);
 }
 .oa-track {
   position: relative;
-  width: 36px;
-  height: 18px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  width: 46px;
+  height: 25px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(16, 19, 29, 0.14);
   cursor: pointer;
   padding: 0;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
+  transition: background 0.18s;
 }
 .oa-track--civil.is-on {
-  background: rgba(0, 170, 255, 0.2);
-  border-color: rgba(0, 170, 255, 0.6);
+  background: #00aaff;
 }
 .oa-track--mil.is-on {
-  background: rgba(200, 255, 0, 0.2);
-  border-color: rgba(200, 255, 0, 0.6);
+  background: #c8ff00;
 }
 .oa-thumb {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
+  top: 3px;
+  left: 3px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: #ffffff;
   transition:
-    left 0.15s,
-    background 0.15s;
+    left 0.18s,
+    background 0.18s;
 }
 .oa-track--civil.is-on .oa-thumb {
-  background: #00aaff;
-  left: 20px;
+  background: #ffffff;
+  left: 24px;
 }
 .oa-track--mil.is-on .oa-thumb {
-  background: #c8ff00;
-  left: 20px;
+  background: #0a0c10;
+  left: 24px;
 }
 </style>

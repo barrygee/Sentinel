@@ -9,18 +9,6 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <button
-      ref="closeBtnRef"
-      type="button"
-      class="settings-close-btn"
-      aria-label="Close settings"
-      @click="store.closePanel()"
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" />
-        <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.6" />
-      </svg>
-    </button>
     <div id="settings-sidebar">
       <div
         v-for="s in visibleSections"
@@ -34,7 +22,10 @@
     </div>
 
     <div id="settings-content">
-      <div id="settings-section-heading">{{ sectionHeading }}</div>
+      <div id="settings-section-heading">
+        <span class="settings-heading-bar" aria-hidden="true"></span>
+        <span>{{ sectionHeading }}</span>
+      </div>
 
       <div
         id="settings-search-wrap"
@@ -100,17 +91,19 @@
             <div class="settings-empty">No results found</div>
           </template>
           <template v-else>
-            <template v-for="group in searchResultGroups" :key="group.section">
-              <div class="settings-section-label">{{ group.sectionLabel }}</div>
-              <SettingRow
-                v-for="item in group.items"
-                :key="item.id"
-                :item="item"
-                :pending="pending"
-                @stage="stagePending"
-                @commit="commitAll"
-              />
-            </template>
+            <div class="settings-grid">
+              <template v-for="group in searchResultGroups" :key="group.section">
+                <div class="settings-section-label">{{ group.sectionLabel }}</div>
+                <SettingRow
+                  v-for="item in group.items"
+                  :key="item.id"
+                  :item="item"
+                  :pending="pending"
+                  @stage="stagePending"
+                  @commit="commitAll"
+                />
+              </template>
+            </div>
           </template>
         </template>
 
@@ -120,24 +113,26 @@
             <div class="settings-empty">Settings coming soon</div>
           </template>
           <template v-else>
-            <template v-for="(item, idx) in currentSectionItems" :key="item.id">
-              <div
-                v-if="
-                  item.groupLabel !== undefined &&
-                  item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel
-                "
-                class="settings-group-label"
-                :class="{ 'settings-group-label--spaced': idx > 0 }"
-              >
-                {{ item.groupLabel }}
-              </div>
-              <SettingRow
-                :item="item"
-                :pending="pending"
-                @stage="stagePending"
-                @commit="commitAll"
-              />
-            </template>
+            <div class="settings-grid">
+              <template v-for="(item, idx) in currentSectionItems" :key="item.id">
+                <div
+                  v-if="
+                    item.groupLabel !== undefined &&
+                    item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel
+                  "
+                  class="settings-group-label"
+                  :class="{ 'settings-group-label--spaced': idx > 0 }"
+                >
+                  {{ item.groupLabel }}
+                </div>
+                <SettingRow
+                  :item="item"
+                  :pending="pending"
+                  @stage="stagePending"
+                  @commit="commitAll"
+                />
+              </template>
+            </div>
           </template>
         </template>
       </div>
@@ -167,7 +162,6 @@ const activeSection = ref('app')
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-const closeBtnRef = ref<HTMLButtonElement | null>(null)
 
 // Modal-dialog behaviour: trap focus while open, Escape to close, restore focus
 // to the trigger on close (WCAG 4.1.2 / 2.4.3 / 2.1.2). The panel is display:none

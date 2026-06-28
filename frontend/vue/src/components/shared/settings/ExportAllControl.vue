@@ -129,14 +129,16 @@ async function exportAllConfigs(): Promise<void> {
 .settings-export-all-files {
   margin: 0;
   padding-left: 18px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--text-dim, #9aa);
+  color: rgba(16, 19, 29, 0.5);
 }
 
 .settings-export-all-files code {
-  font-family: var(--mono-font, monospace);
-  color: var(--text, #cdd);
+  font-family: 'Barlow Condensed', 'Barlow', monospace;
+  letter-spacing: 0.04em;
+  color: #5a8a00;
 }
 
 .settings-export-all-action {
@@ -146,7 +148,8 @@ async function exportAllConfigs(): Promise<void> {
 }
 
 .settings-export-all-status {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
-  color: var(--text-dim, #9aa);
+  color: rgba(16, 19, 29, 0.5);
 }
 </style>
