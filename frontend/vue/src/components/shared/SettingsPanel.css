@@ -44,12 +44,12 @@
   position: relative;
 }
 
-/* Sidebar stays dark per the mockup (black rail, lime active item). */
+/* Sidebar uses the app's primary dark tone — not pure black. */
 #settings-sidebar {
   width: 325px;
   flex-shrink: 0;
-  background: #000;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: #10131d;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   padding: 24px 0;
@@ -329,8 +329,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  /* Grow to fill remaining card height so the control below is pinned to the bottom. */
-  flex: 1;
 }
 
 .settings-item-label {
@@ -1580,7 +1578,8 @@
   background: rgba(16, 19, 29, 0.06);
   border: none;
   border-radius: 6px;
-  padding: 10px 22px;
+  height: 37px;
+  padding: 0 18px;
   color: rgba(16, 19, 29, 0.85);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
@@ -1954,16 +1953,25 @@
     width: 220px;
   }
   .settings-grid {
+    /* Pin to exactly 2 columns — prevents auto-fill from producing 1 explicit
+       column and letting span-2/3 items create implicit columns that break
+       group-label alignment. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 22px 24px 90px;
+  }
+  #settings-search-wrap {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 24px;
+    padding-right: 24px;
+    gap: 16px;
+  }
+  /* Triple items cap at 2 columns on this viewport. */
+  .settings-item--triple {
+    grid-column: span 2;
   }
   #settings-section-heading {
     padding-left: 24px;
     padding-right: 24px;
-  }
-  #settings-search-wrap {
-    padding-left: 24px;
-    padding-right: 24px;
-    gap: 16px;
   }
   #settings-footer {
     padding-left: 24px;
@@ -2001,6 +2009,17 @@
   .settings-grid {
     grid-template-columns: 1fr;
     padding: 18px 16px 80px;
+  }
+  #settings-search-wrap {
+    grid-template-columns: 1fr;
+  }
+  /* Collapse all multi-column spans to full width on single-column layout. */
+  .settings-item--half,
+  .settings-item--triple {
+    grid-column: 1 / -1;
+  }
+  #settings-search-inner {
+    grid-column: 1 / -1;
   }
 }
 

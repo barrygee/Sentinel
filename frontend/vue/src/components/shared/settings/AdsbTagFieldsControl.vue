@@ -148,10 +148,10 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   text-align: center;
 }
 .adsb-tf-header-col--civil {
-  color: #c8ff00;
+  color: rgba(16, 19, 29, 0.38);
 }
 .adsb-tf-header-col--mil {
-  color: #c8ff00;
+  color: rgba(16, 19, 29, 0.38);
 }
 .adsb-tf-row {
   display: grid;

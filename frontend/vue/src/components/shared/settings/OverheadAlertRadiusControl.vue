@@ -93,14 +93,15 @@ function onInput(e: Event): void {
   color: rgba(16, 19, 29, 0.5);
 }
 .oar-input {
-  width: 74px;
-  padding: 10px 12px;
+  width: 60px;
+  height: 37px;
+  padding: 0 10px;
   background: #eeece7;
   border: none;
   border-radius: 6px;
   color: rgba(16, 19, 29, 0.9);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-align: center;
