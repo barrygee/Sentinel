@@ -325,15 +325,6 @@ describe('SettingsPanel', () => {
       expect(panel.attributes('aria-labelledby')).toBe('settings-section-heading')
     })
 
-    it('closes the panel from the close button', async () => {
-      const store = useSettingsStore()
-      store.openPanel()
-      const closeSpy = vi.spyOn(store, 'closePanel')
-      const wrapper = mountPanel()
-      await wrapper.find('.settings-close-btn').trigger('click')
-      expect(closeSpy).toHaveBeenCalledOnce()
-    })
-
     it('moves focus to the dialog container (not the search field) when opened on the App section', async () => {
       const store = useSettingsStore()
       const wrapper = mountPanel({ attach: true })

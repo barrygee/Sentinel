@@ -206,7 +206,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
-  align-items: start;
+  /* Stretch cards so every card in a row matches the tallest one's height. */
+  align-items: stretch;
   max-width: 1480px;
   margin: 0 auto;
   padding: 26px 44px 110px;
