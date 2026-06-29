@@ -911,9 +911,12 @@ body[data-domain='sdr'] #map-sidebar {
   #map-sidebar.msb-hidden {
     transform: translateX(calc(-100% - 44px));
   }
-  /* SDR has no tab rail, so its drawer fills the full width. */
+  /* SDR has its own 44px left rail (#sdr-sidebar-rail), so its drawer sits beside
+     it — left: 0 would slide the panel under the rail and crop the content. */
   body[data-domain='sdr'] #map-sidebar {
-    left: 0 !important;
+    left: 44px !important;
+    right: 0 !important;
+    width: auto !important;
     top: var(--nav-height);
     bottom: var(--footer-height);
   }

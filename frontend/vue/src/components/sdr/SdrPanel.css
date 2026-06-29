@@ -3496,6 +3496,18 @@
   box-sizing: border-box;
 }
 
+/* ≤480px: the rail belongs to the drawer — shown only while it's open (mirrors
+   #map-sidebar-rail in air/space). When closed, the rail hides and the panel
+   slides off the left edge, leaving the footer bar clean over the waterfall. */
+@media (max-width: 480px) {
+  body[data-domain='sdr'] #sdr-sidebar-rail {
+    display: none;
+  }
+  body[data-domain='sdr'][data-sidebar-open] #sdr-sidebar-rail {
+    display: flex;
+  }
+}
+
 .sdr-tab-header-left {
   display: flex;
   align-items: center;
