@@ -5,6 +5,7 @@
       'settings-item--wide': isWide,
       'settings-item--half': isHalf,
       'settings-item--triple': isTriple,
+      'settings-item--natural-height': isNaturalHeight,
     }"
   >
     <div class="settings-item-info">
@@ -181,7 +182,6 @@ const emit = defineEmits<{
 }>()
 
 const WIDE_TYPES = new Set(['sdr-channelmaps-file'])
-const TRIPLE_TYPES = new Set(['space-sat-radio-file'])
 const HALF_TYPES = new Set([
   'sdr-devices',
   'sdr-frequencies-file',
@@ -195,12 +195,16 @@ const HALF_TYPES = new Set([
   'space-tle-online',
   'space-tle-manual',
   'space-tle-db',
+  'space-sat-radio-file',
+  'space-hover-preview',
   'air-tag-fields',
   'export-all',
   'config-current',
   'location',
 ])
+const NATURAL_HEIGHT_TYPES = new Set(['location'])
 const isWide = WIDE_TYPES.has(props.item.type)
-const isTriple = TRIPLE_TYPES.has(props.item.type)
+const isTriple = false
 const isHalf = HALF_TYPES.has(props.item.type)
+const isNaturalHeight = NATURAL_HEIGHT_TYPES.has(props.item.type)
 </script>

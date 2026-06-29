@@ -1,17 +1,3 @@
-<template>
-  <div class="settings-export-all-wrap">
-    <ul class="settings-export-all-files">
-      <li v-for="target in ALL_CONFIG_EXPORTS" :key="target.filename">
-        <code>{{ target.filename }}</code> — {{ target.description }}
-      </li>
-    </ul>
-    <div class="settings-export-all-action">
-      <button class="settings-config-btn" @click="exportAllConfigs">EXPORT ALL</button>
-      <span v-if="status" class="settings-export-all-status" role="status">{{ status }}</span>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref } from 'vue'
 
@@ -119,26 +105,20 @@ async function exportAllConfigs(): Promise<void> {
 }
 </script>
 
+<template>
+  <div class="settings-export-all-wrap">
+    <div class="settings-export-all-action">
+      <button class="settings-config-btn" @click="exportAllConfigs">EXPORT ALL</button>
+      <span v-if="status" class="settings-export-all-status" role="status">{{ status }}</span>
+    </div>
+  </div>
+</template>
+
 <style scoped>
 .settings-export-all-wrap {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.settings-export-all-files {
-  margin: 0;
-  padding-left: 18px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
-  line-height: 1.6;
-  color: rgba(16, 19, 29, 0.5);
-}
-
-.settings-export-all-files code {
-  font-family: 'Barlow Condensed', 'Barlow', monospace;
-  letter-spacing: 0.04em;
-  color: #5a8a00;
 }
 
 .settings-export-all-action {

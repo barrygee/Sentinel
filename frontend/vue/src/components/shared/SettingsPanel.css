@@ -44,48 +44,90 @@
   position: relative;
 }
 
-/* Sidebar uses the app's primary dark tone — not pure black. */
+/* Sidebar uses the app's primary dark tone — not pure black. Icon-only rail at
+   all screen sizes, matching the map side-menu rails (#map-sidebar-rail): each
+   item shows its domain icon with a hover tooltip to the right. */
 #settings-sidebar {
-  width: 325px;
+  width: 48px;
   flex-shrink: 0;
   background: #10131d;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  padding: 24px 0;
-  overflow-y: auto;
-  scrollbar-width: none;
+  padding: 0;
 }
 
-#settings-sidebar::-webkit-scrollbar {
-  display: none;
-}
-
+/* Matches the map side-menu rail buttons (.msb-rail-btn): a full-width 40px
+   button whose hover/active state fills the whole cell (not a rounded square
+   behind the icon), with a lime left border + accent icon when active. */
 .settings-nav-item {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  padding: 13px 24px;
+  position: relative;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  padding: 0;
   cursor: pointer;
   transition:
     color 0.15s,
-    background 0.15s;
+    background 0.15s,
+    border-color 0.15s;
   border-left: 2px solid transparent;
   user-select: none;
+  flex-shrink: 0;
+}
+
+.settings-nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-nav-icon {
+  flex-shrink: 0;
 }
 
 .settings-nav-item:hover {
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-muted);
+  background: var(--color-border);
 }
 
 .settings-nav-item.active {
   color: var(--color-accent);
+  background: rgba(200, 255, 0, 0.08);
   border-left-color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.1);
+}
+
+/* Hover tooltip — same style/position as the map side-menu rails: a black
+   pill to the right of the icon, vertically centred. */
+.settings-nav-item[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #000;
+  color: var(--color-text-muted);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 14px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10001;
+}
+
+.settings-nav-item[data-tooltip]:hover::before {
+  opacity: 1;
 }
 
 #settings-content {
@@ -102,7 +144,8 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #16191d;
-  padding: 34px 44px 0;
+  /* 6px bottom + the following element's 26px top = a 32px gap below the title. */
+  padding: 34px 44px 6px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -323,6 +366,12 @@
 /* Three-column controls. */
 .settings-item--triple {
   grid-column: span 3;
+}
+
+/* Cards that should not stretch to fill row height (e.g. My Location
+   next to a taller expandable card). */
+.settings-item--natural-height {
+  align-self: start;
 }
 
 .settings-item-info {
@@ -1949,9 +1998,6 @@
     top: var(--nav-height);
     bottom: var(--footer-height);
   }
-  #settings-sidebar {
-    width: 220px;
-  }
   .settings-grid {
     /* Pin to exactly 2 columns — prevents auto-fill from producing 1 explicit
        column and letting span-2/3 items create implicit columns that break
@@ -1980,38 +2026,13 @@
 }
 
 @media (max-width: 768px) {
-  /* Stack: sidebar nav on top as a horizontal scroll bar, content below */
-  #settings-panel {
-    flex-direction: column;
-  }
-  #settings-sidebar {
-    width: 100%;
-    max-height: 56px;
-    flex-direction: row;
-    padding: 8px 12px;
-    gap: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    flex-shrink: 0;
-  }
-  .settings-nav-item {
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 6px 10px;
-    border-left: none;
-    border-bottom: 2px solid transparent;
-  }
-  .settings-nav-item.active {
-    border-bottom-color: var(--color-accent);
-  }
   .settings-grid {
     grid-template-columns: 1fr;
     padding: 18px 16px 80px;
   }
   #settings-search-wrap {
     grid-template-columns: 1fr;
+    padding: 18px 16px 0;
   }
   /* Collapse all multi-column spans to full width on single-column layout. */
   .settings-item--half,
@@ -2020,15 +2041,5 @@
   }
   #settings-search-inner {
     grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 480px) {
-  #settings-sidebar {
-    padding: 6px 8px;
-  }
-  .settings-nav-item {
-    font-size: 9px;
-    padding: 6px 8px;
   }
 }

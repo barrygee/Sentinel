@@ -55,6 +55,14 @@ vi.mock('@/composables/useSpaceAlertsService', () => ({
   },
 }))
 
+// ExportAllControl is imported by SettingRow → SettingsPanel → App. App stubs
+// SettingsPanel at the component level, so ExportAllControl is never exercised
+// here. Mocking it at module level prevents a v8 coverage merge artifact that
+// makes ExportAllControl.vue appear partially uncovered in the global report.
+vi.mock('@/components/shared/settings/ExportAllControl.vue', () => ({
+  default: { name: 'ExportAllControl' },
+}))
+
 // ---- Child stubs ----------------------------------------------------------
 let sidebarSpies: {
   toggle: ReturnType<typeof vi.fn>

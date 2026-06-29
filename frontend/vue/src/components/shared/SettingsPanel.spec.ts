@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+
+// SettingRow imports ExportAllControl, which causes a v8 coverage merge artifact
+// when ExportAllControl is loaded in this worker (where it's never exercised) AND
+// in ExportAllControl.spec.ts's worker (where it has 100% coverage). Mocking it
+// here prevents that double-loading without affecting SettingsPanel test behaviour.
+vi.mock('./settings/ExportAllControl.vue', () => ({ default: { name: 'ExportAllControl' } }))
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SettingsPanel from './SettingsPanel.vue'
@@ -38,7 +44,9 @@ describe('SettingsPanel', () => {
   describe('section navigation', () => {
     it('lists App Settings plus every enabled domain section', () => {
       const wrapper = mountPanel()
-      const labels = wrapper.findAll('.settings-nav-item').map((node) => node.text())
+      const labels = wrapper
+        .findAll('.settings-nav-item')
+        .map((node) => node.attributes('data-tooltip'))
       expect(labels).toEqual(['App Settings', 'AIR', 'SPACE', 'SEA', 'LAND', 'SDR'])
     })
 
@@ -46,22 +54,46 @@ describe('SettingsPanel', () => {
       const appStore = useAppStore()
       appStore.enabledDomains = ['air']
       const wrapper = mountPanel()
-      const labels = wrapper.findAll('.settings-nav-item').map((node) => node.text())
+      const labels = wrapper
+        .findAll('.settings-nav-item')
+        .map((node) => node.attributes('data-tooltip'))
       expect(labels).toEqual(['App Settings', 'AIR'])
+    })
+
+    it('activates a section when Enter is pressed on its nav item', async () => {
+      const wrapper = mountPanel()
+      const airNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'AIR')!
+      await airNav.trigger('keydown', { key: 'Enter' })
+      expect(airNav.classes()).toContain('active')
+    })
+
+    it('activates a section when Space is pressed on its nav item', async () => {
+      const wrapper = mountPanel()
+      const airNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'AIR')!
+      await airNav.trigger('keydown', { key: ' ' })
+      expect(airNav.classes()).toContain('active')
     })
 
     it('shows the App heading without a SETTINGS suffix and domain headings with it', async () => {
       const wrapper = mountPanel()
       expect(wrapper.find('#settings-section-heading').text()).toBe('App Settings')
 
-      const airNav = wrapper.findAll('.settings-nav-item').find((node) => node.text() === 'AIR')!
+      const airNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'AIR')!
       await airNav.trigger('click')
       expect(wrapper.find('#settings-section-heading').text()).toBe('AIR SETTINGS')
     })
 
     it('selecting a section marks it active and renders its items', async () => {
       const wrapper = mountPanel()
-      const airNav = wrapper.findAll('.settings-nav-item').find((node) => node.text() === 'AIR')!
+      const airNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'AIR')!
       await airNav.trigger('click')
       expect(airNav.classes()).toContain('active')
       // The AIR section declares group labels (ALERTS, LABELS, …).
@@ -75,7 +107,9 @@ describe('SettingsPanel', () => {
       // empty section by enabling a section key that has no settings is not
       // possible — every nav key has items except none, so assert SEA renders rows.
       const wrapper = mountPanel()
-      const seaNav = wrapper.findAll('.settings-nav-item').find((node) => node.text() === 'SEA')!
+      const seaNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'SEA')!
       await seaNav.trigger('click')
       expect(wrapper.findAllComponents(SettingRow).length).toBeGreaterThan(0)
     })
@@ -88,6 +122,17 @@ describe('SettingsPanel', () => {
       store.openPanel()
       await flushPromises()
       expect(wrapper.find('#settings-section-heading').text()).toBe('ghost')
+    })
+  })
+
+  describe('sidebar nav', () => {
+    it('each nav item carries a tooltip label matching its accessible name', () => {
+      const wrapper = mountPanel()
+      const items = wrapper.findAll('.settings-nav-item')
+      expect(items.length).toBeGreaterThan(0)
+      for (const item of items) {
+        expect(item.attributes('data-tooltip')).toBe(item.attributes('aria-label'))
+      }
     })
   })
 
@@ -134,13 +179,13 @@ describe('SettingsPanel', () => {
       expect(closeSpy).toHaveBeenCalledOnce()
     })
 
-    it('hides the footer while a search is active', async () => {
+    it('keeps the footer visible while a search is active', async () => {
       const wrapper = mountPanel()
       const footer = () => wrapper.find('#settings-footer').element as HTMLElement
-      // v-show toggles inline display; empty string means shown.
       expect(footer().style.display).toBe('')
       await wrapper.find('#settings-search-input').setValue('source')
-      expect(footer().style.display).toBe('none')
+      // Footer remains visible during search so Apply Changes is always reachable.
+      expect(footer().style.display).toBe('')
     })
   })
 
@@ -154,7 +199,9 @@ describe('SettingsPanel', () => {
     }
 
     async function openSdrSection(wrapper: ReturnType<typeof mountPanel>) {
-      const sdrNav = wrapper.findAll('.settings-nav-item').find((node) => node.text() === 'SDR')!
+      const sdrNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'SDR')!
       await sdrNav.trigger('click')
     }
 
@@ -201,7 +248,9 @@ describe('SettingsPanel', () => {
       await wrapper.find('#settings-search-input').setValue('source')
       wrapper.findComponent(SettingRow).vm.$emit('stage', 'x', vi.fn())
 
-      const airNav = wrapper.findAll('.settings-nav-item').find((node) => node.text() === 'AIR')!
+      const airNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'AIR')!
       await airNav.trigger('click')
       expect((wrapper.find('#settings-search-input').element as HTMLInputElement).value).toBe('')
 
@@ -288,7 +337,9 @@ describe('SettingsPanel', () => {
       store.openPanel('sdr')
       await flushPromises()
       vi.runAllTimers()
-      const sdrNav = wrapper.findAll('.settings-nav-item').find((node) => node.text() === 'SDR')!
+      const sdrNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'SDR')!
       expect(sdrNav.classes()).toContain('active')
     })
 
@@ -300,7 +351,7 @@ describe('SettingsPanel', () => {
       await flushPromises()
       const spaceNav = wrapper
         .findAll('.settings-nav-item')
-        .find((node) => node.text() === 'SPACE')!
+        .find((node) => node.attributes('data-tooltip') === 'SPACE')!
       expect(spaceNav.classes()).toContain('active')
       expect(sessionStorage.getItem('sentinel_settings_reopen')).toBeNull()
     })

@@ -33,13 +33,6 @@ describe('ExportAllControl', () => {
     delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker
   })
 
-  it('lists each exported file with its filename and description', () => {
-    const wrapper = mount(ExportAllControl)
-    const items = wrapper.findAll('.settings-export-all-files li')
-    expect(items.map((node) => node.find('code').text())).toEqual(EXPECTED_FILENAMES)
-    expect(items[0]!.text()).toContain('all app settings')
-  })
-
   it('exports every config into the chosen directory in order', async () => {
     vi.useFakeTimers()
     const write = vi.fn()
