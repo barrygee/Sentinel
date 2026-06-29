@@ -187,7 +187,9 @@ describe('App', () => {
       const app = useAppStore()
       app.enabledDomains = ['air', 'sdr']
       const wrapper = mountApp()
-      const links = wrapper.findAll('a.nav-link, a[data-domain]')
+      // Scope to the desktop nav rail to avoid counting the mobile overlay links.
+      const navRight = wrapper.find('#nav-right')
+      const links = navRight.findAll('a')
       const domains = links.map((link) => link.attributes('data-domain'))
       expect(domains).toEqual(['air', 'sdr'])
       expect(links.map((link) => link.text())).toEqual(['AIR', 'SDR'])
@@ -198,9 +200,89 @@ describe('App', () => {
       const app = useAppStore()
       app.enabledDomains = ['space']
       const wrapper = mountApp()
-      const links = wrapper.findAll('a[data-domain]')
+      const navRight = wrapper.find('#nav-right')
+      const links = navRight.findAll('a')
       expect(links).toHaveLength(1)
       expect(links[0]!.attributes('data-domain')).toBe('space')
+    })
+
+    it('mirrors enabled domains in the mobile overlay nav', () => {
+      const app = useAppStore()
+      app.enabledDomains = ['air', 'sdr']
+      const wrapper = mountApp()
+      const overlay = wrapper.find('#nav-overlay')
+      const links = overlay.findAll('a')
+      expect(links.map((link) => link.attributes('data-domain'))).toEqual(['air', 'sdr'])
+    })
+  })
+
+  describe('mobile burger menu', () => {
+    it('toggles the overlay open and closed when the burger button is clicked', async () => {
+      const wrapper = mountApp()
+      const btn = wrapper.find('#nav-burger-btn')
+      expect(btn.attributes('aria-expanded')).toBe('false')
+      expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
+
+      await btn.trigger('click')
+      expect(btn.attributes('aria-expanded')).toBe('true')
+      expect(wrapper.find('#nav-overlay').classes()).toContain('nav-overlay-open')
+
+      await btn.trigger('click')
+      expect(btn.attributes('aria-expanded')).toBe('false')
+      expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
+    })
+
+    it('closes the overlay when Escape is pressed inside it', async () => {
+      const wrapper = mountApp()
+      await wrapper.find('#nav-burger-btn').trigger('click')
+      expect(wrapper.find('#nav-overlay').classes()).toContain('nav-overlay-open')
+
+      await wrapper.find('#nav-overlay').trigger('keydown', { key: 'Escape' })
+      expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
+    })
+
+    it('closes the overlay when a link inside it is clicked', async () => {
+      const app = useAppStore()
+      app.enabledDomains = ['air']
+      const wrapper = mountApp()
+      await wrapper.find('#nav-burger-btn').trigger('click')
+      expect(wrapper.find('#nav-overlay').classes()).toContain('nav-overlay-open')
+
+      await wrapper.find('#nav-overlay a').trigger('click')
+      expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
+    })
+
+    it('closes the overlay on route change', async () => {
+      const wrapper = mountApp()
+      await wrapper.find('#nav-burger-btn').trigger('click')
+      expect(wrapper.find('#nav-overlay').classes()).toContain('nav-overlay-open')
+
+      shared.route!.path = '/space/'
+      await nextTick()
+      expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
+    })
+
+    it('sets data-nav-open on body when open and removes it when closed', async () => {
+      const wrapper = mountApp()
+      await wrapper.find('#nav-burger-btn').trigger('click')
+      expect(document.body.hasAttribute('data-nav-open')).toBe(true)
+
+      await wrapper.find('#nav-burger-btn').trigger('click')
+      expect(document.body.hasAttribute('data-nav-open')).toBe(false)
+    })
+
+    it('opens the settings panel and closes the overlay when the settings button is clicked', async () => {
+      const { useSettingsStore } = await import('@/stores/settings')
+      const settings = useSettingsStore()
+      const openSpy = vi.spyOn(settings, 'openPanel')
+
+      const wrapper = mountApp()
+      await wrapper.find('#nav-burger-btn').trigger('click')
+      expect(wrapper.find('#nav-overlay').classes()).toContain('nav-overlay-open')
+
+      await wrapper.find('.nav-overlay-settings-btn').trigger('click')
+      expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
+      expect(openSpy).toHaveBeenCalled()
     })
   })
 
@@ -324,9 +406,14 @@ describe('App', () => {
       expect(main.attributes('tabindex')).toBe('-1')
     })
 
-    it('names the domain nav landmark', () => {
+    it('names the desktop domain nav landmark', () => {
       const wrapper = mountApp()
-      expect(wrapper.find('nav').attributes('aria-label')).toBe('Domains')
+      expect(wrapper.find('#nav-right').attributes('aria-label')).toBe('Domains')
+    })
+
+    it('gives the mobile overlay nav a distinct accessible name', () => {
+      const wrapper = mountApp()
+      expect(wrapper.find('#nav-overlay').attributes('aria-label')).toBe('Mobile domain navigation')
     })
 
     it('wraps the sidebar in a named complementary landmark', () => {

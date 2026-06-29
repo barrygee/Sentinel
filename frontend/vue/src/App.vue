@@ -16,7 +16,95 @@
         >{{ label }}</RouterLink
       >
     </nav>
+    <button
+      id="nav-burger-btn"
+      :aria-expanded="menuOpen"
+      aria-controls="nav-overlay"
+      aria-label="Toggle navigation menu"
+      @click="toggleMenu"
+    >
+      <!-- hamburger / close icon — 19×19 matches the sidebar rail icon size -->
+      <svg
+        v-if="!menuOpen"
+        width="19"
+        height="19"
+        viewBox="0 0 22 22"
+        fill="none"
+        aria-hidden="true"
+      >
+        <line
+          x1="2"
+          y1="5"
+          x2="20"
+          y2="5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+        <line
+          x1="2"
+          y1="11"
+          x2="20"
+          y2="11"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+        <line
+          x1="2"
+          y1="17"
+          x2="20"
+          y2="17"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+      </svg>
+      <svg v-else width="19" height="19" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <line
+          x1="4"
+          y1="4"
+          x2="18"
+          y2="18"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+        <line
+          x1="18"
+          y1="4"
+          x2="4"
+          y2="18"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
   </header>
+
+  <!-- Mobile fullscreen nav overlay — rendered outside the header so it fills
+       the viewport below the nav bar without any stacking context clipping -->
+  <nav
+    id="nav-overlay"
+    :class="{ 'nav-overlay-open': menuOpen }"
+    aria-label="Mobile domain navigation"
+    @keydown.esc="menuOpen = false"
+  >
+    <RouterLink
+      v-for="[domain, label] in navDomains"
+      :key="domain"
+      :to="`/${domain}/`"
+      class="nav-overlay-link"
+      active-class="nav-overlay-link--active"
+      :data-domain="domain"
+      @click="menuOpen = false"
+      >{{ label }}</RouterLink
+    >
+    <button class="nav-overlay-link nav-overlay-settings-btn" @click="openSettings">
+      SETTINGS
+    </button>
+  </nav>
 
   <main id="main" ref="mainRef" tabindex="-1">
     <RouterView />
@@ -58,9 +146,11 @@ import { useAirAlertsService } from '@/composables/useAirAlertsService'
 import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useSettingsStore } from '@/stores/settings'
 
 const route = useRoute()
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
 const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocation()
 const notificationsStore = useNotificationsStore()
 
@@ -118,6 +208,35 @@ watch(
 
 useDocumentEvent('air-open-search', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('open-space-search', () => sidebarRef.value?.switchTab('search'))
+
+const menuOpen = ref(false)
+
+function toggleMenu() {
+  menuOpen.value = !menuOpen.value
+}
+
+function openSettings() {
+  menuOpen.value = false
+  settingsStore.openPanel()
+}
+
+// Reflect overlay state on body so CSS can hide the footer settings button
+// while the menu is open (it moves into the overlay at mobile sizes).
+watch(menuOpen, (open) => {
+  if (open) {
+    document.body.setAttribute('data-nav-open', '')
+  } else {
+    document.body.removeAttribute('data-nav-open')
+  }
+})
+
+// Close mobile nav overlay on route change
+watch(
+  () => route.path,
+  () => {
+    menuOpen.value = false
+  },
+)
 
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 
