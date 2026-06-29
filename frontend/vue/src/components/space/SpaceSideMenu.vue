@@ -352,11 +352,12 @@ function toggleNames(): void {
   }
 }
 
-/* ≤480px: the left rail becomes a full-width bottom bar — lift the right rail
-   clear of it so the two don't overlap in the bottom-right corner. */
+/* ≤480px: the tab rail is now part of the left drawer (hidden until opened), so
+   the right rail no longer needs to clear a bottom strip — it spans the full
+   height down to the footer. (It's hidden entirely while the drawer is open.) */
 @media (max-width: 480px) {
   #space-side-menu {
-    bottom: calc(var(--footer-height) + 44px);
+    bottom: var(--footer-height);
   }
 }
 </style>
