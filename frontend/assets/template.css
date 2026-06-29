@@ -551,9 +551,10 @@ body[data-no-data] .maplibregl-control-container {
         padding-left: 6px;
         padding-right: 16px;
     }
+    /* Logo keeps its full 56px height on smaller screens (no shrink); drop the
+       optical top nudge so it centres cleanly within the shorter 56px nav. */
     #logo-img {
-        height: 44px;
-        margin-top: 2px;
+        margin-top: 0;
     }
     #nav-right {
         gap: 20px;
@@ -573,9 +574,6 @@ body[data-no-data] .maplibregl-control-container {
     #nav {
         padding-left: 4px;
         padding-right: 10px;
-    }
-    #logo-img {
-        height: 38px;
     }
     #nav-right {
         gap: 14px;

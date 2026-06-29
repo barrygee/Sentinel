@@ -24,17 +24,6 @@ test.describe('Settings panel', () => {
     await expect(dialog).toBeVisible()
   })
 
-  test('Close button (×) closes the settings dialog', async ({ page }) => {
-    await page.goto('/air/')
-    await waitForShellHydration(page)
-
-    await page.getByRole('button', { name: /^settings$/i }).click()
-    await expect(page.locator('[role="dialog"]')).toBeVisible()
-
-    await page.getByRole('button', { name: /close settings/i }).click()
-    await expect(page.locator('[role="dialog"]')).not.toBeVisible()
-  })
-
   test('Escape key closes the settings dialog', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
@@ -65,8 +54,9 @@ test.describe('Settings panel', () => {
     await page.getByRole('button', { name: /^settings$/i }).click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
 
-    // Click AIR section
-    await page.locator('#settings-sidebar .settings-nav-item', { hasText: /^air$/i }).click()
+    // Click AIR section. The rail is icon-only, so locate by the tooltip/accessible
+    // label rather than visible text.
+    await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="AIR"]').click()
     await expect(page.locator('#settings-section-heading')).toHaveText(/air/i)
   })
 

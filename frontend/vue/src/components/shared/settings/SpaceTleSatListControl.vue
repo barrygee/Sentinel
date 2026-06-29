@@ -1,6 +1,35 @@
 <template>
   <div class="tle-satlist-wrap">
-    <div class="tle-satlist-body">
+    <button
+      class="tle-satlist-toggle-btn"
+      :aria-expanded="open"
+      aria-controls="tle-satlist-body"
+      :aria-label="open ? 'Hide satellite list' : 'Show satellite list'"
+      @click="open = !open"
+    >
+      <svg
+        class="tle-satlist-chevron"
+        :class="{ 'tle-satlist-chevron--open': open }"
+        width="12"
+        height="12"
+        viewBox="0 0 10 10"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M3 2L7 5L3 8"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+    <div
+      id="tle-satlist-body"
+      class="tle-satlist-body"
+      :class="{ 'tle-satlist-body--hidden': !open }"
+    >
       <div class="settings-datasource-row tle-satlist-search-row">
         <span class="settings-datasource-label">SEARCH</span>
         <input
@@ -54,6 +83,7 @@ const allSats = ref<SatRow[]>([])
 const searchQuery = ref('')
 const loading = ref(true)
 const loadError = ref('')
+const open = ref(false)
 
 const filteredSats = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()

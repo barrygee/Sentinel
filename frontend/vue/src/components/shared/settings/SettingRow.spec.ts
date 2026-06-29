@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { vi, describe, it, expect } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
+
+// Prevent the real ExportAllControl from being compiled in this worker's V8 context.
+// Without this, v8 creates a separate function-coverage record for ExportAllControl.vue
+// in both this worker and ExportAllControl.spec.ts's worker; the records have different
+// byte-range offsets, so the merge creates phantom uncovered function entries.
+// shallowMount already stubs child components so the mock doesn't affect test behaviour.
+vi.mock('./ExportAllControl.vue', () => ({ default: { name: 'ExportAllControl' } }))
 import type { Component } from 'vue'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
@@ -117,7 +124,7 @@ describe('SettingRow', () => {
   })
 
   it('applies the wide modifier only to wide types', () => {
-    expect(mountRow({ id: 'a', type: 'sdr-devices', label: 'SDR' }).classes()).toContain(
+    expect(mountRow({ id: 'a', type: 'sdr-channelmaps-file', label: 'Maps' }).classes()).toContain(
       'settings-item--wide',
     )
     expect(mountRow({ id: 'b', type: 'probe-url', label: 'Probe' }).classes()).not.toContain(

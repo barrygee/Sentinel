@@ -9,32 +9,178 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <button
-      ref="closeBtnRef"
-      type="button"
-      class="settings-close-btn"
-      aria-label="Close settings"
-      @click="store.closePanel()"
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.6" />
-        <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.6" />
-      </svg>
-    </button>
     <div id="settings-sidebar">
       <div
         v-for="s in visibleSections"
         :key="s.key"
         class="settings-nav-item"
         :class="{ active: activeSection === s.key }"
+        role="button"
+        :tabindex="0"
+        :data-tooltip="s.label"
+        :aria-label="s.label"
+        :aria-pressed="activeSection === s.key"
         @click="selectSection(s.key)"
+        @keydown.enter="selectSection(s.key)"
+        @keydown.space.prevent="selectSection(s.key)"
       >
-        {{ s.label }}
+        <div class="settings-nav-icon-wrap">
+          <!-- App Settings: sliders icon -->
+          <svg
+            v-if="s.key === 'app'"
+            class="settings-nav-icon"
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <line
+              x1="4"
+              y1="6"
+              x2="20"
+              y2="6"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+            <circle cx="15" cy="6" r="2.5" stroke="currentColor" stroke-width="1.8" />
+            <line
+              x1="4"
+              y1="13"
+              x2="20"
+              y2="13"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+            <circle cx="9" cy="13" r="2.5" stroke="currentColor" stroke-width="1.8" />
+            <line
+              x1="4"
+              y1="20"
+              x2="20"
+              y2="20"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+            <circle cx="14" cy="20" r="2.5" stroke="currentColor" stroke-width="1.8" />
+          </svg>
+          <!-- AIR: civil aircraft (matches AirSideMenu civil filter icon) -->
+          <svg
+            v-else-if="s.key === 'air'"
+            class="settings-nav-icon"
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
+              fill="currentColor"
+            />
+          </svg>
+          <!-- SPACE: planet Earth (globe with meridian and equator) -->
+          <svg
+            v-else-if="s.key === 'space'"
+            class="settings-nav-icon"
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <ellipse cx="12" cy="12" rx="4" ry="9" stroke="currentColor" stroke-width="1.8" />
+            <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.8" />
+          </svg>
+          <!-- SEA: sailboat icon -->
+          <svg
+            v-else-if="s.key === 'sea'"
+            class="settings-nav-icon"
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <line
+              x1="12"
+              y1="16"
+              x2="12"
+              y2="3"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+            <path
+              d="M12 4L5 15h7V4z"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+            <path d="M3 16h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path
+              d="M3 16l1.5 4.5h15L21 16"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <!-- LAND: mountain terrain icon -->
+          <svg
+            v-else-if="s.key === 'land'"
+            class="settings-nav-icon"
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M2 20L8 7l4 6.5L16 5l6 15H2z"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <!-- SDR (default): radio (matches SdrPanel radio tab icon) -->
+          <svg
+            v-else
+            class="settings-nav-icon"
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            stroke-linecap="round"
+          >
+            <line x1="6" y1="9" x2="18" y2="3" stroke="currentColor" stroke-width="1.6" />
+            <rect
+              x="3"
+              y="9"
+              width="18"
+              height="12"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="miter"
+              fill="none"
+            />
+            <circle cx="16" cy="15" r="2.6" stroke="currentColor" stroke-width="1.6" />
+            <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6" />
+            <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+        </div>
       </div>
     </div>
 
     <div id="settings-content">
-      <div id="settings-section-heading">{{ sectionHeading }}</div>
+      <div id="settings-section-heading">
+        <span class="settings-heading-bar" aria-hidden="true"></span>
+        <span>{{ sectionHeading }}</span>
+      </div>
 
       <div
         id="settings-search-wrap"
@@ -100,17 +246,19 @@
             <div class="settings-empty">No results found</div>
           </template>
           <template v-else>
-            <template v-for="group in searchResultGroups" :key="group.section">
-              <div class="settings-section-label">{{ group.sectionLabel }}</div>
-              <SettingRow
-                v-for="item in group.items"
-                :key="item.id"
-                :item="item"
-                :pending="pending"
-                @stage="stagePending"
-                @commit="commitAll"
-              />
-            </template>
+            <div class="settings-grid">
+              <template v-for="group in searchResultGroups" :key="group.section">
+                <div class="settings-section-label">{{ group.sectionLabel }}</div>
+                <SettingRow
+                  v-for="item in group.items"
+                  :key="item.id"
+                  :item="item"
+                  :pending="pending"
+                  @stage="stagePending"
+                  @commit="commitAll"
+                />
+              </template>
+            </div>
           </template>
         </template>
 
@@ -120,29 +268,31 @@
             <div class="settings-empty">Settings coming soon</div>
           </template>
           <template v-else>
-            <template v-for="(item, idx) in currentSectionItems" :key="item.id">
-              <div
-                v-if="
-                  item.groupLabel !== undefined &&
-                  item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel
-                "
-                class="settings-group-label"
-                :class="{ 'settings-group-label--spaced': idx > 0 }"
-              >
-                {{ item.groupLabel }}
-              </div>
-              <SettingRow
-                :item="item"
-                :pending="pending"
-                @stage="stagePending"
-                @commit="commitAll"
-              />
-            </template>
+            <div class="settings-grid">
+              <template v-for="(item, idx) in currentSectionItems" :key="item.id">
+                <div
+                  v-if="
+                    item.groupLabel !== undefined &&
+                    item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel
+                  "
+                  class="settings-group-label"
+                  :class="{ 'settings-group-label--spaced': idx > 0 }"
+                >
+                  {{ item.groupLabel }}
+                </div>
+                <SettingRow
+                  :item="item"
+                  :pending="pending"
+                  @stage="stagePending"
+                  @commit="commitAll"
+                />
+              </template>
+            </div>
           </template>
         </template>
       </div>
 
-      <div v-show="!searchQuery.trim()" id="settings-footer">
+      <div id="settings-footer">
         <span id="settings-apply-status" :class="applyStatusClass">{{ applyStatusMsg }}</span>
         <button id="settings-apply-btn" @click="commitAll">APPLY CHANGES</button>
       </div>
@@ -167,7 +317,6 @@ const activeSection = ref('app')
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-const closeBtnRef = ref<HTMLButtonElement | null>(null)
 
 // Modal-dialog behaviour: trap focus while open, Escape to close, restore focus
 // to the trigger on close (WCAG 4.1.2 / 2.4.3 / 2.1.2). The panel is display:none
@@ -231,18 +380,18 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'app',
     sectionLabel: 'App Settings',
-    id: 'location',
-    label: 'My Location',
-    desc: 'Set a fixed latitude / longitude for your position',
-    type: 'location',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
     id: 'notification-sound',
     label: 'Notification Sound',
     desc: 'Play a subtle blip when a new alert or notification arrives',
     type: 'notification-sound',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'location',
+    label: 'My Location',
+    desc: 'Set a fixed latitude / longitude for your position',
+    type: 'location',
   },
   {
     section: 'air',
@@ -333,22 +482,6 @@ const ALL_SETTINGS: SettingItem[] = [
     label: 'TLE Database',
     desc: 'Satellite count, sources, and per-category last-updated times. Clear all data, or clear a single category (e.g. space station, amateur radio).',
     type: 'space-tle-db',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-tle-uncategorised',
-    label: 'Uncategorised Satellites',
-    desc: 'Assign categories to satellites imported without one',
-    type: 'space-tle-uncat',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-tle-satlist',
-    label: 'Satellite List',
-    desc: 'Full list of all TLE records stored in the database',
-    type: 'space-tle-satlist',
   },
   {
     section: 'space',
@@ -525,7 +658,7 @@ const ALL_SETTINGS: SettingItem[] = [
     sectionLabel: 'App Settings',
     id: 'export-all',
     label: 'Export All Configuration',
-    desc: 'Back up your full configuration to a single folder you choose:',
+    desc: 'Back up your full configuration (sentinel_config.json, sdr_frequencies.json and sdr_bandplan.json) to a single folder you choose',
     type: 'export-all',
   },
 ]

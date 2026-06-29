@@ -87,32 +87,31 @@ function onInput(e: Event): void {
 .oar-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(16, 19, 29, 0.5);
 }
 .oar-input {
-  width: 70px;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  color: #fff;
+  width: 60px;
+  height: 37px;
+  padding: 0 10px;
+  background: #eeece7;
+  border: none;
+  border-radius: 6px;
+  color: rgba(16, 19, 29, 0.9);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
   outline: none;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  transition: box-shadow 0.15s;
 }
 .oar-input:focus {
-  border-color: rgba(200, 255, 0, 0.6);
-  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
 }
 .oar-input--invalid {
-  border-color: rgba(255, 80, 80, 0.6);
+  box-shadow: inset 0 -2px 0 #d94436;
 }
 </style>

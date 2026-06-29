@@ -4,7 +4,7 @@
       <div class="adsb-tf-header">
         <div class="adsb-tf-header-field">Field</div>
         <div class="adsb-tf-header-col adsb-tf-header-col--civil">Civil</div>
-        <div class="adsb-tf-header-col adsb-tf-header-col--mil">Military</div>
+        <div class="adsb-tf-header-col adsb-tf-header-col--mil">Mil</div>
       </div>
       <div v-for="opt in OPTIONS" :key="opt.key" class="adsb-tf-row">
         <div class="adsb-tf-row-label">
@@ -24,7 +24,7 @@
               <svg v-if="fields.civil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
-                  stroke="#00aaff"
+                  stroke="#0a0c10"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -46,7 +46,7 @@
               <svg v-if="fields.mil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
-                  stroke="#c8ff00"
+                  stroke="#0a0c10"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -125,80 +125,73 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
 .adsb-tf-table {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
-  overflow: hidden;
-  width: fit-content;
-  min-width: 360px;
+  width: 100%;
 }
 .adsb-tf-header {
   display: grid;
   grid-template-columns: 1fr 80px 80px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 4px 10px;
 }
 .adsb-tf-header-field,
 .adsb-tf-header-col {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  padding: 7px 16px;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(16, 19, 29, 0.38);
+}
+.adsb-tf-header-field {
+  padding-left: 10px;
 }
 .adsb-tf-header-col {
   text-align: center;
-  padding-left: 0;
-  padding-right: 0;
 }
 .adsb-tf-header-col--civil {
-  color: rgba(0, 170, 255, 0.5);
+  color: rgba(16, 19, 29, 0.38);
 }
 .adsb-tf-header-col--mil {
-  color: rgba(200, 255, 0, 0.5);
+  color: rgba(16, 19, 29, 0.38);
 }
 .adsb-tf-row {
   display: grid;
   grid-template-columns: 1fr 80px 80px;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(16, 19, 29, 0.015);
+  border-radius: 6px;
+  margin-bottom: 4px;
   transition: background 0.1s;
 }
-.adsb-tf-row:last-child {
-  border-bottom: none;
-}
 .adsb-tf-row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(16, 19, 29, 0.04);
 }
 .adsb-tf-row-label {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 9px 12px;
 }
 .adsb-tf-row-abbr {
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: rgba(16, 19, 29, 0.4);
   min-width: 28px;
 }
 .adsb-tf-row-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(16, 19, 29, 0.82);
 }
 .adsb-tf-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
+  padding: 9px 0;
 }
 .adsb-tf-check {
   cursor: pointer;
@@ -209,24 +202,20 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   display: none;
 }
 .adsb-tf-box {
-  width: 14px;
-  height: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(16, 19, 29, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  transition: background 0.15s;
 }
 .adsb-tf-input:checked + .adsb-tf-box {
-  background: rgba(0, 170, 255, 0.1);
-  border-color: rgba(0, 170, 255, 0.5);
+  background: #c8ff00;
 }
 .adsb-tf-input:checked + .adsb-tf-box--mil {
-  background: rgba(200, 255, 0, 0.1);
-  border-color: rgba(200, 255, 0, 0.5);
+  background: #c8ff00;
 }
 </style>
