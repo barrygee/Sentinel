@@ -4,6 +4,9 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import { useAirStore } from '@/stores/air'
+import * as settingsApi from '@/services/settingsApi'
+
+vi.mock('@/services/settingsApi', () => ({ put: vi.fn() }))
 
 describe('AdsbLabelFieldsControl', () => {
   beforeEach(() => {
@@ -46,12 +49,21 @@ describe('AdsbLabelFieldsControl', () => {
     expect(air.adsbLabelFields.mil.includes('type')).toBe(!before)
   })
 
-  it('emits a (no-op) staged callback that runs without error', async () => {
+  it('stages a callback that persists the label fields to the backend on save', async () => {
     const wrapper = mount(AdsbLabelFieldsControl)
     await flushPromises()
+    const air = useAirStore()
     await wrapper.findAll('input[type="checkbox"]')[0]!.trigger('change')
     const staged = wrapper.emitted('stage')![0]![0] as () => void
-    expect(() => staged()).not.toThrow()
+
+    // The PUT is deferred until the staged callback runs (i.e. on save), not on toggle.
+    expect(settingsApi.put).not.toHaveBeenCalled()
+
+    staged()
+    expect(settingsApi.put).toHaveBeenCalledWith('air', 'labelFields', {
+      civil: [...air.adsbLabelFields.civil],
+      mil: [...air.adsbLabelFields.mil],
+    })
   })
 
   it('has no accessibility violations', async () => {

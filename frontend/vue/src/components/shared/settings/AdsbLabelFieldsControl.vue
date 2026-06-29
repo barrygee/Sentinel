@@ -81,6 +81,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAirStore, type AdsbLabelField, type AdsbLabelFields } from '@/stores/air'
+import * as settingsApi from '@/services/settingsApi'
 
 const airStore = useAirStore()
 const emit = defineEmits<{ stage: [fn: () => void] }>()
@@ -101,7 +102,11 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   fields.value = { ...fields.value, [group]: next }
   airStore.setAdsbLabelFields({ ...fields.value })
   window.dispatchEvent(new CustomEvent('adsb:labelFieldsChanged', { detail: { ...fields.value } }))
-  emit('stage', () => {})
+  // Persist to the backend (not just localStorage) so the field choice follows
+  // the user across devices. See main.ts for the matching startup hydrate.
+  emit('stage', () => {
+    settingsApi.put('air', 'labelFields', { ...fields.value })
+  })
 }
 </script>
 
