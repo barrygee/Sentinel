@@ -93,6 +93,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Disable zoom/max/min sliders while the radio is stopped (#143)
 - Show dulled live view during search/scan sweep (#144)
 - Add Export All Configuration to App Settings (#148)
+- Mobile hamburger menu, responsive alignment, and touch tooltip fix
 
 ### Bug Fixes
 
