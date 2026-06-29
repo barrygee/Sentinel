@@ -743,45 +743,51 @@ body[data-no-data] .maplibregl-control-container {
         padding: 0 6px;
     }
 
-    /* Sidebar rail relocates to bottom of viewport as a horizontal strip */
+    /* Tab rail: stays a LEFT vertical strip (mirrors the Settings panel's left
+       icon nav), shown only while the drawer is open — not a bottom bar. It keeps
+       its base vertical layout, so only its visibility is gated here. */
     #map-sidebar-rail {
-        top: auto;
-        bottom: var(--footer-height);
-        left: 0;
-        right: 0;
-        width: auto;
-        height: 44px;
-        flex-direction: row;
-        border-top: 1px solid var(--color-border);
-        border-right: none;
-        justify-content: space-around;
+        display: none;
     }
-    .msb-rail-btn {
-        height: 100%;
-        width: auto;
-        flex: 1;
-        border-left: none;
-        border-top: 2px solid transparent;
-    }
-    .msb-rail-btn.msb-rail-btn-active {
-        border-left-color: transparent;
-        border-top-color: var(--color-accent);
+    body[data-sidebar-open] #map-sidebar-rail {
+        display: flex;
     }
 
-    /* Sidebar panel: full viewport above the bottom rail + footer */
-    #map-sidebar {
-        left: 0 !important;
+    /* Sidebar panel: fills the width to the right of the 44px rail. The air/space
+       selectors override the ≤768px 44px right gutter (the right map-control rail
+       is hidden while the drawer is open at this size). */
+    #map-sidebar,
+    body[data-domain='air'] #map-sidebar,
+    body[data-domain='space'] #map-sidebar {
+        left: 44px !important;
         right: 0 !important;
         width: auto !important;
-        bottom: calc(44px + var(--footer-height)) !important;
+        top: var(--nav-height) !important;
+        bottom: var(--footer-height) !important;
     }
+    /* Hidden: slide fully off the left edge (past the rail) so nothing bleeds. */
     #map-sidebar.msb-hidden {
-        transform: translateY(100%);
+        transform: translateX(calc(-100% - 44px));
     }
 
-    /* SDR domain keeps the rail hidden, so the sidebar fills bottom directly */
+    /* SDR has its own 44px left rail (#sdr-sidebar-rail), so its drawer sits
+       beside it — left: 0 would slide the panel under the rail and crop the
+       content. */
     body[data-domain='sdr'] #map-sidebar {
+        left: 44px !important;
+        right: 0 !important;
+        width: auto !important;
+        top: var(--nav-height) !important;
         bottom: var(--footer-height) !important;
+    }
+
+    /* While the full-width drawer is open the map is covered, so hide the
+       right-edge map controls — they'd otherwise overlap the top tab row and
+       act on a map the user can't see. */
+    body[data-sidebar-open] #side-menu,
+    body[data-sidebar-open] #space-side-menu,
+    body[data-sidebar-open] #map-3d-controls {
+        display: none;
     }
 }
 

@@ -199,6 +199,19 @@ let _activeDomain = _domainFromPath()
 const open = ref(_restoreOpen())
 const activeTab = ref<SidebarTab>(_restoreTab(_activeDomain))
 
+// Reflect the drawer's open state on <body> so the global mobile layout can gate
+// chrome on it: at ≤480px the tab rail only appears while the drawer is open (it
+// belongs to the panel rather than being a permanent bottom strip), and the
+// right-edge map controls hide so the full-width drawer isn't cluttered.
+watch(
+  open,
+  (isOpen) => {
+    if (isOpen) document.body.setAttribute('data-sidebar-open', '')
+    else document.body.removeAttribute('data-sidebar-open')
+  },
+  { immediate: true },
+)
+
 const tabs = computed(() => [
   { id: 'search' as SidebarTab, label: 'SEARCH' },
   { id: 'alerts' as SidebarTab, label: 'ALERTS' },
@@ -868,41 +881,43 @@ body[data-domain='sdr'] #map-sidebar {
   }
 }
 
-/* ---- ≤480px: rail moves to bottom, sidebar fills above it ---- */
+/* ---- ≤480px: the tab rail stays a LEFT vertical strip ----
+   It mirrors the Settings panel's left icon nav (#settings-sidebar): a vertical
+   44px rail on the left, shown alongside the drawer (not relocated to a bottom
+   bar). The rail + panel belong to the drawer — both appear when it's open and
+   slide off the left edge when closed, leaving a clean footer bar over the map.
+   The rail keeps its base vertical layout (top:nav…bottom:footer, column), so we
+   only gate its visibility and size the panel beside it here. */
 @media (max-width: 480px) {
   #map-sidebar-rail {
-    top: auto;
+    display: none;
+  }
+  body[data-sidebar-open] #map-sidebar-rail {
+    display: flex;
+  }
+  /* Panel fills the width to the right of the 44px rail. The air/space selectors
+     override the ≤768px 44px right gutter — the right map-control rail is hidden
+     while the drawer is open at this size, so the panel takes the full width. */
+  #map-sidebar,
+  body[data-domain='air'] #map-sidebar,
+  body[data-domain='space'] #map-sidebar {
+    left: 44px !important;
+    right: 0 !important;
+    width: auto !important;
+    top: var(--nav-height);
     bottom: var(--footer-height);
-    left: 0;
-    right: 0;
-    width: auto;
-    height: 44px;
-    flex-direction: row;
-    border-top: 1px solid var(--color-border);
-    justify-content: space-around;
   }
-  .msb-rail-btn {
-    height: 100%;
-    width: auto;
-    flex: 1;
-    border-left: none;
-    border-top: 2px solid transparent;
-  }
-  .msb-rail-btn.msb-rail-btn-active {
-    border-left-color: transparent;
-    border-top-color: var(--color-accent);
-  }
-  #map-sidebar {
-    left: 0;
-    right: 0;
-    width: auto;
-    bottom: calc(var(--footer-height) + 44px);
-  }
+  /* Hidden: slide fully off the left edge (past the rail) so nothing bleeds. */
   #map-sidebar.msb-hidden {
-    transform: translateY(100%);
+    transform: translateX(calc(-100% - 44px));
   }
+  /* SDR has its own 44px left rail (#sdr-sidebar-rail), so its drawer sits beside
+     it — left: 0 would slide the panel under the rail and crop the content. */
   body[data-domain='sdr'] #map-sidebar {
-    left: 0;
+    left: 44px !important;
+    right: 0 !important;
+    width: auto !important;
+    top: var(--nav-height);
     bottom: var(--footer-height);
   }
 }

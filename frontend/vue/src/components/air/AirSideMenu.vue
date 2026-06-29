@@ -934,14 +934,15 @@ function _saveFilter() {
   }
 }
 
-/* ≤480px: the left rail becomes a full-width bottom bar — lift the right rail
-   and the 3D widget clear of it so they don't overlap in the bottom-right. */
+/* ≤480px: the tab rail is now part of the left drawer (hidden until opened), so
+   the right rail and the 3D widget no longer need to clear a bottom strip — they
+   sit just above the footer. (Both are hidden while the drawer is open.) */
 @media (max-width: 480px) {
   #side-menu {
-    bottom: calc(var(--footer-height) + 44px);
+    bottom: var(--footer-height);
   }
   #map-3d-controls {
-    bottom: calc(var(--footer-height) + 44px + 8px);
+    bottom: calc(var(--footer-height) + 8px);
   }
 }
 </style>

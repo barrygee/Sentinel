@@ -2026,12 +2026,17 @@
 }
 
 @media (max-width: 768px) {
+  /* minmax(0, 1fr) — NOT a bare 1fr (= minmax(auto, 1fr)). A bare 1fr lets a
+     card's intrinsic min-content width win over the container: the MY LOCATION
+     card's two LAT/LON inputs force the single track to ~450px inside a ~310px
+     body, overflowing the panel to the right. The 0 floor lets the track shrink
+     to the container, so cards wrap instead of overflowing. */
   .settings-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 18px 16px 80px;
   }
   #settings-search-wrap {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 18px 16px 0;
   }
   /* Collapse all multi-column spans to full width on single-column layout. */
@@ -2041,5 +2046,20 @@
   }
   #settings-search-inner {
     grid-column: 1 / -1;
+  }
+
+  /* TLE CATEGORY row (online + manual): the row is inline-flex sized to
+     max-content and the dropdown is a fixed 230px, so it overflows the card on
+     narrow screens. Let the row fill the card and the dropdown shrink (its
+     selected text already ellipsises); the UPDATE TLE button wraps if needed. */
+  .tle-cat-row-ctrl {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .tle-cat-row-ctrl .tle-dropdown {
+    width: auto;
+    flex: 1 1 150px;
+    min-width: 0;
   }
 }
