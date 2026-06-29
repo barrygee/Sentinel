@@ -1024,6 +1024,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Feat/sdr per frequency settings (#132)
 - Feat/sdr spectrum known freq layout (#134)
 - Feat/map side rail icons (#136)
+- Feat/settings redesign (#150)
 
 ### Refactoring
 
