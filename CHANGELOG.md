@@ -95,6 +95,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add Export All Configuration to App Settings (#148)
 - Mobile hamburger menu, responsive alignment, and touch tooltip fix
 - Sync ADS-B label visibility & fields across devices (#152)
+- Toggle settings sidebar from the footer side-panel button (#153)
 
 ### Bug Fixes
 
