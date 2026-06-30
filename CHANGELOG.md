@@ -1030,6 +1030,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Feat/map side rail icons (#136)
 - Feat/settings redesign (#150)
 - Fix/mobile footer sidepanel buttons (#151)
+- Fix/sdr remove mobile close (#155)
 
 ### Refactoring
 
