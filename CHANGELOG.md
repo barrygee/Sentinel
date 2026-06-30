@@ -94,6 +94,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show dulled live view during search/scan sweep (#144)
 - Add Export All Configuration to App Settings (#148)
 - Mobile hamburger menu, responsive alignment, and touch tooltip fix
+- Sync ADS-B label visibility & fields across devices (#152)
 
 ### Bug Fixes
 
