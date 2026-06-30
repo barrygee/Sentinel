@@ -97,6 +97,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Sync ADS-B label visibility & fields across devices (#152)
 - Toggle settings sidebar from the footer side-panel button (#153)
 - Toggle the map right-side controls rail from the footer (#154)
+- Restyle spectrum tuning bar in spectrum blue (#157)
 
 ### Bug Fixes
 
