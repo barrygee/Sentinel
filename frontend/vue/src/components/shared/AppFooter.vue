@@ -2,11 +2,10 @@
   <footer id="footer">
     <div id="footer-left">
       <button
-        v-show="!settingsStore.open"
         id="map-sidebar-btn"
-        aria-label="Toggle map sidebar"
-        :class="{ 'msb-btn-active': sidebarOpen }"
-        @click="emit('toggle-sidebar')"
+        :aria-label="sidebarToggleLabel"
+        :class="{ 'msb-btn-active': sidePanelOpen }"
+        @click="onToggleSidePanel"
       >
         <svg
           width="14"
@@ -89,6 +88,24 @@ const sdrStore = useSdrStore()
 /* v8 ignore start */
 const sidebarOpen = computed(() => props.sidebarOpen ?? false)
 /* v8 ignore stop */
+
+// The footer's side-panel button is shared: while the settings panel is open it
+// shows/hides the settings left rail; otherwise it shows/hides the map sidebar.
+const sidePanelOpen = computed(() =>
+  settingsStore.open ? settingsStore.sidebarOpen : sidebarOpen.value,
+)
+
+const sidebarToggleLabel = computed(() =>
+  settingsStore.open ? 'Toggle settings sidebar' : 'Toggle map sidebar',
+)
+
+function onToggleSidePanel(): void {
+  if (settingsStore.open) {
+    settingsStore.toggleSidebar()
+  } else {
+    emit('toggle-sidebar')
+  }
+}
 
 // True when the radio is streaming AND parked on a single frequency — i.e.
 // tuned to one channel, or locked onto a signal during a scan or search. While

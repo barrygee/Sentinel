@@ -51,6 +51,15 @@ describe('settings store', () => {
     expect(store.open).toBe(false)
   })
 
+  it('toggleSidebar flips the settings sidebar visibility (open by default)', () => {
+    const store = useSettingsStore()
+    expect(store.sidebarOpen).toBe(true)
+    store.toggleSidebar()
+    expect(store.sidebarOpen).toBe(false)
+    store.toggleSidebar()
+    expect(store.sidebarOpen).toBe(true)
+  })
+
   it('setSetting creates the namespace when absent and stores the value', () => {
     const store = useSettingsStore()
     store.setSetting('air', 'showLabels', true)

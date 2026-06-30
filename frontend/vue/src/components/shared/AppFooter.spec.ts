@@ -22,13 +22,39 @@ describe('AppFooter', () => {
     expect(wrapper.find('#map-sidebar-btn').classes()).toContain('msb-btn-active')
   })
 
-  it('hides the sidebar button while the settings panel is open', async () => {
+  it('keeps the sidebar button visible while the settings panel is open', async () => {
     const wrapper = mount(AppFooter)
     const store = useSettingsStore()
     store.openPanel()
     await wrapper.vm.$nextTick()
-    // v-show toggles inline display.
-    expect(wrapper.find('#map-sidebar-btn').attributes('style')).toContain('display: none')
+    const button = wrapper.find('#map-sidebar-btn')
+    expect(button.exists()).toBe(true)
+    expect(button.attributes('style') ?? '').not.toContain('display: none')
+    // While settings is open the button targets the settings rail, so its label
+    // and active state track the settings sidebar rather than the map sidebar.
+    expect(button.attributes('aria-label')).toBe('Toggle settings sidebar')
+    expect(button.classes()).toContain('msb-btn-active')
+  })
+
+  it('toggles the settings sidebar (not the map sidebar) while settings is open', async () => {
+    const wrapper = mount(AppFooter)
+    const store = useSettingsStore()
+    store.openPanel()
+    await wrapper.vm.$nextTick()
+    expect(store.sidebarOpen).toBe(true)
+    await wrapper.find('#map-sidebar-btn').trigger('click')
+    expect(store.sidebarOpen).toBe(false)
+    // The map-sidebar toggle event must not fire while settings owns the button.
+    expect(wrapper.emitted('toggle-sidebar')).toBeUndefined()
+  })
+
+  it('reflects the collapsed settings sidebar as an inactive button', async () => {
+    const wrapper = mount(AppFooter)
+    const store = useSettingsStore()
+    store.openPanel()
+    store.toggleSidebar()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#map-sidebar-btn').classes()).not.toContain('msb-btn-active')
   })
 
   it('toggles the settings panel when the settings button is clicked', async () => {

@@ -60,6 +60,12 @@
 /* Matches the map side-menu rail buttons (.msb-rail-btn): a full-width 40px
    button whose hover/active state fills the whole cell (not a rounded square
    behind the icon), with a lime left border + accent icon when active. */
+/* Collapsed via the footer side-panel toggle: hide the rail entirely so the
+   settings content takes the full width, matching how the map sidebar hides. */
+#settings-sidebar.settings-sidebar--collapsed {
+  display: none;
+}
+
 .settings-nav-item {
   position: relative;
   height: 40px;
