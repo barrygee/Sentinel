@@ -1740,9 +1740,9 @@ function initPlots() {
     draw_center_line: true,
     draw_edge_lines: false,
     shade_area: true,
-    // Shade the tuned passband in a semi-transparent wash of the spectrum's blue
-    // (#00aaff) so the band reads as part of the trace rather than a black gap.
-    fill_style: { fillStyle: '#00aaff', opacity: 0.2 },
+    // Shade the tuned passband in a semi-transparent wash of the app's lime
+    // green (#c8ff00) so the band reads as part of the trace rather than a black gap.
+    fill_style: { fillStyle: '#c8ff00', opacity: 0.35 },
     center_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 20, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
@@ -1753,7 +1753,7 @@ function initPlots() {
     draw_edge_lines: false,
     shade_area: false,
     fill_style: { fillStyle: 'rgba(0,0,0,0)', opacity: 0 },
-    center_line_style: { strokeStyle: '#00aaff', lineWidth: 1, lineCap: 'butt' },
+    center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
   // Waterfall variants: same geometry/hit-test as the spectrum, but no passband
@@ -1770,7 +1770,7 @@ function initPlots() {
   const wfCarStyle = {
     ...carCommon,
     center_line_style: {
-      strokeStyle: 'rgba(0,170,255,0.55)',
+      strokeStyle: 'rgba(200,255,0,0.55)',
       lineWidth: 1,
       lineCap: 'butt' as const,
     },
