@@ -9,7 +9,7 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <div id="settings-sidebar">
+    <div id="settings-sidebar" :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }">
       <div
         v-for="s in visibleSections"
         :key="s.key"

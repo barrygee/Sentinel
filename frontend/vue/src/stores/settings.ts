@@ -3,6 +3,10 @@ import { ref } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
   const open = ref(false)
+  // Visibility of the settings panel's left navigation rail. Toggled from the
+  // footer's side-panel button while the settings panel is open, mirroring how
+  // that same button shows/hides the map sidebar elsewhere in the app.
+  const sidebarOpen = ref(true)
   const activeSection = ref<string | null>(null)
   const allSettings = ref<Record<string, Record<string, unknown>>>({})
 
@@ -18,6 +22,11 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function togglePanel() {
     open.value = !open.value
+  }
+
+  /** Show/hide the settings panel's left navigation rail. */
+  function toggleSidebar() {
+    sidebarOpen.value = !sidebarOpen.value
   }
 
   function setSetting(namespace: string, key: string, value: unknown) {
@@ -52,11 +61,13 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     open,
+    sidebarOpen,
     activeSection,
     allSettings,
     openPanel,
     closePanel,
     togglePanel,
+    toggleSidebar,
     setSetting,
     getSetting,
     loadAll,
