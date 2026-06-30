@@ -1,7 +1,11 @@
 <template>
   <!-- Fixed icon rail pinned to the right edge, mirroring the left #map-sidebar-rail.
        Every control is always visible as an icon; the full label is the hover tooltip. -->
-  <nav id="space-side-menu" aria-label="Space map controls">
+  <nav
+    id="space-side-menu"
+    :class="{ 'space-side-menu--collapsed': !appStore.sideMenuOpen }"
+    aria-label="Space map controls"
+  >
     <button
       class="sm-btn sm-glyph"
       title="Zoom in"
@@ -191,6 +195,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSpaceStore } from '@/stores/space'
+import { useAppStore } from '@/stores/app'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDisclosure } from '@/composables/useDisclosure'
 import type SpaceMap from './SpaceMap.vue'
@@ -205,6 +210,7 @@ const mapRef = {
 }
 
 const spaceStore = useSpaceStore()
+const appStore = useAppStore()
 const { location: userLocation } = useUserLocation()
 
 const locActive = computed(() => userLocation.value !== null)
@@ -349,6 +355,12 @@ function toggleNames(): void {
 @media (max-width: 768px) {
   #space-side-menu .sm-btn[data-tooltip]::before {
     display: none !important;
+  }
+  /* The footer's side-menu toggle is only offered on small screens, so the rail
+     can only be collapsed here. On wider screens it always shows (the toggle is
+     hidden), so a collapsed state can't leave it stuck off-screen. */
+  #space-side-menu.space-side-menu--collapsed {
+    display: none;
   }
 }
 

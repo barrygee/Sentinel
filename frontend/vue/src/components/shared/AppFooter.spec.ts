@@ -5,6 +5,7 @@ import { axe } from 'jest-axe'
 import AppFooter from './AppFooter.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useSdrStore } from '@/stores/sdr'
+import { useAppStore } from '@/stores/app'
 
 describe('AppFooter', () => {
   beforeEach(() => {
@@ -63,6 +64,59 @@ describe('AppFooter', () => {
     expect(store.open).toBe(false)
     await wrapper.find('#settings-btn').trigger('click')
     expect(store.open).toBe(true)
+  })
+
+  describe('right side-menu toggle', () => {
+    it('is absent on views without a right rail (hasRightMenu falsy)', () => {
+      const wrapper = mount(AppFooter)
+      expect(wrapper.find('#side-menu-btn').exists()).toBe(false)
+    })
+
+    it('is shown on views that have a right rail', () => {
+      const wrapper = mount(AppFooter, { props: { hasRightMenu: true } })
+      expect(wrapper.find('#side-menu-btn').exists()).toBe(true)
+    })
+
+    it('is hidden while the settings panel is open, even on an Air/Space route', async () => {
+      const wrapper = mount(AppFooter, { props: { hasRightMenu: true } })
+      const settingsStore = useSettingsStore()
+      settingsStore.openPanel()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('#side-menu-btn').exists()).toBe(false)
+    })
+
+    it('toggles the app store side-menu visibility when clicked', async () => {
+      const wrapper = mount(AppFooter, { props: { hasRightMenu: true } })
+      const appStore = useAppStore()
+      expect(appStore.sideMenuOpen).toBe(true)
+      await wrapper.find('#side-menu-btn').trigger('click')
+      expect(appStore.sideMenuOpen).toBe(false)
+      await wrapper.find('#side-menu-btn').trigger('click')
+      expect(appStore.sideMenuOpen).toBe(true)
+    })
+
+    it('reflects the open rail as an active button labelled "Hide map controls"', () => {
+      const wrapper = mount(AppFooter, { props: { hasRightMenu: true } })
+      const button = wrapper.find('#side-menu-btn')
+      // Visible by default, so the button is active and offers to hide it.
+      expect(button.classes()).toContain('msb-btn-active')
+      expect(button.attributes('aria-label')).toBe('Hide map controls')
+    })
+
+    it('reflects the collapsed rail as an inactive button labelled "Show map controls"', async () => {
+      const wrapper = mount(AppFooter, { props: { hasRightMenu: true } })
+      const appStore = useAppStore()
+      appStore.toggleSideMenu()
+      await wrapper.vm.$nextTick()
+      const button = wrapper.find('#side-menu-btn')
+      expect(button.classes()).not.toContain('msb-btn-active')
+      expect(button.attributes('aria-label')).toBe('Show map controls')
+    })
+
+    it('has no accessibility violations with the toggle present', async () => {
+      const wrapper = mount(AppFooter, { props: { hasRightMenu: true } })
+      expect(await axe(wrapper.html())).toHaveNoViolations()
+    })
   })
 
   describe('SDR active-frequency indicator', () => {

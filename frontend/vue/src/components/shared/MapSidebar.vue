@@ -438,7 +438,11 @@ defineExpose({
   opacity: 0 !important;
 }
 
-#map-sidebar-btn {
+/* Footer edge toggles: the left one shows/hides the map sidebar; the right one
+   (#side-menu-btn, Air/Space only) shows/hides the map's right controls rail.
+   They share styling — both are dim icon buttons that brighten on hover/active. */
+#map-sidebar-btn,
+#side-menu-btn {
   height: 36px;
   background: none;
   border: none;
@@ -457,21 +461,24 @@ defineExpose({
   position: relative;
 }
 
-#map-sidebar-btn:hover {
+#map-sidebar-btn:hover,
+#side-menu-btn:hover {
   background: var(--color-border);
   border-radius: 6px;
   opacity: 1;
 }
 
-#map-sidebar-btn.msb-btn-active {
+#map-sidebar-btn.msb-btn-active,
+#side-menu-btn.msb-btn-active {
   opacity: 1;
   color: #fff;
   border-radius: 6px;
 }
 
 /* Align the footer's edge buttons with the vertical rail columns: the
-   side-panel button under the 44px left rail (#map-sidebar-rail), and the
-   settings button under the 44px right rail (#side-menu in Air/Space). */
+   side-panel button under the 44px left rail (#map-sidebar-rail), and — on
+   Air/Space — the side-menu toggle under the 44px right rail (#side-menu).
+   On views without a right rail the settings button is the right-most element. */
 #footer {
   padding-left: 0;
   padding-right: 0;
@@ -487,10 +494,20 @@ defineExpose({
   flex-shrink: 0;
 }
 
-#footer-right > #settings-btn {
+#footer-right > #settings-btn,
+#footer-right > #side-menu-btn {
   width: 44px;
   margin: 0;
   flex-shrink: 0;
+}
+
+/* The right rail's footer toggle is only offered on small screens, where map
+   space is scarce. On wider screens (≥769px) the rail always shows, so the
+   toggle is hidden — matching the ≤768px gate on the rail's collapsed state. */
+@media (min-width: 769px) {
+  #footer-right > #side-menu-btn {
+    display: none;
+  }
 }
 
 #map-sidebar-btn[data-tooltip]::before {

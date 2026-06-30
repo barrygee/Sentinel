@@ -96,10 +96,13 @@ const MapSidebarStub = defineComponent({
   },
 })
 
-let footerProps: { sidebarOpen: boolean } | null = null
+let footerProps: { sidebarOpen: boolean; hasRightMenu: boolean } | null = null
 const AppFooterStub = defineComponent({
   name: 'AppFooter',
-  props: { sidebarOpen: { type: Boolean, default: false } },
+  props: {
+    sidebarOpen: { type: Boolean, default: false },
+    hasRightMenu: { type: Boolean, default: false },
+  },
   emits: ['toggle-sidebar'],
   setup(props, { emit }) {
     footerProps = props
@@ -323,6 +326,23 @@ describe('App', () => {
 
       await wrapper.find('.footer-stub').trigger('click')
       expect(sidebarSpies.toggle).toHaveBeenCalled()
+    })
+
+    it('tells the footer a right menu exists on Air and Space, but not on other routes', async () => {
+      mountApp() // starts on /air/
+      expect(footerProps!.hasRightMenu).toBe(true)
+
+      shared.route!.path = '/space/'
+      await nextTick()
+      expect(footerProps!.hasRightMenu).toBe(true)
+
+      shared.route!.path = '/sdr/'
+      await nextTick()
+      expect(footerProps!.hasRightMenu).toBe(false)
+
+      shared.route!.path = '/unknown/'
+      await nextTick()
+      expect(footerProps!.hasRightMenu).toBe(false)
     })
   })
 
