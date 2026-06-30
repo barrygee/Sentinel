@@ -65,6 +65,16 @@ describe('MapSidebar', () => {
       expect(wrapper.find('#msb-pane-search').exists()).toBe(false)
     })
 
+    it('renders the mobile close button by default', () => {
+      const wrapper = mountSidebar()
+      expect(wrapper.find('.msb-mobile-close').exists()).toBe(true)
+    })
+
+    it('omits the mobile close button when hideTabs is set (SDR section)', () => {
+      const wrapper = mountSidebar({ hideTabs: true })
+      expect(wrapper.find('.msb-mobile-close').exists()).toBe(false)
+    })
+
     it('pulses the alerts tab when there are unread notifications', () => {
       useNotificationsStore().unreadCount = 3
       const wrapper = mountSidebar()
