@@ -49,6 +49,19 @@ READ_CHUNK_TARGET_MS = 40
 READ_CHUNK_MIN_SAMPLES = 4096  # floor: must stay ≥ fft_size and efficient
 READ_CHUNK_MAX_SAMPLES = 131072  # ceiling: bound latency / memory
 
+# Auto-reconnect. A single-client rtl_tcp dongle shared by two Sentinel instances
+# (or briefly stolen by a Settings reachability probe) drops the active reader.
+# Rather than killing the stream on the first drop — which left the status dot
+# stuck red until a manual reconnect — the broadcaster retries with capped
+# exponential backoff for as long as clients still want the stream.
+RECONNECT_BACKOFF_START_S = 1.0
+RECONNECT_BACKOFF_MAX_S = 10.0
+# Idle release. Once the last subscriber leaves, keep the rtl_tcp socket open for a
+# short grace period (absorbs a quick WS reconnect) then release it, so a second
+# instance — or the reachability probe — can reach the same single-client dongle
+# instead of being locked out by a broadcaster streaming to nobody.
+IDLE_RELEASE_GRACE_S = 10.0
+
 # Connection cache: key = "host:port"
 _connections: dict[str, RtlTcpConnection] = {}
 # Broadcaster cache: key = "host:port"
@@ -314,9 +327,45 @@ class RadioBroadcaster:
                     pass
                 self._task = None
 
+    def _has_subscribers(self) -> bool:
+        """True while any client (FFT spectrum or raw IQ) still wants the stream."""
+        return bool(self._subscribers or self._iq_subscribers)
+
+    async def _reconnect(self) -> bool:
+        """Re-establish the rtl_tcp connection after a drop, while clients still want it.
+
+        Returns ``True`` once reconnected (the read loop resumes for the same
+        subscribers), or ``False`` to stop the broadcaster because no subscribers
+        remain. A second Sentinel instance — or even its Settings reachability
+        probe — connecting to the same Pi steals the single-client dongle and
+        drops our reader; retrying with capped backoff lets the stream recover on
+        its own the moment the dongle is free again, instead of leaving the status
+        dot stuck red until a manual reconnect.
+        """
+        conn = self._conn
+        await conn.disconnect()
+        # Tell viewers we dropped but are recovering. Deliberately a "status"
+        # frame, NOT an "error" frame: an error frame makes the WS handler close
+        # the socket and drop the subscriber, which would defeat the in-place
+        # reconnect we are about to attempt.
+        self._broadcast({"type": "status", "connected": False, "reconnecting": True})
+        backoff = RECONNECT_BACKOFF_START_S
+        while self._has_subscribers():
+            try:
+                await conn.connect()
+            except Exception as exc:
+                logger.debug("rtl_tcp reconnect failed (%s:%d): %s", conn.host, conn.port, exc)
+                await asyncio.sleep(backoff)
+                backoff = min(RECONNECT_BACKOFF_MAX_S, backoff * 2)
+                continue
+            logger.info("Broadcaster reconnected to %s:%d", conn.host, conn.port)
+            return True
+        return False
+
     async def _run(self) -> None:
         conn = self._conn
         logger.info("Broadcaster started for %s:%d", conn.host, conn.port)
+        idle_since: float | None = None
         try:
             while True:
                 # Yield to the event loop every iteration. rtl_tcp streams
@@ -325,37 +374,56 @@ class RadioBroadcaster:
                 # loop and starve HTTP/WS handlers (even /health). sleep(0)
                 # guarantees other tasks get scheduled each pass.
                 await asyncio.sleep(0)
+
+                # Release the dongle when nobody is watching. rtl_tcp serves ONE
+                # client at a time, so holding the socket open with zero
+                # subscribers would lock a second instance (or a reachability
+                # probe) out of the same Pi indefinitely. The grace period
+                # absorbs brief gaps such as a WS client reconnecting.
+                if not self._has_subscribers():
+                    if idle_since is None:
+                        idle_since = time.monotonic()
+                    elif time.monotonic() - idle_since >= IDLE_RELEASE_GRACE_S:
+                        logger.info("Broadcaster idle, releasing %s:%d", conn.host, conn.port)
+                        await conn.disconnect()
+                        break
+                else:
+                    idle_since = None
+
                 try:
                     raw_iq = await conn.read_iq_chunk()
                 except asyncio.IncompleteReadError:
-                    # readexactly raises this only at EOF. If the reader is at EOF
-                    # the rtl_tcp stream has closed (radio rebooted/unplugged) and
-                    # never recovers — treat it as a disconnect. Skipping it (the
-                    # old "retune" behaviour) span-locked the loop on repeated EOF,
-                    # leaving conn.connected True forever so the status dot stayed
-                    # green. Only a partial read that is NOT at EOF is a transient
-                    # blip worth skipping.
+                    # readexactly raises this only at EOF. A reader at EOF means
+                    # the rtl_tcp session closed — the radio rebooted/unplugged,
+                    # or a second client stole the single-client dongle — so try
+                    # to reconnect rather than skip (skipping spin-locked the loop
+                    # on repeated EOF). Only a partial read that is NOT at EOF is a
+                    # transient blip worth skipping.
                     if conn.reader is None or conn.reader.at_eof():
                         logger.warning("rtl_tcp stream closed (%s:%d)", conn.host, conn.port)
-                        self._broadcast({"type": "error", "code": "READ_ERROR", "message": "stream closed"})
-                        await conn.disconnect()
-                        break
+                        if not await self._reconnect():
+                            break
+                        idle_since = None
+                        continue
                     logger.debug("rtl_tcp incomplete read, skipping")
                     continue
                 except (ConnectionError, Exception) as exc:
                     logger.warning("rtl_tcp read error (%s:%d): %s", conn.host, conn.port, exc)
-                    self._broadcast({"type": "error", "code": "READ_ERROR", "message": str(exc)})
-                    await conn.disconnect()
-                    break
+                    if not await self._reconnect():
+                        break
+                    idle_since = None
+                    continue
 
                 # FFT uses only the first fft_size samples from the chunk.
                 # compute_fft_frame is CPU-bound NumPy + a per-bin Python loop;
                 # run it in a worker thread so it never blocks the event loop
-                # (a blocked loop stalls all HTTP/WS handling).
-                frame = await asyncio.to_thread(
-                    compute_fft_frame, raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz
-                )
-                self._broadcast(frame)
+                # (a blocked loop stalls all HTTP/WS handling). Skip it entirely
+                # during the idle grace window when no one is subscribed.
+                if self._subscribers:
+                    frame = await asyncio.to_thread(
+                        compute_fft_frame, raw_iq, conn.fft_size, conn.sample_rate, conn.center_hz
+                    )
+                    self._broadcast(frame)
                 self._broadcast_iq(raw_iq, conn.sample_rate, conn.center_hz)
         except asyncio.CancelledError:
             pass
@@ -496,26 +564,26 @@ def connection_status(host: str, port: int) -> dict:
 _RTL_TCP_MAGIC = b"RTL0"
 _RTL_TCP_HEADER_LEN = 12
 
+# Reachability probe cache. The Settings device list polls reachability every few
+# seconds per radio; each miss opens a real rtl_tcp client connection, and rtl_tcp
+# serves only ONE client — so an over-eager probe steals an active stream (its own
+# broadcaster's or a second instance's). Caching a *successful* probe for a few
+# seconds collapses the poll storm into the occasional real probe. Keyed by
+# "host:port"; value is (monotonic timestamp, result dict).
+_reachability_cache: dict[str, tuple[float, dict]] = {}
+REACHABILITY_CACHE_TTL_S = 8.0
+# Brief pause before re-probing a failed radio (see reachability_status).
+REACHABILITY_RETRY_DELAY_S = 0.25
 
-async def reachability_status(host: str, port: int, timeout: float = 1.5) -> dict:
-    """Status for the Settings device list.
 
-    If a live stream is already running for this radio, report its rich state
-    (same as connection_status). Otherwise do a lightweight TCP probe so the
-    Settings dot reflects *reachability* of the rtl_tcp host:port rather than
-    "is the panel currently streaming this radio".
+async def _probe_rtl_tcp(host: str, port: int, timeout: float) -> dict:
+    """Open a one-shot rtl_tcp connection and validate the ``RTL0`` magic header.
 
-    The probe is a direct TCP connection to the configured host:port, so it works
-    for LAN/localhost radios regardless of internet connectivity — that is the
-    "ping the local IP" behaviour the SDR section relies on in offgrid mode. It
-    reads and validates the rtl_tcp ``RTL0`` magic header to confirm a real dongle
-    is answering, then immediately closes the socket — it never leaves a
-    persistent connection behind (that would race the broadcaster's exclusive
-    rtl_tcp session).
+    Connects, reads the 12-byte dongle-info header, then immediately closes — it
+    never leaves a persistent connection behind (that would race the broadcaster's
+    exclusive rtl_tcp session). Returns ``{"connected": True, "reachable": True}``
+    when a real dongle answers, else ``{"connected": False}``.
     """
-    live = connection_status(host, port)
-    if live.get("connected"):
-        return live
     try:
         fut = asyncio.open_connection(host, port)
         reader, writer = await asyncio.wait_for(fut, timeout=timeout)
@@ -532,6 +600,43 @@ async def reachability_status(host: str, port: int, timeout: float = 1.5) -> dic
         return {"connected": True, "reachable": True}
     except Exception:
         return {"connected": False}
+
+
+async def reachability_status(host: str, port: int, timeout: float = 1.5) -> dict:
+    """Status for the Settings device list.
+
+    If a live stream is already running for this radio, report its rich state
+    (same as connection_status). Otherwise do a lightweight TCP probe so the
+    Settings dot reflects *reachability* of the rtl_tcp host:port rather than
+    "is the panel currently streaming this radio".
+
+    The probe is a direct TCP connection to the configured host:port, so it works
+    for LAN/localhost radios regardless of internet connectivity — that is the
+    "ping the local IP" behaviour the SDR section relies on in offgrid mode. It
+    validates the rtl_tcp ``RTL0`` magic header and closes immediately.
+
+    Because that probe is itself a single-client rtl_tcp connection, two guards
+    keep it from stealing the dongle or flapping the dot when two instances share
+    one Pi: a successful result is cached for ``REACHABILITY_CACHE_TTL_S`` (so the
+    fast poll does not re-probe a known-good radio), and a single failure is
+    retried once before the radio is declared offline (masking a transient
+    collision where another client briefly held the dongle).
+    """
+    live = connection_status(host, port)
+    if live.get("connected"):
+        return live
+    key = f"{host}:{port}"
+    now = time.monotonic()
+    cached = _reachability_cache.get(key)
+    if cached is not None and now - cached[0] < REACHABILITY_CACHE_TTL_S:
+        return cached[1]
+    result = await _probe_rtl_tcp(host, port, timeout)
+    if not result.get("connected"):
+        await asyncio.sleep(REACHABILITY_RETRY_DELAY_S)
+        result = await _probe_rtl_tcp(host, port, timeout)
+    if result.get("connected"):
+        _reachability_cache[key] = (now, result)
+    return result
 
 
 def get_broadcaster(host: str, port: int) -> RadioBroadcaster | None:
