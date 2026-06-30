@@ -134,6 +134,18 @@ describe('SettingsPanel', () => {
         expect(item.attributes('data-tooltip')).toBe(item.attributes('aria-label'))
       }
     })
+
+    it('collapses the rail when the store sidebar is hidden', async () => {
+      const wrapper = mountPanel()
+      const store = useSettingsStore()
+      // Open by default: the rail is expanded.
+      expect(wrapper.find('#settings-sidebar').classes()).not.toContain(
+        'settings-sidebar--collapsed',
+      )
+      store.toggleSidebar()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('#settings-sidebar').classes()).toContain('settings-sidebar--collapsed')
+    })
   })
 
   describe('search', () => {
