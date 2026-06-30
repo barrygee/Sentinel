@@ -18,6 +18,16 @@ describe('app store', () => {
     expect(store.isOnline).toBe(true)
     expect(store.enabledDomains).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect(store.notificationSound).toBe(false)
+    expect(store.sideMenuOpen).toBe(true)
+  })
+
+  it('toggleSideMenu flips the map right-rail visibility', () => {
+    const store = useAppStore()
+    expect(store.sideMenuOpen).toBe(true)
+    store.toggleSideMenu()
+    expect(store.sideMenuOpen).toBe(false)
+    store.toggleSideMenu()
+    expect(store.sideMenuOpen).toBe(true)
   })
 
   it('reads notificationSound=true from localStorage on creation', () => {

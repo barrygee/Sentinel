@@ -121,6 +121,7 @@
   <AppFooter
     :sidebar-open="sidebarOpen"
     :sdr-section-active="isSdrRoute"
+    :has-right-menu="hasRightSideMenu"
     @toggle-sidebar="sidebarRef?.toggle()"
   />
 
@@ -239,6 +240,12 @@ watch(
 )
 
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
+
+// Only Air and Space render a right-edge controls rail (#side-menu /
+// #space-side-menu); the footer's side-menu toggle keys off this.
+const hasRightSideMenu = computed(
+  () => route.path.startsWith('/air') || route.path.startsWith('/space'),
+)
 
 watch(isSdrRoute, (isSdr) => {
   if (isSdr) {

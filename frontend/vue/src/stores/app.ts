@@ -8,6 +8,16 @@ export const useAppStore = defineStore('app', () => {
   const isOnline = ref(true)
   const enabledDomains = ref<string[]>(['air', 'space', 'sea', 'land', 'sdr'])
 
+  // Visibility of the map's right-edge controls rail (#side-menu on Air,
+  // #space-side-menu on Space). Toggled from the footer's side-menu button on
+  // those views, mirroring how the left footer button shows/hides the map
+  // sidebar. Shared here because the rail lives in per-domain components while
+  // the toggle lives in the app-level footer. Visible by default.
+  const sideMenuOpen = ref(true)
+  function toggleSideMenu() {
+    sideMenuOpen.value = !sideMenuOpen.value
+  }
+
   // Play a subtle blip when a new notification arrives. localStorage for instant
   // restore, DB hydrate on config upload. Default OFF.
   function _readNotificationSound(): boolean {
@@ -58,6 +68,8 @@ export const useAppStore = defineStore('app', () => {
     connectivityMode,
     isOnline,
     enabledDomains,
+    sideMenuOpen,
+    toggleSideMenu,
     notificationSound,
     setNotificationSound,
     hydrateNotificationSoundFromDb,

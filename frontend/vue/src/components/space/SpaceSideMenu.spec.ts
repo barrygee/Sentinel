@@ -17,6 +17,7 @@ vi.mock('@/composables/useUserLocation', async () => {
 
 import SpaceSideMenu from './SpaceSideMenu.vue'
 import { useSpaceStore } from '@/stores/space'
+import { useAppStore } from '@/stores/app'
 
 // Map-control stubs the menu delegates to.
 function makeControls() {
@@ -78,6 +79,15 @@ describe('SpaceSideMenu rail', () => {
       expect(subButton.exists()).toBe(true)
       expect(subButton.attributes('aria-label')).toBeTruthy()
     }
+  })
+
+  it('collapses the rail when the app store hides the side menu', async () => {
+    const wrapper = mountMenu(makeMapProxy(makeControls()))
+    const appStore = useAppStore()
+    expect(wrapper.find('#space-side-menu').classes()).not.toContain('space-side-menu--collapsed')
+    appStore.toggleSideMenu()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('#space-side-menu').classes()).toContain('space-side-menu--collapsed')
   })
 
   it('expands the MAP LAYERS accordion on click and highlights the button while open', async () => {

@@ -66,6 +66,36 @@
           <circle cx="7.5" cy="7.5" r="1.75" stroke="currentColor" stroke-width="1.1" />
         </svg>
       </button>
+      <!-- Mirrors the left side-panel button, but for the map's right-edge
+           controls rail. Only the Air/Space views have that rail, so the button
+           is absent on SDR and while the (full-screen) settings panel is open. -->
+      <button
+        v-if="rightMenuAvailable"
+        id="side-menu-btn"
+        :aria-label="sideMenuToggleLabel"
+        :class="{ 'msb-btn-active': appStore.sideMenuOpen }"
+        @click="appStore.toggleSideMenu()"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 15 15"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <rect
+            x="1.5"
+            y="1.5"
+            width="12"
+            height="12"
+            rx="1"
+            stroke="currentColor"
+            stroke-width="1.1"
+          />
+          <line x1="9.5" y1="1.5" x2="9.5" y2="13.5" stroke="currentColor" stroke-width="1.1" />
+        </svg>
+      </button>
     </div>
   </footer>
 </template>
@@ -74,8 +104,15 @@
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useSdrStore } from '@/stores/sdr'
+import { useAppStore } from '@/stores/app'
 
-const props = defineProps<{ sidebarOpen?: boolean; sdrSectionActive?: boolean }>()
+const props = defineProps<{
+  sidebarOpen?: boolean
+  sdrSectionActive?: boolean
+  // True on views that have a right-edge controls rail (Air/Space). The footer's
+  // side-menu toggle only renders when this is set.
+  hasRightMenu?: boolean
+}>()
 
 const emit = defineEmits<{
   'toggle-sidebar': []
@@ -83,6 +120,16 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const sdrStore = useSdrStore()
+const appStore = useAppStore()
+
+// The side-menu toggle is shown only where a right rail exists AND it is
+// visible — the settings panel is a full-screen overlay that covers the rail,
+// so the toggle hides while settings is open even on an Air/Space route.
+const rightMenuAvailable = computed<boolean>(() => !!props.hasRightMenu && !settingsStore.open)
+
+const sideMenuToggleLabel = computed<string>(() =>
+  appStore.sideMenuOpen ? 'Hide map controls' : 'Show map controls',
+)
 
 // Vue coerces an absent boolean prop to false, so the `?? false` fallback path
 // is unreachable from tests.

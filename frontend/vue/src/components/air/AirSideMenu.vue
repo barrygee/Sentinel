@@ -2,7 +2,11 @@
   <!-- Fixed icon rail pinned to the right edge, mirroring the left #map-sidebar-rail.
        Every control from the full menu is always visible as an icon; the full label
        is the button's accessible name and its hover tooltip. -->
-  <nav id="side-menu" aria-label="Air map controls">
+  <nav
+    id="side-menu"
+    :class="{ 'side-menu--collapsed': !appStore.sideMenuOpen }"
+    aria-label="Air map controls"
+  >
     <!-- Zoom + location -->
     <button
       class="sm-btn sm-glyph"
@@ -551,6 +555,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useAirStore } from '@/stores/air'
+import { useAppStore } from '@/stores/app'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useDisclosure } from '@/composables/useDisclosure'
@@ -570,6 +575,7 @@ const mapRef = {
 }
 
 const airStore = useAirStore()
+const appStore = useAppStore()
 const { location: userLocation } = useUserLocation()
 
 const tiltActive = ref(localStorage.getItem('sentinel_3d') === '1')
@@ -931,6 +937,12 @@ function _saveFilter() {
   }
   .map-3d-btn[data-tooltip]::before {
     display: none !important;
+  }
+  /* The footer's side-menu toggle is only offered on small screens, so the rail
+     can only be collapsed here. On wider screens it always shows (the toggle is
+     hidden), so a collapsed state can't leave it stuck off-screen. */
+  #side-menu.side-menu--collapsed {
+    display: none;
   }
 }
 

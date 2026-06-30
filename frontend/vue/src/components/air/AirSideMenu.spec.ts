@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
+import { useAppStore } from '@/stores/app'
 
 // Controllable user-location ref for the locActive computed + goToLocation.
 const shared = vi.hoisted(() => ({
@@ -144,6 +145,15 @@ describe('AirSideMenu', () => {
         expect(modeButton.attributes('aria-label')).toBeTruthy()
         expect(modeButton.attributes('data-tooltip')).toBeTruthy()
       }
+    })
+
+    it('collapses the rail when the app store hides the side menu', async () => {
+      const appStore = useAppStore()
+      // Visible by default: no collapsed modifier.
+      expect(wrapper.find('#side-menu').classes()).not.toContain('side-menu--collapsed')
+      appStore.toggleSideMenu()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('#side-menu').classes()).toContain('side-menu--collapsed')
     })
 
     it('zooms the map in and out', async () => {
