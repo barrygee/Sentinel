@@ -1740,7 +1740,9 @@ function initPlots() {
     draw_center_line: true,
     draw_edge_lines: false,
     shade_area: true,
-    fill_style: { fillStyle: '#000000', opacity: 0.35 },
+    // Shade the tuned passband in a semi-transparent wash of the spectrum's blue
+    // (#00aaff) so the band reads as part of the trace rather than a black gap.
+    fill_style: { fillStyle: '#00aaff', opacity: 0.2 },
     center_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 20, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
@@ -1751,22 +1753,24 @@ function initPlots() {
     draw_edge_lines: false,
     shade_area: false,
     fill_style: { fillStyle: 'rgba(0,0,0,0)', opacity: 0 },
-    center_line_style: { strokeStyle: '#c8ff00', lineWidth: 1, lineCap: 'butt' },
+    center_line_style: { strokeStyle: '#00aaff', lineWidth: 1, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }
-  // Waterfall variants: same geometry/hit-test as the spectrum, but the
-  // visible passband shade and carrier line are toned down so the tuning bar
-  // is far more subtle over the raster. The spectrum keeps accCommon/carCommon
+  // Waterfall variants: same geometry/hit-test as the spectrum, but no passband
+  // shade (the raster is busy enough) and a toned-down carrier line so the tuning
+  // bar stays subtle over the raster. The spectrum keeps accCommon/carCommon
   // untouched. Only the *visible* styles change — the transparent center-line
   // hit zone (lineWidth: 20) is preserved so the bracket stays grabbable.
   const wfAccStyle = {
     ...accCommon,
-    fill_style: { fillStyle: '#000000', opacity: 0.12 },
+    // No passband shading over the waterfall raster — only the carrier line marks
+    // the tune there, keeping the busy raster readable.
+    shade_area: false,
   }
   const wfCarStyle = {
     ...carCommon,
     center_line_style: {
-      strokeStyle: 'rgba(200,255,0,0.35)',
+      strokeStyle: 'rgba(0,170,255,0.55)',
       lineWidth: 1,
       lineCap: 'butt' as const,
     },
