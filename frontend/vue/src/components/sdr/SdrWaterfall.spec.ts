@@ -542,6 +542,13 @@ describe('SdrWaterfall — mx.drawaxis / mx.text overrides', () => {
     )
   })
 
+  it('suppresses the x-axis "+Δ" offset caption (drawn as HTML labels instead)', () => {
+    // SigPlot's offset caption ("314.8 +Δ 0.1") is redundant with our HTML freq
+    // labels and overlaps the bottom dB label on small screens, so it is dropped.
+    const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 260, '314.8 +Δ 0.1')
+    expect(ret).toBeUndefined()
+  })
+
   it('delegates a non-numeric label straight through', () => {
     const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, 'Hz', '#fff')
     expect(ret).toBe('Hz')

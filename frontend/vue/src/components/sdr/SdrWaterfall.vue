@@ -93,6 +93,13 @@ mx.text = function (
   lbl: string,
   color?: string,
 ) {
+  // SigPlot draws an x-axis OFFSET CAPTION ("<window-start> +Δ <delta-per-div>",
+  // e.g. "314.8 +Δ 0.1") at the bottom-left of the data box whenever it switches
+  // the x-axis to offset notation. We render our own per-tick HTML frequency
+  // labels (.sdr-wf-freq-label), so this caption is redundant — and on small
+  // screens it collides with the bottom y-axis dB label. Suppress it (the "Δ"
+  // glyph is unique to this caption; real tick labels are plain numbers).
+  if (typeof lbl === 'string' && lbl.includes('Δ')) return
   // X-axis numeric tick labels: (a) nudge down so the gap matches the
   // y-axis label gap (Mx.b setter in installMarginTweaks reserves the room),
   // (b) re-centre on the tick. Sigplot positions labels assuming monospace
