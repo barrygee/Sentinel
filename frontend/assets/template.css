@@ -70,13 +70,16 @@ html {
 }
 
 /* Left side of the nav bar — wraps the SVG logo element.
-   The logo SVG has ~6px of internal left padding before the "S";
-   combined with #nav padding-left, the "S" lands at x ≈ 15.5px,
-   matching the left edge of the search icon glyph in the rail. */
+   The logo's ⊙ mark is the leftmost glyph. #nav padding-left (10px) lands the
+   ⊙'s *centre* on the 44px rail's icon centre column (x≈22px), but the ⊙ is
+   wider than the rail glyphs, so its left edge then overhangs theirs by ~2px and
+   reads as "too far left". This 2px nudge aligns the ⊙'s left edge with the rail
+   icons' left edges (left-aligned, as designed) instead of centre-aligned. */
 #nav-logo {
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    margin-left: 2px;
 }
 
 /* The logo image; height constrained to 46px */
