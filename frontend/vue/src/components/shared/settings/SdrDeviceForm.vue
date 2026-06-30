@@ -38,30 +38,6 @@
       />
     </div>
     <div class="sdr-devices-form-row">
-      <span class="sdr-devices-form-label">BANDWIDTH (Hz)</span>
-      <input
-        v-model="form.bandwidth"
-        type="number"
-        class="sdr-devices-form-input"
-        aria-label="Bandwidth (Hz)"
-        placeholder="e.g. 2048000"
-        min="0"
-      />
-    </div>
-    <div class="sdr-devices-form-row">
-      <span class="sdr-devices-form-label">RF GAIN (dB)</span>
-      <input
-        v-model="form.rfGain"
-        type="number"
-        class="sdr-devices-form-input"
-        aria-label="RF gain (dB)"
-        placeholder="e.g. 30"
-        min="-1"
-        max="49"
-        step="0.5"
-      />
-    </div>
-    <div class="sdr-devices-form-row">
       <span class="sdr-devices-form-label">STATUS</span>
       <div class="sdr-devices-enabled-group">
         <button
@@ -81,13 +57,6 @@
           DISABLED
         </button>
       </div>
-    </div>
-    <div class="sdr-devices-form-row sdr-devices-agc-row">
-      <label class="sdr-devices-agc-label">
-        <input v-model="form.agc" type="checkbox" class="sdr-devices-agc-input" />
-        <span class="sdr-devices-agc-box"></span>
-        <span class="sdr-devices-agc-text">AGC (Automatic Gain Control)</span>
-      </label>
     </div>
     <div v-if="errorMsg" class="sdr-devices-form-error">{{ errorMsg }}</div>
     <div class="sdr-devices-form-actions">
@@ -130,9 +99,6 @@ const form = ref({
   name: props.radio?.name ?? '',
   host: props.radio?.host ?? '',
   port: props.radio?.port ?? (null as number | null),
-  bandwidth: props.radio?.bandwidth ?? (null as number | null),
-  rfGain: props.radio?.rf_gain ?? (null as number | null),
-  agc: props.radio?.agc === true,
   enabled: props.radio ? props.radio.enabled !== false : true,
 })
 
@@ -147,9 +113,11 @@ async function save(): Promise<void> {
     name: form.value.name.trim(),
     host: form.value.host.trim(),
     port: form.value.port || 1234,
-    bandwidth: form.value.bandwidth || null,
-    rf_gain: form.value.rfGain ?? null,
-    agc: form.value.agc,
+    // Bandwidth / RF gain / AGC are no longer edited in this form; preserve any
+    // existing stored values on edit so saving name/host/port doesn't wipe them.
+    bandwidth: props.radio?.bandwidth ?? null,
+    rf_gain: props.radio?.rf_gain ?? null,
+    agc: props.radio?.agc ?? null,
     description: '',
     enabled: form.value.enabled,
   }

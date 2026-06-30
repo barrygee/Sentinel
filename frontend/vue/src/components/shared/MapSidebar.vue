@@ -105,7 +105,11 @@
   </div>
 
   <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
-    <button class="msb-mobile-close" aria-label="Close panel" @click="hide">×</button>
+    <!-- Mobile close affordance. Hidden on the SDR route (hideTabs), where the
+         left rail's active tab already toggles the panel — the extra × is redundant. -->
+    <button v-if="!hideTabs" class="msb-mobile-close" aria-label="Close panel" @click="hide">
+      ×
+    </button>
     <div id="map-sidebar-panes">
       <template v-if="!hideTabs">
         <div

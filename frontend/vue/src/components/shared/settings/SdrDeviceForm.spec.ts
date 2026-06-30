@@ -30,13 +30,19 @@ describe('SdrDeviceForm', () => {
     vi.useRealTimers()
   })
 
-  it('defaults a new form to enabled with AGC off', async () => {
+  it('defaults a new form to enabled', async () => {
     const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
     await flushPromises()
     const [enabledBtn, disabledBtn] = wrapper.findAll('.sdr-devices-enabled-btn')
     expect(enabledBtn!.classes()).toContain('is-active')
     expect(disabledBtn!.classes()).not.toContain('is-active')
-    expect((wrapper.find('.sdr-devices-agc-input').element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('renders only name/host/port inputs — no bandwidth, RF gain, or AGC fields', async () => {
+    const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
+    await flushPromises()
+    expect(wrapper.findAll('.sdr-devices-form-input')).toHaveLength(3)
+    expect(wrapper.find('.sdr-devices-agc-input').exists()).toBe(false)
   })
 
   it('prefills the form from an existing radio', async () => {
@@ -45,7 +51,6 @@ describe('SdrDeviceForm', () => {
     const inputs = wrapper.findAll('.sdr-devices-form-input')
     expect((inputs[0]!.element as HTMLInputElement).value).toBe('Roof')
     expect((inputs[1]!.element as HTMLInputElement).value).toBe('192.168.1.50')
-    expect((wrapper.find('.sdr-devices-agc-input').element as HTMLInputElement).checked).toBe(true)
     // enabled === false → the DISABLED button is active.
     expect(wrapper.findAll('.sdr-devices-enabled-btn')[1]!.classes()).toContain('is-active')
   })
@@ -85,12 +90,13 @@ describe('SdrDeviceForm', () => {
       port: 1234,
       bandwidth: null,
       rf_gain: null,
+      agc: null,
       enabled: true,
     })
     expect(wrapper.emitted('save')).toHaveLength(1)
   })
 
-  it('sends every field the user fills in on a new radio', async () => {
+  it('sends the name/host/port the user fills in on a new radio', async () => {
     const fetchMock = stubFetch(true)
     const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
     await flushPromises()
@@ -98,22 +104,16 @@ describe('SdrDeviceForm', () => {
     await inputs[0]!.setValue('Full SDR') // name
     await inputs[1]!.setValue('10.0.0.2') // host
     await inputs[2]!.setValue(5678) // port
-    await inputs[3]!.setValue('1024000') // bandwidth
-    await inputs[4]!.setValue('42') // rf gain
-    await wrapper.find('.sdr-devices-agc-input').setValue(true)
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toMatchObject({
       name: 'Full SDR',
       host: '10.0.0.2',
       port: 5678,
-      bandwidth: 1024000,
-      rf_gain: 42,
-      agc: true,
     })
   })
 
-  it('PUTs an existing radio to its id endpoint', async () => {
+  it('PUTs an existing radio to its id endpoint, preserving stored bandwidth/gain/AGC', async () => {
     const fetchMock = stubFetch(true)
     const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
     await flushPromises()
@@ -122,7 +122,14 @@ describe('SdrDeviceForm', () => {
     const [url, options] = fetchMock.mock.calls[0]!
     expect(url).toBe('/api/sdr/radios/7')
     expect(options.method).toBe('PUT')
-    expect(JSON.parse(options.body)).toMatchObject({ port: 1234, bandwidth: 2048000, rf_gain: 30 })
+    // The form no longer edits these, but the stored values must pass through
+    // untouched rather than being wiped to null.
+    expect(JSON.parse(options.body)).toMatchObject({
+      port: 1234,
+      bandwidth: 2048000,
+      rf_gain: 30,
+      agc: true,
+    })
   })
 
   it('shows a save-failed message on a non-ok response', async () => {
