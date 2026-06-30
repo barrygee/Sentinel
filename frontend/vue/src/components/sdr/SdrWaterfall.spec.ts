@@ -542,6 +542,13 @@ describe('SdrWaterfall — mx.drawaxis / mx.text overrides', () => {
     )
   })
 
+  it('suppresses the x-axis "+Δ" offset caption (drawn as HTML labels instead)', () => {
+    // SigPlot's offset caption ("314.8 +Δ 0.1") is redundant with our HTML freq
+    // labels and overlaps the bottom dB label on small screens, so it is dropped.
+    const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 260, '314.8 +Δ 0.1')
+    expect(ret).toBeUndefined()
+  })
+
   it('delegates a non-numeric label straight through', () => {
     const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, 'Hz', '#fff')
     expect(ret).toBe('Hz')
@@ -868,6 +875,43 @@ describe('SdrWaterfall — frequency tick formatting (unit bands)', () => {
     await wrapper.vm.$nextTick()
     const labels = wrapper.findAll('.sdr-wf-freq-label').map((w) => w.text())
     expect(labels.some((t) => t.endsWith('K'))).toBe(true)
+  })
+})
+
+// =============================================================================
+// Frequency labels are decimated to fit the data box: every gridline tick stays,
+// but the number of *visible* labels is thinned on a narrow box so their opaque
+// pills never overlap (the bug these tests guard against). syncBandInset reads
+// the data-box edges straight off the plot's _Mx, so the tests size the box by
+// setting _Mx.l / _Mx.r before the frame that triggers the measurement.
+describe('SdrWaterfall — frequency label overlap avoidance', () => {
+  it('thins the visible labels on a narrow data box so the pills never overlap', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // A ~100px data box cannot fit all 21 labels (0.1 MHz steps across the default
+    // 2.048 MHz span) without their pills colliding, so most must be hidden.
+    specPlot()._Mx.l = 10
+    specPlot()._Mx.r = 110
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const labels = wrapper.findAll('.sdr-wf-freq-label')
+    const visibleCount = labels.filter((label) => label.isVisible()).length
+    // Every gridline tick label still exists in the DOM (only display is toggled)…
+    expect(labels.length).toBeGreaterThan(10)
+    // …but only a few are actually shown, and at least one always is.
+    expect(visibleCount).toBeGreaterThan(0)
+    expect(visibleCount).toBeLessThan(labels.length)
+  })
+
+  it('shows every frequency label when the data box is wide enough', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // A very wide box leaves room for every 0.1 MHz label — none are dropped.
+    specPlot()._Mx.l = 0
+    specPlot()._Mx.r = 4000
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const labels = wrapper.findAll('.sdr-wf-freq-label')
+    expect(labels.length).toBeGreaterThan(0)
+    expect(labels.every((label) => label.isVisible())).toBe(true)
   })
 })
 
