@@ -96,6 +96,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Mobile hamburger menu, responsive alignment, and touch tooltip fix
 - Sync ADS-B label visibility & fields across devices (#152)
 - Toggle settings sidebar from the footer side-panel button (#153)
+- Toggle the map right-side controls rail from the footer (#154)
 
 ### Bug Fixes
 
