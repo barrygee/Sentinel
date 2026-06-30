@@ -15,7 +15,7 @@ import router from './router'
 import { useAppStore } from './stores/app'
 import type { ConnectivityMode } from './stores/app'
 import { useAirStore } from './stores/air'
-import type { AdsbTagFields } from './stores/air'
+import type { AdsbLabelFields, AdsbTagFields } from './stores/air'
 import { useSdrStore } from './stores/sdr'
 import { useSettingsStore } from './stores/settings'
 
@@ -130,6 +130,45 @@ const DEFAULT_LABEL_DATA_POINTS = {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: DEFAULT_LABEL_DATA_POINTS }),
+        }).catch(() => {})
+      }
+
+      // ADS-B labels master toggle — backend-synced so the show/hide choice
+      // follows the user across devices (localStorage alone is per-browser, which
+      // is why labels appeared on the host but not on a second device). When the
+      // key is absent from the DB, seed it from the current (localStorage) value
+      // so an existing per-browser preference becomes the shared default instead
+      // of being reset to off.
+      const remoteLabelsVisible = data.air?.labelsVisible
+      if (typeof remoteLabelsVisible === 'boolean') {
+        airStore.setOverlay('adsbLabels', remoteLabelsVisible)
+      } else {
+        fetch('/api/settings/air/labelsVisible', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: airStore.overlayStates.adsbLabels }),
+        }).catch(() => {})
+      }
+
+      // Per-aircraft label fields (type/alt, separately for civil and military) —
+      // same cross-device rationale and the same seed-from-localStorage migration.
+      const remoteLabelFields = data.air?.labelFields as AdsbLabelFields | undefined
+      if (
+        remoteLabelFields &&
+        typeof remoteLabelFields === 'object' &&
+        !Array.isArray(remoteLabelFields) &&
+        Array.isArray(remoteLabelFields.civil) &&
+        Array.isArray(remoteLabelFields.mil)
+      ) {
+        airStore.setAdsbLabelFields({
+          civil: remoteLabelFields.civil,
+          mil: remoteLabelFields.mil,
+        })
+      } else {
+        fetch('/api/settings/air/labelFields', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: airStore.adsbLabelFields }),
         }).catch(() => {})
       }
     }
