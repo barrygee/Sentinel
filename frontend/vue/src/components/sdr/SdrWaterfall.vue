@@ -795,13 +795,39 @@ const freqTicks = computed(() => {
     Math.min(6, -Math.floor(Math.log10(dticMHz)) + (dticMHz < 1 ? 1 : 0)),
   )
   /* v8 ignore stop */
-  const ticks: { key: string; leftPct: number; label: string }[] = []
+  const ticks: { key: string; leftPct: number; label: string; labeled: boolean }[] = []
+  let widestLabelChars = 0
   for (let f = first; f <= winHi; f += stepHz) {
+    const label = formatFreqTick(f, decimals)
+    widestLabelChars = Math.max(widestLabelChars, label.length)
     ticks.push({
       key: `t-${f}`,
       leftPct: ((f - winLo) / w) * 100,
-      label: formatFreqTick(f, decimals),
+      label,
+      labeled: true,
     })
+  }
+  // Thin the visible labels on narrow screens so their pill boxes never overlap.
+  // The gridline ticks all stay; we only drop every-other (or every-third…) LABEL.
+  // Pixel gap between adjacent ticks = the step's fraction of the window × the
+  // data-box width. Estimate a label pill's footprint from its character count
+  // (≈7px per glyph at 700/11px Barlow) plus the 9px horizontal padding either
+  // side and a small breathing gap, then keep only every Nth label so consecutive
+  // pills stay at least that far apart (every-Nth keeps the kept labels evenly
+  // spaced and on round step multiples).
+  const boxWidthPx = dataBoxWidthPx.value
+  // syncBandInset measures the data box (boxWidthPx > 0) before the first frame
+  // produces a span, so by the time this code runs the box is always measured;
+  // the unmeasured arm is defensive — leave every label visible.
+  /* v8 ignore start */
+  if (boxWidthPx <= 0) return ticks
+  /* v8 ignore stop */
+  const tickGapPx = (stepHz / w) * boxWidthPx
+  const labelPillPx = widestLabelChars * 7 + 9 * 2
+  const minLabelGapPx = labelPillPx + 6
+  const labelStride = Math.max(1, Math.ceil(minLabelGapPx / tickGapPx))
+  for (let index = 0; index < ticks.length; index += 1) {
+    ticks[index]!.labeled = index % labelStride === 0
   }
   return ticks
 })
@@ -2387,6 +2413,7 @@ onBeforeUnmount(() => {
         ></div>
         <span
           v-for="t in freqTicks"
+          v-show="t.labeled"
           :key="`l-${t.key}`"
           class="sdr-wf-freq-label"
           :style="{ left: t.leftPct + '%' }"
