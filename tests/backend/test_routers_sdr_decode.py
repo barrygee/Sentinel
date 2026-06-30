@@ -236,6 +236,11 @@ class _FakeConn:
     mode = "NFM"
     gain_db = 30.0
     gain_auto = False
+    # Tuning-ownership fields the WS status frame reads (no relay control channel
+    # in this stub, so it behaves as a sole owner with control unavailable).
+    is_owner = True
+    control_available = False
+    tuner_locked = False
 
 
 class _ControlBroadcaster:

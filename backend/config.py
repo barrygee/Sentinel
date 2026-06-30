@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     # from ./decoder/channel-maps. The relative default works for a local dev run
     # from the repo root; compose overrides it to the in-container path.
     channel_maps_dir: str = "decoder/channel-maps"
+    # Offset added to a radio's rtl_tcp port to reach the fan-out relay's NDJSON
+    # tuning-ownership control channel (e.g. IQ 1234 → control 1236). Must match the
+    # relay's RELAY_CONTROL_PORT (which itself defaults to LISTEN_PORT + 2). When the
+    # control port is unreachable (a raw rtl_tcp, or a relay without the channel) the
+    # backend falls back to direct last-writer-wins tuning over the IQ socket.
+    sdr_relay_control_port_offset: int = 2
+    # How long to wait (seconds) for the relay to confirm a claim/ownership state
+    # before treating the attempt as "not owner" and the channel probe as absent.
+    sdr_relay_control_timeout_s: float = 2.0
 
     class Config:
         env_file = ".env"
