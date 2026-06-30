@@ -115,3 +115,106 @@ async def test_live_broadcaster_fast_path_skips_probe(monkeypatch):
     monkeypatch.setattr(sdr_svc, "connection_status", lambda host, port: rich)
     result = await sdr_svc.reachability_status("10.0.0.1", 1234)
     assert result == rich
+
+
+# ── Probe back-off: cache successes, retry a single failure ─────────────────────
+#
+# The Settings device list polls this every few seconds per radio, and each probe
+# is itself a single-client rtl_tcp connection — so an over-eager probe steals an
+# active stream (its own or a second instance's) and flaps the dot red. A success
+# is cached briefly; a one-off failure is retried once before declaring offline.
+
+
+async def test_successful_probe_is_cached(monkeypatch):
+    sdr_svc._reachability_cache.clear()
+    monkeypatch.setattr(
+        sdr_svc, "connection_status", lambda host, port: {"connected": False}
+    )
+    probe_calls = {"count": 0}
+
+    async def fake_probe(host: str, port: int, timeout: float) -> dict:
+        probe_calls["count"] += 1
+        return {"connected": True, "reachable": True}
+
+    monkeypatch.setattr(sdr_svc, "_probe_rtl_tcp", fake_probe)
+
+    first = await sdr_svc.reachability_status("10.9.9.9", 1234)
+    second = await sdr_svc.reachability_status("10.9.9.9", 1234)
+
+    assert first == {"connected": True, "reachable": True}
+    assert second == first
+    assert (
+        probe_calls["count"] == 1
+    )  # the second call is served from cache, not re-probed
+
+
+async def test_failed_probe_is_retried_once_and_not_cached(monkeypatch):
+    sdr_svc._reachability_cache.clear()
+    monkeypatch.setattr(
+        sdr_svc, "connection_status", lambda host, port: {"connected": False}
+    )
+    monkeypatch.setattr(sdr_svc, "REACHABILITY_RETRY_DELAY_S", 0.0)
+    probe_calls = {"count": 0}
+
+    async def fake_probe(host: str, port: int, timeout: float) -> dict:
+        probe_calls["count"] += 1
+        return {"connected": False}
+
+    monkeypatch.setattr(sdr_svc, "_probe_rtl_tcp", fake_probe)
+
+    result = await sdr_svc.reachability_status("10.9.9.8", 1234)
+
+    assert result == {"connected": False}
+    assert (
+        probe_calls["count"] == 2
+    )  # probed, then retried once before reporting offline
+    assert (
+        "10.9.9.8:1234" not in sdr_svc._reachability_cache
+    )  # failures are never cached
+
+
+async def test_transient_failure_recovers_on_retry_and_is_cached(monkeypatch):
+    sdr_svc._reachability_cache.clear()
+    monkeypatch.setattr(
+        sdr_svc, "connection_status", lambda host, port: {"connected": False}
+    )
+    monkeypatch.setattr(sdr_svc, "REACHABILITY_RETRY_DELAY_S", 0.0)
+    outcomes = [{"connected": False}, {"connected": True, "reachable": True}]
+    probe_calls = {"count": 0}
+
+    async def fake_probe(host: str, port: int, timeout: float) -> dict:
+        outcome = outcomes[probe_calls["count"]]
+        probe_calls["count"] += 1
+        return outcome
+
+    monkeypatch.setattr(sdr_svc, "_probe_rtl_tcp", fake_probe)
+
+    result = await sdr_svc.reachability_status("10.9.9.7", 1234)
+
+    # A transient collision (another client briefly holding the dongle) is masked
+    # by the retry, so the dot does not flap red.
+    assert result == {"connected": True, "reachable": True}
+    assert probe_calls["count"] == 2
+    assert "10.9.9.7:1234" in sdr_svc._reachability_cache
+
+
+async def test_expired_cache_entry_is_reprobed(monkeypatch):
+    sdr_svc._reachability_cache.clear()
+    monkeypatch.setattr(
+        sdr_svc, "connection_status", lambda host, port: {"connected": False}
+    )
+    monkeypatch.setattr(sdr_svc, "REACHABILITY_CACHE_TTL_S", 0.0)
+    probe_calls = {"count": 0}
+
+    async def fake_probe(host: str, port: int, timeout: float) -> dict:
+        probe_calls["count"] += 1
+        return {"connected": True, "reachable": True}
+
+    monkeypatch.setattr(sdr_svc, "_probe_rtl_tcp", fake_probe)
+
+    await sdr_svc.reachability_status("10.9.9.6", 1234)
+    await sdr_svc.reachability_status("10.9.9.6", 1234)
+
+    assert (
+        probe_calls["count"] == 2
+    )  # TTL of 0 ⇒ cached entry is always stale ⇒ re-probe
