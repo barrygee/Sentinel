@@ -1035,6 +1035,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fix/mobile footer sidepanel buttons (#151)
 - Fix/sdr remove mobile close (#155)
 - Fix/sdr spectrum freq label overlap (#156)
+- Update issue templates
 
 ### Refactoring
 
