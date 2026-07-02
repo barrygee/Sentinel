@@ -168,6 +168,9 @@ class RelayControlClient:
         _enable_tcp_keepalive(self._writer)
         self.available = True
         self._read_task = asyncio.create_task(self._read_loop(), name=f"sdr-control-{self.host}:{self.port}")
+        # Consume the relay's initial state push so a later claim()/set() awaits its
+        # OWN response rather than racing this one (both signal the same event).
+        await self._await_next_state()
         return True
 
     async def _read_loop(self) -> None:
