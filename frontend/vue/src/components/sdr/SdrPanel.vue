@@ -191,22 +191,35 @@
              tuning. This instance can still listen, but its tuning controls are
              disabled until the owner releases the tuner. -->
         <div v-if="readOnly" class="sdr-readonly-banner" role="status" aria-live="polite">
-          <svg
-            class="sdr-readonly-banner-icon"
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-              stroke="currentColor"
-              stroke-width="1.3"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <span>Another instance is controlling this radio — tuning is read-only here.</span>
+          <div class="sdr-readonly-banner-row">
+            <svg
+              class="sdr-readonly-banner-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="sdr-readonly-banner-text"
+              >Another instance is controlling this radio — tuning is read-only here.</span
+            >
+            <button
+              type="button"
+              class="sdr-readonly-takeover"
+              title="Take control of the shared tuner"
+              @click="takeControl"
+            >
+              Take control
+            </button>
+          </div>
+          <p v-if="takeControlMessage" class="sdr-readonly-note">{{ takeControlMessage }}</p>
         </div>
 
         <!-- Frequency -->
@@ -2005,6 +2018,14 @@ function _notificationsStore() {
 // rate, scan, search). False for a single instance or a free/unowned tuner.
 const readOnly = computed(() => _sdrStore().readOnly)
 
+// Transient feedback for a "Take control" attempt that the relay refused (the
+// tuner is still in use elsewhere). Cleared on a granted claim, and whenever the
+// read-only state itself changes (the owner released, or we took over).
+const takeControlMessage = ref('')
+watch(readOnly, () => {
+  takeControlMessage.value = ''
+})
+
 // Visual disable for controls a read-only follower must NOT drive: disabled when
 // there's no usable radio (controlsDisabled) OR this instance is a follower. This
 // now also covers mode + bandwidth: under the "mirror the owner exactly" model a
@@ -2958,6 +2979,15 @@ async function openControlSocket(radioId: number) {
         // frequency back to the owner's real tuning.
         applyOwnership(msg)
         break
+      case 'claim_result':
+        // Result of a "Take control" attempt. On refusal the tuner is still in
+        // use elsewhere, so tell the user rather than leaving the click silent;
+        // on success applyOwnership (from the paired control frame) clears the
+        // banner, so just drop any stale message.
+        takeControlMessage.value = msg.granted
+          ? ''
+          : 'Still controlled by another instance — try again once it releases.'
+        break
       case 'error':
         _ctrlDataConfirmed = false
         setStatus(false)
@@ -3181,6 +3211,29 @@ function stop() {
   setPlayingState(false)
   signalSmoothed.value = -120
   signalLit.value = 0
+  // Hand the shared tuner back when we stop listening, so another instance can
+  // take over instead of us hogging it with nothing playing (the "won't release"
+  // bug). Only meaningful while we actually own it over the relay control channel;
+  // a later Play re-claims it if it is still free.
+  releaseOwnershipIfHeld()
+}
+
+// Tell the backend to release the shared tuner if this instance currently owns it
+// over the relay control channel. Safe to call unconditionally (the backend no-ops
+// when we don't own it), but gated here to avoid pointless traffic.
+function releaseOwnershipIfHeld() {
+  if (_sdrStore().controlAvailable && _sdrStore().isOwner) {
+    sendCmd({ cmd: 'release' })
+  }
+}
+
+// Read-only follower "Take control": force a fresh claim. The relay grants it only
+// if the tuner is genuinely free, so this recovers a follower stuck read-only after
+// the owner left WITHOUT ever stealing an active owner's tuner. The resulting
+// control frame clears the banner and re-enables tuning if we became the owner.
+function takeControl() {
+  takeControlMessage.value = '' // clear any prior "still in use" note for this fresh attempt
+  sendCmd({ cmd: 'claim' })
 }
 
 function formatFreqInput() {
@@ -3514,6 +3567,10 @@ function applyOwnership(msg: {
 // ── Radio selection ───────────────────────────────────────────────────────────
 
 function clearRadioSelection() {
+  // Release the shared tuner before dropping the socket, so deselecting a radio
+  // frees it for another instance immediately (rather than waiting for the backend
+  // idle-release grace period).
+  releaseOwnershipIfHeld()
   selectedRadioId.value = null
   deviceDropdownLabel.value = '— select radio —'
   setPlayingState(false)

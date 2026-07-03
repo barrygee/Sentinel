@@ -1043,11 +1043,16 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                           — tuning ownership changed: another instance took/released the
                             shared tuner, or this client's retune was refused (read-only).
                             `locked` = the tuner is held by some instance (vs free to claim).
+      { type: "claim_result", granted } — result of a follower "take control" attempt:
+                            granted=true → this client now owns the tuner; false → refused
+                            (another instance is still using it).
       { type: "error",    code, message }
 
     Inbound (client→server):
       { cmd: "tune",        frequency_hz }
       { cmd: "mode",        mode }
+      { cmd: "release" }    — owner hands the shared tuner back (stopped/deselected)
+      { cmd: "claim" }      — follower "take control": claim iff the tuner is free
       { cmd: "demod",       offset_hz, mode, bw_hz }
                           — owner's within-band demod state (NCO offset, mode, audio
                             bandwidth); forwarded to followers so they mirror the exact
@@ -1110,6 +1115,17 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                         await conn.set_frequency(int(msg["frequency_hz"]))
                     elif cmd == "mode":
                         conn.mode = str(msg.get("mode", "AM"))
+                    elif cmd == "release":
+                        # Owner is done (stopped/deselected): hand the shared tuner
+                        # back so another instance can take over. No-op unless we own it.
+                        await conn.release_ownership()
+                    elif cmd == "claim":
+                        # Follower "take control": claim the tuner iff it is actually
+                        # free. Safe — the relay refuses if another instance owns it.
+                        # Report the outcome back so the UI can confirm success or say
+                        # "still in use" rather than leaving the click with no feedback.
+                        await conn.claim_ownership()
+                        await websocket.send_text(json.dumps({"type": "claim_result", "granted": conn.is_owner}))
                     elif cmd == "demod":
                         # Owner publishes its demod state (offset within the band,
                         # mode, audio bandwidth) so read-only followers mirror the

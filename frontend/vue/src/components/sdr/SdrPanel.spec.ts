@@ -5300,4 +5300,99 @@ describe('SdrPanel — tuning ownership', () => {
       false,
     )
   })
+
+  // ── Ownership handoff: release on stop/deselect, take-control claim ───────────
+  const sentCmds = (socket: FakeSocket) => socket.sent.map((sent) => JSON.parse(sent))
+  // Owner over a live control channel (is_owner true, control available, held).
+  const ownerFrame = () => followerFrame({ is_owner: true })
+
+  async function playAsOwner(): Promise<{ wrapper: VueWrapper; socket: FakeSocket }> {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.message(ownerFrame()) // become the owner over the relay control channel
+    await wrapper.vm.$nextTick()
+    return { wrapper, socket }
+  }
+
+  it('releases the shared tuner when the owner presses Stop', async () => {
+    const { wrapper, socket } = await playAsOwner()
+    socket.sent.length = 0
+    await wrapper.find('.sdr-stop-btn').trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
+  })
+
+  it('does not send release on Stop when it does not own the tuner', async () => {
+    // Default connect has no control channel (single instance) → nothing to release.
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    await wrapper.find('.sdr-stop-btn').trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(false)
+  })
+
+  it('releases the shared tuner when the owner deselects the radio', async () => {
+    const { wrapper, socket } = await playAsOwner()
+    socket.sent.length = 0
+    // Deselecting routes through clearRadioSelection, which releases before closing.
+    // The device menu teleports to <body>, so reach the placeholder via document.
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await flushPromises()
+    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
+  })
+
+  it('offers a Take-control button that claims the tuner for a follower', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    const button = wrapper.find('.sdr-readonly-takeover')
+    expect(button.exists()).toBe(true)
+    socket.sent.length = 0
+    await button.trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'claim')).toBe(true)
+  })
+
+  it('shows a "still in use" note when a take-control claim is refused', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    socket.message({ type: 'claim_result', granted: false })
+    await wrapper.vm.$nextTick()
+    const note = wrapper.find('.sdr-readonly-note')
+    expect(note.exists()).toBe(true)
+    expect(note.text()).toContain('Still controlled by another instance')
+  })
+
+  it('clears the note when a later claim is granted', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    socket.message({ type: 'claim_result', granted: false })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-note').exists()).toBe(true)
+    socket.message({ type: 'claim_result', granted: true })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-note').exists()).toBe(false)
+  })
+
+  it('clears the note when the owner releases (read-only state changes)', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    socket.message({ type: 'claim_result', granted: false })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-note').exists()).toBe(true)
+    // Owner released → tuner free (locked:false) → no longer read-only → banner gone.
+    socket.message(followerFrame({ locked: false }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+  })
 })
