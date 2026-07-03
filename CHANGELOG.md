@@ -103,6 +103,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show ADS-B aircraft labels by default (#164)
 - Render ADS-B aircraft labels unconditionally (#165)
 - Let shared-dongle followers watch and mirror the owner (#166)
+- Tuner ownership handoff — release, take control, and flat-dark banner (#167)
 
 ### Bug Fixes
 
