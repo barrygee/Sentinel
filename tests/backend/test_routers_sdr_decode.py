@@ -15,6 +15,7 @@ HTTP/WS layer can be tested without a physical device.
 """
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -349,7 +350,9 @@ class TestDecodeConfig:
 
     def test_bad_secret_rejected(self, client):
         settings.decoder_ingest_secret = "right-secret"
-        resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "wrong"})
+        resp = client.get(
+            "/api/sdr/decode/config", headers={"X-Decode-Secret": "wrong"}
+        )
         assert resp.status_code == 401
 
     def test_returns_trunk_state_and_rigctl_port(self, client):
@@ -358,8 +361,35 @@ class TestDecodeConfig:
         resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
         assert resp.status_code == 200
         body = resp.json()
-        assert body["trunk"] == {"enabled": True, "channel_map": "sys.csv", "group_list": None}
+        assert body["trunk"] == {
+            "enabled": True,
+            "channel_map": "sys.csv",
+            "group_list": None,
+        }
         assert body["rigctl_port"] == settings.decoder_rigctl_port
+        assert body["active"] is False  # no decode session in this test
+
+    def test_active_true_when_a_session_is_serving_pcm(self, client, monkeypatch):
+        # The supervisor gates dsd-fme launch on this flag, so it must be True only
+        # while a bridge is actually serving PCM (started, not merely created).
+        settings.decoder_ingest_secret = "s"
+        monkeypatch.setattr(
+            sdr_router.sdr_decode,
+            "get_active_bridge",
+            lambda: SimpleNamespace(running=True),
+        )
+        resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
+        assert resp.json()["active"] is True
+
+    def test_active_false_when_bridge_not_yet_serving(self, client, monkeypatch):
+        settings.decoder_ingest_secret = "s"
+        monkeypatch.setattr(
+            sdr_router.sdr_decode,
+            "get_active_bridge",
+            lambda: SimpleNamespace(running=False),
+        )
+        resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
+        assert resp.json()["active"] is False
 
 
 # ── GET /api/sdr/trunk/channel-maps ───────────────────────────────────────────
@@ -394,7 +424,9 @@ def _fake_trunk_bridge(running: bool):
 
 def _patch_trunk(monkeypatch, bridge):
     _patch_control(monkeypatch)
-    monkeypatch.setattr(sdr_router.sdr_decode, "get_or_create_bridge", AsyncMock(return_value=bridge))
+    monkeypatch.setattr(
+        sdr_router.sdr_decode, "get_or_create_bridge", AsyncMock(return_value=bridge)
+    )
     monkeypatch.setattr(sdr_router.sdr_decode, "get_bridge", lambda host, port: bridge)
     monkeypatch.setattr(sdr_router.sdr_rigctl, "start_rigctl_server", AsyncMock())
     monkeypatch.setattr(sdr_router.sdr_rigctl, "stop_rigctl_server", AsyncMock())
@@ -408,13 +440,21 @@ def _read_until(ws, frame_type):
 
 
 class TestControlTrunkCommand:
-    def test_enable_starts_rigctl_and_records_control_channel(self, client, monkeypatch):
+    def test_enable_starts_rigctl_and_records_control_channel(
+        self, client, monkeypatch
+    ):
         bridge = _fake_trunk_bridge(running=False)
         _patch_trunk(monkeypatch, bridge)
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()
             ws.send_json(
-                {"cmd": "trunk_decode", "enabled": True, "channel_map": "sys.csv", "offset_hz": 5000, "bw_hz": 12500}
+                {
+                    "cmd": "trunk_decode",
+                    "enabled": True,
+                    "channel_map": "sys.csv",
+                    "offset_hz": 5000,
+                    "bw_hz": 12500,
+                }
             )
             status = _read_until(ws, "trunk_status")
             assert status["enabled"] is True
@@ -431,7 +471,9 @@ class TestControlTrunkCommand:
         _patch_trunk(monkeypatch, bridge)
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()
-            ws.send_json({"cmd": "trunk_decode", "enabled": True, "channel_map": "sys.csv"})
+            ws.send_json(
+                {"cmd": "trunk_decode", "enabled": True, "channel_map": "sys.csv"}
+            )
             _read_until(ws, "trunk_status")
         bridge.bounce_decoder.assert_called_once()
 

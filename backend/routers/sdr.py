@@ -1231,16 +1231,24 @@ async def decode_config(x_decode_secret: str = Header(default="")):
     trunking + rigctl flags and which channel-map CSV to load. ``rigctl_port`` is
     the port the backend's rigctld server listens on (and that dsd-fme connects to
     via the sidecar's localhost forwarder).
+
+    ``active`` reports whether a decode session is actually serving PCM. The
+    supervisor gates on it: with no active session the PCM feed isn't listening, so
+    launching dsd-fme just makes it fail to connect and spew startup output that the
+    ingest endpoint rejects with 409 — a flood of wasted requests. When ``active``
+    is false the supervisor idles instead of launching.
     """
     secret = sdr_decode.resolve_ingest_secret()
     if not secret:
         raise HTTPException(503, "decode ingestion disabled")
     if not secrets.compare_digest(x_decode_secret, secret):
         raise HTTPException(401, "invalid decode secret")
+    bridge = sdr_decode.get_active_bridge()
     return JSONResponse(
         {
             "trunk": sdr_rigctl.get_trunk_config().as_dict(),
             "rigctl_port": settings.decoder_rigctl_port,
+            "active": bool(bridge and bridge.running),
         }
     )
 
