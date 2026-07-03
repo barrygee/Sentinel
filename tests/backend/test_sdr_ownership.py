@@ -548,26 +548,6 @@ async def test_release_ownership_noop_without_control():
     assert conn.is_owner is False
 
 
-async def test_claim_ownership_takes_a_free_token():
-    conn = _control_conn(owner=False, locked=False, claim_result=True)
-    await conn.claim_ownership()
-    assert conn.control.claims == 1
-    assert conn.is_owner is True
-
-
-async def test_claim_ownership_denied_while_another_owns():
-    conn = _control_conn(owner=False, locked=True, claim_result=False)
-    await conn.claim_ownership()
-    assert conn.is_owner is False  # relay refused — no steal
-
-
-async def test_claim_ownership_noop_when_already_owner():
-    conn = _control_conn(owner=True)
-    conn.control.claims = 0
-    await conn.claim_ownership()
-    assert conn.control.claims == 0  # already own it → no claim attempt
-
-
 async def test_set_demod_owner_forwards_and_stores():
     conn = _control_conn(owner=True)
     await conn.set_demod(offset_hz=30_000, mode="NFM", bw_hz=12_500)
@@ -827,15 +807,12 @@ class _RouterConn:
         control_available=False,
         locked=False,
         read_only=False,
-        claim_grants=False,
     ) -> None:
         self.is_owner = is_owner
         self.control_available = control_available
         self.tuner_locked = locked
         self._read_only = read_only
-        self._claim_grants = claim_grants
         self.released = False
-        self.claimed = False
 
     async def set_frequency(self, freq_hz: int) -> None:
         if self._read_only:
@@ -852,11 +829,6 @@ class _RouterConn:
     async def release_ownership(self) -> None:
         self.released = True
         self.is_owner = False
-
-    async def claim_ownership(self) -> None:
-        self.claimed = True
-        if self._claim_grants:
-            self.is_owner = True
 
 
 class _RouterBroadcaster:
@@ -920,32 +892,6 @@ def test_ws_release_command_hands_back_the_tuner(client, monkeypatch):
         ws.send_json({"cmd": "ping"})  # round-trip so the release is applied
         assert ws.receive_json()["type"] == "pong"
     assert conn.released is True
-
-
-def test_ws_claim_command_refused_reports_result(client, monkeypatch):
-    # Tuner still held elsewhere → claim refused → claim_result granted=false so the
-    # UI can say "still in use" instead of leaving the click silent.
-    conn = _RouterConn(is_owner=False, control_available=True, locked=True)
-    _patch_router(monkeypatch, conn)
-    with client.websocket_connect("/ws/sdr/1") as ws:
-        ws.receive_json()  # initial status
-        ws.send_json({"cmd": "claim"})
-        frame = ws.receive_json()
-    assert conn.claimed is True
-    assert frame["type"] == "claim_result"
-    assert frame["granted"] is False
-
-
-def test_ws_claim_command_granted_reports_result(client, monkeypatch):
-    # Tuner free → claim granted → claim_result granted=true.
-    conn = _RouterConn(is_owner=False, control_available=True, locked=True, claim_grants=True)
-    _patch_router(monkeypatch, conn)
-    with client.websocket_connect("/ws/sdr/1") as ws:
-        ws.receive_json()  # initial status
-        ws.send_json({"cmd": "claim"})
-        frame = ws.receive_json()
-    assert frame["type"] == "claim_result"
-    assert frame["granted"] is True
 
 
 def test_ws_read_only_tune_emits_control_frame(client, monkeypatch):
