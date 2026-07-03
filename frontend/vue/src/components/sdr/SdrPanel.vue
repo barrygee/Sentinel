@@ -207,6 +207,14 @@
             />
           </svg>
           <span>Another instance is controlling this radio — tuning is read-only here.</span>
+          <button
+            type="button"
+            class="sdr-readonly-takeover"
+            title="Take control of the shared tuner"
+            @click="takeControl"
+          >
+            Take control
+          </button>
         </div>
 
         <!-- Frequency -->
@@ -3181,6 +3189,28 @@ function stop() {
   setPlayingState(false)
   signalSmoothed.value = -120
   signalLit.value = 0
+  // Hand the shared tuner back when we stop listening, so another instance can
+  // take over instead of us hogging it with nothing playing (the "won't release"
+  // bug). Only meaningful while we actually own it over the relay control channel;
+  // a later Play re-claims it if it is still free.
+  releaseOwnershipIfHeld()
+}
+
+// Tell the backend to release the shared tuner if this instance currently owns it
+// over the relay control channel. Safe to call unconditionally (the backend no-ops
+// when we don't own it), but gated here to avoid pointless traffic.
+function releaseOwnershipIfHeld() {
+  if (_sdrStore().controlAvailable && _sdrStore().isOwner) {
+    sendCmd({ cmd: 'release' })
+  }
+}
+
+// Read-only follower "Take control": force a fresh claim. The relay grants it only
+// if the tuner is genuinely free, so this recovers a follower stuck read-only after
+// the owner left WITHOUT ever stealing an active owner's tuner. The resulting
+// control frame clears the banner and re-enables tuning if we became the owner.
+function takeControl() {
+  sendCmd({ cmd: 'claim' })
 }
 
 function formatFreqInput() {
@@ -3514,6 +3544,10 @@ function applyOwnership(msg: {
 // ── Radio selection ───────────────────────────────────────────────────────────
 
 function clearRadioSelection() {
+  // Release the shared tuner before dropping the socket, so deselecting a radio
+  // frees it for another instance immediately (rather than waiting for the backend
+  // idle-release grace period).
+  releaseOwnershipIfHeld()
   selectedRadioId.value = null
   deviceDropdownLabel.value = '— select radio —'
   setPlayingState(false)

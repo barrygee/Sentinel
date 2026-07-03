@@ -5300,4 +5300,63 @@ describe('SdrPanel — tuning ownership', () => {
       false,
     )
   })
+
+  // ── Ownership handoff: release on stop/deselect, take-control claim ───────────
+  const sentCmds = (socket: FakeSocket) => socket.sent.map((sent) => JSON.parse(sent))
+  // Owner over a live control channel (is_owner true, control available, held).
+  const ownerFrame = () => followerFrame({ is_owner: true })
+
+  async function playAsOwner(): Promise<{ wrapper: VueWrapper; socket: FakeSocket }> {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.message(ownerFrame()) // become the owner over the relay control channel
+    await wrapper.vm.$nextTick()
+    return { wrapper, socket }
+  }
+
+  it('releases the shared tuner when the owner presses Stop', async () => {
+    const { wrapper, socket } = await playAsOwner()
+    socket.sent.length = 0
+    await wrapper.find('.sdr-stop-btn').trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
+  })
+
+  it('does not send release on Stop when it does not own the tuner', async () => {
+    // Default connect has no control channel (single instance) → nothing to release.
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    await wrapper.find('.sdr-stop-btn').trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(false)
+  })
+
+  it('releases the shared tuner when the owner deselects the radio', async () => {
+    const { wrapper, socket } = await playAsOwner()
+    socket.sent.length = 0
+    // Deselecting routes through clearRadioSelection, which releases before closing.
+    // The device menu teleports to <body>, so reach the placeholder via document.
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await flushPromises()
+    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
+  })
+
+  it('offers a Take-control button that claims the tuner for a follower', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    const button = wrapper.find('.sdr-readonly-takeover')
+    expect(button.exists()).toBe(true)
+    socket.sent.length = 0
+    await button.trigger('click')
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'claim')).toBe(true)
+  })
 })

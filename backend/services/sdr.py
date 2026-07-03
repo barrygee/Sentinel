@@ -249,6 +249,22 @@ class RelayControlClient:
         await self._await_next_state()
         return self.is_owner
 
+    async def release(self) -> None:
+        """Give up the tuning token but KEEP the control channel connected.
+
+        Distinct from ``close()`` (which tears down the socket): the read loop stays
+        alive so this instance remains a live follower — still receiving state and
+        able to reclaim later by tuning — while another instance is free to take
+        over. Used when the owner stops/deselects so it stops hogging the dongle.
+        The relay echoes a fresh ``state`` (owner=False, locked=False) which the
+        read loop applies and fans to this instance's own subscribers.
+        """
+        if not self.available:
+            return
+        await self._send({"op": "release"})
+        await self._await_next_state()
+        self.is_owner = False
+
     async def set(self, **fields: object) -> None:
         """Send a semantic tuning change. Honoured by the relay only while we own it."""
         if not self.available:
@@ -458,6 +474,29 @@ class RtlTcpConnection:
             return
         await self._send_command(0x01, freq_hz)
         self.center_hz = freq_hz
+
+    async def release_ownership(self) -> None:
+        """Release the shared tuner so another instance can take over.
+
+        No-op unless this connection actually owns it over a live control channel
+        (a follower or a raw rtl_tcp has nothing to release). The control channel
+        stays connected — only the token is handed back.
+        """
+        if self.control_available and self.control is not None and self.is_owner:
+            await self.control.release()
+            self.is_owner = False
+
+    async def claim_ownership(self) -> None:
+        """Try to take the shared tuner (an explicit "take control" from a follower).
+
+        Attempts a fresh claim over the control channel; the relay grants it only if
+        the token is actually free, so this safely recovers a follower stuck read-only
+        after the owner left WITHOUT ever stealing an active owner's tuner. No-op for a
+        raw rtl_tcp / when we already own it.
+        """
+        if self.control_available and self.control is not None and not self.is_owner:
+            await self.control.claim()
+            self.is_owner = self.control.is_owner
 
     async def set_demod(self, offset_hz: int, mode: str, bw_hz: int) -> None:
         """Record this instance's demod state and, when we own the shared tuner,
@@ -734,6 +773,12 @@ class RadioBroadcaster:
                         idle_since = time.monotonic()
                     elif time.monotonic() - idle_since >= IDLE_RELEASE_GRACE_S:
                         logger.info("Broadcaster idle, releasing %s:%d", conn.host, conn.port)
+                        # Hand back the tuning token too, not just the IQ socket —
+                        # otherwise this instance keeps owning the shared tuner with
+                        # nobody watching, locking every other instance out. The
+                        # control channel is torn down here; it re-establishes (and
+                        # re-claims only if the user tunes) on the next connect.
+                        await conn.close_control()
                         await conn.disconnect()
                         break
                 else:

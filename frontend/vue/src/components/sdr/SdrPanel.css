@@ -490,6 +490,43 @@
   color: #ffb02e;
 }
 
+/* "Take control" — force a claim of a possibly-freed tuner. Pushed to the far end
+   of the banner row so the message reads first. */
+.sdr-readonly-takeover {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 176, 46, 0.6);
+  border-radius: 5px;
+  background: rgba(255, 176, 46, 0.18);
+  color: #ffce85;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.sdr-readonly-takeover:hover {
+  background: rgba(255, 176, 46, 0.28);
+  border-color: rgba(255, 176, 46, 0.85);
+}
+
+.sdr-readonly-takeover:focus-visible {
+  outline: 2px solid #ffb02e;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdr-readonly-takeover {
+    transition: none;
+  }
+}
+
 .sdr-freq-name {
   margin-top: 4px;
   margin-bottom: 20px;

@@ -202,6 +202,25 @@ async def test_control_client_set_noop_when_unavailable(relay):
     assert relay.received == []
 
 
+async def test_control_client_release_hands_back_token(relay):
+    """release() sends the release op, drops ownership, and keeps the channel open."""
+    client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
+    await client.connect()
+    await client.claim()
+    assert client.is_owner is True
+    await client.release()
+    assert client.is_owner is False
+    assert client.available is True  # channel stays connected (unlike close())
+    assert {"op": "release"} in relay.received
+    await client.close()
+
+
+async def test_control_client_release_noop_when_unavailable(relay):
+    client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
+    await client.release()  # never connected → available False
+    assert relay.received == []
+
+
 async def test_control_client_mirrors_demod_fields_from_state(relay):
     """A relay that echoes offset_hz/mode/bw_hz updates the mirrored demod state."""
     client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
@@ -365,6 +384,7 @@ class FakeControl:
         self.bw_hz = 0
         self.sets: list[dict] = []
         self.claims = 0
+        self.releases = 0
         self.closed = False
 
     async def connect(self) -> bool:
@@ -378,6 +398,11 @@ class FakeControl:
 
     async def set(self, **fields) -> None:
         self.sets.append(fields)
+
+    async def release(self) -> None:
+        self.releases += 1
+        self.is_owner = False
+        self.locked = False
 
     async def close(self) -> None:
         self.closed = True
@@ -502,6 +527,45 @@ async def test_set_gain_manual_control_and_fallback():
         + bytes([0x04])
         + (100).to_bytes(4, "big")
     )
+
+
+async def test_release_ownership_owner_hands_back():
+    conn = _control_conn(owner=True)
+    await conn.release_ownership()
+    assert conn.control.releases == 1
+    assert conn.is_owner is False
+
+
+async def test_release_ownership_noop_for_follower():
+    conn = _control_conn(owner=False, locked=True)
+    await conn.release_ownership()
+    assert conn.control.releases == 0  # nothing to hand back — we don't own it
+
+
+async def test_release_ownership_noop_without_control():
+    conn = _legacy_conn()  # raw rtl_tcp / single instance
+    await conn.release_ownership()  # must not raise
+    assert conn.is_owner is False
+
+
+async def test_claim_ownership_takes_a_free_token():
+    conn = _control_conn(owner=False, locked=False, claim_result=True)
+    await conn.claim_ownership()
+    assert conn.control.claims == 1
+    assert conn.is_owner is True
+
+
+async def test_claim_ownership_denied_while_another_owns():
+    conn = _control_conn(owner=False, locked=True, claim_result=False)
+    await conn.claim_ownership()
+    assert conn.is_owner is False  # relay refused — no steal
+
+
+async def test_claim_ownership_noop_when_already_owner():
+    conn = _control_conn(owner=True)
+    conn.control.claims = 0
+    await conn.claim_ownership()
+    assert conn.control.claims == 0  # already own it → no claim attempt
 
 
 async def test_set_demod_owner_forwards_and_stores():
@@ -763,6 +827,8 @@ class _RouterConn:
         self.control_available = control_available
         self.tuner_locked = locked
         self._read_only = read_only
+        self.released = False
+        self.claimed = False
 
     async def set_frequency(self, freq_hz: int) -> None:
         if self._read_only:
@@ -775,6 +841,13 @@ class _RouterConn:
         self.demod_offset_hz = offset_hz
         self.mode = mode
         self.bw_hz = bw_hz
+
+    async def release_ownership(self) -> None:
+        self.released = True
+        self.is_owner = False
+
+    async def claim_ownership(self) -> None:
+        self.claimed = True
 
 
 class _RouterBroadcaster:
@@ -827,6 +900,28 @@ def test_ws_demod_command_updates_connection(client, monkeypatch):
     assert conn.demod_offset_hz == 25_000
     assert conn.mode == "NFM"
     assert conn.bw_hz == 12_500
+
+
+def test_ws_release_command_hands_back_the_tuner(client, monkeypatch):
+    conn = _RouterConn(is_owner=True, control_available=True, locked=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()  # initial status
+        ws.send_json({"cmd": "release"})
+        ws.send_json({"cmd": "ping"})  # round-trip so the release is applied
+        assert ws.receive_json()["type"] == "pong"
+    assert conn.released is True
+
+
+def test_ws_claim_command_takes_control(client, monkeypatch):
+    conn = _RouterConn(is_owner=False, control_available=True, locked=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()  # initial status
+        ws.send_json({"cmd": "claim"})
+        ws.send_json({"cmd": "ping"})
+        assert ws.receive_json()["type"] == "pong"
+    assert conn.claimed is True
 
 
 def test_ws_read_only_tune_emits_control_frame(client, monkeypatch):

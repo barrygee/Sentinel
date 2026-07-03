@@ -248,6 +248,21 @@ async def test_run_reconnects_and_resumes_streaming_for_subscribers():
 # same dongle, so the loop releases it once idle past the grace period.
 
 
+class _StubControl:
+    """Minimal control-channel stand-in to prove idle release hands back the token."""
+
+    def __init__(self) -> None:
+        self.available = True
+        self.is_owner = True
+        self.locked = True
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+        self.available = False
+        self.is_owner = False
+
+
 async def test_run_releases_idle_dongle_after_grace(monkeypatch):
     monkeypatch.setattr(sdr_svc, "IDLE_RELEASE_GRACE_S", 0.0)
     conn = sdr_svc.RtlTcpConnection(host="10.0.0.9", port=1234)
@@ -255,6 +270,12 @@ async def test_run_releases_idle_dongle_after_grace(monkeypatch):
     conn.reader = _DataReader()  # type: ignore[assignment]
     writer = _RecordingWriter()
     conn.writer = writer  # type: ignore[assignment]
+    # This instance owns the shared tuner: idle release must hand it back, not just
+    # drop the IQ socket, or it would lock every other instance out with nobody here.
+    control = _StubControl()
+    conn.control = control  # type: ignore[assignment]
+    conn.control_available = True
+    conn.is_owner = True
     broadcaster = sdr_svc.RadioBroadcaster(conn)
 
     # No subscribers ever: the loop must release the connection rather than stream
@@ -263,6 +284,10 @@ async def test_run_releases_idle_dongle_after_grace(monkeypatch):
 
     assert conn.connected is False
     assert writer.closed is True
+    # The tuning token was released (control channel torn down).
+    assert control.closed is True
+    assert conn.control is None
+    assert conn.is_owner is False
 
 
 async def test_run_keeps_streaming_while_a_subscriber_is_present(monkeypatch):
