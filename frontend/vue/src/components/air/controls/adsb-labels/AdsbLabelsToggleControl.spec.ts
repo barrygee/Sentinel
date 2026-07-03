@@ -30,7 +30,12 @@ beforeEach(() => {
 })
 
 describe('AdsbLabelsToggleControl constructor', () => {
-  it('seeds visibility from the air store (default off)', () => {
+  it('seeds visibility from the air store (default on)', () => {
+    expect(new AdsbLabelsToggleControl(airStore, null).labelsVisible).toBe(true)
+  })
+
+  it('seeds visibility as off when the store has labels disabled', () => {
+    airStore.setOverlay('adsbLabels', false)
     expect(new AdsbLabelsToggleControl(airStore, null).labelsVisible).toBe(false)
   })
 
@@ -84,6 +89,7 @@ describe('AdsbLabelsToggleControl.onInit', () => {
 
 describe('AdsbLabelsToggleControl.toggle (via click)', () => {
   it('turns labels on, pushes the state to the ADS-B control, and persists it', () => {
+    airStore.setOverlay('adsbLabels', false) // start hidden so the click turns them on
     const { control: adsb, setLabelsVisible } = fakeAdsbControl(true)
     const control = new AdsbLabelsToggleControl(airStore, adsb)
     control.onAdd(emptyMap)
@@ -111,6 +117,7 @@ describe('AdsbLabelsToggleControl.toggle (via click)', () => {
   })
 
   it('still persists the toggle when there is no ADS-B control', () => {
+    airStore.setOverlay('adsbLabels', false) // start hidden so the click turns them on
     const control = new AdsbLabelsToggleControl(airStore, null)
     control.onAdd(emptyMap)
 
@@ -121,11 +128,12 @@ describe('AdsbLabelsToggleControl.toggle (via click)', () => {
   })
 
   it('persists each new visibility to the backend so it syncs across devices', () => {
+    airStore.setOverlay('adsbLabels', false) // start hidden so the first click turns them on
     const { control: adsb } = fakeAdsbControl(true)
     const control = new AdsbLabelsToggleControl(airStore, adsb)
     control.onAdd(emptyMap)
 
-    control.handleClickPublic() // default off -> on
+    control.handleClickPublic() // off -> on
     expect(settingsApi.put).toHaveBeenCalledWith('air', 'labelsVisible', true)
 
     control.handleClickPublic() // on -> off

@@ -93,7 +93,7 @@ const DEFAULT_TAG_FIELDS: AdsbTagFields = {
 
 const DEFAULTS: OverlayStates = {
   adsb: true,
-  adsbLabels: false,
+  adsbLabels: true,
   airports: true,
   militaryBases: true,
   roads: false,
