@@ -237,7 +237,7 @@
               type="button"
               title="Tune"
               aria-label="Tune"
-              :disabled="tuningDisabled || playing || scanActive || searchActive"
+              :disabled="playDisabled || playing || scanActive || searchActive"
               @click="tune"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -308,7 +308,7 @@
               :key="m"
               class="sdr-mode-pill"
               :class="{ active: currentMode === m }"
-              :disabled="controlsDisabled"
+              :disabled="tuningDisabled"
               @click="setMode(m)"
             >
               {{ m }}
@@ -396,7 +396,7 @@
                 <label class="sdr-field-label">BANDWIDTH</label>
                 <span
                   class="sdr-slider-val"
-                  :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
+                  :class="{ 'sdr-slider-val--dimmed': tuningDisabled }"
                   >{{ formatBwHz(bwHz) }}</span
                 >
               </div>
@@ -408,7 +408,7 @@
                 :max="bwMax"
                 step="500"
                 :value="bwHz"
-                :disabled="controlsDisabled"
+                :disabled="tuningDisabled"
                 @input="onBwInput"
               />
             </div>
@@ -2005,11 +2005,22 @@ function _notificationsStore() {
 // rate, scan, search). False for a single instance or a free/unowned tuner.
 const readOnly = computed(() => _sdrStore().readOnly)
 
-// Visual disable for hardware-tuning controls: disabled when there's no usable
-// radio (controlsDisabled) OR this instance is a read-only follower. Local/demod
-// controls (mode, volume, squelch, bandwidth) keep using controlsDisabled so a
-// follower can still listen to the owner's tuned signal.
+// Visual disable for controls a read-only follower must NOT drive: disabled when
+// there's no usable radio (controlsDisabled) OR this instance is a follower. This
+// now also covers mode + bandwidth: under the "mirror the owner exactly" model a
+// follower reproduces the owner's demod (offset/mode/bandwidth) and can't diverge
+// from it. Purely per-listener controls (volume, squelch) stay on controlsDisabled
+// so each watcher keeps its own audio level/gating while still mirroring the tune.
 const tuningDisabled = computed(() => controlsDisabled.value || readOnly.value)
+
+// Play/listen is a LOCAL action: it opens this instance's own IQ socket and
+// demodulates in-browser, so it must NOT be blocked when another instance owns
+// the shared tuner. A read-only follower still needs to press Play to start
+// receiving spectrum/waterfall/audio for the band the owner is tuned to — hence
+// this gates on controlsDisabled (radio usable) only, not tuningDisabled. When
+// the tuner is free (not readOnly) a Play still sends a real tune and claims it,
+// unchanged; when read-only, sendCmd suppresses the hardware tune (see sendCmd).
+const playDisabled = computed(() => controlsDisabled.value)
 
 // Pending external (auto-tune) request, applied once the control socket opens.
 let _pendingExternalTune: {
@@ -2778,6 +2789,22 @@ watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode], () => {
   })
 })
 
+// Publish this instance's within-band demod state (NCO offset, mode, audio
+// bandwidth) to the backend so it can forward it over the relay control channel
+// to read-only followers — letting watchers mirror the EXACT channel this owner
+// is listening to, not just the hardware centre. Only while playing and not a
+// follower ourselves (a follower mirrors; it never publishes). Guarded so a
+// single instance / raw rtl_tcp harmlessly no-ops on the backend.
+watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode, playing], () => {
+  if (!playing.value || _sdrStore().readOnly) return
+  sendCmd({
+    cmd: 'demod',
+    offset_hz: _sdrStore().tuningOffsetHz,
+    bw_hz: bwHz.value,
+    mode: currentMode.value,
+  })
+})
+
 async function openControlSocket(radioId: number) {
   if (_ctrlReconnect) {
     clearTimeout(_ctrlReconnect)
@@ -3447,6 +3474,9 @@ function applyOwnership(msg: {
   sample_rate: number
   gain_db: number
   gain_auto: boolean
+  offset_hz?: number
+  bw_hz?: number
+  mode?: string
 }) {
   // Default to "owner" when the backend omits these fields (a single instance, or
   // a relay without the control channel), so behaviour there is unchanged.
@@ -3462,6 +3492,22 @@ function applyOwnership(msg: {
   gainAuto.value = msg.gain_auto
   if (SAMPLE_RATE_OPTIONS.includes(msg.sample_rate as (typeof SAMPLE_RATE_OPTIONS)[number])) {
     sampleRateHz.value = msg.sample_rate
+  }
+  // Mirror the owner's within-band demod so a follower hears the EXACT channel,
+  // not just the hardware centre: the NCO offset (moves the tuning bar + shifts
+  // the local demod), the demod mode, and the audio bandwidth. Each is optional —
+  // a relay that doesn't carry these leaves the follower at centre-only viewing.
+  if (typeof msg.offset_hz === 'number') {
+    _sdrStore().setTuningOffsetHz(msg.offset_hz)
+    sdrAudio.setOffsetHz(msg.offset_hz)
+  }
+  if (msg.mode && MODES.includes(msg.mode as SdrMode)) {
+    currentMode.value = msg.mode as SdrMode
+    sdrAudio.setMode(msg.mode as SdrMode)
+  }
+  if (typeof msg.bw_hz === 'number' && msg.bw_hz > 0) {
+    bwHz.value = msg.bw_hz
+    sdrAudio.setBandwidthHz(msg.bw_hz)
   }
 }
 

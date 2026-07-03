@@ -110,7 +110,18 @@ class FakeRelayServer:
                         self.owner = True
                         self.locked = True
                 elif operation == "set":
-                    for key in ("center_hz", "sample_rate", "gain_db", "gain_auto"):
+                    # A generic pass-through relay merges every set field into its
+                    # state and rebroadcasts — including the demod fields
+                    # (offset_hz/mode/bw_hz) it doesn't itself interpret.
+                    for key in (
+                        "center_hz",
+                        "sample_rate",
+                        "gain_db",
+                        "gain_auto",
+                        "offset_hz",
+                        "mode",
+                        "bw_hz",
+                    ):
                         if message.get(key) is not None:
                             self.state[key] = message[key]
                 elif operation == "release":
@@ -189,6 +200,36 @@ async def test_control_client_set_noop_when_unavailable(relay):
     # Never connected → available False → set must not raise or send anything.
     await client.set(center_hz=1)
     assert relay.received == []
+
+
+async def test_control_client_mirrors_demod_fields_from_state(relay):
+    """A relay that echoes offset_hz/mode/bw_hz updates the mirrored demod state."""
+    client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
+    await client.connect()
+    await client.claim()
+    await client.set(offset_hz=25_000, mode="NFM", bw_hz=12_500)
+    await _wait_until(lambda: client.offset_hz == 25_000)
+    assert client.offset_hz == 25_000
+    assert client.mode == "NFM"
+    assert client.bw_hz == 12_500
+    await client.close()
+
+
+async def test_control_client_keeps_demod_state_when_fields_absent_or_blank(relay):
+    """Missing demod keys keep the last values; a blank mode never overwrites."""
+    client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
+    await client.connect()
+    await client.claim()
+    await client.set(offset_hz=7_000, mode="AM", bw_hz=6_000)
+    await _wait_until(lambda: client.offset_hz == 7_000)
+    # A later set that omits the demod fields (and sends an empty mode) must not
+    # blank them — the relay echoes no offset/bw and mode:"" here.
+    await client.set(center_hz=90_000_000, mode="")
+    await _wait_until(lambda: client.center_hz == 90_000_000)
+    assert client.offset_hz == 7_000
+    assert client.bw_hz == 6_000
+    assert client.mode == "AM"
+    await client.close()
 
 
 async def test_control_client_on_state_callback_invoked(relay):
@@ -318,6 +359,10 @@ class FakeControl:
         self.sample_rate = 1_024_000
         self.gain_db = 20.0
         self.gain_auto = True
+        # Owner demod state mirrored to followers (offset within band, mode, bw).
+        self.offset_hz = 0
+        self.mode = ""
+        self.bw_hz = 0
         self.sets: list[dict] = []
         self.claims = 0
         self.closed = False
@@ -459,6 +504,34 @@ async def test_set_gain_manual_control_and_fallback():
     )
 
 
+async def test_set_demod_owner_forwards_and_stores():
+    conn = _control_conn(owner=True)
+    await conn.set_demod(offset_hz=30_000, mode="NFM", bw_hz=12_500)
+    assert conn.control.sets == [{"offset_hz": 30_000, "mode": "NFM", "bw_hz": 12_500}]
+    assert conn.demod_offset_hz == 30_000
+    assert conn.mode == "NFM"
+    assert conn.bw_hz == 12_500
+
+
+async def test_set_demod_follower_stores_but_does_not_forward():
+    # A read-only follower must never publish demod state to the relay (it mirrors,
+    # it does not drive) — but it still records its own values locally.
+    conn = _control_conn(owner=False, locked=True)
+    await conn.set_demod(offset_hz=5_000, mode="AM", bw_hz=8_000)
+    assert conn.control.sets == []
+    assert conn.demod_offset_hz == 5_000
+    assert conn.mode == "AM"
+    assert conn.bw_hz == 8_000
+
+
+async def test_set_demod_legacy_stores_without_control():
+    conn = _legacy_conn()  # no control channel (raw rtl_tcp / single instance)
+    await conn.set_demod(offset_hz=1_500, mode="WFM", bw_hz=200_000)
+    assert conn.demod_offset_hz == 1_500
+    assert conn.mode == "WFM"
+    assert conn.bw_hz == 200_000
+
+
 def test_adopt_control_state_copies_fields():
     conn = sdr_svc.RtlTcpConnection(host="h", port=1234)
     control = FakeControl(available=True, owner=False)
@@ -466,11 +539,28 @@ def test_adopt_control_state_copies_fields():
     control.sample_rate = 960_000
     control.gain_db = 8.0
     control.gain_auto = True
+    control.offset_hz = 15_000
+    control.mode = "NFM"
+    control.bw_hz = 12_500
     conn._adopt_control_state(control)
     assert conn.center_hz == 77_000_000
     assert conn.sample_rate == 960_000
     assert conn.gain_db == 8.0
     assert conn.gain_auto is True
+    assert conn.demod_offset_hz == 15_000
+    assert conn.mode == "NFM"
+    assert conn.bw_hz == 12_500
+
+
+def test_adopt_control_state_keeps_mode_when_relay_reports_blank():
+    # A relay that doesn't carry the demod mode reports it as "" — the follower
+    # must keep its existing mode rather than blanking it.
+    conn = sdr_svc.RtlTcpConnection(host="h", port=1234)
+    conn.mode = "AM"
+    control = FakeControl(available=True, owner=False)
+    control.mode = ""
+    conn._adopt_control_state(control)
+    assert conn.mode == "AM"
 
 
 def test_on_control_state_updates_and_notifies():
@@ -620,15 +710,21 @@ def test_connection_status_reports_ownership(monkeypatch):
     conn = _control_conn(owner=True, locked=True)
     conn.connected = True
     monkeypatch.setitem(sdr_svc._connections, "h:1234", conn)
+    conn.demod_offset_hz = 25_000
+    conn.bw_hz = 12_500
     status = sdr_svc.connection_status("h", 1234)
     assert status["is_owner"] is True
     assert status["control_available"] is True
     assert status["locked"] is True
+    assert status["offset_hz"] == 25_000
+    assert status["bw_hz"] == 12_500
 
 
 def test_broadcaster_pushes_control_frame_on_state_change():
     conn = _control_conn(owner=False, locked=True)
     conn.center_hz = 118_500_000
+    conn.demod_offset_hz = 25_000
+    conn.bw_hz = 12_500
     broadcaster = sdr_svc.RadioBroadcaster(conn)
     queue = broadcaster.subscribe()
     broadcaster._on_control_state()
@@ -638,6 +734,8 @@ def test_broadcaster_pushes_control_frame_on_state_change():
     assert frame["control_available"] is True
     assert frame["locked"] is True
     assert frame["center_hz"] == 118_500_000
+    assert frame["offset_hz"] == 25_000
+    assert frame["bw_hz"] == 12_500
 
 
 # ── Router: WS status/control frames + follower connect ───────────────────────
@@ -653,6 +751,10 @@ class _RouterConn:
     mode = "NFM"
     gain_db = 30.0
     gain_auto = False
+    # Demod state the status/control frames now carry so followers mirror the
+    # owner's exact channel (offset within the band + audio bandwidth).
+    demod_offset_hz = 0
+    bw_hz = 0
 
     def __init__(
         self, *, is_owner=True, control_available=False, locked=False, read_only=False
@@ -666,6 +768,13 @@ class _RouterConn:
         if self._read_only:
             raise sdr_svc.ReadOnlyTuningError("owned elsewhere")
         self.center_hz = freq_hz
+
+    async def set_demod(self, offset_hz: int, mode: str, bw_hz: int) -> None:
+        # Records the browser-published demod state (never raises — it touches no
+        # hardware, only the shared control channel when this instance owns it).
+        self.demod_offset_hz = offset_hz
+        self.mode = mode
+        self.bw_hz = bw_hz
 
 
 class _RouterBroadcaster:
@@ -700,6 +809,24 @@ def test_ws_initial_status_includes_ownership(client, monkeypatch):
     assert status["is_owner"] is False
     assert status["control_available"] is True
     assert status["locked"] is True
+    # The status frame carries the demod state so a follower can mirror it.
+    assert status["offset_hz"] == 0
+    assert status["bw_hz"] == 0
+
+
+def test_ws_demod_command_updates_connection(client, monkeypatch):
+    """The owner's `demod` command records its within-band demod state on the conn
+    (which set_demod forwards to followers over the relay control channel)."""
+    conn = _RouterConn(is_owner=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()  # initial status
+        ws.send_json({"cmd": "demod", "offset_hz": 25_000, "mode": "NFM", "bw_hz": 12_500})
+        ws.send_json({"cmd": "ping"})  # round-trip so the demod command is applied
+        assert ws.receive_json()["type"] == "pong"
+    assert conn.demod_offset_hz == 25_000
+    assert conn.mode == "NFM"
+    assert conn.bw_hz == 12_500
 
 
 def test_ws_read_only_tune_emits_control_frame(client, monkeypatch):
@@ -714,6 +841,8 @@ def test_ws_read_only_tune_emits_control_frame(client, monkeypatch):
     assert frame["type"] == "control"
     assert frame["is_owner"] is False
     assert frame["locked"] is True
+    assert frame["offset_hz"] == 0
+    assert frame["bw_hz"] == 0
 
 
 def test_connect_endpoint_succeeds_as_follower(client, monkeypatch):

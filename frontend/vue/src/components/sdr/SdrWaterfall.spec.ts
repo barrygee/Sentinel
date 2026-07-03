@@ -995,6 +995,18 @@ describe('SdrWaterfall — click-to-tune & plot mouse handling', () => {
     expect(tuneSpy).not.toHaveBeenCalled()
   })
 
+  it('ignores click-to-tune for a read-only follower (mirrors the owner)', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    store.setOwnership(false, true, true) // follower: another instance owns tuning
+    await wrapper.vm.$nextTick()
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = spectrumEl(wrapper)
+    await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
+    await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
+    expect(tuneSpy).not.toHaveBeenCalled()
+  })
+
   it('a drag (movement beyond the slop) does not tune', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)
@@ -1061,6 +1073,16 @@ describe('SdrWaterfall — frequency-axis drag pan', () => {
     await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 290 })
     expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
   })
+
+  it('does not start a pan for a read-only follower', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    store.setOwnership(false, true, true)
+    await wrapper.vm.$nextTick()
+    const el = wrapper.find('.sdr-wf-spectrum')
+    await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 290 })
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
 })
 
 // =============================================================================
@@ -1090,6 +1112,24 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
     expect(tuneSpy).toHaveBeenCalled()
+    void wrapper
+  })
+
+  it('drops the bracket-drag commit for a read-only follower', async () => {
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    await startDrag(store)
+    store.setOwnership(false, true, true) // follower mirrors the owner
+    await wrapper.vm.$nextTick()
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const bwSpy = vi.spyOn(store, 'requestBandwidth')
+    specAccordion()._center = 100.5
+    specAccordion()._width = 0.01
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(bwSpy).not.toHaveBeenCalled()
     void wrapper
   })
 
@@ -1303,6 +1343,16 @@ describe('SdrWaterfall — mouse-wheel pan', () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)
     store.setPlaying(false)
+    await wrapper.vm.$nextTick()
+    const el = wrapper.find('.sdr-wf-spectrum')
+    await el.trigger('wheel', { deltaY: -100, deltaMode: 0 })
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
+
+  it('ignores the wheel for a read-only follower', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    store.setOwnership(false, true, true)
     await wrapper.vm.$nextTick()
     const el = wrapper.find('.sdr-wf-spectrum')
     await el.trigger('wheel', { deltaY: -100, deltaMode: 0 })

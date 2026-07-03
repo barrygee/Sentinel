@@ -237,6 +237,10 @@ class _FakeConn:
     mode = "NFM"
     gain_db = 30.0
     gain_auto = False
+    # Demod state the WS status frame now carries so followers can mirror the
+    # owner's exact channel (offset within the band + audio bandwidth).
+    demod_offset_hz = 0
+    bw_hz = 0
     # Tuning-ownership fields the WS status frame reads (no relay control channel
     # in this stub, so it behaves as a sole owner with control unavailable).
     is_owner = True
