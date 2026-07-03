@@ -101,6 +101,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Recolour spectrum tuning bar to app lime green (#159)
 - Coordinate a single tuning owner across instances via relay control channel (#162)
 - Show ADS-B aircraft labels by default (#164)
+- Render ADS-B aircraft labels unconditionally (#165)
 
 ### Bug Fixes
 
