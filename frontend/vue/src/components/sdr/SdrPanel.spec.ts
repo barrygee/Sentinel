@@ -344,6 +344,26 @@ describe('SdrPanel — control socket lifecycle', () => {
     expect(sockets.length).toBeGreaterThan(1)
   })
 
+  it('re-probes reachability so the connection dot self-corrects if the device connects late', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    // Device not reachable when the socket first opens (backend still (re)connecting
+    // after a restart) — the first probe misses and the dot stays red.
+    fetchState.status = { connected: false, reachable: false }
+    const { wrapper } = await mountConnected()
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-off')
+    // Still down one retry later — the dot stays red and another retry is scheduled.
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-off')
+    // The device comes up; the next retry finds it reachable and greens the dot.
+    fetchState.status = { connected: true, reachable: true }
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    vi.useRealTimers()
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-on')
+  })
+
   it('clears a stale radio id and stops when connect returns 404', async () => {
     fetchState.connectStatus = 404
     const wrapper = await mountReady()
@@ -5166,6 +5186,35 @@ describe('SdrPanel — tuning ownership', () => {
     expect(store.readOnly).toBe(false)
     expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
     expect(freqInput(wrapper).disabled).toBe(false)
+  })
+
+  it('disables the Saved-Ranges select + search buttons for a read-only follower', async () => {
+    // A follower must not sweep the shared tuner via a saved search range.
+    searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    expect(
+      (wrapper.find('.sdr-search-range-item-body').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (wrapper.find('.sdr-search-range-item-play').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+  })
+
+  it('disables the Frequency Manager play button for a read-only follower', async () => {
+    // A follower must not tune the shared dongle from a saved frequency.
+    fetchState.frequencies = [makeFreq({ id: 10 })]
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    expect((wrapper.findAll('.sdr-freq-row-play')[0].element as HTMLButtonElement).disabled).toBe(
+      true,
+    )
   })
 
   it('suppresses hardware tuning while read-only but still sends local commands', async () => {

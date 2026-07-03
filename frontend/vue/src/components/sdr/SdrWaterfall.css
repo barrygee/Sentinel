@@ -17,9 +17,10 @@
   overflow: hidden;
   z-index: 1;
   /* Reserve a gutter on the right for the Zoom/Max/Min slider column so the
-   * spectrum + waterfall sit beside the controls rather than under them.
-   * Must match .sdr-wf-controls width. */
-  padding-right: 44px;
+   * spectrum + waterfall sit beside the controls rather than under them. The
+   * control rail is 44px wide (pinned right:0); the extra 12px opens a clear gap
+   * between the plots' right edge and the sliders. */
+  padding-right: 56px;
   /* Align spectrum top with the SDR device select in the side panel
    * (SdrPanel uses .sdr-radio-section--device { padding-top: 20px }). */
   padding-top: 9px;
@@ -33,16 +34,11 @@
 /* Small screens (≤480px): the side rail is hidden while the drawer is closed
  * (see #sdr-sidebar-rail in SdrPanel.css — it only shows with the drawer open),
  * so the 44px left reserve leaves an empty gap to the LEFT of the spectrum/
- * waterfall. Drop it to 0 so the plots use the full left edge. Also widen the
- * right gutter past the 44px control-rail width so there's a clear gap between
- * the plots and the Zoom/Max/Min rail (which stays pinned to the right edge),
- * rather than the plots butting straight up against it. */
+ * waterfall. Drop it to 0 so the plots use the full left edge. (The right gutter
+ * gap is handled by the base padding-right above.) */
 @media (max-width: 480px) {
   #sdr-waterfall.panel-closed {
     left: 0;
-  }
-  #sdr-waterfall {
-    padding-right: 56px;
   }
 }
 
@@ -94,7 +90,9 @@
 .sdr-wf-controls {
   position: absolute;
   top: 0;
-  right: 0;
+  /* Centre the 44px rail in the 56px reserved gutter (#sdr-waterfall
+   * padding-right): (56 − 44) / 2 = 6px clear on each side. */
+  right: 6px;
   width: 44px;
   z-index: 3;
   display: flex;
@@ -298,22 +296,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Read-only alert bar — solid red strip shown when another Sentinel owns the
- * shared tuner. Positioned (left/right/bottom/height) inline from readonlyAlertStyle
- * to occupy the band-plan strip's slot; the band-plan is lifted directly above it.
- * z-index outranks the band overlay (10). Just a centred white padlock, no text.
- * pointer-events:none so it never blocks the spectrum's mouse handlers. */
-.sdr-wf-readonly-alert {
-  position: absolute;
-  z-index: 12;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #d32f2f;
-  color: #ffffff;
-}
-
 /* Vertical tick lines in the freq-label gutter — one line per 0.1 MHz, lined
  * up with the labels sigplot draws below the data box. Sits over the gutter
  * area (left/right/height pushed in from tickGutterStyle); pointer-events:none
@@ -362,10 +344,12 @@
  * edge by the same gap it has above/below. Zero-height strip whose reference
  * line sits on the spectrum data-box top (knownFreqOverlayStyle anchors `top`
  * to bandInsetTopPx); the markers then hang a fixed margin below that line so
- * they read as a layer over the top of the spectrum trace. */
+ * they read as a layer over the top of the spectrum trace. The overlay spans the
+ * full data box and clips its children so a label near the right edge stops at
+ * the grid edge rather than overrunning into the Zoom/Max/Min control rail. */
 .sdr-wf-known-overlay {
   position: absolute;
-  height: 0;
+  overflow: hidden;
   pointer-events: none;
   z-index: 11;
 }
