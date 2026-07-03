@@ -385,18 +385,24 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
 
     config_url = os.environ.get("CONFIG_URL", "http://app:8000/api/sdr/decode/config")
 
-    # Supervise dsd-fme in-process: it exits whenever the backend PCM feed is
-    # unavailable (i.e. digital decode is OFF, so nothing is listening on the PCM
-    # port). Rather than letting the container die and thrash on restart, retry
-    # here with a short backoff so it reconnects cleanly when decode is enabled.
+    # Supervise dsd-fme in-process. Only run it while a decode session is actually
+    # serving PCM (config["active"]): with decode OFF the backend isn't listening on
+    # the PCM port, so launching dsd-fme just makes it fail to connect and spew its
+    # startup banner — every line of which the sidecar would POST and the backend
+    # would reject with 409. So poll the config while idle and launch only once a
+    # session is up; when it ends, dsd-fme exits (PCM EOF) and we return to idling.
     retry_seconds = 3
+    idle_poll_seconds = 2
     while True:
-        # Re-announce the vocoder each cycle so the UI learns voice is available
-        # once a decode session is actually up (this 409s harmlessly when not).
-        post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
-        # Re-read trunk state each cycle so a toggle is honoured on the next
-        # (re)launch — the backend bounces the PCM feed to force that relaunch.
+        # Re-read trunk state + active flag each cycle so a toggle is honoured on
+        # the next (re)launch — the backend bounces the PCM feed to force that.
         config = fetch_decode_config(config_url, secret)
+        if not config.get("active"):
+            time.sleep(idle_poll_seconds)
+            continue
+        # A session is up: announce the vocoder so the UI learns voice is available,
+        # then run dsd-fme until the PCM feed drops (decode disabled / bounced).
+        post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
         try:
             run_dsd_once(events, config)
         except KeyboardInterrupt:
