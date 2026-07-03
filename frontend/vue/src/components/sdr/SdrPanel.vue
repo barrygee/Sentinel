@@ -208,9 +208,7 @@
                 stroke-linejoin="round"
               />
             </svg>
-            <span class="sdr-readonly-banner-text"
-              >Another instance is controlling this radio — tuning is read-only here.</span
-            >
+            <span class="sdr-readonly-banner-text">Another instance is controlling this radio</span>
           </div>
         </div>
 
