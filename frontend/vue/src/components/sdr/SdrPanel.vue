@@ -2582,6 +2582,12 @@ let _ctrlReconnectDelay = 500
 const CTRL_RECONNECT_MAX = 30000
 let _ctrlRadioId: number | null = null
 let _ctrlReconnect: ReturnType<typeof setTimeout> | null = null
+// Bounded retry timer for the connection-dot reachability probe (see
+// _probeReachability): the first probe on socket-open can race the backend
+// finishing its dongle (re)connection.
+let _probeRetry: ReturnType<typeof setTimeout> | null = null
+const PROBE_RETRY_MS = 1500
+const PROBE_MAX_ATTEMPTS = 4
 let _ctrlDataConfirmed = false
 
 function _markInitialised(id: number) {
@@ -3417,19 +3423,33 @@ function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
 // for the first spectrum frame (which only arrives once the user hits Play).
 // This mirrors the Settings device dot, which polls the same endpoint. Guarded
 // by radioId so a probe that resolves after the user switched radios is ignored.
-async function _probeReachability(radioId: number): Promise<void> {
+async function _probeReachability(radioId: number, attempt = 1): Promise<void> {
+  let reachable = false
   try {
     const res = await fetch(`/api/sdr/status/${radioId}`)
     // Race guard: only triggerable if the radio is re-selected mid-probe.
     /* v8 ignore start */
     if (selectedRadioId.value !== radioId) return
     /* v8 ignore stop */
-    if (!res.ok) return
-    const data = await res.json()
-    if (data.connected === true || data.reachable === true) {
-      connected.value = true
+    if (res.ok) {
+      const data = await res.json()
+      reachable = data.connected === true || data.reachable === true
     }
   } catch (_) {}
+  if (reachable) {
+    connected.value = true
+    return
+  }
+  // Not reachable yet. The first probe on socket-open can beat the backend's
+  // dongle (re)connection — e.g. right after a container/backend restart, where
+  // the WS reconnects before the dongle link is back, or another instance briefly
+  // holds the single-client dongle. Retry a few times so the dot self-corrects
+  // once the radio comes up, instead of latching red until Play/reselect. Stop if
+  // the radio changed or another path (a spectrum frame) already lit the dot.
+  if (attempt < PROBE_MAX_ATTEMPTS && _ctrlRadioId === radioId && !connected.value) {
+    if (_probeRetry) clearTimeout(_probeRetry)
+    _probeRetry = setTimeout(() => void _probeReachability(radioId, attempt + 1), PROBE_RETRY_MS)
+  }
 }
 
 function setStatus(isConnected: boolean) {

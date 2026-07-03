@@ -344,6 +344,26 @@ describe('SdrPanel — control socket lifecycle', () => {
     expect(sockets.length).toBeGreaterThan(1)
   })
 
+  it('re-probes reachability so the connection dot self-corrects if the device connects late', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    // Device not reachable when the socket first opens (backend still (re)connecting
+    // after a restart) — the first probe misses and the dot stays red.
+    fetchState.status = { connected: false, reachable: false }
+    const { wrapper } = await mountConnected()
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-off')
+    // Still down one retry later — the dot stays red and another retry is scheduled.
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-off')
+    // The device comes up; the next retry finds it reachable and greens the dot.
+    fetchState.status = { connected: true, reachable: true }
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    vi.useRealTimers()
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-on')
+  })
+
   it('clears a stale radio id and stops when connect returns 404', async () => {
     fetchState.connectStatus = 404
     const wrapper = await mountReady()
