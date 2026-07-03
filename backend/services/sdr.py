@@ -487,12 +487,12 @@ class RtlTcpConnection:
             self.is_owner = False
 
     async def claim_ownership(self) -> None:
-        """Try to take the shared tuner (an explicit "take control" from a follower).
+        """Take the shared tuner when it is free (an actively-watching follower
+        grabbing control the instant the owner releases it — a clean handoff).
 
         Attempts a fresh claim over the control channel; the relay grants it only if
-        the token is actually free, so this safely recovers a follower stuck read-only
-        after the owner left WITHOUT ever stealing an active owner's tuner. No-op for a
-        raw rtl_tcp / when we already own it.
+        the token is actually free, so this never steals an active owner's tuner.
+        No-op for a raw rtl_tcp / when we already own it.
         """
         if self.control_available and self.control is not None and not self.is_owner:
             await self.control.claim()

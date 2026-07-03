@@ -730,6 +730,21 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(bands[0].text()).toBe('Air Band')
   })
 
+  it('lifts the band-plan above the read-only alert bar when another instance controls', async () => {
+    const { wrapper, store, settings } = mountWaterfall()
+    settings.setSetting('sdr', 'bandPlan', [
+      { name: 'Air Band', startHz: 99_000_000, endHz: 101_000_000 },
+    ])
+    store.setShowBandPlan(true)
+    await playWithFrame(store)
+    store.setOwnership(false, true, true) // read-only → alert bar takes the band-plan slot
+    await wrapper.vm.$nextTick()
+    // Both render: the alert occupies the band-plan's slot and the strip is lifted
+    // directly above it (bandOverlayStyle offsets its bottom by the bar height).
+    expect(wrapper.find('.sdr-wf-band-overlay').exists()).toBe(true)
+    expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(true)
+  })
+
   it('renders known-frequency markers within the visible window', async () => {
     const { wrapper, store } = mountWaterfall()
     store.frequencies = [
@@ -1005,6 +1020,19 @@ describe('SdrWaterfall — click-to-tune & plot mouse handling', () => {
     await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
     await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
     expect(tuneSpy).not.toHaveBeenCalled()
+  })
+
+  it('shows the red read-only padlock alert on the spectrum only when read-only', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(false)
+    store.setOwnership(false, true, true) // another instance owns tuning
+    await wrapper.vm.$nextTick()
+    const alert = wrapper.find('.sdr-wf-readonly-alert')
+    expect(alert.exists()).toBe(true)
+    // No text — just a centred padlock icon.
+    expect(alert.text()).toBe('')
+    expect(alert.find('svg').exists()).toBe(true)
   })
 
   it('a drag (movement beyond the slop) does not tune', async () => {
