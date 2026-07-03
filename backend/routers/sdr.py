@@ -1049,6 +1049,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
       { cmd: "tune",        frequency_hz }
       { cmd: "mode",        mode }
       { cmd: "release" }    — owner hands the shared tuner back (stopped/deselected)
+      { cmd: "claim" }      — actively-watching follower auto-takes a freed tuner
       { cmd: "demod",       offset_hz, mode, bw_hz }
                           — owner's within-band demod state (NCO offset, mode, audio
                             bandwidth); forwarded to followers so they mirror the exact
@@ -1115,6 +1116,11 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                         # Owner is done (stopped/deselected): hand the shared tuner
                         # back so another instance can take over. No-op unless we own it.
                         await conn.release_ownership()
+                    elif cmd == "claim":
+                        # An actively-watching follower auto-takes a freed tuner so
+                        # control passes cleanly to it when the owner stops. The relay
+                        # grants it only if the token is free (never steals a live owner).
+                        await conn.claim_ownership()
                     elif cmd == "demod":
                         # Owner publishes its demod state (offset within the band,
                         # mode, audio bandwidth) so read-only followers mirror the

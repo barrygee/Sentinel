@@ -548,6 +548,26 @@ async def test_release_ownership_noop_without_control():
     assert conn.is_owner is False
 
 
+async def test_claim_ownership_takes_a_free_token():
+    conn = _control_conn(owner=False, locked=False, claim_result=True)
+    await conn.claim_ownership()
+    assert conn.control.claims == 1
+    assert conn.is_owner is True
+
+
+async def test_claim_ownership_refused_while_another_owns():
+    conn = _control_conn(owner=False, locked=True, claim_result=False)
+    await conn.claim_ownership()
+    assert conn.is_owner is False  # relay refused — never steals a live owner
+
+
+async def test_claim_ownership_noop_when_already_owner():
+    conn = _control_conn(owner=True)
+    conn.control.claims = 0
+    await conn.claim_ownership()
+    assert conn.control.claims == 0  # already own it → no claim attempt
+
+
 async def test_set_demod_owner_forwards_and_stores():
     conn = _control_conn(owner=True)
     await conn.set_demod(offset_hz=30_000, mode="NFM", bw_hz=12_500)
@@ -813,6 +833,7 @@ class _RouterConn:
         self.tuner_locked = locked
         self._read_only = read_only
         self.released = False
+        self.claimed = False
 
     async def set_frequency(self, freq_hz: int) -> None:
         if self._read_only:
@@ -829,6 +850,9 @@ class _RouterConn:
     async def release_ownership(self) -> None:
         self.released = True
         self.is_owner = False
+
+    async def claim_ownership(self) -> None:
+        self.claimed = True
 
 
 class _RouterBroadcaster:
@@ -892,6 +916,17 @@ def test_ws_release_command_hands_back_the_tuner(client, monkeypatch):
         ws.send_json({"cmd": "ping"})  # round-trip so the release is applied
         assert ws.receive_json()["type"] == "pong"
     assert conn.released is True
+
+
+def test_ws_claim_command_takes_the_free_tuner(client, monkeypatch):
+    conn = _RouterConn(is_owner=False, control_available=True, locked=False)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()  # initial status
+        ws.send_json({"cmd": "claim"})
+        ws.send_json({"cmd": "ping"})  # round-trip so the claim is applied
+        assert ws.receive_json()["type"] == "pong"
+    assert conn.claimed is True
 
 
 def test_ws_read_only_tune_emits_control_frame(client, monkeypatch):

@@ -5354,6 +5354,38 @@ describe('SdrPanel — tuning ownership', () => {
     expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
   })
 
+  it('auto-claims a freed tuner while actively watching (clean handoff)', async () => {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click') // actively watching
+    await flushPromises()
+    socket.sent.length = 0
+    // The owner released elsewhere → the tuner is now free while we watch.
+    socket.message(followerFrame({ is_owner: false, locked: false }))
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'claim')).toBe(true)
+  })
+
+  it('does NOT auto-claim a freed tuner when not playing (ex-owner after Stop)', async () => {
+    const { socket } = await mountConnected()
+    socket.sent.length = 0
+    // Not playing: a freed-tuner frame must not make us grab control back.
+    socket.message(followerFrame({ is_owner: false, locked: false }))
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'claim')).toBe(false)
+  })
+
+  it('does NOT auto-claim while another instance still holds the tuner', async () => {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    socket.message(followerFrame()) // locked: true → another owns it
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'claim')).toBe(false)
+  })
+
   it('clears the read-only padlock when the owner releases the tuner', async () => {
     const { wrapper, socket } = await mountConnected()
     socket.message(followerFrame())

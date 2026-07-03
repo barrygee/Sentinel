@@ -3498,6 +3498,14 @@ function applyOwnership(msg: {
   // a relay without the control channel), so behaviour there is unchanged.
   const owner = msg.is_owner !== false
   _sdrStore().setOwnership(owner, msg.control_available === true, msg.locked === true)
+  // Clean handoff: while actively watching (playing), if the shared tuner just
+  // became FREE (control available, we're not the owner, nobody holds it) claim it
+  // so control passes to us the instant the owner releases — instead of the
+  // ex-owner grabbing it back on its next Play. The relay grants a claim only when
+  // the token is genuinely free, so this never steals from a live owner.
+  if (playing.value && msg.control_available === true && !owner && msg.locked !== true) {
+    sendCmd({ cmd: 'claim' })
+  }
   if (!_sdrStore().readOnly) return
   if (msg.center_hz > 0) {
     currentFreqHz.value = msg.center_hz
