@@ -268,6 +268,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Reflect real radio reachability in status dot and dropdown (#147)
 - Recover shared single-client rtl_tcp dongle instead of staying red (#158)
 - Stop the idle 409 ingest flood by gating dsd-fme on an active session (#163)
+- Flat red read-only notice; remove take-control (#168)
 
 ### Chores
 
