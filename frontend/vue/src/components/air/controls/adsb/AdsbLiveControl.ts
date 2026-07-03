@@ -193,7 +193,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._getTargetPitch = getTargetPitch
     this._onAdsbLabelsSync = onAdsbLabelsSync
     this.visible = airStore.overlayStates.adsb
-    this.labelsVisible = airStore.overlayStates.adsbLabels ?? true
+    // Aircraft labels are permanently on — there is no user-facing toggle. Ignore
+    // any persisted overlay/DB/localStorage value so no machine can start with
+    // labels hidden. `setLabelsVisible` likewise refuses to turn them off.
+    this.labelsVisible = true
     this._geojson = { type: 'FeatureCollection', features: [] }
     this._trailsGeojson = { type: 'FeatureCollection', features: [] }
     this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
@@ -362,7 +365,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.setFilter('adsb-hit', filter as maplibregl.FilterSpecification)
     if (this.map.getLayer('adsb-icons')) {
       this.map.setFilter('adsb-icons', filter as maplibregl.FilterSpecification)
-      if (this.labelsVisible) this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
+      // Labels are permanently on, so HTML markers always replace the symbol
+      // layer — keep the icon symbols hidden after re-filtering.
+      this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
     }
   }
 
@@ -403,7 +408,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const detail = (e as CustomEvent).detail as { civil: string[]; mil: string[] }
       if (detail) this._labelFields = detail
       this._clearCallsignMarkers()
-      if (this.labelsVisible) this._updateCallsignMarkers()
+      this._updateCallsignMarkers()
     }
     window.addEventListener('adsb:labelFieldsChanged', this._onLabelFieldsChanged)
 
@@ -414,7 +419,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       }
       if (detail) this._tagFields = detail
       this._clearCallsignMarkers()
-      if (this.labelsVisible) this._updateCallsignMarkers()
+      this._updateCallsignMarkers()
     }
     window.addEventListener('adsb:tagFieldsChanged', this._onTagFieldsChanged)
 
@@ -1525,17 +1530,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return el
   }
 
-  setLabelsVisible(v: boolean): void {
-    this.labelsVisible = v
-    if (!v) {
-      this._clearCallsignMarkers()
-      if (this.map?.getLayer('adsb-icons'))
-        this.map.setLayoutProperty('adsb-icons', 'visibility', 'visible')
-    } else {
-      this._updateCallsignMarkers()
-      if (this.map?.getLayer('adsb-icons'))
-        this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
-    }
+  // Labels are permanently on (see the constructor). This only (re)asserts label
+  // rendering — e.g. after the ADS-B layer becomes visible again — and never hides
+  // them, so an inbound `false` from any remaining upstream caller is ignored.
+  setLabelsVisible(_v: boolean): void {
+    this.labelsVisible = true
+    this._updateCallsignMarkers()
+    if (this.map?.getLayer('adsb-icons'))
+      this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
   }
 
   private _updateCallsignMarkers(): void {
@@ -2603,9 +2605,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   // Called by AirMultiPlaybackControl each render so click/hover handlers can find features
   setPlaybackFeatures(features: GeoJSON.Feature[]): void {
     this._geojson = { type: 'FeatureCollection', features: features as AircraftGeoFeature[] }
-    if (this.labelsVisible) {
-      this._updateCallsignMarkers()
-    }
+    this._updateCallsignMarkers()
     // Reposition the selected-aircraft tag marker as the plane moves through the playback timeline.
     // _interpolate() is stopped during playback so we must update it here instead.
     if (this._tagMarker && this._tagHex) {

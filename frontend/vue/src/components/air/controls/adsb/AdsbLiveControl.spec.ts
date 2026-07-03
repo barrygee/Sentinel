@@ -321,15 +321,15 @@ afterEach(() => {
 })
 
 describe('AdsbLiveControl constructor', () => {
-  it('seeds visibility and label visibility from the store', () => {
+  it('seeds ADS-B visibility from the store', () => {
     const control = makeControl()
     expect(control.visible).toBe(airStore.overlayStates.adsb)
-    expect(control.labelsVisible).toBe(airStore.overlayStates.adsbLabels)
   })
 
-  it('defaults labelsVisible to true when the store value is undefined', () => {
-    // adsbLabels has a default; force it undefined to hit the ?? true fallback.
-    ;(airStore.overlayStates as unknown as { adsbLabels: undefined }).adsbLabels = undefined
+  it('forces labels on regardless of the persisted overlay value', () => {
+    // Labels are permanently on — there is no toggle. Even a stored `false`
+    // (e.g. seeded into an existing install's DB/localStorage) must not hide them.
+    airStore.setOverlay('adsbLabels', false)
     expect(makeControl().labelsVisible).toBe(true)
   })
 
@@ -550,15 +550,19 @@ describe('AdsbLiveControl._applyTypeFilter', () => {
 })
 
 describe('AdsbLiveControl.setLabelsVisible', () => {
-  it('clears callsign markers and shows the symbol layer when hidden', () => {
+  it('refuses to hide labels — an inbound false keeps them on', () => {
     const { control, map } = mounted()
     map.layers.add('adsb-icons')
+    map.setLayoutProperty.mockClear() // isolate the effect of the call under test
     control.setLabelsVisible(false)
-    expect(control.labelsVisible).toBe(false)
-    expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'visible')
+    // Labels are permanent: state stays true and the symbol layer stays hidden
+    // (HTML markers keep showing), never reverting to the bare symbol layer.
+    expect(control.labelsVisible).toBe(true)
+    expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'none')
+    expect(map.setLayoutProperty).not.toHaveBeenCalledWith('adsb-icons', 'visibility', 'visible')
   })
 
-  it('rebuilds callsign markers and hides the symbol layer when shown', () => {
+  it('rebuilds callsign markers and hides the symbol layer when re-asserted', () => {
     const { control, map } = mounted()
     map.layers.add('adsb-icons')
     seedFeature(control)
