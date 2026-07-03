@@ -92,6 +92,11 @@ describe('AirReplayPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // Pin "today" to 2026-06-10 so the calendar/available-date assertions are
+    // deterministic regardless of the real date the suite runs on. Fake only Date
+    // (not setTimeout/setInterval) so the component's real timers still run; the
+    // one interval test re-enables full fake timers itself.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 5, 10, 12, 0, 0) })
     document.body.innerHTML = ''
     fakeCtx = makeCtx()
     HTMLCanvasElement.prototype.getContext = vi.fn(() => fakeCtx) as never
