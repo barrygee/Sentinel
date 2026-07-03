@@ -269,6 +269,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Recover shared single-client rtl_tcp dongle instead of staying red (#158)
 - Stop the idle 409 ingest flood by gating dsd-fme on an active session (#163)
 - Flat red read-only notice; remove take-control (#168)
+- Spectrum + RADIO panel UI polish, read-only tuning gate & connection-dot fix (#169)
 
 ### Chores
 
