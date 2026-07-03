@@ -187,6 +187,28 @@
           </Teleport>
         </div>
 
+        <!-- Read-only banner: another Sentinel instance owns the shared dongle's
+             tuning. This instance can still listen, but its tuning controls are
+             disabled until the owner releases the tuner. -->
+        <div v-if="readOnly" class="sdr-readonly-banner" role="status" aria-live="polite">
+          <svg
+            class="sdr-readonly-banner-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>Another instance is controlling this radio — tuning is read-only here.</span>
+        </div>
+
         <!-- Frequency -->
         <div class="sdr-radio-section">
           <div class="sdr-freq-row">
@@ -200,7 +222,7 @@
               placeholder=""
               autocomplete="off"
               spellcheck="false"
-              :disabled="controlsDisabled"
+              :disabled="tuningDisabled"
               :readonly="scanActive"
               @keydown.enter="tune"
               @blur="formatFreqInput"
@@ -215,7 +237,7 @@
               type="button"
               title="Tune"
               aria-label="Tune"
-              :disabled="controlsDisabled || playing || scanActive || searchActive"
+              :disabled="tuningDisabled || playing || scanActive || searchActive"
               @click="tune"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -409,7 +431,7 @@
                 class="sdr-device-dropdown"
                 :class="{
                   'sdr-device-dropdown--open': sampleRateMenuOpen,
-                  'sdr-device-dropdown--loading': controlsDisabled,
+                  'sdr-device-dropdown--loading': tuningDisabled,
                 }"
                 tabindex="0"
                 @click.stop="toggleSampleRateMenu"
@@ -461,7 +483,7 @@
                 max="49"
                 step="0.5"
                 :value="gainDb"
-                :disabled="controlsDisabled || gainAuto"
+                :disabled="tuningDisabled || gainAuto"
                 @input="onGainInput"
               />
             </div>
@@ -473,7 +495,7 @@
                   type="checkbox"
                   class="sdr-checkbox"
                   :checked="gainAuto"
-                  :disabled="controlsDisabled"
+                  :disabled="tuningDisabled"
                   @change="onAgcChange"
                 />
                 <span class="sdr-checkbox-custom"></span>
@@ -517,7 +539,7 @@
                 type="button"
                 class="sdr-scan-group-chip"
                 :class="{ 'sdr-scan-group-chip-active': scanAllSelected }"
-                :disabled="controlsDisabled"
+                :disabled="tuningDisabled"
                 @click="toggleScanAll"
               >
                 All
@@ -531,7 +553,7 @@
                   'sdr-scan-group-chip-active':
                     !scanAllSelected && scanSelectedGroupIds.includes(g.id),
                 }"
-                :disabled="controlsDisabled"
+                :disabled="tuningDisabled"
                 @click="toggleScanGroup(g.id)"
               >
                 {{ g.name }}
@@ -542,7 +564,7 @@
                 type="button"
                 class="sdr-search-adhoc-play"
                 :class="{ 'sdr-search-adhoc-play--active': scanActive }"
-                :disabled="controlsDisabled"
+                :disabled="tuningDisabled"
                 :aria-label="scanActive ? 'Stop scan' : 'Start scan'"
                 :title="scanActive ? 'Stop scan' : 'Start scan'"
                 @click="onScanPrimaryClick"
@@ -651,7 +673,7 @@
                   type="button"
                   class="sdr-search-adhoc-play"
                   :class="{ 'sdr-search-adhoc-play--active': isAdhocSearching }"
-                  :disabled="controlsDisabled || (!adhocSearchValid && !isAdhocSearching)"
+                  :disabled="tuningDisabled || (!adhocSearchValid && !isAdhocSearching)"
                   :aria-label="isAdhocSearching ? 'Stop search' : 'Start search'"
                   :title="isAdhocSearching ? 'Stop search' : 'Start search'"
                   @click="onAdhocPlayClick"
@@ -1977,6 +1999,18 @@ function _notificationsStore() {
   return _notifStore
 }
 
+// Read-only follower: the shared dongle is currently owned by another Sentinel
+// instance over the relay control channel. Drives the read-only banner and
+// disables this instance's hardware tuning controls (frequency, gain, sample
+// rate, scan, search). False for a single instance or a free/unowned tuner.
+const readOnly = computed(() => _sdrStore().readOnly)
+
+// Visual disable for hardware-tuning controls: disabled when there's no usable
+// radio (controlsDisabled) OR this instance is a read-only follower. Local/demod
+// controls (mode, volume, squelch, bandwidth) keep using controlsDisabled so a
+// follower can still listen to the owner's tuned signal.
+const tuningDisabled = computed(() => controlsDisabled.value || readOnly.value)
+
 // Pending external (auto-tune) request, applied once the control socket opens.
 let _pendingExternalTune: {
   hz: number
@@ -2544,6 +2578,19 @@ function _isInitialised(id: number) {
 }
 
 function sendCmd(obj: object) {
+  // Read-only follower: another instance owns the shared dongle over the relay
+  // control channel, so suppress hardware-tuning commands (the relay would refuse
+  // them anyway). Local/demod commands (mode, fft_size, digital, ping, …) still
+  // pass through. When the tuner is FREE this is not read-only (locked=false), so
+  // a tune here is allowed and claims ownership. This is the single chokepoint
+  // every retune path funnels through (typed, marker click, wheel, scan, search).
+  const sdrCommand = (obj as { cmd?: string }).cmd
+  if (
+    _sdrStore().readOnly &&
+    (sdrCommand === 'tune' || sdrCommand === 'gain' || sdrCommand === 'sample_rate')
+  ) {
+    return
+  }
   // A hardware tune always recenters the SDR on the new freq, so any prior
   // demod NCO offset (auto-centre OFF) is no longer valid — clear it here, the
   // single chokepoint for every retune path (typed, saved, marker, restore).
@@ -2841,6 +2888,7 @@ async function openControlSocket(radioId: number) {
     switch (msg.type) {
       case 'status':
         applyStatus(msg)
+        applyOwnership(msg)
         // Only trust the device-reported mode once it's actually connected, to
         // match applyStatus (which gates currentMode/the button highlight the
         // same way). An initial connected=false status after a refresh carries
@@ -2875,6 +2923,13 @@ async function openControlSocket(radioId: number) {
             _postTuneFrameCount++
           }
         }
+        break
+      case 'control':
+        // Tuning ownership changed (another instance took/released the shared
+        // dongle, or this client's retune was refused). Reflect it so the UI
+        // disables tuning + shows the read-only banner, and snaps the displayed
+        // frequency back to the owner's real tuning.
+        applyOwnership(msg)
         break
       case 'error':
         _ctrlDataConfirmed = false
@@ -3379,6 +3434,35 @@ function applyStatus(msg: {
   bwHz.value = clampedBw
   sdrAudio.setBandwidthHz(clampedBw)
   saveSettings()
+}
+
+// Reflect tuning ownership from a status/control frame. When this instance is a
+// read-only follower (another instance owns the shared dongle), snap the display
+// back to the owner's real tuning so the frequency/gain/sample-rate never lie.
+function applyOwnership(msg: {
+  is_owner?: boolean
+  control_available?: boolean
+  locked?: boolean
+  center_hz: number
+  sample_rate: number
+  gain_db: number
+  gain_auto: boolean
+}) {
+  // Default to "owner" when the backend omits these fields (a single instance, or
+  // a relay without the control channel), so behaviour there is unchanged.
+  const owner = msg.is_owner !== false
+  _sdrStore().setOwnership(owner, msg.control_available === true, msg.locked === true)
+  if (!_sdrStore().readOnly) return
+  if (msg.center_hz > 0) {
+    currentFreqHz.value = msg.center_hz
+    freqInputVal.value = (msg.center_hz / 1e6).toFixed(4)
+    activeFreqDisplay.value = (msg.center_hz / 1e6).toFixed(3) + ' MHz'
+  }
+  gainDb.value = msg.gain_db
+  gainAuto.value = msg.gain_auto
+  if (SAMPLE_RATE_OPTIONS.includes(msg.sample_rate as (typeof SAMPLE_RATE_OPTIONS)[number])) {
+    sampleRateHz.value = msg.sample_rate
+  }
 }
 
 // ── Radio selection ───────────────────────────────────────────────────────────

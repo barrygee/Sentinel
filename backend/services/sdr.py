@@ -19,14 +19,29 @@ Key commands:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import socket
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class ReadOnlyTuningError(RuntimeError):
+    """Raised when a tuning change is requested but another instance owns the tuner.
+
+    Two Sentinel backends sharing one dongle coordinate a single tuning owner over
+    the relay's control channel (see ``RelayControlClient``). A follower that tries
+    to retune (and can't claim the freed token because the token is held) raises
+    this instead of silently moving — nothing — so the WebSocket layer can tell the
+    browser it is read-only.
+    """
+
 
 # Default FFT parameters
 DEFAULT_FFT_SIZE = 1024  # bins used for spectrum display
@@ -101,6 +116,150 @@ def _enable_tcp_keepalive(writer: asyncio.StreamWriter) -> None:
         logger.debug("Could not set TCP keepalive: %s", exc)
 
 
+# ── Relay tuning-ownership control client ─────────────────────────────────────
+
+
+class RelayControlClient:
+    """Client for the fan-out relay's NDJSON tuning-ownership control channel.
+
+    Connects to the relay's control port (``host:control_port``), claims the single
+    tuning token, and runs a background read loop that keeps ``is_owner`` and the
+    mirrored tuner state (``center_hz``/``sample_rate``/``gain_db``/``gain_auto``) in
+    step with the relay's ``state`` pushes. Tuning changes go out as semantic ``set``
+    messages — the relay (sole writer of commands to the dongle while a token is
+    held) applies them and broadcasts the result, so every follower stays truthful.
+
+    A radio reached directly (raw ``rtl_tcp``) or via a relay without the control
+    channel simply fails to connect here; callers then fall back to driving the IQ
+    socket directly (``available`` stays ``False``).
+    """
+
+    def __init__(self, host: str, port: int, on_state: Callable[[dict], None] | None = None) -> None:
+        self.host = host
+        self.port = port
+        self._on_state = on_state
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._read_task: asyncio.Task | None = None
+        self._state_event = asyncio.Event()  # set on every received state message
+        self.available = False
+        self.is_owner = False
+        self.locked = False  # the token is held by some instance (possibly another)
+        self.center_hz = 0
+        self.sample_rate = 0
+        self.gain_db = 0.0
+        self.gain_auto = False
+
+    async def connect(self) -> bool:
+        """Open the control channel and start the read loop. Returns availability.
+
+        Best-effort: any failure to reach the control port leaves ``available``
+        False so the caller falls back to direct IQ-socket tuning.
+        """
+        try:
+            self._reader, self._writer = await asyncio.wait_for(
+                asyncio.open_connection(self.host, self.port),
+                timeout=settings.sdr_relay_control_timeout_s,
+            )
+        except (TimeoutError, OSError) as exc:
+            logger.info("Relay control channel unavailable at %s:%d (%s)", self.host, self.port, exc)
+            self.available = False
+            return False
+        _enable_tcp_keepalive(self._writer)
+        self.available = True
+        self._read_task = asyncio.create_task(self._read_loop(), name=f"sdr-control-{self.host}:{self.port}")
+        # Consume the relay's initial state push so a later claim()/set() awaits its
+        # OWN response rather than racing this one (both signal the same event).
+        await self._await_next_state()
+        return True
+
+    async def _read_loop(self) -> None:
+        """Apply each ``state`` message the relay pushes (connect, claim, retune)."""
+        reader = self._reader
+        if reader is None:  # pragma: no cover - connect() always sets the reader first
+            return
+        try:
+            while True:
+                line = await reader.readline()
+                if not line:  # relay closed the control connection
+                    break
+                try:
+                    message = json.loads(line)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                if not isinstance(message, dict) or message.get("event") != "state":
+                    continue
+                self.is_owner = bool(message.get("owner"))
+                self.locked = bool(message.get("locked"))
+                self.center_hz = int(message.get("center_hz", self.center_hz))
+                self.sample_rate = int(message.get("sample_rate", self.sample_rate))
+                self.gain_db = float(message.get("gain_db", self.gain_db))
+                self.gain_auto = bool(message.get("gain_auto", self.gain_auto))
+                self._state_event.set()
+                if self._on_state is not None:
+                    self._on_state(message)
+        except (OSError, ConnectionError, asyncio.CancelledError):
+            pass
+
+    async def _send(self, message: dict) -> None:
+        writer = self._writer
+        if writer is None:
+            return
+        writer.write((json.dumps(message) + "\n").encode("utf-8"))
+        await writer.drain()
+
+    async def _await_next_state(self) -> None:
+        """Block until the next state push arrives (bounded by the control timeout)."""
+        self._state_event.clear()
+        try:
+            await asyncio.wait_for(self._state_event.wait(), timeout=settings.sdr_relay_control_timeout_s)
+        except TimeoutError:
+            pass
+
+    async def claim(self) -> bool:
+        """Try to become the tuning owner; returns whether this client now owns it.
+
+        The relay replies with exactly one ``state`` message either way (owner=True
+        if the token was free, owner=False if another client holds it).
+        """
+        if not self.available:
+            return False
+        await self._send({"op": "claim"})
+        await self._await_next_state()
+        return self.is_owner
+
+    async def set(self, **fields: object) -> None:
+        """Send a semantic tuning change. Honoured by the relay only while we own it."""
+        if not self.available:
+            return
+        await self._send({"op": "set", **fields})
+
+    async def close(self) -> None:
+        """Release ownership (best-effort) and tear down the control connection."""
+        if self._writer is not None:
+            try:
+                await self._send({"op": "release"})
+            except OSError:
+                pass
+        if self._read_task is not None:
+            self._read_task.cancel()
+            try:
+                await self._read_task
+            except asyncio.CancelledError:
+                pass
+            self._read_task = None
+        if self._writer is not None:
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except (OSError, ConnectionError):
+                pass
+        self._reader = None
+        self._writer = None
+        self.available = False
+        self.is_owner = False
+
+
 @dataclass
 class RtlTcpConnection:
     host: str
@@ -115,6 +274,29 @@ class RtlTcpConnection:
     mode: str = "AM"
     fft_size: int = DEFAULT_FFT_SIZE
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    # Tuning-ownership control channel (None until the first connect attempt).
+    # ``control_available`` is False for a raw rtl_tcp / pre-control-channel relay,
+    # in which case tuning falls back to direct IQ-socket commands.
+    control: RelayControlClient | None = field(default=None, repr=False)
+    control_available: bool = False
+    is_owner: bool = False
+    # Set by the broadcaster so a relay-pushed retune (the owner moving the dongle)
+    # can be forwarded to this connection's WebSocket subscribers immediately.
+    state_change_callback: Callable[[], None] | None = field(default=None, repr=False)
+
+    @property
+    def control_port(self) -> int:
+        """The relay control-channel port derived from the IQ port + configured offset."""
+        return self.port + settings.sdr_relay_control_port_offset
+
+    @property
+    def tuner_locked(self) -> bool:
+        """Whether the shared tuner is currently owned by some instance (maybe another).
+
+        A follower distinguishes "another instance is tuning" (read-only) from "the
+        token is free" (a tune attempt can take it over) with this flag.
+        """
+        return self.control.locked if self.control is not None else False
 
     async def connect(self) -> None:
         async with self._lock:
@@ -130,18 +312,67 @@ class RtlTcpConnection:
                 logger.info("Connected to rtl_tcp at %s:%d", self.host, self.port)
                 # rtl_tcp sends a 12-byte magic header on connect — discard it
                 await asyncio.wait_for(self.reader.read(12), timeout=3.0)
-                # ALWAYS configure the device immediately. rtl_tcp otherwise
-                # streams at its own default rate (which this Pi can't sustain
-                # over USB/network → ~3 fps, jumpy) until the client happens to
-                # send a sample_rate command. Pushing our defaults here makes
-                # every connect path produce a healthy stream from the start.
-                # (_send_command needs connected+writer, both set above; we're
-                # inside _lock but _send_command doesn't take it — safe.)
-                await self._send_command(0x02, self.sample_rate)  # set sample rate
-                await self._send_command(0x01, self.center_hz)  # set frequency
+                # Establish the tuning-ownership control channel once (it persists
+                # across IQ-socket reconnects so a transient stream drop never costs
+                # ownership). With control available the relay drives the dongle, so
+                # we must NOT also push commands over the IQ socket.
+                await self._ensure_control()
+                if not self.control_available:
+                    # Legacy / raw rtl_tcp path. Configure the device immediately:
+                    # rtl_tcp otherwise streams at its own default rate (which this
+                    # Pi can't sustain → ~3 fps, jumpy) until a sample_rate command
+                    # arrives. Pushing our defaults here makes every connect path
+                    # produce a healthy stream from the start.
+                    await self._send_command(0x02, self.sample_rate)  # set sample rate
+                    await self._send_command(0x01, self.center_hz)  # set frequency
             except Exception as exc:
                 self.connected = False
                 raise ConnectionError(f"Cannot connect to rtl_tcp at {self.host}:{self.port}: {exc}") from exc
+
+    async def _ensure_control(self) -> None:
+        """Connect the control channel and claim ownership, once per connection.
+
+        Idempotent across IQ reconnects. When this client becomes the owner it
+        asserts sample rate + centre frequency (exactly what the legacy direct
+        ``connect()`` pushed, so the stream starts at a healthy rate); gain is left
+        for the explicit connect/WS commands that follow. When another instance
+        already owns the tuner, this client becomes a read-only follower and adopts
+        the relay's reported tuning so its frames are labelled correctly.
+        """
+        if self.control is not None and self.control.available:
+            return
+        control = RelayControlClient(self.host, self.control_port, on_state=self._on_control_state)
+        if not await control.connect():
+            self.control_available = False
+            return
+        self.control = control
+        self.control_available = True
+        became_owner = await control.claim()
+        self.is_owner = became_owner
+        if became_owner:
+            await control.set(sample_rate=self.sample_rate, center_hz=self.center_hz)
+        else:
+            # Follower: adopt the owner's live tuning so our FFT/IQ frames are
+            # labelled with the real centre frequency instead of our stale default.
+            self._adopt_control_state(control)
+
+    def _adopt_control_state(self, control: RelayControlClient) -> None:
+        """Copy the relay's reported tuner state onto this connection."""
+        if control.sample_rate:
+            self.sample_rate = control.sample_rate
+        if control.center_hz:
+            self.center_hz = control.center_hz
+        self.gain_db = control.gain_db
+        self.gain_auto = control.gain_auto
+
+    def _on_control_state(self, _message: dict) -> None:
+        """Relay state push: mirror ownership + tuning, then notify WS subscribers."""
+        if self.control is None:
+            return  # pragma: no cover - callback only fires while control is set
+        self.is_owner = self.control.is_owner
+        self._adopt_control_state(self.control)
+        if self.state_change_callback is not None:
+            self.state_change_callback()
 
     async def disconnect(self) -> None:
         async with self._lock:
@@ -156,6 +387,28 @@ class RtlTcpConnection:
             self.writer = None
             logger.info("Disconnected from rtl_tcp at %s:%d", self.host, self.port)
 
+    async def close_control(self) -> None:
+        """Tear down the control channel (releasing ownership). For permanent close."""
+        if self.control is not None:
+            await self.control.close()
+            self.control = None
+        self.control_available = False
+        self.is_owner = False
+
+    async def _claim_or_read_only(self) -> None:
+        """Ensure this connection owns the tuner before a control-mode tuning change.
+
+        Claims the token if it is free (implicit takeover of an unowned tuner — not
+        the deferred forcible handoff from a live owner); raises ``ReadOnlyTuningError``
+        when another instance holds it so nothing touches the shared hardware.
+        """
+        assert self.control is not None  # control_available implies control is set
+        if not self.control.is_owner:
+            await self.control.claim()
+        if not self.control.is_owner:
+            raise ReadOnlyTuningError(f"another instance owns the tuner at {self.host}:{self.port}")
+        self.is_owner = True
+
     async def _send_command(self, cmd: int, value: int) -> None:
         if not self.connected or not self.writer:
             raise ConnectionError("Not connected")
@@ -164,19 +417,40 @@ class RtlTcpConnection:
         await self.writer.drain()
 
     async def set_frequency(self, freq_hz: int) -> None:
+        if self.control_available and self.control is not None:
+            await self._claim_or_read_only()
+            await self.control.set(center_hz=freq_hz)
+            self.center_hz = freq_hz
+            return
         await self._send_command(0x01, freq_hz)
         self.center_hz = freq_hz
 
     async def set_sample_rate(self, rate_hz: int) -> None:
+        if self.control_available and self.control is not None:
+            await self._claim_or_read_only()
+            await self.control.set(sample_rate=rate_hz)
+            self.sample_rate = rate_hz
+            return
         await self._send_command(0x02, rate_hz)
         self.sample_rate = rate_hz
 
     async def set_gain_auto(self) -> None:
+        if self.control_available and self.control is not None:
+            await self._claim_or_read_only()
+            await self.control.set(gain_auto=True)
+            self.gain_auto = True
+            return
         await self._send_command(0x03, 0)  # gain mode = auto
         await self._send_command(0x08, 1)  # AGC on
         self.gain_auto = True
 
     async def set_gain_manual(self, gain_db: float) -> None:
+        if self.control_available and self.control is not None:
+            await self._claim_or_read_only()
+            await self.control.set(gain_auto=False, gain_db=gain_db)
+            self.gain_db = gain_db
+            self.gain_auto = False
+            return
         await self._send_command(0x03, 1)  # gain mode = manual
         await self._send_command(0x08, 0)  # AGC off
         tenths = max(0, int(round(gain_db * 10)))
@@ -299,8 +573,31 @@ class RadioBroadcaster:
         except asyncio.QueueFull:
             pass
 
+    def _on_control_state(self) -> None:
+        """Relay tuning-ownership change → push a ``control`` frame to subscribers.
+
+        Lets a follower's UI react the instant the owner retunes (or the token frees)
+        rather than waiting to infer it from the next relabelled spectrum frame.
+        """
+        conn = self._conn
+        self._broadcast(
+            {
+                "type": "control",
+                "is_owner": conn.is_owner,
+                "control_available": conn.control_available,
+                "locked": conn.tuner_locked,
+                "center_hz": conn.center_hz,
+                "sample_rate": conn.sample_rate,
+                "gain_db": conn.gain_db,
+                "gain_auto": conn.gain_auto,
+                "mode": conn.mode,
+            }
+        )
+
     async def start(self) -> None:
         async with self._lock:
+            # Forward relay-pushed ownership/tuning changes to WS subscribers.
+            self._conn.state_change_callback = self._on_control_state
             if self._task and not self._task.done():
                 return
             self._task = asyncio.create_task(self._run(), name=f"sdr-broadcast-{self._conn.host}:{self._conn.port}")
@@ -539,6 +836,7 @@ async def close_connection(host: str, port: int) -> None:
         await broadcaster.stop()
     conn = _connections.pop(key, None)
     if conn:
+        await conn.close_control()
         await conn.disconnect()
 
 
@@ -553,6 +851,9 @@ def connection_status(host: str, port: int) -> dict:
         "gain_db": conn.gain_db,
         "gain_auto": conn.gain_auto,
         "mode": conn.mode,
+        "is_owner": conn.is_owner,
+        "control_available": conn.control_available,
+        "locked": conn.tuner_locked,
     }
 
 

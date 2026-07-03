@@ -5091,3 +5091,119 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     expect(await axe(body.html(), { rules: { region: { enabled: false } } })).toHaveNoViolations()
   })
 })
+
+describe('SdrPanel — tuning ownership', () => {
+  const followerFrame = (over: Record<string, unknown> = {}) => ({
+    type: 'control',
+    is_owner: false,
+    control_available: true,
+    locked: true,
+    center_hz: 118_000_000,
+    sample_rate: 1_024_000,
+    gain_db: 15,
+    gain_auto: false,
+    ...over,
+  })
+
+  function freqInput(wrapper: VueWrapper): HTMLInputElement {
+    return wrapper.find('.sdr-freq-input-large').element as HTMLInputElement
+  }
+
+  it('shows the read-only banner and snaps the display when another instance owns tuning', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
+    expect(wrapper.find('.sdr-readonly-banner').attributes('role')).toBe('status')
+    // Display snapped to the owner's real tuning, and tuning controls disabled.
+    expect(freqInput(wrapper).value).toBe('118.0000')
+    expect(freqInput(wrapper).disabled).toBe(true)
+  })
+
+  it('reflects ownership carried on a status frame', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message({
+      type: 'status',
+      connected: true,
+      center_hz: 100_000_000,
+      mode: 'WFM',
+      gain_db: 30,
+      gain_auto: false,
+      sample_rate: 2_048_000,
+      is_owner: false,
+      control_available: true,
+      locked: true,
+    })
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
+  })
+
+  it('keeps controls enabled and hides the banner when this instance owns tuning', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ is_owner: true }))
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(false)
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+    expect(freqInput(wrapper).disabled).toBe(false)
+  })
+
+  it('keeps controls enabled when the tuner is free (unlocked) so a tune can claim it', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ locked: false }))
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(false)
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+    expect(freqInput(wrapper).disabled).toBe(false)
+  })
+
+  it('suppresses hardware tuning while read-only but still sends local commands', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    // Start playing so the marker-retune watcher is active.
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    socket.message(followerFrame({ center_hz: 100_000_000 }))
+    await wrapper.vm.$nextTick()
+    socket.sent.length = 0
+    // A hardware retune is dropped by the read-only guard...
+    store.requestTune(105_000_000, true)
+    await flushPromises()
+    expect(socket.sent.map((sent) => JSON.parse(sent)).some((msg) => msg.cmd === 'tune')).toBe(
+      false,
+    )
+    // ...but a local (non-hardware) command still goes out.
+    store.requestFftSize(8192)
+    await flushPromises()
+    expect(socket.sent.map((sent) => JSON.parse(sent)).some((msg) => msg.cmd === 'fft_size')).toBe(
+      true,
+    )
+  })
+
+  it('ignores a zero centre and an out-of-range sample rate in a read-only frame', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ center_hz: 118_000_000, sample_rate: 999_999, gain_auto: true }))
+    await wrapper.vm.$nextTick()
+    const snapped = freqInput(wrapper).value
+    // A follow-up frame with no centre must not overwrite the display.
+    socket.message(followerFrame({ center_hz: 0, sample_rate: 999_999, gain_auto: true }))
+    await wrapper.vm.$nextTick()
+    expect(freqInput(wrapper).value).toBe(snapped)
+  })
+
+  it('the read-only banner has no accessibility violations', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ center_hz: 100_000_000 }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+})

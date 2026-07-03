@@ -837,20 +837,36 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Radio not found")
     try:
         conn = await sdr_svc.get_or_create_connection(radio["host"], radio["port"])
-        if body.sample_rate is not None:
-            await conn.set_sample_rate(body.sample_rate)
-        if body.frequency_hz is not None:
-            await conn.set_frequency(body.frequency_hz)
-        if body.gain_auto is not None:
-            if body.gain_auto:
-                await conn.set_gain_auto()
-            elif body.gain_db is not None:
-                await conn.set_gain_manual(body.gain_db)
+        try:
+            if body.sample_rate is not None:
+                await conn.set_sample_rate(body.sample_rate)
+            if body.frequency_hz is not None:
+                await conn.set_frequency(body.frequency_hz)
+            if body.gain_auto is not None:
+                if body.gain_auto:
+                    await conn.set_gain_auto()
+                elif body.gain_db is not None:
+                    await conn.set_gain_manual(body.gain_db)
+        except sdr_svc.ReadOnlyTuningError:
+            # Another instance owns the shared tuner: connect as a read-only
+            # follower rather than failing. Hardware tuning is left untouched; the
+            # follower tracks the owner's tuning via the control channel.
+            logger.info("Radio %s connected read-only (another instance owns tuning)", body.radio_id)
+        # Demodulation mode is per-instance (it shapes this client's audio, not the
+        # shared hardware), so a follower may still set it.
         if body.mode is not None:
             conn.mode = body.mode
     except ConnectionError as exc:
         raise HTTPException(503, str(exc)) from exc
-    return JSONResponse({"status": "connected", "radio_id": body.radio_id})
+    return JSONResponse(
+        {
+            "status": "connected",
+            "radio_id": body.radio_id,
+            "is_owner": conn.is_owner,
+            "control_available": conn.control_available,
+            "locked": conn.tuner_locked,
+        }
+    )
 
 
 @router.post("/api/sdr/disconnect")
@@ -1022,7 +1038,11 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
 
     Outbound (server→client):
       { type: "spectrum", center_hz, sample_rate, bins, timestamp_ms }
-      { type: "status",   connected, radio_id, radio_name, center_hz, mode, gain_db, gain_auto }
+      { type: "status",   connected, radio_id, radio_name, center_hz, mode, gain_db, gain_auto, is_owner, control_available, locked }
+      { type: "control",  is_owner, control_available, locked, center_hz, sample_rate, gain_db, gain_auto, mode }
+                          — tuning ownership changed: another instance took/released the
+                            shared tuner, or this client's retune was refused (read-only).
+                            `locked` = the tuner is held by some instance (vs free to claim).
       { type: "error",    code, message }
 
     Inbound (client→server):
@@ -1057,6 +1077,9 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                     "mode": conn.mode,
                     "gain_db": conn.gain_db,
                     "gain_auto": conn.gain_auto,
+                    "is_owner": conn.is_owner,
+                    "control_available": conn.control_available,
+                    "locked": conn.tuner_locked,
                 }
             )
         )
@@ -1111,6 +1134,28 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                         await _handle_trunk_command(websocket, radio, broadcaster, msg)
                     elif cmd == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
+                except sdr_svc.ReadOnlyTuningError:
+                    # Another instance owns the shared tuner — the change was not
+                    # applied. Tell the browser it is read-only so it can disable
+                    # its tuning controls and reflect the owner's real tuning.
+                    try:
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "control",
+                                    "is_owner": False,
+                                    "control_available": conn.control_available,
+                                    "locked": conn.tuner_locked,
+                                    "center_hz": conn.center_hz,
+                                    "sample_rate": conn.sample_rate,
+                                    "gain_db": conn.gain_db,
+                                    "gain_auto": conn.gain_auto,
+                                    "mode": conn.mode,
+                                }
+                            )
+                        )
+                    except (WebSocketDisconnect, RuntimeError):
+                        pass
                 except Exception as exc:
                     logger.warning("SDR command error: %s", exc)
         except (WebSocketDisconnect, asyncio.CancelledError):

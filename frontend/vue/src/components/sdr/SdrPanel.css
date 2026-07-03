@@ -465,6 +465,31 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* Read-only follower banner: shown when another Sentinel instance owns the
+   shared dongle's tuning. Amber, distinct from the lime-green active accent. */
+.sdr-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 176, 46, 0.5);
+  border-radius: 6px;
+  background: rgba(255, 176, 46, 0.12);
+  /* Light amber on the near-black panel — comfortably AA (≈9:1). */
+  color: #ffce85;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+}
+
+.sdr-readonly-banner-icon {
+  flex: 0 0 auto;
+  color: #ffb02e;
+}
+
 .sdr-freq-name {
   margin-top: 4px;
   margin-bottom: 20px;

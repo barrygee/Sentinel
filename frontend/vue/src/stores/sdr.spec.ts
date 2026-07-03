@@ -696,4 +696,38 @@ describe('sdr store', () => {
       expect(store.trunkEnabled).toBe(true)
     })
   })
+
+  describe('tuning ownership', () => {
+    it('defaults to sole owner with no control channel', () => {
+      const store = useSdrStore()
+      expect(store.isOwner).toBe(true)
+      expect(store.controlAvailable).toBe(false)
+      expect(store.locked).toBe(false)
+      expect(store.readOnly).toBe(false)
+    })
+
+    it('setOwnership mirrors the three flags', () => {
+      const store = useSdrStore()
+      store.setOwnership(false, true, true)
+      expect(store.isOwner).toBe(false)
+      expect(store.controlAvailable).toBe(true)
+      expect(store.locked).toBe(true)
+    })
+
+    it('readOnly is true only when control is available, another owns it, and it is locked', () => {
+      const store = useSdrStore()
+      // Follower: control available, not owner, token held elsewhere.
+      store.setOwnership(false, true, true)
+      expect(store.readOnly).toBe(true)
+      // Owner → never read-only.
+      store.setOwnership(true, true, true)
+      expect(store.readOnly).toBe(false)
+      // Free token (not locked) → not read-only, a tune can claim it.
+      store.setOwnership(false, true, false)
+      expect(store.readOnly).toBe(false)
+      // No control channel (direct rtl_tcp) → never read-only.
+      store.setOwnership(false, false, true)
+      expect(store.readOnly).toBe(false)
+    })
+  })
 })

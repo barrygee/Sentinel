@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 export interface SdrRadio {
   id: number
@@ -97,6 +97,17 @@ export const useSdrStore = defineStore('sdr', () => {
   const currentRadioId = ref<number | null>(null)
   const playing = ref(false)
   const connected = ref(false)
+  // Tuning ownership when sharing one dongle across Sentinel instances via the
+  // relay control channel. `controlAvailable` is false for a direct rtl_tcp / a
+  // relay without the control channel, where tuning is always allowed; in that
+  // case `isOwner` stays true so the UI behaves exactly as a single instance.
+  // A read-only follower is `controlAvailable && !isOwner && locked` — `locked`
+  // (the token is held by *some* instance) distinguishes "another instance is
+  // tuning" (read-only) from "the token is free" (a tune attempt can claim it),
+  // so a follower is never stuck read-only after the owner leaves.
+  const isOwner = ref(true)
+  const controlAvailable = ref(false)
+  const locked = ref(false)
   const currentFreqHz = ref(100_000_000)
   const currentMode = ref<SdrMode>('WFM')
   const currentGain = ref(30)
@@ -665,6 +676,19 @@ export const useSdrStore = defineStore('sdr', () => {
     connected.value = val
   }
 
+  // Panel → store mirror of tuning ownership (from the WS status/control frames).
+  // Drives the read-only follower UI: when another instance owns the shared
+  // dongle, tuning controls are disabled and a banner is shown.
+  function setOwnership(owner: boolean, available: boolean, isLocked: boolean) {
+    isOwner.value = owner
+    controlAvailable.value = available
+    locked.value = isLocked
+  }
+
+  // True only when the relay control channel is active, another instance holds the
+  // tuning token, and we are not it — i.e. this instance is a read-only follower.
+  const readOnly = computed(() => controlAvailable.value && !isOwner.value && locked.value)
+
   // Panel → store mirror of the demod bandwidth.
   function setBandwidthHz(hz: number) {
     bwHz.value = hz
@@ -717,6 +741,11 @@ export const useSdrStore = defineStore('sdr', () => {
     currentRadioId,
     playing,
     connected,
+    isOwner,
+    controlAvailable,
+    locked,
+    readOnly,
+    setOwnership,
     currentFreqHz,
     currentMode,
     currentGain,
