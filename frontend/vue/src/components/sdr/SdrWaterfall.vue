@@ -953,7 +953,9 @@ function onPlotMouseUp(e: MouseEvent) {
   // Moved more than the slop? It was a drag/pan, not a click.
   if (Math.abs(e.clientX - mdownX) > CLICK_SLOP_PX || Math.abs(e.clientY - mdownY) > CLICK_SLOP_PX)
     return
-  if (!store.playing) return
+  // Read-only follower: tuning is mirrored from the owner, so ignore click-to-tune
+  // (moving the local marker would diverge from the owner until the next state push).
+  if (!store.playing || store.readOnly) return
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return
@@ -1038,7 +1040,8 @@ function freqDragFlush() {
 // freq-label gutter of the spectrum element. Called from onPlotMouseDown's
 // capture handler so it reliably intercepts before sigplot's canvas listener.
 function tryStartFreqDrag(e: MouseEvent): boolean {
-  if (!store.playing) return false
+  // Followers mirror the owner's tuning — don't let a freq-axis pan retune here.
+  if (!store.playing || store.readOnly) return false
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return false
@@ -1129,7 +1132,8 @@ function wheelFlush() {
 }
 
 function onPlotWheel(e: WheelEvent) {
-  if (!store.playing) return
+  // Followers mirror the owner's tuning — don't let the scroll-to-tune wheel retune.
+  if (!store.playing || store.readOnly) return
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return
@@ -1258,6 +1262,12 @@ function commitAccDrag() {
   /* v8 ignore start */
   if (!specAcc || !wfAcc) return
   /* v8 ignore stop */
+  // Read-only follower: the marker mirrors the owner. Drop any drag commit so it
+  // can't retune/rebandwidth; the marker snaps back on the next owner state push.
+  if (store.readOnly) {
+    clearAccDragFlags()
+    return
+  }
   dragActive = false
   // Read the final geometry from the WATERFALL accordion (Hz, no MHz rounding
   // loss). The mousemove mirror keeps both accordions in lock-step, so either

@@ -1048,6 +1048,10 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     Inbound (client→server):
       { cmd: "tune",        frequency_hz }
       { cmd: "mode",        mode }
+      { cmd: "demod",       offset_hz, mode, bw_hz }
+                          — owner's within-band demod state (NCO offset, mode, audio
+                            bandwidth); forwarded to followers so they mirror the exact
+                            channel the owner hears, not just the hardware centre.
       { cmd: "gain",        gain_db }   — null/omit for auto
       { cmd: "squelch",     squelch_dbfs }
       { cmd: "sample_rate", rate_hz }
@@ -1077,6 +1081,8 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                     "mode": conn.mode,
                     "gain_db": conn.gain_db,
                     "gain_auto": conn.gain_auto,
+                    "offset_hz": conn.demod_offset_hz,
+                    "bw_hz": conn.bw_hz,
                     "is_owner": conn.is_owner,
                     "control_available": conn.control_available,
                     "locked": conn.tuner_locked,
@@ -1104,6 +1110,17 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                         await conn.set_frequency(int(msg["frequency_hz"]))
                     elif cmd == "mode":
                         conn.mode = str(msg.get("mode", "AM"))
+                    elif cmd == "demod":
+                        # Owner publishes its demod state (offset within the band,
+                        # mode, audio bandwidth) so read-only followers mirror the
+                        # exact channel it is listening to, not just the hardware
+                        # centre. No-op on hardware; forwarded to the relay only
+                        # while this instance owns the tuner (see set_demod).
+                        await conn.set_demod(
+                            offset_hz=int(msg.get("offset_hz", 0) or 0),
+                            mode=str(msg.get("mode", conn.mode)),
+                            bw_hz=int(msg.get("bw_hz", 0) or 0),
+                        )
                     elif cmd == "gain":
                         gval = msg.get("gain_db")
                         if gval is None:
@@ -1151,6 +1168,8 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                                     "gain_db": conn.gain_db,
                                     "gain_auto": conn.gain_auto,
                                     "mode": conn.mode,
+                                    "offset_hz": conn.demod_offset_hz,
+                                    "bw_hz": conn.bw_hz,
                                 }
                             )
                         )

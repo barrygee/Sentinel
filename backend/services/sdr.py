@@ -149,6 +149,16 @@ class RelayControlClient:
         self.sample_rate = 0
         self.gain_db = 0.0
         self.gain_auto = False
+        # Owner demod state, mirrored to followers so a read-only watcher hears
+        # EXACTLY what the owner hears — not just the hardware centre. These ride
+        # the same control channel as the hardware params but describe the
+        # per-listener demod: the NCO offset within the band, the demod mode, and
+        # the audio bandwidth. The relay must pass them through set→state (it
+        # already does for gain_db/gain_auto); if it drops them, followers simply
+        # fall back to centre-only viewing.
+        self.offset_hz = 0
+        self.mode = ""
+        self.bw_hz = 0
 
     async def connect(self) -> bool:
         """Open the control channel and start the read loop. Returns availability.
@@ -195,6 +205,17 @@ class RelayControlClient:
                 self.sample_rate = int(message.get("sample_rate", self.sample_rate))
                 self.gain_db = float(message.get("gain_db", self.gain_db))
                 self.gain_auto = bool(message.get("gain_auto", self.gain_auto))
+                # Owner demod state — null-guarded (a relay that doesn't carry these
+                # simply omits them, leaving the follower's last-known values). mode
+                # only updates on a non-empty string so a missing field never blanks
+                # the follower's demod.
+                if message.get("offset_hz") is not None:
+                    self.offset_hz = int(message["offset_hz"])
+                if message.get("bw_hz") is not None:
+                    self.bw_hz = int(message["bw_hz"])
+                mode_value = message.get("mode")
+                if isinstance(mode_value, str) and mode_value:
+                    self.mode = mode_value
                 self._state_event.set()
                 if self._on_state is not None:
                     self._on_state(message)
@@ -272,6 +293,13 @@ class RtlTcpConnection:
     gain_db: float = 30.0
     gain_auto: bool = False
     mode: str = "AM"
+    # Demod state shared owner→followers over the control channel (see
+    # RelayControlClient). `demod_offset_hz` is the NCO offset within the band and
+    # `bw_hz` the audio bandwidth; `mode` above doubles as the shared demod mode.
+    # For an owner these mirror what its browser is doing; for a follower they are
+    # adopted from the relay so its own browser can reproduce the owner's audio.
+    demod_offset_hz: int = 0
+    bw_hz: int = 0
     fft_size: int = DEFAULT_FFT_SIZE
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     # Tuning-ownership control channel (None until the first connect attempt).
@@ -364,6 +392,12 @@ class RtlTcpConnection:
             self.center_hz = control.center_hz
         self.gain_db = control.gain_db
         self.gain_auto = control.gain_auto
+        # Adopt the owner's demod state so a follower's frames/WS carry the real
+        # offset/mode/bandwidth (mode only when the relay actually supplied one).
+        self.demod_offset_hz = control.offset_hz
+        self.bw_hz = control.bw_hz
+        if control.mode:
+            self.mode = control.mode
 
     def _on_control_state(self, _message: dict) -> None:
         """Relay state push: mirror ownership + tuning, then notify WS subscribers."""
@@ -424,6 +458,22 @@ class RtlTcpConnection:
             return
         await self._send_command(0x01, freq_hz)
         self.center_hz = freq_hz
+
+    async def set_demod(self, offset_hz: int, mode: str, bw_hz: int) -> None:
+        """Record this instance's demod state and, when we own the shared tuner,
+        publish it to followers over the relay control channel.
+
+        Unlike ``set_frequency``/``set_gain_*`` this touches no hardware — the demod
+        (NCO offset within the band, mode, audio bandwidth) is done in each browser.
+        We forward it so read-only watchers can reproduce the owner's audio exactly
+        instead of only tracking the hardware centre. A follower never forwards
+        (``is_owner`` is False); a single instance / raw rtl_tcp just stores it.
+        """
+        self.demod_offset_hz = offset_hz
+        self.mode = mode
+        self.bw_hz = bw_hz
+        if self.control_available and self.control is not None and self.is_owner:
+            await self.control.set(offset_hz=offset_hz, mode=mode, bw_hz=bw_hz)
 
     async def set_sample_rate(self, rate_hz: int) -> None:
         if self.control_available and self.control is not None:
@@ -591,6 +641,8 @@ class RadioBroadcaster:
                 "gain_db": conn.gain_db,
                 "gain_auto": conn.gain_auto,
                 "mode": conn.mode,
+                "offset_hz": conn.demod_offset_hz,
+                "bw_hz": conn.bw_hz,
             }
         )
 
@@ -851,6 +903,8 @@ def connection_status(host: str, port: int) -> dict:
         "gain_db": conn.gain_db,
         "gain_auto": conn.gain_auto,
         "mode": conn.mode,
+        "offset_hz": conn.demod_offset_hz,
+        "bw_hz": conn.bw_hz,
         "is_owner": conn.is_owner,
         "control_available": conn.control_available,
         "locked": conn.tuner_locked,

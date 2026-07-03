@@ -5206,4 +5206,98 @@ describe('SdrPanel — tuning ownership', () => {
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
   })
+
+  // ── Part A: a follower can still Play/listen (local IQ demod) ─────────────────
+  const playBtn = (wrapper: VueWrapper) =>
+    wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)')
+
+  it('leaves Play enabled for a read-only follower so it can listen', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    // Play (local IQ demod) must NOT be gated by tuning ownership.
+    expect((playBtn(wrapper).element as HTMLButtonElement).disabled).toBe(false)
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    // Pressing Play opens this instance's own audio pipeline for the owner's band.
+    expect(audioMock.initAudio).toHaveBeenCalledWith(1)
+    expect(store.playing).toBe(true)
+  })
+
+  it('disables mode and bandwidth for a follower (they mirror the owner)', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    const modePill = wrapper.find('.sdr-mode-pills .sdr-mode-pill')
+    expect((modePill.element as HTMLButtonElement).disabled).toBe(true)
+    const sliders = wrapper.findAll('.sdr-panel-slider')
+    // Order: volume, squelch, bandwidth, rf gain. Bandwidth mirrors → disabled;
+    // volume/squelch stay per-listener → enabled.
+    expect((sliders[2].element as HTMLInputElement).disabled).toBe(true) // bandwidth
+    expect((sliders[0].element as HTMLInputElement).disabled).toBe(false) // volume
+    expect((sliders[1].element as HTMLInputElement).disabled).toBe(false) // squelch
+  })
+
+  // ── Part B: a follower mirrors the owner's within-band demod exactly ─────────
+  const activeMode = (wrapper: VueWrapper) =>
+    wrapper
+      .findAll('.sdr-mode-pills .sdr-mode-pill')
+      .find((pill) => pill.classes().includes('active'))
+      ?.text()
+
+  it('mirrors the owner offset, mode, and bandwidth from a control frame', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ offset_hz: 25_000, mode: 'NFM', bw_hz: 12_500 }))
+    await wrapper.vm.$nextTick()
+    expect(store.tuningOffsetHz).toBe(25_000)
+    expect(audioMock.setOffsetHz).toHaveBeenCalledWith(25_000)
+    expect(activeMode(wrapper)).toBe('NFM')
+    expect(audioMock.setMode).toHaveBeenCalledWith('NFM')
+    expect(audioMock.setBandwidthHz).toHaveBeenCalledWith(12_500)
+  })
+
+  it('ignores an unknown mirrored mode and a non-positive bandwidth', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ mode: 'WFM', bw_hz: 200_000 }))
+    await wrapper.vm.$nextTick()
+    audioMock.setMode.mockClear()
+    audioMock.setBandwidthHz.mockClear()
+    socket.message(followerFrame({ mode: 'BOGUS', bw_hz: 0 }))
+    await wrapper.vm.$nextTick()
+    expect(activeMode(wrapper)).toBe('WFM') // unknown mode rejected, prior kept
+    expect(audioMock.setMode).not.toHaveBeenCalled()
+    expect(audioMock.setBandwidthHz).not.toHaveBeenCalled() // bw 0 = "unset", skipped
+  })
+
+  it('publishes this owner’s demod state to the backend when it changes', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    // Play as the owner (no follower frame → is_owner defaults true).
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    store.setTuningOffsetHz(25_000)
+    await flushPromises()
+    const demod = socket.sent.map((sent) => JSON.parse(sent)).find((msg) => msg.cmd === 'demod')
+    expect(demod).toMatchObject({ cmd: 'demod', offset_hz: 25_000 })
+  })
+
+  it('does NOT publish demod state while a read-only follower', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    await playBtn(wrapper).trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    // A mirrored offset arriving from the owner must not be echoed back as a demod.
+    socket.message(followerFrame({ offset_hz: 5_000 }))
+    await flushPromises()
+    expect(socket.sent.map((sent) => JSON.parse(sent)).some((msg) => msg.cmd === 'demod')).toBe(
+      false,
+    )
+  })
 })
