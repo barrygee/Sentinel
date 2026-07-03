@@ -90,7 +90,9 @@
 .sdr-wf-controls {
   position: absolute;
   top: 0;
-  right: 0;
+  /* Centre the 44px rail in the 56px reserved gutter (#sdr-waterfall
+   * padding-right): (56 − 44) / 2 = 6px clear on each side. */
+  right: 6px;
   width: 44px;
   z-index: 3;
   display: flex;
