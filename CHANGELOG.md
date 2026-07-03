@@ -1035,6 +1035,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fix/mobile footer sidepanel buttons (#151)
 - Fix/sdr remove mobile close (#155)
 - Fix/sdr spectrum freq label overlap (#156)
+- Update issue templates
 
 ### Refactoring
 
@@ -1089,6 +1090,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add live axe-core audit (Playwright) + fix two issues it found
 - Add full-stack integration smoke suite with real FastAPI backend
 - Add Playwright end-to-end suite covering all domains
+- Pin the clock in AirReplayPanel tests so they aren't date-sensitive (#161)
 
 ### Build System
 
