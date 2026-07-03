@@ -212,7 +212,7 @@
         </div>
 
         <!-- Frequency -->
-        <div class="sdr-radio-section">
+        <div class="sdr-radio-section sdr-radio-section--freq">
           <div class="sdr-freq-row">
             <input
               ref="freqInputRef"
@@ -415,6 +415,44 @@
               />
             </div>
 
+            <!-- RF Gain -->
+            <div class="sdr-radio-section">
+              <div class="sdr-slider-header">
+                <label class="sdr-field-label">RF GAIN</label>
+                <span
+                  class="sdr-slider-val"
+                  :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
+                  >{{ gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB` }}</span
+                >
+              </div>
+              <input
+                class="sdr-panel-slider"
+                type="range"
+                aria-label="RF gain in dB"
+                min="-1"
+                max="49"
+                step="0.5"
+                :value="gainDb"
+                :disabled="tuningDisabled || gainAuto"
+                @input="onGainInput"
+              />
+            </div>
+
+            <!-- AGC -->
+            <div class="sdr-radio-section sdr-agc-row">
+              <label class="sdr-checkbox-label">
+                <input
+                  type="checkbox"
+                  class="sdr-checkbox"
+                  :checked="gainAuto"
+                  :disabled="tuningDisabled"
+                  @change="onAgcChange"
+                />
+                <span class="sdr-checkbox-custom"></span>
+                <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
+              </label>
+            </div>
+
             <!-- Sample Rate (hardware) — sets the spectrum/waterfall span -->
             <div class="sdr-radio-section">
               <div class="sdr-slider-header">
@@ -465,44 +503,6 @@
                   </div>
                 </div>
               </Teleport>
-            </div>
-
-            <!-- RF Gain -->
-            <div class="sdr-radio-section">
-              <div class="sdr-slider-header">
-                <label class="sdr-field-label">RF GAIN</label>
-                <span
-                  class="sdr-slider-val"
-                  :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-                  >{{ gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB` }}</span
-                >
-              </div>
-              <input
-                class="sdr-panel-slider"
-                type="range"
-                aria-label="RF gain in dB"
-                min="-1"
-                max="49"
-                step="0.5"
-                :value="gainDb"
-                :disabled="tuningDisabled || gainAuto"
-                @input="onGainInput"
-              />
-            </div>
-
-            <!-- AGC -->
-            <div class="sdr-radio-section sdr-agc-row">
-              <label class="sdr-checkbox-label">
-                <input
-                  type="checkbox"
-                  class="sdr-checkbox"
-                  :checked="gainAuto"
-                  :disabled="tuningDisabled"
-                  @change="onAgcChange"
-                />
-                <span class="sdr-checkbox-custom"></span>
-                <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
-              </label>
             </div>
           </div>
         </div>

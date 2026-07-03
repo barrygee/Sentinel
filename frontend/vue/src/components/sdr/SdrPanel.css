@@ -414,6 +414,12 @@
   pointer-events: none;
 }
 
+/* Tighten the gap above the large frequency display (the device dropdown above
+   already leaves a small bottom inset). */
+.sdr-radio-section--freq {
+  padding-top: 6px;
+}
+
 .sdr-freq-row {
   display: flex;
   align-items: baseline;
@@ -629,21 +635,19 @@
 .sdr-checkbox-custom {
   width: 14px;
   height: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Flat dark: no border, just a subtle fill — matches the dropdowns/inputs. */
+  border: none;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  transition: background 0.15s;
 }
 
 .sdr-checkbox:checked + .sdr-checkbox-custom {
   background: rgba(200, 255, 0, 0.12);
-  border-color: rgba(200, 255, 0, 0.6);
 }
 
 .sdr-checkbox:checked + .sdr-checkbox-custom::after {
@@ -913,7 +917,11 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 0 12px 0 20px;
+  /* The list uses margin: 0 -20px to let the hover span full width; the matching
+     20px left/right padding pulls the row content (text + play button) back onto
+     the panel's content margin, so the play button aligns with the other panel
+     elements' right edge instead of overhanging it. */
+  padding: 0 20px;
   background: none;
   border: none;
   text-align: left;
@@ -933,7 +941,9 @@
   gap: 1px;
   flex: 1 1 auto;
   min-width: 0;
-  padding: 13px 4px 13px 4px;
+  /* No left inset: the label/frequency text lines up with the "S" of the
+     SAVED RANGES heading (the panel content margin). */
+  padding: 13px 4px 13px 0;
   background: none;
   border: none;
   color: inherit;
