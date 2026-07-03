@@ -298,6 +298,31 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Read-only alert bar — solid red strip pinned to the bottom of the spectrum,
+ * shown when another instance owns the shared tuner. z-index outranks the band
+ * overlay (10) so it reads as the lowest bar; bottom: 0 keeps it below the
+ * band-plan strip (anchored at bottom: bandInsetBottomPx) when that is visible,
+ * and at the bottom when it is not. pointer-events:none so it never blocks the
+ * spectrum's mouse handlers. White on #d32f2f is AA (~5.3:1). */
+.sdr-wf-readonly-alert {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
+  pointer-events: none;
+  padding: 4px 8px;
+  background: #d32f2f;
+  color: #ffffff;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Vertical tick lines in the freq-label gutter — one line per 0.1 MHz, lined
  * up with the labels sigplot draws below the data box. Sits over the gutter
  * area (left/right/height pushed in from tickGutterStyle); pointer-events:none

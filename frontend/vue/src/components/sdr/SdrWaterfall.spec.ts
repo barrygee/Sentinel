@@ -1007,6 +1007,17 @@ describe('SdrWaterfall — click-to-tune & plot mouse handling', () => {
     expect(tuneSpy).not.toHaveBeenCalled()
   })
 
+  it('shows the red read-only alert at the bottom of the spectrum only when read-only', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(false)
+    store.setOwnership(false, true, true) // another instance owns tuning
+    await wrapper.vm.$nextTick()
+    const alert = wrapper.find('.sdr-wf-readonly-alert')
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).toBe('Another instance is controlling this radio')
+  })
+
   it('a drag (movement beyond the slop) does not tune', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)

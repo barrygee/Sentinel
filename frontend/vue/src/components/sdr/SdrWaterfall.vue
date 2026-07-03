@@ -2467,6 +2467,14 @@ onBeforeUnmount(() => {
           <span class="sdr-wf-known-marker-label">{{ f.label }}</span>
         </div>
       </div>
+      <!-- Read-only alert: another instance controls the shared tuner. Pinned to
+           the bottom of the spectrum (bottom: 0), so it sits below the band-plan
+           strip (anchored higher) when that is shown, and at the bottom regardless.
+           aria-hidden — the side-panel banner already announces this via role=status,
+           so this is a visual reinforcement only (no duplicate screen-reader read). -->
+      <div v-if="store.readOnly" class="sdr-wf-readonly-alert" aria-hidden="true">
+        Another instance is controlling this radio
+      </div>
     </div>
     <div
       ref="wfEl"
