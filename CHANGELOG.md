@@ -99,6 +99,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Toggle the map right-side controls rail from the footer (#154)
 - Restyle spectrum tuning bar in spectrum blue (#157)
 - Recolour spectrum tuning bar to app lime green (#159)
+- Coordinate a single tuning owner across instances via relay control channel (#162)
 
 ### Bug Fixes
 
