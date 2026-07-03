@@ -5359,4 +5359,40 @@ describe('SdrPanel — tuning ownership', () => {
     await flushPromises()
     expect(sentCmds(socket).some((msg) => msg.cmd === 'claim')).toBe(true)
   })
+
+  it('shows a "still in use" note when a take-control claim is refused', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    socket.message({ type: 'claim_result', granted: false })
+    await wrapper.vm.$nextTick()
+    const note = wrapper.find('.sdr-readonly-note')
+    expect(note.exists()).toBe(true)
+    expect(note.text()).toContain('Still controlled by another instance')
+  })
+
+  it('clears the note when a later claim is granted', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    socket.message({ type: 'claim_result', granted: false })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-note').exists()).toBe(true)
+    socket.message({ type: 'claim_result', granted: true })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-note').exists()).toBe(false)
+  })
+
+  it('clears the note when the owner releases (read-only state changes)', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    socket.message({ type: 'claim_result', granted: false })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-note').exists()).toBe(true)
+    // Owner released → tuner free (locked:false) → no longer read-only → banner gone.
+    socket.message(followerFrame({ locked: false }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+  })
 })

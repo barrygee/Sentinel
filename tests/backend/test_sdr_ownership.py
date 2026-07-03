@@ -821,12 +821,19 @@ class _RouterConn:
     bw_hz = 0
 
     def __init__(
-        self, *, is_owner=True, control_available=False, locked=False, read_only=False
+        self,
+        *,
+        is_owner=True,
+        control_available=False,
+        locked=False,
+        read_only=False,
+        claim_grants=False,
     ) -> None:
         self.is_owner = is_owner
         self.control_available = control_available
         self.tuner_locked = locked
         self._read_only = read_only
+        self._claim_grants = claim_grants
         self.released = False
         self.claimed = False
 
@@ -848,6 +855,8 @@ class _RouterConn:
 
     async def claim_ownership(self) -> None:
         self.claimed = True
+        if self._claim_grants:
+            self.is_owner = True
 
 
 class _RouterBroadcaster:
@@ -913,15 +922,30 @@ def test_ws_release_command_hands_back_the_tuner(client, monkeypatch):
     assert conn.released is True
 
 
-def test_ws_claim_command_takes_control(client, monkeypatch):
+def test_ws_claim_command_refused_reports_result(client, monkeypatch):
+    # Tuner still held elsewhere → claim refused → claim_result granted=false so the
+    # UI can say "still in use" instead of leaving the click silent.
     conn = _RouterConn(is_owner=False, control_available=True, locked=True)
     _patch_router(monkeypatch, conn)
     with client.websocket_connect("/ws/sdr/1") as ws:
         ws.receive_json()  # initial status
         ws.send_json({"cmd": "claim"})
-        ws.send_json({"cmd": "ping"})
-        assert ws.receive_json()["type"] == "pong"
+        frame = ws.receive_json()
     assert conn.claimed is True
+    assert frame["type"] == "claim_result"
+    assert frame["granted"] is False
+
+
+def test_ws_claim_command_granted_reports_result(client, monkeypatch):
+    # Tuner free → claim granted → claim_result granted=true.
+    conn = _RouterConn(is_owner=False, control_available=True, locked=True, claim_grants=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()  # initial status
+        ws.send_json({"cmd": "claim"})
+        frame = ws.receive_json()
+    assert frame["type"] == "claim_result"
+    assert frame["granted"] is True
 
 
 def test_ws_read_only_tune_emits_control_frame(client, monkeypatch):
