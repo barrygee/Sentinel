@@ -226,26 +226,11 @@ const bandHeightPx = ref(0)
 const bandOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
-  // While another Sentinel controls the tuner, the read-only alert bar takes the
-  // band-plan's usual slot, so lift the band-plan by the bar's height to sit
-  // directly above it. Otherwise it stays at its normal bottom inset.
-  bottom: `${bandInsetBottomPx.value + (store.readOnly ? bandHeightPx.value : 0)}px`,
+  bottom: `${bandInsetBottomPx.value}px`,
   // bandHeightPx is set > 0 by the init syncBandInset() (it derives from the
   // data-box height, independent of the span) before any band overlay can
   // render, so the `: undefined` fallback is never the evaluated branch.
   /* v8 ignore start */
-  height: bandHeightPx.value > 0 ? `${bandHeightPx.value}px` : undefined,
-  /* v8 ignore stop */
-}))
-
-// Read-only alert bar: occupies the band-plan strip's slot (same data-box width,
-// bottom inset and height), so the band-plan (lifted above via bandOverlayStyle)
-// stacks directly on top of it when shown.
-const readonlyAlertStyle = computed(() => ({
-  left: `${bandInsetLeftPx.value}px`,
-  right: `${bandInsetRightPx.value}px`,
-  bottom: `${bandInsetBottomPx.value}px`,
-  /* v8 ignore start -- bandHeightPx is always >0 once the spectrum has drawn */
   height: bandHeightPx.value > 0 ? `${bandHeightPx.value}px` : undefined,
   /* v8 ignore stop */
 }))
@@ -891,19 +876,18 @@ const tickGutterStyle = computed(() => ({
   height: `${bandInsetBottomPx.value}px`,
 }))
 
-// Inline style for the known-frequency label overlay — a zero-height strip
-// whose reference line sits on the TOP edge of the spectrum's data box, so the
-// markers render as a layer over the top of the spectrum trace (where the noise
-// floor sits, clear of real signals lower down). The overlay is a child of the
-// spectrum, so `top` is measured from the spectrum's content-box top; offsetting
-// by bandInsetTopPx (the data-box top, mx.t) drops the line to the start of the
-// plot area. The markers then hang a fixed margin below that line (see
-// .sdr-wf-known-marker top), matching the gap they previously had from the
-// waterfall's top edge. Horizontal insets match the data box.
+// Inline style for the known-frequency label overlay — a box covering the whole
+// spectrum data box (all four insets match it). The markers hang from its TOP
+// edge, so they render as a layer over the top of the spectrum trace (where the
+// noise floor sits, clear of real signals lower down); `top` = bandInsetTopPx
+// (the data-box top, mx.t). Spanning the full data box (bottom = bandInsetBottomPx)
+// lets the overlay clip its children (overflow:hidden in CSS) so a label near the
+// right edge stops at the grid edge instead of overrunning into the control rail.
 const knownFreqOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
   top: `${bandInsetTopPx.value}px`,
+  bottom: `${bandInsetBottomPx.value}px`,
 }))
 
 // Click-to-tune. Clicking the spectrum or waterfall data area retunes the
@@ -2481,26 +2465,6 @@ onBeforeUnmount(() => {
           </svg>
           <span class="sdr-wf-known-marker-label">{{ f.label }}</span>
         </div>
-      </div>
-      <!-- Read-only alert: another Sentinel controls the shared tuner. Occupies the
-           band-plan strip's slot (bottom: bandInsetBottomPx, same data-box width and
-           height); when the band-plan is shown it is pushed directly above this bar
-           (see bandOverlayStyle). Centred padlock, no text. aria-hidden — the side
-           panel announces the state via an sr-only role=status, so this is visual only. -->
-      <div
-        v-if="store.readOnly"
-        class="sdr-wf-readonly-alert"
-        :style="readonlyAlertStyle"
-        aria-hidden="true"
-      >
-        <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-            stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linejoin="round"
-          />
-        </svg>
       </div>
     </div>
     <div

@@ -730,19 +730,19 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(bands[0].text()).toBe('Air Band')
   })
 
-  it('lifts the band-plan above the read-only alert bar when another instance controls', async () => {
+  it('keeps the band-plan in its normal slot for a read-only follower', async () => {
     const { wrapper, store, settings } = mountWaterfall()
     settings.setSetting('sdr', 'bandPlan', [
       { name: 'Air Band', startHz: 99_000_000, endHz: 101_000_000 },
     ])
     store.setShowBandPlan(true)
     await playWithFrame(store)
-    store.setOwnership(false, true, true) // read-only → alert bar takes the band-plan slot
+    store.setOwnership(false, true, true) // follower: another instance owns tuning
     await wrapper.vm.$nextTick()
-    // Both render: the alert occupies the band-plan's slot and the strip is lifted
-    // directly above it (bandOverlayStyle offsets its bottom by the bar height).
+    // The band-plan still renders when read-only, and there is no read-only overlay
+    // on the spectrum (the padlock/bar was removed — read-only is shown by the panel).
     expect(wrapper.find('.sdr-wf-band-overlay').exists()).toBe(true)
-    expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(true)
+    expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(false)
   })
 
   it('renders known-frequency markers within the visible window', async () => {
@@ -762,7 +762,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(markers[0].find('.sdr-wf-known-marker-label').text()).toBe('ATIS')
   })
 
-  it('anchors the known-frequency overlay to the spectrum data-box top, not the bottom', async () => {
+  it('spans the full spectrum data box so labels clip at the grid edge', async () => {
     const { wrapper, store } = mountWaterfall()
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
@@ -772,11 +772,12 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     await wrapper.vm.$nextTick()
     const overlay = wrapper.find('.sdr-wf-known-overlay')
     expect(overlay.exists()).toBe(true)
-    // The labels now sit at the top of the spectrum (anchored to the data-box top,
-    // bandInsetTopPx), not at the waterfall's top edge (the old `bottom` anchor).
+    // Markers hang from the data-box top (bandInsetTopPx), and the overlay now also
+    // reaches the data-box bottom so it can clip (overflow:hidden) a label that would
+    // otherwise overrun the grid's right edge into the control rail.
     const overlayStyle = overlay.attributes('style') ?? ''
     expect(overlayStyle).toMatch(/top:\s*\d+px/)
-    expect(overlayStyle).not.toContain('bottom')
+    expect(overlayStyle).toMatch(/bottom:\s*\d+px/)
   })
 
   it('renders frequency tick labels in the gutter', async () => {
@@ -1020,19 +1021,6 @@ describe('SdrWaterfall — click-to-tune & plot mouse handling', () => {
     await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
     await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
     expect(tuneSpy).not.toHaveBeenCalled()
-  })
-
-  it('shows the red read-only padlock alert on the spectrum only when read-only', async () => {
-    const { wrapper, store } = mountWaterfall()
-    await playWithFrame(store)
-    expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(false)
-    store.setOwnership(false, true, true) // another instance owns tuning
-    await wrapper.vm.$nextTick()
-    const alert = wrapper.find('.sdr-wf-readonly-alert')
-    expect(alert.exists()).toBe(true)
-    // No text — just a centred padlock icon.
-    expect(alert.text()).toBe('')
-    expect(alert.find('svg').exists()).toBe(true)
   })
 
   it('a drag (movement beyond the slop) does not tune', async () => {
