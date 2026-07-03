@@ -5109,14 +5109,19 @@ describe('SdrPanel — tuning ownership', () => {
     return wrapper.find('.sdr-freq-input-large').element as HTMLInputElement
   }
 
-  it('shows the read-only banner and snaps the display when another instance owns tuning', async () => {
+  it('reddens the device name, shows a padlock + sr-only status, and snaps the display when another instance owns tuning', async () => {
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
     socket.message(followerFrame())
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(true)
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
-    expect(wrapper.find('.sdr-readonly-banner').attributes('role')).toBe('status')
+    // Device name turns red, a padlock shows by the dropdown arrow, and an sr-only
+    // live region announces the state.
+    expect(wrapper.find('.sdr-device-dropdown-text--readonly').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(true)
+    const status = wrapper.find('.sr-only[role="status"]')
+    expect(status.exists()).toBe(true)
+    expect(status.text()).toBe('Another Sentinel is controlling this radio')
     // Display snapped to the owner's real tuning, and tuning controls disabled.
     expect(freqInput(wrapper).value).toBe('118.0000')
     expect(freqInput(wrapper).disabled).toBe(true)
@@ -5139,16 +5144,17 @@ describe('SdrPanel — tuning ownership', () => {
     })
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(true)
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(true)
   })
 
-  it('keeps controls enabled and hides the banner when this instance owns tuning', async () => {
+  it('keeps controls enabled and shows no padlock when this instance owns tuning', async () => {
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
     socket.message(followerFrame({ is_owner: true }))
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(false)
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
+    expect(wrapper.find('.sdr-device-dropdown-text--readonly').exists()).toBe(false)
     expect(freqInput(wrapper).disabled).toBe(false)
   })
 
@@ -5158,7 +5164,7 @@ describe('SdrPanel — tuning ownership', () => {
     socket.message(followerFrame({ locked: false }))
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(false)
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
     expect(freqInput(wrapper).disabled).toBe(false)
   })
 
@@ -5197,11 +5203,11 @@ describe('SdrPanel — tuning ownership', () => {
     expect(freqInput(wrapper).value).toBe(snapped)
   })
 
-  it('the read-only banner has no accessibility violations', async () => {
+  it('the read-only device indicators have no accessibility violations', async () => {
     const { wrapper, socket } = await mountConnected()
     socket.message(followerFrame({ center_hz: 100_000_000 }))
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(true)
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
@@ -5348,14 +5354,14 @@ describe('SdrPanel — tuning ownership', () => {
     expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
   })
 
-  it('clears the read-only banner when the owner releases the tuner', async () => {
+  it('clears the read-only padlock when the owner releases the tuner', async () => {
     const { wrapper, socket } = await mountConnected()
     socket.message(followerFrame())
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(true)
-    // Owner released → tuner free (locked:false) → no longer read-only → banner gone.
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(true)
+    // Owner released → tuner free (locked:false) → no longer read-only → padlock gone.
     socket.message(followerFrame({ locked: false }))
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sdr-readonly-banner').exists()).toBe(false)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
   })
 })

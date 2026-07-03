@@ -256,6 +256,19 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
+/* Another Sentinel controls the shared tuner: the device name turns red and a
+   padlock shows next to the dropdown arrow. Placed after --chosen so it wins.
+   Red #ff5050 on the near-black panel is comfortably AA (~7:1). */
+.sdr-device-dropdown-text--readonly {
+  color: #ff5050;
+}
+
+.sdr-device-lock {
+  flex-shrink: 0;
+  display: block;
+  color: #ff5050;
+}
+
 .sdr-device-dropdown-arrow {
   flex-shrink: 0;
   width: 8px;
@@ -463,31 +476,6 @@
   font-weight: 300;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.6);
-}
-
-/* Read-only notice: shown when another Sentinel instance owns the shared dongle's
-   tuning. Flat red text + padlock on the panel — no background, no border. It sits
-   inside a .sdr-radio-section wrapper, so its margins match the device dropdown.
-   Red #ff5050 on the near-black panel is comfortably AA (~7:1). */
-.sdr-readonly-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #ff5050;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  line-height: 1.35;
-}
-
-.sdr-readonly-banner-icon {
-  flex: 0 0 auto;
-  color: #ff5050;
-}
-
-.sdr-readonly-banner-text {
-  flex: 1 1 auto;
 }
 
 .sdr-freq-name {

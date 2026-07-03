@@ -136,12 +136,36 @@
               ></div>
               <span
                 class="sdr-device-dropdown-text"
-                :class="{ 'sdr-device-dropdown-text--chosen': selectedRadioId !== null }"
+                :class="{
+                  'sdr-device-dropdown-text--chosen': selectedRadioId !== null,
+                  'sdr-device-dropdown-text--readonly': readOnly,
+                }"
                 >{{ deviceDropdownLabel }}</span
               >
+              <!-- Padlock shown when another Sentinel controls the shared tuner;
+                   decorative here (the sr-only status below announces the state). -->
+              <svg
+                v-if="readOnly"
+                class="sdr-device-lock"
+                width="12"
+                height="12"
+                viewBox="0 0 14 14"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  stroke-linejoin="round"
+                />
+              </svg>
               <span class="sdr-device-dropdown-arrow"></span>
             </div>
           </div>
+          <span v-if="readOnly" class="sr-only" role="status"
+            >Another Sentinel is controlling this radio</span
+          >
           <Teleport to="body">
             <div
               v-if="deviceMenuOpen"
@@ -185,31 +209,6 @@
               </div>
             </div>
           </Teleport>
-        </div>
-
-        <!-- Read-only notice: another Sentinel instance owns the shared dongle's
-             tuning. This instance can still listen, but its tuning controls are
-             disabled until the owner releases the tuner. Wrapped in a radio-section
-             so it shares the device dropdown's margins. -->
-        <div v-if="readOnly" class="sdr-radio-section">
-          <div class="sdr-readonly-banner" role="status" aria-live="polite">
-            <svg
-              class="sdr-readonly-banner-icon"
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-                stroke="currentColor"
-                stroke-width="1.3"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <span class="sdr-readonly-banner-text">Another instance is controlling this radio</span>
-          </div>
         </div>
 
         <!-- Frequency -->
