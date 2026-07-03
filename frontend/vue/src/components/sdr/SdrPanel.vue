@@ -731,7 +731,7 @@
                     <button
                       type="button"
                       class="sdr-search-range-item-body"
-                      :disabled="controlsDisabled"
+                      :disabled="tuningDisabled"
                       @click="selectSearchRange(r.id)"
                     >
                       <span class="sdr-search-range-primary">{{ r.label }}</span>
@@ -746,7 +746,7 @@
                       type="button"
                       class="sdr-search-range-item-play"
                       :class="{ 'sdr-search-range-item-play--active': isSavedRangeSearching(r.id) }"
-                      :disabled="controlsDisabled"
+                      :disabled="tuningDisabled"
                       :aria-label="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
                       :title="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
                       @click.stop="onSavedRangePlayClick(r.id)"
@@ -927,6 +927,7 @@
                   class="sdr-freq-row-play"
                   aria-label="Play frequency"
                   title="Play"
+                  :disabled="tuningDisabled"
                   @click.stop="playFreq(f)"
                 >
                   <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -3792,6 +3793,12 @@ function buildScanQueue(): SdrStoredFrequency[] {
 }
 
 function startScan() {
+  // Scanning steps the tuner across channels — a hardware-tuning action a
+  // read-only follower must not perform. The scan controls are disabled in this
+  // state, so this is a defensive chokepoint for any non-UI path.
+  /* v8 ignore start -- scan controls disabled while read-only; defensive guard */
+  if (readOnly.value) return
+  /* v8 ignore stop */
   // startScan only runs from the un-locked toggle path, so scanLocked is false.
   /* v8 ignore start */
   if (scanLocked.value) return
@@ -3966,6 +3973,13 @@ function tuneToFreq(f: SdrStoredFrequency) {
 // Play button on a saved frequency row: tune AND start the audio stream.
 function playFreq(f: SdrStoredFrequency) {
   if (!selectedRadioId.value) return
+  // A read-only follower mirrors the owner's tune; it must not retune the shared
+  // dongle — nor diverge its own local freq/mode/marker — from the Frequency
+  // Manager. The play button is disabled in this state, so this guards only the
+  // non-UI/raced call paths (defensive, hence unreachable in the button test).
+  /* v8 ignore start -- play button disabled while read-only; defensive guard */
+  if (readOnly.value) return
+  /* v8 ignore stop */
   _endRecordingOnManualChange()
   if (scanActive.value) stopScan()
   if (searchActive.value) stopSearch()
@@ -4384,6 +4398,12 @@ function _notifyAutoRestored(
 }
 
 function startSearch(source: 'adhoc' | 'saved') {
+  // Search sweeps the tuner across a range — a hardware-tuning action a read-only
+  // follower must not perform. The start buttons are disabled in this state, so
+  // this is a defensive chokepoint for any non-UI path.
+  /* v8 ignore start -- search start buttons disabled while read-only; defensive guard */
+  if (readOnly.value) return
+  /* v8 ignore stop */
   const r = source === 'adhoc' ? adhocRange() : savedRange(searchSelectedRangeId.value)
   // The play buttons are disabled unless a valid range exists, so r is non-null.
   /* v8 ignore start */

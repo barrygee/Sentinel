@@ -5168,6 +5168,35 @@ describe('SdrPanel — tuning ownership', () => {
     expect(freqInput(wrapper).disabled).toBe(false)
   })
 
+  it('disables the Saved-Ranges select + search buttons for a read-only follower', async () => {
+    // A follower must not sweep the shared tuner via a saved search range.
+    searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    expect(
+      (wrapper.find('.sdr-search-range-item-body').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (wrapper.find('.sdr-search-range-item-play').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+  })
+
+  it('disables the Frequency Manager play button for a read-only follower', async () => {
+    // A follower must not tune the shared dongle from a saved frequency.
+    fetchState.frequencies = [makeFreq({ id: 10 })]
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    expect((wrapper.findAll('.sdr-freq-row-play')[0].element as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+  })
+
   it('suppresses hardware tuning while read-only but still sends local commands', async () => {
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
