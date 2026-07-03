@@ -102,6 +102,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Coordinate a single tuning owner across instances via relay control channel (#162)
 - Show ADS-B aircraft labels by default (#164)
 - Render ADS-B aircraft labels unconditionally (#165)
+- Let shared-dongle followers watch and mirror the owner (#166)
 
 ### Bug Fixes
 
