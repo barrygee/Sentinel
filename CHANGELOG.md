@@ -104,6 +104,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Render ADS-B aircraft labels unconditionally (#165)
 - Let shared-dongle followers watch and mirror the owner (#166)
 - Tuner ownership handoff — release, take control, and flat-dark banner (#167)
+- Harden read-only follower UX and fix stale ownership on reconnect (#170)
 
 ### Bug Fixes
 
