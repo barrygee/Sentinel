@@ -144,7 +144,7 @@ compile — building the decoder is a deliberate local action that compiles
 
 ```bash
 # build + run the app WITH the decoder (the --profile flag is the opt-in)
-docker compose --profile decoder --force-recreate up -d --build     # app on :8080 + decoder sidecar
+docker compose --profile decoder up -d --build     # app on :8080 + decoder sidecar
 
 # follow the decoder as it starts dsd-fme and connects
 docker compose --profile decoder logs -f decoder
