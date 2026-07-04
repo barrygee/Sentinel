@@ -1146,7 +1146,20 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                     if cmd == "tune":
                         await conn.set_frequency(int(msg["frequency_hz"]))
                     elif cmd == "mode":
-                        conn.mode = str(msg.get("mode", "AM"))
+                        # Forward the demod mode to read-only followers over the relay
+                        # control channel, the same way `tune` forwards the centre
+                        # frequency. A follower has no other carrier for the mode (the
+                        # spectrum stream conveys only the hardware centre), so without
+                        # this it tracks the owner's frequency but stays stuck on its
+                        # old mode when the owner switches AM/FM/etc. set_demod stores
+                        # the mode locally and only publishes while we own the shared
+                        # tuner (a no-op for a single instance / raw rtl_tcp),
+                        # preserving the current within-band offset and bandwidth.
+                        await conn.set_demod(
+                            offset_hz=conn.demod_offset_hz,
+                            mode=str(msg.get("mode", conn.mode)),
+                            bw_hz=conn.bw_hz,
+                        )
                     elif cmd == "release":
                         # Owner is done (stopped/deselected): hand the shared tuner
                         # back so another instance can take over. No-op unless we own it.
