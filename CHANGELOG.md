@@ -105,6 +105,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Let shared-dongle followers watch and mirror the owner (#166)
 - Tuner ownership handoff — release, take control, and flat-dark banner (#167)
 - Harden read-only follower UX and fix stale ownership on reconnect (#170)
+- Harden read-only follower UX and fix stale ownership on reconnect (#171)
 
 ### Bug Fixes
 
