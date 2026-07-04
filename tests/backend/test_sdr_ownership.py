@@ -124,6 +124,19 @@ class FakeRelayServer:
                     ):
                         if message.get(key) is not None:
                             self.state[key] = message[key]
+                    # Sweep fields ride through verbatim (the real relay passes
+                    # unknown fields as-is), including explicit nulls that clear the
+                    # search bounds when the owner stops searching.
+                    for key in (
+                        "scan_active",
+                        "scan_groups",
+                        "search_active",
+                        "search_low_hz",
+                        "search_high_hz",
+                        "search_current_hz",
+                    ):
+                        if key in message:
+                            self.state[key] = message[key]
                 elif operation == "release":
                     self.owner = False
                     self.locked = False
@@ -248,6 +261,55 @@ async def test_control_client_keeps_demod_state_when_fields_absent_or_blank(rela
     assert client.offset_hz == 7_000
     assert client.bw_hz == 6_000
     assert client.mode == "AM"
+    await client.close()
+
+
+async def test_control_client_mirrors_sweep_state_from_state(relay):
+    """A relay that echoes the sweep fields updates the mirrored scan/search state,
+    and an explicit null clears the search bounds when the owner stops searching."""
+    client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
+    await client.connect()
+    await client.claim()
+    await client.set(
+        scan_active=True,
+        scan_groups=["Airband", "Marine"],
+        search_active=True,
+        search_low_hz=156_000_000,
+        search_high_hz=162_000_000,
+        search_current_hz=158_000_000,
+    )
+    await _wait_until(lambda: client.scan_active is True)
+    assert client.scan_groups == ["Airband", "Marine"]
+    assert client.search_active is True
+    assert client.search_low_hz == 156_000_000
+    assert client.search_high_hz == 162_000_000
+    assert client.search_current_hz == 158_000_000
+    # Owner stops searching → nulls clear the bounds, false clears the flag.
+    await client.set(
+        search_active=False,
+        search_low_hz=None,
+        search_high_hz=None,
+        search_current_hz=None,
+    )
+    await _wait_until(lambda: client.search_active is False)
+    assert client.search_low_hz is None
+    assert client.search_high_hz is None
+    assert client.search_current_hz is None
+    await client.close()
+
+
+async def test_control_client_marks_unavailable_when_relay_closes():
+    """When the relay drops the control connection (reap / restart), the read loop
+    marks the channel unavailable so the next _ensure_control rebuilds it rather than
+    trusting a dead socket with stale ownership."""
+    server = FakeRelayServer()
+    await server.start()
+    client = sdr_svc.RelayControlClient("127.0.0.1", server.port)
+    await client.connect()
+    assert client.available is True
+    await server.stop()  # relay closes the control connection
+    await _wait_until(lambda: client.available is False)
+    assert client.available is False
     await client.close()
 
 
@@ -382,6 +444,13 @@ class FakeControl:
         self.offset_hz = 0
         self.mode = ""
         self.bw_hz = 0
+        # Owner scanner/search sweep state mirrored to followers.
+        self.scan_active = False
+        self.scan_groups: list[str] = []
+        self.search_active = False
+        self.search_low_hz: int | None = None
+        self.search_high_hz: int | None = None
+        self.search_current_hz: int | None = None
         self.sets: list[dict] = []
         self.claims = 0
         self.releases = 0
@@ -596,6 +665,63 @@ async def test_set_demod_legacy_stores_without_control():
     assert conn.bw_hz == 200_000
 
 
+async def test_set_sweep_state_owner_forwards_and_stores():
+    conn = _control_conn(owner=True)
+    await conn.set_sweep_state(
+        scan_active=True,
+        scan_groups=["Airband"],
+        search_active=False,
+        search_low_hz=None,
+        search_high_hz=None,
+        search_current_hz=None,
+    )
+    assert conn.control.sets == [
+        {
+            "scan_active": True,
+            "scan_groups": ["Airband"],
+            "search_active": False,
+            "search_low_hz": None,
+            "search_high_hz": None,
+            "search_current_hz": None,
+        }
+    ]
+    assert conn.scan_active is True
+    assert conn.scan_groups == ["Airband"]
+
+
+async def test_set_sweep_state_follower_stores_but_does_not_forward():
+    # A read-only follower must never publish sweep state to the relay (it mirrors,
+    # it does not drive) — but it still records its own values locally.
+    conn = _control_conn(owner=False, locked=True)
+    await conn.set_sweep_state(
+        scan_active=False,
+        scan_groups=[],
+        search_active=True,
+        search_low_hz=156_000_000,
+        search_high_hz=162_000_000,
+        search_current_hz=158_000_000,
+    )
+    assert conn.control.sets == []
+    assert conn.search_active is True
+    assert conn.search_low_hz == 156_000_000
+    assert conn.search_high_hz == 162_000_000
+    assert conn.search_current_hz == 158_000_000
+
+
+async def test_set_sweep_state_legacy_stores_without_control():
+    conn = _legacy_conn()  # no control channel (raw rtl_tcp / single instance)
+    await conn.set_sweep_state(
+        scan_active=True,
+        scan_groups=["Marine"],
+        search_active=False,
+        search_low_hz=None,
+        search_high_hz=None,
+        search_current_hz=None,
+    )
+    assert conn.scan_active is True
+    assert conn.scan_groups == ["Marine"]
+
+
 def test_adopt_control_state_copies_fields():
     conn = sdr_svc.RtlTcpConnection(host="h", port=1234)
     control = FakeControl(available=True, owner=False)
@@ -606,6 +732,12 @@ def test_adopt_control_state_copies_fields():
     control.offset_hz = 15_000
     control.mode = "NFM"
     control.bw_hz = 12_500
+    control.scan_active = True
+    control.scan_groups = ["Airband", "Marine"]
+    control.search_active = True
+    control.search_low_hz = 156_000_000
+    control.search_high_hz = 162_000_000
+    control.search_current_hz = 158_000_000
     conn._adopt_control_state(control)
     assert conn.center_hz == 77_000_000
     assert conn.sample_rate == 960_000
@@ -614,6 +746,12 @@ def test_adopt_control_state_copies_fields():
     assert conn.demod_offset_hz == 15_000
     assert conn.mode == "NFM"
     assert conn.bw_hz == 12_500
+    assert conn.scan_active is True
+    assert conn.scan_groups == ["Airband", "Marine"]
+    assert conn.search_active is True
+    assert conn.search_low_hz == 156_000_000
+    assert conn.search_high_hz == 162_000_000
+    assert conn.search_current_hz == 158_000_000
 
 
 def test_adopt_control_state_keeps_mode_when_relay_reports_blank():
@@ -692,8 +830,33 @@ async def test_ensure_control_unavailable_falls_back(monkeypatch):
 async def test_ensure_control_idempotent():
     conn = _control_conn(owner=True)
     existing = conn.control
-    await conn._ensure_control()  # already available → early return
+    await (
+        conn._ensure_control()
+    )  # already available → reconnect re-validate, same channel
     assert conn.control is existing
+
+
+async def test_ensure_control_reconnect_keeps_ownership_when_still_owner():
+    # Reconnect path (control still up): re-claim confirms we still own the tuner.
+    conn = _control_conn(owner=True)
+    await conn._ensure_control()
+    assert conn.is_owner is True
+    assert conn.control.claims == 1  # re-validated via a fresh claim, not blind trust
+
+
+async def test_ensure_control_reconnect_demotes_when_token_reassigned():
+    # Reconnect after the relay reaped us and handed the token to another instance:
+    # the control channel is still up, but the re-claim now fails → we drop to a
+    # read-only follower and adopt the new owner's tuning, and WS subscribers are told.
+    conn = _control_conn(owner=True)
+    conn.control._claim_result = False  # relay refuses the claim (another owns it now)
+    conn.control.center_hz = 118_000_000
+    notified: list[bool] = []
+    conn.state_change_callback = lambda: notified.append(True)
+    await conn._ensure_control()
+    assert conn.is_owner is False
+    assert conn.center_hz == 118_000_000  # adopted the new owner's tuning
+    assert notified == [True]
 
 
 async def test_close_control_releases_and_resets():
@@ -789,6 +952,12 @@ def test_broadcaster_pushes_control_frame_on_state_change():
     conn.center_hz = 118_500_000
     conn.demod_offset_hz = 25_000
     conn.bw_hz = 12_500
+    conn.scan_active = True
+    conn.scan_groups = ["Airband"]
+    conn.search_active = True
+    conn.search_low_hz = 156_000_000
+    conn.search_high_hz = 162_000_000
+    conn.search_current_hz = 158_000_000
     broadcaster = sdr_svc.RadioBroadcaster(conn)
     queue = broadcaster.subscribe()
     broadcaster._on_control_state()
@@ -800,6 +969,14 @@ def test_broadcaster_pushes_control_frame_on_state_change():
     assert frame["center_hz"] == 118_500_000
     assert frame["offset_hz"] == 25_000
     assert frame["bw_hz"] == 12_500
+    # The control frame carries the owner's sweep state so followers can render the
+    # same scan/search overlay.
+    assert frame["scan_active"] is True
+    assert frame["scan_groups"] == ["Airband"]
+    assert frame["search_active"] is True
+    assert frame["search_low_hz"] == 156_000_000
+    assert frame["search_high_hz"] == 162_000_000
+    assert frame["search_current_hz"] == 158_000_000
 
 
 # ── Router: WS status/control frames + follower connect ───────────────────────
@@ -819,6 +996,14 @@ class _RouterConn:
     # owner's exact channel (offset within the band + audio bandwidth).
     demod_offset_hz = 0
     bw_hz = 0
+    # Sweep state the status/control frames now carry so followers render the same
+    # scan/search overlay.
+    scan_active = False
+    scan_groups: list[str] = []
+    search_active = False
+    search_low_hz: int | None = None
+    search_high_hz: int | None = None
+    search_current_hz: int | None = None
 
     def __init__(
         self,
@@ -834,6 +1019,34 @@ class _RouterConn:
         self._read_only = read_only
         self.released = False
         self.claimed = False
+        self.sweep: dict | None = None
+
+    async def set_sweep_state(
+        self,
+        *,
+        scan_active: bool,
+        scan_groups: list[str],
+        search_active: bool,
+        search_low_hz: int | None,
+        search_high_hz: int | None,
+        search_current_hz: int | None,
+    ) -> None:
+        # Records the browser-published sweep state (never raises — like set_demod
+        # it touches no hardware, only the shared control channel when we own it).
+        self.scan_active = scan_active
+        self.scan_groups = scan_groups
+        self.search_active = search_active
+        self.search_low_hz = search_low_hz
+        self.search_high_hz = search_high_hz
+        self.search_current_hz = search_current_hz
+        self.sweep = {
+            "scan_active": scan_active,
+            "scan_groups": scan_groups,
+            "search_active": search_active,
+            "search_low_hz": search_low_hz,
+            "search_high_hz": search_high_hz,
+            "search_current_hz": search_current_hz,
+        }
 
     async def set_frequency(self, freq_hz: int) -> None:
         if self._read_only:
@@ -899,12 +1112,107 @@ def test_ws_demod_command_updates_connection(client, monkeypatch):
     _patch_router(monkeypatch, conn)
     with client.websocket_connect("/ws/sdr/1") as ws:
         ws.receive_json()  # initial status
-        ws.send_json({"cmd": "demod", "offset_hz": 25_000, "mode": "NFM", "bw_hz": 12_500})
+        ws.send_json(
+            {"cmd": "demod", "offset_hz": 25_000, "mode": "NFM", "bw_hz": 12_500}
+        )
         ws.send_json({"cmd": "ping"})  # round-trip so the demod command is applied
         assert ws.receive_json()["type"] == "pong"
     assert conn.demod_offset_hz == 25_000
     assert conn.mode == "NFM"
     assert conn.bw_hz == 12_500
+
+
+def test_ws_sweep_state_command_updates_connection(client, monkeypatch):
+    """The owner's `sweep_state` command records its scanner/search sweep state on the
+    conn (which set_sweep_state forwards to followers), with inputs sanitized."""
+    conn = _RouterConn(is_owner=True, control_available=True, locked=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()  # initial status
+        ws.send_json(
+            {
+                "cmd": "sweep_state",
+                "scan_active": True,
+                "scan_groups": ["Airband", "Marine"],
+                "search_active": False,
+                "search_low_hz": 156_000_000,
+                "search_high_hz": None,
+                "search_current_hz": -5,  # invalid negative → sanitized to None
+            }
+        )
+        ws.send_json({"cmd": "ping"})  # round-trip so the command is applied
+        assert ws.receive_json()["type"] == "pong"
+    assert conn.sweep == {
+        "scan_active": True,
+        "scan_groups": ["Airband", "Marine"],
+        "search_active": False,
+        "search_low_hz": 156_000_000,
+        "search_high_hz": None,
+        "search_current_hz": None,  # negative floored to None
+    }
+
+
+def test_ws_sweep_state_ignores_non_list_groups(client, monkeypatch):
+    conn = _RouterConn(is_owner=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()
+        ws.send_json({"cmd": "sweep_state", "scan_active": True, "scan_groups": "nope"})
+        ws.send_json({"cmd": "ping"})
+        assert ws.receive_json()["type"] == "pong"
+    assert conn.sweep["scan_groups"] == []
+
+
+def test_ws_sweep_state_caps_and_truncates_group_list(client, monkeypatch):
+    conn = _RouterConn(is_owner=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()
+        ws.send_json(
+            {
+                "cmd": "sweep_state",
+                "scan_active": True,
+                "scan_groups": ["x" * 100] * 100,  # 100 groups × 100 chars
+                "search_active": False,
+            }
+        )
+        ws.send_json({"cmd": "ping"})
+        assert ws.receive_json()["type"] == "pong"
+    from backend.routers.sdr import MAX_SCAN_GROUP_NAME_LEN, MAX_SCAN_GROUPS
+
+    assert len(conn.sweep["scan_groups"]) == MAX_SCAN_GROUPS  # list length capped
+    assert all(
+        len(name) == MAX_SCAN_GROUP_NAME_LEN for name in conn.sweep["scan_groups"]
+    )
+
+
+def test_sanitize_optional_hz():
+    from backend.routers.sdr import _sanitize_optional_hz
+
+    assert _sanitize_optional_hz(None) is None
+    assert _sanitize_optional_hz(156_000_000) == 156_000_000
+    assert _sanitize_optional_hz("162000000") == 162_000_000  # numeric string coerced
+    assert _sanitize_optional_hz(-1) is None  # negative floored to None
+    assert _sanitize_optional_hz("not-a-number") is None  # non-numeric → None
+
+
+def test_ws_initial_status_includes_sweep_state(client, monkeypatch):
+    conn = _RouterConn(is_owner=False, control_available=True, locked=True)
+    conn.scan_active = True
+    conn.scan_groups = ["Airband"]
+    conn.search_active = True
+    conn.search_low_hz = 156_000_000
+    conn.search_high_hz = 162_000_000
+    conn.search_current_hz = 158_000_000
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        status = ws.receive_json()
+    assert status["scan_active"] is True
+    assert status["scan_groups"] == ["Airband"]
+    assert status["search_active"] is True
+    assert status["search_low_hz"] == 156_000_000
+    assert status["search_high_hz"] == 162_000_000
+    assert status["search_current_hz"] == 158_000_000
 
 
 def test_ws_release_command_hands_back_the_tuner(client, monkeypatch):

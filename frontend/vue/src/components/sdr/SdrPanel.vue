@@ -192,12 +192,35 @@
                   :key="r.id"
                   role="option"
                   class="sdr-device-menu-item"
-                  :class="{ 'sdr-device-menu-item--active': deviceHighlight === index + 1 }"
+                  :class="{
+                    'sdr-device-menu-item--active': deviceHighlight === index + 1,
+                    'sdr-device-menu-item--readonly': isRadioReadOnly(r),
+                  }"
                   :aria-selected="deviceHighlight === index + 1"
                   @click="selectRadio(r)"
                   @mousemove="deviceHighlight = index + 1"
                 >
-                  {{ r.name }}<span class="sdr-device-menu-item-host">{{ r.host }}</span>
+                  <span class="sdr-device-menu-item-label"
+                    >{{ r.name }}<span class="sdr-device-menu-item-host">{{ r.host }}</span></span
+                  >
+                  <!-- Padlock: this radio is controlled by another Sentinel. Only the
+                       connected radio's lock is known, so only its row is marked. -->
+                  <svg
+                    v-if="isRadioReadOnly(r)"
+                    class="sdr-device-lock sdr-device-menu-item-lock"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
+                      stroke="currentColor"
+                      stroke-width="1.3"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
                 </div>
               </div>
               <!-- Non-selectable status note lives outside the listbox. -->
@@ -863,13 +886,20 @@
 
       <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'frequency-manager' }">
-        <div class="sdr-frequency-manager-freqs-body">
+        <span v-if="readOnly" class="sr-only" role="status"
+          >Frequency manager is read-only while another Sentinel controls this radio</span
+        >
+        <div
+          class="sdr-frequency-manager-freqs-body"
+          :class="{ 'sdr-frequency-manager--readonly': readOnly }"
+        >
           <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
             <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
               <button
                 type="button"
                 class="sdr-scan-group-chip"
                 :class="{ 'sdr-scan-group-chip-active': freqFilterAllSelected }"
+                :disabled="readOnly"
                 @click="toggleFreqFilterAll"
               >
                 All
@@ -883,6 +913,7 @@
                   'sdr-scan-group-chip-active':
                     !freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id),
                 }"
+                :disabled="readOnly"
                 @click="toggleFreqFilterGroup(g.id)"
               >
                 {{ g.name }}
@@ -938,6 +969,7 @@
                   class="sdr-freq-row-edit"
                   aria-label="Edit frequency"
                   title="Edit"
+                  :disabled="readOnly"
                   @click.stop="toggleEditFreqPanel(f)"
                 >
                   <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -951,6 +983,7 @@
                   class="sdr-freq-row-del"
                   aria-label="Delete frequency"
                   title="Delete"
+                  :disabled="readOnly"
                   @click.stop="deleteFreq(f.id)"
                 >
                   &#x2715;
@@ -1218,7 +1251,12 @@
             v-show="!(efOpen && editingFreqId === null)"
             class="sdr-frequency-manager-add-freq-row"
           >
-            <button id="sdr-radio-add-freq" class="sdr-add-freq-btn" @click="openAddFreqPanel">
+            <button
+              id="sdr-radio-add-freq"
+              class="sdr-add-freq-btn"
+              :disabled="readOnly"
+              @click="openAddFreqPanel"
+            >
               Add Frequency
             </button>
           </div>
@@ -2008,6 +2046,13 @@ function _notificationsStore() {
 // rate, scan, search). False for a single instance or a free/unowned tuner.
 const readOnly = computed(() => _sdrStore().readOnly)
 
+// A dropdown row is shown read-only (red + padlock) when this instance is a
+// follower AND the row is the radio we're connected to — the only radio whose
+// lock state we actually know (its control channel is the one we're on).
+function isRadioReadOnly(radio: SdrRadio): boolean {
+  return readOnly.value && radio.id === selectedRadioId.value
+}
+
 // Visual disable for controls a read-only follower must NOT drive: disabled when
 // there's no usable radio (controlsDisabled) OR this instance is a follower. This
 // now also covers mode + bandwidth: under the "mirror the owner exactly" model a
@@ -2431,6 +2476,10 @@ watch(
   [scanActive, scanLocked, scanAllSelected, scanSelectedGroupIds, groupsWithFreqs],
   ([active, locked, allSel, selIds, groupsList]) => {
     const _ss = _sdrStore()
+    // A read-only follower's scan overlay is driven by the owner's mirrored sweep
+    // state (see applyOwnership); its own scanner is idle, so skip here or we'd
+    // clobber the mirror back to "not scanning".
+    if (_ss.readOnly) return
     _ss.scanSweeping = !!active && !locked
     if (allSel || (selIds as number[]).length === 0) {
       _ss.scanGroupNames = ['All']
@@ -2443,6 +2492,50 @@ watch(
   },
   { immediate: true, deep: true },
 )
+
+// Owner → followers: publish this instance's scanner/search sweep state over the
+// relay control channel so a read-only watcher renders the same "paused during
+// active scan/search" overlay. Only the tuning owner of a shared dongle forwards
+// (a single instance / raw rtl_tcp has no followers, and a follower must not echo
+// the state back); deduped so an unchanged sweep never re-sends.
+let _lastSweepPayload = ''
+watch(
+  () => {
+    const _ss = _sdrStore()
+    return {
+      scan_active: _ss.scanSweeping,
+      scan_groups: _ss.scanGroupNames,
+      search_active: _ss.searchSweeping,
+      search_low_hz: _ss.searchLowHz,
+      search_high_hz: _ss.searchHighHz,
+      search_current_hz: _ss.searchCurrentHz,
+    }
+  },
+  (payload) => {
+    const _ss = _sdrStore()
+    if (!(_ss.controlAvailable && _ss.isOwner)) return
+    const serialized = JSON.stringify(payload)
+    if (serialized === _lastSweepPayload) return
+    _lastSweepPayload = serialized
+    sendCmd({ cmd: 'sweep_state', ...payload })
+  },
+  { deep: true },
+)
+
+// When this instance stops being a read-only follower (the owner released the
+// tuner or the control channel dropped), clear the mirrored sweep state so a stale
+// owner overlay doesn't linger. The guarded scan watcher above then resumes driving
+// these from this instance's own scanner/search.
+watch(readOnly, (isReadOnly) => {
+  if (isReadOnly) return
+  const _ss = _sdrStore()
+  _ss.scanSweeping = false
+  _ss.scanGroupNames = []
+  _ss.searchSweeping = false
+  _ss.searchLowHz = null
+  _ss.searchHighHz = null
+  _ss.searchCurrentHz = null
+})
 
 const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
@@ -3124,7 +3217,12 @@ function freqDigitPlaceHz(e: WheelEvent): number | null {
 }
 
 function onFreqWheel(e: WheelEvent) {
-  if (controlsDisabled.value || scanActive.value) return
+  // tuningDisabled (not just controlsDisabled) so a read-only follower can't
+  // wheel-scroll the frequency: the input is disabled, but a disabled input still
+  // emits wheel events in some browsers, and without this the digits would change
+  // locally (the actual retune is suppressed in sendCmd) and only snap back on the
+  // next control frame.
+  if (tuningDisabled.value || scanActive.value) return
   const placeHz = freqDigitPlaceHz(e)
   // The commit tail has defensive arms that need a live radio + browser timing to
   // reach exhaustively (the newHz<=0 floor, the not-playing skip, the debounced
@@ -3514,6 +3612,12 @@ function applyOwnership(msg: {
   offset_hz?: number
   bw_hz?: number
   mode?: string
+  scan_active?: boolean
+  scan_groups?: string[]
+  search_active?: boolean
+  search_low_hz?: number | null
+  search_high_hz?: number | null
+  search_current_hz?: number | null
 }) {
   // Default to "owner" when the backend omits these fields (a single instance, or
   // a relay without the control channel), so behaviour there is unchanged.
@@ -3554,6 +3658,16 @@ function applyOwnership(msg: {
     bwHz.value = msg.bw_hz
     sdrAudio.setBandwidthHz(msg.bw_hz)
   }
+  // Mirror the owner's scanner/search sweep state so the follower's waterfall shows
+  // the same "paused during active scan/search" overlay. Each field is optional — a
+  // relay that doesn't carry them leaves the follower without the overlay (graceful).
+  const _ss = _sdrStore()
+  if (typeof msg.scan_active === 'boolean') _ss.scanSweeping = msg.scan_active
+  if (Array.isArray(msg.scan_groups)) _ss.scanGroupNames = msg.scan_groups
+  if (typeof msg.search_active === 'boolean') _ss.searchSweeping = msg.search_active
+  if (msg.search_low_hz !== undefined) _ss.searchLowHz = msg.search_low_hz
+  if (msg.search_high_hz !== undefined) _ss.searchHighHz = msg.search_high_hz
+  if (msg.search_current_hz !== undefined) _ss.searchCurrentHz = msg.search_current_hz
 }
 
 // ── Radio selection ───────────────────────────────────────────────────────────
@@ -3566,7 +3680,13 @@ function clearRadioSelection() {
   selectedRadioId.value = null
   deviceDropdownLabel.value = '— select radio —'
   setPlayingState(false)
+  // Clear the connection dot: closeControlSocket() drops the socket but never marks
+  // us disconnected, so without this the dot stays green after deselecting.
+  setStatus(false)
   controlsDisabled.value = true
+  // Reset tuning ownership to the single-instance default, otherwise readOnly stays
+  // true and the deselected radio keeps its read-only styling (red label + padlock).
+  _sdrStore().setOwnership(true, false, false)
   closeControlSocket()
   sdrAudio.stop()
 }

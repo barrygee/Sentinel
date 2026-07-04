@@ -241,6 +241,14 @@ class _FakeConn:
     # owner's exact channel (offset within the band + audio bandwidth).
     demod_offset_hz = 0
     bw_hz = 0
+    # Sweep state the WS status frame now carries so followers render the same
+    # scan/search overlay.
+    scan_active = False
+    scan_groups: list[str] = []
+    search_active = False
+    search_low_hz: int | None = None
+    search_high_hz: int | None = None
+    search_current_hz: int | None = None
     # Tuning-ownership fields the WS status frame reads (no relay control channel
     # in this stub, so it behaves as a sole owner with control unavailable).
     is_owner = True

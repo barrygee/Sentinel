@@ -5445,4 +5445,187 @@ describe('SdrPanel — tuning ownership', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
   })
+
+  // ── Read-only Frequency Manager + dropdown padlock ───────────────────────────
+  it('disables the whole Frequency Manager (group filter, edit, delete, add) for a follower', async () => {
+    fetchState.frequencies = [makeFreq({ id: 10 })]
+    fetchState.groups = [makeGroup()]
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    // Group-filter chips (All + per-group) are all disabled.
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    expect(chips.length).toBeGreaterThan(0)
+    expect(chips.every((chip) => (chip.element as HTMLButtonElement).disabled)).toBe(true)
+    // Per-row edit + delete and the Add Frequency button are disabled.
+    expect((wrapper.find('.sdr-freq-row-edit').element as HTMLButtonElement).disabled).toBe(true)
+    expect((wrapper.find('.sdr-freq-row-del').element as HTMLButtonElement).disabled).toBe(true)
+    expect((wrapper.find('#sdr-radio-add-freq').element as HTMLButtonElement).disabled).toBe(true)
+    // Dimmed wrapper + an sr-only status announce the read-only state.
+    expect(wrapper.find('.sdr-frequency-manager--readonly').exists()).toBe(true)
+    expect(wrapper.findAll('.sr-only[role="status"]').map((node) => node.text())).toContain(
+      'Frequency manager is read-only while another Sentinel controls this radio',
+    )
+  })
+
+  it('re-enables the Frequency Manager controls when this instance owns tuning', async () => {
+    fetchState.frequencies = [makeFreq({ id: 10 })]
+    fetchState.groups = [makeGroup()]
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ is_owner: true }))
+    await wrapper.vm.$nextTick()
+    expect((wrapper.find('#sdr-radio-add-freq').element as HTMLButtonElement).disabled).toBe(false)
+    expect((wrapper.find('.sdr-freq-row-edit').element as HTMLButtonElement).disabled).toBe(false)
+    expect(wrapper.find('.sdr-frequency-manager--readonly').exists()).toBe(false)
+  })
+
+  it('marks the connected radio read-only (red + padlock) in the device dropdown list', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    // Open the device menu (teleported to <body>) and find the marked row.
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await flushPromises()
+    const row = document.querySelector('.sdr-device-menu-item--readonly')
+    expect(row).not.toBeNull()
+    expect(row!.querySelector('.sdr-device-menu-item-lock')).not.toBeNull()
+  })
+
+  it('does not mark any dropdown row read-only when this instance owns tuning', async () => {
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ is_owner: true }))
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.sdr-device-menu-item--readonly')).toBeNull()
+  })
+
+  it('ignores frequency-input scroll while read-only (cannot wheel-tune the shared dongle)', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const width = (this.textContent ?? '').length * 10
+      return {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: 12,
+        width,
+        height: 12,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect
+    })
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ center_hz: 118_000_000 }))
+    await wrapper.vm.$nextTick()
+    const input = wrapper.find('.sdr-freq-input-large')
+    const before = (input.element as HTMLInputElement).value
+    input.element.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 25 }))
+    await wrapper.vm.$nextTick()
+    expect((input.element as HTMLInputElement).value).toBe(before)
+  })
+
+  it('clears the connection dot and read-only styling when the radio is deselected', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    await confirmData(wrapper, socket) // spectrum frame lights the connection dot
+    socket.message(followerFrame())
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(true)
+    // Deselect via the menu placeholder (routes through clearRadioSelection).
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await flushPromises()
+    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    await flushPromises()
+    // Ownership reset → no longer read-only, padlock gone, and the dot goes dark.
+    expect(store.readOnly).toBe(false)
+    expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
+    expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-off')
+  })
+
+  // ── Owner→follower scan/search overlay mirroring ─────────────────────────────
+  it('publishes the owner’s scan/search sweep state to the backend when it changes', async () => {
+    const store = useSdrStore()
+    const { socket } = await playAsOwner()
+    socket.sent.length = 0
+    store.scanSweeping = true
+    store.scanGroupNames = ['Airband']
+    await flushPromises()
+    const sweep = sentCmds(socket).find((msg) => msg.cmd === 'sweep_state')
+    expect(sweep).toMatchObject({ cmd: 'sweep_state', scan_active: true, scan_groups: ['Airband'] })
+  })
+
+  it('does not re-send an unchanged sweep payload (dedup)', async () => {
+    const store = useSdrStore()
+    const { socket } = await playAsOwner()
+    store.scanGroupNames = ['Airband']
+    await flushPromises()
+    socket.sent.length = 0
+    // Same contents, fresh array reference → the watcher fires but the serialized
+    // payload is identical, so nothing is sent.
+    store.scanGroupNames = ['Airband']
+    await flushPromises()
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'sweep_state')).toBe(false)
+  })
+
+  it('mirrors the owner’s sweep state onto the store and never echoes it back', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    await playBtn(wrapper).trigger('click') // a playing follower
+    await flushPromises()
+    socket.message(
+      followerFrame({
+        scan_active: true,
+        scan_groups: ['Marine'],
+        search_active: false,
+        search_low_hz: 156_000_000,
+        search_high_hz: 162_000_000,
+        search_current_hz: 158_000_000,
+      }),
+    )
+    await flushPromises()
+    // The store now drives the same paused-overlay the owner sees (SdrWaterfall).
+    expect(store.scanSweeping).toBe(true)
+    expect(store.scanGroupNames).toEqual(['Marine'])
+    expect(store.searchLowHz).toBe(156_000_000)
+    expect(store.searchHighHz).toBe(162_000_000)
+    expect(store.searchCurrentHz).toBe(158_000_000)
+    // A follower must NOT publish sweep_state back to the backend.
+    expect(sentCmds(socket).some((msg) => msg.cmd === 'sweep_state')).toBe(false)
+  })
+
+  it('clears mirrored sweep state when this instance stops being a follower', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ scan_active: true, scan_groups: ['Marine'] }))
+    await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(true)
+    // Owner released → tuner free → readOnly false → reset watcher clears the sweep.
+    socket.message(followerFrame({ locked: false }))
+    await wrapper.vm.$nextTick()
+    expect(store.readOnly).toBe(false)
+    expect(store.scanSweeping).toBe(false)
+    expect(store.scanGroupNames).toEqual([])
+    expect(store.searchLowHz).toBeNull()
+  })
+
+  it('does not let a data reload clobber mirrored sweep state while read-only', async () => {
+    const store = useSdrStore()
+    const { wrapper, socket } = await mountConnected()
+    socket.message(followerFrame({ scan_active: true, scan_groups: ['Marine'] }))
+    await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(true)
+    // A frequency import reloads groups/frequencies, recomputing groupsWithFreqs and
+    // re-firing the scanner watcher. Its read-only guard must skip, so the mirrored
+    // sweep is not reset to "not scanning".
+    fetchState.groups = [makeGroup()]
+    fetchState.frequencies = [makeFreq({ id: 10, group_ids: [1] })]
+    document.dispatchEvent(new CustomEvent('sdr:frequenciesImported'))
+    await flushPromises()
+    expect(store.scanSweeping).toBe(true)
+  })
 })
