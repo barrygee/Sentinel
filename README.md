@@ -1,4 +1,5 @@
-![Sentinel logo](frontend/assets/logo.svg)
+<img width="1891" height="1063" alt="sentinel-contour-logo-background-large" src="https://github.com/user-attachments/assets/98d0566d-fde8-42ca-bb24-9cc06ce8f882" />
+
 
 # Sentinel
 
