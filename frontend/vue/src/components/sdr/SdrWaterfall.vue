@@ -525,19 +525,15 @@ let wfAcc: AccordionPlugin | null = null // Hz waterfall plot — shaded passban
 let specCar: AccordionPlugin | null = null
 let wfCar: AccordionPlugin | null = null
 
-// SDR# convention: SSB modes draw the passband on a single side of the carrier
-// (USB → above, LSB → below). Other modes are symmetric around the carrier.
-// The carrier itself stays at the red centre line on the plot; only the shaded
-// rectangle shifts. Inverse undoes the shift so a drag commits the carrier, not
-// the bracket centre.
-function bracketGeomHz(carrierHz: number, bwHz: number, mode: SdrMode) {
-  if (mode === 'USB') return { centerHz: carrierHz + bwHz / 2, widthHz: bwHz }
-  if (mode === 'LSB') return { centerHz: carrierHz - bwHz / 2, widthHz: bwHz }
+// The passband shade is always drawn symmetric around the carrier, so the tuning
+// line sits dead-centre in the shaded band in every mode (including SSB). The
+// carrier stays at the centre line on the plot; the shade is centred on it, and
+// the inverse is the identity so a drag commits the bracket centre as the
+// carrier. `mode` is retained for call-site symmetry / future per-mode geometry.
+function bracketGeomHz(carrierHz: number, bwHz: number, _mode: SdrMode) {
   return { centerHz: carrierHz, widthHz: bwHz }
 }
-function carrierFromBracketHz(centerHz: number, widthHz: number, mode: SdrMode) {
-  if (mode === 'USB') return centerHz - widthHz / 2
-  if (mode === 'LSB') return centerHz + widthHz / 2
+function carrierFromBracketHz(centerHz: number, _widthHz: number, _mode: SdrMode) {
   return centerHz
 }
 
@@ -1288,8 +1284,7 @@ function commitAccDrag() {
   _lastCommittedBwHz = bw
   // Re-sync both plots immediately so the un-dragged plot follows now (don't
   // wait for the debounced backend echo). Re-derive the bracket geometry from
-  // the carrier — for SSB, resizing must keep the carrier-side edge anchored
-  // on the red line instead of drifting.
+  // the carrier so the shade stays centred on the tuning line after a resize.
   const { centerHz: syncCenterHz, widthHz: syncWidthHz } = bracketGeomHz(carrierHz, bw, mode)
   suppressAccEvents = true
   try {
@@ -1749,10 +1744,10 @@ function initPlots() {
     draw_center_line: true,
     draw_edge_lines: false,
     shade_area: true,
-    // Shade the tuned passband in a light white wash so the band reads as part of
-    // the trace rather than a black gap. Kept subtle (low opacity) so the trace
-    // underneath stays legible.
-    fill_style: { fillStyle: '#ffffff', opacity: 0.2 },
+    // Shade the tuned passband in a translucent blue wash (matching the trace
+    // colour) so the band reads as part of the trace rather than a black gap.
+    // Kept very subtle (low opacity) so the trace underneath stays legible.
+    fill_style: { fillStyle: '#00aaff', opacity: 0.12 },
     center_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 20, lineCap: 'butt' },
     edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
   }

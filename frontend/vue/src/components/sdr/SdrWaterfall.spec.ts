@@ -1298,6 +1298,55 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
 })
 
 // =============================================================================
+describe('SdrWaterfall — passband shade geometry & style', () => {
+  // Push a mode + carrier + bandwidth onto the store and let the reactive
+  // watch fire applyMarker(), which repositions both accordions.
+  async function retune(
+    store: ReturnType<typeof useSdrStore>,
+    mode: 'USB' | 'LSB' | 'NFM',
+    carrierHz: number,
+    bandwidthHz: number,
+  ): Promise<void> {
+    store.setMode(mode)
+    store.currentFreqHz = carrierHz
+    store.bwHz = bandwidthHz
+    await flushPromises()
+    flushRaf()
+    await flushPromises()
+  }
+
+  it('centres the passband shade on the carrier in USB mode (tuning line stays mid-band)', async () => {
+    // Regression: SSB used to offset the shade to one side (USB → carrier + bw/2),
+    // pushing the tuning line to the edge of the band. It must now sit dead-centre.
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    await retune(store, 'USB', 100_500_000, 20_000)
+    expect(wfAccordion()._center).toBe(100_500_000)
+    expect(wfAccordion()._width).toBe(20_000)
+    expect(specAccordion()._center).toBeCloseTo(100.5, 6)
+    void wrapper
+  })
+
+  it('centres the passband shade on the carrier in LSB mode', async () => {
+    // LSB previously drew the shade below the carrier (carrier - bw/2); the shade
+    // is now symmetric so the carrier line stays centred in the band.
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    await retune(store, 'LSB', 100_500_000, 20_000)
+    expect(wfAccordion()._center).toBe(100_500_000)
+    expect(specAccordion()._center).toBeCloseTo(100.5, 6)
+    void wrapper
+  })
+
+  it('shades the spectrum passband with a translucent blue wash', () => {
+    // The tuned-passband fill matches the trace colour (#00aaff) at a low opacity
+    // so the band reads as part of the trace rather than an opaque white block.
+    mountWaterfall()
+    expect(specAccordion()._opts.fill_style).toEqual({ fillStyle: '#00aaff', opacity: 0.12 })
+  })
+})
+
+// =============================================================================
 describe('SdrWaterfall — accordion edge cursor affordance', () => {
   it('flags the edge-resize cursor when the pointer is over an accordion edge', async () => {
     const { wrapper, store } = mountWaterfall()
