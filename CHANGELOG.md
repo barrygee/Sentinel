@@ -1048,6 +1048,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fix/sdr spectrum freq label overlap (#156)
 - Update issue templates
 - Feat/sdr follower freqmgr sweep mirror (#173)
+- Modify Docker command for running app with decoder
+- Update logo in README to external image link
 
 ### Refactoring
 
