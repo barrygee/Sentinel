@@ -159,6 +159,15 @@ class RelayControlClient:
         self.offset_hz = 0
         self.mode = ""
         self.bw_hz = 0
+        # Owner sweep state, mirrored to followers so a read-only watcher shows the
+        # same scan/search overlay the owner sees. Rides the same control channel as
+        # the demod state above; the relay passes the fields through set→state.
+        self.scan_active = False
+        self.scan_groups: list[str] = []
+        self.search_active = False
+        self.search_low_hz: int | None = None
+        self.search_high_hz: int | None = None
+        self.search_current_hz: int | None = None
 
     async def connect(self) -> bool:
         """Open the control channel and start the read loop. Returns availability.
@@ -216,11 +225,36 @@ class RelayControlClient:
                 mode_value = message.get("mode")
                 if isinstance(mode_value, str) and mode_value:
                     self.mode = mode_value
+                # Sweep state (scan/search). Each field updates only when the relay
+                # actually carries the key, so a state push that predates the owner's
+                # first sweep_state (or a relay that drops the fields) leaves the
+                # follower's defaults untouched. The search bounds accept an explicit
+                # null to clear them when the owner stops searching.
+                if "scan_active" in message:
+                    self.scan_active = bool(message["scan_active"])
+                if isinstance(message.get("scan_groups"), list):
+                    self.scan_groups = [str(name) for name in message["scan_groups"]]
+                if "search_active" in message:
+                    self.search_active = bool(message["search_active"])
+                for bound in ("search_low_hz", "search_high_hz", "search_current_hz"):
+                    if bound in message:
+                        value = message[bound]
+                        setattr(self, bound, None if value is None else int(value))
                 self._state_event.set()
                 if self._on_state is not None:
                     self._on_state(message)
         except (OSError, ConnectionError, asyncio.CancelledError):
             pass
+        finally:
+            # The read loop only ends when the relay closed the control connection
+            # (reap / restart) or it errored — mark the channel unavailable so the
+            # next _ensure_control() rebuilds it and re-validates ownership instead of
+            # trusting a now-dead socket (which would leave is_owner stale). Wake any
+            # pending _await_next_state so a claim/set in flight doesn't hang on a
+            # channel that will never answer. Harmless on an intentional close()
+            # (which already sets available=False).
+            self.available = False
+            self._state_event.set()
 
     async def _send(self, message: dict) -> None:
         writer = self._writer
@@ -316,6 +350,16 @@ class RtlTcpConnection:
     # adopted from the relay so its own browser can reproduce the owner's audio.
     demod_offset_hz: int = 0
     bw_hz: int = 0
+    # Owner sweep state shared owner→followers over the control channel (see
+    # RelayControlClient). For an owner these mirror what its browser's scanner/
+    # search is doing; for a follower they are adopted from the relay so its own
+    # browser can render the same "paused during active scan/search" overlay.
+    scan_active: bool = False
+    scan_groups: list[str] = field(default_factory=list)
+    search_active: bool = False
+    search_low_hz: int | None = None
+    search_high_hz: int | None = None
+    search_current_hz: int | None = None
     fft_size: int = DEFAULT_FFT_SIZE
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     # Tuning-ownership control channel (None until the first connect attempt).
@@ -384,6 +428,21 @@ class RtlTcpConnection:
         the relay's reported tuning so its frames are labelled correctly.
         """
         if self.control is not None and self.control.available:
+            # Reconnect path: the control channel outlived an IQ-stream drop. Do NOT
+            # trust the persisted ownership — the same event that dropped our stream
+            # (e.g. the relay's dead-client reap) can free or reassign our tuning
+            # token WITHOUT a state push, leaving is_owner stale-true and letting a
+            # demoted follower keep driving a tuner it no longer owns. Re-claim to get
+            # the relay's authoritative answer: we keep the token if it is still ours
+            # or free, and drop to a read-only follower if another instance took it.
+            became_owner = await self.control.claim()
+            self.is_owner = became_owner
+            if not became_owner:
+                self._adopt_control_state(self.control)
+            # Push the re-validated ownership to WS subscribers so a demoted follower's
+            # UI flips to read-only immediately rather than after its next own action.
+            if self.state_change_callback is not None:
+                self.state_change_callback()
             return
         control = RelayControlClient(self.host, self.control_port, on_state=self._on_control_state)
         if not await control.connect():
@@ -414,6 +473,14 @@ class RtlTcpConnection:
         self.bw_hz = control.bw_hz
         if control.mode:
             self.mode = control.mode
+        # Adopt the owner's sweep state so a follower can render the same scan/
+        # search overlay (see set_sweep_state on the owner side).
+        self.scan_active = control.scan_active
+        self.scan_groups = control.scan_groups
+        self.search_active = control.search_active
+        self.search_low_hz = control.search_low_hz
+        self.search_high_hz = control.search_high_hz
+        self.search_current_hz = control.search_current_hz
 
     def _on_control_state(self, _message: dict) -> None:
         """Relay state push: mirror ownership + tuning, then notify WS subscribers."""
@@ -513,6 +580,41 @@ class RtlTcpConnection:
         self.bw_hz = bw_hz
         if self.control_available and self.control is not None and self.is_owner:
             await self.control.set(offset_hz=offset_hz, mode=mode, bw_hz=bw_hz)
+
+    async def set_sweep_state(
+        self,
+        *,
+        scan_active: bool,
+        scan_groups: list[str],
+        search_active: bool,
+        search_low_hz: int | None,
+        search_high_hz: int | None,
+        search_current_hz: int | None,
+    ) -> None:
+        """Record this instance's scanner/search sweep state and, when we own the
+        shared tuner, publish it to followers over the relay control channel.
+
+        Like ``set_demod`` this touches no hardware — the scan/search loop runs in
+        the owner's browser. We forward the sweep state so a read-only watcher can
+        render the same "paused during active scan/search" overlay the owner sees.
+        A follower never forwards (``is_owner`` is False); a single instance / raw
+        rtl_tcp just stores it locally.
+        """
+        self.scan_active = scan_active
+        self.scan_groups = scan_groups
+        self.search_active = search_active
+        self.search_low_hz = search_low_hz
+        self.search_high_hz = search_high_hz
+        self.search_current_hz = search_current_hz
+        if self.control_available and self.control is not None and self.is_owner:
+            await self.control.set(
+                scan_active=scan_active,
+                scan_groups=scan_groups,
+                search_active=search_active,
+                search_low_hz=search_low_hz,
+                search_high_hz=search_high_hz,
+                search_current_hz=search_current_hz,
+            )
 
     async def set_sample_rate(self, rate_hz: int) -> None:
         if self.control_available and self.control is not None:
@@ -682,6 +784,12 @@ class RadioBroadcaster:
                 "mode": conn.mode,
                 "offset_hz": conn.demod_offset_hz,
                 "bw_hz": conn.bw_hz,
+                "scan_active": conn.scan_active,
+                "scan_groups": conn.scan_groups,
+                "search_active": conn.search_active,
+                "search_low_hz": conn.search_low_hz,
+                "search_high_hz": conn.search_high_hz,
+                "search_current_hz": conn.search_current_hz,
             }
         )
 

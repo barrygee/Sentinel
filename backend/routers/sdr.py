@@ -51,6 +51,28 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["sdr"])
 
+# Bounds for the untrusted ``sweep_state`` control-socket payload (owner → follower
+# scan/search overlay mirroring). Cap the group-name list so a malformed/hostile
+# client can't push an unbounded blob through the relay to every follower.
+MAX_SCAN_GROUPS = 64
+MAX_SCAN_GROUP_NAME_LEN = 64
+
+
+def _sanitize_optional_hz(value: object) -> int | None:
+    """Coerce an untrusted sweep-frequency field to a non-negative int, else None.
+
+    Used for the ``sweep_state`` search bounds, which are legitimately null when the
+    owner is not searching. Any non-numeric or negative value collapses to None so a
+    follower never renders a bogus range.
+    """
+    if value is None:
+        return None
+    try:
+        parsed = int(value)  # type: ignore[call-overload]
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
 
 # ── Pydantic request schemas ──────────────────────────────────────────────────
 
@@ -1039,10 +1061,12 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
     Outbound (server→client):
       { type: "spectrum", center_hz, sample_rate, bins, timestamp_ms }
       { type: "status",   connected, radio_id, radio_name, center_hz, mode, gain_db, gain_auto, is_owner, control_available, locked }
-      { type: "control",  is_owner, control_available, locked, center_hz, sample_rate, gain_db, gain_auto, mode }
+      { type: "control",  is_owner, control_available, locked, center_hz, sample_rate, gain_db, gain_auto, mode,
+                          offset_hz, bw_hz, scan_active, scan_groups, search_active, search_low_hz, search_high_hz, search_current_hz }
                           — tuning ownership changed: another instance took/released the
                             shared tuner, or this client's retune was refused (read-only).
                             `locked` = the tuner is held by some instance (vs free to claim).
+                            The sweep_* fields mirror the owner's scan/search overlay.
       { type: "error",    code, message }
 
     Inbound (client→server):
@@ -1054,6 +1078,11 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                           — owner's within-band demod state (NCO offset, mode, audio
                             bandwidth); forwarded to followers so they mirror the exact
                             channel the owner hears, not just the hardware centre.
+      { cmd: "sweep_state", scan_active, scan_groups, search_active,
+                            search_low_hz, search_high_hz, search_current_hz }
+                          — owner's scanner/search sweep state; forwarded to followers
+                            so they render the same "paused during active scan/search"
+                            overlay. Search bounds are null when not searching.
       { cmd: "gain",        gain_db }   — null/omit for auto
       { cmd: "squelch",     squelch_dbfs }
       { cmd: "sample_rate", rate_hz }
@@ -1088,6 +1117,12 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                     "is_owner": conn.is_owner,
                     "control_available": conn.control_available,
                     "locked": conn.tuner_locked,
+                    "scan_active": conn.scan_active,
+                    "scan_groups": conn.scan_groups,
+                    "search_active": conn.search_active,
+                    "search_low_hz": conn.search_low_hz,
+                    "search_high_hz": conn.search_high_hz,
+                    "search_current_hz": conn.search_current_hz,
                 }
             )
         )
@@ -1131,6 +1166,25 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                             offset_hz=int(msg.get("offset_hz", 0) or 0),
                             mode=str(msg.get("mode", conn.mode)),
                             bw_hz=int(msg.get("bw_hz", 0) or 0),
+                        )
+                    elif cmd == "sweep_state":
+                        # Owner publishes its scanner/search sweep state so read-only
+                        # followers render the same "paused during active scan/search"
+                        # overlay. Inputs are validated/clamped here (untrusted client
+                        # JSON); forwarded to the relay only while we own the tuner.
+                        raw_groups = msg.get("scan_groups")
+                        scan_groups = (
+                            [str(name)[:MAX_SCAN_GROUP_NAME_LEN] for name in raw_groups[:MAX_SCAN_GROUPS]]
+                            if isinstance(raw_groups, list)
+                            else []
+                        )
+                        await conn.set_sweep_state(
+                            scan_active=bool(msg.get("scan_active")),
+                            scan_groups=scan_groups,
+                            search_active=bool(msg.get("search_active")),
+                            search_low_hz=_sanitize_optional_hz(msg.get("search_low_hz")),
+                            search_high_hz=_sanitize_optional_hz(msg.get("search_high_hz")),
+                            search_current_hz=_sanitize_optional_hz(msg.get("search_current_hz")),
                         )
                     elif cmd == "gain":
                         gval = msg.get("gain_db")

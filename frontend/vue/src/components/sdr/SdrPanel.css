@@ -327,6 +327,10 @@
 }
 
 .sdr-device-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 9px 12px;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 10px;
@@ -345,6 +349,23 @@
 .sdr-device-menu-item--active {
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
+}
+
+.sdr-device-menu-item-label {
+  min-width: 0;
+}
+
+/* Read-only row: this radio is controlled by another Sentinel. Red label + host
+   matching the collapsed header; the hover/active white must not override it. */
+.sdr-device-menu-item--readonly,
+.sdr-device-menu-item--readonly:hover,
+.sdr-device-menu-item--readonly.sdr-device-menu-item--active {
+  color: #ff5050;
+}
+
+.sdr-device-menu-item--readonly .sdr-device-menu-item-host,
+.sdr-device-menu-item--readonly:hover .sdr-device-menu-item-host {
+  color: rgba(255, 80, 80, 0.7);
 }
 
 .sdr-device-menu-placeholder {
@@ -1198,9 +1219,14 @@
     color 0.15s;
 }
 
-.sdr-add-freq-btn:hover {
+.sdr-add-freq-btn:hover:not(:disabled) {
   color: #c8ff00;
   background: rgba(255, 255, 255, 0.12);
+}
+
+.sdr-add-freq-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .sdr-frequency-manager-add-freq-row {
@@ -2266,12 +2292,23 @@
   flex-shrink: 0;
 }
 
-.sdr-freq-row-edit:hover,
+.sdr-freq-row-edit:hover:not(:disabled),
 .sdr-group-pill-edit:hover {
   color: rgba(200, 255, 0, 0.75);
 }
 .sdr-group-pill-del:hover {
   color: rgba(255, 80, 80, 0.8);
+}
+
+/* Read-only follower: the per-row edit/delete controls are inert while another
+   Sentinel owns the shared tuner. */
+.sdr-freq-row-edit:disabled,
+.sdr-freq-row-del:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.sdr-freq-row-del:disabled:hover {
+  color: rgba(255, 255, 255, 0.2);
 }
 
 .sdr-freq-row-play {
@@ -2289,8 +2326,21 @@
   margin-top: 2px;
 }
 
-.sdr-freq-row-play:hover {
+.sdr-freq-row-play:hover:not(:disabled) {
   color: rgba(200, 255, 0, 0.85);
+}
+
+.sdr-freq-row-play:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Read-only follower: dim the whole frequency-manager surface so it visibly
+   reads as "not in control" while another Sentinel owns the shared tuner. The
+   individual controls are also disabled (see :disabled rules above); this is the
+   ambient signal that the tab is inert. */
+.sdr-frequency-manager--readonly {
+  opacity: 0.6;
 }
 
 .sdr-group-pill-default {
