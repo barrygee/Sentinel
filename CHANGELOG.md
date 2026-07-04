@@ -1047,6 +1047,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fix/sdr remove mobile close (#155)
 - Fix/sdr spectrum freq label overlap (#156)
 - Update issue templates
+- Feat/sdr follower freqmgr sweep mirror (#173)
 
 ### Refactoring
 
