@@ -165,12 +165,15 @@ async function expandFirstItem(wrapper: VueWrapper): Promise<void> {
   await wrapper.vm.$nextTick()
 }
 
+// The FILTER rail sub-tabs are single-select: only the active category's sats
+// render. Switch the store's selected category and flush the re-render.
+async function setCategory(wrapper: VueWrapper, cat: string): Promise<void> {
+  useSpaceStore().setSpaceFilterCategory(cat)
+  await wrapper.vm.$nextTick()
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  // Categories now collapse by default on first mount. Mark seeding as already done
-  // so the bulk of tests start with their sections expanded; the default-collapsed
-  // behaviour has its own dedicated tests that clear this flag.
-  localStorage.setItem('sentinel_space_filterCatsCollapsedSeeded', 'true')
   vi.mocked(isPassNotifEnabled).mockReturnValue(false)
   vi.mocked(isAutoTuneEnabled).mockReturnValue(false)
   vi.mocked(isRecordOnPassEnabled).mockReturnValue(false)
@@ -213,10 +216,13 @@ describe('SpaceFilter — loading & list rendering', () => {
     expect(wrapper.find('.space-filter-result-secondary').text()).toBe('NORAD 40069')
   })
 
-  it('uses the underscore→space fallback label for a category without a section label', async () => {
+  it('publishes an unknown-in-order category and renders its sats when selected', async () => {
+    // A category present on a sat but not in SATELLITE_CATEGORY_ORDER is not offered
+    // as a sub-tab (the rail only lists ordered categories), so nothing renders.
     listResult.body = { satellites: [makeSat({ category: 'odd_cat' })] }
     const wrapper = await mountReady()
-    expect(wrapper.find('.space-filter-section-label span').text()).toBe('ODD CAT')
+    expect(useSpaceStore().spaceAvailableCategories).toEqual([])
+    expect(wrapper.find('.space-filter-result-item').exists()).toBe(false)
   })
 
   it('shows "No satellites found" when the loaded database is empty', async () => {
@@ -268,16 +274,26 @@ describe('SpaceFilter — search, grouping & query clearing', () => {
     }
   }
 
-  it('groups results into category sections in canonical order', async () => {
+  it('publishes the available categories in canonical order and shows the first by default', async () => {
     multiSat()
     const wrapper = await mountReady()
-    const labels = wrapper.findAll('.space-filter-section-label span').map((node) => node.text())
-    expect(labels).toEqual(['SPACE STATION', 'WEATHER', 'UNKNOWN'])
+    // unknown is last in SATELLITE_CATEGORY_ORDER; the null-category sat maps to it.
+    expect(useSpaceStore().spaceAvailableCategories).toEqual([
+      'space_station',
+      'weather',
+      'unknown',
+    ])
+    // Default selection is the first available category → only the ISS renders.
+    expect(useSpaceStore().spaceFilterCategory).toBe('space_station')
+    expect(wrapper.findAll('.space-filter-result-primary').map((node) => node.text())).toEqual([
+      'ISS (ZARYA)',
+    ])
   })
 
-  it('filters by satellite name substring', async () => {
+  it('filters by satellite name substring within the active category', async () => {
     multiSat()
     const wrapper = await mountReady()
+    await setCategory(wrapper, 'weather')
     await wrapper.find('#space-filter-input').setValue('noaa')
     await wrapper.vm.$nextTick()
     const names = wrapper
@@ -362,31 +378,35 @@ describe('SpaceFilter — search, grouping & query clearing', () => {
       ],
     }
     const wrapper = await mountReady()
+    await setCategory(wrapper, 'military')
     await wrapper.find('#space-filter-input').setValue('m') // 'm' must NOT alias to 'military'
     await wrapper.vm.$nextTick()
     const names = wrapper.findAll('.space-filter-result-primary').map((node) => node.text())
-    // Only MILSTAR contains 'm' by name; the weather sat is not pulled in by alias.
+    // MILSTAR matches 'm' by name; the alias threshold (≥2 chars) pulls in nothing
+    // extra by category.
     expect(names).toEqual(['MILSTAR'])
   })
 
-  it('clears the query and collapses any expansion via the clear button', async () => {
+  it('clears the query via the clear button and restores the category list', async () => {
     multiSat()
     const wrapper = await mountReady()
-    await wrapper.find('#space-filter-input').setValue('noaa')
+    await setCategory(wrapper, 'weather') // two NOAA sats
+    await wrapper.find('#space-filter-input').setValue('19') // narrows to NOAA 19
     await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.space-filter-result-item')).toHaveLength(1)
     expect(wrapper.find('#space-filter-clear-btn').classes()).toContain(
       'space-filter-clear-visible',
     )
     await wrapper.find('#space-filter-clear-btn').trigger('click')
     await wrapper.vm.$nextTick()
     expect((wrapper.find('#space-filter-input').element as HTMLInputElement).value).toBe('')
-    // All four sats visible again.
-    expect(wrapper.findAll('.space-filter-result-item')).toHaveLength(4)
+    // Both weather sats visible again.
+    expect(wrapper.findAll('.space-filter-result-item')).toHaveLength(2)
   })
 })
 
 // =============================================================================
-describe('SpaceFilter — collapsible sections & auto-expand', () => {
+describe('SpaceFilter — category sub-tabs (single-select)', () => {
   function multiSat() {
     listResult.body = {
       satellites: [
@@ -396,62 +416,37 @@ describe('SpaceFilter — collapsible sections & auto-expand', () => {
     }
   }
 
-  it('collapses and re-opens a section on its header click', async () => {
+  it('renders only the selected category and switches with the store', async () => {
     multiSat()
     const wrapper = await mountReady()
-    const stationHeader = wrapper.findAll('.space-filter-section-label')[0]
-    // Initially expanded → the ISS item is present.
-    expect(wrapper.find('.space-filter-result-primary').text()).toBe('ISS (ZARYA)')
-    await stationHeader.trigger('click') // collapse
-    await wrapper.vm.$nextTick()
-    const chevron = stationHeader.find('.space-filter-section-chevron')
-    expect(chevron.classes()).toContain('space-filter-section-chevron--collapsed')
-    const names = wrapper.findAll('.space-filter-result-primary').map((node) => node.text())
-    expect(names).not.toContain('ISS (ZARYA)')
-    await stationHeader.trigger('click') // re-expand
-    await wrapper.vm.$nextTick()
-    expect(wrapper.findAll('.space-filter-result-primary').map((node) => node.text())).toContain(
+    // Default: first available category (space_station) → ISS only.
+    expect(wrapper.findAll('.space-filter-result-primary').map((node) => node.text())).toEqual([
       'ISS (ZARYA)',
-    )
+    ])
+    await setCategory(wrapper, 'weather')
+    expect(wrapper.findAll('.space-filter-result-primary').map((node) => node.text())).toEqual([
+      'NOAA 19',
+    ])
   })
 
-  it('force-opens a user-collapsed section that gains a search match, then re-collapses it', async () => {
+  it('shows the no-results state when the selected category has no matching sats', async () => {
     multiSat()
     const wrapper = await mountReady()
-    const spaceStore = useSpaceStore()
-    // User collapses the weather section.
-    spaceStore.searchCollapsedCats = new Set(['weather'])
+    // A stale/invalid selection with data present renders no rows for that category.
+    useSpaceStore().setSpaceFilterCategory('navigation')
     await wrapper.vm.$nextTick()
-    // Searching "noaa" matches a weather sat → the section auto-opens.
-    await wrapper.find('#space-filter-input').setValue('noaa')
-    await wrapper.vm.$nextTick()
-    expect(spaceStore.searchCollapsedCats.has('weather')).toBe(false)
-    expect(wrapper.find('.space-filter-result-primary').text()).toBe('NOAA 19')
-    // Clearing the query re-collapses the auto-opened section.
-    await wrapper.find('#space-filter-input').setValue('')
-    await wrapper.vm.$nextTick()
-    expect(spaceStore.searchCollapsedCats.has('weather')).toBe(true)
+    expect(wrapper.find('.space-filter-result-item').exists()).toBe(false)
+    expect(wrapper.find('.space-filter-no-results').text()).toBe('No satellites found')
   })
 
-  it('a manual toggle takes ownership so the section is not auto-re-collapsed', async () => {
+  it('repairs the selected category to the first available when data changes', async () => {
+    // Selected category persists as 'navigation' but the loaded set has none.
+    localStorage.setItem('sentinel_space_filterCategory', '"navigation"')
     multiSat()
     const wrapper = await mountReady()
-    const spaceStore = useSpaceStore()
-    spaceStore.searchCollapsedCats = new Set(['weather'])
-    await wrapper.vm.$nextTick()
-    await wrapper.find('#space-filter-input').setValue('noaa') // auto-opens weather
-    await wrapper.vm.$nextTick()
-    // Manually toggle the (now-open) weather header closed → drops auto-open bookkeeping.
-    const weatherHeader = wrapper
-      .findAll('.space-filter-section-label')
-      .find((node) => node.text().includes('WEATHER'))!
-    await weatherHeader.trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(spaceStore.searchCollapsedCats.has('weather')).toBe(true)
-    // Clearing the query must NOT toggle it again (no auto bookkeeping left).
-    await wrapper.find('#space-filter-input').setValue('')
-    await wrapper.vm.$nextTick()
-    expect(spaceStore.searchCollapsedCats.has('weather')).toBe(true)
+    // The availability watcher resets it to the first available category.
+    expect(useSpaceStore().spaceFilterCategory).toBe('space_station')
+    wrapper.unmount()
   })
 })
 
@@ -623,41 +618,18 @@ describe('SpaceFilter — combobox / listbox semantics', () => {
     expect(wrapper.find('#space-filter-opt-1').attributes('aria-selected')).toBe('true')
   })
 
-  it('drops aria-activedescendant when the focused row is collapsed out of view', async () => {
+  it('drops aria-activedescendant when the focused row is switched out of view', async () => {
     multiSat()
     const wrapper = await mountReady()
     const input = wrapper.find('#space-filter-input')
     await input.trigger('keydown', { key: 'ArrowDown' }) // focus ALPHA
     await wrapper.vm.$nextTick()
     expect(input.attributes('aria-activedescendant')).toBe('space-filter-opt-1')
-    // Collapse the (only) category — the focused option is no longer rendered.
-    await wrapper.find('.space-filter-section-label').trigger('click')
-    await wrapper.vm.$nextTick()
+    // Switch to a category with no loaded sats — the focused option is no longer rendered.
+    await setCategory(wrapper, 'weather')
     expect(input.attributes('aria-activedescendant')).toBeUndefined()
-    // With every option collapsed away the listbox is gone too.
+    // With no options rendered the listbox is gone too.
     expect(wrapper.find('#space-filter-listbox').exists()).toBe(false)
-  })
-
-  it('collapses every category by default on first ever mount', async () => {
-    // Clear the seed flag set in beforeEach so the fresh-user default is observable.
-    localStorage.removeItem('sentinel_space_filterCatsCollapsedSeeded')
-    const wrapper = mountFilter()
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-    // The section heading renders, but its options are collapsed out of view.
-    expect(wrapper.find('.space-filter-section-label').exists()).toBe(true)
-    expect(wrapper.find('.space-filter-result-item').exists()).toBe(false)
-    expect(useSpaceStore().searchCatsCollapsedSeeded).toBe(true)
-    wrapper.unmount()
-  })
-
-  it('keeps a returning user’s expanded categories instead of re-collapsing', async () => {
-    // beforeEach already marked seeding done; nothing is collapsed, so the category stays open.
-    const wrapper = mountFilter()
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('.space-filter-result-item').exists()).toBe(true)
-    wrapper.unmount()
   })
 })
 

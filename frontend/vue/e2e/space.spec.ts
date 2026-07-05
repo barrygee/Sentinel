@@ -116,7 +116,7 @@ test.describe('Space domain', () => {
     await expect(page.locator('.space-filter-no-results')).toBeVisible()
   })
 
-  test('category group section header has aria-expanded', async ({ page }) => {
+  test('FILTER rail exposes data-driven category sub-tabs', async ({ page }) => {
     await page.route('/api/space/tle/list', (route) => {
       void route.fulfill({
         contentType: 'application/json',
@@ -130,11 +130,15 @@ test.describe('Space domain', () => {
     // Use data-tab to avoid strict-mode ambiguity with the SpaceSideMenu "Search" button
     await page.locator('[data-tab="search"]').click()
 
-    // Wait for satellites to load and section headers to appear
-    await expect(page.locator('.space-filter-section-label').first()).toBeVisible({ timeout: 5000 })
+    // Once the sat list loads, SpaceFilter publishes its categories and the rail
+    // renders one single-select sub-tab per category that has data.
+    const firstSubTab = page.locator('.msb-rail-subbtn').first()
+    await expect(firstSubTab).toBeVisible({ timeout: 5000 })
+    await expect(firstSubTab).toHaveAttribute('data-filter-cat')
 
-    const sectionHeader = page.locator('.space-filter-section-label').first()
-    await expect(sectionHeader).toHaveAttribute('aria-expanded')
+    // Selecting it shows that category's satellite rows.
+    await firstSubTab.click()
+    await expect(page.locator('.space-filter-result-item').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('PASSES tab is visible on /space/ route', async ({ page }) => {

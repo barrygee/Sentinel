@@ -36,14 +36,14 @@ export const useSpaceStore = defineStore('space', () => {
   // SEARCH pane (SpaceFilter)
   const searchQuery = usePersistedRef<string>('sentinel_space_filterQuery', '')
   const searchExpandedNorad = usePersistedRef<string>('sentinel_space_filterExpandedNorad', '')
-  const searchCollapsedCats = usePersistedStringSet('sentinel_space_filterCollapsedCats')
-  // Whether the search categories have been seeded to their default-collapsed state.
-  // Categories default to collapsed for a fresh user; once seeded this stays true so a
-  // returning user's manual expand/collapse choices are preserved across reloads.
-  const searchCatsCollapsedSeeded = usePersistedRef<boolean>(
-    'sentinel_space_filterCatsCollapsedSeeded',
-    false,
-  )
+  // The active FILTER category, driven by the rail sub-tabs. Single-select — the
+  // panel shows only this category's satellites. Empty resolves to the first
+  // available category (see SpaceFilter). Persisted so the choice survives navigation.
+  const spaceFilterCategory = usePersistedRef<string>('sentinel_space_filterCategory', '')
+  // The satellite categories that currently have data, in display order — published
+  // by SpaceFilter from the loaded satellite set. Drives which rail sub-tabs render,
+  // so it is derived (never persisted): the sub-tabs must reflect live data.
+  const spaceAvailableCategories = ref<string[]>([])
 
   // PASSES pane (SpacePasses)
   const passesMinEl = usePersistedRef<number>('sentinel_space_passesMinEl', 35)
@@ -58,6 +58,14 @@ export const useSpaceStore = defineStore('space', () => {
 
   function setFilter(query: string) {
     filterQuery.value = query
+  }
+
+  function setSpaceFilterCategory(category: string) {
+    spaceFilterCategory.value = category
+  }
+
+  function setSpaceAvailableCategories(categories: string[]) {
+    spaceAvailableCategories.value = categories
   }
 
   function toggleFilter() {
@@ -77,12 +85,14 @@ export const useSpaceStore = defineStore('space', () => {
     mapZoom,
     setOverlay,
     setFilter,
+    setSpaceFilterCategory,
+    setSpaceAvailableCategories,
     toggleFilter,
     saveMapState,
     searchQuery,
     searchExpandedNorad,
-    searchCollapsedCats,
-    searchCatsCollapsedSeeded,
+    spaceFilterCategory,
+    spaceAvailableCategories,
     passesMinEl,
     passesHours,
     passesFiltersOpen,

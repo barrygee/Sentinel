@@ -2107,8 +2107,8 @@ const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio', label: 'RADIO' },
   { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
-  { id: 'search-ranges', label: 'SEARCH RANGES' },
   { id: 'groups', label: 'GROUPS' },
+  { id: 'search-ranges', label: 'SEARCH RANGES' },
   { id: 'recordings', label: 'RECORDINGS' },
 ]
 function _restoreSdrTab(): SdrTab {

@@ -234,6 +234,38 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
+  // Snap-to-known-frequency toggle. When ON, clicking a known-frequency marker in
+  // the spectrum jumps to it, and dragging the tuner bar snaps to a nearby known
+  // frequency. Same persistence pattern as fullWaterfallUpdate (localStorage for
+  // instant restore, DB hydrate on config upload). Default ON.
+  function _readSnapToKnown(): boolean {
+    try {
+      return localStorage.getItem('sdrSnapToKnown') !== '0'
+    } catch {
+      return true
+    }
+  }
+  const snapToKnown = ref<boolean>(_readSnapToKnown())
+  function setSnapToKnown(on: boolean) {
+    snapToKnown.value = on
+    try {
+      localStorage.setItem('sdrSnapToKnown', on ? '1' : '0')
+    } catch {}
+  }
+  async function hydrateSnapToKnownFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.snapToKnown
+      if (typeof v === 'boolean' && v !== snapToKnown.value) {
+        setSnapToKnown(v)
+      }
+    } catch {
+      /* offline / transient — keep current value */
+    }
+  }
+
   // Waterfall overlay visibility toggles (bandplan strip and known-frequency
   // labels). Same persistence pattern as fullWaterfallUpdate: localStorage for
   // instant restore, DB hydrate on config upload. Default ON.
@@ -771,6 +803,9 @@ export const useSdrStore = defineStore('sdr', () => {
     fullWaterfallUpdate,
     setFullWaterfallUpdate,
     hydrateFullWaterfallUpdateFromDb,
+    snapToKnown,
+    setSnapToKnown,
+    hydrateSnapToKnownFromDb,
     showBandPlan,
     setShowBandPlan,
     hydrateShowBandPlanFromDb,

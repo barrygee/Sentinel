@@ -64,7 +64,10 @@ html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px 0 10px;
+    /* Right padding lands the last domain link's right edge on the 44px right
+       rail's icon-centre column (x≈22px from the edge) — the same column the
+       side-menu icons and the footer settings gear centre on. */
+    padding: 0 22px 0 10px;
     /* Above the settings panel (10000) so the nav bar is never obscured. */
     z-index: 10001;
 }
@@ -98,7 +101,8 @@ html {
 }
 
 /* Domain navigation link (AIR / SPACE / SEA / LAND).
-   Muted by default; brightens on hover. */
+   White by default; the active domain is lime, and hovering an inactive link
+   previews that lime. White on the black nav bar is 21:1 — well clear of AA. */
 .nav-link {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 10px;
@@ -106,15 +110,12 @@ html {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     text-decoration: none;
-    /* WCAG 1.4.3 (AA): on the black nav bar, white at 0.3 alpha is only 2.48:1.
-       0.6 alpha (~#999 on #000) clears the 4.5:1 text bar while staying visibly
-       dimmer than the hovered (0.75) and active (lime) states. */
-    color: rgba(255, 255, 255, 0.6);
+    color: #ffffff;
     transition: color 0.2s;
 }
 
 .nav-link:hover {
-    color: var(--color-text-muted);
+    color: var(--color-accent);
 }
 
 /* Active domain link — always lime, never dims on hover */
