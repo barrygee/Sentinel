@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test'
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
 import { clearPersistedState, seedAirReplayEnabled } from './support/seedStore'
-import adsbTwoPlanes from './fixtures/adsb-two-planes.json' with { type: 'json' }
 
 /**
  * Air domain tests: map region, AirSideMenu expand/collapse, overlay buttons,
@@ -81,19 +80,20 @@ test.describe('Air domain', () => {
     await page.locator('[data-tab="search"]').click()
     await expect(page.locator('#msb-pane-search')).toBeVisible()
 
+    // Categories are single-select rail sub-tabs now. AirFilter reads aircraft from
+    // the MapLibre adsbControl (no live control here), but the STATIC airports list
+    // (AIRPORTS_DATA) is always available — switch to the airports sub-tab and search
+    // "Heathrow" for a reliable, no-stub result row.
+    await page.locator('.msb-rail-subbtn[data-filter-cat="airports"]').click()
+
     const filterInput = page.getByRole('combobox', {
       name: /filter aircraft by callsign/i,
     })
-
-    // AirFilter reads aircraft from the MapLibre adsbControl (not the API stub
-    // directly), so aircraft won't appear in search until the control fires data.
-    // However AirFilter also searches the STATIC airports list (AIRPORTS_DATA), which
-    // is always available. Searching for "Heathrow" matches the LHR static entry and
-    // produces an AIRPORTS section header — a reliable, no-stub result.
     await filterInput.fill('Heathrow')
 
-    // The AIRPORTS section header should appear
-    await expect(page.locator('.filter-section-label').first()).toBeVisible({ timeout: 5000 })
+    // The matching airport row appears in the airports category list.
+    await expect(page.locator('.filter-result-item').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('#filter-results')).toContainText('EGLL')
   })
 
   test('filter combobox shows "No results" for non-matching query', async ({ page }) => {
@@ -112,36 +112,24 @@ test.describe('Air domain', () => {
     await expect(page.locator('.filter-no-results')).toContainText(/no results/i)
   })
 
-  test('AIRCRAFT section header has aria-expanded for accordion', async ({ page }) => {
-    await page.route('/api/adsb/flights', (route) => {
-      void route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify(adsbTwoPlanes.aircraft),
-      })
-    })
-    await page.route('/api/adsb/point', (route) => {
-      void route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify(adsbTwoPlanes),
-      })
-    })
-
+  test('FILTER rail exposes single-select category sub-tabs', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
     await page.locator('[data-tab="search"]').click()
     await expect(page.locator('#msb-pane-search')).toBeVisible()
 
-    // Type something to get results with the AIRCRAFT section
-    const filterInput = page.getByRole('combobox', {
-      name: /filter aircraft by callsign/i,
-    })
-    await filterInput.fill('B')
+    // The three air category sub-tabs render in the rail beneath the FILTER tab.
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="aircraft"]')).toBeVisible()
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="airports"]')).toBeVisible()
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="mil"]')).toBeVisible()
 
-    // The section header should have aria-expanded
-    const sectionBtn = page.locator('.filter-section-label').first()
-    await expect(sectionBtn).toBeVisible({ timeout: 5000 })
-    await expect(sectionBtn).toHaveAttribute('aria-expanded')
+    // Selecting one marks it active (single-select), announced via aria-pressed.
+    await page.locator('.msb-rail-subbtn[data-filter-cat="airports"]').click()
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="airports"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   test('REPLAY tab is absent from sidebar rail when replay is disabled', async ({ page }) => {
