@@ -1,6 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePersistedObject, usePersistedRef, usePersistedStringSet } from './_persist'
+import { usePersistedObject, usePersistedRef } from './_persist'
+
+// The Air search/filter categories, surfaced as single-select rail sub-tabs
+// beneath the FILTER tab. Exactly one is shown in the panel at a time.
+export type AirFilterCategory = 'aircraft' | 'airports' | 'mil'
+const AIR_FILTER_CATEGORIES: readonly AirFilterCategory[] = ['aircraft', 'airports', 'mil']
+function isAirFilterCategory(value: unknown): value is AirFilterCategory {
+  return typeof value === 'string' && (AIR_FILTER_CATEGORIES as readonly string[]).includes(value)
+}
 
 export interface OverlayStates {
   adsb: boolean
@@ -182,13 +190,13 @@ export const useAirStore = defineStore('air', () => {
   const replayEnabled = ref<boolean>(readPersistedReplayEnabled())
   const filterQuery = ref('')
   const filterOpen = ref(false)
-  // Which search groups (aircraft / airports / military bases) are collapsed, plus
-  // a one-time seed flag. Groups default to collapsed for a fresh user; once seeded
-  // this stays true so a returning user's expand/collapse choices are preserved.
-  const searchCollapsedGroups = usePersistedStringSet('sentinel_air_filterCollapsedGroups')
-  const searchGroupsCollapsedSeeded = usePersistedRef<boolean>(
-    'sentinel_air_filterGroupsCollapsedSeeded',
-    false,
+  // The active FILTER category (aircraft / airports / military bases), driven by
+  // the rail sub-tabs. Single-select — the panel shows only this category's list.
+  // Persisted so the choice is restored when returning to Air.
+  const airFilterCategory = usePersistedRef<AirFilterCategory>(
+    'sentinel_air_filterCategory',
+    'aircraft',
+    isAirFilterCategory,
   )
   // The aircraft whose detail accordion is open in the search list, persisted so
   // the selection is restored when returning to Air from another section.
@@ -235,6 +243,10 @@ export const useAirStore = defineStore('air', () => {
     filterQuery.value = query
   }
 
+  function setAirFilterCategory(category: AirFilterCategory) {
+    airFilterCategory.value = category
+  }
+
   function toggleFilter() {
     filterOpen.value = !filterOpen.value
   }
@@ -253,8 +265,7 @@ export const useAirStore = defineStore('air', () => {
     replayEnabled,
     filterQuery,
     filterOpen,
-    searchCollapsedGroups,
-    searchGroupsCollapsedSeeded,
+    airFilterCategory,
     searchExpandedPlane,
     mapIsolatedHex,
     mapCenter,
@@ -266,6 +277,7 @@ export const useAirStore = defineStore('air', () => {
     setOverheadAlertRadiusNm,
     setReplayEnabled,
     setFilter,
+    setAirFilterCategory,
     toggleFilter,
     saveMapState,
   }

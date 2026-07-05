@@ -644,6 +644,33 @@ const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
   return out
 })
 
+// Snap a target frequency to the nearest known (Frequency Manager) frequency when
+// it lands within a small pixel threshold of that marker — so a click near a known
+// freq jumps exactly to it, and a tuner-bar drag settles onto it. Pixel-based (via
+// the current visible window) so the snap distance feels the same at every zoom.
+// Gated by the Settings › SDR "Snap to Known Frequencies" toggle (store.snapToKnown).
+const SNAP_THRESHOLD_PX = 12
+function snapToKnownFreqHz(freqHz: number): number {
+  if (!store.snapToKnown) return freqHz
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  if (hi <= lo) return freqHz
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
+  const boxWidthPx = dataBoxWidthPx.value
+  if (boxWidthPx <= 0 || winHi <= winLo) return freqHz
+  const thresholdHz = SNAP_THRESHOLD_PX * ((winHi - winLo) / boxWidthPx)
+  let best = freqHz
+  let bestDist = thresholdHz
+  for (const f of store.frequencies) {
+    const dist = Math.abs(f.frequency_hz - freqHz)
+    if (dist <= bestDist) {
+      bestDist = dist
+      best = f.frequency_hz
+    }
+  }
+  return best
+}
+
 // No-op kept for the existing watchers — the HTML overlay (visibleKnownFreqs)
 // drives all rendering now. The AnnotationPlugin was previously used for the
 // vertical canvas line, which has been replaced by the SVG ring on the HTML
@@ -965,7 +992,9 @@ function onPlotMouseUp(e: MouseEvent) {
   // fraction within that window, not the full span, so a click lands on what
   // the user sees.
   const { winLo, winHi } = zoomWindowHz(lo, hi)
-  const freqHz = Math.round(winLo + frac * (winHi - winLo))
+  // Snap to a known frequency when the click lands near its marker, so clicking a
+  // known freq jumps straight to it (no-op when snapping is off / none in range).
+  const freqHz = snapToKnownFreqHz(Math.round(winLo + frac * (winHi - winLo)))
   // If a freq-axis pan is still held (livePanOffsetHz != 0, awaiting the new
   // centred frame), a click commits a fresh tune INSIDE the displayed window.
   // freqHz was already computed in the offset-shifted window, so clear the
@@ -1278,14 +1307,21 @@ function commitAccDrag() {
     clearAccDragFlags()
     return
   }
-  if (freqMoved) store.requestTune(Math.round(carrierHz))
+  // Snap a moved carrier to a nearby known frequency so the tuner bar settles onto
+  // it (no-op when snapping is off / none in range). Bandwidth is never snapped.
+  const committedCarrierHz = freqMoved ? snapToKnownFreqHz(Math.round(carrierHz)) : carrierHz
+  if (freqMoved) store.requestTune(Math.round(committedCarrierHz))
   if (bwMoved) store.requestBandwidth(Math.round(bw))
-  _lastCommittedFreqHz = carrierHz
+  _lastCommittedFreqHz = committedCarrierHz
   _lastCommittedBwHz = bw
   // Re-sync both plots immediately so the un-dragged plot follows now (don't
   // wait for the debounced backend echo). Re-derive the bracket geometry from
   // the carrier so the shade stays centred on the tuning line after a resize.
-  const { centerHz: syncCenterHz, widthHz: syncWidthHz } = bracketGeomHz(carrierHz, bw, mode)
+  const { centerHz: syncCenterHz, widthHz: syncWidthHz } = bracketGeomHz(
+    committedCarrierHz,
+    bw,
+    mode,
+  )
   suppressAccEvents = true
   try {
     specAcc.center(syncCenterHz / HZ_PER_MHZ)

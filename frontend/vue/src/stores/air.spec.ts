@@ -213,4 +213,25 @@ describe('air store', () => {
     expect(store.mapZoom).toBe(5)
     expect(store.pitch).toBe(45)
   })
+
+  describe('airFilterCategory', () => {
+    it('defaults to aircraft', () => {
+      expect(useAirStore().airFilterCategory).toBe('aircraft')
+    })
+
+    it('setAirFilterCategory updates and persists the active category', () => {
+      const store = useAirStore()
+      store.setAirFilterCategory('mil')
+      expect(store.airFilterCategory).toBe('mil')
+      expect(localStorage.getItem('sentinel_air_filterCategory')).toBe('"mil"')
+    })
+
+    it('restores a persisted valid category and ignores an invalid one', () => {
+      localStorage.setItem('sentinel_air_filterCategory', '"airports"')
+      expect(useAirStore().airFilterCategory).toBe('airports')
+      setActivePinia(createPinia())
+      localStorage.setItem('sentinel_air_filterCategory', '"bogus"')
+      expect(useAirStore().airFilterCategory).toBe('aircraft')
+    })
+  })
 })

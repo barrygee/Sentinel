@@ -46,400 +46,387 @@
       <div class="space-filter-no-results">No satellites found</div>
     </template>
     <div v-else class="space-filter-results-body">
-      <div v-for="group in groupedResults" :key="group.cat" class="space-filter-result-group">
-        <button
-          class="space-filter-section-label"
-          :aria-expanded="!collapsedCats.has(group.cat)"
-          @click="toggleSection(group.cat)"
+      <!-- The active category is chosen by the rail sub-tabs (FILTER tab); only its
+           flat list renders. The text box above filters within that category. -->
+      <div v-if="activeGroup" class="space-filter-result-group">
+        <div
+          v-for="sat in activeGroup.sats"
+          :key="sat.norad_id"
+          class="space-filter-result-item"
+          :class="{
+            'sfr-expanded': expandedNoradId === sat.norad_id,
+            'keyboard-focused': focusedNoradId === sat.norad_id,
+          }"
+          @mouseenter="onMouseEnter(sat)"
+          @mouseleave="onMouseLeave"
+          @click="onItemClick(sat)"
         >
-          <span>{{ group.label }}</span>
-          <ChevronIcon
-            class="space-filter-section-chevron"
-            :class="{ 'space-filter-section-chevron--collapsed': collapsedCats.has(group.cat) }"
-          />
-        </button>
-        <template v-if="!collapsedCats.has(group.cat)">
-          <div
-            v-for="sat in group.sats"
-            :key="sat.norad_id"
-            class="space-filter-result-item"
-            :class="{
-              'sfr-expanded': expandedNoradId === sat.norad_id,
-              'keyboard-focused': focusedNoradId === sat.norad_id,
-            }"
-            @mouseenter="onMouseEnter(sat)"
-            @mouseleave="onMouseLeave"
-            @click="onItemClick(sat)"
-          >
-            <!-- The option is just the row header (identity + chevron); the
+          <!-- The option is just the row header (identity + chevron); the
                  expanded accordion is a sibling so its buttons aren't nested
                  inside the option. -->
-            <div
-              :id="`space-filter-opt-${sat.norad_id}`"
-              role="option"
-              :aria-selected="focusedNoradId === sat.norad_id"
-              :aria-label="satOptionLabel(sat)"
-              class="space-filter-result-option"
-            >
-              <div class="space-filter-result-info">
-                <div class="space-filter-result-primary">{{ sat.name || sat.norad_id }}</div>
-                <div class="space-filter-result-secondary">{{ satSecondary(sat) }}</div>
-              </div>
-              <span class="sfr-item-chevron">
-                <ChevronIcon />
-              </span>
+          <div
+            :id="`space-filter-opt-${sat.norad_id}`"
+            role="option"
+            :aria-selected="focusedNoradId === sat.norad_id"
+            :aria-label="satOptionLabel(sat)"
+            class="space-filter-result-option"
+          >
+            <div class="space-filter-result-info">
+              <div class="space-filter-result-primary">{{ sat.name || sat.norad_id }}</div>
+              <div class="space-filter-result-secondary">{{ satSecondary(sat) }}</div>
             </div>
-            <!-- Expanded accordion body -->
-            <div v-if="expandedNoradId === sat.norad_id" class="sfr-accordion-body">
-              <div class="sfr-acc-section">
-                <div class="sfr-acc-section-title">POSITION DATA</div>
-                <div class="sfr-acc-grid sfr-acc-grid--three">
-                  <div class="sfr-acc-cell sfr-acc-cell--lat">
-                    <div class="sfr-acc-cell-label">LATITUDE</div>
-                    <div class="sfr-acc-cell-value sfr-acc-cell-value--lat">
-                      {{ liveTelemetry['lat'] ?? '—' }}
-                    </div>
-                  </div>
-                  <div class="sfr-acc-cell sfr-acc-cell--lon">
-                    <div class="sfr-acc-cell-label">LONGITUDE</div>
-                    <div class="sfr-acc-cell-value sfr-acc-cell-value--lon">
-                      {{ liveTelemetry['lon'] ?? '—' }}
-                    </div>
-                  </div>
-                  <div class="sfr-acc-cell sfr-acc-cell--hdg">
-                    <div class="sfr-acc-cell-label">HEADING</div>
-                    <div class="sfr-acc-cell-value sfr-acc-cell-value--hdg">
-                      {{ liveTelemetry['hdg'] ?? '—' }}
-                    </div>
+            <span class="sfr-item-chevron">
+              <ChevronIcon />
+            </span>
+          </div>
+          <!-- Expanded accordion body -->
+          <div v-if="expandedNoradId === sat.norad_id" class="sfr-accordion-body">
+            <div class="sfr-acc-section">
+              <div class="sfr-acc-section-title">POSITION DATA</div>
+              <div class="sfr-acc-grid sfr-acc-grid--three">
+                <div class="sfr-acc-cell sfr-acc-cell--lat">
+                  <div class="sfr-acc-cell-label">LATITUDE</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--lat">
+                    {{ liveTelemetry['lat'] ?? '—' }}
                   </div>
                 </div>
-              </div>
-              <div class="sfr-acc-section">
-                <div class="sfr-acc-section-title">ORBITAL DATA</div>
-                <div class="sfr-acc-grid sfr-acc-grid--three">
-                  <div class="sfr-acc-cell sfr-acc-cell--alt">
-                    <div class="sfr-acc-cell-label">ALTITUDE</div>
-                    <div class="sfr-acc-cell-value sfr-acc-cell-value--alt">
-                      {{ liveTelemetry['alt'] ?? '—' }}
-                    </div>
+                <div class="sfr-acc-cell sfr-acc-cell--lon">
+                  <div class="sfr-acc-cell-label">LONGITUDE</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--lon">
+                    {{ liveTelemetry['lon'] ?? '—' }}
                   </div>
-                  <div class="sfr-acc-cell sfr-acc-cell--vel">
-                    <div class="sfr-acc-cell-label">VELOCITY</div>
-                    <div class="sfr-acc-cell-value sfr-acc-cell-value--vel">
-                      {{ liveTelemetry['vel'] ?? '—' }}
-                    </div>
+                </div>
+                <div class="sfr-acc-cell sfr-acc-cell--hdg">
+                  <div class="sfr-acc-cell-label">HEADING</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--hdg">
+                    {{ liveTelemetry['hdg'] ?? '—' }}
                   </div>
                 </div>
               </div>
-              <div v-if="hasRadioInfo(sat)" class="sfr-acc-section sfr-acc-section--radio">
-                <div class="sfr-acc-section-title">RADIO</div>
-                <div class="sfr-acc-radio-grid">
-                  <template v-if="sat.uplink_hz">
-                    <div class="sfr-acc-cell sfr-acc-cell--uplink">
-                      <div class="sfr-acc-cell-label">UPLINK</div>
-                      <div class="sfr-acc-cell-value">
-                        {{ formatHz(sat.uplink_hz)
-                        }}<span v-if="sat.uplink_mode" class="sfr-acc-cell-mode">
-                          · {{ sat.uplink_mode }}</span
-                        >
-                      </div>
-                    </div>
-                  </template>
-                  <template v-if="sat.downlink_hz">
-                    <div class="sfr-acc-cell sfr-acc-cell--downlink">
-                      <div class="sfr-acc-cell-label">DOWNLINK</div>
-                      <div class="sfr-acc-cell-value">
-                        {{ formatHz(sat.downlink_hz)
-                        }}<span v-if="sat.downlink_mode" class="sfr-acc-cell-mode">
-                          · {{ sat.downlink_mode }}</span
-                        >
-                      </div>
-                    </div>
-                  </template>
-                  <template v-if="sat.ctcss_hz">
-                    <div class="sfr-acc-cell sfr-acc-cell--ctcss">
-                      <div class="sfr-acc-cell-label">CTCSS</div>
-                      <div class="sfr-acc-cell-value">{{ sat.ctcss_hz.toFixed(1) }} Hz</div>
-                    </div>
-                  </template>
-                  <template v-if="sat.transponder_type">
-                    <div class="sfr-acc-cell sfr-acc-cell--transponder">
-                      <div class="sfr-acc-cell-label">TRANSPONDER</div>
-                      <div class="sfr-acc-cell-value">{{ sat.transponder_type }}</div>
-                    </div>
-                  </template>
-                  <template v-if="sat.beacon_hz">
-                    <div class="sfr-acc-cell sfr-acc-cell--beacon">
-                      <div class="sfr-acc-cell-label">BEACON</div>
-                      <div class="sfr-acc-cell-value">{{ formatHz(sat.beacon_hz) }}</div>
-                    </div>
-                  </template>
-                  <template v-if="sat.radio_status">
-                    <div class="sfr-acc-cell sfr-acc-cell--status">
-                      <div class="sfr-acc-cell-label">STATUS</div>
-                      <div class="sfr-acc-cell-value">{{ formatStatus(sat.radio_status) }}</div>
-                    </div>
-                  </template>
+            </div>
+            <div class="sfr-acc-section">
+              <div class="sfr-acc-section-title">ORBITAL DATA</div>
+              <div class="sfr-acc-grid sfr-acc-grid--three">
+                <div class="sfr-acc-cell sfr-acc-cell--alt">
+                  <div class="sfr-acc-cell-label">ALTITUDE</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--alt">
+                    {{ liveTelemetry['alt'] ?? '—' }}
+                  </div>
                 </div>
-                <div v-if="sat.packet_info" class="sfr-acc-radio-line">
-                  <div class="sfr-acc-cell-label">PACKET / DIGITAL</div>
-                  <ul class="sfr-acc-radio-list">
-                    <li v-for="(p, i) in splitNotes(sat.packet_info)" :key="i">{{ p }}</li>
-                  </ul>
-                </div>
-                <div v-if="sat.radio_notes" class="sfr-acc-radio-line">
-                  <div class="sfr-acc-cell-label">NOTES</div>
-                  <ul class="sfr-acc-radio-list">
-                    <li v-for="(n, i) in splitNotes(sat.radio_notes)" :key="i">{{ n }}</li>
-                  </ul>
+                <div class="sfr-acc-cell sfr-acc-cell--vel">
+                  <div class="sfr-acc-cell-label">VELOCITY</div>
+                  <div class="sfr-acc-cell-value sfr-acc-cell-value--vel">
+                    {{ liveTelemetry['vel'] ?? '—' }}
+                  </div>
                 </div>
               </div>
-              <div class="sfr-acc-section sfr-acc-section--track">
-                <div class="sfr-acc-track-row">
-                  <button
-                    class="sfr-acc-track-btn"
-                    :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }"
-                    :aria-label="
-                      followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
-                    "
-                    :data-tooltip="
-                      followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
-                    "
-                    @click.stop="trackSat(sat)"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linejoin="round"
-                        fill="none"
-                      />
-                      <circle cx="12" cy="9" r="2.2" fill="currentColor" />
-                    </svg>
-                  </button>
-                  <button
-                    class="sfr-acc-notif-btn"
-                    :class="{ 'sfr-acc-notif-btn--active': notifNoradId === sat.norad_id }"
-                    :aria-label="
-                      notifNoradId === sat.norad_id
-                        ? 'Disable pass notifications'
-                        : 'Enable pass notifications'
-                    "
-                    :data-tooltip="
-                      notifNoradId === sat.norad_id
-                        ? 'Disable pass notifications'
-                        : 'Enable pass notifications'
-                    "
-                    @click.stop="togglePassNotif(sat)"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 13 13"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                        fill="currentColor"
-                      />
-                      <path
-                        d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                        stroke="currentColor"
-                        stroke-width="1"
-                        fill="none"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    v-if="sat.downlink_hz"
-                    class="sfr-acc-autotune-btn"
-                    :class="{ 'sfr-acc-autotune-btn--active': isArmed(sat.norad_id) }"
-                    :aria-label="autoTuneLabel(sat)"
-                    :data-tooltip="autoTuneLabel(sat)"
-                    @click.stop="toggleAutoTune(sat)"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <!-- radio receiver: matches the SDR tab glyph -->
-                      <path
-                        d="M5 7h14v12H5z"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linejoin="miter"
-                        fill="none"
-                      />
-                      <line
-                        x1="6"
-                        y1="7"
-                        x2="17"
-                        y2="3"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                      />
-                      <circle
-                        cx="9"
-                        cy="13"
-                        r="3"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        fill="none"
-                      />
-                      <line
-                        x1="15.5"
-                        y1="11"
-                        x2="17"
-                        y2="11"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                      />
-                      <line
-                        x1="15.5"
-                        y1="15"
-                        x2="17"
-                        y2="15"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    v-if="sat.downlink_hz"
-                    class="sfr-acc-record-btn"
-                    :class="{ 'sfr-acc-record-btn--active': isRecordArmed(sat.norad_id) }"
-                    :disabled="!isArmed(sat.norad_id)"
-                    aria-label="Record pass"
-                    data-tooltip="Record pass"
-                    @click.stop="toggleRecord(sat)"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="6" fill="currentColor" />
-                    </svg>
-                  </button>
-                </div>
-                <div
-                  v-if="isArmed(sat.norad_id) && autoTuneConflictText"
-                  class="sfr-acc-autotune-warn"
+            </div>
+            <div v-if="hasRadioInfo(sat)" class="sfr-acc-section sfr-acc-section--radio">
+              <div class="sfr-acc-section-title">RADIO</div>
+              <div class="sfr-acc-radio-grid">
+                <template v-if="sat.uplink_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--uplink">
+                    <div class="sfr-acc-cell-label">UPLINK</div>
+                    <div class="sfr-acc-cell-value">
+                      {{ formatHz(sat.uplink_hz)
+                      }}<span v-if="sat.uplink_mode" class="sfr-acc-cell-mode">
+                        · {{ sat.uplink_mode }}</span
+                      >
+                    </div>
+                  </div>
+                </template>
+                <template v-if="sat.downlink_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--downlink">
+                    <div class="sfr-acc-cell-label">DOWNLINK</div>
+                    <div class="sfr-acc-cell-value">
+                      {{ formatHz(sat.downlink_hz)
+                      }}<span v-if="sat.downlink_mode" class="sfr-acc-cell-mode">
+                        · {{ sat.downlink_mode }}</span
+                      >
+                    </div>
+                  </div>
+                </template>
+                <template v-if="sat.ctcss_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--ctcss">
+                    <div class="sfr-acc-cell-label">CTCSS</div>
+                    <div class="sfr-acc-cell-value">{{ sat.ctcss_hz.toFixed(1) }} Hz</div>
+                  </div>
+                </template>
+                <template v-if="sat.transponder_type">
+                  <div class="sfr-acc-cell sfr-acc-cell--transponder">
+                    <div class="sfr-acc-cell-label">TRANSPONDER</div>
+                    <div class="sfr-acc-cell-value">{{ sat.transponder_type }}</div>
+                  </div>
+                </template>
+                <template v-if="sat.beacon_hz">
+                  <div class="sfr-acc-cell sfr-acc-cell--beacon">
+                    <div class="sfr-acc-cell-label">BEACON</div>
+                    <div class="sfr-acc-cell-value">{{ formatHz(sat.beacon_hz) }}</div>
+                  </div>
+                </template>
+                <template v-if="sat.radio_status">
+                  <div class="sfr-acc-cell sfr-acc-cell--status">
+                    <div class="sfr-acc-cell-label">STATUS</div>
+                    <div class="sfr-acc-cell-value">{{ formatStatus(sat.radio_status) }}</div>
+                  </div>
+                </template>
+              </div>
+              <div v-if="sat.packet_info" class="sfr-acc-radio-line">
+                <div class="sfr-acc-cell-label">PACKET / DIGITAL</div>
+                <ul class="sfr-acc-radio-list">
+                  <li v-for="(p, i) in splitNotes(sat.packet_info)" :key="i">{{ p }}</li>
+                </ul>
+              </div>
+              <div v-if="sat.radio_notes" class="sfr-acc-radio-line">
+                <div class="sfr-acc-cell-label">NOTES</div>
+                <ul class="sfr-acc-radio-list">
+                  <li v-for="(n, i) in splitNotes(sat.radio_notes)" :key="i">{{ n }}</li>
+                </ul>
+              </div>
+            </div>
+            <div class="sfr-acc-section sfr-acc-section--track">
+              <div class="sfr-acc-track-row">
+                <button
+                  class="sfr-acc-track-btn"
+                  :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }"
+                  :aria-label="
+                    followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
+                  "
+                  :data-tooltip="
+                    followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
+                  "
+                  @click.stop="trackSat(sat)"
                 >
                   <svg
-                    width="12"
-                    height="12"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
                     aria-hidden="true"
                   >
                     <path
-                      d="M12 3 2 20h20L12 3Z"
+                      d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
                       stroke="currentColor"
                       stroke-width="1.8"
                       stroke-linejoin="round"
                       fill="none"
                     />
+                    <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+                  </svg>
+                </button>
+                <button
+                  class="sfr-acc-notif-btn"
+                  :class="{ 'sfr-acc-notif-btn--active': notifNoradId === sat.norad_id }"
+                  :aria-label="
+                    notifNoradId === sat.norad_id
+                      ? 'Disable pass notifications'
+                      : 'Enable pass notifications'
+                  "
+                  :data-tooltip="
+                    notifNoradId === sat.norad_id
+                      ? 'Disable pass notifications'
+                      : 'Enable pass notifications'
+                  "
+                  @click.stop="togglePassNotif(sat)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 13 13"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M5 10.5a1.5 1.5 0 0 0 3 0"
+                      stroke="currentColor"
+                      stroke-width="1"
+                      fill="none"
+                    />
+                  </svg>
+                </button>
+                <button
+                  v-if="sat.downlink_hz"
+                  class="sfr-acc-autotune-btn"
+                  :class="{ 'sfr-acc-autotune-btn--active': isArmed(sat.norad_id) }"
+                  :aria-label="autoTuneLabel(sat)"
+                  :data-tooltip="autoTuneLabel(sat)"
+                  @click.stop="toggleAutoTune(sat)"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <!-- radio receiver: matches the SDR tab glyph -->
+                    <path
+                      d="M5 7h14v12H5z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linejoin="miter"
+                      fill="none"
+                    />
                     <line
-                      x1="12"
-                      y1="9"
-                      x2="12"
-                      y2="14"
+                      x1="6"
+                      y1="7"
+                      x2="17"
+                      y2="3"
                       stroke="currentColor"
                       stroke-width="1.8"
                       stroke-linecap="round"
                     />
-                    <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor" />
+                    <circle
+                      cx="9"
+                      cy="13"
+                      r="3"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      fill="none"
+                    />
+                    <line
+                      x1="15.5"
+                      y1="11"
+                      x2="17"
+                      y2="11"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="15.5"
+                      y1="15"
+                      x2="17"
+                      y2="15"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
                   </svg>
-                  <span>{{ autoTuneConflictText }}</span>
-                </div>
+                </button>
+                <button
+                  v-if="sat.downlink_hz"
+                  class="sfr-acc-record-btn"
+                  :class="{ 'sfr-acc-record-btn--active': isRecordArmed(sat.norad_id) }"
+                  :disabled="!isArmed(sat.norad_id)"
+                  aria-label="Record pass"
+                  data-tooltip="Record pass"
+                  @click.stop="toggleRecord(sat)"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="6" fill="currentColor" />
+                  </svg>
+                </button>
               </div>
-              <div class="sfr-acc-section sfr-acc-section--polar">
-                <div class="sfr-acc-section-title sfr-acc-polar-title">
-                  <span>{{ polarTitle }}</span>
-                  <span v-if="polarPass" class="sfr-acc-polar-maxel"
-                    >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
-                  >
-                </div>
-                <SatPolarPlot
-                  v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
-                  :track="polarPass.sky_track"
-                  :live="polarLive"
-                />
-                <div v-else class="sfr-acc-polar-empty">
-                  {{ accordionLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
-                </div>
+              <div
+                v-if="isArmed(sat.norad_id) && autoTuneConflictText"
+                class="sfr-acc-autotune-warn"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3 2 20h20L12 3Z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                    fill="none"
+                  />
+                  <line
+                    x1="12"
+                    y1="9"
+                    x2="12"
+                    y2="14"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor" />
+                </svg>
+                <span>{{ autoTuneConflictText }}</span>
               </div>
-              <div class="sfr-acc-section sfr-acc-section--passes">
-                <div class="sfr-acc-section-title sfr-acc-passes-title">
-                  <span>UPCOMING PASSES</span>
-                  <span
-                    class="sfr-acc-status"
-                    :class="{ 'sfr-acc-status-loading': accordionLoading }"
-                    >{{ accordionStatus }}</span
-                  >
-                </div>
-                <div class="sfr-acc-pass-list">
-                  <template v-if="accordionPasses.length === 0 && !accordionLoading">
-                    <div v-if="accordionStatus.startsWith('NEXT')" class="sfr-acc-no-passes">
-                      No passes in the next 24 hours.
+            </div>
+            <div class="sfr-acc-section sfr-acc-section--polar">
+              <div class="sfr-acc-section-title sfr-acc-polar-title">
+                <span>{{ polarTitle }}</span>
+                <span v-if="polarPass" class="sfr-acc-polar-maxel"
+                  >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
+                >
+              </div>
+              <SatPolarPlot
+                v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
+                :track="polarPass.sky_track"
+                :live="polarLive"
+              />
+              <div v-else class="sfr-acc-polar-empty">
+                {{ accordionLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
+              </div>
+            </div>
+            <div class="sfr-acc-section sfr-acc-section--passes">
+              <div class="sfr-acc-section-title sfr-acc-passes-title">
+                <span>UPCOMING PASSES</span>
+                <span
+                  class="sfr-acc-status"
+                  :class="{ 'sfr-acc-status-loading': accordionLoading }"
+                  >{{ accordionStatus }}</span
+                >
+              </div>
+              <div class="sfr-acc-pass-list">
+                <template v-if="accordionPasses.length === 0 && !accordionLoading">
+                  <div v-if="accordionStatus.startsWith('NEXT')" class="sfr-acc-no-passes">
+                    No passes in the next 24 hours.
+                  </div>
+                </template>
+                <div
+                  v-for="(pass, i) in accordionPasses"
+                  :key="i"
+                  class="sfr-acc-pass-card"
+                  :data-aos-ms="pass.aos_unix_ms"
+                  :data-los-ms="pass.los_unix_ms"
+                >
+                  <div class="sfr-acc-pass-times">
+                    <div class="sfr-acc-pass-aos-row">
+                      <span class="sfr-acc-pass-date">{{ formatPassDate(pass.aos_utc) }}</span>
+                      <span class="sfr-acc-pass-time">{{ formatPassTime(pass.aos_utc) }}</span>
                     </div>
-                  </template>
-                  <div
-                    v-for="(pass, i) in accordionPasses"
-                    :key="i"
-                    class="sfr-acc-pass-card"
-                    :data-aos-ms="pass.aos_unix_ms"
-                    :data-los-ms="pass.los_unix_ms"
-                  >
-                    <div class="sfr-acc-pass-times">
-                      <div class="sfr-acc-pass-aos-row">
-                        <span class="sfr-acc-pass-date">{{ formatPassDate(pass.aos_utc) }}</span>
-                        <span class="sfr-acc-pass-time">{{ formatPassTime(pass.aos_utc) }}</span>
-                      </div>
-                      <div class="sfr-acc-pass-los">
-                        LOS {{ formatPassTime(pass.los_utc) }} ·
-                        {{ formatPassDuration(pass.duration_s) }}
-                      </div>
+                    <div class="sfr-acc-pass-los">
+                      LOS {{ formatPassTime(pass.los_utc) }} ·
+                      {{ formatPassDuration(pass.duration_s) }}
                     </div>
-                    <div class="sfr-acc-pass-meta">
-                      <div
-                        class="sfr-acc-pass-countdown"
-                        :class="{ 'sfr-in-progress': isNow(pass) }"
-                      >
-                        {{ isNow(pass) ? 'NOW' : passCountdownText(pass) }}
-                      </div>
-                      <div class="sfr-acc-pass-maxel">
-                        MAX {{ pass.max_elevation_deg.toFixed(1) }}°
-                      </div>
+                  </div>
+                  <div class="sfr-acc-pass-meta">
+                    <div class="sfr-acc-pass-countdown" :class="{ 'sfr-in-progress': isNow(pass) }">
+                      {{ isNow(pass) ? 'NOW' : passCountdownText(pass) }}
+                    </div>
+                    <div class="sfr-acc-pass-maxel">
+                      MAX {{ pass.max_elevation_deg.toFixed(1) }}°
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </template>
+        </div>
       </div>
+      <div v-else class="space-filter-no-results">No satellites found</div>
     </div>
   </div>
 </template>
@@ -464,7 +451,6 @@ import SatPolarPlot from './SatPolarPlot.vue'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
   SATELLITE_CATEGORY_ORDER,
-  SATELLITE_CATEGORY_SECTION_LABELS,
   formatPassCountdown,
   formatPassDuration,
   formatPassTime,
@@ -562,23 +548,13 @@ const spaceStore = useSpaceStore()
 const {
   searchQuery: query,
   searchExpandedNorad: expandedNoradId,
-  searchCollapsedCats: collapsedCats,
-  searchCatsCollapsedSeeded: collapsedCatsSeeded,
+  // The active FILTER category, selected via the rail sub-tabs in MapSidebar.
+  // Single-select — only this category's satellites render in the panel.
+  spaceFilterCategory: filterCategory,
 } = storeToRefs(spaceStore)
 const satellites = ref<SatEntry[]>([])
 const loaded = ref(false)
 const focusedNoradId = ref<string | null>(null)
-// Categories collapsed by the user but force-opened by the search auto-expand. They
-// re-collapse once their matches go away, unless the user manually toggles them.
-const autoOpenedCats = ref<Set<string>>(new Set())
-function toggleSection(cat: string): void {
-  const next = new Set(collapsedCats.value)
-  if (next.has(cat)) next.delete(cat)
-  else next.add(cat)
-  collapsedCats.value = next
-  // A manual toggle takes ownership: drop any auto-open bookkeeping for this category.
-  autoOpenedCats.value.delete(cat)
-}
 
 const accordionLoading = ref(false)
 const accordionStatus = ref('COMPUTING PASSES…')
@@ -882,42 +858,41 @@ const groupedResults = computed(() => {
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(sat)
   }
-  const out: { cat: string; label: string; sats: SatEntry[] }[] = []
+  const out: { cat: string; sats: SatEntry[] }[] = []
   groups.forEach((sats, cat) => {
     if (!sats.length) return
-    out.push({
-      cat,
-      label: SATELLITE_CATEGORY_SECTION_LABELS[cat] || cat.replace(/_/g, ' ').toUpperCase(),
-      sats: sats.slice(0, CAP),
-    })
+    out.push({ cat, sats: sats.slice(0, CAP) })
   })
   return out
 })
 
-// Keep auto-expanded categories in sync with the search. A collapsed category that
-// gains matches is force-opened; once its matches disappear (or the query is
-// cleared) it re-collapses, so it returns to the state the user left it in.
-watch([query, groupedResults], () => {
-  const searching = query.value.trim().length > 0
-  const matched = new Set(searching ? groupedResults.value.map((g) => g.cat) : [])
-  const next = new Set(collapsedCats.value)
-  let changed = false
-  for (const cat of matched) {
-    if (next.has(cat)) {
-      next.delete(cat)
-      autoOpenedCats.value.add(cat)
-      changed = true
-    }
-  }
-  for (const cat of [...autoOpenedCats.value]) {
-    if (!matched.has(cat)) {
-      next.add(cat)
-      autoOpenedCats.value.delete(cat)
-      changed = true
-    }
-  }
-  if (changed) collapsedCats.value = next
+// The satellite categories that have data, in display order — computed from the
+// FULL loaded set (not the text-filtered results) so the rail sub-tab set stays
+// stable as you type. Published to the store so MapSidebar can render one rail
+// sub-tab per available category. Also default/repair the selected category so the
+// panel always shows a valid one (empty on first load, or a category that vanished).
+const availableCategories = computed<string[]>(() => {
+  const present = new Set<string>()
+  for (const sat of satellites.value) present.add(sat.category || 'unknown')
+  return SATELLITE_CATEGORY_ORDER.filter((cat) => present.has(cat))
 })
+watch(
+  availableCategories,
+  (cats) => {
+    spaceStore.setSpaceAvailableCategories(cats)
+    if (!cats.includes(filterCategory.value)) {
+      spaceStore.setSpaceFilterCategory(cats[0] ?? '')
+    }
+  },
+  { immediate: true },
+)
+
+// The single category group shown in the panel (the selected sub-tab). Null when
+// the selected category has no matching satellites (e.g. the text filter excludes
+// them all), which the template surfaces as a no-results message.
+const activeGroup = computed(
+  () => groupedResults.value.find((group) => group.cat === filterCategory.value) ?? null,
+)
 
 function satSecondary(sat: SatEntry): string {
   const catLabel = sat.category
@@ -940,10 +915,7 @@ function satOptionLabel(sat: SatEntry): string {
 // aria-owns — they live outside it in the DOM so the surrounding header / action
 // buttons stay valid.
 const ownedOptionIds = computed<string>(() =>
-  groupedResults.value
-    .filter((group) => !collapsedCats.value.has(group.cat))
-    .flatMap((group) => group.sats.map((sat) => `space-filter-opt-${sat.norad_id}`))
-    .join(' '),
+  (activeGroup.value?.sats ?? []).map((sat) => `space-filter-opt-${sat.norad_id}`).join(' '),
 )
 
 // The combobox popup (listbox) is only present when at least one option is
@@ -957,9 +929,7 @@ const listboxShown = computed<boolean>(() => ownedOptionIds.value.length > 0)
 const activeDescId = computed<string | undefined>(() => {
   const id = focusedNoradId.value
   if (!id) return undefined
-  const rendered = groupedResults.value.some(
-    (group) => !collapsedCats.value.has(group.cat) && group.sats.some((s) => s.norad_id === id),
-  )
+  const rendered = !!activeGroup.value?.sats.some((s) => s.norad_id === id)
   return rendered ? `space-filter-opt-${id}` : undefined
 })
 
@@ -1102,9 +1072,8 @@ function onKeydown(e: KeyboardEvent): void {
     clearQuery()
     return
   }
-  const allSats = groupedResults.value
-    .filter((g) => !collapsedCats.value.has(g.cat))
-    .flatMap((g) => g.sats)
+  // Keyboard nav is scoped to the active category's rendered rows.
+  const allSats = activeGroup.value?.sats ?? []
   if (!allSats.length) return
   const idx = allSats.findIndex((s) => s.norad_id === focusedNoradId.value)
   if (e.key === 'ArrowDown') {
@@ -1182,8 +1151,12 @@ function restoreExpandedAccordion(): void {
   const id = expandedNoradId.value
   if (!id) return
   const sat = satellites.value.find((s) => s.norad_id === id)
-  if (sat) openAccordion(sat)
-  else expandedNoradId.value = ''
+  if (sat) {
+    // Switch to the restored satellite's category so its row (and open accordion)
+    // is in the visible single-category list.
+    spaceStore.setSpaceFilterCategory(sat.category || 'unknown')
+    openAccordion(sat)
+  } else expandedNoradId.value = ''
 }
 
 function isNow(pass: SatPass): boolean {
@@ -1199,12 +1172,6 @@ function onSettingsPanelClosed(): void {
 }
 
 onMounted(() => {
-  // On first ever mount, collapse every category so the Search pane opens closed.
-  // Subsequent mounts respect whatever the user has since expanded/collapsed.
-  if (!collapsedCatsSeeded.value) {
-    collapsedCats.value = new Set(SATELLITE_CATEGORY_ORDER)
-    collapsedCatsSeeded.value = true
-  }
   void loadSatellites()
   countdownTick = setInterval(() => {
     now.value = Date.now()
@@ -1340,46 +1307,11 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   flex-direction: column;
 }
 
-.space-filter-section-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: #fff;
-  padding: 22px 20px 12px 24px;
-  text-transform: uppercase;
-  text-align: left;
-  flex-shrink: 0;
-  transition: opacity 0.12s;
-}
-
-.space-filter-section-label:hover {
-  opacity: 0.8;
-}
-
-/* The section button is now the first child of its category group wrapper, so
-   scope the extra top padding to the first group rather than a bare :first-child. */
-.space-filter-result-group:first-child .space-filter-section-label {
-  padding-top: 24px;
-}
-
-.space-filter-section-chevron {
-  color: rgba(255, 255, 255, 0.35);
-  flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-
-/* Match the per-item chevron convention: down when expanded, left when collapsed. */
-.space-filter-section-chevron--collapsed {
-  transform: rotate(-90deg);
+/* Now the accordion category headers are gone, the first row would sit flush under
+   the search input. Add top space matching the between-item gap so the
+   input→first-item gap reads the same as the gap between list items. */
+.space-filter-results-body {
+  padding-top: 9px;
 }
 
 .space-filter-result-item {

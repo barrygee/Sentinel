@@ -1001,6 +1001,29 @@ describe('SdrWaterfall — click-to-tune & plot mouse handling', () => {
     expect(lastCall?.[0]).not.toBe(0)
   })
 
+  it('snaps a click to a nearby known frequency, and does not when snapping is off', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.autoCenterWaterfallOnTune = true
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = spectrumEl(wrapper)
+    // Snapping OFF: capture the raw clicked frequency (also covers the off-path).
+    store.setSnapToKnown(false)
+    await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
+    await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
+    const rawFreq = tuneSpy.mock.calls.at(-1)![0] as number
+    // Place a known freq a few hundred Hz off the raw click, then enable snapping:
+    // a click at the same spot must now tune to the known freq, not the raw one.
+    const knownFreq = rawFreq + 800
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'NEAR', frequency_hz: knownFreq, mode: 'AM' },
+    ]
+    store.setSnapToKnown(true)
+    await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
+    await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
+    expect(tuneSpy.mock.calls.at(-1)![0]).toBe(knownFreq)
+  })
+
   it('a right-click is swallowed on both mousedown and mouseup', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)

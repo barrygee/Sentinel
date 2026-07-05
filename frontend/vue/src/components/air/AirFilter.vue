@@ -42,405 +42,268 @@
     ></div>
 
     <div class="filter-results-body">
-      <template v-if="!results.length">
-        <div class="filter-no-results">No results</div>
-      </template>
-      <template v-else>
-        <!-- Aircraft section -->
-        <div v-if="displayPlanes.length" class="filter-result-group">
-          <button
-            class="filter-section-label"
-            :class="{ 'filter-section-label--collapsed': collapsed.has('aircraft') }"
-            :aria-expanded="!collapsed.has('aircraft')"
-            @click="toggleSection('aircraft')"
-          >
-            <span>AIRCRAFT</span>
-            <ChevronIcon
-              class="filter-section-chevron"
-              :class="{ 'filter-section-chevron--collapsed': collapsed.has('aircraft') }"
-            />
-          </button>
-          <template v-if="!collapsed.has('aircraft')">
-            <template v-for="(r, index) in displayPlanes" :key="r.hex">
+      <!-- The active category is chosen by the rail sub-tabs (FILTER tab); only its
+           flat list renders. The text box above filters within that category. -->
+      <!-- Aircraft -->
+      <div v-if="filterCategory === 'aircraft'" class="filter-result-group">
+        <template v-if="displayPlanes.length">
+          <template v-for="(r, index) in displayPlanes" :key="r.hex">
+            <div
+              class="filter-result-item"
+              :class="{
+                'keyboard-focused': focusedKey === r.hex,
+                'filter-result-item--open': expandedPlane === r.hex,
+                'filter-result-item--emergency': r.emergency,
+              }"
+            >
               <div
-                class="filter-result-item"
-                :class="{
-                  'keyboard-focused': focusedKey === r.hex,
-                  'filter-result-item--open': expandedPlane === r.hex,
-                  'filter-result-item--emergency': r.emergency,
-                }"
+                :id="`filter-opt-plane-${index}`"
+                role="option"
+                :aria-selected="focusedKey === r.hex"
+                :aria-label="planeOptionLabel(r)"
+                class="filter-result-option"
+                @click="selectPlane(r)"
               >
-                <div
-                  :id="`filter-opt-plane-${index}`"
-                  role="option"
-                  :aria-selected="focusedKey === r.hex"
-                  :aria-label="planeOptionLabel(r)"
-                  class="filter-result-option"
-                  @click="selectPlane(r)"
-                >
-                  <div class="filter-result-icon filter-icon-plane">
-                    <svg
-                      width="11"
-                      height="11"
-                      viewBox="0 0 56 52"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
-                    </svg>
-                  </div>
-                  <div class="filter-result-info">
-                    <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
-                    <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
-                  </div>
-                  <ChevronIcon
-                    class="filter-result-chevron"
-                    :class="{ 'filter-result-chevron--open': expandedPlane === r.hex }"
-                  />
+                <div class="filter-result-icon filter-icon-plane">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 56 52"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <polygon points="28,18 35,36 28,33 21,36" fill="currentColor" />
+                  </svg>
                 </div>
+                <div class="filter-result-info">
+                  <div class="filter-result-primary">{{ r.callsign || r.hex }}</div>
+                  <div class="filter-result-secondary">{{ planeSecondary(r) }}</div>
+                </div>
+                <ChevronIcon
+                  class="filter-result-chevron"
+                  :class="{ 'filter-result-chevron--open': expandedPlane === r.hex }"
+                />
               </div>
-              <!-- Inline accordion of live telemetry + controls. Sits outside the
+            </div>
+            <!-- Inline accordion of live telemetry + controls. Sits outside the
                    option (like the airport accordion) so its buttons aren't nested
                    inside a listbox option. Data re-renders each ADS-B poll. -->
-              <div
-                v-if="expandedPlane === r.hex"
-                class="apt-acc-body acft-acc-body"
-                :class="{
-                  'acft-acc-body--stale': signalLost,
-                  'acft-acc-body--emergency': r.emergency,
-                }"
-              >
-                <div v-if="signalLost" class="acft-acc-signal-lost" role="status">SIGNAL LOST</div>
-                <div class="apt-acc-section">
-                  <div class="apt-acc-section-title">POSITION</div>
-                  <div class="apt-acc-grid apt-acc-grid--three">
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">LATITUDE</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.lat }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">LONGITUDE</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.lon }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">HEADING</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.hdg }}</div>
-                    </div>
+            <div
+              v-if="expandedPlane === r.hex"
+              class="apt-acc-body acft-acc-body"
+              :class="{
+                'acft-acc-body--stale': signalLost,
+                'acft-acc-body--emergency': r.emergency,
+              }"
+            >
+              <div v-if="signalLost" class="acft-acc-signal-lost" role="status">SIGNAL LOST</div>
+              <div class="apt-acc-section">
+                <div class="apt-acc-section-title">POSITION</div>
+                <div class="apt-acc-grid apt-acc-grid--three">
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">LATITUDE</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.lat }}</div>
                   </div>
-                </div>
-                <div class="apt-acc-section">
-                  <div class="apt-acc-grid apt-acc-grid--three">
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">ALTITUDE</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.alt }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">SPEED</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.spd }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">VERTICAL</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.vrate }}</div>
-                    </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">LONGITUDE</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.lon }}</div>
                   </div>
-                </div>
-                <div class="apt-acc-section">
-                  <div class="apt-acc-section-title">IDENTIFICATION</div>
-                  <div class="apt-acc-grid apt-acc-grid--two">
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">TYPE</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.type }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">REGISTRATION</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.reg }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">CATEGORY</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.category }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">SQUAWK</div>
-                      <div class="apt-acc-cell-value">{{ liveAircraftData.squawk }}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="apt-acc-section acft-acc-action-section">
-                  <div class="acft-acc-action-row">
-                    <button
-                      class="acft-acc-btn"
-                      :class="{ 'acft-acc-btn--active': followedHex === r.hex }"
-                      :aria-label="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
-                      :data-tooltip="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
-                      @click.stop="toggleTrack(r.hex)"
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                          stroke-linejoin="round"
-                          fill="none"
-                        />
-                        <circle cx="12" cy="9" r="2.2" fill="currentColor" />
-                      </svg>
-                    </button>
-                    <button
-                      class="acft-acc-btn"
-                      :class="{ 'acft-acc-btn--active': notifEnabled.has(r.hex) }"
-                      :aria-label="
-                        notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
-                      "
-                      :data-tooltip="
-                        notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
-                      "
-                      @click.stop="toggleNotif(r.hex)"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 13 13"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                          fill="currentColor"
-                        />
-                        <path
-                          d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                          stroke="currentColor"
-                          stroke-width="1"
-                          fill="none"
-                        />
-                        <!-- Strike-through shown when notifications for this aircraft are off. -->
-                        <line
-                          v-if="!notifEnabled.has(r.hex)"
-                          x1="1.5"
-                          y1="1.5"
-                          x2="11.5"
-                          y2="11.5"
-                          stroke="currentColor"
-                          stroke-width="1.5"
-                          stroke-linecap="square"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      class="acft-acc-btn"
-                      aria-label="Centre on map"
-                      data-tooltip="Centre on map"
-                      @click.stop="centrePlane(r)"
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        aria-hidden="true"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="4"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                          fill="none"
-                        />
-                        <line
-                          x1="12"
-                          y1="2"
-                          x2="12"
-                          y2="6"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                        />
-                        <line
-                          x1="12"
-                          y1="18"
-                          x2="12"
-                          y2="22"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                        />
-                        <line
-                          x1="2"
-                          y1="12"
-                          x2="6"
-                          y2="12"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                        />
-                        <line
-                          x1="18"
-                          y1="12"
-                          x2="22"
-                          y2="12"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                        />
-                      </svg>
-                    </button>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">HEADING</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.hdg }}</div>
                   </div>
                 </div>
               </div>
-            </template>
-          </template>
-        </div>
-
-        <!-- Airports section -->
-        <div v-if="airports.length" class="filter-result-group">
-          <button
-            class="filter-section-label"
-            :class="{ 'filter-section-label--collapsed': collapsed.has('airports') }"
-            :aria-expanded="!collapsed.has('airports')"
-            @click="toggleSection('airports')"
-          >
-            <span>AIRPORTS</span>
-            <ChevronIcon
-              class="filter-section-chevron"
-              :class="{ 'filter-section-chevron--collapsed': collapsed.has('airports') }"
-            />
-          </button>
-          <template v-if="!collapsed.has('airports')">
-            <template v-for="(r, index) in airports" :key="r.icao">
-              <div
-                class="filter-result-item"
-                :class="{
-                  'keyboard-focused': focusedKey === r.icao,
-                  'filter-result-item--open': expandedAirport === r.icao,
-                }"
-              >
-                <div
-                  :id="`filter-opt-airport-${index}`"
-                  role="option"
-                  :aria-selected="focusedKey === r.icao"
-                  :aria-label="airportOptionLabel(r)"
-                  class="filter-result-option"
-                  @click="toggleAirport(r)"
-                >
-                  <div class="filter-result-icon filter-icon-airport">
+              <div class="apt-acc-section">
+                <div class="apt-acc-grid apt-acc-grid--three">
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">ALTITUDE</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.alt }}</div>
+                  </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">SPEED</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.spd }}</div>
+                  </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">VERTICAL</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.vrate }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="apt-acc-section">
+                <div class="apt-acc-section-title">IDENTIFICATION</div>
+                <div class="apt-acc-grid apt-acc-grid--two">
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">TYPE</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.type }}</div>
+                  </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">REGISTRATION</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.reg }}</div>
+                  </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">CATEGORY</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.category }}</div>
+                  </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">SQUAWK</div>
+                    <div class="apt-acc-cell-value">{{ liveAircraftData.squawk }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="apt-acc-section acft-acc-action-section">
+                <div class="acft-acc-action-row">
+                  <button
+                    class="acft-acc-btn"
+                    :class="{ 'acft-acc-btn--active': followedHex === r.hex }"
+                    :aria-label="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
+                    :data-tooltip="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
+                    @click.stop="toggleTrack(r.hex)"
+                  >
                     <svg
-                      width="11"
-                      height="11"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linejoin="round"
+                        fill="none"
+                      />
+                      <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+                    </svg>
+                  </button>
+                  <button
+                    class="acft-acc-btn"
+                    :class="{ 'acft-acc-btn--active': notifEnabled.has(r.hex) }"
+                    :aria-label="
+                      notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
+                    "
+                    :data-tooltip="
+                      notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
+                    "
+                    @click.stop="toggleNotif(r.hex)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
                       viewBox="0 0 13 13"
                       fill="none"
                       xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
                     >
-                      <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4" />
-                      <line
-                        x1="6.5"
-                        y1="2"
-                        x2="6.5"
-                        y2="11"
+                      <path
+                        d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
+                        fill="currentColor"
+                      />
+                      <path
+                        d="M5 10.5a1.5 1.5 0 0 0 3 0"
                         stroke="currentColor"
-                        stroke-width="1.2"
+                        stroke-width="1"
+                        fill="none"
+                      />
+                      <!-- Strike-through shown when notifications for this aircraft are off. -->
+                      <line
+                        v-if="!notifEnabled.has(r.hex)"
+                        x1="1.5"
+                        y1="1.5"
+                        x2="11.5"
+                        y2="11.5"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="square"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    class="acft-acc-btn"
+                    aria-label="Centre on map"
+                    data-tooltip="Centre on map"
+                    @click.stop="centrePlane(r)"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="4"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        fill="none"
+                      />
+                      <line
+                        x1="12"
+                        y1="2"
+                        x2="12"
+                        y2="6"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      />
+                      <line
+                        x1="12"
+                        y1="18"
+                        x2="12"
+                        y2="22"
+                        stroke="currentColor"
+                        stroke-width="1.8"
                       />
                       <line
                         x1="2"
-                        y1="6.5"
-                        x2="11"
-                        y2="6.5"
+                        y1="12"
+                        x2="6"
+                        y2="12"
                         stroke="currentColor"
-                        stroke-width="1.2"
+                        stroke-width="1.8"
+                      />
+                      <line
+                        x1="18"
+                        y1="12"
+                        x2="22"
+                        y2="12"
+                        stroke="currentColor"
+                        stroke-width="1.8"
                       />
                     </svg>
-                  </div>
-                  <div class="filter-result-info">
-                    <div class="filter-result-primary">{{ r.icao }}</div>
-                    <div class="filter-result-secondary">
-                      {{ r.name.toUpperCase() }}{{ r.iata ? ' · ' + r.iata : '' }}
-                    </div>
-                  </div>
-                  <ChevronIcon
-                    class="filter-result-chevron"
-                    :class="{ 'filter-result-chevron--open': expandedAirport === r.icao }"
-                  />
+                  </button>
                 </div>
               </div>
-              <!-- Inline accordion: location + clickable frequencies (matches the
-               space satellite detail panel styling). Sits outside the option so
-               its tunable frequency buttons aren't nested inside a listbox option. -->
-              <div v-if="expandedAirport === r.icao" class="apt-acc-body">
-                <div class="apt-acc-section">
-                  <div class="apt-acc-section-title">LOCATION</div>
-                  <div class="apt-acc-grid apt-acc-grid--two">
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">LATITUDE</div>
-                      <div class="apt-acc-cell-value">{{ formatLat(r.coords[1]) }}</div>
-                    </div>
-                    <div class="apt-acc-cell">
-                      <div class="apt-acc-cell-label">LONGITUDE</div>
-                      <div class="apt-acc-cell-value">{{ formatLon(r.coords[0]) }}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="apt-acc-section">
-                  <div class="apt-acc-section-title">FREQUENCIES</div>
-                  <div class="apt-acc-grid apt-acc-grid--two">
-                    <button
-                      v-for="f in airportFreqs(r)"
-                      :key="f.label"
-                      class="apt-acc-cell apt-acc-freq"
-                      :title="
-                        sdrConnected ? `Tune to ${f.display} ${f.mode}` : 'Connect an SDR to tune'
-                      "
-                      @click="tuneFreq(r, f)"
-                    >
-                      <div class="apt-acc-cell-label">{{ f.label.toUpperCase() }}</div>
-                      <div class="apt-acc-cell-value">
-                        {{ f.display }}<span class="apt-acc-cell-mode"> · {{ f.mode }}</span>
-                      </div>
-                    </button>
-                  </div>
-                  <div v-if="tuneNotice === r.icao" class="apt-acc-notice">
-                    Connect an SDR before tuning
-                  </div>
-                </div>
-              </div>
-            </template>
+            </div>
           </template>
-        </div>
+        </template>
+        <div v-else class="filter-no-results">No results</div>
+      </div>
 
-        <!-- Military bases section -->
-        <div v-if="milBases.length" class="filter-result-group">
-          <button
-            class="filter-section-label"
-            :class="{ 'filter-section-label--collapsed': collapsed.has('mil') }"
-            :aria-expanded="!collapsed.has('mil')"
-            @click="toggleSection('mil')"
-          >
-            <span>MILITARY BASES</span>
-            <ChevronIcon
-              class="filter-section-chevron"
-              :class="{ 'filter-section-chevron--collapsed': collapsed.has('mil') }"
-            />
-          </button>
-          <template v-if="!collapsed.has('mil')">
+      <!-- Airports -->
+      <div v-else-if="filterCategory === 'airports'" class="filter-result-group">
+        <template v-if="airports.length">
+          <template v-for="(r, index) in airports" :key="r.icao">
             <div
-              v-for="(r, index) in milBases"
-              :key="r.name"
               class="filter-result-item"
-              :class="{ 'keyboard-focused': focusedKey === r.name }"
+              :class="{
+                'keyboard-focused': focusedKey === r.icao,
+                'filter-result-item--open': expandedAirport === r.icao,
+              }"
             >
               <div
-                :id="`filter-opt-mil-${index}`"
+                :id="`filter-opt-airport-${index}`"
                 role="option"
-                :aria-selected="focusedKey === r.name"
-                :aria-label="milOptionLabel(r)"
+                :aria-selected="focusedKey === r.icao"
+                :aria-label="airportOptionLabel(r)"
                 class="filter-result-option"
-                @click="selectMil(r)"
+                @click="toggleAirport(r)"
               >
-                <div class="filter-result-icon filter-icon-mil">
+                <div class="filter-result-icon filter-icon-airport">
                   <svg
                     width="11"
                     height="11"
@@ -448,26 +311,127 @@
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
                   >
-                    <polygon
-                      points="6.5,1.5 12,11.5 1,11.5"
+                    <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.4" />
+                    <line
+                      x1="6.5"
+                      y1="2"
+                      x2="6.5"
+                      y2="11"
                       stroke="currentColor"
-                      stroke-width="1.3"
-                      fill="none"
+                      stroke-width="1.2"
+                    />
+                    <line
+                      x1="2"
+                      y1="6.5"
+                      x2="11"
+                      y2="6.5"
+                      stroke="currentColor"
+                      stroke-width="1.2"
                     />
                   </svg>
                 </div>
                 <div class="filter-result-info">
-                  <div class="filter-result-primary">
-                    {{ r.icao || r.name.toUpperCase().slice(0, 6) }}
+                  <div class="filter-result-primary">{{ r.icao }}</div>
+                  <div class="filter-result-secondary">
+                    {{ r.name.toUpperCase() }}{{ r.iata ? ' · ' + r.iata : '' }}
                   </div>
-                  <div class="filter-result-secondary">{{ r.name.toUpperCase() }}</div>
                 </div>
-                <div class="filter-result-badge">MIL</div>
+                <ChevronIcon
+                  class="filter-result-chevron"
+                  :class="{ 'filter-result-chevron--open': expandedAirport === r.icao }"
+                />
+              </div>
+            </div>
+            <!-- Inline accordion: location + clickable frequencies (matches the
+               space satellite detail panel styling). Sits outside the option so
+               its tunable frequency buttons aren't nested inside a listbox option. -->
+            <div v-if="expandedAirport === r.icao" class="apt-acc-body">
+              <div class="apt-acc-section">
+                <div class="apt-acc-section-title">LOCATION</div>
+                <div class="apt-acc-grid apt-acc-grid--two">
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">LATITUDE</div>
+                    <div class="apt-acc-cell-value">{{ formatLat(r.coords[1]) }}</div>
+                  </div>
+                  <div class="apt-acc-cell">
+                    <div class="apt-acc-cell-label">LONGITUDE</div>
+                    <div class="apt-acc-cell-value">{{ formatLon(r.coords[0]) }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="apt-acc-section">
+                <div class="apt-acc-section-title">FREQUENCIES</div>
+                <div class="apt-acc-grid apt-acc-grid--two">
+                  <button
+                    v-for="f in airportFreqs(r)"
+                    :key="f.label"
+                    class="apt-acc-cell apt-acc-freq"
+                    :title="
+                      sdrConnected ? `Tune to ${f.display} ${f.mode}` : 'Connect an SDR to tune'
+                    "
+                    @click="tuneFreq(r, f)"
+                  >
+                    <div class="apt-acc-cell-label">{{ f.label.toUpperCase() }}</div>
+                    <div class="apt-acc-cell-value">
+                      {{ f.display }}<span class="apt-acc-cell-mode"> · {{ f.mode }}</span>
+                    </div>
+                  </button>
+                </div>
+                <div v-if="tuneNotice === r.icao" class="apt-acc-notice">
+                  Connect an SDR before tuning
+                </div>
               </div>
             </div>
           </template>
-        </div>
-      </template>
+        </template>
+        <div v-else class="filter-no-results">No results</div>
+      </div>
+
+      <!-- Military bases -->
+      <div v-else-if="filterCategory === 'mil'" class="filter-result-group">
+        <template v-if="milBases.length">
+          <div
+            v-for="(r, index) in milBases"
+            :key="r.name"
+            class="filter-result-item"
+            :class="{ 'keyboard-focused': focusedKey === r.name }"
+          >
+            <div
+              :id="`filter-opt-mil-${index}`"
+              role="option"
+              :aria-selected="focusedKey === r.name"
+              :aria-label="milOptionLabel(r)"
+              class="filter-result-option"
+              @click="selectMil(r)"
+            >
+              <div class="filter-result-icon filter-icon-mil">
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 13 13"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <polygon
+                    points="6.5,1.5 12,11.5 1,11.5"
+                    stroke="currentColor"
+                    stroke-width="1.3"
+                    fill="none"
+                  />
+                </svg>
+              </div>
+              <div class="filter-result-info">
+                <div class="filter-result-primary">
+                  {{ r.icao || r.name.toUpperCase().slice(0, 6) }}
+                </div>
+                <div class="filter-result-secondary">{{ r.name.toUpperCase() }}</div>
+              </div>
+              <div class="filter-result-badge">MIL</div>
+            </div>
+          </div>
+        </template>
+        <div v-else class="filter-no-results">No results</div>
+      </div>
     </div>
   </div>
 </template>
@@ -602,26 +566,9 @@ const resultsRef = ref<HTMLElement | null>(null)
 const query = ref('')
 const focusedKey = ref<string | null>(null)
 
-// Collapsed group headings (persisted on the air store; a key present here is
-// collapsed). Groups default to collapsed on first ever mount — see the seed in
-// onMounted below. The search watcher auto-opens a section while it has matches,
-// then re-collapses it once the query is cleared.
-const { searchCollapsedGroups: collapsed, searchGroupsCollapsedSeeded: collapsedSeeded } =
-  storeToRefs(airStore)
-// Sections collapsed by the user but force-opened by the search auto-expand. They
-// re-collapse once their matches go away, unless the user manually toggles them.
-const autoOpened = ref<Set<string>>(new Set())
-function toggleSection(key: string): void {
-  const next = new Set(collapsed.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  collapsed.value = next
-  // A manual toggle takes ownership: drop any auto-open bookkeeping for this key.
-  autoOpened.value.delete(key)
-}
-function sectionKey(r: { kind: string }): string {
-  return r.kind === 'plane' ? 'aircraft' : r.kind === 'airport' ? 'airports' : 'mil'
-}
+// The active FILTER category (aircraft / airports / mil), selected via the rail
+// sub-tabs in MapSidebar. Single-select — only this category's flat list renders.
+const { airFilterCategory: filterCategory } = storeToRefs(airStore)
 
 // Notification opt-in state — sourced from the persisted airNotif store.
 const notifEnabled = computed(() => airNotifStore.enabledHexes)
@@ -777,33 +724,6 @@ const airports = computed(
 )
 const milBases = computed(() => results.value.filter((r) => r.kind === 'mil') as MilResult[])
 
-// Keep auto-expanded sections in sync with the search. A collapsed section that
-// gains matches is force-opened; once its matches disappear (or the query is
-// cleared) it re-collapses, so it returns to the state the user left it in.
-const sectionHasMatches: Record<string, () => boolean> = {
-  aircraft: () => planes.value.length > 0,
-  airports: () => airports.value.length > 0,
-  mil: () => milBases.value.length > 0,
-}
-watch([query, planes, airports, milBases], () => {
-  const searching = query.value.trim().length > 0
-  const collapsedNext = new Set(collapsed.value)
-  let changed = false
-  for (const key of Object.keys(sectionHasMatches)) {
-    const shouldOpen = searching && sectionHasMatches[key]()
-    if (shouldOpen && collapsedNext.has(key)) {
-      collapsedNext.delete(key)
-      autoOpened.value.add(key)
-      changed = true
-    } else if (!shouldOpen && autoOpened.value.has(key)) {
-      collapsedNext.add(key)
-      autoOpened.value.delete(key)
-      changed = true
-    }
-  }
-  if (changed) collapsed.value = collapsedNext
-})
-
 function planeSecondary(r: PlaneResult): string {
   const parts: string[] = []
   if (r.hex) parts.push(r.hex.toUpperCase())
@@ -839,11 +759,11 @@ function milOptionLabel(r: MilResult): string {
 // chrome around them stays valid.
 const ownedOptionIds = computed<string>(() => {
   const ids: string[] = []
-  if (!collapsed.value.has('aircraft'))
+  if (filterCategory.value === 'aircraft')
     displayPlanes.value.forEach((_r, index) => ids.push(`filter-opt-plane-${index}`))
-  if (!collapsed.value.has('airports'))
+  else if (filterCategory.value === 'airports')
     airports.value.forEach((_r, index) => ids.push(`filter-opt-airport-${index}`))
-  if (!collapsed.value.has('mil'))
+  else if (filterCategory.value === 'mil')
     milBases.value.forEach((_r, index) => ids.push(`filter-opt-mil-${index}`))
   return ids.join(' ')
 })
@@ -860,17 +780,15 @@ const listboxShown = computed<boolean>(() => ownedOptionIds.value.length > 0)
 const activeDescId = computed<string | undefined>(() => {
   const key = focusedKey.value
   if (!key) return undefined
-  // Collapsed sections render no option rows, so never point activedescendant at
-  // one — that would be a dangling IDREF.
-  if (!collapsed.value.has('aircraft')) {
+  // Only the active category renders option rows, so never point activedescendant
+  // at a category that isn't shown — that would be a dangling IDREF.
+  if (filterCategory.value === 'aircraft') {
     const planeIdx = displayPlanes.value.findIndex((r) => r.hex === key)
     if (planeIdx >= 0) return `filter-opt-plane-${planeIdx}`
-  }
-  if (!collapsed.value.has('airports')) {
+  } else if (filterCategory.value === 'airports') {
     const airportIdx = airports.value.findIndex((r) => r.icao === key)
     if (airportIdx >= 0) return `filter-opt-airport-${airportIdx}`
-  }
-  if (!collapsed.value.has('mil')) {
+  } else if (filterCategory.value === 'mil') {
     const milIdx = milBases.value.findIndex((r) => r.name === key)
     if (milIdx >= 0) return `filter-opt-mil-${milIdx}`
   }
@@ -895,7 +813,13 @@ function onKeydown(e: KeyboardEvent) {
     return
   }
 
-  const allItems = results.value.filter((r) => !collapsed.value.has(sectionKey(r)))
+  // Keyboard nav is scoped to the active category's rows (the only ones rendered).
+  const allItems: Array<PlaneResult | AirportResult | MilResult> =
+    filterCategory.value === 'aircraft'
+      ? displayPlanes.value
+      : filterCategory.value === 'airports'
+        ? airports.value
+        : milBases.value
   if (!allItems.length) return
 
   const keys = allItems.map((r) =>
@@ -1226,43 +1150,30 @@ watch(
 )
 
 onMounted(() => {
-  // On first ever mount, collapse every group so the search list opens closed.
-  // Subsequent mounts respect whatever the user has since expanded/collapsed.
-  if (!collapsedSeeded.value) {
-    collapsed.value = new Set(['aircraft', 'airports', 'mil'])
-    collapsedSeeded.value = true
-  }
   refreshAircraft()
 })
 
 // Expand a specific airport's accordion by ICAO (driven by a map marker click)
-// and scroll it into view. Clears any active search so the row is in the list.
+// and scroll it into view. Clears any active search and switches the FILTER
+// category to airports so the row is in the visible list.
 function expandAirport(icao: string) {
   const r = AIRPORTS_DATA.features.find((f) => f.properties.icao === icao)
   if (!r) return
   query.value = ''
-  // Make sure the airports section isn't collapsed.
-  if (collapsed.value.has('airports')) {
-    const next = new Set(collapsed.value)
-    next.delete('airports')
-    collapsed.value = next
-  }
+  airStore.setAirFilterCategory('airports')
   expandedAirport.value = icao
   tuneNotice.value = null
   scrollOpenRowIntoView()
 }
 
 // Expand a specific aircraft's accordion by hex (driven by a map aircraft click)
-// and scroll it into view. Clears any active search and un-collapses the aircraft
-// section, then pins the aircraft to the top via the snapshot. A no-op if the hex
-// isn't a listed aircraft (e.g. a ground vehicle or tower, which the list omits).
+// and scroll it into view. Clears any active search and switches the FILTER
+// category to aircraft, then pins the aircraft to the top via the snapshot. A
+// no-op if the hex isn't a listed aircraft (e.g. a ground vehicle or tower, which
+// the list omits).
 function expandAircraft(hex: string) {
   query.value = ''
-  if (collapsed.value.has('aircraft')) {
-    const next = new Set(collapsed.value)
-    next.delete('aircraft')
-    collapsed.value = next
-  }
+  airStore.setAirFilterCategory('aircraft')
   const liveResult = planes.value.find((r) => r.hex === hex)
   if (!liveResult) return
   expandedPlane.value = hex
@@ -1371,6 +1282,13 @@ defineExpose({
   gap: 1px;
 }
 
+/* Now the accordion section headers are gone, the first row would sit flush under
+   the search input. Add top space equal to the between-item gap (an item's 13px
+   top padding + the 1px seam) so the input→first-item gap matches item→item. */
+.filter-results-body {
+  padding-top: 10px;
+}
+
 /* The selectable part of a row (role="option"): icon + text. It stretches to
    fill the row; the per-row bell button sits beside it (a sibling) so it is not
    nested inside the option. */
@@ -1381,48 +1299,6 @@ defineExpose({
   flex: 1;
   min-width: 0;
   cursor: pointer;
-}
-
-.filter-section-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: #fff;
-  padding: 22px 20px 12px 24px;
-  text-transform: uppercase;
-  text-align: left;
-  transition: opacity 0.12s;
-}
-
-.filter-section-label:hover {
-  opacity: 0.8;
-}
-
-/* A touch more breathing room above the very first section heading. The section
-   button is now the first child of its group wrapper, so scope to the first
-   group rather than a bare :first-child. */
-.filter-result-group:first-child .filter-section-label {
-  padding-top: 24px;
-}
-
-.filter-section-chevron {
-  color: rgba(255, 255, 255, 0.35);
-  flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-
-/* Match the per-item chevron convention: down when expanded, left when collapsed. */
-.filter-section-chevron--collapsed {
-  transform: rotate(-90deg);
 }
 
 .filter-result-item {

@@ -32,6 +32,7 @@ import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrAutoCenterControl from './SdrAutoCenterControl.vue'
 import SdrFullWaterfallUpdateControl from './SdrFullWaterfallUpdateControl.vue'
+import SdrSnapToKnownControl from './SdrSnapToKnownControl.vue'
 import SdrShowBandPlanControl from './SdrShowBandPlanControl.vue'
 import SdrShowKnownFreqsControl from './SdrShowKnownFreqsControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
@@ -78,6 +79,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sdr-devices', SdrDevicesControl],
   ['sdr-autocenter', SdrAutoCenterControl],
   ['sdr-full-waterfall-update', SdrFullWaterfallUpdateControl],
+  ['sdr-snap-to-known', SdrSnapToKnownControl],
   ['sdr-show-bandplan', SdrShowBandPlanControl],
   ['sdr-show-known-freqs', SdrShowKnownFreqsControl],
   ['sdr-resume-delay', SdrResumeDelayControl],

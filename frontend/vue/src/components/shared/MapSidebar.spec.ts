@@ -5,6 +5,7 @@ import { axe } from 'jest-axe'
 import MapSidebar from './MapSidebar.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore } from '@/stores/air'
+import { useSpaceStore } from '@/stores/space'
 
 const TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
 const OPEN_KEY = 'sentinel_sidebar_open'
@@ -352,6 +353,73 @@ describe('MapSidebar', () => {
     expect(vm.activeTab).toBe('search')
     expect(vm.open).toBe(false)
     expect(() => vm.switchTab('tracking')).not.toThrow()
+  })
+
+  describe('FILTER category sub-tabs', () => {
+    async function openFilter(wrapper: ReturnType<typeof mountSidebar>) {
+      await wrapper.find('.msb-rail-btn[data-tab="search"]').trigger('click')
+    }
+
+    it('renders the FILTER tab (funnel) label', () => {
+      const wrapper = mountSidebar()
+      const btn = wrapper.find('.msb-rail-btn[data-tab="search"]')
+      expect(btn.attributes('data-tooltip')).toBe('FILTER')
+      expect(btn.attributes('aria-label')).toBe('FILTER')
+    })
+
+    it('shows the air category sub-tabs only while the FILTER tab is open', async () => {
+      const wrapper = mountSidebar()
+      // Hidden until FILTER is the active/open tab.
+      expect(wrapper.findAll('.msb-rail-subbtn')).toHaveLength(0)
+      await openFilter(wrapper)
+      const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
+      expect(cats).toEqual(['aircraft', 'airports', 'mil'])
+    })
+
+    it('selecting a sub-tab sets the air category, highlights it, and keeps the panel open', async () => {
+      const wrapper = mountSidebar()
+      await openFilter(wrapper)
+      await wrapper.find('.msb-rail-subbtn[data-filter-cat="mil"]').trigger('click')
+      expect(useAirStore().airFilterCategory).toBe('mil')
+      expect((wrapper.vm as unknown as SidebarVm).open).toBe(true)
+      const active = wrapper.find('.msb-rail-subbtn[data-filter-cat="mil"]')
+      expect(active.classes()).toContain('msb-rail-btn-active')
+      expect(active.attributes('aria-pressed')).toBe('true')
+    })
+
+    it('clicking the open FILTER tab again closes the drawer and hides the sub-tabs', async () => {
+      const wrapper = mountSidebar()
+      await openFilter(wrapper)
+      expect(wrapper.findAll('.msb-rail-subbtn').length).toBeGreaterThan(0)
+      await wrapper.find('.msb-rail-btn[data-tab="search"]').trigger('click') // toggle closed
+      expect((wrapper.vm as unknown as SidebarVm).open).toBe(false)
+      expect(wrapper.findAll('.msb-rail-subbtn')).toHaveLength(0)
+    })
+
+    it('drives the space sub-tabs from the store’s available categories', async () => {
+      setPath('/space/')
+      const wrapper = mountSidebar()
+      // The domain-changed handler tracks the active domain reactively.
+      document.dispatchEvent(
+        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'space', prev: 'air' } }),
+      )
+      useSpaceStore().setSpaceAvailableCategories(['weather', 'navigation'])
+      await openFilter(wrapper)
+      const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
+      expect(cats).toEqual(['weather', 'navigation'])
+      await wrapper.find('.msb-rail-subbtn[data-filter-cat="navigation"]').trigger('click')
+      expect(useSpaceStore().spaceFilterCategory).toBe('navigation')
+    })
+
+    it('shows no sub-tabs on a domain that has none', async () => {
+      setPath('/sdr/')
+      const wrapper = mountSidebar()
+      document.dispatchEvent(
+        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'sdr', prev: 'air' } }),
+      )
+      await openFilter(wrapper)
+      expect(wrapper.findAll('.msb-rail-subbtn')).toHaveLength(0)
+    })
   })
 
   it('has no accessibility violations', async () => {

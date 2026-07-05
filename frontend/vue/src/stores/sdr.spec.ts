@@ -28,6 +28,7 @@ describe('sdr store', () => {
     expect(store.sampleRate).toBe(2_048_000)
     expect(store.autoCenterWaterfallOnTune).toBe(true)
     expect(store.fullWaterfallUpdate).toBe(true)
+    expect(store.snapToKnown).toBe(true)
     expect(store.showBandPlan).toBe(true)
     expect(store.showKnownFreqs).toBe(true)
     expect(store.resumeDelaySec).toBe(0)
@@ -43,6 +44,7 @@ describe('sdr store', () => {
       read: (s) => s.autoCenterWaterfallOnTune,
     },
     { name: 'fullWaterfall', lsKey: 'sdrFullWaterfallUpdate', read: (s) => s.fullWaterfallUpdate },
+    { name: 'snapToKnown', lsKey: 'sdrSnapToKnown', read: (s) => s.snapToKnown },
     { name: 'showBandPlan', lsKey: 'sdrShowBandPlan', read: (s) => s.showBandPlan },
     { name: 'showKnownFreqs', lsKey: 'sdrShowKnownFreqs', read: (s) => s.showKnownFreqs },
     { name: 'viewAutoScale', lsKey: 'sdrViewAutoScale', read: (s) => s.viewAutoScale },
@@ -59,6 +61,7 @@ describe('sdr store', () => {
     const store = useSdrStore()
     expect(store.autoCenterWaterfallOnTune).toBe(true)
     expect(store.fullWaterfallUpdate).toBe(true)
+    expect(store.snapToKnown).toBe(true)
     expect(store.showBandPlan).toBe(true)
     expect(store.showKnownFreqs).toBe(true)
     expect(store.viewAutoScale).toBe(true)
@@ -77,6 +80,12 @@ describe('sdr store', () => {
       lsKey: 'sdrFullWaterfallUpdate',
       apply: (s, on) => s.setFullWaterfallUpdate(on),
       read: (s) => s.fullWaterfallUpdate,
+    },
+    {
+      name: 'setSnapToKnown',
+      lsKey: 'sdrSnapToKnown',
+      apply: (s, on) => s.setSnapToKnown(on),
+      read: (s) => s.snapToKnown,
     },
     {
       name: 'setShowBandPlan',
@@ -157,6 +166,12 @@ describe('sdr store', () => {
       dbKey: 'fullWaterfallUpdate',
       hydrate: (s) => s.hydrateFullWaterfallUpdateFromDb(),
       read: (s) => s.fullWaterfallUpdate,
+    },
+    {
+      name: 'snapToKnown',
+      dbKey: 'snapToKnown',
+      hydrate: (s) => s.hydrateSnapToKnownFromDb(),
+      read: (s) => s.snapToKnown,
     },
     {
       name: 'showBandPlan',

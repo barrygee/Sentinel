@@ -39,6 +39,7 @@ import AirFilter from './AirFilter.vue'
 import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
 import { useAirNotifStore } from '@/stores/airNotif'
+import { useAirStore } from '@/stores/air'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSdrStore } from '@/stores/sdr'
 
@@ -126,26 +127,40 @@ describe('AirFilter', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     localStorage.clear()
-    // Groups now collapse by default on first mount. Mark seeding as already done so
-    // the bulk of tests start with their sections expanded; the default-collapsed
-    // behaviour has its own dedicated tests that clear this flag.
-    localStorage.setItem('sentinel_air_filterGroupsCollapsedSeeded', 'true')
     document.body.innerHTML = ''
     // jsdom has no real scrollIntoView.
     Element.prototype.scrollIntoView = vi.fn()
   })
 
+  // The FILTER rail sub-tabs are single-select: only the active category's flat
+  // list renders (default 'aircraft'). Switch the store's category and re-render.
+  async function setCategory(cat: 'aircraft' | 'airports' | 'mil') {
+    useAirStore().setAirFilterCategory(cat)
+    await nextTick()
+  }
+
   describe('search results', () => {
-    it('lists only aircraft (excluding ground vehicles and towers), the airport and the base', () => {
+    it('lists only aircraft (excluding ground vehicles and towers) in the aircraft category', () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()))
-      // 2 aircraft (the C1 ground vehicle and C3 tower are excluded), 1 airport, 1 base.
+      // Default category is aircraft: 2 aircraft (C1 ground vehicle + C3 tower excluded).
       expect(wrapper.findAll('.filter-icon-plane')).toHaveLength(2)
       expect(wrapper.text()).toContain('BAW1')
       expect(wrapper.text()).toContain('RCH2')
       expect(wrapper.text()).not.toContain('GND3')
       expect(wrapper.text()).not.toContain('TWR4')
+      // The airport and base belong to their own categories, not shown here.
+      expect(wrapper.findAll('.filter-icon-airport')).toHaveLength(0)
+      expect(wrapper.findAll('.filter-icon-mil')).toHaveLength(0)
+    })
+
+    it('shows the airport and base only under their own category sub-tabs', async () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      await setCategory('airports')
       expect(wrapper.findAll('.filter-icon-airport')).toHaveLength(1)
+      expect(wrapper.findAll('.filter-icon-plane')).toHaveLength(0)
+      await setCategory('mil')
       expect(wrapper.findAll('.filter-icon-mil')).toHaveLength(1)
+      expect(wrapper.findAll('.filter-icon-airport')).toHaveLength(0)
     })
 
     it('excludes ground vehicles and towers even in the ALL filter mode', () => {
@@ -207,10 +222,11 @@ describe('AirFilter', () => {
       expect(wrapper.find('.filter-no-results').exists()).toBe(true)
     })
 
-    it('renders an empty list when there is no adsb control', () => {
+    it('renders an empty aircraft list when there is no adsb control', async () => {
       const wrapper = mountFilter(null)
       expect(wrapper.findAll('.filter-icon-plane')).toHaveLength(0)
-      // Airports + base still come from static data.
+      // Airports still come from static data — visible under their own category.
+      await setCategory('airports')
       expect(wrapper.findAll('.filter-icon-airport')).toHaveLength(1)
     })
 
@@ -239,66 +255,21 @@ describe('AirFilter', () => {
     })
   })
 
-  describe('section collapse + auto-open', () => {
-    it('toggles a section collapsed and expands it back', async () => {
+  describe('category sub-tabs (single-select)', () => {
+    it('renders only the active category and switches with the store', async () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()))
-      const heading = wrapper.findAll('.filter-section-label')[0]!
-      await heading.trigger('click') // collapse aircraft
-      expect(heading.classes()).toContain('filter-section-label--collapsed')
-      await heading.trigger('click') // expand again
-      expect(heading.classes()).not.toContain('filter-section-label--collapsed')
+      // Default: aircraft rows only, no airport/base and no section headers.
+      expect(wrapper.find('.filter-section-label').exists()).toBe(false)
+      expect(wrapper.findAll('.filter-icon-plane').length).toBeGreaterThan(0)
+      await setCategory('airports')
+      expect(wrapper.findAll('.filter-icon-plane')).toHaveLength(0)
+      expect(wrapper.findAll('.filter-icon-airport')).toHaveLength(1)
     })
 
-    it('exposes the section disclosure state via aria-expanded', async () => {
-      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
-      const heading = wrapper.findAll('.filter-section-label')[0]!
-      // Sections start expanded.
-      expect(heading.attributes('aria-expanded')).toBe('true')
-      await heading.trigger('click') // collapse
-      expect(heading.attributes('aria-expanded')).toBe('false')
-    })
-
-    it('auto-opens a collapsed section that gains matches, then re-collapses it', async () => {
-      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
-      const aircraftHeading = wrapper.findAll('.filter-section-label')[0]!
-      await aircraftHeading.trigger('click') // user collapses aircraft
-      expect(aircraftHeading.classes()).toContain('filter-section-label--collapsed')
-
-      await wrapper.find('#filter-input').setValue('baw1') // matches aircraft → auto-open
-      await nextTick()
-      expect(wrapper.findAll('.filter-section-label')[0]!.classes()).not.toContain(
-        'filter-section-label--collapsed',
-      )
-
-      await wrapper.find('#filter-input').setValue('') // matches gone → re-collapse
-      await nextTick()
-      expect(wrapper.findAll('.filter-section-label')[0]!.classes()).toContain(
-        'filter-section-label--collapsed',
-      )
-    })
-
-    it('collapses every group by default on first ever mount', async () => {
-      // Clear the seed flag set in beforeEach so the fresh-user default is observable.
-      localStorage.removeItem('sentinel_air_filterGroupsCollapsedSeeded')
-      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
-      await nextTick()
-      const headings = wrapper.findAll('.filter-section-label')
-      expect(headings.length).toBeGreaterThan(0)
-      for (const heading of headings) {
-        expect(heading.classes()).toContain('filter-section-label--collapsed')
-      }
-      // No option rows render while every group is collapsed.
-      expect(wrapper.findAll('.filter-result-option')).toHaveLength(0)
-    })
-
-    it('keeps a returning user’s expanded groups instead of re-collapsing', async () => {
-      // beforeEach already marked seeding done; nothing is collapsed, so groups stay open.
-      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
-      await nextTick()
-      expect(wrapper.findAll('.filter-section-label')[0]!.classes()).not.toContain(
-        'filter-section-label--collapsed',
-      )
-      expect(wrapper.findAll('.filter-result-option').length).toBeGreaterThan(0)
+    it('shows the no-results state when the active category is empty', () => {
+      // No aircraft in the feed → the (default) aircraft category is empty.
+      const wrapper = mountFilter(makeAdsb([]))
+      expect(wrapper.find('.filter-no-results').exists()).toBe(true)
     })
   })
 
@@ -370,7 +341,8 @@ describe('AirFilter', () => {
     })
 
     it('activates a focused airport on Enter', async () => {
-      const wrapper = mountFilter(makeAdsb([]), () => makeMap()) // airport + base only
+      const wrapper = mountFilter(makeAdsb([]), () => makeMap())
+      await setCategory('airports')
       const input = wrapper.find('#filter-input')
       await input.trigger('keydown', { key: 'ArrowDown' }) // focus airport
       await input.trigger('keydown', { key: 'Enter' }) // toggleAirport
@@ -379,9 +351,9 @@ describe('AirFilter', () => {
 
     it('activates a focused base on Enter', async () => {
       const map = makeMap()
-      const wrapper = mountFilter(makeAdsb([]), () => map) // airport + base only
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      await setCategory('mil')
       const input = wrapper.find('#filter-input')
-      await input.trigger('keydown', { key: 'ArrowDown' }) // focus airport
       await input.trigger('keydown', { key: 'ArrowDown' }) // focus base
       await input.trigger('keydown', { key: 'Enter' }) // selectMil
       expect(map.fitBounds).toHaveBeenCalled()
@@ -414,19 +386,24 @@ describe('AirFilter', () => {
       expect(input.attributes('aria-controls')).toBe('filter-listbox')
     })
 
-    it('exposes the rows as options the listbox owns via aria-owns', () => {
+    it('exposes the active category rows as options the listbox owns via aria-owns', async () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()))
       const listbox = wrapper.find('#filter-listbox')
       expect(listbox.attributes('role')).toBe('listbox')
+      // Default category (aircraft): only the plane options are owned/rendered.
       const owned = listbox.attributes('aria-owns') ?? ''
-      // 2 aircraft + 1 airport + 1 base, each a real option id the listbox owns.
       expect(owned).toContain('filter-opt-plane-0')
-      expect(owned).toContain('filter-opt-airport-0')
-      expect(owned).toContain('filter-opt-mil-0')
+      expect(owned).not.toContain('filter-opt-airport-0')
+      expect(owned).not.toContain('filter-opt-mil-0')
       const options = wrapper.findAll('[role="option"]')
-      expect(options).toHaveLength(4)
+      expect(options).toHaveLength(2)
       expect(options[0]!.attributes('id')).toBe('filter-opt-plane-0')
       expect(options[0]!.attributes('aria-selected')).toBe('false')
+      // Switching category swaps which options the listbox owns.
+      await setCategory('airports')
+      const airportOwned = wrapper.find('#filter-listbox').attributes('aria-owns') ?? ''
+      expect(airportOwned).toContain('filter-opt-airport-0')
+      expect(airportOwned).not.toContain('filter-opt-plane-0')
     })
 
     it('hides the listbox and reports collapsed when there are no results', async () => {
@@ -447,18 +424,15 @@ describe('AirFilter', () => {
       expect(wrapper.find('#filter-opt-plane-0').attributes('aria-selected')).toBe('true')
     })
 
-    it('drops aria-activedescendant when the focused row is collapsed out of view', async () => {
+    it('drops aria-activedescendant when the focused row is switched out of view', async () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()))
       const input = wrapper.find('#filter-input')
       await input.trigger('keydown', { key: 'ArrowDown' }) // focus first plane
       await nextTick()
       expect(input.attributes('aria-activedescendant')).toBe('filter-opt-plane-0')
-      // Collapse every section — the focused plane is no longer rendered, so the
-      // activedescendant must not dangle at a removed option id.
-      for (const heading of wrapper.findAll('.filter-section-label')) {
-        await heading.trigger('click')
-      }
-      await nextTick()
+      // Switch to another category — the focused plane is no longer rendered, so
+      // the activedescendant must not dangle at a removed option id.
+      await setCategory('airports')
       expect(input.attributes('aria-activedescendant')).toBeUndefined()
     })
 
@@ -493,6 +467,7 @@ describe('AirFilter', () => {
     it('expands an airport row and lists only the valid frequencies', async () => {
       const map = makeMap()
       const wrapper = mountFilter(makeAdsb([]), () => map)
+      await setCategory('airports')
       await wrapper.find('.filter-icon-airport').trigger('click')
       expect(map.fitBounds).toHaveBeenCalled()
       // tower + atis valid; radar (non-numeric) and approach (0) skipped.
@@ -504,6 +479,7 @@ describe('AirFilter', () => {
 
     it('formats the latitude and longitude with hemisphere suffixes', async () => {
       const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('airports')
       await wrapper.find('.filter-icon-airport').trigger('click')
       const text = wrapper.find('.apt-acc-body').text()
       expect(text).toContain('51.4700°N')
@@ -521,11 +497,13 @@ describe('AirFilter', () => {
       base.properties.icao = '' // no ICAO → name-slice fallback
       try {
         const wrapper = mountFilter(makeAdsb([]))
+        await setCategory('airports')
         await wrapper.find('.filter-icon-airport').trigger('click')
         const body = wrapper.find('.apt-acc-body').text()
         expect(body).toContain('10.0000°S')
         expect(body).toContain('10.0000°E')
-        // Base primary falls back to the uppercased, sliced name.
+        // Base primary falls back to the uppercased, sliced name (mil category).
+        await setCategory('mil')
         expect(wrapper.text()).toContain('RAF FA')
       } finally {
         airport.properties.iata = originalIata
@@ -536,6 +514,7 @@ describe('AirFilter', () => {
 
     it('shows an inline notice instead of tuning when no SDR is connected', async () => {
       const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('airports')
       await wrapper.find('.filter-icon-airport').trigger('click')
       await wrapper.find('.apt-acc-freq').trigger('click')
       expect(wrapper.find('.apt-acc-notice').exists()).toBe(true)
@@ -551,6 +530,7 @@ describe('AirFilter', () => {
         tuneEvents.push(event as CustomEvent),
       )
       const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('airports')
       await wrapper.find('.filter-icon-airport').trigger('click')
       await wrapper.find('.apt-acc-freq').trigger('click')
       expect(tuneEvents).toHaveLength(1)
@@ -581,6 +561,7 @@ describe('AirFilter', () => {
     it('fits the map to a military base on selection', async () => {
       const map = makeMap()
       const wrapper = mountFilter(makeAdsb([]), () => map)
+      await setCategory('mil')
       await wrapper.find('.filter-icon-mil').trigger('click')
       expect(map.fitBounds).toHaveBeenCalled()
     })
@@ -589,16 +570,15 @@ describe('AirFilter', () => {
       const map = makeMap()
       // Airport + base only → predictable .filter-result-info ordering.
       const wrapper = mountFilter(makeAdsb([]), () => map)
+      await setCategory('airports')
       await wrapper.findAll('.filter-result-info')[0]!.trigger('click') // airport info
       await wrapper.find('.filter-result-chevron').trigger('click') // airport chevron
-      await wrapper.findAll('.filter-result-info')[1]!.trigger('click') // base info
-      const milHeading = wrapper
-        .findAll('.filter-section-label')
-        .find((node) => node.text().includes('MILITARY BASES'))!
-      await milHeading.trigger('click') // base section heading toggle
+      await setCategory('mil')
+      await wrapper.findAll('.filter-result-info')[0]!.trigger('click') // base info
       expect(map.fitBounds).toHaveBeenCalled()
 
       // Plane icon hit target (distinct from the info hit target).
+      await setCategory('aircraft')
       const planeWrapper = mountFilter(
         makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' })]),
         () => map,
@@ -613,10 +593,12 @@ describe('AirFilter', () => {
       document.body.appendChild(panel)
       const map = makeMap()
       const wrapper = mountFilter(makeAdsb([]), () => map)
+      await setCategory('mil')
       await wrapper.find('.filter-icon-mil').trigger('click')
       expect(map.fitBounds).toHaveBeenCalled()
 
       const wrapperNoMap = mountFilter(makeAdsb([]), () => null)
+      await setCategory('mil')
       await expect(wrapperNoMap.find('.filter-icon-mil').trigger('click')).resolves.not.toThrow()
     })
   })
@@ -1184,14 +1166,13 @@ describe('AirFilter', () => {
       expect(wrapper.find('.apt-acc-body').exists()).toBe(true)
     })
 
-    it('expands an airport whose section the user had collapsed', async () => {
+    it('switches to the airports category when expanding an airport from another category', async () => {
       const wrapper = mountFilter(makeAdsb([]))
-      // Collapse the airports section first.
-      const headings = wrapper.findAll('.filter-section-label')
-      const airportsHeading = headings.find((node) => node.text().includes('AIRPORTS'))!
-      await airportsHeading.trigger('click')
+      // Start on a different category; expandAirport must switch to airports itself.
+      await setCategory('mil')
       ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('EGLL')
       await nextTick()
+      expect(useAirStore().airFilterCategory).toBe('airports')
       expect(wrapper.find('.apt-acc-body').exists()).toBe(true)
     })
 
@@ -1226,13 +1207,12 @@ describe('AirFilter', () => {
       expect(wrapper.find('.acft-acc-body').exists()).toBe(true)
     })
 
-    it('expands an aircraft whose section the user had collapsed', async () => {
+    it('switches to the aircraft category when expanding an aircraft from another category', async () => {
       const wrapper = mountFilter(makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' })]))
-      const headings = wrapper.findAll('.filter-section-label')
-      const aircraftHeading = headings.find((node) => node.text().includes('AIRCRAFT'))!
-      await aircraftHeading.trigger('click') // collapse aircraft
+      await setCategory('airports') // on a different category
       ;(wrapper.vm as unknown as { expandAircraft: (hex: string) => void }).expandAircraft('aa1')
       await nextTick()
+      expect(useAirStore().airFilterCategory).toBe('aircraft')
       expect(wrapper.find('.acft-acc-body').exists()).toBe(true)
     })
   })

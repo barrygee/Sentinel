@@ -588,6 +588,15 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'sdr',
     sectionLabel: 'SDR',
+    id: 'sdr-snap-to-known',
+    label: 'Snap to Known Frequencies',
+    desc: 'When ON, clicking a known-frequency marker in the spectrum jumps straight to it, and dragging the tuner bar snaps to a nearby known frequency from your Frequency Manager.',
+    type: 'sdr-snap-to-known',
+    groupLabel: 'WATERFALL',
+  },
+  {
+    section: 'sdr',
+    sectionLabel: 'SDR',
     id: 'sdr-show-bandplan',
     label: 'Show Band Plan',
     desc: 'Show the coloured RF band-plan strip (Air Band, FM Broadcast, etc.) along the bottom of the spectrum.',

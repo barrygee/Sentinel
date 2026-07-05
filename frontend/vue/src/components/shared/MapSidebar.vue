@@ -1,107 +1,155 @@
 <template>
   <div v-if="!hideTabs" id="map-sidebar-rail">
-    <button
-      v-for="tab in tabs"
-      :key="tab.id"
-      class="msb-rail-btn"
-      :class="{
-        'msb-rail-btn-active': activeTab === tab.id && open,
-        'msb-rail-btn-pulse': tab.id === 'alerts' && hasUnread,
-      }"
-      :data-tab="tab.id"
-      :data-tooltip="tab.label"
-      :aria-label="tab.label"
-      :aria-expanded="activeTab === tab.id && open"
-      :aria-controls="`msb-pane-${tab.id}`"
-      @click="switchTab(tab.id)"
-    >
-      <!-- search -->
-      <svg
-        v-if="tab.id === 'search'"
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
+    <template v-for="tab in tabs" :key="tab.id">
+      <button
+        class="msb-rail-btn"
+        :class="{
+          'msb-rail-btn-active': activeTab === tab.id && open,
+          'msb-rail-btn-pulse': tab.id === 'alerts' && hasUnread,
+        }"
+        :data-tab="tab.id"
+        :data-tooltip="tab.label"
+        :aria-label="tab.label"
+        :aria-expanded="activeTab === tab.id && open"
+        :aria-controls="`msb-pane-${tab.id}`"
+        @click="toggleRailTab(tab.id)"
       >
-        <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8" />
-        <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.8" />
-      </svg>
-      <!-- alerts -->
-      <svg
-        v-else-if="tab.id === 'alerts'"
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M12 2C8 2 5 5 5 9v6H3v2h18v-2h-2V9c0-4-3-7-7-7Z"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linejoin="miter"
+        <!-- filter (was search): funnel icon, matching the map side menu's FILTER. -->
+        <svg
+          v-if="tab.id === 'search'"
+          width="19"
+          height="19"
+          viewBox="0 0 15 15"
           fill="none"
-        />
-        <path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" fill="none" />
-      </svg>
-      <!-- tracking -->
-      <svg
-        v-else-if="tab.id === 'tracking'"
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7Z"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linejoin="miter"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <line
+            x1="1"
+            y1="3.5"
+            x2="14"
+            y2="3.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <line
+            x1="3.5"
+            y1="7.5"
+            x2="11.5"
+            y2="7.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+          <line
+            x1="6"
+            y1="11.5"
+            x2="9"
+            y2="11.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+        </svg>
+        <!-- alerts -->
+        <svg
+          v-else-if="tab.id === 'alerts'"
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
           fill="none"
-        />
-        <circle cx="12" cy="9" r="2.2" fill="currentColor" />
-      </svg>
-      <!-- passes -->
-      <svg
-        v-else-if="tab.id === 'passes'"
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-        stroke-linecap="round"
-      >
-        <path d="M2 22 C4 14, 10 6, 14 2" stroke="currentColor" stroke-width="1.6" />
-        <path d="M10 22 C12 14, 18 6, 22 2" stroke="currentColor" stroke-width="1.6" />
-        <path d="M18 22 C20 17, 24 12, 26 9" stroke="currentColor" stroke-width="1.6" />
-      </svg>
-      <!-- playback / replay -->
-      <svg
-        v-else-if="tab.id === 'playback'"
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path d="M20 12 A8 8 0 1 1 16.5 5.4" stroke="currentColor" stroke-width="1.8" fill="none" />
-        <polyline
-          points="20,2 20,6 16,6"
-          stroke="currentColor"
-          stroke-width="1.8"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 2C8 2 5 5 5 9v6H3v2h18v-2h-2V9c0-4-3-7-7-7Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="miter"
+            fill="none"
+          />
+          <path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" fill="none" />
+        </svg>
+        <!-- tracking -->
+        <svg
+          v-else-if="tab.id === 'tracking'"
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
           fill="none"
-          stroke-linejoin="miter"
-        />
-        <polygon points="9.5,8 9.5,16 16,12" fill="currentColor" />
-      </svg>
-    </button>
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="miter"
+            fill="none"
+          />
+          <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+        </svg>
+        <!-- passes -->
+        <svg
+          v-else-if="tab.id === 'passes'"
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+          stroke-linecap="round"
+        >
+          <path d="M2 22 C4 14, 10 6, 14 2" stroke="currentColor" stroke-width="1.6" />
+          <path d="M10 22 C12 14, 18 6, 22 2" stroke="currentColor" stroke-width="1.6" />
+          <path d="M18 22 C20 17, 24 12, 26 9" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+        <!-- playback / replay -->
+        <svg
+          v-else-if="tab.id === 'playback'"
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M20 12 A8 8 0 1 1 16.5 5.4"
+            stroke="currentColor"
+            stroke-width="1.8"
+            fill="none"
+          />
+          <polyline
+            points="20,2 20,6 16,6"
+            stroke="currentColor"
+            stroke-width="1.8"
+            fill="none"
+            stroke-linejoin="miter"
+          />
+          <polygon points="9.5,8 9.5,16 16,12" fill="currentColor" />
+        </svg>
+      </button>
+
+      <!-- Category sub-tabs: single-select rail buttons shown beneath the FILTER
+           tab while it is the open tab. Air = aircraft/airports/military bases;
+           Space = one per satellite category that currently has data. Selecting
+           one drives which category the search pane (AirFilter/SpaceFilter) shows. -->
+      <button
+        v-for="sub in tab.id === 'search' && activeTab === 'search' && open ? filterSubTabs : []"
+        :key="`sub-${sub.id}`"
+        class="msb-rail-btn msb-rail-subbtn"
+        :class="{ 'msb-rail-btn-active': activeFilterCategory === sub.id }"
+        :data-filter-cat="sub.id"
+        :data-tooltip="sub.label"
+        :aria-label="sub.label"
+        :aria-pressed="activeFilterCategory === sub.id"
+        @click="selectFilterCategory(sub.id)"
+      >
+        <FilterSubTabIcon :category="sub.id" />
+      </button>
+    </template>
   </div>
 
   <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
@@ -163,12 +211,16 @@
 import { ref, computed, watch } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
+import FilterSubTabIcon from './FilterSubTabIcon.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
-import { useAirStore } from '@/stores/air'
+import { useAirStore, type AirFilterCategory } from '@/stores/air'
+import { useSpaceStore } from '@/stores/space'
+import { SATELLITE_CATEGORY_SECTION_LABELS } from '@/utils/satelliteUtils'
 
 const notifStore = useNotificationsStore()
 const airStore = useAirStore()
+const spaceStore = useSpaceStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
@@ -199,6 +251,10 @@ function _domainFromPath(): string {
   return window.location.pathname.split('/').filter(Boolean)[0] ?? ''
 }
 let _activeDomain = _domainFromPath()
+// Reactive mirror of the active domain so the FILTER category sub-tabs (air vs
+// space, dynamic vs static) recompute on in-app navigation. `_activeDomain` stays
+// as the plain source of truth used by the (non-reactive) tab-restore helpers.
+const activeDomain = ref(_activeDomain)
 
 const open = ref(_restoreOpen())
 const activeTab = ref<SidebarTab>(_restoreTab(_activeDomain))
@@ -217,13 +273,47 @@ watch(
 )
 
 const tabs = computed(() => [
-  { id: 'search' as SidebarTab, label: 'SEARCH' },
+  { id: 'search' as SidebarTab, label: 'FILTER' },
   { id: 'alerts' as SidebarTab, label: 'ALERTS' },
   { id: 'tracking' as SidebarTab, label: 'TRACKING' },
   { id: 'passes' as SidebarTab, label: 'PASSES' },
   // REPLAY tab only appears when air replay recording is enabled (Settings > AIR).
   ...(airStore.replayEnabled ? [{ id: 'playback' as SidebarTab, label: 'REPLAY' }] : []),
 ])
+
+// FILTER category sub-tabs shown in the rail beneath the FILTER tab. Air has a
+// fixed set; Space is data-driven (only categories that currently have satellites,
+// published by SpaceFilter into the store). Empty on other domains (no sub-tabs).
+const AIR_FILTER_SUBTABS: { id: string; label: string }[] = [
+  { id: 'aircraft', label: 'AIRCRAFT' },
+  { id: 'airports', label: 'AIRPORTS' },
+  { id: 'mil', label: 'MILITARY BASES' },
+]
+const filterSubTabs = computed<{ id: string; label: string }[]>(() => {
+  if (activeDomain.value === 'air') return AIR_FILTER_SUBTABS
+  if (activeDomain.value === 'space')
+    return spaceStore.spaceAvailableCategories.map((cat) => ({
+      id: cat,
+      label: SATELLITE_CATEGORY_SECTION_LABELS[cat] || cat.replace(/_/g, ' ').toUpperCase(),
+    }))
+  return []
+})
+
+// The currently-selected FILTER category for the active domain, driving the
+// sub-tab active highlight.
+const activeFilterCategory = computed<string>(() => {
+  if (activeDomain.value === 'air') return airStore.airFilterCategory
+  if (activeDomain.value === 'space') return spaceStore.spaceFilterCategory
+  return ''
+})
+
+// Pick a FILTER category from a rail sub-tab: open the panel on the FILTER tab and
+// set the active domain's category so its search pane shows just that list.
+function selectFilterCategory(id: string) {
+  switchTab('search')
+  if (activeDomain.value === 'air') airStore.setAirFilterCategory(id as AirFilterCategory)
+  else if (activeDomain.value === 'space') spaceStore.setSpaceFilterCategory(id)
+}
 
 // If replay gets disabled while the REPLAY tab is active, fall back to SEARCH so
 // the now-hidden pane isn't left showing.
@@ -249,6 +339,13 @@ function switchTab(tab: SidebarTab) {
     _persistOpen(true)
   }
   setTab(tab)
+}
+
+// Rail-tab click: toggle the panel. Clicking the already-open tab closes the
+// drawer (collapsing the FILTER sub-tabs with it); any other click opens/switches.
+function toggleRailTab(tab: SidebarTab) {
+  if (activeTab.value === tab && open.value) hide()
+  else switchTab(tab)
 }
 
 function toggle() {
@@ -356,6 +453,7 @@ useDocumentEvent('air-open-aircraft', () => {
 useDocumentEvent('sentinel:domain-changed', (e: Event) => {
   const { domain } = (e as CustomEvent<{ domain: string; prev: string }>).detail
   _activeDomain = domain
+  activeDomain.value = domain
   // SDR is special: its 'radio' tab is applied by App.vue's isSdrRoute watch, so
   // don't touch activeTab here (closeRadioTab handles leaving SDR).
   if (domain === 'sdr') return
@@ -604,6 +702,22 @@ defineExpose({
 
 .msb-rail-btn.msb-rail-btn-pulse:not(.msb-rail-btn-active) {
   animation: msb-alert-pulse 1.2s ease-in-out infinite;
+}
+
+/* FILTER category sub-tabs: sit on the panel-grey background so they read as
+   sub-items of the FILTER tab (mirrors the map side menu's accordion sub-buttons).
+   Active still gets the green fill + left border from .msb-rail-btn-active above. */
+.msb-rail-subbtn {
+  height: 34px;
+  background: var(--color-border);
+}
+
+.msb-rail-subbtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.msb-rail-subbtn.msb-rail-btn-active {
+  background: rgba(200, 255, 0, 0.1);
 }
 
 .msb-rail-btn[data-tooltip]::before {
