@@ -273,6 +273,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Flat red read-only notice; remove take-control (#168)
 - Spectrum + RADIO panel UI polish, read-only tuning gate & connection-dot fix (#169)
 - Blue translucent tuner passband, always centred on the carrier (#172)
+- Mirror demod mode to read-only followers on retune (#174)
 
 ### Chores
 
@@ -1050,6 +1051,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Feat/sdr follower freqmgr sweep mirror (#173)
 - Modify Docker command for running app with decoder
 - Update logo in README to external image link
+- Update docker compose command in README
 
 ### Refactoring
 
