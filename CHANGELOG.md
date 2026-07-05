@@ -106,6 +106,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Tuner ownership handoff — release, take control, and flat-dark banner (#167)
 - Harden read-only follower UX and fix stale ownership on reconnect (#170)
 - Harden read-only follower UX and fix stale ownership on reconnect (#171)
+- FILTER rail category sub-tabs, SDR snap-to-known, nav polish (#175)
 
 ### Bug Fixes
 
