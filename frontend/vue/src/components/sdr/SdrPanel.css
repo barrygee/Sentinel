@@ -256,12 +256,9 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* Another Sentinel controls the shared tuner: the device name turns red and a
-   padlock shows next to the dropdown arrow. Placed after --chosen so it wins.
-   Red #ff5050 on the near-black panel is comfortably AA (~7:1). */
-.sdr-device-dropdown-text--readonly {
-  color: #ff5050;
-}
+/* Another Sentinel controls the shared tuner: the red padlock (below) signals
+   this, while the device name keeps its normal white so the radio stays easy to
+   read. The read-only state is still announced via the sr-only status. */
 
 .sdr-device-lock {
   flex-shrink: 0;
@@ -355,18 +352,9 @@
   min-width: 0;
 }
 
-/* Read-only row: this radio is controlled by another Sentinel. Red label + host
-   matching the collapsed header; the hover/active white must not override it. */
-.sdr-device-menu-item--readonly,
-.sdr-device-menu-item--readonly:hover,
-.sdr-device-menu-item--readonly.sdr-device-menu-item--active {
-  color: #ff5050;
-}
-
-.sdr-device-menu-item--readonly .sdr-device-menu-item-host,
-.sdr-device-menu-item--readonly:hover .sdr-device-menu-item-host {
-  color: rgba(255, 80, 80, 0.7);
-}
+/* Read-only row: this radio is controlled by another Sentinel. The red padlock
+   (.sdr-device-menu-item-lock) carries that signal; the radio name and host keep
+   their normal colours so the row stays readable. */
 
 .sdr-device-menu-placeholder {
   color: rgba(255, 255, 255, 0.25);
