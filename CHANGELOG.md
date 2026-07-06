@@ -1073,6 +1073,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the legacy globeProjection localStorage cleanup
 - Extract settings types module and useStagedSetting composable (#177)
 - Extract duplicated inline SVGs into shared icon atoms (#178)
+- Consolidate settings toggles onto BaseToggleSwitch/BaseToggleSetting (#179)
 
 ### Documentation
 
