@@ -275,6 +275,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Spectrum + RADIO panel UI polish, read-only tuning gate & connection-dot fix (#169)
 - Blue translucent tuner passband, always centred on the carrier (#172)
 - Mirror demod mode to read-only followers on retune (#174)
+- Dismiss open dropdown menus on panel scroll (#176)
 
 ### Chores
 
