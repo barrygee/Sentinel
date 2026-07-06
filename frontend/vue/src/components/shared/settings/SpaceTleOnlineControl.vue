@@ -63,15 +63,7 @@
       >
         <span class="tle-info-label">View Celestrak source URLs</span>
         <span class="tle-info-chevron" :class="{ 'tle-info-chevron--open': infoOpen }">
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-            <polyline
-              points="1,2.5 4,5.5 7,2.5"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <ScrollHintChevronIcon />
         </span>
       </button>
       <div v-if="infoOpen" id="tle-info-panel" class="tle-info-panel">
@@ -100,6 +92,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
+import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },

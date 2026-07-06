@@ -37,33 +37,7 @@
                 aria-label="Disable notifications"
                 @click.stop="runActionAndDismiss(item)"
               >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 13 13"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                    fill="currentColor"
-                  />
-                  <path
-                    d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                    stroke="currentColor"
-                    stroke-width="1"
-                    fill="none"
-                  />
-                  <line
-                    x1="1.5"
-                    y1="1.5"
-                    x2="11.5"
-                    y2="11.5"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="square"
-                  />
-                </svg>
+                <BellIcon struck />
               </button>
               <button
                 v-else
@@ -101,22 +75,7 @@
       @click="scrollForMore"
     >
       MORE
-      <svg
-        id="notif-scroll-arrow"
-        width="8"
-        height="8"
-        viewBox="0 0 8 8"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <polyline
-          points="1,2.5 4,5.5 7,2.5"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
+      <ScrollHintChevronIcon id="notif-scroll-arrow" />
     </button>
   </div>
 </template>
@@ -124,6 +83,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import BellIcon from './BellIcon.vue'
+import ScrollHintChevronIcon from './ScrollHintChevronIcon.vue'
 import {
   useNotificationsStore,
   getAircraftClickHandler,

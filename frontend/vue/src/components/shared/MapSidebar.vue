@@ -15,43 +15,7 @@
         @click="toggleRailTab(tab.id)"
       >
         <!-- filter (was search): funnel icon, matching the map side menu's FILTER. -->
-        <svg
-          v-if="tab.id === 'search'"
-          width="19"
-          height="19"
-          viewBox="0 0 15 15"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <line
-            x1="1"
-            y1="3.5"
-            x2="14"
-            y2="3.5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-          <line
-            x1="3.5"
-            y1="7.5"
-            x2="11.5"
-            y2="7.5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-          <line
-            x1="6"
-            y1="11.5"
-            x2="9"
-            y2="11.5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-        </svg>
+        <FilterFunnelIcon v-if="tab.id === 'search'" :size="19" />
         <!-- alerts -->
         <svg
           v-else-if="tab.id === 'alerts'"
@@ -212,6 +176,7 @@ import { ref, computed, watch } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
 import FilterSubTabIcon from './FilterSubTabIcon.vue'
+import FilterFunnelIcon from './FilterFunnelIcon.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore, type AirFilterCategory } from '@/stores/air'

@@ -160,23 +160,7 @@
                     :data-tooltip="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
                     @click.stop="toggleTrack(r.hex)"
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linejoin="round"
-                        fill="none"
-                      />
-                      <circle cx="12" cy="9" r="2.2" fill="currentColor" />
-                    </svg>
+                    <LocationPinIcon />
                   </button>
                   <button
                     class="acft-acc-btn"
@@ -189,36 +173,8 @@
                     "
                     @click.stop="toggleNotif(r.hex)"
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 13 13"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                        fill="currentColor"
-                      />
-                      <path
-                        d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                        stroke="currentColor"
-                        stroke-width="1"
-                        fill="none"
-                      />
-                      <!-- Strike-through shown when notifications for this aircraft are off. -->
-                      <line
-                        v-if="!notifEnabled.has(r.hex)"
-                        x1="1.5"
-                        y1="1.5"
-                        x2="11.5"
-                        y2="11.5"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        stroke-linecap="square"
-                      />
-                    </svg>
+                    <!-- Strike-through shown when notifications for this aircraft are off. -->
+                    <BellIcon :size="14" :struck="!notifEnabled.has(r.hex)" />
                   </button>
                   <button
                     class="acft-acc-btn"
@@ -440,6 +396,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import LocationPinIcon from '@/components/shared/LocationPinIcon.vue'
+import BellIcon from '@/components/shared/BellIcon.vue'
 import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
 import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'

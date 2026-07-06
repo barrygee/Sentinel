@@ -197,23 +197,7 @@
                   "
                   @click.stop="trackSat(sat)"
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linejoin="round"
-                      fill="none"
-                    />
-                    <circle cx="12" cy="9" r="2.2" fill="currentColor" />
-                  </svg>
+                  <LocationPinIcon />
                 </button>
                 <button
                   class="sfr-acc-notif-btn"
@@ -230,24 +214,7 @@
                   "
                   @click.stop="togglePassNotif(sat)"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 13 13"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z"
-                      fill="currentColor"
-                    />
-                    <path
-                      d="M5 10.5a1.5 1.5 0 0 0 3 0"
-                      stroke="currentColor"
-                      stroke-width="1"
-                      fill="none"
-                    />
-                  </svg>
+                  <BellIcon :size="14" />
                 </button>
                 <button
                   v-if="sat.downlink_hz"
@@ -447,6 +414,8 @@ import {
 import { useNotificationsStore } from '../../stores/notifications'
 import { useDocumentEvent } from '../../composables/useDocumentEvent'
 import ChevronIcon from '../shared/ChevronIcon.vue'
+import LocationPinIcon from '../shared/LocationPinIcon.vue'
+import BellIcon from '../shared/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
