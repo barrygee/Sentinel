@@ -627,40 +627,6 @@
   user-select: none;
 }
 
-.settings-connectivity-track {
-  position: relative;
-  width: 46px;
-  height: 25px;
-  background: rgba(16, 19, 29, 0.14);
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.18s;
-  padding: 0;
-}
-
-.settings-connectivity-track.is-online {
-  background: var(--color-accent);
-}
-
-.settings-connectivity-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition:
-    transform 0.18s,
-    background 0.18s;
-}
-
-.settings-connectivity-track.is-online .settings-connectivity-thumb {
-  transform: translateX(21px);
-  background: #0a0c10;
-}
-
 .settings-connectivity-override-summary {
   display: flex;
   flex-direction: column;

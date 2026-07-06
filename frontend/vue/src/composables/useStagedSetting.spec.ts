@@ -124,6 +124,27 @@ describe('useStagedSetting', () => {
       expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'autoCenterWaterfallOnTune', true)
       unmount()
     })
+
+    it('defers the store mirror until the staged writer runs when deferMirror is set', async () => {
+      const { options, mirrorToStore, stageWrite } = makeBooleanOptions()
+      const { result, unmount } = mountStagedSetting<boolean>({ ...options, deferMirror: true })
+      await flushPromises()
+
+      result.applyChange(false)
+
+      // Local value flips immediately (the switch position), but the store
+      // mirror must NOT have run yet.
+      expect(result.value.value).toBe(false)
+      expect(mirrorToStore).not.toHaveBeenCalled()
+      expect(settingsApi.put).not.toHaveBeenCalled()
+      expect(stageWrite).toHaveBeenCalledTimes(1)
+
+      const stagedWriter = stageWrite.mock.calls[0]?.[0] as () => Promise<unknown>
+      await stagedWriter()
+      expect(mirrorToStore).toHaveBeenCalledWith(false)
+      expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'autoCenterWaterfallOnTune', false)
+      unmount()
+    })
   })
 
   describe('number instantiation (validated numeric inputs)', () => {

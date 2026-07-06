@@ -32,6 +32,16 @@ export interface UseStagedSettingOptions<SettingValue> {
    * path that actually persists the value to the DB.
    */
   stageWrite: (stagedWriter: () => Promise<unknown> | void) => void
+  /**
+   * When true, `mirrorToStore` is *also* deferred until the staged writer
+   * runs on APPLY, instead of running immediately in `applyChange`. A small
+   * number of controls (e.g. those gating a tab or a whole UI section's
+   * visibility) rely on the store NOT changing until the user actually
+   * applies, so no gated UI flashes into view and then reverts if they
+   * navigate away without applying. Defaults to `false` (mirror
+   * immediately), which is the behaviour of most staged settings.
+   */
+  deferMirror?: boolean
 }
 
 /** Public surface returned by `useStagedSetting`. */
@@ -86,8 +96,16 @@ export function useStagedSetting<SettingValue>(
 
   function applyChange(newValue: SettingValue): void {
     value.value = newValue
-    options.mirrorToStore(newValue)
-    options.stageWrite(() => settingsApi.put(options.namespace, options.key, newValue))
+    if (options.deferMirror) {
+      // Both the store mirror and the DB write wait for APPLY CHANGES.
+      options.stageWrite(() => {
+        options.mirrorToStore(newValue)
+        return settingsApi.put(options.namespace, options.key, newValue)
+      })
+    } else {
+      options.mirrorToStore(newValue)
+      options.stageWrite(() => settingsApi.put(options.namespace, options.key, newValue))
+    }
   }
 
   return { value, applyChange, syncFromDb }
