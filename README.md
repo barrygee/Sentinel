@@ -3,8 +3,6 @@
 
 # Sentinel
 
-**One screen. Every signal in the sky.**
-
 Sentinel is a real-time, multi-domain surveillance dashboard that tracks aircraft, satellites, and the radio spectrum on a single interactive map. A **FastAPI** backend serves a **Vue 3** single-page app that renders live data on **MapLibre GL** maps.
 
 It is built **offline-first**: each domain has online and offline data sources with automatic failover, and offline vector map tiles (**PMTiles**) mean the map keeps working when the internet doesn't.
