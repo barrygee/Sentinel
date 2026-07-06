@@ -307,7 +307,12 @@ import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
 import { useSdrStore } from '@/stores/sdr'
 import { useDialog } from '@/composables/useDialog'
+import type { SettingItem } from '@/types/settings'
 import SettingRow from './settings/SettingRow.vue'
+
+// Re-exported for back-compat: this type used to be defined here. Prefer
+// importing from '@/types/settings' directly in new code.
+export type { SettingItem }
 
 const store = useSettingsStore()
 const appStore = useAppStore()
@@ -346,19 +351,6 @@ const NAV_SECTIONS: NavSection[] = [
   { key: 'land', label: 'LAND' },
   { key: 'sdr', label: 'SDR' },
 ]
-
-export interface SettingItem {
-  section: string
-  sectionLabel: string
-  id: string
-  label: string
-  desc: string
-  groupLabel?: string
-  type: string
-  // type-specific props
-  ns?: string
-  defaultUrl?: string
-}
 
 const ALL_SETTINGS: SettingItem[] = [
   {
