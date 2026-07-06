@@ -1,6 +1,8 @@
 <template>
-  <div id="msb-pane-tracking-inner">
-    <div v-if="store.count === 0" id="msb-tracking-empty">No tracked items</div>
+  <BaseList :is-empty="store.count === 0" empty-text="No tracked items">
+    <template #empty>
+      <div id="msb-tracking-empty">No tracked items</div>
+    </template>
     <div
       v-for="item in store.allItems"
       :key="item.id"
@@ -23,29 +25,26 @@
       </div>
 
       <template v-for="section in sectionsFor(item.fields)" :key="section.title">
-        <div v-if="section.cells.length" class="sfr-acc-section">
-          <div class="sfr-acc-section-title">{{ section.title }}</div>
-          <div class="sfr-acc-grid sfr-acc-grid--three">
-            <div
-              v-for="cell in section.cells"
-              :key="cell.label"
-              class="sfr-acc-cell"
-              :class="{ 'sfr-acc-cell--wide': cell.label === 'CATEGORY' }"
-            >
-              <div class="sfr-acc-cell-label">{{ cell.label }}</div>
-              <div class="sfr-acc-cell-value" :class="{ 'sfr-acc-cell-value--emrg': cell.emrg }">
-                {{ cell.value }}
-              </div>
-            </div>
-          </div>
-        </div>
+        <BaseDataGrid v-if="section.cells.length" :title="section.title" :columns="3">
+          <BaseDataCell
+            v-for="cell in section.cells"
+            :key="cell.label"
+            :label="cell.label"
+            :value="cell.value"
+            :wide="cell.label === 'CATEGORY'"
+            :emphasis="!!cell.emrg"
+          />
+        </BaseDataGrid>
       </template>
     </div>
-  </div>
+  </BaseList>
 </template>
 
 <script setup lang="ts">
 import { useTrackingStore, type TrackingField } from '@/stores/tracking'
+import BaseList from '@/components/base/BaseList.vue'
+import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
+import BaseDataCell from '@/components/base/BaseDataCell.vue'
 
 const store = useTrackingStore()
 
@@ -192,49 +191,32 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   opacity: 1;
 }
 
-.tracking-card .sfr-acc-cell-value {
-  font-size: 13px;
-  color: #ffffff;
-  font-weight: 400;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  word-break: normal;
-  overflow-wrap: break-word;
-  line-height: 1.25;
+/* Per-site deltas for the BaseDataGrid/BaseDataCell primitives rendered above:
+   tighter spacing, a lighter value weight, and free-text wrapping (tracked
+   fields can be long, e.g. aircraft type strings) instead of SpaceFilter's
+   fixed-width truncated telemetry. Custom properties inherit through the DOM
+   regardless of the component boundary, so this plain descendant rule reaches
+   BaseDataGrid/BaseDataCell's own scoped styles without needing :deep(). */
+.tracking-card {
+  --ba-grid-section-gap: 6px;
+  --ba-grid-section-padding-top: 18px;
+  --ba-grid-section-padding-bottom: 8px;
+  --ba-grid-column-gap: 10px;
+  --ba-grid-row-gap: 14px;
+  --ba-cell-gap: 2px;
+  --ba-cell-label-color: rgba(255, 255, 255, 0.55);
+  --ba-cell-value-font-size: 13px;
+  --ba-cell-value-font-weight: 400;
+  --ba-cell-value-white-space: normal;
+  --ba-cell-value-overflow: visible;
+  --ba-cell-value-text-overflow: clip;
+  --ba-cell-value-word-break: normal;
+  --ba-cell-value-overflow-wrap: break-word;
+  --ba-cell-value-line-height: 1.25;
 }
 
 .tracking-card .tracking-card-name {
   color: #ffffff;
-}
-
-.tracking-card .sfr-acc-cell-label {
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.tracking-card .sfr-acc-section {
-  gap: 6px;
-  padding-top: 18px;
-  padding-bottom: 8px;
-}
-
-.tracking-card .sfr-acc-grid {
-  column-gap: 10px;
-  row-gap: 14px;
-}
-
-.tracking-card .sfr-acc-cell {
-  gap: 2px;
-}
-
-.tracking-card .sfr-acc-cell--wide {
-  grid-column: span 2;
-}
-
-.sfr-acc-cell-value--emrg {
-  color: #ff4040;
-  font-weight: 700;
 }
 
 #tracking-toggle-btn {
