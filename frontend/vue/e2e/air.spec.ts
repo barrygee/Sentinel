@@ -191,4 +191,35 @@ test.describe('Air domain', () => {
 
     await expect(page.locator('.no-url-overlay')).toBeVisible({ timeout: 8000 })
   })
+
+  // Regression test for the IconRail/IconRailAccordion touch-tooltip fix (see the
+  // identical Space-domain test in space.spec.ts): IconRailAccordion is a
+  // multi-root component, so Vue's scoped-CSS slot scope-id propagation doesn't
+  // carry IconRail's `:slotted([data-tooltip])` suppression down into it — it
+  // needs (and now has) its own copy of the rule for its own trigger/panel slot
+  // content. jsdom can't evaluate media queries or pseudo-elements, so this can
+  // only be verified in a real browser; it directly exercises both the rail's
+  // own button (Zoom in) and an accordion sub-button (Aircraft, inside the MAP
+  // LAYERS panel).
+  test('touch viewport suppresses the tooltip pseudo-element on rail and accordion buttons', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.goto('/air/')
+    await waitForShellHydration(page)
+
+    await page.locator('#sm-layers-btn').click()
+    const aircraftButton = page.locator('button[data-tooltip="AIRCRAFT"]')
+    await expect(aircraftButton).toBeVisible()
+
+    const zoomInTooltipDisplay = await page
+      .locator('button[data-tooltip="ZOOM IN"]')
+      .evaluate((button) => getComputedStyle(button, '::before').display)
+    const aircraftTooltipDisplay = await aircraftButton.evaluate(
+      (button) => getComputedStyle(button, '::before').display,
+    )
+
+    expect(zoomInTooltipDisplay).toBe('none')
+    expect(aircraftTooltipDisplay).toBe('none')
+  })
 })
