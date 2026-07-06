@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SettingItem } from '../SettingsPanel.vue'
+import type { SettingItem } from '@/types/settings'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
 import OverheadAlertRadiusControl from './OverheadAlertRadiusControl.vue'

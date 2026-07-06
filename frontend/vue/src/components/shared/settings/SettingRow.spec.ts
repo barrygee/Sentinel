@@ -10,7 +10,7 @@ vi.mock('./ExportAllControl.vue', () => ({ default: { name: 'ExportAllControl' }
 import type { Component } from 'vue'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
-import type { SettingItem } from '../SettingsPanel.vue'
+import type { SettingItem } from '@/types/settings'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
 import OverheadAlertRadiusControl from './OverheadAlertRadiusControl.vue'
