@@ -1075,6 +1075,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract duplicated inline SVGs into shared icon atoms (#178)
 - Consolidate settings toggles onto BaseToggleSwitch/BaseToggleSetting (#179)
 - Consolidate number-input settings onto BaseNumberSetting (#180)
+- Introduce BaseButton/BaseIconButton and consolidate rail/tooltip CSS (#181)
 
 ### Documentation
 
