@@ -32,17 +32,7 @@
       :class="{ active: locActive }"
       @click="goToLocation"
     >
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 20 20"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <circle cx="10" cy="10" r="7.5" stroke="#c8ff00" stroke-width="1.8" />
-        <circle cx="10" cy="10" r="2" fill="white" />
-      </svg>
+      <MyLocationIcon />
     </button>
 
     <!-- MAP LAYERS group: a click-to-expand accordion of the satellite overlays
@@ -198,6 +188,7 @@ import { useSpaceStore } from '@/stores/space'
 import { useAppStore } from '@/stores/app'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDisclosure } from '@/composables/useDisclosure'
+import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
 import type SpaceMap from './SpaceMap.vue'
 
 // markRaw proxy from SpaceView — .current is non-reactive, preventing re-renders during teardown

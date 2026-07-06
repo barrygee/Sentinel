@@ -320,21 +320,14 @@
     </div>
     <div id="sdr-recordings-scroll-hint" ref="scrollHintRef" style="display: none">
       MORE
-      <svg id="sdr-recordings-scroll-arrow" width="8" height="8" viewBox="0 0 8 8" fill="none">
-        <polyline
-          points="1,2.5 4,5.5 7,2.5"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
+      <ScrollHintChevronIcon id="sdr-recordings-scroll-arrow" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
+import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
 
 interface SdrRecording {
   id: number
