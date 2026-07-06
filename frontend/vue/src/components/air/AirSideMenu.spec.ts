@@ -149,11 +149,13 @@ describe('AirSideMenu', () => {
 
     it('collapses the rail when the app store hides the side menu', async () => {
       const appStore = useAppStore()
-      // Visible by default: no collapsed modifier.
-      expect(wrapper.find('#side-menu').classes()).not.toContain('side-menu--collapsed')
+      // Visible by default: no collapsed modifier. The collapsed modifier class
+      // now lives on the shared IconRail shell (icon-rail--collapsed), not a
+      // side-menu-specific class name (see the Phase 6a SpaceSideMenu precedent).
+      expect(wrapper.find('#side-menu').classes()).not.toContain('icon-rail--collapsed')
       appStore.toggleSideMenu()
       await wrapper.vm.$nextTick()
-      expect(wrapper.find('#side-menu').classes()).toContain('side-menu--collapsed')
+      expect(wrapper.find('#side-menu').classes()).toContain('icon-rail--collapsed')
     })
 
     it('zooms the map in and out', async () => {
@@ -288,6 +290,24 @@ describe('AirSideMenu', () => {
       await button.trigger('click')
       expect(button.attributes('aria-expanded')).toBe('false')
       expect(button.classes()).not.toContain('active')
+    })
+
+    it('resyncs the mode highlight from the control when the panel opens, even without an adsb-filter-change event', async () => {
+      // Pins the reason onFilterAccordionTriggerClick calls syncFilterStateFromControl
+      // on every trigger click (replacing the pre-migration watch(filterAccordionOpen,
+      // ...)): something outside this component can mutate the ADS-B control's filter
+      // fields directly (e.g. another view driving the same control) without going
+      // through setFilterMode/dispatching 'adsb-filter-change'. Opening the FILTER
+      // accordion must still reflect that external change immediately.
+      controls.adsb._typeFilter = 'mil'
+      controls.adsb._allHidden = false
+
+      const button = wrapper.find('#sm-filter-btn')
+      await button.trigger('click')
+
+      expect(wrapper.find('[data-mode="mil"]').classes()).toContain('active')
+      expect(wrapper.find('[data-mode="all"]').classes()).not.toContain('active')
+      expect(wrapper.find('[data-mode="civil"]').classes()).not.toContain('active')
     })
 
     it('sets the filter mode, persists it, and keeps it highlighted', async () => {

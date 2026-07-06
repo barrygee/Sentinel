@@ -1,11 +1,14 @@
 <template>
   <!-- Fixed icon rail pinned to the right edge, mirroring the left #map-sidebar-rail.
        Every control from the full menu is always visible as an icon; the full label
-       is the button's accessible name and its hover tooltip. -->
-  <nav
-    id="side-menu"
-    :class="{ 'side-menu--collapsed': !appStore.sideMenuOpen }"
-    aria-label="Air map controls"
+       is the button's accessible name and its hover tooltip. The shell (container,
+       accordion mechanics, collapse/touch behaviour) lives in IconRail/
+       IconRailAccordion — this component owns only its buttons' content and the
+       map-control/store behaviour behind them. -->
+  <IconRail
+    container-id="side-menu"
+    accessible-name="Air map controls"
+    :collapsed="!appStore.sideMenuOpen"
   >
     <!-- Zoom + location -->
     <BaseIconButton
@@ -43,102 +46,114 @@
 
     <!-- FILTER group: a click-to-expand accordion of aircraft-filter modes
          (all / civil / military) shown below the icon. -->
-    <BaseIconButton
-      id="sm-filter-btn"
-      class="sm-btn"
-      style="--ba-rail-transition: color 0.15s ease"
-      :class="{ active: filterAccordionOpen }"
-      :active="filterAccordionOpen"
-      tooltip-side="left"
-      tooltip="FILTER"
-      accessible-name="Filter aircraft"
-      aria-controls="filter-mode-flyout"
-      :aria-expanded="filterAccordionOpen"
-      @click="toggleFilterAccordion"
-    >
-      <FilterFunnelIcon />
-    </BaseIconButton>
-
-    <div v-show="filterAccordionOpen" id="filter-mode-flyout" class="sm-accordion-panel">
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: isFilterModeActive('all') }"
-        :active="isFilterModeActive('all')"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-mode="all"
-        tooltip-side="left"
-        tooltip="ALL AIRCRAFT"
-        accessible-name="Show all aircraft"
-        @click="setFilterMode('all')"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+    <IconRailAccordion panel-id="filter-mode-flyout">
+      <template #trigger="{ open: filterAccordionOpen, toggle: toggleFilterAccordion }">
+        <BaseIconButton
+          id="sm-filter-btn"
+          class="sm-btn"
+          style="--ba-rail-transition: color 0.15s ease"
+          :class="{ active: filterAccordionOpen }"
+          :active="filterAccordionOpen"
+          tooltip-side="left"
+          tooltip="FILTER"
+          accessible-name="Filter aircraft"
+          aria-controls="filter-mode-flyout"
+          :aria-expanded="filterAccordionOpen"
+          @click="onFilterAccordionTriggerClick(toggleFilterAccordion)"
         >
-          <rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-          <rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-          <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-          <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: isFilterModeActive('civil') }"
-        :active="isFilterModeActive('civil')"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-mode="civil"
-        tooltip-side="left"
-        tooltip="CIVIL AIRCRAFT"
-        accessible-name="Civil aircraft only"
-        @click="setFilterMode('civil')"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+          <FilterFunnelIcon />
+        </BaseIconButton>
+      </template>
+      <template #panel>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: isFilterModeActive('all') }"
+          :active="isFilterModeActive('all')"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-mode="all"
+          tooltip-side="left"
+          tooltip="ALL AIRCRAFT"
+          accessible-name="Show all aircraft"
+          @click="setFilterMode('all')"
         >
-          <path
-            d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
-            fill="currentColor"
-          />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: isFilterModeActive('mil') }"
-        :active="isFilterModeActive('mil')"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-mode="mil"
-        tooltip-side="left"
-        tooltip="MILITARY AIRCRAFT"
-        accessible-name="Military aircraft only"
-        @click="setFilterMode('mil')"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <polygon
-            points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linejoin="round"
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
             fill="none"
-          />
-        </svg>
-      </BaseIconButton>
-    </div>
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+            <rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+            <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+            <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: isFilterModeActive('civil') }"
+          :active="isFilterModeActive('civil')"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-mode="civil"
+          tooltip-side="left"
+          tooltip="CIVIL AIRCRAFT"
+          accessible-name="Civil aircraft only"
+          @click="setFilterMode('civil')"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
+              fill="currentColor"
+            />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: isFilterModeActive('mil') }"
+          :active="isFilterModeActive('mil')"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-mode="mil"
+          tooltip-side="left"
+          tooltip="MILITARY AIRCRAFT"
+          accessible-name="Military aircraft only"
+          @click="setFilterMode('mil')"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <polygon
+              points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linejoin="round"
+              fill="none"
+            />
+          </svg>
+        </BaseIconButton>
+      </template>
+    </IconRailAccordion>
 
     <!-- RANGE RING -->
     <BaseIconButton
@@ -260,273 +275,298 @@
     <!-- LAYERS group: a click-to-expand accordion of map-layer toggles
          (planes, ground vehicles, towers, airports, military bases, roads,
          place names) shown below the icon. -->
-    <BaseIconButton
-      id="sm-layers-btn"
-      class="sm-btn"
-      style="--ba-rail-transition: color 0.15s ease"
-      :class="{ active: layersAccordionOpen }"
-      :active="layersAccordionOpen"
-      tooltip-side="left"
-      tooltip="MAP LAYERS"
-      accessible-name="Map layers"
-      aria-controls="layers-panel"
-      :aria-expanded="layersAccordionOpen"
-      @click="toggleLayersAccordion"
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M12 3 L21 8 L12 13 L3 8 Z"
-          stroke="currentColor"
-          stroke-width="1.4"
-          stroke-linejoin="round"
-          fill="none"
-        />
-        <path d="M3 12 L12 17 L21 12" stroke="currentColor" stroke-width="1.4" fill="none" />
-        <path d="M3 16 L12 21 L21 16" stroke="currentColor" stroke-width="1.4" fill="none" />
-      </svg>
-    </BaseIconButton>
-
-    <div v-show="layersAccordionOpen" id="layers-panel" class="sm-accordion-panel">
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: airStore.overlayStates.adsb }"
-        :active="airStore.overlayStates.adsb"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="planes"
-        tooltip-side="left"
-        tooltip="AIRCRAFT"
-        accessible-name="Aircraft"
-        @click="togglePlanes"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+    <IconRailAccordion panel-id="layers-panel">
+      <template #trigger="{ open: layersAccordionOpen, toggle: toggleLayersAccordion }">
+        <BaseIconButton
+          id="sm-layers-btn"
+          class="sm-btn"
+          style="--ba-rail-transition: color 0.15s ease"
+          :class="{ active: layersAccordionOpen }"
+          :active="layersAccordionOpen"
+          tooltip-side="left"
+          tooltip="MAP LAYERS"
+          accessible-name="Map layers"
+          aria-controls="layers-panel"
+          :aria-expanded="layersAccordionOpen"
+          @click="toggleLayersAccordion"
         >
-          <path
-            d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
-            fill="currentColor"
-          />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: !hideGnd }"
-        :active="!hideGnd"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="ground"
-        tooltip-side="left"
-        tooltip="GROUND VEHICLES"
-        accessible-name="Ground vehicles"
-        @click="toggleGround"
-      >
-        <svg
-          width="17"
-          height="13"
-          viewBox="0 0 24 18"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <rect x="1" y="3" width="13" height="9" stroke="currentColor" stroke-width="1.6" />
-          <path
-            d="M14 6h4l3 3v3h-7z"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
             fill="none"
-          />
-          <circle cx="6" cy="14" r="2" stroke="currentColor" stroke-width="1.6" />
-          <circle cx="17" cy="14" r="2" stroke="currentColor" stroke-width="1.6" />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: !hideTowers }"
-        :active="!hideTowers"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="towers"
-        tooltip-side="left"
-        tooltip="TOWERS"
-        accessible-name="Towers"
-        @click="toggleTowers"
-      >
-        <svg
-          width="14"
-          height="15"
-          viewBox="0 0 20 22"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 3 L21 8 L12 13 L3 8 Z"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linejoin="round"
+              fill="none"
+            />
+            <path d="M3 12 L12 17 L21 12" stroke="currentColor" stroke-width="1.4" fill="none" />
+            <path d="M3 16 L12 21 L21 16" stroke="currentColor" stroke-width="1.4" fill="none" />
+          </svg>
+        </BaseIconButton>
+      </template>
+      <template #panel>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: airStore.overlayStates.adsb }"
+          :active="airStore.overlayStates.adsb"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="planes"
+          tooltip-side="left"
+          tooltip="AIRCRAFT"
+          accessible-name="Aircraft"
+          @click="togglePlanes"
         >
-          <path
-            d="M5 21 L9 5 M15 21 L11 5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-          <line x1="7.5" y1="13" x2="12.5" y2="13" stroke="currentColor" stroke-width="1.6" />
-          <circle cx="10" cy="3.5" r="1.6" stroke="currentColor" stroke-width="1.6" />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: airStore.overlayStates.names }"
-        :active="airStore.overlayStates.names"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="names"
-        tooltip-side="left"
-        tooltip="PLACE NAMES"
-        accessible-name="Place name labels"
-        @click="mapRef.value?.getNamesControl()?.handleClickPublic()"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M12 22C12 22 19 14 19 9A7 7 0 1 0 5 9C5 14 12 22 12 22Z"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
             fill="none"
-          />
-          <circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none" />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: airStore.overlayStates.airports }"
-        :active="airStore.overlayStates.airports"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="airports"
-        tooltip-side="left"
-        tooltip="AIRPORTS"
-        accessible-name="Airports"
-        @click="mapRef.value?.getAirports()?.toggle()"
-      >
-        <svg
-          width="14"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
+              fill="currentColor"
+            />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: !hideGnd }"
+          :active="!hideGnd"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="ground"
+          tooltip-side="left"
+          tooltip="GROUND VEHICLES"
+          accessible-name="Ground vehicles"
+          @click="toggleGround"
         >
-          <!-- Control tower — the airport facility. Sized to fill the viewBox so
-               it matches the visual weight of the other sub-menu icons. -->
-          <path
-            d="M6 13 L18 13 L16 7 L8 7 Z"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
+          <svg
+            width="17"
+            height="13"
+            viewBox="0 0 24 18"
             fill="none"
-          />
-          <path
-            d="M10 13 L9 21.5 M14 13 L15 21.5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-          <line
-            x1="4.5"
-            y1="21.5"
-            x2="19.5"
-            y2="21.5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-          <line
-            x1="12"
-            y1="7"
-            x2="12"
-            y2="2.5"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: airStore.overlayStates.militaryBases }"
-        :active="airStore.overlayStates.militaryBases"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="mil"
-        tooltip-side="left"
-        tooltip="MILITARY BASES"
-        accessible-name="Military bases"
-        @click="mapRef.value?.getMilBases()?.toggle()"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <rect x="1" y="3" width="13" height="9" stroke="currentColor" stroke-width="1.6" />
+            <path
+              d="M14 6h4l3 3v3h-7z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+              fill="none"
+            />
+            <circle cx="6" cy="14" r="2" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="17" cy="14" r="2" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: !hideTowers }"
+          :active="!hideTowers"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="towers"
+          tooltip-side="left"
+          tooltip="TOWERS"
+          accessible-name="Towers"
+          @click="toggleTowers"
         >
-          <polygon
-            points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linejoin="round"
+          <svg
+            width="14"
+            height="15"
+            viewBox="0 0 20 22"
             fill="none"
-          />
-        </svg>
-      </BaseIconButton>
-      <BaseIconButton
-        class="sm-btn sm-sub-btn"
-        :class="{ active: airStore.overlayStates.roads }"
-        :active="airStore.overlayStates.roads"
-        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
-        data-loc="roads"
-        tooltip-side="left"
-        tooltip="ROADS"
-        accessible-name="Roads"
-        @click="mapRef.value?.getRoadsControl()?.handleClickPublic()"
-      >
-        <svg
-          width="14"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M5 21 L9 5 M15 21 L11 5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <line x1="7.5" y1="13" x2="12.5" y2="13" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="10" cy="3.5" r="1.6" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: airStore.overlayStates.names }"
+          :active="airStore.overlayStates.names"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="names"
+          tooltip-side="left"
+          tooltip="PLACE NAMES"
+          accessible-name="Place name labels"
+          @click="mapRef.value?.getNamesControl()?.handleClickPublic()"
         >
-          <path
-            d="M8 22 L10 2 M16 22 L14 2"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-          />
-          <line x1="12" y1="4" x2="12" y2="8" stroke="currentColor" stroke-width="1.6" />
-          <line x1="12" y1="11" x2="12" y2="15" stroke="currentColor" stroke-width="1.6" />
-          <line x1="12" y1="18" x2="12" y2="21" stroke="currentColor" stroke-width="1.6" />
-        </svg>
-      </BaseIconButton>
-    </div>
-  </nav>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 22C12 22 19 14 19 9A7 7 0 1 0 5 9C5 14 12 22 12 22Z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+              fill="none"
+            />
+            <circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none" />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: airStore.overlayStates.airports }"
+          :active="airStore.overlayStates.airports"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="airports"
+          tooltip-side="left"
+          tooltip="AIRPORTS"
+          accessible-name="Airports"
+          @click="mapRef.value?.getAirports()?.toggle()"
+        >
+          <svg
+            width="14"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <!-- Control tower — the airport facility. Sized to fill the viewBox so
+                 it matches the visual weight of the other sub-menu icons. -->
+            <path
+              d="M6 13 L18 13 L16 7 L8 7 Z"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+              fill="none"
+            />
+            <path
+              d="M10 13 L9 21.5 M14 13 L15 21.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <line
+              x1="4.5"
+              y1="21.5"
+              x2="19.5"
+              y2="21.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <line
+              x1="12"
+              y1="7"
+              x2="12"
+              y2="2.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: airStore.overlayStates.militaryBases }"
+          :active="airStore.overlayStates.militaryBases"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="mil"
+          tooltip-side="left"
+          tooltip="MILITARY BASES"
+          accessible-name="Military bases"
+          @click="mapRef.value?.getMilBases()?.toggle()"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <polygon
+              points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linejoin="round"
+              fill="none"
+            />
+          </svg>
+        </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          :class="{ active: airStore.overlayStates.roads }"
+          :active="airStore.overlayStates.roads"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          data-loc="roads"
+          tooltip-side="left"
+          tooltip="ROADS"
+          accessible-name="Roads"
+          @click="mapRef.value?.getRoadsControl()?.handleClickPublic()"
+        >
+          <svg
+            width="14"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 22 L10 2 M16 22 L14 2"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <line x1="12" y1="4" x2="12" y2="8" stroke="currentColor" stroke-width="1.6" />
+            <line x1="12" y1="11" x2="12" y2="15" stroke="currentColor" stroke-width="1.6" />
+            <line x1="12" y1="18" x2="12" y2="21" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+        </BaseIconButton>
+      </template>
+    </IconRailAccordion>
+  </IconRail>
 
   <!-- 3D controls widget (fixed bottom-right, cleared of the rail). Kept on plain
        <button>s (not the BaseIconButton atom): its tooltip opens upward/centred, a
        third position this phase's atoms don't model, and this widget is a distinct
-       control grid rather than an icon rail — out of scope for this migration. -->
+       control grid rather than an icon rail — out of scope for this migration, and
+       out of scope for the IconRail shell (it sits entirely outside it). -->
   <div id="map-3d-controls" :class="{ 'map-3d-controls--hidden': !tiltActive }">
     <span />
     <button class="map-3d-btn" data-tooltip="TILT UP" aria-label="Tilt up" @click="tiltBy(10)">
@@ -566,15 +606,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useAirStore } from '@/stores/air'
 import { useAppStore } from '@/stores/app'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
 import FilterFunnelIcon from '@/components/shared/FilterFunnelIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import IconRail from '@/components/base/IconRail.vue'
+import IconRailAccordion from '@/components/base/IconRailAccordion.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useDisclosure } from '@/composables/useDisclosure'
 import type AirMap from './AirMap.vue'
 
 // Receives a markRaw proxy so Vue never re-renders this component when the map
@@ -601,13 +642,16 @@ const hideGnd = ref(false)
 const hideTowers = ref(false)
 
 // FILTER and LAYERS each expand a vertical icon accordion on click; the group
-// button is highlighted (green) while its panel is open.
-const { open: filterAccordionOpen, toggle: toggleFilterAccordion } = useDisclosure()
-const { open: layersAccordionOpen, toggle: toggleLayersAccordion } = useDisclosure()
+// button is highlighted (green) while its panel is open. The open/toggle state
+// itself now lives inside IconRailAccordion (see its #trigger scoped-slot
+// binding in the template) rather than a local useDisclosure() call here —
+// same transient, non-store lifecycle either way.
 
 // The ADS-B control's filter fields aren't reactive, so mirror them into refs to
-// drive the active (green) mode highlight. Synced from the control when the
-// accordion opens and whenever the filter changes anywhere in the app.
+// drive the active (green) mode highlight. Synced from the control whenever the
+// FILTER accordion's trigger is clicked (covers the open transition — syncing
+// again on close is a harmless no-op, the panel is hidden either way) and
+// whenever the filter changes anywhere else in the app.
 const filterTypeMode = ref<'all' | 'civil' | 'mil'>('all')
 const filterAllHidden = ref(false)
 
@@ -618,9 +662,14 @@ function syncFilterStateFromControl() {
   filterAllHidden.value = control._allHidden
 }
 
-watch(filterAccordionOpen, (isOpen) => {
-  if (isOpen) syncFilterStateFromControl()
-})
+// IconRailAccordion's `open` flag is internal to that component instance (only
+// exposed via its #trigger scoped slot), so this component can no longer
+// `watch` it directly — the trigger's click handler resyncs explicitly instead.
+function onFilterAccordionTriggerClick(toggleFilterAccordion: () => void): void {
+  toggleFilterAccordion()
+  syncFilterStateFromControl()
+}
+
 useDocumentEvent('adsb-filter-change', syncFilterStateFromControl)
 
 // ---- Map access helpers ----
@@ -756,47 +805,26 @@ function _saveFilter() {
 </script>
 
 <style>
-/* Fixed icon rail mirroring #map-sidebar-rail, pinned to the right edge. Every
-   action is always visible as an icon; the rail does not expand/collapse.
-   Button chrome (size, colour, hover/active, focus, tooltip) now lives in the
-   BaseIconButton atom (see src/components/base/BaseIconButton.vue) — only this
-   rail's own container layout and per-button style deltas remain here. */
-#side-menu {
-  position: fixed;
-  top: var(--nav-height);
-  bottom: var(--footer-height);
-  right: 0;
-  width: 44px;
-  background: rgba(10, 13, 20, 0.98);
-  z-index: 1003;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  box-sizing: border-box;
-}
-
+/* Shell (fixed container, accordion panel layout, collapse + touch-tooltip
+   behaviour) now lives in IconRail/IconRailAccordion — see
+   src/components/base/IconRail.vue and IconRailAccordion.vue. Button chrome
+   (size, colour, hover/active, focus, tooltip) lives in the BaseIconButton
+   atom. Only this rail's own button-content deltas and the out-of-scope 3D
+   controls widget remain here. */
 #side-menu .sm-btn.sm-glyph {
   font-size: 18px;
   font-weight: 300;
 }
 
-/* Accordion panel: the FILTER / LAYERS sub-items stack vertically in the rail
-   flow, pushing the buttons below them down when expanded. The grey background
-   (the side panel's grey) sets the open sub-menu apart from the dark rail. */
-.sm-accordion-panel {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  background: var(--color-border);
-}
-
 /* Sub-items inherit the rail-button look (white icon, green on hover/active,
-   left-opening tooltip, 19px icon) via BaseIconButton; the grey panel background
-   is what sets the open sub-menu apart, and each sub-button's own
-   --ba-rail-hover-bg override (set inline in the template) gives it the
+   left-opening tooltip) via BaseIconButton; the grey panel background (owned by
+   IconRailAccordion) is what sets the open sub-menu apart, and each sub-button's
+   own --ba-rail-hover-bg override (set inline in the template) gives it the
    stronger hover fill needed to read against that grey. */
 
-/* 3D controls — pinned bottom-right, shifted left to clear the 44px rail. */
+/* 3D controls — pinned bottom-right, shifted left to clear the 44px rail. This
+   widget sits outside IconRail entirely (see the template comment above) so it
+   keeps its own fixed layout and touch-tooltip suppression. */
 #map-3d-controls {
   position: fixed;
   bottom: calc(44px + 14px);
@@ -874,29 +902,21 @@ function _saveFilter() {
   opacity: 1;
 }
 
-/* Touch screens: hover tooltips aren't useful. */
+/* Touch screens: hover tooltips aren't useful. The rail's own tooltip
+   suppression lives in IconRail/IconRailAccordion now; this widget is outside
+   both, so it keeps its own copy. */
 @media (max-width: 768px) {
-  #side-menu [data-tooltip]::before {
-    display: none !important;
-  }
   .map-3d-btn[data-tooltip]::before {
     display: none !important;
-  }
-  /* The footer's side-menu toggle is only offered on small screens, so the rail
-     can only be collapsed here. On wider screens it always shows (the toggle is
-     hidden), so a collapsed state can't leave it stuck off-screen. */
-  #side-menu.side-menu--collapsed {
-    display: none;
   }
 }
 
 /* ≤480px: the tab rail is now part of the left drawer (hidden until opened), so
-   the right rail and the 3D widget no longer need to clear a bottom strip — they
-   sit just above the footer. (Both are hidden while the drawer is open.) */
+   the 3D widget no longer needs to clear a bottom strip beyond the footer — it
+   sits just above the footer. (IconRail's own bottom offset already matches
+   the footer height unconditionally, so no override is needed for the rail
+   itself here; only the 3D widget's own offset differs.) */
 @media (max-width: 480px) {
-  #side-menu {
-    bottom: var(--footer-height);
-  }
   #map-3d-controls {
     bottom: calc(var(--footer-height) + 8px);
   }
