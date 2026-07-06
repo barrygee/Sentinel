@@ -1524,6 +1524,57 @@ describe('SdrPanel — step dropdown', () => {
 })
 
 // =============================================================================
+describe('SdrPanel — open menus dismiss on scroll/resize', () => {
+  // The teleported, position:fixed dropdown menus can't be clipped by the panel's
+  // overflow, so they must close when the panel scrolls or the window resizes —
+  // otherwise they float over the pinned chips and other controls. Opening a menu
+  // focuses its trigger, which fires one settle scroll ~a frame later; a guard
+  // window (MENU_OPEN_SETTLE_MS = 250ms) ignores that so the menu isn't dismissed
+  // the instant it opens. Date.now() is stubbed to drive the two sides of that
+  // window deterministically.
+
+  it('ignores the open-settle scroll (menu stays open within the settle window)', async () => {
+    const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+    const { wrapper } = await mountConnected()
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+
+    // Scroll 100ms after open — inside the 250ms settle window, so it's ignored.
+    nowStub.mockReturnValue(1_100)
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    nowStub.mockRestore()
+  })
+
+  it('closes an open menu on a genuine scroll past the settle window', async () => {
+    const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+    const { wrapper } = await mountConnected()
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+
+    // Scroll 300ms after open — past the 250ms window, so the menu is dismissed.
+    nowStub.mockReturnValue(1_300)
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    nowStub.mockRestore()
+  })
+
+  it('closes an open menu on window resize', async () => {
+    const { wrapper } = await mountConnected()
+    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    window.dispatchEvent(new Event('resize'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+  })
+})
+
+// =============================================================================
 describe('SdrPanel — trunk system', () => {
   // Reach a decoding state (playing + digital on) so the trunk accordion
   // renders, with the channel-maps endpoint returning the supplied maps.
