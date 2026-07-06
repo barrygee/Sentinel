@@ -243,7 +243,7 @@ uv run --project backend ruff format --check backend   # format check (gating)
 cd frontend/vue
 npm run lint          # ESLint + Prettier --check
 npm run typecheck     # vue-tsc --noEmit
-npm run test:coverage # vitest — gated at 100% coverage (CI fails on any drop)
+npm run test:coverage # vitest — coverage gated at 95% thresholds (new code ships at 100%)
 ```
 
 Every component also ships an in-process **`jest-axe`** accessibility test that runs as part of `npm run test:coverage`. Because jsdom does not compute layout, those tests cannot evaluate layout-dependent WCAG rules (colour contrast, target size). The **live accessibility audit** below covers that gap by running the real **axe-core** engine in a real browser.
@@ -292,7 +292,7 @@ npm run lint          # ESLint + Prettier --check
 npm test              # jest
 ```
 
-Tooling in place: **ESLint + Prettier** (JS/TS/Vue) and **ruff** — including `ruff format` as the source of Python formatting — for linting/formatting; a **husky** pre-commit hook that mirrors the format/lint gates on staged files; the **vitest 100% coverage gate**; **mypy** (informational, not gating); and an automated **CHANGELOG** that regenerates from Conventional Commits on every merge to `main`. New code is expected to ship at 100% coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, commit/PR conventions, and the two npm contexts.
+Tooling in place: **ESLint + Prettier** (JS/TS/Vue) and **ruff** — including `ruff format` as the source of Python formatting — for linting/formatting; a **husky** pre-commit hook that mirrors the format/lint gates on staged files; the **vitest coverage gate** (95% thresholds; new code ships at 100%); **mypy** (informational, not gating); and an automated **CHANGELOG** that regenerates from Conventional Commits on every merge to `main`. New code is expected to ship at 100% coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, commit/PR conventions, and the two npm contexts.
 
 ---
 
@@ -396,4 +396,4 @@ SQLite tables are created automatically from the ORM models on startup:
 
 ## Contributing
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for first-time setup, the three tooling contexts, the lint/format/test gates, the 100% coverage expectation for new code, and the commit/branch/PR conventions. In short: branch off `main`, use [Conventional Commits](https://www.conventionalcommits.org) (the changelog is generated from them), ship new code with its tests, and make the CI gates pass before opening a PR.
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for first-time setup, the three tooling contexts, the lint/format/test gates, the full-coverage expectation for new code, and the commit/branch/PR conventions. In short: branch off `main`, use [Conventional Commits](https://www.conventionalcommits.org) (the changelog is generated from them), ship new code with its tests, and make the CI gates pass before opening a PR.

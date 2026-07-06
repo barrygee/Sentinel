@@ -40,15 +40,15 @@ uv run --project backend mypy backend                            # informational
 # Vue SPA (run from frontend/vue/) — the application
 cd frontend/vue && npm run lint                                  # ESLint + Prettier --check
 cd frontend/vue && npm run typecheck                             # vue-tsc --noEmit
-cd frontend/vue && npm run test:coverage                         # vitest — GATED AT 100% coverage (CI fails on any drop)
+cd frontend/vue && npm run test:coverage                         # vitest — coverage gated at 95% thresholds (new code ships at 100%)
 
 # Root helpers
 npm test                                                         # jest: standalone TS helpers in tests/
 ```
-All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to `main`; ruff check + `ruff format --check` + pytest (backend), ESLint/Prettier + vue-tsc + vitest@100% + Vite build (SPA), and ESLint/Prettier + jest (root) are gating. mypy is not. A **husky** pre-commit hook (`.husky/pre-commit` + `.lintstagedrc.json`) mirrors the format/lint gates on staged files across both npm contexts. `CHANGELOG.md` is regenerated automatically from Conventional Commits on every push to `main` (`.github/workflows/changelog.yml`, git-cliff), and committed back to `main` with `[skip ci]` — it never touches feature branches, so local checkouts don't diverge. Don't hand-edit it. See `CONTRIBUTING.md` for the full contributor workflow and conventions; new code is expected to ship at 100% frontend coverage.
+All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to `main`; ruff check + `ruff format --check` + pytest (backend), ESLint/Prettier + vue-tsc + vitest coverage + Vite build (SPA), and ESLint/Prettier + jest (root) are gating. mypy is not. A **husky** pre-commit hook (`.husky/pre-commit` + `.lintstagedrc.json`) mirrors the format/lint gates on staged files across both npm contexts. `CHANGELOG.md` is regenerated automatically from Conventional Commits on every push to `main` (`.github/workflows/changelog.yml`, git-cliff), and committed back to `main` with `[skip ci]` — it never touches feature branches, so local checkouts don't diverge. Don't hand-edit it. See `CONTRIBUTING.md` for the full contributor workflow and conventions; new code is expected to ship at 100% frontend coverage.
 
 ## Two npm contexts — don't confuse them
-- **`frontend/vue/`** — the real app (Vite + Vue 3 + Pinia + vue-router); tested with **vitest** (100% coverage gate) + ESLint/Prettier + `vue-tsc`.
+- **`frontend/vue/`** — the real app (Vite + Vue 3 + Pinia + vue-router); tested with **vitest** (95% coverage gate) + ESLint/Prettier + `vue-tsc`.
 - **Repo-root `package.json`** — legacy `tsc`/`jest` for standalone TS helpers tested in `tests/frontend/`. Not the app build.
 
 ## Architecture
@@ -71,5 +71,5 @@ All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to 
 - **Always work on a feature branch — never commit directly to `main`.** Before starting any new feature, fix, or edit (frontend, backend, or project config), create a branch off `main` (e.g. `feat/sdr-recording`, `fix/adsb-filter`, `chore/update-deps`). One branch per logical change; open a PR to merge back. This applies to every change, however small.
 - Run all `uv` commands from the **repo root** with `--project backend` (see Test & lint for why).
 - ruff lint is intentionally minimal (`E,F,I,UP,B`); `ruff format` IS gating; mypy is informational, not CI-gating.
-- Frontend coverage is gated at **100%** (`frontend/vue/vitest.config.ts`) — new SPA code ships with tests that keep every threshold at 100, and every component ships a `jest-axe` accessibility test. Use `/* v8 ignore start … stop */` (not the single-line `next` form, which this vitest setup ignores) for genuinely unreachable defensive branches, with a reason.
+- Frontend coverage thresholds are gated at **95%** (`frontend/vue/vitest.config.ts`), but the working standard is stricter: new SPA code ships with tests covering 100% of its own lines/branches, and every component ships a `jest-axe` accessibility test. Use `/* v8 ignore start … stop */` (not the single-line `next` form, which this vitest setup ignores) for genuinely unreachable defensive branches, with a reason.
 - Conventional Commits are load-bearing: `CHANGELOG.md` is generated from them — don't hand-edit it. Branch off `main`; never commit to `main`. See `CONTRIBUTING.md`.

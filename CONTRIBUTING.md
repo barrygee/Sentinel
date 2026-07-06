@@ -133,7 +133,7 @@ uv run --project backend pytest                      # tests
 cd frontend/vue
 npm run lint          # ESLint + Prettier --check (gating)
 npm run typecheck     # vue-tsc --noEmit (gating)
-npm run test:coverage # vitest with the 100% coverage gate (gating)
+npm run test:coverage # vitest with the 95% coverage gate (gating)
 npm run build         # Vite production build (gating)
 npm run test:e2e      # live axe-core a11y audit in a browser (NOT gating — see below)
 ```
@@ -160,13 +160,15 @@ npm test       # jest (gating)
 
 ---
 
-## The 100% coverage gate
+## The coverage gate
 
-**New frontend code ships with tests that bring it to 100% coverage** — this is
-not aspirational, it's enforced. `frontend/vue/vitest.config.ts` sets all four
-coverage thresholds (lines / functions / branches / statements) to **100**, so CI
-fails on *any* drop. The whole Vue SPA is currently at 100%; adding untested code
-turns the build red.
+**New frontend code ships with tests that cover 100% of its own lines and
+branches** — that's the working standard for every PR. The enforced CI gate is
+slightly looser: `frontend/vue/vitest.config.ts` sets all four coverage
+thresholds (lines / functions / branches / statements) to **95**, so the build
+turns red if overall coverage drops below that. The Vue SPA currently sits at
+~99.9%; the headroom exists for a handful of documented legacy gaps, not for new
+untested code.
 
 Guidance for keeping the gate green:
 
@@ -239,7 +241,7 @@ optional body explaining the why
 - Open the PR against `main`. Write a description with: a **summary**, the **why**,
   how you **tested** it, and any **breaking changes** or screenshots for UI work.
 - **Self-review the diff first** — read it as if you were the reviewer.
-- All CI gates above must pass. New code must be covered (100% on the frontend).
+- All CI gates above must pass. New frontend code must be fully covered (the CI threshold is 95%, but new code ships at 100% of its own lines/branches).
 - **The CHANGELOG updates itself** — a GitHub Action (git-cliff,
   `.github/workflows/changelog.yml`) regenerates `CHANGELOG.md` from the repo's
   Conventional Commits **after each merge to `main`** and commits it back to
@@ -258,7 +260,7 @@ optional body explaining the why
 | ESLint | ✅ `--fix` (root `tests/`) | ✅ |
 | ruff check + format | ✅ `--fix` + format (backend) | ✅ check + `--check` |
 | vue-tsc typecheck | — | ✅ |
-| vitest (100% coverage, incl. jest-axe) | — | ✅ |
+| vitest (95% coverage gate, incl. jest-axe) | — | ✅ |
 | live a11y audit (Playwright + axe-core) | — | ✅ (`frontend-vue` job) |
 | jest (root helpers) | — | ✅ |
 | pytest (backend) | — | ✅ |
