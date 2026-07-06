@@ -1,15 +1,19 @@
 <template>
   <div v-if="!hideTabs" id="map-sidebar-rail">
     <template v-for="tab in tabs" :key="tab.id">
-      <button
+      <BaseIconButton
         class="msb-rail-btn"
         :class="{
           'msb-rail-btn-active': activeTab === tab.id && open,
           'msb-rail-btn-pulse': tab.id === 'alerts' && hasUnread,
         }"
+        :bordered="true"
+        :active="activeTab === tab.id && open"
+        :pulse="tab.id === 'alerts' && hasUnread"
         :data-tab="tab.id"
-        :data-tooltip="tab.label"
-        :aria-label="tab.label"
+        tooltip-side="right"
+        :tooltip="tab.label"
+        :accessible-name="tab.label"
         :aria-expanded="activeTab === tab.id && open"
         :aria-controls="`msb-pane-${tab.id}`"
         @click="toggleRailTab(tab.id)"
@@ -94,25 +98,34 @@
           />
           <polygon points="9.5,8 9.5,16 16,12" fill="currentColor" />
         </svg>
-      </button>
+      </BaseIconButton>
 
       <!-- Category sub-tabs: single-select rail buttons shown beneath the FILTER
            tab while it is the open tab. Air = aircraft/airports/military bases;
            Space = one per satellite category that currently has data. Selecting
            one drives which category the search pane (AirFilter/SpaceFilter) shows. -->
-      <button
+      <BaseIconButton
         v-for="sub in tab.id === 'search' && activeTab === 'search' && open ? filterSubTabs : []"
         :key="`sub-${sub.id}`"
         class="msb-rail-btn msb-rail-subbtn"
         :class="{ 'msb-rail-btn-active': activeFilterCategory === sub.id }"
+        :bordered="true"
+        :active="activeFilterCategory === sub.id"
+        style="
+          --ba-rail-height: 34px;
+          --ba-rail-bg: var(--color-border);
+          --ba-rail-hover-bg: rgba(255, 255, 255, 0.14);
+          --ba-rail-active-bg: rgba(200, 255, 0, 0.1);
+        "
         :data-filter-cat="sub.id"
-        :data-tooltip="sub.label"
-        :aria-label="sub.label"
+        tooltip-side="right"
+        :tooltip="sub.label"
+        :accessible-name="sub.label"
         :aria-pressed="activeFilterCategory === sub.id"
         @click="selectFilterCategory(sub.id)"
       >
         <FilterSubTabIcon :category="sub.id" />
-      </button>
+      </BaseIconButton>
     </template>
   </div>
 
@@ -177,6 +190,7 @@ import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
 import FilterSubTabIcon from './FilterSubTabIcon.vue'
 import FilterFunnelIcon from './FilterFunnelIcon.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore, type AirFilterCategory } from '@/stores/air'
@@ -622,96 +636,11 @@ defineExpose({
   box-sizing: border-box;
 }
 
-.msb-rail-btn {
-  height: 40px;
-  width: 100%;
-  background: none;
-  border: none;
-  border-left: 2px solid transparent;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.msb-rail-btn:hover {
-  color: var(--color-text-muted);
-  background: var(--color-border);
-}
-
-.msb-rail-btn.msb-rail-btn-active {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.08);
-  border-left-color: var(--color-accent);
-}
-
-@keyframes msb-alert-pulse {
-  0% {
-    color: #fff;
-  }
-  50% {
-    color: var(--color-accent);
-  }
-  100% {
-    color: #fff;
-  }
-}
-
-.msb-rail-btn.msb-rail-btn-pulse:not(.msb-rail-btn-active) {
-  animation: msb-alert-pulse 1.2s ease-in-out infinite;
-}
-
-/* FILTER category sub-tabs: sit on the panel-grey background so they read as
-   sub-items of the FILTER tab (mirrors the map side menu's accordion sub-buttons).
-   Active still gets the green fill + left border from .msb-rail-btn-active above. */
-.msb-rail-subbtn {
-  height: 34px;
-  background: var(--color-border);
-}
-
-.msb-rail-subbtn:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.msb-rail-subbtn.msb-rail-btn-active {
-  background: rgba(200, 255, 0, 0.1);
-}
-
-.msb-rail-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-.msb-rail-btn[data-tooltip]:hover::before {
-  opacity: 1;
-}
+/* Rail button chrome (size, colour, hover/active, tooltip, pulse) now lives in
+   the BaseIconButton atom (see src/components/base/BaseIconButton.vue); the
+   `.msb-rail-btn`/`.msb-rail-btn-active`/`.msb-rail-btn-pulse`/`.msb-rail-subbtn`
+   classes above remain on the rendered buttons (passed through to the atom)
+   purely so the selectors below and existing tests can still target them. */
 
 body:not([data-domain='space']) #map-sidebar-rail .msb-rail-btn[data-tab='passes'] {
   display: none;

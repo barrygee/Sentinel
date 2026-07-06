@@ -66,23 +66,10 @@
   display: none;
 }
 
-.settings-nav-item {
-  position: relative;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  padding: 0;
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-  border-left: 2px solid transparent;
-  user-select: none;
-  flex-shrink: 0;
-}
+/* .settings-nav-item's own button chrome (size, colour, hover/active, tooltip)
+   now lives in the BaseIconButton atom (see
+   src/components/base/BaseIconButton.vue); the classname remains on the
+   rendered button purely so tests can still target it. */
 
 .settings-nav-icon-wrap {
   display: flex;
@@ -93,47 +80,6 @@
 
 .settings-nav-icon {
   flex-shrink: 0;
-}
-
-.settings-nav-item:hover {
-  color: var(--color-text-muted);
-  background: var(--color-border);
-}
-
-.settings-nav-item.active {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.08);
-  border-left-color: var(--color-accent);
-}
-
-/* Hover tooltip — same style/position as the map side-menu rails: a black
-   pill to the right of the icon, vertically centred. */
-.settings-nav-item[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-.settings-nav-item[data-tooltip]:hover::before {
-  opacity: 1;
 }
 
 #settings-content {
@@ -298,24 +244,10 @@
   color: #d94436;
 }
 
-#settings-apply-btn {
-  background: var(--color-accent);
-  border: none;
-  border-radius: 6px;
-  padding: 12px 30px;
-  color: #0a0c10;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-#settings-apply-btn:hover {
-  background: #d8ff33;
-}
+/* #settings-apply-btn's own chrome (background, padding, hover) now lives in
+   the BaseButton atom's "primary" variant (see
+   src/components/base/BaseButton.vue) — the id remains on the rendered
+   button purely so tests can still target it. */
 
 /* Full-width section divider used in search results. */
 .settings-section-label {

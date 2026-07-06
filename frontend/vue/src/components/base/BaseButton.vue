@@ -1,0 +1,193 @@
+<script setup lang="ts">
+/**
+ * The four button looks that actually recur across the app today (evidence
+ * in the doc comment below `BaseButtonProps`). Each is a real, ≥2-site
+ * pattern — not a speculative addition.
+ */
+export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
+
+/**
+ * `BaseButton` — the generic button atom underlying every icon-rail, ghost,
+ * primary, and danger button in the app. Extracted from (not a rewrite of)
+ * the button CSS copy-pasted across `AirSideMenu.vue`, `SpaceSideMenu.vue`,
+ * `MapSidebar.vue`, and `SettingsPanel.vue`/`.css` — see those files' own
+ * `<style>` blocks for what still lives there (site-specific accordion/rail
+ * container layout, not button chrome).
+ *
+ * - `variant="rail"` — the full-width, transparent icon-rail button used by
+ *   the Air/Space side-menu rails, MapSidebar's tab rail, and the Settings
+ *   panel's section nav (`.sm-btn`, `.msb-rail-btn`, `.settings-nav-item`).
+ *   `bordered` switches on the left-accent-border + tinted-background active
+ *   look used by MapSidebar/Settings (as opposed to the plain colour-only
+ *   active state used by the Air/Space rails) — see `BaseButtonProps.bordered`.
+ * - `variant="ghost"` — the neutral rgba-fill action button used throughout
+ *   the Settings panel's TLE/SDR-devices editors (`.tle-action-btn`,
+ *   `.settings-config-btn`, `.sdr-devices-btn`, …).
+ * - `variant="primary"` — the lime "commit" action (`#settings-apply-btn`,
+ *   `.tle-action-btn--primary`, `.sdr-devices-btn--primary`, …).
+ * - `variant="danger"` — the destructive/warning action
+ *   (`.tle-action-btn--danger`, `.sdr-device-btn--danger`, …).
+ *
+ * Callers needing a pixel-exact deviation from a variant's default sizing or
+ * hover/active colour (e.g. MapSidebar's shorter, differently-tinted FILTER
+ * sub-tabs, which also sit on a solid panel background instead of the rail's
+ * transparent default) override the relevant CSS custom property via an
+ * inline `style` binding — `--ba-rail-height`, `--ba-rail-bg`,
+ * `--ba-rail-hover-bg`, `--ba-rail-active-bg` — rather than the component
+ * growing more props for every one-off; see `MapSidebar.vue` for a real
+ * example.
+ */
+interface BaseButtonProps {
+  variant?: BaseButtonVariant
+  /**
+   * Rail-only. Adds the left accent border and a faint accent background
+   * tint while `active` (MapSidebar's tab rail / Settings panel's section
+   * nav) instead of the plain colour-only active state (Air/Space side-menu
+   * rails). Ignored for other variants. Defaults to `false`.
+   */
+  bordered?: boolean
+  /** Marks the button as the current selection/toggle-on state. Defaults to `false`. */
+  active?: boolean
+  disabled?: boolean
+  type?: 'button' | 'submit' | 'reset'
+}
+
+withDefaults(defineProps<BaseButtonProps>(), {
+  variant: 'ghost',
+  bordered: false,
+  active: false,
+  disabled: false,
+  type: 'button',
+})
+</script>
+
+<template>
+  <button
+    class="ba-btn"
+    :class="[
+      `ba-btn--${variant}`,
+      { 'ba-btn--active': active, 'ba-btn--bordered': bordered && variant === 'rail' },
+    ]"
+    :type="type"
+    :disabled="disabled"
+  >
+    <slot />
+  </button>
+</template>
+
+<style scoped>
+.ba-btn {
+  cursor: pointer;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.ba-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ---- rail: full-width, transparent icon-rail button ---- */
+.ba-btn--rail {
+  height: var(--ba-rail-height, 40px);
+  width: 100%;
+  flex-shrink: 0;
+  background: var(--ba-rail-bg, none);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0;
+  transition: var(--ba-rail-transition, color 0.15s, background 0.15s, border-color 0.15s);
+}
+
+.ba-btn--rail:hover {
+  color: var(--color-text-muted);
+  background: var(--ba-rail-hover-bg, var(--color-border));
+}
+
+.ba-btn--rail.ba-btn--active {
+  color: var(--color-accent);
+}
+
+.ba-btn--rail.ba-btn--bordered {
+  border-left: 2px solid transparent;
+}
+
+.ba-btn--rail.ba-btn--bordered.ba-btn--active {
+  background: var(--ba-rail-active-bg, rgba(200, 255, 0, 0.08));
+  border-left-color: var(--color-accent);
+}
+
+/* Matches the icon rails' shared sizing regardless of each SVG's own
+   width/height attributes; width auto keeps non-square icons in proportion. */
+.ba-btn--rail :deep(svg) {
+  display: block;
+  height: 19px;
+  width: auto;
+}
+
+/* ---- ghost: neutral rgba-fill action button ---- */
+.ba-btn--ghost {
+  background: rgba(16, 19, 29, 0.06);
+  border: none;
+  border-radius: 6px;
+  height: 37px;
+  padding: 0 18px;
+  color: rgba(16, 19, 29, 0.85);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.ba-btn--ghost:hover:not(:disabled) {
+  background: rgba(16, 19, 29, 0.12);
+}
+
+/* ---- primary: lime "commit" action ---- */
+.ba-btn--primary {
+  background: var(--color-accent);
+  border: none;
+  border-radius: 6px;
+  padding: 12px 30px;
+  color: #0a0c10;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: background 0.15s;
+}
+
+.ba-btn--primary:hover:not(:disabled) {
+  background: #d8ff33;
+}
+
+/* ---- danger: destructive/warning action ---- */
+.ba-btn--danger {
+  background: rgba(255, 90, 80, 0.1);
+  border: none;
+  border-radius: 6px;
+  height: 37px;
+  padding: 0 18px;
+  color: #d94436;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.ba-btn--danger:hover:not(:disabled) {
+  background: rgba(255, 90, 80, 0.18);
+  color: #c23a2d;
+}
+</style>

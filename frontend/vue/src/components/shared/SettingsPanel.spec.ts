@@ -60,21 +60,30 @@ describe('SettingsPanel', () => {
       expect(labels).toEqual(['App Settings', 'AIR'])
     })
 
-    it('activates a section when Enter is pressed on its nav item', async () => {
+    // The nav item is a native <button> (BaseIconButton), so Enter/Space
+    // activation is guaranteed by the platform — a focused native button
+    // turns either keypress into a `click` on its own, with no listener code
+    // of ours involved. jsdom doesn't synthesise that click from a dispatched
+    // keydown, so simulating the keypress itself wouldn't exercise anything;
+    // asserting the click-driven activation is what covers `selectSection`,
+    // trusting the platform for the Enter/Space→click part.
+    it('activates a section when Enter would activate its native nav button', async () => {
       const wrapper = mountPanel()
       const airNav = wrapper
         .findAll('.settings-nav-item')
         .find((node) => node.attributes('data-tooltip') === 'AIR')!
-      await airNav.trigger('keydown', { key: 'Enter' })
+      expect(airNav.element.tagName).toBe('BUTTON')
+      await airNav.trigger('click')
       expect(airNav.classes()).toContain('active')
     })
 
-    it('activates a section when Space is pressed on its nav item', async () => {
+    it('activates a section when Space would activate its native nav button', async () => {
       const wrapper = mountPanel()
       const airNav = wrapper
         .findAll('.settings-nav-item')
         .find((node) => node.attributes('data-tooltip') === 'AIR')!
-      await airNav.trigger('keydown', { key: ' ' })
+      expect(airNav.element.tagName).toBe('BUTTON')
+      await airNav.trigger('click')
       expect(airNav.classes()).toContain('active')
     })
 
