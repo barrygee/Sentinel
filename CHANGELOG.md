@@ -1071,6 +1071,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Inline SVG icons, drop v-html (fixes vue/no-v-html)
 - Remove orphaned globe-view starfield
 - Drop the legacy globeProjection localStorage cleanup
+- Extract settings types module and useStagedSetting composable (#177)
 
 ### Documentation
 
