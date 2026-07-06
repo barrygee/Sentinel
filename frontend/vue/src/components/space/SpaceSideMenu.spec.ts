@@ -82,12 +82,14 @@ describe('SpaceSideMenu rail', () => {
   })
 
   it('collapses the rail when the app store hides the side menu', async () => {
+    // The collapsed modifier class now lives on the shared IconRail shell
+    // (icon-rail--collapsed), not a space-specific class name.
     const wrapper = mountMenu(makeMapProxy(makeControls()))
     const appStore = useAppStore()
-    expect(wrapper.find('#space-side-menu').classes()).not.toContain('space-side-menu--collapsed')
+    expect(wrapper.find('#space-side-menu').classes()).not.toContain('icon-rail--collapsed')
     appStore.toggleSideMenu()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('#space-side-menu').classes()).toContain('space-side-menu--collapsed')
+    expect(wrapper.find('#space-side-menu').classes()).toContain('icon-rail--collapsed')
   })
 
   it('expands the MAP LAYERS accordion on click and highlights the button while open', async () => {

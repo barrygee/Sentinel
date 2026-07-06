@@ -248,4 +248,34 @@ test.describe('Space domain', () => {
 
     await expect(page.locator('#msb-pane-passes')).toBeVisible()
   })
+
+  // Regression test for the IconRail/IconRailAccordion touch-tooltip fix:
+  // IconRailAccordion is a multi-root component, so Vue's scoped-CSS slot
+  // scope-id propagation doesn't carry IconRail's `:slotted([data-tooltip])`
+  // suppression down into it — it needs (and now has) its own copy of the
+  // rule for its own trigger/panel slot content. jsdom can't evaluate media
+  // queries or pseudo-elements, so this can only be verified in a real
+  // browser; it directly exercises both the rail's own button (Zoom in) and
+  // an accordion sub-button (Ground track, inside the MAP LAYERS panel).
+  test('touch viewport suppresses the tooltip pseudo-element on rail and accordion buttons', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.goto('/space/')
+    await waitForShellHydration(page)
+
+    await page.locator('#space-layers-btn').click()
+    const groundTrackButton = page.locator('button[data-tooltip="GROUND TRACK"]')
+    await expect(groundTrackButton).toBeVisible()
+
+    const zoomInTooltipDisplay = await page
+      .locator('button[data-tooltip="Zoom in"]')
+      .evaluate((button) => getComputedStyle(button, '::before').display)
+    const groundTrackTooltipDisplay = await groundTrackButton.evaluate(
+      (button) => getComputedStyle(button, '::before').display,
+    )
+
+    expect(zoomInTooltipDisplay).toBe('none')
+    expect(groundTrackTooltipDisplay).toBe('none')
+  })
 })
