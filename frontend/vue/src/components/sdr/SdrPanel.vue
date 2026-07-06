@@ -1971,6 +1971,7 @@ import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useWindowEvent } from '@/composables/useWindowEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { useSdrStore } from '@/stores/sdr'
@@ -3810,12 +3811,37 @@ function onDeviceDropdownKey(e: KeyboardEvent) {
   }
 }
 
-function onDocumentClick() {
+function closeAllMenus() {
   if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
   if (efSampleRateMenuOpen.value) closeEfSampleRateMenu()
   if (stepMenuOpen.value) closeStepMenu()
   if (trunkMapMenuOpen.value) closeTrunkMapMenu()
+}
+
+function onDocumentClick() {
+  closeAllMenus()
+}
+
+// The dropdown menus are teleported to <body> at position: fixed, anchored once
+// at open time from the trigger's bounding rect. They can't be clipped by the
+// panel's overflow, so if they stayed open while the panel scrolled they would
+// float over the pinned group chips and other controls (the reported "select
+// list is above other layers when scrolled"). Match native <select> behaviour:
+// dismiss any open menu when the panel scrolls or the window resizes.
+//
+// One wrinkle: opening a menu focuses its (tabindex) trigger, and the browser
+// scrolls that trigger into view — a single settle scroll fires ~one frame after
+// open. Closing on it would dismiss the menu the instant it opens. So ignore
+// scrolls within a short window after a menu opens; a genuine user scroll always
+// lands well after that. (Idle-menu instrumentation showed no other spurious
+// scrolls, so no further guarding is needed.)
+const MENU_OPEN_SETTLE_MS = 250
+let lastMenuOpenedAtMs = 0
+
+function closeMenusOnScroll() {
+  if (Date.now() - lastMenuOpenedAtMs < MENU_OPEN_SETTLE_MS) return
+  closeAllMenus()
 }
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
@@ -5495,7 +5521,26 @@ onUnmounted(() => {
   // Only close if unmounting the full-page SdrView (not the RADIO tab)
 })
 
+// Record when any menu transitions from closed to open, to arm the settle window
+// used by closeMenusOnScroll. One watcher covers all five dropdowns. Registered
+// here (end of setup) so every menu-open ref it reads is already initialised.
+watch(
+  () =>
+    deviceMenuOpen.value ||
+    sampleRateMenuOpen.value ||
+    efSampleRateMenuOpen.value ||
+    stepMenuOpen.value ||
+    trunkMapMenuOpen.value,
+  (anyMenuOpen) => {
+    if (anyMenuOpen) lastMenuOpenedAtMs = Date.now()
+  },
+)
+
 useDocumentEvent('click', onDocumentClick)
+// Capture phase so scrolls from the inner side-panel container (a descendant,
+// and scroll doesn't bubble) still reach this handler and dismiss open menus.
+useDocumentEvent('scroll', closeMenusOnScroll, { capture: true })
+useWindowEvent('resize', closeAllMenus)
 useDocumentEvent('sdr:radios-changed', onRadiosChanged)
 useDocumentEvent('sentinel:sdr-tune-external', onExternalTune)
 useDocumentEvent('sentinel:sdr-tune-restore', onExternalTuneRestore)
