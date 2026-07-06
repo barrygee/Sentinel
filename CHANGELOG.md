@@ -1054,6 +1054,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Modify Docker command for running app with decoder
 - Update logo in README to external image link
 - Update docker compose command in README
+- Remove tagline from README
 
 ### Refactoring
 
