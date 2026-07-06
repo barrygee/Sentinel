@@ -190,6 +190,84 @@ describe('useStagedSetting', () => {
     })
   })
 
+  it('uses a custom buildStagedWriter instead of the default settingsApi.put call', async () => {
+    const { options, stageWrite } = makeNumberOptionsForOverride()
+    const customWriter = vi.fn().mockResolvedValue(undefined)
+    const buildStagedWriter = vi.fn(() => customWriter)
+    const { result, unmount } = mountStagedSetting<number>({ ...options, buildStagedWriter })
+    await flushPromises()
+
+    result.applyChange(9)
+    const stagedWriter = stageWrite.mock.calls[0]?.[0] as () => Promise<unknown>
+    await stagedWriter()
+
+    expect(buildStagedWriter).toHaveBeenCalledWith(9)
+    expect(customWriter).toHaveBeenCalledTimes(1)
+    expect(settingsApi.put).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('combines a custom buildStagedWriter with deferMirror', async () => {
+    const { options, mirrorToStore, stageWrite } = makeNumberOptionsForOverride()
+    const customWriter = vi.fn().mockResolvedValue(undefined)
+    const buildStagedWriter = vi.fn(() => customWriter)
+    const { result, unmount } = mountStagedSetting<number>({
+      ...options,
+      buildStagedWriter,
+      deferMirror: true,
+    })
+    await flushPromises()
+
+    result.applyChange(9)
+    expect(mirrorToStore).not.toHaveBeenCalled()
+    const stagedWriter = stageWrite.mock.calls[0]?.[0] as () => Promise<unknown>
+    await stagedWriter()
+
+    expect(mirrorToStore).toHaveBeenCalledWith(9)
+    expect(customWriter).toHaveBeenCalledTimes(1)
+    unmount()
+  })
+
+  it('skips the config-uploaded listener when syncOnConfigUpload is false', async () => {
+    const { options, hydrateFromDb } = makeNumberOptionsForOverride()
+    const { unmount } = mountStagedSetting<number>({ ...options, syncOnConfigUpload: false })
+    await flushPromises()
+    hydrateFromDb.mockClear()
+
+    document.dispatchEvent(new Event('sentinel:config-uploaded'))
+    await flushPromises()
+
+    expect(hydrateFromDb).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  /** Fresh numeric options for the buildStagedWriter/syncOnConfigUpload override tests. */
+  function makeNumberOptionsForOverride() {
+    let storeValue = 0
+    const hydrateFromDb = vi.fn().mockImplementation(async () => {
+      storeValue = 3
+    })
+    const readFromStore = vi.fn(() => storeValue)
+    const mirrorToStore = vi.fn((newValue: number) => {
+      storeValue = newValue
+    })
+    const stageWrite = vi.fn()
+    return {
+      options: {
+        namespace: 'air',
+        key: 'overheadAlerts',
+        hydrateFromDb,
+        readFromStore,
+        mirrorToStore,
+        stageWrite,
+      },
+      hydrateFromDb,
+      readFromStore,
+      mirrorToStore,
+      stageWrite,
+    }
+  }
+
   it('exposes syncFromDb for manual re-sync', async () => {
     let storeValue = false
     const hydrateFromDb = vi.fn().mockImplementation(async () => {

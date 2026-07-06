@@ -25,7 +25,7 @@ describe('OverheadAlertRadiusControl', () => {
     const wrapper = mount(OverheadAlertRadiusControl)
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('10')
-    expect(wrapper.find('input').classes()).not.toContain('oar-input--invalid')
+    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
   })
 
   it('accepts a valid radius, mirrors it into the store, and stages the nested write', async () => {
@@ -56,7 +56,7 @@ describe('OverheadAlertRadiusControl', () => {
     const wrapper = mount(OverheadAlertRadiusControl)
     await flushPromises()
     await wrapper.find('input').setValue('1.2.3')
-    expect(wrapper.find('input').classes()).toContain('oar-input--invalid')
+    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
     expect(wrapper.emitted('stage')).toBeUndefined()
     expect(settingsApi.put).not.toHaveBeenCalled()
   })
@@ -65,7 +65,7 @@ describe('OverheadAlertRadiusControl', () => {
     const wrapper = mount(OverheadAlertRadiusControl)
     await flushPromises()
     await wrapper.find('input').setValue('')
-    expect(wrapper.find('input').classes()).toContain('oar-input--invalid')
+    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 
@@ -73,7 +73,7 @@ describe('OverheadAlertRadiusControl', () => {
     const wrapper = mount(OverheadAlertRadiusControl)
     await flushPromises()
     await wrapper.find('input').setValue('0')
-    expect(wrapper.find('input').classes()).toContain('oar-input--invalid')
+    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 
@@ -106,12 +106,30 @@ describe('OverheadAlertRadiusControl', () => {
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('10')
   })
 
+  it("does not re-hydrate when sentinel:config-uploaded fires (deliberate: shares the toggle control's namespace)", async () => {
+    // This control's radius is nested inside the same `air/overheadAlerts`
+    // payload owned by OverheadAlertsToggleControl, which already performs
+    // the legacy flat-key migration read on mount. Re-hydrating here too on
+    // every config upload would risk racing/duplicating that, so this
+    // control intentionally only hydrates once, on mount.
+    const wrapper = mount(OverheadAlertRadiusControl)
+    await flushPromises()
+    vi.mocked(settingsApi.getNamespace).mockClear()
+
+    document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+    await flushPromises()
+
+    expect(settingsApi.getNamespace).not.toHaveBeenCalled()
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('10')
+    expect(useAirStore().overheadAlertRadiusNm).toBe(10)
+  })
+
   it('has no accessibility violations', async () => {
     const wrapper = mount(OverheadAlertRadiusControl)
     await flushPromises()
-    // `region` (page landmark) and `label` (the input's missing accessible
-    // name — a known gap deferred to the a11y remediation phase) are disabled;
-    // every other rule is still asserted.
+    // `region` (page landmark) is disabled. The input's accessible name is
+    // provided via `aria-label` (see the template) so `label` is not
+    // disabled here — every rule is asserted.
     expect(
       await axe(wrapper.html(), {
         rules: { region: { enabled: false } },
