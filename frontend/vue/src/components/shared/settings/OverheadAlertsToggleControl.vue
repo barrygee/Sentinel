@@ -2,29 +2,19 @@
   <div class="oa-wrap">
     <div class="oa-row">
       <span class="oa-label">CIVIL</span>
-      <button
-        class="oa-track oa-track--civil"
-        :class="{ 'is-on': civil }"
-        role="switch"
-        :aria-checked="civil"
-        aria-label="Toggle civil overhead aircraft alerts"
-        @click="toggle('civil')"
-      >
-        <span class="oa-thumb"></span>
-      </button>
+      <BaseToggleSwitch
+        :model-value="civil"
+        accessible-name="Toggle civil overhead aircraft alerts"
+        @update:model-value="toggle('civil')"
+      />
     </div>
     <div class="oa-row">
       <span class="oa-label">MIL</span>
-      <button
-        class="oa-track oa-track--mil"
-        :class="{ 'is-on': mil }"
-        role="switch"
-        :aria-checked="mil"
-        aria-label="Toggle military overhead aircraft alerts"
-        @click="toggle('mil')"
-      >
-        <span class="oa-thumb"></span>
-      </button>
+      <BaseToggleSwitch
+        :model-value="mil"
+        accessible-name="Toggle military overhead aircraft alerts"
+        @update:model-value="toggle('mil')"
+      />
     </div>
   </div>
 </template>
@@ -33,6 +23,7 @@
 import { ref, onMounted } from 'vue'
 import { useAirStore } from '@/stores/air'
 import * as settingsApi from '@/services/settingsApi'
+import BaseToggleSwitch from '@/components/base/BaseToggleSwitch.vue'
 
 const airStore = useAirStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -115,42 +106,5 @@ function toggle(kind: 'civil' | 'mil'): void {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(16, 19, 29, 0.6);
-}
-.oa-track {
-  position: relative;
-  width: 46px;
-  height: 25px;
-  border-radius: 999px;
-  border: none;
-  background: rgba(16, 19, 29, 0.14);
-  cursor: pointer;
-  padding: 0;
-  transition: background 0.18s;
-}
-.oa-track--civil.is-on {
-  background: #c8ff00;
-}
-.oa-track--mil.is-on {
-  background: #c8ff00;
-}
-.oa-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition:
-    left 0.18s,
-    background 0.18s;
-}
-.oa-track--civil.is-on .oa-thumb {
-  background: #0a0c10;
-  left: 24px;
-}
-.oa-track--mil.is-on .oa-thumb {
-  background: #0a0c10;
-  left: 24px;
 }
 </style>

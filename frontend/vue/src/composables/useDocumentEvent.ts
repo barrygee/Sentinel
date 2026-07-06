@@ -15,6 +15,23 @@ export function useDocumentEvent(
   handler: (e: any) => void,
   options?: AddEventListenerOptions,
 ): void {
-  onMounted(() => document.addEventListener(eventName, handler, options))
-  onUnmounted(() => document.removeEventListener(eventName, handler, options))
+  // Only forward a third argument when the caller actually supplied one —
+  // some existing specs assert the exact add/removeEventListener call shape,
+  // and `addEventListener(name, handler, undefined)` is functionally
+  // identical to the two-argument form but not call-shape-identical for spy
+  // assertions.
+  onMounted(() => {
+    if (options === undefined) {
+      document.addEventListener(eventName, handler)
+    } else {
+      document.addEventListener(eventName, handler, options)
+    }
+  })
+  onUnmounted(() => {
+    if (options === undefined) {
+      document.removeEventListener(eventName, handler)
+    } else {
+      document.removeEventListener(eventName, handler, options)
+    }
+  })
 }

@@ -33,6 +33,23 @@ describe('useDocumentEvent', () => {
     expect(handler).toHaveBeenCalledTimes(1) // listener removed on unmount
   })
 
+  it('calls add/removeEventListener with only two arguments when no options are given', () => {
+    const handler = vi.fn()
+    const addSpy = vi.spyOn(document, 'addEventListener')
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+
+    const wrapper = mount(DocumentEventHarness, {
+      props: { eventName: 'sentinel:no-options-event', handler },
+    })
+    expect(addSpy).toHaveBeenCalledWith('sentinel:no-options-event', handler)
+
+    wrapper.unmount()
+    expect(removeSpy).toHaveBeenCalledWith('sentinel:no-options-event', handler)
+
+    addSpy.mockRestore()
+    removeSpy.mockRestore()
+  })
+
   it('forwards addEventListener options so the same options remove the listener', () => {
     const handler = vi.fn()
     const options: AddEventListenerOptions = { capture: true }

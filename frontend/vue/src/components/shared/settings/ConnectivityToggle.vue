@@ -2,16 +2,11 @@
   <div class="settings-connectivity-wrap">
     <div class="settings-connectivity-switch">
       <span class="settings-connectivity-label">OFF GRID</span>
-      <button
-        class="settings-connectivity-track"
-        :class="{ 'is-online': offGrid }"
-        role="switch"
-        :aria-checked="offGrid"
-        aria-label="Toggle off grid mode"
-        @click="toggle"
-      >
-        <span class="settings-connectivity-thumb"></span>
-      </button>
+      <BaseToggleSwitch
+        :model-value="offGrid"
+        accessible-name="Toggle off grid mode"
+        @update:model-value="toggle"
+      />
     </div>
     <div v-if="overrideConflicts.length > 0" class="settings-connectivity-override-summary">
       <div class="settings-conn-override-heading">SECTION OVERRIDES</div>
@@ -38,6 +33,7 @@ import { ref, computed, onMounted } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
 import { useAppStore } from '@/stores/app'
 import type { ConnectivityMode } from '@/stores/app'
+import BaseToggleSwitch from '@/components/base/BaseToggleSwitch.vue'
 
 const appStore = useAppStore()
 
@@ -84,8 +80,8 @@ function resetAllOverrides(): void {
   })
 }
 
-function toggle(): void {
-  offGrid.value = !offGrid.value
+function toggle(nextOffGrid: boolean): void {
+  offGrid.value = nextOffGrid
   const newMode = offGrid.value ? 'offgrid' : 'online'
   const needsOverrideReset = hasOverrides()
   if (needsOverrideReset) warningVisible.value = true
@@ -121,3 +117,17 @@ window.addEventListener('sentinel:sourceOverrideChanged', () => {
   // computed re-evaluates automatically
 })
 </script>
+
+<style scoped>
+/* BaseToggleSwitch's default "on" color is a hardcoded lime (#c8ff00). This
+   control's on-state previously referenced `--color-accent`, a custom
+   property that is never actually defined anywhere in the app, so today it
+   renders as transparent (the track never visibly changes color, though the
+   thumb still slides and darkens). That's arguably a latent bug, but this
+   phase is a pure markup/CSS consolidation with zero intended behaviour
+   change, so this override reproduces the existing look exactly rather than
+   silently "fixing" it as a side effect of the refactor. */
+:deep(.toggle-track.is-on) {
+  background: var(--color-accent);
+}
+</style>
