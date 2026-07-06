@@ -456,6 +456,11 @@
   display: flex;
   flex-direction: column;
   animation: spp-expand 0.18s ease;
+  /* This accordion's left/right inset is 28px (vs SpaceFilter/TrackingPanel's
+     24px) — set once here so it cascades into every BaseDataGrid instance
+     below, which inherit it as a plain CSS custom property regardless of the
+     component boundary. */
+  --ba-grid-section-padding-x: 28px;
 }
 
 @keyframes spp-expand {
@@ -485,24 +490,11 @@
   text-transform: uppercase;
 }
 
-.spp-acc-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 16px;
-  row-gap: 12px;
-}
-
-.spp-acc-grid.spp-acc-grid--three {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-.spp-acc-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
+/* The label/value grid itself (POSITION DATA / ORBITAL DATA / RADIO) now lives
+   in BaseDataGrid/BaseDataCell — the single source of truth SpaceFilter and
+   TrackingPanel also consume, instead of this file's own duplicate spp-acc-grid/
+   spp-acc-cell/spp-acc-cell-value rules. spp-acc-cell-label stays: the RADIO
+   section's PACKET/NOTES caption lines still use it directly. */
 .spp-acc-cell-label {
   display: flex;
   align-items: center;
@@ -513,17 +505,6 @@
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.35);
   text-transform: uppercase;
-}
-
-.spp-acc-cell-value {
-  font-family: var(--font-primary);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .spp-acc-section--track {
@@ -935,21 +916,9 @@ body:not([data-domain='space']) .spp-filter-body {
 }
 
 /* ---- RADIO section ---- */
-.spp-acc-radio-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 16px;
-  row-gap: 12px;
-}
-.spp-acc-radio-grid .spp-acc-cell {
-  align-items: flex-start;
-  text-align: left;
-}
-.spp-acc-cell-mode {
-  color: rgba(255, 255, 255, 0.45);
-  font-weight: 400;
-  margin-left: 2px;
-}
+/* The grid itself and its "· MODE" suffix span now live in BaseDataGrid
+   (rendered with `bare` so it shares this file's own spp-acc-section flex/gap
+   for the PACKET/NOTES lines below) and BaseDataCell's :slotted(.ba-data-cell-mode). */
 .spp-acc-radio-line {
   margin-top: 14px;
   display: flex;
@@ -990,9 +959,4 @@ body:not([data-domain='space']) .spp-filter-body {
   border-radius: 50%;
   background: var(--color-accent);
   opacity: 0.65;
-}
-@media (max-width: 480px) {
-  .spp-acc-radio-grid {
-    grid-template-columns: 1fr;
-  }
 }

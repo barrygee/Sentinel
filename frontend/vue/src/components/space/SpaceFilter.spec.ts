@@ -683,7 +683,7 @@ describe('SpaceFilter — accordion expand/collapse', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    const values = wrapper.findAll('.sfr-acc-cell-value').map((cell) => cell.text())
+    const values = wrapper.findAll('.ba-data-cell-value').map((cell) => cell.text())
     expect(values).toContain('12°')
     expect(values).toContain('420 km')
   })
@@ -700,7 +700,7 @@ describe('SpaceFilter — accordion expand/collapse', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-cell-value').text()).toBe('—')
+    expect(wrapper.find('.ba-data-cell-value').text()).toBe('—')
   })
 
   it('ignores a sat-position-update when nothing is expanded', async () => {
@@ -737,7 +737,7 @@ describe('SpaceFilter — accordion expand/collapse', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.findAll('.sfr-acc-cell-value').map((cell) => cell.text())).toContain('410 km')
+    expect(wrapper.findAll('.ba-data-cell-value').map((cell) => cell.text())).toContain('410 km')
   })
 
   it('shows COULD NOT LOAD PASSES when the accordion fetch is non-OK', async () => {

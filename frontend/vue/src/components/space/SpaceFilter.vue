@@ -81,96 +81,55 @@
           </div>
           <!-- Expanded accordion body -->
           <div v-if="expandedNoradId === sat.norad_id" class="sfr-accordion-body">
-            <div class="sfr-acc-section">
-              <div class="sfr-acc-section-title">POSITION DATA</div>
-              <div class="sfr-acc-grid sfr-acc-grid--three">
-                <div class="sfr-acc-cell sfr-acc-cell--lat">
-                  <div class="sfr-acc-cell-label">LATITUDE</div>
-                  <div class="sfr-acc-cell-value sfr-acc-cell-value--lat">
-                    {{ liveTelemetry['lat'] ?? '—' }}
-                  </div>
-                </div>
-                <div class="sfr-acc-cell sfr-acc-cell--lon">
-                  <div class="sfr-acc-cell-label">LONGITUDE</div>
-                  <div class="sfr-acc-cell-value sfr-acc-cell-value--lon">
-                    {{ liveTelemetry['lon'] ?? '—' }}
-                  </div>
-                </div>
-                <div class="sfr-acc-cell sfr-acc-cell--hdg">
-                  <div class="sfr-acc-cell-label">HEADING</div>
-                  <div class="sfr-acc-cell-value sfr-acc-cell-value--hdg">
-                    {{ liveTelemetry['hdg'] ?? '—' }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="sfr-acc-section">
-              <div class="sfr-acc-section-title">ORBITAL DATA</div>
-              <div class="sfr-acc-grid sfr-acc-grid--three">
-                <div class="sfr-acc-cell sfr-acc-cell--alt">
-                  <div class="sfr-acc-cell-label">ALTITUDE</div>
-                  <div class="sfr-acc-cell-value sfr-acc-cell-value--alt">
-                    {{ liveTelemetry['alt'] ?? '—' }}
-                  </div>
-                </div>
-                <div class="sfr-acc-cell sfr-acc-cell--vel">
-                  <div class="sfr-acc-cell-label">VELOCITY</div>
-                  <div class="sfr-acc-cell-value sfr-acc-cell-value--vel">
-                    {{ liveTelemetry['vel'] ?? '—' }}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <BaseDataGrid title="POSITION DATA" :columns="3">
+              <BaseDataCell label="LATITUDE" :value="liveTelemetry['lat'] ?? '—'" />
+              <BaseDataCell label="LONGITUDE" :value="liveTelemetry['lon'] ?? '—'" />
+              <BaseDataCell label="HEADING" :value="liveTelemetry['hdg'] ?? '—'" />
+            </BaseDataGrid>
+            <BaseDataGrid title="ORBITAL DATA" :columns="3">
+              <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
+              <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
+            </BaseDataGrid>
             <div v-if="hasRadioInfo(sat)" class="sfr-acc-section sfr-acc-section--radio">
-              <div class="sfr-acc-section-title">RADIO</div>
-              <div class="sfr-acc-radio-grid">
-                <template v-if="sat.uplink_hz">
-                  <div class="sfr-acc-cell sfr-acc-cell--uplink">
-                    <div class="sfr-acc-cell-label">UPLINK</div>
-                    <div class="sfr-acc-cell-value">
-                      {{ formatHz(sat.uplink_hz)
-                      }}<span v-if="sat.uplink_mode" class="sfr-acc-cell-mode">
-                        · {{ sat.uplink_mode }}</span
-                      >
-                    </div>
-                  </div>
-                </template>
-                <template v-if="sat.downlink_hz">
-                  <div class="sfr-acc-cell sfr-acc-cell--downlink">
-                    <div class="sfr-acc-cell-label">DOWNLINK</div>
-                    <div class="sfr-acc-cell-value">
-                      {{ formatHz(sat.downlink_hz)
-                      }}<span v-if="sat.downlink_mode" class="sfr-acc-cell-mode">
-                        · {{ sat.downlink_mode }}</span
-                      >
-                    </div>
-                  </div>
-                </template>
-                <template v-if="sat.ctcss_hz">
-                  <div class="sfr-acc-cell sfr-acc-cell--ctcss">
-                    <div class="sfr-acc-cell-label">CTCSS</div>
-                    <div class="sfr-acc-cell-value">{{ sat.ctcss_hz.toFixed(1) }} Hz</div>
-                  </div>
-                </template>
-                <template v-if="sat.transponder_type">
-                  <div class="sfr-acc-cell sfr-acc-cell--transponder">
-                    <div class="sfr-acc-cell-label">TRANSPONDER</div>
-                    <div class="sfr-acc-cell-value">{{ sat.transponder_type }}</div>
-                  </div>
-                </template>
-                <template v-if="sat.beacon_hz">
-                  <div class="sfr-acc-cell sfr-acc-cell--beacon">
-                    <div class="sfr-acc-cell-label">BEACON</div>
-                    <div class="sfr-acc-cell-value">{{ formatHz(sat.beacon_hz) }}</div>
-                  </div>
-                </template>
-                <template v-if="sat.radio_status">
-                  <div class="sfr-acc-cell sfr-acc-cell--status">
-                    <div class="sfr-acc-cell-label">STATUS</div>
-                    <div class="sfr-acc-cell-value">{{ formatStatus(sat.radio_status) }}</div>
-                  </div>
-                </template>
-              </div>
+              <BaseDataGrid
+                title="RADIO"
+                collapse-on-narrow
+                bare
+                style="--ba-cell-align: flex-start"
+              >
+                <BaseDataCell v-if="sat.uplink_hz" label="UPLINK">
+                  {{ formatHz(sat.uplink_hz)
+                  }}<span v-if="sat.uplink_mode" class="ba-data-cell-mode">
+                    · {{ sat.uplink_mode }}</span
+                  >
+                </BaseDataCell>
+                <BaseDataCell v-if="sat.downlink_hz" label="DOWNLINK">
+                  {{ formatHz(sat.downlink_hz)
+                  }}<span v-if="sat.downlink_mode" class="ba-data-cell-mode">
+                    · {{ sat.downlink_mode }}</span
+                  >
+                </BaseDataCell>
+                <BaseDataCell
+                  v-if="sat.ctcss_hz"
+                  label="CTCSS"
+                  :value="`${sat.ctcss_hz.toFixed(1)} Hz`"
+                />
+                <BaseDataCell
+                  v-if="sat.transponder_type"
+                  label="TRANSPONDER"
+                  :value="sat.transponder_type"
+                />
+                <BaseDataCell
+                  v-if="sat.beacon_hz"
+                  label="BEACON"
+                  :value="formatHz(sat.beacon_hz)"
+                />
+                <BaseDataCell
+                  v-if="sat.radio_status"
+                  label="STATUS"
+                  :value="formatStatus(sat.radio_status)"
+                />
+              </BaseDataGrid>
               <div v-if="sat.packet_info" class="sfr-acc-radio-line">
                 <div class="sfr-acc-cell-label">PACKET / DIGITAL</div>
                 <ul class="sfr-acc-radio-list">
@@ -417,6 +376,8 @@ import ChevronIcon from '../shared/ChevronIcon.vue'
 import LocationPinIcon from '../shared/LocationPinIcon.vue'
 import BellIcon from '../shared/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
+import BaseDataGrid from '../base/BaseDataGrid.vue'
+import BaseDataCell from '../base/BaseDataCell.vue'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
   SATELLITE_CATEGORY_ORDER,
@@ -1395,24 +1356,11 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   text-transform: uppercase;
 }
 
-.sfr-acc-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 16px;
-  row-gap: 12px;
-}
-
-.sfr-acc-grid.sfr-acc-grid--three {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-.sfr-acc-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
+/* The label/value grid itself (POSITION DATA / ORBITAL DATA / RADIO) now
+   lives in BaseDataGrid/BaseDataCell — the single source of truth TrackingPanel
+   and SpacePasses also consume, instead of silently reaching into this file's
+   former sfr-acc-grid/sfr-acc-cell/sfr-acc-cell-value classes. sfr-acc-cell-label
+   stays: the RADIO section's PACKET/NOTES caption lines still use it directly. */
 .sfr-acc-cell-label {
   display: flex;
   align-items: center;
@@ -1423,17 +1371,6 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.35);
   text-transform: uppercase;
-}
-
-.sfr-acc-cell-value {
-  font-family: var(--font-primary);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .sfr-acc-section--track {
@@ -1814,21 +1751,9 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 /* ---- RADIO section ---- */
-.sfr-acc-radio-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 16px;
-  row-gap: 12px;
-}
-.sfr-acc-radio-grid .sfr-acc-cell {
-  align-items: flex-start;
-  text-align: left;
-}
-.sfr-acc-cell-mode {
-  color: rgba(255, 255, 255, 0.45);
-  font-weight: 400;
-  margin-left: 2px;
-}
+/* The grid itself and its "· MODE" suffix span now live in BaseDataGrid
+   (rendered with `bare` so it shares this file's own sfr-acc-section flex/gap
+   for the PACKET/NOTES lines below) and BaseDataCell's :slotted(.ba-data-cell-mode). */
 .sfr-acc-radio-line {
   margin-top: 14px;
   display: flex;
@@ -1869,10 +1794,5 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   border-radius: 50%;
   background: var(--color-accent);
   opacity: 0.65;
-}
-@media (max-width: 480px) {
-  .sfr-acc-radio-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

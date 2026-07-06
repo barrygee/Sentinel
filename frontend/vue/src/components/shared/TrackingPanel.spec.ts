@@ -45,12 +45,12 @@ describe('TrackingPanel', () => {
     store.register({ id: 'a1', name: 'BAW123', domain: 'air', fields: fieldsWithEverything() })
     const wrapper = mount(TrackingPanel)
 
-    const sectionTitles = wrapper.findAll('.sfr-acc-section-title').map((node) => node.text())
+    const sectionTitles = wrapper.findAll('.ba-data-grid-title').map((node) => node.text())
     expect(sectionTitles).toEqual(['FLIGHT DATA', 'AIRCRAFT DATA'])
 
-    const sections = wrapper.findAll('.sfr-acc-section')
-    const flightLabels = sections[0]!.findAll('.sfr-acc-cell-label').map((node) => node.text())
-    const aircraftLabels = sections[1]!.findAll('.sfr-acc-cell-label').map((node) => node.text())
+    const sections = wrapper.findAll('.ba-data-grid-section')
+    const flightLabels = sections[0]!.findAll('.ba-data-cell-label').map((node) => node.text())
+    const aircraftLabels = sections[1]!.findAll('.ba-data-cell-label').map((node) => node.text())
     expect(flightLabels).toEqual(['ALT', 'GS'])
     // Known aircraft labels in declared order, then the unknown OPERATOR appended.
     expect(aircraftLabels).toEqual(['REG', 'CATEGORY', 'EMRG', 'OPERATOR'])
@@ -61,13 +61,13 @@ describe('TrackingPanel', () => {
     store.register({ id: 'a1', name: 'BAW123', domain: 'air', fields: fieldsWithEverything() })
     const wrapper = mount(TrackingPanel)
 
-    const cells = wrapper.findAll('.sfr-acc-cell')
+    const cells = wrapper.findAll('.ba-data-cell')
     const categoryCell = cells.find(
-      (cell) => cell.find('.sfr-acc-cell-label').text() === 'CATEGORY',
+      (cell) => cell.find('.ba-data-cell-label').text() === 'CATEGORY',
     )!
-    expect(categoryCell.classes()).toContain('sfr-acc-cell--wide')
+    expect(categoryCell.classes()).toContain('ba-data-cell--wide')
 
-    const emrgValue = wrapper.find('.sfr-acc-cell-value--emrg')
+    const emrgValue = wrapper.find('.ba-data-cell-value--emphasis')
     expect(emrgValue.exists()).toBe(true)
     expect(emrgValue.text()).toBe('HIJACK')
   })
@@ -83,7 +83,7 @@ describe('TrackingPanel', () => {
     })
     const wrapper = mount(TrackingPanel)
 
-    const sectionTitles = wrapper.findAll('.sfr-acc-section-title').map((node) => node.text())
+    const sectionTitles = wrapper.findAll('.ba-data-grid-title').map((node) => node.text())
     expect(sectionTitles).toEqual(['FLIGHT DATA'])
   })
 

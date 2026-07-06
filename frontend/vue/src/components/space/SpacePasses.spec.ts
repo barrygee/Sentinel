@@ -511,7 +511,7 @@ describe('SpacePasses — accordion expand/collapse', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    const values = wrapper.findAll('.spp-acc-cell-value').map((cell) => cell.text())
+    const values = wrapper.findAll('.ba-data-cell-value').map((cell) => cell.text())
     expect(values).toContain('12°') // latitude
     expect(values).toContain('420 km') // altitude
   })
@@ -529,7 +529,7 @@ describe('SpacePasses — accordion expand/collapse', () => {
     )
     await wrapper.vm.$nextTick()
     // Telemetry stays at the em-dash placeholder.
-    expect(wrapper.find('.spp-acc-cell-value').text()).toBe('—')
+    expect(wrapper.find('.ba-data-cell-value').text()).toBe('—')
   })
 
   it('ignores a sat-position-update when nothing is expanded', async () => {
@@ -1478,7 +1478,7 @@ describe('SpacePasses — branch edge cases', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.findAll('.spp-acc-cell-value').map((cell) => cell.text())).toContain('410 km')
+    expect(wrapper.findAll('.ba-data-cell-value').map((cell) => cell.text())).toContain('410 km')
   })
 })
 

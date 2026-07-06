@@ -69,86 +69,50 @@
           :id="`spp-body-${passKey(pass)}`"
           class="spp-acc-body"
         >
-          <div class="spp-acc-section">
-            <div class="spp-acc-section-title">POSITION DATA</div>
-            <div class="spp-acc-grid spp-acc-grid--three">
-              <div class="spp-acc-cell">
-                <div class="spp-acc-cell-label">LATITUDE</div>
-                <div class="spp-acc-cell-value">{{ liveTelemetry['lat'] ?? '—' }}</div>
-              </div>
-              <div class="spp-acc-cell">
-                <div class="spp-acc-cell-label">LONGITUDE</div>
-                <div class="spp-acc-cell-value">{{ liveTelemetry['lon'] ?? '—' }}</div>
-              </div>
-              <div class="spp-acc-cell">
-                <div class="spp-acc-cell-label">HEADING</div>
-                <div class="spp-acc-cell-value">{{ liveTelemetry['hdg'] ?? '—' }}</div>
-              </div>
-            </div>
-          </div>
-          <div class="spp-acc-section">
-            <div class="spp-acc-section-title">ORBITAL DATA</div>
-            <div class="spp-acc-grid spp-acc-grid--three">
-              <div class="spp-acc-cell">
-                <div class="spp-acc-cell-label">ALTITUDE</div>
-                <div class="spp-acc-cell-value">{{ liveTelemetry['alt'] ?? '—' }}</div>
-              </div>
-              <div class="spp-acc-cell">
-                <div class="spp-acc-cell-label">VELOCITY</div>
-                <div class="spp-acc-cell-value">{{ liveTelemetry['vel'] ?? '—' }}</div>
-              </div>
-            </div>
-          </div>
+          <BaseDataGrid title="POSITION DATA" :columns="3">
+            <BaseDataCell label="LATITUDE" :value="liveTelemetry['lat'] ?? '—'" />
+            <BaseDataCell label="LONGITUDE" :value="liveTelemetry['lon'] ?? '—'" />
+            <BaseDataCell label="HEADING" :value="liveTelemetry['hdg'] ?? '—'" />
+          </BaseDataGrid>
+          <BaseDataGrid title="ORBITAL DATA" :columns="3">
+            <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
+            <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
+          </BaseDataGrid>
           <div v-if="hasRadioInfo(pass)" class="spp-acc-section spp-acc-section--radio">
-            <div class="spp-acc-section-title">RADIO</div>
-            <div class="spp-acc-radio-grid">
-              <template v-if="pass.uplink_hz">
-                <div class="spp-acc-cell">
-                  <div class="spp-acc-cell-label">UPLINK</div>
-                  <div class="spp-acc-cell-value">
-                    {{ formatHz(pass.uplink_hz)
-                    }}<span v-if="pass.uplink_mode" class="spp-acc-cell-mode">
-                      · {{ pass.uplink_mode }}</span
-                    >
-                  </div>
-                </div>
-              </template>
-              <template v-if="pass.downlink_hz">
-                <div class="spp-acc-cell">
-                  <div class="spp-acc-cell-label">DOWNLINK</div>
-                  <div class="spp-acc-cell-value">
-                    {{ formatHz(pass.downlink_hz)
-                    }}<span v-if="pass.downlink_mode" class="spp-acc-cell-mode">
-                      · {{ pass.downlink_mode }}</span
-                    >
-                  </div>
-                </div>
-              </template>
-              <template v-if="pass.ctcss_hz">
-                <div class="spp-acc-cell">
-                  <div class="spp-acc-cell-label">CTCSS</div>
-                  <div class="spp-acc-cell-value">{{ pass.ctcss_hz.toFixed(1) }} Hz</div>
-                </div>
-              </template>
-              <template v-if="pass.transponder_type">
-                <div class="spp-acc-cell">
-                  <div class="spp-acc-cell-label">TRANSPONDER</div>
-                  <div class="spp-acc-cell-value">{{ pass.transponder_type }}</div>
-                </div>
-              </template>
-              <template v-if="pass.beacon_hz">
-                <div class="spp-acc-cell">
-                  <div class="spp-acc-cell-label">BEACON</div>
-                  <div class="spp-acc-cell-value">{{ formatHz(pass.beacon_hz) }}</div>
-                </div>
-              </template>
-              <template v-if="pass.radio_status">
-                <div class="spp-acc-cell">
-                  <div class="spp-acc-cell-label">STATUS</div>
-                  <div class="spp-acc-cell-value">{{ formatStatus(pass.radio_status) }}</div>
-                </div>
-              </template>
-            </div>
+            <BaseDataGrid title="RADIO" collapse-on-narrow bare style="--ba-cell-align: flex-start">
+              <BaseDataCell v-if="pass.uplink_hz" label="UPLINK">
+                {{ formatHz(pass.uplink_hz)
+                }}<span v-if="pass.uplink_mode" class="ba-data-cell-mode">
+                  · {{ pass.uplink_mode }}</span
+                >
+              </BaseDataCell>
+              <BaseDataCell v-if="pass.downlink_hz" label="DOWNLINK">
+                {{ formatHz(pass.downlink_hz)
+                }}<span v-if="pass.downlink_mode" class="ba-data-cell-mode">
+                  · {{ pass.downlink_mode }}</span
+                >
+              </BaseDataCell>
+              <BaseDataCell
+                v-if="pass.ctcss_hz"
+                label="CTCSS"
+                :value="`${pass.ctcss_hz.toFixed(1)} Hz`"
+              />
+              <BaseDataCell
+                v-if="pass.transponder_type"
+                label="TRANSPONDER"
+                :value="pass.transponder_type"
+              />
+              <BaseDataCell
+                v-if="pass.beacon_hz"
+                label="BEACON"
+                :value="formatHz(pass.beacon_hz)"
+              />
+              <BaseDataCell
+                v-if="pass.radio_status"
+                label="STATUS"
+                :value="formatStatus(pass.radio_status)"
+              />
+            </BaseDataGrid>
             <div v-if="pass.packet_info" class="spp-acc-radio-line">
               <div class="spp-acc-cell-label">PACKET / DIGITAL</div>
               <ul class="spp-acc-radio-list">
@@ -387,6 +351,8 @@ import ChevronIcon from '../shared/ChevronIcon.vue'
 import LocationPinIcon from '../shared/LocationPinIcon.vue'
 import BellIcon from '../shared/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
+import BaseDataGrid from '../base/BaseDataGrid.vue'
+import BaseDataCell from '../base/BaseDataCell.vue'
 import {
   SATELLITE_CATEGORY_ORDER,
   SATELLITE_CATEGORY_DISPLAY_NAMES,
