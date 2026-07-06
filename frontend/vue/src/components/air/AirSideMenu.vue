@@ -8,54 +8,67 @@
     aria-label="Air map controls"
   >
     <!-- Zoom + location -->
-    <button
+    <BaseIconButton
       class="sm-btn sm-glyph"
-      data-tooltip="ZOOM IN"
-      aria-label="Zoom in"
+      style="--ba-rail-transition: color 0.15s ease"
+      tooltip-side="left"
+      tooltip="ZOOM IN"
+      accessible-name="Zoom in"
       @click="getMap()?.zoomIn()"
     >
       +
-    </button>
-    <button
+    </BaseIconButton>
+    <BaseIconButton
       class="sm-btn sm-glyph"
-      data-tooltip="ZOOM OUT"
-      aria-label="Zoom out"
+      style="--ba-rail-transition: color 0.15s ease"
+      tooltip-side="left"
+      tooltip="ZOOM OUT"
+      accessible-name="Zoom out"
       @click="getMap()?.zoomOut()"
     >
       −
-    </button>
-    <button
+    </BaseIconButton>
+    <BaseIconButton
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: locActive }"
-      data-tooltip="GO TO MY LOCATION"
-      aria-label="Go to my location"
+      :active="locActive"
+      tooltip-side="left"
+      tooltip="GO TO MY LOCATION"
+      accessible-name="Go to my location"
       @click="goToLocation"
     >
       <MyLocationIcon />
-    </button>
+    </BaseIconButton>
 
     <!-- FILTER group: a click-to-expand accordion of aircraft-filter modes
          (all / civil / military) shown below the icon. -->
-    <button
+    <BaseIconButton
       id="sm-filter-btn"
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: filterAccordionOpen }"
-      data-tooltip="FILTER"
-      aria-label="Filter aircraft"
+      :active="filterAccordionOpen"
+      tooltip-side="left"
+      tooltip="FILTER"
+      accessible-name="Filter aircraft"
       aria-controls="filter-mode-flyout"
       :aria-expanded="filterAccordionOpen"
       @click="toggleFilterAccordion"
     >
       <FilterFunnelIcon />
-    </button>
+    </BaseIconButton>
 
     <div v-show="filterAccordionOpen" id="filter-mode-flyout" class="sm-accordion-panel">
-      <button
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: isFilterModeActive('all') }"
+        :active="isFilterModeActive('all')"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-mode="all"
-        data-tooltip="ALL AIRCRAFT"
-        aria-label="Show all aircraft"
+        tooltip-side="left"
+        tooltip="ALL AIRCRAFT"
+        accessible-name="Show all aircraft"
         @click="setFilterMode('all')"
       >
         <svg
@@ -71,13 +84,16 @@
           <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
           <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: isFilterModeActive('civil') }"
+        :active="isFilterModeActive('civil')"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-mode="civil"
-        data-tooltip="CIVIL AIRCRAFT"
-        aria-label="Civil aircraft only"
+        tooltip-side="left"
+        tooltip="CIVIL AIRCRAFT"
+        accessible-name="Civil aircraft only"
         @click="setFilterMode('civil')"
       >
         <svg
@@ -93,13 +109,16 @@
             fill="currentColor"
           />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: isFilterModeActive('mil') }"
+        :active="isFilterModeActive('mil')"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-mode="mil"
-        data-tooltip="MILITARY AIRCRAFT"
-        aria-label="Military aircraft only"
+        tooltip-side="left"
+        tooltip="MILITARY AIRCRAFT"
+        accessible-name="Military aircraft only"
         @click="setFilterMode('mil')"
       >
         <svg
@@ -118,15 +137,18 @@
             fill="none"
           />
         </svg>
-      </button>
+      </BaseIconButton>
     </div>
 
     <!-- RANGE RING -->
-    <button
+    <BaseIconButton
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: airStore.overlayStates.rangeRings }"
-      data-tooltip="RANGE RING"
-      aria-label="Range ring"
+      :active="airStore.overlayStates.rangeRings"
+      tooltip-side="left"
+      tooltip="RANGE RING"
+      accessible-name="Range ring"
       @click="mapRef.value?.getRangeRings()?.handleClickPublic()"
     >
       <svg
@@ -141,14 +163,17 @@
         <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5" />
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
       </svg>
-    </button>
+    </BaseIconButton>
 
     <!-- A2A REFUELING -->
-    <button
+    <BaseIconButton
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: airStore.overlayStates.aara }"
-      data-tooltip="A2A REFUELING"
-      aria-label="A2A refueling"
+      :active="airStore.overlayStates.aara"
+      tooltip-side="left"
+      tooltip="A2A REFUELING"
+      accessible-name="A2A refueling"
       @click="mapRef.value?.getAara()?.toggle()"
     >
       <svg
@@ -168,14 +193,17 @@
           fill="none"
         />
       </svg>
-    </button>
+    </BaseIconButton>
 
     <!-- AWACS -->
-    <button
+    <BaseIconButton
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: airStore.overlayStates.awacs }"
-      data-tooltip="AWACS"
-      aria-label="AWACS"
+      :active="airStore.overlayStates.awacs"
+      tooltip-side="left"
+      tooltip="AWACS"
+      accessible-name="AWACS"
       @click="mapRef.value?.getAwacs()?.toggle()"
     >
       <svg
@@ -197,14 +225,17 @@
           stroke-width="1.6"
         />
       </svg>
-    </button>
+    </BaseIconButton>
 
     <!-- 3D VIEW -->
-    <button
+    <BaseIconButton
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: tiltActive }"
-      data-tooltip="3D VIEW"
-      aria-label="3D view"
+      :active="tiltActive"
+      tooltip-side="left"
+      tooltip="3D VIEW"
+      accessible-name="3D view"
       @click="toggle3D"
     >
       <svg
@@ -224,17 +255,20 @@
         <polyline points="7,1 7,7" stroke="currentColor" stroke-width="1.2" />
         <polyline points="1,4.5 7,7 13,4.5" stroke="currentColor" stroke-width="1.2" />
       </svg>
-    </button>
+    </BaseIconButton>
 
     <!-- LAYERS group: a click-to-expand accordion of map-layer toggles
          (planes, ground vehicles, towers, airports, military bases, roads,
          place names) shown below the icon. -->
-    <button
+    <BaseIconButton
       id="sm-layers-btn"
       class="sm-btn"
+      style="--ba-rail-transition: color 0.15s ease"
       :class="{ active: layersAccordionOpen }"
-      data-tooltip="MAP LAYERS"
-      aria-label="Map layers"
+      :active="layersAccordionOpen"
+      tooltip-side="left"
+      tooltip="MAP LAYERS"
+      accessible-name="Map layers"
       aria-controls="layers-panel"
       :aria-expanded="layersAccordionOpen"
       @click="toggleLayersAccordion"
@@ -257,15 +291,18 @@
         <path d="M3 12 L12 17 L21 12" stroke="currentColor" stroke-width="1.4" fill="none" />
         <path d="M3 16 L12 21 L21 16" stroke="currentColor" stroke-width="1.4" fill="none" />
       </svg>
-    </button>
+    </BaseIconButton>
 
     <div v-show="layersAccordionOpen" id="layers-panel" class="sm-accordion-panel">
-      <button
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: airStore.overlayStates.adsb }"
+        :active="airStore.overlayStates.adsb"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="planes"
-        data-tooltip="AIRCRAFT"
-        aria-label="Aircraft"
+        tooltip-side="left"
+        tooltip="AIRCRAFT"
+        accessible-name="Aircraft"
         @click="togglePlanes"
       >
         <svg
@@ -281,13 +318,16 @@
             fill="currentColor"
           />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: !hideGnd }"
+        :active="!hideGnd"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="ground"
-        data-tooltip="GROUND VEHICLES"
-        aria-label="Ground vehicles"
+        tooltip-side="left"
+        tooltip="GROUND VEHICLES"
+        accessible-name="Ground vehicles"
         @click="toggleGround"
       >
         <svg
@@ -309,13 +349,16 @@
           <circle cx="6" cy="14" r="2" stroke="currentColor" stroke-width="1.6" />
           <circle cx="17" cy="14" r="2" stroke="currentColor" stroke-width="1.6" />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: !hideTowers }"
+        :active="!hideTowers"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="towers"
-        data-tooltip="TOWERS"
-        aria-label="Towers"
+        tooltip-side="left"
+        tooltip="TOWERS"
+        accessible-name="Towers"
         @click="toggleTowers"
       >
         <svg
@@ -335,13 +378,16 @@
           <line x1="7.5" y1="13" x2="12.5" y2="13" stroke="currentColor" stroke-width="1.6" />
           <circle cx="10" cy="3.5" r="1.6" stroke="currentColor" stroke-width="1.6" />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: airStore.overlayStates.names }"
+        :active="airStore.overlayStates.names"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="names"
-        data-tooltip="PLACE NAMES"
-        aria-label="Place name labels"
+        tooltip-side="left"
+        tooltip="PLACE NAMES"
+        accessible-name="Place name labels"
         @click="mapRef.value?.getNamesControl()?.handleClickPublic()"
       >
         <svg
@@ -361,13 +407,16 @@
           />
           <circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none" />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: airStore.overlayStates.airports }"
+        :active="airStore.overlayStates.airports"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="airports"
-        data-tooltip="AIRPORTS"
-        aria-label="Airports"
+        tooltip-side="left"
+        tooltip="AIRPORTS"
+        accessible-name="Airports"
         @click="mapRef.value?.getAirports()?.toggle()"
       >
         <svg
@@ -412,13 +461,16 @@
             stroke-linecap="round"
           />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: airStore.overlayStates.militaryBases }"
+        :active="airStore.overlayStates.militaryBases"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="mil"
-        data-tooltip="MILITARY BASES"
-        aria-label="Military bases"
+        tooltip-side="left"
+        tooltip="MILITARY BASES"
+        accessible-name="Military bases"
         @click="mapRef.value?.getMilBases()?.toggle()"
       >
         <svg
@@ -437,13 +489,16 @@
             fill="none"
           />
         </svg>
-      </button>
-      <button
+      </BaseIconButton>
+      <BaseIconButton
         class="sm-btn sm-sub-btn"
         :class="{ active: airStore.overlayStates.roads }"
+        :active="airStore.overlayStates.roads"
+        style="--ba-rail-hover-bg: rgba(255, 255, 255, 0.2); --ba-rail-transition: color 0.15s ease"
         data-loc="roads"
-        data-tooltip="ROADS"
-        aria-label="Roads"
+        tooltip-side="left"
+        tooltip="ROADS"
+        accessible-name="Roads"
         @click="mapRef.value?.getRoadsControl()?.handleClickPublic()"
       >
         <svg
@@ -464,11 +519,14 @@
           <line x1="12" y1="11" x2="12" y2="15" stroke="currentColor" stroke-width="1.6" />
           <line x1="12" y1="18" x2="12" y2="21" stroke="currentColor" stroke-width="1.6" />
         </svg>
-      </button>
+      </BaseIconButton>
     </div>
   </nav>
 
-  <!-- 3D controls widget (fixed bottom-right, cleared of the rail) -->
+  <!-- 3D controls widget (fixed bottom-right, cleared of the rail). Kept on plain
+       <button>s (not the BaseIconButton atom): its tooltip opens upward/centred, a
+       third position this phase's atoms don't model, and this widget is a distinct
+       control grid rather than an icon rail — out of scope for this migration. -->
   <div id="map-3d-controls" :class="{ 'map-3d-controls--hidden': !tiltActive }">
     <span />
     <button class="map-3d-btn" data-tooltip="TILT UP" aria-label="Tilt up" @click="tiltBy(10)">
@@ -514,6 +572,7 @@ import { useAppStore } from '@/stores/app'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
 import FilterFunnelIcon from '@/components/shared/FilterFunnelIcon.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useDisclosure } from '@/composables/useDisclosure'
 import type AirMap from './AirMap.vue'
@@ -698,7 +757,10 @@ function _saveFilter() {
 
 <style>
 /* Fixed icon rail mirroring #map-sidebar-rail, pinned to the right edge. Every
-   action is always visible as an icon; the rail does not expand/collapse. */
+   action is always visible as an icon; the rail does not expand/collapse.
+   Button chrome (size, colour, hover/active, focus, tooltip) now lives in the
+   BaseIconButton atom (see src/components/base/BaseIconButton.vue) — only this
+   rail's own container layout and per-button style deltas remain here. */
 #side-menu {
   position: fixed;
   top: var(--nav-height);
@@ -713,86 +775,9 @@ function _saveFilter() {
   box-sizing: border-box;
 }
 
-#side-menu .sm-btn {
-  height: 40px;
-  width: 100%;
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: #fff;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  padding: 0;
-  transition: color 0.15s;
-}
-
 #side-menu .sm-btn.sm-glyph {
   font-size: 18px;
   font-weight: 300;
-}
-
-/* Hover matches the left side panel's buttons: a subtle grey background + muted
-   icon. Active stays green and, sitting after this rule at equal specificity,
-   wins the icon colour even while hovered. */
-#side-menu .sm-btn:hover {
-  color: var(--color-text-muted);
-  background: var(--color-border);
-}
-
-#side-menu .sm-btn.active {
-  color: var(--color-accent);
-}
-
-/* Sub-menu buttons sit on the grey accordion panel (var(--color-border)), so
-   their hover needs a stronger background to read against it. */
-#side-menu .sm-sub-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-#side-menu .sm-btn:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-}
-
-/* Match the left side panel's icon size (19px), regardless of each SVG's own
-   width/height attributes; width auto keeps non-square icons in proportion. */
-#side-menu .sm-btn svg {
-  display: block;
-  height: 19px;
-  width: auto;
-}
-
-/* Hover tooltip — opens to the left of the right-edge rail. */
-#side-menu .sm-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-#side-menu .sm-btn[data-tooltip]:hover::before {
-  opacity: 1;
 }
 
 /* Accordion panel: the FILTER / LAYERS sub-items stack vertically in the rail
@@ -806,8 +791,10 @@ function _saveFilter() {
 }
 
 /* Sub-items inherit the rail-button look (white icon, green on hover/active,
-   left-opening tooltip, 19px icon) via .sm-btn; the grey panel background is
-   what sets the open sub-menu apart. */
+   left-opening tooltip, 19px icon) via BaseIconButton; the grey panel background
+   is what sets the open sub-menu apart, and each sub-button's own
+   --ba-rail-hover-bg override (set inline in the template) gives it the
+   stronger hover fill needed to read against that grey. */
 
 /* 3D controls — pinned bottom-right, shifted left to clear the 44px rail. */
 #map-3d-controls {

@@ -10,21 +10,20 @@
     @keydown="onKeydown"
   >
     <div id="settings-sidebar" :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }">
-      <div
+      <BaseIconButton
         v-for="s in visibleSections"
         :key="s.key"
         class="settings-nav-item"
         :class="{ active: activeSection === s.key }"
-        role="button"
-        :tabindex="0"
-        :data-tooltip="s.label"
-        :aria-label="s.label"
+        :bordered="true"
+        :active="activeSection === s.key"
+        tooltip-side="right"
+        :tooltip="s.label"
+        :accessible-name="s.label"
         :aria-pressed="activeSection === s.key"
         @click="selectSection(s.key)"
-        @keydown.enter="selectSection(s.key)"
-        @keydown.space.prevent="selectSection(s.key)"
       >
-        <div class="settings-nav-icon-wrap">
+        <span class="settings-nav-icon-wrap">
           <!-- App Settings: sliders icon -->
           <svg
             v-if="s.key === 'app'"
@@ -172,8 +171,8 @@
             <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6" />
             <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6" />
           </svg>
-        </div>
-      </div>
+        </span>
+      </BaseIconButton>
     </div>
 
     <div id="settings-content">
@@ -294,7 +293,9 @@
 
       <div id="settings-footer">
         <span id="settings-apply-status" :class="applyStatusClass">{{ applyStatusMsg }}</span>
-        <button id="settings-apply-btn" @click="commitAll">APPLY CHANGES</button>
+        <BaseButton id="settings-apply-btn" variant="primary" @click="commitAll"
+          >APPLY CHANGES</BaseButton
+        >
       </div>
     </div>
   </div>
@@ -309,6 +310,8 @@ import { useSdrStore } from '@/stores/sdr'
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@/types/settings'
 import SettingRow from './settings/SettingRow.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
 
 // Re-exported for back-compat: this type used to be defined here. Prefer
 // importing from '@/types/settings' directly in new code.
