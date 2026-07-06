@@ -42,6 +42,23 @@ export interface UseStagedSettingOptions<SettingValue> {
    * immediately), which is the behaviour of most staged settings.
    */
   deferMirror?: boolean
+  /**
+   * Overrides how the persisted write is built. By default `applyChange`
+   * stages a plain `settingsApi.put(namespace, key, newValue)`. Supply this
+   * when the control's actual persisted write is a combined payload read
+   * from live store state at APPLY time rather than the bare new value —
+   * e.g. the overhead-alert radius, which persists nested inside a shared
+   * `overheadAlerts` object alongside sibling toggle values it doesn't own.
+   */
+  buildStagedWriter?: (newValue: SettingValue) => () => Promise<unknown> | void
+  /**
+   * When false, skips wiring the `sentinel:config-uploaded` re-sync listener
+   * — only the mount-time hydrate runs. Defaults to `true`. A small number of
+   * pre-existing controls never listened for that event before migrating
+   * onto this composable; set this to `false` for those so consolidating
+   * them onto shared plumbing doesn't silently add new re-sync behaviour.
+   */
+  syncOnConfigUpload?: boolean
 }
 
 /** Public surface returned by `useStagedSetting`. */
@@ -91,8 +108,18 @@ export function useStagedSetting<SettingValue>(
   })
 
   // Keeps this control in sync when the config JSON editor uploads a new
-  // config elsewhere in the app; cleaned up automatically on unmount.
-  useDocumentEvent('sentinel:config-uploaded', syncFromDb)
+  // config elsewhere in the app; cleaned up automatically on unmount. Opt-out
+  // via `syncOnConfigUpload: false` for controls that never had this before.
+  if (options.syncOnConfigUpload !== false) {
+    useDocumentEvent('sentinel:config-uploaded', syncFromDb)
+  }
+
+  function buildStagedWriter(newValue: SettingValue): () => Promise<unknown> | void {
+    return (
+      options.buildStagedWriter?.(newValue) ??
+      (() => settingsApi.put(options.namespace, options.key, newValue))
+    )
+  }
 
   function applyChange(newValue: SettingValue): void {
     value.value = newValue
@@ -100,11 +127,11 @@ export function useStagedSetting<SettingValue>(
       // Both the store mirror and the DB write wait for APPLY CHANGES.
       options.stageWrite(() => {
         options.mirrorToStore(newValue)
-        return settingsApi.put(options.namespace, options.key, newValue)
+        return buildStagedWriter(newValue)()
       })
     } else {
       options.mirrorToStore(newValue)
-      options.stageWrite(() => settingsApi.put(options.namespace, options.key, newValue))
+      options.stageWrite(buildStagedWriter(newValue))
     }
   }
 

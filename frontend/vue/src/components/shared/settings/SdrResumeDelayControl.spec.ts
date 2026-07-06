@@ -35,7 +35,7 @@ describe('SdrResumeDelayControl', () => {
     const wrapper = mount(SdrResumeDelayControl)
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('0')
-    expect(wrapper.find('input').classes()).not.toContain('rd-input--invalid')
+    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
   })
 
   it('accepts a valid value, mirrors it into the store, and stages the write', async () => {
@@ -61,7 +61,7 @@ describe('SdrResumeDelayControl', () => {
     const wrapper = mount(SdrResumeDelayControl)
     await flushPromises()
     await wrapper.find('input').setValue('')
-    expect(wrapper.find('input').classes()).toContain('rd-input--invalid')
+    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
     expect(wrapper.emitted('stage')).toBeUndefined()
     expect(settingsApi.put).not.toHaveBeenCalled()
   })
@@ -102,10 +102,9 @@ describe('SdrResumeDelayControl', () => {
     const wrapper = mount(SdrResumeDelayControl)
     await flushPromises()
     // `region` is a page-level landmark rule (this control always lives inside
-    // the Settings panel's landmark). The input's missing accessible name
-    // (`label`) is a known pre-existing gap tracked for the a11y remediation
-    // phase of the retrofit, not this test-backfill slice — disable it here so
-    // the smoke test still guards every other rule.
+    // the Settings panel's landmark) — disabled here. The input's accessible
+    // name is provided via `aria-label` (see the template), so every other
+    // rule, including `label`, is still asserted.
     expect(
       await axe(wrapper.html(), {
         rules: { region: { enabled: false } },

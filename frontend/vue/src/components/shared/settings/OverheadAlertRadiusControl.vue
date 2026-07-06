@@ -1,41 +1,28 @@
-<template>
-  <div class="oar-wrap">
-    <input
-      v-model="radiusInput"
-      type="text"
-      inputmode="numeric"
-      class="oar-input"
-      aria-label="Overhead alert radius in nautical miles"
-      :class="{ 'oar-input--invalid': !isValid }"
-      spellcheck="false"
-      autocomplete="off"
-      @input="onInput"
-      @keydown.enter="emit('commit')"
-    />
-    <span class="oar-label">NM</span>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+/**
+ * Settings-panel control for the overhead-alert search radius (nautical
+ * miles). Thin wrapper around `BaseNumberSetting` supplying the air store
+ * bindings; see that component for the shared input/staging plumbing.
+ *
+ * This value is persisted nested inside the shared `air/overheadAlerts`
+ * object alongside the civil/mil toggle flags owned by
+ * `OverheadAlertsToggleControl` — so its staged write must read those
+ * sibling flags live (via `buildStagedWriter`) rather than staging a bare
+ * `radiusNm` value, to avoid clobbering them on APPLY. Hydration similarly
+ * reads the nested `overheadAlerts.radiusNm` field directly rather than a
+ * flat settings key, and (matching the pre-migration behaviour exactly)
+ * does not listen for `sentinel:config-uploaded` — only the toggle control's
+ * mount-time read performs the legacy flat-key migration/cleanup.
+ */
 import { useAirStore } from '@/stores/air'
 import * as settingsApi from '@/services/settingsApi'
+import BaseNumberSetting from '@/components/base/BaseNumberSetting.vue'
 
 const airStore = useAirStore()
 const emit = defineEmits<{
   stage: [fn: () => Promise<unknown> | void]
   commit: []
 }>()
-
-const radiusInput = ref<string>(String(airStore.overheadAlertRadiusNm))
-
-const isValid = computed(() => {
-  const v = radiusInput.value.trim()
-  if (!v) return false
-  if (!/^\d+(\.\d+)?$/.test(v)) return false
-  const n = Number(v)
-  return Number.isFinite(n) && n > 0
-})
 
 interface OverheadAlertsConfig {
   civil?: boolean
@@ -44,74 +31,57 @@ interface OverheadAlertsConfig {
 }
 
 function readOverhead(data: Record<string, unknown> | null): OverheadAlertsConfig {
-  const v = data?.overheadAlerts
-  return v && typeof v === 'object' && !Array.isArray(v) ? (v as OverheadAlertsConfig) : {}
+  const overheadAlertsValue = data?.overheadAlerts
+  return overheadAlertsValue &&
+    typeof overheadAlertsValue === 'object' &&
+    !Array.isArray(overheadAlertsValue)
+    ? (overheadAlertsValue as OverheadAlertsConfig)
+    : {}
 }
 
-onMounted(async () => {
+/** Reads the nested `overheadAlerts.radiusNm` field and mirrors it into the store if it's a valid, different value. */
+async function hydrateOverheadRadiusFromDb(): Promise<void> {
   const data = await settingsApi.getNamespace('air')
-  const oa = readOverhead(data)
-  const n = typeof oa.radiusNm === 'number' ? oa.radiusNm : Number(oa.radiusNm)
-  if (Number.isFinite(n) && n > 0 && n !== airStore.overheadAlertRadiusNm) {
-    airStore.setOverheadAlertRadiusNm(n)
-    radiusInput.value = String(n)
+  const overheadAlertsConfig = readOverhead(data)
+  const numericRadius =
+    typeof overheadAlertsConfig.radiusNm === 'number'
+      ? overheadAlertsConfig.radiusNm
+      : Number(overheadAlertsConfig.radiusNm)
+  if (
+    Number.isFinite(numericRadius) &&
+    numericRadius > 0 &&
+    numericRadius !== airStore.overheadAlertRadiusNm
+  ) {
+    airStore.setOverheadAlertRadiusNm(numericRadius)
   }
-})
+}
 
-function onInput(e: Event): void {
-  const target = e.target as HTMLInputElement
-  const filtered = target.value.replace(/[^0-9.]/g, '')
-  if (filtered !== target.value) {
-    target.value = filtered
-    radiusInput.value = filtered
-  }
-  if (!isValid.value) return
-  const n = Number(radiusInput.value)
-  airStore.setOverheadAlertRadiusNm(n)
-  emit('stage', () => {
-    return settingsApi.put('air', 'overheadAlerts', {
+/** Builds the combined `overheadAlerts` payload, reading the sibling toggle flags live at APPLY time. */
+function buildStagedWriter(): () => Promise<unknown> {
+  return () =>
+    settingsApi.put('air', 'overheadAlerts', {
       civil: airStore.overlayStates.overheadAlertsCivil,
       mil: airStore.overlayStates.overheadAlertsMil,
       radiusNm: airStore.overheadAlertRadiusNm,
     })
-  })
 }
 </script>
 
-<style scoped>
-.oar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.oar-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
-}
-.oar-input {
-  width: 60px;
-  height: 37px;
-  padding: 0 10px;
-  background: #eeece7;
-  border: none;
-  border-radius: 6px;
-  color: rgba(16, 19, 29, 0.9);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-align: center;
-  outline: none;
-  transition: box-shadow 0.15s;
-}
-.oar-input:focus {
-  box-shadow: inset 0 -2px 0 var(--color-accent);
-}
-.oar-input--invalid {
-  box-shadow: inset 0 -2px 0 #d94436;
-}
-</style>
+<template>
+  <BaseNumberSetting
+    accessible-name="Overhead alert radius in nautical miles"
+    unit="NM"
+    allow-decimal
+    :min-value="0"
+    min-exclusive
+    namespace="air"
+    setting-key="overheadAlerts"
+    :hydrate-from-db="hydrateOverheadRadiusFromDb"
+    :read-from-store="() => airStore.overheadAlertRadiusNm"
+    :mirror-to-store="airStore.setOverheadAlertRadiusNm"
+    :build-staged-writer="buildStagedWriter"
+    :sync-on-config-upload="false"
+    @stage="emit('stage', $event)"
+    @commit="emit('commit')"
+  />
+</template>
