@@ -1074,6 +1074,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract settings types module and useStagedSetting composable (#177)
 - Extract duplicated inline SVGs into shared icon atoms (#178)
 - Consolidate settings toggles onto BaseToggleSwitch/BaseToggleSetting (#179)
+- Consolidate number-input settings onto BaseNumberSetting (#180)
 
 ### Documentation
 
