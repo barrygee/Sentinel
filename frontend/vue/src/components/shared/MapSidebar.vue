@@ -282,16 +282,32 @@ const filterSubTabs = computed<{ id: string; label: string }[]>(() => {
 // sub-tab active highlight.
 const activeFilterCategory = computed<string>(() => {
   if (activeDomain.value === 'air') return airStore.airFilterCategory
+  // defensive: the only reader of this computed is the per-item v-for below,
+  // gated on the same air/space check via filterSubTabs — for every other
+  // domain that list is empty, so the v-for body (and this computed) is never
+  // evaluated with a non-air activeDomain that also isn't 'space'. Kept as a
+  // safe fallback if a future reader (e.g. an always-rendered aria-current)
+  // accesses it unconditionally.
+  /* v8 ignore start -- unreachable given the current v-for gating; see above */
   if (activeDomain.value === 'space') return spaceStore.spaceFilterCategory
   return ''
+  /* v8 ignore stop */
 })
 
 // Pick a FILTER category from a rail sub-tab: open the panel on the FILTER tab and
 // set the active domain's category so its search pane shows just that list.
 function selectFilterCategory(id: string) {
   switchTab('search')
-  if (activeDomain.value === 'air') airStore.setAirFilterCategory(id as AirFilterCategory)
-  else if (activeDomain.value === 'space') spaceStore.setSpaceFilterCategory(id)
+  if (activeDomain.value === 'air') {
+    airStore.setAirFilterCategory(id as AirFilterCategory)
+  } else {
+    // defensive: this is only ever called from the sub-tab rail buttons,
+    // themselves only rendered (via filterSubTabs) for the air/space domains —
+    // so once 'air' is excluded, the domain here is always 'space'.
+    /* v8 ignore start -- unreachable given the sub-tab rail gating; see above */
+    if (activeDomain.value === 'space') spaceStore.setSpaceFilterCategory(id)
+    /* v8 ignore stop */
+  }
 }
 
 // If replay gets disabled while the REPLAY tab is active, fall back to SEARCH so

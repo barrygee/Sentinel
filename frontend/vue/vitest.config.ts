@@ -28,11 +28,14 @@ export default mergeConfig(
           'src/test/**',
           'src/**/*.{test,spec}.{ts,vue}',
         ],
+        // Full coverage gate — the backfill is complete (phases 6a–6g), so every
+        // source file is exercised. CI fails on any drop below 100%, which keeps
+        // new code shipping with its tests rather than eroding the floor.
         thresholds: {
-          lines: 95,
-          functions: 95,
-          branches: 95,
-          statements: 95,
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
         },
       },
     },

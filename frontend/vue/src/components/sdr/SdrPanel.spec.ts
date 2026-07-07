@@ -364,6 +364,31 @@ describe('SdrPanel — control socket lifecycle', () => {
     expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-on')
   })
 
+  it('stops retrying the reachability probe after the max attempt count', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    // Device never becomes reachable across every retry — the probe should give
+    // up after PROBE_MAX_ATTEMPTS (4) rather than rescheduling indefinitely.
+    fetchState.status = { connected: false, reachable: false }
+    await mountConnected()
+    const statusCallCount = () =>
+      fetchCalls.filter((call) => call.url.startsWith('/api/sdr/status/')).length
+    expect(statusCallCount()).toBe(1) // initial probe on socket open
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    expect(statusCallCount()).toBe(2) // attempt 2
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    expect(statusCallCount()).toBe(3) // attempt 3
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    expect(statusCallCount()).toBe(4) // attempt 4 (final, hits PROBE_MAX_ATTEMPTS)
+    // No further retry is scheduled past the max attempt count.
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+    expect(statusCallCount()).toBe(4)
+    vi.useRealTimers()
+  })
+
   it('clears a stale radio id and stops when connect returns 404', async () => {
     fetchState.connectStatus = 404
     const wrapper = await mountReady()

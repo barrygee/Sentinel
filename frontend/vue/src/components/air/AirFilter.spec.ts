@@ -271,6 +271,22 @@ describe('AirFilter', () => {
       const wrapper = mountFilter(makeAdsb([]))
       expect(wrapper.find('.filter-no-results').exists()).toBe(true)
     })
+
+    it('shows the no-results state for airports when the query matches none', async () => {
+      const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('airports')
+      await wrapper.find('#filter-input').setValue('ZZZZZZ')
+      expect(wrapper.find('.filter-no-results').exists()).toBe(true)
+      expect(wrapper.findAll('.filter-icon-airport')).toHaveLength(0)
+    })
+
+    it('shows the no-results state for military bases when the query matches none', async () => {
+      const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('mil')
+      await wrapper.find('#filter-input').setValue('ZZZZZZ')
+      expect(wrapper.find('.filter-no-results').exists()).toBe(true)
+      expect(wrapper.findAll('.filter-icon-mil')).toHaveLength(0)
+    })
   })
 
   describe('keyboard navigation', () => {
@@ -448,6 +464,18 @@ describe('AirFilter', () => {
       adsb._geojson.features = [planeFeature({ hex: 'ee5', flight: 'XYZ5', category: 'A3' })]
       document.dispatchEvent(new CustomEvent('adsb-data-update'))
       await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBeUndefined()
+    })
+
+    it('drops aria-activedescendant when the focused key matches no military base', async () => {
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const input = wrapper.find('#filter-input')
+      await input.trigger('keydown', { key: 'ArrowDown' }) // focus first aircraft (hex aa1)
+      await nextTick()
+      expect(input.attributes('aria-activedescendant')).toBe('filter-opt-plane-0')
+      // Switch to the military-bases category: the focused key (an aircraft hex)
+      // never matches a base name, so activedescendant must not dangle at a stale id.
+      await setCategory('mil')
       expect(input.attributes('aria-activedescendant')).toBeUndefined()
     })
   })

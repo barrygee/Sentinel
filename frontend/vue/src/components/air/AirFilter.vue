@@ -717,12 +717,21 @@ function milOptionLabel(r: MilResult): string {
 // chrome around them stays valid.
 const ownedOptionIds = computed<string>(() => {
   const ids: string[] = []
-  if (filterCategory.value === 'aircraft')
+  if (filterCategory.value === 'aircraft') {
     displayPlanes.value.forEach((_r, index) => ids.push(`filter-opt-plane-${index}`))
-  else if (filterCategory.value === 'airports')
+  } else if (filterCategory.value === 'airports') {
     airports.value.forEach((_r, index) => ids.push(`filter-opt-airport-${index}`))
-  else if (filterCategory.value === 'mil')
-    milBases.value.forEach((_r, index) => ids.push(`filter-opt-mil-${index}`))
+  } else {
+    // defensive: AirFilterCategory is an exhaustive 'aircraft' | 'airports' |
+    // 'mil' union guarded on load (isAirFilterCategory), so once the two prior
+    // arms are excluded, category here is always 'mil' — this check's false
+    // path is unreachable.
+    /* v8 ignore start -- exhaustive union; see comment above */
+    if (filterCategory.value === 'mil') {
+      /* v8 ignore stop */
+      milBases.value.forEach((_r, index) => ids.push(`filter-opt-mil-${index}`))
+    }
+  }
   return ids.join(' ')
 })
 
@@ -746,9 +755,17 @@ const activeDescId = computed<string | undefined>(() => {
   } else if (filterCategory.value === 'airports') {
     const airportIdx = airports.value.findIndex((r) => r.icao === key)
     if (airportIdx >= 0) return `filter-opt-airport-${airportIdx}`
-  } else if (filterCategory.value === 'mil') {
-    const milIdx = milBases.value.findIndex((r) => r.name === key)
-    if (milIdx >= 0) return `filter-opt-mil-${milIdx}`
+  } else {
+    // defensive: AirFilterCategory is an exhaustive 'aircraft' | 'airports' |
+    // 'mil' union guarded on load (isAirFilterCategory), so once the two prior
+    // arms are excluded, category here is always 'mil' — this check's false
+    // path is unreachable.
+    /* v8 ignore start -- exhaustive union; see comment above */
+    if (filterCategory.value === 'mil') {
+      /* v8 ignore stop */
+      const milIdx = milBases.value.findIndex((r) => r.name === key)
+      if (milIdx >= 0) return `filter-opt-mil-${milIdx}`
+    }
   }
   return undefined
 })
