@@ -1080,6 +1080,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract IconRail/IconRailAccordion shell, migrate SpaceSideMenu (#183)
 - Migrate AirSideMenu onto IconRail/IconRailAccordion shell (#184)
 - Migrate settings action buttons onto BaseButton variants (#187)
+- Migrate recordings list onto BaseList with scroll-container expose (#188)
 
 ### Documentation
 
