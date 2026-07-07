@@ -1079,6 +1079,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add BaseList/BaseListItem and BaseDataGrid/BaseDataCell primitives (#182)
 - Extract IconRail/IconRailAccordion shell, migrate SpaceSideMenu (#183)
 - Migrate AirSideMenu onto IconRail/IconRailAccordion shell (#184)
+- Migrate settings action buttons onto BaseButton variants (#187)
 
 ### Documentation
 
