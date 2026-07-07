@@ -1118,6 +1118,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add full-stack integration smoke suite with real FastAPI backend
 - Add Playwright end-to-end suite covering all domains
 - Pin the clock in AirReplayPanel tests so they aren't date-sensitive (#161)
+- Close remaining coverage gaps and restore the 100% gate (#186)
 
 ### Build System
 
