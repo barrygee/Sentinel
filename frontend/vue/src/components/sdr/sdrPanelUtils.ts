@@ -1,5 +1,13 @@
 // Pure helpers for SdrPanel.vue. No Vue / no DOM.
 
+// How long after a teleported dropdown menu opens before a document scroll is
+// treated as a user scroll and dismisses it. Opening a menu focuses its
+// (tabindex) trigger, and the browser scrolls that trigger into view — a
+// single settle scroll fires ~one frame after open. Closing on it would
+// dismiss the menu the instant it opens. Shared by SdrPanel's menus and
+// SdrStepPicker.
+export const MENU_OPEN_SETTLE_MS = 250
+
 export function formatBwHz(hz: number): string {
   if (hz >= 1_000_000) return `${(hz / 1_000_000).toFixed(2)} MHz`
   if (hz >= 1_000) return `${Math.round(hz / 1000)} kHz`
