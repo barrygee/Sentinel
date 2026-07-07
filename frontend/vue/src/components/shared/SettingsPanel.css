@@ -635,40 +635,6 @@
   line-height: 1.5;
 }
 
-.settings-connectivity-warning-btn {
-  align-self: flex-start;
-  background: rgba(16, 19, 29, 0.06);
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  color: rgba(16, 19, 29, 0.7);
-  display: inline-block;
-  margin-right: 8px;
-}
-
-.settings-connectivity-warning-btn--confirm {
-  background: var(--color-accent);
-  color: #0a0c10;
-}
-
-.settings-connectivity-warning-btn--confirm:hover {
-  background: #d8ff33;
-}
-
-.settings-connectivity-warning-btn--cancel:hover {
-  background: rgba(16, 19, 29, 0.12);
-  color: rgba(16, 19, 29, 0.9);
-}
-
 /* ── Source override segmented control ────────────────────────────── */
 .settings-source-override-wrap {
   display: flex;
@@ -741,56 +707,10 @@
 }
 
 /* ── TLE / Space + JSON shared action buttons & inputs ────────────── */
-.tle-action-btn {
-  flex-shrink: 0;
-  background: rgba(16, 19, 29, 0.06);
-  border: none;
-  padding: 0 18px;
-  height: 37px;
-  border-radius: 6px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.85);
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  user-select: none;
-}
-.tle-action-btn:hover:not(:disabled) {
-  background: rgba(16, 19, 29, 0.12);
-}
-.tle-action-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.tle-action-btn--primary {
-  background: var(--color-accent);
-  color: #0a0c10;
-}
-.tle-action-btn--primary:hover:not(:disabled) {
-  background: #d8ff33;
-  color: #0a0c10;
-}
-.tle-action-btn--danger {
-  background: rgba(255, 90, 80, 0.1);
-  border: none;
-  color: #d94436;
-  height: 37px;
-  padding: 0 18px;
-}
-.tle-action-btn--danger:hover:not(:disabled) {
-  background: rgba(255, 90, 80, 0.18);
-  color: #c23a2d;
-}
-.tle-action-btn--confirm {
-  background: rgba(214, 140, 0, 0.14);
-  color: #946000;
-}
+/* .tle-action-btn's own chrome (+ its --primary/--danger/--confirm
+   modifiers) now lives in the BaseButton atom's "ghost"/"primary"/"danger"
+   variants (see src/components/base/BaseButton.vue) — the classnames remain
+   on the rendered buttons purely so tests can still target them. */
 
 .tle-uncat-select {
   flex: 1;
@@ -1524,34 +1444,9 @@
   gap: 10px;
 }
 
-.settings-config-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(16, 19, 29, 0.06);
-  border: none;
-  border-radius: 6px;
-  height: 37px;
-  padding: 0 18px;
-  color: rgba(16, 19, 29, 0.85);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  cursor: pointer;
-  text-decoration: none;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  user-select: none;
-  align-self: flex-start;
-}
-
-.settings-config-btn:hover {
-  background: rgba(16, 19, 29, 0.12);
-  color: rgba(16, 19, 29, 0.95);
-}
+/* .settings-config-btn's own chrome now lives in the BaseButton atom's
+   "ghost" variant (see src/components/base/BaseButton.vue) — the classname
+   remains on the rendered buttons purely so tests can still target them. */
 
 /* ── SDR devices list + add form ──────────────────────────────────── */
 .sdr-devices-wrap {
@@ -1843,37 +1738,10 @@
   padding-top: 2px;
 }
 
-.sdr-devices-btn {
-  background: rgba(16, 19, 29, 0.06);
-  border: none;
-  border-radius: 6px;
-  padding: 8px 18px;
-  color: rgba(16, 19, 29, 0.6);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.sdr-devices-btn:hover {
-  background: rgba(16, 19, 29, 0.12);
-  color: rgba(16, 19, 29, 0.9);
-}
-
-.sdr-devices-btn--primary {
-  background: var(--color-accent);
-  color: #0a0c10;
-}
-
-.sdr-devices-btn--primary:hover {
-  background: #d8ff33;
-  color: #0a0c10;
-}
+/* .sdr-devices-btn's own chrome (+ its --primary modifier) now lives in the
+   BaseButton atom's "ghost"/"primary" variants (see
+   src/components/base/BaseButton.vue) — the classnames remain on the
+   rendered buttons purely so tests can still target them. */
 
 .sdr-devices-add-btn {
   background: none;

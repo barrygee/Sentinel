@@ -12,10 +12,21 @@
       @keydown.tab="onTab"
     ></textarea>
     <div class="settings-config-action-row">
-      <button class="settings-config-btn" @click="toggleVisible">
+      <BaseButton
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="toggleVisible"
+      >
         {{ visible ? 'HIDE' : 'EDIT' }}
-      </button>
-      <button class="settings-config-btn" @click="exportData">EXPORT</button>
+      </BaseButton>
+      <BaseButton
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="exportData"
+        >EXPORT</BaseButton
+      >
       <span v-if="error" class="satradio-error">{{ error }}</span>
     </div>
   </div>
@@ -24,6 +35,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 // Generic JSON-textarea editor that loads from `getUrl` and saves to `postUrl`
 // (POSTing the raw JSON body). Mirrors ConfigCurrentControl's UX — EDIT/HIDE,

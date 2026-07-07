@@ -19,11 +19,13 @@
         </button>
       </div>
     </div>
-    <button
+    <BaseButton
+      variant="danger"
       class="tle-action-btn"
       :class="
         confirmPending ? 'tle-action-btn--danger tle-action-btn--confirm' : 'tle-action-btn--danger'
       "
+      :style="clearAllButtonStyle"
       :disabled="clearLoading"
       @click="clearAll"
     >
@@ -34,7 +36,7 @@
             ? 'CONFIRM — CLEAR ALL TLE DATA?'
             : 'CLEAR ALL TLE DATA'
       }}
-    </button>
+    </BaseButton>
   </div>
 </template>
 
@@ -42,6 +44,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { SATELLITE_CATEGORY_FULL_LABELS, formatTleAge } from '../../../utils/satelliteUtils'
 import { useDocumentEvent } from '../../../composables/useDocumentEvent'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 type CatInfo = { count: number; last_updated: number }
 
@@ -50,6 +53,22 @@ const byCategory = ref<Record<string, CatInfo>>({})
 const confirmPending = ref(false)
 const clearLoading = ref(false)
 let confirmTimer: ReturnType<typeof setTimeout> | null = null
+
+// While a second click is pending, the CLEAR ALL button swaps to the amber
+// "confirm this?" tint (matching the pre-BaseButton `.tle-action-btn--confirm`
+// look) via the danger variant's `--ba-danger-*` custom-property hooks. Hover
+// is deliberately left at its default red — the original CSS's cascade let
+// `.tle-action-btn--danger:hover` win over `--confirm` on hover too.
+// `--ba-disabled-*` matches the pre-BaseButton `.tle-action-btn:disabled`
+// look (lighter opacity, default cursor) rather than BaseButton's shared
+// default disabled treatment.
+const clearAllButtonStyle = computed(
+  () =>
+    '--ba-disabled-opacity: 0.4; --ba-disabled-cursor: default;' +
+    (confirmPending.value
+      ? ' --ba-danger-bg: rgba(214, 140, 0, 0.14); --ba-danger-color: #946000;'
+      : ''),
+)
 
 // Per-category clear: two-step confirm (one category at a time) mirroring CLEAR ALL.
 const confirmCat = ref<string | null>(null)
