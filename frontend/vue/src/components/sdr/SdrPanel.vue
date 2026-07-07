@@ -1987,7 +1987,7 @@ import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useSdrStore } from '@/stores/sdr'
-import type { SdrMode, SdrTab } from '@/stores/sdr'
+import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {
@@ -1997,37 +1997,9 @@ import {
   deleteSearchRange as apiDeleteSearchRange,
 } from '@/services/sdrSearchApi'
 
-interface SdrRadio {
-  id: number
-  name: string
-  host: string
-  enabled: boolean
-}
-interface SdrFrequencyGroup {
-  id: number
-  name: string
-  slug: string
-  color: string
-  sort_order: number
-}
-interface SdrStoredFrequency {
-  id: number
-  label: string
-  frequency_hz: number
-  mode: string
-  scannable: boolean
-  group_ids: number[]
-  group_id?: number | null
-  squelch?: number
-  gain?: number
-  bandwidth?: number | null
-  sample_rate?: number | null
-  volume?: number
-  zoom?: number
-  zmin?: number
-  zmax?: number
-  notes?: string
-}
+// SdrRadio / SdrFrequencyGroup / SdrStoredFrequency now come from the SDR
+// store (see stores/sdr.ts) — it owns loading radios/groups/frequencies, so
+// the shape lives in one place instead of a duplicated local interface.
 defineProps<{ fullPage: boolean }>()
 
 const sdrAudio = useSdrAudio()
@@ -2200,7 +2172,10 @@ watch(
 )
 const controlsDisabled = ref(true)
 const selectedRadioId = ref<number | null>(null)
-const knownRadios = ref<SdrRadio[]>([])
+// Store-owned: the SDR store fetches/holds the configured radios (loadRadios);
+// this panel only reads them (dropdown, auto-select) and drives the fetch via
+// the store action — see loadRadios()/populateRadios() below.
+const knownRadios = computed<SdrRadio[]>(() => _sdrStore().radios)
 const currentMode = ref('AM')
 const freqInputVal = ref('')
 const freqInputRef = ref<HTMLInputElement | null>(null)
@@ -2421,8 +2396,12 @@ const SEARCH_MAX_RECHECKS = 6
 let _lastSpectrum: { bins: number[]; center_hz: number; sample_rate: number } | null = null
 
 // ── Groups + frequencies ──────────────────────────────────────────────────────
-const groups = ref<SdrFrequencyGroup[]>([])
-const freqs = ref<SdrStoredFrequency[]>([])
+// Store-owned: the SDR store fetches/holds groups and frequencies
+// (loadGroups/loadFrequencies) so SdrWaterfall's known-frequency markers read
+// the same data with no prop-drilling. This panel reads them as computeds and
+// drives the fetch via reloadData() below, which calls the store actions.
+const groups = computed<SdrFrequencyGroup[]>(() => _sdrStore().groups)
+const freqs = computed<SdrStoredFrequency[]>(() => _sdrStore().frequencies)
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
 const scannerSectionExpanded = ref(false)
@@ -3861,7 +3840,10 @@ function closeMenusOnScroll() {
 const RADIOS_CACHE_KEY2 = 'sdrRadiosCache'
 
 function populateRadios(radios: SdrRadio[]) {
-  knownRadios.value = radios
+  // Writes straight into the store — it owns `radios` (see loadRadios below and
+  // stores/sdr.ts) — so `knownRadios` (a computed reading the store) reflects it
+  // immediately, without a separate local copy to keep in sync.
+  _sdrStore().radios = radios
   radiosLoading.value = false
   try {
     sessionStorage.setItem(RADIOS_CACHE_KEY2, JSON.stringify(radios))
@@ -3895,11 +3877,16 @@ async function loadRadios() {
     const cached = sessionStorage.getItem(RADIOS_CACHE_KEY2)
     if (cached) populateRadios(JSON.parse(cached))
   } catch (_) {}
-  try {
-    const res = await fetch('/api/sdr/radios')
-    const radios: SdrRadio[] = await res.json()
-    populateRadios(radios)
-  } catch (_) {}
+  // Fetching itself is now owned by the store (loadRadios) so SdrPanel isn't
+  // the only place that knows how to load the radio list; this panel just
+  // drives the load and runs its own selection/UI side effects afterward.
+  // loadRadios() only replaces `radios` on a successful (2xx) response and
+  // silently keeps the previous value otherwise, so re-running selection here
+  // unconditionally is safe: on failure it just re-applies the same (cached or
+  // empty) list, and openControlSocket() no-ops if already connect(ing) to the
+  // same radio.
+  await _sdrStore().loadRadios()
+  populateRadios(_sdrStore().radios)
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
@@ -5088,26 +5075,12 @@ async function deleteRange(id: number) {
 // ── Data reload ───────────────────────────────────────────────────────────────
 
 async function reloadData() {
-  try {
-    const [gRes, fRes] = await Promise.all([
-      fetch('/api/sdr/groups'),
-      fetch('/api/sdr/frequencies'),
-    ])
-    groups.value = await gRes.json()
-    freqs.value = await fRes.json()
-    void reloadSearchRanges()
-    // Mirror into the SDR store so SdrWaterfall can render label markers on the
-    // FFT. SdrPanel owns the fetch; the store keeps the slimmer shape consumed
-    // by other components.
-    _sdrStore().frequencies = freqs.value.map((f) => ({
-      id: f.id,
-      group_id: f.group_id ?? null,
-      label: f.label,
-      frequency_hz: f.frequency_hz,
-      mode: f.mode,
-    }))
-    _scanQueue = buildScanQueue()
-  } catch (_) {}
+  // Groups + frequencies are fetched by the store (loadGroups/loadFrequencies)
+  // so SdrWaterfall's known-frequency markers read the exact same data this
+  // panel edits — no separate slim mirror copy needed anymore.
+  await Promise.all([_sdrStore().loadGroups(), _sdrStore().loadFrequencies()])
+  void reloadSearchRanges()
+  _scanQueue = buildScanQueue()
   await recordingsSectionRef.value?.reload()
 }
 
