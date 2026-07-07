@@ -121,128 +121,13 @@
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'radio' }">
         <!-- Device dropdown -->
         <div class="sdr-radio-section sdr-radio-section--device">
-          <div
-            ref="deviceDropdownRef"
-            class="sdr-device-dropdown"
-            :class="{
-              'sdr-device-dropdown--loading': radiosLoading,
-              'sdr-device-dropdown--open': deviceMenuOpen,
-            }"
-            role="combobox"
-            tabindex="0"
-            aria-label="Radio device"
-            aria-haspopup="listbox"
-            aria-controls="sdr-device-listbox"
-            aria-owns="sdr-device-listbox"
-            :aria-expanded="deviceMenuOpen"
-            :aria-activedescendant="deviceActiveDescId"
-            @click.stop="toggleDeviceMenu"
-            @keydown="onDeviceDropdownKey"
-          >
-            <div class="sdr-device-dropdown-selected">
-              <div
-                class="sdr-conn-dot"
-                :class="connected ? 'sdr-dot-on' : 'sdr-dot-off'"
-                :title="connected ? 'CONNECTED' : 'DISCONNECTED'"
-              ></div>
-              <span
-                class="sdr-device-dropdown-text"
-                :class="{
-                  'sdr-device-dropdown-text--chosen': selectedRadioId !== null,
-                  'sdr-device-dropdown-text--readonly': readOnly,
-                }"
-                >{{ deviceDropdownLabel }}</span
-              >
-              <!-- Padlock shown when another Sentinel controls the shared tuner;
-                   decorative here (the sr-only status below announces the state). -->
-              <svg
-                v-if="readOnly"
-                class="sdr-device-lock"
-                width="12"
-                height="12"
-                viewBox="0 0 14 14"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-                  stroke="currentColor"
-                  stroke-width="1.3"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span class="sdr-device-dropdown-arrow"></span>
-            </div>
-          </div>
-          <span v-if="readOnly" class="sr-only" role="status"
-            >Another Sentinel is controlling this radio</span
-          >
-          <Teleport to="body">
-            <div
-              v-if="deviceMenuOpen"
-              ref="deviceMenuRef"
-              class="sdr-device-menu sdr-device-menu--open"
-              :style="deviceMenuStyle"
-              @click.stop
-            >
-              <div id="sdr-device-listbox" role="listbox" aria-label="Available radios">
-                <div
-                  :id="deviceOptionId(0)"
-                  role="option"
-                  class="sdr-device-menu-item sdr-device-menu-placeholder"
-                  :class="{ 'sdr-device-menu-item--active': deviceHighlight === 0 }"
-                  :aria-selected="deviceHighlight === 0"
-                  @click="selectRadio(null)"
-                  @mousemove="deviceHighlight = 0"
-                >
-                  — select radio —
-                </div>
-                <div
-                  v-for="(r, index) in menuRadios"
-                  :id="deviceOptionId(index + 1)"
-                  :key="r.id"
-                  role="option"
-                  class="sdr-device-menu-item"
-                  :class="{
-                    'sdr-device-menu-item--active': deviceHighlight === index + 1,
-                    'sdr-device-menu-item--readonly': isRadioReadOnly(r),
-                  }"
-                  :aria-selected="deviceHighlight === index + 1"
-                  @click="selectRadio(r)"
-                  @mousemove="deviceHighlight = index + 1"
-                >
-                  <span class="sdr-device-menu-item-label"
-                    >{{ r.name }}<span class="sdr-device-menu-item-host">{{ r.host }}</span></span
-                  >
-                  <!-- Padlock: this radio is controlled by another Sentinel. Only the
-                       connected radio's lock is known, so only its row is marked. -->
-                  <svg
-                    v-if="isRadioReadOnly(r)"
-                    class="sdr-device-lock sdr-device-menu-item-lock"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 14 14"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-                      stroke="currentColor"
-                      stroke-width="1.3"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <!-- Non-selectable status note lives outside the listbox. -->
-              <div
-                v-if="menuRadios.length === 0"
-                class="sdr-device-menu-item sdr-device-menu-placeholder"
-              >
-                no radios configured
-              </div>
-            </div>
-          </Teleport>
+          <SdrDeviceSelector
+            :label="deviceDropdownLabel"
+            :loading="radiosLoading"
+            :connected="connected"
+            :selected-radio-id="selectedRadioId"
+            @select="selectRadio"
+          />
         </div>
 
         <!-- Frequency -->
@@ -968,6 +853,7 @@ import SdrGroupsTab from './SdrGroupsTab.vue'
 import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
 import SdrStepPicker from './SdrStepPicker.vue'
 import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
+import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
@@ -1010,13 +896,6 @@ function _notificationsStore() {
 // disables this instance's hardware tuning controls (frequency, gain, sample
 // rate, scan, search). False for a single instance or a free/unowned tuner.
 const readOnly = computed(() => _sdrStore().readOnly)
-
-// A dropdown row is shown read-only (red + padlock) when this instance is a
-// follower AND the row is the radio we're connected to — the only radio whose
-// lock state we actually know (its control channel is the one we're on).
-function isRadioReadOnly(radio: SdrRadio): boolean {
-  return readOnly.value && radio.id === selectedRadioId.value
-}
 
 // Visual disable for controls a read-only follower must NOT drive: disabled when
 // there's no usable radio (controlsDisabled) OR this instance is a follower. This
@@ -1304,15 +1183,10 @@ const signalAudible = computed(
 )
 
 // ── Device dropdown ───────────────────────────────────────────────────────────
-const deviceDropdownRef = ref<HTMLElement | null>(null)
-const deviceMenuRef = ref<HTMLElement | null>(null)
-const deviceMenuOpen = ref(false)
-// Keyboard-highlighted option in the device listbox (select-only combobox):
-// 0 = the "select radio" placeholder, 1..N = menuRadios[index-1].
-const deviceHighlight = ref(0)
+// The combobox UI (listbox menu, keyboard nav, padlock rows) lives in
+// SdrDeviceSelector.vue; it emits `select` into selectRadio() below. The panel
+// keeps the engine-written display state it passes down as props.
 const radiosLoading = ref(true)
-const menuRadios = ref<SdrRadio[]>([])
-const deviceMenuStyle = ref<Record<string, string>>({})
 const deviceDropdownLabel = ref('loading…')
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
@@ -2532,7 +2406,6 @@ function clearRadioSelection() {
 }
 
 function selectRadio(r: SdrRadio | null) {
-  closeDeviceMenu()
   if (_sdrStore().digitalEnabled) setDigital(false)
   if (!r) {
     clearRadioSelection()
@@ -2550,108 +2423,7 @@ function selectRadio(r: SdrRadio | null) {
   void openControlSocket(r.id)
 }
 
-// ── Device dropdown ───────────────────────────────────────────────────────────
-
-function positionDeviceMenu() {
-  const el = deviceDropdownRef.value
-  // The device dropdown is always rendered, so its ref is populated when the
-  // menu is toggled open.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  deviceMenuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
-
-// The device listbox always has the placeholder (index 0) plus one option per
-// online radio. The active-descendant id is clamped so it always references a
-// rendered option (radios can load in after the menu opens).
-const deviceOptionCount = computed(() => 1 + menuRadios.value.length)
-function deviceOptionId(index: number): string {
-  return `sdr-device-opt-${index}`
-}
-const deviceActiveDescId = computed(() =>
-  deviceMenuOpen.value
-    ? deviceOptionId(Math.min(deviceHighlight.value, deviceOptionCount.value - 1))
-    : undefined,
-)
-
-function openDeviceMenu() {
-  positionDeviceMenu()
-  deviceHighlight.value = 0
-  deviceMenuOpen.value = true
-  populateMenuRadios()
-}
-
-function toggleDeviceMenu() {
-  if (deviceMenuOpen.value) {
-    closeDeviceMenu()
-    return
-  }
-  openDeviceMenu()
-}
-
-function selectHighlightedRadio() {
-  const index = deviceHighlight.value
-  // `index` is clamped to 0..menuRadios.length by the key handler, so a non-zero
-  // index always maps to a present radio.
-  selectRadio(index === 0 ? null : menuRadios.value[index - 1]!)
-}
-
-function closeDeviceMenu() {
-  deviceMenuOpen.value = false
-}
-
-// List every enabled radio. We deliberately do NOT probe reachability here:
-// rtl_tcp is single-client, so opening a throwaway probe socket to a radio (then
-// closing it) disturbs the dongle and made the immediately-following control
-// connect fail — the user had to select the radio twice before it connected.
-// Reachability is shown by the device dot once a radio is selected and the real
-// control connection is established; the menu just lists what's configured.
-function populateMenuRadios() {
-  menuRadios.value = knownRadios.value.filter((r) => r.enabled)
-}
-
-function onDeviceDropdownKey(e: KeyboardEvent) {
-  if (!deviceMenuOpen.value) {
-    // Closed: Enter/Space/Arrow keys open the listbox.
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault()
-      openDeviceMenu()
-    }
-    return
-  }
-  // Open: arrow keys move the highlight, Enter/Space selects, Escape/Tab close.
-  const count = deviceOptionCount.value
-  if (e.key === 'ArrowDown') {
-    e.preventDefault()
-    deviceHighlight.value = (deviceHighlight.value + 1) % count
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault()
-    deviceHighlight.value = (deviceHighlight.value - 1 + count) % count
-  } else if (e.key === 'Home') {
-    e.preventDefault()
-    deviceHighlight.value = 0
-  } else if (e.key === 'End') {
-    e.preventDefault()
-    deviceHighlight.value = count - 1
-  } else if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    selectHighlightedRadio()
-  } else if (e.key === 'Escape') {
-    e.preventDefault()
-    closeDeviceMenu()
-  } else if (e.key === 'Tab') {
-    closeDeviceMenu()
-  }
-}
-
 function closeAllMenus() {
-  if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
   if (trunkMapMenuOpen.value) closeTrunkMapMenu()
 }
@@ -3871,12 +3643,13 @@ onUnmounted(() => {
 })
 
 // Record when any menu transitions from closed to open, to arm the settle window
-// used by closeMenusOnScroll. One watcher covers the panel's three remaining
-// dropdowns (the step and ef-sample-rate dropdowns live in SdrStepPicker /
-// SdrSampleRatePicker, which own their own settle windows). Registered here
-// (end of setup) so every menu-open ref it reads is already initialised.
+// used by closeMenusOnScroll. One watcher covers the panel's two remaining
+// dropdowns (the device, step and ef-sample-rate dropdowns live in
+// SdrDeviceSelector / SdrStepPicker / SdrSampleRatePicker, which own their own
+// settle windows). Registered here (end of setup) so every menu-open ref it
+// reads is already initialised.
 watch(
-  () => deviceMenuOpen.value || sampleRateMenuOpen.value || trunkMapMenuOpen.value,
+  () => sampleRateMenuOpen.value || trunkMapMenuOpen.value,
   (anyMenuOpen) => {
     if (anyMenuOpen) lastMenuOpenedAtMs = Date.now()
   },
