@@ -19,7 +19,16 @@
     </button>
   </div>
   <div class="sdr-recordings-body">
-    <div id="sdr-recordings-list-wrap" ref="recordingsListWrapRef" @scroll="updateScrollHint">
+    <BaseList
+      id="sdr-recordings-list-wrap"
+      ref="recordingsListWrapRef"
+      :is-empty="!liveRecording && filteredRecordings.length === 0"
+      empty-text="No recordings."
+      @scroll="updateScrollHint"
+    >
+      <template #empty>
+        <div id="sdr-recordings-empty" class="sdr-panel-empty">No recordings.</div>
+      </template>
       <!-- Live recording row -->
       <div v-if="liveRecording" class="sdr-recording-row sdr-recording-live">
         <div class="sdr-recording-content">
@@ -309,15 +318,7 @@
           @ended="onAudioEnded(c.id)"
         ></audio>
       </div>
-
-      <div
-        v-if="!liveRecording && filteredRecordings.length === 0"
-        id="sdr-recordings-empty"
-        class="sdr-panel-empty"
-      >
-        No recordings.
-      </div>
-    </div>
+    </BaseList>
     <div id="sdr-recordings-scroll-hint" ref="scrollHintRef" style="display: none">
       MORE
       <ScrollHintChevronIcon id="sdr-recordings-scroll-arrow" />
@@ -328,6 +329,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
+import BaseList from '@/components/base/BaseList.vue'
 
 interface SdrRecording {
   id: number
@@ -398,7 +400,10 @@ watch(playingRecordingId, (id, prev) => {
   if ((id !== null) !== (prev !== null)) emit('playback-active', id !== null)
 })
 
-const recordingsListWrapRef = ref<HTMLElement | null>(null)
+// A BaseList component ref — the scroll-hint below reads its exposed
+// `scrollContainer` (the list's root scrolling element) rather than owning its
+// own div ref, per the convention documented on BaseList.
+const recordingsListWrapRef = ref<InstanceType<typeof BaseList> | null>(null)
 const scrollHintRef = ref<HTMLElement | null>(null)
 
 // ── Inline edit accordion state ───────────────────────────────────────────────
@@ -560,7 +565,7 @@ function downloadRecording(c: SdrRecording, type: 'wav' | 'iq'): void {
 // ── Scroll hint ───────────────────────────────────────────────────────────────
 
 function updateScrollHint(): void {
-  const wrap = recordingsListWrapRef.value
+  const wrap = recordingsListWrapRef.value?.scrollContainer
   const hint = scrollHintRef.value
   /* v8 ignore start -- defensive: both elements are always present in the template (not
      behind a v-if), so the refs are set whenever this runs. */

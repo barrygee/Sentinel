@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 /**
  * `BaseList` — the shared "wrapper + empty state + rows" scaffold behind the
  * list-shaped panels that recur across the app (`TrackingPanel.vue`'s tracked
@@ -23,6 +25,25 @@
  * e.g. TrackingPanel's `#msb-tracking-empty` rule in `MapSidebar.vue`), that
  * markup renders unwrapped — so a caller's own padding/styling is never
  * doubled up inside this component's own empty-state box.
+ *
+ * ## Scroll container exposure
+ * A caller occasionally needs raw DOM measurements off the actual scrolling
+ * element — e.g. a "scroll for more" hint that reads `scrollHeight` /
+ * `clientHeight` / `scrollTop` (see `SdrRecordingsSection.vue`). Rather than
+ * have that caller reach for the component's `$el` (fragile: breaks if this
+ * template ever grows a wrapper or the root element changes), `BaseList`
+ * exposes its root element as `scrollContainer` via `defineExpose`. This is
+ * the established convention for base components in this app that own the
+ * element a caller may need direct DOM access to: expose a named, typed
+ * handle rather than the opaque `$el`. A caller obtains it through a
+ * component template ref, e.g.
+ * `const listRef = ref<InstanceType<typeof BaseList> | null>(null)`, then
+ * reads `listRef.value?.scrollContainer`.
+ *
+ * Non-prop attributes (an `id`, a `@scroll` listener, …) fall through to this
+ * single root element automatically, same as any other Vue 3 SFC with one
+ * root node — no extra wiring needed for a caller to attach those directly to
+ * the scroll container.
  */
 interface BaseListProps {
   /** Whether the list has no items to show. Callers compute this themselves
@@ -35,10 +56,14 @@ interface BaseListProps {
 }
 
 defineProps<BaseListProps>()
+
+const scrollContainer = ref<HTMLDivElement | null>(null)
+
+defineExpose({ scrollContainer })
 </script>
 
 <template>
-  <div class="ba-list">
+  <div ref="scrollContainer" class="ba-list">
     <div v-if="isEmpty && !$slots.empty" class="ba-list-empty">{{ emptyText }}</div>
     <slot v-else-if="isEmpty" name="empty" />
     <slot v-else />

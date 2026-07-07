@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import BaseList from './BaseList.vue'
@@ -44,5 +44,23 @@ describe('BaseList', () => {
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
+  })
+
+  it('exposes its root element as scrollContainer', () => {
+    const wrapper = mount(BaseList, { props: { isEmpty: false, emptyText: 'No tracked items' } })
+    const exposed = wrapper.vm as unknown as { scrollContainer: HTMLDivElement | null }
+    expect(exposed.scrollContainer).toBe(wrapper.find('.ba-list').element)
+  })
+
+  it('lets non-prop attributes (id, scroll listener) fall through to the root element', async () => {
+    const onScroll = vi.fn()
+    const wrapper = mount(BaseList, {
+      props: { isEmpty: false, emptyText: 'No tracked items' },
+      attrs: { id: 'probe-list-wrap', onScroll },
+    })
+    const root = wrapper.find('.ba-list')
+    expect(root.attributes('id')).toBe('probe-list-wrap')
+    await root.trigger('scroll')
+    expect(onScroll).toHaveBeenCalledTimes(1)
   })
 })
