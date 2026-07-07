@@ -12,10 +12,21 @@
       @keydown.tab="onTab"
     ></textarea>
     <div class="settings-config-action-row">
-      <button class="settings-config-btn" @click="toggleVisible">
+      <BaseButton
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="toggleVisible"
+      >
         {{ visible ? 'HIDE' : 'EDIT' }}
-      </button>
-      <button class="settings-config-btn" @click="exportConfig">EXPORT</button>
+      </BaseButton>
+      <BaseButton
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="exportConfig"
+        >EXPORT</BaseButton
+      >
     </div>
   </div>
 </template>
@@ -24,6 +35,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { isValidLatLon } from '@/utils/locationUtils'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 // Same key useUserLocation seeds sharedLocation from on reload. Clearing it
 // here when the config location is emptied keeps the post-reload seed correct

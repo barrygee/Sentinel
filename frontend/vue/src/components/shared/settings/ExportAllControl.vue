@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 // Standalone "export everything" control. Writes the full Sentinel configuration
 // — the app config plus the two SDR data files that live outside it
@@ -108,7 +109,13 @@ async function exportAllConfigs(): Promise<void> {
 <template>
   <div class="settings-export-all-wrap">
     <div class="settings-export-all-action">
-      <button class="settings-config-btn" @click="exportAllConfigs">EXPORT ALL</button>
+      <BaseButton
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="exportAllConfigs"
+        >EXPORT ALL</BaseButton
+      >
       <span v-if="status" class="settings-export-all-status" role="status">{{ status }}</span>
     </div>
   </div>

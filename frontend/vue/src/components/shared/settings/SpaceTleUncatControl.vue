@@ -43,20 +43,23 @@
         </div>
       </div>
     </div>
-    <button
+    <BaseButton
       v-if="satellites.length > 0"
+      variant="ghost"
       class="tle-action-btn"
+      style="--ba-disabled-opacity: 0.4; --ba-disabled-cursor: default"
       :disabled="saveLoading"
       @click="saveAll"
     >
       {{ saveLoading ? 'SAVING…' : 'SAVE ALL' }}
-    </button>
+    </BaseButton>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useDocumentEvent } from '../../../composables/useDocumentEvent'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 const TLE_ASSIGN_CATEGORIES = [
   { value: 'space_station', label: 'Space Stations' },

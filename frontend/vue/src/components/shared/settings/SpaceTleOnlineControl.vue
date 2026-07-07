@@ -40,13 +40,22 @@
           </div>
         </div>
       </div>
-      <button
+      <BaseButton
+        variant="primary"
         class="tle-action-btn tle-action-btn--primary"
+        style="
+          --ba-primary-height: 37px;
+          --ba-primary-padding: 0 18px;
+          --ba-primary-font-weight: 600;
+          --ba-primary-letter-spacing: 0.16em;
+          --ba-disabled-opacity: 0.4;
+          --ba-disabled-cursor: default;
+        "
         :disabled="updateLoading"
         @click="updateTle"
       >
         {{ updateLoading ? 'UPDATING…' : 'UPDATE TLE' }}
-      </button>
+      </BaseButton>
     </div>
     <div class="tle-status-line">
       <span v-if="statusMsg" class="tle-status-badge" :class="'tle-status-badge--' + statusType">{{
@@ -93,6 +102,7 @@
 import { ref, computed, onMounted } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
 import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },
