@@ -1082,6 +1082,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Migrate settings action buttons onto BaseButton variants (#187)
 - Migrate recordings list onto BaseList with scroll-container expose (#188)
 - Centralise sidebar pane ids and teleport-readiness logic (#189)
+- Migrate SdrPanel rail buttons onto BaseIconButton (decomposition P0) (#190)
 
 ### Documentation
 
