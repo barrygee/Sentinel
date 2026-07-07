@@ -14,12 +14,17 @@ export interface SdrFrequencyGroup {
   id: number
   name: string
   slug: string
+  color: string
   sort_order: number
 }
 
 export interface SdrStoredFrequency {
   id: number
+  // Legacy single-group id (kept for callers that only need one group);
+  // `group_ids` is the current many-to-many representation returned by the
+  // backend and is what the Frequency Manager's group filtering/editing uses.
   group_id: number | null
+  group_ids?: number[]
   label: string
   frequency_hz: number
   mode: string
@@ -35,6 +40,7 @@ export interface SdrStoredFrequency {
   zmin?: number
   zmax?: number
   scannable?: boolean
+  notes?: string
 }
 
 export type SdrMode = 'NFM' | 'WFM' | 'AM' | 'USB' | 'LSB' | 'CW'
@@ -743,6 +749,13 @@ export const useSdrStore = defineStore('sdr', () => {
     fftSizeRequest.value = { bins, nonce: ++_fftNonce }
   }
 
+  // Fetch the configured SDR radios and replace `radios` with the result. This
+  // is the single owner of that list — SdrPanel (radio dropdown/auto-select)
+  // and any other consumer read `radios` rather than loading it themselves.
+  // Silently keeps the previous value on a network error or non-2xx response
+  // (offline/transient failure), matching the rest of this store's fetch
+  // helpers — callers that need to react to failure should check whether the
+  // list actually changed.
   async function loadRadios() {
     try {
       const res = await fetch('/api/sdr/radios')
@@ -750,6 +763,8 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
 
+  // Fetch the saved frequency groups and replace `groups`. Single owner of
+  // group data — see loadRadios for the error-handling rationale.
   async function loadGroups() {
     try {
       const res = await fetch('/api/sdr/groups')
@@ -757,6 +772,12 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
 
+  // Fetch the saved (Frequency Manager) frequencies and replace `frequencies`.
+  // Single owner of frequency data — both SdrPanel's Frequency Manager UI and
+  // SdrWaterfall's known-frequency markers read this same list, so it now
+  // carries the full backend shape (group_ids, notes, per-frequency tuning
+  // settings) rather than a slimmed-down mirror. See loadRadios for the
+  // error-handling rationale.
   async function loadFrequencies() {
     try {
       const res = await fetch('/api/sdr/frequencies')
