@@ -1084,6 +1084,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centralise sidebar pane ids and teleport-readiness logic (#189)
 - Migrate SdrPanel rail buttons onto BaseIconButton (decomposition P0) (#190)
 - Move radios/groups/frequencies ownership into the sdr store (decomposition P1) (#191)
+- Extract the GROUPS tab into SdrGroupsTab (decomposition P2) (#192)
 
 ### Documentation
 
