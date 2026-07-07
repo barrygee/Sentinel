@@ -785,12 +785,44 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
 
+  /**
+   * The groups a stored frequency belongs to. Merges the current many-to-many
+   * `group_ids` with the legacy single `group_id` (0 / null mean "Default",
+   * i.e. no group).
+   */
+  function freqGroupsFor(freq: SdrStoredFrequency): SdrFrequencyGroup[] {
+    const ids = new Set<number>((freq.group_ids || []).filter((id) => id !== 0))
+    if (freq.group_id != null && freq.group_id !== 0) ids.add(freq.group_id)
+    return groups.value.filter((group) => ids.has(group.id))
+  }
+
+  /**
+   * Groups that currently have at least one stored frequency, sorted
+   * case-insensitively by name. Drives the RADIO tab's scan-group chips and
+   * the Frequency Manager's group filter.
+   */
+  const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => {
+    const idsWithFreqs = new Set<number>()
+    frequencies.value.forEach((freq) => {
+      ;(freq.group_ids || []).forEach((id) => {
+        if (id !== 0) idsWithFreqs.add(id)
+      })
+      if (freq.group_id != null && freq.group_id !== 0) idsWithFreqs.add(freq.group_id)
+    })
+    return groups.value
+      .filter((group) => idsWithFreqs.has(group.id))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+  })
+
   _restoreSession()
 
   return {
     radios,
     groups,
     frequencies,
+    freqGroupsFor,
+    groupsWithFreqs,
     currentRadioId,
     playing,
     connected,
