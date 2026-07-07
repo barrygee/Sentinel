@@ -1086,6 +1086,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move radios/groups/frequencies ownership into the sdr store (decomposition P1) (#191)
 - Extract the GROUPS tab into SdrGroupsTab (decomposition P2) (#192)
 - Extract SEARCH RANGES tab and shared step picker (decomposition P3) (#193)
+- Extract FREQUENCY MANAGER tab and sample-rate picker (decomposition P4) (#194)
 
 ### Documentation
 
