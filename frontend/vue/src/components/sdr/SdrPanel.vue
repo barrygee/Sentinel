@@ -685,24 +685,10 @@
               </div>
               <div class="sdr-search-adhoc-col">
                 <label class="sdr-field-label">STEP</label>
-                <div
-                  :ref="setAdhocStepDropdownRef"
-                  class="sdr-device-dropdown sdr-step-dropdown"
-                  :class="{
-                    'sdr-device-dropdown--open': stepMenuOpen && stepMenuTarget === 'adhoc',
-                    'sdr-device-dropdown--loading': controlsDisabled || searchActive,
-                  }"
-                  tabindex="0"
-                  @click.stop="controlsDisabled || searchActive ? null : toggleStepMenu('adhoc')"
-                  @keydown="onStepDropdownKey($event, 'adhoc')"
-                >
-                  <div class="sdr-device-dropdown-selected">
-                    <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
-                      adhocStepLabel
-                    }}</span>
-                    <span class="sdr-device-dropdown-arrow"></span>
-                  </div>
-                </div>
+                <SdrStepPicker
+                  v-model="adhocStepKhz"
+                  :disabled="controlsDisabled || searchActive"
+                />
               </div>
               <div class="sdr-search-adhoc-col sdr-search-adhoc-col--play">
                 <button
@@ -1540,320 +1526,11 @@
 
       <!-- ───────────── SEARCH RANGES TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'search-ranges' }">
-        <div class="sdr-search-ranges-body">
-          <div id="sdr-search-range-list">
-            <div
-              v-for="r in filteredSearchRanges"
-              :key="r.id"
-              class="sdr-freq-row-item"
-              :class="{ 'sdr-freq-editing': editingRangeId === r.id }"
-            >
-              <div class="sdr-freq-row-top">
-                <div
-                  class="sdr-freq-row-body sdr-search-range-row-body"
-                  role="button"
-                  tabindex="0"
-                  :title="
-                    rangeEditorOpen && editingRangeId === r.id ? 'Close editor' : 'Edit range'
-                  "
-                  @click.stop="toggleEditRange(r)"
-                  @keydown.enter.stop.prevent="toggleEditRange(r)"
-                  @keydown.space.stop.prevent="toggleEditRange(r)"
-                >
-                  <div class="sdr-freq-row-main">
-                    <span class="sdr-freq-row-label">{{ r.label }}</span>
-                  </div>
-                  <div class="sdr-freq-row-sub">
-                    <span class="sdr-freq-row-hz"
-                      >{{ (r.low_hz / 1e6).toFixed(3) }}–{{
-                        (r.high_hz / 1e6).toFixed(3)
-                      }}
-                      MHz</span
-                    >
-                  </div>
-                </div>
-                <span class="sdr-freq-row-play-spacer" aria-hidden="true"></span>
-                <button
-                  v-if="!(rangeEditorOpen && editingRangeId === r.id)"
-                  class="sdr-freq-row-edit"
-                  aria-label="Edit range"
-                  title="Edit"
-                  @click.stop="toggleEditRange(r)"
-                >
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path
-                      d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </button>
-                <button
-                  class="sdr-freq-row-del"
-                  aria-label="Delete range"
-                  title="Delete"
-                  @click.stop="deleteRange(r.id)"
-                >
-                  &#x2715;
-                </button>
-              </div>
-
-              <!-- Inline edit form (accordion body) -->
-              <div
-                v-if="rangeEditorOpen && editingRangeId === r.id"
-                class="sdr-editfreq-body expanded"
-                @click.stop
-              >
-                <div class="sdr-editfreq-field">
-                  <label class="sdr-field-label">LABEL</label>
-                  <input
-                    v-model="rangeEditor.label"
-                    class="sdr-panel-input"
-                    type="text"
-                    aria-label="Range label"
-                    placeholder="e.g. Air Band"
-                    maxlength="60"
-                    style="width: 100%"
-                  />
-                </div>
-                <div class="sdr-editfreq-field sdr-range-row">
-                  <div class="sdr-range-col">
-                    <label class="sdr-field-label">LOW (MHz)</label>
-                    <input
-                      v-model="rangeEditor.low_mhz"
-                      class="sdr-panel-input"
-                      type="number"
-                      aria-label="Range low frequency in MHz"
-                      step="0.0001"
-                      style="width: 100%"
-                    />
-                  </div>
-                  <div class="sdr-range-col">
-                    <label class="sdr-field-label">HIGH (MHz)</label>
-                    <input
-                      v-model="rangeEditor.high_mhz"
-                      class="sdr-panel-input"
-                      type="number"
-                      aria-label="Range high frequency in MHz"
-                      step="0.0001"
-                      style="width: 100%"
-                    />
-                  </div>
-                </div>
-                <div class="sdr-editfreq-field sdr-range-row">
-                  <div class="sdr-range-col">
-                    <label class="sdr-field-label">STEP</label>
-                    <div
-                      :ref="setStepDropdownRef"
-                      class="sdr-device-dropdown sdr-step-dropdown"
-                      :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
-                      tabindex="0"
-                      @click.stop="toggleStepMenu('range')"
-                      @keydown="onStepDropdownKey($event, 'range')"
-                    >
-                      <div class="sdr-device-dropdown-selected">
-                        <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
-                          stepMenuLabel
-                        }}</span>
-                        <span class="sdr-device-dropdown-arrow"></span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="sdr-range-col">
-                    <label class="sdr-field-label">DWELL (ms)</label>
-                    <input
-                      v-model="rangeEditor.dwell_ms"
-                      class="sdr-panel-input"
-                      type="number"
-                      step="10"
-                      min="50"
-                      aria-label="Dwell time in milliseconds"
-                      style="width: 100%"
-                    />
-                  </div>
-                </div>
-                <div class="sdr-editfreq-field">
-                  <label class="sdr-field-label">MODE</label>
-                  <div class="sdr-mode-pills">
-                    <button
-                      v-for="m in SEARCH_MODES"
-                      :key="m"
-                      type="button"
-                      class="sdr-mode-pill"
-                      :class="{ active: rangeEditor.mode === m }"
-                      @click="rangeEditor.mode = m"
-                    >
-                      {{ m }}
-                    </button>
-                  </div>
-                </div>
-                <div class="sdr-editfreq-field">
-                  <label class="sdr-field-label">THRESHOLD (dBFS)</label>
-                  <input
-                    v-model="rangeEditor.threshold_dbfs"
-                    class="sdr-panel-input"
-                    type="number"
-                    step="1"
-                    aria-label="Threshold in dBFS"
-                    style="width: 100%"
-                  />
-                </div>
-                <div class="sdr-editfreq-field">
-                  <label class="sdr-field-label">NOTES</label>
-                  <textarea
-                    v-model="rangeEditor.notes"
-                    class="sdr-panel-input sdr-panel-textarea"
-                    rows="3"
-                    aria-label="Range notes"
-                    style="width: 100%"
-                  ></textarea>
-                </div>
-                <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
-                <div class="sdr-editfreq-actions">
-                  <div class="sdr-editfreq-actions-right">
-                    <button class="sdr-panel-btn" @click="cancelRangeEditor">CANCEL</button>
-                    <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveRangeEditor">
-                      SAVE
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="searchRanges.length === 0" class="sdr-panel-empty">
-            No search ranges defined.
-          </div>
-
-          <div
-            v-show="!(rangeEditorOpen && editingRangeId === null)"
-            class="sdr-frequency-manager-add-freq-row"
-          >
-            <button class="sdr-add-freq-btn" @click="openAddRange">Add Range</button>
-          </div>
-
-          <!-- Add range panel (only when adding, not editing) -->
-          <div
-            v-if="rangeEditorOpen && editingRangeId === null"
-            class="sdr-editfreq-body sdr-addfreq-body expanded"
-          >
-            <div class="sdr-addfreq-title-row">
-              <span class="sdr-scanner-section-label">ADD RANGE</span>
-            </div>
-            <div class="sdr-editfreq-field">
-              <label class="sdr-field-label">LABEL</label>
-              <input
-                v-model="rangeEditor.label"
-                class="sdr-panel-input"
-                type="text"
-                aria-label="Range label"
-                placeholder="e.g. Air Band"
-                maxlength="60"
-                style="width: 100%"
-              />
-            </div>
-            <div class="sdr-editfreq-field sdr-range-row">
-              <div class="sdr-range-col">
-                <label class="sdr-field-label">LOW (MHz)</label>
-                <input
-                  v-model="rangeEditor.low_mhz"
-                  class="sdr-panel-input"
-                  type="number"
-                  aria-label="Range low frequency in MHz"
-                  step="0.0001"
-                  style="width: 100%"
-                />
-              </div>
-              <div class="sdr-range-col">
-                <label class="sdr-field-label">HIGH (MHz)</label>
-                <input
-                  v-model="rangeEditor.high_mhz"
-                  class="sdr-panel-input"
-                  type="number"
-                  aria-label="Range high frequency in MHz"
-                  step="0.0001"
-                  style="width: 100%"
-                />
-              </div>
-            </div>
-            <div class="sdr-editfreq-field sdr-range-row">
-              <div class="sdr-range-col">
-                <label class="sdr-field-label">STEP</label>
-                <div
-                  :ref="setStepDropdownRef"
-                  class="sdr-device-dropdown sdr-step-dropdown"
-                  :class="{ 'sdr-device-dropdown--open': stepMenuOpen }"
-                  tabindex="0"
-                  @click.stop="toggleStepMenu('range')"
-                  @keydown="onStepDropdownKey($event, 'range')"
-                >
-                  <div class="sdr-device-dropdown-selected">
-                    <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
-                      stepMenuLabel
-                    }}</span>
-                    <span class="sdr-device-dropdown-arrow"></span>
-                  </div>
-                </div>
-              </div>
-              <div class="sdr-range-col">
-                <label class="sdr-field-label">DWELL (ms)</label>
-                <input
-                  v-model="rangeEditor.dwell_ms"
-                  class="sdr-panel-input"
-                  type="number"
-                  step="10"
-                  min="50"
-                  aria-label="Dwell time in milliseconds"
-                  style="width: 100%"
-                />
-              </div>
-            </div>
-            <div class="sdr-editfreq-field">
-              <label class="sdr-field-label">MODE</label>
-              <div class="sdr-mode-pills">
-                <button
-                  v-for="m in SEARCH_MODES"
-                  :key="m"
-                  type="button"
-                  class="sdr-mode-pill"
-                  :class="{ active: rangeEditor.mode === m }"
-                  @click="rangeEditor.mode = m"
-                >
-                  {{ m }}
-                </button>
-              </div>
-            </div>
-            <div class="sdr-editfreq-field">
-              <label class="sdr-field-label">THRESHOLD (dBFS)</label>
-              <input
-                v-model="rangeEditor.threshold_dbfs"
-                class="sdr-panel-input"
-                type="number"
-                step="1"
-                aria-label="Threshold in dBFS"
-                style="width: 100%"
-              />
-            </div>
-            <div class="sdr-editfreq-field">
-              <label class="sdr-field-label">NOTES</label>
-              <textarea
-                v-model="rangeEditor.notes"
-                class="sdr-panel-input sdr-panel-textarea"
-                rows="3"
-                aria-label="Range notes"
-                style="width: 100%"
-              ></textarea>
-            </div>
-            <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
-            <div class="sdr-editfreq-actions">
-              <div class="sdr-editfreq-actions-right">
-                <button class="sdr-panel-btn" @click="cancelRangeEditor">CANCEL</button>
-                <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveRangeEditor">
-                  SAVE
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SdrSearchRangesTab
+          :ranges="searchRanges"
+          @before-delete="onRangeBeforeDelete"
+          @changed="reloadSearchRanges"
+        />
       </div>
 
       <!-- ───────────── GROUPS TAB ───────────── -->
@@ -1874,30 +1551,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Step dropdown menu (teleported so it overlays the side panel) -->
-  <Teleport to="body">
-    <div
-      v-if="stepMenuOpen"
-      ref="stepMenuRef"
-      class="sdr-device-menu sdr-device-menu--open sdr-step-menu"
-      :style="stepMenuStyle"
-      @click.stop
-    >
-      <div
-        v-for="s in STEP_OPTIONS_KHZ"
-        :key="s"
-        class="sdr-device-menu-item"
-        :class="{
-          'sdr-device-menu-item--selected':
-            parseFloat(stepMenuTarget === 'adhoc' ? adhocStepKhz : rangeEditor.step_khz) === s,
-        }"
-        @click="pickStep(s)"
-      >
-        {{ formatStepKhz(s) }}
-      </div>
-    </div>
-  </Teleport>
 
   <!-- Trunk channel-map dropdown menu (teleported so it overlays the side panel) -->
   <Teleport to="body">
@@ -1944,18 +1597,15 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useWindowEvent } from '@/composables/useWindowEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import SdrGroupsTab from './SdrGroupsTab.vue'
+import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
+import SdrStepPicker from './SdrStepPicker.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
-import {
-  listSearchRanges as apiListSearchRanges,
-  createSearchRange as apiCreateSearchRange,
-  updateSearchRange as apiUpdateSearchRange,
-  deleteSearchRange as apiDeleteSearchRange,
-} from '@/services/sdrSearchApi'
+import { listSearchRanges as apiListSearchRanges } from '@/services/sdrSearchApi'
 
 // SdrRadio / SdrFrequencyGroup / SdrStoredFrequency now come from the SDR
 // store (see stores/sdr.ts) — it owns loading radios/groups/frequencies, so
@@ -2312,7 +1962,6 @@ const searchSectionExpanded = ref(false)
 const savedRangesExpanded = ref(false)
 const _rangesSectionExpanded = ref(false)
 const searchRanges = ref<SdrSearchRange[]>([])
-const filteredSearchRanges = computed<SdrSearchRange[]>(() => searchRanges.value)
 const searchActive = ref(false)
 const searchLocked = ref(false)
 const searchSelectedRangeId = ref<number | null>(null)
@@ -2558,7 +2207,7 @@ let _recTimerInterval: ReturnType<typeof setInterval> | null = null
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-import { formatBwHz, parseFreqMhz, defaultBwHz } from './sdrPanelUtils'
+import { formatBwHz, parseFreqMhz, defaultBwHz, MENU_OPEN_SETTLE_MS } from './sdrPanelUtils'
 
 function saveSettings() {
   try {
@@ -3755,7 +3404,6 @@ function closeAllMenus() {
   if (deviceMenuOpen.value) closeDeviceMenu()
   if (sampleRateMenuOpen.value) closeSampleRateMenu()
   if (efSampleRateMenuOpen.value) closeEfSampleRateMenu()
-  if (stepMenuOpen.value) closeStepMenu()
   if (trunkMapMenuOpen.value) closeTrunkMapMenu()
 }
 
@@ -3775,8 +3423,8 @@ function onDocumentClick() {
 // open. Closing on it would dismiss the menu the instant it opens. So ignore
 // scrolls within a short window after a menu opens; a genuine user scroll always
 // lands well after that. (Idle-menu instrumentation showed no other spurious
-// scrolls, so no further guarding is needed.)
-const MENU_OPEN_SETTLE_MS = 250
+// scrolls, so no further guarding is needed.) MENU_OPEN_SETTLE_MS is shared
+// with SdrStepPicker via sdrPanelUtils.
 let lastMenuOpenedAtMs = 0
 
 function closeMenusOnScroll() {
@@ -4763,262 +4411,14 @@ function selectSearchRange(id: number) {
   adhocHighMhz.value = ''
 }
 
-// ── Search range editor (Frequency Manager tab) ──────────────────────────────
+// ── Search range editor ───────────────────────────────────────────────────────
+// The SEARCH RANGES tab (range list + add/edit forms, CRUD) lives in
+// SdrSearchRangesTab.vue. The panel only reacts to its events: stopping an
+// active search before one of its ranges is deleted, and reloading the list
+// (which reconciles the selected-range id) after any change.
 
-const SEARCH_MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW']
-
-// Common channel step sizes (kHz) used by scanners / SDR apps. Covers HF fine
-// tuning (0.1–2.5), HF/CB (5), digital voice (6.25), 8.33 air band (EU),
-// 9 kHz MW (EU/AS), 10 kHz MW (US), 12.5 NFM PMR/marine, 25 NFM, and FM
-// broadcast (100/200).
-const STEP_OPTIONS_KHZ = [
-  0.1, 0.25, 0.5, 1, 2.5, 5, 6.25, 7.5, 8.33, 9, 10, 12.5, 15, 20, 25, 30, 50, 100, 200,
-] as const
-
-function formatStepKhz(v: number): string {
-  return `${v} kHz`
-}
-
-interface RangeEditorState {
-  id: number | null
-  label: string
-  low_mhz: string
-  high_mhz: string
-  step_khz: string
-  mode: string
-  threshold_dbfs: string
-  dwell_ms: string
-  notes: string
-}
-
-const rangeEditorOpen = ref(false)
-const editingRangeId = ref<number | null>(null)
-const rangeEditor = ref<RangeEditorState>(blankRangeEditor())
-const rangeEditorError = ref<string>('')
-
-// Step dropdown (custom — matches sample-rate dropdown). Only one range form
-// renders at a time (edit vs add), so a single ref/state is sufficient.
-const stepDropdownRef = ref<HTMLElement | null>(null)
-const stepMenuRef = ref<HTMLElement | null>(null)
-// Function ref: the edit form and add form both render a step dropdown (only
-// one at a time), so a plain template ref would be set/unset by both. Capture
-// only the live element here.
-function setStepDropdownRef(el: Element | null | { $el?: Element }) {
-  // Capture only the live element; a null (unmount of the other form's dropdown)
-  // is intentionally ignored so it doesn't clear a ref the active form still owns.
-  if (el && (el as HTMLElement).getBoundingClientRect) {
-    stepDropdownRef.value = el as HTMLElement
-  }
-}
-const adhocStepDropdownRef = ref<HTMLElement | null>(null)
-function setAdhocStepDropdownRef(el: Element | null | { $el?: Element }) {
-  if (el && (el as HTMLElement).getBoundingClientRect) {
-    adhocStepDropdownRef.value = el as HTMLElement
-    // The null arm only fires on a full teardown of this v-show'd dropdown, which
-    // the unit harness's unmount doesn't invoke the function ref for.
-    /* v8 ignore start */
-  } else if (el == null) {
-    adhocStepDropdownRef.value = null
-  }
-  /* v8 ignore stop */
-}
-const stepMenuOpen = ref(false)
-const stepMenuStyle = ref<Record<string, string>>({})
-const stepMenuTarget = ref<'range' | 'adhoc'>('range')
-
-function positionStepMenu() {
-  const el = stepMenuTarget.value === 'adhoc' ? adhocStepDropdownRef.value : stepDropdownRef.value
-  // The active step dropdown is rendered before the menu can be toggled, so its
-  // ref is always populated here.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  stepMenuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
-
-function toggleStepMenu(target: 'range' | 'adhoc' = 'range') {
-  if (stepMenuOpen.value && stepMenuTarget.value === target) {
-    closeStepMenu()
-    return
-  }
-  stepMenuTarget.value = target
-  positionStepMenu()
-  stepMenuOpen.value = true
-}
-
-function closeStepMenu() {
-  stepMenuOpen.value = false
-}
-
-function onStepDropdownKey(e: KeyboardEvent, target: 'range' | 'adhoc' = 'range') {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    toggleStepMenu(target)
-  }
-  if (e.key === 'Escape') closeStepMenu()
-}
-
-function pickStep(v: number) {
-  const target = stepMenuTarget.value
-  closeStepMenu()
-  if (target === 'adhoc') {
-    adhocStepKhz.value = v.toString()
-  } else {
-    rangeEditor.value.step_khz = v.toString()
-  }
-}
-
-const stepMenuLabel = computed(() => {
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  const raw = stepMenuTarget.value === 'adhoc' ? adhocStepKhz.value : rangeEditor.value.step_khz
-  /* v8 ignore stop */
-  const v = parseFloat(raw)
-  // The step is always chosen from the dropdown's positive STEP_OPTIONS (and
-  // seeded valid), so the placeholder fallback is never reached.
-  /* v8 ignore start */
-  if (!isFinite(v) || v <= 0) return '— select step —'
-  /* v8 ignore stop */
-  return formatStepKhz(v)
-})
-
-const adhocStepLabel = computed(() => {
-  const v = parseFloat(adhocStepKhz.value)
-  // adhocStepKhz is seeded valid and only changed via the step dropdown.
-  /* v8 ignore start */
-  if (!isFinite(v) || v <= 0) return 'Select…'
-  /* v8 ignore stop */
-  return formatStepKhz(v)
-})
-
-function blankRangeEditor(): RangeEditorState {
-  return {
-    id: null,
-    label: '',
-    low_mhz: '',
-    high_mhz: '',
-    step_khz: '12.5',
-    mode: 'NFM',
-    threshold_dbfs: '-70',
-    dwell_ms: '200',
-    notes: '',
-  }
-}
-
-function openAddRange() {
-  editingRangeId.value = null
-  rangeEditor.value = blankRangeEditor()
-  rangeEditorError.value = ''
-  rangeEditorOpen.value = true
-}
-
-function toggleEditRange(r: SdrSearchRange) {
-  if (rangeEditorOpen.value && editingRangeId.value === r.id) {
-    cancelRangeEditor()
-  } else {
-    openEditRange(r)
-  }
-}
-
-function openEditRange(r: SdrSearchRange) {
-  editingRangeId.value = r.id
-  rangeEditor.value = {
-    id: r.id,
-    label: r.label,
-    low_mhz: (r.low_hz / 1e6).toString(),
-    high_mhz: (r.high_hz / 1e6).toString(),
-    step_khz: (r.step_hz / 1000).toString(),
-    mode: r.mode,
-    threshold_dbfs: r.threshold_dbfs.toString(),
-    dwell_ms: r.dwell_ms.toString(),
-    notes: r.notes,
-  }
-  rangeEditorError.value = ''
-  rangeEditorOpen.value = true
-}
-
-function cancelRangeEditor() {
-  rangeEditorOpen.value = false
-  editingRangeId.value = null
-  rangeEditorError.value = ''
-}
-
-async function saveRangeEditor() {
-  const e = rangeEditor.value
-  const lowHz = Math.round(parseFloat(e.low_mhz) * 1e6)
-  const highHz = Math.round(parseFloat(e.high_mhz) * 1e6)
-  const stepHz = Math.round(parseFloat(e.step_khz) * 1000)
-  const thr = parseFloat(e.threshold_dbfs)
-  const dwell = parseInt(e.dwell_ms, 10)
-  if (!e.label.trim()) {
-    rangeEditorError.value = 'Label required'
-    return
-  }
-  if (!isFinite(lowHz) || !isFinite(highHz) || lowHz <= 0 || highHz <= 0) {
-    rangeEditorError.value = 'Low and high MHz required'
-    return
-  }
-  if (lowHz >= highHz) {
-    rangeEditorError.value = 'Low must be less than high'
-    return
-  }
-  // The step is always a positive STEP_OPTIONS value chosen from the dropdown,
-  // so it never fails this check (low/high/threshold/dwell are the testable ones).
-  /* v8 ignore start */
-  if (!isFinite(stepHz) || stepHz <= 0) {
-    rangeEditorError.value = 'Step must be positive'
-    return
-  }
-  /* v8 ignore stop */
-  if (!isFinite(thr)) {
-    rangeEditorError.value = 'Threshold must be a number'
-    return
-  }
-  if (!isFinite(dwell) || dwell <= 0) {
-    rangeEditorError.value = 'Dwell must be positive'
-    return
-  }
-
-  const body = {
-    label: e.label.trim(),
-    low_hz: lowHz,
-    high_hz: highHz,
-    step_hz: stepHz,
-    mode: e.mode,
-    threshold_dbfs: thr,
-    dwell_ms: dwell,
-    band_name: '',
-    enabled: true,
-    notes: e.notes,
-    sort_order:
-      editingRangeId.value == null
-        ? searchRanges.value.length
-        : /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-          (searchRanges.value.find((r) => r.id === editingRangeId.value)?.sort_order ?? 0),
-    /* v8 ignore stop */
-  }
-  const ok =
-    editingRangeId.value == null
-      ? !!(await apiCreateSearchRange(body))
-      : !!(await apiUpdateSearchRange(editingRangeId.value, body))
-  if (!ok) {
-    rangeEditorError.value = 'Save failed'
-    return
-  }
-  rangeEditorOpen.value = false
-  editingRangeId.value = null
-  await reloadSearchRanges()
-}
-
-async function deleteRange(id: number) {
+function onRangeBeforeDelete(id: number) {
   if (searchActive.value && searchSelectedRangeId.value === id) stopSearch()
-  await apiDeleteSearchRange(id)
-  if (editingRangeId.value === id) cancelRangeEditor()
-  await reloadSearchRanges()
 }
 
 // ── Data reload ───────────────────────────────────────────────────────────────
@@ -5395,14 +4795,15 @@ onUnmounted(() => {
 })
 
 // Record when any menu transitions from closed to open, to arm the settle window
-// used by closeMenusOnScroll. One watcher covers all five dropdowns. Registered
-// here (end of setup) so every menu-open ref it reads is already initialised.
+// used by closeMenusOnScroll. One watcher covers all four dropdowns (the step
+// dropdown lives in SdrStepPicker, which owns its own settle window).
+// Registered here (end of setup) so every menu-open ref it reads is already
+// initialised.
 watch(
   () =>
     deviceMenuOpen.value ||
     sampleRateMenuOpen.value ||
     efSampleRateMenuOpen.value ||
-    stepMenuOpen.value ||
     trunkMapMenuOpen.value,
   (anyMenuOpen) => {
     if (anyMenuOpen) lastMenuOpenedAtMs = Date.now()
