@@ -1858,48 +1858,7 @@
 
       <!-- ───────────── GROUPS TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'groups' }">
-        <div id="sdr-group-list">
-          <div class="sdr-group-pills">
-            <div v-for="g in sortedGroups" :key="g.id" class="sdr-group-pill">
-              <span class="sdr-group-pill-name">{{ g.name }}</span>
-              <button
-                class="sdr-group-pill-edit"
-                title="Rename group"
-                aria-label="Rename group"
-                @click.stop="startEditGroupRow(g)"
-              >
-                &#x270E;
-              </button>
-              <button
-                class="sdr-group-pill-del"
-                title="Delete group"
-                aria-label="Delete group"
-                @click.stop="deleteGroup(g.id)"
-              >
-                &#x2715;
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="sdr-panel-add-row sdr-frequency-manager-group-add-row">
-          <input
-            ref="newGroupNameRef"
-            v-model="newGroupName"
-            class="sdr-panel-input"
-            type="text"
-            aria-label="New group name"
-            placeholder="Group name…"
-            maxlength="40"
-            @keydown.enter="submitGroupRow"
-            @keydown.escape="cancelEditGroupRow"
-          />
-          <button v-if="editingGroupId !== null" class="sdr-panel-btn" @click="cancelEditGroupRow">
-            CANCEL
-          </button>
-          <button class="sdr-panel-btn" @click="submitGroupRow">
-            {{ editingGroupId !== null ? 'SAVE' : 'ADD' }}
-          </button>
-        </div>
+        <SdrGroupsTab @changed="reloadData" />
       </div>
 
       <!-- ───────────── RECORDINGS TAB ───────────── -->
@@ -1977,13 +1936,14 @@
 
 <script setup lang="ts">
 import './SdrPanel.css'
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useWindowEvent } from '@/composables/useWindowEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
+import SdrGroupsTab from './SdrGroupsTab.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useSdrStore } from '@/stores/sdr'
@@ -2406,7 +2366,6 @@ const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
 const scannerSectionExpanded = ref(false)
 const settingsSectionExpanded = ref(true)
-const newGroupName = ref('')
 
 const currentFreqLabel = computed<string>(() => {
   const hz = currentFreqHz.value
@@ -2453,12 +2412,6 @@ const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => {
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 })
-
-const sortedGroups = computed<SdrFrequencyGroup[]>(() =>
-  groups.value
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
-)
 
 // Mirror scanner sweep state + selected group labels into the store. The
 // waterfall component reads these to show the same paused/holding overlay
@@ -2528,8 +2481,6 @@ watch(readOnly, (isReadOnly) => {
   _ss.searchHighHz = null
   _ss.searchCurrentHz = null
 })
-
-const newGroupNameRef = ref<HTMLInputElement | null>(null)
 
 function freqGroupsFor(f: SdrStoredFrequency): SdrFrequencyGroup[] {
   const ids = new Set<number>((f.group_ids || []).filter((id) => id !== 0))
@@ -2604,8 +2555,6 @@ let _recStartEpoch = 0
 let _recPausedMs = 0
 let _recPauseStart: number | null = null
 let _recTimerInterval: ReturnType<typeof setInterval> | null = null
-
-const editingGroupId = ref<number | null>(null)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -5088,68 +5037,6 @@ async function reloadData() {
 useDocumentEvent('sdr:frequenciesImported', () => {
   reloadData()
 })
-
-// ── Groups CRUD ───────────────────────────────────────────────────────────────
-
-async function addGroup() {
-  const name = newGroupName.value.trim()
-  if (!name) return
-  try {
-    const res = await fetch('/api/sdr/groups', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, color: '#c8ff00', sort_order: groups.value.length }),
-    })
-    if (res.ok) {
-      newGroupName.value = ''
-      await reloadData()
-    }
-  } catch (_) {}
-}
-
-function startEditGroupRow(g: SdrFrequencyGroup) {
-  editingGroupId.value = g.id
-  newGroupName.value = g.name
-  nextTick(() => newGroupNameRef.value?.focus())
-}
-
-function cancelEditGroupRow() {
-  editingGroupId.value = null
-  newGroupName.value = ''
-}
-
-async function submitGroupRow() {
-  if (editingGroupId.value !== null) {
-    const name = newGroupName.value.trim()
-    if (!name) return
-    try {
-      const existing = groups.value.find((g) => g.id === editingGroupId.value)
-      await fetch(`/api/sdr/groups/${editingGroupId.value}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-          color: existing?.color ?? '#c8ff00',
-          sort_order: existing?.sort_order ?? 0,
-          /* v8 ignore stop */
-        }),
-      })
-      editingGroupId.value = null
-      newGroupName.value = ''
-      await reloadData()
-    } catch (_) {}
-  } else {
-    await addGroup()
-  }
-}
-
-async function deleteGroup(id: number) {
-  try {
-    await fetch(`/api/sdr/groups/${id}`, { method: 'DELETE' })
-    await reloadData()
-  } catch (_) {}
-}
 
 // ── Frequency CRUD ────────────────────────────────────────────────────────────
 
