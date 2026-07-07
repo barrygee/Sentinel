@@ -469,6 +469,7 @@ import {
   nextMonth,
   type CalCell,
 } from './airReplayCalendar'
+import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
 import './AirReplayPanel.css'
 
 const playbackStore = usePlaybackStore()
@@ -1109,7 +1110,7 @@ onMounted(() => {
     5 * 60 * 1000,
   )
   // Refresh available dates whenever the playback pane becomes active
-  const pane = document.getElementById('msb-pane-playback')
+  const pane = document.getElementById(SIDEBAR_PANE_IDS.playback)
   if (pane) {
     _paneObserver = new MutationObserver(() => {
       if (pane.classList.contains('msb-pane-active') && !playbackStore.isActive) {

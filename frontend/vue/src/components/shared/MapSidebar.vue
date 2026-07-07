@@ -15,7 +15,7 @@
         :tooltip="tab.label"
         :accessible-name="tab.label"
         :aria-expanded="activeTab === tab.id && open"
-        :aria-controls="`msb-pane-${tab.id}`"
+        :aria-controls="SIDEBAR_PANE_IDS[tab.id]"
         @click="toggleRailTab(tab.id)"
       >
         <!-- filter (was search): funnel icon, matching the map side menu's FILTER. -->
@@ -138,35 +138,35 @@
     <div id="map-sidebar-panes">
       <template v-if="!hideTabs">
         <div
-          id="msb-pane-search"
+          :id="SIDEBAR_PANE_IDS.search"
           class="msb-pane"
           :class="{ 'msb-pane-active': activeTab === 'search' }"
         >
           <slot name="search" />
         </div>
         <div
-          id="msb-pane-alerts"
+          :id="SIDEBAR_PANE_IDS.alerts"
           class="msb-pane"
           :class="{ 'msb-pane-active': activeTab === 'alerts' }"
         >
           <NotificationsPanel />
         </div>
         <div
-          id="msb-pane-tracking"
+          :id="SIDEBAR_PANE_IDS.tracking"
           class="msb-pane"
           :class="{ 'msb-pane-active': activeTab === 'tracking' }"
         >
           <TrackingPanel />
         </div>
         <div
-          id="msb-pane-passes"
+          :id="SIDEBAR_PANE_IDS.passes"
           class="msb-pane"
           :class="{ 'msb-pane-active': activeTab === 'passes' }"
         >
           <slot name="passes" />
         </div>
         <div
-          id="msb-pane-playback"
+          :id="SIDEBAR_PANE_IDS.playback"
           class="msb-pane"
           :class="{ 'msb-pane-active': activeTab === 'playback' }"
         >
@@ -174,7 +174,7 @@
         </div>
       </template>
       <div
-        id="msb-pane-radio"
+        :id="SIDEBAR_PANE_IDS.radio"
         class="msb-pane msb-pane-radio"
         :class="{ 'msb-pane-active': hideTabs || activeTab === 'radio' }"
       >
@@ -196,6 +196,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore, type AirFilterCategory } from '@/stores/air'
 import { useSpaceStore } from '@/stores/space'
 import { SATELLITE_CATEGORY_SECTION_LABELS } from '@/utils/satelliteUtils'
+import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
 
 const notifStore = useNotificationsStore()
 const airStore = useAirStore()
