@@ -97,46 +97,20 @@ describe('SpaceView', () => {
     localStorage.clear()
   })
 
-  describe('teleport readiness', () => {
-    it('activates teleports immediately when the search pane already exists', () => {
+  describe('teleport targets', () => {
+    it('teleports SpaceFilter into the search pane once it exists', () => {
       teleportTargets()
       mountView()
+      // useSidebarPaneTarget('search') resolves synchronously since the pane
+      // already exists, so the Teleport is active on first render.
       expect(document.querySelector('#msb-pane-search .space-filter-stub')).not.toBeNull()
     })
 
-    it('polls with requestAnimationFrame until the search pane appears', () => {
-      const queued: FrameRequestCallback[] = []
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        queued.push(cb)
-        return queued.length
-      })
-      const wrapper = mountView()
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(false)
-
-      // First frame: pane still absent → reschedules.
-      queued.shift()!(0)
-      expect(queued).toHaveLength(1)
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(false)
-
-      // Pane mounts; next frame flips teleportReady.
-      teleportTargets()
-      queued.shift()!(0)
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(true)
-      vi.unstubAllGlobals()
-    })
-
-    it('stops polling after unmount via the _unmounted guard', () => {
-      const queued: FrameRequestCallback[] = []
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        queued.push(cb)
-        return queued.length
-      })
-      const wrapper = mountView()
-      wrapper.unmount()
-      teleportTargets()
-      expect(() => queued.shift()!(0)).not.toThrow()
-      expect(queued).toHaveLength(0)
-      vi.unstubAllGlobals()
+    it('does not teleport until the sidebar panes appear', () => {
+      // No teleportTargets() call: MapSidebar hasn't rendered its panes yet,
+      // so both Teleports stay gated off — SpaceFilter never mounts.
+      expect(() => mountView()).not.toThrow()
+      expect(document.querySelector('.space-filter-stub')).toBeNull()
     })
   })
 

@@ -1081,6 +1081,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Migrate AirSideMenu onto IconRail/IconRailAccordion shell (#184)
 - Migrate settings action buttons onto BaseButton variants (#187)
 - Migrate recordings list onto BaseList with scroll-container expose (#188)
+- Centralise sidebar pane ids and teleport-readiness logic (#189)
 
 ### Documentation
 
