@@ -1083,6 +1083,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Migrate recordings list onto BaseList with scroll-container expose (#188)
 - Centralise sidebar pane ids and teleport-readiness logic (#189)
 - Migrate SdrPanel rail buttons onto BaseIconButton (decomposition P0) (#190)
+- Move radios/groups/frequencies ownership into the sdr store (decomposition P1) (#191)
 
 ### Documentation
 
