@@ -13,6 +13,18 @@ import BaseButton, { type BaseButtonVariant } from './BaseButton.vue'
  * right-edge rails (Air/Space side-menu) open their tooltip to the *left* of
  * the button; left-edge rails (MapSidebar, Settings nav) open to the
  * *right*. `tooltipSide` names the side the tooltip itself appears on.
+ *
+ * The tooltip pill's own look (offset, background, text colour/font, padding,
+ * height, corner radius) defaults to the shared black-pill style used by
+ * every adopter above, but is overridable per instance via CSS custom
+ * properties on the root element (an inline `style` binding, matching
+ * `BaseButton`'s established override mechanism) for a caller whose
+ * pre-existing tooltip design differs: `--ba-icon-btn-tooltip-offset`,
+ * `--ba-icon-btn-tooltip-bg`, `--ba-icon-btn-tooltip-color`,
+ * `--ba-icon-btn-tooltip-font`, `--ba-icon-btn-tooltip-padding`,
+ * `--ba-icon-btn-tooltip-height`, `--ba-icon-btn-tooltip-radius` — e.g.
+ * `SdrPanel.vue`'s left rail, whose tooltip pill predates this component and
+ * has its own translucent-navy, white-text, smaller look.
  */
 interface BaseIconButtonProps {
   variant?: BaseButtonVariant
@@ -76,21 +88,22 @@ withDefaults(defineProps<BaseIconButtonProps>(), {
 .ba-icon-btn[data-tooltip]::before {
   content: attr(data-tooltip);
   position: absolute;
-  left: calc(100% + 6px);
+  left: calc(100% + var(--ba-icon-btn-tooltip-offset, 6px));
   top: 50%;
   transform: translateY(-50%);
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  background: var(--ba-icon-btn-tooltip-bg, #000);
+  color: var(--ba-icon-btn-tooltip-color, var(--color-text-muted));
+  font-family: var(--ba-icon-btn-tooltip-font, 'Barlow', 'Helvetica Neue', Arial, sans-serif);
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
+  padding: var(--ba-icon-btn-tooltip-padding, 0 14px);
+  height: var(--ba-icon-btn-tooltip-height, 28px);
   display: flex;
   align-items: center;
+  border-radius: var(--ba-icon-btn-tooltip-radius, 0);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -103,7 +116,7 @@ withDefaults(defineProps<BaseIconButtonProps>(), {
 
 .ba-icon-btn--tooltip-left[data-tooltip]::before {
   left: auto;
-  right: calc(100% + 6px);
+  right: calc(100% + var(--ba-icon-btn-tooltip-offset, 6px));
 }
 
 @keyframes ba-icon-btn-pulse {

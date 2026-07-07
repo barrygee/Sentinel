@@ -3575,65 +3575,18 @@
   gap: 8px;
 }
 
-.sdr-rail-btn {
-  width: 100%;
-  height: 40px;
-  background: none;
-  border: none;
-  border-left: 2px solid transparent;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  position: relative;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.sdr-rail-btn:hover {
-  color: var(--color-text-muted);
-  background: var(--color-border);
-}
-
-.sdr-rail-btn-active {
-  color: var(--color-accent);
-  border-left-color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.08);
-}
-
-.sdr-rail-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(10, 13, 20, 0.96);
-  color: #fff;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 10px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  border: none;
-  border-radius: 3px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-.sdr-rail-btn:hover[data-tooltip]::before {
-  opacity: 1;
-}
+/* .sdr-rail-btn / .sdr-rail-btn-active button chrome (sizing, colour,
+   hover/active state) and its [data-tooltip]::before pill previously lived
+   here; both are now owned by the shared `BaseIconButton` atom (see
+   src/components/base/BaseIconButton.vue), which SdrPanel.vue's left rail
+   renders with a `--ba-icon-btn-tooltip-*` custom-property override
+   reproducing this rail's own tooltip look (translucent navy pill, white
+   text, 24px/3px-radius — distinct from the shared black-pill default used
+   by Air/Space/MapSidebar). `.sdr-rail-btn`/`.sdr-rail-btn-active` are kept
+   as inert passthrough classes only, for SdrPanel.spec.ts's existing
+   `.sdr-rail-btn[data-tab="…"]` queries — they carry no styling here
+   anymore. `#sdr-sidebar-rail`'s own container CSS above (position, sizing,
+   the ≤480px collapse) is unrelated to the buttons and is untouched. */
 
 .sdr-tab-panes {
   flex: 1;
