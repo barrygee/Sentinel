@@ -4,7 +4,7 @@
     <AirMap ref="airMapRef" />
     <AirSideMenu :map-ref="airMapProxy" />
     <NoUrlOverlay domain="air" />
-    <Teleport v-if="teleportReady" to="#msb-pane-search">
+    <Teleport v-if="searchPaneReady" :to="sidebarPaneSelector('search')">
       <AirFilter
         ref="airFilterRef"
         :adsb-control="adsbControlRef"
@@ -13,47 +13,34 @@
         :get-map="() => airMapRef?.getMap?.() ?? null"
       />
     </Teleport>
-    <Teleport v-if="teleportReady" to="#msb-pane-playback">
+    <Teleport v-if="playbackPaneReady" :to="sidebarPaneSelector('playback')">
       <AirReplayPanel />
     </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, markRaw, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, markRaw } from 'vue'
 import AirMap from './AirMap.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import AirSideMenu from './AirSideMenu.vue'
 import AirFilter from './AirFilter.vue'
 import AirReplayPanel from './AirReplayPanel.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
+import { sidebarPaneSelector } from '@/constants/sidebarPanes'
+import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import type { AirportsToggleControl } from './controls/airports/AirportsControl'
 import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
 
 const airMapRef = ref<InstanceType<typeof AirMap> | null>(null)
 const airFilterRef = ref<InstanceType<typeof AirFilter> | null>(null)
-const teleportReady = ref(!!document.getElementById('msb-pane-search'))
-let _unmounted = false
 
-// msb-pane-search lives in MapSidebar which mounts after RouterView in App.vue;
-// poll until it exists so the Teleport never activates against a null target.
-if (!teleportReady.value) {
-  onMounted(() => {
-    function poll() {
-      if (_unmounted) return
-      if (document.getElementById('msb-pane-search')) {
-        teleportReady.value = true
-      } else requestAnimationFrame(poll)
-    }
-    requestAnimationFrame(poll)
-  })
-}
-
-onBeforeUnmount(() => {
-  _unmounted = true
-  teleportReady.value = false
-})
+// msb-pane-search / msb-pane-playback live in MapSidebar, a sibling of
+// <RouterView> in App.vue — see useSidebarPaneTarget for why this waits
+// rather than teleporting unconditionally.
+const { ready: searchPaneReady } = useSidebarPaneTarget('search')
+const { ready: playbackPaneReady } = useSidebarPaneTarget('playback')
 
 // Stable proxy passed to AirSideMenu — markRaw prevents Vue from tracking
 // mutations, so nulling airMapRef during unmount never triggers a re-render

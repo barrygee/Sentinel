@@ -111,53 +111,21 @@ describe('AirView', () => {
     document.body.innerHTML = ''
   })
 
-  describe('teleport readiness', () => {
-    it('activates teleports immediately when the search pane already exists', () => {
+  describe('teleport targets', () => {
+    it('teleports AirFilter into the search pane once it exists', () => {
       teleportTargets()
-      const wrapper = mountView()
-      // AirFilter teleported into the existing search pane.
+      mountView()
+      // useSidebarPaneTarget('search') resolves synchronously since the pane
+      // already exists, so the Teleport is active on first render.
       expect(document.querySelector('#msb-pane-search .air-filter-stub')).not.toBeNull()
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(true)
     })
 
-    it('polls with requestAnimationFrame until the search pane appears', async () => {
-      const queued: FrameRequestCallback[] = []
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        queued.push(cb)
-        return queued.length
-      })
-
-      const wrapper = mountView()
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(false)
-
-      // First frame: pane still absent → reschedules another frame.
-      queued.shift()!(0)
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(false)
-      expect(queued).toHaveLength(1)
-
-      // Pane mounts, next frame flips teleportReady true.
-      teleportTargets()
-      queued.shift()!(0)
-      expect((wrapper.vm as unknown as { teleportReady: boolean }).teleportReady).toBe(true)
-
-      vi.unstubAllGlobals()
-    })
-
-    it('stops polling after unmount via the _unmounted guard', () => {
-      const queued: FrameRequestCallback[] = []
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        queued.push(cb)
-        return queued.length
-      })
-
-      const wrapper = mountView()
-      wrapper.unmount()
-      teleportTargets()
-      // Guard returns early: no reschedule, teleportReady stays false.
-      expect(() => queued.shift()!(0)).not.toThrow()
-      expect(queued).toHaveLength(0)
-
-      vi.unstubAllGlobals()
+    it('does not teleport until the sidebar panes appear', () => {
+      // No teleportTargets() call: MapSidebar hasn't rendered its panes yet,
+      // so both Teleports stay gated off (v-if="...Ready") — AirFilter/
+      // AirReplayPanel never mount, and nothing throws.
+      expect(() => mountView()).not.toThrow()
+      expect(document.querySelector('.air-filter-stub')).toBeNull()
     })
   })
 

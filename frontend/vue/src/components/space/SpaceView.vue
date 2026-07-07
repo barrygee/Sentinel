@@ -5,14 +5,14 @@
     <SpaceSideMenu :map-ref="spaceMapProxy" />
     <NoUrlOverlay domain="space" />
     <SatInfoPanel :satellite-control="satelliteControl" />
-    <Teleport v-if="teleportReady" to="#msb-pane-search">
+    <Teleport v-if="searchPaneReady" :to="sidebarPaneSelector('search')">
       <SpaceFilter
         ref="spaceFilterRef"
         :satellite-control="satelliteControl"
         :get-user-location="getUserLocation"
       />
     </Teleport>
-    <Teleport v-if="teleportReady" to="#msb-pane-passes">
+    <Teleport v-if="passesPaneReady" :to="sidebarPaneSelector('passes')">
       <SpacePasses
         ref="spacePassesRef"
         :satellite-control="satelliteControl"
@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, markRaw, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, markRaw, watch, onBeforeUnmount } from 'vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import SpaceMap from './SpaceMap.vue'
@@ -33,25 +33,19 @@ import SpaceFilter from './SpaceFilter.vue'
 import SpacePasses from './SpacePasses.vue'
 import SatInfoPanel from './SatInfoPanel.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
+import { sidebarPaneSelector } from '@/constants/sidebarPanes'
+import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 
 const spaceMapRef = ref<InstanceType<typeof SpaceMap> | null>(null)
 const spaceFilterRef = ref<InstanceType<typeof SpaceFilter> | null>(null)
 const spacePassesRef = ref<InstanceType<typeof SpacePasses> | null>(null)
-const teleportReady = ref(!!document.getElementById('msb-pane-search'))
-let _unmounted = false
 
-if (!teleportReady.value) {
-  onMounted(() => {
-    function poll() {
-      if (_unmounted) return
-      if (document.getElementById('msb-pane-search')) {
-        teleportReady.value = true
-      } else requestAnimationFrame(poll)
-    }
-    requestAnimationFrame(poll)
-  })
-}
+// msb-pane-search / msb-pane-passes live in MapSidebar, a sibling of
+// <RouterView> in App.vue — see useSidebarPaneTarget for why this waits
+// rather than teleporting unconditionally.
+const { ready: searchPaneReady } = useSidebarPaneTarget('search')
+const { ready: passesPaneReady } = useSidebarPaneTarget('passes')
 
 // Stable proxy — markRaw prevents Vue tracking mutations, so unmounting SpaceMap
 // never triggers re-renders of sibling/child components via prop change.
@@ -83,8 +77,6 @@ const stopWatch = watch(
 )
 onBeforeUnmount(() => {
   stopWatch()
-  _unmounted = true
-  teleportReady.value = false
 })
 
 const { location: userLocation } = useUserLocation()
