@@ -8,6 +8,15 @@
 // SdrStepPicker.
 export const MENU_OPEN_SETTLE_MS = 250
 
+// Demodulation modes offered by the tuner and the frequency-manager forms.
+export const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const
+
+// Hardware sample rates (rtl_tcp) offered by the RADIO tab's live dropdown and
+// the frequency-manager forms' per-frequency SAMPLE RATE setting. Tiers match
+// snapToValidSampleRate() below — the 1.024 MHz floor avoids the stuttering
+// 250k/300k tiers measured on the remote Pi.
+export const SAMPLE_RATE_OPTIONS = [1024000, 1536000, 1792000, 2048000] as const
+
 export function formatBwHz(hz: number): string {
   if (hz >= 1_000_000) return `${(hz / 1_000_000).toFixed(2)} MHz`
   if (hz >= 1_000) return `${Math.round(hz / 1000)} kHz`
