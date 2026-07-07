@@ -1024,6 +1024,32 @@ describe('SdrWaterfall — click-to-tune & plot mouse handling', () => {
     expect(tuneSpy.mock.calls.at(-1)![0]).toBe(knownFreq)
   })
 
+  it('snaps to the nearest of several known frequencies within threshold, not a farther one', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.autoCenterWaterfallOnTune = true
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = spectrumEl(wrapper)
+    store.setSnapToKnown(false)
+    await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
+    await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
+    const rawFreq = tuneSpy.mock.calls.at(-1)![0] as number
+    // The nearer candidate is evaluated first, narrowing the best distance, so
+    // the farther one that follows must fail the "closer than the current
+    // best" check — proving the loop keeps the running-nearest match rather
+    // than just taking whichever candidate comes last.
+    const fartherFreq = rawFreq + 800
+    const nearerFreq = rawFreq + 200
+    store.frequencies = [
+      { id: 2, group_id: null, label: 'NEAR', frequency_hz: nearerFreq, mode: 'AM' },
+      { id: 1, group_id: null, label: 'FAR', frequency_hz: fartherFreq, mode: 'AM' },
+    ]
+    store.setSnapToKnown(true)
+    await el.trigger('mousedown', { button: 0, clientX: 500, clientY: 100 })
+    await el.trigger('mouseup', { button: 0, clientX: 500, clientY: 100 })
+    expect(tuneSpy.mock.calls.at(-1)![0]).toBe(nearerFreq)
+  })
+
   it('a right-click is swallowed on both mousedown and mouseup', async () => {
     const { wrapper, store } = mountWaterfall()
     await playWithFrame(store)
@@ -1151,6 +1177,61 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
     expect(tuneSpy).toHaveBeenCalled()
+    void wrapper
+  })
+
+  it('does not snap the drag commit when the span is degenerate (hi <= lo)', async () => {
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    store.setSnapToKnown(true)
+    // A zero sample rate collapses spanStartHz === spanEndHz. The bracket-drag
+    // commit calls snapToKnownFreqHz directly (no outer hi<=lo guard, unlike the
+    // click-to-tune path) — its own defensive span guard must return the raw
+    // carrier unmodified, even with a known frequency sitting right next to it.
+    await playWithFrame(store, { sample_rate: 0 })
+    const wf = wfAccordion()
+    const spec = specAccordion()
+    wf._center = 100_000_000
+    wf._width = 10_000
+    spec.dragging = true
+    document.dispatchEvent(new MouseEvent('mousedown', { clientX: 500, clientY: 100 }))
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'NEAR', frequency_hz: 100_500_800, mode: 'AM' },
+    ]
+    specAccordion()._center = 100.5 // MHz → 100.5 MHz carrier
+    specAccordion()._width = 0.01
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
+    // Committed to the raw carrier, not the nearby known freq (100_500_800).
+    expect(tuneSpy).toHaveBeenCalledWith(100_500_000)
+    void wrapper
+  })
+
+  it('does not snap the drag commit when the data box has collapsed to zero width', async () => {
+    const store = useSdrStore()
+    const wrapper = mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    store.setSnapToKnown(true)
+    // Collapse the spectrum plot's data box (l >= r) before the frame that
+    // measures it, so dataBoxWidthPx lands at 0 — snapToKnownFreqHz's own
+    // defensive box-width guard must then return the raw carrier unmodified.
+    // (installMarginTweaks clamps Mx.r to at least width-1, so r alone can't be
+    // pushed below l — push l past the clamped r instead.)
+    specPlot()._Mx.l = 1000
+    specPlot()._Mx.r = 400
+    await startDrag(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'NEAR', frequency_hz: 100_500_800, mode: 'AM' },
+    ]
+    specAccordion()._center = 100.5 // MHz → 100.5 MHz carrier
+    specAccordion()._width = 0.01
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 520, clientY: 100, buttons: 1 }))
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 520, clientY: 100 }))
+    // Committed to the raw carrier, not the nearby known freq (100_500_800).
+    expect(tuneSpy).toHaveBeenCalledWith(100_500_000)
     void wrapper
   })
 

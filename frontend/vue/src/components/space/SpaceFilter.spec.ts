@@ -859,6 +859,20 @@ describe('SpaceFilter — persisted expansion restore', () => {
     expect(spaceStore.searchExpandedNorad).toBe('')
     expect(wrapper.find('.sfr-accordion-body').exists()).toBe(false)
   })
+
+  it('restores to the "unknown" category when the restored satellite has no category', async () => {
+    const control = makeFakeControl()
+    listResult.body = {
+      satellites: [makeSat({ norad_id: '99999', name: 'MYSTERY', category: null })],
+    }
+    const wrapper = mountFilter({ control })
+    const spaceStore = useSpaceStore()
+    spaceStore.searchExpandedNorad = '99999'
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(spaceStore.spaceFilterCategory).toBe('unknown')
+    expect(wrapper.find('.sfr-accordion-body').exists()).toBe(true)
+  })
 })
 
 // =============================================================================

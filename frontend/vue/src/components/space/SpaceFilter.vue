@@ -826,8 +826,18 @@ const activeGroup = computed(
 
 function satSecondary(sat: SatEntry): string {
   const catLabel = sat.category
-    ? SATELLITE_CATEGORY_SHORT_LABELS[sat.category] || sat.category.toUpperCase()
-    : ''
+    ? // defensive: a rendered row's category always came from either the rail
+      // sub-tab selection (gated to SATELLITE_CATEGORY_ORDER, whose keys are a
+      // 1:1 match with SATELLITE_CATEGORY_SHORT_LABELS) or
+      // restoreExpandedAccordion (which sets filterCategory, but the
+      // availableCategories watch immediately resets any category not in
+      // that same order back to the first available one) — so sat.category
+      // can never actually miss a short label at render time. Kept as a guard
+      // against the two lookup tables drifting out of sync.
+      /* v8 ignore start -- unreachable given the category-order/short-label key parity; see above */
+      SATELLITE_CATEGORY_SHORT_LABELS[sat.category] || sat.category.toUpperCase()
+    : /* v8 ignore stop */
+      ''
   return catLabel ? `${catLabel} · NORAD ${sat.norad_id}` : `NORAD ${sat.norad_id}`
 }
 

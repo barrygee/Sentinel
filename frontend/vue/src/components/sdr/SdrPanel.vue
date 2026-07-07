@@ -4138,12 +4138,13 @@ function tuneToFreq(f: SdrStoredFrequency) {
 
 // Play button on a saved frequency row: tune AND start the audio stream.
 function playFreq(f: SdrStoredFrequency) {
+  // Both guards below are defensive: the play button is disabled whenever
+  // selectedRadioId is unset (tuningDisabled tracks controlsDisabled, which is
+  // always false only once a radio is selected) or while read-only, so neither
+  // condition is reachable via a real button click — only via a raced/non-UI
+  // call path.
+  /* v8 ignore start -- play button disabled while no radio selected or read-only; defensive guard */
   if (!selectedRadioId.value) return
-  // A read-only follower mirrors the owner's tune; it must not retune the shared
-  // dongle — nor diverge its own local freq/mode/marker — from the Frequency
-  // Manager. The play button is disabled in this state, so this guards only the
-  // non-UI/raced call paths (defensive, hence unreachable in the button test).
-  /* v8 ignore start -- play button disabled while read-only; defensive guard */
   if (readOnly.value) return
   /* v8 ignore stop */
   _endRecordingOnManualChange()

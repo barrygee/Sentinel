@@ -72,6 +72,22 @@ describe('SpaceTleSatListControl', () => {
     expect(wrapper.find('.tle-satlist-count').text()).toBe('0 of 3 satellites')
   })
 
+  it('expands and collapses the satellite list on toggle click', async () => {
+    const wrapper = mount(SpaceTleSatListControl)
+    await flushPromises()
+    const toggle = wrapper.find('.tle-satlist-toggle-btn')
+    // Collapsed by default.
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.attributes('aria-label')).toBe('Show satellite list')
+    expect(wrapper.find('.tle-satlist-body').classes()).toContain('tle-satlist-body--hidden')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(toggle.attributes('aria-label')).toBe('Hide satellite list')
+    expect(wrapper.find('.tle-satlist-body').classes()).not.toContain('tle-satlist-body--hidden')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+  })
+
   it('reloads when a tle:refreshStatus event fires', async () => {
     const fetchMock = stubFetch({ satellites: SATS })
     const wrapper = mount(SpaceTleSatListControl)

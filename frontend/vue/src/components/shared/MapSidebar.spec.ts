@@ -403,10 +403,14 @@ describe('MapSidebar', () => {
       document.dispatchEvent(
         new CustomEvent('sentinel:domain-changed', { detail: { domain: 'space', prev: 'air' } }),
       )
-      useSpaceStore().setSpaceAvailableCategories(['weather', 'navigation'])
+      // 'exotic' has no entry in SATELLITE_CATEGORY_SECTION_LABELS, so its sub-tab
+      // must fall back to a titlecased version of the raw category key.
+      useSpaceStore().setSpaceAvailableCategories(['weather', 'navigation', 'exotic'])
       await openFilter(wrapper)
       const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
-      expect(cats).toEqual(['weather', 'navigation'])
+      expect(cats).toEqual(['weather', 'navigation', 'exotic'])
+      const exoticTab = wrapper.find('.msb-rail-subbtn[data-filter-cat="exotic"]')
+      expect(exoticTab.attributes('data-tooltip')).toBe('EXOTIC')
       await wrapper.find('.msb-rail-subbtn[data-filter-cat="navigation"]').trigger('click')
       expect(useSpaceStore().spaceFilterCategory).toBe('navigation')
     })
