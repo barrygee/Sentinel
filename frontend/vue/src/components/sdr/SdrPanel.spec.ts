@@ -1597,6 +1597,31 @@ describe('SdrPanel — open menus dismiss on scroll/resize', () => {
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-device-menu')).toBeNull()
   })
+
+  // The device menu now lives in SdrDeviceSelector (with its own settle
+  // window), so drive the PANEL's settle window through a menu the panel
+  // still owns: the RADIO tab's live sample-rate dropdown.
+  it('applies the settle window to the panel-owned sample-rate menu', async () => {
+    const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+    const { wrapper } = await mountConnected()
+    const srDrop = wrapper
+      .findAll('.sdr-device-dropdown')
+      .find((d) => !d.element.closest('.sdr-radio-section--device'))!
+    await srDrop.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    // Inside the settle window: ignored.
+    nowStub.mockReturnValue(1_100)
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    // Past the settle window: dismissed.
+    nowStub.mockReturnValue(1_300)
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    nowStub.mockRestore()
+  })
 })
 
 // =============================================================================
