@@ -2,15 +2,26 @@
   <!-- ── LEFT RAIL (teleported so it persists when the side panel hides) ── -->
   <Teleport to="body">
     <div v-show="isSdrRoute" id="sdr-sidebar-rail">
-      <button
+      <BaseIconButton
         v-for="tab in sdrTabs"
         :key="tab.id"
-        type="button"
         class="sdr-rail-btn"
         :class="{ 'sdr-rail-btn-active': activeSdrTab === tab.id && sidebarOpen }"
+        style="
+          --ba-icon-btn-tooltip-offset: 8px;
+          --ba-icon-btn-tooltip-bg: rgba(10, 13, 20, 0.96);
+          --ba-icon-btn-tooltip-color: #fff;
+          --ba-icon-btn-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
+          --ba-icon-btn-tooltip-padding: 0 10px;
+          --ba-icon-btn-tooltip-height: 24px;
+          --ba-icon-btn-tooltip-radius: 3px;
+        "
+        bordered
+        :active="activeSdrTab === tab.id && sidebarOpen"
         :data-tab="tab.id"
-        :data-tooltip="tab.label"
-        :aria-label="tab.label"
+        tooltip-side="right"
+        :tooltip="tab.label"
+        :accessible-name="tab.label"
         @click="onSdrTabClick(tab.id)"
       >
         <!-- radio (receiver with antenna and dial) -->
@@ -99,7 +110,7 @@
           <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
           <circle cx="12" cy="12" r="4" fill="currentColor" />
         </svg>
-      </button>
+      </BaseIconButton>
     </div>
   </Teleport>
 
@@ -1974,6 +1985,7 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useWindowEvent } from '@/composables/useWindowEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
