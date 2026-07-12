@@ -53,9 +53,9 @@
  * hardware command.
  *
  * Follows the SdrStepPicker pattern: renders the trigger plus its own
- * body-teleported listbox menu (so it overlays the side panel) and owns the
- * full dismiss behaviour — outside click, Escape, panel scroll past the
- * open-settle window, and window resize.
+ * body-teleported listbox menu (so it overlays the side panel); the menu
+ * state, positioning and dismiss behaviour (outside click, settle-window
+ * scroll, resize) come from useTeleportedMenu.
  *
  * The menu is positioned from the triggering event's currentTarget rather
  * than a template ref: the per-row edit form lives inside a v-for, where Vue
@@ -65,41 +65,15 @@
  * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
  * the other extracted panel sections.
  */
-import { ref } from 'vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useWindowEvent } from '@/composables/useWindowEvent'
-import { formatBwHz, MENU_OPEN_SETTLE_MS, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
+import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
+import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 const sampleRateHz = defineModel<number>({ required: true })
 
-const menuOpen = ref(false)
-const menuStyle = ref<Record<string, string>>({})
-
-// Armed at open time; scrolls within the settle window are the browser
-// scrolling the focused trigger into view, not the user dismissing the menu.
-let openedAtMs = 0
-
-function positionMenu(dropdownEl: HTMLElement) {
-  const rect = dropdownEl.getBoundingClientRect()
-  menuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
+const { menuOpen, menuStyle, toggleMenu: toggleTeleportedMenu, closeMenu } = useTeleportedMenu()
 
 function toggleMenu(event: MouseEvent | KeyboardEvent) {
-  if (menuOpen.value) {
-    closeMenu()
-    return
-  }
-  positionMenu(event.currentTarget as HTMLElement)
-  menuOpen.value = true
-  openedAtMs = Date.now()
-}
-
-function closeMenu() {
-  menuOpen.value = false
+  toggleTeleportedMenu(event.currentTarget as HTMLElement)
 }
 
 function onTriggerKey(event: KeyboardEvent) {
@@ -118,15 +92,4 @@ function pickRate(rate: number) {
   /* v8 ignore stop */
   sampleRateHz.value = rate
 }
-
-function closeOnScroll() {
-  if (Date.now() - openedAtMs < MENU_OPEN_SETTLE_MS) return
-  closeMenu()
-}
-
-useDocumentEvent('click', closeMenu)
-// Capture phase so scrolls from the inner side-panel container (a descendant,
-// and scroll doesn't bubble) still reach this handler and dismiss the menu.
-useDocumentEvent('scroll', closeOnScroll, { capture: true })
-useWindowEvent('resize', closeMenu)
 </script>

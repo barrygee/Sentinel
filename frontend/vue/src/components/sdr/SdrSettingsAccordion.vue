@@ -179,16 +179,15 @@
  * with the chosen Hz; the parent validates, clamps the bandwidth ceiling and
  * sends the hardware command.
  *
- * The dropdown owns its dismiss behaviour like the other extracted pickers:
- * outside click, Escape, panel scroll past the open-settle window, and
- * window resize. Styling lives in SdrPanel.css (imported globally by
- * SdrPanel.vue).
+ * The dropdown's menu state, positioning and dismiss behaviour (outside
+ * click, settle-window scroll, resize) come from useTeleportedMenu, like the
+ * other extracted pickers. Styling lives in SdrPanel.css (imported globally
+ * by SdrPanel.vue).
  */
 import { ref } from 'vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useWindowEvent } from '@/composables/useWindowEvent'
-import { formatBwHz, MENU_OPEN_SETTLE_MS, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
+import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
+import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 const props = defineProps<{
   /** Audio volume percent (0–200). */
@@ -232,41 +231,16 @@ const expanded = ref(true)
 
 // ── Sample-rate dropdown ──────────────────────────────────────────────────────
 const sampleRateDropdownRef = ref<HTMLElement | null>(null)
-const sampleRateMenuOpen = ref(false)
-const sampleRateMenuStyle = ref<Record<string, string>>({})
-
-// Armed at open time; scrolls within the settle window are the browser
-// scrolling the focused trigger into view, not the user dismissing the menu.
-let openedAtMs = 0
-
-function positionSampleRateMenu() {
-  const el = sampleRateDropdownRef.value
-  // The dropdown is always rendered (the radio pane is mounted), so its ref is
-  // populated whenever the menu is toggled open.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  sampleRateMenuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
+const {
+  menuOpen: sampleRateMenuOpen,
+  menuStyle: sampleRateMenuStyle,
+  toggleMenu: toggleTeleportedMenu,
+  closeMenu: closeSampleRateMenu,
+} = useTeleportedMenu()
 
 function toggleSampleRateMenu() {
   if (props.controlsDisabled) return
-  if (sampleRateMenuOpen.value) {
-    closeSampleRateMenu()
-    return
-  }
-  positionSampleRateMenu()
-  sampleRateMenuOpen.value = true
-  openedAtMs = Date.now()
-}
-
-function closeSampleRateMenu() {
-  sampleRateMenuOpen.value = false
+  toggleTeleportedMenu(sampleRateDropdownRef.value)
 }
 
 function onSampleRateDropdownKey(e: KeyboardEvent) {
@@ -281,15 +255,4 @@ function pickSampleRate(v: number) {
   closeSampleRateMenu()
   emit('pick-sample-rate', v)
 }
-
-function closeOnScroll() {
-  if (Date.now() - openedAtMs < MENU_OPEN_SETTLE_MS) return
-  closeSampleRateMenu()
-}
-
-useDocumentEvent('click', closeSampleRateMenu)
-// Capture phase so scrolls from the inner side-panel container (a descendant,
-// and scroll doesn't bubble) still reach this handler and dismiss the menu.
-useDocumentEvent('scroll', closeOnScroll, { capture: true })
-useWindowEvent('resize', closeSampleRateMenu)
 </script>

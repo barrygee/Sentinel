@@ -42,9 +42,9 @@
 /**
  * SdrStepPicker — the channel-step dropdown used by the SDR panel's ad-hoc
  * search bar and the search-range editor forms. Renders the trigger plus its
- * own body-teleported options menu (so it overlays the side panel), and owns
- * the full dismiss behaviour: outside click, Escape, panel scroll (with the
- * open-settle window — see MENU_OPEN_SETTLE_MS) and window resize.
+ * own body-teleported options menu (so it overlays the side panel); the menu
+ * state, positioning and dismiss behaviour (outside click, settle-window
+ * scroll, resize) come from useTeleportedMenu.
  *
  * v-model is the step in kHz as a string (the panel stores steps as strings
  * and converts to Hz at save/tune time).
@@ -53,9 +53,7 @@
  * the other extracted panel sections.
  */
 import { ref, computed } from 'vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useWindowEvent } from '@/composables/useWindowEvent'
-import { MENU_OPEN_SETTLE_MS } from './sdrPanelUtils'
+import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
 
 const stepKhz = defineModel<string>({ required: true })
 
@@ -82,12 +80,7 @@ function formatStepKhz(v: number): string {
 }
 
 const triggerRef = ref<HTMLElement | null>(null)
-const menuOpen = ref(false)
-const menuStyle = ref<Record<string, string>>({})
-
-// Armed at open time; scrolls within the settle window are the browser
-// scrolling the focused trigger into view, not the user dismissing the menu.
-let openedAtMs = 0
+const { menuOpen, menuStyle, toggleMenu: toggleTeleportedMenu, closeMenu } = useTeleportedMenu()
 
 const selectedLabel = computed(() => {
   const v = parseFloat(stepKhz.value)
@@ -99,33 +92,8 @@ const selectedLabel = computed(() => {
   return formatStepKhz(v)
 })
 
-function positionMenu() {
-  const el = triggerRef.value
-  // The trigger is rendered before the menu can be toggled, so its ref is
-  // always populated here.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  menuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
-
 function toggleMenu() {
-  if (menuOpen.value) {
-    closeMenu()
-    return
-  }
-  positionMenu()
-  menuOpen.value = true
-  openedAtMs = Date.now()
-}
-
-function closeMenu() {
-  menuOpen.value = false
+  toggleTeleportedMenu(triggerRef.value)
 }
 
 function onTriggerKey(e: KeyboardEvent) {
@@ -140,20 +108,4 @@ function pickStep(v: number) {
   closeMenu()
   stepKhz.value = v.toString()
 }
-
-// The menu is teleported to <body> at position: fixed, anchored once at open
-// time from the trigger's bounding rect. Match native <select> behaviour and
-// dismiss it on outside click, panel scroll (past the settle window — the
-// browser fires one settle scroll right after open when it scrolls the
-// focused trigger into view) and window resize.
-function closeOnScroll() {
-  if (Date.now() - openedAtMs < MENU_OPEN_SETTLE_MS) return
-  closeMenu()
-}
-
-useDocumentEvent('click', closeMenu)
-// Capture phase so scrolls from the inner side-panel container (a descendant,
-// and scroll doesn't bubble) still reach this handler and dismiss the menu.
-useDocumentEvent('scroll', closeOnScroll, { capture: true })
-useWindowEvent('resize', closeMenu)
 </script>
