@@ -123,42 +123,28 @@
       <!-- Custom dropdown (NOT native <select>): native option lists
            can't be styled (UA popup), and we want the menu to match
            the device dropdown above. Built off the same primitives. -->
-      <div
-        ref="sampleRateDropdownRef"
-        class="sdr-device-dropdown"
-        :class="{
-          'sdr-device-dropdown--open': sampleRateMenuOpen,
-          'sdr-device-dropdown--loading': tuningDisabled,
-        }"
-        tabindex="0"
-        @click.stop="toggleSampleRateMenu"
-        @keydown="onSampleRateDropdownKey"
+      <BaseSelectMenu
+        ref="sampleRateMenuRef"
+        :loading="tuningDisabled"
+        :disabled="controlsDisabled"
       >
-        <div class="sdr-device-dropdown-selected">
+        <template #selected>
           <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
             formatBwHz(sampleRateHz)
           }}</span>
-          <span class="sdr-device-dropdown-arrow"></span>
-        </div>
-      </div>
-      <Teleport to="body">
-        <div
-          v-if="sampleRateMenuOpen"
-          class="sdr-device-menu sdr-device-menu--open"
-          :style="sampleRateMenuStyle"
-          @click.stop
-        >
+        </template>
+        <template #options>
           <div
-            v-for="r in SAMPLE_RATE_OPTIONS"
-            :key="r"
+            v-for="rateOption in SAMPLE_RATE_OPTIONS"
+            :key="rateOption"
             class="sdr-device-menu-item"
-            :class="{ 'sdr-device-menu-item--selected': r === sampleRateHz }"
-            @click="pickSampleRate(r)"
+            :class="{ 'sdr-device-menu-item--selected': rateOption === sampleRateHz }"
+            @click="pickSampleRate(rateOption)"
           >
-            {{ formatBwHz(r) }}
+            {{ formatBwHz(rateOption) }}
           </div>
-        </div>
-      </Teleport>
+        </template>
+      </BaseSelectMenu>
     </div>
   </div>
 </template>
@@ -179,17 +165,19 @@
  * with the chosen Hz; the parent validates, clamps the bandwidth ceiling and
  * sends the hardware command.
  *
- * The dropdown's menu state, positioning and dismiss behaviour (outside
- * click, settle-window scroll, resize) come from useTeleportedMenu, like the
- * other extracted pickers. Styling lives in SdrPanel.css (imported globally
- * by SdrPanel.vue).
+ * The dropdown's trigger, teleported menu and dismiss behaviour (outside
+ * click, settle-window scroll, resize) come from BaseSelectMenu, whose
+ * default keyboard model + `disabled` gate match this dropdown's
+ * controlsDisabled gating (the `--loading` style tracks tuningDisabled
+ * separately, preserving the pre-extraction split). Styling lives in
+ * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref } from 'vue'
+import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
-import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
-const props = defineProps<{
+defineProps<{
   /** Audio volume percent (0–200). */
   volume: number
   /** Squelch threshold in dBFS. */
@@ -230,29 +218,11 @@ const emit = defineEmits<{
 const expanded = ref(true)
 
 // ── Sample-rate dropdown ──────────────────────────────────────────────────────
-const sampleRateDropdownRef = ref<HTMLElement | null>(null)
-const {
-  menuOpen: sampleRateMenuOpen,
-  menuStyle: sampleRateMenuStyle,
-  toggleMenu: toggleTeleportedMenu,
-  closeMenu: closeSampleRateMenu,
-} = useTeleportedMenu()
-
-function toggleSampleRateMenu() {
-  if (props.controlsDisabled) return
-  toggleTeleportedMenu(sampleRateDropdownRef.value)
-}
-
-function onSampleRateDropdownKey(e: KeyboardEvent) {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    toggleSampleRateMenu()
-  }
-  if (e.key === 'Escape') closeSampleRateMenu()
-}
+const sampleRateMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
 
 function pickSampleRate(v: number) {
-  closeSampleRateMenu()
+  // The options only render once the menu (and therefore the ref) exists.
+  sampleRateMenuRef.value!.closeMenu()
   emit('pick-sample-rate', v)
 }
 </script>

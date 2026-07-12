@@ -17,29 +17,48 @@
       <!-- Flat-dark custom dropdown matching the device/step pickers (the
            native <select> didn't match the panel theme). Disabled while
            trunking is active — the map can't change mid-follow. -->
-      <div
-        ref="mapDropdownRef"
-        class="sdr-device-dropdown sdr-trunk-dropdown"
-        :class="{
-          'sdr-device-dropdown--open': mapMenuOpen,
-          'sdr-device-dropdown--loading': trunkEnabled,
-        }"
-        tabindex="0"
-        role="combobox"
+      <BaseSelectMenu
+        ref="mapMenuRef"
+        class="sdr-trunk-dropdown"
+        :loading="trunkEnabled"
+        :disabled="trunkEnabled"
+        trigger-role="combobox"
         aria-label="Trunk channel map"
-        aria-haspopup="listbox"
         aria-controls="sdr-trunk-map-listbox"
-        :aria-expanded="mapMenuOpen"
-        @click.stop="trunkEnabled ? null : toggleMapMenu()"
-        @keydown="onMapDropdownKey"
+        custom-keyboard
+        menu-class="sdr-trunk-menu"
+        @trigger-keydown="onMapDropdownKey"
       >
-        <div class="sdr-device-dropdown-selected">
+        <template #selected>
           <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
             mapLabel
           }}</span>
-          <span class="sdr-device-dropdown-arrow"></span>
-        </div>
-      </div>
+        </template>
+        <template #options>
+          <div id="sdr-trunk-map-listbox" role="listbox" aria-label="Channel maps">
+            <div
+              role="option"
+              class="sdr-device-menu-item"
+              :class="{ 'sdr-device-menu-item--selected': channelMap === '' }"
+              :aria-selected="channelMap === ''"
+              @click="pickMap('')"
+            >
+              No channel map
+            </div>
+            <div
+              v-for="name in channelMaps"
+              :key="name"
+              role="option"
+              class="sdr-device-menu-item"
+              :class="{ 'sdr-device-menu-item--selected': channelMap === name }"
+              :aria-selected="channelMap === name"
+              @click="pickMap(name)"
+            >
+              {{ name }}
+            </div>
+          </div>
+        </template>
+      </BaseSelectMenu>
       <!-- Follow the trunked system's control-channel grants. Enabled
            only once digital decode is running and a channel map is
            chosen (canFollow). -->
@@ -69,39 +88,6 @@
       <p v-if="trunkError" class="sdr-trunk-error" role="alert">{{ trunkError }}</p>
     </div>
   </div>
-
-  <!-- Channel-map dropdown menu (teleported so it overlays the side panel) -->
-  <Teleport to="body">
-    <div
-      v-if="mapMenuOpen"
-      class="sdr-device-menu sdr-device-menu--open sdr-trunk-menu"
-      :style="mapMenuStyle"
-      @click.stop
-    >
-      <div id="sdr-trunk-map-listbox" role="listbox" aria-label="Channel maps">
-        <div
-          role="option"
-          class="sdr-device-menu-item"
-          :class="{ 'sdr-device-menu-item--selected': channelMap === '' }"
-          :aria-selected="channelMap === ''"
-          @click="pickMap('')"
-        >
-          No channel map
-        </div>
-        <div
-          v-for="name in channelMaps"
-          :key="name"
-          role="option"
-          class="sdr-device-menu-item"
-          :class="{ 'sdr-device-menu-item--selected': channelMap === name }"
-          :aria-selected="channelMap === name"
-          @click="pickMap(name)"
-        >
-          {{ name }}
-        </div>
-      </div>
-    </div>
-  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -119,15 +105,15 @@
  * panel-owned so the panel can collapse the accordion whenever the side panel
  * opens, same as its Scanner/Search siblings.
  *
- * The dropdown's menu state, positioning and dismiss behaviour (outside
- * click, settle-window scroll, resize) come from useTeleportedMenu, like the
- * other extracted pickers. With this extraction the panel no longer owns any
- * dropdown — its document-level menu listeners are gone. Styling lives in
+ * The dropdown's trigger, teleported menu and dismiss behaviour (outside
+ * click, settle-window scroll, resize) come from BaseSelectMenu; the keyboard
+ * model is custom because trunkEnabled gates the whole handler (including
+ * Escape), matching the pre-extraction dropdown exactly. Styling lives in
  * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref, computed } from 'vue'
+import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
-import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
 
 /** Whether the accordion body is open (panel-owned so it can collapse it). */
 const expanded = defineModel<boolean>('expanded', { required: true })
@@ -151,31 +137,22 @@ const emit = defineEmits<{
 }>()
 
 // ── Channel-map dropdown ──────────────────────────────────────────────────────
-const mapDropdownRef = ref<HTMLElement | null>(null)
-const {
-  menuOpen: mapMenuOpen,
-  menuStyle: mapMenuStyle,
-  toggleMenu: toggleTeleportedMenu,
-  closeMenu: closeMapMenu,
-} = useTeleportedMenu()
+const mapMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
 
 const mapLabel = computed(() => (channelMap.value === '' ? 'No channel map' : channelMap.value))
 
-function toggleMapMenu() {
-  toggleTeleportedMenu(mapDropdownRef.value)
-}
-
 function onMapDropdownKey(keyboardEvent: KeyboardEvent) {
+  // The trigger only fires events once mounted, so the ref is always set.
   if (props.trunkEnabled) return
   if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
     keyboardEvent.preventDefault()
-    toggleMapMenu()
+    mapMenuRef.value!.toggleMenu()
   }
-  if (keyboardEvent.key === 'Escape') closeMapMenu()
+  if (keyboardEvent.key === 'Escape') mapMenuRef.value!.closeMenu()
 }
 
 function pickMap(name: string) {
-  closeMapMenu()
+  mapMenuRef.value!.closeMenu()
   channelMap.value = name
 }
 </script>
