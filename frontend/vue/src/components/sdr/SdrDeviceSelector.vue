@@ -138,16 +138,16 @@
  * single-client, so a throwaway probe socket disturbs the dongle — the
  * connection dot reflects the real control connection instead.
  *
- * Owns its dismiss behaviour like the other extracted pickers: outside click,
- * Escape, panel scroll past the open-settle window, and window resize.
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue).
+ * The menu state, positioning and dismiss behaviour (outside click,
+ * settle-window scroll, resize) come from useTeleportedMenu, like the other
+ * extracted pickers; this component adds the listbox highlight/keyboard
+ * model on top. Styling lives in SdrPanel.css (imported globally by
+ * SdrPanel.vue).
  */
 import { ref, computed } from 'vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useWindowEvent } from '@/composables/useWindowEvent'
+import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrRadio } from '@/stores/sdr'
-import { MENU_OPEN_SETTLE_MS } from './sdrPanelUtils'
 
 const props = defineProps<{
   /** Text shown in the trigger (radio name / placeholder / loading…). */
@@ -176,30 +176,10 @@ function isRadioReadOnly(radio: SdrRadio): boolean {
 }
 
 const dropdownRef = ref<HTMLElement | null>(null)
-const menuOpen = ref(false)
+const { menuOpen, menuStyle, openMenu: openTeleportedMenu, closeMenu } = useTeleportedMenu()
 // 0 = the "select radio" placeholder, 1..N = menuRadios[index-1].
 const highlight = ref(0)
 const menuRadios = ref<SdrRadio[]>([])
-const menuStyle = ref<Record<string, string>>({})
-
-// Armed at open time; scrolls within the settle window are the browser
-// scrolling the focused trigger into view, not the user dismissing the menu.
-let openedAtMs = 0
-
-function positionMenu() {
-  const el = dropdownRef.value
-  // The device dropdown is always rendered, so its ref is populated when the
-  // menu is toggled open.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  menuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
 
 // The device listbox always has the placeholder (index 0) plus one option per
 // online radio. The active-descendant id is clamped so it always references a
@@ -223,10 +203,8 @@ function populateMenuRadios() {
 }
 
 function openMenu() {
-  positionMenu()
   highlight.value = 0
-  menuOpen.value = true
-  openedAtMs = Date.now()
+  openTeleportedMenu(dropdownRef.value)
   populateMenuRadios()
 }
 
@@ -236,10 +214,6 @@ function toggleMenu() {
     return
   }
   openMenu()
-}
-
-function closeMenu() {
-  menuOpen.value = false
 }
 
 function pickRadio(radio: SdrRadio | null) {
@@ -287,15 +261,4 @@ function onDropdownKey(e: KeyboardEvent) {
     closeMenu()
   }
 }
-
-function closeOnScroll() {
-  if (Date.now() - openedAtMs < MENU_OPEN_SETTLE_MS) return
-  closeMenu()
-}
-
-useDocumentEvent('click', closeMenu)
-// Capture phase so scrolls from the inner side-panel container (a descendant,
-// and scroll doesn't bubble) still reach this handler and dismiss the menu.
-useDocumentEvent('scroll', closeOnScroll, { capture: true })
-useWindowEvent('resize', closeMenu)
 </script>

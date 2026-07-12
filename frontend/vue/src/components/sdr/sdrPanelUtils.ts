@@ -1,12 +1,7 @@
 // Pure helpers for SdrPanel.vue. No Vue / no DOM.
-
-// How long after a teleported dropdown menu opens before a document scroll is
-// treated as a user scroll and dismisses it. Opening a menu focuses its
-// (tabindex) trigger, and the browser scrolls that trigger into view — a
-// single settle scroll fires ~one frame after open. Closing on it would
-// dismiss the menu the instant it opens. Shared by SdrPanel's menus and
-// SdrStepPicker.
-export const MENU_OPEN_SETTLE_MS = 250
+// (The dropdown menu-open settle window, MENU_OPEN_SETTLE_MS, moved to
+// composables/useTeleportedMenu.ts with the rest of the shared menu
+// behaviour.)
 
 // Demodulation modes offered by the tuner and the frequency-manager forms.
 export const MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW'] as const

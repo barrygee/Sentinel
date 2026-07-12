@@ -119,17 +119,15 @@
  * panel-owned so the panel can collapse the accordion whenever the side panel
  * opens, same as its Scanner/Search siblings.
  *
- * The dropdown owns its dismiss behaviour like the other extracted pickers:
- * outside click, Escape, panel scroll past the open-settle window, and window
- * resize. With this extraction the panel no longer owns any dropdown — its
- * document-level menu listeners are gone. Styling lives in SdrPanel.css
- * (imported globally by SdrPanel.vue).
+ * The dropdown's menu state, positioning and dismiss behaviour (outside
+ * click, settle-window scroll, resize) come from useTeleportedMenu, like the
+ * other extracted pickers. With this extraction the panel no longer owns any
+ * dropdown — its document-level menu listeners are gone. Styling lives in
+ * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref, computed } from 'vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useWindowEvent } from '@/composables/useWindowEvent'
-import { MENU_OPEN_SETTLE_MS } from './sdrPanelUtils'
+import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
 
 /** Whether the accordion body is open (panel-owned so it can collapse it). */
 const expanded = defineModel<boolean>('expanded', { required: true })
@@ -154,42 +152,17 @@ const emit = defineEmits<{
 
 // ── Channel-map dropdown ──────────────────────────────────────────────────────
 const mapDropdownRef = ref<HTMLElement | null>(null)
-const mapMenuOpen = ref(false)
-const mapMenuStyle = ref<Record<string, string>>({})
-
-// Armed at open time; scrolls within the settle window are the browser
-// scrolling the focused trigger into view, not the user dismissing the menu.
-let openedAtMs = 0
+const {
+  menuOpen: mapMenuOpen,
+  menuStyle: mapMenuStyle,
+  toggleMenu: toggleTeleportedMenu,
+  closeMenu: closeMapMenu,
+} = useTeleportedMenu()
 
 const mapLabel = computed(() => (channelMap.value === '' ? 'No channel map' : channelMap.value))
 
-function positionMapMenu() {
-  const el = mapDropdownRef.value
-  // The dropdown is rendered (accordion open) before the menu can be toggled,
-  // so its ref is always populated here.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  mapMenuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
-
 function toggleMapMenu() {
-  if (mapMenuOpen.value) {
-    closeMapMenu()
-    return
-  }
-  positionMapMenu()
-  mapMenuOpen.value = true
-  openedAtMs = Date.now()
-}
-
-function closeMapMenu() {
-  mapMenuOpen.value = false
+  toggleTeleportedMenu(mapDropdownRef.value)
 }
 
 function onMapDropdownKey(keyboardEvent: KeyboardEvent) {
@@ -205,15 +178,4 @@ function pickMap(name: string) {
   closeMapMenu()
   channelMap.value = name
 }
-
-function closeOnScroll() {
-  if (Date.now() - openedAtMs < MENU_OPEN_SETTLE_MS) return
-  closeMapMenu()
-}
-
-useDocumentEvent('click', closeMapMenu)
-// Capture phase so scrolls from the inner side-panel container (a descendant,
-// and scroll doesn't bubble) still reach this handler and dismiss the menu.
-useDocumentEvent('scroll', closeOnScroll, { capture: true })
-useWindowEvent('resize', closeMapMenu)
 </script>
