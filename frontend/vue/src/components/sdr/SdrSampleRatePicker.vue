@@ -2,33 +2,19 @@
   <!-- Custom dropdown (NOT native <select>): native option lists are
        UA-rendered and can't be themed; reuse the app's flat-dark
        device-dropdown primitives instead. -->
-  <div
-    class="sdr-device-dropdown sdr-ef-setting-dropdown"
-    :class="{ 'sdr-device-dropdown--open': menuOpen }"
-    tabindex="0"
-    role="button"
-    aria-haspopup="listbox"
-    :aria-expanded="menuOpen"
+  <BaseSelectMenu
+    ref="selectMenuRef"
+    class="sdr-ef-setting-dropdown"
+    trigger-role="button"
     aria-label="Device sample rate"
-    @click.stop="toggleMenu($event)"
-    @keydown="onTriggerKey"
+    :menu-attrs="{ role: 'listbox', 'aria-label': 'Device sample rate options' }"
   >
-    <div class="sdr-device-dropdown-selected">
+    <template #selected>
       <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
         formatBwHz(sampleRateHz)
       }}</span>
-      <span class="sdr-device-dropdown-arrow"></span>
-    </div>
-  </div>
-  <Teleport to="body">
-    <div
-      v-if="menuOpen"
-      class="sdr-device-menu sdr-device-menu--open"
-      role="listbox"
-      aria-label="Device sample rate options"
-      :style="menuStyle"
-      @click.stop
-    >
+    </template>
+    <template #options>
       <div
         v-for="rate in SAMPLE_RATE_OPTIONS"
         :key="rate"
@@ -40,8 +26,8 @@
       >
         {{ formatBwHz(rate) }}
       </div>
-    </div>
-  </Teleport>
+    </template>
+  </BaseSelectMenu>
 </template>
 
 <script setup lang="ts">
@@ -49,43 +35,28 @@
  * SdrSampleRatePicker — the SAMPLE RATE dropdown used by the frequency-manager
  * add/edit forms' RADIO SETTINGS grid. It edits a *stored* frequency's sample
  * rate (a plain v-model number), not the connected device — the RADIO tab's
- * live sample-rate dropdown stays in SdrPanel because picking there sends a
- * hardware command.
+ * live sample-rate dropdown stays in SdrSettingsAccordion because picking
+ * there sends a hardware command.
  *
- * Follows the SdrStepPicker pattern: renders the trigger plus its own
- * body-teleported listbox menu (so it overlays the side panel); the menu
- * state, positioning and dismiss behaviour (outside click, settle-window
- * scroll, resize) come from useTeleportedMenu.
- *
- * The menu is positioned from the triggering event's currentTarget rather
- * than a template ref: the per-row edit form lives inside a v-for, where Vue
- * would make a template ref an *array* of elements, so currentTarget is the
- * reliable handle.
+ * The trigger + body-teleported listbox menu (and its dismiss behaviour:
+ * outside click, settle-window scroll, resize) come from BaseSelectMenu,
+ * whose default keyboard model (Enter/Space toggles, Escape closes) matches
+ * this picker; this component keeps the rate option model and rows.
  *
  * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
  * the other extracted panel sections.
  */
-import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
+import { ref } from 'vue'
+import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 const sampleRateHz = defineModel<number>({ required: true })
 
-const { menuOpen, menuStyle, toggleMenu: toggleTeleportedMenu, closeMenu } = useTeleportedMenu()
-
-function toggleMenu(event: MouseEvent | KeyboardEvent) {
-  toggleTeleportedMenu(event.currentTarget as HTMLElement)
-}
-
-function onTriggerKey(event: KeyboardEvent) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleMenu(event)
-  }
-  if (event.key === 'Escape') closeMenu()
-}
+const selectMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
 
 function pickRate(rate: number) {
-  closeMenu()
+  // The options only render once the menu (and therefore the ref) exists.
+  selectMenuRef.value!.closeMenu()
   // The menu only ever offers SAMPLE_RATE_OPTIONS values.
   /* v8 ignore start */
   if (!SAMPLE_RATE_OPTIONS.includes(rate as (typeof SAMPLE_RATE_OPTIONS)[number])) return

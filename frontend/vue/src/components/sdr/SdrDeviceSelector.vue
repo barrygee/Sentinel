@@ -1,23 +1,17 @@
 <template>
-  <div
-    ref="dropdownRef"
-    class="sdr-device-dropdown"
-    :class="{
-      'sdr-device-dropdown--loading': loading,
-      'sdr-device-dropdown--open': menuOpen,
-    }"
-    role="combobox"
-    tabindex="0"
+  <BaseSelectMenu
+    ref="selectMenuRef"
+    :loading="loading"
+    trigger-role="combobox"
     aria-label="Radio device"
-    aria-haspopup="listbox"
     aria-controls="sdr-device-listbox"
     aria-owns="sdr-device-listbox"
-    :aria-expanded="menuOpen"
     :aria-activedescendant="activeDescId"
-    @click.stop="toggleMenu"
-    @keydown="onDropdownKey"
+    custom-keyboard
+    @trigger-keydown="onDropdownKey"
+    @open="onMenuOpen"
   >
-    <div class="sdr-device-dropdown-selected">
+    <template #selected>
       <div
         class="sdr-conn-dot"
         :class="connected ? 'sdr-dot-on' : 'sdr-dot-off'"
@@ -49,19 +43,8 @@
           stroke-linejoin="round"
         />
       </svg>
-      <span class="sdr-device-dropdown-arrow"></span>
-    </div>
-  </div>
-  <span v-if="readOnly" class="sr-only" role="status"
-    >Another Sentinel is controlling this radio</span
-  >
-  <Teleport to="body">
-    <div
-      v-if="menuOpen"
-      class="sdr-device-menu sdr-device-menu--open"
-      :style="menuStyle"
-      @click.stop
-    >
+    </template>
+    <template #options>
       <div id="sdr-device-listbox" role="listbox" aria-label="Available radios">
         <div
           :id="optionId(0)"
@@ -115,8 +98,11 @@
       <div v-if="menuRadios.length === 0" class="sdr-device-menu-item sdr-device-menu-placeholder">
         no radios configured
       </div>
-    </div>
-  </Teleport>
+    </template>
+  </BaseSelectMenu>
+  <span v-if="readOnly" class="sr-only" role="status"
+    >Another Sentinel is controlling this radio</span
+  >
 </template>
 
 <script setup lang="ts">
@@ -138,14 +124,16 @@
  * single-client, so a throwaway probe socket disturbs the dongle — the
  * connection dot reflects the real control connection instead.
  *
- * The menu state, positioning and dismiss behaviour (outside click,
- * settle-window scroll, resize) come from useTeleportedMenu, like the other
- * extracted pickers; this component adds the listbox highlight/keyboard
- * model on top. Styling lives in SdrPanel.css (imported globally by
- * SdrPanel.vue).
+ * The trigger, teleported menu and dismiss behaviour (outside click,
+ * settle-window scroll, resize) come from BaseSelectMenu; this component
+ * opts out of the default keyboard model (`custom-keyboard`) and adds the
+ * listbox highlight/keyboard model on top, driving the exposed menu
+ * controls. The `open` event is the open-time hook — every open path (click
+ * or keyboard) resets the highlight and re-reads the store there. Styling
+ * lives in SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref, computed } from 'vue'
-import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
+import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrRadio } from '@/stores/sdr'
 
@@ -175,8 +163,9 @@ function isRadioReadOnly(radio: SdrRadio): boolean {
   return readOnly.value && radio.id === props.selectedRadioId
 }
 
-const dropdownRef = ref<HTMLElement | null>(null)
-const { menuOpen, menuStyle, openMenu: openTeleportedMenu, closeMenu } = useTeleportedMenu()
+const selectMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
+// Mirrors the base menu's open state reactively (null before first render).
+const menuOpen = computed(() => selectMenuRef.value?.menuOpen ?? false)
 // 0 = the "select radio" placeholder, 1..N = menuRadios[index-1].
 const highlight = ref(0)
 const menuRadios = ref<SdrRadio[]>([])
@@ -202,22 +191,16 @@ function populateMenuRadios() {
   menuRadios.value = sdrStore.radios.filter((radio) => radio.enabled)
 }
 
-function openMenu() {
+// Runs on every open path (trigger click or keyboard) via the base's `open`
+// event, before the menu body renders.
+function onMenuOpen() {
   highlight.value = 0
-  openTeleportedMenu(dropdownRef.value)
   populateMenuRadios()
 }
 
-function toggleMenu() {
-  if (menuOpen.value) {
-    closeMenu()
-    return
-  }
-  openMenu()
-}
-
 function pickRadio(radio: SdrRadio | null) {
-  closeMenu()
+  // The options only render once the menu (and therefore the ref) exists.
+  selectMenuRef.value!.closeMenu()
   emit('select', radio)
 }
 
@@ -229,11 +212,13 @@ function selectHighlightedRadio() {
 }
 
 function onDropdownKey(e: KeyboardEvent) {
+  // The trigger only fires events once mounted, so the ref is always set.
+  const menu = selectMenuRef.value!
   if (!menuOpen.value) {
     // Closed: Enter/Space/Arrow keys open the listbox.
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
-      openMenu()
+      menu.openMenu()
     }
     return
   }
@@ -256,9 +241,9 @@ function onDropdownKey(e: KeyboardEvent) {
     selectHighlightedRadio()
   } else if (e.key === 'Escape') {
     e.preventDefault()
-    closeMenu()
+    menu.closeMenu()
   } else if (e.key === 'Tab') {
-    closeMenu()
+    menu.closeMenu()
   }
 }
 </script>

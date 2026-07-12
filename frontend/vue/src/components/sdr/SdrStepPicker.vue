@@ -1,59 +1,52 @@
 <template>
-  <div
-    ref="triggerRef"
-    class="sdr-device-dropdown sdr-step-dropdown"
-    :class="{
-      'sdr-device-dropdown--open': menuOpen,
-      'sdr-device-dropdown--loading': disabled,
-    }"
-    tabindex="0"
-    @click.stop="disabled ? null : toggleMenu()"
-    @keydown="onTriggerKey"
+  <BaseSelectMenu
+    ref="selectMenuRef"
+    class="sdr-step-dropdown"
+    :loading="disabled"
+    :disabled="disabled"
+    custom-keyboard
+    menu-class="sdr-step-menu"
+    @trigger-keydown="onTriggerKey"
   >
-    <div class="sdr-device-dropdown-selected">
+    <template #selected>
       <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
         selectedLabel
       }}</span>
-      <span class="sdr-device-dropdown-arrow"></span>
-    </div>
-  </div>
-  <!-- Options menu (teleported so it overlays the side panel) -->
-  <Teleport to="body">
-    <div
-      v-if="menuOpen"
-      class="sdr-device-menu sdr-device-menu--open sdr-step-menu"
-      :style="menuStyle"
-      @click.stop
-    >
+    </template>
+    <template #options>
       <div
-        v-for="s in STEP_OPTIONS_KHZ"
-        :key="s"
+        v-for="stepOption in STEP_OPTIONS_KHZ"
+        :key="stepOption"
         class="sdr-device-menu-item"
-        :class="{ 'sdr-device-menu-item--selected': parseFloat(stepKhz) === s }"
-        @click="pickStep(s)"
+        :class="{ 'sdr-device-menu-item--selected': parseFloat(stepKhz) === stepOption }"
+        @click="pickStep(stepOption)"
       >
-        {{ formatStepKhz(s) }}
+        {{ formatStepKhz(stepOption) }}
       </div>
-    </div>
-  </Teleport>
+    </template>
+  </BaseSelectMenu>
 </template>
 
 <script setup lang="ts">
 /**
  * SdrStepPicker — the channel-step dropdown used by the SDR panel's ad-hoc
- * search bar and the search-range editor forms. Renders the trigger plus its
- * own body-teleported options menu (so it overlays the side panel); the menu
- * state, positioning and dismiss behaviour (outside click, settle-window
- * scroll, resize) come from useTeleportedMenu.
+ * search bar and the search-range editor forms. The trigger + body-teleported
+ * options menu (and its dismiss behaviour: outside click, settle-window
+ * scroll, resize) come from BaseSelectMenu; this component keeps the step
+ * option model and rows.
  *
  * v-model is the step in kHz as a string (the panel stores steps as strings
  * and converts to Hz at save/tune time).
+ *
+ * The keyboard model is custom because `disabled` deliberately does NOT gate
+ * it — the pre-extraction ad-hoc dropdown only gated its click handler, and
+ * this preserves that behaviour exactly.
  *
  * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
  * the other extracted panel sections.
  */
 import { ref, computed } from 'vue'
-import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
+import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
 
 const stepKhz = defineModel<string>({ required: true })
 
@@ -79,8 +72,7 @@ function formatStepKhz(v: number): string {
   return `${v} kHz`
 }
 
-const triggerRef = ref<HTMLElement | null>(null)
-const { menuOpen, menuStyle, toggleMenu: toggleTeleportedMenu, closeMenu } = useTeleportedMenu()
+const selectMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
 
 const selectedLabel = computed(() => {
   const v = parseFloat(stepKhz.value)
@@ -92,20 +84,17 @@ const selectedLabel = computed(() => {
   return formatStepKhz(v)
 })
 
-function toggleMenu() {
-  toggleTeleportedMenu(triggerRef.value)
-}
-
 function onTriggerKey(e: KeyboardEvent) {
+  // The trigger only fires events once mounted, so the ref is always set.
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
-    toggleMenu()
+    selectMenuRef.value!.toggleMenu()
   }
-  if (e.key === 'Escape') closeMenu()
+  if (e.key === 'Escape') selectMenuRef.value!.closeMenu()
 }
 
 function pickStep(v: number) {
-  closeMenu()
+  selectMenuRef.value!.closeMenu()
   stepKhz.value = v.toString()
 }
 </script>
