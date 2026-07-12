@@ -1092,6 +1092,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract the TRUNK SYSTEM accordion into SdrTrunkSection (decomposition P7) (#197)
 - Share picker menu behaviour via useTeleportedMenu (base dedupe B0) (#198)
 - Fold the five SDR pickers onto a BaseSelectMenu primitive (base dedupe B1) (#199)
+- Share accordion headers via BaseAccordionSection (base dedupe B2) (#200)
 
 ### Documentation
 
