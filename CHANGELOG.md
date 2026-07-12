@@ -1090,6 +1090,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract the device selector into SdrDeviceSelector (decomposition P5) (#195)
 - Extract the SETTINGS accordion into SdrSettingsAccordion (decomposition P6) (#196)
 - Extract the TRUNK SYSTEM accordion into SdrTrunkSection (decomposition P7) (#197)
+- Share picker menu behaviour via useTeleportedMenu (base dedupe B0) (#198)
 
 ### Documentation
 
