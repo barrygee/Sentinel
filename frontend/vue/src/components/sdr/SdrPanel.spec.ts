@@ -1665,10 +1665,10 @@ describe('SdrPanel — trunk system', () => {
     expect(useSdrStore().trunkChannelMaps).toEqual([])
   })
 
-  // The trunk menu is the panel's last panel-owned dropdown (every other
-  // picker owns its own settle window in its component), so it is the one
-  // that exercises the panel's closeMenusOnScroll settle branch.
-  it('applies the panel settle window to the trunk channel-map menu', async () => {
+  // The trunk menu now lives in SdrTrunkSection with its own settle window
+  // (the panel no longer owns any dropdown); this exercises that behaviour
+  // end-to-end through the mounted panel.
+  it('applies the settle window to the trunk channel-map menu', async () => {
     // Stub the clock BEFORE mounting: Vue's event invokers skip events whose
     // timeStamp predates handler attachment, so a mid-test stub would make
     // every subsequent click look stale and be ignored.
@@ -4986,7 +4986,8 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await dropdown.trigger('keydown', { key: 'Escape' })
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-device-menu')).toBeNull()
-    // Space opens, an outside document click closes (onDocumentClick).
+    // Space opens, an outside document click closes (the picker's own
+    // document-click listener).
     await dropdown.trigger('keydown', { key: ' ' })
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
