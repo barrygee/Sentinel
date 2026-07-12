@@ -1597,31 +1597,6 @@ describe('SdrPanel — open menus dismiss on scroll/resize', () => {
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-device-menu')).toBeNull()
   })
-
-  // The device menu now lives in SdrDeviceSelector (with its own settle
-  // window), so drive the PANEL's settle window through a menu the panel
-  // still owns: the RADIO tab's live sample-rate dropdown.
-  it('applies the settle window to the panel-owned sample-rate menu', async () => {
-    const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
-    const { wrapper } = await mountConnected()
-    const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
-      .find((d) => !d.element.closest('.sdr-radio-section--device'))!
-    await srDrop.trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
-    // Inside the settle window: ignored.
-    nowStub.mockReturnValue(1_100)
-    document.dispatchEvent(new Event('scroll'))
-    await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
-    // Past the settle window: dismissed.
-    nowStub.mockReturnValue(1_300)
-    document.dispatchEvent(new Event('scroll'))
-    await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
-    nowStub.mockRestore()
-  })
 })
 
 // =============================================================================
@@ -1688,6 +1663,32 @@ describe('SdrPanel — trunk system', () => {
     await mountConnected()
     await flushPromises()
     expect(useSdrStore().trunkChannelMaps).toEqual([])
+  })
+
+  // The trunk menu is the panel's last panel-owned dropdown (every other
+  // picker owns its own settle window in its component), so it is the one
+  // that exercises the panel's closeMenusOnScroll settle branch.
+  it('applies the panel settle window to the trunk channel-map menu', async () => {
+    // Stub the clock BEFORE mounting: Vue's event invokers skip events whose
+    // timeStamp predates handler attachment, so a mid-test stub would make
+    // every subsequent click look stale and be ignored.
+    const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+    const { wrapper } = await mountDecoding(['site-a.csv'])
+    await expandTrunk(wrapper)
+    await wrapper.find('.sdr-trunk-dropdown').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+    // Inside the settle window: ignored.
+    nowStub.mockReturnValue(1_100)
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).not.toBeNull()
+    // Past the settle window: dismissed.
+    nowStub.mockReturnValue(1_300)
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('.sdr-trunk-menu')).toBeNull()
+    nowStub.mockRestore()
   })
 
   it('opens the channel-map dropdown and selects a map', async () => {

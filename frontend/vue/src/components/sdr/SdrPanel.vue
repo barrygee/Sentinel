@@ -255,175 +255,23 @@
 
         <!-- Settings accordion -->
         <div class="sdr-radio-section sdr-settings-controls">
-          <button
-            type="button"
-            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': settingsSectionExpanded }"
-            :aria-expanded="settingsSectionExpanded"
-            aria-controls="sdr-settings-section"
-            @click="settingsSectionExpanded = !settingsSectionExpanded"
-          >
-            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SETTINGS</label>
-            <span class="sdr-frequency-manager-accordion-chevron">
-              <ChevronIcon />
-            </span>
-          </button>
-          <div v-show="settingsSectionExpanded" id="sdr-settings-section">
-            <!-- Volume -->
-            <div class="sdr-radio-section">
-              <div class="sdr-slider-header">
-                <label class="sdr-field-label">VOLUME</label>
-                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-                  >{{ volume }}%</span
-                >
-              </div>
-              <input
-                class="sdr-panel-slider"
-                type="range"
-                aria-label="Volume"
-                min="0"
-                max="200"
-                step="1"
-                :value="volume"
-                :disabled="controlsDisabled"
-                @input="onVolumeInput"
-              />
-            </div>
-
-            <!-- Squelch -->
-            <div class="sdr-radio-section">
-              <div class="sdr-slider-header">
-                <label class="sdr-field-label">SQUELCH</label>
-                <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-                  >{{ squelch }} dBFS</span
-                >
-              </div>
-              <input
-                class="sdr-panel-slider"
-                type="range"
-                aria-label="Squelch in dBFS"
-                min="-120"
-                max="0"
-                step="1"
-                :value="squelch"
-                :disabled="controlsDisabled"
-                @input="onSquelchInput"
-              />
-            </div>
-
-            <!-- Bandwidth -->
-            <div class="sdr-radio-section">
-              <div class="sdr-slider-header">
-                <label class="sdr-field-label">BANDWIDTH</label>
-                <span
-                  class="sdr-slider-val"
-                  :class="{ 'sdr-slider-val--dimmed': tuningDisabled }"
-                  >{{ formatBwHz(bwHz) }}</span
-                >
-              </div>
-              <input
-                class="sdr-panel-slider"
-                type="range"
-                aria-label="Bandwidth"
-                min="1000"
-                :max="bwMax"
-                step="500"
-                :value="bwHz"
-                :disabled="tuningDisabled"
-                @input="onBwInput"
-              />
-            </div>
-
-            <!-- RF Gain -->
-            <div class="sdr-radio-section">
-              <div class="sdr-slider-header">
-                <label class="sdr-field-label">RF GAIN</label>
-                <span
-                  class="sdr-slider-val"
-                  :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-                  >{{ gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB` }}</span
-                >
-              </div>
-              <input
-                class="sdr-panel-slider"
-                type="range"
-                aria-label="RF gain in dB"
-                min="-1"
-                max="49"
-                step="0.5"
-                :value="gainDb"
-                :disabled="tuningDisabled || gainAuto"
-                @input="onGainInput"
-              />
-            </div>
-
-            <!-- AGC -->
-            <div class="sdr-radio-section sdr-agc-row">
-              <label class="sdr-checkbox-label">
-                <input
-                  type="checkbox"
-                  class="sdr-checkbox"
-                  :checked="gainAuto"
-                  :disabled="tuningDisabled"
-                  @change="onAgcChange"
-                />
-                <span class="sdr-checkbox-custom"></span>
-                <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
-              </label>
-            </div>
-
-            <!-- Sample Rate (hardware) — sets the spectrum/waterfall span -->
-            <div class="sdr-radio-section">
-              <div class="sdr-slider-header">
-                <label class="sdr-field-label">SAMPLE RATE</label>
-                <span
-                  class="sdr-slider-val"
-                  :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-                  >{{ formatBwHz(sampleRateHz) }}</span
-                >
-              </div>
-              <!-- Custom dropdown (NOT native <select>): native option lists
-                   can't be styled (UA popup), and we want the menu to match
-                   the device dropdown above. Built off the same primitives. -->
-              <div
-                ref="sampleRateDropdownRef"
-                class="sdr-device-dropdown"
-                :class="{
-                  'sdr-device-dropdown--open': sampleRateMenuOpen,
-                  'sdr-device-dropdown--loading': tuningDisabled,
-                }"
-                tabindex="0"
-                @click.stop="toggleSampleRateMenu"
-                @keydown="onSampleRateDropdownKey"
-              >
-                <div class="sdr-device-dropdown-selected">
-                  <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
-                    formatBwHz(sampleRateHz)
-                  }}</span>
-                  <span class="sdr-device-dropdown-arrow"></span>
-                </div>
-              </div>
-              <Teleport to="body">
-                <div
-                  v-if="sampleRateMenuOpen"
-                  ref="sampleRateMenuRef"
-                  class="sdr-device-menu sdr-device-menu--open"
-                  :style="sampleRateMenuStyle"
-                  @click.stop
-                >
-                  <div
-                    v-for="r in SAMPLE_RATE_OPTIONS"
-                    :key="r"
-                    class="sdr-device-menu-item"
-                    :class="{ 'sdr-device-menu-item--selected': r === sampleRateHz }"
-                    @click="pickSampleRate(r)"
-                  >
-                    {{ formatBwHz(r) }}
-                  </div>
-                </div>
-              </Teleport>
-            </div>
-          </div>
+          <SdrSettingsAccordion
+            :volume="volume"
+            :squelch="squelch"
+            :bw-hz="bwHz"
+            :bw-max="bwMax"
+            :gain-db="gainDb"
+            :gain-auto="gainAuto"
+            :sample-rate-hz="sampleRateHz"
+            :controls-disabled="controlsDisabled"
+            :tuning-disabled="tuningDisabled"
+            @volume-input="onVolumeInput"
+            @squelch-input="onSquelchInput"
+            @bw-input="onBwInput"
+            @gain-input="onGainInput"
+            @agc-change="onAgcChange"
+            @pick-sample-rate="pickSampleRate"
+          />
         </div>
 
         <!-- Scan controls -->
@@ -854,6 +702,7 @@ import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
 import SdrStepPicker from './SdrStepPicker.vue'
 import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
+import SdrSettingsAccordion from './SdrSettingsAccordion.vue'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
@@ -1253,7 +1102,6 @@ let _lastSpectrum: { bins: number[]; center_hz: number; sample_rate: number } | 
 // drives the fetch via reloadData() below, which calls the store actions.
 const freqs = computed<SdrStoredFrequency[]>(() => _sdrStore().frequencies)
 const scannerSectionExpanded = ref(false)
-const settingsSectionExpanded = ref(true)
 
 const currentFreqLabel = computed<string>(() => {
   const hz = currentFreqHz.value
@@ -1373,7 +1221,6 @@ let _recTimerInterval: ReturnType<typeof setInterval> | null = null
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 import {
-  formatBwHz,
   parseFreqMhz,
   defaultBwHz,
   MENU_OPEN_SETTLE_MS,
@@ -2131,50 +1978,12 @@ function onBwInput(e: Event) {
   sdrAudio.setBandwidthHz(v)
 }
 
-const sampleRateDropdownRef = ref<HTMLElement | null>(null)
-const sampleRateMenuRef = ref<HTMLElement | null>(null)
-const sampleRateMenuOpen = ref(false)
-const sampleRateMenuStyle = ref<Record<string, string>>({})
-
-function positionSampleRateMenu() {
-  const el = sampleRateDropdownRef.value
-  // The dropdown is always rendered (the radio pane is mounted), so its ref is
-  // populated whenever the menu is toggled open.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  sampleRateMenuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
-
-function toggleSampleRateMenu() {
-  if (controlsDisabled.value) return
-  if (sampleRateMenuOpen.value) {
-    closeSampleRateMenu()
-    return
-  }
-  positionSampleRateMenu()
-  sampleRateMenuOpen.value = true
-}
-
-function closeSampleRateMenu() {
-  sampleRateMenuOpen.value = false
-}
-
-function onSampleRateDropdownKey(e: KeyboardEvent) {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    toggleSampleRateMenu()
-  }
-  if (e.key === 'Escape') closeSampleRateMenu()
-}
-
+// The SETTINGS accordion UI (sliders, AGC checkbox and the sample-rate
+// dropdown) lives in SdrSettingsAccordion.vue. It forwards raw slider/checkbox
+// events into the handlers above so the 150 ms command debounces and
+// audio-worklet call cadence stay exactly as they were, and emits
+// `pick-sample-rate` into pickSampleRate below.
 function pickSampleRate(v: number) {
-  closeSampleRateMenu()
   // The menu only ever offers SAMPLE_RATE_OPTIONS values, so this allow-list
   // guard never rejects a real selection.
   /* v8 ignore start */
@@ -2424,7 +2233,6 @@ function selectRadio(r: SdrRadio | null) {
 }
 
 function closeAllMenus() {
-  if (sampleRateMenuOpen.value) closeSampleRateMenu()
   if (trunkMapMenuOpen.value) closeTrunkMapMenu()
 }
 
@@ -3642,18 +3450,14 @@ onUnmounted(() => {
   // Only close if unmounting the full-page SdrView (not the RADIO tab)
 })
 
-// Record when any menu transitions from closed to open, to arm the settle window
-// used by closeMenusOnScroll. One watcher covers the panel's two remaining
-// dropdowns (the device, step and ef-sample-rate dropdowns live in
-// SdrDeviceSelector / SdrStepPicker / SdrSampleRatePicker, which own their own
-// settle windows). Registered here (end of setup) so every menu-open ref it
+// Record when the trunk menu — the panel's last remaining dropdown; every
+// other picker lives in its own component with its own settle window —
+// transitions from closed to open, to arm the settle window used by
+// closeMenusOnScroll. Registered here (end of setup) so the menu-open ref it
 // reads is already initialised.
-watch(
-  () => sampleRateMenuOpen.value || trunkMapMenuOpen.value,
-  (anyMenuOpen) => {
-    if (anyMenuOpen) lastMenuOpenedAtMs = Date.now()
-  },
-)
+watch(trunkMapMenuOpen, (menuOpen) => {
+  if (menuOpen) lastMenuOpenedAtMs = Date.now()
+})
 
 useDocumentEvent('click', onDocumentClick)
 // Capture phase so scrolls from the inner side-panel container (a descendant,
