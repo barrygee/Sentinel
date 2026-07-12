@@ -276,32 +276,25 @@
 
         <!-- Scan controls -->
         <div class="sdr-radio-section sdr-scan-controls">
-          <button
-            type="button"
-            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': scannerSectionExpanded }"
-            :aria-expanded="scannerSectionExpanded"
-            aria-controls="sdr-scanner-section"
-            @click="scannerSectionExpanded = !scannerSectionExpanded"
+          <BaseAccordionSection
+            v-model:expanded="scannerSectionExpanded"
+            title="SCANNER"
+            body-id="sdr-scanner-section"
           >
-            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SCANNER</label>
-            <div v-show="scanActive" class="sdr-scan-state-row">
-              <span class="sdr-scan-state-label">{{
-                scanLocked ? 'SCANNING PAUSED' : 'SCANNING'
-              }}</span>
-              <div
-                class="sdr-scan-indicator"
-                :class="{
-                  'sdr-scan-running': scanActive && !scanLocked,
-                  'sdr-scan-holding': scanLocked,
-                }"
-              ></div>
-            </div>
-            <span class="sdr-frequency-manager-accordion-chevron">
-              <ChevronIcon />
-            </span>
-          </button>
-          <div v-show="scannerSectionExpanded" id="sdr-scanner-section">
+            <template #header-extra>
+              <div v-show="scanActive" class="sdr-scan-state-row">
+                <span class="sdr-scan-state-label">{{
+                  scanLocked ? 'SCANNING PAUSED' : 'SCANNING'
+                }}</span>
+                <div
+                  class="sdr-scan-indicator"
+                  :class="{
+                    'sdr-scan-running': scanActive && !scanLocked,
+                    'sdr-scan-holding': scanLocked,
+                  }"
+                ></div>
+              </div>
+            </template>
             <div class="sdr-scan-subsection-label">GROUPS</div>
             <div class="sdr-scan-groups-row">
               <button
@@ -360,37 +353,30 @@
                 </svg>
               </button>
             </div>
-          </div>
+          </BaseAccordionSection>
         </div>
 
         <!-- Search controls (low/high range sweep) -->
         <div class="sdr-radio-section sdr-scan-controls">
-          <button
-            type="button"
-            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': searchSectionExpanded }"
-            :aria-expanded="searchSectionExpanded"
-            aria-controls="sdr-search-section"
-            @click="searchSectionExpanded = !searchSectionExpanded"
+          <BaseAccordionSection
+            v-model:expanded="searchSectionExpanded"
+            title="SEARCH"
+            body-id="sdr-search-section"
           >
-            <label class="sdr-field-label sdr-frequency-manager-scanner-title">SEARCH</label>
-            <div v-show="searchActive" class="sdr-scan-state-row">
-              <span class="sdr-scan-state-label">{{
-                searchLocked ? 'SEARCHING PAUSED' : 'SEARCHING'
-              }}</span>
-              <div
-                class="sdr-scan-indicator"
-                :class="{
-                  'sdr-scan-running': searchActive && !searchLocked,
-                  'sdr-scan-holding': searchLocked,
-                }"
-              ></div>
-            </div>
-            <span class="sdr-frequency-manager-accordion-chevron">
-              <ChevronIcon />
-            </span>
-          </button>
-          <div v-show="searchSectionExpanded" id="sdr-search-section">
+            <template #header-extra>
+              <div v-show="searchActive" class="sdr-scan-state-row">
+                <span class="sdr-scan-state-label">{{
+                  searchLocked ? 'SEARCHING PAUSED' : 'SEARCHING'
+                }}</span>
+                <div
+                  class="sdr-scan-indicator"
+                  :class="{
+                    'sdr-scan-running': searchActive && !searchLocked,
+                    'sdr-scan-holding': searchLocked,
+                  }"
+                ></div>
+              </div>
+            </template>
             <div class="sdr-search-adhoc-row">
               <div class="sdr-search-adhoc-col">
                 <label class="sdr-field-label">LOW (MHz)</label>
@@ -457,22 +443,11 @@
               </div>
             </div>
             <div class="sdr-search-saved-ranges">
-              <button
-                type="button"
-                class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-                :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': savedRangesExpanded }"
-                :aria-expanded="savedRangesExpanded"
-                aria-controls="sdr-saved-ranges-section"
-                @click="savedRangesExpanded = !savedRangesExpanded"
+              <BaseAccordionSection
+                v-model:expanded="savedRangesExpanded"
+                title="SAVED RANGES"
+                body-id="sdr-saved-ranges-section"
               >
-                <label class="sdr-field-label sdr-frequency-manager-scanner-title"
-                  >SAVED RANGES</label
-                >
-                <span class="sdr-frequency-manager-accordion-chevron">
-                  <ChevronIcon />
-                </span>
-              </button>
-              <div v-show="savedRangesExpanded" id="sdr-saved-ranges-section">
                 <div v-if="searchRanges.length > 0" class="sdr-search-range-list">
                   <div
                     v-for="r in searchRanges"
@@ -530,9 +505,9 @@
                 <div v-else class="sdr-scan-subsection-label" style="opacity: 0.6">
                   No ranges defined — add some in Frequency Manager.
                 </div>
-              </div>
+              </BaseAccordionSection>
             </div>
-          </div>
+          </BaseAccordionSection>
         </div>
 
         <!-- Trunk-system channel-map picker + FOLLOW button. Lives in its own
@@ -607,7 +582,7 @@ import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import SdrSettingsAccordion from './SdrSettingsAccordion.vue'
 import SdrTrunkSection from './SdrTrunkSection.vue'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'

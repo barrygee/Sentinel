@@ -181,20 +181,12 @@
             <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
           </div>
           <div class="sdr-editfreq-field">
-            <button
-              type="button"
-              class="sdr-ef-settings-toggle"
-              :aria-expanded="efSettingsExpanded"
-              aria-controls="sdr-ef-settings-section"
-              @click="efSettingsExpanded = !efSettingsExpanded"
-            >
-              <span class="sdr-ef-settings-toggle-title">RADIO SETTINGS</span>
-              <ChevronIcon :open="efSettingsExpanded" />
-            </button>
-            <div
-              v-show="efSettingsExpanded"
-              id="sdr-ef-settings-section"
-              class="sdr-ef-settings-grid"
+            <BaseAccordionSection
+              v-model:expanded="efSettingsExpanded"
+              title="RADIO SETTINGS"
+              body-id="sdr-ef-settings-section"
+              variant="form"
+              body-class="sdr-ef-settings-grid"
             >
               <div class="sdr-ef-setting">
                 <span class="sdr-field-label">RF GAIN (dB)</span>
@@ -287,7 +279,7 @@
                   aria-label="Waterfall maximum dB"
                 />
               </div>
-            </div>
+            </BaseAccordionSection>
           </div>
           <div class="sdr-editfreq-actions">
             <div class="sdr-editfreq-actions-right">
@@ -419,17 +411,13 @@
         <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
       </div>
       <div class="sdr-editfreq-field">
-        <button
-          type="button"
-          class="sdr-ef-settings-toggle"
-          :aria-expanded="efSettingsExpanded"
-          aria-controls="sdr-ef-settings-section"
-          @click="efSettingsExpanded = !efSettingsExpanded"
+        <BaseAccordionSection
+          v-model:expanded="efSettingsExpanded"
+          title="RADIO SETTINGS"
+          body-id="sdr-ef-settings-section"
+          variant="form"
+          body-class="sdr-ef-settings-grid"
         >
-          <span class="sdr-ef-settings-toggle-title">RADIO SETTINGS</span>
-          <ChevronIcon :open="efSettingsExpanded" />
-        </button>
-        <div v-show="efSettingsExpanded" id="sdr-ef-settings-section" class="sdr-ef-settings-grid">
           <div class="sdr-ef-setting">
             <span class="sdr-field-label">RF GAIN (dB)</span>
             <input
@@ -521,7 +509,7 @@
               aria-label="Waterfall maximum dB"
             />
           </div>
-        </div>
+        </BaseAccordionSection>
       </div>
       <div class="sdr-editfreq-actions">
         <div class="sdr-editfreq-actions-right">
@@ -555,7 +543,7 @@
  * the other extracted panel sections.
  */
 import { ref, computed, watch } from 'vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
