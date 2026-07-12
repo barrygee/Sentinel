@@ -1,18 +1,5 @@
 <template>
-  <button
-    type="button"
-    class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-    :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': expanded }"
-    :aria-expanded="expanded"
-    aria-controls="sdr-settings-section"
-    @click="expanded = !expanded"
-  >
-    <label class="sdr-field-label sdr-frequency-manager-scanner-title">SETTINGS</label>
-    <span class="sdr-frequency-manager-accordion-chevron">
-      <ChevronIcon />
-    </span>
-  </button>
-  <div v-show="expanded" id="sdr-settings-section">
+  <BaseAccordionSection v-model:expanded="expanded" title="SETTINGS" body-id="sdr-settings-section">
     <!-- Volume -->
     <div class="sdr-radio-section">
       <div class="sdr-slider-header">
@@ -146,7 +133,7 @@
         </template>
       </BaseSelectMenu>
     </div>
-  </div>
+  </BaseAccordionSection>
 </template>
 
 <script setup lang="ts">
@@ -169,12 +156,13 @@
  * click, settle-window scroll, resize) come from BaseSelectMenu, whose
  * default keyboard model + `disabled` gate match this dropdown's
  * controlsDisabled gating (the `--loading` style tracks tuningDisabled
- * separately, preserving the pre-extraction split). Styling lives in
+ * separately, preserving the pre-extraction split). The SETTINGS header +
+ * collapsible body come from BaseAccordionSection. Styling lives in
  * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref } from 'vue'
+import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 defineProps<{

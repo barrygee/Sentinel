@@ -1,19 +1,10 @@
 <template>
   <div class="sdr-radio-section sdr-trunk-section">
-    <button
-      type="button"
-      class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-      :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': expanded }"
-      :aria-expanded="expanded"
-      aria-controls="sdr-trunk-section-body"
-      @click="expanded = !expanded"
+    <BaseAccordionSection
+      v-model:expanded="expanded"
+      title="TRUNK SYSTEM"
+      body-id="sdr-trunk-section-body"
     >
-      <label class="sdr-field-label sdr-frequency-manager-scanner-title">TRUNK SYSTEM</label>
-      <span class="sdr-frequency-manager-accordion-chevron">
-        <ChevronIcon />
-      </span>
-    </button>
-    <div v-show="expanded" id="sdr-trunk-section-body">
       <!-- Flat-dark custom dropdown matching the device/step pickers (the
            native <select> didn't match the panel theme). Disabled while
            trunking is active — the map can't change mid-follow. -->
@@ -86,7 +77,7 @@
         Add a channel-map CSV to decoder/channel-maps to enable trunking.
       </p>
       <p v-if="trunkError" class="sdr-trunk-error" role="alert">{{ trunkError }}</p>
-    </div>
+    </BaseAccordionSection>
   </div>
 </template>
 
@@ -108,12 +99,13 @@
  * The dropdown's trigger, teleported menu and dismiss behaviour (outside
  * click, settle-window scroll, resize) come from BaseSelectMenu; the keyboard
  * model is custom because trunkEnabled gates the whole handler (including
- * Escape), matching the pre-extraction dropdown exactly. Styling lives in
+ * Escape), matching the pre-extraction dropdown exactly. The TRUNK SYSTEM
+ * header + collapsible body come from BaseAccordionSection. Styling lives in
  * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref, computed } from 'vue'
+import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 
 /** Whether the accordion body is open (panel-owned so it can collapse it). */
 const expanded = defineModel<boolean>('expanded', { required: true })
