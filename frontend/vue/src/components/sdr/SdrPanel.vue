@@ -535,83 +535,20 @@
           </div>
         </div>
 
-        <!-- Trunk-system channel-map picker. Lives in its own accordion below
-             SEARCH; only shown when trunk tracking is enabled in Settings and
-             while digital decode is running (the trunk control rides on the
-             decode session). -->
-        <div
+        <!-- Trunk-system channel-map picker + FOLLOW button. Lives in its own
+             accordion below SEARCH; only shown when trunk tracking is enabled
+             in Settings and while digital decode is running (the trunk control
+             rides on the decode session). -->
+        <SdrTrunkSection
           v-if="trunkTrackingEnabled && digitalEnabled"
-          class="sdr-radio-section sdr-trunk-section"
-        >
-          <button
-            type="button"
-            class="sdr-scanner-header-row sdr-frequency-manager-accordion-toggle"
-            :class="{ 'sdr-frequency-manager-accordion-toggle-expanded': trunkSectionExpanded }"
-            :aria-expanded="trunkSectionExpanded"
-            aria-controls="sdr-trunk-section-body"
-            @click="trunkSectionExpanded = !trunkSectionExpanded"
-          >
-            <label class="sdr-field-label sdr-frequency-manager-scanner-title">TRUNK SYSTEM</label>
-            <span class="sdr-frequency-manager-accordion-chevron">
-              <ChevronIcon />
-            </span>
-          </button>
-          <div v-show="trunkSectionExpanded" id="sdr-trunk-section-body">
-            <!-- Flat-dark custom dropdown matching the device/step pickers (the
-                 native <select> didn't match the panel theme). Disabled while
-                 trunking is active — the map can't change mid-follow. -->
-            <div
-              ref="trunkMapDropdownRef"
-              class="sdr-device-dropdown sdr-trunk-dropdown"
-              :class="{
-                'sdr-device-dropdown--open': trunkMapMenuOpen,
-                'sdr-device-dropdown--loading': trunkEnabled,
-              }"
-              tabindex="0"
-              role="combobox"
-              aria-label="Trunk channel map"
-              aria-haspopup="listbox"
-              aria-controls="sdr-trunk-map-listbox"
-              :aria-expanded="trunkMapMenuOpen"
-              @click.stop="trunkEnabled ? null : toggleTrunkMapMenu()"
-              @keydown="onTrunkMapDropdownKey"
-            >
-              <div class="sdr-device-dropdown-selected">
-                <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
-                  trunkMapLabel
-                }}</span>
-                <span class="sdr-device-dropdown-arrow"></span>
-              </div>
-            </div>
-            <!-- Follow the trunked system's control-channel grants. Enabled
-                 only once digital decode is running and a channel map is
-                 chosen (canEnableTrunk). -->
-            <button
-              class="sdr-trunk-follow-btn"
-              :class="{ 'sdr-trunk-follow-btn--active': trunkEnabled }"
-              type="button"
-              :title="trunkEnabled ? 'Stop trunk tracking' : 'Follow trunked system'"
-              :aria-pressed="trunkEnabled"
-              :disabled="!canEnableTrunk && !trunkEnabled"
-              @click="toggleTrunk"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path
-                  d="M6 1.5V10.5M6 1.5L3 4.5M6 1.5L9 4.5M2 8.5h8"
-                  stroke="currentColor"
-                  stroke-width="1.3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span>{{ trunkEnabled ? 'FOLLOWING SYSTEM' : 'FOLLOW SYSTEM' }}</span>
-            </button>
-            <p v-if="trunkChannelMaps.length === 0" class="sdr-trunk-hint">
-              Add a channel-map CSV to decoder/channel-maps to enable trunking.
-            </p>
-            <p v-if="trunkError" class="sdr-trunk-error" role="alert">{{ trunkError }}</p>
-          </div>
-        </div>
+          v-model:expanded="trunkSectionExpanded"
+          v-model:channel-map="trunkChannelMap"
+          :trunk-enabled="trunkEnabled"
+          :channel-maps="trunkChannelMaps"
+          :can-follow="canEnableTrunk"
+          :trunk-error="trunkError"
+          @toggle-follow="toggleTrunk"
+        />
       </div>
 
       <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
@@ -652,40 +589,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Trunk channel-map dropdown menu (teleported so it overlays the side panel) -->
-  <Teleport to="body">
-    <div
-      v-if="trunkMapMenuOpen"
-      ref="trunkMapMenuRef"
-      class="sdr-device-menu sdr-device-menu--open sdr-trunk-menu"
-      :style="trunkMapMenuStyle"
-      @click.stop
-    >
-      <div id="sdr-trunk-map-listbox" role="listbox" aria-label="Channel maps">
-        <div
-          role="option"
-          class="sdr-device-menu-item"
-          :class="{ 'sdr-device-menu-item--selected': trunkChannelMap === '' }"
-          :aria-selected="trunkChannelMap === ''"
-          @click="pickTrunkMap('')"
-        >
-          No channel map
-        </div>
-        <div
-          v-for="name in trunkChannelMaps"
-          :key="name"
-          role="option"
-          class="sdr-device-menu-item"
-          :class="{ 'sdr-device-menu-item--selected': trunkChannelMap === name }"
-          :aria-selected="trunkChannelMap === name"
-          @click="pickTrunkMap(name)"
-        >
-          {{ name }}
-        </div>
-      </div>
-    </div>
-  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -695,7 +598,6 @@ import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
-import { useWindowEvent } from '@/composables/useWindowEvent'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import SdrGroupsTab from './SdrGroupsTab.vue'
 import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
@@ -703,6 +605,7 @@ import SdrStepPicker from './SdrStepPicker.vue'
 import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import SdrSettingsAccordion from './SdrSettingsAccordion.vue'
+import SdrTrunkSection from './SdrTrunkSection.vue'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
@@ -1220,13 +1123,7 @@ let _recTimerInterval: ReturnType<typeof setInterval> | null = null
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-import {
-  parseFreqMhz,
-  defaultBwHz,
-  MENU_OPEN_SETTLE_MS,
-  MODES,
-  SAMPLE_RATE_OPTIONS,
-} from './sdrPanelUtils'
+import { parseFreqMhz, defaultBwHz, MODES, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 function saveSettings() {
   try {
@@ -1381,59 +1278,11 @@ const trunkError = computed(() => _sdrStore().trunkError)
 // session, and dsd-fme cannot follow a system without its map.
 const canEnableTrunk = computed(() => digitalEnabled.value && trunkChannelMap.value !== '')
 
-// Trunk-system accordion (sits below SEARCH) + its flat-dark channel-map
-// dropdown, mirroring the device/step pickers' menu pattern.
+// Trunk-system accordion (sits below SEARCH). The accordion body, its
+// flat-dark channel-map dropdown (with its own teleported menu + dismissal)
+// and the FOLLOW button live in SdrTrunkSection.vue; only the expanded flag
+// stays here so the panel-open watch above can collapse it with its siblings.
 const trunkSectionExpanded = ref(false)
-const trunkMapDropdownRef = ref<HTMLElement | null>(null)
-const trunkMapMenuRef = ref<HTMLElement | null>(null)
-const trunkMapMenuOpen = ref(false)
-const trunkMapMenuStyle = ref<Record<string, string>>({})
-
-const trunkMapLabel = computed(() =>
-  trunkChannelMap.value === '' ? 'No channel map' : trunkChannelMap.value,
-)
-
-function positionTrunkMapMenu() {
-  const el = trunkMapDropdownRef.value
-  // The dropdown is rendered (accordion open) before the menu can be toggled,
-  // so its ref is always populated here.
-  /* v8 ignore start */
-  if (!el) return
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  trunkMapMenuStyle.value = {
-    left: rect.left + 'px',
-    top: rect.bottom + 'px',
-    width: rect.width + 'px',
-  }
-}
-
-function toggleTrunkMapMenu() {
-  if (trunkMapMenuOpen.value) {
-    closeTrunkMapMenu()
-    return
-  }
-  positionTrunkMapMenu()
-  trunkMapMenuOpen.value = true
-}
-
-function closeTrunkMapMenu() {
-  trunkMapMenuOpen.value = false
-}
-
-function onTrunkMapDropdownKey(keyboardEvent: KeyboardEvent) {
-  if (trunkEnabled.value) return
-  if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-    keyboardEvent.preventDefault()
-    toggleTrunkMapMenu()
-  }
-  if (keyboardEvent.key === 'Escape') closeTrunkMapMenu()
-}
-
-function pickTrunkMap(name: string) {
-  closeTrunkMapMenu()
-  trunkChannelMap.value = name
-}
 
 // Fetch the channel-map filenames the backend offers (read from the mounted maps
 // directory) so the picker has options. Failures leave the list empty.
@@ -2230,35 +2079,6 @@ function selectRadio(r: SdrRadio | null) {
   sessionStorage.setItem('sdrLastRadioId', String(r.id))
   controlsDisabled.value = false
   void openControlSocket(r.id)
-}
-
-function closeAllMenus() {
-  if (trunkMapMenuOpen.value) closeTrunkMapMenu()
-}
-
-function onDocumentClick() {
-  closeAllMenus()
-}
-
-// The dropdown menus are teleported to <body> at position: fixed, anchored once
-// at open time from the trigger's bounding rect. They can't be clipped by the
-// panel's overflow, so if they stayed open while the panel scrolled they would
-// float over the pinned group chips and other controls (the reported "select
-// list is above other layers when scrolled"). Match native <select> behaviour:
-// dismiss any open menu when the panel scrolls or the window resizes.
-//
-// One wrinkle: opening a menu focuses its (tabindex) trigger, and the browser
-// scrolls that trigger into view — a single settle scroll fires ~one frame after
-// open. Closing on it would dismiss the menu the instant it opens. So ignore
-// scrolls within a short window after a menu opens; a genuine user scroll always
-// lands well after that. (Idle-menu instrumentation showed no other spurious
-// scrolls, so no further guarding is needed.) MENU_OPEN_SETTLE_MS is shared
-// with SdrStepPicker via sdrPanelUtils.
-let lastMenuOpenedAtMs = 0
-
-function closeMenusOnScroll() {
-  if (Date.now() - lastMenuOpenedAtMs < MENU_OPEN_SETTLE_MS) return
-  closeAllMenus()
 }
 
 // ── Populate radios (called externally via event / boot) ──────────────────────
@@ -3450,20 +3270,10 @@ onUnmounted(() => {
   // Only close if unmounting the full-page SdrView (not the RADIO tab)
 })
 
-// Record when the trunk menu — the panel's last remaining dropdown; every
-// other picker lives in its own component with its own settle window —
-// transitions from closed to open, to arm the settle window used by
-// closeMenusOnScroll. Registered here (end of setup) so the menu-open ref it
-// reads is already initialised.
-watch(trunkMapMenuOpen, (menuOpen) => {
-  if (menuOpen) lastMenuOpenedAtMs = Date.now()
-})
-
-useDocumentEvent('click', onDocumentClick)
-// Capture phase so scrolls from the inner side-panel container (a descendant,
-// and scroll doesn't bubble) still reach this handler and dismiss open menus.
-useDocumentEvent('scroll', closeMenusOnScroll, { capture: true })
-useWindowEvent('resize', closeAllMenus)
+// Every dropdown now lives in its own extracted component (device selector,
+// step/sample-rate pickers, settings accordion, trunk section) with its own
+// teleported menu, settle window and dismiss listeners — the panel no longer
+// registers document-level click/scroll/resize handlers for menus.
 useDocumentEvent('sdr:radios-changed', onRadiosChanged)
 useDocumentEvent('sentinel:sdr-tune-external', onExternalTune)
 useDocumentEvent('sentinel:sdr-tune-restore', onExternalTuneRestore)
