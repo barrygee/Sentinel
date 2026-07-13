@@ -51,12 +51,12 @@
 
         <!-- Floated to the column's top-right (aligned with the status row), but
              kept last in the DOM so it follows the log content in reading order. -->
-        <button
+        <BaseIconAction
           v-if="logRows.length > 0"
           class="sdr-decode-clear"
-          type="button"
-          data-tooltip="Clear"
-          aria-label="Clear"
+          tooltip="Clear"
+          tooltip-side="left"
+          accessible-name="Clear"
           @click="store.clearDecodeLogs()"
         >
           <svg
@@ -75,7 +75,7 @@
             <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
             <path d="M6 6v4M8 6v4" />
           </svg>
-        </button>
+        </BaseIconAction>
       </section>
 
       <!-- ── Column: decoded messages (structured call rows) ────────────────── -->
@@ -122,12 +122,12 @@
              kept last in the DOM so it follows the message content in reading
              order. It sits in the empty right edge of the SYNC column, clear of
              the left-aligned heading text. -->
-        <button
+        <BaseIconAction
           v-if="events.length > 0"
           class="sdr-decode-clear"
-          type="button"
-          data-tooltip="Clear"
-          aria-label="Clear"
+          tooltip="Clear"
+          tooltip-side="left"
+          accessible-name="Clear"
           @click="store.clearDecodeEvents()"
         >
           <svg
@@ -146,7 +146,7 @@
             <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
             <path d="M6 6v4M8 6v4" />
           </svg>
-        </button>
+        </BaseIconAction>
       </section>
     </div>
   </section>
@@ -154,6 +154,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 
@@ -408,33 +409,18 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   color: #fff;
 }
 
-.sdr-decode-clear[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 8px);
-  transform: translateY(-50%);
-  background: rgba(10, 13, 20, 0.96);
-  color: #fff;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 10px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  border-radius: 3px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-.sdr-decode-clear:hover[data-tooltip]::before {
-  opacity: 1;
+/* The "Clear" tooltip pill itself comes from BaseIconAction
+   (tooltipSide="left"); these custom properties restyle its default black
+   pill to this family's flat-navy look. */
+.sdr-decode-clear {
+  --ba-icon-action-tooltip-offset: 8px;
+  --ba-icon-action-tooltip-bg: rgba(10, 13, 20, 0.96);
+  --ba-icon-action-tooltip-color: #fff;
+  --ba-icon-action-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
+  --ba-icon-action-tooltip-padding: 0 10px;
+  --ba-icon-action-tooltip-height: 24px;
+  --ba-icon-action-tooltip-radius: 3px;
+  --ba-icon-action-tooltip-z: 10001;
 }
 
 /* Each tab panel fills the remaining dock height and scrolls internally

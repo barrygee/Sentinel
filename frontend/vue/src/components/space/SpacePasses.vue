@@ -128,31 +128,31 @@
           </div>
           <div class="spp-acc-section spp-acc-section--track">
             <div class="spp-acc-track-row">
-              <button
+              <BaseIconAction
                 class="spp-acc-track-btn"
-                :class="{ 'spp-acc-track-btn--active': followedNoradId === pass.norad_id }"
-                :aria-label="
+                :active="followedNoradId === pass.norad_id"
+                active-class="spp-acc-track-btn--active"
+                :accessible-name="
                   followedNoradId === pass.norad_id ? 'Untrack satellite' : 'Track satellite'
                 "
-                :data-tooltip="
+                :tooltip="
                   followedNoradId === pass.norad_id ? 'Untrack satellite' : 'Track satellite'
                 "
                 @click.stop="trackSat(pass)"
               >
                 <LocationPinIcon />
-              </button>
-              <button
+              </BaseIconAction>
+              <BaseIconAction
                 class="spp-acc-notif-btn"
-                :class="{
-                  'spp-acc-notif-btn--active': notifNoradId === pass.norad_id,
-                  'spp-acc-notif-btn--last': !pass.downlink_hz,
-                }"
-                :aria-label="
+                :class="{ 'spp-acc-notif-btn--last': !pass.downlink_hz }"
+                :active="notifNoradId === pass.norad_id"
+                active-class="spp-acc-notif-btn--active"
+                :accessible-name="
                   notifNoradId === pass.norad_id
                     ? 'Disable pass notifications'
                     : 'Enable pass notifications'
                 "
-                :data-tooltip="
+                :tooltip="
                   notifNoradId === pass.norad_id
                     ? 'Disable pass notifications'
                     : 'Enable pass notifications'
@@ -160,13 +160,14 @@
                 @click.stop="togglePassNotif(pass)"
               >
                 <BellIcon :size="14" />
-              </button>
-              <button
+              </BaseIconAction>
+              <BaseIconAction
                 v-if="pass.downlink_hz"
                 class="spp-acc-autotune-btn"
-                :class="{ 'spp-acc-autotune-btn--active': isArmed(pass.norad_id) }"
-                :aria-label="autoTuneLabel()"
-                :data-tooltip="autoTuneLabel()"
+                :active="isArmed(pass.norad_id)"
+                active-class="spp-acc-autotune-btn--active"
+                :accessible-name="autoTuneLabel()"
+                :tooltip="autoTuneLabel()"
                 @click.stop="toggleAutoTune(pass)"
               >
                 <svg
@@ -220,14 +221,15 @@
                     stroke-linecap="round"
                   />
                 </svg>
-              </button>
-              <button
+              </BaseIconAction>
+              <BaseIconAction
                 v-if="pass.downlink_hz"
                 class="spp-acc-record-btn"
-                :class="{ 'spp-acc-record-btn--active': isRecordArmed(pass.norad_id) }"
+                :active="isRecordArmed(pass.norad_id)"
+                active-class="spp-acc-record-btn--active"
                 :disabled="!isArmed(pass.norad_id)"
-                aria-label="Record pass"
-                data-tooltip="Record pass"
+                accessible-name="Record pass"
+                tooltip="Record pass"
                 @click.stop="toggleRecord(pass)"
               >
                 <svg
@@ -240,7 +242,7 @@
                 >
                   <circle cx="12" cy="12" r="6" fill="currentColor" />
                 </svg>
-              </button>
+              </BaseIconAction>
             </div>
             <div
               v-if="isArmed(pass.norad_id) && conflictText(pass.norad_id)"
@@ -336,6 +338,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'

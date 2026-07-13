@@ -2985,36 +2985,19 @@
 }
 
 /* Flat dark tooltip — matches .sdr-rail-btn / #radio-mini-btn. Drops below the
-   button (the actions sit at the top of each recording row). */
-.sdr-recording-edit[data-tooltip]::before,
-.sdr-recording-del[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: rgba(10, 13, 20, 0.96);
-  color: #fff;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 10px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  border: none;
-  border-radius: 3px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-.sdr-recording-edit:hover[data-tooltip]::before,
-.sdr-recording-del:hover[data-tooltip]::before {
-  opacity: 1;
+   button (the actions sit at the top of each recording row). The pill itself
+   comes from BaseIconAction (tooltipSide="bottom"); these custom properties
+   restyle its default black pill to this family's flat-navy look. */
+.sdr-recording-edit,
+.sdr-recording-del {
+  --ba-icon-action-tooltip-offset: 8px;
+  --ba-icon-action-tooltip-bg: rgba(10, 13, 20, 0.96);
+  --ba-icon-action-tooltip-color: #fff;
+  --ba-icon-action-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
+  --ba-icon-action-tooltip-padding: 0 10px;
+  --ba-icon-action-tooltip-height: 24px;
+  --ba-icon-action-tooltip-radius: 3px;
+  --ba-icon-action-tooltip-z: 10001;
 }
 
 .sdr-recording-edit {

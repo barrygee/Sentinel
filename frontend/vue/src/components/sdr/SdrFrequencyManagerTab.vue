@@ -60,9 +60,9 @@
               <span v-else class="sdr-freq-row-group-chip"> Default </span>
             </div>
           </div>
-          <button
+          <BaseIconAction
             class="sdr-freq-row-play"
-            aria-label="Play frequency"
+            accessible-name="Play frequency"
             title="Play"
             :disabled="tuningDisabled"
             @click.stop="emit('play', f)"
@@ -70,10 +70,10 @@
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <polygon points="2,1 11,6 2,11" fill="currentColor" />
             </svg>
-          </button>
-          <button
+          </BaseIconAction>
+          <BaseIconAction
             class="sdr-freq-row-edit"
-            aria-label="Edit frequency"
+            accessible-name="Edit frequency"
             title="Edit"
             :disabled="readOnly"
             @click.stop="toggleEditFreqPanel(f)"
@@ -84,16 +84,16 @@
                 fill="currentColor"
               />
             </svg>
-          </button>
-          <button
+          </BaseIconAction>
+          <BaseIconAction
             class="sdr-freq-row-del"
-            aria-label="Delete frequency"
+            accessible-name="Delete frequency"
             title="Delete"
             :disabled="readOnly"
             @click.stop="deleteFreq(f.id)"
           >
             &#x2715;
-          </button>
+          </BaseIconAction>
         </div>
 
         <!-- Inline edit form (accordion body) -->
@@ -543,6 +543,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { useSdrStore } from '@/stores/sdr'

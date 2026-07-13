@@ -672,44 +672,9 @@
   flex: 0 0 auto;
 }
 
-/* Styled tooltips for the notif / auto-tune icon buttons — matches the
-   sidebar tab (rail) tooltip style. Positioned above the button row. */
-.spp-acc-track-btn[data-tooltip]::before,
-.spp-acc-notif-btn[data-tooltip]::before,
-.spp-acc-autotune-btn[data-tooltip]::before,
-.spp-acc-record-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  /* Left-anchor the tooltip to the hovered button's left edge (each button is
-     position:relative), so the label reads as belonging to that button rather
-     than floating centered. */
-  left: 0;
-  transform: none;
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10002;
-}
-
-.spp-acc-track-btn[data-tooltip]:hover::before,
-.spp-acc-notif-btn[data-tooltip]:hover::before,
-.spp-acc-autotune-btn[data-tooltip]:hover::before,
-.spp-acc-record-btn[data-tooltip]:hover::before {
-  opacity: 1;
-}
+/* The notif / auto-tune icon buttons' hover tooltip (black pill above the
+   button, left-anchored) comes from BaseIconAction's default
+   tooltipSide="top" look. */
 
 .spp-acc-section--polar {
   padding-top: 14px;
