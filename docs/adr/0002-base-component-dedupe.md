@@ -47,7 +47,7 @@ a base (slots + props + CSS custom-property hooks); they never copy it.
 | B0 | `useTeleportedMenu()` composable adopted by the 5 SDR pickers | ~250 verbatim script lines; zero visual change |
 | B1 | `BaseSelectMenu` primitive on B0 (trigger/option slots, opt-in keyboard nav) | the 5 pickers' duplicated templates |
 | B2 | `BaseAccordionSection` (title, `v-model:expanded`, header-extra + body slots) | 5 exact + 2 near-exact accordion headers |
-| B3 | `BasePillToggle` (+ segmented group wrapper) | ~25 pill/chip/segmented buttons |
+| B3 | `BasePillToggle` (no group wrapper: today it would be a classless pass-through div; it belongs with a deliberate radiogroup-ARIA pass, not a byte-identical dedupe) | ~24 pill/chip/segmented buttons (the 25th "chip" is a decorative span in `SdrWaterfall` — styling reuse, not a toggle) |
 | B4 | Non-rail action variant of `BaseIconButton` | ~15 tooltip'd row actions, bare glyphs, 4 clear-✕ |
 | B5 | Adopt `BaseButton` ghost/primary for `sdr-panel-btn` CANCEL/SAVE/ADD | duplicated form buttons in 3 SDR tabs × 2 forms |
 | B6 | `BaseCheckbox` (checkmark slot) | 3 unrelated checkbox families |

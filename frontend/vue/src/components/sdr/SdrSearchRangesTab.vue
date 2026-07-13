@@ -114,16 +114,16 @@
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">MODE</label>
             <div class="sdr-mode-pills">
-              <button
+              <BasePillToggle
                 v-for="m in SEARCH_MODES"
                 :key="m"
-                type="button"
                 class="sdr-mode-pill"
-                :class="{ active: rangeEditor.mode === m }"
+                :active="rangeEditor.mode === m"
+                active-class="active"
                 @click="rangeEditor.mode = m"
               >
                 {{ m }}
-              </button>
+              </BasePillToggle>
             </div>
           </div>
           <div class="sdr-editfreq-field">
@@ -234,16 +234,16 @@
       <div class="sdr-editfreq-field">
         <label class="sdr-field-label">MODE</label>
         <div class="sdr-mode-pills">
-          <button
+          <BasePillToggle
             v-for="m in SEARCH_MODES"
             :key="m"
-            type="button"
             class="sdr-mode-pill"
-            :class="{ active: rangeEditor.mode === m }"
+            :active="rangeEditor.mode === m"
+            active-class="active"
             @click="rangeEditor.mode = m"
           >
             {{ m }}
-          </button>
+          </BasePillToggle>
         </div>
       </div>
       <div class="sdr-editfreq-field">
@@ -296,6 +296,7 @@
  * the other extracted panel sections.
  */
 import { ref } from 'vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import SdrStepPicker from './SdrStepPicker.vue'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {
