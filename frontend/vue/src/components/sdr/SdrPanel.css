@@ -1321,18 +1321,18 @@
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-btn {
-  height: 28px;
-  padding: 0 12px;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  --ba-ghost-height: 28px;
+  --ba-ghost-padding: 0 12px;
+  --ba-ghost-font-size: 9px;
+  --ba-ghost-font-weight: 400;
+  --ba-ghost-letter-spacing: 0.08em;
+  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
+  --ba-ghost-color: #fff;
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.14);
+  --ba-ghost-hover-color: #fff;
 }
 
 .sdr-freq-row-groups {
@@ -1773,14 +1773,14 @@
 
 .sdr-editfreq-save-btn,
 .sdr-editfreq-body .sdr-editfreq-save-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
+  --ba-ghost-color: #fff;
 }
 
 .sdr-editfreq-save-btn:hover,
 .sdr-editfreq-body .sdr-editfreq-save-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.14);
+  --ba-ghost-hover-color: #fff;
 }
 
 .sdr-panel-input {
@@ -1861,34 +1861,29 @@
   color: var(--color-text-muted);
 }
 
+/* Chrome comes from BaseButton's ghost variant; these custom properties
+   restyle its light default to the panel's dark flat look. Each pre-BaseButton
+   rule of this family maps 1:1 onto a hook under its ORIGINAL selector so the
+   family's cascade (the save-btn / group-add-row context overrides above)
+   resolves exactly as before. Layout (flex centring) stays here — the variant
+   doesn't own it. */
 .sdr-panel-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: rgba(255, 255, 255, 0.5);
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  padding: 0 14px;
-  height: 28px;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  white-space: nowrap;
+  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
+  --ba-ghost-color: rgba(255, 255, 255, 0.5);
+  --ba-ghost-font-size: 9px;
+  --ba-ghost-font-weight: 700;
+  --ba-ghost-padding: 0 14px;
+  --ba-ghost-height: 28px;
+  --ba-ghost-radius: 0;
+  --ba-disabled-opacity: 0.3;
+  --ba-disabled-cursor: default;
   display: inline-flex;
   align-items: center;
 }
 
 .sdr-panel-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.sdr-panel-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
+  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.1);
+  --ba-ghost-hover-color: #fff;
 }
 
 .sdr-panel-empty {

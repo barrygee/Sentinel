@@ -150,10 +150,16 @@
           <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
           <div class="sdr-editfreq-actions">
             <div class="sdr-editfreq-actions-right">
-              <button class="sdr-panel-btn" @click="cancelRangeEditor">CANCEL</button>
-              <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveRangeEditor">
+              <BaseButton variant="ghost" class="sdr-panel-btn" @click="cancelRangeEditor"
+                >CANCEL</BaseButton
+              >
+              <BaseButton
+                variant="ghost"
+                class="sdr-panel-btn sdr-editfreq-save-btn"
+                @click="saveRangeEditor"
+              >
                 SAVE
-              </button>
+              </BaseButton>
             </div>
           </div>
         </div>
@@ -270,8 +276,15 @@
       <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
       <div class="sdr-editfreq-actions">
         <div class="sdr-editfreq-actions-right">
-          <button class="sdr-panel-btn" @click="cancelRangeEditor">CANCEL</button>
-          <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveRangeEditor">SAVE</button>
+          <BaseButton variant="ghost" class="sdr-panel-btn" @click="cancelRangeEditor"
+            >CANCEL</BaseButton
+          >
+          <BaseButton
+            variant="ghost"
+            class="sdr-panel-btn sdr-editfreq-save-btn"
+            @click="saveRangeEditor"
+            >SAVE</BaseButton
+          >
         </div>
       </div>
     </div>
@@ -296,6 +309,7 @@
  * the other extracted panel sections.
  */
 import { ref } from 'vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import SdrStepPicker from './SdrStepPicker.vue'

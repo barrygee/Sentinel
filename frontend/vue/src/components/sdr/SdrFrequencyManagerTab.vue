@@ -281,8 +281,15 @@
           </div>
           <div class="sdr-editfreq-actions">
             <div class="sdr-editfreq-actions-right">
-              <button class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
-              <button class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveFreq">SAVE</button>
+              <BaseButton variant="ghost" class="sdr-panel-btn" @click="cancelEditFreq"
+                >CANCEL</BaseButton
+              >
+              <BaseButton
+                variant="ghost"
+                class="sdr-panel-btn sdr-editfreq-save-btn"
+                @click="saveFreq"
+                >SAVE</BaseButton
+              >
             </div>
           </div>
         </div>
@@ -512,10 +519,21 @@
       </div>
       <div class="sdr-editfreq-actions">
         <div class="sdr-editfreq-actions-right">
-          <button id="sdr-ef-cancel" class="sdr-panel-btn" @click="cancelEditFreq">CANCEL</button>
-          <button id="sdr-ef-save" class="sdr-panel-btn sdr-editfreq-save-btn" @click="saveFreq">
+          <BaseButton
+            id="sdr-ef-cancel"
+            variant="ghost"
+            class="sdr-panel-btn"
+            @click="cancelEditFreq"
+            >CANCEL</BaseButton
+          >
+          <BaseButton
+            id="sdr-ef-save"
+            variant="ghost"
+            class="sdr-panel-btn sdr-editfreq-save-btn"
+            @click="saveFreq"
+          >
             SAVE
-          </button>
+          </BaseButton>
         </div>
       </div>
     </div>
@@ -543,6 +561,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'

@@ -34,12 +34,17 @@
       @keydown.enter="submitGroupRow"
       @keydown.escape="cancelEditGroupRow"
     />
-    <button v-if="editingGroupId !== null" class="sdr-panel-btn" @click="cancelEditGroupRow">
+    <BaseButton
+      v-if="editingGroupId !== null"
+      variant="ghost"
+      class="sdr-panel-btn"
+      @click="cancelEditGroupRow"
+    >
       CANCEL
-    </button>
-    <button class="sdr-panel-btn" @click="submitGroupRow">
+    </BaseButton>
+    <BaseButton variant="ghost" class="sdr-panel-btn" @click="submitGroupRow">
       {{ editingGroupId !== null ? 'SAVE' : 'ADD' }}
-    </button>
+    </BaseButton>
   </div>
 </template>
 
@@ -55,6 +60,7 @@
  * the other extracted panel sections.
  */
 import { ref, computed, nextTick } from 'vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrFrequencyGroup } from '@/stores/sdr'
