@@ -1,16 +1,17 @@
 <template>
   <div class="settings-source-override-wrap">
     <div class="settings-source-override-group">
-      <button
+      <BasePillToggle
         v-for="opt in OPTIONS"
         :key="opt"
         class="settings-source-override-btn"
-        :class="{ 'is-active': current === opt }"
+        :active="current === opt"
+        active-class="is-active"
         :data-value="opt"
         @click="select(opt)"
       >
         {{ opt === 'offgrid' ? 'OFF GRID' : opt.toUpperCase() }}
-      </button>
+      </BasePillToggle>
     </div>
     <div v-if="current !== 'auto'" class="settings-source-override-note">
       This overrides the app-level connectivity mode setting.
@@ -20,6 +21,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import * as settingsApi from '@/services/settingsApi'
 
 const props = defineProps<{ ns: string }>()

@@ -1,21 +1,23 @@
 <template>
   <div class="settings-source-override-wrap">
     <div class="settings-source-override-group">
-      <button
+      <BasePillToggle
         v-for="opt in OPTIONS"
         :key="opt.value"
         class="settings-source-override-btn"
-        :class="{ 'is-active': current === opt.value }"
+        :active="current === opt.value"
+        active-class="is-active"
         @click="select(opt.value)"
       >
         {{ opt.label }}
-      </button>
+      </BasePillToggle>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import * as settingsApi from '@/services/settingsApi'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()

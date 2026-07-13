@@ -153,9 +153,8 @@
           </div>
           <div v-if="currentFreqLabel" class="sdr-freq-name">{{ currentFreqLabel }}</div>
           <div class="sdr-freq-actions-row">
-            <button
+            <BasePillToggle
               class="sdr-mode-pill sdr-tune-btn"
-              type="button"
               title="Tune"
               aria-label="Tune"
               :disabled="playDisabled || playing || scanActive || searchActive"
@@ -164,10 +163,9 @@
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <polygon points="2,1 11,6 2,11" fill="currentColor" />
               </svg>
-            </button>
-            <button
+            </BasePillToggle>
+            <BasePillToggle
               class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
-              type="button"
               title="Stop audio"
               aria-label="Stop audio"
               :disabled="!playing && !scanActive && !searchActive"
@@ -176,11 +174,11 @@
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                 <rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor" />
               </svg>
-            </button>
-            <button
+            </BasePillToggle>
+            <BasePillToggle
               class="sdr-mode-pill sdr-tune-btn sdr-rec-btn"
-              :class="{ 'sdr-rec-btn--active': isRecording }"
-              type="button"
+              :active="isRecording"
+              active-class="sdr-rec-btn--active"
               :title="isRecording ? 'Stop recording' : 'Record'"
               :aria-label="isRecording ? 'Stop recording' : 'Record'"
               :disabled="!playing && !scanActive && !searchActive"
@@ -194,13 +192,13 @@
                   <circle cx="5" cy="5" r="4" fill="currentColor" />
                 </template>
               </svg>
-            </button>
+            </BasePillToggle>
             <!-- Decode: toggles digital decoding AND shows/hides the decoder dock
                  below the waterfall (both driven by digitalEnabled). -->
-            <button
+            <BasePillToggle
               class="sdr-mode-pill sdr-tune-btn sdr-digital-btn"
-              :class="{ 'sdr-digital-btn--active': digitalEnabled }"
-              type="button"
+              :active="digitalEnabled"
+              active-class="sdr-digital-btn--active"
               :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
               :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
               :aria-pressed="digitalEnabled"
@@ -216,7 +214,7 @@
                   stroke-linejoin="round"
                 />
               </svg>
-            </button>
+            </BasePillToggle>
           </div>
         </div>
 
@@ -224,16 +222,17 @@
         <div class="sdr-radio-section">
           <label class="sdr-field-label">MODE</label>
           <div class="sdr-mode-pills">
-            <button
+            <BasePillToggle
               v-for="m in MODES"
               :key="m"
               class="sdr-mode-pill"
-              :class="{ active: currentMode === m }"
+              :active="currentMode === m"
+              active-class="active"
               :disabled="tuningDisabled"
               @click="setMode(m)"
             >
               {{ m }}
-            </button>
+            </BasePillToggle>
           </div>
         </div>
 
@@ -297,29 +296,26 @@
             </template>
             <div class="sdr-scan-subsection-label">GROUPS</div>
             <div class="sdr-scan-groups-row">
-              <button
-                type="button"
+              <BasePillToggle
                 class="sdr-scan-group-chip"
-                :class="{ 'sdr-scan-group-chip-active': scanAllSelected }"
+                :active="scanAllSelected"
+                active-class="sdr-scan-group-chip-active"
                 :disabled="tuningDisabled"
                 @click="toggleScanAll"
               >
                 All
-              </button>
-              <button
+              </BasePillToggle>
+              <BasePillToggle
                 v-for="g in groupsWithFreqs"
                 :key="g.id"
-                type="button"
                 class="sdr-scan-group-chip"
-                :class="{
-                  'sdr-scan-group-chip-active':
-                    !scanAllSelected && scanSelectedGroupIds.includes(g.id),
-                }"
+                :active="!scanAllSelected && scanSelectedGroupIds.includes(g.id)"
+                active-class="sdr-scan-group-chip-active"
                 :disabled="tuningDisabled"
                 @click="toggleScanGroup(g.id)"
               >
                 {{ g.name }}
-              </button>
+              </BasePillToggle>
             </div>
             <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
               <button
@@ -584,6 +580,7 @@ import SdrTrunkSection from './SdrTrunkSection.vue'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'

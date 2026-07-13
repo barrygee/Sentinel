@@ -8,29 +8,26 @@
   >
     <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
       <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
-        <button
-          type="button"
+        <BasePillToggle
           class="sdr-scan-group-chip"
-          :class="{ 'sdr-scan-group-chip-active': freqFilterAllSelected }"
+          :active="freqFilterAllSelected"
+          active-class="sdr-scan-group-chip-active"
           :disabled="readOnly"
           @click="toggleFreqFilterAll"
         >
           All
-        </button>
-        <button
+        </BasePillToggle>
+        <BasePillToggle
           v-for="g in groupsWithFreqs"
           :key="g.id"
-          type="button"
           class="sdr-scan-group-chip"
-          :class="{
-            'sdr-scan-group-chip-active':
-              !freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id),
-          }"
+          :active="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
+          active-class="sdr-scan-group-chip-active"
           :disabled="readOnly"
           @click="toggleFreqFilterGroup(g.id)"
         >
           {{ g.name }}
-        </button>
+        </BasePillToggle>
       </div>
     </div>
 
@@ -132,39 +129,40 @@
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">MODE</label>
             <div class="sdr-mode-pills" :class="{ 'sdr-input-error': efErrors.mode }">
-              <button
+              <BasePillToggle
                 v-for="m in MODES"
                 :key="m"
                 class="sdr-mode-pill"
-                :class="{ active: efMode === m }"
+                :active="efMode === m"
+                active-class="active"
                 @click="efMode = m"
               >
                 {{ m }}
-              </button>
+              </BasePillToggle>
             </div>
             <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">GROUPS</label>
             <div class="sdr-fmod-groups">
-              <button
+              <BasePillToggle
                 class="sdr-mode-pill sdr-ef-gpill"
-                :class="{ active: efGroupIds.length === 0 }"
-                type="button"
+                :active="efGroupIds.length === 0"
+                active-class="active"
                 @click="efGroupIds = []"
               >
                 Default
-              </button>
-              <button
+              </BasePillToggle>
+              <BasePillToggle
                 v-for="g in groups"
                 :key="g.id"
                 class="sdr-mode-pill sdr-ef-gpill"
-                :class="{ active: efGroupIds.includes(g.id) }"
-                type="button"
+                :active="efGroupIds.includes(g.id)"
+                active-class="active"
                 @click="toggleEfGroup(g.id)"
               >
                 {{ g.name }}
-              </button>
+              </BasePillToggle>
             </div>
           </div>
           <div class="sdr-editfreq-field">
@@ -358,15 +356,16 @@
           class="sdr-mode-pills"
           :class="{ 'sdr-input-error': efErrors.mode }"
         >
-          <button
+          <BasePillToggle
             v-for="m in MODES"
             :key="m"
             class="sdr-mode-pill"
-            :class="{ active: efMode === m }"
+            :active="efMode === m"
+            active-class="active"
             @click="efMode = m"
           >
             {{ m }}
-          </button>
+          </BasePillToggle>
         </div>
         <!-- No mode-error slot here: the Add panel seeds efMode from the
              current (always-valid) mode, so it can never fail mode
@@ -376,24 +375,24 @@
       <div class="sdr-editfreq-field">
         <label class="sdr-field-label">GROUPS</label>
         <div id="sdr-ef-groups" class="sdr-fmod-groups">
-          <button
+          <BasePillToggle
             class="sdr-mode-pill sdr-ef-gpill"
-            :class="{ active: efGroupIds.length === 0 }"
-            type="button"
+            :active="efGroupIds.length === 0"
+            active-class="active"
             @click="efGroupIds = []"
           >
             Default
-          </button>
-          <button
+          </BasePillToggle>
+          <BasePillToggle
             v-for="g in groups"
             :key="g.id"
             class="sdr-mode-pill sdr-ef-gpill"
-            :class="{ active: efGroupIds.includes(g.id) }"
-            type="button"
+            :active="efGroupIds.includes(g.id)"
+            active-class="active"
             @click="toggleEfGroup(g.id)"
           >
             {{ g.name }}
-          </button>
+          </BasePillToggle>
         </div>
       </div>
       <div class="sdr-editfreq-field">
@@ -544,6 +543,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'

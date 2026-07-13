@@ -425,16 +425,17 @@
           </button>
           <!-- Speed buttons right-aligned -->
           <div class="apb-speed-group apb-speed-group--right">
-            <button
+            <BasePillToggle
               v-for="(s, i) in PLAYBACK_SPEEDS"
               :key="i"
               class="apb-speed-btn"
-              :class="{ 'apb-speed-btn--active': i === playbackStore.speedIdx }"
+              :active="i === playbackStore.speedIdx"
+              active-class="apb-speed-btn--active"
               :disabled="!isActive"
               @click="playbackStore.speedIdx = i"
             >
               {{ s }}×
-            </button>
+            </BasePillToggle>
           </div>
         </div>
       </div>
@@ -460,6 +461,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
 import {
   CAL_MONTHS,

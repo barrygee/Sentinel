@@ -40,22 +40,22 @@
     <div class="sdr-devices-form-row">
       <span class="sdr-devices-form-label">STATUS</span>
       <div class="sdr-devices-enabled-group">
-        <button
-          type="button"
+        <BasePillToggle
           class="sdr-devices-enabled-btn"
-          :class="{ 'is-active': form.enabled }"
+          :active="form.enabled"
+          active-class="is-active"
           @click="form.enabled = true"
         >
           ENABLED
-        </button>
-        <button
-          type="button"
+        </BasePillToggle>
+        <BasePillToggle
           class="sdr-devices-enabled-btn"
-          :class="{ 'is-active': !form.enabled }"
+          :active="!form.enabled"
+          active-class="is-active"
           @click="form.enabled = false"
         >
           DISABLED
-        </button>
+        </BasePillToggle>
       </div>
     </div>
     <div v-if="errorMsg" class="sdr-devices-form-error">{{ errorMsg }}</div>
@@ -85,6 +85,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 
 // `.sdr-devices-btn`/`--primary` are smaller and dimmer than the default
 // ghost/primary look (10px type, 8px/18px padding, auto height) — bridge those

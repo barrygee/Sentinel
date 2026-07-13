@@ -3,24 +3,24 @@
     {{ statusText }}
   </div>
   <div v-if="!message && categoryFilters.length > 1" class="spp-cat-filter-row">
-    <button
-      type="button"
+    <BasePillToggle
       class="spp-cat-filter-chip"
-      :class="{ 'spp-cat-filter-chip-active': activeFilters.size === 0 }"
+      :active="activeFilters.size === 0"
+      active-class="spp-cat-filter-chip-active"
       @click="selectAllCategories"
     >
       ALL
-    </button>
-    <button
+    </BasePillToggle>
+    <BasePillToggle
       v-for="cat in categoryFilters"
       :key="cat"
-      type="button"
       class="spp-cat-filter-chip"
-      :class="{ 'spp-cat-filter-chip-active': activeFilters.has(cat) }"
+      :active="activeFilters.has(cat)"
+      active-class="spp-cat-filter-chip-active"
       @click="toggleCategoryFilter(cat)"
     >
       {{ categoryLabel(cat) }}
-    </button>
+    </BasePillToggle>
   </div>
   <div id="spp-list">
     <div v-if="message" class="spp-message">
@@ -336,6 +336,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import {
