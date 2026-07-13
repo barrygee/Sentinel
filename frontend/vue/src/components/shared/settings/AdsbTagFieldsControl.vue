@@ -12,15 +12,15 @@
           <span class="adsb-tf-row-name">{{ opt.label }}</span>
         </div>
         <div class="adsb-tf-cell">
-          <label class="adsb-tf-check">
-            <input
-              type="checkbox"
-              class="adsb-tf-input"
-              :aria-label="`${opt.label} — civil`"
-              :checked="fields.civil[opt.key]"
-              @change="toggle('civil', opt.key)"
-            />
-            <span class="adsb-tf-box">
+          <BaseCheckbox
+            class="adsb-tf-check"
+            input-class="adsb-tf-input"
+            box-class="adsb-tf-box"
+            :accessible-name="`${opt.label} — civil`"
+            :checked="fields.civil[opt.key]"
+            @change="toggle('civil', opt.key)"
+          >
+            <template #checkmark>
               <svg v-if="fields.civil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
@@ -30,19 +30,19 @@
                   stroke-linejoin="round"
                 />
               </svg>
-            </span>
-          </label>
+            </template>
+          </BaseCheckbox>
         </div>
         <div class="adsb-tf-cell">
-          <label class="adsb-tf-check">
-            <input
-              type="checkbox"
-              class="adsb-tf-input"
-              :aria-label="`${opt.label} — military`"
-              :checked="fields.mil[opt.key]"
-              @change="toggle('mil', opt.key)"
-            />
-            <span class="adsb-tf-box adsb-tf-box--mil">
+          <BaseCheckbox
+            class="adsb-tf-check"
+            input-class="adsb-tf-input"
+            box-class="adsb-tf-box adsb-tf-box--mil"
+            :accessible-name="`${opt.label} — military`"
+            :checked="fields.mil[opt.key]"
+            @change="toggle('mil', opt.key)"
+          >
+            <template #checkmark>
               <svg v-if="fields.mil[opt.key]" width="8" height="5" viewBox="0 0 8 5" fill="none">
                 <path
                   d="M1 2.5L3 4.5L7 0.5"
@@ -52,8 +52,8 @@
                   stroke-linejoin="round"
                 />
               </svg>
-            </span>
-          </label>
+            </template>
+          </BaseCheckbox>
         </div>
       </div>
     </div>
@@ -62,6 +62,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
 import { useAirStore, type AdsbTagFields, type AdsbTagFieldMap } from '@/stores/air'
 import * as settingsApi from '@/services/settingsApi'
 
@@ -198,10 +199,10 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   display: flex;
   align-items: center;
 }
-.adsb-tf-input {
-  display: none;
-}
-.adsb-tf-box {
+/* The input/box render inside BaseCheckbox (which owns hiding the input), so
+   only the label root carries this component's scope id — their rules need
+   :deep() anchored at the label class. */
+.adsb-tf-check :deep(.adsb-tf-box) {
   width: 20px;
   height: 20px;
   border: none;
@@ -212,10 +213,10 @@ function toggle(group: 'civil' | 'mil', key: keyof AdsbTagFieldMap): void {
   justify-content: center;
   transition: background 0.15s;
 }
-.adsb-tf-input:checked + .adsb-tf-box {
+.adsb-tf-check :deep(.adsb-tf-input:checked + .adsb-tf-box) {
   background: #c8ff00;
 }
-.adsb-tf-input:checked + .adsb-tf-box--mil {
+.adsb-tf-check :deep(.adsb-tf-input:checked + .adsb-tf-box--mil) {
   background: #c8ff00;
 }
 </style>

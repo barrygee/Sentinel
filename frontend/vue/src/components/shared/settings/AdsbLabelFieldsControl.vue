@@ -18,15 +18,15 @@
           <span v-if="opt.value === 'alt'" class="adsb-lf-preview adsb-lf-preview--alt">FL350</span>
         </div>
         <div class="adsb-lf-cell">
-          <label class="adsb-lf-check">
-            <input
-              type="checkbox"
-              class="adsb-lf-input"
-              :aria-label="`${opt.label} — civil`"
-              :checked="fields.civil.includes(opt.value)"
-              @change="toggle('civil', opt.value)"
-            />
-            <span class="adsb-lf-box">
+          <BaseCheckbox
+            class="adsb-lf-check"
+            input-class="adsb-lf-input"
+            box-class="adsb-lf-box"
+            :accessible-name="`${opt.label} — civil`"
+            :checked="fields.civil.includes(opt.value)"
+            @change="toggle('civil', opt.value)"
+          >
+            <template #checkmark>
               <svg
                 v-if="fields.civil.includes(opt.value)"
                 width="8"
@@ -42,19 +42,19 @@
                   stroke-linejoin="round"
                 />
               </svg>
-            </span>
-          </label>
+            </template>
+          </BaseCheckbox>
         </div>
         <div class="adsb-lf-cell">
-          <label class="adsb-lf-check">
-            <input
-              type="checkbox"
-              class="adsb-lf-input"
-              :aria-label="`${opt.label} — military`"
-              :checked="fields.mil.includes(opt.value)"
-              @change="toggle('mil', opt.value)"
-            />
-            <span class="adsb-lf-box adsb-lf-box--mil">
+          <BaseCheckbox
+            class="adsb-lf-check"
+            input-class="adsb-lf-input"
+            box-class="adsb-lf-box adsb-lf-box--mil"
+            :accessible-name="`${opt.label} — military`"
+            :checked="fields.mil.includes(opt.value)"
+            @change="toggle('mil', opt.value)"
+          >
+            <template #checkmark>
               <svg
                 v-if="fields.mil.includes(opt.value)"
                 width="8"
@@ -70,8 +70,8 @@
                   stroke-linejoin="round"
                 />
               </svg>
-            </span>
-          </label>
+            </template>
+          </BaseCheckbox>
         </div>
       </div>
     </div>
@@ -80,6 +80,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
 import { useAirStore, type AdsbLabelField, type AdsbLabelFields } from '@/stores/air'
 import * as settingsApi from '@/services/settingsApi'
 
@@ -204,10 +205,10 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   display: flex;
   align-items: center;
 }
-.adsb-lf-input {
-  display: none;
-}
-.adsb-lf-box {
+/* The input/box render inside BaseCheckbox (which owns hiding the input), so
+   only the label root carries this component's scope id — their rules need
+   :deep() anchored at the label class. */
+.adsb-lf-check :deep(.adsb-lf-box) {
   width: 20px;
   height: 20px;
   border: none;
@@ -218,10 +219,10 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   justify-content: center;
   transition: background 0.15s;
 }
-.adsb-lf-input:checked + .adsb-lf-box {
+.adsb-lf-check :deep(.adsb-lf-input:checked + .adsb-lf-box) {
   background: #00aaff;
 }
-.adsb-lf-input:checked + .adsb-lf-box--mil {
+.adsb-lf-check :deep(.adsb-lf-input:checked + .adsb-lf-box--mil) {
   background: #c8ff00;
 }
 
