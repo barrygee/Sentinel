@@ -1093,6 +1093,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share picker menu behaviour via useTeleportedMenu (base dedupe B0) (#198)
 - Fold the five SDR pickers onto a BaseSelectMenu primitive (base dedupe B1) (#199)
 - Share accordion headers via BaseAccordionSection (base dedupe B2) (#200)
+- Fold pill and chip buttons onto a BasePillToggle primitive (base dedupe B3) (#201)
 
 ### Documentation
 
