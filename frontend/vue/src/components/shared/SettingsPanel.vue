@@ -208,10 +208,11 @@
             autocomplete="off"
             spellcheck="false"
           />
-          <button
+          <BaseIconAction
             id="settings-search-clear"
-            aria-label="Clear search"
-            :class="{ 'settings-search-clear-visible': searchQuery.length > 0 }"
+            accessible-name="Clear search"
+            :active="searchQuery.length > 0"
+            active-class="settings-search-clear-visible"
             @click="clearSearch"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -234,7 +235,7 @@
                 stroke-linecap="round"
               />
             </svg>
-          </button>
+          </BaseIconAction>
         </div>
       </div>
 
@@ -311,6 +312,7 @@ import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@/types/settings'
 import SettingRow from './settings/SettingRow.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 
 // Re-exported for back-compat: this type used to be defined here. Prefer

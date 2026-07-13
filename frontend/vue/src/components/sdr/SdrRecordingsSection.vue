@@ -9,14 +9,14 @@
       autocomplete="off"
       spellcheck="false"
     />
-    <button
+    <BaseIconAction
       v-if="recordingsFilter"
       class="sdr-recordings-search-clear"
-      aria-label="Clear filter"
+      accessible-name="Clear filter"
       @click="recordingsFilter = ''"
     >
       ✕
-    </button>
+    </BaseIconAction>
   </div>
   <div class="sdr-recordings-body">
     <BaseList
@@ -103,22 +103,25 @@
               <span v-if="c.mode" class="sdr-recording-freq-mode">- {{ c.mode }}</span>
             </div>
             <div class="sdr-recording-actions">
-              <button
+              <BaseIconAction
                 class="sdr-recording-edit"
-                :class="{ 'sdr-recording-edit--active': editingRecId === c.id }"
-                data-tooltip="Edit"
-                aria-label="Edit"
+                :active="editingRecId === c.id"
+                active-class="sdr-recording-edit--active"
+                tooltip="Edit"
+                tooltip-side="bottom"
+                accessible-name="Edit"
                 @click.stop="toggleEditAccordion(c)"
               >
                 &#x270E;
-              </button>
+              </BaseIconAction>
               <!-- Inline delete confirm: bin → check/cancel pair. Click bin to arm,
                    click again (✓) to confirm, ✕ to cancel. -->
               <template v-if="confirmDelId === c.id">
-                <button
+                <BaseIconAction
                   class="sdr-recording-del sdr-recording-del--confirm"
-                  data-tooltip="Confirm delete"
-                  aria-label="Confirm delete"
+                  tooltip="Confirm delete"
+                  tooltip-side="bottom"
+                  accessible-name="Confirm delete"
                   @click.stop="confirmInlineDelete(c)"
                 >
                   <svg
@@ -134,11 +137,12 @@
                   >
                     <path d="M2.5 7.5l3 3 6-7" />
                   </svg>
-                </button>
-                <button
+                </BaseIconAction>
+                <BaseIconAction
                   class="sdr-recording-del sdr-recording-del--cancel"
-                  data-tooltip="Cancel"
-                  aria-label="Cancel delete"
+                  tooltip="Cancel"
+                  tooltip-side="bottom"
+                  accessible-name="Cancel delete"
                   @click.stop="confirmDelId = null"
                 >
                   <svg
@@ -153,13 +157,14 @@
                   >
                     <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
                   </svg>
-                </button>
+                </BaseIconAction>
               </template>
-              <button
+              <BaseIconAction
                 v-else
                 class="sdr-recording-del"
-                data-tooltip="Delete"
-                aria-label="Delete"
+                tooltip="Delete"
+                tooltip-side="bottom"
+                accessible-name="Delete"
                 @click.stop="confirmDelId = c.id"
               >
                 <svg
@@ -178,7 +183,7 @@
                   <path d="M3.2 3.5l.6 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.6-8.1" />
                   <path d="M6 6v4M8 6v4" />
                 </svg>
-              </button>
+              </BaseIconAction>
             </div>
           </div>
 
@@ -329,6 +334,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BaseList from '@/components/base/BaseList.vue'
 
 interface SdrRecording {

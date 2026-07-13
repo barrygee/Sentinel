@@ -48,7 +48,7 @@ a base (slots + props + CSS custom-property hooks); they never copy it.
 | B1 | `BaseSelectMenu` primitive on B0 (trigger/option slots, opt-in keyboard nav) | the 5 pickers' duplicated templates |
 | B2 | `BaseAccordionSection` (title, `v-model:expanded`, header-extra + body slots) | 5 exact + 2 near-exact accordion headers |
 | B3 | `BasePillToggle` (no group wrapper: today it would be a classless pass-through div; it belongs with a deliberate radiogroup-ARIA pass, not a byte-identical dedupe) | ~24 pill/chip/segmented buttons (the 25th "chip" is a decorative span in `SdrWaterfall` — styling reuse, not a toggle) |
-| B4 | Non-rail action variant of `BaseIconButton` | ~15 tooltip'd row actions, bare glyphs, 4 clear-✕ |
+| B4 | `BaseIconAction`, the non-rail sibling of `BaseIconButton` (composes `BasePillToggle`; top/bottom/left tooltip anchoring + custom-prop pill restyling — none of these tooltips use the rail's left/right model) | 17 tooltip'd row actions, 10 bare glyphs, 4 clear-✕; 5 duplicated tooltip CSS blocks |
 | B5 | Adopt `BaseButton` ghost/primary for `sdr-panel-btn` CANCEL/SAVE/ADD | duplicated form buttons in 3 SDR tabs × 2 forms |
 | B6 | `BaseCheckbox` (checkmark slot) | 3 unrelated checkbox families |
 | B7 | `BaseSliderRow` (optional value-readout) | 4 settings slider rows (waterfall's 3 only if the hook fits) |

@@ -16,14 +16,15 @@
       spellcheck="false"
       @keydown="onKeydown"
     />
-    <button
+    <BaseIconAction
       id="space-filter-clear-btn"
-      :class="{ 'space-filter-clear-visible': query.length > 0 }"
-      aria-label="Clear filter"
+      :active="query.length > 0"
+      active-class="space-filter-clear-visible"
+      accessible-name="Clear filter"
       @click="clearQuery"
     >
       ✕
-    </button>
+    </BaseIconAction>
   </div>
   <div id="space-filter-results">
     <!-- Empty structural listbox: it OWNS the option rows below via aria-owns.
@@ -145,28 +146,30 @@
             </div>
             <div class="sfr-acc-section sfr-acc-section--track">
               <div class="sfr-acc-track-row">
-                <button
+                <BaseIconAction
                   class="sfr-acc-track-btn"
-                  :class="{ 'sfr-acc-track-btn--active': followedNoradId === sat.norad_id }"
-                  :aria-label="
+                  :active="followedNoradId === sat.norad_id"
+                  active-class="sfr-acc-track-btn--active"
+                  :accessible-name="
                     followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
                   "
-                  :data-tooltip="
+                  :tooltip="
                     followedNoradId === sat.norad_id ? 'Untrack satellite' : 'Track satellite'
                   "
                   @click.stop="trackSat(sat)"
                 >
                   <LocationPinIcon />
-                </button>
-                <button
+                </BaseIconAction>
+                <BaseIconAction
                   class="sfr-acc-notif-btn"
-                  :class="{ 'sfr-acc-notif-btn--active': notifNoradId === sat.norad_id }"
-                  :aria-label="
+                  :active="notifNoradId === sat.norad_id"
+                  active-class="sfr-acc-notif-btn--active"
+                  :accessible-name="
                     notifNoradId === sat.norad_id
                       ? 'Disable pass notifications'
                       : 'Enable pass notifications'
                   "
-                  :data-tooltip="
+                  :tooltip="
                     notifNoradId === sat.norad_id
                       ? 'Disable pass notifications'
                       : 'Enable pass notifications'
@@ -174,13 +177,14 @@
                   @click.stop="togglePassNotif(sat)"
                 >
                   <BellIcon :size="14" />
-                </button>
-                <button
+                </BaseIconAction>
+                <BaseIconAction
                   v-if="sat.downlink_hz"
                   class="sfr-acc-autotune-btn"
-                  :class="{ 'sfr-acc-autotune-btn--active': isArmed(sat.norad_id) }"
-                  :aria-label="autoTuneLabel(sat)"
-                  :data-tooltip="autoTuneLabel(sat)"
+                  :active="isArmed(sat.norad_id)"
+                  active-class="sfr-acc-autotune-btn--active"
+                  :accessible-name="autoTuneLabel(sat)"
+                  :tooltip="autoTuneLabel(sat)"
                   @click.stop="toggleAutoTune(sat)"
                 >
                   <svg
@@ -235,14 +239,15 @@
                       stroke-linecap="round"
                     />
                   </svg>
-                </button>
-                <button
+                </BaseIconAction>
+                <BaseIconAction
                   v-if="sat.downlink_hz"
                   class="sfr-acc-record-btn"
-                  :class="{ 'sfr-acc-record-btn--active': isRecordArmed(sat.norad_id) }"
+                  :active="isRecordArmed(sat.norad_id)"
+                  active-class="sfr-acc-record-btn--active"
                   :disabled="!isArmed(sat.norad_id)"
-                  aria-label="Record pass"
-                  data-tooltip="Record pass"
+                  accessible-name="Record pass"
+                  tooltip="Record pass"
                   @click.stop="toggleRecord(sat)"
                 >
                   <svg
@@ -255,7 +260,7 @@
                   >
                     <circle cx="12" cy="12" r="6" fill="currentColor" />
                   </svg>
-                </button>
+                </BaseIconAction>
               </div>
               <div
                 v-if="isArmed(sat.norad_id) && autoTuneConflictText"
@@ -360,6 +365,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import {
@@ -1548,44 +1554,9 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   flex: 0 0 auto;
 }
 
-/* Styled tooltips for the notif / auto-tune icon buttons — matches the
-   sidebar tab (rail) tooltip style. Positioned above the button row. */
-.sfr-acc-track-btn[data-tooltip]::before,
-.sfr-acc-notif-btn[data-tooltip]::before,
-.sfr-acc-autotune-btn[data-tooltip]::before,
-.sfr-acc-record-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  /* Left-anchor the tooltip to the hovered button's left edge (each button is
-     position:relative), so the label reads as belonging to that button rather
-     than floating centered. */
-  left: 0;
-  transform: none;
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10002;
-}
-
-.sfr-acc-track-btn[data-tooltip]:hover::before,
-.sfr-acc-notif-btn[data-tooltip]:hover::before,
-.sfr-acc-autotune-btn[data-tooltip]:hover::before,
-.sfr-acc-record-btn[data-tooltip]:hover::before {
-  opacity: 1;
-}
+/* The notif / auto-tune icon buttons' hover tooltip (black pill above the
+   button, left-anchored) comes from BaseIconAction's default
+   tooltipSide="top" look. */
 
 .sfr-acc-section--polar {
   padding-top: 14px;

@@ -27,10 +27,10 @@
             </div>
           </div>
           <span class="sdr-freq-row-play-spacer" aria-hidden="true"></span>
-          <button
+          <BaseIconAction
             v-if="!(rangeEditorOpen && editingRangeId === r.id)"
             class="sdr-freq-row-edit"
-            aria-label="Edit range"
+            accessible-name="Edit range"
             title="Edit"
             @click.stop="toggleEditRange(r)"
           >
@@ -40,15 +40,15 @@
                 fill="currentColor"
               />
             </svg>
-          </button>
-          <button
+          </BaseIconAction>
+          <BaseIconAction
             class="sdr-freq-row-del"
-            aria-label="Delete range"
+            accessible-name="Delete range"
             title="Delete"
             @click.stop="deleteRange(r.id)"
           >
             &#x2715;
-          </button>
+          </BaseIconAction>
         </div>
 
         <!-- Inline edit form (accordion body) -->
@@ -296,6 +296,7 @@
  * the other extracted panel sections.
  */
 import { ref } from 'vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import SdrStepPicker from './SdrStepPicker.vue'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'

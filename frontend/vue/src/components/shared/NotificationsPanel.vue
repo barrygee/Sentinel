@@ -23,30 +23,30 @@
               <template v-else>{{ store.getLabelForType(item.type) }}</template>
             </span>
             <div style="display: flex; align-items: center; gap: 8px">
-              <button
+              <BaseIconAction
                 v-if="item.type === 'autotune'"
                 class="notif-dismiss"
-                aria-label="Disable autotune"
+                accessible-name="Disable autotune"
                 @click.stop="cancelAutoTune(item)"
               >
                 ✕
-              </button>
-              <button
+              </BaseIconAction>
+              <BaseIconAction
                 v-else-if="item.action"
                 class="notif-action"
-                aria-label="Disable notifications"
+                accessible-name="Disable notifications"
                 @click.stop="runActionAndDismiss(item)"
               >
                 <BellIcon struck />
-              </button>
-              <button
+              </BaseIconAction>
+              <BaseIconAction
                 v-else
                 class="notif-dismiss"
-                aria-label="Dismiss"
+                accessible-name="Dismiss"
                 @click.stop="store.dismiss(item.id)"
               >
                 ✕
-              </button>
+              </BaseIconAction>
             </div>
           </div>
           <div class="notif-body">
@@ -83,6 +83,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BellIcon from './BellIcon.vue'
 import ScrollHintChevronIcon from './ScrollHintChevronIcon.vue'
 import {

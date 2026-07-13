@@ -3,22 +3,22 @@
     <div class="sdr-group-pills">
       <div v-for="g in sortedGroups" :key="g.id" class="sdr-group-pill">
         <span class="sdr-group-pill-name">{{ g.name }}</span>
-        <button
+        <BaseIconAction
           class="sdr-group-pill-edit"
           title="Rename group"
-          aria-label="Rename group"
+          accessible-name="Rename group"
           @click.stop="startEditGroupRow(g)"
         >
           &#x270E;
-        </button>
-        <button
+        </BaseIconAction>
+        <BaseIconAction
           class="sdr-group-pill-del"
           title="Delete group"
-          aria-label="Delete group"
+          accessible-name="Delete group"
           @click.stop="deleteGroup(g.id)"
         >
           &#x2715;
-        </button>
+        </BaseIconAction>
       </div>
     </div>
   </div>
@@ -55,6 +55,7 @@
  * the other extracted panel sections.
  */
 import { ref, computed, nextTick } from 'vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrFrequencyGroup } from '@/stores/sdr'
 

@@ -17,14 +17,15 @@
       @input="onInput"
       @keydown="onKeydown"
     />
-    <button
+    <BaseIconAction
       id="filter-clear-btn"
-      :class="{ 'filter-clear-visible': query.length > 0 }"
-      aria-label="Clear filter"
+      :active="query.length > 0"
+      active-class="filter-clear-visible"
+      accessible-name="Clear filter"
       @click="clearInput"
     >
       ✕
-    </button>
+    </BaseIconAction>
   </div>
 
   <div id="filter-results" ref="resultsRef">
@@ -153,33 +154,35 @@
               </div>
               <div class="apt-acc-section acft-acc-action-section">
                 <div class="acft-acc-action-row">
-                  <button
+                  <BaseIconAction
                     class="acft-acc-btn"
-                    :class="{ 'acft-acc-btn--active': followedHex === r.hex }"
-                    :aria-label="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
-                    :data-tooltip="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
+                    :active="followedHex === r.hex"
+                    active-class="acft-acc-btn--active"
+                    :accessible-name="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
+                    :tooltip="followedHex === r.hex ? 'Untrack aircraft' : 'Track aircraft'"
                     @click.stop="toggleTrack(r.hex)"
                   >
                     <LocationPinIcon />
-                  </button>
-                  <button
+                  </BaseIconAction>
+                  <BaseIconAction
                     class="acft-acc-btn"
-                    :class="{ 'acft-acc-btn--active': notifEnabled.has(r.hex) }"
-                    :aria-label="
+                    :active="notifEnabled.has(r.hex)"
+                    active-class="acft-acc-btn--active"
+                    :accessible-name="
                       notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
                     "
-                    :data-tooltip="
+                    :tooltip="
                       notifEnabled.has(r.hex) ? 'Disable notifications' : 'Enable notifications'
                     "
                     @click.stop="toggleNotif(r.hex)"
                   >
                     <!-- Strike-through shown when notifications for this aircraft are off. -->
                     <BellIcon :size="14" :struck="!notifEnabled.has(r.hex)" />
-                  </button>
-                  <button
+                  </BaseIconAction>
+                  <BaseIconAction
                     class="acft-acc-btn"
-                    aria-label="Centre on map"
-                    data-tooltip="Centre on map"
+                    accessible-name="Centre on map"
+                    tooltip="Centre on map"
                     @click.stop="centrePlane(r)"
                   >
                     <svg
@@ -231,7 +234,7 @@
                         stroke-width="1.8"
                       />
                     </svg>
-                  </button>
+                  </BaseIconAction>
                 </div>
               </div>
             </div>
@@ -395,6 +398,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import LocationPinIcon from '@/components/shared/LocationPinIcon.vue'
 import BellIcon from '@/components/shared/BellIcon.vue'
@@ -1590,31 +1594,6 @@ defineExpose({
   background: rgba(200, 255, 0, 0.18);
 }
 
-/* Hover tooltip, left-anchored to the button (matches the satellite buttons). */
-.acft-acc-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  background: #000;
-  color: var(--color-text-muted);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10002;
-}
-
-.acft-acc-btn[data-tooltip]:hover::before {
-  opacity: 1;
-}
+/* The hover tooltip (black pill above the button, left-anchored) comes from
+   BaseIconAction's default tooltipSide="top" look. */
 </style>
