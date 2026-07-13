@@ -233,18 +233,20 @@
               @keydown.esc="closeEditAccordion"
             ></textarea>
             <div class="sdr-recording-edit-actions">
-              <button
+              <BaseButton
+                variant="ghost"
                 class="sdr-panel-btn sdr-recording-edit-cancel"
                 @click.stop="closeEditAccordion"
               >
                 CANCEL
-              </button>
-              <button
+              </BaseButton>
+              <BaseButton
+                variant="ghost"
                 class="sdr-panel-btn sdr-editfreq-save-btn sdr-recording-edit-save"
                 @click.stop="saveEditAccordion"
               >
                 SAVE
-              </button>
+              </BaseButton>
             </div>
           </div>
 
@@ -334,6 +336,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BaseList from '@/components/base/BaseList.vue'
 

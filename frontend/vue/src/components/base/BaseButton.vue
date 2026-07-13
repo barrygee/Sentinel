@@ -43,11 +43,16 @@ export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
  * - `rail`: `--ba-rail-height`, `--ba-rail-bg`, `--ba-rail-hover-bg`,
  *   `--ba-rail-active-bg`.
  * - `ghost`: `--ba-ghost-height`, `--ba-ghost-padding`, `--ba-ghost-font-size`,
- *   `--ba-ghost-color`, `--ba-ghost-hover-color` — e.g. `SdrDeviceForm.vue`'s
+ *   `--ba-ghost-color`, `--ba-ghost-hover-color`, `--ba-ghost-bg`,
+ *   `--ba-ghost-hover-bg`, `--ba-ghost-radius`, `--ba-ghost-font-weight`,
+ *   `--ba-ghost-letter-spacing` — e.g. `SdrDeviceForm.vue`'s
  *   CANCEL button, which is shorter, smaller-type, and dimmer than the
  *   default ghost look; `ConfigCurrentControl.vue`/`JsonDataControl.vue`/
  *   `ExportAllControl.vue`'s EDIT/EXPORT buttons, whose hover darkens the text
- *   slightly (the default ghost hover leaves text colour unchanged).
+ *   slightly (the default ghost hover leaves text colour unchanged); or the
+ *   SDR panel's `.sdr-panel-btn` CANCEL/SAVE/ADD family (`SdrPanel.css`),
+ *   which restyles the light ghost to the panel's dark flat look (the bg and
+ *   hover-bg hooks exist for exactly this dark-theme mirror).
  * - `primary`: `--ba-primary-height`, `--ba-primary-padding`,
  *   `--ba-primary-font-size`, `--ba-primary-font-weight`,
  *   `--ba-primary-letter-spacing` — e.g. `SdrDeviceForm.vue`'s SAVE button
@@ -159,15 +164,15 @@ withDefaults(defineProps<BaseButtonProps>(), {
 
 /* ---- ghost: neutral rgba-fill action button ---- */
 .ba-btn--ghost {
-  background: rgba(16, 19, 29, 0.06);
+  background: var(--ba-ghost-bg, rgba(16, 19, 29, 0.06));
   border: none;
-  border-radius: 6px;
+  border-radius: var(--ba-ghost-radius, 6px);
   height: var(--ba-ghost-height, 37px);
   padding: var(--ba-ghost-padding, 0 18px);
   color: var(--ba-ghost-color, rgba(16, 19, 29, 0.85));
   font-size: var(--ba-ghost-font-size, 11px);
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  font-weight: var(--ba-ghost-font-weight, 600);
+  letter-spacing: var(--ba-ghost-letter-spacing, 0.16em);
   text-transform: uppercase;
   white-space: nowrap;
   user-select: none;
@@ -177,7 +182,7 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--ghost:hover:not(:disabled) {
-  background: rgba(16, 19, 29, 0.12);
+  background: var(--ba-ghost-hover-bg, rgba(16, 19, 29, 0.12));
   color: var(--ba-ghost-hover-color, var(--ba-ghost-color, rgba(16, 19, 29, 0.85)));
 }
 
