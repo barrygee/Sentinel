@@ -1095,6 +1095,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share accordion headers via BaseAccordionSection (base dedupe B2) (#200)
 - Fold pill and chip buttons onto a BasePillToggle primitive (base dedupe B3) (#201)
 - Fold icon row actions onto a BaseIconAction primitive (base dedupe B4) (#202)
+- Adopt BaseButton ghost for the sdr-panel-btn form buttons (base dedupe B5) (#203)
 
 ### Documentation
 
