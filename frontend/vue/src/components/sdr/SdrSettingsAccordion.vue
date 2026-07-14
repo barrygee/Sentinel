@@ -86,17 +86,16 @@
 
     <!-- AGC -->
     <div class="sdr-radio-section sdr-agc-row">
-      <label class="sdr-checkbox-label">
-        <input
-          type="checkbox"
-          class="sdr-checkbox"
-          :checked="gainAuto"
-          :disabled="tuningDisabled"
-          @change="emit('agc-change', $event)"
-        />
-        <span class="sdr-checkbox-custom"></span>
+      <BaseCheckbox
+        class="sdr-checkbox-label"
+        input-class="sdr-checkbox"
+        box-class="sdr-checkbox-custom"
+        :checked="gainAuto"
+        :disabled="tuningDisabled"
+        @change="emit('agc-change', $event)"
+      >
         <span class="sdr-checkbox-text">AGC (Automatic Gain Control)</span>
-      </label>
+      </BaseCheckbox>
     </div>
 
     <!-- Sample Rate (hardware) — sets the spectrum/waterfall span -->
@@ -162,6 +161,7 @@
  */
 import { ref } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
+import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
 import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
