@@ -1,88 +1,60 @@
 <template>
   <BaseAccordionSection v-model:expanded="expanded" title="SETTINGS" body-id="sdr-settings-section">
     <!-- Volume -->
-    <div class="sdr-radio-section">
-      <div class="sdr-slider-header">
-        <label class="sdr-field-label">VOLUME</label>
-        <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-          >{{ volume }}%</span
-        >
-      </div>
-      <input
-        class="sdr-panel-slider"
-        type="range"
-        aria-label="Volume"
-        min="0"
-        max="200"
-        step="1"
-        :value="volume"
-        :disabled="controlsDisabled"
-        @input="emit('volume-input', $event)"
-      />
-    </div>
+    <BaseSliderRow
+      label="VOLUME"
+      :readout="`${volume}%`"
+      :readout-dimmed="controlsDisabled"
+      accessible-name="Volume"
+      min="0"
+      max="200"
+      step="1"
+      :value="volume"
+      :disabled="controlsDisabled"
+      @input="emit('volume-input', $event)"
+    />
 
     <!-- Squelch -->
-    <div class="sdr-radio-section">
-      <div class="sdr-slider-header">
-        <label class="sdr-field-label">SQUELCH</label>
-        <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }"
-          >{{ squelch }} dBFS</span
-        >
-      </div>
-      <input
-        class="sdr-panel-slider"
-        type="range"
-        aria-label="Squelch in dBFS"
-        min="-120"
-        max="0"
-        step="1"
-        :value="squelch"
-        :disabled="controlsDisabled"
-        @input="emit('squelch-input', $event)"
-      />
-    </div>
+    <BaseSliderRow
+      label="SQUELCH"
+      :readout="`${squelch} dBFS`"
+      :readout-dimmed="controlsDisabled"
+      accessible-name="Squelch in dBFS"
+      min="-120"
+      max="0"
+      step="1"
+      :value="squelch"
+      :disabled="controlsDisabled"
+      @input="emit('squelch-input', $event)"
+    />
 
     <!-- Bandwidth -->
-    <div class="sdr-radio-section">
-      <div class="sdr-slider-header">
-        <label class="sdr-field-label">BANDWIDTH</label>
-        <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': tuningDisabled }">{{
-          formatBwHz(bwHz)
-        }}</span>
-      </div>
-      <input
-        class="sdr-panel-slider"
-        type="range"
-        aria-label="Bandwidth"
-        min="1000"
-        :max="bwMax"
-        step="500"
-        :value="bwHz"
-        :disabled="tuningDisabled"
-        @input="emit('bw-input', $event)"
-      />
-    </div>
+    <BaseSliderRow
+      label="BANDWIDTH"
+      :readout="formatBwHz(bwHz)"
+      :readout-dimmed="tuningDisabled"
+      accessible-name="Bandwidth"
+      min="1000"
+      :max="bwMax"
+      step="500"
+      :value="bwHz"
+      :disabled="tuningDisabled"
+      @input="emit('bw-input', $event)"
+    />
 
     <!-- RF Gain -->
-    <div class="sdr-radio-section">
-      <div class="sdr-slider-header">
-        <label class="sdr-field-label">RF GAIN</label>
-        <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': controlsDisabled }">{{
-          gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB`
-        }}</span>
-      </div>
-      <input
-        class="sdr-panel-slider"
-        type="range"
-        aria-label="RF gain in dB"
-        min="-1"
-        max="49"
-        step="0.5"
-        :value="gainDb"
-        :disabled="tuningDisabled || gainAuto"
-        @input="emit('gain-input', $event)"
-      />
-    </div>
+    <BaseSliderRow
+      label="RF GAIN"
+      :readout="gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB`"
+      :readout-dimmed="controlsDisabled"
+      accessible-name="RF gain in dB"
+      min="-1"
+      max="49"
+      step="0.5"
+      :value="gainDb"
+      :disabled="tuningDisabled || gainAuto"
+      @input="emit('gain-input', $event)"
+    />
 
     <!-- AGC -->
     <div class="sdr-radio-section sdr-agc-row">
@@ -163,6 +135,7 @@ import { ref } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
 import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
+import BaseSliderRow from '@/components/base/BaseSliderRow.vue'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 defineProps<{

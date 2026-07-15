@@ -51,7 +51,7 @@ a base (slots + props + CSS custom-property hooks); they never copy it.
 | B4 | `BaseIconAction`, the non-rail sibling of `BaseIconButton` (composes `BasePillToggle`; top/bottom/left tooltip anchoring + custom-prop pill restyling — none of these tooltips use the rail's left/right model) | 17 tooltip'd row actions, 10 bare glyphs, 4 clear-✕; 5 duplicated tooltip CSS blocks |
 | B5 | Adopt `BaseButton` ghost for the `sdr-panel-btn` CANCEL/SAVE/ADD family (ghost only — SAVE is a tint modifier of the same family, not the lime primary; ghost gained bg/hover-bg/radius/font-weight/letter-spacing hooks as the dark-theme mirror). `sdr-add-freq-btn` stays hand-rolled: its mixed-case accent look isn't a ghost | the family's chrome CSS (now hook mappings mirroring the original cascade rule-for-rule) across 12 button sites in 4 SDR files |
 | B6 | `BaseCheckbox` (checkmark slot) | 3 unrelated checkbox families |
-| B7 | `BaseSliderRow` (optional value-readout) | 4 settings slider rows (waterfall's 3 only if the hook fits) |
+| B7 | `BaseSliderRow` (label + pre-formatted readout + raw-event range input). Waterfall's 3 rows stay: different structure (horizontal label, wrapped `v-model` slider, no readout) and CSS family — the hook did not fit | 4 SETTINGS slider rows |
 | B8 | `BaseEmptyState` + real `BaseList`/`BaseListItem` adoption | 7 empty-state implementations; 6+ hand-rolled row sites |
 | B9 | Shared RADIO-info sub-component + frequency/format utils | ~90 duplicated Space lines; scattered `(hz/1e6).toFixed` |
 | B10 | CSS co-location sweep | each phase drains its family from `SdrPanel.css`/`SettingsPanel.css`; B10 finishes |
