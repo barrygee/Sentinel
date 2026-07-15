@@ -1097,6 +1097,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fold icon row actions onto a BaseIconAction primitive (base dedupe B4) (#202)
 - Adopt BaseButton ghost for the sdr-panel-btn form buttons (base dedupe B5) (#203)
 - Fold the three checkbox families onto a BaseCheckbox primitive (base dedupe B6) (#204)
+- Fold the SETTINGS slider rows onto a BaseSliderRow primitive (base dedupe B7) (#205)
 
 ### Documentation
 
