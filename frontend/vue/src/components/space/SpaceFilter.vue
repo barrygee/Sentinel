@@ -91,59 +91,7 @@
               <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
               <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
             </BaseDataGrid>
-            <div v-if="hasRadioInfo(sat)" class="sfr-acc-section sfr-acc-section--radio">
-              <BaseDataGrid
-                title="RADIO"
-                collapse-on-narrow
-                bare
-                style="--ba-cell-align: flex-start"
-              >
-                <BaseDataCell v-if="sat.uplink_hz" label="UPLINK">
-                  {{ formatHz(sat.uplink_hz)
-                  }}<span v-if="sat.uplink_mode" class="ba-data-cell-mode">
-                    · {{ sat.uplink_mode }}</span
-                  >
-                </BaseDataCell>
-                <BaseDataCell v-if="sat.downlink_hz" label="DOWNLINK">
-                  {{ formatHz(sat.downlink_hz)
-                  }}<span v-if="sat.downlink_mode" class="ba-data-cell-mode">
-                    · {{ sat.downlink_mode }}</span
-                  >
-                </BaseDataCell>
-                <BaseDataCell
-                  v-if="sat.ctcss_hz"
-                  label="CTCSS"
-                  :value="`${sat.ctcss_hz.toFixed(1)} Hz`"
-                />
-                <BaseDataCell
-                  v-if="sat.transponder_type"
-                  label="TRANSPONDER"
-                  :value="sat.transponder_type"
-                />
-                <BaseDataCell
-                  v-if="sat.beacon_hz"
-                  label="BEACON"
-                  :value="formatHz(sat.beacon_hz)"
-                />
-                <BaseDataCell
-                  v-if="sat.radio_status"
-                  label="STATUS"
-                  :value="formatStatus(sat.radio_status)"
-                />
-              </BaseDataGrid>
-              <div v-if="sat.packet_info" class="sfr-acc-radio-line">
-                <div class="sfr-acc-cell-label">PACKET / DIGITAL</div>
-                <ul class="sfr-acc-radio-list">
-                  <li v-for="(p, i) in splitNotes(sat.packet_info)" :key="i">{{ p }}</li>
-                </ul>
-              </div>
-              <div v-if="sat.radio_notes" class="sfr-acc-radio-line">
-                <div class="sfr-acc-cell-label">NOTES</div>
-                <ul class="sfr-acc-radio-list">
-                  <li v-for="(n, i) in splitNotes(sat.radio_notes)" :key="i">{{ n }}</li>
-                </ul>
-              </div>
-            </div>
+            <SatRadioInfoSection :radio="sat" class-prefix="sfr-acc" />
             <div class="sfr-acc-section sfr-acc-section--track">
               <div class="sfr-acc-track-row">
                 <BaseIconAction
@@ -384,6 +332,7 @@ import BellIcon from '../shared/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
 import BaseDataGrid from '../base/BaseDataGrid.vue'
 import BaseDataCell from '../base/BaseDataCell.vue'
+import SatRadioInfoSection from './SatRadioInfoSection.vue'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
   SATELLITE_CATEGORY_ORDER,
@@ -408,48 +357,6 @@ interface SatEntry {
   packet_info?: string | null
   radio_status?: string | null
   radio_notes?: string | null
-}
-
-function formatHz(hz: number | null | undefined): string {
-  /* v8 ignore start -- defensive: every call site is behind a `v-if="sat.*_hz"`
-     truthiness guard, so a null/undefined value never reaches here from the template. */
-  if (hz == null) return '—'
-  /* v8 ignore stop */
-  if (hz >= 1_000_000_000) return (hz / 1_000_000_000).toFixed(3) + ' GHz'
-  if (hz >= 1_000_000) return (hz / 1_000_000).toFixed(3) + ' MHz'
-  if (hz >= 1_000) return (hz / 1_000).toFixed(3) + ' kHz'
-  return String(hz) + ' Hz'
-}
-
-function hasRadioInfo(sat: SatEntry): boolean {
-  return !!(
-    sat.uplink_hz ||
-    sat.downlink_hz ||
-    sat.beacon_hz ||
-    sat.transponder_type ||
-    sat.packet_info ||
-    sat.radio_status ||
-    sat.radio_notes
-  )
-}
-
-function splitNotes(s: string | null | undefined): string[] {
-  /* v8 ignore start -- defensive: only called for `sat.packet_info` / `sat.radio_notes`,
-     each rendered behind a `v-if` on that same truthy field, so `s` is never empty here. */
-  if (!s) return []
-  /* v8 ignore stop */
-  return s
-    .split(/\s*;\s*/)
-    .map((x) => x.trim())
-    .filter(Boolean)
-}
-
-function formatStatus(s: string | null | undefined): string {
-  /* v8 ignore start -- defensive: only called behind `v-if="sat.radio_status"`, so `s` is
-     never empty/nullish when reached from the template. */
-  if (!s) return ''
-  /* v8 ignore stop */
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
 interface SkyPoint {

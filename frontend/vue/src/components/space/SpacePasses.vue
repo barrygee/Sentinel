@@ -78,54 +78,7 @@
             <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
             <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
           </BaseDataGrid>
-          <div v-if="hasRadioInfo(pass)" class="spp-acc-section spp-acc-section--radio">
-            <BaseDataGrid title="RADIO" collapse-on-narrow bare style="--ba-cell-align: flex-start">
-              <BaseDataCell v-if="pass.uplink_hz" label="UPLINK">
-                {{ formatHz(pass.uplink_hz)
-                }}<span v-if="pass.uplink_mode" class="ba-data-cell-mode">
-                  · {{ pass.uplink_mode }}</span
-                >
-              </BaseDataCell>
-              <BaseDataCell v-if="pass.downlink_hz" label="DOWNLINK">
-                {{ formatHz(pass.downlink_hz)
-                }}<span v-if="pass.downlink_mode" class="ba-data-cell-mode">
-                  · {{ pass.downlink_mode }}</span
-                >
-              </BaseDataCell>
-              <BaseDataCell
-                v-if="pass.ctcss_hz"
-                label="CTCSS"
-                :value="`${pass.ctcss_hz.toFixed(1)} Hz`"
-              />
-              <BaseDataCell
-                v-if="pass.transponder_type"
-                label="TRANSPONDER"
-                :value="pass.transponder_type"
-              />
-              <BaseDataCell
-                v-if="pass.beacon_hz"
-                label="BEACON"
-                :value="formatHz(pass.beacon_hz)"
-              />
-              <BaseDataCell
-                v-if="pass.radio_status"
-                label="STATUS"
-                :value="formatStatus(pass.radio_status)"
-              />
-            </BaseDataGrid>
-            <div v-if="pass.packet_info" class="spp-acc-radio-line">
-              <div class="spp-acc-cell-label">PACKET / DIGITAL</div>
-              <ul class="spp-acc-radio-list">
-                <li v-for="(p, i) in splitNotes(pass.packet_info)" :key="i">{{ p }}</li>
-              </ul>
-            </div>
-            <div v-if="pass.radio_notes" class="spp-acc-radio-line">
-              <div class="spp-acc-cell-label">NOTES</div>
-              <ul class="spp-acc-radio-list">
-                <li v-for="(n, i) in splitNotes(pass.radio_notes)" :key="i">{{ n }}</li>
-              </ul>
-            </div>
-          </div>
+          <SatRadioInfoSection :radio="pass" class-prefix="spp-acc" />
           <div class="spp-acc-section spp-acc-section--track">
             <div class="spp-acc-track-row">
               <BaseIconAction
@@ -357,6 +310,7 @@ import BellIcon from '../shared/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
 import BaseDataGrid from '../base/BaseDataGrid.vue'
 import BaseDataCell from '../base/BaseDataCell.vue'
+import SatRadioInfoSection from './SatRadioInfoSection.vue'
 import {
   SATELLITE_CATEGORY_ORDER,
   SATELLITE_CATEGORY_DISPLAY_NAMES,
@@ -608,48 +562,6 @@ const polarLive = computed<SkyPoint | null>(() => {
   if (!p || !accPassIsNow(p, now.value)) return null
   return liveAzEl.value
 })
-
-function formatHz(hz: number | null | undefined): string {
-  /* v8 ignore start -- defensive: every call site is behind a `v-if="pass.*_hz"`
-     truthiness guard, so a null/undefined value never reaches here from the template. */
-  if (hz == null) return '—'
-  /* v8 ignore stop */
-  if (hz >= 1_000_000_000) return (hz / 1_000_000_000).toFixed(3) + ' GHz'
-  if (hz >= 1_000_000) return (hz / 1_000_000).toFixed(3) + ' MHz'
-  if (hz >= 1_000) return (hz / 1_000).toFixed(3) + ' kHz'
-  return String(hz) + ' Hz'
-}
-
-function hasRadioInfo(p: SatPass): boolean {
-  return !!(
-    p.uplink_hz ||
-    p.downlink_hz ||
-    p.beacon_hz ||
-    p.transponder_type ||
-    p.packet_info ||
-    p.radio_status ||
-    p.radio_notes
-  )
-}
-
-function splitNotes(s: string | null | undefined): string[] {
-  /* v8 ignore start -- defensive: only called for `pass.packet_info` / `pass.radio_notes`,
-     each rendered behind a `v-if` on that same truthy field, so `s` is never empty here. */
-  if (!s) return []
-  /* v8 ignore stop */
-  return s
-    .split(/\s*;\s*/)
-    .map((x) => x.trim())
-    .filter(Boolean)
-}
-
-function formatStatus(s: string | null | undefined): string {
-  /* v8 ignore start -- defensive: only called behind `v-if="pass.radio_status"`, so `s` is
-     never empty/nullish when reached from the template. */
-  if (!s) return ''
-  /* v8 ignore stop */
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
-}
 
 let fetchAbort: AbortController | null = null
 let accFetchAbort: AbortController | null = null
