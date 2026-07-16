@@ -277,6 +277,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Mirror demod mode to read-only followers on retune (#174)
 - Dismiss open dropdown menus on panel scroll (#176)
 - Make filter results scroll containers keyboard-focusable (#215)
+- Make custom checkboxes keyboard-focusable and Space-operable (#216)
 
 ### Chores
 
