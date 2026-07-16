@@ -28,7 +28,13 @@
     </BaseIconAction>
   </div>
 
-  <div id="filter-results" ref="resultsRef">
+  <!-- The scroll container is keyboard-focusable (WCAG 2.1.1 / axe
+       scrollable-region-focusable): when rows overflow, none of the content is
+       tabbable — options are driven from the combobox via aria-activedescendant
+       by design — so without a tab stop a keyboard user could never scroll the
+       overflowing results. role="group" + a name keeps the stop meaningful to
+       assistive tech without disturbing the combobox/listbox structure. -->
+  <div id="filter-results" ref="resultsRef" role="group" aria-label="Filter results" tabindex="0">
     <!-- The listbox is an empty structural element that OWNS the option rows
          below via aria-owns. The rows can't sit *inside* it because each row
          carries non-option chrome (section header buttons, the per-row bell
