@@ -1102,6 +1102,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Co-locate the AGC checkbox CSS with SdrSettingsAccordion (base dedupe B10a) (#207)
 - Co-locate the SETTINGS slider-row CSS with its owners (base dedupe B10b) (#208)
 - Co-locate the trunk CSS with SdrTrunkSection (base dedupe B10c) (#209)
+- Co-locate the GROUPS tab CSS with SdrGroupsTab (base dedupe B10d) (#210)
 
 ### Documentation
 
