@@ -66,26 +66,13 @@
   flex-shrink: 0;
 }
 
-.sdr-conn-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  transition:
-    background 0.3s,
-    box-shadow 0.3s;
-}
+/* The connection-dot family (.sdr-conn-dot, .sdr-dot-off/-on) lives with its
+   sole renderer, SdrDeviceSelector.vue (B10 CSS co-location). */
 
-.sdr-dot-off {
-  background: rgba(255, 60, 60, 0.6);
-}
-
+/* Dead-CSS candidate (B10): no element anywhere carries .sdr-dot-idle — the
+   selector binds a two-state ternary (on/off). Kept for the verification pass. */
 .sdr-dot-idle {
   background: #ffcc33;
-}
-
-.sdr-dot-on {
-  background: #c8ff00;
 }
 
 .sdr-status-label {
@@ -207,171 +194,18 @@
   color: #fff;
 }
 
-.sdr-device-dropdown {
-  position: relative;
-  width: 100%;
-  height: 34px;
-  cursor: pointer;
-  outline: none;
-  user-select: none;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  border-radius: 2px;
-  box-sizing: border-box;
-}
+/* The device-dropdown family (the .sdr-device-* trigger shell, teleported
+   menu and item rules) lives with BaseSelectMenu.vue, the primitive whose
+   template and picker slots render it (B10 CSS co-location). The
+   contextual overrides elsewhere in this file (#sdr-device-group-*,
+   .sdr-search-adhoc-col, #sdr-mini-player) stay with their contexts —
+   higher specificity, order-immune. */
 
-.sdr-device-dropdown:focus,
-.sdr-device-dropdown--open {
-  background: rgba(255, 255, 255, 0.07);
-}
-
-.sdr-device-dropdown-selected {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  padding: 0 10px;
-  gap: 8px;
-}
-
-.sdr-device-dropdown-selected .sdr-conn-dot {
-  flex-shrink: 0;
-}
-
-.sdr-device-dropdown-text {
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.25);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sdr-device-dropdown-text--chosen {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-/* Another Sentinel controls the shared tuner: the red padlock (below) signals
-   this, while the device name keeps its normal white so the radio stays easy to
-   read. The read-only state is still announced via the sr-only status. */
-
-.sdr-device-lock {
-  flex-shrink: 0;
-  display: block;
-  color: #ff5050;
-}
-
-.sdr-device-dropdown-arrow {
-  flex-shrink: 0;
-  width: 8px;
-  height: 5px;
-  margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  transition: transform 0.15s;
-}
-
-.sdr-device-dropdown--open .sdr-device-dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-.sdr-device-dropdown--loading {
-  opacity: 0.45;
-  pointer-events: none;
-  cursor: default;
-}
-
-.sdr-device-menu {
-  display: none;
-  position: fixed;
-  z-index: 99999;
-  background: #13171f;
-  border: none;
-  overflow-y: auto;
-  max-height: 220px;
-  box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
-}
-
-.sdr-device-menu::-webkit-scrollbar {
-  width: 8px;
-}
-.sdr-device-menu::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sdr-device-menu::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-  border: 2px solid #13171f;
-}
-.sdr-device-menu::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.32);
-}
-
-.sdr-device-menu.sdr-device-menu--open {
-  display: block;
-}
-
+/* Dead-CSS candidate (B10): nothing ever adds the --upward class (the
+   teleported-menu composable only positions downward). Kept for the
+   verification pass. */
 .sdr-device-menu.sdr-device-menu--upward {
   border: none;
-}
-
-.sdr-device-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 9px 12px;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    background 0.1s,
-    color 0.1s;
-}
-
-.sdr-device-menu-item:hover,
-.sdr-device-menu-item--active {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
-}
-
-.sdr-device-menu-item-label {
-  min-width: 0;
-}
-
-/* Read-only row: this radio is controlled by another Sentinel. The red padlock
-   (.sdr-device-menu-item-lock) carries that signal; the radio name and host keep
-   their normal colours so the row stays readable. */
-
-.sdr-device-menu-placeholder {
-  color: rgba(255, 255, 255, 0.25);
-}
-
-.sdr-device-menu-item-host {
-  display: block;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  text-transform: none;
-  color: rgba(255, 255, 255, 0.35);
-  margin-top: 2px;
-}
-
-.sdr-device-menu-item:hover .sdr-device-menu-item-host {
-  color: rgba(255, 255, 255, 0.55);
 }
 
 .sdr-mode-pills {
@@ -550,11 +384,6 @@
    (BaseSliderRow rows + the hand-rolled SAMPLE RATE header) — and the range
    input chrome (.sdr-panel-slider) with its sole renderer, BaseSliderRow.vue
    (B10 CSS co-location). */
-
-/* Highlight the currently chosen sample rate in the menu. */
-.sdr-device-menu-item--selected {
-  color: #c8ff00;
-}
 
 /* The AGC checkbox family (.sdr-agc-row / .sdr-checkbox-*) lives with its sole
    renderer, SdrSettingsAccordion.vue (B10 CSS co-location). */
@@ -2816,6 +2645,8 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* Dead-CSS candidates (B10): no element anywhere carries .sdr-conn-label
+   or its -on/-off variants. Kept for the verification pass. */
 .sdr-conn-label {
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 11px;

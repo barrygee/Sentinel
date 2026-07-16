@@ -129,8 +129,10 @@
  * opts out of the default keyboard model (`custom-keyboard`) and adds the
  * listbox highlight/keyboard model on top, driving the exposed menu
  * controls. The `open` event is the open-time hook — every open path (click
- * or keyboard) resets the highlight and re-reads the store there. Styling
- * lives in SdrPanel.css (imported globally by SdrPanel.vue).
+ * or keyboard) resets the highlight and re-reads the store there. The
+ * connection-dot family (`.sdr-conn-dot`, `.sdr-dot-off/-on`) is styled by
+ * the unscoped block below (B10 CSS co-location); the dropdown chrome lives
+ * with BaseSelectMenu.
  */
 import { ref, computed } from 'vue'
 import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
@@ -247,3 +249,30 @@ function onDropdownKey(e: KeyboardEvent) {
   }
 }
 </script>
+
+<!-- Unscoped on purpose (B10 CSS co-location): the connection-dot family
+     moved here verbatim from SdrPanel.css. The base sizing and the on/off
+     colours are disjoint declarations, and the family-context rule in
+     BaseSelectMenu's sheet (`.sdr-device-dropdown-selected .sdr-conn-dot`)
+     is higher-specificity, so order between the two blocks never decides a
+     winner. `.sdr-dot-idle` stayed in SdrPanel.css as a dead-CSS candidate
+     (the dot binds a two-state on/off ternary). -->
+<style>
+.sdr-conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+
+.sdr-dot-off {
+  background: rgba(255, 60, 60, 0.6);
+}
+
+.sdr-dot-on {
+  background: #c8ff00;
+}
+</style>
