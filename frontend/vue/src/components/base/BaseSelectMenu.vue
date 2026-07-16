@@ -61,11 +61,15 @@
  * via `customKeyboard` and drive the exposed `menuOpen`/`openMenu`/
  * `toggleMenu`/`closeMenu` from their own `@trigger-keydown` handler.
  *
- * Styling stays in `SdrPanel.css` for now: the `sdr-device-*` family's
- * per-picker modifiers (`.sdr-step-menu`, `.sdr-trunk-menu`, …) are
- * equal-specificity overrides that depend on cascade order, so the family
- * moves here in one piece in the B10 co-location sweep rather than risking
- * a split cascade.
+ * The `sdr-device-*` family (trigger shell, teleported menu, item rows) is
+ * styled by the unscoped block below, moved here in one piece in the B10
+ * co-location sweep — the item rules are rendered by the pickers' `#options`
+ * slots, but splitting the family across files would risk its internal
+ * cascade order (`--active` before `--selected`). The per-picker menu-class
+ * hooks (`.sdr-step-menu`, `.sdr-trunk-menu`) carry no CSS rules today, and
+ * the contextual overrides in feature sheets (`#sdr-mini-player …`,
+ * `.sdr-search-adhoc-col …`, `.sdr-ef-setting …`) are higher-specificity and
+ * order-immune.
  */
 import { ref, watch } from 'vue'
 import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
@@ -166,3 +170,183 @@ defineExpose({
   closeMenu,
 })
 </script>
+
+<!-- Unscoped on purpose (B10 CSS co-location): the device-dropdown family
+     moved here verbatim from SdrPanel.css in one piece, preserving its
+     internal order (item base -> :hover/--active -> --selected; the
+     --selected rule was always the later, winning rule and remains last).
+     `scoped` would add [data-v] attribute selectors and RAISE specificity
+     over the original global rules — and the item classes are rendered by
+     the pickers' slots, outside this component's scope id anyway. Loaded
+     before the feature sheets' contextual overrides is fine: those are
+     higher-specificity (id- or descendant-prefixed), so order between
+     files never decides a winner. -->
+<style>
+.sdr-device-dropdown {
+  position: relative;
+  width: 100%;
+  height: 34px;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.sdr-device-dropdown:focus,
+.sdr-device-dropdown--open {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.sdr-device-dropdown-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.sdr-device-dropdown-selected .sdr-conn-dot {
+  flex-shrink: 0;
+}
+
+.sdr-device-dropdown-text {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sdr-device-dropdown-text--chosen {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Another Sentinel controls the shared tuner: the red padlock (below) signals
+   this, while the device name keeps its normal white so the radio stays easy to
+   read. The read-only state is still announced via the sr-only status. */
+
+.sdr-device-lock {
+  flex-shrink: 0;
+  display: block;
+  color: #ff5050;
+}
+
+.sdr-device-dropdown-arrow {
+  flex-shrink: 0;
+  width: 8px;
+  height: 5px;
+  margin-left: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: transform 0.15s;
+}
+
+.sdr-device-dropdown--open .sdr-device-dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.sdr-device-dropdown--loading {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: default;
+}
+
+.sdr-device-menu {
+  display: none;
+  position: fixed;
+  z-index: 99999;
+  background: #13171f;
+  border: none;
+  overflow-y: auto;
+  max-height: 220px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.sdr-device-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.sdr-device-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sdr-device-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  border: 2px solid #13171f;
+}
+.sdr-device-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.sdr-device-menu.sdr-device-menu--open {
+  display: block;
+}
+
+.sdr-device-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+
+.sdr-device-menu-item:hover,
+.sdr-device-menu-item--active {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.sdr-device-menu-item-label {
+  min-width: 0;
+}
+
+/* Read-only row: this radio is controlled by another Sentinel. The red padlock
+   (.sdr-device-menu-item-lock) carries that signal; the radio name and host keep
+   their normal colours so the row stays readable. */
+
+.sdr-device-menu-placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.sdr-device-menu-item-host {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 2px;
+}
+
+.sdr-device-menu-item:hover .sdr-device-menu-item-host {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Highlight the currently chosen sample rate in the menu. */
+.sdr-device-menu-item--selected {
+  color: #c8ff00;
+}
+</style>
