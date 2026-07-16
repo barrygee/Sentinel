@@ -1105,6 +1105,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Co-locate the GROUPS tab CSS with SdrGroupsTab (base dedupe B10d) (#210)
 - Co-locate the recordings CSS with SdrRecordingsSection (base dedupe B10e) (#211)
 - Co-locate the device-dropdown CSS with BaseSelectMenu (base dedupe B10f) (#212)
+- Delete verified-dead CSS from SdrPanel.css (base dedupe B10g) (#213)
 
 ### Documentation
 
