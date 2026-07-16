@@ -1101,6 +1101,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share the satellite RADIO section and its formatters (base dedupe B9, descopes B8) (#206)
 - Co-locate the AGC checkbox CSS with SdrSettingsAccordion (base dedupe B10a) (#207)
 - Co-locate the SETTINGS slider-row CSS with its owners (base dedupe B10b) (#208)
+- Co-locate the trunk CSS with SdrTrunkSection (base dedupe B10c) (#209)
 
 ### Documentation
 
