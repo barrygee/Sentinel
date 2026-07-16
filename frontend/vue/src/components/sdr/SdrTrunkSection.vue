@@ -100,8 +100,11 @@
  * click, settle-window scroll, resize) come from BaseSelectMenu; the keyboard
  * model is custom because trunkEnabled gates the whole handler (including
  * Escape), matching the pre-extraction dropdown exactly. The TRUNK SYSTEM
- * header + collapsible body come from BaseAccordionSection. Styling lives in
- * SdrPanel.css (imported globally by SdrPanel.vue).
+ * header + collapsible body come from BaseAccordionSection. The trunk family
+ * (`.sdr-trunk-*` + the `#sdr-trunk-section-body` context rules) is styled by
+ * the unscoped block below (B10 CSS co-location); the shared dropdown-content
+ * classes (`sdr-device-dropdown-text`, `sdr-device-menu-item`, …) still live
+ * in SdrPanel.css with the rest of the `sdr-device-*` family.
  */
 import { ref, computed } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
@@ -148,3 +151,91 @@ function pickMap(name: string) {
   channelMap.value = name
 }
 </script>
+
+<!-- Unscoped on purpose (B10 CSS co-location): the trunk family moved here
+     verbatim from SdrPanel.css. `scoped` would add [data-v] attribute
+     selectors and RAISE specificity over the original global rules — and the
+     `#sdr-trunk-section-body` rules target the BaseAccordionSection-rendered
+     body, which doesn't carry this component's scope id. Loaded after
+     SdrPanel.css (component modules import after SdrPanel.vue's leading CSS
+     import), which preserves today's cascade: `.sdr-trunk-section` keeps
+     overriding `.sdr-radio-section`'s padding at equal specificity, and the
+     id-prefixed rules are order-immune. -->
+<style>
+/* Trunk button — green family to distinguish following from plain decode. */
+/* Match the tight header spacing of the SCANNER/SEARCH accordions (the base
+   .sdr-radio-section's 14px top padding otherwise leaves a big gap above). */
+.sdr-trunk-section {
+  padding: 0 20px;
+  margin-top: 1px;
+}
+
+/* Space the channel-map dropdown off the accordion header, and keep the
+   expanded body off the bottom edge (the header padding is now zero). */
+#sdr-trunk-section-body {
+  padding-bottom: 14px;
+}
+#sdr-trunk-section-body .sdr-trunk-dropdown {
+  margin-top: 8px;
+}
+/* The box spans the section (left edge under "TRUNK SYSTEM", right under the
+   chevron); give the text/arrow the same inner padding as the panel's other
+   dropdowns so they aren't flush against the box edges. */
+#sdr-trunk-section-body .sdr-trunk-dropdown .sdr-device-dropdown-selected {
+  padding: 0 12px;
+}
+
+/* Follow/stop button, full width inside the accordion above the hint. Carries
+   the green trunk accent of the mode pill it replaced in the freq-actions row. */
+.sdr-trunk-follow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 34px;
+  margin-top: 10px;
+  background: rgba(122, 224, 160, 0.08);
+  border: 1px solid rgba(122, 224, 160, 0.35);
+  border-radius: 2px;
+  color: rgba(122, 224, 160, 0.85);
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+.sdr-trunk-follow-btn:hover:not(:disabled) {
+  background: rgba(122, 224, 160, 0.16);
+  color: #7ee0a0;
+}
+.sdr-trunk-follow-btn--active {
+  background: rgba(122, 224, 160, 0.18);
+  border-color: rgba(122, 224, 160, 0.6);
+  color: #7ee0a0;
+}
+.sdr-trunk-follow-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sdr-trunk-hint {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #8b95a1;
+}
+
+/* #ff6b6b clears AA on the dark panel; role="alert" announces it. */
+.sdr-trunk-error {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ff6b6b;
+}
+</style>
