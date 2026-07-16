@@ -545,79 +545,11 @@
   height: 28px;
 }
 
-.sdr-slider-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.sdr-slider-header .sdr-field-label {
-  margin-bottom: 0;
-  flex: 1;
-  min-width: 0;
-}
-
-.sdr-slider-val {
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.25);
-  letter-spacing: 0.1em;
-  min-width: 60px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.sdr-slider-val--dimmed {
-  opacity: 0.25;
-}
-
-.sdr-panel-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 3px;
-  background: #c8ff00;
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
-  display: block;
-  box-sizing: border-box;
-  border: none;
-}
-
-.sdr-panel-slider:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.sdr-panel-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-}
-
-.sdr-panel-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-}
-
-.sdr-panel-slider::-moz-range-track {
-  height: 3px;
-  border-radius: 2px;
-  background: #c8ff00;
-}
+/* The slider-row header family (.sdr-slider-header/-val) lives with
+   SdrSettingsAccordion.vue — the one component containing both renderers
+   (BaseSliderRow rows + the hand-rolled SAMPLE RATE header) — and the range
+   input chrome (.sdr-panel-slider) with its sole renderer, BaseSliderRow.vue
+   (B10 CSS co-location). */
 
 /* Highlight the currently chosen sample rate in the menu. */
 .sdr-device-menu-item--selected {

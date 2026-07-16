@@ -39,8 +39,13 @@
  * readout) and CSS family; forcing them under one primitive would leave it
  * describing nothing.
  *
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue) until
- * the B10 co-location sweep, same as the other SDR-family primitives.
+ * The range-input chrome (`.sdr-panel-slider`, hardcoded in this template —
+ * its sole renderer) is styled by the unscoped block below (B10 CSS
+ * co-location). The header family (`.sdr-slider-header/-val`) lives with
+ * `SdrSettingsAccordion.vue`, which contains both of its renderers (these
+ * rows and the hand-rolled SAMPLE RATE header); the row wrapper
+ * (`.sdr-radio-section`) and label (`.sdr-field-label`) stay in SdrPanel.css
+ * with their many other renderers.
  */
 withDefaults(
   defineProps<{
@@ -75,3 +80,56 @@ const emit = defineEmits<{
   (event: 'input', domEvent: Event): void
 }>()
 </script>
+
+<!-- Unscoped on purpose (B10 CSS co-location): moved verbatim from
+     SdrPanel.css. `scoped` would add [data-v] attribute selectors and RAISE
+     specificity over the original global rules. `outline: none` looks like a
+     focus-ring risk but isn't: assets/a11y.css restores :focus-visible with
+     !important, which beats this rule regardless of source order. -->
+<style>
+.sdr-panel-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: #c8ff00;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  display: block;
+  box-sizing: border-box;
+  border: none;
+}
+
+.sdr-panel-slider:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sdr-panel-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.sdr-panel-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.sdr-panel-slider::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: #c8ff00;
+}
+</style>

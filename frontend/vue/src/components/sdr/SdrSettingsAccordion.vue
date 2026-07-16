@@ -129,9 +129,12 @@
  * controlsDisabled gating (the `--loading` style tracks tuningDisabled
  * separately, preserving the pre-extraction split). The SETTINGS header +
  * collapsible body come from BaseAccordionSection. The AGC checkbox family
- * (`.sdr-agc-row` / `.sdr-checkbox-*`) is styled by the unscoped block below
- * (B10 CSS co-location); the remaining styling (sliders, dropdown, section
- * chrome) still lives in SdrPanel.css (imported globally by SdrPanel.vue).
+ * (`.sdr-agc-row` / `.sdr-checkbox-*`) and the slider-row header family
+ * (`.sdr-slider-header/-val`, shared by BaseSliderRow's rows and the
+ * hand-rolled SAMPLE RATE header) are styled by the unscoped block below
+ * (B10 CSS co-location); the range-input chrome lives in BaseSliderRow, and
+ * the remaining styling (dropdown, section chrome) still lives in
+ * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
@@ -190,16 +193,49 @@ function pickSampleRate(v: number) {
 }
 </script>
 
-<!-- Unscoped on purpose (B10 CSS co-location): the AGC checkbox family moved
-     here verbatim from SdrPanel.css. `scoped` would add [data-v] attribute
-     selectors and RAISE specificity over the original global rules — and the
-     classes sit on BaseCheckbox-rendered elements that don't carry this
-     component's scope id anyway. Loaded after SdrPanel.css (component modules
-     import after SdrPanel.vue's leading CSS import), which preserves today's
-     cascade: `.sdr-agc-row` keeps overriding `.sdr-radio-section`'s padding,
-     and the higher-specificity `.sdr-settings-controls …` context rules in
-     SdrPanel.css are order-immune. -->
+<!-- Unscoped on purpose (B10 CSS co-location): the AGC checkbox and
+     slider-row-header families moved here verbatim from SdrPanel.css.
+     `scoped` would add [data-v] attribute selectors and RAISE specificity
+     over the original global rules — and the classes sit on elements rendered
+     by BaseCheckbox/BaseSliderRow, which don't carry this component's scope
+     id anyway. This component hosts the slider-header family (rather than
+     BaseSliderRow) because it contains BOTH renderers: BaseSliderRow's rows
+     and the hand-rolled SAMPLE RATE header above the sample-rate dropdown.
+     Loaded after SdrPanel.css (component modules import after SdrPanel.vue's
+     leading CSS import), which preserves today's cascade: `.sdr-agc-row`
+     keeps overriding `.sdr-radio-section`'s padding, and the remaining
+     equal-specificity `.sdr-radio-section .sdr-field-label` rule in
+     SdrPanel.css sets only `color` — disjoint from `.sdr-slider-header
+     .sdr-field-label`'s layout props, so order between them is moot. -->
 <style>
+.sdr-slider-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sdr-slider-header .sdr-field-label {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.sdr-slider-val {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.1em;
+  min-width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sdr-slider-val--dimmed {
+  opacity: 0.25;
+}
+
 .sdr-agc-row {
   padding-top: 14px;
   padding-bottom: 14px;
