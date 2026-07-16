@@ -1174,48 +1174,9 @@
   margin-bottom: 16px;
 }
 
-.sdr-frequency-manager-group-add-row {
-  padding: 10px 20px 24px 24px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.sdr-frequency-manager-group-add-row .sdr-panel-input {
-  flex: 1;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
-  border-radius: 2px;
-  color: #fff;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  padding: 0 10px;
-}
-
-.sdr-frequency-manager-group-add-row .sdr-panel-input:focus {
-  border: none;
-}
-
-.sdr-frequency-manager-group-add-row .sdr-panel-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.sdr-frequency-manager-group-add-row .sdr-panel-btn {
-  --ba-ghost-height: 28px;
-  --ba-ghost-padding: 0 12px;
-  --ba-ghost-font-size: 9px;
-  --ba-ghost-font-weight: 400;
-  --ba-ghost-letter-spacing: 0.08em;
-  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
-  --ba-ghost-color: #fff;
-}
-
-.sdr-frequency-manager-group-add-row .sdr-panel-btn:hover {
-  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.14);
-  --ba-ghost-hover-color: #fff;
-}
+/* The GROUPS tab's add-row family (.sdr-frequency-manager-group-add-row and
+   .sdr-panel-add-row) lives with its sole renderer, SdrGroupsTab.vue (B10
+   CSS co-location). */
 
 .sdr-freq-row-groups {
   display: flex;
@@ -2079,45 +2040,18 @@
   flex-direction: column;
 }
 
-.sdr-group-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 20px 24px 10px;
-}
-
-.sdr-group-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
-  border-radius: 2px;
-  height: 28px;
-  padding: 0 6px 0 14px;
-  cursor: default;
-  transition: background 0.15s;
-}
-
-.sdr-group-pill:hover {
-  background: rgba(255, 255, 255, 0.13);
-}
+/* The live group-pill family lives with its sole renderer, SdrGroupsTab.vue
+   (B10 CSS co-location). The .sdr-group-pill-edit/-del base chrome and the
+   -edit hover stay below, grouped with their .sdr-freq-row-edit siblings.
+   .sdr-group-pill-dot and .sdr-group-pill-default (further down) have no
+   renderer anywhere in src/ or the specs — dead-CSS candidates kept here for
+   the B10 dead-CSS verification pass. */
 
 .sdr-group-pill-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-
-.sdr-group-pill-name {
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
-  white-space: nowrap;
 }
 
 .sdr-freq-row-edit,
@@ -2160,9 +2094,6 @@
 .sdr-freq-row-edit:hover:not(:disabled),
 .sdr-group-pill-edit:hover {
   color: rgba(200, 255, 0, 0.75);
-}
-.sdr-group-pill-del:hover {
-  color: rgba(255, 80, 80, 0.8);
 }
 
 /* Read-only follower: the per-row edit/delete controls are inert while another
@@ -2211,17 +2142,6 @@
 .sdr-group-pill-default {
   opacity: 0.45;
   cursor: default;
-}
-
-.sdr-panel-add-row {
-  display: flex;
-  gap: 8px;
-  padding: 10px 20px 18px 24px;
-  flex-shrink: 0;
-}
-
-.sdr-panel-add-row .sdr-panel-input {
-  flex: 1;
 }
 
 .sdr-scan-indicator {

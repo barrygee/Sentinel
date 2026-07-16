@@ -56,8 +56,10 @@
  * owner) and emits `changed` after every successful mutation so the parent
  * panel can run its full data reload (frequencies, scan queue, recordings).
  *
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
- * the other extracted panel sections.
+ * The tab's own families — the group pills and the add row — are styled by
+ * the unscoped block below (B10 CSS co-location). The pill edit/delete glyph
+ * chrome stays in SdrPanel.css: those rules are grouped with their
+ * `.sdr-freq-row-edit` siblings, which another component renders.
  */
 import { ref, computed, nextTick } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -144,3 +146,109 @@ async function deleteGroup(id: number) {
   } catch (_) {}
 }
 </script>
+
+<!-- Unscoped on purpose (B10 CSS co-location): the GROUPS tab's families
+     moved here verbatim from SdrPanel.css, preserving their original relative
+     order — CASCADE-CRITICAL: `.sdr-frequency-manager-group-add-row` and
+     `.sdr-panel-add-row` style the SAME element at equal specificity with
+     conflicting padding, and `.sdr-panel-add-row` (originally the later rule)
+     must stay the winner, so it remains the later rule here. `scoped` would
+     add [data-v] attribute selectors and RAISE specificity over the original
+     global rules. Loaded after SdrPanel.css (component modules import after
+     SdrPanel.vue's leading CSS import). The pill edit/delete glyph chrome
+     stays in SdrPanel.css, grouped with its `.sdr-freq-row-edit` siblings;
+     `.sdr-group-pill-del:hover` here beats that base chrome by specificity
+     (0,2,0 vs 0,1,0), not order. -->
+<style>
+.sdr-frequency-manager-group-add-row {
+  padding: 10px 20px 24px 24px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sdr-frequency-manager-group-add-row .sdr-panel-input {
+  flex: 1;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 2px;
+  color: #fff;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 0 10px;
+}
+
+.sdr-frequency-manager-group-add-row .sdr-panel-input:focus {
+  border: none;
+}
+
+.sdr-frequency-manager-group-add-row .sdr-panel-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.sdr-frequency-manager-group-add-row .sdr-panel-btn {
+  --ba-ghost-height: 28px;
+  --ba-ghost-padding: 0 12px;
+  --ba-ghost-font-size: 9px;
+  --ba-ghost-font-weight: 400;
+  --ba-ghost-letter-spacing: 0.08em;
+  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
+  --ba-ghost-color: #fff;
+}
+
+.sdr-frequency-manager-group-add-row .sdr-panel-btn:hover {
+  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.14);
+  --ba-ghost-hover-color: #fff;
+}
+
+.sdr-group-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 20px 24px 10px;
+}
+
+.sdr-group-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 2px;
+  height: 28px;
+  padding: 0 6px 0 14px;
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.sdr-group-pill:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.sdr-group-pill-name {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
+.sdr-group-pill-del:hover {
+  color: rgba(255, 80, 80, 0.8);
+}
+
+.sdr-panel-add-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 20px 18px 24px;
+  flex-shrink: 0;
+}
+
+.sdr-panel-add-row .sdr-panel-input {
+  flex: 1;
+}
+</style>
