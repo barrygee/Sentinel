@@ -422,6 +422,22 @@ describe('SpacePasses — category filter chips', () => {
     expect(wrapper.findAll('.spp-pass-card')).toHaveLength(1)
   })
 
+  it('reports each category chip state via aria-pressed (multi-select, not a radio group)', async () => {
+    twoCategoryPasses()
+    const wrapper = await mountReady()
+    const allChip = wrapper.findAll('.spp-cat-filter-chip')[0]!
+    const weatherChip = wrapper
+      .findAll('.spp-cat-filter-chip')
+      .find((chip) => chip.text() === 'WEATHER')!
+    expect(allChip.attributes('aria-pressed')).toBe('true')
+    expect(allChip.attributes('role')).toBeUndefined()
+    expect(weatherChip.attributes('aria-pressed')).toBe('false')
+
+    await weatherChip.trigger('click')
+    expect(weatherChip.attributes('aria-pressed')).toBe('true')
+    expect(allChip.attributes('aria-pressed')).toBe('false')
+  })
+
   it('toggling the same category chip twice clears the filter again', async () => {
     twoCategoryPasses()
     const wrapper = await mountReady()

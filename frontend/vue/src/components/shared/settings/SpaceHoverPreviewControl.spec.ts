@@ -32,6 +32,30 @@ describe('SpaceHoverPreviewControl', () => {
     expect(activeLabel(wrapper)).toBe('STAY IN PLACE')
   })
 
+  it('exposes the preview pills as a keyboard-operable radio group', async () => {
+    const wrapper = mount(SpaceHoverPreviewControl)
+    await flushPromises()
+    const group = wrapper.find('.settings-source-override-group')
+    expect(group.attributes('role')).toBe('radiogroup')
+    expect(group.attributes('aria-label')).toBe('Hover preview behaviour')
+
+    // Roving tabindex: STAY IN PLACE (the default) holds the tab stop.
+    const [stayBtn, flyBtn] = wrapper.findAll('.settings-source-override-btn')
+    expect(stayBtn!.attributes('role')).toBe('radio')
+    expect(stayBtn!.attributes('aria-checked')).toBe('true')
+    expect(stayBtn!.attributes('tabindex')).toBe('0')
+    expect(flyBtn!.attributes('aria-checked')).toBe('false')
+    expect(flyBtn!.attributes('tabindex')).toBe('-1')
+
+    // ArrowRight selects FLY TO SATELLITE through the same select() path as a
+    // click, so the change is staged too.
+    await stayBtn!.trigger('keydown', { key: 'ArrowRight' })
+    expect(flyBtn!.attributes('aria-checked')).toBe('true')
+    expect(flyBtn!.attributes('tabindex')).toBe('0')
+    expect(activeLabel(wrapper)).toBe('FLY TO SATELLITE')
+    expect(wrapper.emitted('stage')).toHaveLength(1)
+  })
+
   it('seeds the selection from localStorage', async () => {
     localStorage.setItem(LS_KEY, 'fly')
     const wrapper = mount(SpaceHoverPreviewControl)

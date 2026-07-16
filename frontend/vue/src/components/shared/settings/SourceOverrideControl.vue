@@ -1,14 +1,18 @@
 <template>
   <div class="settings-source-override-wrap">
-    <div class="settings-source-override-group">
+    <div class="settings-source-override-group" role="radiogroup" aria-label="Data source override">
       <BasePillToggle
-        v-for="opt in OPTIONS"
+        v-for="(opt, optionIndex) in OPTIONS"
         :key="opt"
         class="settings-source-override-btn"
+        role="radio"
+        :aria-checked="current === opt"
+        :tabindex="overrideKeyboard.radioTabindex(optionIndex)"
         :active="current === opt"
         active-class="is-active"
         :data-value="opt"
         @click="select(opt)"
+        @keydown="overrideKeyboard.onRadioKeydown($event, optionIndex)"
       >
         {{ opt === 'offgrid' ? 'OFF GRID' : opt.toUpperCase() }}
       </BasePillToggle>
@@ -22,6 +26,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import * as settingsApi from '@/services/settingsApi'
 
 const props = defineProps<{ ns: string }>()
@@ -58,4 +63,12 @@ function select(opt: OverrideOpt): void {
     window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
   })
 }
+
+// Radio-group keyboard model for the override pills; arrow keys run the same
+// select() path (stage + persist) as a click.
+const overrideKeyboard = useRadioGroupKeyboard({
+  optionCount: () => OPTIONS.length,
+  selectedIndex: () => OPTIONS.indexOf(current.value),
+  select: (optionIndex) => select(OPTIONS[optionIndex]!),
+})
 </script>

@@ -424,17 +424,25 @@
             </svg>
           </button>
           <!-- Speed buttons right-aligned -->
-          <div class="apb-speed-group apb-speed-group--right">
+          <div
+            class="apb-speed-group apb-speed-group--right"
+            role="radiogroup"
+            aria-label="Playback speed"
+          >
             <BasePillToggle
-              v-for="(s, i) in PLAYBACK_SPEEDS"
-              :key="i"
+              v-for="(speed, speedIndex) in PLAYBACK_SPEEDS"
+              :key="speedIndex"
               class="apb-speed-btn"
-              :active="i === playbackStore.speedIdx"
+              role="radio"
+              :aria-checked="speedIndex === playbackStore.speedIdx"
+              :tabindex="speedKeyboard.radioTabindex(speedIndex)"
+              :active="speedIndex === playbackStore.speedIdx"
               active-class="apb-speed-btn--active"
               :disabled="!isActive"
-              @click="playbackStore.speedIdx = i"
+              @click="playbackStore.speedIdx = speedIndex"
+              @keydown="speedKeyboard.onRadioKeydown($event, speedIndex)"
             >
-              {{ s }}×
+              {{ speed }}×
             </BasePillToggle>
           </div>
         </div>
@@ -462,6 +470,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
 import {
   CAL_MONTHS,
@@ -475,6 +484,16 @@ import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
 import './AirReplayPanel.css'
 
 const playbackStore = usePlaybackStore()
+
+// Radio-group keyboard model for the playback-speed pills; arrow keys set
+// speedIdx exactly as a click does.
+const speedKeyboard = useRadioGroupKeyboard({
+  optionCount: () => PLAYBACK_SPEEDS.length,
+  selectedIndex: () => playbackStore.speedIdx,
+  select: (speedIndex) => {
+    playbackStore.speedIdx = speedIndex
+  },
+})
 
 // ---- Setup form refs (declared first — referenced by computed below) ----
 const pendingDate = ref('')

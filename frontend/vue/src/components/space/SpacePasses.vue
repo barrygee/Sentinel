@@ -7,6 +7,7 @@
       class="spp-cat-filter-chip"
       :active="activeFilters.size === 0"
       active-class="spp-cat-filter-chip-active"
+      :aria-pressed="activeFilters.size === 0"
       @click="selectAllCategories"
     >
       ALL
@@ -17,6 +18,7 @@
       class="spp-cat-filter-chip"
       :active="activeFilters.has(cat)"
       active-class="spp-cat-filter-chip-active"
+      :aria-pressed="activeFilters.has(cat)"
       @click="toggleCategoryFilter(cat)"
     >
       {{ categoryLabel(cat) }}

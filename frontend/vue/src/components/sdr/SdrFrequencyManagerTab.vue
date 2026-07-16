@@ -12,6 +12,7 @@
           class="sdr-scan-group-chip"
           :active="freqFilterAllSelected"
           active-class="sdr-scan-group-chip-active"
+          :aria-pressed="freqFilterAllSelected"
           :disabled="readOnly"
           @click="toggleFreqFilterAll"
         >
@@ -23,6 +24,7 @@
           class="sdr-scan-group-chip"
           :active="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
           active-class="sdr-scan-group-chip-active"
+          :aria-pressed="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
           :disabled="readOnly"
           @click="toggleFreqFilterGroup(g.id)"
         >
@@ -128,16 +130,25 @@
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">MODE</label>
-            <div class="sdr-mode-pills" :class="{ 'sdr-input-error': efErrors.mode }">
+            <div
+              class="sdr-mode-pills"
+              :class="{ 'sdr-input-error': efErrors.mode }"
+              role="radiogroup"
+              aria-label="Demodulation mode"
+            >
               <BasePillToggle
-                v-for="m in MODES"
-                :key="m"
+                v-for="(mode, modeIndex) in MODES"
+                :key="mode"
                 class="sdr-mode-pill"
-                :active="efMode === m"
+                role="radio"
+                :aria-checked="efMode === mode"
+                :tabindex="efModeKeyboard.radioTabindex(modeIndex)"
+                :active="efMode === mode"
                 active-class="active"
-                @click="efMode = m"
+                @click="efMode = mode"
+                @keydown="efModeKeyboard.onRadioKeydown($event, modeIndex)"
               >
-                {{ m }}
+                {{ mode }}
               </BasePillToggle>
             </div>
             <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
@@ -149,6 +160,7 @@
                 class="sdr-mode-pill sdr-ef-gpill"
                 :active="efGroupIds.length === 0"
                 active-class="active"
+                :aria-pressed="efGroupIds.length === 0"
                 @click="efGroupIds = []"
               >
                 Default
@@ -159,6 +171,7 @@
                 class="sdr-mode-pill sdr-ef-gpill"
                 :active="efGroupIds.includes(g.id)"
                 active-class="active"
+                :aria-pressed="efGroupIds.includes(g.id)"
                 @click="toggleEfGroup(g.id)"
               >
                 {{ g.name }}
@@ -362,16 +375,22 @@
           id="sdr-ef-mode-pills"
           class="sdr-mode-pills"
           :class="{ 'sdr-input-error': efErrors.mode }"
+          role="radiogroup"
+          aria-label="Demodulation mode"
         >
           <BasePillToggle
-            v-for="m in MODES"
-            :key="m"
+            v-for="(mode, modeIndex) in MODES"
+            :key="mode"
             class="sdr-mode-pill"
-            :active="efMode === m"
+            role="radio"
+            :aria-checked="efMode === mode"
+            :tabindex="efModeKeyboard.radioTabindex(modeIndex)"
+            :active="efMode === mode"
             active-class="active"
-            @click="efMode = m"
+            @click="efMode = mode"
+            @keydown="efModeKeyboard.onRadioKeydown($event, modeIndex)"
           >
-            {{ m }}
+            {{ mode }}
           </BasePillToggle>
         </div>
         <!-- No mode-error slot here: the Add panel seeds efMode from the
@@ -386,6 +405,7 @@
             class="sdr-mode-pill sdr-ef-gpill"
             :active="efGroupIds.length === 0"
             active-class="active"
+            :aria-pressed="efGroupIds.length === 0"
             @click="efGroupIds = []"
           >
             Default
@@ -396,6 +416,7 @@
             class="sdr-mode-pill sdr-ef-gpill"
             :active="efGroupIds.includes(g.id)"
             active-class="active"
+            :aria-pressed="efGroupIds.includes(g.id)"
             @click="toggleEfGroup(g.id)"
           >
             {{ g.name }}
@@ -564,6 +585,7 @@ import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
@@ -756,6 +778,16 @@ function toggleEfGroup(id: number) {
   if (idx === -1) efGroupIds.value = [...efGroupIds.value, id]
   else efGroupIds.value = efGroupIds.value.filter((i) => i !== id)
 }
+
+// Radio-group keyboard model for the MODE pills. One instance serves both the
+// inline-edit and Add forms — they render the same MODES over the same efMode.
+const efModeKeyboard = useRadioGroupKeyboard({
+  optionCount: () => MODES.length,
+  selectedIndex: () => (MODES as readonly string[]).indexOf(efMode.value),
+  select: (modeIndex) => {
+    efMode.value = MODES[modeIndex]!
+  },
+})
 
 // Parse the per-frequency tuning settings from the add/edit form into the API
 // shape. Each value falls back to a sensible default if the field was cleared

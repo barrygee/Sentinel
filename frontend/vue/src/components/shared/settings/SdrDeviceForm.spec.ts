@@ -38,6 +38,33 @@ describe('SdrDeviceForm', () => {
     expect(disabledBtn!.classes()).not.toContain('is-active')
   })
 
+  it('exposes the STATUS pills as a keyboard-operable radio group', async () => {
+    const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
+    await flushPromises()
+    const group = wrapper.find('.sdr-devices-enabled-group')
+    expect(group.attributes('role')).toBe('radiogroup')
+    expect(group.attributes('aria-label')).toBe('Device status')
+
+    // Roving tabindex: ENABLED (the default) is checked and holds the tab stop.
+    const [enabledBtn, disabledBtn] = wrapper.findAll('.sdr-devices-enabled-btn')
+    expect(enabledBtn!.attributes('role')).toBe('radio')
+    expect(enabledBtn!.attributes('aria-checked')).toBe('true')
+    expect(enabledBtn!.attributes('tabindex')).toBe('0')
+    expect(disabledBtn!.attributes('aria-checked')).toBe('false')
+    expect(disabledBtn!.attributes('tabindex')).toBe('-1')
+
+    // ArrowRight selects DISABLED exactly as clicking it would.
+    await enabledBtn!.trigger('keydown', { key: 'ArrowRight' })
+    expect(disabledBtn!.attributes('aria-checked')).toBe('true')
+    expect(disabledBtn!.attributes('tabindex')).toBe('0')
+    expect(disabledBtn!.classes()).toContain('is-active')
+    expect(enabledBtn!.attributes('aria-checked')).toBe('false')
+
+    // ArrowLeft wraps back to ENABLED.
+    await disabledBtn!.trigger('keydown', { key: 'ArrowLeft' })
+    expect(enabledBtn!.attributes('aria-checked')).toBe('true')
+  })
+
   it('renders only name/host/port inputs — no bandwidth, RF gain, or AGC fields', async () => {
     const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
     await flushPromises()

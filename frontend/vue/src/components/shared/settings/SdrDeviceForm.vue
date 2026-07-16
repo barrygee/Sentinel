@@ -39,20 +39,28 @@
     </div>
     <div class="sdr-devices-form-row">
       <span class="sdr-devices-form-label">STATUS</span>
-      <div class="sdr-devices-enabled-group">
+      <div class="sdr-devices-enabled-group" role="radiogroup" aria-label="Device status">
         <BasePillToggle
           class="sdr-devices-enabled-btn"
+          role="radio"
+          :aria-checked="form.enabled"
+          :tabindex="statusKeyboard.radioTabindex(0)"
           :active="form.enabled"
           active-class="is-active"
           @click="form.enabled = true"
+          @keydown="statusKeyboard.onRadioKeydown($event, 0)"
         >
           ENABLED
         </BasePillToggle>
         <BasePillToggle
           class="sdr-devices-enabled-btn"
+          role="radio"
+          :aria-checked="!form.enabled"
+          :tabindex="statusKeyboard.radioTabindex(1)"
           :active="!form.enabled"
           active-class="is-active"
           @click="form.enabled = false"
+          @keydown="statusKeyboard.onRadioKeydown($event, 1)"
         >
           DISABLED
         </BasePillToggle>
@@ -86,6 +94,7 @@
 import { ref, onMounted } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 
 // `.sdr-devices-btn`/`--primary` are smaller and dimmer than the default
 // ghost/primary look (10px type, 8px/18px padding, auto height) — bridge those
@@ -125,6 +134,16 @@ const form = ref({
   host: props.radio?.host ?? '',
   port: props.radio?.port ?? (null as number | null),
   enabled: props.radio ? props.radio.enabled !== false : true,
+})
+
+// Radio-group keyboard model for the STATUS pills (index 0 = ENABLED,
+// index 1 = DISABLED — the render order above).
+const statusKeyboard = useRadioGroupKeyboard({
+  optionCount: () => 2,
+  selectedIndex: () => (form.value.enabled ? 0 : 1),
+  select: (optionIndex) => {
+    form.value.enabled = optionIndex === 0
+  },
 })
 
 onMounted(() => setTimeout(() => nameRef.value?.focus(), 0))

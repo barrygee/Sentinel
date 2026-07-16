@@ -1,13 +1,21 @@
 <template>
   <div class="settings-source-override-wrap">
-    <div class="settings-source-override-group">
+    <div
+      class="settings-source-override-group"
+      role="radiogroup"
+      aria-label="Hover preview behaviour"
+    >
       <BasePillToggle
-        v-for="opt in OPTIONS"
+        v-for="(opt, optionIndex) in OPTIONS"
         :key="opt.value"
         class="settings-source-override-btn"
+        role="radio"
+        :aria-checked="current === opt.value"
+        :tabindex="hoverPreviewKeyboard.radioTabindex(optionIndex)"
         :active="current === opt.value"
         active-class="is-active"
         @click="select(opt.value)"
+        @keydown="hoverPreviewKeyboard.onRadioKeydown($event, optionIndex)"
       >
         {{ opt.label }}
       </BasePillToggle>
@@ -18,6 +26,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import * as settingsApi from '@/services/settingsApi'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -55,4 +64,12 @@ function select(val: 'stay' | 'fly'): void {
     settingsApi.put('space', 'filterHoverPreview', current.value)
   })
 }
+
+// Radio-group keyboard model for the preview pills; arrow keys run the same
+// select() path (stage + persist) as a click.
+const hoverPreviewKeyboard = useRadioGroupKeyboard({
+  optionCount: () => OPTIONS.length,
+  selectedIndex: () => OPTIONS.findIndex((option) => option.value === current.value),
+  select: (optionIndex) => select(OPTIONS[optionIndex]!.value),
+})
 </script>

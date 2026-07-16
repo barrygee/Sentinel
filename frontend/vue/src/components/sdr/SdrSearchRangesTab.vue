@@ -113,16 +113,20 @@
           </div>
           <div class="sdr-editfreq-field">
             <label class="sdr-field-label">MODE</label>
-            <div class="sdr-mode-pills">
+            <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
               <BasePillToggle
-                v-for="m in SEARCH_MODES"
-                :key="m"
+                v-for="(mode, modeIndex) in SEARCH_MODES"
+                :key="mode"
                 class="sdr-mode-pill"
-                :active="rangeEditor.mode === m"
+                role="radio"
+                :aria-checked="rangeEditor.mode === mode"
+                :tabindex="rangeModeKeyboard.radioTabindex(modeIndex)"
+                :active="rangeEditor.mode === mode"
                 active-class="active"
-                @click="rangeEditor.mode = m"
+                @click="rangeEditor.mode = mode"
+                @keydown="rangeModeKeyboard.onRadioKeydown($event, modeIndex)"
               >
-                {{ m }}
+                {{ mode }}
               </BasePillToggle>
             </div>
           </div>
@@ -239,16 +243,20 @@
       </div>
       <div class="sdr-editfreq-field">
         <label class="sdr-field-label">MODE</label>
-        <div class="sdr-mode-pills">
+        <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
           <BasePillToggle
-            v-for="m in SEARCH_MODES"
-            :key="m"
+            v-for="(mode, modeIndex) in SEARCH_MODES"
+            :key="mode"
             class="sdr-mode-pill"
-            :active="rangeEditor.mode === m"
+            role="radio"
+            :aria-checked="rangeEditor.mode === mode"
+            :tabindex="rangeModeKeyboard.radioTabindex(modeIndex)"
+            :active="rangeEditor.mode === mode"
             active-class="active"
-            @click="rangeEditor.mode = m"
+            @click="rangeEditor.mode = mode"
+            @keydown="rangeModeKeyboard.onRadioKeydown($event, modeIndex)"
           >
-            {{ m }}
+            {{ mode }}
           </BasePillToggle>
         </div>
       </div>
@@ -312,6 +320,7 @@ import { ref } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import SdrStepPicker from './SdrStepPicker.vue'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {
@@ -364,6 +373,17 @@ const rangeEditorOpen = ref(false)
 const editingRangeId = ref<number | null>(null)
 const rangeEditor = ref<RangeEditorState>(blankRangeEditor())
 const rangeEditorError = ref<string>('')
+
+// Radio-group keyboard model for the MODE pills. One instance serves both the
+// inline-edit and Add forms — they render the same SEARCH_MODES over the same
+// rangeEditor state.
+const rangeModeKeyboard = useRadioGroupKeyboard({
+  optionCount: () => SEARCH_MODES.length,
+  selectedIndex: () => SEARCH_MODES.indexOf(rangeEditor.value.mode),
+  select: (modeIndex) => {
+    rangeEditor.value.mode = SEARCH_MODES[modeIndex]!
+  },
+})
 
 function openAddRange() {
   editingRangeId.value = null

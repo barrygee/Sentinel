@@ -35,6 +35,31 @@ describe('SourceOverrideControl', () => {
     expect(wrapper.find('.settings-source-override-note').exists()).toBe(false)
   })
 
+  it('exposes the override pills as a keyboard-operable radio group', async () => {
+    const wrapper = mountControl()
+    await flushPromises()
+    const group = wrapper.find('.settings-source-override-group')
+    expect(group.attributes('role')).toBe('radiogroup')
+    expect(group.attributes('aria-label')).toBe('Data source override')
+
+    // Roving tabindex: AUTO (the default) is checked and holds the tab stop.
+    const autoBtn = wrapper.find('[data-value="auto"]')
+    const onlineBtn = wrapper.find('[data-value="online"]')
+    expect(autoBtn.attributes('role')).toBe('radio')
+    expect(autoBtn.attributes('aria-checked')).toBe('true')
+    expect(autoBtn.attributes('tabindex')).toBe('0')
+    expect(onlineBtn.attributes('aria-checked')).toBe('false')
+    expect(onlineBtn.attributes('tabindex')).toBe('-1')
+
+    // ArrowRight selects ONLINE through the same select() path as a click,
+    // so the change is staged too.
+    await autoBtn.trigger('keydown', { key: 'ArrowRight' })
+    expect(onlineBtn.attributes('aria-checked')).toBe('true')
+    expect(onlineBtn.attributes('tabindex')).toBe('0')
+    expect(onlineBtn.classes()).toContain('is-active')
+    expect(wrapper.emitted('stage')).toHaveLength(1)
+  })
+
   it('labels the offgrid option "OFF GRID"', async () => {
     const wrapper = mountControl()
     await flushPromises()

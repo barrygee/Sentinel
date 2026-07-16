@@ -181,6 +181,7 @@
               active-class="sdr-rec-btn--active"
               :title="isRecording ? 'Stop recording' : 'Record'"
               :aria-label="isRecording ? 'Stop recording' : 'Record'"
+              :aria-pressed="isRecording"
               :disabled="!playing && !scanActive && !searchActive"
               @click="toggleRecording"
             >
@@ -221,17 +222,21 @@
         <!-- Mode pills -->
         <div class="sdr-radio-section">
           <label class="sdr-field-label">MODE</label>
-          <div class="sdr-mode-pills">
+          <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
             <BasePillToggle
-              v-for="m in MODES"
-              :key="m"
+              v-for="(mode, modeIndex) in MODES"
+              :key="mode"
               class="sdr-mode-pill"
-              :active="currentMode === m"
+              role="radio"
+              :aria-checked="currentMode === mode"
+              :tabindex="modeKeyboard.radioTabindex(modeIndex)"
+              :active="currentMode === mode"
               active-class="active"
               :disabled="tuningDisabled"
-              @click="setMode(m)"
+              @click="setMode(mode)"
+              @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
             >
-              {{ m }}
+              {{ mode }}
             </BasePillToggle>
           </div>
         </div>
@@ -569,6 +574,7 @@ import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import SdrGroupsTab from './SdrGroupsTab.vue'
 import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
@@ -1838,6 +1844,14 @@ function setMode(m: string) {
   sdrAudio.setBandwidthHz(bw)
   bwHz.value = bw
 }
+
+// Radio-group keyboard model (roving tabindex + arrow keys) for the MODE
+// pills; selecting via arrow key runs the exact same setMode path as a click.
+const modeKeyboard = useRadioGroupKeyboard({
+  optionCount: () => MODES.length,
+  selectedIndex: () => (MODES as readonly string[]).indexOf(currentMode.value),
+  select: (modeIndex) => setMode(MODES[modeIndex]!),
+})
 
 // ── Signal meter ──────────────────────────────────────────────────────────────
 
