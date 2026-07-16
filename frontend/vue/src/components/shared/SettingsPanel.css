@@ -335,16 +335,6 @@
   color: rgba(16, 19, 29, 0.5);
 }
 
-.settings-result-breadcrumb {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  color: rgba(16, 19, 29, 0.3);
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-
 .settings-empty {
   padding: 40px 44px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -412,55 +402,6 @@
 }
 
 /* Theme switch (pill). */
-.settings-theme-switch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.settings-theme-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.6);
-  user-select: none;
-}
-
-.settings-theme-track {
-  position: relative;
-  width: 46px;
-  height: 25px;
-  background: rgba(16, 19, 29, 0.14);
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.18s;
-  padding: 0;
-}
-
-.settings-theme-track.is-dark {
-  background: var(--color-accent);
-}
-
-.settings-theme-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition:
-    transform 0.18s,
-    background 0.18s;
-}
-
-.settings-theme-track.is-dark .settings-theme-thumb {
-  transform: translateX(21px);
-  background: #0a0c10;
-}
 
 .settings-datasource-wrap {
   display: flex;
@@ -514,26 +455,6 @@
 .settings-datasource-input::placeholder {
   color: rgba(16, 19, 29, 0.28);
   letter-spacing: 0.1em;
-}
-
-.settings-datasource-status {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: transparent;
-  transition: color 0.2s;
-  height: 16px;
-  line-height: 16px;
-}
-
-.settings-datasource-status--ok {
-  color: #5a8a00;
-}
-
-.settings-datasource-status--err {
-  color: #d94436;
 }
 
 /* ── Connectivity ─────────────────────────────────────────────────── */
@@ -695,58 +616,12 @@
 
 /* Top-nav gear button (lives OUTSIDE the panel, on the dark app chrome) —
    keep its dark-app active style untouched. */
-#settings-btn.settings-btn-active {
-  opacity: 1;
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.08);
-  border-radius: 6px;
-}
-
-#settings-btn.settings-btn-active[data-tooltip]::before {
-  opacity: 0 !important;
-}
 
 /* ── TLE / Space + JSON shared action buttons & inputs ────────────── */
 /* .tle-action-btn's own chrome (+ its --primary/--danger/--confirm
    modifiers) now lives in the BaseButton atom's "ghost"/"primary"/"danger"
    variants (see src/components/base/BaseButton.vue) — the classnames remain
    on the rendered buttons purely so tests can still target them. */
-
-.tle-uncat-select {
-  flex: 1;
-  min-width: 0;
-  height: 37px;
-  padding: 0 28px 0 12px;
-  background-color: #eeece7;
-  border: none;
-  color: rgba(16, 19, 29, 0.8);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(16,19,29,0.4)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
-.tle-uncat-select:focus {
-  outline: none;
-  box-shadow: inset 0 -2px 0 var(--color-accent);
-}
-.tle-uncat-select option {
-  background-color: #ffffff;
-  color: rgba(16, 19, 29, 0.85);
-  font-family: 'Barlow', Arial, sans-serif;
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  padding: 6px 8px;
-}
 
 .tle-dropdown {
   position: relative;
@@ -856,10 +731,6 @@
   color: #16191d;
 }
 
-.tle-dropdown-item--placeholder {
-  color: rgba(16, 19, 29, 0.35);
-}
-
 .tle-cat-row-ctrl {
   display: inline-flex;
   align-items: center;
@@ -907,21 +778,6 @@
   color: rgba(16, 19, 29, 0.5);
 }
 
-.tle-section-heading {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: rgba(16, 19, 29, 0.92);
-  text-transform: uppercase;
-  margin-top: 24px;
-  margin-bottom: 10px;
-  user-select: none;
-}
-.tle-section-heading:first-child {
-  margin-top: 0;
-}
-
 .tle-online-wrap {
   max-width: 860px;
 }
@@ -941,30 +797,6 @@
   color: inherit;
   font: inherit;
   padding: 0;
-}
-.tle-info-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 1.5px solid rgba(16, 19, 29, 0.3);
-  border-radius: 50%;
-  background: transparent;
-  color: rgba(16, 19, 29, 0.65);
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-  flex-shrink: 0;
-  line-height: 1;
-  font-weight: 600;
-}
-.tle-info-toggle:hover,
-.tle-info-toggle--active {
-  color: #5a8a00;
-  border-color: var(--color-accent);
 }
 .tle-info-chevron {
   display: inline-flex;
@@ -990,8 +822,7 @@
   user-select: none;
   transition: color 0.15s;
 }
-.tle-info-row-header:hover .tle-info-label,
-.tle-info-toggle--active ~ .tle-info-label {
+.tle-info-row-header:hover .tle-info-label {
   color: rgba(16, 19, 29, 0.75);
 }
 .tle-info-panel {
@@ -1667,57 +1498,6 @@
 .sdr-devices-enabled-btn.is-active {
   background: var(--color-accent);
   color: #0a0c10;
-}
-
-.sdr-devices-agc-row {
-  padding: 4px 0 2px;
-}
-
-.sdr-devices-agc-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.sdr-devices-agc-input {
-  display: none;
-}
-
-.sdr-devices-agc-box {
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 4px;
-  background: rgba(16, 19, 29, 0.1);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.sdr-devices-agc-input:checked + .sdr-devices-agc-box {
-  background: var(--color-accent);
-}
-
-.sdr-devices-agc-input:checked + .sdr-devices-agc-box::after {
-  content: '';
-  display: block;
-  width: 8px;
-  height: 5px;
-  border-left: 1.5px solid #0a0c10;
-  border-bottom: 1.5px solid #0a0c10;
-  transform: rotate(-45deg) translateY(-1px);
-}
-
-.sdr-devices-agc-text {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  color: rgba(16, 19, 29, 0.6);
-  letter-spacing: 0.04em;
 }
 
 .sdr-devices-form-error {
