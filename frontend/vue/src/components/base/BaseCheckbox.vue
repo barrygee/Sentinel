@@ -42,11 +42,13 @@
  * carries the adopting component's scope id — scoped rules for the input/box
  * need `:deep()` anchored at the label class (see the ADS-B controls).
  *
- * Known, deliberately preserved limitation: every pre-extraction family
- * hides the input with `display: none`, so these checkboxes are not
- * keyboard-focusable. Fixing that (visually-hidden instead of display:none,
- * plus :focus-visible box styling) is a behaviour change for a dedicated
- * a11y pass, not this byte-identical dedupe.
+ * Keyboard operability (WCAG 2.1.1): the native input is visually hidden —
+ * NOT `display: none` — so it stays in the tab order and Space toggles it
+ * natively. Its keyboard focus is made visible on the adjacent box span via
+ * `:focus-visible` (the input itself is clipped to a pixel, so a ring on it
+ * would be invisible). Family CSS must never re-hide the input with
+ * `display: none`/`visibility: hidden`, which would silently drop the
+ * checkbox from the tab order again.
  */
 withDefaults(
   defineProps<{
@@ -82,9 +84,26 @@ const emit = defineEmits<{
 
 <style scoped>
 /* The native input is the state/eventing element only; the box span is the
-   visual. All three pre-extraction families hid it exactly this way (see the
-   keyboard-focus note in the component doc). */
+   visual. It is visually hidden with the sr-only recipe (see a11y.css) rather
+   than display:none so it remains keyboard-focusable and Space-operable —
+   display:none would remove it from the tab order entirely (WCAG 2.1.1). */
 .ba-checkbox-input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard focus indicator on the visible box: the input is clipped to a
+   pixel, so the global a11y.css :focus-visible outline can't be seen on it —
+   mirror that ring (same accent, width and offset) on the adjacent box span. */
+.ba-checkbox-input:focus-visible + span {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 </style>

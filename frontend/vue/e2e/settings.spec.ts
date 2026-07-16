@@ -105,6 +105,29 @@ test.describe('Settings panel', () => {
     await expect(searchInput).toHaveValue('')
   })
 
+  test('custom checkboxes are keyboard-focusable and Space-operable', async ({ page }) => {
+    // Regression guard for the BaseCheckbox a11y fix (WCAG 2.1.1): the native
+    // input is visually hidden, NOT display:none, so it must take keyboard
+    // focus and toggle with Space like any native checkbox.
+    await page.goto('/air/')
+    await waitForShellHydration(page)
+
+    await page.getByRole('button', { name: /^settings$/i }).click()
+    await expect(page.locator('[role="dialog"]')).toBeVisible()
+
+    const searchInput = page.getByRole('textbox', { name: /search settings/i })
+    await searchInput.fill('Label Data Points')
+
+    const checkbox = page.getByRole('checkbox', { name: 'Callsign — civil' })
+    const initiallyChecked = await checkbox.isChecked()
+
+    await checkbox.focus()
+    await expect(checkbox).toBeFocused()
+    await page.keyboard.press('Space')
+
+    await expect(checkbox).toBeChecked({ checked: !initiallyChecked })
+  })
+
   test('settings footer shows "NO CHANGES" when no edits are pending', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
