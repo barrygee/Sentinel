@@ -249,9 +249,9 @@ function pickSampleRate(v: number) {
   user-select: none;
 }
 
-.sdr-checkbox {
-  display: none;
-}
+/* No `.sdr-checkbox { display: none }` here: BaseCheckbox visually hides the
+   input while keeping it keyboard-focusable — re-hiding it with display:none
+   would drop the AGC checkbox from the tab order (see BaseCheckbox's docs). */
 
 .sdr-checkbox-custom {
   width: 14px;
