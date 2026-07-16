@@ -645,8 +645,7 @@ defineExpose({ reload })
      SdrPanel.vue's leading CSS import). The @keyframes sdr-rec-pulse
      referenced by the live dots stays in SdrPanel.css (keyframes are
      global by name; the transport REC button shares them), as do the
-     :has() pane-layout rules that only probe .sdr-recordings-body, and
-     the dead-candidate hint-visible/arrow-up variant rules. -->
+     :has() pane-layout rules that only probe .sdr-recordings-body. -->
 <style>
 .sdr-recordings-search-wrap {
   display: flex;

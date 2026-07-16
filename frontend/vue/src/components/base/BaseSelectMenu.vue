@@ -67,9 +67,8 @@
  * slots, but splitting the family across files would risk its internal
  * cascade order (`--active` before `--selected`). The per-picker menu-class
  * hooks (`.sdr-step-menu`, `.sdr-trunk-menu`) carry no CSS rules today, and
- * the contextual overrides in feature sheets (`#sdr-mini-player …`,
- * `.sdr-search-adhoc-col …`, `.sdr-ef-setting …`) are higher-specificity and
- * order-immune.
+ * the contextual overrides in feature sheets (`.sdr-search-adhoc-col …`,
+ * `.sdr-ef-setting …`) are higher-specificity and order-immune.
  */
 import { ref, watch } from 'vue'
 import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
