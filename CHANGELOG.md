@@ -1103,6 +1103,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Co-locate the SETTINGS slider-row CSS with its owners (base dedupe B10b) (#208)
 - Co-locate the trunk CSS with SdrTrunkSection (base dedupe B10c) (#209)
 - Co-locate the GROUPS tab CSS with SdrGroupsTab (base dedupe B10d) (#210)
+- Co-locate the recordings CSS with SdrRecordingsSection (base dedupe B10e) (#211)
 
 ### Documentation
 
