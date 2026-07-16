@@ -128,8 +128,10 @@
  * default keyboard model + `disabled` gate match this dropdown's
  * controlsDisabled gating (the `--loading` style tracks tuningDisabled
  * separately, preserving the pre-extraction split). The SETTINGS header +
- * collapsible body come from BaseAccordionSection. Styling lives in
- * SdrPanel.css (imported globally by SdrPanel.vue).
+ * collapsible body come from BaseAccordionSection. The AGC checkbox family
+ * (`.sdr-agc-row` / `.sdr-checkbox-*`) is styled by the unscoped block below
+ * (B10 CSS co-location); the remaining styling (sliders, dropdown, section
+ * chrome) still lives in SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref } from 'vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
@@ -187,3 +189,67 @@ function pickSampleRate(v: number) {
   emit('pick-sample-rate', v)
 }
 </script>
+
+<!-- Unscoped on purpose (B10 CSS co-location): the AGC checkbox family moved
+     here verbatim from SdrPanel.css. `scoped` would add [data-v] attribute
+     selectors and RAISE specificity over the original global rules — and the
+     classes sit on BaseCheckbox-rendered elements that don't carry this
+     component's scope id anyway. Loaded after SdrPanel.css (component modules
+     import after SdrPanel.vue's leading CSS import), which preserves today's
+     cascade: `.sdr-agc-row` keeps overriding `.sdr-radio-section`'s padding,
+     and the higher-specificity `.sdr-settings-controls …` context rules in
+     SdrPanel.css are order-immune. -->
+<style>
+.sdr-agc-row {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.sdr-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sdr-checkbox {
+  display: none;
+}
+
+.sdr-checkbox-custom {
+  width: 14px;
+  height: 14px;
+  /* Flat dark: no border, just a subtle fill — matches the dropdowns/inputs. */
+  border: none;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.sdr-checkbox:checked + .sdr-checkbox-custom {
+  background: rgba(200, 255, 0, 0.12);
+}
+
+.sdr-checkbox:checked + .sdr-checkbox-custom::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 5px;
+  border-left: 1.5px solid #c8ff00;
+  border-bottom: 1.5px solid #c8ff00;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.sdr-checkbox-text {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.06em;
+}
+</style>
