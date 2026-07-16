@@ -1100,6 +1100,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fold the SETTINGS slider rows onto a BaseSliderRow primitive (base dedupe B7) (#205)
 - Share the satellite RADIO section and its formatters (base dedupe B9, descopes B8) (#206)
 - Co-locate the AGC checkbox CSS with SdrSettingsAccordion (base dedupe B10a) (#207)
+- Co-locate the SETTINGS slider-row CSS with its owners (base dedupe B10b) (#208)
 
 ### Documentation
 
