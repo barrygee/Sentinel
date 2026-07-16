@@ -402,6 +402,17 @@ describe('AirFilter', () => {
       expect(input.attributes('aria-controls')).toBe('filter-listbox')
     })
 
+    it('makes the results scroll container a keyboard-focusable named group', () => {
+      // WCAG 2.1.1 / axe scrollable-region-focusable: options are driven from the
+      // combobox via aria-activedescendant (never tabbable), so the overflowing
+      // scroll container itself must take a tab stop for keyboard scrolling.
+      const wrapper = mountFilter(makeAdsb(defaultPlanes()))
+      const results = wrapper.find('#filter-results')
+      expect(results.attributes('tabindex')).toBe('0')
+      expect(results.attributes('role')).toBe('group')
+      expect(results.attributes('aria-label')).toBe('Filter results')
+    })
+
     it('exposes the active category rows as options the listbox owns via aria-owns', async () => {
       const wrapper = mountFilter(makeAdsb(defaultPlanes()))
       const listbox = wrapper.find('#filter-listbox')

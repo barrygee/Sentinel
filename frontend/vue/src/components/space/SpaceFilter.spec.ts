@@ -585,6 +585,18 @@ describe('SpaceFilter — combobox / listbox semantics', () => {
     expect(input.attributes('aria-controls')).toBe('space-filter-listbox')
   })
 
+  it('makes the results scroll container a keyboard-focusable named group', async () => {
+    // WCAG 2.1.1 / axe scrollable-region-focusable: options are driven from the
+    // combobox via aria-activedescendant (never tabbable), so the overflowing
+    // scroll container itself must take a tab stop for keyboard scrolling.
+    multiSat()
+    const wrapper = await mountReady()
+    const results = wrapper.find('#space-filter-results')
+    expect(results.attributes('tabindex')).toBe('0')
+    expect(results.attributes('role')).toBe('group')
+    expect(results.attributes('aria-label')).toBe('Filter results')
+  })
+
   it('exposes each row as an option the listbox owns via aria-owns', async () => {
     multiSat()
     const wrapper = await mountReady()
