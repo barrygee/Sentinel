@@ -255,8 +255,7 @@ function onDropdownKey(e: KeyboardEvent) {
      colours are disjoint declarations, and the family-context rule in
      BaseSelectMenu's sheet (`.sdr-device-dropdown-selected .sdr-conn-dot`)
      is higher-specificity, so order between the two blocks never decides a
-     winner. `.sdr-dot-idle` stayed in SdrPanel.css as a dead-CSS candidate
-     (the dot binds a two-state on/off ternary). -->
+     winner. -->
 <style>
 .sdr-conn-dot {
   width: 7px;
