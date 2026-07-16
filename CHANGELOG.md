@@ -1099,6 +1099,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fold the three checkbox families onto a BaseCheckbox primitive (base dedupe B6) (#204)
 - Fold the SETTINGS slider rows onto a BaseSliderRow primitive (base dedupe B7) (#205)
 - Share the satellite RADIO section and its formatters (base dedupe B9, descopes B8) (#206)
+- Co-locate the AGC checkbox CSS with SdrSettingsAccordion (base dedupe B10a) (#207)
 
 ### Documentation
 
