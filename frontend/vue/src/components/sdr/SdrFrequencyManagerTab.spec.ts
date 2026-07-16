@@ -179,6 +179,14 @@ describe('SdrFrequencyManagerTab — group filter', () => {
     expect(freqRows(wrapper)).toHaveLength(2)
   })
 
+  it('reports each filter chip state via aria-pressed (multi-select, not a radio group)', async () => {
+    const wrapper = mountTab(twoGroupsTwoFreqs)
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    expect(chips.map((chip) => chip.attributes('aria-pressed'))).toEqual(['true', 'false', 'false'])
+    await chips[1].trigger('click')
+    expect(chips.map((chip) => chip.attributes('aria-pressed'))).toEqual(['false', 'true', 'false'])
+  })
+
   it('shows "No matches." when the filter excludes every row', async () => {
     const wrapper = mountTab({
       groups: [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })],
@@ -223,6 +231,48 @@ describe('SdrFrequencyManagerTab — add', () => {
     expect(activeMode.text()).toBe('NFM')
     // AGC seeded on: the gain input is disabled.
     expect(editor.find('input[aria-label="RF gain in dB"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('exposes the MODE pills as a keyboard-operable radio group and the GROUPS pills as aria-pressed toggles', async () => {
+    const wrapper = mountTab({
+      live: makeLive(),
+      groups: [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })],
+    })
+    const editor = await openAddForm(wrapper)
+
+    const modeGroup = editor.find('#sdr-ef-mode-pills')
+    expect(modeGroup.attributes('role')).toBe('radiogroup')
+    expect(modeGroup.attributes('aria-label')).toBe('Demodulation mode')
+
+    // Roving tabindex: seeded mode (NFM from the live state) is the tab stop.
+    const modePills = editor.findAll('#sdr-ef-mode-pills .sdr-mode-pill')
+    const checkedPill = modePills.find((pill) => pill.attributes('aria-checked') === 'true')!
+    expect(checkedPill.text()).toBe('NFM')
+    expect(checkedPill.attributes('role')).toBe('radio')
+    expect(checkedPill.attributes('tabindex')).toBe('0')
+    expect(modePills.find((pill) => pill.text() === 'AM')!.attributes('tabindex')).toBe('-1')
+
+    // ArrowLeft from NFM wraps back to AM (the previous mode) and moves the tab stop.
+    await checkedPill.trigger('keydown', { key: 'ArrowLeft' })
+    const amPill = modePills.find((pill) => pill.text() === 'AM')!
+    expect(amPill.attributes('aria-checked')).toBe('true')
+    expect(amPill.attributes('tabindex')).toBe('0')
+    expect(checkedPill.attributes('aria-checked')).toBe('false')
+
+    // GROUPS pills are multi-select toggles, not radios: aria-pressed only.
+    const groupPills = editor.findAll('#sdr-ef-groups .sdr-ef-gpill')
+    expect(groupPills.map((pill) => pill.attributes('aria-pressed'))).toEqual([
+      'true',
+      'false',
+      'false',
+    ])
+    expect(groupPills[0].attributes('role')).toBeUndefined()
+    await groupPills[1].trigger('click')
+    expect(groupPills.map((pill) => pill.attributes('aria-pressed'))).toEqual([
+      'false',
+      'true',
+      'false',
+    ])
   })
 
   it('leaves the freq blank when nothing is tuned', async () => {
@@ -362,6 +412,18 @@ describe('SdrFrequencyManagerTab — add', () => {
 
 // =============================================================================
 describe('SdrFrequencyManagerTab — edit', () => {
+  it('drives the inline-edit MODE radio group with arrow keys', async () => {
+    const wrapper = mountTab()
+    await wrapper.find('.sdr-freq-row-edit').trigger('click')
+    const editor = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
+    const modePills = editor.findAll('.sdr-mode-pills .sdr-mode-pill')
+    const checkedIndex = modePills.findIndex((pill) => pill.attributes('aria-checked') === 'true')
+    const nextPill = modePills[(checkedIndex + 1) % modePills.length]!
+    await modePills[checkedIndex]!.trigger('keydown', { key: 'ArrowRight' })
+    expect(nextPill.attributes('aria-checked')).toBe('true')
+    expect(nextPill.attributes('tabindex')).toBe('0')
+  })
+
   it('prefills from the stored values, PUTs with preserved scannable and emits changed', async () => {
     const wrapper = mountTab()
     await wrapper.find('.sdr-freq-row-edit').trigger('click')

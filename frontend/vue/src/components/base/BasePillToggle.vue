@@ -24,12 +24,14 @@
  * ARIA and event cadence. Momentary pills (e.g. the SDR TUNE/STOP transport
  * buttons) simply omit `active`/`activeClass`.
  *
- * Deliberately NOT here (yet): `aria-pressed`/radio-group semantics. Only
- * the SDR decode button ships `aria-pressed` today (it passes it through);
- * retrofitting toggle/radiogroup ARIA across every family is a behaviour
- * change that belongs to a dedicated a11y pass, not this byte-identical
- * dedupe. The same goes for a group wrapper component — today it would be a
- * classless pass-through div, so the wrappers stay with their callers.
+ * State ARIA stays caller-owned via fallthrough (the deliberate radiogroup /
+ * aria-pressed a11y pass deferred from B3): independent and multi-select
+ * pills bind `:aria-pressed`; single-select segmented groups put
+ * `role="radiogroup"` + a label on their existing wrapper and give each pill
+ * `role="radio"` + `:aria-checked` + the roving-tabindex/arrow-key bindings
+ * from `useRadioGroupKeyboard` (both helpers, always — half-done radio
+ * semantics are worse than buttons). Momentary pills (TUNE/STOP) carry no
+ * state ARIA at all.
  */
 withDefaults(
   defineProps<{

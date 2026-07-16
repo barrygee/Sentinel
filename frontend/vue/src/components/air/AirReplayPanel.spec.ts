@@ -701,6 +701,32 @@ describe('AirReplayPanel', () => {
       expect(playback.speedIdx).toBe(1)
     })
 
+    it('exposes the speed buttons as a keyboard-operable radio group', async () => {
+      const playback = usePlaybackStore()
+      const wrapper = mountPanel()
+      await flushPromises()
+      await activate(wrapper, playback)
+
+      const group = wrapper.find('.apb-speed-group--right')
+      expect(group.attributes('role')).toBe('radiogroup')
+      expect(group.attributes('aria-label')).toBe('Playback speed')
+
+      // Roving tabindex: 1× (the default speed) is checked and holds the tab stop.
+      const speedButtons = wrapper.findAll('.apb-speed-btn')
+      expect(speedButtons[0]!.attributes('role')).toBe('radio')
+      expect(speedButtons[0]!.attributes('aria-checked')).toBe('true')
+      expect(speedButtons[0]!.attributes('tabindex')).toBe('0')
+      expect(speedButtons[1]!.attributes('aria-checked')).toBe('false')
+      expect(speedButtons[1]!.attributes('tabindex')).toBe('-1')
+
+      // ArrowRight selects 2× exactly as clicking it would.
+      await speedButtons[0]!.trigger('keydown', { key: 'ArrowRight' })
+      expect(playback.speedIdx).toBe(1)
+      expect(speedButtons[1]!.attributes('aria-checked')).toBe('true')
+      expect(speedButtons[1]!.attributes('tabindex')).toBe('0')
+      expect(speedButtons[0]!.attributes('aria-checked')).toBe('false')
+    })
+
     it('exits playback via the stop button', async () => {
       const playback = usePlaybackStore()
       const exitSpy = vi.spyOn(playback, 'exit')

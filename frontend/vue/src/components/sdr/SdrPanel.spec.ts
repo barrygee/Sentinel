@@ -431,12 +431,16 @@ describe('SdrPanel — RADIO tab: tune / stop / record', () => {
     await wrapper.find('.sdr-freq-input-large').setValue('100.000')
     await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
     await flushPromises()
+    // REC is a state toggle, so it reports its state via aria-pressed.
+    expect(wrapper.find('.sdr-rec-btn').attributes('aria-pressed')).toBe('false')
     await wrapper.find('.sdr-rec-btn').trigger('click')
     await flushPromises()
     expect(audioMock.startRecording).toHaveBeenCalled()
+    expect(wrapper.find('.sdr-rec-btn').attributes('aria-pressed')).toBe('true')
     await wrapper.find('.sdr-rec-btn').trigger('click')
     await flushPromises()
     expect(audioMock.stopRecording).toHaveBeenCalled()
+    expect(wrapper.find('.sdr-rec-btn').attributes('aria-pressed')).toBe('false')
   })
 })
 
@@ -573,6 +577,33 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
       .find((b) => b.text() === 'NFM')
     await nfmPill!.trigger('click')
     expect(audioMock.setMode).toHaveBeenCalledWith('NFM')
+  })
+
+  it('exposes the MODE pills as a keyboard-operable radio group', async () => {
+    const { wrapper } = await mountConnected()
+    const group = wrapper.find('.sdr-mode-pills')
+    expect(group.attributes('role')).toBe('radiogroup')
+    expect(group.attributes('aria-label')).toBe('Demodulation mode')
+
+    // Roving tabindex: exactly the checked pill is tabbable.
+    const pills = wrapper.findAll('.sdr-mode-pills .sdr-mode-pill')
+    const checkedPills = pills.filter((pill) => pill.attributes('aria-checked') === 'true')
+    expect(checkedPills).toHaveLength(1)
+    const checkedPill = checkedPills[0]!
+    expect(checkedPill.attributes('role')).toBe('radio')
+    expect(checkedPill.attributes('tabindex')).toBe('0')
+    for (const pill of pills.filter((p) => p.attributes('aria-checked') === 'false')) {
+      expect(pill.attributes('tabindex')).toBe('-1')
+    }
+
+    // ArrowRight selects the next mode through the same setMode path as a click.
+    const checkedIndex = pills.findIndex((pill) => pill.attributes('aria-checked') === 'true')
+    const nextPill = pills[(checkedIndex + 1) % pills.length]!
+    await checkedPill.trigger('keydown', { key: 'ArrowRight' })
+    expect(audioMock.setMode).toHaveBeenCalledWith(nextPill.text())
+    expect(nextPill.attributes('aria-checked')).toBe('true')
+    expect(nextPill.attributes('tabindex')).toBe('0')
+    expect(checkedPill.attributes('tabindex')).toBe('-1')
   })
 
   it('persists the last mode marker when switching mode (kept in step for reload)', async () => {

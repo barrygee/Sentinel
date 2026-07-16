@@ -117,6 +117,32 @@ describe('SdrSearchRangesTab — add', () => {
     expect(wrapper.find('.sdr-addfreq-body').exists()).toBe(false)
   })
 
+  it('exposes the MODE pills as a keyboard-operable radio group', async () => {
+    const wrapper = mountTab([])
+    const editor = await openAddForm(wrapper)
+
+    const modeGroup = editor.find('.sdr-mode-pills')
+    expect(modeGroup.attributes('role')).toBe('radiogroup')
+    expect(modeGroup.attributes('aria-label')).toBe('Demodulation mode')
+
+    // The blank editor defaults to NFM: it is checked and holds the tab stop.
+    const modePills = editor.findAll('.sdr-mode-pill')
+    const nfmPill = modePills.find((pill) => pill.text() === 'NFM')!
+    expect(nfmPill.attributes('role')).toBe('radio')
+    expect(nfmPill.attributes('aria-checked')).toBe('true')
+    expect(nfmPill.attributes('tabindex')).toBe('0')
+    const wfmPill = modePills.find((pill) => pill.text() === 'WFM')!
+    expect(wfmPill.attributes('aria-checked')).toBe('false')
+    expect(wfmPill.attributes('tabindex')).toBe('-1')
+
+    // ArrowRight moves selection and the tab stop to WFM.
+    await nfmPill.trigger('keydown', { key: 'ArrowRight' })
+    expect(wfmPill.attributes('aria-checked')).toBe('true')
+    expect(wfmPill.attributes('tabindex')).toBe('0')
+    expect(nfmPill.attributes('aria-checked')).toBe('false')
+    expect(nfmPill.attributes('tabindex')).toBe('-1')
+  })
+
   it('reports each validation error without calling the API', async () => {
     const wrapper = mountTab([])
     const editor = await openAddForm(wrapper)
@@ -174,6 +200,18 @@ describe('SdrSearchRangesTab — add', () => {
 
 // =============================================================================
 describe('SdrSearchRangesTab — edit', () => {
+  it('drives the inline-edit MODE radio group with arrow keys', async () => {
+    const wrapper = mountTab([makeRange({ id: 7 })])
+    await wrapper.find('.sdr-freq-row-edit').trigger('click')
+    const editor = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
+    const modePills = editor.findAll('.sdr-mode-pills .sdr-mode-pill')
+    const checkedIndex = modePills.findIndex((pill) => pill.attributes('aria-checked') === 'true')
+    const nextPill = modePills[(checkedIndex + 1) % modePills.length]!
+    await modePills[checkedIndex]!.trigger('keydown', { key: 'ArrowRight' })
+    expect(nextPill.attributes('aria-checked')).toBe('true')
+    expect(nextPill.attributes('tabindex')).toBe('0')
+  })
+
   it('opens the inline editor prefilled from the range, updates, and preserves sort_order', async () => {
     const wrapper = mountTab([makeRange({ id: 7, sort_order: 3, notes: 'busy' })])
     await wrapper.find('.sdr-freq-row-edit').trigger('click')
