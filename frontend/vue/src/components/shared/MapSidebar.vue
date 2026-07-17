@@ -7,7 +7,7 @@
           'msb-rail-btn-active': activeTab === tab.id && open,
           'msb-rail-btn-pulse': tab.id === 'alerts' && hasUnread,
         }"
-        :bordered="true"
+        style="--ba-rail-transition: color 0.15s ease"
         :active="activeTab === tab.id && open"
         :pulse="tab.id === 'alerts' && hasUnread"
         :data-tab="tab.id"
@@ -103,19 +103,20 @@
       <!-- Category sub-tabs: single-select rail buttons shown beneath the FILTER
            tab while it is the open tab. Air = aircraft/airports/military bases;
            Space = one per satellite category that currently has data. Selecting
-           one drives which category the search pane (AirFilter/SpaceFilter) shows. -->
+           one drives which category the search pane (AirFilter/SpaceFilter) shows.
+           Styled to mirror the right rail's accordion sub-buttons (IconRailAccordion
+           panel look): grey panel background, stronger hover fill, active = accent
+           icon only. -->
       <BaseIconButton
         v-for="sub in tab.id === 'search' && activeTab === 'search' && open ? filterSubTabs : []"
         :key="`sub-${sub.id}`"
         class="msb-rail-btn msb-rail-subbtn"
         :class="{ 'msb-rail-btn-active': activeFilterCategory === sub.id }"
-        :bordered="true"
         :active="activeFilterCategory === sub.id"
         style="
-          --ba-rail-height: 34px;
           --ba-rail-bg: var(--color-border);
-          --ba-rail-hover-bg: rgba(255, 255, 255, 0.14);
-          --ba-rail-active-bg: rgba(200, 255, 0, 0.1);
+          --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+          --ba-rail-transition: color 0.15s ease;
         "
         :data-filter-cat="sub.id"
         tooltip-side="right"

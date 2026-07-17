@@ -700,6 +700,14 @@ describe('SdrPanel — tab navigation', () => {
     document.removeEventListener('sentinel:sdr-open-panel', handler)
   })
 
+  it('renders the rail tabs with the right rail’s plain button look (no bordered accent bar)', async () => {
+    await mountReady()
+    const radioTab = railButton('radio')
+    expect(radioTab.classList.contains('ba-btn--bordered')).toBe(false)
+    // Colour-only state transition, matching the map rails' shared look.
+    expect(radioTab.style.getPropertyValue('--ba-rail-transition')).toBe('color 0.15s ease')
+  })
+
   it('toggles the panel when clicking the already-active tab while open', async () => {
     const wrapper = await mountReady()
     document.dispatchEvent(new CustomEvent('sentinel:sidebar-state', { detail: { open: true } }))

@@ -18,8 +18,10 @@ export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
  *   the Air/Space side-menu rails, MapSidebar's tab rail, and the Settings
  *   panel's section nav (`.sm-btn`, `.msb-rail-btn`, `.settings-nav-item`).
  *   `bordered` switches on the left-accent-border + tinted-background active
- *   look used by MapSidebar/Settings (as opposed to the plain colour-only
- *   active state used by the Air/Space rails) — see `BaseButtonProps.bordered`.
+ *   look used by the Settings panel's section nav (as opposed to the plain
+ *   colour-only active state used by every map rail — Air/Space right rails,
+ *   MapSidebar's left tab rail, and the SDR left rail) — see
+ *   `BaseButtonProps.bordered`.
  * - `variant="ghost"` — the neutral rgba-fill action button used throughout
  *   the Settings panel's TLE/SDR-devices editors (`.tle-action-btn`,
  *   `.settings-config-btn`, `.sdr-devices-btn`, …).
@@ -75,9 +77,10 @@ interface BaseButtonProps {
   variant?: BaseButtonVariant
   /**
    * Rail-only. Adds the left accent border and a faint accent background
-   * tint while `active` (MapSidebar's tab rail / Settings panel's section
-   * nav) instead of the plain colour-only active state (Air/Space side-menu
-   * rails). Ignored for other variants. Defaults to `false`.
+   * tint while `active` (Settings panel's section nav) instead of the plain
+   * colour-only active state shared by all map rails (Air/Space side-menu
+   * rails, MapSidebar's tab rail, the SDR rail). Ignored for other variants.
+   * Defaults to `false`.
    */
   bordered?: boolean
   /** Marks the button as the current selection/toggle-on state. Defaults to `false`. */

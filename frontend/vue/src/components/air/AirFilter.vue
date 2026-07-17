@@ -1180,7 +1180,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 12px;
-  /* Match the height of the SEARCH rail tab's green active background (.msb-rail-btn). */
+  /* Match the height of the SEARCH rail tab button (.msb-rail-btn). */
   height: 40px;
   padding: 0 20px 0 24px;
   background: #000;

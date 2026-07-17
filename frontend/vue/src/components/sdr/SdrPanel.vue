@@ -15,8 +15,8 @@
           --ba-icon-btn-tooltip-padding: 0 10px;
           --ba-icon-btn-tooltip-height: 24px;
           --ba-icon-btn-tooltip-radius: 3px;
+          --ba-rail-transition: color 0.15s ease;
         "
-        bordered
         :active="activeSdrTab === tab.id && sidebarOpen"
         :data-tab="tab.id"
         tooltip-side="right"
