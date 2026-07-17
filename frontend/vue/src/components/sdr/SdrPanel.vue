@@ -574,6 +574,7 @@ import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
 import { useSdrFreqDigitWheel } from '@/composables/useSdrFreqDigitWheel'
+import { useSdrRecording } from '@/composables/useSdrRecording'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
@@ -1085,20 +1086,32 @@ const liveTuneSeed = computed<SdrLiveTuneSeed>(() => ({
 }))
 
 // ── Recording state (live recording props passed to SdrRecordingsSection) ─────
-
-const isRecording = ref(false)
-const recSquelchOpen = ref(true)
-const liveElapsedS = ref(0)
-interface LiveRec {
-  frequency_hz: number
-  mode: string
-  startedAt: string
-}
-const liveRecording = ref<LiveRec | null>(null)
-let _recStartEpoch = 0
-let _recPausedMs = 0
-let _recPauseStart: number | null = null
-let _recTimerInterval: ReturnType<typeof setInterval> | null = null
+// The recording state machine (REC start/stop, the live elapsed timer and its
+// squelch-pause accounting) lives in useSdrRecording; the panel injects the
+// live tune refs and useSdrAudio's capture functions so the clip metadata and
+// timer cadence are unchanged.
+const {
+  isRecording,
+  recSquelchOpen,
+  liveElapsedS,
+  liveRecording,
+  toggleRecording,
+  startRecording: _startRecording,
+  endRecordingOnManualChange: _endRecordingOnManualChange,
+  stopRecordingIfActive,
+  onRecordingSquelchChange,
+  clearLiveRecordingTimer,
+} = useSdrRecording({
+  selectedRadioId,
+  knownRadios,
+  currentFreqHz,
+  currentMode,
+  gainDb,
+  squelch,
+  startAudioRecording: sdrAudio.startRecording,
+  stopAudioRecording: sdrAudio.stopRecording,
+  reloadRecordings: () => recordingsSectionRef.value?.reload(),
+})
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -2970,107 +2983,9 @@ useDocumentEvent('sdr:frequenciesImported', () => {
 })
 
 // ── Recording ─────────────────────────────────────────────────────────────────
-
-async function toggleRecording() {
-  if (isRecording.value) {
-    await stopRecordingIfActive()
-    return
-  }
-  await _startRecording()
-}
-
-// A manual frequency change or stop ends any in-progress recording, finalising
-// the clip at the moment the user moves off the channel it was capturing — we
-// don't let a recording silently carry on onto a new frequency. Covers both a
-// manually-started REC and one auto-started for a satellite pass; for the latter
-// this fires before LOS, so the pass clip ends here and onExternalTuneRestore's
-// own stopRecordingIfActive becomes a no-op. Only the genuinely-manual entry
-// points call this (wheel retune, saved-freq play, the Stop button); scan/search
-// stepping and the auto-tune path deliberately do not.
-function _endRecordingOnManualChange(): void {
-  if (isRecording.value) void stopRecordingIfActive()
-}
-
-// Build the recording metadata from the current tune and start a recording,
-// wiring up the live-recording UI/timer. Shared by the manual REC button and the
-// auto-tune-on-pass path. Returns true if a recording actually started.
-async function _startRecording(): Promise<boolean> {
-  // Both callers (toggleRecording, _startAutoTuneRecording) already short-circuit
-  // when a recording is in progress, so this self-guard is belt-and-braces.
-  /* v8 ignore start */
-  if (isRecording.value) return false
-  /* v8 ignore stop */
-  const radioName = selectedRadioId.value
-    ? /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-      (knownRadios.value.find((r) => r.id === selectedRadioId.value)?.name ?? '')
-    : ''
-  /* v8 ignore stop */
-  const metadata = {
-    radio_id: selectedRadioId.value,
-    radio_name: radioName,
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    frequency_hz: currentFreqHz.value || 0,
-    mode: currentMode.value || 'AM',
-    gain_db: gainDb.value || 30,
-    squelch_dbfs: squelch.value || -60,
-    /* v8 ignore stop */
-    sample_rate: 2048000,
-  }
-  const recId = await sdrAudio.startRecording(metadata)
-  if (!recId) return false
-  isRecording.value = true
-  _recStartEpoch = Date.now()
-  _recPausedMs = 0
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  const sqActive = (metadata.squelch_dbfs ?? -120) > -119
-  /* v8 ignore stop */
-  recSquelchOpen.value = !sqActive
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  _recPauseStart = sqActive ? Date.now() : null
-  /* v8 ignore stop */
-  const now = new Date(_recStartEpoch)
-  liveRecording.value = {
-    frequency_hz: metadata.frequency_hz,
-    mode: metadata.mode,
-    startedAt: now.toISOString().replace('T', ' ').slice(0, 16),
-  }
-  liveElapsedS.value = 0
-  _recTimerInterval = setInterval(() => {
-    const pausedSoFar =
-      /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-      _recPauseStart != null ? _recPausedMs + (Date.now() - _recPauseStart) : _recPausedMs
-    /* v8 ignore stop */
-    liveElapsedS.value = Math.floor((Date.now() - _recStartEpoch - pausedSoFar) / 1000)
-  }, 1000)
-  return true
-}
-
-async function stopRecordingIfActive() {
-  if (!isRecording.value) return
-  isRecording.value = false
-  // _startRecording always sets _recTimerInterval before isRecording goes true,
-  // so it is non-null whenever we reach a live recording here.
-  /* v8 ignore start */
-  if (_recTimerInterval) {
-    clearInterval(_recTimerInterval)
-    _recTimerInterval = null
-  }
-  /* v8 ignore stop */
-  const _radioName = selectedRadioId.value
-    ? /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-      (knownRadios.value.find((r) => r.id === selectedRadioId.value)?.name ?? '')
-    : ''
-  /* v8 ignore stop */
-  await sdrAudio.stopRecording({
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    frequency_hz: currentFreqHz.value || 0,
-    mode: currentMode.value || 'AM',
-    /* v8 ignore stop */
-  })
-  liveRecording.value = null
-  await recordingsSectionRef.value?.reload()
-  setTimeout(() => recordingsSectionRef.value?.reload(), 2000)
-}
+// toggleRecording / startRecording / stopRecordingIfActive /
+// endRecordingOnManualChange live in useSdrRecording (instantiated with the
+// recording state block above).
 
 function onSquelchChangeCallback(open: boolean) {
   // The audio worklet's squelch is the source of truth for "is this channel
@@ -3104,21 +3019,8 @@ function onSquelchChangeCallback(open: boolean) {
     }
   }
 
-  if (!isRecording.value) return
-  if (open && !recSquelchOpen.value) {
-    // recSquelchOpen === false implies the channel was squelched at this point,
-    // which always set _recPauseStart — they are inversely coupled.
-    /* v8 ignore start */
-    if (_recPauseStart != null) {
-      _recPausedMs += Date.now() - _recPauseStart
-      _recPauseStart = null
-    }
-    /* v8 ignore stop */
-    recSquelchOpen.value = true
-  } else if (!open && recSquelchOpen.value) {
-    _recPauseStart = Date.now()
-    recSquelchOpen.value = false
-  }
+  // Recording squelch-pause accounting lives in useSdrRecording.
+  onRecordingSquelchChange(open)
 }
 
 // ── Event handlers ────────────────────────────────────────────────────────────
@@ -3147,7 +3049,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopScan()
-  if (_recTimerInterval) clearInterval(_recTimerInterval)
+  clearLiveRecordingTimer()
   // Keep socket open — SdrTabPanel persists across navigation, audio must survive
   // Only close if unmounting the full-page SdrView (not the RADIO tab)
 })
