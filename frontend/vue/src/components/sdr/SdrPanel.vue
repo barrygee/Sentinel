@@ -573,6 +573,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
+import { useSdrControlSocket } from '@/composables/useSdrControlSocket'
 import { useSdrDigitalDecode } from '@/composables/useSdrDigitalDecode'
 import { useSdrFreqDigitWheel } from '@/composables/useSdrFreqDigitWheel'
 import { useSdrRecording } from '@/composables/useSdrRecording'
@@ -1168,57 +1169,41 @@ function restoreSettings() {
 }
 
 // ── Control WebSocket ─────────────────────────────────────────────────────────
-
-let _ctrlSocket: WebSocket | null = null
-let _ctrlReconnectDelay = 500
-const CTRL_RECONNECT_MAX = 30000
-let _ctrlRadioId: number | null = null
-let _ctrlReconnect: ReturnType<typeof setTimeout> | null = null
-// Bounded retry timer for the connection-dot reachability probe (see
-// _probeReachability): the first probe on socket-open can race the backend
-// finishing its dongle (re)connection.
-let _probeRetry: ReturnType<typeof setTimeout> | null = null
-const PROBE_RETRY_MS = 1500
-const PROBE_MAX_ATTEMPTS = 4
-let _ctrlDataConfirmed = false
-
-function _markInitialised(id: number) {
-  sessionStorage.setItem(`sdrInit_${id}`, '1')
-}
-function _isInitialised(id: number) {
-  return sessionStorage.getItem(`sdrInit_${id}`) === '1'
-}
-
-function sendCmd(obj: object) {
-  // Read-only follower: another instance owns the shared dongle over the relay
-  // control channel, so suppress hardware-tuning commands (the relay would refuse
-  // them anyway). Local/demod commands (mode, fft_size, digital, ping, …) still
-  // pass through. When the tuner is FREE this is not read-only (locked=false), so
-  // a tune here is allowed and claims ownership. This is the single chokepoint
-  // every retune path funnels through (typed, marker click, wheel, scan, search).
-  const sdrCommand = (obj as { cmd?: string }).cmd
-  if (
-    _sdrStore().readOnly &&
-    (sdrCommand === 'tune' || sdrCommand === 'gain' || sdrCommand === 'sample_rate')
-  ) {
-    return
-  }
-  // A hardware tune always recenters the SDR on the new freq, so any prior
-  // demod NCO offset (auto-centre OFF) is no longer valid — clear it here, the
-  // single chokepoint for every retune path (typed, saved, marker, restore).
-  // The auto-centre-OFF click path deliberately does NOT call sendCmd('tune'),
-  // so it keeps its offset.
-  if ((obj as { cmd?: string }).cmd === 'tune' && _sdrStore().tuningOffsetHz !== 0) {
-    _sdrStore().setTuningOffsetHz(0)
-  }
-  // The socket is OPEN for every command path the tests drive; the not-open
-  // arm (a command queued while CONNECTING) is a defensive drop.
-  /* v8 ignore start */
-  if (_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN) {
-    _ctrlSocket.send(JSON.stringify(obj))
-  }
-  /* v8 ignore stop */
-}
+// The transport layer (socket handle, exponential reconnect backoff, stale-
+// socket supersede guards, per-radio init markers, the connection-dot
+// reachability probe and the sendCmd chokepoint with its read-only/offset
+// policy) lives in useSdrControlSocket. The panel keeps the semantics: the
+// on-open restore chain (onCtrlSocketOpen) and the per-frame message handling
+// (onCtrlSocketMessage) below. The socket deliberately stays OPEN on unmount
+// (SdrTabPanel persists across navigation) — the composable registers no
+// lifecycle hooks, and open/close stay caller-driven.
+const {
+  sendCmd,
+  openControlSocket,
+  closeControlSocket,
+  isDataConfirmed,
+  setDataConfirmed,
+  isSocketOpen,
+  isSocketConnecting,
+  markInitialised: _markInitialised,
+  isInitialised: _isInitialised,
+} = useSdrControlSocket({
+  sdrStore: _sdrStore,
+  onSocketOpen: onCtrlSocketOpen,
+  onSocketMessage: onCtrlSocketMessage,
+  onSocketDown: () => setStatus(false),
+  onRadioMissing: () => {
+    // The stale sdrLastRadioId + socket are already cleared; reset the selection UI.
+    selectedRadioId.value = null
+    deviceDropdownLabel.value = '— select radio —'
+    controlsDisabled.value = true
+  },
+  onReachable: () => {
+    connected.value = true
+  },
+  isRadioStillSelected: (radioId) => selectedRadioId.value === radioId,
+  isAlreadyConnected: () => connected.value,
+})
 
 // ── Digital decode (dsd-fme sidecar) + trunk tracking ─────────────────────────
 // The decode/trunk engine (backend digital_decode / trunk_decode /
@@ -1271,218 +1256,119 @@ watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode, playing], () => {
   })
 })
 
-async function openControlSocket(radioId: number) {
-  if (_ctrlReconnect) {
-    clearTimeout(_ctrlReconnect)
-    _ctrlReconnect = null
-  }
-  if (
-    _ctrlRadioId === radioId &&
-    _ctrlSocket &&
-    (_ctrlSocket.readyState === WebSocket.CONNECTING || _ctrlSocket.readyState === WebSocket.OPEN)
-  )
-    return
-  if (_ctrlSocket) {
-    _ctrlSocket.close()
-    _ctrlSocket = null
-  }
-  _ctrlRadioId = radioId
-  _ctrlDataConfirmed = false
-  sessionStorage.setItem('sdrLastRadioId', String(radioId))
-
-  try {
-    const res = await fetch('/api/sdr/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ radio_id: radioId }),
+// Restore chain run inside the control socket's 'open' listener (the transport
+// in useSdrControlSocket has already reset the reconnect delay and kicked off
+// the reachability probe when this fires).
+function onCtrlSocketOpen(radioId: number) {
+  // The restored highlight (currentMode, from sdrSettings via restoreSettings)
+  // is the single source of truth — not sdrLastMode, which setMode does not
+  // update and can be stale after a mode change. Using it kept the audio/
+  // backend demod mode out of sync with the highlighted button across a reload.
+  const lastMode = currentMode.value as SdrMode
+  if (!_isInitialised(radioId)) _markInitialised(radioId)
+  if (sessionStorage.getItem('sdrPlaying') === '1') {
+    playing.value = true
+    sdrAudio.setMode(lastMode)
+    // Restore the demod bandwidth as well. The backend only ever sends a single
+    // connected=false status frame (connected state is driven client-side by
+    // spectrum frames), so applyStatus never runs its bandwidth push on reload.
+    // Without this the worklet keeps its default bandwidth of 0 — which it
+    // treats as whole-span passthrough — so the audio is wideband noise that
+    // doesn't sound like the restored mode until the user re-clicks the mode
+    // button (the only other code path that sets the bandwidth). bwHz is the
+    // value restored by restoreSettings (or the sensible 10 kHz default). It
+    // must be pushed AFTER initAudio creates the worklet, hence the chain.
+    const restoredBwHz = bwHz.value
+    void Promise.resolve(sdrAudio.initAudio(radioId)).then(() => {
+      sdrAudio.setBandwidthHz(restoredBwHz)
     })
-    // 404 means this radio no longer exists in the DB (e.g. deleted while a
-    // stale sdrLastRadioId lingered in sessionStorage). Retrying would 404
-    // every reconnect — clear the id and stop the loop instead.
-    if (res.status === 404) {
-      sessionStorage.removeItem('sdrLastRadioId')
-      closeControlSocket()
-      selectedRadioId.value = null
-      deviceDropdownLabel.value = '— select radio —'
-      controlsDisabled.value = true
-      return
-    }
-  } catch (_) {}
-
-  // Bail if the radio selection changed (or the socket was torn down) while the
-  // connect request was in flight — otherwise we'd open a socket for a stale id.
-  // (Race only triggerable with overlapping in-flight connects; not exercised
-  // by the unit suite where the connect resolves before any re-selection.)
-  /* v8 ignore start */
-  if (_ctrlRadioId !== radioId) return
-  /* v8 ignore stop */
-
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  /* v8 ignore stop */
-  const ws = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}`)
-  _ctrlSocket = ws
-
-  ws.addEventListener('open', () => {
-    _ctrlReconnectDelay = 500
-    // The control socket is open, which means /api/sdr/connect succeeded and the
-    // device is reachable — light the connection dot now (availability), rather
-    // than waiting for the first spectrum frame that only flows once playing.
-    void _probeReachability(radioId)
-    // The restored highlight (currentMode, from sdrSettings via restoreSettings)
-    // is the single source of truth — not sdrLastMode, which setMode does not
-    // update and can be stale after a mode change. Using it kept the audio/
-    // backend demod mode out of sync with the highlighted button across a reload.
-    const lastMode = currentMode.value as SdrMode
-    if (!_isInitialised(radioId)) _markInitialised(radioId)
-    if (sessionStorage.getItem('sdrPlaying') === '1') {
-      playing.value = true
-      sdrAudio.setMode(lastMode)
-      // Restore the demod bandwidth as well. The backend only ever sends a single
-      // connected=false status frame (connected state is driven client-side by
-      // spectrum frames), so applyStatus never runs its bandwidth push on reload.
-      // Without this the worklet keeps its default bandwidth of 0 — which it
-      // treats as whole-span passthrough — so the audio is wideband noise that
-      // doesn't sound like the restored mode until the user re-clicks the mode
-      // button (the only other code path that sets the bandwidth). bwHz is the
-      // value restored by restoreSettings (or the sensible 10 kHz default). It
-      // must be pushed AFTER initAudio creates the worklet, hence the chain.
-      const restoredBwHz = bwHz.value
-      void Promise.resolve(sdrAudio.initAudio(radioId)).then(() => {
-        sdrAudio.setBandwidthHz(restoredBwHz)
-      })
-      // Re-assert the restored demod mode to the backend so its reported state
-      // matches the highlighted button. Without this, a backend connection that
-      // was recreated (defaulting to AM) reports a mode that diverges from the
-      // restored highlight, leaving the radio demodulating the wrong mode until
-      // the user re-clicks the mode button.
-      sendCmd({ cmd: 'mode', mode: lastMode })
-    }
-    // Replay the most recent waterfall-driven FFT size request, if any. The
-    // waterfall publishes its target bin count on mount, which may have fired
-    // before this socket opened (sendCmd silently drops while CONNECTING).
-    const fftReq = _sdrStore().fftSizeRequest
-    if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
-    // Push the restored hardware sample rate so the backend's span matches
-    // what the user last picked, instead of whatever the device default is.
-    sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
-    // Apply a queued auto-tune now that the socket can accept commands.
-    if (_pendingExternalTune) void _applyPendingExternalTune()
-  })
-
-  ws.addEventListener('message', (ev: MessageEvent) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic WS JSON payload; discriminated on msg.type and field-cast at use sites
-    let msg: any
-    try {
-      msg = JSON.parse(ev.data)
-    } catch {
-      return
-    }
-    switch (msg.type) {
-      case 'status':
-        applyStatus(msg)
-        applyOwnership(msg)
-        // Only trust the device-reported mode once it's actually connected, to
-        // match applyStatus (which gates currentMode/the button highlight the
-        // same way). An initial connected=false status after a refresh carries
-        // the backend's default mode and must not clobber the restored demod
-        // mode — otherwise the highlight and the audio demod diverge.
-        if (msg.connected) {
-          sdrAudio.setMode(msg.mode as SdrMode)
-          sessionStorage.setItem('sdrLastMode', msg.mode)
-        }
-        if (!sessionStorage.getItem('sdrLastFreqHz') || !currentFreqHz.value) {
-          sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz))
-        }
-        break
-      case 'spectrum':
-        if (!_ctrlDataConfirmed) {
-          _ctrlDataConfirmed = true
-          setStatus(true)
-        }
-        if (Array.isArray(msg.bins)) {
-          _sdrStore().setSpectrum({
-            bins: msg.bins,
-            center_hz: msg.center_hz,
-            sample_rate: msg.sample_rate,
-            ts: msg.timestamp_ms,
-          })
-          _lastSpectrum = {
-            bins: msg.bins as number[],
-            center_hz: msg.center_hz as number,
-            sample_rate: msg.sample_rate as number,
-          }
-          if (_expectedCenterHz !== null && msg.center_hz === _expectedCenterHz) {
-            _postTuneFrameCount++
-          }
-        }
-        break
-      case 'control':
-        // Tuning ownership changed (another instance took/released the shared
-        // dongle, or this client's retune was refused). Reflect it so the UI
-        // disables tuning + shows the read-only banner, and snaps the displayed
-        // frequency back to the owner's real tuning.
-        applyOwnership(msg)
-        break
-      case 'error':
-        _ctrlDataConfirmed = false
-        setStatus(false)
-        break
-      case 'pong':
-        break
-      case 'trunk_status':
-        // Backend confirms (or rejects) a trunk_decode request. On rejection
-        // (e.g. missing channel map) it reports enabled:false + an error, so
-        // reconcile the toggle and surface the message.
-        if (msg.enabled === false) {
-          _sdrStore().setTrunkEnabled(false)
-          if (typeof msg.error === 'string') _sdrStore().setTrunkError(msg.error)
-        } else if (msg.enabled === true) {
-          _sdrStore().setTrunkEnabled(true)
-        }
-        break
-    }
-  })
-
-  ws.addEventListener('close', () => {
-    // Ignore the close of a socket we've already switched away from. Selecting a
-    // different radio closes the previous radio's socket; that close fires after
-    // _ctrlRadioId has moved on, so without this guard it would setStatus(false)
-    // and re-disable the controls that selectRadio just enabled for the new radio
-    // (the "select the other radio twice before controls enable" bug).
-    if (_ctrlRadioId !== radioId) return
-    setStatus(false)
-    if (_ctrlReconnect) clearTimeout(_ctrlReconnect)
-    const delay = _ctrlReconnectDelay
-    _ctrlReconnectDelay = Math.min(_ctrlReconnectDelay * 2, CTRL_RECONNECT_MAX)
-    _ctrlReconnect = setTimeout(() => {
-      /* v8 ignore start -- only false if the radio changed during the reconnect delay (race) */
-      if (_ctrlRadioId === radioId) void openControlSocket(radioId)
-      /* v8 ignore stop */
-    }, delay)
-  })
-
-  ws.addEventListener('error', () => {
-    // Same supersede guard as 'close': a stale socket must not reset the status
-    // for the radio that's now selected.
-    if (_ctrlRadioId !== radioId) return
-    setStatus(false)
-  })
+    // Re-assert the restored demod mode to the backend so its reported state
+    // matches the highlighted button. Without this, a backend connection that
+    // was recreated (defaulting to AM) reports a mode that diverges from the
+    // restored highlight, leaving the radio demodulating the wrong mode until
+    // the user re-clicks the mode button.
+    sendCmd({ cmd: 'mode', mode: lastMode })
+  }
+  // Replay the most recent waterfall-driven FFT size request, if any. The
+  // waterfall publishes its target bin count on mount, which may have fired
+  // before this socket opened (sendCmd silently drops while CONNECTING).
+  const fftReq = _sdrStore().fftSizeRequest
+  if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
+  // Push the restored hardware sample rate so the backend's span matches
+  // what the user last picked, instead of whatever the device default is.
+  sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
+  // Apply a queued auto-tune now that the socket can accept commands.
+  if (_pendingExternalTune) void _applyPendingExternalTune()
 }
 
-function closeControlSocket() {
-  _ctrlReconnectDelay = 500
-  if (_ctrlReconnect) {
-    clearTimeout(_ctrlReconnect)
-    _ctrlReconnect = null
+// Per-frame control-socket message handling (the transport JSON-parses every
+// frame and dispatches it here).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic WS JSON payload; discriminated on msg.type and field-cast at use sites
+function onCtrlSocketMessage(msg: any) {
+  switch (msg.type) {
+    case 'status':
+      applyStatus(msg)
+      applyOwnership(msg)
+      // Only trust the device-reported mode once it's actually connected, to
+      // match applyStatus (which gates currentMode/the button highlight the
+      // same way). An initial connected=false status after a refresh carries
+      // the backend's default mode and must not clobber the restored demod
+      // mode — otherwise the highlight and the audio demod diverge.
+      if (msg.connected) {
+        sdrAudio.setMode(msg.mode as SdrMode)
+        sessionStorage.setItem('sdrLastMode', msg.mode)
+      }
+      if (!sessionStorage.getItem('sdrLastFreqHz') || !currentFreqHz.value) {
+        sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz))
+      }
+      break
+    case 'spectrum':
+      if (!isDataConfirmed()) {
+        setDataConfirmed(true)
+        setStatus(true)
+      }
+      if (Array.isArray(msg.bins)) {
+        _sdrStore().setSpectrum({
+          bins: msg.bins,
+          center_hz: msg.center_hz,
+          sample_rate: msg.sample_rate,
+          ts: msg.timestamp_ms,
+        })
+        _lastSpectrum = {
+          bins: msg.bins as number[],
+          center_hz: msg.center_hz as number,
+          sample_rate: msg.sample_rate as number,
+        }
+        if (_expectedCenterHz !== null && msg.center_hz === _expectedCenterHz) {
+          _postTuneFrameCount++
+        }
+      }
+      break
+    case 'control':
+      // Tuning ownership changed (another instance took/released the shared
+      // dongle, or this client's retune was refused). Reflect it so the UI
+      // disables tuning + shows the read-only banner, and snaps the displayed
+      // frequency back to the owner's real tuning.
+      applyOwnership(msg)
+      break
+    case 'error':
+      setDataConfirmed(false)
+      setStatus(false)
+      break
+    case 'pong':
+      break
+    case 'trunk_status':
+      // Backend confirms (or rejects) a trunk_decode request. On rejection
+      // (e.g. missing channel map) it reports enabled:false + an error, so
+      // reconcile the toggle and surface the message.
+      if (msg.enabled === false) {
+        _sdrStore().setTrunkEnabled(false)
+        if (typeof msg.error === 'string') _sdrStore().setTrunkError(msg.error)
+      } else if (msg.enabled === true) {
+        _sdrStore().setTrunkEnabled(true)
+      }
+      break
   }
-  if (_ctrlSocket) {
-    _ctrlSocket.close()
-    _ctrlSocket = null
-  }
-  if (_ctrlRadioId != null) sessionStorage.removeItem(`sdrInit_${_ctrlRadioId}`)
-  _ctrlRadioId = null
-  _ctrlDataConfirmed = false
 }
 
 // ── Playing state ─────────────────────────────────────────────────────────────
@@ -1696,40 +1582,8 @@ function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
-// Reachability probe for the connection dot. The dot represents *availability*
-// (the device is connected), NOT whether audio/spectrum is actively streaming —
-// so it must go green as soon as a selected radio is reachable, without waiting
-// for the first spectrum frame (which only arrives once the user hits Play).
-// This mirrors the Settings device dot, which polls the same endpoint. Guarded
-// by radioId so a probe that resolves after the user switched radios is ignored.
-async function _probeReachability(radioId: number, attempt = 1): Promise<void> {
-  let reachable = false
-  try {
-    const res = await fetch(`/api/sdr/status/${radioId}`)
-    // Race guard: only triggerable if the radio is re-selected mid-probe.
-    /* v8 ignore start */
-    if (selectedRadioId.value !== radioId) return
-    /* v8 ignore stop */
-    if (res.ok) {
-      const data = await res.json()
-      reachable = data.connected === true || data.reachable === true
-    }
-  } catch (_) {}
-  if (reachable) {
-    connected.value = true
-    return
-  }
-  // Not reachable yet. The first probe on socket-open can beat the backend's
-  // dongle (re)connection — e.g. right after a container/backend restart, where
-  // the WS reconnects before the dongle link is back, or another instance briefly
-  // holds the single-client dongle. Retry a few times so the dot self-corrects
-  // once the radio comes up, instead of latching red until Play/reselect. Stop if
-  // the radio changed or another path (a spectrum frame) already lit the dot.
-  if (attempt < PROBE_MAX_ATTEMPTS && _ctrlRadioId === radioId && !connected.value) {
-    if (_probeRetry) clearTimeout(_probeRetry)
-    _probeRetry = setTimeout(() => void _probeReachability(radioId, attempt + 1), PROBE_RETRY_MS)
-  }
-}
+// The connection-dot reachability probe lives in useSdrControlSocket (it runs
+// on every socket 'open' and lights the dot via the onReachable hook above).
 
 function setStatus(isConnected: boolean) {
   connected.value = isConnected
@@ -2451,8 +2305,8 @@ function onExternalTune(e: Event): void {
   // Queue the tune to fire once the control socket is open.
   _pendingExternalTune = { hz, mode, satName, noradId, token, record }
   const sameRadio = selectedRadioId.value === radio.id
-  const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
-  const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
+  const sockOpen = isSocketOpen()
+  const sockConnecting = isSocketConnecting()
   if (sameRadio && sockOpen) {
     void _applyPendingExternalTune()
   } else if (sameRadio && sockConnecting) {
