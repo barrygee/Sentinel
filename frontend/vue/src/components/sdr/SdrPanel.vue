@@ -573,6 +573,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
+import { useSdrDigitalDecode } from '@/composables/useSdrDigitalDecode'
 import { useSdrFreqDigitWheel } from '@/composables/useSdrFreqDigitWheel'
 import { useSdrRecording } from '@/composables/useSdrRecording'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -1219,127 +1220,40 @@ function sendCmd(obj: object) {
   /* v8 ignore stop */
 }
 
-// ── Digital decode (dsd-fme sidecar) ───────────────────────────────────────────
-
-// Mirrors the store toggle so the DIGITAL button reflects (and survives) it.
-const digitalEnabled = computed(() => _sdrStore().digitalEnabled)
-
-// Turn digital decoding on/off while the radio is running. Enabling tells the
-// backend to start the decode bridge (via the control socket), opens the decode
-// + decoded-audio sockets, and mutes the analog audio (the digital channel is
-// just noise to the ear). Disabling reverses all of it.
-function setDigital(on: boolean) {
-  _sdrStore().setDigitalEnabled(on)
-  if (on) {
-    _sdrStore().clearDecode()
-    sendCmd({
-      cmd: 'digital_decode',
-      enabled: true,
-      offset_hz: _sdrStore().tuningOffsetHz,
-      bw_hz: bwHz.value,
-      mode: currentMode.value,
-    })
-    if (selectedRadioId.value != null) sdrDecode.start(selectedRadioId.value)
-    sdrAudio.setLiveMuted(true)
-  } else {
-    sendCmd({ cmd: 'digital_decode', enabled: false })
-    sdrDecode.stop()
-    sdrAudio.setLiveMuted(false)
-    _sdrStore().clearDecode()
-  }
-}
-
-function toggleDigital() {
-  setDigital(!_sdrStore().digitalEnabled)
-}
-
-// ── Trunk tracking ─────────────────────────────────────────────────────────────
-
-// Master feature flag (Settings → SDR → TRUNK DATA → Trunk Tracking). When OFF
-// the TRUNK button and the TRUNK SYSTEM section below are hidden entirely.
-const trunkTrackingEnabled = computed(() => _sdrStore().trunkTrackingEnabled)
-const trunkEnabled = computed(() => _sdrStore().trunkEnabled)
-const trunkChannelMap = computed({
-  get: () => _sdrStore().trunkChannelMap,
-  set: (name: string) => _sdrStore().setTrunkChannelMap(name),
+// ── Digital decode (dsd-fme sidecar) + trunk tracking ─────────────────────────
+// The decode/trunk engine (backend digital_decode / trunk_decode /
+// digital_channel commands, decode-socket + analog-mute choreography, the
+// channel-map fetch and the digital↔trunk reconciliation watchers) lives in
+// useSdrDigitalDecode; the panel injects sendCmd and its tuner refs so the
+// command cadence is unchanged.
+const {
+  digitalEnabled,
+  setDigital,
+  toggleDigital,
+  trunkTrackingEnabled,
+  trunkEnabled,
+  trunkChannelMap,
+  trunkChannelMaps,
+  trunkError,
+  canEnableTrunk,
+  loadChannelMaps,
+  toggleTrunk,
+} = useSdrDigitalDecode({
+  sdrStore: _sdrStore,
+  sendCmd,
+  selectedRadioId,
+  bwHz,
+  currentMode,
+  startDecode: sdrDecode.start,
+  stopDecode: sdrDecode.stop,
+  setLiveMuted: sdrAudio.setLiveMuted,
 })
-const trunkChannelMaps = computed(() => _sdrStore().trunkChannelMaps)
-const trunkError = computed(() => _sdrStore().trunkError)
-// Trunking can only be turned on once digital decode is running and a channel
-// map is chosen — the control surface for following grants rides on the decode
-// session, and dsd-fme cannot follow a system without its map.
-const canEnableTrunk = computed(() => digitalEnabled.value && trunkChannelMap.value !== '')
 
 // Trunk-system accordion (sits below SEARCH). The accordion body, its
 // flat-dark channel-map dropdown (with its own teleported menu + dismissal)
 // and the FOLLOW button live in SdrTrunkSection.vue; only the expanded flag
 // stays here so the panel-open watch above can collapse it with its siblings.
 const trunkSectionExpanded = ref(false)
-
-// Fetch the channel-map filenames the backend offers (read from the mounted maps
-// directory) so the picker has options. Failures leave the list empty.
-async function loadChannelMaps() {
-  try {
-    const res = await fetch('/api/sdr/trunk/channel-maps')
-    if (!res.ok) return
-    const data = await res.json()
-    if (Array.isArray(data?.channel_maps)) _sdrStore().setTrunkChannelMaps(data.channel_maps)
-  } catch {
-    /* offline / transient — leave the picker empty */
-  }
-}
-
-// Turn trunk tracking on/off. Enabling tells the backend to start the rigctld
-// server and relaunch dsd-fme in trunk mode with the chosen channel map; the
-// decoder then follows control-channel grants. Requires digital decode already
-// running (the backend bounces the existing decode session to apply the flags).
-function setTrunk(on: boolean) {
-  _sdrStore().setTrunkError('')
-  if (on) {
-    if (!canEnableTrunk.value) return
-    _sdrStore().setTrunkEnabled(true)
-    sendCmd({
-      cmd: 'trunk_decode',
-      enabled: true,
-      channel_map: trunkChannelMap.value,
-      offset_hz: _sdrStore().tuningOffsetHz,
-      bw_hz: bwHz.value,
-    })
-  } else {
-    _sdrStore().setTrunkEnabled(false)
-    sendCmd({ cmd: 'trunk_decode', enabled: false })
-  }
-}
-
-function toggleTrunk() {
-  setTrunk(!_sdrStore().trunkEnabled)
-}
-
-// Turning digital decode off must also drop trunk tracking — it cannot run
-// without the underlying decode session.
-watch(digitalEnabled, (enabled) => {
-  if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
-})
-
-// Disabling the trunk-tracking feature while a follow is active must stop the
-// backend decode session too — the store clears local trunk state, but only the
-// panel owns the WS connection that tells dsd-fme to drop trunk mode.
-watch(trunkTrackingEnabled, (enabled) => {
-  if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
-})
-
-// When the user retunes the demod offset or changes bandwidth while decoding,
-// push the new channel to the backend so the server-side demod follows it
-// without restarting the session.
-watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode], () => {
-  if (!_sdrStore().digitalEnabled) return
-  sendCmd({
-    cmd: 'digital_channel',
-    offset_hz: _sdrStore().tuningOffsetHz,
-    bw_hz: bwHz.value,
-    mode: currentMode.value,
-  })
-})
 
 // Publish this instance's within-band demod state (NCO offset, mode, audio
 // bandwidth) to the backend so it can forward it over the relay control channel
