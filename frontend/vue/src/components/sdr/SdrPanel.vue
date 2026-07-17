@@ -573,6 +573,13 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'
 import { useSdrDecode } from '@/composables/useSdrDecode'
+import { useSdrAutoTune } from '@/composables/useSdrAutoTune'
+import { useSdrControlSocket } from '@/composables/useSdrControlSocket'
+import { useSdrDigitalDecode } from '@/composables/useSdrDigitalDecode'
+import { useSdrFreqDigitWheel } from '@/composables/useSdrFreqDigitWheel'
+import { useSdrRadioSelection } from '@/composables/useSdrRadioSelection'
+import { useSdrRecording } from '@/composables/useSdrRecording'
+import { useSdrSweepEngine } from '@/composables/useSdrSweepEngine'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
@@ -590,8 +597,6 @@ import BasePillToggle from '@/components/base/BasePillToggle.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
-import type { SdrSearchRange } from '@/services/sdrSearchApi'
-import { listSearchRanges as apiListSearchRanges } from '@/services/sdrSearchApi'
 
 // SdrRadio / SdrFrequencyGroup / SdrStoredFrequency now come from the SDR
 // store (see stores/sdr.ts) — it owns loading radios/groups/frequencies, so
@@ -644,34 +649,9 @@ const tuningDisabled = computed(() => controlsDisabled.value || readOnly.value)
 // unchanged; when read-only, sendCmd suppresses the hardware tune (see sendCmd).
 const playDisabled = computed(() => controlsDisabled.value)
 
-// Pending external (auto-tune) request, applied once the control socket opens.
-let _pendingExternalTune: {
-  hz: number
-  mode: SdrMode
-  satName: string
-  noradId?: string
-  token?: string
-  record?: boolean
-} | null = null
-
-// State captured the moment an auto-tune takes over the radio, so the LOS
-// restore can put things back. `playing` records whether audio was running
-// before AOS; when false the radio was stopped (or merely connected) and the
-// restore stops playback again. `token` ties this snapshot to the firing pass so
-// a stale LOS (after a newer pass retuned) is ignored. `tunedHz`/`tunedMode` are
-// what we tuned *to* — the restore only acts if the radio is still on them
-// (i.e. the user hasn't manually retuned since), so we never clobber a manual change.
-// `startedRecording` is true when *we* auto-started a recording at AOS, so the LOS
-// restore stops only that recording and never a manual one the user began.
-let _autoTunePrevState: {
-  token?: string
-  playing: boolean
-  freqHz: number
-  mode: SdrMode
-  tunedHz: number
-  tunedMode: SdrMode
-  startedRecording?: boolean
-} | null = null
+// The satellite auto-tune reconciliation (AOS retune queue, pre-AOS snapshot
+// and LOS restore, lock-in priority, record-the-pass) lives in useSdrAutoTune,
+// instantiated below once its injected chokepoints exist.
 
 const SIGNAL_SEGS = 36
 
@@ -914,67 +894,19 @@ const signalAudible = computed(
 
 // ── Device dropdown ───────────────────────────────────────────────────────────
 // The combobox UI (listbox menu, keyboard nav, padlock rows) lives in
-// SdrDeviceSelector.vue; it emits `select` into selectRadio() below. The panel
-// keeps the engine-written display state it passes down as props.
-const radiosLoading = ref(true)
-const deviceDropdownLabel = ref('loading…')
+// SdrDeviceSelector.vue; it emits `select` into selectRadio (from
+// useSdrRadioSelection below), which also owns the engine-written display
+// state (radiosLoading / deviceDropdownLabel) passed down as props.
 
-// ── Scanner ───────────────────────────────────────────────────────────────────
-const scanActive = ref(false)
-const scanLocked = ref(false)
-const scanCurrentHz = ref<number | null>(null)
-const scanSelectedGroupIds = ref<number[]>([])
-const scanAllSelected = ref(true)
-let _scanQueue: SdrStoredFrequency[] = []
-let _scanIdx = 0
-let _scanTimer: ReturnType<typeof setTimeout> | null = null
-
-// ── Search (high/low frequency range sweep) ──────────────────────────────────
+// ── Scanner + search (sweep engine) ───────────────────────────────────────────
+// The scanner and range-search engines — with their shared post-tune race
+// guard, latest-spectrum stash, channel sampler and auto-resume watcher —
+// live in useSdrSweepEngine, instantiated below once its injected chokepoints
+// (sendCmd, tuneToFreq/tuneToHzMode) exist. Only accordion view state stays
+// here.
 const searchSectionExpanded = ref(false)
 const savedRangesExpanded = ref(false)
 const _rangesSectionExpanded = ref(false)
-const searchRanges = ref<SdrSearchRange[]>([])
-const searchActive = ref(false)
-const searchLocked = ref(false)
-const searchSelectedRangeId = ref<number | null>(null)
-// Tracks whether the running search was started from the ad-hoc inputs or a
-// saved range list item — needed so per-item play/stop buttons can show the
-// correct icon and toggle the correct sweep.
-const searchActiveSource = ref<'adhoc' | 'saved' | null>(null)
-const searchCurrentHz = ref<number | null>(null)
-
-// Ad-hoc search inputs (low/high MHz, step kHz) — required fields shown
-// above the saved ranges list. When all three are valid, SEARCH uses these
-// instead of a saved range.
-const adhocLowMhz = ref<string>('')
-const adhocHighMhz = ref<string>('')
-const adhocStepKhz = ref<string>('12.5')
-const adhocSearchValid = computed(() => {
-  const lo = parseFloat(adhocLowMhz.value)
-  const hi = parseFloat(adhocHighMhz.value)
-  const st = parseFloat(adhocStepKhz.value)
-  return isFinite(lo) && isFinite(hi) && isFinite(st) && lo < hi && st > 0
-})
-let _searchHz = 0
-let _searchTimer: ReturnType<typeof setTimeout> | null = null
-
-// Post-tune race guard for the search engine. The backend tags FFT frames with
-// `conn.center_hz` at FFT time, not at IQ-read time — so a frame can be labelled
-// with the new frequency while its IQ samples were captured at the previous
-// one. We track how many frames have arrived bearing the expected center_hz
-// since the last retune, and only sample after a minimum settle window has
-// elapsed *and* at least one matching frame has been seen (we discard the
-// first one as a race-window guard).
-let _expectedCenterHz: number | null = null
-let _postTuneFrameCount = 0
-let _tuneAtMs = 0
-const SEARCH_MIN_SETTLE_MS = 250
-const SEARCH_RECHECK_MS = 80
-const SEARCH_MAX_RECHECKS = 6
-
-// Latest spectrum frame stash — used by the search engine to read the centre
-// bin's dBFS power after the dwell interval to decide hold-on-signal.
-let _lastSpectrum: { bins: number[]; center_hz: number; sample_rate: number } | null = null
 
 // ── Groups + frequencies ──────────────────────────────────────────────────────
 // Store-owned: the SDR store fetches/holds groups and frequencies
@@ -995,74 +927,8 @@ const currentFreqLabel = computed<string>(() => {
 // Frequency Manager tab's group filter.
 const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => _sdrStore().groupsWithFreqs)
 
-// Mirror scanner sweep state + selected group labels into the store. The
-// waterfall component reads these to show the same paused/holding overlay
-// used during a range search whenever the scanner is stepping between
-// frequencies (but not when it has locked onto an active signal).
-watch(
-  [scanActive, scanLocked, scanAllSelected, scanSelectedGroupIds, groupsWithFreqs],
-  ([active, locked, allSel, selIds, groupsList]) => {
-    const _ss = _sdrStore()
-    // A read-only follower's scan overlay is driven by the owner's mirrored sweep
-    // state (see applyOwnership); its own scanner is idle, so skip here or we'd
-    // clobber the mirror back to "not scanning".
-    if (_ss.readOnly) return
-    _ss.scanSweeping = !!active && !locked
-    if (allSel || (selIds as number[]).length === 0) {
-      _ss.scanGroupNames = ['All']
-    } else {
-      const sel = new Set(selIds as number[])
-      _ss.scanGroupNames = (groupsList as SdrFrequencyGroup[])
-        .filter((g) => sel.has(g.id))
-        .map((g) => g.name)
-    }
-  },
-  { immediate: true, deep: true },
-)
-
-// Owner → followers: publish this instance's scanner/search sweep state over the
-// relay control channel so a read-only watcher renders the same "paused during
-// active scan/search" overlay. Only the tuning owner of a shared dongle forwards
-// (a single instance / raw rtl_tcp has no followers, and a follower must not echo
-// the state back); deduped so an unchanged sweep never re-sends.
-let _lastSweepPayload = ''
-watch(
-  () => {
-    const _ss = _sdrStore()
-    return {
-      scan_active: _ss.scanSweeping,
-      scan_groups: _ss.scanGroupNames,
-      search_active: _ss.searchSweeping,
-      search_low_hz: _ss.searchLowHz,
-      search_high_hz: _ss.searchHighHz,
-      search_current_hz: _ss.searchCurrentHz,
-    }
-  },
-  (payload) => {
-    const _ss = _sdrStore()
-    if (!(_ss.controlAvailable && _ss.isOwner)) return
-    const serialized = JSON.stringify(payload)
-    if (serialized === _lastSweepPayload) return
-    _lastSweepPayload = serialized
-    sendCmd({ cmd: 'sweep_state', ...payload })
-  },
-  { deep: true },
-)
-
-// When this instance stops being a read-only follower (the owner released the
-// tuner or the control channel dropped), clear the mirrored sweep state so a stale
-// owner overlay doesn't linger. The guarded scan watcher above then resumes driving
-// these from this instance's own scanner/search.
-watch(readOnly, (isReadOnly) => {
-  if (isReadOnly) return
-  const _ss = _sdrStore()
-  _ss.scanSweeping = false
-  _ss.scanGroupNames = []
-  _ss.searchSweeping = false
-  _ss.searchLowHz = null
-  _ss.searchHighHz = null
-  _ss.searchCurrentHz = null
-})
+// The scanner-state store mirror, the owner→follower sweep_state publish and
+// the read-only sweep-mirror clear all live in useSdrSweepEngine (below).
 
 // ── Edit frequency panel ──────────────────────────────────────────────────────
 // The FREQUENCY MANAGER tab (freq list, group filter and the add/edit forms
@@ -1084,20 +950,32 @@ const liveTuneSeed = computed<SdrLiveTuneSeed>(() => ({
 }))
 
 // ── Recording state (live recording props passed to SdrRecordingsSection) ─────
-
-const isRecording = ref(false)
-const recSquelchOpen = ref(true)
-const liveElapsedS = ref(0)
-interface LiveRec {
-  frequency_hz: number
-  mode: string
-  startedAt: string
-}
-const liveRecording = ref<LiveRec | null>(null)
-let _recStartEpoch = 0
-let _recPausedMs = 0
-let _recPauseStart: number | null = null
-let _recTimerInterval: ReturnType<typeof setInterval> | null = null
+// The recording state machine (REC start/stop, the live elapsed timer and its
+// squelch-pause accounting) lives in useSdrRecording; the panel injects the
+// live tune refs and useSdrAudio's capture functions so the clip metadata and
+// timer cadence are unchanged.
+const {
+  isRecording,
+  recSquelchOpen,
+  liveElapsedS,
+  liveRecording,
+  toggleRecording,
+  startRecording: _startRecording,
+  endRecordingOnManualChange: _endRecordingOnManualChange,
+  stopRecordingIfActive,
+  onRecordingSquelchChange,
+  clearLiveRecordingTimer,
+} = useSdrRecording({
+  selectedRadioId,
+  knownRadios,
+  currentFreqHz,
+  currentMode,
+  gainDb,
+  squelch,
+  startAudioRecording: sdrAudio.startRecording,
+  stopAudioRecording: sdrAudio.stopRecording,
+  reloadRecordings: () => recordingsSectionRef.value?.reload(),
+})
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1153,108 +1031,70 @@ function restoreSettings() {
 }
 
 // ── Control WebSocket ─────────────────────────────────────────────────────────
-
-let _ctrlSocket: WebSocket | null = null
-let _ctrlReconnectDelay = 500
-const CTRL_RECONNECT_MAX = 30000
-let _ctrlRadioId: number | null = null
-let _ctrlReconnect: ReturnType<typeof setTimeout> | null = null
-// Bounded retry timer for the connection-dot reachability probe (see
-// _probeReachability): the first probe on socket-open can race the backend
-// finishing its dongle (re)connection.
-let _probeRetry: ReturnType<typeof setTimeout> | null = null
-const PROBE_RETRY_MS = 1500
-const PROBE_MAX_ATTEMPTS = 4
-let _ctrlDataConfirmed = false
-
-function _markInitialised(id: number) {
-  sessionStorage.setItem(`sdrInit_${id}`, '1')
-}
-function _isInitialised(id: number) {
-  return sessionStorage.getItem(`sdrInit_${id}`) === '1'
-}
-
-function sendCmd(obj: object) {
-  // Read-only follower: another instance owns the shared dongle over the relay
-  // control channel, so suppress hardware-tuning commands (the relay would refuse
-  // them anyway). Local/demod commands (mode, fft_size, digital, ping, …) still
-  // pass through. When the tuner is FREE this is not read-only (locked=false), so
-  // a tune here is allowed and claims ownership. This is the single chokepoint
-  // every retune path funnels through (typed, marker click, wheel, scan, search).
-  const sdrCommand = (obj as { cmd?: string }).cmd
-  if (
-    _sdrStore().readOnly &&
-    (sdrCommand === 'tune' || sdrCommand === 'gain' || sdrCommand === 'sample_rate')
-  ) {
-    return
-  }
-  // A hardware tune always recenters the SDR on the new freq, so any prior
-  // demod NCO offset (auto-centre OFF) is no longer valid — clear it here, the
-  // single chokepoint for every retune path (typed, saved, marker, restore).
-  // The auto-centre-OFF click path deliberately does NOT call sendCmd('tune'),
-  // so it keeps its offset.
-  if ((obj as { cmd?: string }).cmd === 'tune' && _sdrStore().tuningOffsetHz !== 0) {
-    _sdrStore().setTuningOffsetHz(0)
-  }
-  // The socket is OPEN for every command path the tests drive; the not-open
-  // arm (a command queued while CONNECTING) is a defensive drop.
-  /* v8 ignore start */
-  if (_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN) {
-    _ctrlSocket.send(JSON.stringify(obj))
-  }
-  /* v8 ignore stop */
-}
-
-// ── Digital decode (dsd-fme sidecar) ───────────────────────────────────────────
-
-// Mirrors the store toggle so the DIGITAL button reflects (and survives) it.
-const digitalEnabled = computed(() => _sdrStore().digitalEnabled)
-
-// Turn digital decoding on/off while the radio is running. Enabling tells the
-// backend to start the decode bridge (via the control socket), opens the decode
-// + decoded-audio sockets, and mutes the analog audio (the digital channel is
-// just noise to the ear). Disabling reverses all of it.
-function setDigital(on: boolean) {
-  _sdrStore().setDigitalEnabled(on)
-  if (on) {
-    _sdrStore().clearDecode()
-    sendCmd({
-      cmd: 'digital_decode',
-      enabled: true,
-      offset_hz: _sdrStore().tuningOffsetHz,
-      bw_hz: bwHz.value,
-      mode: currentMode.value,
-    })
-    if (selectedRadioId.value != null) sdrDecode.start(selectedRadioId.value)
-    sdrAudio.setLiveMuted(true)
-  } else {
-    sendCmd({ cmd: 'digital_decode', enabled: false })
-    sdrDecode.stop()
-    sdrAudio.setLiveMuted(false)
-    _sdrStore().clearDecode()
-  }
-}
-
-function toggleDigital() {
-  setDigital(!_sdrStore().digitalEnabled)
-}
-
-// ── Trunk tracking ─────────────────────────────────────────────────────────────
-
-// Master feature flag (Settings → SDR → TRUNK DATA → Trunk Tracking). When OFF
-// the TRUNK button and the TRUNK SYSTEM section below are hidden entirely.
-const trunkTrackingEnabled = computed(() => _sdrStore().trunkTrackingEnabled)
-const trunkEnabled = computed(() => _sdrStore().trunkEnabled)
-const trunkChannelMap = computed({
-  get: () => _sdrStore().trunkChannelMap,
-  set: (name: string) => _sdrStore().setTrunkChannelMap(name),
+// The transport layer (socket handle, exponential reconnect backoff, stale-
+// socket supersede guards, per-radio init markers, the connection-dot
+// reachability probe and the sendCmd chokepoint with its read-only/offset
+// policy) lives in useSdrControlSocket. The panel keeps the semantics: the
+// on-open restore chain (onCtrlSocketOpen) and the per-frame message handling
+// (onCtrlSocketMessage) below. The socket deliberately stays OPEN on unmount
+// (SdrTabPanel persists across navigation) — the composable registers no
+// lifecycle hooks, and open/close stay caller-driven.
+const {
+  sendCmd,
+  openControlSocket,
+  closeControlSocket,
+  isDataConfirmed,
+  setDataConfirmed,
+  isSocketOpen,
+  isSocketConnecting,
+  markInitialised: _markInitialised,
+  isInitialised: _isInitialised,
+} = useSdrControlSocket({
+  sdrStore: _sdrStore,
+  onSocketOpen: onCtrlSocketOpen,
+  onSocketMessage: onCtrlSocketMessage,
+  onSocketDown: () => setStatus(false),
+  onRadioMissing: () => {
+    // The stale sdrLastRadioId + socket are already cleared; reset the selection UI.
+    selectedRadioId.value = null
+    deviceDropdownLabel.value = '— select radio —'
+    controlsDisabled.value = true
+  },
+  onReachable: () => {
+    connected.value = true
+  },
+  isRadioStillSelected: (radioId) => selectedRadioId.value === radioId,
+  isAlreadyConnected: () => connected.value,
 })
-const trunkChannelMaps = computed(() => _sdrStore().trunkChannelMaps)
-const trunkError = computed(() => _sdrStore().trunkError)
-// Trunking can only be turned on once digital decode is running and a channel
-// map is chosen — the control surface for following grants rides on the decode
-// session, and dsd-fme cannot follow a system without its map.
-const canEnableTrunk = computed(() => digitalEnabled.value && trunkChannelMap.value !== '')
+
+// ── Digital decode (dsd-fme sidecar) + trunk tracking ─────────────────────────
+// The decode/trunk engine (backend digital_decode / trunk_decode /
+// digital_channel commands, decode-socket + analog-mute choreography, the
+// channel-map fetch and the digital↔trunk reconciliation watchers) lives in
+// useSdrDigitalDecode; the panel injects sendCmd and its tuner refs so the
+// command cadence is unchanged.
+const {
+  digitalEnabled,
+  setDigital,
+  toggleDigital,
+  trunkTrackingEnabled,
+  trunkEnabled,
+  trunkChannelMap,
+  trunkChannelMaps,
+  trunkError,
+  canEnableTrunk,
+  loadChannelMaps,
+  toggleTrunk,
+} = useSdrDigitalDecode({
+  sdrStore: _sdrStore,
+  sendCmd,
+  selectedRadioId,
+  bwHz,
+  currentMode,
+  startDecode: sdrDecode.start,
+  stopDecode: sdrDecode.stop,
+  setLiveMuted: sdrAudio.setLiveMuted,
+})
 
 // Trunk-system accordion (sits below SEARCH). The accordion body, its
 // flat-dark channel-map dropdown (with its own teleported menu + dismissal)
@@ -1262,69 +1102,23 @@ const canEnableTrunk = computed(() => digitalEnabled.value && trunkChannelMap.va
 // stays here so the panel-open watch above can collapse it with its siblings.
 const trunkSectionExpanded = ref(false)
 
-// Fetch the channel-map filenames the backend offers (read from the mounted maps
-// directory) so the picker has options. Failures leave the list empty.
-async function loadChannelMaps() {
-  try {
-    const res = await fetch('/api/sdr/trunk/channel-maps')
-    if (!res.ok) return
-    const data = await res.json()
-    if (Array.isArray(data?.channel_maps)) _sdrStore().setTrunkChannelMaps(data.channel_maps)
-  } catch {
-    /* offline / transient — leave the picker empty */
-  }
-}
-
-// Turn trunk tracking on/off. Enabling tells the backend to start the rigctld
-// server and relaunch dsd-fme in trunk mode with the chosen channel map; the
-// decoder then follows control-channel grants. Requires digital decode already
-// running (the backend bounces the existing decode session to apply the flags).
-function setTrunk(on: boolean) {
-  _sdrStore().setTrunkError('')
-  if (on) {
-    if (!canEnableTrunk.value) return
-    _sdrStore().setTrunkEnabled(true)
-    sendCmd({
-      cmd: 'trunk_decode',
-      enabled: true,
-      channel_map: trunkChannelMap.value,
-      offset_hz: _sdrStore().tuningOffsetHz,
-      bw_hz: bwHz.value,
-    })
-  } else {
-    _sdrStore().setTrunkEnabled(false)
-    sendCmd({ cmd: 'trunk_decode', enabled: false })
-  }
-}
-
-function toggleTrunk() {
-  setTrunk(!_sdrStore().trunkEnabled)
-}
-
-// Turning digital decode off must also drop trunk tracking — it cannot run
-// without the underlying decode session.
-watch(digitalEnabled, (enabled) => {
-  if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
-})
-
-// Disabling the trunk-tracking feature while a follow is active must stop the
-// backend decode session too — the store clears local trunk state, but only the
-// panel owns the WS connection that tells dsd-fme to drop trunk mode.
-watch(trunkTrackingEnabled, (enabled) => {
-  if (!enabled && _sdrStore().trunkEnabled) setTrunk(false)
-})
-
-// When the user retunes the demod offset or changes bandwidth while decoding,
-// push the new channel to the backend so the server-side demod follows it
-// without restarting the session.
-watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode], () => {
-  if (!_sdrStore().digitalEnabled) return
-  sendCmd({
-    cmd: 'digital_channel',
-    offset_hz: _sdrStore().tuningOffsetHz,
-    bw_hz: bwHz.value,
-    mode: currentMode.value,
-  })
+// ── Radio selection ───────────────────────────────────────────────────────────
+// Manual select/deselect, the radio-list load (with its sessionStorage cache)
+// and the remembered/sole-enabled auto-select live in useSdrRadioSelection;
+// the panel injects its socket/audio/state chokepoints so the selection
+// choreography is unchanged.
+const { radiosLoading, deviceDropdownLabel, selectRadio, loadRadios } = useSdrRadioSelection({
+  sdrStore: _sdrStore,
+  selectedRadioId,
+  controlsDisabled,
+  playing,
+  setPlayingState,
+  setStatus,
+  stopAudio: sdrAudio.stop,
+  setDigital,
+  releaseOwnershipIfHeld,
+  openControlSocket,
+  closeControlSocket,
 })
 
 // Publish this instance's within-band demod state (NCO offset, mode, audio
@@ -1343,218 +1137,117 @@ watch([() => _sdrStore().tuningOffsetHz, bwHz, currentMode, playing], () => {
   })
 })
 
-async function openControlSocket(radioId: number) {
-  if (_ctrlReconnect) {
-    clearTimeout(_ctrlReconnect)
-    _ctrlReconnect = null
-  }
-  if (
-    _ctrlRadioId === radioId &&
-    _ctrlSocket &&
-    (_ctrlSocket.readyState === WebSocket.CONNECTING || _ctrlSocket.readyState === WebSocket.OPEN)
-  )
-    return
-  if (_ctrlSocket) {
-    _ctrlSocket.close()
-    _ctrlSocket = null
-  }
-  _ctrlRadioId = radioId
-  _ctrlDataConfirmed = false
-  sessionStorage.setItem('sdrLastRadioId', String(radioId))
-
-  try {
-    const res = await fetch('/api/sdr/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ radio_id: radioId }),
+// Restore chain run inside the control socket's 'open' listener (the transport
+// in useSdrControlSocket has already reset the reconnect delay and kicked off
+// the reachability probe when this fires).
+function onCtrlSocketOpen(radioId: number) {
+  // The restored highlight (currentMode, from sdrSettings via restoreSettings)
+  // is the single source of truth — not sdrLastMode, which setMode does not
+  // update and can be stale after a mode change. Using it kept the audio/
+  // backend demod mode out of sync with the highlighted button across a reload.
+  const lastMode = currentMode.value as SdrMode
+  if (!_isInitialised(radioId)) _markInitialised(radioId)
+  if (sessionStorage.getItem('sdrPlaying') === '1') {
+    playing.value = true
+    sdrAudio.setMode(lastMode)
+    // Restore the demod bandwidth as well. The backend only ever sends a single
+    // connected=false status frame (connected state is driven client-side by
+    // spectrum frames), so applyStatus never runs its bandwidth push on reload.
+    // Without this the worklet keeps its default bandwidth of 0 — which it
+    // treats as whole-span passthrough — so the audio is wideband noise that
+    // doesn't sound like the restored mode until the user re-clicks the mode
+    // button (the only other code path that sets the bandwidth). bwHz is the
+    // value restored by restoreSettings (or the sensible 10 kHz default). It
+    // must be pushed AFTER initAudio creates the worklet, hence the chain.
+    const restoredBwHz = bwHz.value
+    void Promise.resolve(sdrAudio.initAudio(radioId)).then(() => {
+      sdrAudio.setBandwidthHz(restoredBwHz)
     })
-    // 404 means this radio no longer exists in the DB (e.g. deleted while a
-    // stale sdrLastRadioId lingered in sessionStorage). Retrying would 404
-    // every reconnect — clear the id and stop the loop instead.
-    if (res.status === 404) {
-      sessionStorage.removeItem('sdrLastRadioId')
-      closeControlSocket()
-      selectedRadioId.value = null
-      deviceDropdownLabel.value = '— select radio —'
-      controlsDisabled.value = true
-      return
-    }
-  } catch (_) {}
-
-  // Bail if the radio selection changed (or the socket was torn down) while the
-  // connect request was in flight — otherwise we'd open a socket for a stale id.
-  // (Race only triggerable with overlapping in-flight connects; not exercised
-  // by the unit suite where the connect resolves before any re-selection.)
-  /* v8 ignore start */
-  if (_ctrlRadioId !== radioId) return
-  /* v8 ignore stop */
-
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  /* v8 ignore stop */
-  const ws = new WebSocket(`${proto}://${location.host}/ws/sdr/${radioId}`)
-  _ctrlSocket = ws
-
-  ws.addEventListener('open', () => {
-    _ctrlReconnectDelay = 500
-    // The control socket is open, which means /api/sdr/connect succeeded and the
-    // device is reachable — light the connection dot now (availability), rather
-    // than waiting for the first spectrum frame that only flows once playing.
-    void _probeReachability(radioId)
-    // The restored highlight (currentMode, from sdrSettings via restoreSettings)
-    // is the single source of truth — not sdrLastMode, which setMode does not
-    // update and can be stale after a mode change. Using it kept the audio/
-    // backend demod mode out of sync with the highlighted button across a reload.
-    const lastMode = currentMode.value as SdrMode
-    if (!_isInitialised(radioId)) _markInitialised(radioId)
-    if (sessionStorage.getItem('sdrPlaying') === '1') {
-      playing.value = true
-      sdrAudio.setMode(lastMode)
-      // Restore the demod bandwidth as well. The backend only ever sends a single
-      // connected=false status frame (connected state is driven client-side by
-      // spectrum frames), so applyStatus never runs its bandwidth push on reload.
-      // Without this the worklet keeps its default bandwidth of 0 — which it
-      // treats as whole-span passthrough — so the audio is wideband noise that
-      // doesn't sound like the restored mode until the user re-clicks the mode
-      // button (the only other code path that sets the bandwidth). bwHz is the
-      // value restored by restoreSettings (or the sensible 10 kHz default). It
-      // must be pushed AFTER initAudio creates the worklet, hence the chain.
-      const restoredBwHz = bwHz.value
-      void Promise.resolve(sdrAudio.initAudio(radioId)).then(() => {
-        sdrAudio.setBandwidthHz(restoredBwHz)
-      })
-      // Re-assert the restored demod mode to the backend so its reported state
-      // matches the highlighted button. Without this, a backend connection that
-      // was recreated (defaulting to AM) reports a mode that diverges from the
-      // restored highlight, leaving the radio demodulating the wrong mode until
-      // the user re-clicks the mode button.
-      sendCmd({ cmd: 'mode', mode: lastMode })
-    }
-    // Replay the most recent waterfall-driven FFT size request, if any. The
-    // waterfall publishes its target bin count on mount, which may have fired
-    // before this socket opened (sendCmd silently drops while CONNECTING).
-    const fftReq = _sdrStore().fftSizeRequest
-    if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
-    // Push the restored hardware sample rate so the backend's span matches
-    // what the user last picked, instead of whatever the device default is.
-    sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
-    // Apply a queued auto-tune now that the socket can accept commands.
-    if (_pendingExternalTune) void _applyPendingExternalTune()
-  })
-
-  ws.addEventListener('message', (ev: MessageEvent) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic WS JSON payload; discriminated on msg.type and field-cast at use sites
-    let msg: any
-    try {
-      msg = JSON.parse(ev.data)
-    } catch {
-      return
-    }
-    switch (msg.type) {
-      case 'status':
-        applyStatus(msg)
-        applyOwnership(msg)
-        // Only trust the device-reported mode once it's actually connected, to
-        // match applyStatus (which gates currentMode/the button highlight the
-        // same way). An initial connected=false status after a refresh carries
-        // the backend's default mode and must not clobber the restored demod
-        // mode — otherwise the highlight and the audio demod diverge.
-        if (msg.connected) {
-          sdrAudio.setMode(msg.mode as SdrMode)
-          sessionStorage.setItem('sdrLastMode', msg.mode)
-        }
-        if (!sessionStorage.getItem('sdrLastFreqHz') || !currentFreqHz.value) {
-          sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz))
-        }
-        break
-      case 'spectrum':
-        if (!_ctrlDataConfirmed) {
-          _ctrlDataConfirmed = true
-          setStatus(true)
-        }
-        if (Array.isArray(msg.bins)) {
-          _sdrStore().setSpectrum({
-            bins: msg.bins,
-            center_hz: msg.center_hz,
-            sample_rate: msg.sample_rate,
-            ts: msg.timestamp_ms,
-          })
-          _lastSpectrum = {
-            bins: msg.bins as number[],
-            center_hz: msg.center_hz as number,
-            sample_rate: msg.sample_rate as number,
-          }
-          if (_expectedCenterHz !== null && msg.center_hz === _expectedCenterHz) {
-            _postTuneFrameCount++
-          }
-        }
-        break
-      case 'control':
-        // Tuning ownership changed (another instance took/released the shared
-        // dongle, or this client's retune was refused). Reflect it so the UI
-        // disables tuning + shows the read-only banner, and snaps the displayed
-        // frequency back to the owner's real tuning.
-        applyOwnership(msg)
-        break
-      case 'error':
-        _ctrlDataConfirmed = false
-        setStatus(false)
-        break
-      case 'pong':
-        break
-      case 'trunk_status':
-        // Backend confirms (or rejects) a trunk_decode request. On rejection
-        // (e.g. missing channel map) it reports enabled:false + an error, so
-        // reconcile the toggle and surface the message.
-        if (msg.enabled === false) {
-          _sdrStore().setTrunkEnabled(false)
-          if (typeof msg.error === 'string') _sdrStore().setTrunkError(msg.error)
-        } else if (msg.enabled === true) {
-          _sdrStore().setTrunkEnabled(true)
-        }
-        break
-    }
-  })
-
-  ws.addEventListener('close', () => {
-    // Ignore the close of a socket we've already switched away from. Selecting a
-    // different radio closes the previous radio's socket; that close fires after
-    // _ctrlRadioId has moved on, so without this guard it would setStatus(false)
-    // and re-disable the controls that selectRadio just enabled for the new radio
-    // (the "select the other radio twice before controls enable" bug).
-    if (_ctrlRadioId !== radioId) return
-    setStatus(false)
-    if (_ctrlReconnect) clearTimeout(_ctrlReconnect)
-    const delay = _ctrlReconnectDelay
-    _ctrlReconnectDelay = Math.min(_ctrlReconnectDelay * 2, CTRL_RECONNECT_MAX)
-    _ctrlReconnect = setTimeout(() => {
-      /* v8 ignore start -- only false if the radio changed during the reconnect delay (race) */
-      if (_ctrlRadioId === radioId) void openControlSocket(radioId)
-      /* v8 ignore stop */
-    }, delay)
-  })
-
-  ws.addEventListener('error', () => {
-    // Same supersede guard as 'close': a stale socket must not reset the status
-    // for the radio that's now selected.
-    if (_ctrlRadioId !== radioId) return
-    setStatus(false)
-  })
+    // Re-assert the restored demod mode to the backend so its reported state
+    // matches the highlighted button. Without this, a backend connection that
+    // was recreated (defaulting to AM) reports a mode that diverges from the
+    // restored highlight, leaving the radio demodulating the wrong mode until
+    // the user re-clicks the mode button.
+    sendCmd({ cmd: 'mode', mode: lastMode })
+  }
+  // Replay the most recent waterfall-driven FFT size request, if any. The
+  // waterfall publishes its target bin count on mount, which may have fired
+  // before this socket opened (sendCmd silently drops while CONNECTING).
+  const fftReq = _sdrStore().fftSizeRequest
+  if (fftReq) sendCmd({ cmd: 'fft_size', bins: fftReq.bins })
+  // Push the restored hardware sample rate so the backend's span matches
+  // what the user last picked, instead of whatever the device default is.
+  sendCmd({ cmd: 'sample_rate', rate_hz: sampleRateHz.value })
+  // Apply a queued auto-tune now that the socket can accept commands.
+  drainPendingExternalTune()
 }
 
-function closeControlSocket() {
-  _ctrlReconnectDelay = 500
-  if (_ctrlReconnect) {
-    clearTimeout(_ctrlReconnect)
-    _ctrlReconnect = null
+// Per-frame control-socket message handling (the transport JSON-parses every
+// frame and dispatches it here).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic WS JSON payload; discriminated on msg.type and field-cast at use sites
+function onCtrlSocketMessage(msg: any) {
+  switch (msg.type) {
+    case 'status':
+      applyStatus(msg)
+      applyOwnership(msg)
+      // Only trust the device-reported mode once it's actually connected, to
+      // match applyStatus (which gates currentMode/the button highlight the
+      // same way). An initial connected=false status after a refresh carries
+      // the backend's default mode and must not clobber the restored demod
+      // mode — otherwise the highlight and the audio demod diverge.
+      if (msg.connected) {
+        sdrAudio.setMode(msg.mode as SdrMode)
+        sessionStorage.setItem('sdrLastMode', msg.mode)
+      }
+      if (!sessionStorage.getItem('sdrLastFreqHz') || !currentFreqHz.value) {
+        sessionStorage.setItem('sdrLastFreqHz', String(msg.center_hz))
+      }
+      break
+    case 'spectrum':
+      if (!isDataConfirmed()) {
+        setDataConfirmed(true)
+        setStatus(true)
+      }
+      if (Array.isArray(msg.bins)) {
+        _sdrStore().setSpectrum({
+          bins: msg.bins,
+          center_hz: msg.center_hz,
+          sample_rate: msg.sample_rate,
+          ts: msg.timestamp_ms,
+        })
+        // Feed the sweep engine's spectrum stash + post-tune race guard.
+        noteSpectrumFrame({
+          bins: msg.bins as number[],
+          center_hz: msg.center_hz as number,
+          sample_rate: msg.sample_rate as number,
+        })
+      }
+      break
+    case 'control':
+      // Tuning ownership changed (another instance took/released the shared
+      // dongle, or this client's retune was refused). Reflect it so the UI
+      // disables tuning + shows the read-only banner, and snaps the displayed
+      // frequency back to the owner's real tuning.
+      applyOwnership(msg)
+      break
+    case 'error':
+      setDataConfirmed(false)
+      setStatus(false)
+      break
+    case 'pong':
+      break
+    case 'trunk_status':
+      // Backend confirms (or rejects) a trunk_decode request. On rejection
+      // (e.g. missing channel map) it reports enabled:false + an error, so
+      // reconcile the toggle and surface the message.
+      if (msg.enabled === false) {
+        _sdrStore().setTrunkEnabled(false)
+        if (typeof msg.error === 'string') _sdrStore().setTrunkError(msg.error)
+      } else if (msg.enabled === true) {
+        _sdrStore().setTrunkEnabled(true)
+      }
+      break
   }
-  if (_ctrlSocket) {
-    _ctrlSocket.close()
-    _ctrlSocket = null
-  }
-  if (_ctrlRadioId != null) sessionStorage.removeItem(`sdrInit_${_ctrlRadioId}`)
-  _ctrlRadioId = null
-  _ctrlDataConfirmed = false
 }
 
 // ── Playing state ─────────────────────────────────────────────────────────────
@@ -1565,132 +1258,119 @@ function setPlayingState(on: boolean) {
   if (!on) stopRecordingIfActive()
 }
 
+// ── Sweep engine (scanner + range search) ─────────────────────────────────────
+// Both sweeps live in useSdrSweepEngine — they share the post-tune race guard,
+// spectrum stash, channel sampler and resume watcher. The panel injects its
+// retune chokepoints so the tune/mode command cadence is unchanged.
+const {
+  scanActive,
+  scanLocked,
+  scanSelectedGroupIds,
+  scanAllSelected,
+  onScanPrimaryClick,
+  toggleScanAll,
+  toggleScanGroup,
+  stopScan,
+  rebuildScanQueue,
+  searchRanges,
+  searchActive,
+  searchLocked,
+  searchSelectedRangeId,
+  adhocLowMhz,
+  adhocHighMhz,
+  adhocStepKhz,
+  adhocSearchValid,
+  isAdhocSearching,
+  isSavedRangeSearching,
+  stopSearch,
+  onAdhocPlayClick,
+  onSavedRangePlayClick,
+  reloadSearchRanges,
+  selectSearchRange,
+  onRangeBeforeDelete,
+  noteSpectrumFrame,
+  onSweepSquelchChange,
+} = useSdrSweepEngine({
+  sdrStore: _sdrStore,
+  sendCmd,
+  freqs,
+  groupsWithFreqs,
+  readOnly,
+  squelch,
+  bwHz,
+  resumeDelaySec,
+  currentMode,
+  tuneToFreq,
+  tuneToHzMode,
+  // Starts the audio stream when a search sweep begins. The play buttons that
+  // reach startSearch are disabled while no radio is selected
+  // (controlsDisabled), so a radio is always present here.
+  /* v8 ignore start */
+  startAudioForSearch: (mode: string) => {
+    if (selectedRadioId.value) {
+      sdrAudio.initAudio(selectedRadioId.value)
+      sdrAudio.setMode(mode as SdrMode)
+      const bw = defaultBwHz(mode)
+      sdrAudio.setBandwidthHz(bw)
+      bwHz.value = bw
+      setPlayingState(true)
+    }
+  },
+  /* v8 ignore stop */
+})
+
+// ── Satellite auto-tune (AOS/LOS reconciliation) ──────────────────────────────
+// The pass scheduler's external-tune handling (pending-tune queue, pre-AOS
+// snapshot + LOS restore, lock-in priority, record-the-pass, notifications)
+// lives in useSdrAutoTune; the panel injects its engine chokepoints so the
+// tune/mode command cadence is unchanged. The useDocumentEvent registrations
+// stay at the bottom of this file.
+const { onExternalTune, onExternalTuneRestore, drainPendingExternalTune } = useSdrAutoTune({
+  notificationsStore: _notificationsStore,
+  playing,
+  currentFreqHz,
+  currentMode,
+  freqInputVal,
+  activeFreqDisplay,
+  bwHz,
+  selectedRadioId,
+  knownRadios,
+  scanActive,
+  searchActive,
+  isRecording,
+  sdrAudio,
+  sendCmd,
+  saveSettings,
+  setPlayingState,
+  stop,
+  selectRadio,
+  startRecording: _startRecording,
+  stopRecordingIfActive,
+  isSocketOpen,
+  isSocketConnecting,
+})
+
 // ── Tune ──────────────────────────────────────────────────────────────────────
 
 let _retuneDebounce: ReturnType<typeof setTimeout> | null = null
 
 // ── Scroll-to-tune (per-digit) ────────────────────────────────────────────────
-// Hover a digit in the frequency input and scroll the wheel to step that digit's
-// place value. We work in Hz and reformat (rather than editing the character) so
-// 9→0 carries fall out naturally. Display updates live per notch; the hardware
-// retune is debounced (250ms) via the store's tuneRequest path so the spectrum
-// marker stays in sync — matching onPlotWheel in SdrWaterfall.vue.
-let _freqWheelDebounce: ReturnType<typeof setTimeout> | null = null
-let _freqWheelMirror: HTMLSpanElement | null = null
-
-// Measure the on-screen left edge (px, from the input's content box) of each
-// character in `str`, using a hidden span that mirrors the input's exact font
-// metrics — including letter-spacing, which canvas measureText ignores. The
-// browser does the real layout, so the boundaries are pixel-accurate and don't
-// accumulate rounding error across the string.
-function freqCharEdges(el: HTMLInputElement, str: string): number[] {
-  if (!_freqWheelMirror) {
-    _freqWheelMirror = document.createElement('span')
-    _freqWheelMirror.style.position = 'absolute'
-    _freqWheelMirror.style.visibility = 'hidden'
-    _freqWheelMirror.style.whiteSpace = 'pre'
-    _freqWheelMirror.style.left = '-9999px'
-    _freqWheelMirror.style.top = '0'
-    document.body.appendChild(_freqWheelMirror)
-  }
-  const m = _freqWheelMirror
-  const cs = getComputedStyle(el)
-  m.style.font = cs.font
-  m.style.fontFamily = cs.fontFamily
-  m.style.fontSize = cs.fontSize
-  m.style.fontWeight = cs.fontWeight
-  m.style.fontVariantNumeric = cs.fontVariantNumeric
-  m.style.letterSpacing = cs.letterSpacing
-  // Width of each leading prefix "", "N", "NN", … gives every character's right
-  // edge; index i's span is [edges[i], edges[i+1]).
-  const edges: number[] = [0]
-  for (let i = 1; i <= str.length; i++) {
-    m.textContent = str.slice(0, i)
-    edges.push(m.getBoundingClientRect().width)
-  }
-  return edges
-}
-
-// Map the wheel event's cursor X to the place value (in Hz) of the digit under it,
-// using the authoritative currentFreqHz (the input may be transiently blanked on
-// focus). Returns null when the cursor is over the decimal point or out of range.
-function freqDigitPlaceHz(e: WheelEvent): number | null {
-  const el = freqInputRef.value
-  if (!el || !currentFreqHz.value) return null
-  const str = (currentFreqHz.value / 1e6).toFixed(4) // "NNN.DDDD"
-  const rect = el.getBoundingClientRect()
-  const cs = getComputedStyle(el)
-  // Text starts after the left padding/border (both 0 here, but read to be safe).
-  // Use `parseFloat(...) || 0`, not `parseFloat(... || '0')`: a non-numeric
-  // computed value (e.g. jsdom resolves an unset border-width to 'medium')
-  // parses to NaN, which would poison `x` — fall back to 0 instead.
-  /* v8 ignore start -- padding/border are always 0 for this field, so the
-     numeric (truthy) side of `|| 0` is never the taken branch */
-  const x =
-    e.clientX -
-    rect.left -
-    (parseFloat(cs.paddingLeft) || 0) -
-    (parseFloat(cs.borderLeftWidth) || 0)
-  /* v8 ignore stop */
-  // Cursor left of the text — only reachable with a live browser layout, so the
-  // guard is verified manually / in the browser.
-  /* v8 ignore start */
-  if (x < 0) return null
-  /* v8 ignore stop */
-  const edges = freqCharEdges(el, str)
-  let idx = -1
-  for (let i = 0; i < str.length; i++) {
-    if (x >= edges[i] && x < edges[i + 1]) {
-      idx = i
-      break
-    }
-  }
-  if (idx < 0 || str[idx] === '.') return null
-  const dot = str.indexOf('.')
-  // Integer digit at index idx: place 10^(dot-1-idx) MHz. Decimal digit: 10^-(idx-dot) MHz.
-  const placeMhz = idx < dot ? Math.pow(10, dot - 1 - idx) : Math.pow(10, -(idx - dot))
-  return placeMhz * 1e6
-}
-
-function onFreqWheel(e: WheelEvent) {
-  // tuningDisabled (not just controlsDisabled) so a read-only follower can't
-  // wheel-scroll the frequency: the input is disabled, but a disabled input still
-  // emits wheel events in some browsers, and without this the digits would change
-  // locally (the actual retune is suppressed in sendCmd) and only snap back on the
-  // next control frame.
-  if (tuningDisabled.value || scanActive.value) return
-  const placeHz = freqDigitPlaceHz(e)
-  // The commit tail has defensive arms that need a live radio + browser timing to
-  // reach exhaustively (the newHz<=0 floor, the not-playing skip, the debounced
-  // hardware sendCmd), so it's ignored for coverage and verified in the browser.
-  /* v8 ignore start */
-  if (placeHz == null) return
-  const dir = e.deltaY < 0 ? 1 : -1 // scroll up → higher freq
-  const newHz = Math.round(currentFreqHz.value + dir * placeHz)
-  if (newHz <= 0) return
-  // Update the display live every notch.
-  currentFreqHz.value = newHz
-  activeFreqDisplay.value = (newHz / 1e6).toFixed(3) + ' MHz'
-  freqInputVal.value = (newHz / 1e6).toFixed(4)
-  // Commit to hardware once the burst settles (only when playing). The wheel has
-  // already advanced currentFreqHz live (above), which moves the marker via its
-  // mirror watcher — but it also means the store's tuneRequest watcher would drop
-  // the retune on its `hz === currentFreqHz` guard. So recenter the hardware
-  // directly here: sendCmd('tune') retunes rtl_tcp (and zeroes the demod offset),
-  // and the new center_hz in the spectrum frames recentres the waterfall/spectrum.
-  if (playing.value && selectedRadioId.value) {
-    if (_freqWheelDebounce) clearTimeout(_freqWheelDebounce)
-    _freqWheelDebounce = setTimeout(() => {
-      _freqWheelDebounce = null
-      _endRecordingOnManualChange()
-      const hz = currentFreqHz.value
-      sendCmd({ cmd: 'tune', frequency_hz: hz })
-      sessionStorage.setItem('sdrLastFreqHz', String(hz))
-      saveSettings()
-    }, 250)
-  }
-  /* v8 ignore stop */
-}
+// The per-digit wheel geometry (hidden measuring mirror, place-value hit-test)
+// and the debounced hardware commit live in useSdrFreqDigitWheel; the panel
+// injects its refs and command chokepoints so the retune cadence is unchanged.
+const { onFreqWheel } = useSdrFreqDigitWheel({
+  freqInputRef,
+  currentFreqHz,
+  freqInputVal,
+  activeFreqDisplay,
+  tuningDisabled,
+  scanActive,
+  playing,
+  selectedRadioId,
+  endRecordingOnManualChange: _endRecordingOnManualChange,
+  sendCmd,
+  saveSettings,
+})
 
 function tune() {
   // Tune fires only from the button / input-Enter, both disabled when no radio
@@ -1873,40 +1553,8 @@ function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
-// Reachability probe for the connection dot. The dot represents *availability*
-// (the device is connected), NOT whether audio/spectrum is actively streaming —
-// so it must go green as soon as a selected radio is reachable, without waiting
-// for the first spectrum frame (which only arrives once the user hits Play).
-// This mirrors the Settings device dot, which polls the same endpoint. Guarded
-// by radioId so a probe that resolves after the user switched radios is ignored.
-async function _probeReachability(radioId: number, attempt = 1): Promise<void> {
-  let reachable = false
-  try {
-    const res = await fetch(`/api/sdr/status/${radioId}`)
-    // Race guard: only triggerable if the radio is re-selected mid-probe.
-    /* v8 ignore start */
-    if (selectedRadioId.value !== radioId) return
-    /* v8 ignore stop */
-    if (res.ok) {
-      const data = await res.json()
-      reachable = data.connected === true || data.reachable === true
-    }
-  } catch (_) {}
-  if (reachable) {
-    connected.value = true
-    return
-  }
-  // Not reachable yet. The first probe on socket-open can beat the backend's
-  // dongle (re)connection — e.g. right after a container/backend restart, where
-  // the WS reconnects before the dongle link is back, or another instance briefly
-  // holds the single-client dongle. Retry a few times so the dot self-corrects
-  // once the radio comes up, instead of latching red until Play/reselect. Stop if
-  // the radio changed or another path (a spectrum frame) already lit the dot.
-  if (attempt < PROBE_MAX_ATTEMPTS && _ctrlRadioId === radioId && !connected.value) {
-    if (_probeRetry) clearTimeout(_probeRetry)
-    _probeRetry = setTimeout(() => void _probeReachability(radioId, attempt + 1), PROBE_RETRY_MS)
-  }
-}
+// The connection-dot reachability probe lives in useSdrControlSocket (it runs
+// on every socket 'open' and lights the dot via the onReachable hook above).
 
 function setStatus(isConnected: boolean) {
   connected.value = isConnected
@@ -2028,276 +1676,13 @@ function applyOwnership(msg: {
   if (msg.search_current_hz !== undefined) _ss.searchCurrentHz = msg.search_current_hz
 }
 
-// ── Radio selection ───────────────────────────────────────────────────────────
-
-function clearRadioSelection() {
-  // Release the shared tuner before dropping the socket, so deselecting a radio
-  // frees it for another instance immediately (rather than waiting for the backend
-  // idle-release grace period).
-  releaseOwnershipIfHeld()
-  selectedRadioId.value = null
-  deviceDropdownLabel.value = '— select radio —'
-  setPlayingState(false)
-  // Clear the connection dot: closeControlSocket() drops the socket but never marks
-  // us disconnected, so without this the dot stays green after deselecting.
-  setStatus(false)
-  controlsDisabled.value = true
-  // Reset tuning ownership to the single-instance default, otherwise readOnly stays
-  // true and the deselected radio keeps its read-only styling (red label + padlock).
-  _sdrStore().setOwnership(true, false, false)
-  closeControlSocket()
-  sdrAudio.stop()
-}
-
-function selectRadio(r: SdrRadio | null) {
-  if (_sdrStore().digitalEnabled) setDigital(false)
-  if (!r) {
-    clearRadioSelection()
-    return
-  }
-  if (playing.value) {
-    sdrAudio.stop()
-    setPlayingState(false)
-    setStatus(false)
-  }
-  selectedRadioId.value = r.id
-  deviceDropdownLabel.value = r.name
-  sessionStorage.setItem('sdrLastRadioId', String(r.id))
-  controlsDisabled.value = false
-  void openControlSocket(r.id)
-}
-
-// ── Populate radios (called externally via event / boot) ──────────────────────
-
-const RADIOS_CACHE_KEY2 = 'sdrRadiosCache'
-
-function populateRadios(radios: SdrRadio[]) {
-  // Writes straight into the store — it owns `radios` (see loadRadios below and
-  // stores/sdr.ts) — so `knownRadios` (a computed reading the store) reflects it
-  // immediately, without a separate local copy to keep in sync.
-  _sdrStore().radios = radios
-  radiosLoading.value = false
-  try {
-    sessionStorage.setItem(RADIOS_CACHE_KEY2, JSON.stringify(radios))
-  } catch (_) {}
-  const savedId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '', 10)
-  const savedRadio = savedId ? radios.find((r) => r.id === savedId && r.enabled) : undefined
-  // Pick a radio to make the panel usable without a manual dropdown selection:
-  //   1. the remembered radio (if still present + enabled), else
-  //   2. the sole enabled radio — when there's exactly one, there's nothing to
-  //      disambiguate, so auto-select it (fixes "freshly added SDR leaves the
-  //      whole radio panel locked / no way to type a frequency").
-  // With two or more enabled radios and nothing remembered we can't guess which
-  // one the user wants, so fall back to the "select radio" placeholder.
-  const enabledRadios = radios.filter((r) => r.enabled)
-  const autoRadio = savedRadio ?? (enabledRadios.length === 1 ? enabledRadios[0] : undefined)
-  if (autoRadio) {
-    selectedRadioId.value = autoRadio.id
-    deviceDropdownLabel.value = autoRadio.name
-    sessionStorage.setItem('sdrLastRadioId', String(autoRadio.id))
-    controlsDisabled.value = false
-    void openControlSocket(autoRadio.id)
-  } else {
-    deviceDropdownLabel.value = '— select radio —'
-  }
-  const radioTabBtn = document.querySelector<HTMLElement>('.msb-tab[data-tab="radio"]')
-  if (radioTabBtn) radioTabBtn.classList.remove('msb-tab--pending')
-}
-
-async function loadRadios() {
-  try {
-    const cached = sessionStorage.getItem(RADIOS_CACHE_KEY2)
-    if (cached) populateRadios(JSON.parse(cached))
-  } catch (_) {}
-  // Fetching itself is now owned by the store (loadRadios) so SdrPanel isn't
-  // the only place that knows how to load the radio list; this panel just
-  // drives the load and runs its own selection/UI side effects afterward.
-  // loadRadios() only replaces `radios` on a successful (2xx) response and
-  // silently keeps the previous value otherwise, so re-running selection here
-  // unconditionally is safe: on failure it just re-applies the same (cached or
-  // empty) list, and openControlSocket() no-ops if already connect(ing) to the
-  // same radio.
-  await _sdrStore().loadRadios()
-  populateRadios(_sdrStore().radios)
-}
+// ── Radio selection / populate ────────────────────────────────────────────────
+// selectRadio / clearRadioSelection / populateRadios / loadRadios live in
+// useSdrRadioSelection (instantiated above).
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
-
-function toggleScan() {
-  if (scanActive.value) stopScan()
-  else startScan()
-}
-
-function onScanPrimaryClick() {
-  if (scanActive.value && scanLocked.value) {
-    toggleScanLock()
-  } else {
-    toggleScan()
-  }
-}
-
-function toggleScanAll() {
-  scanAllSelected.value = true
-  scanSelectedGroupIds.value = []
-  refreshScanQueue()
-}
-
-function toggleScanGroup(id: number) {
-  if (scanAllSelected.value) {
-    scanAllSelected.value = false
-    scanSelectedGroupIds.value = [id]
-    refreshScanQueue()
-    return
-  }
-  const idx = scanSelectedGroupIds.value.indexOf(id)
-  if (idx >= 0) scanSelectedGroupIds.value.splice(idx, 1)
-  else scanSelectedGroupIds.value.push(id)
-  if (scanSelectedGroupIds.value.length === 0) scanAllSelected.value = true
-  refreshScanQueue()
-}
-
-function refreshScanQueue() {
-  if (!scanActive.value) return
-  const next = buildScanQueue()
-  if (next.length === 0) {
-    stopScan()
-    return
-  }
-  _scanQueue = next
-  _scanIdx = 0
-  if (!scanLocked.value) {
-    // A non-locked active scan always has a pending dwell timer here.
-    /* v8 ignore start */
-    if (_scanTimer) {
-      clearTimeout(_scanTimer)
-      _scanTimer = null
-    }
-    /* v8 ignore stop */
-    doScanStep()
-  }
-}
-
-function buildScanQueue(): SdrStoredFrequency[] {
-  const scannable = freqs.value.filter((f) => f.scannable)
-  if (scanAllSelected.value || scanSelectedGroupIds.value.length === 0) return scannable
-  const selected = new Set(scanSelectedGroupIds.value)
-  return scannable.filter((f) => {
-    const ids = new Set<number>((f.group_ids || []).filter((id) => id !== 0))
-    if (f.group_id != null && f.group_id !== 0) ids.add(f.group_id)
-    for (const id of ids) if (selected.has(id)) return true
-    return false
-  })
-}
-
-function startScan() {
-  // Scanning steps the tuner across channels — a hardware-tuning action a
-  // read-only follower must not perform. The scan controls are disabled in this
-  // state, so this is a defensive chokepoint for any non-UI path.
-  /* v8 ignore start -- scan controls disabled while read-only; defensive guard */
-  if (readOnly.value) return
-  /* v8 ignore stop */
-  // startScan only runs from the un-locked toggle path, so scanLocked is false.
-  /* v8 ignore start */
-  if (scanLocked.value) return
-  /* v8 ignore stop */
-  _scanQueue = buildScanQueue()
-  if (_scanQueue.length === 0) return
-  // Mutual exclusion with the range search — both drive `tune`.
-  if (searchActive.value) stopSearch()
-  scanActive.value = true
-  _scanIdx = 0
-  doScanStep()
-}
-
-function stopScan() {
-  scanActive.value = false
-  scanLocked.value = false
-  scanCurrentHz.value = null
-  if (_scanTimer) {
-    clearTimeout(_scanTimer)
-    _scanTimer = null
-  }
-  stopResumeWatcher()
-}
-
-const SCAN_DWELL_MS = 250
-const SCAN_MAX_RECHECKS = 12
-
-function doScanStep() {
-  // Re-entrancy guard: every caller already checks scan state, so this defensive
-  // early-out only matters for a teardown race the unit suite doesn't trigger.
-  /* v8 ignore start */
-  if (!scanActive.value || scanLocked.value || _scanQueue.length === 0) return
-  /* v8 ignore stop */
-  const f = _scanQueue[_scanIdx % _scanQueue.length]
-  tuneToFreq(f)
-  scanCurrentHz.value = f.frequency_hz
-  _scanIdx++
-
-  // Reuse the search engine's post-tune race guard so we don't sample
-  // pre-retune IQ.
-  _lastSpectrum = null
-  _expectedCenterHz = f.frequency_hz
-  _postTuneFrameCount = 0
-  _tuneAtMs = performance.now()
-
-  const thresholdDb = squelch.value
-
-  let rechecks = 0
-  const evaluate = () => {
-    _scanTimer = null
-    // Guards a scan stopped/locked between the dwell timer scheduling and firing.
-    /* v8 ignore start */
-    if (!scanActive.value || scanLocked.value) return
-    /* v8 ignore stop */
-    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
-    const frameOk =
-      _postTuneFrameCount >= 2 &&
-      _lastSpectrum != null &&
-      _lastSpectrum.center_hz === f.frequency_hz
-    if (!(settled && frameOk)) {
-      if (rechecks < SCAN_MAX_RECHECKS) {
-        rechecks++
-        _scanTimer = setTimeout(evaluate, SEARCH_RECHECK_MS)
-        return
-      }
-      // Couldn't get a clean frame — advance.
-      doScanStep()
-      return
-    }
-    const db = sampleChannelDb()
-    if (db >= thresholdDb) {
-      scanLocked.value = true
-      startResumeWatcher(thresholdDb, () => {
-        // Defensive: the poll only resumes while still active+locked.
-        /* v8 ignore start */
-        if (!scanActive.value || !scanLocked.value) return
-        /* v8 ignore stop */
-        toggleScanLock()
-      })
-      return
-    }
-    doScanStep()
-  }
-  _scanTimer = setTimeout(evaluate, SCAN_DWELL_MS)
-}
-
-function toggleScanLock() {
-  scanLocked.value = !scanLocked.value
-  stopResumeWatcher()
-  // toggleScanLock is only ever invoked to UNLOCK (the primary button / the
-  // resume watcher only call it while locked), so after the toggle scanLocked is
-  // always false and scanActive true here — the else (re-lock) arm is unreachable.
-  /* v8 ignore start */
-  if (!scanLocked.value && scanActive.value) {
-    if (_scanTimer) {
-      clearTimeout(_scanTimer)
-      _scanTimer = null
-    }
-    doScanStep()
-  }
-  /* v8 ignore stop */
-}
+// The scanner engine (queue building, dwell stepping, lock/resume) lives in
+// useSdrSweepEngine (instantiated above).
 
 // Lightweight retune used by the scan engine: the stream is already running,
 // so this only moves the receiver — it must NOT (re)init audio or toggle the
@@ -2399,101 +1784,8 @@ function playFreq(f: SdrStoredFrequency) {
 }
 
 // ── Search engine (low/high range sweep with stop-on-signal) ─────────────────
-
-function adhocRange(): SdrSearchRange | null {
-  // Only called by currentSearchRange during an active ad-hoc search (whose
-  // inputs are already valid), so the invalid-guard is never taken.
-  /* v8 ignore start */
-  if (!adhocSearchValid.value) return null
-  /* v8 ignore stop */
-  const lo = parseFloat(adhocLowMhz.value)
-  const hi = parseFloat(adhocHighMhz.value)
-  const st = parseFloat(adhocStepKhz.value)
-  return {
-    id: -1,
-    label: 'Ad-hoc',
-    low_hz: Math.round(lo * 1e6),
-    high_hz: Math.round(hi * 1e6),
-    step_hz: Math.round(st * 1000),
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    mode: currentMode.value || 'NFM',
-    /* v8 ignore stop */
-    threshold_dbfs: -30,
-    dwell_ms: 250,
-    band_name: '',
-    enabled: true,
-    notes: '',
-    sort_order: 0,
-  }
-}
-
-function savedRange(id: number | null): SdrSearchRange | null {
-  // Only called with a concrete id during an active saved-range search.
-  /* v8 ignore start */
-  if (id == null) return null
-  /* v8 ignore stop */
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  return searchRanges.value.find((r) => r.id === id) ?? null
-  /* v8 ignore stop */
-}
-
-// Returns the range currently being searched (or that would be searched if the
-// main SEARCH button were pressed now). When a search is active, the source is
-// pinned by searchActiveSource so the per-item buttons stay accurate even if
-// ad-hoc inputs change mid-sweep.
-function currentSearchRange(): SdrSearchRange | null {
-  // Both callers run only while a search is active, so the not-active branch
-  // (below the if) is unreachable here.
-  /* v8 ignore start */
-  if (searchActive.value) {
-    /* v8 ignore stop */
-    if (searchActiveSource.value === 'adhoc') return adhocRange()
-    // source is 'adhoc' | 'saved'; the adhoc case returned above, so this is
-    // always the saved branch when reached.
-    /* v8 ignore start */
-    if (searchActiveSource.value === 'saved') return savedRange(searchSelectedRangeId.value)
-    /* v8 ignore stop */
-  }
-  // Both callers (toggleSearchLock, doSearchStep) run only while searchActive, so
-  // the not-active fallback is never reached.
-  /* v8 ignore start */
-  return adhocRange() ?? savedRange(searchSelectedRangeId.value)
-  /* v8 ignore stop */
-}
-
-const isAdhocSearching = computed(() => searchActive.value && searchActiveSource.value === 'adhoc')
-function isSavedRangeSearching(id: number): boolean {
-  return (
-    searchActive.value && searchActiveSource.value === 'saved' && searchSelectedRangeId.value === id
-  )
-}
-
-function sampleChannelDb(): number {
-  const s = _lastSpectrum
-  if (!s || !s.bins || s.bins.length === 0) return -120
-  // Peak dB across the demod channel around the tuner, skipping only the
-  // single centre DC spike. Mean across a narrow ±3..±5 window underreports
-  // narrow signals — the audio worklet (which sees the full demod channel)
-  // opened squelch but this sampler missed the peak. Sizing the window to
-  // the demod bandwidth (with a sensible floor) and taking the max matches
-  // what the user hears.
-  const n = s.bins.length
-  const mid = Math.floor(n / 2)
-  const binHz = (s.sample_rate || 2_048_000) / n
-  // Half-width: at least 4 bins, otherwise the demod bandwidth in bins.
-  const halfBins = Math.max(4, Math.ceil(bwHz.value / 2 / binHz))
-  const lo = Math.max(0, mid - halfBins)
-  const hi = Math.min(n - 1, mid + halfBins)
-  let peak = -Infinity
-  for (let i = lo; i <= hi; i++) {
-    if (i === mid) continue // skip LO/DC spike
-    const v = s.bins[i]
-    if (typeof v === 'number' && isFinite(v) && v > peak) peak = v
-  }
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  return peak === -Infinity ? -120 : peak
-  /* v8 ignore stop */
-}
+// The range helpers (ad-hoc/saved/current), the channel sampler and the sweep
+// stepping live in useSdrSweepEngine (instantiated above).
 
 function tuneToHzMode(hz: number, mode: string) {
   currentFreqHz.value = hz
@@ -2504,557 +1796,11 @@ function tuneToHzMode(hz: number, mode: string) {
   sendCmd({ cmd: 'mode', mode })
 }
 
-// Map a satellite's downlink mode string (e.g. "FM", "USB", "FSK9k6") to a
-// demodulator the SDR supports. Satellite FM voice is narrowband, so "FM" maps
-// to NFM (not broadcast WFM); anything unrecognised falls back to NFM.
-function _coerceSdrMode(mode: string | undefined): SdrMode {
-  const m = (mode || '').toUpperCase()
-  if (m === 'WFM') return 'WFM'
-  if (m === 'NFM' || m === 'FM') return 'NFM'
-  if (m === 'AM') return 'AM'
-  if (m === 'USB') return 'USB'
-  if (m === 'LSB') return 'LSB'
-  if (m === 'CW') return 'CW'
-  return 'NFM'
-}
-
-// True while an auto-tune is actively holding the radio: we have a snapshot AND
-// the radio is still parked on exactly what we tuned it to. If the user (or a
-// scan/search) has since moved off that freq, the lock is no longer held and a
-// fresh pass may take over. Shared by onExternalTune (lock-in priority) and
-// onExternalTuneRestore (only restore if still on the tuned freq).
-function _isAutoTuneLockHeld(): boolean {
-  const snap = _autoTunePrevState
-  if (!snap) return false
-  if (scanActive.value || searchActive.value) return false
-  return (
-    playing.value &&
-    Math.round(currentFreqHz.value) === snap.tunedHz &&
-    (currentMode.value as SdrMode) === snap.tunedMode
-  )
-}
-
-// External tune request (currently from satellite auto-tune at AOS). Tunes the
-// SDR to the given freq+mode, starting the default radio hands-free if nothing
-// is playing. Because the control socket opens asynchronously, the actual tune
-// is queued in _pendingExternalTune and applied once the socket is open (see
-// openControlSocket's 'open' handler).
-function onExternalTune(e: Event): void {
-  const detail = (
-    e as CustomEvent<{
-      hz: number
-      mode?: string
-      satName?: string
-      noradId?: string
-      token?: string
-      record?: boolean
-    }>
-  ).detail
-  if (!detail || !detail.hz) return
-  const hz = Math.round(detail.hz)
-  const mode = _coerceSdrMode(detail.mode)
-  const satName = detail.satName || 'SATELLITE'
-  const noradId = detail.noradId
-  const token = detail.token
-  const record = !!detail.record
-
-  // Lock-in priority: if an earlier overlapping pass already holds the radio,
-  // skip this later one rather than grabbing the tuner mid-copy. Leave the
-  // snapshot/radio untouched so the holder's LOS restore still matches its
-  // token. A scan/search or a manual retune releases the lock (see
-  // _isAutoTuneLockHeld), letting the next pass take over normally.
-  if (_isAutoTuneLockHeld() && _autoTunePrevState!.token !== token) {
-    _notificationsStore().add({
-      type: 'autotune',
-      title: `${satName} PASS SKIPPED`,
-      detail: 'Radio busy with an earlier pass — not retuned',
-      noradId,
-      satName,
-    })
-    return
-  }
-
-  // Snapshot the pre-AOS state so the LOS restore can put it back. Captured
-  // before any mutation below. A scan/search counts as "not the prior idle
-  // freq", so we record whether it was running and just stop on restore.
-  _autoTunePrevState = {
-    token,
-    playing: playing.value,
-    freqHz: currentFreqHz.value,
-    mode: currentMode.value as SdrMode,
-    tunedHz: hz,
-    tunedMode: mode,
-  }
-
-  if (selectedRadioId.value && playing.value) {
-    // Already running — just retune (+ keep the audio demod in sync).
-    currentFreqHz.value = hz
-    currentMode.value = mode
-    freqInputVal.value = (hz / 1e6).toFixed(4)
-    activeFreqDisplay.value = (hz / 1e6).toFixed(3) + ' MHz'
-    sdrAudio.setMode(mode)
-    const bw = defaultBwHz(mode)
-    sdrAudio.setBandwidthHz(bw)
-    bwHz.value = bw
-    sessionStorage.setItem('sdrLastFreqHz', String(hz))
-    sessionStorage.setItem('sdrLastMode', mode)
-    sendCmd({ cmd: 'tune', frequency_hz: hz })
-    sendCmd({ cmd: 'mode', mode })
-    _notifyAutoTuned(satName, hz, mode, noradId)
-    if (record) void _startAutoTuneRecording(satName, noradId)
-    return
-  }
-
-  // Not playing: pick a radio. Prefer the currently-selected one, else the
-  // last-used (sdrLastRadioId), else the first enabled known radio.
-  let radio: SdrRadio | null = null
-  if (selectedRadioId.value) {
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    radio = knownRadios.value.find((r) => r.id === selectedRadioId.value) ?? null
-    /* v8 ignore stop */
-  }
-  if (!radio) {
-    const lastId = parseInt(sessionStorage.getItem('sdrLastRadioId') || '', 10)
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    if (!isNaN(lastId)) radio = knownRadios.value.find((r) => r.id === lastId && r.enabled) ?? null
-    /* v8 ignore stop */
-  }
-  if (!radio) radio = knownRadios.value.find((r) => r.enabled) ?? null
-  if (!radio) {
-    _notifyAutoTuneFailed(satName)
-    return
-  }
-
-  // Queue the tune to fire once the control socket is open.
-  _pendingExternalTune = { hz, mode, satName, noradId, token, record }
-  const sameRadio = selectedRadioId.value === radio.id
-  const sockOpen = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.OPEN
-  const sockConnecting = !!_ctrlSocket && _ctrlSocket.readyState === WebSocket.CONNECTING
-  if (sameRadio && sockOpen) {
-    void _applyPendingExternalTune()
-  } else if (sameRadio && sockConnecting) {
-    // Socket already opening for this radio — its 'open' handler will drain the
-    // pending tune. Re-selecting would early-return and never fire 'open'.
-  } else {
-    selectRadio(radio)
-  }
-}
-
-async function _applyPendingExternalTune(): Promise<void> {
-  const p = _pendingExternalTune
-  // Callers gate on _pendingExternalTune / a selected radio, so these guards are
-  // belt-and-braces for an unobservable teardown race.
-  /* v8 ignore start */
-  if (!p) return
-  _pendingExternalTune = null
-  if (!selectedRadioId.value) return
-  /* v8 ignore stop */
-  currentFreqHz.value = p.hz
-  currentMode.value = p.mode
-  freqInputVal.value = (p.hz / 1e6).toFixed(4)
-  activeFreqDisplay.value = (p.hz / 1e6).toFixed(3) + ' MHz'
-  // Await audio init: the worklet must be ready before _startAutoTuneRecording
-  // (below) calls startRecording, which bails if the worklet hasn't loaded yet.
-  // This is the "armed before the pass" path — the radio starts from stopped at
-  // AOS, so without awaiting, record silently no-ops while the tune still fires.
-  await sdrAudio.initAudio(selectedRadioId.value)
-  sdrAudio.setMode(p.mode)
-  const bw = defaultBwHz(p.mode)
-  sdrAudio.setBandwidthHz(bw)
-  bwHz.value = bw
-  setPlayingState(true)
-  sessionStorage.setItem('sdrLastFreqHz', String(p.hz))
-  sessionStorage.setItem('sdrLastMode', p.mode)
-  saveSettings()
-  sendCmd({ cmd: 'tune', frequency_hz: p.hz })
-  sendCmd({ cmd: 'mode', mode: p.mode })
-  _notifyAutoTuned(p.satName, p.hz, p.mode, p.noradId)
-  if (p.record) void _startAutoTuneRecording(p.satName, p.noradId)
-}
-
-// Start a recording for an auto-tuned pass and mark the snapshot so the LOS
-// restore stops it (and only it). The radio has just been tuned/started above,
-// so the recording captures the downlink from AOS. No-op if a recording is
-// already running (e.g. a manual REC the user started) — we don't take it over,
-// and we don't flag it as auto-started, so LOS leaves it alone.
-async function _startAutoTuneRecording(satName: string, noradId?: string): Promise<void> {
-  if (isRecording.value) return
-  const started = await _startRecording()
-  if (!started) return
-  // _startAutoTuneRecording is only invoked after onExternalTune has captured the
-  // snapshot, so _autoTunePrevState is always present here.
-  /* v8 ignore start */
-  if (_autoTunePrevState) _autoTunePrevState.startedRecording = true
-  /* v8 ignore stop */
-  _notificationsStore().add({
-    type: 'autotune',
-    title: `${satName} RECORDING`,
-    detail: 'Recording pass',
-    noradId,
-    satName,
-  })
-}
-
-function _notifyAutoTuned(satName: string, hz: number, mode: string, noradId?: string): void {
-  _notificationsStore().add({
-    type: 'autotune',
-    title: `${satName} AUTO-TUNED`,
-    detail: `Downlink ${(hz / 1e6).toFixed(3)} MHz ${mode} @ AOS`,
-    noradId,
-    satName,
-  })
-}
-
-function _notifyAutoTuneFailed(satName: string): void {
-  _notificationsStore().add({
-    type: 'system',
-    title: `${satName} AUTO-TUNE`,
-    detail: 'No SDR radio configured — open the RADIO panel to add one',
-  })
-}
-
-// LOS restore: undo an auto-tune once the pass ends, returning the radio to the
-// state captured at AOS. We only act if the radio is still parked on the
-// frequency/mode we auto-tuned to — if the user (or a newer pass) has retuned
-// since, the snapshot is stale and we leave things alone.
-function onExternalTuneRestore(e: Event): void {
-  const detail = (e as CustomEvent<{ satName?: string; noradId?: string; token?: string }>).detail
-  const snap = _autoTunePrevState
-  if (!snap) return
-  // Token mismatch means a later AOS overwrote the snapshot; that newer pass
-  // owns the restore now, so ignore this stale LOS.
-  if (detail?.token && snap.token && detail.token !== snap.token) return
-  _autoTunePrevState = null
-
-  const satName = detail?.satName || 'SATELLITE'
-  const noradId = detail?.noradId
-
-  // Bail if the user has taken manual control (retuned, scanned, searched, or
-  // stopped) since the auto-tune — respect their state over the restore. Note
-  // _isAutoTuneLockHeld reads _autoTunePrevState, which we cleared above, so
-  // re-check against the captured snapshot directly here.
-  if (scanActive.value || searchActive.value) return
-
-  // Finalise an auto-started recording at LOS no matter what — "record the pass"
-  // means the recording ends when the pass ends, even if the user retuned away mid-pass
-  // (their new tune keeps playing, just not recording). Only stops a recording WE
-  // began; a manual REC the user started never set startedRecording, so it's
-  // untouched. Runs before the onTunedFreq bail below, which only governs whether
-  // we put the *radio* back — not whether our recording should end.
-  if (snap.startedRecording) void stopRecordingIfActive()
-
-  const onTunedFreq =
-    playing.value &&
-    Math.round(currentFreqHz.value) === snap.tunedHz &&
-    (currentMode.value as SdrMode) === snap.tunedMode
-  if (!onTunedFreq) return
-
-  if (!snap.playing) {
-    // Radio was stopped/connected-but-idle before AOS — stop playback again.
-    stop()
-    _notifyAutoRestored(satName, null, null, noradId)
-    return
-  }
-
-  // Was playing on another frequency before AOS — retune back to it.
-  // (Reaching here requires playing=true, which implies a selected radio, so the
-  // guard is defensive.)
-  /* v8 ignore start */
-  if (!selectedRadioId.value) return
-  /* v8 ignore stop */
-  currentFreqHz.value = snap.freqHz
-  currentMode.value = snap.mode
-  freqInputVal.value = (snap.freqHz / 1e6).toFixed(4)
-  activeFreqDisplay.value = (snap.freqHz / 1e6).toFixed(3) + ' MHz'
-  sdrAudio.setMode(snap.mode)
-  const bw = defaultBwHz(snap.mode)
-  sdrAudio.setBandwidthHz(bw)
-  bwHz.value = bw
-  sessionStorage.setItem('sdrLastFreqHz', String(snap.freqHz))
-  sessionStorage.setItem('sdrLastMode', snap.mode)
-  sendCmd({ cmd: 'tune', frequency_hz: snap.freqHz })
-  sendCmd({ cmd: 'mode', mode: snap.mode })
-  _notifyAutoRestored(satName, snap.freqHz, snap.mode, noradId)
-}
-
-function _notifyAutoRestored(
-  satName: string,
-  hz: number | null,
-  mode: string | null,
-  noradId?: string,
-): void {
-  _notificationsStore().add({
-    type: 'autotune',
-    title: `${satName} PASS ENDED`,
-    detail:
-      hz != null && mode != null
-        ? `Restored SDR → ${(hz / 1e6).toFixed(3)} MHz ${mode}`
-        : 'Stopped SDR (was idle before pass)',
-    noradId,
-    satName,
-  })
-}
-
-function startSearch(source: 'adhoc' | 'saved') {
-  // Search sweeps the tuner across a range — a hardware-tuning action a read-only
-  // follower must not perform. The start buttons are disabled in this state, so
-  // this is a defensive chokepoint for any non-UI path.
-  /* v8 ignore start -- search start buttons disabled while read-only; defensive guard */
-  if (readOnly.value) return
-  /* v8 ignore stop */
-  const r = source === 'adhoc' ? adhocRange() : savedRange(searchSelectedRangeId.value)
-  // The play buttons are disabled unless a valid range exists, so r is non-null.
-  /* v8 ignore start */
-  if (!r) return
-  /* v8 ignore stop */
-  if (r.low_hz >= r.high_hz || r.step_hz <= 0) return
-  // Mutual exclusion with scanner — both drive `tune`.
-  if (scanActive.value) stopScan()
-  // The play buttons that reach startSearch are disabled while no radio is
-  // selected (controlsDisabled), so a radio is always present here.
-  /* v8 ignore start */
-  if (selectedRadioId.value) {
-    sdrAudio.initAudio(selectedRadioId.value)
-    sdrAudio.setMode(r.mode as SdrMode)
-    const bw = defaultBwHz(r.mode)
-    sdrAudio.setBandwidthHz(bw)
-    bwHz.value = bw
-    setPlayingState(true)
-  }
-  /* v8 ignore stop */
-  searchActive.value = true
-  searchActiveSource.value = source
-  searchLocked.value = false
-  const _ss = _sdrStore()
-  _ss.searchSweeping = true
-  _ss.searchLowHz = r.low_hz
-  _ss.searchHighHz = r.high_hz
-  _ss.searchCurrentHz = r.low_hz
-  _searchHz = r.low_hz
-  // Invalidate any stale spectrum frame so the first step waits for fresh data.
-  _lastSpectrum = null
-  doSearchStep()
-}
-
-function stopSearch() {
-  searchActive.value = false
-  searchActiveSource.value = null
-  searchLocked.value = false
-  const _ss = _sdrStore()
-  _ss.searchSweeping = false
-  _ss.searchLowHz = null
-  _ss.searchHighHz = null
-  _ss.searchCurrentHz = null
-  searchCurrentHz.value = null
-  _expectedCenterHz = null
-  _postTuneFrameCount = 0
-  // Timer-state cleanup; either arm is harmless and depends on whether a dwell
-  // step was mid-flight at stop time.
-  /* v8 ignore start */
-  if (_searchTimer) {
-    clearTimeout(_searchTimer)
-    _searchTimer = null
-  }
-  /* v8 ignore stop */
-  stopResumeWatcher()
-}
-
-function onAdhocPlayClick() {
-  if (isAdhocSearching.value) {
-    stopSearch()
-    return
-  }
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  if (searchActive.value) stopSearch()
-  /* v8 ignore stop */
-  startSearch('adhoc')
-}
-
-function onSavedRangePlayClick(id: number) {
-  if (isSavedRangeSearching(id)) {
-    stopSearch()
-    return
-  }
-  if (searchActive.value) stopSearch()
-  searchSelectedRangeId.value = id
-  startSearch('saved')
-}
-
-function toggleSearchLock() {
-  // Only called by the resume-watcher callback while a search is active.
-  /* v8 ignore start */
-  if (!searchActive.value) return
-  /* v8 ignore stop */
-  searchLocked.value = !searchLocked.value
-  _sdrStore().searchSweeping = searchActive.value && !searchLocked.value
-  stopResumeWatcher()
-  // toggleSearchLock is only ever invoked to UNLOCK, so searchLocked is always
-  // false here; the inner timer/range guards cover async-state edges (a timer
-  // already cleared, a wrap exactly on the high edge) the tests don't reproduce.
-  /* v8 ignore start */
-  if (!searchLocked.value) {
-    if (_searchTimer) {
-      clearTimeout(_searchTimer)
-      _searchTimer = null
-    }
-    // Advance past the current freq so we don't immediately re-hold on the same signal.
-    const r = currentSearchRange()
-    if (r) {
-      _searchHz += r.step_hz
-      if (_searchHz > r.high_hz) _searchHz = r.low_hz
-    }
-    doSearchStep()
-  }
-  /* v8 ignore stop */
-}
-
-// Shared auto-resume watcher used by both search and scan. When a freq is
-// locked on a signal, poll sampleChannelDb() and only call onResume() once the
-// channel has been below `thresholdDb` continuously for `delaySec` seconds.
-// delaySec == 0 → resume on the next poll where the signal is gone.
-const RESUME_POLL_MS = 200
-let _resumeTimer: ReturnType<typeof setTimeout> | null = null
-let _quietSinceMs: number | null = null
-
-function stopResumeWatcher() {
-  if (_resumeTimer) {
-    clearTimeout(_resumeTimer)
-    _resumeTimer = null
-  }
-  _quietSinceMs = null
-}
-
-function startResumeWatcher(thresholdDb: number, onResume: () => void) {
-  stopResumeWatcher()
-  const delayMs = Math.max(0, resumeDelaySec.value) * 1000
-  const tick = () => {
-    _resumeTimer = null
-    const db = sampleChannelDb()
-    const active = db >= thresholdDb
-    if (active) {
-      _quietSinceMs = null
-    } else {
-      if (_quietSinceMs == null) _quietSinceMs = performance.now()
-      if (performance.now() - _quietSinceMs >= delayMs) {
-        _quietSinceMs = null
-        onResume()
-        return
-      }
-    }
-    _resumeTimer = setTimeout(tick, RESUME_POLL_MS)
-  }
-  _resumeTimer = setTimeout(tick, RESUME_POLL_MS)
-}
-
-function doSearchStep() {
-  // Re-entrancy guard for callers/timers that fire after a stop/lock.
-  /* v8 ignore start */
-  if (!searchActive.value || searchLocked.value) return
-  /* v8 ignore stop */
-  const r = currentSearchRange()
-  // currentSearchRange only goes null if the live range vanishes mid-sweep
-  // (e.g. deleted), a race the unit suite doesn't reproduce.
-  /* v8 ignore start */
-  if (!r) {
-    stopSearch()
-    return
-  }
-  /* v8 ignore stop */
-  const stepHz = _searchHz
-  tuneToHzMode(stepHz, r.mode)
-  searchCurrentHz.value = stepHz
-  _sdrStore().searchCurrentHz = stepHz
-  // Reset the post-tune race guard. Frames bearing the new expected center_hz
-  // are counted by the WS handler; we discard the first one because the backend
-  // labels frames with conn.center_hz at FFT time, not at IQ-read time — so the
-  // first label-matching frame can still contain pre-retune IQ.
-  _lastSpectrum = null
-  _expectedCenterHz = stepHz
-  _postTuneFrameCount = 0
-  _tuneAtMs = performance.now()
-  const dwellMs = Math.max(50, r.dwell_ms)
-
-  let rechecks = 0
-  const evaluate = () => {
-    // Guards a search stopped/locked between the dwell timer scheduling and firing.
-    /* v8 ignore start */
-    if (!searchActive.value || searchLocked.value) return
-    /* v8 ignore stop */
-    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
-    const frameOk =
-      _postTuneFrameCount >= 2 && _lastSpectrum != null && _lastSpectrum.center_hz === stepHz
-    if (!(settled && frameOk)) {
-      if (rechecks < SEARCH_MAX_RECHECKS) {
-        rechecks++
-        _searchTimer = setTimeout(evaluate, SEARCH_RECHECK_MS)
-        return
-      }
-      // Give up waiting for a clean frame and advance without sampling.
-      _searchHz += r.step_hz
-      if (_searchHz > r.high_hz) _searchHz = r.low_hz
-      doSearchStep()
-      return
-    }
-    // Use the SQUELCH slider as the activity threshold so "audible" lines up
-    // with "lock here" — same gate the audio path uses. Range threshold_dbfs
-    // is intentionally ignored.
-    const db = sampleChannelDb()
-    if (db >= squelch.value) {
-      // Lock on signal. A watcher will auto-advance once the signal
-      // drops and the user-configured RESUME DELAY has elapsed; until then
-      // the user can also press HOLD/RESUME to force-continue.
-      searchLocked.value = true
-      _sdrStore().searchSweeping = false
-      startResumeWatcher(squelch.value, () => {
-        // Defensive: the poll only resumes while still active+locked.
-        /* v8 ignore start */
-        if (!searchActive.value || !searchLocked.value) return
-        /* v8 ignore stop */
-        toggleSearchLock()
-      })
-      return
-    }
-    _searchHz += r.step_hz
-    if (_searchHz > r.high_hz) _searchHz = r.low_hz
-    doSearchStep()
-  }
-  _searchTimer = setTimeout(evaluate, dwellMs)
-}
-
-async function reloadSearchRanges() {
-  try {
-    searchRanges.value = await apiListSearchRanges()
-  } catch {
-    searchRanges.value = []
-  }
-  // If the selected range was deleted elsewhere, clear the selection.
-  if (
-    searchSelectedRangeId.value != null &&
-    !searchRanges.value.find((r) => r.id === searchSelectedRangeId.value)
-  ) {
-    if (searchActive.value) stopSearch()
-    searchSelectedRangeId.value = searchRanges.value[0]?.id ?? null
-  } else if (searchSelectedRangeId.value == null && searchRanges.value.length > 0) {
-    searchSelectedRangeId.value = searchRanges.value[0].id
-  }
-}
-
-function selectSearchRange(id: number) {
-  if (searchActive.value) stopSearch()
-  searchSelectedRangeId.value = id
-  adhocLowMhz.value = ''
-  adhocHighMhz.value = ''
-}
-
 // ── Search range editor ───────────────────────────────────────────────────────
 // The SEARCH RANGES tab (range list + add/edit forms, CRUD) lives in
-// SdrSearchRangesTab.vue. The panel only reacts to its events: stopping an
-// active search before one of its ranges is deleted, and reloading the list
-// (which reconciles the selected-range id) after any change.
-
-function onRangeBeforeDelete(id: number) {
-  if (searchActive.value && searchSelectedRangeId.value === id) stopSearch()
-}
+// SdrSearchRangesTab.vue; the sweep engine reacts to its events (stopping an
+// active search before one of its ranges is deleted, reloading the list) via
+// onRangeBeforeDelete / reloadSearchRanges from useSdrSweepEngine above.
 
 // ── Data reload ───────────────────────────────────────────────────────────────
 
@@ -3064,7 +1810,7 @@ async function reloadData() {
   // panel edits — no separate slim mirror copy needed anymore.
   await Promise.all([_sdrStore().loadGroups(), _sdrStore().loadFrequencies()])
   void reloadSearchRanges()
-  _scanQueue = buildScanQueue()
+  rebuildScanQueue()
   await recordingsSectionRef.value?.reload()
 }
 
@@ -3074,155 +1820,15 @@ useDocumentEvent('sdr:frequenciesImported', () => {
 })
 
 // ── Recording ─────────────────────────────────────────────────────────────────
-
-async function toggleRecording() {
-  if (isRecording.value) {
-    await stopRecordingIfActive()
-    return
-  }
-  await _startRecording()
-}
-
-// A manual frequency change or stop ends any in-progress recording, finalising
-// the clip at the moment the user moves off the channel it was capturing — we
-// don't let a recording silently carry on onto a new frequency. Covers both a
-// manually-started REC and one auto-started for a satellite pass; for the latter
-// this fires before LOS, so the pass clip ends here and onExternalTuneRestore's
-// own stopRecordingIfActive becomes a no-op. Only the genuinely-manual entry
-// points call this (wheel retune, saved-freq play, the Stop button); scan/search
-// stepping and the auto-tune path deliberately do not.
-function _endRecordingOnManualChange(): void {
-  if (isRecording.value) void stopRecordingIfActive()
-}
-
-// Build the recording metadata from the current tune and start a recording,
-// wiring up the live-recording UI/timer. Shared by the manual REC button and the
-// auto-tune-on-pass path. Returns true if a recording actually started.
-async function _startRecording(): Promise<boolean> {
-  // Both callers (toggleRecording, _startAutoTuneRecording) already short-circuit
-  // when a recording is in progress, so this self-guard is belt-and-braces.
-  /* v8 ignore start */
-  if (isRecording.value) return false
-  /* v8 ignore stop */
-  const radioName = selectedRadioId.value
-    ? /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-      (knownRadios.value.find((r) => r.id === selectedRadioId.value)?.name ?? '')
-    : ''
-  /* v8 ignore stop */
-  const metadata = {
-    radio_id: selectedRadioId.value,
-    radio_name: radioName,
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    frequency_hz: currentFreqHz.value || 0,
-    mode: currentMode.value || 'AM',
-    gain_db: gainDb.value || 30,
-    squelch_dbfs: squelch.value || -60,
-    /* v8 ignore stop */
-    sample_rate: 2048000,
-  }
-  const recId = await sdrAudio.startRecording(metadata)
-  if (!recId) return false
-  isRecording.value = true
-  _recStartEpoch = Date.now()
-  _recPausedMs = 0
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  const sqActive = (metadata.squelch_dbfs ?? -120) > -119
-  /* v8 ignore stop */
-  recSquelchOpen.value = !sqActive
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  _recPauseStart = sqActive ? Date.now() : null
-  /* v8 ignore stop */
-  const now = new Date(_recStartEpoch)
-  liveRecording.value = {
-    frequency_hz: metadata.frequency_hz,
-    mode: metadata.mode,
-    startedAt: now.toISOString().replace('T', ' ').slice(0, 16),
-  }
-  liveElapsedS.value = 0
-  _recTimerInterval = setInterval(() => {
-    const pausedSoFar =
-      /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-      _recPauseStart != null ? _recPausedMs + (Date.now() - _recPauseStart) : _recPausedMs
-    /* v8 ignore stop */
-    liveElapsedS.value = Math.floor((Date.now() - _recStartEpoch - pausedSoFar) / 1000)
-  }, 1000)
-  return true
-}
-
-async function stopRecordingIfActive() {
-  if (!isRecording.value) return
-  isRecording.value = false
-  // _startRecording always sets _recTimerInterval before isRecording goes true,
-  // so it is non-null whenever we reach a live recording here.
-  /* v8 ignore start */
-  if (_recTimerInterval) {
-    clearInterval(_recTimerInterval)
-    _recTimerInterval = null
-  }
-  /* v8 ignore stop */
-  const _radioName = selectedRadioId.value
-    ? /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-      (knownRadios.value.find((r) => r.id === selectedRadioId.value)?.name ?? '')
-    : ''
-  /* v8 ignore stop */
-  await sdrAudio.stopRecording({
-    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-    frequency_hz: currentFreqHz.value || 0,
-    mode: currentMode.value || 'AM',
-    /* v8 ignore stop */
-  })
-  liveRecording.value = null
-  await recordingsSectionRef.value?.reload()
-  setTimeout(() => recordingsSectionRef.value?.reload(), 2000)
-}
+// toggleRecording / startRecording / stopRecordingIfActive /
+// endRecordingOnManualChange live in useSdrRecording (instantiated with the
+// recording state block above).
 
 function onSquelchChangeCallback(open: boolean) {
-  // The audio worklet's squelch is the source of truth for "is this channel
-  // audible". The scan/search dwell check samples the spectrum waterfall
-  // (sampleChannelDb), which can underreport narrow signals the worklet's
-  // squelch did open on — so a signal could be playing while the scan kept
-  // stepping. Lock the moment the worklet opens squelch on an active, unlocked
-  // sweep, but only once the post-tune settle has elapsed so we don't lock on
-  // residual audio from the previous frequency.
-  if (open) {
-    const settled = performance.now() - _tuneAtMs >= SEARCH_MIN_SETTLE_MS
-    if (settled) {
-      if (scanActive.value && !scanLocked.value) {
-        scanLocked.value = true
-        startResumeWatcher(squelch.value, () => {
-          /* v8 ignore start -- defensive: the poll only resumes while still locked */
-          if (!scanActive.value || !scanLocked.value) return
-          /* v8 ignore stop */
-          toggleScanLock()
-        })
-      } else if (searchActive.value && !searchLocked.value) {
-        searchLocked.value = true
-        _sdrStore().searchSweeping = false
-        startResumeWatcher(squelch.value, () => {
-          /* v8 ignore start -- defensive: the poll only resumes while still locked */
-          if (!searchActive.value || !searchLocked.value) return
-          /* v8 ignore stop */
-          toggleSearchLock()
-        })
-      }
-    }
-  }
-
-  if (!isRecording.value) return
-  if (open && !recSquelchOpen.value) {
-    // recSquelchOpen === false implies the channel was squelched at this point,
-    // which always set _recPauseStart — they are inversely coupled.
-    /* v8 ignore start */
-    if (_recPauseStart != null) {
-      _recPausedMs += Date.now() - _recPauseStart
-      _recPauseStart = null
-    }
-    /* v8 ignore stop */
-    recSquelchOpen.value = true
-  } else if (!open && recSquelchOpen.value) {
-    _recPauseStart = Date.now()
-    recSquelchOpen.value = false
-  }
+  // Sweep lock-on-squelch lives in useSdrSweepEngine; recording squelch-pause
+  // accounting lives in useSdrRecording.
+  onSweepSquelchChange(open)
+  onRecordingSquelchChange(open)
 }
 
 // ── Event handlers ────────────────────────────────────────────────────────────
@@ -3251,7 +1857,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopScan()
-  if (_recTimerInterval) clearInterval(_recTimerInterval)
+  clearLiveRecordingTimer()
   // Keep socket open — SdrTabPanel persists across navigation, audio must survive
   // Only close if unmounting the full-page SdrView (not the RADIO tab)
 })
