@@ -76,6 +76,21 @@ describe('MapSidebar', () => {
       expect(wrapper.find('.msb-mobile-close').exists()).toBe(false)
     })
 
+    it('renders rail tabs with the right rail’s plain button look (no bordered accent bar)', async () => {
+      const wrapper = mountSidebar()
+      const searchTab = wrapper.find('.msb-rail-btn[data-tab="search"]')
+      expect(searchTab.classes()).not.toContain('ba-btn--bordered')
+      // Colour-only state transition, matching the right rail's buttons.
+      expect(
+        (searchTab.element as HTMLElement).style.getPropertyValue('--ba-rail-transition'),
+      ).toBe('color 0.15s ease')
+      // Active means "accent icon only": the active class appears, the bordered
+      // accent-bar treatment does not.
+      await searchTab.trigger('click')
+      expect(searchTab.classes()).toContain('ba-btn--active')
+      expect(searchTab.classes()).not.toContain('ba-btn--bordered')
+    })
+
     it('pulses the alerts tab when there are unread notifications', () => {
       useNotificationsStore().unreadCount = 3
       const wrapper = mountSidebar()
@@ -385,6 +400,20 @@ describe('MapSidebar', () => {
       const active = wrapper.find('.msb-rail-subbtn[data-filter-cat="mil"]')
       expect(active.classes()).toContain('msb-rail-btn-active')
       expect(active.attributes('aria-pressed')).toBe('true')
+    })
+
+    it('styles the sub-tabs like the right rail’s accordion sub-buttons', async () => {
+      const wrapper = mountSidebar()
+      await openFilter(wrapper)
+      const subTab = wrapper.find('.msb-rail-subbtn[data-filter-cat="aircraft"]')
+      expect(subTab.classes()).not.toContain('ba-btn--bordered')
+      const subTabStyle = (subTab.element as HTMLElement).style
+      // Grey accordion-panel background with the right rail's stronger hover fill…
+      expect(subTabStyle.getPropertyValue('--ba-rail-bg')).toBe('var(--color-border)')
+      expect(subTabStyle.getPropertyValue('--ba-rail-hover-bg')).toBe('rgba(255, 255, 255, 0.2)')
+      expect(subTabStyle.getPropertyValue('--ba-rail-transition')).toBe('color 0.15s ease')
+      // …at the rail's default 40px button height (no per-site height override).
+      expect(subTabStyle.getPropertyValue('--ba-rail-height')).toBe('')
     })
 
     it('clicking the open FILTER tab again closes the drawer and hides the sub-tabs', async () => {

@@ -87,9 +87,10 @@ describe('BaseButton', () => {
   })
 
   it('lets a rail caller override the --ba-rail-transition custom property via style fallthrough', () => {
-    // Air/Space side-menu rails snap colour only on hover (no bg/border-color
-    // fade), unlike MapSidebar/Settings' bordered rail default — callers
-    // override this per-site via an inline style, exactly like
+    // The map rails (Air/Space side menus, MapSidebar's tab rail, the SDR
+    // rail) snap colour only on hover (no bg/border-color fade), unlike the
+    // Settings nav's bordered rail default — callers override this per-site
+    // via an inline style, exactly like
     // --ba-rail-height/--ba-rail-hover-bg/--ba-rail-active-bg.
     const wrapper = mount(BaseButton, {
       props: { variant: 'rail' },
