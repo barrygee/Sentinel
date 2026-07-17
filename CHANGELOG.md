@@ -279,6 +279,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make filter results scroll containers keyboard-focusable (#215)
 - Make custom checkboxes keyboard-focusable and Space-operable (#216)
 - Radiogroup ARIA + roving tabindex for segmented pill groups, aria-pressed for toggle chips (#217)
+- Match left rail styling to the right rail across all sections (#219)
 
 ### Chores
 
