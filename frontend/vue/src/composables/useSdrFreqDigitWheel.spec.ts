@@ -75,7 +75,9 @@ afterEach(() => {
 
 describe('useSdrFreqDigitWheel', () => {
   it('steps the frequency by the place value of the digit under the cursor', () => {
-    const harness = createHarness()
+    // playing=false: display-only assertion, and no dangling 250ms commit timer
+    // is scheduled to fire after jsdom teardown (a CI-only unhandled error).
+    const harness = createHarness({ playing: ref(false) })
     // "100.0000": clientX 25 → index 2 → the 1-MHz digit.
     harness.onFreqWheel(wheelAt(25))
     expect(harness.options.currentFreqHz.value).toBe(101_000_000)
@@ -84,7 +86,7 @@ describe('useSdrFreqDigitWheel', () => {
   })
 
   it('steps a decimal digit down by its sub-MHz place value', () => {
-    const harness = createHarness()
+    const harness = createHarness({ playing: ref(false) }) // display-only; no dangling commit timer
     // "100.0000": clientX 45 → index 4 → the 0.1-MHz digit; scroll-down steps down.
     harness.onFreqWheel(wheelAt(45, +100))
     expect(harness.options.currentFreqHz.value).toBe(99_900_000)
@@ -155,7 +157,9 @@ describe('useSdrFreqDigitWheel', () => {
   })
 
   it('creates the hidden measuring mirror once and reuses it across notches', () => {
-    const harness = createHarness()
+    // The mirror is measured before the commit gate, so playing=false keeps the
+    // geometry assertion while scheduling no dangling commit timer.
+    const harness = createHarness({ playing: ref(false) })
     harness.onFreqWheel(wheelAt(25)) // creates the mirror
     harness.onFreqWheel(wheelAt(25)) // reuses it
     const mirrors = Array.from(document.body.querySelectorAll('span')).filter(
