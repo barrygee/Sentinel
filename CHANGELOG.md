@@ -1110,6 +1110,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Co-locate the device-dropdown CSS with BaseSelectMenu (base dedupe B10f) (#212)
 - Delete verified-dead CSS from SdrPanel.css (base dedupe B10g) (#213)
 - Delete verified-dead CSS from SettingsPanel.css and close out the B-series (base dedupe B10h) (#214)
+- Extract SdrPanel engine spine into composables (P8) (#218)
 
 ### Documentation
 
