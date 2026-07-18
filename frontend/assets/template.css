@@ -10,6 +10,9 @@
     --color-text-muted: rgba(255, 255, 255, 0.75);
     --color-border: rgba(255, 255, 255, 0.08);
     --color-border-mid: rgba(255, 255, 255, 0.1);
+    /* Stealth-grey button/panel fill — matches the logo mark's outer ring
+       (frontend/assets/logo.svg); keep the two in sync. */
+    --color-button-bg: #26292e;
     --font-primary: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     --font-condensed: 'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
     --nav-height: calc(68px + env(safe-area-inset-top, 0px));

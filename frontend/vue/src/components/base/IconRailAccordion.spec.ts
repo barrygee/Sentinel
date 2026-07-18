@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
@@ -76,6 +78,20 @@ describe('IconRailAccordion', () => {
     const panel = wrapper.get('#space-layers-panel')
     expect(panel.classes()).toContain('icon-rail-accordion__panel')
     expect(panel.classes()).toContain('sm-accordion-panel')
+  })
+
+  // jsdom never applies the SFC's scoped <style>, so the panel background can't
+  // be asserted via getComputedStyle — assert against the component source
+  // instead so a revert to the old --color-border grey goes red.
+  it('paints the sub-button panel with the shared button-grey token', () => {
+    // (path from cwd, not import.meta.url — under jsdom that URL is http-scheme)
+    const componentSource = readFileSync(
+      resolve(process.cwd(), 'src/components/base/IconRailAccordion.vue'),
+      'utf8',
+    )
+    expect(componentSource).toMatch(
+      /\.icon-rail-accordion__panel\s*\{[^}]*background:\s*var\(--color-button-bg\)/,
+    )
   })
 
   it('has no accessibility violations while open', async () => {
