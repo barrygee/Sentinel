@@ -3,14 +3,15 @@ import maplibregl from 'maplibre-gl'
 function _buildElement(cssClass: string): HTMLElement {
   const wrapper = document.createElement('div')
   wrapper.className = cssClass
-  // The SENTINEL ⊙ logo mark (same ring/dot proportions and colours as
-  // frontend/assets/logo.svg): stealth-grey ring, green dot. The dasharray/
+  // The SENTINEL ⊙ logo mark (same ring/dot proportions as
+  // frontend/assets/logo.svg): near-black ring (#1d2025 — a touch lighter
+  // than pure black, darker than the logo's stealth grey), green dot. The dasharray/
   // dashoffset equal the ring's circumference (2π·13.1) so the draw-in
   // animation traces one full turn. The dot is deliberately static — no pulse.
   wrapper.innerHTML = `
         <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" overflow="visible">
             <circle cx="30" cy="30" r="13.1"
-                fill="none" stroke="#26292e" stroke-width="3.7"
+                fill="none" stroke="#1d2025" stroke-width="3.7"
                 stroke-dasharray="82.31" stroke-dashoffset="82.31"
                 style="animation: marker-circle-draw 0.6s ease forwards" />
             <circle cx="30" cy="30" r="5.2" fill="#c8ff00" />
