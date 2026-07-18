@@ -132,15 +132,15 @@
   position: relative;
   flex: none;
   height: 142px;
-  /* Wide enough for the 16px round thumb; height unchanged. */
+  /* Wide enough for the 12px round thumb; height unchanged. */
   width: 20px;
   overflow: visible;
 }
 
 /* Styled as a horizontal slider, then rotated. `width` is set to the wrapper's
  * pixel HEIGHT at runtime via a CSS var so the rotated slider exactly spans the
- * available vertical space. Matches the app's .sdr-panel-slider: 3px green
- * (#c8ff00) track, 16px round white thumb with shadow. */
+ * available vertical space. Matches the app's .sdr-panel-slider: 3px stealth
+ * grey track, 12px round green (#c8ff00) thumb with shadow. */
 .sdr-wf-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -154,7 +154,7 @@
   transform-origin: center center;
   width: var(--wf-slider-len, 200px);
   height: 3px;
-  background: #c8ff00;
+  background: #26292e;
   border: none;
   border-radius: 2px;
   outline: none;
@@ -195,29 +195,29 @@
 
 .sdr-wf-slider::-moz-range-track {
   height: 3px;
-  background: #c8ff00;
+  background: #26292e;
   border-radius: 2px;
 }
 
 .sdr-wf-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: #c8ff00;
   border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  /* Centre the 16px thumb on the 3px track ((3 - 16) / 2 = -6.5). */
-  margin-top: -6.5px;
+  /* Centre the 12px thumb on the 3px track ((3 - 12) / 2 = -4.5). */
+  margin-top: -4.5px;
 }
 
 .sdr-wf-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: #c8ff00;
   border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);

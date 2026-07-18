@@ -175,35 +175,8 @@ defineExpose({ getMap })
   }
 }
 
-@keyframes marker-dot-pulse {
-  0% {
-    opacity: 1;
-    fill: white;
-  }
-  50% {
-    opacity: 1;
-    fill: var(--color-accent);
-  }
-  100% {
-    opacity: 1;
-    fill: white;
-  }
-}
-
-@keyframes marker-dot-end-pulse {
-  0% {
-    opacity: 1;
-    fill: white;
-  }
-  40% {
-    opacity: 0.08;
-    fill: white;
-  }
-  100% {
-    opacity: 1;
-    fill: white;
-  }
-}
+/* (The former marker-dot-pulse / marker-dot-end-pulse keyframes are gone —
+   the ⊙ marker's dot is now static solid white by design.) */
 
 .user-location-marker,
 .space-user-location-marker {

@@ -1317,8 +1317,8 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .sfr-acc-track-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
@@ -1349,7 +1349,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .sfr-acc-notif-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
+  width: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
@@ -1380,7 +1380,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .sfr-acc-autotune-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
+  width: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
@@ -1413,7 +1413,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .sfr-acc-record-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
+  width: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;

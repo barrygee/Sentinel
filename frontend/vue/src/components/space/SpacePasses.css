@@ -218,7 +218,7 @@
   appearance: none;
   height: 3px;
   border-radius: 2px;
-  background: var(--color-accent);
+  background: #26292e;
   outline: none;
   border: none;
 }
@@ -226,20 +226,20 @@
 #spp-elevation-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-accent);
   cursor: pointer;
   border: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 #spp-elevation-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-accent);
   cursor: pointer;
   border: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
@@ -248,7 +248,7 @@
 #spp-elevation-slider::-moz-range-track {
   height: 3px;
   border-radius: 2px;
-  background: var(--color-accent);
+  background: #26292e;
 }
 
 .spp-filter-value {
@@ -522,8 +522,8 @@
 .spp-acc-track-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
@@ -554,7 +554,7 @@
 .spp-acc-notif-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
+  width: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
@@ -585,7 +585,7 @@
 .spp-acc-autotune-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
+  width: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
@@ -618,7 +618,7 @@
 .spp-acc-record-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
+  width: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;

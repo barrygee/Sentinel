@@ -59,7 +59,7 @@
 
 /* Matches the map side-menu rail buttons (.msb-rail-btn): a full-width 40px
    button whose hover/active state fills the whole cell (not a rounded square
-   behind the icon), with a lime left border + accent icon when active. */
+   behind the icon), with an accent left border + accent icon when active. */
 /* Collapsed via the footer side-panel toggle: hide the rail entirely so the
    settings content takes the full width, matching how the map sidebar hides. */
 #settings-sidebar.settings-sidebar--collapsed {
@@ -104,7 +104,7 @@
   gap: 12px;
 }
 
-/* Lime accent bar to the left of the section title. */
+/* Accent bar to the left of the section title. */
 .settings-heading-bar {
   width: 3px;
   height: 20px;
@@ -132,10 +132,8 @@
   align-items: center;
   gap: 10px;
   background: #ffffff;
-  border-radius: 8px;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.04);
+  /* Kept in step with .settings-item's card shadow below. */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
   padding: 13px 18px;
 }
 
@@ -277,7 +275,8 @@
   padding-top: 30px;
 }
 
-/* The card. */
+/* The card. Square corners — the settings cards (and the matching white
+   search bar) deliberately carry no border-radius. */
 .settings-item {
   display: flex;
   flex-direction: column;
@@ -285,10 +284,7 @@
   gap: 12px;
   padding: 22px;
   background: #ffffff;
-  border-radius: 8px;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
 }
 
 /* Full-row controls (TLE editors, channel maps, etc.). */
