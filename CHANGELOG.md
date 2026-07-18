@@ -281,6 +281,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make custom checkboxes keyboard-focusable and Space-operable (#216)
 - Radiogroup ARIA + roving tabindex for segmented pill groups, aria-pressed for toggle chips (#217)
 - Match left rail styling to the right rail across all sections (#219)
+- Near-black ring on the user-location and SET LOCATION markers (#221)
 
 ### Chores
 
