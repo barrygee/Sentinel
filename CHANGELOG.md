@@ -282,6 +282,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Radiogroup ARIA + roving tabindex for segmented pill groups, aria-pressed for toggle chips (#217)
 - Match left rail styling to the right rail across all sections (#219)
 - Near-black ring on the user-location and SET LOCATION markers (#221)
+- Match the rail button grey to the logo mark's ring grey (#222)
 
 ### Chores
 
