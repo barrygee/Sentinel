@@ -38,14 +38,14 @@ const { open, toggle } = useDisclosure(props.initiallyOpen)
 </template>
 
 <style scoped>
-/* Sub-items stack vertically on a grey panel (the side panel's grey);
+/* Sub-items stack vertically on a grey panel (the logo mark's ring grey);
    `sm-accordion-panel` is kept as a passthrough class for legacy
    CSS/selectors that already key off it. */
 .icon-rail-accordion__panel {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  background: var(--color-border);
+  background: var(--color-button-bg);
 }
 
 /* Touch screens: hover tooltips aren't useful (mirrors IconRail's identical
