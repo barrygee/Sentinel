@@ -2492,8 +2492,11 @@ onBeforeUnmount(() => {
             overflow="visible"
             aria-hidden="true"
           >
-            <circle cx="7" cy="7" r="5" fill="none" stroke="#c8ff00" stroke-width="1.5" />
-            <circle cx="7" cy="7" r="1.5" fill="#ffffff" />
+            <!-- The SENTINEL ⊙ logo mark (same ring/dot proportions and
+                 colours as frontend/assets/logo.svg): stealth-grey ring,
+                 green dot. -->
+            <circle cx="7" cy="7" r="5.25" fill="none" stroke="#26292e" stroke-width="1.5" />
+            <circle cx="7" cy="7" r="2.1" fill="#c8ff00" />
           </svg>
           <span class="sdr-wf-known-marker-label">{{ f.label }}</span>
         </div>

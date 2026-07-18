@@ -38,8 +38,10 @@ export function useMapContextMenu() {
     setLocBtn.style.cssText = `padding:${PAD_Y}px ${PAD_X}px;cursor:pointer;white-space:nowrap;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:0`
     setLocBtn.innerHTML =
       `<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" overflow="visible" style="flex-shrink:0">` +
-      `<circle cx="30" cy="30" r="14" fill="none" stroke="#c8ff00" stroke-width="2" stroke-dasharray="87.96" stroke-dashoffset="87.96" style="animation: marker-circle-draw 0.6s ease forwards" />` +
-      `<circle cx="30" cy="30" r="4" fill="white" style="animation: marker-dot-pulse 2s ease-in-out 0.6s infinite" />` +
+      // The SENTINEL ⊙ logo mark (stealth-grey ring, green dot) with a static
+      // solid dot, matching the UserLocationMarker this preview drops.
+      `<circle cx="30" cy="30" r="13.1" fill="none" stroke="#26292e" stroke-width="3.7" stroke-dasharray="82.31" stroke-dashoffset="82.31" style="animation: marker-circle-draw 0.6s ease forwards" />` +
+      `<circle cx="30" cy="30" r="5.2" fill="#c8ff00" />` +
       `</svg><span style="position:relative;margin-left:-30px;display:inline-flex;flex-direction:column;justify-content:center;align-items:flex-start;min-height:42px;padding:4px 12px 4px 24px;color:rgba(255,255,255,0.7);-webkit-mask-image:radial-gradient(circle 16px at 0px 50%, transparent 16px, black 16.5px);mask-image:radial-gradient(circle 16px at 0px 50%, transparent 16px, black 16.5px);background:#000;border-radius:6px"><span style="line-height:1.2">SET LOCATION</span><span style="line-height:1.2;font-size:9px;font-weight:400;letter-spacing:.12em;color:rgba(255,255,255,0.45);margin-top:2px">${latStr}  ${lonStr}</span></span>`
     setLocBtn.addEventListener('mouseenter', () => {
       setLocBtn.style.opacity = '0.85'

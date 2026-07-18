@@ -73,24 +73,29 @@ html {
 }
 
 /* Left side of the nav bar — wraps the SVG logo element.
-   The logo's ⊙ mark is the leftmost glyph. #nav padding-left (10px) lands the
-   ⊙'s *centre* on the 44px rail's icon centre column (x≈22px), but the ⊙ is
-   wider than the rail glyphs, so its left edge then overhangs theirs by ~2px and
-   reads as "too far left". This 2px nudge aligns the ⊙'s left edge with the rail
-   icons' left edges (left-aligned, as designed) instead of centre-aligned. */
+   The logo's ⊙ mark is the leftmost glyph, CENTRE-aligned on the 44px left
+   rail's icon centre column (x≈22px). In the current logo.svg the ⊙'s centre
+   sits 17.45 viewBox units from the image's left edge; at the 26px render
+   height (scale 26/34.9) that is ~13px, so the image must start at x≈9px:
+   #nav's 10px padding-left minus this 1px nudge. Recompute if the logo
+   geometry or #logo-img height changes. */
 #nav-logo {
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    margin-left: 2px;
+    margin-left: -1px;
 }
 
-/* The logo image; height constrained to 46px */
+/* The logo image. The SVG's viewBox is tight around the artwork (no internal
+   padding), so this height IS the rendered artwork height. Both dimensions are
+   pinned because Safari cannot be trusted to derive an SVG <img>'s intrinsic
+   ratio for `width: auto` (it falls back to a default size and renders the
+   logo tiny): 156px = 26px x the SVG's 209.54/34.90 aspect. Keep in step with
+   logo.svg's viewBox if it is regenerated. */
 #logo-img {
-    height: 56px;
-    width: auto;
+    height: 26px;
+    width: 156px;
     display: block;
-    margin-top: 4px;
 }
 
 /* Right side of the nav bar — flex row containing nav links */
@@ -101,9 +106,11 @@ html {
 }
 
 /* Domain navigation link (AIR / SPACE / SEA / LAND).
-   White by default; the active domain is lime, and hovering an inactive link
-   previews that lime. White on the black nav bar is 21:1 — well clear of AA. */
+   White in every state (21:1 on the black nav bar — well clear of AA); hover
+   previews the accent, and the ACTIVE domain is marked by a subtle accent dot
+   centred beneath the text rather than a text-colour change. */
 .nav-link {
+    position: relative; /* anchors the active dot */
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 10px;
     font-weight: 600;
@@ -118,13 +125,25 @@ html {
     color: var(--color-accent);
 }
 
-/* Active domain link — always lime, never dims on hover */
-.nav-link--active {
-    color: var(--color-accent);
+/* Active domain link — text stays white, even on hover (it's the current
+   page; no accent preview needed). */
+.nav-link--active,
+.nav-link--active:hover {
+    color: #ffffff;
 }
 
-.nav-link--active:hover {
-    color: var(--color-accent);
+/* The active-domain dot. left compensates for the trailing 0.2em
+   letter-spacing so the dot sits under the label's optical centre. */
+.nav-link--active::after {
+    content: '';
+    position: absolute;
+    top: calc(100% + 4px);
+    left: calc(50% - 0.1em);
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-accent);
 }
 
 /* ============================================================
@@ -560,11 +579,8 @@ body[data-no-data] .maplibregl-control-container {
         padding-left: 10px;
         padding-right: 16px;
     }
-    /* Logo keeps its full 56px height on smaller screens (no shrink); drop the
-       optical top nudge so it centres cleanly within the shorter 56px nav. */
-    #logo-img {
-        margin-top: 0;
-    }
+    /* Logo keeps its full height on smaller screens (no shrink); the tight
+       artwork box flex-centres cleanly within the shorter nav. */
     #nav-right {
         gap: 20px;
     }
@@ -645,12 +661,24 @@ body[data-no-data] .maplibregl-control-container {
     background: rgba(255, 255, 255, 0.04);
 }
 
-.nav-overlay-link--active {
-    color: var(--color-accent);
+/* Active domain in the overlay: same treatment as the header links — white
+   text with a subtle accent dot centred beneath (see .nav-link--active). */
+.nav-overlay-link--active,
+.nav-overlay-link--active:hover {
+    color: #fff;
+    position: relative;
 }
 
-.nav-overlay-link--active:hover {
-    color: var(--color-accent);
+.nav-overlay-link--active::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: calc(50% - 0.1em);
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-accent);
 }
 
 /* Settings button inside the overlay — resets button chrome so it looks

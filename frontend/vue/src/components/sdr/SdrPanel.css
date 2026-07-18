@@ -193,7 +193,7 @@
 }
 
 /* The frequency readout is tuned by scrolling its digits, not by keyboard entry,
-   so it deliberately opts out of the global lime :focus-visible ring (a11y.css).
+   so it deliberately opts out of the global accent :focus-visible ring (a11y.css).
    The override needs !important to beat that global rule's own !important. */
 .sdr-freq-input-large:focus-visible {
   outline: none !important;

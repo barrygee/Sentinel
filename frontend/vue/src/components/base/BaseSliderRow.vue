@@ -92,7 +92,7 @@ const emit = defineEmits<{
   appearance: none;
   width: 100%;
   height: 3px;
-  background: #c8ff00;
+  background: #26292e;
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -109,19 +109,20 @@ const emit = defineEmits<{
 .sdr-panel-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: #c8ff00;
+  border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .sdr-panel-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: #c8ff00;
   border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
@@ -130,6 +131,6 @@ const emit = defineEmits<{
 .sdr-panel-slider::-moz-range-track {
   height: 3px;
   border-radius: 2px;
-  background: #c8ff00;
+  background: #26292e;
 }
 </style>

@@ -1567,12 +1567,12 @@ defineExpose({
   gap: 8px;
 }
 
-/* 44px square controls matching the satellite list-item accordion buttons. */
+/* 36px square controls matching the satellite list-item accordion buttons. */
 .acft-acc-btn {
   position: relative;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: #0d1015;
   border: none;
   cursor: pointer;
