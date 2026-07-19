@@ -108,6 +108,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Harden read-only follower UX and fix stale ownership on reconnect (#171)
 - FILTER rail category sub-tabs, SDR snap-to-known, nav polish (#175)
 - New SENTINEL brand mark, icon set, and app-wide visual polish (#220)
+- Restyle controls and simplify card layout (#224)
 
 ### Bug Fixes
 
