@@ -172,10 +172,12 @@ function onInput(event: Event): void {
   width: 60px;
   height: 37px;
   padding: 0 10px;
-  background: #eeece7;
+  /* Light-grey fill with dark text — matches the settings panel's
+     input-field treatment (this atom currently renders only in settings). */
+  background: #e8eaed;
   border: none;
-  border-radius: 6px;
-  color: rgba(16, 19, 29, 0.9);
+  border-radius: 0;
+  color: rgba(16, 19, 29, 0.92);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 500;

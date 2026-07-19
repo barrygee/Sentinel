@@ -177,7 +177,7 @@
 
     <div id="settings-content">
       <div id="settings-section-heading">
-        <span class="settings-heading-bar" aria-hidden="true"></span>
+        <span class="settings-heading-dot" aria-hidden="true"></span>
         <span>{{ sectionHeading }}</span>
       </div>
 
@@ -589,7 +589,6 @@ const ALL_SETTINGS: SettingItem[] = [
     label: 'Snap to Known Frequencies',
     desc: 'When ON, clicking a known-frequency marker in the spectrum jumps straight to it, and dragging the tuner bar snaps to a nearby known frequency from your Frequency Manager.',
     type: 'sdr-snap-to-known',
-    groupLabel: 'WATERFALL',
   },
   {
     section: 'sdr',

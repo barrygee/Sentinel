@@ -94,12 +94,15 @@
         <SdrDeviceForm :radio="null" @save="onSave" @cancel="openId = null" />
       </div>
     </div>
-    <button class="sdr-devices-add-btn" @click="toggleNew">+ ADD SDR</button>
+    <BaseButton variant="ghost" class="sdr-devices-add-btn" @click="toggleNew"
+      >+ ADD SDR</BaseButton
+    >
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 
 interface SdrRadioData {
@@ -229,7 +232,7 @@ onBeforeUnmount(() => {
   top: -1px;
 }
 .sdr-status-dot--connected {
-  background: #22c55e;
+  background: var(--color-accent);
 }
 .sdr-status-dot--disconnected {
   background: #ef4444;

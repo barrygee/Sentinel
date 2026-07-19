@@ -10,7 +10,8 @@
      primary text  rgba(16,19,29,.92)
      secondary     rgba(16,19,29,.5)
      muted         rgba(16,19,29,.35)
-     input fill    #eeece7      hover surface  rgba(16,19,29,.06)
+     input fill    #e8eaed (light grey, a touch below white; dark text)
+     hover surface rgba(16,19,29,.06)
      border        rgba(16,19,29,.08)
      accent (lime) #c8ff00      text-on-lime   #0a0c10
      danger        #ff6a5e      sidebar (dark) #000000
@@ -104,11 +105,13 @@
   gap: 12px;
 }
 
-/* Accent bar to the left of the section title. */
-.settings-heading-bar {
-  width: 3px;
-  height: 20px;
-  border-radius: 2px;
+/* Accent dot to the left of the section title — echoes the main nav's
+   active-domain dot and the logo mark's green dot (scaled up to sit against
+   the 21px heading). */
+.settings-heading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--color-accent);
   flex-shrink: 0;
 }
@@ -131,7 +134,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #ffffff;
+  background: #e8eaed;
   /* Kept in step with .settings-item's card shadow below. */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
   padding: 13px 18px;
@@ -139,7 +142,7 @@
 
 #settings-search-inner svg {
   flex-shrink: 0;
-  color: rgba(16, 19, 29, 0.4);
+  color: rgba(16, 19, 29, 0.5);
 }
 
 #settings-search-input {
@@ -147,7 +150,7 @@
   background: none;
   border: none;
   outline: none;
-  color: rgba(16, 19, 29, 0.9);
+  color: rgba(16, 19, 29, 0.92);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   font-weight: 500;
@@ -158,7 +161,7 @@
 }
 
 #settings-search-input::placeholder {
-  color: rgba(16, 19, 29, 0.28);
+  color: rgba(16, 19, 29, 0.38);
   letter-spacing: 0.14em;
 }
 
@@ -167,7 +170,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: rgba(16, 19, 29, 0.35);
+  color: rgba(16, 19, 29, 0.45);
   display: none;
   align-items: center;
   justify-content: center;
@@ -180,7 +183,7 @@
 }
 
 #settings-search-clear:hover {
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(16, 19, 29, 0.85);
 }
 
 #settings-body {
@@ -344,7 +347,9 @@
 /* ── Location & data-source labelled inputs ───────────────────────── */
 .settings-location-wrap {
   display: flex;
-  flex-direction: row;
+  /* Stacked LAT over LON: the MY LOCATION card is a standard single-column
+     card, too narrow for the two labelled inputs to sit side by side. */
+  flex-direction: column;
   gap: 8px;
   width: 100%;
 }
@@ -354,8 +359,8 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  background: #eeece7;
-  border-radius: 6px;
+  background: #e8eaed;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -364,7 +369,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.16em;
-  color: rgba(16, 19, 29, 0.35);
+  color: rgba(16, 19, 29, 0.55);
   text-transform: uppercase;
   display: flex;
   align-items: center;
@@ -378,7 +383,7 @@
   background: none;
   border: none;
   padding: 9px 12px;
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(16, 19, 29, 0.92);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
@@ -393,7 +398,7 @@
 }
 
 .settings-location-input::placeholder {
-  color: rgba(16, 19, 29, 0.28);
+  color: rgba(16, 19, 29, 0.38);
   letter-spacing: 0.1em;
 }
 
@@ -410,8 +415,8 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  background: #eeece7;
-  border-radius: 6px;
+  background: #e8eaed;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -424,7 +429,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.16em;
-  color: rgba(16, 19, 29, 0.35);
+  color: rgba(16, 19, 29, 0.55);
   text-transform: uppercase;
   display: flex;
   align-items: center;
@@ -438,7 +443,7 @@
   background: none;
   border: none;
   padding: 10px 12px;
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(16, 19, 29, 0.92);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
@@ -449,7 +454,7 @@
 }
 
 .settings-datasource-input::placeholder {
-  color: rgba(16, 19, 29, 0.28);
+  color: rgba(16, 19, 29, 0.38);
   letter-spacing: 0.1em;
 }
 
@@ -563,10 +568,10 @@
   display: flex;
   flex-direction: row;
   gap: 0;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
   width: fit-content;
-  background: #eeece7;
+  background: #e8eaed;
 }
 
 .settings-source-override-btn {
@@ -619,6 +624,21 @@
    variants (see src/components/base/BaseButton.vue) — the classnames remain
    on the rendered buttons purely so tests can still target them. */
 
+/* CLEAR ALL TLE DATA: solid red (not the variant's pink tint), sized to its
+   label and right-aligned instead of stretching the card's full width. The
+   amber confirm state still wins — its vars are set inline on the element,
+   which outranks these. Hover is overridden too (the atom hardcodes a pink
+   hover fill). */
+#settings-panel .tle-action-btn--danger {
+  --ba-danger-bg: #d94436;
+  --ba-danger-color: #ffffff;
+  align-self: flex-end;
+}
+#settings-panel .tle-action-btn--danger:hover:not(:disabled) {
+  background: #c23a2d;
+  color: #ffffff;
+}
+
 .tle-dropdown {
   position: relative;
   width: 230px;
@@ -635,8 +655,8 @@
   justify-content: space-between;
   height: 100%;
   padding: 0 12px;
-  background-color: #eeece7;
-  border-radius: 6px;
+  background-color: #e8eaed;
+  border-radius: 0;
 }
 
 .tle-dropdown-selected-text {
@@ -645,7 +665,7 @@
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.45);
+  color: rgba(16, 19, 29, 0.55);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -654,7 +674,7 @@
 }
 
 .tle-dropdown-selected-text--chosen {
-  color: rgba(16, 19, 29, 0.8);
+  color: rgba(16, 19, 29, 0.9);
 }
 
 .tle-dropdown-arrow {
@@ -662,7 +682,7 @@
   width: 8px;
   height: 5px;
   margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(16,19,29,0.4)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(16,19,29,0.5)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   transition: transform 0.15s;
@@ -673,7 +693,7 @@
 }
 
 .tle-dropdown--open .tle-dropdown-selected {
-  background-color: #e6e3dc;
+  background-color: #dcdfe3;
 }
 
 .tle-dropdown-menu {
@@ -681,7 +701,7 @@
   position: absolute;
   z-index: 99999;
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
   overflow-y: auto;
   max-height: 240px;
@@ -708,7 +728,7 @@
 
 .tle-dropdown-item {
   padding: 9px 12px;
-  border-radius: 5px;
+  border-radius: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   font-weight: 500;
@@ -735,19 +755,6 @@
   overflow: visible;
   clip-path: none;
   isolation: isolate;
-}
-
-.tle-inline-label {
-  white-space: nowrap;
-  height: 37px;
-  display: flex;
-  align-items: center;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
 }
 
 .tle-status-line {
@@ -778,94 +785,6 @@
   max-width: 860px;
 }
 
-.tle-info-row {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.tle-info-row-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  padding: 0;
-}
-.tle-info-chevron {
-  display: inline-flex;
-  align-items: center;
-  color: rgba(16, 19, 29, 0.3);
-  transition:
-    transform 0.2s ease,
-    color 0.15s;
-  line-height: 0;
-}
-.tle-info-chevron--open {
-  transform: rotate(180deg);
-}
-.tle-info-row-header:hover .tle-info-chevron {
-  color: rgba(16, 19, 29, 0.6);
-}
-.tle-info-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
-  user-select: none;
-  transition: color 0.15s;
-}
-.tle-info-row-header:hover .tle-info-label {
-  color: rgba(16, 19, 29, 0.75);
-}
-.tle-info-panel {
-  margin-top: 8px;
-  width: 100%;
-}
-
-.tle-info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-.tle-info-list-item {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
-  padding: 5px 0;
-}
-.tle-info-list-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: rgba(16, 19, 29, 0.6);
-  flex-shrink: 0;
-}
-.tle-info-list-sep {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 400;
-  color: rgba(16, 19, 29, 0.3);
-  flex-shrink: 0;
-}
-.tle-info-table-url {
-  color: #5a8a00;
-  text-decoration: none;
-  font-family: 'Barlow Condensed', 'Barlow', monospace;
-  font-size: 12.5px;
-  word-break: break-all;
-}
-.tle-info-table-url:hover {
-  color: #16191d;
-  text-decoration: underline;
-}
-
 .tle-manual-wrap {
   display: flex;
   flex-direction: column;
@@ -877,8 +796,8 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  background: #eeece7;
-  border-radius: 6px;
+  background: #e8eaed;
+  border-radius: 0;
   overflow: hidden;
 }
 .tle-file-input {
@@ -889,7 +808,7 @@
   padding: 0 12px;
   background: none;
   border: none;
-  color: rgba(16, 19, 29, 0.35);
+  color: rgba(16, 19, 29, 0.55);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 600;
@@ -904,7 +823,7 @@
   user-select: none;
 }
 .tle-file-label:hover {
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(16, 19, 29, 0.85);
 }
 .tle-file-name {
   flex: 1;
@@ -914,7 +833,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: rgba(16, 19, 29, 0.35);
+  color: rgba(16, 19, 29, 0.55);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -960,7 +879,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 15px;
   font-weight: 700;
-  color: #5a8a00;
+  color: rgba(16, 19, 29, 0.7);
   text-align: right;
   padding-right: 16px;
 }
@@ -981,7 +900,7 @@
   color: rgba(16, 19, 29, 0.5);
   background: rgba(16, 19, 29, 0.06);
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 4px 9px;
   cursor: pointer;
   transition:
@@ -1070,7 +989,7 @@
 }
 .tle-uncat-row .tle-uncat-drop .tle-dropdown-selected {
   height: 34px;
-  background-color: rgba(16, 19, 29, 0.04);
+  background-color: #e8eaed;
   border-radius: 0;
 }
 .tle-uncat-row .tle-uncat-drop .tle-dropdown-selected-text {
@@ -1098,7 +1017,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   background: rgba(16, 19, 29, 0.06);
   color: rgba(16, 19, 29, 0.5);
   cursor: pointer;
@@ -1265,6 +1184,17 @@
   scrollbar-color: rgba(16, 19, 29, 0.15) transparent;
 }
 
+/* Editable variant is an input field: the shared light-grey input fill with
+   square corners. Must sit AFTER the base .settings-config-preview rule (equal
+   specificity — source order decides); the read-only preview keeps its own
+   look above. */
+.settings-config-preview--textarea {
+  background: #e8eaed;
+  border-color: transparent;
+  border-radius: 0;
+  color: rgba(16, 19, 29, 0.85);
+}
+
 .settings-config-action-row {
   display: flex;
   align-items: center;
@@ -1372,7 +1302,7 @@
 .sdr-device-confirm-btn {
   background: rgba(16, 19, 29, 0.06);
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 3px 9px;
   color: rgba(16, 19, 29, 0.55);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -1434,11 +1364,11 @@
 
 .sdr-devices-form-input {
   flex: 1;
-  background: #eeece7;
+  background: #e8eaed;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 8px 12px;
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(16, 19, 29, 0.92);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -1455,7 +1385,7 @@
 }
 
 .sdr-devices-form-input::placeholder {
-  color: rgba(16, 19, 29, 0.28);
+  color: rgba(16, 19, 29, 0.38);
 }
 
 .sdr-devices-form-input::-webkit-outer-spin-button,
@@ -1472,7 +1402,7 @@
 .sdr-devices-enabled-btn {
   background: rgba(16, 19, 29, 0.06);
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 6px 14px;
   color: rgba(16, 19, 29, 0.45);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -1519,23 +1449,23 @@
    src/components/base/BaseButton.vue) — the classnames remain on the
    rendered buttons purely so tests can still target them. */
 
+/* + ADD SDR now renders through the BaseButton "ghost" variant like the other
+   settings action buttons — only its placement remains family-owned. */
 .sdr-devices-add-btn {
-  background: none;
-  border: none;
-  padding: 4px 0;
-  color: #5a8a00;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: color 0.12s;
   align-self: flex-start;
 }
 
-.sdr-devices-add-btn:hover {
-  color: #4a7400;
+/* ── Settings-scoped BaseButton override ──────────────────────────── */
+/* The settings section carries no rounded corners on any control. BaseButton's
+   ghost/primary/danger chrome is shared app-wide, so square it here rather
+   than in the atom: the #settings-panel id out-specifies the atom's scoped
+   class rules, and the override never leaks outside the panel. */
+#settings-panel .ba-btn--ghost {
+  --ba-ghost-radius: 0;
+}
+#settings-panel .ba-btn--primary,
+#settings-panel .ba-btn--danger {
+  border-radius: 0;
 }
 
 /* ============================================================

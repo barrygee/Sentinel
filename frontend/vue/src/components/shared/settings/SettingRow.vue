@@ -189,24 +189,12 @@ const emit = defineEmits<{
 const WIDE_TYPES = new Set(['sdr-channelmaps-file'])
 const HALF_TYPES = new Set([
   'sdr-devices',
-  'sdr-frequencies-file',
-  'sdr-bandplan-file',
-  'sdr-trunk-tracking-toggle',
-  'sdr-resume-delay',
-  'sdr-autocenter',
-  'sdr-full-waterfall-update',
-  'sdr-snap-to-known',
-  'sdr-show-bandplan',
-  'sdr-show-known-freqs',
   'space-tle-online',
   'space-tle-manual',
   'space-tle-db',
   'space-sat-radio-file',
   'space-hover-preview',
   'air-tag-fields',
-  'export-all',
-  'config-current',
-  'location',
 ])
 const NATURAL_HEIGHT_TYPES = new Set(['location'])
 const isWide = WIDE_TYPES.has(props.item.type)

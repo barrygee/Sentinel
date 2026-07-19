@@ -13,11 +13,11 @@
       />
     </div>
     <div class="tle-cat-row-ctrl">
-      <span class="settings-datasource-label tle-inline-label">CATEGORY</span>
       <div
         class="tle-dropdown"
         :class="{ 'tle-dropdown--open': dropOpen }"
         tabindex="0"
+        aria-label="TLE category"
         @blur="dropOpen = false"
       >
         <div class="tle-dropdown-selected" @mousedown.prevent="dropOpen = !dropOpen">
@@ -62,46 +62,12 @@
         statusMsg
       }}</span>
     </div>
-    <div class="tle-info-row">
-      <button
-        type="button"
-        class="tle-info-row-header"
-        :aria-expanded="infoOpen"
-        aria-controls="tle-info-panel"
-        @click="infoOpen = !infoOpen"
-      >
-        <span class="tle-info-label">View Celestrak source URLs</span>
-        <span class="tle-info-chevron" :class="{ 'tle-info-chevron--open': infoOpen }">
-          <ScrollHintChevronIcon />
-        </span>
-      </button>
-      <div v-if="infoOpen" id="tle-info-panel" class="tle-info-panel">
-        <div class="tle-info-list">
-          <div
-            v-for="cat in TLE_CATEGORIES.filter((c) => c.value && effectiveUrls[c.value])"
-            :key="cat.value"
-            class="tle-info-list-item"
-          >
-            <span class="tle-info-list-label">{{ cat.label }}</span>
-            <span class="tle-info-list-sep">:</span>
-            <a
-              class="tle-info-table-url"
-              :href="effectiveUrls[cat.value]"
-              target="_blank"
-              rel="noopener noreferrer"
-              >{{ effectiveUrls[cat.value] }}</a
-            >
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
-import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 
 const TLE_CATEGORIES = [
@@ -136,7 +102,6 @@ const urlValue = ref('')
 const updateLoading = ref(false)
 const statusMsg = ref('')
 const statusType = ref<'ok' | 'error' | 'info'>('ok')
-const infoOpen = ref(false)
 
 const selectedCategoryLabel = computed(() => {
   /* v8 ignore start -- defensive: selectedCategory is always one of
