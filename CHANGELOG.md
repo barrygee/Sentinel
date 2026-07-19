@@ -293,6 +293,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin Node/npm toolchain to CI to stop lockfile drift (#124)
 - Update frequency preset defaults (#138)
 - Stop tracking runtime-owned sdr_frequencies.json (#146)
+- Adopt --color-button-bg for the remaining hardcoded control greys (#223)
 
 ### Other
 
