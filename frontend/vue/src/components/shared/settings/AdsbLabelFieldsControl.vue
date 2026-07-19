@@ -212,7 +212,7 @@ function toggle(group: 'civil' | 'mil', field: AdsbLabelField): void {
   width: 20px;
   height: 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   background: rgba(16, 19, 29, 0.1);
   display: flex;
   align-items: center;

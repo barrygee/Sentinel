@@ -12,11 +12,11 @@
       <span class="tle-file-name">{{ fileName }}</span>
     </div>
     <div class="tle-cat-row-ctrl">
-      <span class="settings-datasource-label tle-inline-label">CATEGORY</span>
       <div
         class="tle-dropdown"
         :class="{ 'tle-dropdown--open': dropOpen }"
         tabindex="0"
+        aria-label="TLE category"
         @blur="dropOpen = false"
       >
         <div class="tle-dropdown-selected" @mousedown.prevent="dropOpen = !dropOpen">

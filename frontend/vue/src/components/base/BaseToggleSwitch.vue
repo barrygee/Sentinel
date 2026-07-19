@@ -72,7 +72,9 @@ function toggleValue(): void {
   position: relative;
   width: 46px;
   height: 25px;
-  border-radius: 999px;
+  /* Square corners — matches the settings section's sharp-cornered controls
+     (this atom only renders inside the settings panel). */
+  border-radius: 0;
   border: none;
   background: rgba(16, 19, 29, 0.14);
   cursor: pointer;
@@ -92,7 +94,7 @@ function toggleValue(): void {
   left: 3px;
   width: 19px;
   height: 19px;
-  border-radius: 50%;
+  border-radius: 0;
   background: #ffffff;
   transition:
     left 0.18s,
