@@ -1060,10 +1060,16 @@ function freqDragFlush() {
   applyMarker() // re-pin the bar at screen centre (dispFHz += offset)
 }
 
-// Returns true (and arms the pan) when the mousedown lands in the bottom
-// freq-label gutter of the spectrum element. Called from onPlotMouseDown's
-// capture handler so it reliably intercepts before sigplot's canvas listener.
-function tryStartFreqDrag(e: MouseEvent): boolean {
+// A mouse/touch position, minimal — MouseEvent and Touch both satisfy this
+// structurally, so tryStartFreqDrag (and friends) work unchanged from either
+// input type's start handler.
+type DragPoint = { clientX: number; clientY: number }
+
+// Returns true (and arms the pan) when the mousedown/touchstart lands in the
+// bottom freq-label gutter of the spectrum element. Called from
+// onPlotMouseDown's/onPlotTouchStart's capture handler so it reliably
+// intercepts before sigplot's canvas listener.
+function tryStartFreqDrag(point: DragPoint): boolean {
   // Followers mirror the owner's tuning — don't let a freq-axis pan retune here.
   if (!store.playing || store.readOnly) return false
   const lo = spanStartHz.value
@@ -1080,7 +1086,7 @@ function tryStartFreqDrag(e: MouseEvent): boolean {
   // element (height = bandInsetBottomPx). A mousedown above it is a normal
   // click-to-tune / marker interaction.
   const gutterTop = rect.bottom - bandInsetBottomPx.value
-  if (bandInsetBottomPx.value <= 0 || e.clientY < gutterTop) return false
+  if (bandInsetBottomPx.value <= 0 || point.clientY < gutterTop) return false
   const dataWidth = el.clientWidth - bandInsetLeftPx.value - bandInsetRightPx.value
   if (dataWidth <= 0) return false
   // Pixel→Hz uses the VISIBLE (zoom-aware) window so the drag tracks the
@@ -1088,12 +1094,50 @@ function tryStartFreqDrag(e: MouseEvent): boolean {
   // drag so zoomWindowHz sees the pre-pan offset (still 0 at grab time).
   const { winLo, winHi } = zoomWindowHz(lo, hi)
   freqDragHzPerPx = (winHi - winLo) / dataWidth
-  freqDragStartX = e.clientX
+  freqDragStartX = point.clientX
   freqDragStartCenterHz = (lo + hi) / 2
   freqDragDx = 0
   freqDragActive = true
   freqDragging.value = true
   return true
+}
+
+// Commit the hardware retune ONCE, to the final panned centre using the RAW
+// (unclamped) drag so a fling past the loaded span still retunes there. Shared
+// by the mouseup and touchend handlers below — a freq-axis pan means "move the
+// hardware centre", so force auto-centre semantics (clear the demod offset),
+// mirroring the click-to-tune ON path.
+function commitFreqDrag(): void {
+  freqDragActive = false
+  freqDragging.value = false
+  if (freqDragRaf) {
+    cancelAnimationFrame(freqDragRaf)
+    freqDragRaf = 0
+  }
+  const finalCenterHz = Math.round(freqDragStartCenterHz - freqDragDx * freqDragHzPerPx)
+  // Keep livePanOffsetHz in place (no snap-back); the lastSpectrum watch resets
+  // it to 0 when the new span frame (centred on finalCenterHz) arrives.
+  // center=true forces the hardware-centre retune even with auto-centre OFF —
+  // otherwise the panned view would stay stuck (no new frames ever arrive).
+  store.setTuningOffsetHz(0)
+  store.requestTune(finalCenterHz, true)
+}
+
+// Abort an in-progress freq-axis pan WITHOUT committing — for a cancelled
+// touch gesture (touchcancel, e.g. an OS interruption) or the window losing
+// focus mid-drag, where the last pointer position can't be trusted. Mirrors
+// abortAccDrag's "no commit, resync to source of truth" below.
+function abortFreqDrag(): void {
+  if (!freqDragActive) return
+  freqDragActive = false
+  freqDragging.value = false
+  if (freqDragRaf) {
+    cancelAnimationFrame(freqDragRaf)
+    freqDragRaf = 0
+  }
+  livePanOffsetHz.value = 0
+  applyZoom()
+  applyMarker()
 }
 
 useDocumentEvent('mousemove', (e: Event) => {
@@ -1106,23 +1150,41 @@ useDocumentEvent('mousemove', (e: Event) => {
 
 useDocumentEvent('mouseup', () => {
   if (!freqDragActive) return
-  freqDragActive = false
-  freqDragging.value = false
-  if (freqDragRaf) {
-    cancelAnimationFrame(freqDragRaf)
-    freqDragRaf = 0
-  }
-  // Commit the hardware retune ONCE, to the final panned centre using the RAW
-  // (unclamped) drag so a fling past the loaded span still retunes there. A
-  // freq-axis pan means "move the hardware centre", so force auto-centre
-  // semantics (clear the demod offset) — mirrors the click-to-tune ON path.
-  const finalCenterHz = Math.round(freqDragStartCenterHz - freqDragDx * freqDragHzPerPx)
-  // Keep livePanOffsetHz in place (no snap-back); the lastSpectrum watch resets
-  // it to 0 when the new span frame (centred on finalCenterHz) arrives.
-  // center=true forces the hardware-centre retune even with auto-centre OFF —
-  // otherwise the panned view would stay stuck (no new frames ever arrive).
-  store.setTuningOffsetHz(0)
-  store.requestTune(finalCenterHz, true)
+  commitFreqDrag()
+})
+
+// Touch equivalents of the two listeners above. touchmove must be non-passive
+// so preventDefault() can stop the page from scrolling vertically while the
+// user is panning the frequency axis horizontally (see also `touch-action:
+// none` on .sdr-wf-spectrum in SdrWaterfall.css, which avoids the scroll ever
+// starting in the first place — this preventDefault is belt-and-braces for
+// browsers that still send the event before honouring touch-action).
+useDocumentEvent(
+  'touchmove',
+  (e: Event) => {
+    if (!freqDragActive) return
+    const te = e as TouchEvent
+    const touch = te.touches[0]
+    /* v8 ignore start -- a single-finger drag always has one active touch */
+    if (!touch) return
+    /* v8 ignore stop */
+    te.preventDefault()
+    freqDragDx = touch.clientX - freqDragStartX
+    if (!freqDragRaf) freqDragRaf = requestAnimationFrame(freqDragFlush)
+  },
+  { passive: false },
+)
+
+useDocumentEvent('touchend', () => {
+  if (!freqDragActive) return
+  commitFreqDrag()
+})
+
+// Interrupted gesture (e.g. the OS takes over for a system swipe) — abort
+// rather than commit, since the last touch position may not reflect user
+// intent.
+useDocumentEvent('touchcancel', () => {
+  abortFreqDrag()
 })
 
 // ── Mouse-wheel pan ──────────────────────────────────────────────────────────
@@ -1445,9 +1507,15 @@ useDocumentEvent('mousemove', (e: Event) => {
 // so the element's client rect maps clientX→xpos exactly like sigplot does.
 type AccGeom = {
   edge_dragging?: boolean
-  properties?: { loc_1?: number; loc_2?: number; edge_line_style?: { lineWidth?: number } }
+  properties?: {
+    loc_1?: number
+    loc_2?: number
+    center_location?: number
+    edge_line_style?: { lineWidth?: number }
+    center_line_style?: { lineWidth?: number }
+  }
 }
-type PlotMx = { l: number; r: number; t: number; b: number }
+type PlotMx = { l: number; r: number; t: number; b: number; wid_canvas?: HTMLCanvasElement }
 function nearAccEdge(
   acc: AccordionPlugin | null,
   plot: Plot | null,
@@ -1477,6 +1545,169 @@ useDocumentEvent('mousemove', (e: Event) => {
     nearAccEdge(wfAcc, wfPlot, wfEl.value, me.clientX, me.clientY)
 })
 
+// ── Touch support for the accordion band/marker drag ────────────────────────
+// sigplot's Accordion plugin only ever drags in response to its OWN 'mdown'/
+// 'mmove' plugin events, which sigplot.js dispatches exclusively from native
+// `mousedown`/`mousemove` listeners it registers on the plot's widget canvas
+// (mx.addEventListener(Mx, "mousedown", ...) — see sigplot.js). It has no touch
+// wiring of its own for the accordion; sigplot.js's OWN touchstart handler
+// instead unconditionally preventDefaults and takes over any single-finger
+// touch on the canvas as a view pan (see ontouchstart in sigplot.js), which
+// would swallow a touch meant to drag the tuning bracket before our code ever
+// sees it.
+//
+// Rather than reimplement the accordion's carrier/width math a second time for
+// touch (duplicating the SSB edge-vs-move geometry, snap-to-known-freq, and
+// the lock-step mirror between the two plots above), we bridge: when a
+// touchstart lands within the accordion's own grab tolerance (nearAccGrabZone,
+// same tolerance sigplot's hit-test uses — see the edge_line_style/
+// center_line_style comments at the Accordion setup), we stop the touch from
+// reaching sigplot's native touch-pan handler and instead dispatch a synthetic
+// MouseEvent at the plot's widget canvas. That feeds sigplot's real
+// mousedown/mousemove/mouseup pipeline exactly as a real mouse would — sigplot
+// updates its own accordion geometry, and EVERY document-level mouse listener
+// above (mirror, missed-mouseup recovery, commit) fires unchanged because a
+// dispatched MouseEvent bubbles to `document` like any other. Touches that
+// land elsewhere on the plot are left alone, so sigplot's native touch pan/
+// pinch-zoom keeps working exactly as it does today.
+function accWidCanvas(plot: Plot | null): HTMLCanvasElement | null {
+  const mx = (plot as unknown as { _Mx?: PlotMx } | null)?._Mx
+  return mx?.wid_canvas ?? null
+}
+
+function dispatchBridgedMouseEvent(
+  plot: Plot | null,
+  type: 'mousedown' | 'mousemove' | 'mouseup',
+  clientX: number,
+  clientY: number,
+): void {
+  const canvas = accWidCanvas(plot)
+  // Only called once a bridge has started against a specific plot, and the
+  // plot (and its canvas) stay mounted for the drag's whole lifetime.
+  /* v8 ignore start */
+  if (!canvas) return
+  /* v8 ignore stop */
+  canvas.dispatchEvent(
+    new MouseEvent(type, {
+      clientX,
+      clientY,
+      button: 0,
+      buttons: type === 'mouseup' ? 0 : 1,
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    }),
+  )
+}
+
+// Touch pre-filter deciding whether a touchstart should be bridged into
+// sigplot's mouse-driven accordion drag. Mirrors sigplot's OWN _onMouseDown
+// hit-test (edge/center line width + 5px) read directly off the accordion's
+// live properties, so it never drifts from whatever grab-zone size accCommon
+// configures above (both are deliberately widened there for a finger-sized
+// touch target).
+function nearAccGrabZone(
+  acc: AccordionPlugin | null,
+  plot: Plot | null,
+  el: HTMLElement | null,
+  clientX: number,
+  clientY: number,
+): boolean {
+  const a = acc as unknown as AccGeom | null
+  // The only call site (onPlotTouchStart below) already guards on
+  // `acc && plot && el` before calling in, so this is unreachable defensive
+  // narrowing — kept in case a future caller stops guarding.
+  /* v8 ignore start */
+  if (!a || !el) return false
+  /* v8 ignore stop */
+  const p = a.properties
+  if (!p) return false
+  const mx = (plot as unknown as { _Mx?: PlotMx } | null)?._Mx
+  if (!mx) return false
+  const rect = el.getBoundingClientRect()
+  const xpos = clientX - rect.left
+  const ypos = clientY - rect.top
+  if (xpos < mx.l || xpos > mx.r || ypos < mx.t || ypos > mx.b) return false
+  const edgeTol = (p.edge_line_style?.lineWidth ?? 1) + 5
+  if (
+    (p.loc_1 !== undefined && Math.abs(p.loc_1 - xpos) < edgeTol) ||
+    (p.loc_2 !== undefined && Math.abs(p.loc_2 - xpos) < edgeTol)
+  ) {
+    return true
+  }
+  const centerTol = (p.center_line_style?.lineWidth ?? 1) + 5
+  return p.center_location !== undefined && Math.abs(p.center_location - xpos) < centerTol
+}
+
+// Which plot (if any) currently owns an active touch-to-mouse bridge. Only one
+// touch drives this at a time — a second finger is ignored by onPlotTouchStart
+// below, matching sigplot's own single-finger accordion drag.
+let touchAccBridgePlot: Plot | null = null
+
+useDocumentEvent(
+  'touchmove',
+  (e: Event) => {
+    if (!touchAccBridgePlot) return
+    const te = e as TouchEvent
+    const touch = te.touches[0]
+    /* v8 ignore start -- a single-finger drag always has one active touch */
+    if (!touch) return
+    /* v8 ignore stop */
+    te.preventDefault() // don't let the page scroll while dragging the bracket
+    dispatchBridgedMouseEvent(touchAccBridgePlot, 'mousemove', touch.clientX, touch.clientY)
+  },
+  { passive: false },
+)
+
+useDocumentEvent('touchend', (e: Event) => {
+  const plot = touchAccBridgePlot
+  if (!plot) return
+  touchAccBridgePlot = null
+  const te = e as TouchEvent
+  const touch = te.changedTouches[0]
+  /* v8 ignore start -- a touchend always reports the finger that just lifted */
+  if (!touch) return
+  /* v8 ignore stop */
+  dispatchBridgedMouseEvent(plot, 'mouseup', touch.clientX, touch.clientY)
+})
+
+// Interrupted gesture: abort (no commit) rather than dispatch a synthetic
+// mouseup, mirroring the pointercancel/blur safety nets for the mouse path.
+useDocumentEvent('touchcancel', () => {
+  if (!touchAccBridgePlot) return
+  touchAccBridgePlot = null
+  abortAccDrag()
+})
+
+// Capture-phase touch entry point for both drag gestures, mirroring
+// onPlotMouseDown. Registered on the same two plot wrapper elements (see the
+// template) so it reliably intercepts before sigplot's own bubble-phase
+// touchstart listener on the widget canvas underneath.
+function onPlotTouchStart(e: TouchEvent) {
+  if (e.touches.length !== 1) return // let sigplot handle two-finger pinch-zoom
+  const touch = e.touches[0]
+  /* v8 ignore start -- guarded by the length check above */
+  if (!touch) return
+  /* v8 ignore stop */
+  const isSpec = e.currentTarget === specEl.value
+  if (isSpec && tryStartFreqDrag(touch)) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    return
+  }
+  const acc = isSpec ? specAcc : wfAcc
+  const plot = isSpec ? specPlot : wfPlot
+  const el = isSpec ? specEl.value : wfEl.value
+  if (acc && plot && el && nearAccGrabZone(acc, plot, el, touch.clientX, touch.clientY)) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    touchAccBridgePlot = plot
+    dispatchBridgedMouseEvent(plot, 'mousedown', touch.clientX, touch.clientY)
+  }
+  // Otherwise: not one of our controls — leave the touch alone so sigplot's
+  // native touch pan/pinch-zoom handles it, same as before this change.
+}
+
 // Drag-commit. sigplot's Accordion never fires its 'change'/'accordiontag'
 // events on drag-end (its _onDocMouseUp is dead code: `!dragging ||
 // !edge_dragging` is always true since mousedown sets exactly one of them).
@@ -1494,10 +1725,15 @@ useDocumentEvent('mouseup', () => {
 // gesture (browser takes over a touch/pen scroll) or the window losing focus
 // mid-drag (alt-tab, OS dialog) would otherwise leave sigplot's drag flag set
 // and the tuning bar glued to the cursor until a page refresh. Abort (no
-// commit) and snap the brackets back to the tuned state.
+// commit) and snap the brackets back to the tuned state. abortFreqDrag gets
+// the same treatment for the same reasons (the freq-axis pan has no sigplot
+// drag flag to leak, but an uncommitted pan should still snap back rather than
+// leave a stale preview offset on screen).
 useDocumentEvent('pointercancel', abortAccDrag)
 onMounted(() => window.addEventListener('blur', abortAccDrag))
 onBeforeUnmount(() => window.removeEventListener('blur', abortAccDrag))
+onMounted(() => window.addEventListener('blur', abortFreqDrag))
+onBeforeUnmount(() => window.removeEventListener('blur', abortFreqDrag))
 
 const rootEl = ref<HTMLElement | null>(null)
 const specEl = ref<HTMLElement | null>(null)
@@ -1785,7 +2021,15 @@ function initPlots() {
     // Kept very subtle (low opacity) so the trace underneath stays legible.
     fill_style: { fillStyle: '#00aaff', opacity: 0.12 },
     center_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 20, lineCap: 'butt' },
-    edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 0, lineCap: 'butt' },
+    // sigplot's edge-drag (bandwidth-resize) hit-test tolerance is
+    // `edge_line_style.lineWidth + 5` px either side of the edge — a mouse
+    // cursor can land in a 5px zone, a fingertip can't. Widened to match the
+    // center-drag zone above (25px either side ≈ WCAG 2.5.8's 24px target-size
+    // recommendation) so touch dragging the passband edge is reliable; the
+    // line itself stays invisible (draw_edge_lines: false), only the hit test
+    // gets bigger. nearAccGrabZone() below reads this same property, so the
+    // touch pre-filter tolerance always matches sigplot's own.
+    edge_line_style: { strokeStyle: 'rgba(0,0,0,0)', lineWidth: 20, lineCap: 'butt' },
   }
   const carCommon = {
     mode: 'absolute' as const,
@@ -2438,6 +2682,7 @@ onBeforeUnmount(() => {
       :style="spectrumStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @touchstart.capture="onPlotTouchStart"
       @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     >
@@ -2508,6 +2753,7 @@ onBeforeUnmount(() => {
       :style="rasterStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @touchstart.capture="onPlotTouchStart"
       @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     ></div>
