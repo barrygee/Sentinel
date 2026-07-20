@@ -25,6 +25,10 @@ interface FakeMx {
   height: number
   level: number
   stk: Array<{ x1: number; y1: number; x2: number; y2: number; ymin: number; ymax: number }>
+  // A real widget canvas so dispatchBridgedMouseEvent (SdrWaterfall.vue) has
+  // something to dispatch synthetic mouse events at, mirroring sigplot's real
+  // `_Mx.wid_canvas`.
+  wid_canvas: HTMLCanvasElement
 }
 interface FakeGx {
   xdiv: number
@@ -58,7 +62,13 @@ interface FakeAccShape {
   _opts: Record<string, unknown>
   dragging: boolean
   edge_dragging: boolean
-  properties: { loc_1?: number; loc_2?: number; edge_line_style?: { lineWidth?: number } }
+  properties: {
+    loc_1?: number
+    loc_2?: number
+    center_location?: number
+    edge_line_style?: { lineWidth?: number }
+    center_line_style?: { lineWidth?: number }
+  }
   center: (v?: number) => number | FakeAccShape
   width: (v?: number) => number | FakeAccShape
   min_width: (v: number) => void
@@ -94,6 +104,12 @@ vi.mock('sigplot', () => {
       height: 300,
       level: 0,
       stk: [{ x1: 56, y1: 20, x2: 988, y2: 270, ymin: -100, ymax: 0 }],
+      // Appended into the real plot container (attached to document.body via
+      // mountWaterfall's `attachTo`), mirroring how sigplot actually nests its
+      // widget canvas — needed so a synthetic mousedown/mousemove/mouseup
+      // dispatched at it (dispatchBridgedMouseEvent) bubbles up to the
+      // document-level accordion-drag listeners like a real touch would.
+      wid_canvas: el.appendChild(document.createElement('canvas')),
     }
     this._Gx = {
       xdiv: 1,
@@ -254,6 +270,28 @@ beforeEach(() => {
     },
   )
 
+  // vitest's jsdom environment doesn't expose a brand-correct `Window`
+  // instance as `window` (it's a merged global, not literally jsdom's Window
+  // object), so jsdom's own MouseEvent constructor rejects `view: window`
+  // with "member view is not of type Window" — a test-environment artifact
+  // only; real browsers accept this fine. dispatchBridgedMouseEvent
+  // (SdrWaterfall.vue, the touch→mouse accordion bridge) sets `view: window`
+  // on every synthetic event it dispatches, so strip that field before
+  // delegating to the real constructor. Built via Reflect.construct with the
+  // REAL MouseEvent as newTarget (rather than a subclass) so the resulting
+  // instance's prototype is still exactly window.MouseEvent.prototype — vue
+  // test-utils' own trigger() reads Object.getOwnPropertyDescriptor straight
+  // off that prototype to decide which synthetic properties are read-only, so
+  // a subclass (with its own, empty prototype) would break its `button`/
+  // `buttons` handling for every existing mouse-event test in this file.
+  const RealMouseEvent = window.MouseEvent
+  function StubbedMouseEvent(type: string, init?: MouseEventInit): MouseEvent {
+    const { view: _unusedView, ...rest } = init ?? {}
+    return Reflect.construct(RealMouseEvent, [type, rest], RealMouseEvent) as MouseEvent
+  }
+  StubbedMouseEvent.prototype = RealMouseEvent.prototype
+  vi.stubGlobal('MouseEvent', StubbedMouseEvent)
+
   // Layout: jsdom returns 0 for all box metrics. Give the plot elements a real
   // size so the FFT-bin math and click/drag geometry have something to work on.
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -317,6 +355,24 @@ function specAccordion() {
 }
 function wfAccordion() {
   return registry.accordions[1]
+}
+
+// jsdom's Touch constructor is unavailable, but its TouchEvent constructor
+// happily accepts plain {clientX, clientY} objects for touches/changedTouches
+// — the component only ever reads those two fields off each entry, so a
+// plain object satisfies it structurally without needing a real Touch.
+type FakeTouch = { clientX: number; clientY: number }
+function makeTouchEvent(
+  type: 'touchstart' | 'touchmove' | 'touchend',
+  touches: FakeTouch[],
+  changedTouches: FakeTouch[] = touches,
+): TouchEvent {
+  return new TouchEvent(type, {
+    touches: touches as unknown as Touch[],
+    changedTouches: changedTouches as unknown as Touch[],
+    bubbles: true,
+    cancelable: true,
+  })
 }
 
 /** Put the component into a live, playing state with a span set by a frame. */
@@ -1151,6 +1207,121 @@ describe('SdrWaterfall — frequency-axis drag pan', () => {
 })
 
 // =============================================================================
+describe('SdrWaterfall — frequency-axis drag pan (touch)', () => {
+  it('touchstart in the gutter arms the pan, touchmove updates it, and touchend commits', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = wrapper.find('.sdr-wf-spectrum')
+    // Touchstart in the bottom gutter (y >= gutterTop ≈ 262) arms the pan,
+    // mirroring the mousedown-in-gutter test above.
+    const startEvent = makeTouchEvent('touchstart', [{ clientX: 500, clientY: 290 }])
+    const startPreventSpy = vi.spyOn(startEvent, 'preventDefault')
+    el.element.dispatchEvent(startEvent)
+    await wrapper.vm.$nextTick()
+    expect(startPreventSpy).toHaveBeenCalled()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).toContain('sdr-wf-spectrum--panning')
+    const moveEvent = makeTouchEvent('touchmove', [{ clientX: 560, clientY: 290 }])
+    const movePreventSpy = vi.spyOn(moveEvent, 'preventDefault')
+    document.dispatchEvent(moveEvent)
+    expect(movePreventSpy).toHaveBeenCalled()
+    flushRaf() // run freqDragFlush
+    document.dispatchEvent(makeTouchEvent('touchend', [{ clientX: 560, clientY: 290 }]))
+    await wrapper.vm.$nextTick()
+    expect(tuneSpy).toHaveBeenCalledWith(expect.any(Number), true)
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
+
+  it('touchcancel aborts an in-progress pan without committing a retune', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 500, clientY: 290 }]))
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 560, clientY: 290 }]))
+    flushRaf()
+    document.dispatchEvent(new Event('touchcancel'))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
+
+  it('touchcancel also cancels a still-pending preview rAF (not yet flushed)', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 500, clientY: 290 }]))
+    // Schedule the preview rAF but do NOT flush it before aborting — abortFreqDrag
+    // must cancel the still-pending frame itself, not rely on it having run.
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 560, clientY: 290 }]))
+    const pendingEntry = rafQueue.find((entry) => !entry.cancelled)
+    expect(pendingEntry).toBeDefined()
+    document.dispatchEvent(new Event('touchcancel'))
+    expect(pendingEntry?.cancelled).toBe(true)
+  })
+
+  it('does not intercept a touchstart above the gutter, leaving sigplot to handle it', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const event = makeTouchEvent('touchstart', [{ clientX: 500, clientY: 100 }])
+    const preventSpy = vi.spyOn(event, 'preventDefault')
+    el.element.dispatchEvent(event)
+    expect(preventSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
+
+  it('ignores a two-finger touchstart entirely, leaving pinch-zoom to sigplot', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const event = makeTouchEvent('touchstart', [
+      { clientX: 500, clientY: 290 },
+      { clientX: 520, clientY: 290 },
+    ])
+    const preventSpy = vi.spyOn(event, 'preventDefault')
+    el.element.dispatchEvent(event)
+    expect(preventSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
+
+  it('aborts an active pan on window blur, mirroring the abortAccDrag blur handler', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 500, clientY: 290 }]))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).toContain('sdr-wf-spectrum--panning')
+    window.dispatchEvent(new Event('blur'))
+    await wrapper.vm.$nextTick()
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+  })
+
+  it('ignores a blur when no freq-axis pan is in progress', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    expect(() => window.dispatchEvent(new Event('blur'))).not.toThrow()
+    expect(tuneSpy).not.toHaveBeenCalled()
+    void wrapper
+  })
+
+  it('coalesces rapid gutter-drag touchmoves into one rAF', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 500, clientY: 290 }]))
+    // Two moves before any flush: the second must NOT schedule a second rAF.
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 540, clientY: 290 }]))
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 560, clientY: 290 }]))
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    document.dispatchEvent(makeTouchEvent('touchend', [{ clientX: 560, clientY: 290 }]))
+    expect(tuneSpy).toHaveBeenCalledWith(expect.any(Number), true)
+  })
+})
+
+// =============================================================================
 describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
   async function startDrag(store: ReturnType<typeof useSdrStore>) {
     await playWithFrame(store)
@@ -1397,6 +1568,170 @@ describe('SdrWaterfall — accordion (tuning-bracket) drag', () => {
     expect(specAccordion().edge_dragging).toBe(false)
     expect(wfAccordion().dragging).toBe(false)
     expect(wfAccordion().edge_dragging).toBe(false)
+    void wrapper
+  })
+})
+
+// =============================================================================
+describe('SdrWaterfall — touch-driven accordion drag bridge', () => {
+  // Arm the spectrum accordion's grab-zone geometry so a touch at (300, 100)
+  // lands on its center handle (edges at 200/400, center at 300 — all with the
+  // widened 20px tolerance accCommon configures).
+  function armGrabZone() {
+    const spec = specAccordion()
+    spec.properties.loc_1 = 200
+    spec.properties.loc_2 = 400
+    spec.properties.edge_line_style = { lineWidth: 20 }
+    spec.properties.center_location = 300
+    spec.properties.center_line_style = { lineWidth: 20 }
+  }
+
+  it('touchstart near a grab zone intercepts the touch and dispatches a bridged mousedown', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    armGrabZone()
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const touchEvent = makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }])
+    const preventSpy = vi.spyOn(touchEvent, 'preventDefault')
+    const stopSpy = vi.spyOn(touchEvent, 'stopImmediatePropagation')
+    el.element.dispatchEvent(touchEvent)
+    expect(preventSpy).toHaveBeenCalled()
+    expect(stopSpy).toHaveBeenCalled()
+    expect(mousedownSpy).toHaveBeenCalledTimes(1)
+    const dispatched = mousedownSpy.mock.calls[0]?.[0] as MouseEvent
+    expect(dispatched.type).toBe('mousedown')
+    expect(dispatched.clientX).toBe(300)
+    expect(dispatched.clientY).toBe(100)
+    expect(dispatched.button).toBe(0)
+  })
+
+  it('does not intercept a touchstart that misses every grab zone', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    armGrabZone()
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    // Far from loc_1(200)/loc_2(400)/center(300) and their 25px tolerance.
+    const touchEvent = makeTouchEvent('touchstart', [{ clientX: 700, clientY: 100 }])
+    const preventSpy = vi.spyOn(touchEvent, 'preventDefault')
+    el.element.dispatchEvent(touchEvent)
+    expect(preventSpy).not.toHaveBeenCalled()
+    expect(mousedownSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not throw when the plot has no widget canvas measured yet (accWidCanvas fallback)', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    armGrabZone()
+    // Force accWidCanvas's `mx?.wid_canvas ?? null` fallback: a live plot
+    // whose _Mx exists but hasn't measured a widget canvas yet.
+    ;(specPlot()._Mx as unknown as { wid_canvas: undefined }).wid_canvas = undefined
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const event = makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }])
+    expect(() => el.element.dispatchEvent(event)).not.toThrow()
+  })
+
+  it('touchmove while bridged dispatches a bridged mousemove and prevents default', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    armGrabZone()
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }]))
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousemoveSpy = vi.fn()
+    canvas.addEventListener('mousemove', mousemoveSpy)
+    const moveEvent = makeTouchEvent('touchmove', [{ clientX: 320, clientY: 110 }])
+    const preventSpy = vi.spyOn(moveEvent, 'preventDefault')
+    document.dispatchEvent(moveEvent)
+    expect(preventSpy).toHaveBeenCalled()
+    expect(mousemoveSpy).toHaveBeenCalledTimes(1)
+    const dispatched = mousemoveSpy.mock.calls[0]?.[0] as MouseEvent
+    expect(dispatched.clientX).toBe(320)
+    expect(dispatched.clientY).toBe(110)
+  })
+
+  it('a touchmove with no active bridge dispatches nothing', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousemoveSpy = vi.fn()
+    canvas.addEventListener('mousemove', mousemoveSpy)
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 320, clientY: 110 }]))
+    expect(mousemoveSpy).not.toHaveBeenCalled()
+    void wrapper
+  })
+
+  it('touchend dispatches a bridged mouseup at the lifted-finger position and clears the bridge', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    armGrabZone()
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }]))
+    const canvas = specPlot()._Mx.wid_canvas
+    const mouseupSpy = vi.fn()
+    canvas.addEventListener('mouseup', mouseupSpy)
+    document.dispatchEvent(makeTouchEvent('touchend', [{ clientX: 310, clientY: 105 }]))
+    expect(mouseupSpy).toHaveBeenCalledTimes(1)
+    const dispatched = mouseupSpy.mock.calls[0]?.[0] as MouseEvent
+    expect(dispatched.type).toBe('mouseup')
+    expect(dispatched.clientX).toBe(310)
+    expect(dispatched.clientY).toBe(105)
+    expect(dispatched.button).toBe(0)
+    // The bridge is cleared: a further touchmove dispatches nothing more.
+    const mousemoveSpy = vi.fn()
+    canvas.addEventListener('mousemove', mousemoveSpy)
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 320, clientY: 110 }]))
+    expect(mousemoveSpy).not.toHaveBeenCalled()
+  })
+
+  it('a touchend with no active bridge dispatches nothing', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const canvas = specPlot()._Mx.wid_canvas
+    const mouseupSpy = vi.fn()
+    canvas.addEventListener('mouseup', mouseupSpy)
+    document.dispatchEvent(makeTouchEvent('touchend', [{ clientX: 310, clientY: 105 }]))
+    expect(mouseupSpy).not.toHaveBeenCalled()
+    void wrapper
+  })
+
+  it('touchcancel clears the bridge and aborts the drag without committing a synthetic mouseup', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    armGrabZone()
+    const spec = specAccordion()
+    // Simulate sigplot synchronously setting its own drag flag off the bridged
+    // mousedown (mirrors startDrag()'s convention above for the mouse path).
+    spec.dragging = true
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const el = wrapper.find('.sdr-wf-spectrum')
+    el.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }]))
+    const canvas = specPlot()._Mx.wid_canvas
+    const mouseupSpy = vi.fn()
+    canvas.addEventListener('mouseup', mouseupSpy)
+    document.dispatchEvent(new Event('touchcancel'))
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(mouseupSpy).not.toHaveBeenCalled() // aborted, not committed via a synthetic mouseup
+    expect(specAccordion().dragging).toBe(false)
+    expect(wfAccordion().dragging).toBe(false)
+    // The bridge is cleared: a further touchmove dispatches nothing more.
+    const mousemoveSpy = vi.fn()
+    canvas.addEventListener('mousemove', mousemoveSpy)
+    document.dispatchEvent(makeTouchEvent('touchmove', [{ clientX: 320, clientY: 110 }]))
+    expect(mousemoveSpy).not.toHaveBeenCalled()
+  })
+
+  it('a touchcancel with no active bridge is a no-op', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    expect(() => document.dispatchEvent(new Event('touchcancel'))).not.toThrow()
+    expect(tuneSpy).not.toHaveBeenCalled()
     void wrapper
   })
 })
@@ -1858,6 +2193,16 @@ describe('SdrWaterfall — guards before the plots are initialised', () => {
     document.dispatchEvent(new MouseEvent('mouseup', { clientX: 100, clientY: 100 }))
     expect(wrapper.find('#sdr-waterfall').exists()).toBe(true)
   })
+
+  it('no-ops a touchstart pre-init (accordion/plot not yet created)', () => {
+    const { wrapper } = mountUninitialised()
+    expect(registry.accordions).toHaveLength(0)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const event = makeTouchEvent('touchstart', [{ clientX: 100, clientY: 100 }])
+    const preventSpy = vi.spyOn(event, 'preventDefault')
+    expect(() => el.element.dispatchEvent(event)).not.toThrow()
+    expect(preventSpy).not.toHaveBeenCalled()
+  })
 })
 
 // =============================================================================
@@ -1891,6 +2236,111 @@ describe('SdrWaterfall — nearAccEdge hit-test branches', () => {
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 100 }))
     await wrapper.vm.$nextTick()
     expect(wrapper.find('#sdr-waterfall').classes()).toContain('edge-resize')
+  })
+})
+
+// =============================================================================
+// nearAccGrabZone is exercised entirely through onPlotTouchStart's touchstart
+// handler (it isn't exported) — a synthetic mousedown reaching the plot's
+// widget canvas is proof the touch was judged "near enough" to intercept.
+describe('SdrWaterfall — nearAccGrabZone hit-test branches', () => {
+  it('returns false when the touch is outside the data box', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    // Use the waterfall raster, not the spectrum: on the spectrum, any y this
+    // far down also falls inside the freq-axis gutter and tryStartFreqDrag
+    // (tried first for isSpec) would intercept before nearAccGrabZone ever
+    // runs. The raster has no gutter special-case, so it isolates the
+    // out-of-bounds branch cleanly.
+    wfAccordion().properties.loc_1 = 100
+    wfAccordion().properties.loc_2 = 400
+    wfAccordion().properties.edge_line_style = { lineWidth: 20 }
+    const canvas = wfPlotInstance()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-raster')
+    // y = 290 is below the waterfall data-box bottom (mx.b ≈ 280).
+    const event = makeTouchEvent('touchstart', [{ clientX: 100, clientY: 290 }])
+    const preventSpy = vi.spyOn(event, 'preventDefault')
+    el.element.dispatchEvent(event)
+    expect(preventSpy).not.toHaveBeenCalled()
+    expect(mousedownSpy).not.toHaveBeenCalled()
+  })
+
+  it('matches the first edge (loc_1) within the widened edge tolerance', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    specAccordion().properties.loc_1 = 200
+    specAccordion().properties.loc_2 = 400
+    specAccordion().properties.edge_line_style = { lineWidth: 20 }
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    // 10px from loc_1 (200), well inside the 25px (20 + 5) edge tolerance.
+    const event = makeTouchEvent('touchstart', [{ clientX: 210, clientY: 100 }])
+    el.element.dispatchEvent(event)
+    expect(mousedownSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('matches the center handle within the widened center tolerance', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    specAccordion().properties.center_location = 300
+    specAccordion().properties.center_line_style = { lineWidth: 20 }
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    // 15px from center_location (300), inside the 25px (20 + 5) tolerance.
+    const event = makeTouchEvent('touchstart', [{ clientX: 315, clientY: 100 }])
+    el.element.dispatchEvent(event)
+    expect(mousedownSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the default +5px tolerance when line-width styles are absent', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    specAccordion().properties.loc_1 = 200
+    specAccordion().properties.edge_line_style = undefined // exercises the ?? 1 fallback
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    // 4px from loc_1 (200): inside the fallback (1 + 5 = 6px) tolerance.
+    const nearEvent = makeTouchEvent('touchstart', [{ clientX: 204, clientY: 100 }])
+    el.element.dispatchEvent(nearEvent)
+    expect(mousedownSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns false when the accordion has no properties yet', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    // Force the defensive `!p` guard: a live accordion with no properties object.
+    ;(specAccordion() as unknown as { properties: undefined }).properties = undefined
+    const canvas = specPlot()._Mx.wid_canvas
+    const mousedownSpy = vi.fn()
+    canvas.addEventListener('mousedown', mousedownSpy)
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const event = makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }])
+    const preventSpy = vi.spyOn(event, 'preventDefault')
+    el.element.dispatchEvent(event)
+    expect(preventSpy).not.toHaveBeenCalled()
+    expect(mousedownSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns false when the plot has no measured geometry yet', async () => {
+    const { wrapper, store } = mountWaterfall()
+    await playWithFrame(store)
+    specAccordion().properties.center_location = 300
+    specAccordion().properties.center_line_style = { lineWidth: 20 }
+    // Force the defensive `!mx` guard: a live plot with no _Mx measured yet.
+    ;(specPlot() as unknown as { _Mx: undefined })._Mx = undefined
+    const el = wrapper.find('.sdr-wf-spectrum')
+    const event = makeTouchEvent('touchstart', [{ clientX: 300, clientY: 100 }])
+    const preventSpy = vi.spyOn(event, 'preventDefault')
+    expect(() => el.element.dispatchEvent(event)).not.toThrow()
+    expect(preventSpy).not.toHaveBeenCalled()
   })
 })
 

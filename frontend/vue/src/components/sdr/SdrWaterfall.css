@@ -242,6 +242,15 @@
    * gutter at any font/canvas size. See SdrWaterfall.vue. */
   /* Click anywhere to tune to that frequency (onPlotClick). */
   cursor: crosshair;
+  /* sigplot already claims the whole plot area for its own touch pan/pinch-zoom
+   * (event.preventDefault() in its ontouchstart — see sigplot.js), so the
+   * browser never scrolls the page from a touch that starts here; touch-action
+   * just tells the browser that up front instead of relying on a delayed JS
+   * preventDefault, which avoids a scroll flicker on iOS Safari before our own
+   * gutter-drag / accordion-drag touch handlers (SdrWaterfall.vue) decide
+   * whether to take over the gesture. Scrolling the rest of the SDR panel is
+   * unaffected — this only scopes the plot element itself. */
+  touch-action: none;
 }
 
 /* While dragging the freq axis to pan, show a grabbing cursor across the whole
@@ -403,6 +412,8 @@
   width: 100%;
   /* Click anywhere to tune to that frequency (onPlotClick). */
   cursor: crosshair;
+  /* See the matching comment on .sdr-wf-spectrum above — same reasoning. */
+  touch-action: none;
 }
 
 /* Hovering an accordion edge = bandwidth resize zone. The ID+class selector
