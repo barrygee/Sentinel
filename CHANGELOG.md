@@ -284,6 +284,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Match left rail styling to the right rail across all sections (#219)
 - Near-black ring on the user-location and SET LOCATION markers (#221)
 - Match the rail button grey to the logo mark's ring grey (#222)
+- Make waterfall drag controls touch-friendly (#225)
 
 ### Chores
 
