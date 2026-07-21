@@ -45,7 +45,7 @@ export interface SdrStoredFrequency {
 
 export type SdrMode = 'NFM' | 'WFM' | 'AM' | 'USB' | 'LSB' | 'CW'
 
-export type SdrTab = 'radio' | 'frequency-manager' | 'search-ranges' | 'groups' | 'recordings'
+export type SdrTab = 'radio' | 'search-ranges' | 'groups' | 'recordings'
 
 export interface SdrSpectrumFrame {
   bins: number[]

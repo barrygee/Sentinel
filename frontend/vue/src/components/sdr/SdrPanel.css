@@ -172,7 +172,9 @@
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: #ffffff;
-  background: rgba(10, 13, 20, 0.92);
+  /* Transparent (not the panel colour) so the input stays invisible against
+     whatever background the hosting side panel uses. */
+  background: transparent;
   border: none;
   border-radius: 2px;
   padding: 0;
@@ -188,7 +190,7 @@
 }
 
 .sdr-freq-input-large:focus {
-  background: rgba(10, 13, 20, 0.92);
+  background: transparent;
   cursor: text;
 }
 
@@ -314,19 +316,22 @@
   transition: background 0.12s;
 }
 
-.sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded),
-.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
+/* Direct-child :has — a nested accordion left expanded inside a COLLAPSED
+   section (e.g. SETTINGS inside CONTROLS) must not give the wrapper its
+   expanded bottom padding while hidden. */
+.sdr-scan-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded),
+.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
   background: transparent;
   padding-bottom: 16px;
 }
 
-.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
+.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
   padding-bottom: 0;
 }
 
-.sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded)
+.sdr-scan-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded)
   .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded,
-.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded)
+.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded)
   .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded {
   background: transparent;
 }
@@ -341,6 +346,17 @@
 }
 
 .sdr-settings-controls .sdr-radio-section:first-of-type {
+  padding-top: 0;
+}
+
+/* MODE accordion (mode pills / DMR-P25 / signal meter) — the nested
+   sections drop their pane-level 20px side padding like SETTINGS rows do,
+   since the accordion wrapper already provides it. */
+#sdr-mode-section .sdr-radio-section {
+  padding: 10px 0;
+}
+
+#sdr-mode-section .sdr-radio-section:first-of-type {
   padding-top: 0;
 }
 
@@ -850,10 +866,6 @@
   padding: 20px 28px 28px;
 }
 
-.sdr-addfreq-body {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .sdr-editfreq-field {
   display: flex;
   flex-direction: column;
@@ -1227,6 +1239,32 @@
   min-height: 0;
 }
 
+/* Inside the FREQUENCY MANAGER accordion (#sdr-freq-manager-section) the
+   wrapper section already pads 20px, so the content's pane-era 24/28px
+   horizontal paddings would indent it past the accordion title. Zero them
+   so text left-aligns with the title, like the other accordion bodies. */
+#sdr-freq-manager-section .sdr-frequency-manager-groups-filter {
+  padding: 0 0 16px;
+}
+#sdr-freq-manager-section .sdr-freq-row-top {
+  padding: 11px 0;
+}
+#sdr-freq-manager-section .sdr-editfreq-body {
+  padding-left: 0;
+  padding-right: 0;
+}
+#sdr-freq-manager-section .sdr-editfreq-body.expanded {
+  padding: 20px 0 28px;
+}
+/* The Add Frequency button now leads the accordion body (above the group
+   filter chips), so it takes the small top inset the chips used to have. */
+#sdr-freq-manager-section .sdr-frequency-manager-add-freq-row {
+  padding: 4px 0 16px;
+}
+#sdr-freq-manager-section .sdr-panel-empty {
+  padding: 28px 0;
+}
+
 /* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
 .sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
 .sdr-frequency-manager-freqs-body > .sdr-panel-empty {
@@ -1278,7 +1316,6 @@
 .sdr-freq-row-item {
   display: flex;
   flex-direction: column;
-  transition: background 0.12s;
 }
 
 .sdr-freq-row-top {
@@ -1288,10 +1325,6 @@
   gap: 12px;
   padding: 11px 24px;
   transition: background 0.12s;
-}
-
-.sdr-freq-row-top:hover {
-  background: rgba(255, 255, 255, 0.06);
 }
 
 .sdr-freq-row-body {
@@ -1363,10 +1396,6 @@
 
 .sdr-freq-row-mode {
   flex-shrink: 0;
-}
-
-.sdr-freq-row-item.sdr-freq-editing {
-  background: rgba(255, 255, 255, 0.05);
 }
 
 /* The live group-pill family lives with its sole renderer, SdrGroupsTab.vue
@@ -1510,17 +1539,17 @@
   }
 }
 
-/* Digital-decode toggle — green accent matching the mode pills, so the active
-   state reads the same as a selected mode button (green icon on green tint). */
+/* Digital-decode pill (DIGITAL MODES row) — idle/hover/active styling comes
+   from .sdr-mode-pill so it reads exactly like a demod mode button, but it is
+   content-sized rather than flex-stretched so a lone pill matches the
+   AM/FM/WFM pill size instead of filling the whole row. */
 .sdr-digital-btn {
-  color: rgba(200, 255, 0, 0.75);
+  flex: 0 1 auto;
+  padding: 0 14px;
 }
 
-.sdr-digital-btn:hover:not(:disabled) {
-  background: rgba(200, 255, 0, 0.15) !important;
-  color: #c8ff00;
-}
-
+/* !important so the active tint survives the higher-specificity
+   .sdr-mode-pill:hover rule, mirroring .sdr-mode-pill.active:hover. */
 .sdr-digital-btn--active {
   background: rgba(200, 255, 0, 0.12) !important;
   color: #c8ff00 !important;
@@ -1669,33 +1698,67 @@
   min-height: 0;
 }
 
-/* When the frequency-manager pane is active, the panes container must
-   recording vertically so the inner #sdr-freq-list — not the panes container
-   or the page — owns the scroll. Overrides the #msb-pane-radio
+/* When the RADIO pane is active, the tuner controls (device → signal meter)
+   and the accordion headers stay pinned — only an expanded accordion's body
+   scrolls. Height-constrain the whole chain (both mounts) so the pane, not
+   the page, defines the available space. Overrides the #msb-pane-radio
    `overflow-y: visible` and the base `overflow-y: auto`. */
-.sdr-tab-panes:has(> .sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+.sdr-tab-panes:has(> .sdr-tab-pane--radio.active) {
   overflow-y: hidden !important;
   min-height: 0;
 }
-#sdr-panel-panes:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
+#sdr-panel-panes:has(.sdr-tab-pane--radio.active) {
+  overflow-y: hidden;
+  min-height: 0;
+}
+#msb-pane-radio:has(.sdr-tab-pane--radio.active) {
+  overflow-y: hidden;
+  min-height: 0;
+}
+#msb-pane-radio:has(.sdr-tab-pane--radio.active) #sdr-panel-panes {
+  flex: 1;
   overflow-y: hidden;
   min-height: 0;
 }
 
-/* In the map-sidebar (tab) mount, `#msb-pane-radio #sdr-panel-panes` is
-   forced to `flex: none; overflow-y: visible` so the radio tab can scroll
-   as a whole. When the frequency-manager pane is active, we need the
-   opposite: the pane chain must be height-constrained so only the inner
-   `#sdr-freq-list` scrolls — keeping the filter chips and Add Frequency
-   button pinned. */
-#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) {
-  overflow-y: hidden;
-  min-height: 0;
+.sdr-tab-pane--radio.active {
+  overflow: hidden;
 }
-#msb-pane-radio:has(.sdr-tab-pane.active > .sdr-frequency-manager-freqs-body) #sdr-panel-panes {
-  flex: 1;
-  overflow-y: hidden;
+
+/* Everything in the radio pane keeps its natural height… */
+.sdr-tab-pane--radio > * {
+  flex-shrink: 0;
+}
+
+/* …except a section holding an expanded accordion: expanded sections split
+   the free space EQUALLY (flex-basis 0, not proportionally to content size —
+   a long frequency list must not crush the settings sliders to a sliver),
+   each capped at its natural height so short sections don't leave a blank
+   gap, and each body becomes the scroll container. Direct-child :has so the
+   nested SAVED RANGES accordion (inside the SEARCH body) scrolls with its
+   parent, not independently. */
+.sdr-tab-pane--radio > .sdr-radio-section:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
   min-height: 0;
+  max-height: max-content;
+}
+.sdr-tab-pane--radio > .sdr-radio-section > .sdr-frequency-manager-accordion-toggle {
+  flex-shrink: 0;
+}
+.sdr-tab-pane--radio > .sdr-radio-section > .sdr-frequency-manager-accordion-toggle-expanded + div {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.sdr-tab-pane--radio
+  > .sdr-radio-section
+  > .sdr-frequency-manager-accordion-toggle-expanded
+  + div::-webkit-scrollbar {
+  display: none;
 }
 
 /* Same height-constraint for the Recordings pane so the search box stays pinned

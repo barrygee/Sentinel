@@ -157,6 +157,16 @@ describe('SdrFrequencyManagerTab — group filter', () => {
     freqs: [makeFreq(), makeFreq({ id: 11, label: 'Coast', group_ids: [2] })],
   }
 
+  it('toggles the GROUPS filter accordion (closed by default) open and closed', async () => {
+    const wrapper = mountTab(twoGroupsTwoFreqs)
+    const toggle = wrapper.find('button[aria-controls="sdr-freq-manager-groups-section"]')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+  })
+
   it('filters rows by group chip and returns to All', async () => {
     const wrapper = mountTab(twoGroupsTwoFreqs)
     const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')

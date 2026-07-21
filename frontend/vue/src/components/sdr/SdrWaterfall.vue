@@ -147,6 +147,13 @@ mx.text = function (
     // so each label gets its own background box. Skip the canvas draw entirely.
     return
   }
+  // Y-axis dB tick labels hug the canvas's left edge (sigplot right-justifies
+  // them inside the gutter). Nudge the text — not Mx.l, which must stay
+  // identical across the spectrum and waterfall plots — one character right
+  // so the numbers get breathing room without moving the data-box edge.
+  if (typeof lbl === 'string' && /^-?\d+$/.test(lbl.trim()) && typeof Mx?.text_w === 'number') {
+    x += Math.round(Mx.text_w)
+  }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
 import { useSdrStore, type SdrMode } from '@/stores/sdr'

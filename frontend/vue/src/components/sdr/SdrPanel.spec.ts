@@ -639,7 +639,7 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
 
   it('toggles the settings accordion (open by default) closed and open', async () => {
     const { wrapper } = await mountConnected()
-    const toggle = wrapper.find('.sdr-frequency-manager-accordion-toggle')
+    const toggle = wrapper.find('button[aria-controls="sdr-settings-section"]')
     expect(toggle.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
     await toggle.trigger('click')
     expect(toggle.classes()).not.toContain('sdr-frequency-manager-accordion-toggle-expanded')
@@ -647,9 +647,31 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
     expect(toggle.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
   })
 
+  it('toggles the CONTROLS accordion (open by default) closed and open', async () => {
+    const { wrapper } = await mountConnected()
+    const toggle = wrapper.find('button[aria-controls="sdr-mode-section"]')
+    expect(toggle.text()).toBe('CONTROLS')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+  })
+
+  it('toggles the frequency manager accordion (closed by default) open and closed', async () => {
+    const { wrapper } = await mountConnected()
+    const toggle = wrapper.findAll('.sdr-scanner-header-row')[2]
+    expect(toggle.attributes('aria-controls')).toBe('sdr-freq-manager-section')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+  })
+
   it('reflects the settings accordion state via aria-expanded/aria-controls', async () => {
     const { wrapper } = await mountConnected()
-    const toggle = wrapper.find('.sdr-frequency-manager-accordion-toggle')
+    const toggle = wrapper.find('button[aria-controls="sdr-settings-section"]')
     expect(toggle.attributes('aria-controls')).toBe('sdr-settings-section')
     expect(toggle.attributes('aria-expanded')).toBe('true')
     await toggle.trigger('click')
@@ -938,7 +960,7 @@ describe('SdrPanel — search ranges tab', () => {
   }
 
   function rangesPane(wrapper: VueWrapper) {
-    return wrapper.findAll('.sdr-tab-pane')[2] // radio, fm, search-ranges
+    return wrapper.findAll('.sdr-tab-pane')[1] // radio, search-ranges
   }
 
   it('lists search ranges from the API', async () => {
@@ -1019,7 +1041,7 @@ describe('SdrPanel — scanner', () => {
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const ctx = await mountConnected()
     // Expand the scanner section.
-    await ctx.wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await ctx.wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await ctx.wrapper.vm.$nextTick()
     return ctx
   }
@@ -1027,13 +1049,13 @@ describe('SdrPanel — scanner', () => {
   it('mirrors selected scan groups into the store', async () => {
     const store = useSdrStore()
     const { wrapper } = await mountScannable()
-    const chips = wrapper.findAll('.sdr-scan-group-chip')
+    const chips = wrapper.findAll('#sdr-scanner-section .sdr-scan-group-chip')
     const marine = chips.find((c) => c.text() === 'Marine')!
     await marine.trigger('click')
     expect(store.scanGroupNames).toEqual(['Marine'])
     // Back to all.
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'All')!
       .trigger('click')
     expect(store.scanGroupNames).toEqual(['All'])
@@ -1089,7 +1111,7 @@ describe('SdrPanel — scanner', () => {
 describe('SdrPanel — range search', () => {
   async function mountSearch() {
     const ctx = await mountConnected()
-    await ctx.wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click') // expand SEARCH
+    await ctx.wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click') // expand SEARCH
     await ctx.wrapper.vm.$nextTick()
     return ctx
   }
@@ -1148,7 +1170,7 @@ describe('SdrPanel — range search', () => {
   it('selects a saved range and plays it', async () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
     const { wrapper, socket } = await mountSearch()
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click') // expand saved ranges
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click') // expand saved ranges
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-body').trigger('click') // selectSearchRange
     socket.sent.length = 0
@@ -1562,7 +1584,7 @@ describe('SdrPanel — sample-rate dropdown & AGC', () => {
 describe('SdrPanel — step dropdown', () => {
   async function mountSearchExpanded() {
     const ctx = await mountConnected()
-    await ctx.wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click') // SEARCH
+    await ctx.wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click') // SEARCH
     await ctx.wrapper.vm.$nextTick()
     return ctx
   }
@@ -2049,7 +2071,7 @@ describe('SdrPanel — squelch callback & radios-changed event', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -2124,7 +2146,7 @@ describe('SdrPanel — scanner lock toggle & validation edges', () => {
     const store = useSdrStore()
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118_000_000, scannable: true })]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click') // scanner
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click') // scanner
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan
     const strong = {
@@ -2156,7 +2178,7 @@ describe('SdrPanel — scanner lock toggle & validation edges', () => {
       makeFreq({ id: 11, frequency_hz: 119_000_000, scannable: true }),
     ]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     socket.sent.length = 0
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan, tunes freq 0
@@ -2171,7 +2193,7 @@ describe('SdrPanel — scanner lock toggle & validation edges', () => {
   it('rejects invalid range editor inputs with specific messages', async () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -2211,7 +2233,7 @@ describe('SdrPanel — auto-tune radio-selection branches', () => {
 // =============================================================================
 describe('SdrPanel — validation & edge branches', () => {
   async function openRangeEditor(wrapper: VueWrapper) {
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -2225,7 +2247,7 @@ describe('SdrPanel — validation & edge branches', () => {
     const editor = await openRangeEditor(wrapper)
     const inputs = editor.findAll('input.sdr-panel-input')
     const save = () => editor.find('.sdr-editfreq-save-btn').trigger('click')
-    const errText = () => wrapper.findAll('.sdr-tab-pane')[2].find('.sdr-field-error').text()
+    const errText = () => wrapper.findAll('.sdr-tab-pane')[1].find('.sdr-field-error').text()
 
     await save() // empty label
     expect(errText()).toMatch(/Label required/)
@@ -2263,11 +2285,11 @@ describe('SdrPanel — validation & edge branches', () => {
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     const chips = () => wrapper.findAll('.sdr-scanner-header-row ~ * .sdr-scan-group-chip')
     void chips
-    const allChips = wrapper.findAll('.sdr-scan-group-chip')
+    const allChips = wrapper.findAll('#sdr-scanner-section .sdr-scan-group-chip')
     const air = allChips.find((c) => c.text() === 'Airband')!
     const marine = allChips.find((c) => c.text() === 'Marine')!
     await air.trigger('click') // select Airband
@@ -2289,12 +2311,12 @@ describe('SdrPanel — validation & edge branches', () => {
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan (All)
     // Select Marine (no scannable freqs) → refreshScanQueue empties → stopScan.
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'Marine')!
       .trigger('click')
     await wrapper.vm.$nextTick()
@@ -2304,10 +2326,10 @@ describe('SdrPanel — validation & edge branches', () => {
   it('selecting a saved range clears the ad-hoc inputs', async () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click') // saved ranges
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click') // saved ranges
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-body').trigger('click') // selectSearchRange
     expect((wrapper.find('.sdr-search-adhoc-input').element as HTMLInputElement).value).toBe('')
@@ -2316,8 +2338,8 @@ describe('SdrPanel — validation & edge branches', () => {
   it('clears a deleted selected range on reload', async () => {
     searchApi.listSearchRanges.mockResolvedValueOnce([makeRange()] as never)
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-body').trigger('click')
     // Now the range list comes back empty → selection cleared.
@@ -2333,11 +2355,11 @@ describe('SdrPanel — store-driven watchers', () => {
   it('collapses the scanner/search accordions when the panel opens', async () => {
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click') // expand scanner
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click') // expand scanner
     await wrapper.vm.$nextTick()
     store.panelOpen = true
     await wrapper.vm.$nextTick()
-    expect(wrapper.findAll('.sdr-scanner-header-row')[1].classes()).not.toContain(
+    expect(wrapper.findAll('.sdr-scanner-header-row')[4].classes()).not.toContain(
       'sdr-frequency-manager-accordion-toggle-expanded',
     )
   })
@@ -2456,7 +2478,7 @@ describe('SdrPanel — more edge branches', () => {
 
   it('rejects a range with a non-positive low frequency', async () => {
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -2479,7 +2501,7 @@ describe('SdrPanel — more edge branches', () => {
     vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -2565,7 +2587,7 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
   it('restores the saved active tab from sessionStorage', async () => {
     sessionStorage.setItem('sentinel_sdr_tab', 'groups')
     const wrapper = await mountReady()
-    expect(wrapper.findAll('.sdr-tab-pane')[3].classes()).toContain('active') // groups pane
+    expect(wrapper.findAll('.sdr-tab-pane')[2].classes()).toContain('active') // groups pane
   })
 
   it('treats a sessionStorage failure as a closed sidebar', async () => {
@@ -2643,7 +2665,7 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan
     await wrapper.find('.sdr-stop-btn').trigger('click') // stop → stopScan
@@ -2652,7 +2674,7 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
 
   it('closes the sample-rate and step menus on an outside click', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click') // search section
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click') // search section
     await wrapper.vm.$nextTick()
     // Open sample-rate menu.
     const srDrop = wrapper
@@ -2745,8 +2767,8 @@ describe('SdrPanel — branch coverage B (modes, ranges, groups, recording)', ()
     searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
     const { wrapper } = await mountConnected()
     // Start searching the saved range, then delete it.
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // start saved search
     await flushPromises()
@@ -2924,11 +2946,11 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan (All)
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     await wrapper.vm.$nextTick()
@@ -2938,8 +2960,8 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
   it('toggles a saved-range search off when its play button is pressed again', async () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange()] as never)
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // start
     await flushPromises()
@@ -2950,7 +2972,7 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
 
   it('stops an ad-hoc search when its play button is pressed again', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -2964,7 +2986,7 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
 
   it('does not start an ad-hoc search with an inverted range', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('120')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('118') // low > high → invalid
@@ -3004,7 +3026,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan
     nowMs += 500
@@ -3027,7 +3049,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
     const { wrapper } = await mountConnected()
     externalTune({ hz: 145_000_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
     await flushPromises()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scanActive
     audioMock.stop.mockClear()
@@ -3068,7 +3090,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
 
   it('rejects a range with a non-numeric threshold', async () => {
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -3090,7 +3112,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
   it('reports a save failure from the range API', async () => {
     searchApi.createSearchRange.mockResolvedValueOnce(null as never)
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -3108,7 +3130,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
 
   it('closes the step menu with Escape', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-step-dropdown').trigger('keydown', { key: 'Enter' })
     await wrapper.vm.$nextTick()
@@ -3166,10 +3188,10 @@ describe('SdrPanel — branch coverage E (scroll-tune, scan/search engine)', () 
     ]
     fetchState.groups = [makeGroup()]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     socket.sent.length = 0
@@ -3184,7 +3206,7 @@ describe('SdrPanel — branch coverage E (scroll-tune, scan/search engine)', () 
     ]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan
     await wrapper.findAll('.sdr-freq-row-play')[1].trigger('click') // play the saved freq
@@ -3198,7 +3220,7 @@ describe('SdrPanel — branch coverage E (scroll-tune, scan/search engine)', () 
     vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     // Tiny range: 118.000–118.012 MHz at 12.5 kHz → ~1 step then wrap.
     await wrapper.find('.sdr-search-adhoc-input').setValue('118.000')
@@ -3224,8 +3246,8 @@ describe('SdrPanel — branch coverage E (scroll-tune, scan/search engine)', () 
   it('selects the first range when none is selected on reload', async () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange({ id: 7, label: 'First' })] as never)
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     // The first range is auto-selected (searchSelectedRangeId set on reload).
     expect(wrapper.find('.sdr-search-range-item-active').exists()).toBe(true)
@@ -3314,7 +3336,7 @@ describe('SdrPanel — branch coverage F (guards & engine internals)', () => {
 
   it('does not start a search with no range available', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     // No adhoc inputs, no saved ranges → onAdhocPlayClick → startSearch('adhoc') → adhocRange null.
     await wrapper.find('.sdr-search-adhoc-col--play .sdr-search-adhoc-play').trigger('click')
@@ -3324,7 +3346,7 @@ describe('SdrPanel — branch coverage F (guards & engine internals)', () => {
   it('skips an auto-tune that overlaps an active scan (lock not held)', async () => {
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan active
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
@@ -3439,7 +3461,7 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
   it('stops a running search when Stop is pressed', async () => {
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -3481,7 +3503,7 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
     fetchState.frequencies = [makeFreq({ id: 10, scannable: false })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // startScan → empty queue → no-op
     expect(store.scanSweeping).toBe(false)
@@ -3491,8 +3513,8 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click') // scanner
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click') // search
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click') // scanner
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click') // search
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -3507,8 +3529,8 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan
     expect(store.scanSweeping).toBe(true)
@@ -3545,7 +3567,7 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
 // =============================================================================
 describe('SdrPanel — branch coverage H (engine resume, validation, guards)', () => {
   async function startScan(wrapper: VueWrapper) {
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click')
   }
@@ -3591,7 +3613,7 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -3613,7 +3635,7 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
     fetchState.frequencies = [makeFreq({ id: 11, label: 'P', frequency_hz: 120e6 })]
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -3625,7 +3647,7 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
 
   it('rejects a range with a non-positive dwell', async () => {
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -3649,8 +3671,8 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
     ] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // startSearch('saved') → low>=high
     await flushPromises()
@@ -3710,8 +3732,8 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
     searchApi.listSearchRanges.mockResolvedValueOnce([makeRange({ id: 9 })] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // search range 9
     await flushPromises()
@@ -3742,7 +3764,7 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118.000')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('118.050')
@@ -3766,7 +3788,7 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan
     nowMs += 500
@@ -3787,7 +3809,7 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -3821,8 +3843,8 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     searchApi.listSearchRanges.mockResolvedValue([makeRange({ id: 9 })] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     // No ad-hoc inputs → currentSearchRange falls back to the selected saved range.
     await wrapper.find('.sdr-search-range-item-play').trigger('click')
@@ -3869,7 +3891,7 @@ describe('SdrPanel — branch coverage J (correctly-targeted guards)', () => {
 
   it('toggles the step menu closed on a second click', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     const step = wrapper.find('.sdr-step-dropdown')
     await step.trigger('click') // open
@@ -3881,7 +3903,7 @@ describe('SdrPanel — branch coverage J (correctly-targeted guards)', () => {
 
   it('picks a step for the range editor', async () => {
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -3915,7 +3937,7 @@ describe('SdrPanel — branch coverage J (correctly-targeted guards)', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan
     socket.message({
@@ -3988,7 +4010,7 @@ describe('SdrPanel — branch coverage K (search helpers & guards)', () => {
     )
     await flushPromises()
     // Start a scan so _isAutoTuneLockHeld sees scanActive and returns false.
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click')
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
@@ -4008,8 +4030,8 @@ describe('SdrPanel — branch coverage K (search helpers & guards)', () => {
     searchApi.listSearchRanges.mockResolvedValueOnce([makeRange({ id: 9 })] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // search range 9
     await flushPromises()
@@ -4026,8 +4048,8 @@ describe('SdrPanel — branch coverage K (search helpers & guards)', () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange({ id: 9 })] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // saved search active
     await flushPromises()
@@ -4042,13 +4064,13 @@ describe('SdrPanel — branch coverage K (search helpers & guards)', () => {
     searchApi.listSearchRanges.mockResolvedValue([makeRange({ id: 9 })] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
     await wrapper.find('.sdr-search-adhoc-col--play .sdr-search-adhoc-play').trigger('click') // adhoc
     expect(store.searchSweeping).toBe(true)
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click') // saved ranges
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click') // saved ranges
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-range-item-play').trigger('click') // onSavedRangePlayClick → stopSearch + saved
     await flushPromises()
@@ -4077,7 +4099,7 @@ describe('SdrPanel — branch coverage L (final reachable paths)', () => {
       makeFreq({ id: 11, frequency_hz: 119e6, scannable: true }),
     ]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     socket.sent.length = 0
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan → tunes 118
@@ -4096,7 +4118,7 @@ describe('SdrPanel — branch coverage L (final reachable paths)', () => {
     vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118.000')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('118.010') // ~1 step wide
@@ -4136,7 +4158,7 @@ describe('SdrPanel — branch coverage L (final reachable paths)', () => {
 
   it('does not start an ad-hoc search when its inputs are invalid', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     // No inputs → adhocRange() null → startSearch('adhoc') → no range.
     await wrapper.find('.sdr-search-adhoc-col--play .sdr-search-adhoc-play').trigger('click')
@@ -4162,8 +4184,8 @@ describe('SdrPanel — final coverage tail', () => {
     ] as never)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
-    await wrapper.findAll('.sdr-scanner-header-row')[3].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[6].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.findAll('.sdr-search-range-item-play')[0].trigger('click') // search range A
     await flushPromises()
@@ -4260,7 +4282,7 @@ describe('SdrPanel — defensive default branches', () => {
     vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -4340,7 +4362,7 @@ describe('SdrPanel — remaining reachable branch arms', () => {
 
   it('labels the range step dropdown from the range editor step', async () => {
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -4356,10 +4378,10 @@ describe('SdrPanel — remaining reachable branch arms', () => {
     ]
     fetchState.groups = [makeGroup()]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     socket.sent.length = 0
@@ -4444,7 +4466,7 @@ describe('SdrPanel — inline editors & template branches', () => {
 
   it('edits the bottom add-range fields (mode pill, step key, notes)', async () => {
     const { wrapper } = await mountConnected()
-    const pane = wrapper.findAll('.sdr-tab-pane')[2]
+    const pane = wrapper.findAll('.sdr-tab-pane')[1]
     await pane
       .findAll('.sdr-add-freq-btn')
       .find((b) => b.text() === 'Add Range')!
@@ -4473,7 +4495,7 @@ describe('SdrPanel — inline editors & template branches', () => {
 
   it('blocks the ad-hoc step dropdown while a search is active', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -4486,7 +4508,7 @@ describe('SdrPanel — inline editors & template branches', () => {
   it('shows the empty search-ranges state', async () => {
     searchApi.listSearchRanges.mockResolvedValue([] as never)
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('#sdr-search-range-list .sdr-freq-row-item')).toHaveLength(0)
   })
@@ -4653,7 +4675,7 @@ describe('SdrPanel — if/else fall-through arms', () => {
     ]
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click')
     socket.message({
@@ -4675,7 +4697,7 @@ describe('SdrPanel — if/else fall-through arms', () => {
     await wrapper.vm.$nextTick()
     // Toggle Marine while locked → refreshScanQueue with scanLocked true (no doScanStep).
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'Marine')!
       .trigger('click')
     await wrapper.vm.$nextTick()
@@ -4753,7 +4775,7 @@ describe('SdrPanel — remaining fall-through arms', () => {
     const store = useSdrStore()
     store.setResumeDelaySec(2)
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -4780,7 +4802,7 @@ describe('SdrPanel — remaining fall-through arms', () => {
     vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
     const store = useSdrStore()
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -4846,11 +4868,11 @@ describe('SdrPanel — final reachable arms', () => {
     ]
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[1].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[4].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan, dwell timer pending
     await wrapper
-      .findAll('.sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     expect(useSdrStore().scanSweeping).toBe(true)
@@ -4862,7 +4884,7 @@ describe('SdrPanel — final reachable arms', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118.000')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('118.500')
@@ -4885,7 +4907,7 @@ describe('SdrPanel — final reachable arms', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const store = useSdrStore()
     const { wrapper, socket } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click')
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-input').setValue('118')
     await wrapper.findAll('.sdr-search-adhoc-input')[1].setValue('119')
@@ -4948,7 +4970,7 @@ describe('SdrPanel — recording squelch-open start', () => {
 describe('SdrPanel — step-dropdown ref teardown', () => {
   it('clears the ad-hoc step-dropdown ref on unmount', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.findAll('.sdr-scanner-header-row')[2].trigger('click') // render the adhoc step dropdown
+    await wrapper.findAll('.sdr-scanner-header-row')[5].trigger('click') // render the adhoc step dropdown
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.sdr-search-adhoc-row .sdr-step-dropdown').exists()).toBe(true)
     // Unmount → Vue invokes the function ref with null → setAdhocStepDropdownRef(null).

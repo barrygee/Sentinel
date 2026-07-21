@@ -50,24 +50,6 @@
           <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6" />
           <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6" />
         </svg>
-        <!-- frequency manager (bookmark) -->
-        <svg
-          v-else-if="tab.id === 'frequency-manager'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M6 3h12v18l-6-4-6 4V3Z"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linejoin="miter"
-            fill="none"
-          />
-        </svg>
         <!-- search ranges (range brackets with sweep) -->
         <svg
           v-else-if="tab.id === 'search-ranges'"
@@ -118,7 +100,7 @@
     <!-- ── TAB PANES ── -->
     <div class="sdr-tab-panes">
       <!-- ───────────── RADIO TAB ───────────── -->
-      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'radio' }">
+      <div class="sdr-tab-pane sdr-tab-pane--radio" :class="{ active: activeSdrTab === 'radio' }">
         <!-- Device dropdown -->
         <div class="sdr-radio-section sdr-radio-section--device">
           <SdrDeviceSelector
@@ -194,88 +176,118 @@
                 </template>
               </svg>
             </BasePillToggle>
-            <!-- Decode: toggles digital decoding AND shows/hides the decoder dock
-                 below the waterfall (both driven by digitalEnabled). -->
-            <BasePillToggle
-              class="sdr-mode-pill sdr-tune-btn sdr-digital-btn"
-              :active="digitalEnabled"
-              active-class="sdr-digital-btn--active"
-              :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-              :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-              :aria-pressed="digitalEnabled"
-              :disabled="!playing"
-              @click="toggleDigital"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path
-                  d="M1 8H3V4H6V8H9V4H11"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </BasePillToggle>
           </div>
         </div>
 
-        <!-- Mode pills -->
-        <div class="sdr-radio-section">
-          <label class="sdr-field-label">MODE</label>
-          <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
-            <BasePillToggle
-              v-for="(mode, modeIndex) in MODES"
-              :key="mode"
-              class="sdr-mode-pill"
-              role="radio"
-              :aria-checked="currentMode === mode"
-              :tabindex="modeKeyboard.radioTabindex(modeIndex)"
-              :active="currentMode === mode"
-              active-class="active"
-              :disabled="tuningDisabled"
-              @click="setMode(mode)"
-              @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
-            >
-              {{ mode }}
-            </BasePillToggle>
-          </div>
-        </div>
-
-        <!-- Signal meter -->
-        <div class="sdr-radio-section">
-          <span class="sdr-field-label">SIGNAL</span>
-          <div
-            class="sdr-signal-segments"
-            :class="{ 'sdr-signal-segments--muted': !signalAudible }"
+        <!-- Controls accordion (titled MODE while open) — demod mode pills,
+             the DMR / P25 digital decode pill, the signal meter and the
+             nested SETTINGS accordion (open by default; state survives panel
+             open/close). -->
+        <div class="sdr-radio-section sdr-scan-controls">
+          <BaseAccordionSection
+            v-model:expanded="modeSectionExpanded"
+            title="CONTROLS"
+            body-id="sdr-mode-section"
           >
-            <div
-              v-for="i in SIGNAL_SEGS"
-              :key="i"
-              class="sdr-signal-seg"
-              :class="{ 'sdr-signal-seg--on': i <= signalLit }"
-            ></div>
-          </div>
+            <div class="sdr-radio-section">
+              <label class="sdr-field-label">MODE</label>
+              <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
+                <BasePillToggle
+                  v-for="(mode, modeIndex) in MODES"
+                  :key="mode"
+                  class="sdr-mode-pill"
+                  role="radio"
+                  :aria-checked="currentMode === mode"
+                  :tabindex="modeKeyboard.radioTabindex(modeIndex)"
+                  :active="currentMode === mode"
+                  active-class="active"
+                  :disabled="tuningDisabled"
+                  @click="setMode(mode)"
+                  @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
+                >
+                  {{ mode }}
+                </BasePillToggle>
+              </div>
+            </div>
+
+            <!-- Digital modes — the DMR / P25 pill toggles digital decoding AND
+             shows/hides the decoder dock below the waterfall (both driven by
+             digitalEnabled). -->
+            <div class="sdr-radio-section">
+              <label class="sdr-field-label">DIGITAL MODE</label>
+              <div class="sdr-mode-pills">
+                <BasePillToggle
+                  class="sdr-mode-pill sdr-digital-btn"
+                  :active="digitalEnabled"
+                  active-class="sdr-digital-btn--active"
+                  :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+                  :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+                  :aria-pressed="digitalEnabled"
+                  :disabled="!playing"
+                  @click="toggleDigital"
+                >
+                  DMR / P25
+                </BasePillToggle>
+              </div>
+            </div>
+
+            <!-- Signal meter -->
+            <div class="sdr-radio-section">
+              <span class="sdr-field-label">SIGNAL</span>
+              <div
+                class="sdr-signal-segments"
+                :class="{ 'sdr-signal-segments--muted': !signalAudible }"
+              >
+                <div
+                  v-for="i in SIGNAL_SEGS"
+                  :key="i"
+                  class="sdr-signal-seg"
+                  :class="{ 'sdr-signal-seg--on': i <= signalLit }"
+                ></div>
+              </div>
+            </div>
+            <!-- Settings accordion, nested so the CONTROLS section carries the
+                 full tuner control set. -->
+            <div class="sdr-radio-section sdr-settings-controls">
+              <SdrSettingsAccordion
+                :volume="volume"
+                :squelch="squelch"
+                :bw-hz="bwHz"
+                :bw-max="bwMax"
+                :gain-db="gainDb"
+                :gain-auto="gainAuto"
+                :sample-rate-hz="sampleRateHz"
+                :controls-disabled="controlsDisabled"
+                :tuning-disabled="tuningDisabled"
+                @volume-input="onVolumeInput"
+                @squelch-input="onSquelchInput"
+                @bw-input="onBwInput"
+                @gain-input="onGainInput"
+                @agc-change="onAgcChange"
+                @pick-sample-rate="pickSampleRate"
+              />
+            </div>
+          </BaseAccordionSection>
         </div>
 
-        <!-- Settings accordion -->
-        <div class="sdr-radio-section sdr-settings-controls">
-          <SdrSettingsAccordion
-            :volume="volume"
-            :squelch="squelch"
-            :bw-hz="bwHz"
-            :bw-max="bwMax"
-            :gain-db="gainDb"
-            :gain-auto="gainAuto"
-            :sample-rate-hz="sampleRateHz"
-            :controls-disabled="controlsDisabled"
-            :tuning-disabled="tuningDisabled"
-            @volume-input="onVolumeInput"
-            @squelch-input="onSquelchInput"
-            @bw-input="onBwInput"
-            @gain-input="onGainInput"
-            @agc-change="onAgcChange"
-            @pick-sample-rate="pickSampleRate"
-          />
+        <!-- Frequency manager (saved frequencies) — lives in its own accordion
+             between SETTINGS and SCANNER (formerly a rail tab). `activate`
+             fires when one of its forms opens, so expand the accordion to keep
+             the form visible. -->
+        <div class="sdr-radio-section sdr-scan-controls">
+          <BaseAccordionSection
+            v-model:expanded="freqManagerSectionExpanded"
+            title="FREQUENCY MANAGER"
+            body-id="sdr-freq-manager-section"
+          >
+            <SdrFrequencyManagerTab
+              :live="liveTuneSeed"
+              :tuning-disabled="tuningDisabled"
+              @play="playFreq"
+              @activate="freqManagerSectionExpanded = true"
+              @changed="reloadData"
+            />
+          </BaseAccordionSection>
         </div>
 
         <!-- Scan controls -->
@@ -527,17 +539,6 @@
         />
       </div>
 
-      <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
-      <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'frequency-manager' }">
-        <SdrFrequencyManagerTab
-          :live="liveTuneSeed"
-          :tuning-disabled="tuningDisabled"
-          @play="playFreq"
-          @activate="switchSdrTab('frequency-manager')"
-          @changed="reloadData"
-        />
-      </div>
-
       <!-- ───────────── SEARCH RANGES TAB ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'search-ranges' }">
         <SdrSearchRangesTab
@@ -659,7 +660,6 @@ const SIGNAL_SEGS = 36
 const SDR_TAB_KEY = 'sentinel_sdr_tab'
 const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
   { id: 'radio', label: 'RADIO' },
-  { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
   { id: 'groups', label: 'GROUPS' },
   { id: 'search-ranges', label: 'SEARCH RANGES' },
   { id: 'recordings', label: 'RECORDINGS' },
@@ -794,6 +794,7 @@ watch(
   () => _sdrStore().panelOpen,
   (open) => {
     if (open) {
+      freqManagerSectionExpanded.value = false
       scannerSectionExpanded.value = false
       searchSectionExpanded.value = false
       savedRangesExpanded.value = false
@@ -915,6 +916,10 @@ const _rangesSectionExpanded = ref(false)
 // drives the fetch via reloadData() below, which calls the store actions.
 const freqs = computed<SdrStoredFrequency[]>(() => _sdrStore().frequencies)
 const scannerSectionExpanded = ref(false)
+const freqManagerSectionExpanded = ref(false)
+// Mode/digital/signal accordion — open by default and (like SETTINGS) not
+// collapsed when the panel reopens; these are the primary tuning controls.
+const modeSectionExpanded = ref(true)
 
 const currentFreqLabel = computed<string>(() => {
   const hz = currentFreqHz.value
@@ -931,11 +936,11 @@ const groupsWithFreqs = computed<SdrFrequencyGroup[]>(() => _sdrStore().groupsWi
 // the read-only sweep-mirror clear all live in useSdrSweepEngine (below).
 
 // ── Edit frequency panel ──────────────────────────────────────────────────────
-// The FREQUENCY MANAGER tab (freq list, group filter and the add/edit forms
-// with their RADIO SETTINGS grid) lives in SdrFrequencyManagerTab.vue. The
-// panel supplies the `live` seed (current radio state) and reacts to its
-// events: play (tune to a stored frequency), activate (switch the visible
-// tab) and changed (full data reload).
+// The FREQUENCY MANAGER accordion (freq list, group filter and the add/edit
+// forms with their RADIO SETTINGS grid) lives in SdrFrequencyManagerTab.vue.
+// The panel supplies the `live` seed (current radio state) and reacts to its
+// events: play (tune to a stored frequency), activate (expand the accordion
+// so an opening form is visible) and changed (full data reload).
 
 // The parent's live radio state, seeding the tab's add/edit forms.
 const liveTuneSeed = computed<SdrLiveTuneSeed>(() => ({
