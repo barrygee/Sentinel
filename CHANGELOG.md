@@ -296,6 +296,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update frequency preset defaults (#138)
 - Stop tracking runtime-owned sdr_frequencies.json (#146)
 - Adopt --color-button-bg for the remaining hardcoded control greys (#223)
+- Rebuild spa-dist bundle for SDR touch-drag fix (#226)
 
 ### Other
 
