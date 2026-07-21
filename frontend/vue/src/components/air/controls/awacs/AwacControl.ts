@@ -2382,7 +2382,8 @@ export class AwacToggleControl extends SentinelControlBase {
       type: 'fill',
       source: 'awacs-orbits',
       layout: { visibility: layerVisibility },
-      paint: { 'fill-color': 'rgba(200, 255, 0, 0.04)', 'fill-outline-color': 'rgba(0,0,0,0)' },
+      // Same fill darkness as the satellite footprint, matching the AARA zones.
+      paint: { 'fill-color': 'rgba(0, 0, 0, 0.22)', 'fill-outline-color': 'rgba(0,0,0,0)' },
     })
 
     this.map.addLayer({
@@ -2390,7 +2391,7 @@ export class AwacToggleControl extends SentinelControlBase {
       type: 'line',
       source: 'awacs-orbits',
       layout: { visibility: layerVisibility },
-      paint: { 'line-color': 'rgba(200, 255, 0, 0.75)', 'line-width': 1.5 },
+      paint: { 'line-color': 'rgba(0, 0, 0, 0.75)', 'line-width': 1 },
     })
   }
 
