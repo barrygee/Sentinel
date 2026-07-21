@@ -1067,6 +1067,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update logo in README to external image link
 - Update docker compose command in README
 - Remove tagline from README
+- Feat/sdr panel restructure (#228)
 
 ### Refactoring
 
