@@ -179,84 +179,94 @@
           </div>
         </div>
 
-        <!-- Mode pills -->
-        <div class="sdr-radio-section">
-          <label class="sdr-field-label">MODE</label>
-          <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
-            <BasePillToggle
-              v-for="(mode, modeIndex) in MODES"
-              :key="mode"
-              class="sdr-mode-pill"
-              role="radio"
-              :aria-checked="currentMode === mode"
-              :tabindex="modeKeyboard.radioTabindex(modeIndex)"
-              :active="currentMode === mode"
-              active-class="active"
-              :disabled="tuningDisabled"
-              @click="setMode(mode)"
-              @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
-            >
-              {{ mode }}
-            </BasePillToggle>
-          </div>
-        </div>
+        <!-- Controls accordion (titled MODE while open) — demod mode pills,
+             the DMR / P25 digital decode pill, the signal meter and the
+             nested SETTINGS accordion (open by default; state survives panel
+             open/close). -->
+        <div class="sdr-radio-section sdr-scan-controls">
+          <BaseAccordionSection
+            v-model:expanded="modeSectionExpanded"
+            :title="modeSectionExpanded ? 'MODE' : 'CONTROLS'"
+            body-id="sdr-mode-section"
+          >
+            <div class="sdr-radio-section">
+              <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
+                <BasePillToggle
+                  v-for="(mode, modeIndex) in MODES"
+                  :key="mode"
+                  class="sdr-mode-pill"
+                  role="radio"
+                  :aria-checked="currentMode === mode"
+                  :tabindex="modeKeyboard.radioTabindex(modeIndex)"
+                  :active="currentMode === mode"
+                  active-class="active"
+                  :disabled="tuningDisabled"
+                  @click="setMode(mode)"
+                  @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
+                >
+                  {{ mode }}
+                </BasePillToggle>
+              </div>
+            </div>
 
-        <!-- Digital modes — the DMR / P25 pill toggles digital decoding AND
+            <!-- Digital modes — the DMR / P25 pill toggles digital decoding AND
              shows/hides the decoder dock below the waterfall (both driven by
              digitalEnabled). -->
-        <div class="sdr-radio-section">
-          <label class="sdr-field-label">DIGITAL MODES</label>
-          <div class="sdr-mode-pills">
-            <BasePillToggle
-              class="sdr-mode-pill sdr-digital-btn"
-              :active="digitalEnabled"
-              active-class="sdr-digital-btn--active"
-              :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-              :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-              :aria-pressed="digitalEnabled"
-              :disabled="!playing"
-              @click="toggleDigital"
-            >
-              DMR / P25
-            </BasePillToggle>
-          </div>
-        </div>
+            <div class="sdr-radio-section">
+              <label class="sdr-field-label">DIGITAL MODES</label>
+              <div class="sdr-mode-pills">
+                <BasePillToggle
+                  class="sdr-mode-pill sdr-digital-btn"
+                  :active="digitalEnabled"
+                  active-class="sdr-digital-btn--active"
+                  :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+                  :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+                  :aria-pressed="digitalEnabled"
+                  :disabled="!playing"
+                  @click="toggleDigital"
+                >
+                  DMR / P25
+                </BasePillToggle>
+              </div>
+            </div>
 
-        <!-- Signal meter -->
-        <div class="sdr-radio-section">
-          <span class="sdr-field-label">SIGNAL</span>
-          <div
-            class="sdr-signal-segments"
-            :class="{ 'sdr-signal-segments--muted': !signalAudible }"
-          >
-            <div
-              v-for="i in SIGNAL_SEGS"
-              :key="i"
-              class="sdr-signal-seg"
-              :class="{ 'sdr-signal-seg--on': i <= signalLit }"
-            ></div>
-          </div>
-        </div>
-
-        <!-- Settings accordion -->
-        <div class="sdr-radio-section sdr-settings-controls">
-          <SdrSettingsAccordion
-            :volume="volume"
-            :squelch="squelch"
-            :bw-hz="bwHz"
-            :bw-max="bwMax"
-            :gain-db="gainDb"
-            :gain-auto="gainAuto"
-            :sample-rate-hz="sampleRateHz"
-            :controls-disabled="controlsDisabled"
-            :tuning-disabled="tuningDisabled"
-            @volume-input="onVolumeInput"
-            @squelch-input="onSquelchInput"
-            @bw-input="onBwInput"
-            @gain-input="onGainInput"
-            @agc-change="onAgcChange"
-            @pick-sample-rate="pickSampleRate"
-          />
+            <!-- Signal meter -->
+            <div class="sdr-radio-section">
+              <span class="sdr-field-label">SIGNAL</span>
+              <div
+                class="sdr-signal-segments"
+                :class="{ 'sdr-signal-segments--muted': !signalAudible }"
+              >
+                <div
+                  v-for="i in SIGNAL_SEGS"
+                  :key="i"
+                  class="sdr-signal-seg"
+                  :class="{ 'sdr-signal-seg--on': i <= signalLit }"
+                ></div>
+              </div>
+            </div>
+            <!-- Settings accordion, nested so the CONTROLS section carries the
+                 full tuner control set. -->
+            <div class="sdr-radio-section sdr-settings-controls">
+              <SdrSettingsAccordion
+                :volume="volume"
+                :squelch="squelch"
+                :bw-hz="bwHz"
+                :bw-max="bwMax"
+                :gain-db="gainDb"
+                :gain-auto="gainAuto"
+                :sample-rate-hz="sampleRateHz"
+                :controls-disabled="controlsDisabled"
+                :tuning-disabled="tuningDisabled"
+                @volume-input="onVolumeInput"
+                @squelch-input="onSquelchInput"
+                @bw-input="onBwInput"
+                @gain-input="onGainInput"
+                @agc-change="onAgcChange"
+                @pick-sample-rate="pickSampleRate"
+              />
+            </div>
+          </BaseAccordionSection>
         </div>
 
         <!-- Frequency manager (saved frequencies) — lives in its own accordion
@@ -906,6 +916,9 @@ const _rangesSectionExpanded = ref(false)
 const freqs = computed<SdrStoredFrequency[]>(() => _sdrStore().frequencies)
 const scannerSectionExpanded = ref(false)
 const freqManagerSectionExpanded = ref(false)
+// Mode/digital/signal accordion — open by default and (like SETTINGS) not
+// collapsed when the panel reopens; these are the primary tuning controls.
+const modeSectionExpanded = ref(true)
 
 const currentFreqLabel = computed<string>(() => {
   const hz = currentFreqHz.value

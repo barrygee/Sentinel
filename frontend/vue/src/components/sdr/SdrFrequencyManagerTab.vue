@@ -246,31 +246,38 @@
       </div>
     </div>
 
+    <!-- Group-filter chips, tucked into their own GROUPS accordion. -->
     <div v-show="groupsWithFreqs.length > 0" class="sdr-frequency-manager-groups-filter">
-      <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
-        <BasePillToggle
-          class="sdr-scan-group-chip"
-          :active="freqFilterAllSelected"
-          active-class="sdr-scan-group-chip-active"
-          :aria-pressed="freqFilterAllSelected"
-          :disabled="readOnly"
-          @click="toggleFreqFilterAll"
-        >
-          All
-        </BasePillToggle>
-        <BasePillToggle
-          v-for="g in groupsWithFreqs"
-          :key="g.id"
-          class="sdr-scan-group-chip"
-          :active="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
-          active-class="sdr-scan-group-chip-active"
-          :aria-pressed="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
-          :disabled="readOnly"
-          @click="toggleFreqFilterGroup(g.id)"
-        >
-          {{ g.name }}
-        </BasePillToggle>
-      </div>
+      <BaseAccordionSection
+        v-model:expanded="groupsFilterExpanded"
+        title="GROUPS"
+        body-id="sdr-freq-manager-groups-section"
+      >
+        <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
+          <BasePillToggle
+            class="sdr-scan-group-chip"
+            :active="freqFilterAllSelected"
+            active-class="sdr-scan-group-chip-active"
+            :aria-pressed="freqFilterAllSelected"
+            :disabled="readOnly"
+            @click="toggleFreqFilterAll"
+          >
+            All
+          </BasePillToggle>
+          <BasePillToggle
+            v-for="g in groupsWithFreqs"
+            :key="g.id"
+            class="sdr-scan-group-chip"
+            :active="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
+            active-class="sdr-scan-group-chip-active"
+            :aria-pressed="!freqFilterAllSelected && freqFilterSelectedGroupIds.includes(g.id)"
+            :disabled="readOnly"
+            @click="toggleFreqFilterGroup(g.id)"
+          >
+            {{ g.name }}
+          </BasePillToggle>
+        </div>
+      </BaseAccordionSection>
     </div>
 
     <div id="sdr-freq-list">
@@ -630,6 +637,8 @@ const freqGroupsFor = sdrStore.freqGroupsFor
 // ── Group filter ──────────────────────────────────────────────────────────────
 const freqFilterSelectedGroupIds = ref<number[]>([])
 const freqFilterAllSelected = ref(true)
+// GROUPS filter accordion — collapsed by default to keep the section compact.
+const groupsFilterExpanded = ref(false)
 
 const filteredFreqs = computed<SdrStoredFrequency[]>(() => {
   if (!freqFilterAllSelected.value && freqFilterSelectedGroupIds.value.length > 0) {

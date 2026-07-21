@@ -316,19 +316,22 @@
   transition: background 0.12s;
 }
 
-.sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded),
-.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
+/* Direct-child :has — a nested accordion left expanded inside a COLLAPSED
+   section (e.g. SETTINGS inside CONTROLS) must not give the wrapper its
+   expanded bottom padding while hidden. */
+.sdr-scan-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded),
+.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
   background: transparent;
   padding-bottom: 16px;
 }
 
-.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded) {
+.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
   padding-bottom: 0;
 }
 
-.sdr-scan-controls:has(.sdr-frequency-manager-accordion-toggle-expanded)
+.sdr-scan-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded)
   .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded,
-.sdr-settings-controls:has(.sdr-frequency-manager-accordion-toggle-expanded)
+.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded)
   .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded {
   background: transparent;
 }
@@ -343,6 +346,17 @@
 }
 
 .sdr-settings-controls .sdr-radio-section:first-of-type {
+  padding-top: 0;
+}
+
+/* MODE accordion (mode pills / DMR-P25 / signal meter) — the nested
+   sections drop their pane-level 20px side padding like SETTINGS rows do,
+   since the accordion wrapper already provides it. */
+#sdr-mode-section .sdr-radio-section {
+  padding: 10px 0;
+}
+
+#sdr-mode-section .sdr-radio-section:first-of-type {
   padding-top: 0;
 }
 
