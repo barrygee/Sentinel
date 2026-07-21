@@ -354,7 +354,8 @@ export class AaraToggleControl extends SentinelControlBase {
       type: 'fill',
       source: 'aara-zones',
       layout: { visibility: layerVisibility },
-      paint: { 'fill-color': 'rgba(200, 255, 0, 0.04)', 'fill-outline-color': 'rgba(0,0,0,0)' },
+      // Same fill darkness as the satellite footprint (SatelliteControl iss-footprint-fill).
+      paint: { 'fill-color': 'rgba(0, 0, 0, 0.22)', 'fill-outline-color': 'rgba(0,0,0,0)' },
     })
 
     this.map.addLayer({
@@ -363,9 +364,8 @@ export class AaraToggleControl extends SentinelControlBase {
       source: 'aara-zones',
       layout: { visibility: layerVisibility },
       paint: {
-        'line-color': 'rgba(200, 255, 0, 0.75)',
-        'line-width': 1.5,
-        'line-dasharray': [6, 3],
+        'line-color': 'rgba(0, 0, 0, 0.75)',
+        'line-width': 1,
       },
     })
 
