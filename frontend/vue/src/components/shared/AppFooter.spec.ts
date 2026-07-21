@@ -193,7 +193,7 @@ describe('AppFooter', () => {
 
     it('is shown in the SDR section on tabs other than RADIO', () => {
       const sdrStore = parkSdrOnFrequency(145_800_000)
-      sdrStore.activeTab = 'frequency-manager'
+      sdrStore.activeTab = 'recordings'
       const wrapper = mount(AppFooter, { props: { sdrSectionActive: true } })
       expect(wrapper.find('#footer-sdr').exists()).toBe(true)
       expect(wrapper.find('.footer-sdr-freq').text()).toBe('145.800 MHz')
