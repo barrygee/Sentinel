@@ -31,16 +31,19 @@ test.describe('SDR domain', () => {
     await expect(page.locator('#sdr-page')).toBeAttached()
   })
 
-  test('SDR rail shows 5 tab buttons: radio, frequency-manager, search-ranges, groups, recordings', async ({
+  test('SDR rail shows 4 tab buttons: radio, search-ranges, groups, recordings', async ({
     page,
   }) => {
     await page.goto('/sdr/')
     await waitForShellHydration(page)
 
-    const expectedTabs = ['radio', 'frequency-manager', 'search-ranges', 'groups', 'recordings']
+    // Frequency manager is no longer a rail tab — it lives in a radio-pane
+    // accordion — so the rail shows four tabs.
+    const expectedTabs = ['radio', 'search-ranges', 'groups', 'recordings']
     for (const tabId of expectedTabs) {
       await expect(page.locator(`#sdr-sidebar-rail [data-tab="${tabId}"]`)).toBeVisible()
     }
+    await expect(page.locator('#sdr-sidebar-rail [data-tab="frequency-manager"]')).toHaveCount(0)
   })
 
   test('SDR rail RADIO tab opens the radio panel pane', async ({ page }) => {
@@ -172,7 +175,7 @@ test.describe('SDR domain', () => {
     await expect(page.locator('input[type="range"][aria-label="RF gain in dB"]')).toBeVisible()
   })
 
-  test('Frequency Manager tab shows frequencies from stub', async ({ page }) => {
+  test('Frequency Manager accordion shows frequencies from stub', async ({ page }) => {
     await page.route('/api/sdr/frequencies', (route) => {
       void route.fulfill({
         contentType: 'application/json',
@@ -189,12 +192,14 @@ test.describe('SDR domain', () => {
     await page.goto('/sdr/')
     await waitForShellHydration(page)
 
-    await page.locator('#sdr-sidebar-rail [data-tab="frequency-manager"]').click()
+    // Frequency manager is no longer a rail tab — open the radio pane and
+    // expand its FREQUENCY MANAGER accordion, then check the stubbed
+    // frequencies are listed.
+    await page.locator('#sdr-sidebar-rail [data-tab="radio"]').click()
     await expect(page.locator('#msb-pane-radio')).toBeVisible()
 
-    // Frequency manager is part of the radio pane in tab mode
-    // The frequencies should be listed somewhere in the pane
-    await expect(page.locator('#msb-pane-radio')).toBeVisible()
+    await page.locator('button[aria-controls="sdr-freq-manager-section"]').click()
+    await expect(page.locator('#sdr-freq-list')).toContainText('Air Traffic Control')
   })
 
   test('Recordings tab renders from stub data', async ({ page }) => {
