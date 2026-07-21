@@ -647,17 +647,15 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
     expect(toggle.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
   })
 
-  it('toggles the mode accordion (open by default), retitling MODE ↔ CONTROLS', async () => {
+  it('toggles the CONTROLS accordion (open by default) closed and open', async () => {
     const { wrapper } = await mountConnected()
     const toggle = wrapper.find('button[aria-controls="sdr-mode-section"]')
+    expect(toggle.text()).toBe('CONTROLS')
     expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(toggle.text()).toBe('MODE')
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(toggle.text()).toBe('CONTROLS')
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(toggle.text()).toBe('MODE')
   })
 
   it('toggles the frequency manager accordion (closed by default) open and closed', async () => {

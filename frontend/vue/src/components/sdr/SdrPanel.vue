@@ -186,10 +186,11 @@
         <div class="sdr-radio-section sdr-scan-controls">
           <BaseAccordionSection
             v-model:expanded="modeSectionExpanded"
-            :title="modeSectionExpanded ? 'MODE' : 'CONTROLS'"
+            title="CONTROLS"
             body-id="sdr-mode-section"
           >
             <div class="sdr-radio-section">
+              <label class="sdr-field-label">MODE</label>
               <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
                 <BasePillToggle
                   v-for="(mode, modeIndex) in MODES"
@@ -213,7 +214,7 @@
              shows/hides the decoder dock below the waterfall (both driven by
              digitalEnabled). -->
             <div class="sdr-radio-section">
-              <label class="sdr-field-label">DIGITAL MODES</label>
+              <label class="sdr-field-label">DIGITAL MODE</label>
               <div class="sdr-mode-pills">
                 <BasePillToggle
                   class="sdr-mode-pill sdr-digital-btn"
