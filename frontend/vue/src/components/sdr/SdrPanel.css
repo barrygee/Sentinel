@@ -172,7 +172,9 @@
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: #ffffff;
-  background: rgba(10, 13, 20, 0.92);
+  /* Transparent (not the panel colour) so the input stays invisible against
+     whatever background the hosting side panel uses. */
+  background: transparent;
   border: none;
   border-radius: 2px;
   padding: 0;
@@ -188,7 +190,7 @@
 }
 
 .sdr-freq-input-large:focus {
-  background: rgba(10, 13, 20, 0.92);
+  background: transparent;
   cursor: text;
 }
 

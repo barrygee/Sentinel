@@ -678,7 +678,9 @@ body[data-domain='sdr'] #map-sidebar-rail {
   bottom: var(--footer-height);
   left: 44px;
   width: 386px;
-  background: rgba(10, 13, 20, 0.98);
+  /* Lighter charcoal than the icon rail (which stays rgba(10, 13, 20)) so the
+     open panel reads as a distinct layer next to the minimised menu. */
+  background: rgba(21, 23, 29, 0.98);
   border-right: none;
   z-index: 1002;
   display: flex;
