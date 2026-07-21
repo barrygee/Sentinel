@@ -1510,17 +1510,17 @@
   }
 }
 
-/* Digital-decode toggle — green accent matching the mode pills, so the active
-   state reads the same as a selected mode button (green icon on green tint). */
+/* Digital-decode pill (DIGITAL MODES row) — idle/hover/active styling comes
+   from .sdr-mode-pill so it reads exactly like a demod mode button, but it is
+   content-sized rather than flex-stretched so a lone pill matches the
+   AM/FM/WFM pill size instead of filling the whole row. */
 .sdr-digital-btn {
-  color: rgba(200, 255, 0, 0.75);
+  flex: 0 1 auto;
+  padding: 0 14px;
 }
 
-.sdr-digital-btn:hover:not(:disabled) {
-  background: rgba(200, 255, 0, 0.15) !important;
-  color: #c8ff00;
-}
-
+/* !important so the active tint survives the higher-specificity
+   .sdr-mode-pill:hover rule, mirroring .sdr-mode-pill.active:hover. */
 .sdr-digital-btn--active {
   background: rgba(200, 255, 0, 0.12) !important;
   color: #c8ff00 !important;

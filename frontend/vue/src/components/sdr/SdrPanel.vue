@@ -194,28 +194,6 @@
                 </template>
               </svg>
             </BasePillToggle>
-            <!-- Decode: toggles digital decoding AND shows/hides the decoder dock
-                 below the waterfall (both driven by digitalEnabled). -->
-            <BasePillToggle
-              class="sdr-mode-pill sdr-tune-btn sdr-digital-btn"
-              :active="digitalEnabled"
-              active-class="sdr-digital-btn--active"
-              :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-              :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-              :aria-pressed="digitalEnabled"
-              :disabled="!playing"
-              @click="toggleDigital"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path
-                  d="M1 8H3V4H6V8H9V4H11"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </BasePillToggle>
           </div>
         </div>
 
@@ -237,6 +215,27 @@
               @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
             >
               {{ mode }}
+            </BasePillToggle>
+          </div>
+        </div>
+
+        <!-- Digital modes — the DMR / P25 pill toggles digital decoding AND
+             shows/hides the decoder dock below the waterfall (both driven by
+             digitalEnabled). -->
+        <div class="sdr-radio-section">
+          <label class="sdr-field-label">DIGITAL MODES</label>
+          <div class="sdr-mode-pills">
+            <BasePillToggle
+              class="sdr-mode-pill sdr-digital-btn"
+              :active="digitalEnabled"
+              active-class="sdr-digital-btn--active"
+              :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+              :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
+              :aria-pressed="digitalEnabled"
+              :disabled="!playing"
+              @click="toggleDigital"
+            >
+              DMR / P25
             </BasePillToggle>
           </div>
         </div>
