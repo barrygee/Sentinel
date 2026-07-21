@@ -286,6 +286,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Near-black ring on the user-location and SET LOCATION markers (#221)
 - Match the rail button grey to the logo mark's ring grey (#222)
 - Make waterfall drag controls touch-friendly (#225)
+- Update e2e for frequency manager moving off the rail (#229)
 
 ### Chores
 
