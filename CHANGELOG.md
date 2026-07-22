@@ -1069,6 +1069,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update docker compose command in README
 - Remove tagline from README
 - Feat/sdr panel restructure (#228)
+- Fix/sdr e2e frequency manager tab (#230)
 
 ### Refactoring
 
