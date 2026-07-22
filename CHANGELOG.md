@@ -302,6 +302,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild spa-dist bundle for SDR touch-drag fix (#226)
 - Remove dead serving artifacts and unused files (#232)
 - Ignore tooling caches and remove stray husky --version dir (#234)
+- Remove dead legacy jest suite and wiring (#235)
 
 ### Other
 
