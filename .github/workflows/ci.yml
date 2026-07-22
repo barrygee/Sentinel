@@ -46,8 +46,13 @@ jobs:
         # pytest.ini sets pythonpath=. — run from the repo root, as documented.
         run: uv run --project backend pytest
 
-  frontend-vue:
-    name: frontend-vue (eslint + vue-tsc + test + build + a11y)
+  # The Vue SPA gates are split into themed jobs so each concern runs in
+  # parallel, fails independently, and reports its own status: static analysis
+  # (lint + typecheck), unit tests (vitest), the production build, and the live
+  # a11y audit. The a11y job consumes the build's bundle via an artifact rather
+  # than rebuilding it.
+  frontend-vue-quality:
+    name: frontend-vue / quality (eslint + vue-tsc)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -69,20 +74,88 @@ jobs:
       - name: Typecheck (vue-tsc)
         run: npm run typecheck
 
+  frontend-vue-test:
+    name: frontend-vue / test (vitest + coverage)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/vue
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: frontend/vue/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/vue/package-lock.json
+
+      - run: npm ci
+
       - name: Tests + coverage (vitest)
         # Coverage thresholds (vitest.config.ts) gate this — a ratchet raised to
         # 100% as the per-domain backfill lands. Includes the in-process jest-axe
         # accessibility test that ships with every component.
         run: npm run test:coverage
 
+  frontend-vue-build:
+    name: frontend-vue / build (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/vue
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: frontend/vue/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/vue/package-lock.json
+
+      - run: npm ci
+
       - name: Build (Vite)
         run: npm run build
+
+      # Hand the built bundle to the a11y job so it serves the exact artifact
+      # this job produced instead of rebuilding. Output dir is repo-root-relative
+      # (vite.config.ts outDir: ../../frontend/spa-dist), so upload from root.
+      - name: Upload SPA bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: spa-dist
+          path: frontend/spa-dist/
+          retention-days: 1
+
+  frontend-vue-a11y:
+    name: frontend-vue / a11y (Playwright + axe-core)
+    runs-on: ubuntu-latest
+    needs: frontend-vue-build
+    defaults:
+      run:
+        working-directory: frontend/vue
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: frontend/vue/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/vue/package-lock.json
+
+      - run: npm ci
+
+      # Restore the bundle built by frontend-vue-build; `vite preview` serves it.
+      - name: Download SPA bundle
+        uses: actions/download-artifact@v6
+        with:
+          name: spa-dist
+          path: frontend/spa-dist/
 
       # Live accessibility audit — runs the real axe-core engine in a browser
       # (WCAG 2.2 AA) over every domain view, catching the layout-dependent rules
       # jsdom-based jest-axe cannot (colour contrast, target size). Gating: fails
-      # the job on any axe violation. The e2e `vite preview` server serves the
-      # bundle built in the previous step.
+      # the job on any axe violation.
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
