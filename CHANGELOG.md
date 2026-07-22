@@ -300,6 +300,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop tracking runtime-owned sdr_frequencies.json (#146)
 - Adopt --color-button-bg for the remaining hardcoded control greys (#223)
 - Rebuild spa-dist bundle for SDR touch-drag fix (#226)
+- Remove dead serving artifacts and unused files (#232)
 
 ### Other
 
