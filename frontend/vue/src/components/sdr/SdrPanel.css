@@ -1477,7 +1477,10 @@
   line-height: 1;
   flex-shrink: 0;
   align-self: flex-start;
-  margin-top: 2px;
+  /* The play triangle's tip is at the SVG's vertical centre, which sits ~2px
+     above the visual centre of the taller ✕/pencil glyphs on the same row;
+     the extra 2px over the siblings' margin-top drops the tip level with them. */
+  margin-top: 4px;
 }
 
 .sdr-freq-row-play:hover:not(:disabled) {
