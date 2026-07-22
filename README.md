@@ -87,7 +87,7 @@ Sentinel/
 │   ├── assets/               Map tiles, PMTiles, sprites, fonts, logos
 │   └── spa-dist/             Built SPA bundle (served by the backend; committed)
 │
-├── tests/                    pytest (backend) + jest (frontend helpers)
+├── tests/                    pytest (backend) + Playwright (full-stack e2e)
 ├── docker-compose.yml        App service — FastAPI serving the SPA (host :8080)
 └── backend/Dockerfile        Multi-stage build (SPA + backend)
 ```
@@ -228,7 +228,7 @@ number `dsd-fme` reports on each carrier as you tune across the system.
 
 ## Testing & quality gates
 
-Sentinel has three tooling contexts — the **backend** (uv/pytest/ruff), the **Vue SPA** (`frontend/vue/`: vitest/ESLint/`vue-tsc`), and the legacy **root helpers** (jest). CI (`.github/workflows/ci.yml`) runs every gate below on each pull request and on pushes to `main`.
+Sentinel has three tooling contexts — the **backend** (uv/pytest/ruff), the **Vue SPA** (`frontend/vue/`: vitest/ESLint/`vue-tsc`), and **root-level tooling** (ESLint/Prettier over config files and the full-stack e2e specs). CI (`.github/workflows/ci.yml`) runs every gate below on each pull request and on pushes to `main`.
 
 **Backend** — run from the repo **root**, passing `--project backend` so `uv` uses the backend virtualenv (the Python project's `pyproject.toml` lives in `backend/`):
 
@@ -287,11 +287,10 @@ A11Y_BASE_URL=http://localhost:8080 npm run test:e2e
 
 This suite **runs in CI** (`.github/workflows/ci.yml` — the `frontend-vue` job installs Chromium and runs it after the build), so it **gates every pull request and push to `main`** alongside lint/typecheck/coverage. Run it locally before pushing UI changes to catch failures early, and pair it with a manual screen-reader pass for anything axe can't assert (a *wrong* label, an illogical focus order).
 
-**Root helpers** — the standalone TypeScript helpers in `tests/`:
+**Root tooling** — ESLint/Prettier over the repo-root TypeScript (config files and the full-stack e2e specs in `tests/e2e/`):
 
 ```bash
 npm run lint          # ESLint + Prettier --check
-npm test              # jest
 ```
 
 Tooling in place: **ESLint + Prettier** (JS/TS/Vue) and **ruff** — including `ruff format` as the source of Python formatting — for linting/formatting; a **husky** pre-commit hook that mirrors the format/lint gates on staged files; the **vitest 100% coverage gate**; **mypy** (informational, not gating); and an automated **CHANGELOG** that regenerates from Conventional Commits on every merge to `main`. New code is expected to ship at 100% coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, commit/PR conventions, and the two npm contexts.

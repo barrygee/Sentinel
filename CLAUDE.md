@@ -42,14 +42,14 @@ cd frontend/vue && npm run lint                                  # ESLint + Pret
 cd frontend/vue && npm run typecheck                             # vue-tsc --noEmit
 cd frontend/vue && npm run test:coverage                         # vitest — GATED AT 100% coverage (CI fails on any drop)
 
-# Root helpers
-npm test                                                         # jest: standalone TS helpers in tests/
+# Root tooling
+npm run lint                                                     # ESLint + Prettier over root config files + tests/e2e specs
 ```
-All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to `main`; ruff check + `ruff format --check` + pytest (backend), ESLint/Prettier + vue-tsc + vitest@100% + Vite build (SPA), and ESLint/Prettier + jest (root) are gating. mypy is not. A **husky** pre-commit hook (`.husky/pre-commit` + `.lintstagedrc.json`) mirrors the format/lint gates on staged files across both npm contexts. `CHANGELOG.md` is regenerated automatically from Conventional Commits on every push to `main` (`.github/workflows/changelog.yml`, git-cliff), and committed back to `main` with `[skip ci]` — it never touches feature branches, so local checkouts don't diverge. Don't hand-edit it. See `CONTRIBUTING.md` for the full contributor workflow and conventions; new code is expected to ship at 100% frontend coverage.
+All of the above run in CI (`.github/workflows/ci.yml`) on every PR and push to `main`; ruff check + `ruff format --check` + pytest (backend), ESLint/Prettier + vue-tsc + vitest@100% + Vite build (SPA), and ESLint/Prettier (root) are gating. mypy is not. A **husky** pre-commit hook (`.husky/pre-commit` + `.lintstagedrc.json`) mirrors the format/lint gates on staged files across both npm contexts. `CHANGELOG.md` is regenerated automatically from Conventional Commits on every push to `main` (`.github/workflows/changelog.yml`, git-cliff), and committed back to `main` with `[skip ci]` — it never touches feature branches, so local checkouts don't diverge. Don't hand-edit it. See `CONTRIBUTING.md` for the full contributor workflow and conventions; new code is expected to ship at 100% frontend coverage.
 
 ## Two npm contexts — don't confuse them
 - **`frontend/vue/`** — the real app (Vite + Vue 3 + Pinia + vue-router); tested with **vitest** (100% coverage gate) + ESLint/Prettier + `vue-tsc`.
-- **Repo-root `package.json`** — legacy `tsc`/`jest` for standalone TS helpers tested in `tests/frontend/`. Not the app build.
+- **Repo-root `package.json`** — root-level tooling only: ESLint/Prettier over config files + the full-stack e2e specs in `tests/e2e/`, plus husky/lint-staged. Not the app build.
 
 ## Architecture
 
