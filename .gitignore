@@ -9,6 +9,10 @@ playwright-report/
 .DS_Store
 __pycache__/
 *.py[cod]
+
+# Tooling caches (machine-local, disposable — regenerated on every run)
+.ruff_cache/
+.mypy_cache/
 *.db
 *.db-shm
 *.db-wal
