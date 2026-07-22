@@ -1183,6 +1183,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Gate the live axe-core audit in CI on every PR and push
 - Bump Node 20 actions to Node 24 versions
 - Regenerate on merge to main instead of per-PR
+- Split frontend-vue job into themed parallel jobs (#236)
 
 ### Styling
 
