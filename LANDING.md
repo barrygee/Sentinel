@@ -102,10 +102,10 @@ straight to the browser — tune, listen, and record without leaving the page.
 ## How it works
 
 ```
-        Browser  ◀──────────  nginx  ◀──────────  FastAPI (uvicorn)
-   Vue 3 SPA          reverse proxy          ┌─ AIR    → ADS-B proxy + cache
-   MapLibre GL                               ├─ SPACE  → SGP4 + TLE management
-   Live WebSockets                           └─ SDR    → rtl_tcp WebSocket bridge
+        Browser  ◀──────────────────────  FastAPI (uvicorn)
+   Vue 3 SPA                                ┌─ AIR    → ADS-B proxy + cache
+   MapLibre GL                              ├─ SPACE  → SGP4 + TLE management
+   Live WebSockets                          └─ SDR    → rtl_tcp WebSocket bridge
                                                           │
                                               SQLite (settings, cache, recordings)
 ```
@@ -137,7 +137,7 @@ tiles automatically. No manual intervention, no blank screens.
 | Database | SQLite |
 | Satellites | SGP4 propagation, Celestrak TLE feeds |
 | Radio | rtl_tcp SDR bridge over WebSocket |
-| Deployment | Docker Compose, nginx reverse proxy |
+| Deployment | Docker Compose (FastAPI serves the SPA directly) |
 
 ---
 

@@ -1,6 +1,5 @@
 <svg width="209.54" height="34.90" viewBox="0 0 209.54 34.90" xmlns="http://www.w3.org/2000/svg">
-  <!-- Mark: stealth-grey ring with a green centre dot (see
-       logo-previous.svg for the prior lime-ring version). The ring's inner
+  <!-- Mark: stealth-grey ring with a green centre dot. The ring's inner
        (negative-space) diameter equals the wordmark cap height. -->
   <g transform="translate(17.449658203125 17.449658203125)">
     <circle cx="0" cy="0" r="14.41" fill="none" stroke="#26292e" stroke-width="4.08"/>
