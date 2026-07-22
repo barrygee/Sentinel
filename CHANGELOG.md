@@ -287,6 +287,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Match the rail button grey to the logo mark's ring grey (#222)
 - Make waterfall drag controls touch-friendly (#225)
 - Update e2e for frequency manager moving off the rail (#229)
+- Align frequency-manager play icon with row action glyphs (#231)
 
 ### Chores
 
