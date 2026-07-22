@@ -375,6 +375,14 @@
   padding: 20px 24px 16px;
 }
 
+/* Match the Scanner GROUPS title→chips gap (8px) so both group pickers read
+   consistently. Scoped to this wrapper so other section accordions keep their
+   own header spacing. */
+.sdr-frequency-manager-groups-filter
+  .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
+  margin-bottom: 8px;
+}
+
 .sdr-frequency-manager-groups-filter-row {
   margin-bottom: 4px;
 }
@@ -686,7 +694,9 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #fff;
-  margin-bottom: 10px;
+  /* Matches the .sdr-field-label title→content gap used across the other
+     panel sections (MODULATION, SIGNAL, etc.) so GROUPS lines up with them. */
+  margin-bottom: 8px;
 }
 
 .sdr-scan-groups-row + .sdr-scan-subsection-label {
@@ -1783,6 +1793,48 @@
 
 #msb-pane-radio .sdr-tab-panes {
   overflow-y: visible;
+}
+
+/* ── Mobile: scroll the whole radio panel instead of pinning ──────────────────
+   The desktop RADIO layout above pins the tuner controls + accordion headers
+   and only scrolls an expanded accordion's body, splitting the free space
+   between expanded sections. That relies on the viewport being tall enough to
+   fit the pinned region plus every accordion header. On a short mobile drawer
+   the pinned region alone can exceed the height, so the lower accordions get
+   clipped off-screen with nothing to scroll — they appear not to open. Below
+   the mobile drawer breakpoint we undo the height-constraint chain so the
+   panel scrolls as one natural column and every accordion is reachable. */
+@media (max-width: 768px) {
+  #msb-pane-radio:has(.sdr-tab-pane--radio.active) {
+    overflow-y: auto;
+  }
+  #msb-pane-radio:has(.sdr-tab-pane--radio.active) #sdr-panel-panes,
+  #sdr-panel-panes:has(.sdr-tab-pane--radio.active) {
+    flex: 0 0 auto;
+    overflow-y: visible;
+  }
+  .sdr-tab-panes:has(> .sdr-tab-pane--radio.active) {
+    flex: 0 0 auto;
+    overflow-y: visible !important;
+  }
+  .sdr-tab-pane--radio.active {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  /* Expanded sections take their natural height (no equal-split sliver) and the
+     whole column scrolls, rather than each body scrolling independently. */
+  .sdr-tab-pane--radio
+    > .sdr-radio-section:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
+    flex: 0 0 auto;
+    max-height: none;
+  }
+  .sdr-tab-pane--radio
+    > .sdr-radio-section
+    > .sdr-frequency-manager-accordion-toggle-expanded
+    + div {
+    flex: 0 0 auto;
+    overflow-y: visible;
+  }
 }
 
 /* ── Search Ranges sub-section (Frequency Manager tab) ────────────────────── */

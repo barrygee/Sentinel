@@ -312,7 +312,6 @@
                 ></div>
               </div>
             </template>
-            <div class="sdr-scan-subsection-label">GROUPS</div>
             <div class="sdr-scan-groups-row">
               <BasePillToggle
                 class="sdr-scan-group-chip"
