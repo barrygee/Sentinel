@@ -1,5 +1,5 @@
-# Continuous integration — lint, format, typecheck, build and test gates for all
-# three code contexts (backend Python, the Vue SPA, the root helper tests).
+# Continuous integration — lint, format, typecheck, build and test gates for the
+# code contexts (backend Python, the Vue SPA, and root-level tooling/lint).
 # Runs on every PR and on pushes to main. mypy is intentionally NOT a gate
 # (informational only, ~90 known errors); ruff check IS gating.
 #
@@ -105,8 +105,8 @@ jobs:
           path: frontend/vue/playwright-report/
           retention-days: 7
 
-  root-helpers:
-    name: root-helpers (eslint + jest)
+  root-tooling:
+    name: root-tooling (eslint + prettier)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -119,10 +119,8 @@ jobs:
 
       - run: npm ci
 
+      # Lints the repo-root TypeScript files (config files + the full-stack e2e
+      # specs under tests/e2e) — the context the backend and frontend-vue jobs
+      # don't cover.
       - name: Lint (ESLint + Prettier)
         run: npm run lint
-
-      # No typecheck step: the legacy root `tsc` build has no tsconfig.json; the
-      # helpers are type-checked by ts-jest (tsconfig.test.json) when tests run.
-      - name: Tests (jest)
-        run: npm test

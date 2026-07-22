@@ -65,14 +65,14 @@ the wrong one is the most common newcomer mistake.
 | Context | Location | What it is | Tooling |
 |---|---|---|---|
 | **Vue SPA** | `frontend/vue/` | The real application | Vite · Vue 3 · Pinia · vue-router · **vitest** · ESLint · Prettier · `vue-tsc` |
-| **Root helpers** | repo root `package.json` | Legacy standalone TypeScript helpers tested in `tests/frontend/` — **not** the app build | `tsc` · **jest** (ts-jest) · ESLint · Prettier |
+| **Root tooling** | repo root `package.json` | Repo-root TypeScript — config files + the full-stack e2e specs in `tests/e2e/`; also hosts husky/lint-staged — **not** the app build | ESLint · Prettier · Playwright (full-stack e2e) |
 | **Backend** | `backend/` (`pyproject.toml`) | FastAPI Python app, managed by uv | **pytest** · **ruff** (check + format) · mypy (informational) |
 
 Two rules that follow from this:
 
 - **The Vue SPA is the application.** When the task is "the frontend", you almost
-  always mean `frontend/vue/`. The root `package.json` only exists for the legacy
-  helper tests.
+  always mean `frontend/vue/`. The root `package.json` only exists for repo-root
+  tooling (ESLint/Prettier, husky/lint-staged, and the full-stack e2e specs).
 - **Always run `uv` from the repo root with `--project backend`.** The Python
   project's `pyproject.toml` lives in `backend/`, so a bare `uv run` from the root
   resolves the wrong interpreter. Tests also need `pythonpath=.` (set in
@@ -151,11 +151,10 @@ instructions, including how to audit against the live backend with
 `A11Y_BASE_URL`, are in the
 [README](README.md#live-accessibility-audit-playwright--axe-core).
 
-### Root helpers (repo root)
+### Root tooling (repo root)
 
 ```bash
 npm run lint   # ESLint + Prettier --check (gating)
-npm test       # jest (gating)
 ```
 
 ---
@@ -260,7 +259,6 @@ optional body explaining the why
 | vue-tsc typecheck | — | ✅ |
 | vitest (100% coverage, incl. jest-axe) | — | ✅ |
 | live a11y audit (Playwright + axe-core) | — | ✅ (`frontend-vue` job) |
-| jest (root helpers) | — | ✅ |
 | pytest (backend) | — | ✅ |
 | CHANGELOG regenerate | — | ✅ (changelog workflow, push to `main` only) |
 

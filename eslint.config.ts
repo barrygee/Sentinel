@@ -1,7 +1,8 @@
-// Flat ESLint config for the repo-root TypeScript helpers tested under tests/.
-// This is the legacy standalone-helper context (jest + ts-jest), separate from
-// the Vue SPA in frontend/vue (which has its own eslint.config.ts). Formatting is
-// owned by Prettier; ESLint focuses on correctness. Loaded via jiti (ESLint >= 9.18).
+// Flat ESLint config for the repo-root TypeScript files (config files and the
+// full-stack e2e specs under tests/e2e). This is the root tooling context,
+// separate from the Vue SPA in frontend/vue (which has its own eslint.config.ts).
+// Formatting is owned by Prettier; ESLint focuses on correctness. Loaded via jiti
+// (ESLint >= 9.18).
 import eslint from '@eslint/js';
 import configPrettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
@@ -18,7 +19,7 @@ export default tseslint.config(
     {
         files: ['**/*.ts'],
         rules: {
-            // TypeScript resolves identifiers (incl. jest/node globals via @types);
+            // TypeScript resolves identifiers (incl. node globals via @types);
             // the core no-undef rule is redundant for TS and mis-fires on globals.
             'no-undef': 'off',
             // Allow intentionally-unused identifiers prefixed with `_`.
@@ -33,7 +34,7 @@ export default tseslint.config(
         },
     },
 
-    // CommonJS config files (e.g. jest.config.js) use module/require globals.
+    // Any CommonJS config files use module/require globals.
     {
         files: ['**/*.{js,cjs}'],
         languageOptions: { sourceType: 'commonjs' },
