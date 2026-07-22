@@ -179,10 +179,26 @@
           </div>
         </div>
 
-        <!-- Controls accordion (titled MODE while open) — demod mode pills,
-             the DMR / P25 digital decode pill, the signal meter and the
-             nested SETTINGS accordion (open by default; state survives panel
-             open/close). -->
+        <!-- Signal meter — sits below the play/stop/record buttons, outside the
+             CONTROLS accordion so it stays visible when the accordion is collapsed. -->
+        <div class="sdr-radio-section">
+          <span class="sdr-field-label">SIGNAL</span>
+          <div
+            class="sdr-signal-segments"
+            :class="{ 'sdr-signal-segments--muted': !signalAudible }"
+          >
+            <div
+              v-for="i in SIGNAL_SEGS"
+              :key="i"
+              class="sdr-signal-seg"
+              :class="{ 'sdr-signal-seg--on': i <= signalLit }"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Controls accordion — MODULATION demod mode pills, the DMR / P25
+             digital decode pill and the nested SETTINGS accordion (open by
+             default; state survives panel open/close). -->
         <div class="sdr-radio-section sdr-scan-controls">
           <BaseAccordionSection
             v-model:expanded="modeSectionExpanded"
@@ -190,7 +206,7 @@
             body-id="sdr-mode-section"
           >
             <div class="sdr-radio-section">
-              <label class="sdr-field-label">MODE</label>
+              <label class="sdr-field-label">MODULATION</label>
               <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
                 <BasePillToggle
                   v-for="(mode, modeIndex) in MODES"
@@ -226,26 +242,11 @@
                   :disabled="!playing"
                   @click="toggleDigital"
                 >
-                  DMR / P25
+                  DMR
                 </BasePillToggle>
               </div>
             </div>
 
-            <!-- Signal meter -->
-            <div class="sdr-radio-section">
-              <span class="sdr-field-label">SIGNAL</span>
-              <div
-                class="sdr-signal-segments"
-                :class="{ 'sdr-signal-segments--muted': !signalAudible }"
-              >
-                <div
-                  v-for="i in SIGNAL_SEGS"
-                  :key="i"
-                  class="sdr-signal-seg"
-                  :class="{ 'sdr-signal-seg--on': i <= signalLit }"
-                ></div>
-              </div>
-            </div>
             <!-- Settings accordion, nested so the CONTROLS section carries the
                  full tuner control set. -->
             <div class="sdr-radio-section sdr-settings-controls">
@@ -311,7 +312,6 @@
                 ></div>
               </div>
             </template>
-            <div class="sdr-scan-subsection-label">GROUPS</div>
             <div class="sdr-scan-groups-row">
               <BasePillToggle
                 class="sdr-scan-group-chip"
