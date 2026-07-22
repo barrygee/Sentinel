@@ -1133,6 +1133,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add WCAG 2.2 AA accessibility audit report (phase 7)
 - Add ADR recording the webapp-standards retrofit decision
 - Require a feature branch for every change (#123)
+- Sync services, SDR API, and config with current codebase (#233)
 
 ### Tests
 
