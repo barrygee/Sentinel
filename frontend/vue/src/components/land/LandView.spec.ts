@@ -19,6 +19,15 @@ vi.mock('@/composables/useConnectivity', () => ({
   },
 }))
 
+// Right-click "set my location" menu — spy on attach/detach.
+const ctxMenuSpies = vi.hoisted(() => ({
+  attach: vi.fn(),
+  detach: vi.fn(),
+  remove: vi.fn(),
+  show: vi.fn(),
+}))
+vi.mock('@/composables/useMapContextMenu', () => ({ useMapContextMenu: () => ctxMenuSpies }))
+
 // User location: a controllable ref + `start` spy.
 const locationState = vi.hoisted(() => ({
   location: null as null | { value: { lat: number; lon: number; accuracy: number } | null },
@@ -234,6 +243,15 @@ describe('LandView', () => {
       expect(native.style.display).toBe('none') // native controls hidden
       expect(locationState.start).toHaveBeenCalledOnce()
       expect(markerSpies.addTo).toHaveBeenCalledWith(map)
+      expect(ctxMenuSpies.attach).toHaveBeenCalledWith(map) // right-click set-location enabled
+    })
+
+    it('detaches the right-click location menu on unmount', () => {
+      const map = makeFakeMap()
+      const wrapper = mountView()
+      shared.emit!('map-created', map)
+      wrapper.unmount()
+      expect(ctxMenuSpies.detach).toHaveBeenCalledWith(map)
     })
 
     it('seeds the range-rings active state from the control', async () => {

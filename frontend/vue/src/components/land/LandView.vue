@@ -32,6 +32,7 @@ import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
+import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import LandSideMenu from '@/components/land/LandSideMenu.vue'
@@ -52,6 +53,11 @@ const { location: userLocation, start: startLocation } = useUserLocation()
 const getUserLocation = (): [number, number] | null =>
   userLocation.value ? [userLocation.value.lon, userLocation.value.lat] : null
 const _locationMarker = new UserLocationMarker('user-location-marker')
+
+// Right-click "SET LOCATION" menu (matches the Air/Space maps). Setting a
+// location dispatches sentinel:setUserLocation, which useUserLocation handles
+// app-wide; the marker + range rings then follow via the userLocation watcher.
+const ctxMenu = useMapContextMenu()
 
 let _map: Map | null = null
 let _initialStyleUrl: string | null = null
@@ -87,9 +93,11 @@ function onMapCreated(m: Map) {
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (nativeCtrl) nativeCtrl.style.display = 'none'
 
-  // Begin resolving the user's location and show its marker.
+  // Begin resolving the user's location, show its marker, and enable the
+  // right-click "set my location" menu.
   startLocation()
   _locationMarker.addTo(m)
+  ctxMenu.attach(m)
 }
 
 // ── side-menu handlers ─────────────────────────────────────────────────────
@@ -132,6 +140,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  ctxMenu.detach(_map)
   _rangeRingsControl?.onRemove()
   _aprsControl?.onRemove()
   _locationMarker.remove()
