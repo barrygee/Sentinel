@@ -15,9 +15,10 @@ from backend.database import (
     seed_sdr_bandplan_from_file,
     seed_sdr_data_from_files,
 )
-from backend.routers import air, space
+from backend.routers import air, land, space
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
+from backend.services import aprs_store
 from backend.services import sdr as sdr_service
 from backend.services import sdr_decode as sdr_decode_service
 from backend.services.flight_history import cleanup_old_snapshots
@@ -30,12 +31,16 @@ SPA_DIR = ROOT_DIR / "frontend" / "spa-dist"
 
 
 async def _daily_cleanup_loop() -> None:
-    """Run flight history cleanup once at startup and then every 24 hours."""
+    """Run flight-history and APRS-station cleanup once at startup, then every 24h."""
     while True:
         try:
             await cleanup_old_snapshots()
         except Exception:
             logging.getLogger(__name__).exception("Flight history cleanup failed")
+        try:
+            await aprs_store.cleanup_expired(int(time.time() * 1000))
+        except Exception:
+            logging.getLogger(__name__).exception("APRS station cleanup failed")
         await asyncio.sleep(24 * 60 * 60)
 
 
@@ -51,6 +56,9 @@ async def lifespan(app: FastAPI):
     # Materialise the digital-decode ingest secret (auto-generated into the shared
     # volume the decoder container reads) so the sidecar can authenticate.
     sdr_decode_service.resolve_ingest_secret()
+    # Resume background APRS decode on the persisted radio (best-effort; a missing
+    # radio or unreachable dongle is logged and skipped, never blocking startup).
+    await sdr_router.resume_persisted_aprs()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
@@ -104,6 +112,7 @@ app = FastAPI(
 # ── API routers ────────────────────────────────────────────────────────────────
 app.include_router(air.router)
 app.include_router(space.router)
+app.include_router(land.router)
 app.include_router(settings_router.router)
 app.include_router(sdr_router.router)
 

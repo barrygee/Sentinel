@@ -28,6 +28,7 @@ from backend.services import sdr_decode
 from backend.services.sdr_decode import (
     DEFAULT_DECODE_BW_HZ,
     OUTPUT_RATE,
+    AprsDecodeBridge,
     DigitalDecodeBridge,
     DemodState,
     _AUDIO_BYTES_PER_SAMPLE,
@@ -286,11 +287,13 @@ def _iq_payload(sample_rate: int, center_hz: int, raw_iq: bytes) -> bytes:
 
 @pytest.fixture(autouse=True)
 def _clear_bridges():
-    """Keep the module-level bridge cache + secret cache clean between tests."""
+    """Keep the module-level bridge caches + secret cache clean between tests."""
     sdr_decode._bridges.clear()
+    sdr_decode._aprs_bridges.clear()
     sdr_decode._ingest_secret = None
     yield
     sdr_decode._bridges.clear()
+    sdr_decode._aprs_bridges.clear()
     sdr_decode._ingest_secret = None
 
 
@@ -624,3 +627,131 @@ class TestBridgeTrunkAccessors:
         writer.close.assert_called_once()
         assert bridge._pcm_writer is None
         assert bridge.decoder_reachable is False
+
+
+# ── AprsDecodeBridge ──────────────────────────────────────────────────────────
+
+
+class TestAprsDecodeBridge:
+    async def test_serves_pcm_without_udp_audio(self):
+        # The APRS bridge shares the PCM spine but adds no decoded-voice UDP path
+        # (Direwolf reads PCM and returns packets purely as ingested events).
+        broadcaster = _FakeBroadcaster()
+        bridge = AprsDecodeBridge(broadcaster, pcm_port=0)
+        await bridge.start(offset_hz=0, bw_hz=DEFAULT_DECODE_BW_HZ)
+        try:
+            assert bridge.kind == "aprs"
+            assert broadcaster.subscribed
+            reader, writer = await asyncio.open_connection("127.0.0.1", bridge.pcm_port)
+            assert await _wait_until(lambda: bridge.decoder_reachable)
+
+            raw = _fm_iq_bytes(1500, 2500, 0, 1_024_000, 40_000)
+            await broadcaster.iq_queue.put(_iq_payload(1_024_000, 100_000_000, raw))
+            pcm = await asyncio.wait_for(reader.read(256), timeout=2.0)
+            assert len(pcm) > 0
+            writer.close()
+        finally:
+            await bridge.stop()
+
+    def test_defaults_come_from_aprs_settings(self):
+        # Uncustomised, the bridge takes its port and bandwidth from the APRS
+        # settings (distinct from the voice defaults).
+        bridge = AprsDecodeBridge(_FakeBroadcaster())
+        assert bridge.pcm_port == settings.aprs_decoder_pcm_port
+        assert bridge._state.bw_hz == settings.aprs_decoder_default_bw_hz
+
+    def test_status_frame_has_no_audio_rate(self):
+        # Unlike the voice bridge, APRS carries no decoded audio, so its status
+        # frame must omit audio_sample_rate.
+        bridge = AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        frame = bridge._status_frame()
+        assert frame == {"type": "decode_status", "decoder_reachable": False}
+        assert "audio_sample_rate" not in frame
+
+    def test_has_no_voice_only_methods(self):
+        # APRS must not expose the voice bridge's audio API.
+        bridge = AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert not hasattr(bridge, "subscribe_audio")
+        assert not hasattr(bridge, "bounce_decoder")
+
+    async def test_stop_drains_event_subscribers(self):
+        bridge = AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        await bridge.start()
+        events = bridge.subscribe_events()
+        events.get_nowait()  # seeded status frame
+        await bridge.stop()
+        assert events.get_nowait() is None  # sentinel on stop
+
+
+# ── APRS bridge cache helpers ─────────────────────────────────────────────────
+
+
+class TestAprsBridgeCacheHelpers:
+    async def test_get_or_create_creates_and_reuses(self, monkeypatch):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        first = await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        second = await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        assert first is second
+        assert isinstance(first, AprsDecodeBridge)
+        assert sdr_decode.get_aprs_bridge("h1", 1234) is first
+
+    async def test_get_or_create_stops_other_radio_aprs_bridge(self, monkeypatch):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        old = await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        await old.start()
+        new = await sdr_decode.get_or_create_aprs_bridge("h2", 1234, broadcaster)
+        assert sdr_decode.get_aprs_bridge("h1", 1234) is None
+        assert sdr_decode.get_aprs_bridge("h2", 1234) is new
+
+    async def test_aprs_and_voice_bridges_coexist(self, monkeypatch):
+        # The whole point of the split: creating an APRS bridge must NOT evict a
+        # voice bridge (concurrent decode on two dongles).
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        voice = await sdr_decode.get_or_create_bridge("h1", 1234, broadcaster)
+        aprs = await sdr_decode.get_or_create_aprs_bridge("h2", 5678, broadcaster)
+        assert sdr_decode.get_bridge("h1", 1234) is voice
+        assert sdr_decode.get_aprs_bridge("h2", 5678) is aprs
+
+    def test_get_aprs_bridge_missing_returns_none(self):
+        assert sdr_decode.get_aprs_bridge("nope", 9999) is None
+
+    def test_get_active_aprs_bridge_none_when_empty(self):
+        assert sdr_decode.get_active_aprs_bridge() is None
+
+    def test_get_active_aprs_bridge_returns_the_single_bridge(self):
+        bridge = AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        sdr_decode._aprs_bridges["h1:1234"] = bridge
+        assert sdr_decode.get_active_aprs_bridge() is bridge
+
+    async def test_stop_aprs_bridge_removes_from_cache(self, monkeypatch):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        await sdr_decode.stop_aprs_bridge("h1", 1234)
+        assert sdr_decode.get_aprs_bridge("h1", 1234) is None
+
+    async def test_stop_aprs_bridge_missing_is_noop(self):
+        await sdr_decode.stop_aprs_bridge("ghost", 1)  # must not raise
+
+    async def test_wake_all_decoders_covers_aprs(self, monkeypatch):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        bridge = await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        events = bridge.subscribe_events()
+        events.get_nowait()  # seeded status
+        sdr_decode.wake_all_decoders()
+        assert events.get_nowait() is None
+
+    async def test_shutdown_all_decoders_stops_both_registries(self, monkeypatch):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        voice = await sdr_decode.get_or_create_bridge("h1", 1234, broadcaster)
+        await voice.start()
+        aprs = await sdr_decode.get_or_create_aprs_bridge("h2", 5678, broadcaster)
+        await aprs.start()
+        await sdr_decode.shutdown_all_decoders()
+        assert sdr_decode._bridges == {}
+        assert sdr_decode._aprs_bridges == {}

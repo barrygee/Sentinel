@@ -65,6 +65,21 @@ class Settings(BaseSettings):
     # before treating the attempt as "not owner" and the channel probe as absent.
     sdr_relay_control_timeout_s: float = 2.0
 
+    # ── APRS-decode sidecar (Direwolf) ────────────────────────────────────────
+    # APRS packet decode shares the backend's FM-demod PCM spine but runs its own
+    # sidecar (Direwolf) so it can decode concurrently with voice on a second
+    # dongle. TCP port the backend serves the APRS PCM feed on (distinct from the
+    # voice feed's 7355 so both can listen at once). Direwolf connects here.
+    aprs_decoder_pcm_port: int = 7357
+    # Default channel bandwidth (Hz) for APRS. 2 m APRS is ~15 kHz narrowband FM
+    # (~5 kHz deviation), a touch wider than the 12.5 kHz voice channel so the
+    # 1200/2200 Hz AFSK tones and deviation pass cleanly.
+    aprs_decoder_default_bw_hz: int = 15_000
+    # How long (ms) a heard APRS station is retained for the Land map before the
+    # periodic cleanup sweep drops it. 6 hours: long enough that a slow-beaconing
+    # fixed station stays plotted between transmissions.
+    aprs_station_ttl_ms: int = 21_600_000
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

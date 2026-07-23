@@ -286,3 +286,27 @@ class UserSettings(Base):
     updated_at = Column(Integer, nullable=False)  # Unix ms
 
     __table_args__ = (UniqueConstraint("namespace", "key", name="uq_user_settings_ns_key"),)
+
+
+class AprsStation(Base):
+    """Latest known position/status of an APRS station heard via the Land decoder.
+
+    One row per station callsign (upserted on each received position packet), so
+    the Land map plots the most recent fix for each station. Rows older than
+    ``aprs_station_ttl_ms`` are removed by the periodic cleanup sweep.
+    """
+
+    __tablename__ = "aprs_stations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    callsign = Column(Text, nullable=False, unique=True)  # e.g. "M0ABC-9" — station identity
+    latitude = Column(Float, nullable=False)  # decimal degrees N
+    longitude = Column(Float, nullable=False)  # decimal degrees E
+    symbol = Column(Text)  # APRS symbol code (table + code, e.g. "/>") if present
+    comment = Column(Text)  # free-text status/comment field
+    course = Column(Float)  # course over ground in degrees, if present
+    speed = Column(Float)  # speed in knots, if present
+    altitude = Column(Float)  # altitude in feet, if present
+    path = Column(Text)  # digipeater path, e.g. "WIDE1-1,WIDE2-1"
+    raw = Column(Text)  # the raw TNC2 packet the fix was parsed from
+    last_heard_ms = Column(Integer, nullable=False)  # Unix ms this station was last heard
