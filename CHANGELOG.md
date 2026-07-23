@@ -110,6 +110,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - New SENTINEL brand mark, icon set, and app-wide visual polish (#220)
 - Restyle controls and simplify card layout (#224)
 - Monochrome restyle for map markers, AARA/AWACS zones, and spectrum markers (#227)
+- APRS decode via Direwolf — plot stations on Land map + list packets below the waterfall (#237)
 
 ### Bug Fixes
 
