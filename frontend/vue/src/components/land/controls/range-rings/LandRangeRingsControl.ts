@@ -23,6 +23,11 @@ export class LandRangeRingsControl extends SentinelControlBase {
     this._locationAvailable = getUserLocation() !== null
   }
 
+  /** Current toggle state (rings shown when this is on and a location exists). */
+  get visible(): boolean {
+    return this._visible
+  }
+
   private static _readPersisted(): boolean {
     try {
       return localStorage.getItem(LS_KEY) === '1'

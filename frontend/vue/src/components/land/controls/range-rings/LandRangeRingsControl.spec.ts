@@ -70,6 +70,15 @@ describe('LandRangeRingsControl', () => {
     spy.mockRestore()
   })
 
+  it('exposes the current toggle state via `visible`', () => {
+    const map = makeFakeMap()
+    const control = new LandRangeRingsControl(() => [-2, 54])
+    control.onAdd(map as never)
+    expect(control.visible).toBe(false)
+    control.handleClickPublic()
+    expect(control.visible).toBe(true)
+  })
+
   it('toggles rings on click and persists the choice', () => {
     const map = makeFakeMap()
     const control = new LandRangeRingsControl(() => [-2, 54])

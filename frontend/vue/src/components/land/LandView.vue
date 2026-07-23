@@ -6,28 +6,41 @@
       ref="mapRef"
       :style-url="styleUrl"
       region-label="Land domain map"
+      region-description="Interactive map of APRS stations heard by the SDR decoder. The same stations are listed in an accessible data table."
       :center="[-2, 54]"
       :zoom="6"
       @map-created="onMapCreated"
       @style-loaded="onStyleLoaded"
+    />
+    <LandSideMenu
+      :zoom-in="zoomIn"
+      :zoom-out="zoomOut"
+      :go-to-location="goToLocation"
+      :toggle-range-rings="toggleRangeRings"
+      :toggle-aprs="toggleAprs"
+      :range-rings-active="rangeRingsActive"
+      :aprs-active="aprsActive"
+      :location-active="locationActive"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import type { Map, IControl } from 'maplibre-gl'
+import type { Map } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
+import LandSideMenu from '@/components/land/LandSideMenu.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
-import { LandZoomControl } from '@/components/land/controls/zoom/LandZoomControl'
-import { LandLocateControl } from '@/components/land/controls/locate/LandLocateControl'
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
+
+/** Zoom level the map flies to when centring on the user's location. */
+const LOCATE_ZOOM = 10
 
 const appStore = useAppStore()
 const landStore = useLandStore()
@@ -42,10 +55,13 @@ const _locationMarker = new UserLocationMarker('user-location-marker')
 
 let _map: Map | null = null
 let _initialStyleUrl: string | null = null
-// All added controls, for teardown. The range-rings control is also kept by name
-// because the user-location watcher re-centres it live.
-let _controls: IControl[] = []
+let _aprsControl: AprsStationsControl | null = null
 let _rangeRingsControl: LandRangeRingsControl | null = null
+
+// Reactive toggle state backing the side-menu buttons' active (green) styling.
+const aprsActive = ref(true) // APRS stations are plotted by default
+const rangeRingsActive = ref(false)
+const locationActive = computed(() => userLocation.value !== null)
 
 const styleUrl = computed(() =>
   appStore.isOnline ? '/assets/fiord-online.json' : '/assets/fiord.json',
@@ -59,21 +75,42 @@ function onMapCreated(m: Map) {
   _map = m
   _initialStyleUrl = styleUrl.value
 
-  // Navigation controls (top-right, stacked): zoom, go-to-my-location, range
-  // rings, then the APRS stations overlay toggle. The APRS control owns its own
-  // polling + markers + a11y table (the first real Land control).
+  // The map features are IControls that own their layers/markers. We init them
+  // directly (onAdd) rather than adding their default buttons — the side menu
+  // owns the visible controls — and hide the native control corner.
   _rangeRingsControl = new LandRangeRingsControl(getUserLocation)
-  _controls = [
-    new LandZoomControl(),
-    new LandLocateControl(getUserLocation),
-    _rangeRingsControl,
-    new AprsStationsControl(landStore),
-  ]
-  for (const control of _controls) m.addControl(control, 'top-right')
+  _aprsControl = new AprsStationsControl(landStore)
+  _rangeRingsControl.onAdd(m)
+  _aprsControl.onAdd(m)
+  rangeRingsActive.value = _rangeRingsControl.visible
+
+  const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
+  if (nativeCtrl) nativeCtrl.style.display = 'none'
 
   // Begin resolving the user's location and show its marker.
   startLocation()
   _locationMarker.addTo(m)
+}
+
+// ── side-menu handlers ─────────────────────────────────────────────────────
+function zoomIn() {
+  _map?.zoomIn()
+}
+function zoomOut() {
+  _map?.zoomOut()
+}
+function goToLocation() {
+  const location = getUserLocation()
+  if (!_map || !location) return
+  _map.flyTo({ center: location, zoom: Math.max(_map.getZoom(), LOCATE_ZOOM) })
+}
+function toggleRangeRings() {
+  _rangeRingsControl?.handleClickPublic()
+  rangeRingsActive.value = !rangeRingsActive.value
+}
+function toggleAprs() {
+  _aprsControl?.handleClickPublic()
+  aprsActive.value = !aprsActive.value
 }
 
 onMounted(() => {
@@ -95,10 +132,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (_map) for (const control of _controls) _map.removeControl(control)
+  _rangeRingsControl?.onRemove()
+  _aprsControl?.onRemove()
   _locationMarker.remove()
-  _controls = []
-  _rangeRingsControl = null
+  _rangeRingsControl = _aprsControl = null
 })
 
 function onStyleLoaded(m: Map) {
