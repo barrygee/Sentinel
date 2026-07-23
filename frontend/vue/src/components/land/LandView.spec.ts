@@ -39,16 +39,22 @@ const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div
 
 import LandView from './LandView.vue'
 import { useAppStore } from '@/stores/app'
+import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
 
 const ONLINE_STYLE = '/assets/fiord-online.json'
 const OFFLINE_STYLE = '/assets/fiord.json'
 
 interface FakeMap {
   setStyle: ReturnType<typeof vi.fn>
+  addControl: ReturnType<typeof vi.fn>
+  removeControl: ReturnType<typeof vi.fn>
 }
 
 function makeFakeMap(): FakeMap {
-  return { setStyle: vi.fn() }
+  // addControl/removeControl are no-op spies: LandView now mounts the APRS
+  // stations control on map-created, but these style-reconciliation tests only
+  // exercise the style logic (the control has its own spec).
+  return { setStyle: vi.fn(), addControl: vi.fn(), removeControl: vi.fn() }
 }
 
 function mountView() {
@@ -155,5 +161,24 @@ describe('LandView', () => {
     expect(heading.exists()).toBe(true)
     expect(heading.classes()).toContain('sr-only')
     expect(heading.text()).toBe('Land domain')
+  })
+
+  describe('APRS stations control', () => {
+    it('mounts the APRS control on map-created and removes it on unmount', () => {
+      const map = makeFakeMap()
+      const wrapper = mountView()
+      shared.emit!('map-created', map)
+      expect(map.addControl).toHaveBeenCalledOnce()
+      expect(map.addControl.mock.calls[0][0]).toBeInstanceOf(AprsStationsControl)
+      expect(map.addControl.mock.calls[0][1]).toBe('top-right')
+      wrapper.unmount()
+      expect(map.removeControl).toHaveBeenCalledOnce()
+    })
+
+    it('unmounts cleanly when no map was ever created', () => {
+      const wrapper = mountView()
+      // No map-created emitted → the onUnmounted guard has no control to remove.
+      expect(() => wrapper.unmount()).not.toThrow()
+    })
   })
 })

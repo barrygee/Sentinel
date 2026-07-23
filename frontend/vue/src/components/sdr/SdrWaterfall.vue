@@ -2586,7 +2586,7 @@ onBeforeUnmount(() => {
     :class="{
       'panel-closed': !panelOpen,
       'edge-resize': nearEdge,
-      'decode-open': store.digitalEnabled,
+      'decode-open': store.decodeDockOpen,
       'not-playing': !store.playing,
       sweeping: sweeping,
     }"

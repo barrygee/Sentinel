@@ -569,6 +569,83 @@ describe('SdrPanel — RADIO tab: digital decode', () => {
 })
 
 // =============================================================================
+describe('SdrPanel — RADIO tab: APRS decode', () => {
+  async function mountPlaying() {
+    const { wrapper, socket } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('144.800')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    socket.sent.length = 0
+    return { wrapper, socket }
+  }
+
+  function aprsPill(wrapper: VueWrapper) {
+    return wrapper.findAll('.sdr-mode-pills .sdr-mode-pill').find((pill) => pill.text() === 'APRS')!
+  }
+
+  it('disables the APRS button until a radio is selected', async () => {
+    fetchState.radios = [] // no auto-select → selectedRadioId stays null
+    const wrapper = await mountReady()
+    expect((aprsPill(wrapper).element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('enabling APRS starts background decode + the panel event stream and activates the button', async () => {
+    const { wrapper } = await mountPlaying()
+    const store = useSdrStore()
+    const startSpy = vi.spyOn(store, 'startAprs').mockResolvedValue(true)
+    await aprsPill(wrapper).trigger('click')
+    await flushPromises()
+    expect(startSpy).toHaveBeenCalledWith(1, expect.any(Number), expect.any(Number))
+    expect(decodeMock.start).toHaveBeenCalledWith(1)
+    expect(store.aprsEnabled).toBe(true)
+    expect(aprsPill(wrapper).classes()).toContain('sdr-digital-btn--active')
+  })
+
+  it('disabling APRS stops the panel event stream and the backend session', async () => {
+    const { wrapper } = await mountPlaying()
+    const store = useSdrStore()
+    vi.spyOn(store, 'startAprs').mockResolvedValue(true)
+    const stopSpy = vi.spyOn(store, 'stopAprs').mockResolvedValue(true)
+    await aprsPill(wrapper).trigger('click')
+    await flushPromises()
+    decodeMock.stop.mockClear()
+    await aprsPill(wrapper).trigger('click')
+    await flushPromises()
+    expect(stopSpy).toHaveBeenCalledWith(1)
+    expect(decodeMock.stop).toHaveBeenCalled()
+    expect(store.aprsEnabled).toBe(false)
+  })
+
+  it('reverts the toggle and skips the event stream when the backend refuses to start', async () => {
+    const { wrapper } = await mountPlaying()
+    const store = useSdrStore()
+    vi.spyOn(store, 'startAprs').mockResolvedValue(false)
+    decodeMock.start.mockClear()
+    await aprsPill(wrapper).trigger('click')
+    await flushPromises()
+    expect(store.aprsEnabled).toBe(false)
+    expect(decodeMock.start).not.toHaveBeenCalled()
+  })
+
+  it('APRS and digital voice are mutually exclusive on the viewed radio', async () => {
+    const { wrapper } = await mountPlaying()
+    // Enabling digital (the first .sdr-digital-btn is DMR) disables the APRS pill.
+    await wrapper.find('.sdr-digital-btn').trigger('click')
+    await flushPromises()
+    expect((aprsPill(wrapper).element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('toggling APRS with no radio selected is a no-op', async () => {
+    fetchState.radios = []
+    const wrapper = await mountReady()
+    const store = useSdrStore()
+    const startSpy = vi.spyOn(store, 'startAprs')
+    await (wrapper.vm as unknown as { toggleAprs: () => Promise<void> }).toggleAprs()
+    expect(startSpy).not.toHaveBeenCalled()
+  })
+})
+
+// =============================================================================
 describe('SdrPanel — RADIO tab: mode & audio controls', () => {
   it('switches mode via the mode pills', async () => {
     const { wrapper } = await mountConnected()
