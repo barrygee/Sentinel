@@ -1,39 +1,7 @@
 import maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '../sentinel-control-base/SentinelControlBase'
 import type { AirStore } from '../types'
-
-const RING_DISTANCES_NM = [50, 100, 150, 200, 250] as const
-
-function buildRingsGeoJSON(lng: number, lat: number): GeoJSON.FeatureCollection {
-  const EARTH_RADIUS_NM = 3440.065
-  const features: GeoJSON.Feature[] = []
-  for (const distNm of RING_DISTANCES_NM) {
-    const R = distNm / EARTH_RADIUS_NM
-    const points: [number, number][] = []
-    const steps = 64
-    for (let i = 0; i <= steps; i++) {
-      const bearing = (i / steps) * Math.PI * 2
-      const lat1 = (lat * Math.PI) / 180
-      const lon1 = (lng * Math.PI) / 180
-      const lat2 = Math.asin(
-        Math.sin(lat1) * Math.cos(R) + Math.cos(lat1) * Math.sin(R) * Math.cos(bearing),
-      )
-      const lon2 =
-        lon1 +
-        Math.atan2(
-          Math.sin(bearing) * Math.sin(R) * Math.cos(lat1),
-          Math.cos(R) - Math.sin(lat1) * Math.sin(lat2),
-        )
-      points.push([(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI])
-    }
-    features.push({
-      type: 'Feature',
-      geometry: { type: 'LineString', coordinates: points },
-      properties: { dist: distNm },
-    })
-  }
-  return { type: 'FeatureCollection', features }
-}
+import { buildRingsGeoJSON } from '@/utils/rangeRings'
 
 export class RangeRingsControl extends SentinelControlBase {
   ringsVisible: boolean

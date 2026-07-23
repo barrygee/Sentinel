@@ -76,6 +76,19 @@ export interface DecodeEvent {
   // channel (a return) rather than a call's voice channel.
   tuned_hz?: number
   is_control_channel?: boolean
+  // Present only on `type: "aprs"` frames (APRS packet decode). The source
+  // callsign, decoded position, and optional movement/status fields; the same
+  // shape the Land map plots. `raw` is the TNC2 packet the fix was parsed from.
+  from?: string
+  latitude?: number
+  longitude?: number
+  symbol?: string
+  comment?: string
+  course?: number
+  speed?: number
+  altitude?: number
+  path?: string
+  raw?: string
   ts: number
 }
 
@@ -450,6 +463,68 @@ export const useSdrStore = defineStore('sdr', () => {
       if (typeof v === 'boolean' && v !== digitalEnabled.value) setDigitalEnabled(v)
     } catch {
       /* offline / transient — keep current value */
+    }
+  }
+
+  // ── APRS decode (Direwolf sidecar) ─────────────────────────────────────────
+  // APRS packet decode runs in the BACKGROUND, independent of the SDR view and
+  // of digital-voice decode (it can run concurrently on a second dongle). So it
+  // is controlled over HTTP (start/stop endpoints) rather than the spectrum
+  // WebSocket, and the enabled radio is persisted server-side (resumes on
+  // restart). The local flag mirrors the viewed radio's APRS state so the toggle
+  // reflects it instantly; localStorage is the fast-path cache, like the digital
+  // toggle. Default OFF.
+  function _readAprsEnabled(): boolean {
+    try {
+      return localStorage.getItem('sdrAprsEnabled') === '1'
+    } catch {
+      return false
+    }
+  }
+  const aprsEnabled = ref<boolean>(_readAprsEnabled())
+  function setAprsEnabled(on: boolean) {
+    aprsEnabled.value = on
+    try {
+      localStorage.setItem('sdrAprsEnabled', on ? '1' : '0')
+    } catch {}
+  }
+
+  // Which decoded-event stream the dock is showing for the viewed radio. APRS
+  // when APRS decode is on (its packet table + raw log), otherwise the voice
+  // call table. Drives the dock's column layout.
+  const decodeStreamKind = computed<'voice' | 'aprs'>(() => (aprsEnabled.value ? 'aprs' : 'voice'))
+
+  // Whether the decoder dock (panels below the waterfall) should be shown: true
+  // while EITHER voice or APRS decode is active. The waterfall also raises its
+  // bottom by the dock height when this is true.
+  const decodeDockOpen = computed<boolean>(() => digitalEnabled.value || aprsEnabled.value)
+
+  // Start background APRS decode on a radio. Persists server-side and keeps
+  // feeding the Land map even when another radio is viewed. Returns success.
+  async function startAprs(radioId: number, offsetHz = 0, bwHz = 0): Promise<boolean> {
+    try {
+      const res = await fetch('/api/sdr/aprs/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ radio_id: radioId, offset_hz: offsetHz, bw_hz: bwHz }),
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
+  // Stop background APRS decode on a radio and clear the persisted choice.
+  async function stopAprs(radioId: number): Promise<boolean> {
+    try {
+      const res = await fetch('/api/sdr/aprs/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ radio_id: radioId }),
+      })
+      return res.ok
+    } catch {
+      return false
     }
   }
 
@@ -878,6 +953,12 @@ export const useSdrStore = defineStore('sdr', () => {
     digitalEnabled,
     setDigitalEnabled,
     hydrateDigitalEnabledFromDb,
+    aprsEnabled,
+    setAprsEnabled,
+    decodeStreamKind,
+    decodeDockOpen,
+    startAprs,
+    stopAprs,
     decodeEvents,
     decodeLogs,
     decodeSync,

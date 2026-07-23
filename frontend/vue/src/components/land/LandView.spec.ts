@@ -1,5 +1,6 @@
-/* eslint-disable vue/one-component-per-file -- this spec defines tiny stub
-   components to stand in for LandView's children. */
+/* eslint-disable vue/one-component-per-file, vue/require-prop-types -- this spec
+   defines tiny stub components (with untyped capture props) to stand in for
+   LandView's children. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -12,15 +13,81 @@ const shared = vi.hoisted(() => ({
   connectivityCb: null as null | ((online: boolean) => void),
 }))
 
-// Capture the connectivity callback so tests can drive online/offline flips.
 vi.mock('@/composables/useConnectivity', () => ({
   useConnectivity: (cb: (online: boolean) => void) => {
     shared.connectivityCb = cb
   },
 }))
 
-// MapLibreMap stub: captures `emit` so tests drive map-created / style-loaded,
-// and re-renders styleUrl so the prop can be asserted.
+// Right-click "set my location" menu — spy on attach/detach.
+const ctxMenuSpies = vi.hoisted(() => ({
+  attach: vi.fn(),
+  detach: vi.fn(),
+  remove: vi.fn(),
+  show: vi.fn(),
+}))
+vi.mock('@/composables/useMapContextMenu', () => ({ useMapContextMenu: () => ctxMenuSpies }))
+
+// User location: a controllable ref + `start` spy.
+const locationState = vi.hoisted(() => ({
+  location: null as null | { value: { lat: number; lon: number; accuracy: number } | null },
+  start: vi.fn(),
+}))
+vi.mock('@/composables/useUserLocation', async () => {
+  const { ref: vueRef } = await import('vue')
+  locationState.location = vueRef(null)
+  return {
+    useUserLocation: () => ({ location: locationState.location, start: locationState.start }),
+  }
+})
+
+// UserLocationMarker: spy on its map methods (a class so it can be `new`-ed).
+const markerSpies = vi.hoisted(() => ({ addTo: vi.fn(), update: vi.fn(), remove: vi.fn() }))
+vi.mock('@/components/shared/UserLocationMarker', () => ({
+  UserLocationMarker: class {
+    addTo = markerSpies.addTo
+    update = markerSpies.update
+    remove = markerSpies.remove
+  },
+}))
+
+// The map feature controls are initialised via onAdd; mock them so no real
+// maplibre layers are touched (they have their own specs).
+const ringsSpies = vi.hoisted(() => ({
+  onAdd: vi.fn(),
+  onRemove: vi.fn(),
+  handleClickPublic: vi.fn(),
+  updateCenter: vi.fn(),
+  setLocationAvailable: vi.fn(),
+  visible: false,
+}))
+vi.mock('@/components/land/controls/range-rings/LandRangeRingsControl', () => ({
+  LandRangeRingsControl: class {
+    onAdd = ringsSpies.onAdd
+    onRemove = ringsSpies.onRemove
+    handleClickPublic = ringsSpies.handleClickPublic
+    updateCenter = ringsSpies.updateCenter
+    setLocationAvailable = ringsSpies.setLocationAvailable
+    get visible() {
+      return ringsSpies.visible
+    }
+  },
+}))
+const aprsSpies = vi.hoisted(() => ({
+  onAdd: vi.fn(),
+  onRemove: vi.fn(),
+  handleClickPublic: vi.fn(),
+  setVisible: vi.fn(),
+}))
+vi.mock('@/components/land/controls/aprs/AprsStationsControl', () => ({
+  AprsStationsControl: class {
+    onAdd = aprsSpies.onAdd
+    onRemove = aprsSpies.onRemove
+    handleClickPublic = aprsSpies.handleClickPublic
+    setVisible = aprsSpies.setVisible
+  },
+}))
+
 const MapLibreMapStub = defineComponent({
   name: 'MapLibreMap',
   props: {
@@ -34,26 +101,58 @@ const MapLibreMapStub = defineComponent({
     return () => h('div', { class: 'maplibre-stub' })
   },
 })
-
 const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div') })
+
+// Capture the props LandView passes to the side menu so the handlers can be
+// invoked and the active-state props asserted.
+let sideMenuProps: Record<string, unknown> | null = null
+const LandSideMenuStub = defineComponent({
+  name: 'LandSideMenu',
+  props: [
+    'zoomIn',
+    'zoomOut',
+    'goToLocation',
+    'toggleRangeRings',
+    'toggleAprs',
+    'rangeRingsActive',
+    'aprsActive',
+    'locationActive',
+  ],
+  setup(props) {
+    sideMenuProps = props as unknown as Record<string, unknown>
+    return () => h('div', { class: 'land-side-menu-stub' })
+  },
+})
 
 import LandView from './LandView.vue'
 import { useAppStore } from '@/stores/app'
+import { useLandStore } from '@/stores/land'
 
 const ONLINE_STYLE = '/assets/fiord-online.json'
 const OFFLINE_STYLE = '/assets/fiord.json'
 
-interface FakeMap {
-  setStyle: ReturnType<typeof vi.fn>
-}
-
-function makeFakeMap(): FakeMap {
-  return { setStyle: vi.fn() }
+function makeFakeMap() {
+  const container = document.createElement('div')
+  return {
+    setStyle: vi.fn(),
+    getContainer: () => container,
+    zoomIn: vi.fn(),
+    zoomOut: vi.fn(),
+    flyTo: vi.fn(),
+    getZoom: vi.fn(() => 6),
+    _container: container,
+  }
 }
 
 function mountView() {
   return mount(LandView, {
-    global: { stubs: { MapLibreMap: MapLibreMapStub, NoUrlOverlay: InertStub } },
+    global: {
+      stubs: {
+        MapLibreMap: MapLibreMapStub,
+        NoUrlOverlay: InertStub,
+        LandSideMenu: LandSideMenuStub,
+      },
+    },
   })
 }
 
@@ -65,6 +164,9 @@ describe('LandView', () => {
     vi.clearAllMocks()
     shared.emit = null
     shared.connectivityCb = null
+    sideMenuProps = null
+    ringsSpies.visible = false
+    if (locationState.location) locationState.location.value = null
     localStorage.clear()
     document.body.innerHTML = ''
   })
@@ -78,11 +180,10 @@ describe('LandView', () => {
       expect(props.zoom).toBe(6)
     })
 
-    it('uses the offline style when offline', async () => {
+    it('uses the offline style when offline', () => {
       const app = useAppStore()
       app.isOnline = false
       const wrapper = mountView()
-      await nextTick()
       expect(wrapper.findComponent(MapLibreMapStub).props('styleUrl')).toBe(OFFLINE_STYLE)
     })
   })
@@ -92,9 +193,7 @@ describe('LandView', () => {
       const app = useAppStore()
       const map = makeFakeMap()
       mountView()
-      // map-created records the initial (online) style…
       shared.emit!('map-created', map)
-      // …then connectivity flips offline before the style finishes loading.
       app.isOnline = false
       await nextTick()
       shared.emit!('style-loaded', map)
@@ -112,33 +211,176 @@ describe('LandView', () => {
     it('does not reload when no map-created preceded the style load', () => {
       const map = makeFakeMap()
       mountView()
-      // _initialStyleUrl is still null → the reconciliation guard short-circuits.
       shared.emit!('style-loaded', map)
       expect(map.setStyle).not.toHaveBeenCalled()
     })
   })
 
   describe('connectivity changes', () => {
-    it('switches to the offline style when connectivity drops', () => {
+    it('switches the style when connectivity drops after load', () => {
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE)
-    })
-
-    it('switches to the online style when connectivity returns', () => {
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
       shared.connectivityCb!(true)
       expect(map.setStyle).toHaveBeenCalledWith(ONLINE_STYLE)
     })
 
     it('does nothing when the map is not yet created', () => {
       mountView()
-      // _map is null → the optional-chained setStyle is a no-op.
       expect(() => shared.connectivityCb!(false)).not.toThrow()
+    })
+  })
+
+  describe('map controls', () => {
+    it('initialises the range-rings and APRS controls and hides the native corner', () => {
+      const map = makeFakeMap()
+      const native = document.createElement('div')
+      native.className = 'maplibregl-ctrl-top-right'
+      map._container.appendChild(native)
+      mountView()
+      shared.emit!('map-created', map)
+      expect(ringsSpies.onAdd).toHaveBeenCalledWith(map)
+      expect(aprsSpies.onAdd).toHaveBeenCalledWith(map)
+      expect(native.style.display).toBe('none') // native controls hidden
+      expect(locationState.start).toHaveBeenCalledOnce()
+      expect(markerSpies.addTo).toHaveBeenCalledWith(map)
+      expect(ctxMenuSpies.attach).toHaveBeenCalledWith(map) // right-click set-location enabled
+    })
+
+    it('detaches the right-click location menu on unmount', () => {
+      const map = makeFakeMap()
+      const wrapper = mountView()
+      shared.emit!('map-created', map)
+      wrapper.unmount()
+      expect(ctxMenuSpies.detach).toHaveBeenCalledWith(map)
+    })
+
+    it('seeds the range-rings active state from the control', async () => {
+      ringsSpies.visible = true
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      await nextTick()
+      expect(sideMenuProps!.rangeRingsActive).toBe(true)
+    })
+
+    it('shows the APRS layer by default per the land.defaultLayers config', () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      // Default config is ["aprs"], so the layer starts visible.
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(sideMenuProps!.aprsActive).toBe(true)
+    })
+
+    it('loads the default-layers config on mount', () => {
+      const land = useLandStore()
+      const spy = vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      mountView()
+      expect(spy).toHaveBeenCalledOnce()
+    })
+
+    it('applies a later defaultLayers change to the APRS layer', async () => {
+      const land = useLandStore()
+      vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      aprsSpies.setVisible.mockClear()
+      land.defaultLayers = [] // config now hides APRS
+      await nextTick()
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
+      expect(sideMenuProps!.aprsActive).toBe(false)
+    })
+
+    it('zoom buttons drive the map', () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      ;(sideMenuProps!.zoomIn as () => void)()
+      ;(sideMenuProps!.zoomOut as () => void)()
+      expect(map.zoomIn).toHaveBeenCalledOnce()
+      expect(map.zoomOut).toHaveBeenCalledOnce()
+    })
+
+    it('go-to-location flies to the user location, zooming in to at least the locate zoom', () => {
+      locationState.location!.value = { lat: 55, lon: -1.5, accuracy: 10 }
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      ;(sideMenuProps!.goToLocation as () => void)()
+      expect(map.flyTo).toHaveBeenCalledWith({ center: [-1.5, 55], zoom: 10 })
+    })
+
+    it('go-to-location does nothing without a fix', () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      ;(sideMenuProps!.goToLocation as () => void)()
+      expect(map.flyTo).not.toHaveBeenCalled()
+    })
+
+    it('toggling range rings drives the control and flips its active state', async () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      expect(sideMenuProps!.rangeRingsActive).toBe(false)
+      ;(sideMenuProps!.toggleRangeRings as () => void)()
+      await nextTick()
+      expect(ringsSpies.handleClickPublic).toHaveBeenCalledOnce()
+      expect(sideMenuProps!.rangeRingsActive).toBe(true)
+    })
+
+    it('toggling APRS drives the control and flips its active state', async () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      expect(sideMenuProps!.aprsActive).toBe(true)
+      ;(sideMenuProps!.toggleAprs as () => void)()
+      await nextTick()
+      expect(aprsSpies.handleClickPublic).toHaveBeenCalledOnce()
+      expect(sideMenuProps!.aprsActive).toBe(false)
+    })
+
+    it('updates the marker + range-rings centre when a location fix arrives', async () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map) // controls now exist
+      // A GPS fix arrives after the map + controls are ready (real-world order).
+      locationState.location!.value = { lat: 55, lon: -1.5, accuracy: 10 }
+      await nextTick()
+      expect(markerSpies.update).toHaveBeenCalledWith(-1.5, 55)
+      expect(ringsSpies.updateCenter).toHaveBeenCalledWith(-1.5, 55)
+      expect(ringsSpies.setLocationAvailable).toHaveBeenCalledWith(true)
+    })
+
+    it('removes the marker when the location is cleared', async () => {
+      locationState.location!.value = { lat: 55, lon: -1.5, accuracy: 10 }
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      markerSpies.remove.mockClear()
+      locationState.location!.value = null
+      await nextTick()
+      expect(markerSpies.remove).toHaveBeenCalled()
+      expect(ringsSpies.setLocationAvailable).toHaveBeenCalledWith(false)
+    })
+
+    it('tears down the controls and marker on unmount', () => {
+      const map = makeFakeMap()
+      const wrapper = mountView()
+      shared.emit!('map-created', map)
+      wrapper.unmount()
+      expect(ringsSpies.onRemove).toHaveBeenCalledOnce()
+      expect(aprsSpies.onRemove).toHaveBeenCalledOnce()
+      expect(markerSpies.remove).toHaveBeenCalled()
+    })
+
+    it('unmounts cleanly when no map was ever created', () => {
+      const wrapper = mountView()
+      expect(() => wrapper.unmount()).not.toThrow()
     })
   })
 

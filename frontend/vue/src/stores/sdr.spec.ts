@@ -745,4 +745,113 @@ describe('sdr store', () => {
       expect(store.readOnly).toBe(false)
     })
   })
+
+  describe('APRS decode', () => {
+    it('defaults aprsEnabled to false and decodeStreamKind to voice', () => {
+      const store = useSdrStore()
+      expect(store.aprsEnabled).toBe(false)
+      expect(store.decodeStreamKind).toBe('voice')
+    })
+
+    it('decodeDockOpen is true while either voice or APRS decode is on', () => {
+      const store = useSdrStore()
+      expect(store.decodeDockOpen).toBe(false)
+      store.setDigitalEnabled(true)
+      expect(store.decodeDockOpen).toBe(true)
+      store.setDigitalEnabled(false)
+      store.setAprsEnabled(true)
+      expect(store.decodeDockOpen).toBe(true)
+    })
+
+    it('reads aprsEnabled=true from localStorage on init', () => {
+      localStorage.setItem('sdrAprsEnabled', '1')
+      expect(useSdrStore().aprsEnabled).toBe(true)
+    })
+
+    it('falls back to false when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().aprsEnabled).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('setAprsEnabled updates state, flips decodeStreamKind, and persists', () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      expect(store.aprsEnabled).toBe(true)
+      expect(store.decodeStreamKind).toBe('aprs')
+      expect(localStorage.getItem('sdrAprsEnabled')).toBe('1')
+      store.setAprsEnabled(false)
+      expect(localStorage.getItem('sdrAprsEnabled')).toBe('0')
+      expect(store.decodeStreamKind).toBe('voice')
+    })
+
+    it('setAprsEnabled swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setAprsEnabled(true)).not.toThrow()
+      expect(store.aprsEnabled).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('startAprs POSTs the radio + channel and returns ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      const result = await store.startAprs(7, 100, 15000)
+      expect(result).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/aprs/start',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ radio_id: 7, offset_hz: 100, bw_hz: 15000 }),
+        }),
+      )
+    })
+
+    it('startAprs defaults offset/bandwidth to zero', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      await useSdrStore().startAprs(3)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/aprs/start',
+        expect.objectContaining({
+          body: JSON.stringify({ radio_id: 3, offset_hz: 0, bw_hz: 0 }),
+        }),
+      )
+    })
+
+    it('startAprs returns false on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      expect(await useSdrStore().startAprs(1)).toBe(false)
+    })
+
+    it('startAprs returns false when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      expect(await useSdrStore().startAprs(1)).toBe(false)
+    })
+
+    it('stopAprs POSTs the radio and returns ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      expect(await useSdrStore().stopAprs(9)).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/aprs/stop',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ radio_id: 9 }) }),
+      )
+    })
+
+    it('stopAprs returns false on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      expect(await useSdrStore().stopAprs(1)).toBe(false)
+    })
+
+    it('stopAprs returns false when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      expect(await useSdrStore().stopAprs(1)).toBe(false)
+    })
+  })
 })

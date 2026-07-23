@@ -216,6 +216,25 @@ describe('NoUrlOverlay', () => {
     })
   })
 
+  describe('land domain', () => {
+    it('never shows the overlay — data comes from the local APRS decoder', async () => {
+      // No feed URL exists for land; the base map must always show.
+      const fetchMock = stubFetch(() => ({ ok: false }))
+      const wrapper = await mountOverlay('land')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      // The URL gate is skipped entirely — no settings/status fetch is made.
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('stays visible regardless of connectivity mode', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      stubFetch(() => ({ ok: false }))
+      const wrapper = await mountOverlay('land')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+  })
+
   describe('source override', () => {
     it('lets a per-domain offgrid override win over an online app mode', async () => {
       const appStore = useAppStore()

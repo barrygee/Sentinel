@@ -240,6 +240,15 @@ describe('SdrDecodeDock', () => {
     expect(wrapper.find('.sdr-decode-dock').classes()).toContain('not-playing')
   })
 
+  it('stays active (not dulled) when APRS decode is on, even if the analog radio is stopped', async () => {
+    const store = useSdrStore()
+    store.setAprsEnabled(true)
+    const wrapper = mountDock()
+    // APRS runs in the background independent of the analog "playing" state, so
+    // the dock must not be greyed out even though the radio is not tuned.
+    expect(wrapper.find('.sdr-decode-dock').classes()).not.toContain('not-playing')
+  })
+
   it('removes the sidebar-state listener on unmount', () => {
     const wrapper = mountDock()
     wrapper.unmount()
@@ -256,5 +265,135 @@ describe('SdrDecodeDock', () => {
     const wrapper = mountDock()
     await wrapper.vm.$nextTick()
     expect(await axe(wrapper.element)).toHaveNoViolations()
+  })
+
+  describe('APRS mode', () => {
+    it('shows APRS packet columns and empty state when the stream is APRS', () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      const headings = wrapper.findAll('.sdr-decode-table thead th')
+      // Empty state hides the thead, so assert the empty message + that voice
+      // headings are absent by checking the APRS empty text.
+      expect(headings).toHaveLength(0)
+      expect(wrapper.find('.sdr-decode-table .sdr-decode-empty').text()).toBe(
+        'No packets to display.',
+      )
+    })
+
+    it('renders APRS heading columns once packets arrive', async () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      store.pushDecodeEvent({
+        type: 'aprs',
+        from: 'M0ABC-9',
+        latitude: 51.5,
+        longitude: -0.1,
+        ts: 1,
+      })
+      await wrapper.vm.$nextTick()
+      const headings = wrapper.findAll('.sdr-decode-table thead th').map((th) => th.text())
+      // Every parsed APRS field gets its own column, ending with the raw packet.
+      expect(headings).toEqual([
+        'Time',
+        'Callsign',
+        'Symbol',
+        'Latitude',
+        'Longitude',
+        'Course',
+        'Speed',
+        'Altitude',
+        'Path',
+        'Comment',
+        'Raw',
+      ])
+    })
+
+    it('renders a packet row with every field populated, including the raw frame', async () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      store.pushDecodeEvent({
+        type: 'aprs',
+        from: 'M0ABC-9',
+        symbol: '/>',
+        latitude: 51.5,
+        longitude: -0.1,
+        course: 90,
+        speed: 30,
+        altitude: 120,
+        path: 'WIDE1-1',
+        comment: 'rolling',
+        raw: 'M0ABC-9>APRS,WIDE1-1:!5130.00N/00006.00W>rolling',
+        ts: 1,
+      })
+      await wrapper.vm.$nextTick()
+      // The symbol renders as a decoded line-art icon, not the raw "/>" code.
+      expect(wrapper.find('.sdr-decode-table tbody [role="img"]').attributes('aria-label')).toBe(
+        'Car',
+      )
+      const cells = wrapper.findAll('.sdr-decode-table tbody td').map((td) => td.text())
+      expect(cells).toContain('M0ABC-9')
+      expect(cells).toContain('51.5000')
+      expect(cells).toContain('-0.1000')
+      expect(cells).toContain('90°')
+      expect(cells).toContain('30 kn')
+      expect(cells).toContain('120 ft')
+      expect(cells).toContain('WIDE1-1')
+      expect(cells).toContain('rolling')
+      expect(cells).toContain('M0ABC-9>APRS,WIDE1-1:!5130.00N/00006.00W>rolling')
+    })
+
+    it('drops the raw-log column and sync indicator in APRS mode', () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      // Only the packet-table column remains — no separate raw-log column…
+      expect(wrapper.findAll('.sdr-decode-dock-column')).toHaveLength(1)
+      expect(wrapper.find('[aria-label="Decoder logs"]').exists()).toBe(false)
+      // …and no "sync" status (a packet mode has no sync concept).
+      expect(wrapper.find('.sdr-decode-status').exists()).toBe(false)
+    })
+
+    it('renders zero as a real measurement (course due north), not a dash', async () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      store.pushDecodeEvent({ type: 'aprs', from: 'M0ABC', course: 0, speed: 0, ts: 1 })
+      await wrapper.vm.$nextTick()
+      const cells = wrapper.findAll('.sdr-decode-table tbody td').map((td) => td.text())
+      expect(cells).toContain('0°')
+      expect(cells).toContain('0 kn')
+    })
+
+    it('shows a dash for every missing field on a bare packet', async () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      // A position-less, callsign-less frame → 10 fields render em-dashes
+      // (callsign, symbol, lat, lon, course, speed, altitude, path, comment,
+      // raw) — only Time is populated.
+      store.pushDecodeEvent({ type: 'aprs', ts: 1 })
+      await wrapper.vm.$nextTick()
+      const cells = wrapper.findAll('.sdr-decode-table tbody td').map((td) => td.text())
+      expect(cells.filter((text) => text === '—').length).toBe(10)
+    })
+
+    it('has no accessibility violations in APRS mode', async () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      const wrapper = mountDock()
+      store.pushDecodeEvent({
+        type: 'aprs',
+        from: 'M0ABC-9',
+        latitude: 51.5,
+        longitude: -0.1,
+        ts: 1,
+      })
+      store.pushDecodeEvent({ type: 'log', line: 'M0ABC-9>APRS:!x', ts: 2 })
+      await wrapper.vm.$nextTick()
+      expect(await axe(wrapper.element)).toHaveNoViolations()
+    })
   })
 })

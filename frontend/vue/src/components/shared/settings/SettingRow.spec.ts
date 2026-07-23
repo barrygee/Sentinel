@@ -14,6 +14,7 @@ import type { SettingItem } from '@/types/settings'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
 import OverheadAlertRadiusControl from './OverheadAlertRadiusControl.vue'
+import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
@@ -60,6 +61,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['connectivity-toggle', ConnectivityToggle],
   ['overhead-alerts-toggle', OverheadAlertsToggleControl],
   ['overhead-alert-radius', OverheadAlertRadiusControl],
+  ['land-aprs-retention', LandAprsRetentionControl],
   ['probe-url', ProbeUrlControl],
   ['location', LocationControl],
   ['notification-sound', NotificationSoundControl],

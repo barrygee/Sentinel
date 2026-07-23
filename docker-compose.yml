@@ -27,6 +27,10 @@ services:
       # Port the backend's rigctld server listens on for trunk tracking; dsd-fme
       # connects here (via the decoder's localhost forwarder) to drive retunes.
       - DECODER_RIGCTL_PORT=4532
+      # APRS decode PCM feed (used only when the `aprs` profile runs). Distinct
+      # from the voice feed's 7355 so voice + APRS can decode at once on two
+      # dongles.
+      - APRS_DECODER_PCM_PORT=7357
     command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     networks:
@@ -71,6 +75,34 @@ services:
     # pass it through and add the matching dsd-fme flag via DSD_EXTRA_ARGS:
     # devices:
     #   - /dev/ttyUSB0:/dev/ttyUSB0
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  # APRS decoder (Direwolf). OPT-IN: only builds/starts with `--profile aprs`.
+  # Direwolf is plain GPL software (no patent-encumbered vocoder), but it is still
+  # gated so it is only built/run when APRS decode is wanted. It decodes
+  # independently of the voice decoder, so both profiles can run together for
+  # concurrent voice + APRS on two dongles. See decoder/aprs/README.md.
+  aprs-decoder:
+    build:
+      context: ./decoder/aprs
+      dockerfile: Dockerfile
+    container_name: sentinel-aprs-decoder
+    profiles: ["aprs"]
+    depends_on:
+      - app
+    environment:
+      - INGEST_URL=http://app:8000/api/sdr/aprs/ingest
+      - CONFIG_URL=http://app:8000/api/sdr/aprs/config
+      # Reads the auto-generated secret the backend wrote to the shared volume;
+      # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
+      - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - INGEST_SECRET_FILE=/run/decoder/secret
+      - IQ_PCM_HOST=app
+      - IQ_PCM_PORT=7357
+    volumes:
+      - decoder_secret:/run/decoder:ro
     restart: unless-stopped
     networks:
       - sentinel

@@ -48,6 +48,15 @@ describe('SdrView', () => {
     expect(wrapper.find('.sdr-decode-dock').exists()).toBe(true)
   })
 
+  it('also reveals the decoder dock when APRS decoding is enabled', async () => {
+    const store = useSdrStore()
+    const wrapper = mount(SdrView)
+    expect(wrapper.find('.sdr-decode-dock').exists()).toBe(false)
+    store.setAprsEnabled(true)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-decode-dock').exists()).toBe(true)
+  })
+
   it('has no axe violations', async () => {
     const wrapper = mount(SdrView)
     expect(

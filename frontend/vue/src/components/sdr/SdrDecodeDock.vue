@@ -1,15 +1,20 @@
 <template>
   <section
     class="sdr-decode-dock"
-    :class="{ 'panel-closed': !panelOpen, 'not-playing': !store.playing }"
+    :class="{
+      'panel-closed': !panelOpen,
+      'not-playing': !store.playing && !store.aprsEnabled,
+      'aprs-mode': isAprs,
+    }"
     aria-label="Decoder output"
   >
-    <!-- Both panels are shown side by side so decoded calls and raw logs are
-         visible at once; each column is an independent region with its own
-         header and Clear button. -->
+    <!-- Voice/DMR shows two columns (raw dsd-fme log + decoded calls) side by
+         side. APRS drops the separate raw-log column and its sync indicator (a
+         packet mode has no "sync") — the raw packet is a column in the table
+         instead — so its single table column fills the dock. -->
     <div class="sdr-decode-dock-columns">
-      <!-- ── Column: raw decoder logs (verbatim dsd-fme output) ──────────────── -->
-      <section class="sdr-decode-dock-column" aria-label="Decoder logs">
+      <!-- ── Column: raw decoder logs (verbatim dsd-fme output) — voice only ──── -->
+      <section v-if="!isAprs" class="sdr-decode-dock-column" aria-label="Decoder logs">
         <div class="sdr-decode-dock-column-header">
           <!-- Trunk-tracking indicator: which channel the decoder is currently
                following. aria-live announces grant/return transitions. -->
@@ -84,7 +89,52 @@
              padding reproduces the logs header geometry, so the headings line up
              with the "Synced…" status row — see .sdr-decode-table thead th). -->
         <div ref="messagesBody" class="sdr-decode-dock-body">
-          <table class="sdr-decode-table">
+          <!-- The structured column shows decoded digital-voice CALLS or decoded
+               APRS PACKETS depending on which decoder is active for the viewed
+               radio (store.decodeStreamKind). The table shell, scroll behaviour,
+               and Clear button are shared; only the columns differ. -->
+          <table v-if="isAprs" class="sdr-decode-table sdr-decode-table--aprs">
+            <caption class="sdr-sr-only">
+              Decoded APRS packets, newest last
+            </caption>
+            <thead v-if="events.length > 0">
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Callsign</th>
+                <th scope="col">Symbol</th>
+                <th scope="col">Latitude</th>
+                <th scope="col">Longitude</th>
+                <th scope="col">Course</th>
+                <th scope="col">Speed</th>
+                <th scope="col">Altitude</th>
+                <th scope="col">Path</th>
+                <th scope="col">Comment</th>
+                <th scope="col">Raw</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="events.length === 0">
+                <td class="sdr-decode-empty" colspan="11">No packets to display.</td>
+              </tr>
+              <tr v-for="(event, index) in events" :key="`${event.ts}-${index}`">
+                <td>{{ formatTime(event.ts) }}</td>
+                <td>{{ event.from ?? '—' }}</td>
+                <td>
+                  <SdrAprsSymbol v-if="event.symbol" :symbol="event.symbol" />
+                  <span v-else>—</span>
+                </td>
+                <td>{{ formatCoord(event.latitude) }}</td>
+                <td>{{ formatCoord(event.longitude) }}</td>
+                <td>{{ formatMeasure(event.course, '°') }}</td>
+                <td>{{ formatMeasure(event.speed, ' kn') }}</td>
+                <td>{{ formatMeasure(event.altitude, ' ft') }}</td>
+                <td>{{ event.path ?? '—' }}</td>
+                <td class="sdr-decode-cell--wrap">{{ event.comment ?? '—' }}</td>
+                <td class="sdr-decode-cell--raw">{{ event.raw ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <table v-else class="sdr-decode-table">
             <caption class="sdr-sr-only">
               Decoded digital calls, newest last
             </caption>
@@ -155,6 +205,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 
@@ -217,8 +268,23 @@ const trunkDotClass = computed(() =>
     : 'sdr-decode-dot--idle',
 )
 
+// Whether the structured column is showing APRS packets (vs voice calls).
+const isAprs = computed(() => store.decodeStreamKind === 'aprs')
+
 function formatTime(timestampMs: number): string {
   return new Date(timestampMs).toLocaleTimeString([], { hour12: false })
+}
+
+// A decimal coordinate to 4 dp (≈ 11 m), or an em-dash when a packet carries no
+// position (status/message/telemetry frames).
+function formatCoord(value: number | undefined): string {
+  return typeof value === 'number' ? value.toFixed(4) : '—'
+}
+
+// A rounded numeric measurement with a unit suffix (course/speed/altitude), or an
+// em-dash when the field is absent. 0 is a real value (e.g. course due north).
+function formatMeasure(value: number | undefined, suffix: string): string {
+  return typeof value === 'number' ? `${Math.round(value)}${suffix}` : '—'
 }
 function syncLabel(event: DecodeEvent): string {
   if (event.sync === true) return 'Yes'
@@ -312,6 +378,13 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* APRS mode drops the separate raw-log column (the raw packet is a table column
+   instead), so its single packet table fills the whole dock width. Voice mode
+   keeps the balanced 50/50 two-column split. */
+.sdr-decode-dock.aprs-mode .sdr-decode-dock-column {
+  flex: 1 1 100%;
 }
 
 /* Header carries the logs column's sync/trunk status. The messages column has no
@@ -461,6 +534,41 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 .sdr-decode-table td {
   text-align: left;
   padding: 0.225rem 0.45rem;
+}
+
+/* APRS comment cell: allow wrapping so long status text stays readable rather
+   than forcing the whole row to the widest single line. */
+.sdr-decode-cell--wrap {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* The APRS table has many columns; size them to their content and let the body
+   scroll horizontally rather than squeezing every field into the panel width.
+   Short fields stay on one line; only the free-text comment wraps (bounded). */
+.sdr-decode-table--aprs {
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+}
+.sdr-decode-table--aprs th,
+.sdr-decode-table--aprs td {
+  white-space: nowrap;
+}
+.sdr-decode-table--aprs .sdr-decode-cell--wrap {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 32ch;
+}
+
+/* Raw TNC2 packet: the full verbatim frame. Wrapped (packets are long, unbroken
+   strings) and slightly dimmed/smaller as a supplementary column. */
+.sdr-decode-table--aprs .sdr-decode-cell--raw {
+  white-space: normal;
+  word-break: break-all;
+  max-width: 44ch;
+  font-size: 9px;
+  color: #8b95a1;
 }
 
 /* When the messages list is empty the thead is hidden (headings only show with

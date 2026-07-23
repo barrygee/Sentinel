@@ -3,9 +3,10 @@ import SdrWaterfall from './SdrWaterfall.vue'
 import SdrDecodeDock from './SdrDecodeDock.vue'
 import { useSdrStore } from '@/stores/sdr'
 
-// The decoder dock is shown only while digital decoding is on (the Decode button
-// in SdrPanel toggles store.digitalEnabled, which both runs decoding and reveals
-// this panel). The waterfall raises its own bottom to make room (see its CSS).
+// The decoder dock is shown while EITHER digital-voice or APRS decoding is on
+// (the DMR / APRS buttons in SdrPanel toggle store.digitalEnabled / aprsEnabled,
+// combined into store.decodeDockOpen). The waterfall raises its own bottom to
+// make room (see its CSS).
 const sdrStore = useSdrStore()
 </script>
 
@@ -13,7 +14,7 @@ const sdrStore = useSdrStore()
   <div id="sdr-page" data-domain="sdr">
     <h1 class="sr-only">SDR — radio spectrum</h1>
     <SdrWaterfall />
-    <SdrDecodeDock v-if="sdrStore.digitalEnabled" />
+    <SdrDecodeDock v-if="sdrStore.decodeDockOpen" />
   </div>
 </template>
 

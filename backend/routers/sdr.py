@@ -38,8 +38,8 @@ from backend.config import settings
 from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
+from backend.services import aprs_store, sdr_channel_maps, sdr_decode, sdr_rigctl
 from backend.services import sdr as sdr_svc
-from backend.services import sdr_channel_maps, sdr_decode, sdr_rigctl
 from backend.services.sdr_data import write_sdr_frequencies_file
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
@@ -172,6 +172,20 @@ class DecodeEventIn(BaseModel):
         if len(serialised) > 4096:
             raise ValueError("event too large (max 4096 bytes serialised)")
         return value
+
+
+class AprsControlIn(BaseModel):
+    """Body for starting/stopping APRS decode on a specific radio.
+
+    ``offset_hz``/``bw_hz`` select the demod channel within the captured span
+    (0 = span centre / the bridge's default bandwidth). APRS runs in the
+    background independent of the SDR view, so it is controlled over HTTP rather
+    than the spectrum WebSocket (which tears its bridge down on close).
+    """
+
+    radio_id: int
+    offset_hz: int = 0
+    bw_hz: int = 0
 
 
 class RecordingStartIn(BaseModel):
@@ -1350,6 +1364,133 @@ async def decode_config(x_decode_secret: str = Header(default="")):
     )
 
 
+# ── APRS decode (Direwolf sidecar) ──────────────────────────────────────────────
+
+
+@router.post("/api/sdr/aprs/start")
+async def aprs_start(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
+    """Start (or retune) background APRS decode on a radio and persist the choice.
+
+    Independent of the SDR view: the APRS bridge subscribes to the radio's IQ
+    fan-out (keeping its broadcaster alive) and serves PCM to the Direwolf
+    sidecar until explicitly stopped, so it keeps feeding the Land map even when
+    another radio is being viewed. The enabled radio is persisted so it resumes
+    on restart (see :func:`resume_persisted_aprs`).
+    """
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, body.radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    try:
+        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
+    except ConnectionError as exc:
+        raise HTTPException(502, f"radio connect failed: {exc}") from exc
+    bridge = await sdr_decode.get_or_create_aprs_bridge(radio["host"], radio["port"], broadcaster)
+    await bridge.start(offset_hz=body.offset_hz, bw_hz=body.bw_hz or None)
+    await upsert_setting(db, "sdr", "aprs_radio_id", body.radio_id)
+    return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
+
+
+@router.post("/api/sdr/aprs/stop")
+async def aprs_stop(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
+    """Stop background APRS decode on a radio and clear the persisted choice."""
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, body.radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    await sdr_decode.stop_aprs_bridge(radio["host"], radio["port"])
+    await upsert_setting(db, "sdr", "aprs_radio_id", None)
+    return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": False})
+
+
+@router.get("/api/sdr/aprs/status/{radio_id}")
+async def aprs_status(radio_id: int, db: AsyncSession = Depends(get_db)):
+    """Report whether APRS decode is running for a radio and decoder reachability."""
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    bridge = sdr_decode.get_aprs_bridge(radio["host"], radio["port"])
+    return JSONResponse(
+        {
+            "radio_id": radio_id,
+            "active": bool(bridge and bridge.running),
+            "decoder_reachable": bool(bridge and bridge.decoder_reachable),
+        }
+    )
+
+
+@router.post("/api/sdr/aprs/ingest")
+async def ingest_aprs_event(body: DecodeEventIn, x_decode_secret: str = Header(default="")):
+    """Receive a decoded APRS event from the Direwolf sidecar and fan it out.
+
+    Authenticated with the same shared secret as the voice ingest (fails closed).
+    Position-bearing packets are upserted into the APRS station store for the
+    Land map; every event is also relayed to the active APRS session's WS
+    subscribers (the waterfall panels), mirroring the voice ingest contract. Raw
+    TNC2 ``log`` events and status frames carry no position and are relay-only.
+    """
+    secret = sdr_decode.resolve_ingest_secret()
+    if not secret:
+        raise HTTPException(503, "decode ingestion disabled")
+    if not secrets.compare_digest(x_decode_secret, secret):
+        raise HTTPException(401, "invalid decode secret")
+    bridge = sdr_decode.get_active_aprs_bridge()
+    if bridge is None:
+        raise HTTPException(409, "aprs decode not active")
+    station = aprs_store.station_from_event(body.event)
+    if station is not None:
+        await aprs_store.upsert_station(station, now_ms())
+    # Default the frame type to "aprs" so the frontend can route it; the sidecar
+    # may override it (e.g. "log", "decode_status") via its own "type" key.
+    bridge.publish_event({"type": "aprs", **body.event})
+    return JSONResponse({"status": "ok"})
+
+
+@router.get("/api/sdr/aprs/config")
+async def aprs_decode_config(x_decode_secret: str = Header(default="")):
+    """Report whether an APRS decode session is serving PCM, for the sidecar.
+
+    Secret-authed twin of the voice ``decode_config``. The Direwolf supervisor
+    gates on ``active`` exactly as the dsd-fme supervisor does: with no session
+    the PCM port isn't listening, so launching Direwolf would just fail to
+    connect and flood ingest with rejected startup output.
+    """
+    secret = sdr_decode.resolve_ingest_secret()
+    if not secret:
+        raise HTTPException(503, "decode ingestion disabled")
+    if not secrets.compare_digest(x_decode_secret, secret):
+        raise HTTPException(401, "invalid decode secret")
+    bridge = sdr_decode.get_active_aprs_bridge()
+    return JSONResponse({"active": bool(bridge and bridge.running)})
+
+
+async def resume_persisted_aprs() -> None:
+    """Restart APRS decode on the persisted radio at startup, if one was enabled.
+
+    Best-effort: a missing radio or an unreachable dongle is logged and skipped
+    so a failed resume never blocks application startup. Called from the app
+    lifespan after tables/settings are ready.
+    """
+    from backend.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
+        if not isinstance(radio_id, int):
+            return
+        radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, radio_id)
+    if not radio:
+        logging.getLogger(__name__).warning("Persisted APRS radio %s not found; skipping resume", radio_id)
+        return
+    try:
+        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
+        bridge = await sdr_decode.get_or_create_aprs_bridge(radio["host"], radio["port"], broadcaster)
+        await bridge.start()
+    except (ConnectionError, OSError):
+        logging.getLogger(__name__).exception("Failed to resume APRS decode on radio %s", radio_id)
+
+
 @router.get("/api/sdr/trunk/channel-maps")
 async def list_channel_maps():
     """List the trunking channel-map / group-list CSV filenames available to select.
@@ -1393,13 +1534,18 @@ async def decode_status(radio_id: int, db: AsyncSession = Depends(get_db)):
     )
 
 
-async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_decode.DigitalDecodeBridge | None:
-    """Poll briefly for the bridge to appear (it is created by the control socket's
-    `digital_decode` command, which may race the opening of this socket)."""
+async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_decode.PcmDecodeBridge | None:
+    """Poll briefly for a decode bridge (voice or APRS) to appear for this radio.
+
+    The bridge is created asynchronously — a voice bridge by the control socket's
+    `digital_decode` command (which may race the opening of this socket), or an
+    APRS bridge by the `/api/sdr/aprs/start` endpoint. A radio runs at most one
+    kind at a time, so whichever registry has it is the right bridge to stream.
+    """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
-        bridge = sdr_decode.get_bridge(host, port)
+        bridge = sdr_decode.get_bridge(host, port) or sdr_decode.get_aprs_bridge(host, port)
         if bridge is not None:
             return bridge
         await asyncio.sleep(0.1)
@@ -1456,7 +1602,9 @@ async def sdr_decode_audio_websocket(radio_id: int, websocket: WebSocket):
     if broadcaster is None:
         return
     bridge = await _wait_for_bridge(radio["host"], radio["port"])
-    if bridge is None:
+    # Only the voice bridge produces decoded audio; APRS has no voice stream, so
+    # close cleanly if this radio is running an APRS decode instead.
+    if not isinstance(bridge, sdr_decode.DigitalDecodeBridge):
         try:
             await websocket.close()
         except RuntimeError:

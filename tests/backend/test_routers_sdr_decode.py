@@ -38,12 +38,14 @@ class _FakeBroadcaster:
 
 @pytest.fixture(autouse=True)
 def _reset_decode_state():
-    """Isolate the module-level bridge cache, decode secret, and trunk state."""
+    """Isolate the module-level bridge caches, decode secret, and trunk state."""
     sdr_decode._bridges.clear()
+    sdr_decode._aprs_bridges.clear()
     original_secret = settings.decoder_ingest_secret
     sdr_rigctl.reset_trunk_config()
     yield
     sdr_decode._bridges.clear()
+    sdr_decode._aprs_bridges.clear()
     settings.decoder_ingest_secret = original_secret
     sdr_decode._ingest_secret = None
     sdr_rigctl.reset_trunk_config()
@@ -224,6 +226,40 @@ class TestWaitForBridge:
     async def test_times_out_when_absent(self):
         found = await sdr_router._wait_for_bridge("ghost", 1, timeout=0.2)
         assert found is None
+
+    async def test_finds_aprs_bridge_for_radio(self):
+        # A radio running APRS (not voice) has no entry in the voice registry;
+        # the wait must fall through to the APRS registry.
+        bridge = sdr_decode.AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        sdr_decode._aprs_bridges["hA:2"] = bridge
+        found = await sdr_router._wait_for_bridge("hA", 2, timeout=1.0)
+        assert found is bridge
+
+
+class TestAprsDecodeWebsocket:
+    def test_events_stream_from_aprs_bridge(self, client, monkeypatch):
+        # The panels reuse the same decode events WS; for an APRS radio it streams
+        # the APRS bridge's events.
+        radio = {"id": 1, "name": "Test", "host": "h1", "port": 1234}
+        _patch_resolve(monkeypatch, _FakeBroadcaster(), radio)
+        bridge = sdr_decode.AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        sdr_decode._aprs_bridges["h1:1234"] = bridge
+        with client.websocket_connect("/ws/sdr/1/decode") as ws:
+            assert ws.receive_json()["type"] == "decode_status"
+            bridge.publish_event({"type": "aprs", "from": "M0ABC-9"})
+            assert ws.receive_json()["from"] == "M0ABC-9"
+
+    def test_audio_ws_closes_for_aprs_radio(self, client, monkeypatch):
+        # APRS carries no decoded voice, so the audio socket must close cleanly
+        # rather than error when the radio is running APRS.
+        radio = {"id": 1, "name": "Test", "host": "h1", "port": 1234}
+        _patch_resolve(monkeypatch, _FakeBroadcaster(), radio)
+        sdr_decode._aprs_bridges["h1:1234"] = sdr_decode.AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        from starlette.websockets import WebSocketDisconnect as StarletteWSDisconnect
+
+        with pytest.raises(StarletteWSDisconnect):
+            with client.websocket_connect("/ws/sdr/1/decode/audio") as ws:
+                ws.receive_bytes()
 
 
 # ── Control-socket digital_decode / digital_channel commands ──────────────────

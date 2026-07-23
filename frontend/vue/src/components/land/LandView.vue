@@ -6,27 +6,69 @@
       ref="mapRef"
       :style-url="styleUrl"
       region-label="Land domain map"
+      region-description="Interactive map of APRS stations heard by the SDR decoder. The same stations are listed in an accessible data table."
       :center="[-2, 54]"
       :zoom="6"
       @map-created="onMapCreated"
       @style-loaded="onStyleLoaded"
     />
+    <LandSideMenu
+      :zoom-in="zoomIn"
+      :zoom-out="zoomOut"
+      :go-to-location="goToLocation"
+      :toggle-range-rings="toggleRangeRings"
+      :toggle-aprs="toggleAprs"
+      :range-rings-active="rangeRingsActive"
+      :aprs-active="aprsActive"
+      :location-active="locationActive"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
+import { useLandStore } from '@/stores/land'
 import { useConnectivity } from '@/composables/useConnectivity'
+import { useUserLocation } from '@/composables/useUserLocation'
+import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
+import LandSideMenu from '@/components/land/LandSideMenu.vue'
+import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
+import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
+import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
+
+/** Zoom level the map flies to when centring on the user's location. */
+const LOCATE_ZOOM = 10
 
 const appStore = useAppStore()
+const landStore = useLandStore()
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
+
+// User location drives the "go to my location" button, the range rings' centre,
+// and the on-map location marker (shared app-wide via useUserLocation).
+const { location: userLocation, start: startLocation } = useUserLocation()
+const getUserLocation = (): [number, number] | null =>
+  userLocation.value ? [userLocation.value.lon, userLocation.value.lat] : null
+const _locationMarker = new UserLocationMarker('user-location-marker')
+
+// Right-click "SET LOCATION" menu (matches the Air/Space maps). Setting a
+// location dispatches sentinel:setUserLocation, which useUserLocation handles
+// app-wide; the marker + range rings then follow via the userLocation watcher.
+const ctxMenu = useMapContextMenu()
 
 let _map: Map | null = null
 let _initialStyleUrl: string | null = null
+let _aprsControl: AprsStationsControl | null = null
+let _rangeRingsControl: LandRangeRingsControl | null = null
+
+// Reactive toggle state backing the side-menu buttons' active (green) styling.
+// APRS starts visible per the land.defaultLayers config (default ["aprs"]).
+const aprsActive = ref(landStore.defaultLayers.includes('aprs'))
+const rangeRingsActive = ref(false)
+const locationActive = computed(() => userLocation.value !== null)
 
 const styleUrl = computed(() =>
   appStore.isOnline ? '/assets/fiord-online.json' : '/assets/fiord.json',
@@ -39,7 +81,85 @@ useConnectivity((online) => {
 function onMapCreated(m: Map) {
   _map = m
   _initialStyleUrl = styleUrl.value
+
+  // The map features are IControls that own their layers/markers. We init them
+  // directly (onAdd) rather than adding their default buttons — the side menu
+  // owns the visible controls — and hide the native control corner.
+  _rangeRingsControl = new LandRangeRingsControl(getUserLocation)
+  _aprsControl = new AprsStationsControl(landStore)
+  _rangeRingsControl.onAdd(m)
+  _aprsControl.onAdd(m)
+  _aprsControl.setVisible(aprsActive.value)
+  rangeRingsActive.value = _rangeRingsControl.visible
+
+  const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
+  if (nativeCtrl) nativeCtrl.style.display = 'none'
+
+  // Begin resolving the user's location, show its marker, and enable the
+  // right-click "set my location" menu.
+  startLocation()
+  _locationMarker.addTo(m)
+  ctxMenu.attach(m)
 }
+
+// ── side-menu handlers ─────────────────────────────────────────────────────
+function zoomIn() {
+  _map?.zoomIn()
+}
+function zoomOut() {
+  _map?.zoomOut()
+}
+function goToLocation() {
+  const location = getUserLocation()
+  if (!_map || !location) return
+  _map.flyTo({ center: location, zoom: Math.max(_map.getZoom(), LOCATE_ZOOM) })
+}
+function toggleRangeRings() {
+  _rangeRingsControl?.handleClickPublic()
+  rangeRingsActive.value = !rangeRingsActive.value
+}
+function toggleAprs() {
+  _aprsControl?.handleClickPublic()
+  aprsActive.value = !aprsActive.value
+}
+
+onMounted(() => {
+  // Load the default-layers config, then apply it to the APRS layer (and keep it
+  // in sync if the config changes).
+  void landStore.hydrateDefaultLayers()
+  watch(
+    () => landStore.defaultLayers,
+    (layers) => {
+      aprsActive.value = layers.includes('aprs')
+      _aprsControl?.setVisible(aprsActive.value)
+    },
+  )
+
+  // Keep the location marker + range-rings centre in sync with the live fix.
+  watch(
+    userLocation,
+    (location) => {
+      if (!location) {
+        _locationMarker.remove()
+        _rangeRingsControl?.setLocationAvailable(false)
+        return
+      }
+      _locationMarker.update(location.lon, location.lat)
+      _rangeRingsControl?.updateCenter(location.lon, location.lat)
+      _rangeRingsControl?.setLocationAvailable(true)
+    },
+    { immediate: true },
+  )
+})
+
+onUnmounted(() => {
+  ctxMenu.detach(_map)
+  _rangeRingsControl?.onRemove()
+  _aprsControl?.onRemove()
+  _locationMarker.remove()
+  _rangeRingsControl = _aprsControl = null
+})
+
 function onStyleLoaded(m: Map) {
   const desiredStyle = styleUrl.value
   if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {

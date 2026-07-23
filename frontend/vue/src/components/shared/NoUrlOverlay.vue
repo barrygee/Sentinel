@@ -49,6 +49,12 @@ function _effectiveMode(): string {
 // is "does the DB hold TLE data?" rather than "is a URL configured?".
 const _isSpace = props.domain === 'space'
 
+// The land domain is also URL-less: its data is the local APRS decoder (a
+// sidecar that plots stations directly), not a configured feed URL. So the map
+// base always shows and APRS markers populate it as packets arrive — the
+// URL gate does not apply.
+const _isLand = props.domain === 'land'
+
 const title = computed(() =>
   _isSpace ? 'No satellite data available.' : 'No data source configured.',
 )
@@ -98,10 +104,10 @@ function check() {
   // Space data is served from the local TLE database, not a configured URL.
   // Without backend access we can't know if the DB has data, so assume it does
   // and let checkWithBackend() correct it — never block on a missing URL.
-  /* v8 ignore start -- check() is only invoked for non-space domains;
-     checkWithBackend() handles space entirely and never falls through to here,
-     so this guard is defensive and unreachable in practice */
-  if (_isSpace) {
+  /* v8 ignore start -- check() is only invoked for URL-based domains;
+     checkWithBackend() handles the URL-less space/land domains entirely and never
+     falls through to here, so this guard is defensive and unreachable in practice */
+  if (_isSpace || _isLand) {
     hasUrl.value = true
     return
   }
@@ -126,6 +132,12 @@ function check() {
 }
 
 async function checkWithBackend() {
+  // Land is served entirely by the local APRS decoder — never gate its map on a
+  // configured URL.
+  if (_isLand) {
+    hasUrl.value = true
+    return
+  }
   const ns = props.domain
   const mode = _effectiveMode()
   const _oKey = offgridKey(ns)

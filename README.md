@@ -28,7 +28,7 @@ Optional **flight replay** (off by default, behind `air.replayEnabled`) records 
 Satellites are propagated from TLE data using **SGP4**. The default view tracks the ISS; any catalogued satellite can be selected by NORAD ID to show its current position, multi-orbit ground track, and visibility footprint. Pass prediction lists upcoming passes over your location, with heads-up notifications and optional **auto-tune** that drives the SDR to a satellite's downlink frequency during a pass. A day/night terminator overlay and full **TLE database management** (fetch from Celestrak, upload `.txt`, categorise, clear) are built in.
 
 ### SDR
-Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback. An optional **digital decode** mode (P25/DMR/NXDN/D-STAR/YSF via a separate `dsd-fme` container) surfaces decoded call metadata and voice — see [Digital decoding](#digital-decoding-optional).
+Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback. An optional **digital decode** mode (P25/DMR/NXDN/D-STAR/YSF via a separate `dsd-fme` container) surfaces decoded call metadata and voice — see [Digital decoding](#digital-decoding-optional). An optional **APRS decode** mode (via a separate Direwolf `aprs-decoder` container) plots received stations on the Land map and lists packets below the waterfall — see [APRS decoding](#aprs-decoding-optional). The two decoders can run concurrently on separate dongles.
 
 ---
 
@@ -224,6 +224,56 @@ build the table from a system's known carriers — e.g. a community database suc
 as RadioReference where coverage exists, or by observing which logical channel
 number `dsd-fme` reports on each carrier as you tune across the system.
 
+### APRS decoding (optional)
+
+Decoding **APRS** — the 1200-baud AFSK/AX.25 packet mode (144.800 MHz in Europe,
+144.390 MHz in North America) — runs in its **own separate, opt-in
+`aprs-decoder` container** built around **Direwolf**. Received stations are
+**plotted on the Land map** and shown in the **panels below the waterfall**, in
+the same layout as digital voice. Direwolf is plain GPL software (no
+patent-encumbered vocoder), but the image is still opt-in so it is only built/run
+when you want it, and **never built in CI**.
+
+Because APRS decode is independent of digital voice, the two can run **at the
+same time on two different dongles** — pass both profiles together.
+
+```bash
+# build + run the app WITH the APRS decoder (the --profile flag is the opt-in)
+docker compose --profile aprs up -d --build         # app on :8080 + aprs-decoder sidecar
+
+# concurrent digital voice + APRS on two dongles: pass both profiles
+docker compose --profile decoder --profile aprs up -d --build
+
+# follow the APRS decoder as it starts Direwolf and connects
+docker compose --profile aprs logs -f aprs-decoder
+
+# then, in the SDR view: select the radio/dongle tuned to your local APRS
+# frequency and click APRS. Decoded packets appear in the panel and stations
+# plot on the Land map. APRS runs in the background — it keeps feeding the map
+# even while you view another radio — and resumes on restart.
+
+# revert to app-only (the sidecar never starts without the profile):
+docker compose --profile aprs down && docker compose up -d
+```
+
+**No configuration is required** — the APRS decoder reuses the same
+auto-generated ingest secret as the digital decoder (shared via a Docker volume),
+so your normal `docker compose up --build` is unchanged and never builds or starts
+either sidecar.
+
+Notes when trying it:
+
+- **The Land domain must be enabled** (Settings → domains) for the Land map — and
+  therefore the plotted stations — to be reachable.
+- **You need a real APRS signal.** With nothing tuned in, the panel and map stay
+  empty — that's expected, not a fault.
+- A `401` in the decoder logs means the shared secret didn't sync: make sure the
+  `app` container started first (it writes the secret), then
+  `docker compose --profile aprs restart aprs-decoder`.
+
+See [`decoder/aprs/README.md`](decoder/aprs/README.md) for the full data-flow and
+troubleshooting.
+
 ---
 
 ## Testing & quality gates
@@ -312,7 +362,7 @@ Backend settings live in `backend/config.py` (Pydantic Settings) and can be over
 | `TLE_MANUAL_TTL_MS` | `2592000000` (30 d) | TTL for manually-uploaded TLE data |
 | `CELESTRAK_ISS_URL` | Celestrak active-satellites TLE feed | Default TLE feed URL |
 
-`config.py` also defines the optional **digital-decode / trunk-tracking** settings (`DECODER_*`, `CHANNEL_MAPS_DIR`, `SDR_RELAY_CONTROL_*`) used by the `dsd-fme` sidecar and rigctl trunk server. These are auto-wired by `docker-compose.yml` — see [Digital decoding](#digital-decoding-optional) — and normally need no manual configuration.
+`config.py` also defines the optional **digital-decode / trunk-tracking** settings (`DECODER_*`, `CHANNEL_MAPS_DIR`, `SDR_RELAY_CONTROL_*`) used by the `dsd-fme` sidecar and rigctl trunk server, and the **APRS-decode** settings (`APRS_DECODER_*`, `APRS_STATION_TTL_MS`) used by the Direwolf sidecar. These are auto-wired by `docker-compose.yml` — see [Digital decoding](#digital-decoding-optional) and [APRS decoding](#aprs-decoding-optional) — and normally need no manual configuration.
 
 In Docker, set these under `environment:` in `docker-compose.yml`.
 

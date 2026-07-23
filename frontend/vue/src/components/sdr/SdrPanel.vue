@@ -239,10 +239,26 @@
                   :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
                   :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
                   :aria-pressed="digitalEnabled"
-                  :disabled="!playing"
+                  :disabled="!playing || aprsEnabled"
                   @click="toggleDigital"
                 >
                   DMR
+                </BasePillToggle>
+                <!-- APRS runs in the BACKGROUND (independent of the analog view),
+                     so it needs a selected radio but not `playing`. It is mutually
+                     exclusive with voice decode on this radio (one channel), hence
+                     each disables the other. -->
+                <BasePillToggle
+                  class="sdr-mode-pill sdr-digital-btn"
+                  :active="aprsEnabled"
+                  active-class="sdr-digital-btn--active"
+                  :title="aprsEnabled ? 'Stop APRS decode' : 'Decode APRS packets'"
+                  :aria-label="aprsEnabled ? 'Stop APRS decode' : 'Decode APRS packets'"
+                  :aria-pressed="aprsEnabled"
+                  :disabled="!selectedRadioId || digitalEnabled"
+                  @click="toggleAprs"
+                >
+                  APRS
                 </BasePillToggle>
               </div>
             </div>
@@ -1100,6 +1116,34 @@ const {
   stopDecode: sdrDecode.stop,
   setLiveMuted: sdrAudio.setLiveMuted,
 })
+
+// ── APRS decode (Direwolf sidecar) ────────────────────────────────────────────
+// APRS runs in the BACKGROUND on the selected radio (independent of the analog
+// view and of digital voice — they can run concurrently on separate dongles), so
+// it is driven by the store's HTTP start/stop endpoints rather than the spectrum
+// WS. The panel still opens the decode event socket so the waterfall panels show
+// the packets, and clears the decode buffers so the dock switches cleanly.
+const aprsEnabled = computed(() => _sdrStore().aprsEnabled)
+
+async function toggleAprs() {
+  const radioId = selectedRadioId.value
+  if (!radioId) return
+  const next = !_sdrStore().aprsEnabled
+  _sdrStore().setAprsEnabled(next)
+  _sdrStore().clearDecode()
+  if (next) {
+    const started = await _sdrStore().startAprs(radioId, _sdrStore().tuningOffsetHz, bwHz.value)
+    if (!started) {
+      _sdrStore().setAprsEnabled(false)
+      return
+    }
+    sdrDecode.start(radioId)
+  } else {
+    sdrDecode.stop()
+    await _sdrStore().stopAprs(radioId)
+    _sdrStore().clearDecode()
+  }
+}
 
 // Trunk-system accordion (sits below SEARCH). The accordion body, its
 // flat-dark channel-map dropdown (with its own teleported menu + dismissal)
