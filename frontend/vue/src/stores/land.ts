@@ -29,8 +29,32 @@ const APRS_POLL_INTERVAL_MS = 5000
  * ref-counted so the map view can start it on mount and stop it on unmount
  * without clobbering another consumer.
  */
+/** Fallback retention shown in Settings until the DB value hydrates (minutes). */
+const DEFAULT_APRS_RETENTION_MINUTES = 5
+
 export const useLandStore = defineStore('land', () => {
   const aprsStations = ref<AprsStation[]>([])
+
+  // How long a heard station is retained on the map (minutes). Backend-enforced;
+  // this mirror exists only so the Settings control can read/edit it.
+  const aprsRetentionMinutes = ref<number>(DEFAULT_APRS_RETENTION_MINUTES)
+  function setAprsRetentionMinutes(minutes: number): void {
+    aprsRetentionMinutes.value = minutes
+  }
+
+  // Which map layers are shown by default (from the `land.defaultLayers` config).
+  // Currently only "aprs"; more layers land here as they are added.
+  const defaultLayers = ref<string[]>(['aprs'])
+  async function hydrateDefaultLayers(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/land')
+      if (!res.ok) return
+      const data = await res.json()
+      if (Array.isArray(data?.defaultLayers)) defaultLayers.value = data.defaultLayers as string[]
+    } catch {
+      /* offline / transient — keep the default */
+    }
+  }
 
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let pollers = 0
@@ -67,6 +91,10 @@ export const useLandStore = defineStore('land', () => {
 
   return {
     aprsStations,
+    aprsRetentionMinutes,
+    setAprsRetentionMinutes,
+    defaultLayers,
+    hydrateDefaultLayers,
     fetchAprsStations,
     startAprsPolling,
     stopAprsPolling,

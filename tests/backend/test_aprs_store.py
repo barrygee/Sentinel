@@ -15,6 +15,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.config import settings
 from backend.database import Base
+from backend.db_helpers import upsert_setting
 from backend.models import AprsStation  # noqa: F401 — register the ORM model with Base
 from backend.services import aprs_store
 
@@ -214,3 +215,58 @@ class TestUpsertAndSnapshot:
     async def test_cleanup_nothing_to_remove(self, session_factory):
         removed = await aprs_store.cleanup_expired(1000)
         assert removed == 0
+
+
+# ── retention window (user-configurable) ──────────────────────────────────────
+
+
+class TestRetentionWindow:
+    async def test_defaults_to_config_fallback_when_unset(self, session_factory):
+        async with session_factory() as session:
+            assert (
+                await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
+            )
+
+    async def test_uses_the_land_setting_in_minutes(self, session_factory):
+        async with session_factory() as session:
+            await upsert_setting(session, "land", "aprsRetentionMinutes", 2)
+            await session.commit()
+        async with session_factory() as session:
+            assert await aprs_store._retention_ms(session) == 120_000  # 2 min → ms
+
+    async def test_falls_back_on_non_numeric_setting(self, session_factory):
+        async with session_factory() as session:
+            await upsert_setting(session, "land", "aprsRetentionMinutes", "soon")
+            await session.commit()
+        async with session_factory() as session:
+            assert (
+                await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
+            )
+
+    async def test_falls_back_on_non_positive_setting(self, session_factory):
+        async with session_factory() as session:
+            await upsert_setting(session, "land", "aprsRetentionMinutes", 0)
+            await session.commit()
+        async with session_factory() as session:
+            assert (
+                await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
+            )
+
+    async def test_snapshot_and_cleanup_honour_the_configured_window(
+        self, session_factory
+    ):
+        # Retention 5 min: a station last heard 6 min ago is expired, 4 min ago is fresh.
+        async with session_factory() as session:
+            await upsert_setting(session, "land", "aprsRetentionMinutes", 5)
+            await session.commit()
+        now = 100_000_000
+        await aprs_store.upsert_station(
+            aprs_store.station_from_event(_event(**{"from": "STALE"})), now - 6 * 60_000
+        )
+        await aprs_store.upsert_station(
+            aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 4 * 60_000
+        )
+        stations = await aprs_store.get_stations(now)
+        assert [s["callsign"] for s in stations] == ["FRESH"]
+        removed = await aprs_store.cleanup_expired(now)
+        assert removed == 1

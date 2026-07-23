@@ -65,7 +65,8 @@ let _aprsControl: AprsStationsControl | null = null
 let _rangeRingsControl: LandRangeRingsControl | null = null
 
 // Reactive toggle state backing the side-menu buttons' active (green) styling.
-const aprsActive = ref(true) // APRS stations are plotted by default
+// APRS starts visible per the land.defaultLayers config (default ["aprs"]).
+const aprsActive = ref(landStore.defaultLayers.includes('aprs'))
 const rangeRingsActive = ref(false)
 const locationActive = computed(() => userLocation.value !== null)
 
@@ -88,6 +89,7 @@ function onMapCreated(m: Map) {
   _aprsControl = new AprsStationsControl(landStore)
   _rangeRingsControl.onAdd(m)
   _aprsControl.onAdd(m)
+  _aprsControl.setVisible(aprsActive.value)
   rangeRingsActive.value = _rangeRingsControl.visible
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
@@ -122,6 +124,17 @@ function toggleAprs() {
 }
 
 onMounted(() => {
+  // Load the default-layers config, then apply it to the APRS layer (and keep it
+  // in sync if the config changes).
+  void landStore.hydrateDefaultLayers()
+  watch(
+    () => landStore.defaultLayers,
+    (layers) => {
+      aprsActive.value = layers.includes('aprs')
+      _aprsControl?.setVisible(aprsActive.value)
+    },
+  )
+
   // Keep the location marker + range-rings centre in sync with the live fix.
   watch(
     userLocation,

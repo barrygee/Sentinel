@@ -219,6 +219,19 @@ describe('AprsStationsControl', () => {
     expect(created.popups[0].html).not.toContain('<script>')
   })
 
+  it('setVisible hides and shows stations, and is a no-op when unchanged', () => {
+    store.aprsStations = [station()]
+    const { control } = addControl()
+    expect(created.markers.filter((marker) => !marker.removed)).toHaveLength(1)
+    control.setVisible(false)
+    expect(created.markers.every((marker) => marker.removed)).toBe(true)
+    const beforeNoop = created.markers.length
+    control.setVisible(false) // already hidden → no re-render
+    expect(created.markers.length).toBe(beforeNoop)
+    control.setVisible(true)
+    expect(created.markers.filter((marker) => !marker.removed).length).toBeGreaterThan(0)
+  })
+
   it('toggles station visibility on button click', () => {
     store.aprsStations = [station()]
     const { control } = addControl()

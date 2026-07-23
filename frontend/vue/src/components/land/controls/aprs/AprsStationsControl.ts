@@ -64,6 +64,15 @@ export class AprsStationsControl extends SentinelControlBase {
     this._render(this._landStore.aprsStations)
   }
 
+  /** Set visibility to a specific value (e.g. from the map's default-layers
+   *  config), a no-op if already in that state. */
+  setVisible(visible: boolean): void {
+    if (this._visible === visible) return
+    this._visible = visible
+    this.setButtonActive(this._visible)
+    this._render(this._landStore.aprsStations)
+  }
+
   onRemove(): void {
     this._stopWatch?.()
     this._stopWatch = null

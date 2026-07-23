@@ -75,10 +75,12 @@ class Settings(BaseSettings):
     # (~5 kHz deviation), a touch wider than the 12.5 kHz voice channel so the
     # 1200/2200 Hz AFSK tones and deviation pass cleanly.
     aprs_decoder_default_bw_hz: int = 15_000
-    # How long (ms) a heard APRS station is retained for the Land map before the
-    # periodic cleanup sweep drops it. 6 hours: long enough that a slow-beaconing
-    # fixed station stays plotted between transmissions.
-    aprs_station_ttl_ms: int = 21_600_000
+    # Fallback retention (ms) for a heard APRS station on the Land map before it
+    # is dropped, used when no user override is set. Default 5 minutes. The user
+    # can override this per-install via the `land`/`aprsRetentionMinutes` setting
+    # (seeded from default_config.json); aprs_store reads that and falls back to
+    # this value.
+    aprs_station_ttl_ms: int = 300_000
 
     class Config:
         env_file = ".env"

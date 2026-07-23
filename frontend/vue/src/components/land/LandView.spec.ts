@@ -77,12 +77,14 @@ const aprsSpies = vi.hoisted(() => ({
   onAdd: vi.fn(),
   onRemove: vi.fn(),
   handleClickPublic: vi.fn(),
+  setVisible: vi.fn(),
 }))
 vi.mock('@/components/land/controls/aprs/AprsStationsControl', () => ({
   AprsStationsControl: class {
     onAdd = aprsSpies.onAdd
     onRemove = aprsSpies.onRemove
     handleClickPublic = aprsSpies.handleClickPublic
+    setVisible = aprsSpies.setVisible
   },
 }))
 
@@ -124,6 +126,7 @@ const LandSideMenuStub = defineComponent({
 
 import LandView from './LandView.vue'
 import { useAppStore } from '@/stores/app'
+import { useLandStore } from '@/stores/land'
 
 const ONLINE_STYLE = '/assets/fiord-online.json'
 const OFFLINE_STYLE = '/assets/fiord.json'
@@ -261,6 +264,35 @@ describe('LandView', () => {
       shared.emit!('map-created', map)
       await nextTick()
       expect(sideMenuProps!.rangeRingsActive).toBe(true)
+    })
+
+    it('shows the APRS layer by default per the land.defaultLayers config', () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      // Default config is ["aprs"], so the layer starts visible.
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(sideMenuProps!.aprsActive).toBe(true)
+    })
+
+    it('loads the default-layers config on mount', () => {
+      const land = useLandStore()
+      const spy = vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      mountView()
+      expect(spy).toHaveBeenCalledOnce()
+    })
+
+    it('applies a later defaultLayers change to the APRS layer', async () => {
+      const land = useLandStore()
+      vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      aprsSpies.setVisible.mockClear()
+      land.defaultLayers = [] // config now hides APRS
+      await nextTick()
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
+      expect(sideMenuProps!.aprsActive).toBe(false)
     })
 
     it('zoom buttons drive the map', () => {

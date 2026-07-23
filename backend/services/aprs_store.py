@@ -3,8 +3,9 @@
 The ``aprs-decoder`` sidecar (Direwolf) parses received packets and POSTs them to
 the backend, which upserts each position-bearing station here (one row per
 callsign, newest fix wins) so the Land map can plot the most recent position of
-every station. Stations that have not been heard within ``aprs_station_ttl_ms``
-are dropped by :func:`cleanup_expired`, run from the periodic cleanup loop.
+every station. Stations that have not been heard within the configured retention
+window (``land``/``aprsRetentionMinutes``, default 5 min) are dropped by
+:func:`cleanup_expired`, run from the periodic cleanup loop.
 
 Kept deliberately small and self-contained (its own ``AsyncSessionLocal``
 sessions) so it can be called from the ingest endpoint and the background sweep
@@ -15,9 +16,30 @@ from __future__ import annotations
 
 from backend.config import settings
 from backend.database import AsyncSessionLocal
+from backend.db_helpers import get_setting
 from backend.models import AprsStation
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def _retention_ms(db: AsyncSession) -> int:
+    """Resolve the APRS station retention window (ms) from the user setting.
+
+    Reads ``land``/``aprsRetentionMinutes`` (minutes) and converts to ms; falls
+    back to ``settings.aprs_station_ttl_ms`` (default 5 min) when unset, blank, or
+    non-positive. This is read per query/sweep so a Settings change takes effect
+    immediately without a restart.
+    """
+    raw = await get_setting(db, "land", "aprsRetentionMinutes", default=None)
+    if raw is None:
+        return settings.aprs_station_ttl_ms
+    try:
+        minutes = float(raw)
+    except (TypeError, ValueError):
+        return settings.aprs_station_ttl_ms
+    if minutes <= 0:
+        return settings.aprs_station_ttl_ms
+    return int(minutes * 60_000)
 
 
 def _coerce_float(value: object) -> float | None:
@@ -118,7 +140,7 @@ async def get_stations(now_ms: int, db: AsyncSession | None = None) -> list[dict
 
 
 async def _get_stations(db: AsyncSession, now_ms: int) -> list[dict]:
-    cutoff = now_ms - settings.aprs_station_ttl_ms
+    cutoff = now_ms - await _retention_ms(db)
     rows = (
         (
             await db.execute(
@@ -144,6 +166,6 @@ async def cleanup_expired(now_ms: int, db: AsyncSession | None = None) -> int:
 
 
 async def _cleanup_expired(db: AsyncSession, now_ms: int) -> int:
-    cutoff = now_ms - settings.aprs_station_ttl_ms
+    cutoff = now_ms - await _retention_ms(db)
     result = await db.execute(delete(AprsStation).where(AprsStation.last_heard_ms < cutoff))
     return result.rowcount or 0

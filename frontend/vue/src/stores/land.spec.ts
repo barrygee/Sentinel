@@ -104,4 +104,56 @@ describe('land store', () => {
     const store = useLandStore()
     expect(() => store.stopAprsPolling()).not.toThrow()
   })
+
+  describe('APRS retention setting', () => {
+    it('defaults to 5 minutes and can be set', () => {
+      const store = useLandStore()
+      expect(store.aprsRetentionMinutes).toBe(5)
+      store.setAprsRetentionMinutes(30)
+      expect(store.aprsRetentionMinutes).toBe(30)
+    })
+  })
+
+  describe('default layers', () => {
+    it('defaults to ["aprs"]', () => {
+      expect(useLandStore().defaultLayers).toEqual(['aprs'])
+    })
+
+    it('hydrates the layer list from the land settings', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ defaultLayers: ['aprs', 'weather'] }),
+        }),
+      )
+      const store = useLandStore()
+      await store.hydrateDefaultLayers()
+      expect(store.defaultLayers).toEqual(['aprs', 'weather'])
+    })
+
+    it('keeps the default on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useLandStore()
+      await store.hydrateDefaultLayers()
+      expect(store.defaultLayers).toEqual(['aprs'])
+    })
+
+    it('keeps the default when the payload has no layer array', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ other: 1 }) }),
+      )
+      const store = useLandStore()
+      await store.hydrateDefaultLayers()
+      expect(store.defaultLayers).toEqual(['aprs'])
+    })
+
+    it('swallows a network error', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useLandStore()
+      await expect(store.hydrateDefaultLayers()).resolves.toBeUndefined()
+      expect(store.defaultLayers).toEqual(['aprs'])
+    })
+  })
 })

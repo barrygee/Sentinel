@@ -25,6 +25,11 @@
       @stage="emit('stage', item.id, $event)"
       @commit="emit('commit')"
     />
+    <LandAprsRetentionControl
+      v-else-if="item.type === 'land-aprs-retention'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
     <ProbeUrlControl
       v-else-if="item.type === 'probe-url'"
       @stage="emit('stage', item.id, $event)"
@@ -150,6 +155,7 @@ import type { SettingItem } from '@/types/settings'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsToggleControl from './OverheadAlertsToggleControl.vue'
 import OverheadAlertRadiusControl from './OverheadAlertRadiusControl.vue'
+import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'

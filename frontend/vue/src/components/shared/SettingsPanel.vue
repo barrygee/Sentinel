@@ -557,6 +557,15 @@ const ALL_SETTINGS: SettingItem[] = [
     defaultUrl: '',
   },
   {
+    section: 'land',
+    sectionLabel: 'LAND',
+    id: 'land-aprs-retention',
+    label: 'APRS Retention',
+    desc: 'Minutes a heard APRS station stays on the map after its last signal',
+    type: 'land-aprs-retention',
+    ns: 'land',
+  },
+  {
     section: 'sdr',
     sectionLabel: 'SDR',
     id: 'sdr-devices',
