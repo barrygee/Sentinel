@@ -3,8 +3,8 @@
        The paths come from our own symbol registry (not the packet), so v-html is
        safe. Colour is inherited from the surrounding table text. -->
   <span class="aprs-symbol" role="img" :aria-label="icon.label" :title="tooltip">
-    <!-- eslint-disable-next-line vue/no-v-html -- trusted: icon.paths is our own
-         static SVG markup from the aprsSymbols registry, never packet/user input -->
+    <!-- eslint-disable vue/no-v-html -- trusted: icon.paths is our own static SVG
+         markup from the aprsSymbols registry, never packet/user input -->
     <svg
       viewBox="0 0 24 24"
       width="16"
@@ -17,6 +17,7 @@
       aria-hidden="true"
       v-html="icon.paths"
     ></svg>
+    <!-- eslint-enable vue/no-v-html -->
   </span>
 </template>
 

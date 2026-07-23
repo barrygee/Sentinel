@@ -19,6 +19,32 @@ vi.mock('@/composables/useConnectivity', () => ({
   },
 }))
 
+// User location composable: a controllable ref + a `start` spy, so tests can
+// drive the marker / range-rings watcher.
+const locationState = vi.hoisted(() => ({
+  location: null as null | { value: { lat: number; lon: number; accuracy: number } | null },
+  start: vi.fn(),
+}))
+vi.mock('@/composables/useUserLocation', async () => {
+  const { ref: vueRef } = await import('vue')
+  locationState.location = vueRef(null)
+  return {
+    useUserLocation: () => ({ location: locationState.location, start: locationState.start }),
+  }
+})
+
+// UserLocationMarker: spy on its map methods (its real impl builds a maplibre
+// Marker, which needs a real map).
+const markerSpies = vi.hoisted(() => ({ addTo: vi.fn(), update: vi.fn(), remove: vi.fn() }))
+vi.mock('@/components/shared/UserLocationMarker', () => ({
+  // A class (not an arrow fn) so it can be `new`-ed; all instances share the spies.
+  UserLocationMarker: class {
+    addTo = markerSpies.addTo
+    update = markerSpies.update
+    remove = markerSpies.remove
+  },
+}))
+
 // MapLibreMap stub: captures `emit` so tests drive map-created / style-loaded,
 // and re-renders styleUrl so the prop can be asserted.
 const MapLibreMapStub = defineComponent({
@@ -40,6 +66,9 @@ const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div
 import LandView from './LandView.vue'
 import { useAppStore } from '@/stores/app'
 import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
+import { LandZoomControl } from '@/components/land/controls/zoom/LandZoomControl'
+import { LandLocateControl } from '@/components/land/controls/locate/LandLocateControl'
+import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 
 const ONLINE_STYLE = '/assets/fiord-online.json'
 const OFFLINE_STYLE = '/assets/fiord.json'
@@ -71,6 +100,7 @@ describe('LandView', () => {
     vi.clearAllMocks()
     shared.emit = null
     shared.connectivityCb = null
+    if (locationState.location) locationState.location.value = null
     localStorage.clear()
     document.body.innerHTML = ''
   })
@@ -163,21 +193,52 @@ describe('LandView', () => {
     expect(heading.text()).toBe('Land domain')
   })
 
-  describe('APRS stations control', () => {
-    it('mounts the APRS control on map-created and removes it on unmount', () => {
+  describe('map controls', () => {
+    it('adds zoom, locate, range-rings and APRS controls (top-right) on map-created', () => {
       const map = makeFakeMap()
       const wrapper = mountView()
       shared.emit!('map-created', map)
-      expect(map.addControl).toHaveBeenCalledOnce()
-      expect(map.addControl.mock.calls[0][0]).toBeInstanceOf(AprsStationsControl)
-      expect(map.addControl.mock.calls[0][1]).toBe('top-right')
+      expect(map.addControl).toHaveBeenCalledTimes(4)
+      const added = map.addControl.mock.calls.map((call) => call[0])
+      expect(added[0]).toBeInstanceOf(LandZoomControl)
+      expect(added[1]).toBeInstanceOf(LandLocateControl)
+      expect(added[2]).toBeInstanceOf(LandRangeRingsControl)
+      expect(added[3]).toBeInstanceOf(AprsStationsControl)
+      // All docked to the same corner.
+      expect(map.addControl.mock.calls.every((call) => call[1] === 'top-right')).toBe(true)
       wrapper.unmount()
-      expect(map.removeControl).toHaveBeenCalledOnce()
+      expect(map.removeControl).toHaveBeenCalledTimes(4)
+    })
+
+    it('starts location tracking and shows the marker on map-created', () => {
+      // A known fix is present, so the controls read it (getUserLocation → coords).
+      locationState.location!.value = { lat: 54.5, lon: -1.5, accuracy: 10 }
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      expect(locationState.start).toHaveBeenCalledOnce()
+      expect(markerSpies.addTo).toHaveBeenCalledWith(map)
+    })
+
+    it('updates the marker and range-rings centre when a location fix exists', () => {
+      // A fix is present before mount → the immediate watcher applies it.
+      locationState.location!.value = { lat: 55, lon: -1.5, accuracy: 10 }
+      mountView()
+      expect(markerSpies.update).toHaveBeenCalledWith(-1.5, 55)
+    })
+
+    it('removes the marker when the location is cleared', async () => {
+      locationState.location!.value = { lat: 55, lon: -1.5, accuracy: 10 }
+      mountView()
+      markerSpies.remove.mockClear()
+      locationState.location!.value = null
+      await nextTick()
+      expect(markerSpies.remove).toHaveBeenCalled()
     })
 
     it('unmounts cleanly when no map was ever created', () => {
       const wrapper = mountView()
-      // No map-created emitted → the onUnmounted guard has no control to remove.
+      // No map-created emitted → the onUnmounted guard has no controls to remove.
       expect(() => wrapper.unmount()).not.toThrow()
     })
   })
