@@ -591,10 +591,19 @@ describe('SdrPanel — RADIO tab: APRS decode', () => {
     expect((aprsPill(wrapper).element as HTMLButtonElement).disabled).toBe(true)
   })
 
+  // Stands in for the real startAprs, which records the accepted radio — the
+  // button's active state and the audio mute both key off that id.
+  function stubStartAprs(store: ReturnType<typeof useSdrStore>, accepted = true) {
+    return vi.spyOn(store, 'startAprs').mockImplementation(async (radioId: number) => {
+      if (accepted) store.setAprsRadioId(radioId)
+      return accepted
+    })
+  }
+
   it('enabling APRS starts background decode + the panel event stream and activates the button', async () => {
     const { wrapper } = await mountPlaying()
     const store = useSdrStore()
-    const startSpy = vi.spyOn(store, 'startAprs').mockResolvedValue(true)
+    const startSpy = stubStartAprs(store)
     await aprsPill(wrapper).trigger('click')
     await flushPromises()
     expect(startSpy).toHaveBeenCalledWith(1, expect.any(Number), expect.any(Number))
@@ -606,8 +615,11 @@ describe('SdrPanel — RADIO tab: APRS decode', () => {
   it('disabling APRS stops the panel event stream and the backend session', async () => {
     const { wrapper } = await mountPlaying()
     const store = useSdrStore()
-    vi.spyOn(store, 'startAprs').mockResolvedValue(true)
-    const stopSpy = vi.spyOn(store, 'stopAprs').mockResolvedValue(true)
+    stubStartAprs(store)
+    const stopSpy = vi.spyOn(store, 'stopAprs').mockImplementation(async () => {
+      store.setAprsRadioId(null)
+      return true
+    })
     await aprsPill(wrapper).trigger('click')
     await flushPromises()
     decodeMock.stop.mockClear()
@@ -621,7 +633,7 @@ describe('SdrPanel — RADIO tab: APRS decode', () => {
   it('reverts the toggle and skips the event stream when the backend refuses to start', async () => {
     const { wrapper } = await mountPlaying()
     const store = useSdrStore()
-    vi.spyOn(store, 'startAprs').mockResolvedValue(false)
+    stubStartAprs(store, false)
     decodeMock.start.mockClear()
     await aprsPill(wrapper).trigger('click')
     await flushPromises()
@@ -644,6 +656,35 @@ describe('SdrPanel — RADIO tab: APRS decode', () => {
     const startSpy = vi.spyOn(store, 'startAprs')
     await (wrapper.vm as unknown as { toggleAprs: () => Promise<void> }).toggleAprs()
     expect(startSpy).not.toHaveBeenCalled()
+  })
+
+  it('shows the APRS button inactive while another radio is the one decoding', async () => {
+    const { wrapper } = await mountPlaying() // viewing radio 1
+    const store = useSdrStore()
+    store.setAprsEnabled(true)
+    store.setAprsRadioId(2) // decode is running on a different dongle
+    await wrapper.vm.$nextTick()
+    expect(aprsPill(wrapper).classes()).not.toContain('sdr-digital-btn--active')
+    expect(aprsPill(wrapper).attributes('aria-pressed')).toBe('false')
+  })
+
+  it('hands decode over to the viewed radio instead of stopping the other one', async () => {
+    const { wrapper } = await mountPlaying() // viewing radio 1
+    const store = useSdrStore()
+    store.setAprsEnabled(true)
+    store.setAprsRadioId(2)
+    await wrapper.vm.$nextTick()
+    const startSpy = stubStartAprs(store)
+    const stopSpy = vi.spyOn(store, 'stopAprs')
+
+    await aprsPill(wrapper).trigger('click')
+    await flushPromises()
+    // Starts on the viewed radio (the backend runs a single bridge, so this
+    // hands decode over) rather than stopping a radio that was never decoding.
+    expect(startSpy).toHaveBeenCalledWith(1, expect.any(Number), expect.any(Number))
+    expect(stopSpy).not.toHaveBeenCalled()
+    expect(store.aprsRadioId).toBe(1)
+    expect(aprsPill(wrapper).classes()).toContain('sdr-digital-btn--active')
   })
 
   it('mutes the audio of the radio decoding APRS', async () => {
