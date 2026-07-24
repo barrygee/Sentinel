@@ -111,6 +111,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restyle controls and simplify card layout (#224)
 - Monochrome restyle for map markers, AARA/AWACS zones, and spectrum markers (#227)
 - APRS decode via Direwolf — plot stations on Land map + list packets below the waterfall (#237)
+- APRS decoding via Direwolf + Land map plotting (#238)
 
 ### Bug Fixes
 
