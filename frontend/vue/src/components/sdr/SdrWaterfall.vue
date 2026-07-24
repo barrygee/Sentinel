@@ -87,6 +87,8 @@ mx.text = function (
     text_h: number
     text_w: number
     canvas?: HTMLCanvasElement
+    active_canvas?: HTMLCanvasElement
+    font?: { font?: string }
   },
   x: number,
   y: number,
@@ -147,12 +149,27 @@ mx.text = function (
     // so each label gets its own background box. Skip the canvas draw entirely.
     return
   }
-  // Y-axis dB tick labels hug the canvas's left edge (sigplot right-justifies
-  // them inside the gutter). Nudge the text — not Mx.l, which must stay
-  // identical across the spectrum and waterfall plots — one character right
-  // so the numbers get breathing room without moving the data-box edge.
-  if (typeof lbl === 'string' && /^-?\d+$/.test(lbl.trim()) && typeof Mx?.text_w === 'number') {
-    x += Math.round(Mx.text_w)
+  // Y-axis dB tick labels. SigPlot lays these out with a monospace assumption
+  // (positions derived from Mx.text_w = width of 'M'), but we render in Barlow
+  // (proportional), so a fixed character-count offset drifts by label length
+  // and — on narrow panels — shoves the numbers over the spectrum's left edge
+  // (Mx.l ≈ the data-box left edge). Instead, measure each label's REAL pixel
+  // width in sigplot's own font and right-align it to a fixed gap left of Mx.l.
+  // Every label then keeps the same gap to the spectrum and clears the canvas's
+  // left edge, whatever its digit count ("0" vs "-78") or the panel width.
+  if (typeof lbl === 'string' && /^-?\d+$/.test(lbl.trim()) && typeof Mx?.l === 'number') {
+    const canvas = Mx.active_canvas ?? Mx.canvas
+    const measureContext = canvas?.getContext('2d')
+    if (measureContext) {
+      // Match the font sigplot draws with so measureText() is accurate.
+      if (Mx.font?.font) measureContext.font = Mx.font.font
+      const labelWidthPx = measureContext.measureText(lbl).width
+      // Gap between the label's right edge and the spectrum, and the minimum
+      // gap from the canvas's left edge (clamp keeps the widest label on-canvas).
+      const gapToSpectrumPx = 6
+      const minGapFromLeftEdgePx = 4
+      x = Math.max(minGapFromLeftEdgePx, Mx.l - gapToSpectrumPx - labelWidthPx)
+    }
   }
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }

@@ -11,6 +11,9 @@ const registry = vi.hoisted(() => {
     plots: [] as FakePlotShape[],
     accordions: [] as FakeAccShape[],
     annotations: [] as FakeAnnShape[],
+    // Handle to the mocked sigplot mx.text spy so tests can inspect the exact
+    // (repositioned) x the override delegates to sigplot's real draw with.
+    mxTextSpy: null as { mock: { calls: unknown[][] } } | null,
   }
 })
 
@@ -195,11 +198,13 @@ vi.mock('sigplot', () => {
 })
 
 vi.mock('sigplot/js/mx', () => {
+  // Echo the (possibly rewritten) label back so tests can observe how the
+  // override transformed it before delegating to sigplot's real draw.
+  const text = vi.fn((_Mx: unknown, _x: number, _y: number, lbl: unknown) => lbl)
+  registry.mxTextSpy = text as unknown as { mock: { calls: unknown[][] } }
   const mx = {
     drawaxis: vi.fn(() => 'AXIS'),
-    // Echo the (possibly rewritten) label back so tests can observe how the
-    // override transformed it before delegating to sigplot's real draw.
-    text: vi.fn((_Mx: unknown, _x: number, _y: number, lbl: unknown) => lbl),
+    text,
     textline: vi.fn(),
   }
   return { default: mx }
@@ -613,6 +618,77 @@ describe('SdrWaterfall — mx.drawaxis / mx.text overrides', () => {
   it('delegates when the label is not a string', () => {
     const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(textMx, 5, 100, 42)
     expect(ret).toBe(42)
+  })
+
+  // ── Y-axis dB label right-alignment ──────────────────────────────────────────
+  // The override measures each dB label's real pixel width in sigplot's font and
+  // right-aligns it to a fixed gap left of the data-box edge (Mx.l), so proportional
+  // (Barlow) digits never drift into the spectrum. These assert the delegated x.
+  function lastDrawX(): number {
+    const calls = registry.mxTextSpy?.mock.calls ?? []
+    return calls[calls.length - 1]?.[1] as number
+  }
+
+  it('right-aligns a y-axis dB label to a 6px gap left of the data-box edge using measured width', () => {
+    const measureText = vi.fn(() => ({ width: 20 }))
+    const context = { font: '', measureText }
+    const canvas = { getContext: vi.fn(() => context) }
+    const ret = (mx.text as unknown as (...a: unknown[]) => unknown)(
+      {
+        b: 250,
+        l: 56,
+        text_h: 12,
+        text_w: 8,
+        active_canvas: canvas,
+        font: { font: '12px Barlow' },
+      },
+      5,
+      100,
+      '-30',
+    )
+    expect(ret).toBe('-30')
+    expect(canvas.getContext).toHaveBeenCalledWith('2d')
+    // Measured in sigplot's own font so the width is accurate.
+    expect(context.font).toBe('12px Barlow')
+    expect(measureText).toHaveBeenCalledWith('-30')
+    // x = Mx.l - gapToSpectrum(6) - width(20) = 30.
+    expect(lastDrawX()).toBe(30)
+  })
+
+  it('clamps a wide y-axis label to the minimum left-edge gap so it stays on-canvas', () => {
+    const context = { font: '', measureText: vi.fn(() => ({ width: 100 })) }
+    const canvas = { getContext: vi.fn(() => context) }
+    ;(mx.text as unknown as (...a: unknown[]) => unknown)(
+      {
+        b: 250,
+        l: 56,
+        text_h: 12,
+        text_w: 8,
+        active_canvas: canvas,
+        font: { font: '12px Barlow' },
+      },
+      5,
+      100,
+      '-128',
+    )
+    // max(minGapFromLeftEdge(4), 56 - 6 - 100) = 4.
+    expect(lastDrawX()).toBe(4)
+  })
+
+  it('falls back to Mx.canvas and skips the font set when Mx.font is absent', () => {
+    const context = { font: '', measureText: vi.fn(() => ({ width: 10 })) }
+    const canvas = { getContext: vi.fn(() => context) }
+    ;(mx.text as unknown as (...a: unknown[]) => unknown)(
+      // No active_canvas → falls back to canvas; no font → font is left untouched.
+      { b: 250, l: 56, text_h: 12, text_w: 8, canvas },
+      5,
+      100,
+      '0',
+    )
+    expect(context.font).toBe('')
+    expect(context.measureText).toHaveBeenCalledWith('0')
+    // x = 56 - 6 - 10 = 40.
+    expect(lastDrawX()).toBe(40)
   })
 })
 
