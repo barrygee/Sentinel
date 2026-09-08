@@ -142,6 +142,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - APRS receiver in settings, gated map layer, and reserved-radio locking (#305)
 - Centralise map layers, range ring origin and overhead alerts
 - Add optional time labels down the waterfall (#309)
+- Add configurable timestamps to the waterfall
 
 ### Bug Fixes
 
@@ -374,6 +375,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the SPA bundle
 - Prune trunk-tracking settings and record the removal in ADRs (#284)
 - Map host.docker.internal for host-side SDR relays
+- Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 
@@ -1175,6 +1177,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #306 from barrygee/feat/range-ring-origin
 - Merge pull request #311 from barrygee/test/adsb-mil-e2e
 - Merge pull request #312 from barrygee/style/overhead-alerts-layout
+- Merge pull request #313 from barrygee/feat/waterfall-timestamps
 
 ### Refactoring
 
