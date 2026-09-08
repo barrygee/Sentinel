@@ -143,6 +143,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centralise map layers, range ring origin and overhead alerts
 - Add optional time labels down the waterfall (#309)
 - Add configurable timestamps to the waterfall
+- Remove the display pause button (#314)
 
 ### Bug Fixes
 
