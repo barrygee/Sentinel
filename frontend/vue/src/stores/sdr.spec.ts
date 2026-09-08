@@ -255,21 +255,20 @@ describe('sdr store', () => {
 
   // ── view settings ──────────────────────────────────────────────────────────
   describe('waterfall timestamps', () => {
-    it('is off unless it was switched on before', () => {
-      expect(useSdrStore().showWaterfallTimestamps).toBe(false)
-    })
-
-    it('remembers the choice locally, so a reload keeps the labels', () => {
-      useSdrStore().setShowWaterfallTimestamps(true)
-      expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('1')
-
-      setActivePinia(createPinia())
+    it('is on unless it was switched off before', () => {
       expect(useSdrStore().showWaterfallTimestamps).toBe(true)
     })
 
-    it('records the choice when it is switched back off', () => {
+    it('remembers the choice locally, so a reload keeps the labels hidden', () => {
+      useSdrStore().setShowWaterfallTimestamps(false)
+      expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
+
+      setActivePinia(createPinia())
+      expect(useSdrStore().showWaterfallTimestamps).toBe(false)
+    })
+
+    it('records the choice when it is switched off', () => {
       const store = useSdrStore()
-      store.setShowWaterfallTimestamps(true)
 
       store.setShowWaterfallTimestamps(false)
 
@@ -285,43 +284,44 @@ describe('sdr store', () => {
       })
       const store = useSdrStore()
 
-      store.setShowWaterfallTimestamps(true)
+      store.setShowWaterfallTimestamps(false)
 
-      // A private-mode browser still gets the labels for this session.
-      expect(store.showWaterfallTimestamps).toBe(true)
+      // A private-mode browser still honours the choice for this session; it
+      // just cannot carry it to the next load.
+      expect(store.showWaterfallTimestamps).toBe(false)
       setItem.mockRestore()
     })
 
-    it('falls back to off when localStorage cannot be read at all', () => {
+    it('falls back to on when localStorage cannot be read at all', () => {
       const getItem = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
         throw new Error('private mode')
       })
       setActivePinia(createPinia())
 
-      expect(useSdrStore().showWaterfallTimestamps).toBe(false)
+      expect(useSdrStore().showWaterfallTimestamps).toBe(true)
       getItem.mockRestore()
     })
 
     describe('hydrating from the config database', () => {
       it('adopts a stored choice that differs from the local one', async () => {
-        stubFetch({ showWaterfallTimestamps: true })
+        stubFetch({ showWaterfallTimestamps: false })
         const store = useSdrStore()
 
         await store.hydrateShowWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(true)
-        expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('1')
+        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
       })
 
       it('leaves the choice alone when the database already agrees', async () => {
-        stubFetch({ showWaterfallTimestamps: false })
+        stubFetch({ showWaterfallTimestamps: true })
         const store = useSdrStore()
         const setItem = vi.spyOn(window.localStorage, 'setItem')
 
         await store.hydrateShowWaterfallTimestampsFromDb()
 
         // Nothing changed, so nothing is rewritten.
-        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(store.showWaterfallTimestamps).toBe(true)
         expect(setItem).not.toHaveBeenCalled()
       })
 
@@ -331,37 +331,178 @@ describe('sdr store', () => {
 
         await store.hydrateShowWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(store.showWaterfallTimestamps).toBe(true)
       })
 
       it('ignores a response with no such key', async () => {
         stubFetch({})
         const store = useSdrStore()
-        store.setShowWaterfallTimestamps(true)
+        store.setShowWaterfallTimestamps(false)
 
         await store.hydrateShowWaterfallTimestampsFromDb()
 
         // No key is not "cleared" — the local choice stands.
-        expect(store.showWaterfallTimestamps).toBe(true)
+        expect(store.showWaterfallTimestamps).toBe(false)
       })
 
       it('keeps the local choice when the request is rejected', async () => {
-        stubFetch({ showWaterfallTimestamps: true }, false)
+        stubFetch({ showWaterfallTimestamps: false }, false)
         const store = useSdrStore()
 
         await store.hydrateShowWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(store.showWaterfallTimestamps).toBe(true)
       })
 
       it('keeps the local choice when the backend is unreachable', async () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
         const store = useSdrStore()
-        store.setShowWaterfallTimestamps(true)
+        store.setShowWaterfallTimestamps(false)
 
         await store.hydrateShowWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(true)
+        expect(store.showWaterfallTimestamps).toBe(false)
+      })
+    })
+  })
+
+  describe('waterfall timestamp interval', () => {
+    it('defaults to five seconds', () => {
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
+    })
+
+    it('restores a previously chosen interval', () => {
+      localStorage.setItem('sdrWaterfallTimestampIntervalSec', '30')
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(30)
+    })
+
+    it('remembers a new interval, so a reload keeps the spacing', () => {
+      useSdrStore().setWaterfallTimestampIntervalSec(15)
+      expect(localStorage.getItem('sdrWaterfallTimestampIntervalSec')).toBe('15')
+
+      setActivePinia(createPinia())
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(15)
+    })
+
+    it.each([
+      ['0', 'zero would mark every raster row'],
+      ['-5', 'a negative interval has no meaning'],
+      ['abc', 'a non-numeric value never parsed'],
+    ])('falls back to the default for a stored %s (%s)', (stored) => {
+      localStorage.setItem('sdrWaterfallTimestampIntervalSec', stored)
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
+    })
+
+    it('floors a fractional interval to whole seconds', () => {
+      const store = useSdrStore()
+      store.setWaterfallTimestampIntervalSec(7.9)
+      expect(store.waterfallTimestampIntervalSec).toBe(7)
+      expect(localStorage.getItem('sdrWaterfallTimestampIntervalSec')).toBe('7')
+    })
+
+    it.each([
+      ['below the minimum', 0],
+      ['negative', -1],
+      ['not a number', Number.NaN],
+      ['infinite', Number.POSITIVE_INFINITY],
+    ])('rejects an interval that is %s, keeping the default', (_label, value) => {
+      const store = useSdrStore()
+      store.setWaterfallTimestampIntervalSec(value)
+      expect(store.waterfallTimestampIntervalSec).toBe(5)
+    })
+
+    it('accepts the one-second minimum', () => {
+      const store = useSdrStore()
+      store.setWaterfallTimestampIntervalSec(1)
+      expect(store.waterfallTimestampIntervalSec).toBe(1)
+    })
+
+    it('still applies the interval when localStorage refuses the write', () => {
+      const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('private mode')
+      })
+      const store = useSdrStore()
+
+      store.setWaterfallTimestampIntervalSec(20)
+
+      // A private-mode browser still gets the spacing for this session.
+      expect(store.waterfallTimestampIntervalSec).toBe(20)
+      setItem.mockRestore()
+    })
+
+    it('falls back to the default when localStorage cannot be read at all', () => {
+      const getItem = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('private mode')
+      })
+      setActivePinia(createPinia())
+
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
+      getItem.mockRestore()
+    })
+
+    describe('hydrating from the config database', () => {
+      it('adopts a stored interval that differs from the local one', async () => {
+        stubFetch({ waterfallTimestampIntervalSec: 60 })
+        const store = useSdrStore()
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        expect(store.waterfallTimestampIntervalSec).toBe(60)
+        expect(localStorage.getItem('sdrWaterfallTimestampIntervalSec')).toBe('60')
+      })
+
+      it('leaves the interval alone when the database already agrees', async () => {
+        stubFetch({ waterfallTimestampIntervalSec: 5 })
+        const store = useSdrStore()
+        const setItem = vi.spyOn(window.localStorage, 'setItem')
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        // Nothing changed, so nothing is rewritten.
+        expect(store.waterfallTimestampIntervalSec).toBe(5)
+        expect(setItem).not.toHaveBeenCalled()
+      })
+
+      it.each([
+        ['is not a number', '10'],
+        ['is below the minimum', 0],
+        ['is negative', -30],
+      ])('ignores a stored interval that %s', async (_label, stored) => {
+        stubFetch({ waterfallTimestampIntervalSec: stored })
+        const store = useSdrStore()
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        expect(store.waterfallTimestampIntervalSec).toBe(5)
+      })
+
+      it('ignores a response with no such key', async () => {
+        stubFetch({})
+        const store = useSdrStore()
+        store.setWaterfallTimestampIntervalSec(45)
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        // No key is not "cleared" — the local choice stands.
+        expect(store.waterfallTimestampIntervalSec).toBe(45)
+      })
+
+      it('keeps the local interval when the request is rejected', async () => {
+        stubFetch({ waterfallTimestampIntervalSec: 60 }, false)
+        const store = useSdrStore()
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        expect(store.waterfallTimestampIntervalSec).toBe(5)
+      })
+
+      it('keeps the local interval when the backend is unreachable', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+        const store = useSdrStore()
+        store.setWaterfallTimestampIntervalSec(45)
+
+        await expect(store.hydrateWaterfallTimestampIntervalFromDb()).resolves.toBeUndefined()
+        expect(store.waterfallTimestampIntervalSec).toBe(45)
       })
     })
   })

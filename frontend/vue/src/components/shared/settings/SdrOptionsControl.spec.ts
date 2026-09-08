@@ -87,10 +87,7 @@ describe('SdrOptionsControl', () => {
     // Every option is independently on or off — no tick boxes, no radio group.
     expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(0)
     expect(wrapper.findAll('input[type="radio"]')).toHaveLength(0)
-    // Waterfall timestamps are the one option that defaults OFF — the labels
-    // sit over the raster, so they are opt-in chrome.
-    expect(wrapper.findAll('.toggle-track.is-on')).toHaveLength(5)
-    expect(wrapper.findAll('.toggle-track.is-on')).not.toHaveLength(6)
+    expect(wrapper.findAll('.toggle-track.is-on')).toHaveLength(6)
   })
 
   it('carries the class its type overrides hang off, matching the device rows', async () => {
@@ -107,7 +104,7 @@ describe('SdrOptionsControl', () => {
     expect(wrapper.find('.lft-wrap').attributes('style')).toContain('--lft-accent: #c8ff00')
   })
 
-  it('shows every option except waterfall timestamps on by default', async () => {
+  it('shows every option on by default', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
     expect(switches(wrapper).map((_box, index) => isOn(wrapper, index))).toEqual([
@@ -115,7 +112,7 @@ describe('SdrOptionsControl', () => {
       true,
       true,
       true,
-      false,
+      true,
       true,
     ])
   })
@@ -161,20 +158,18 @@ describe('SdrOptionsControl', () => {
   })
 
   it.each([
-    // Each row is toggled away from its default, so the persisted value is the
-    // negation of that default (only waterfall timestamps start off).
-    [ROW.autoCenter, 'autoCenterWaterfallOnTune', false],
-    [ROW.snapToKnown, 'snapToKnown', false],
-    [ROW.showBandPlan, 'showBandPlan', false],
-    [ROW.showKnownFreqs, 'showKnownFreqs', false],
-    [ROW.showWaterfallTimestamps, 'showWaterfallTimestamps', true],
-    [ROW.muteWhileDecoding, 'muteAudioWhileDecoding', false],
-  ])('persists row %i as the %s setting', async (row, settingKey, persisted) => {
+    [ROW.autoCenter, 'autoCenterWaterfallOnTune'],
+    [ROW.snapToKnown, 'snapToKnown'],
+    [ROW.showBandPlan, 'showBandPlan'],
+    [ROW.showKnownFreqs, 'showKnownFreqs'],
+    [ROW.showWaterfallTimestamps, 'showWaterfallTimestamps'],
+    [ROW.muteWhileDecoding, 'muteAudioWhileDecoding'],
+  ])('persists row %i as the %s setting', async (row, settingKey) => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
     await switches(wrapper)[row]!.trigger('click')
     await runStagedWrite(wrapper)
-    expect(settingsApi.put).toHaveBeenCalledWith('sdr', settingKey, persisted)
+    expect(settingsApi.put).toHaveBeenCalledWith('sdr', settingKey, false)
   })
 
   it('leaves the other options untouched when one is toggled', async () => {
@@ -188,7 +183,7 @@ describe('SdrOptionsControl', () => {
     expect(sdr.snapToKnown).toBe(true)
     expect(sdr.showBandPlan).toBe(true)
     expect(sdr.showKnownFreqs).toBe(true)
-    expect(sdr.showWaterfallTimestamps).toBe(false)
+    expect(sdr.showWaterfallTimestamps).toBe(true)
   })
 
   it('stages one write per option when several are toggled', async () => {
@@ -264,6 +259,79 @@ describe('SdrOptionsControl', () => {
     document.dispatchEvent(new Event('sentinel:config-uploaded'))
     await flushPromises()
     expect(settingsApi.getNamespace).not.toHaveBeenCalled()
+  })
+
+  describe('waterfall timestamp interval row', () => {
+    /** The interval field the timestamp row contributes to the options table. */
+    function intervalInput(wrapper: ReturnType<typeof mount>) {
+      return wrapper.get<HTMLInputElement>(
+        'input[aria-label="Waterfall timestamp interval in seconds"]',
+      )
+    }
+
+    beforeEach(() => {
+      // The nested control hydrates its value straight from the settings API.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ resumeDelaySec: 5 }) }),
+      )
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('renders the interval as a number field, not a toggle', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      // Six toggles: the interval row adds a field, not a seventh switch.
+      expect(switches(wrapper)).toHaveLength(6)
+      expect(intervalInput(wrapper).element.value).toBe('5')
+    })
+
+    it('sits directly under its own show/hide row, so the pair reads together', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
+      expect(labels[ROW.showWaterfallTimestamps]).toBe('Show Waterfall Timestamps')
+      expect(labels[ROW.showWaterfallTimestamps + 1]).toBe('Waterfall Timestamp Interval (Seconds)')
+    })
+
+    it('re-emits the interval control staged write, which persists the new value', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      await intervalInput(wrapper).setValue('30')
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(30)
+
+      await runStagedWrite(wrapper)
+      expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'waterfallTimestampIntervalSec', 30)
+    })
+
+    it('re-emits commit when Enter is pressed in the interval field', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      await intervalInput(wrapper).trigger('keydown.enter')
+
+      // The Settings panel applies staged writes on commit, so a swallowed
+      // event here would leave a typed interval unsaved.
+      expect(wrapper.emitted('commit')).toHaveLength(1)
+    })
+
+    it('keeps the resume delay on its own row, each field driving its own key', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      const delay = wrapper.get<HTMLInputElement>(
+        'input[aria-label="Scan / search resume delay in seconds"]',
+      )
+
+      await intervalInput(wrapper).setValue('12')
+      await delay.setValue('9')
+
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(12)
+      expect(useSdrStore().resumeDelaySec).toBe(9)
+    })
   })
 
   describe('resume-delay row', () => {

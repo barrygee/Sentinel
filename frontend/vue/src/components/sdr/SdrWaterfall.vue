@@ -305,6 +305,7 @@ useDocumentEvent('sentinel:config-uploaded', () => {
   void store.hydrateShowBandPlanFromDb()
   void store.hydrateShowKnownFreqsFromDb()
   void store.hydrateShowWaterfallTimestampsFromDb()
+  void store.hydrateWaterfallTimestampIntervalFromDb()
 })
 
 // ── Min / Max (SDR++ semantics) ──────────────────────────────────────────────
@@ -1819,18 +1820,14 @@ const WF_ROWS = 400
 // ── Waterfall time markers ───────────────────────────────────────────────────
 // Clock labels down the left edge of the raster, so a signal seen scrolling
 // away can be read off as a wall-clock time. This is SDR#'s "Use Time Markers"
-// waterfall option (date/time down the left side, every 10 s by default);
+// waterfall option (date/time down the left side, on a configurable interval);
 // SDR++ has no equivalent — it has only ever been an open feature request
 // (SDRPlusPlus discussion #1047) — so SDR# is the reference behaviour here.
 //
-// Difference from SDR#: the interval adapts instead of being fixed at 10 s.
-// Our raster holds ~16 s (WF_ROWS at WF_ROW_HZ), so a fixed 10 s would leave
-// one lonely label; the step is chosen as the smallest that keeps labels at
-// least WF_TIME_LABEL_MIN_GAP_PX apart.
-const WF_TIME_STEPS_SEC = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
-const WF_TIME_LABEL_MIN_GAP_PX = 34
-// Hard ceiling on rendered labels — a defensive bound so a pathological
-// row-time series can never spray hundreds of nodes into the overlay.
+// Both the on/off state and the interval come from SDR settings
+// (store.showWaterfallTimestamps / store.waterfallTimestampIntervalSec).
+// Hard ceiling on rendered labels — a defensive bound so a very short interval
+// against a long history can never spray hundreds of nodes into the overlay.
 const WF_TIME_MARKER_LIMIT = 40
 
 // Wall-clock push time of each raster row, NEWEST FIRST: index N is the row N
@@ -1895,24 +1892,15 @@ const waterfallTimeMarkers = computed<WaterfallTimeMarker[]>(() => {
   if (rowCount < 2 || boxHeightPx <= 0) return []
 
   const newestMs = rowPushTimesMs[0] as number
-  const oldestMs = rowPushTimesMs[rowCount - 1] as number
-  const spanSec = (newestMs - oldestMs) / 1000
-  if (spanSec <= 0) return []
-
   // Rows are evenly spaced down the box (the raster is WF_ROWS deep whether or
-  // not it is full yet), so pixels-per-second comes from the measured row
-  // interval rather than the nominal WF_ROW_HZ — a slow feed stretches time.
+  // not it is full yet), so a row's index alone gives its vertical position.
   const pxPerRow = boxHeightPx / WF_ROWS
-  const secPerRow = spanSec / (rowCount - 1)
-  const pxPerSec = pxPerRow / secPerRow
-  const stepSec =
-    WF_TIME_STEPS_SEC.find((candidate) => candidate * pxPerSec >= WF_TIME_LABEL_MIN_GAP_PX) ??
-    (WF_TIME_STEPS_SEC[WF_TIME_STEPS_SEC.length - 1] as number)
-  const stepMs = stepSec * 1000
+  // The store clamps the interval to at least 1 s, so this is always positive.
+  const stepMs = store.waterfallTimestampIntervalSec * 1000
 
-  // Walk newest → oldest and mark the first row of each step bucket: the row
-  // that sits just after the clock crossed a whole 5 s / 10 s / … boundary, so
-  // labels land on round times exactly as SDR#'s markers do.
+  // Walk newest → oldest and mark the first row of each interval bucket: the
+  // row that sits just after the clock crossed a whole multiple of the
+  // configured interval, so labels land on round times as SDR#'s markers do.
   const markers: WaterfallTimeMarker[] = []
   let previousBucket = Math.floor(newestMs / stepMs)
   for (let rowIndex = 1; rowIndex < rowCount; rowIndex++) {
@@ -2347,6 +2335,7 @@ onMounted(() => {
   void store.hydrateShowBandPlanFromDb()
   void store.hydrateShowKnownFreqsFromDb()
   void store.hydrateShowWaterfallTimestampsFromDb()
+  void store.hydrateWaterfallTimestampIntervalFromDb()
   // Defer until the fixed/flex container has resolved its real pixel size.
   // layer2d derives the waterfall geometry once at init from the plot height,
   // so creating the plots before layout settles breaks the raster.
