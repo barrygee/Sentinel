@@ -8,8 +8,13 @@
     control="switch"
     @toggle="onToggleOption"
   >
-    <template #row-control>
-      <SdrResumeDelayControl @stage="emit('stage', $event)" @commit="emit('commit')" />
+    <template #row-control="{ row }">
+      <SdrTimestampIntervalControl
+        v-if="row.key === 'waterfallTimestampIntervalSec'"
+        @stage="emit('stage', $event)"
+        @commit="emit('commit')"
+      />
+      <SdrResumeDelayControl v-else @stage="emit('stage', $event)" @commit="emit('commit')" />
     </template>
   </LabelFieldsTable>
 </template>
@@ -32,6 +37,7 @@
 import { onMounted } from 'vue'
 import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
+import SdrTimestampIntervalControl from './SdrTimestampIntervalControl.vue'
 import { useSdrStore } from '@/stores/sdr'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import * as settingsApi from '@/services/settingsApi'
@@ -93,6 +99,15 @@ const OPTIONS: SdrOption[] = [
 
 const OPTION_COLUMNS: LabelFieldColumn[] = [{ key: 'enabled', label: 'On' }]
 
+// The waterfall timestamp interval sits directly under its own on/off row, so
+// "show the labels" and "how often" read as one setting. Like the resume delay
+// it is a number, not a toggle, so it fills its cell through `row-control`.
+const TIMESTAMP_INTERVAL_ROW: LabelFieldRow = {
+  key: 'waterfallTimestampIntervalSec',
+  label: 'Waterfall Timestamp Interval (Seconds)',
+  control: 'custom',
+}
+
 // The resume delay rides along as a final row rather than a card of its own:
 // it is another thing the SDR panel does while scanning, and a whole card for
 // one number sat oddly beside the option list it belongs with. It is not a
@@ -104,10 +119,10 @@ const RESUME_DELAY_ROW: LabelFieldRow = {
 }
 
 const OPTION_ROWS: LabelFieldRow[] = [
-  ...OPTIONS.map((option) => ({
-    key: option.settingKey,
-    label: option.label,
-  })),
+  ...OPTIONS.flatMap((option) => {
+    const row: LabelFieldRow = { key: option.settingKey, label: option.label }
+    return option.settingKey === 'showWaterfallTimestamps' ? [row, TIMESTAMP_INTERVAL_ROW] : [row]
+  }),
   RESUME_DELAY_ROW,
 ]
 

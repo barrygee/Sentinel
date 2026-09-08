@@ -2877,21 +2877,22 @@ describe('SdrWaterfall — waterfall time markers', () => {
       .findAll('.sdr-wf-time-marker')
       .map((marker) => Number(/top: (\d+)px/.exec(marker.attributes('style') ?? '')?.[1]))
 
-  it('draws nothing while the setting is off, so the raster stays clean', async () => {
+  it('draws nothing once the setting is switched off, so the raster stays clean', async () => {
     const { wrapper, store } = mountWaterfall()
+    store.setShowWaterfallTimestamps(false)
 
     await pushRows(store, 60, 10)
 
-    expect(store.showWaterfallTimestamps).toBe(false)
     expect(wrapper.find('.sdr-wf-time-overlay').exists()).toBe(false)
   })
 
-  it('labels rows on whole-second boundaries once switched on', async () => {
+  it('labels rows on whole-second boundaries with the setting on by default', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    expect(store.showWaterfallTimestamps).toBe(true)
+    store.setWaterfallTimestampIntervalSec(1)
 
-    // 300 rows 10 ms apart: ~3 s of history over a 248 px box, which puts the
-    // labels a whole second apart (the smallest step clearing the 34 px gap).
+    // 300 rows 10 ms apart: ~3 s of history over a 248 px box, so a one-second
+    // interval puts a label on each whole second it spans.
     await pushRows(store, 300, 10)
 
     expect(markerLabels(wrapper)).toEqual(['12:00:02', '12:00:01', '12:00:00'])
@@ -2900,6 +2901,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
   it('spaces the labels down the box in proportion to their age', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
 
@@ -2914,6 +2916,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
   it('hangs the overlay on the raster’s measured data box, not the element', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
 
@@ -2923,9 +2926,10 @@ describe('SdrWaterfall — waterfall time markers', () => {
     expect(wrapper.find('.sdr-wf-time-overlay').attributes('style')).toContain('height: 248px')
   })
 
-  it('keeps one label per step, not one per row', async () => {
+  it('keeps one label per interval, not one per row', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
 
@@ -2952,12 +2956,13 @@ describe('SdrWaterfall — waterfall time markers', () => {
     expect(wrapper.find('.sdr-wf-time-overlay').exists()).toBe(false)
   })
 
-  it('falls back to the coarsest step when even that cannot be spaced out', async () => {
+  it('honours a coarse interval from settings, however tight the rows are', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(600)
 
-    // A minute per row: at 0.62 px/row even a 600 s step is only ~6 px, so no
-    // candidate clears the gap and the coarsest is used rather than none.
+    // A minute per row: a ten-minute interval is only ~6 px of raster, but the
+    // setting decides the spacing, not the pixels available.
     await pushRows(store, 30, 60_000)
 
     // A label marks the first row *after* the clock crossed a boundary, so
@@ -2968,6 +2973,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
   it('keeps only the newest WF_ROWS row times, so the buffer cannot grow forever', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
 
     // 800 rows into a 400-row raster: the oldest 400 stamps must fall off with
     // the rows they belong to.
@@ -2980,8 +2986,8 @@ describe('SdrWaterfall — waterfall time markers', () => {
   })
 
   it('stops at the marker limit rather than papering the raster with labels', async () => {
-    // A very tall raster gives each row more pixels, so far more boundaries
-    // clear the minimum gap than there is room to draw.
+    // A very tall raster gives each row more pixels, so every boundary the
+    // interval produces has room to draw — more than the limit allows.
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
     const tallRaster = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')!
@@ -2992,8 +2998,8 @@ describe('SdrWaterfall — waterfall time markers', () => {
     triggerResize()
     await flushPromises()
 
-    // ~20 px a row at a second a row puts a 2 s step well clear of the gap, so
-    // 400 rows offer nearly 200 boundaries — far more than may be drawn.
+    // A second a row against the default 5 s interval offers 80 boundaries
+    // across the 400 rows — far more than may be drawn.
     await pushRows(store, 400, 1000)
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', tallRaster)
 
@@ -3003,6 +3009,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
   it('ignores a mid-layout box that reports no height, keeping the last good one', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
     await pushRows(store, 300, 10)
 
     // sigplot reports an empty data box between layout passes; taking it would
@@ -3019,6 +3026,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
   it('drops its row times when the raster history is cleared', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
     await pushRows(store, 300, 10)
     expect(wrapper.find('.sdr-wf-time-overlay').exists()).toBe(true)
 

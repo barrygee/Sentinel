@@ -553,10 +553,9 @@
 /* Waterfall time markers — clock labels down the left edge of the raster, the
  * equivalent of SDR#'s "Use Time Markers" option (SDR++ has no counterpart).
  * The overlay is pinned to the raster's data box; each marker is a short tick
- * on the row whose push time crossed a whole time step, with the clock reading
- * beside it. Text sits directly over the raster, so it carries its own shadow
- * for contrast against bright signal traces rather than a label pill (a pill
- * would mask a column of the waterfall the user is trying to read). */
+ * on the row whose push time crossed a whole interval, with the clock reading
+ * beside it. Plain white text straight over the raster — no shadow, no pill:
+ * either would fight the signal traces the user is actually reading. */
 .sdr-wf-time-overlay {
   position: absolute;
   /* Above sigplot's canvas wrapper (no z-index of its own), same as the
@@ -578,19 +577,17 @@
 
 .sdr-wf-time-marker::before {
   content: '';
-  width: 10px;
+  width: 5px;
   height: 1px;
   background: rgba(255, 255, 255, 0.8);
 }
 
 .sdr-wf-time-label {
-  font: 600 10px/1 var(--font-primary, 'Barlow', sans-serif);
-  letter-spacing: 0.04em;
+  /* Same face, weight and size as the spectrum's frequency labels
+   * (.sdr-wf-freq-label) so the two axes' text reads as one system. */
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
   color: #ffffff;
   white-space: nowrap;
-  text-shadow:
-    0 0 3px #000000,
-    0 1px 2px #000000;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

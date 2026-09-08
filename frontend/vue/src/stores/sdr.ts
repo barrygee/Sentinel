@@ -321,13 +321,12 @@ export const useSdrStore = defineStore('sdr', () => {
 
   // Waterfall time markers — clock labels down the left edge of the raster,
   // the equivalent of SDR#'s "Use Time Markers" waterfall option. Same
-  // persistence pattern as the other overlay toggles. Default OFF: the labels
-  // sit over the raster, so they are opt-in rather than always-on chrome.
+  // persistence pattern as (and same default ON as) the other overlay toggles.
   function _readShowWaterfallTimestamps(): boolean {
     try {
-      return localStorage.getItem('sdrShowWaterfallTimestamps') === '1'
+      return localStorage.getItem('sdrShowWaterfallTimestamps') !== '0'
     } catch {
-      return false
+      return true
     }
   }
   const showWaterfallTimestamps = ref<boolean>(_readShowWaterfallTimestamps())
@@ -381,6 +380,51 @@ export const useSdrStore = defineStore('sdr', () => {
       const v = data?.resumeDelaySec
       if (typeof v === 'number' && v >= 0 && v !== resumeDelaySec.value) {
         setResumeDelaySec(v)
+      }
+    } catch {
+      /* offline / transient */
+    }
+  }
+
+  // How often the waterfall's time markers are drawn, in seconds — SDR#'s
+  // time-marker interval (it defaults to 10 s). Clamped to at least 1 s: a 0 s
+  // interval would mark every single raster row. Persisted like resumeDelaySec.
+  const WATERFALL_TIMESTAMP_INTERVAL_DEFAULT_SEC = 5
+  const WATERFALL_TIMESTAMP_INTERVAL_MIN_SEC = 1
+  function _readWaterfallTimestampIntervalSec(): number {
+    try {
+      const raw = localStorage.getItem('sdrWaterfallTimestampIntervalSec')
+      const parsed = raw == null ? NaN : parseInt(raw, 10)
+      return isFinite(parsed) && parsed >= WATERFALL_TIMESTAMP_INTERVAL_MIN_SEC
+        ? parsed
+        : WATERFALL_TIMESTAMP_INTERVAL_DEFAULT_SEC
+    } catch {
+      return WATERFALL_TIMESTAMP_INTERVAL_DEFAULT_SEC
+    }
+  }
+  const waterfallTimestampIntervalSec = ref<number>(_readWaterfallTimestampIntervalSec())
+  function setWaterfallTimestampIntervalSec(seconds: number) {
+    const clamped =
+      isFinite(seconds) && seconds >= WATERFALL_TIMESTAMP_INTERVAL_MIN_SEC
+        ? Math.floor(seconds)
+        : WATERFALL_TIMESTAMP_INTERVAL_DEFAULT_SEC
+    waterfallTimestampIntervalSec.value = clamped
+    try {
+      localStorage.setItem('sdrWaterfallTimestampIntervalSec', String(clamped))
+    } catch {}
+  }
+  async function hydrateWaterfallTimestampIntervalFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const v = data?.waterfallTimestampIntervalSec
+      if (
+        typeof v === 'number' &&
+        v >= WATERFALL_TIMESTAMP_INTERVAL_MIN_SEC &&
+        v !== waterfallTimestampIntervalSec.value
+      ) {
+        setWaterfallTimestampIntervalSec(v)
       }
     } catch {
       /* offline / transient */
@@ -1044,6 +1088,9 @@ export const useSdrStore = defineStore('sdr', () => {
     showWaterfallTimestamps,
     setShowWaterfallTimestamps,
     hydrateShowWaterfallTimestampsFromDb,
+    waterfallTimestampIntervalSec,
+    setWaterfallTimestampIntervalSec,
+    hydrateWaterfallTimestampIntervalFromDb,
     resumeDelaySec,
     setResumeDelaySec,
     hydrateResumeDelaySecFromDb,
