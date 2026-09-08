@@ -375,6 +375,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Prune trunk-tracking settings and record the removal in ADRs (#284)
 - Map host.docker.internal for host-side SDR relays
 - Rebuild SPA bundle
+- Rebuild SPA bundle
 
 ### Other
 
@@ -1173,6 +1174,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #286 from barrygee/feat/location-panel-sentry-parity
 - Merge pull request #306 from barrygee/feat/range-ring-origin
 - Merge pull request #311 from barrygee/test/adsb-mil-e2e
+- Merge pull request #312 from barrygee/style/overhead-alerts-layout
 
 ### Refactoring
 
@@ -1372,6 +1374,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Flatten the settings panel onto a single column (#292)
 - Lead a Sentry's details with its status dot (#302)
 - Show a Sentry's position above its address (#303)
+- Put coordinates beside each location name
 
 ### Dependencies
 
