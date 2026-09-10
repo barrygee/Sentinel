@@ -144,6 +144,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add optional time labels down the waterfall (#309)
 - Add configurable timestamps to the waterfall
 - Remove the display pause button (#314)
+- Show known frequencies as a dot with click-to-reveal name (#315)
 
 ### Bug Fixes
 
