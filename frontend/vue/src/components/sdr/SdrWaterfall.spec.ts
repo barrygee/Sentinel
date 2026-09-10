@@ -877,7 +877,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(wrapper.find('.sdr-wf-readonly-alert').exists()).toBe(false)
   })
 
-  it('renders known-frequency markers within the visible window', async () => {
+  it('renders one dot marker per visible known frequency, name hidden until clicked', async () => {
     const { wrapper, store } = mountWaterfall()
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
@@ -888,13 +888,17 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     await wrapper.vm.$nextTick()
     const markers = wrapper.findAll('.sdr-wf-known-marker')
     expect(markers).toHaveLength(1)
-    expect(markers[0].text()).toBe('ATIS')
-    // Each marker pairs the dot (SVG ring) with its label.
+    // The dot is a labelled, collapsed button — no name text over the trace.
+    const dot = markers[0].find('button.sdr-wf-known-marker-dot')
+    expect(dot.exists()).toBe(true)
+    expect(dot.attributes('aria-label')).toBe('ATIS')
+    expect(dot.attributes('aria-expanded')).toBe('false')
     expect(markers[0].find('svg.sdr-wf-known-marker-ring').exists()).toBe(true)
-    expect(markers[0].find('.sdr-wf-known-marker-label').text()).toBe('ATIS')
+    expect(markers[0].find('.sdr-wf-known-marker-pop').exists()).toBe(false)
+    expect(markers[0].text()).toBe('')
   })
 
-  it('spans the full spectrum data box so labels clip at the grid edge', async () => {
+  it('spans the full spectrum data box so markers clip at the grid edge', async () => {
     const { wrapper, store } = mountWaterfall()
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
@@ -904,9 +908,6 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     await wrapper.vm.$nextTick()
     const overlay = wrapper.find('.sdr-wf-known-overlay')
     expect(overlay.exists()).toBe(true)
-    // Markers hang from the data-box top (bandInsetTopPx), and the overlay now also
-    // reaches the data-box bottom so it can clip (overflow:hidden) a label that would
-    // otherwise overrun the grid's right edge into the control rail.
     const overlayStyle = overlay.attributes('style') ?? ''
     expect(overlayStyle).toMatch(/top:\s*\d+px/)
     expect(overlayStyle).toMatch(/bottom:\s*\d+px/)
@@ -919,91 +920,168 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(wrapper.findAll('.sdr-wf-freq-label').length).toBeGreaterThan(0)
   })
 
-  // Reads the inline `top` (px) each known-freq marker is positioned at — the
-  // per-row vertical offset that staggers clustered labels. Markers render in
-  // ascending-frequency order, so the returned array matches that order.
-  function markerTops(wrapper: VueWrapper): number[] {
-    return wrapper.findAll('.sdr-wf-known-marker').map((marker) => {
-      const match = /top:\s*([\d.]+)px/.exec(marker.attributes('style') ?? '')
-      return match ? Number(match[1]) : NaN
-    })
-  }
-
-  it('staggers overlapping known-freq labels onto separate rows', async () => {
+  it('reveals the name in a borderless popover on click and hides it on a second click', async () => {
     const { wrapper, store } = mountWaterfall()
-    // Two long labels only 10 kHz apart in a 2.048 MHz window — their pills span
-    // far more horizontal space than that gap, so they must not share a row.
     store.frequencies = [
-      {
-        id: 1,
-        group_id: null,
-        label: 'SHANWICK – OCEANIC CLEARANCE',
-        frequency_hz: 99_200_000,
-        mode: 'AM',
-      },
-      {
-        id: 2,
-        group_id: null,
-        label: 'SCOTTISH – ANTRIM LOW',
-        frequency_hz: 99_210_000,
-        mode: 'AM',
-      },
+      { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
     ]
     store.setShowKnownFreqs(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
-    const tops = markerTops(wrapper)
-    expect(tops).toHaveLength(2)
-    // Lower-frequency label sits on the base row; the colliding one drops a row.
-    expect(tops[0]).toBe(20)
-    expect(tops[1]).toBe(44)
+    const dot = wrapper.find('.sdr-wf-known-marker-dot')
+
+    await dot.trigger('click')
+    const pop = wrapper.find('.sdr-wf-known-marker-pop')
+    expect(pop.exists()).toBe(true)
+    expect(pop.text()).toBe('TWR')
+    expect(pop.findAll('.sdr-wf-known-marker-pop-line')).toHaveLength(1)
+    expect(dot.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.sdr-wf-known-marker').classes()).toContain('sdr-wf-known-marker--open')
+
+    await dot.trigger('click')
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
   })
 
-  it('keeps non-overlapping known-freq labels on the single top row', async () => {
+  it('dismisses the open popover on an outside mousedown but not on one inside the marker', async () => {
     const { wrapper, store } = mountWaterfall()
-    // Two short labels far apart in the window — no pixel collision, so the
-    // stagger must NOT fire (both stay on the base row).
     store.frequencies = [
-      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 99_100_000, mode: 'AM' },
-      { id: 2, group_id: null, label: 'TWR', frequency_hz: 100_900_000, mode: 'AM' },
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
     store.setShowKnownFreqs(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
-    expect(markerTops(wrapper)).toEqual([20, 20])
+
+    // Nothing open yet: the outside-click handler is a no-op and must not throw
+    // on a non-element target (a bare document mousedown).
+    document.dispatchEvent(new MouseEvent('mousedown'))
+    await wrapper.vm.$nextTick()
+
+    const marker = wrapper.find('.sdr-wf-known-marker')
+    await wrapper.find('.sdr-wf-known-marker-dot').trigger('click')
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(true)
+
+    // A mousedown inside the marker keeps it open…
+    marker.element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(true)
+
+    // …a mousedown anywhere else closes it.
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
   })
 
-  it('reuses the base row once a later label clears the cluster', async () => {
+  it('closes the open popover when a new frame moves the visible span', async () => {
     const { wrapper, store } = mountWaterfall()
-    // Two colliding labels open rows 0 and 1; a third far enough right clears
-    // row 0's pill and packs back onto it rather than opening a needless row.
     store.frequencies = [
-      {
-        id: 1,
-        group_id: null,
-        label: 'SHANWICK – OCEANIC CLEARANCE',
-        frequency_hz: 99_200_000,
-        mode: 'AM',
-      },
-      {
-        id: 2,
-        group_id: null,
-        label: 'SCOTTISH – ANTRIM LOW',
-        frequency_hz: 99_250_000,
-        mode: 'AM',
-      },
-      {
-        id: 3,
-        group_id: null,
-        label: 'SCOTTISH – TAY EAST',
-        frequency_hz: 100_100_000,
-        mode: 'AM',
-      },
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
     store.setShowKnownFreqs(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
-    expect(markerTops(wrapper)).toEqual([20, 44, 20])
+    await wrapper.find('.sdr-wf-known-marker-dot').trigger('click')
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(true)
+
+    await playWithFrame(store, { center_hz: 100_500_000 })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
+  })
+
+  it('merges dots that would overlap into one counted marker listing every name', async () => {
+    const { wrapper, store } = mountWaterfall()
+    // Size the data box so 1 px ≈ 1 kHz across the default 2.048 MHz window.
+    specPlot()._Mx.l = 0
+    specPlot()._Mx.r = 2048
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'RAF-A', frequency_hz: 100_000_000, mode: 'AM' },
+      { id: 2, group_id: null, label: 'RAF-B', frequency_hz: 100_008_000, mode: 'AM' }, // ~8 px ⇒ merges
+      { id: 3, group_id: null, label: 'LONE', frequency_hz: 100_600_000, mode: 'AM' }, // ~600 px ⇒ separate
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const markers = wrapper.findAll('.sdr-wf-known-marker')
+    expect(markers).toHaveLength(2)
+
+    const clusterDot = markers[0].find('.sdr-wf-known-marker-dot')
+    expect(markers[0].find('.sdr-wf-known-marker-badge').text()).toBe('2')
+    expect(clusterDot.attributes('aria-label')).toBe('2 known frequencies')
+    await clusterDot.trigger('click')
+    const lines = markers[0].findAll('.sdr-wf-known-marker-pop-line')
+    expect(lines.map((line) => line.text())).toEqual(['RAF-A', 'RAF-B'])
+
+    // The lone marker keeps no badge and opens a plain single-name popover.
+    expect(markers[1].find('.sdr-wf-known-marker-badge').exists()).toBe(false)
+    await markers[1].find('.sdr-wf-known-marker-dot').trigger('click')
+    const loneLines = markers[1].findAll('.sdr-wf-known-marker-pop-line')
+    expect(loneLines.map((line) => line.text())).toEqual(['LONE'])
+  })
+
+  it('tags the marker the radio is tuned to with a flat borderless name + drop line', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'TUNED-HERE', frequency_hz: 100_000_000, mode: 'AM' },
+      { id: 2, group_id: null, label: 'ELSEWHERE', frequency_hz: 100_400_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    store.currentFreqHz = 100_000_500 // within KNOWN_TUNED_MATCH_HZ of marker 1
+    await wrapper.vm.$nextTick()
+
+    const markers = wrapper.findAll('.sdr-wf-known-marker')
+    expect(markers[0].classes()).toContain('sdr-wf-known-marker--tuned')
+    expect(markers[0].find('.sdr-wf-known-marker-tag').text()).toBe('TUNED-HERE')
+    expect(markers[0].find('.sdr-wf-known-marker-line').exists()).toBe(true)
+
+    // The untuned marker gets neither the tag nor the class.
+    expect(markers[1].classes()).not.toContain('sdr-wf-known-marker--tuned')
+    expect(markers[1].find('.sdr-wf-known-marker-tag').exists()).toBe(false)
+    expect(markers[1].find('.sdr-wf-known-marker-line').exists()).toBe(false)
+
+    // Opening the tuned marker swaps the tag for the popover.
+    await markers[0].find('.sdr-wf-known-marker-dot').trigger('click')
+    expect(markers[0].find('.sdr-wf-known-marker-tag').exists()).toBe(false)
+    expect(markers[0].find('.sdr-wf-known-marker-pop').text()).toBe('TUNED-HERE')
+  })
+
+  it('a mouse or touch press on a marker never tunes the radio', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const offsetSpy = vi.spyOn(store, 'setTuningOffsetHz')
+    const dot = wrapper.find('.sdr-wf-known-marker-dot')
+
+    await dot.trigger('mousedown', { button: 0, clientX: 200, clientY: 20 })
+    await dot.trigger('mouseup', { button: 0, clientX: 200, clientY: 20 })
+    dot.element.dispatchEvent(makeTouchEvent('touchstart', [{ clientX: 200, clientY: 20 }]))
+    await wrapper.vm.$nextTick()
+
+    expect(tuneSpy).not.toHaveBeenCalled()
+    expect(offsetSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('.sdr-wf-spectrum').classes()).not.toContain('sdr-wf-spectrum--panning')
+
+    // The dot still toggles its own popover.
+    await dot.trigger('click')
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(true)
+  })
+
+  it('has no accessibility violations with a known-frequency marker open', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-wf-known-marker-dot').trigger('click')
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
   })
 })
 

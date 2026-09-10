@@ -597,82 +597,105 @@ let suppressAccEvents = false
 const nearEdge = ref(false)
 const MIN_BW_HZ = 200
 
-// Known-frequency markers — rendered as HTML in the template (SVG ring +
-// label box), matching the map's "SET LOCATION" pop-up style. AnnotationPlugin
-// is kept attached but empty (vertical line removed; the SVG ring is the
-// frequency indicator).
+// ── Known-frequency markers ─────────────────────────────────────────────────
+// Saved frequencies (Frequency Manager) inside the visible window, projected to
+// a percentage across the data box. A marker is JUST a dot at the top of the
+// trace — no label over the signal; clicking it reveals the name (see the
+// template's .sdr-wf-known-marker-pop). Dots whose pixel positions land within
+// KNOWN_CLUSTER_PX of each other merge into ONE marker carrying every member, so
+// a dense band reads as a single dot with a count rather than a smear of rings.
+// `tunedLabel` is the member name to show as a persistent tag while the radio is
+// tuned to (near) that marker.
+const KNOWN_CLUSTER_PX = 16 // dots closer than this on screen merge into one marker
+const KNOWN_TUNED_MATCH_HZ = 1500 // within this of the tuned freq ⇒ the marker reads as "tuned"
 
-// ── Known-freq label stagger geometry ───────────────────────────────────────
-// When several saved frequencies fall close together in the visible window
-// their label pills would overlap into an unreadable smear. We pack them onto
-// stacked rows — but ONLY where they actually collide; clear labels stay on the
-// single top row. Each occupied row drops the marker by KNOWN_ROW_HEIGHT_PX.
-const KNOWN_MARKER_TOP_PX = 20 // base offset below the data-box top (row 0)
-const KNOWN_ROW_HEIGHT_PX = 24 // ≈ pill height + gap, so stacked rows read clearly apart
-const KNOWN_MARKER_GAP_PX = 6 // minimum horizontal breathing room between same-row pills
-// Approximate rendered width (px) of a marker pill: ring/padding chrome plus the
-// label text at the pill's 700 11px Barlow. A per-char estimate (not canvas
-// measureText) keeps this a PURE function — deterministic under test and free of
-// jsdom canvas stubs — and the gap above absorbs the approximation error.
-const KNOWN_MARKER_CHROME_PX = 31 // ring + horizontal padding (see .sdr-wf-known-marker-label)
-const KNOWN_MARKER_CHAR_PX = 6.6 // avg glyph advance for Barlow 700 11px, uppercase
-function estimateMarkerWidthPx(label: string): number {
-  return KNOWN_MARKER_CHROME_PX + label.length * KNOWN_MARKER_CHAR_PX
-}
-
-// Visible known frequencies for the HTML label overlay: zoom-aware leftPct
-// matching visibleBands math, plus a `row` index (and its pixel `topPx`) that
-// staggers clustered labels so they never overlap.
-interface KnownFreqEntry {
-  key: string
+interface KnownFreqMember {
+  id: string
   label: string
   frequencyHz: number
-  leftPct: number
-  row: number
-  topPx: number
 }
-const visibleKnownFreqs = computed<KnownFreqEntry[]>(() => {
+interface KnownFreqMarker {
+  key: string
+  leftPct: number
+  isCluster: boolean
+  count: number
+  label: string
+  members: KnownFreqMember[]
+  tunedLabel: string | null
+}
+
+const visibleKnownFreqs = computed<KnownFreqMarker[]>(() => {
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return []
   const { winLo, winHi } = zoomWindowHz(lo, hi)
   const w = winHi - winLo
-  // The data box's pixel width — overlap is a pixel question, so percentages are
-  // projected onto it below. Whenever a marker is in-window the spectrum has had
-  // a frame, and the same frame that sets the span (cleared the hi<=lo guard
-  // above) also populated dataBoxWidthPx, so it is > 0 here.
+  // Clustering is a pixel question, so project onto the data box's width.
+  // Whenever a marker is in-window the spectrum has had a frame, and that same
+  // frame populated dataBoxWidthPx, so it is > 0 here.
   const boxWidthPx = dataBoxWidthPx.value
-  // Greedy interval-graph row packing: walking the in-window markers left → right,
-  // place each pill on the LOWEST row whose previous pill clears it (right edge +
-  // gap ≤ this pill's left edge); if none clears, open a NEW row. This guarantees
-  // zero overlap with the fewest rows, and collapses to a single row when nothing
-  // collides. Rows are unbounded so a dense cluster is always fully separated.
-  const rowRightEdges: number[] = []
+  const tunedHz = store.currentFreqHz
+
   const inWindow = store.frequencies
     .filter((f) => f.frequency_hz >= winLo && f.frequency_hz <= winHi)
     .sort((a, b) => a.frequency_hz - b.frequency_hz)
-  const out: KnownFreqEntry[] = []
+
+  // Walk left → right, opening a new group whenever the on-screen gap to the
+  // previous frequency exceeds the cluster threshold.
+  const groups: KnownFreqMember[][] = []
+  let lastLeftPx = Number.NEGATIVE_INFINITY
   for (const f of inWindow) {
-    const leftPct = ((f.frequency_hz - winLo) / w) * 100
-    const leftPx = (leftPct / 100) * boxWidthPx
-    const rightPx = leftPx + estimateMarkerWidthPx(f.label)
-    let row = rowRightEdges.findIndex((edge) => edge + KNOWN_MARKER_GAP_PX <= leftPx)
-    if (row === -1) {
-      row = rowRightEdges.length
-      rowRightEdges.push(rightPx)
-    } else {
-      rowRightEdges[row] = rightPx
-    }
-    out.push({
-      key: String(f.id),
+    const leftPx = ((f.frequency_hz - winLo) / w) * boxWidthPx
+    const member: KnownFreqMember = {
+      id: String(f.id),
       label: f.label,
       frequencyHz: f.frequency_hz,
-      leftPct,
-      row,
-      topPx: KNOWN_MARKER_TOP_PX + row * KNOWN_ROW_HEIGHT_PX,
-    })
+    }
+    if (groups.length === 0 || leftPx - lastLeftPx > KNOWN_CLUSTER_PX) {
+      groups.push([member])
+    } else {
+      groups[groups.length - 1].push(member)
+    }
+    lastLeftPx = leftPx
   }
-  return out
+
+  return groups.map((members) => {
+    const first = members[0]
+    const last = members[members.length - 1]
+    const centreHz = (first.frequencyHz + last.frequencyHz) / 2
+    const tuned = members.find((m) => Math.abs(m.frequencyHz - tunedHz) <= KNOWN_TUNED_MATCH_HZ)
+    return {
+      key: members.map((m) => m.id).join('-'),
+      leftPct: ((centreHz - winLo) / w) * 100,
+      isCluster: members.length > 1,
+      count: members.length,
+      label: first.label,
+      members,
+      tunedLabel: tuned ? tuned.label : null,
+    }
+  })
+})
+
+// The name popover open on a marker (by its `key`), or null. Toggled by a
+// click / tap on the dot; dismissed by an outside click or any pan / zoom / tune
+// that could move the markers out from under it.
+const openKnownKey = ref<string | null>(null)
+function toggleKnownMarker(key: string) {
+  openKnownKey.value = openKnownKey.value === key ? null : key
+}
+// True when an event originated on a known-frequency marker (its dot button or
+// popover). Used both to keep a marker press from also tuning the radio (the
+// plot mouse/touch handlers) and to keep an in-marker click from dismissing the
+// open popover (the outside-click handler below).
+function isKnownMarkerEvent(e: Event): boolean {
+  return e.target instanceof HTMLElement && e.target.closest('.sdr-wf-known-marker') !== null
+}
+useDocumentEvent('mousedown', (e: Event) => {
+  if (openKnownKey.value === null || isKnownMarkerEvent(e)) return
+  openKnownKey.value = null
+})
+watch([zoom, spanStartHz, spanEndHz, () => store.showKnownFreqs], () => {
+  openKnownKey.value = null
 })
 
 // Snap a target frequency to the nearest known (Frequency Manager) frequency when
@@ -971,6 +994,12 @@ function onPlotMouseDown(e: MouseEvent) {
     return
   }
   if (e.button !== 0) return
+  // A press on a known-frequency marker toggles its name popover via the
+  // button's own click handler — never a click-to-tune or a marker drag.
+  if (isKnownMarkerEvent(e)) {
+    mdownEl = null
+    return
+  }
   // Drag-to-pan: a mousedown that lands in the bottom freq-label gutter starts
   // a frequency pan instead of a click-to-tune. This runs in the capture phase
   // on .sdr-wf-spectrum (before sigplot's own canvas mousedown), so it reliably
@@ -993,6 +1022,11 @@ function onPlotMouseUp(e: MouseEvent) {
   if (e.button === 2) {
     e.preventDefault()
     e.stopImmediatePropagation()
+    return
+  }
+  // A release on a known-frequency marker is its popover toggle — not a tune.
+  if (isKnownMarkerEvent(e)) {
+    mdownEl = null
     return
   }
   const el = mdownEl
@@ -1732,6 +1766,9 @@ useDocumentEvent('touchcancel', () => {
 // touchstart listener on the widget canvas underneath.
 function onPlotTouchStart(e: TouchEvent) {
   if (e.touches.length !== 1) return // let sigplot handle two-finger pinch-zoom
+  // A tap on a known-frequency marker is its popover toggle — leave it to the
+  // button's own click and don't start a freq drag / accordion grab.
+  if (isKnownMarkerEvent(e)) return
   const touch = e.touches[0]
   /* v8 ignore start -- guarded by the length check above */
   if (!touch) return
@@ -2860,24 +2897,54 @@ onBeforeUnmount(() => {
           v-for="f in visibleKnownFreqs"
           :key="f.key"
           class="sdr-wf-known-marker"
-          :style="{ left: f.leftPct + '%', top: f.topPx + 'px' }"
-          :title="f.label"
+          :class="{
+            'sdr-wf-known-marker--open': openKnownKey === f.key,
+            'sdr-wf-known-marker--tuned': f.tunedLabel !== null,
+          }"
+          :style="{ left: f.leftPct + '%' }"
         >
-          <svg
-            class="sdr-wf-known-marker-ring"
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            overflow="visible"
-            aria-hidden="true"
+          <button
+            type="button"
+            class="sdr-wf-known-marker-dot"
+            :aria-label="f.isCluster ? `${f.count} known frequencies` : f.label"
+            :aria-expanded="openKnownKey === f.key"
+            @click="toggleKnownMarker(f.key)"
           >
-            <!-- The SENTINEL ⊙ logo mark (same ring/dot proportions as
-                 frontend/assets/logo.svg): white ring, green dot — matching
-                 the map user-location marker. -->
-            <circle cx="7" cy="7" r="5.25" fill="none" stroke="#ffffff" stroke-width="1.5" />
-            <circle cx="7" cy="7" r="2.1" fill="#c8ff00" />
-          </svg>
-          <span class="sdr-wf-known-marker-label">{{ f.label }}</span>
+            <svg
+              class="sdr-wf-known-marker-ring"
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              overflow="visible"
+              aria-hidden="true"
+            >
+              <!-- The SENTINEL ⊙ logo mark (same ring/dot proportions as
+                   frontend/assets/logo.svg): ring in currentColor (white, or
+                   accent while this marker's popover is open), green dot —
+                   matching the map user-location marker. -->
+              <circle cx="7" cy="7" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <circle cx="7" cy="7" r="2.1" fill="#c8ff00" />
+            </svg>
+            <span v-if="f.isCluster" class="sdr-wf-known-marker-badge">{{ f.count }}</span>
+          </button>
+          <span
+            v-if="f.tunedLabel !== null"
+            class="sdr-wf-known-marker-line"
+            aria-hidden="true"
+          ></span>
+          <span
+            v-if="f.tunedLabel !== null && openKnownKey !== f.key"
+            class="sdr-wf-known-marker-tag"
+            >{{ f.tunedLabel }}</span
+          >
+          <div v-if="openKnownKey === f.key" class="sdr-wf-known-marker-pop" role="tooltip">
+            <template v-if="f.isCluster">
+              <span v-for="m in f.members" :key="m.id" class="sdr-wf-known-marker-pop-line">{{
+                m.label
+              }}</span>
+            </template>
+            <span v-else class="sdr-wf-known-marker-pop-line">{{ f.label }}</span>
+          </div>
         </div>
       </div>
     </div>
