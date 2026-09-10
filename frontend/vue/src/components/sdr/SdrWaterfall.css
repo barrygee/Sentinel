@@ -348,14 +348,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Known-frequency label overlay — a white SVG ring (green-dot centre) tucked
- * into the left end of a dark rounded label pill, inset from the pill's left
- * edge by the same gap it has above/below. Zero-height strip whose reference
- * line sits on the spectrum data-box top (knownFreqOverlayStyle anchors `top`
- * to bandInsetTopPx); the markers then hang a fixed margin below that line so
- * they read as a layer over the top of the spectrum trace. The overlay spans the
- * full data box and clips its children so a label near the right edge stops at
- * the grid edge rather than overrunning into the Zoom/Max/Min control rail. */
+/* Known-frequency markers — one dot per saved frequency at the top of the
+ * spectrum trace, with NO label over the signal. Click / tap a dot to reveal
+ * its name in a small borderless popover; the frequency the radio is tuned to
+ * keeps a persistent tag and a drop line. Dots that would overlap merge into a
+ * single dot with a count that lists its names on click. The overlay is anchored
+ * to the spectrum data box (knownFreqOverlayStyle) and takes no pointer events
+ * itself — only the dots and popovers do. It still clips its children so a
+ * marker near the right edge stops at the grid edge rather than overrunning into
+ * the Zoom/Max/Min control rail. */
 .sdr-wf-known-overlay {
   position: absolute;
   overflow: hidden;
@@ -365,42 +366,120 @@
 
 .sdr-wf-known-marker {
   position: absolute;
-  /* `top` is set inline per-marker (knownFreqOverlay topPx): a base offset in
-   * from the spectrum data-box top so the marker layers over the top of the
-   * trace with breathing room above, plus a per-row drop that staggers clustered
-   * labels downward so their pills never overlap. */
+  /* A fixed offset below the data-box top so the dot layers over the top of the
+   * trace with breathing room above. `left` is set inline (percent of the data
+   * box) — the frequency pixel — and the marker is centred on it. */
+  top: 12px;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  /* Centre the ring on the frequency pixel: `left` is the freq pixel, shift left
-   * half the 14px ring. The label sits to the right of the ring. */
-  transform: translateX(-7px);
+  color: #ffffff;
+}
+
+/* Open: the ring switches from white to accent (ring uses currentColor) so it's
+ * clear which marker's popover is showing. A tuned-but-not-open marker stays the
+ * flat white ring + green dot — the persistent tag alone marks it as active. */
+.sdr-wf-known-marker--open {
+  color: #c8ff00;
+}
+
+.sdr-wf-known-marker-dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  /* Re-enable pointer events on the interactive part only (the overlay is none). */
+  pointer-events: auto;
 }
 
 .sdr-wf-known-marker-ring {
-  flex-shrink: 0;
-  /* Paint the dot above the pill so it stays visible where the pill's left edge
-   * tucks behind it. */
-  position: relative;
-  z-index: 1;
+  display: block;
 }
 
-.sdr-wf-known-marker-label {
-  position: relative;
-  /* Pull the pill left so the dot is inset from the left edge by the same ~5px
-   * gap it has above/below (the pill is ~10px taller than the 12px dot, centred).
-   * `left` puts the label start on the dot's centre; -6px reaches the dot's outer
-   * edge (r5 + half the 1.5px stroke ≈ 6px); a further -5px gives the matching
-   * left margin. */
-  margin-left: -18px;
-  /* Extra left padding clears the dot; top is 1px less than bottom because the
-   * uppercase glyphs sit low in the line box, which otherwise reads as a larger
-   * gap above the text than below. */
-  padding: 5px 8px 6px 23px;
+/* Count badge on a merged (clustered) dot. */
+.sdr-wf-known-marker-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #c8ff00;
+  color: #0a0d14;
+  font: 700 10px/14px var(--font-primary, 'Barlow', sans-serif);
+  text-align: center;
+}
+
+/* Drop line + persistent tag for the tuned marker. */
+.sdr-wf-known-marker-line {
+  width: 1px;
+  height: 26px;
+  margin-top: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* The tuned marker's persistent name tag — the SAME flat, borderless dark
+ * treatment as the click popover (no accent outline), so an active frequency
+ * reads calmly rather than shouting a green box over the trace. */
+.sdr-wf-known-marker-tag {
+  margin-top: 3px;
+  padding: 5px 9px 6px;
+  background: #0a0d14;
+  color: #ffffff;
   font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Name popover — name only, no border, revealed on click. */
+.sdr-wf-known-marker-pop {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px 7px;
+  background: #0a0d14;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+/* Caret pointing up to the dot. */
+.sdr-wf-known-marker-pop::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.sdr-wf-known-marker-pop-line {
+  padding: 3px 0;
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #ffffff;
-  white-space: nowrap;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
