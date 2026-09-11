@@ -665,9 +665,18 @@ const visibleKnownFreqs = computed<KnownFreqMarker[]>(() => {
     const last = members[members.length - 1]
     const centreHz = (first.frequencyHz + last.frequencyHz) / 2
     const tuned = members.find((m) => Math.abs(m.frequencyHz - tunedHz) <= KNOWN_TUNED_MATCH_HZ)
+    // Anchor a tuned cluster on the TUNED member's own stored frequency rather
+    // than the cluster's first/last midpoint — a cluster is only a display
+    // grouping (members merge on screen within KNOWN_CLUSTER_PX), and once one
+    // member is the tuned station the dot should sit exactly on it (matching
+    // the carrier line drawn at that same stored frequency) rather than at an
+    // average that can be a real, visible distance away from it. Still a real,
+    // stored known-frequency value (never store.currentFreqHz itself), so the
+    // marker's click/hit-box footprint stays anchored to actual DB data.
+    const positionHz = tuned ? tuned.frequencyHz : centreHz
     return {
       key: members.map((m) => m.id).join('-'),
-      leftPct: ((centreHz - winLo) / w) * 100,
+      leftPct: ((positionHz - winLo) / w) * 100,
       isCluster: members.length > 1,
       count: members.length,
       label: first.label,
@@ -1360,12 +1369,18 @@ function syncBandInset() {
     } | null
   )?._Mx
   if (!mx || !mx.width) return
-  bandInsetLeftPx.value = Math.max(0, Math.floor(mx.l))
-  bandInsetRightPx.value = Math.max(0, Math.ceil(mx.width - mx.r))
+  // Exact fractional pixels, NOT floor/ceil to whole pixels: known-frequency
+  // markers and the click-to-tune math below both project onto this inset via
+  // percentage, while the carrier/tuning line is drawn straight onto the canvas
+  // at the exact (unrounded) mx.l/mx.r — rounding here was a fraction of a
+  // pixel off from that, which reads as "the dot isn't quite centred on the
+  // line", worse the wider the data box (i.e. fully zoomed out).
+  bandInsetLeftPx.value = Math.max(0, mx.l)
+  bandInsetRightPx.value = Math.max(0, mx.width - mx.r)
   // Pixel width of the data box (mx.r − mx.l) — the horizontal space the
   // known-freq label overlay maps its percentage positions onto for overlap
   // detection (see visibleKnownFreqs).
-  dataBoxWidthPx.value = Math.max(0, Math.floor(mx.r - mx.l))
+  dataBoxWidthPx.value = Math.max(0, mx.r - mx.l)
   // Publish the live data-box insets so the decoder dock below can line its
   // boxes up with the waterfall DISPLAY (not the waterfall element). Written to
   // :root as CSS vars; the dock reads them with fallbacks. See SdrDecodeDock.
