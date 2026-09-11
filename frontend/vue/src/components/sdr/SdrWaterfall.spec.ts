@@ -3004,6 +3004,30 @@ describe('SdrWaterfall — waterfall time markers', () => {
     expect(wrapper.find('.sdr-wf-time-overlay').attributes('style')).toContain('height: 248px')
   })
 
+  it('insets the overlay to the data-box left edge, not the raster element edge', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setShowWaterfallTimestamps(true)
+    store.setWaterfallTimestampIntervalSec(1)
+
+    await pushRows(store, 300, 10)
+
+    // .sdr-wf-tick-gutter is positioned from the SAME bandInsetLeftPx the spectrum
+    // and waterfall share (both plots use one axis spec), so its measured `left`
+    // is the live data-box inset this test asserts the time overlay follows —
+    // independent of the mock's exact pixel math.
+    const gutterStyle = wrapper.find('.sdr-wf-tick-gutter').attributes('style') ?? ''
+    const gutterLeftMatch = gutterStyle.match(/left:\s*(\d+)px/)
+    expect(gutterLeftMatch).not.toBeNull()
+    const measuredBandInsetLeftPx = Number((gutterLeftMatch as RegExpMatchArray)[1])
+    // Confirm the measured inset is non-zero so the assertion below actually
+    // discriminates between "follows bandInsetLeftPx" and "hardcoded to 0".
+    expect(measuredBandInsetLeftPx).toBeGreaterThan(0)
+
+    const overlayStyle = wrapper.find('.sdr-wf-time-overlay').attributes('style') ?? ''
+    expect(overlayStyle).toContain(`left: ${measuredBandInsetLeftPx}px`)
+    expect(overlayStyle).not.toContain('left: 0px')
+  })
+
   it('keeps one label per interval, not one per row', async () => {
     const { wrapper, store } = mountWaterfall()
     store.setShowWaterfallTimestamps(true)

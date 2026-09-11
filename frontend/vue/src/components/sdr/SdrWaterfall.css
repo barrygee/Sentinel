@@ -631,10 +631,11 @@
 
 /* Waterfall time markers — clock labels down the left edge of the raster, the
  * equivalent of SDR#'s "Use Time Markers" option (SDR++ has no counterpart).
- * The overlay is pinned to the raster's data box; each marker is a short tick
- * on the row whose push time crossed a whole interval, with the clock reading
- * beside it. Plain white text straight over the raster — no shadow, no pill:
- * either would fight the signal traces the user is actually reading. */
+ * The overlay is pinned to the raster's data box; each label marks the row
+ * whose push time crossed a whole interval. Styled to match the spectrum's
+ * frequency labels and the known-frequency name labels — same face, size and
+ * colour on the same flat dark box — so all of the waterfall's text reads as
+ * one system. */
 .sdr-wf-time-overlay {
   position: absolute;
   /* Above sigplot's canvas wrapper (no z-index of its own), same as the
@@ -646,26 +647,23 @@
 
 .sdr-wf-time-marker {
   position: absolute;
+  /* Flush with the raster's left edge, aligned with the waterfall. */
   left: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
-  /* Centre the tick on its row so the label reads as "this line = this time". */
+  /* Centre the label on its row so it reads as "this line = this time". */
   transform: translateY(-50%);
 }
 
-.sdr-wf-time-marker::before {
-  content: '';
-  width: 5px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.8);
-}
-
 .sdr-wf-time-label {
-  /* Same face, weight and size as the spectrum's frequency labels
-   * (.sdr-wf-freq-label) so the two axes' text reads as one system. */
+  /* Same face, weight, size, colour and flat dark box as the spectrum's
+   * frequency labels (.sdr-wf-freq-label) and the known-frequency name labels
+   * (.sdr-wf-known-marker-tag), with the same padding, so the waterfall's text
+   * reads as one system. */
   font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
   color: #ffffff;
+  background: #0a0d14;
+  padding: 5px 9px;
   white-space: nowrap;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
