@@ -668,3 +668,29 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Signal marker start/end times — hovering or clicking a signal on the
+ * waterfall reads off when it started (and, once it has scrolled clear of
+ * the newest row, when it ended) into this same left-edge timestamp column.
+ * Same face/size/padding as .sdr-wf-time-label above; only the background
+ * differs, so these read as the same label with a start/end colour code
+ * rather than a new style. */
+.sdr-wf-time-label--signal-start {
+  background: #1f9d55;
+}
+
+.sdr-wf-time-label--signal-end {
+  background: #c0392b;
+}
+
+/* Unlabelled per-second ticks drawn between the labelled clock markers above
+ * (.sdr-wf-time-marker), so the gaps between labels still read as time —
+ * a short flush-left rule rather than another text label. */
+.sdr-wf-second-tick {
+  position: absolute;
+  left: 0;
+  width: 6px;
+  height: 1px;
+  background: #ffffff;
+  transform: translateY(-50%);
+}

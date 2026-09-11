@@ -181,6 +181,7 @@ mx.text = function (
 import { useSdrStore, type SdrMode } from '@/stores/sdr'
 import { useSettingsStore } from '@/stores/settings'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { findSignalEdges, findTimeExtent } from '@/composables/useSdrSignalMarker'
 
 const store = useSdrStore()
 const settings = useSettingsStore()
@@ -1043,6 +1044,28 @@ function onPlotMouseUp(e: MouseEvent) {
   // Read-only follower: tuning is mirrored from the owner, so ignore click-to-tune
   // (moving the local marker would diverge from the owner until the next state push).
   if (!store.playing || store.readOnly) return
+  // A SHIFT-click on the waterfall raster (not the spectrum plot) pins/unpins
+  // the signal under the cursor's start/end-time marker instead of tuning.
+  // This MUST be opt-in via a modifier: an ordinary spectrum is busy enough
+  // that "is there a signal here" is true almost everywhere in view, so a
+  // plain click landing on one used to swallow click-to-tune outright —
+  // clicking anywhere to retune silently did nothing, leaving the receiver
+  // parked whatever frequency it already had. A bare click must always tune.
+  if (el === wfEl.value && e.shiftKey) {
+    // Pin whatever the hover preview is CURRENTLY showing rather than running
+    // detection again at the click point: the raster keeps scrolling between
+    // the last mousemove and this mouseup, so a fresh detection can land on a
+    // slightly different row/extent (or a momentary noise dip) than what the
+    // operator saw and aimed for — that mismatch is what read as "flickering"
+    // and made a signal hard to actually select. Falling back to a fresh
+    // detection only covers input that never fired a mousemove (touch/pen).
+    const clickedSignal =
+      hoverSignalMarker.value ?? computeSignalMarkerAtPoint(e.clientX, e.clientY)
+    if (clickedSignal) {
+      toggleSignalMarkerPin(clickedSignal)
+      return
+    }
+  }
   const lo = spanStartHz.value
   const hi = spanEndHz.value
   if (hi <= lo) return
@@ -1876,17 +1899,55 @@ const WF_TIME_MARKER_LIMIT = 40
 const rowPushTimesMs: number[] = []
 const rowClockTick = ref(0)
 
-/** Records the wall-clock time of a raster row just pushed to the waterfall. */
-function recordRowPushTime(atMs: number): void {
+// FFT bins of each raster row, mirroring rowPushTimesMs index-for-index —
+// the signal marker feature (hover/click a signal to read off its start/end
+// time) walks this to find how far back a signal has been continuously
+// present. Also deliberately non-reactive, for the same reason as
+// rowPushTimesMs. Cost: WF_ROWS (400) × bins × 4 bytes ≈ 6.5 MB at 4096
+// bins, ~13 MB at the 8192 the canvas math typically lands on — acceptable.
+const rowBins: Float32Array[] = []
+
+// ── Signal marker (hover / click a signal for its start/end time) ──────────
+// A signal currently under the cursor (recomputed on every raster
+// mousemove; cleared on mouseleave). Detection maths live in the pure
+// useSdrSignalMarker composable so they're unit-testable in isolation.
+interface DetectedSignalMarker {
+  freqLoHz: number
+  freqHiHz: number
+  startMs: number
+  /** null while the signal is still present in the newest row (no end yet). */
+  endMs: number | null
+}
+const hoverSignalMarker = ref<DetectedSignalMarker | null>(null)
+
+/** A signal marker the operator clicked to keep visible. */
+interface PinnedSignalMarker extends DetectedSignalMarker {
+  id: number
+}
+const pinnedSignalMarkers = ref<PinnedSignalMarker[]>([])
+let nextSignalMarkerId = 0
+
+/** Records one raster row's wall-clock push time and its FFT bins. */
+function recordRowPushTime(atMs: number, bins: ArrayLike<number>): void {
   rowPushTimesMs.unshift(atMs)
   if (rowPushTimesMs.length > WF_ROWS) rowPushTimesMs.length = WF_ROWS
+  rowBins.unshift(Float32Array.from(bins))
+  if (rowBins.length > WF_ROWS) rowBins.length = WF_ROWS
   rowClockTick.value++
 }
 
-/** Drops the recorded row times — pairs with clearing the raster's history. */
+/**
+ * Drops the recorded row history — pairs with clearing the raster's own
+ * history. Also clears the signal marker state: a retune invalidates every
+ * retained row's frequency mapping, so a hover/pinned marker measured
+ * against the old scale would silently mismeasure the new one.
+ */
 function clearRowPushTimes(): void {
   rowPushTimesMs.length = 0
+  rowBins.length = 0
   rowClockTick.value++
+  hoverSignalMarker.value = null
+  pinnedSignalMarkers.value = []
 }
 
 // The waterfall plot's own data box (top edge and height in element pixels).
@@ -1955,6 +2016,302 @@ const waterfallTimeMarkers = computed<WaterfallTimeMarker[]>(() => {
     if (markers.length >= WF_TIME_MARKER_LIMIT) break
   }
   return markers
+})
+
+/** An unlabelled tick at a whole-second row, drawn between the labelled
+ *  clock markers above so the gaps between them are still readable as time. */
+interface WaterfallSecondTick {
+  key: number
+  topPx: number
+}
+
+// Hard ceiling mirroring WF_TIME_MARKER_LIMIT — a defensive bound so a very
+// short raster height (many rows per pixel) can't spray hundreds of ticks.
+const WF_SECOND_TICK_LIMIT = 100
+
+const waterfallSecondTicks = computed<WaterfallSecondTick[]>(() => {
+  // Read the tick so the ticks re-derive as rows scroll down.
+  void rowClockTick.value
+  if (!store.showWaterfallTimestamps) return []
+  const rowCount = rowPushTimesMs.length
+  const boxHeightPx = wfDataHeightPx.value
+  if (rowCount < 2 || boxHeightPx <= 0) return []
+
+  const newestMs = rowPushTimesMs[0] as number
+  const pxPerRow = boxHeightPx / WF_ROWS
+  const stepMs = store.waterfallTimestampIntervalSec * 1000
+
+  const ticks: WaterfallSecondTick[] = []
+  let previousSecond = Math.floor(newestMs / 1000)
+  // Tracked the same way waterfallTimeMarkers tracks its own bucket, so a
+  // labelled row is identified by "the interval bucket also changed here" —
+  // not by "is this wall-clock second a round multiple of the interval",
+  // which is a different (and often wrong) thing. Bucket boundaries are cut
+  // by absolute epoch ms (floor(ms / stepMs)), and the first row of a new
+  // bucket is whatever wall-clock second that row happens to land on — that
+  // is only a round multiple of the interval when the row history started
+  // exactly on one, which it essentially never does. Testing the wrong
+  // condition skipped a tick at the second that looked round while the real
+  // label rendered a few rows away at the second that wasn't — the gap read
+  // as "the tick right before each label is missing".
+  let previousBucket = Math.floor(newestMs / stepMs)
+  for (let rowIndex = 1; rowIndex < rowCount; rowIndex++) {
+    const rowTimeMs = rowPushTimesMs[rowIndex] as number
+    const second = Math.floor(rowTimeMs / 1000)
+    if (second === previousSecond) continue
+    previousSecond = second
+    const bucket = Math.floor(rowTimeMs / stepMs)
+    if (bucket !== previousBucket) {
+      // This is the row waterfallTimeMarkers itself labels — no tick here.
+      previousBucket = bucket
+      continue
+    }
+    ticks.push({ key: second, topPx: Math.round(rowIndex * pxPerRow) })
+    if (ticks.length >= WF_SECOND_TICK_LIMIT) break
+  }
+  return ticks
+})
+
+// ── Signal marker detection ──────────────────────────────────────────────
+// Hovering (or clicking) a signal on the raster reads off when it started
+// and — once it has scrolled clear of the newest row — when it ended, drawn
+// into the same left-edge timestamp column as waterfallTimeMarkers above,
+// gated behind the same store.showWaterfallTimestamps setting.
+
+/** Maps a clientX over `el` to the Hz it sits on, mirroring onPlotMouseUp's
+ *  own rect/zoom-window math (kept separate rather than shared: onPlotMouseUp
+ *  additionally snaps to known frequencies for tuning, which hover detection
+ *  must not do). Returns null outside the plot's data box or before a frame
+ *  has established a span. */
+function clientXToFreqHz(el: HTMLElement, clientX: number): number | null {
+  const lo = spanStartHz.value
+  const hi = spanEndHz.value
+  /* v8 ignore start -- defensive: this function's only caller (pointToRowAndBin)
+   * already requires rowBins.length > 0, and any frame degenerate enough to
+   * collapse the span (e.g. sample_rate 0) is by definition a scaleChanged
+   * frame, which clears rowBins before this could ever run against it. */
+  if (hi <= lo) return null
+  /* v8 ignore stop */
+  const rect = el.getBoundingClientRect()
+  const dataLeft = rect.left + bandInsetLeftPx.value
+  const dataWidth = rect.width - bandInsetLeftPx.value - bandInsetRightPx.value
+  if (dataWidth <= 0) return null
+  const frac = Math.min(1, Math.max(0, (clientX - dataLeft) / dataWidth))
+  const { winLo, winHi } = zoomWindowHz(lo, hi)
+  return winLo + frac * (winHi - winLo)
+}
+
+/** Maps a raster-relative point to the row/bin it sits on. Null outside the
+ *  plot's data box, before a frame has established a span, or once the
+ *  cursor is below the retained row history. */
+function pointToRowAndBin(
+  clientX: number,
+  clientY: number,
+): { rowIndex: number; cursorBin: number } | null {
+  const el = wfEl.value
+  if (!el || rowBins.length === 0) return null
+  const boxHeightPx = wfDataHeightPx.value
+  if (boxHeightPx <= 0) return null
+  const pxPerRow = boxHeightPx / WF_ROWS
+  const rect = el.getBoundingClientRect()
+  const rowIndex = Math.floor((clientY - rect.top - wfDataTopPx.value) / pxPerRow)
+  if (rowIndex < 0 || rowIndex >= rowBins.length) return null
+
+  const freqHz = clientXToFreqHz(el, clientX)
+  if (freqHz === null) return null
+  return { rowIndex, cursorBin: Math.round((freqHz - xstartHz) / xdeltaHz) }
+}
+
+/** Detects the signal (if any) under a raster-relative point, walking both
+ *  its frequency edges (in the row under the cursor) and its time extent
+ *  (across the retained row history). Null when there is nothing there, or
+ *  when detection wouldn't mean anything right now (paused/sweeping/no
+ *  history yet). */
+function computeSignalMarkerAtPoint(clientX: number, clientY: number): DetectedSignalMarker | null {
+  if (!store.showWaterfallTimestamps || !store.playing || store.displayPaused || sweeping.value)
+    return null
+  const point = pointToRowAndBin(clientX, clientY)
+  if (!point) return null
+  const { rowIndex, cursorBin } = point
+  const cursorRow = rowBins[rowIndex]
+  /* v8 ignore start -- defensive: pointToRowAndBin just bounds-checked rowIndex
+   * against rowBins.length synchronously above, so rowBins[rowIndex] can't be
+   * undefined here. */
+  if (!cursorRow) return null
+  /* v8 ignore stop */
+
+  const edges = findSignalEdges(cursorRow, cursorBin)
+  if (!edges) return null
+  const extent = findTimeExtent(rowBins, edges.loBin, edges.hiBin, rowIndex)
+  /* v8 ignore start -- defensive: extent is derived from the same row and the
+   * same [loBin,hiBin] that findSignalEdges just confirmed clears that row's
+   * own noise floor at the default threshold, so findTimeExtent's own
+   * "does the cursor row contain the signal" check is guaranteed true. */
+  if (!extent) return null
+  /* v8 ignore stop */
+
+  return {
+    freqLoHz: xstartHz + edges.loBin * xdeltaHz,
+    freqHiHz: xstartHz + edges.hiBin * xdeltaHz,
+    startMs: rowPushTimesMs[extent.oldestRowIndex] as number,
+    // Row 0 is the newest/live row — the signal touching it means it hasn't
+    // ended yet, so there is no end time to show.
+    endMs: extent.newestRowIndex === 0 ? null : (rowPushTimesMs[extent.newestRowIndex] as number),
+  }
+}
+
+/** True while `(cursorBin, rowIndex)` still falls inside `marker`'s current
+ *  frequency and row extent — i.e. the cursor hasn't left the box on screen
+ *  yet, even if it's drifted off the exact row/bin last used to detect it. */
+function isPointWithinMarker(
+  marker: DetectedSignalMarker,
+  cursorBin: number,
+  rowIndex: number,
+): boolean {
+  const cursorFreqHz = xstartHz + cursorBin * xdeltaHz
+  if (cursorFreqHz < marker.freqLoHz || cursorFreqHz > marker.freqHiHz) return false
+  const oldestRowIndex = rowIndexForTimeMs(marker.startMs)
+  if (oldestRowIndex === null) return false
+  const newestRowIndex = marker.endMs === null ? 0 : rowIndexForTimeMs(marker.endMs)
+  /* v8 ignore start -- defensive: startMs's row is always older (so it ages
+   * out of history no earlier) than endMs's row, and we've just confirmed
+   * startMs's row is still present above — so endMs's row can't have aged
+   * out while startMs's hasn't. */
+  if (newestRowIndex === null) return false
+  /* v8 ignore stop */
+  return rowIndex >= newestRowIndex && rowIndex <= oldestRowIndex
+}
+
+function onWaterfallMouseMove(e: MouseEvent): void {
+  const point = pointToRowAndBin(e.clientX, e.clientY)
+  if (!point) {
+    hoverSignalMarker.value = null
+    return
+  }
+  const current = hoverSignalMarker.value
+  if (
+    current &&
+    store.showWaterfallTimestamps &&
+    isPointWithinMarker(current, point.cursorBin, point.rowIndex)
+  ) {
+    // Still over the same signal's box. Try to refresh it (e.g. it may have
+    // ended since we last looked), but a momentary noise dip in that fresh
+    // detection must not blank out what's already correctly on screen —
+    // THAT flicker was what made a signal hard to actually click. Only drop
+    // the marker once the cursor genuinely leaves its box, checked above.
+    hoverSignalMarker.value = computeSignalMarkerAtPoint(e.clientX, e.clientY) ?? current
+    return
+  }
+  hoverSignalMarker.value = computeSignalMarkerAtPoint(e.clientX, e.clientY)
+}
+
+function onWaterfallMouseLeave(): void {
+  hoverSignalMarker.value = null
+}
+
+/** Two markers are "the same signal" for pin/unpin purposes when their
+ *  frequency extents overlap — good enough for a click to toggle the mark it
+ *  visually landed on without also requiring an exact-pixel match. */
+function signalMarkersOverlap(
+  a: { freqLoHz: number; freqHiHz: number },
+  b: { freqLoHz: number; freqHiHz: number },
+): boolean {
+  return a.freqLoHz <= b.freqHiHz && b.freqLoHz <= a.freqHiHz
+}
+
+/** Clicking a live signal pins it; clicking an already-pinned one removes it. */
+function toggleSignalMarkerPin(marker: DetectedSignalMarker): void {
+  const existingIndex = pinnedSignalMarkers.value.findIndex((pinned) =>
+    signalMarkersOverlap(pinned, marker),
+  )
+  if (existingIndex !== -1) {
+    pinnedSignalMarkers.value.splice(existingIndex, 1)
+    return
+  }
+  pinnedSignalMarkers.value.push({ ...marker, id: nextSignalMarkerId++ })
+}
+
+/** Finds the retained row whose push time is exactly `ms` (start/end times
+ *  always come from an actual row's recorded time) — null once that row has
+ *  aged out of history, which is when the marker should stop rendering. */
+function rowIndexForTimeMs(ms: number): number | null {
+  const index = rowPushTimesMs.indexOf(ms)
+  return index === -1 ? null : index
+}
+
+interface SignalMarkerLabel {
+  key: string
+  topPx: number
+  label: string
+  variant: 'start' | 'end'
+}
+
+/** Renders a detected/pinned marker's start (and, once known, end) time as
+ *  labels positioned on their rows — reusing the exact clock-label look the
+ *  interval markers above use, just with a start/end background colour. */
+function signalMarkerTimeLabels(
+  marker: DetectedSignalMarker,
+  keyPrefix: string,
+): SignalMarkerLabel[] {
+  const pxPerRow = wfDataHeightPx.value / WF_ROWS
+  const labels: SignalMarkerLabel[] = []
+  const startRowIndex = rowIndexForTimeMs(marker.startMs)
+  if (startRowIndex !== null) {
+    labels.push({
+      key: `${keyPrefix}-start`,
+      topPx: Math.round(startRowIndex * pxPerRow),
+      label: formatRowClock(marker.startMs),
+      variant: 'start',
+    })
+  }
+  if (marker.endMs !== null) {
+    const endRowIndex = rowIndexForTimeMs(marker.endMs)
+    if (endRowIndex !== null) {
+      labels.push({
+        key: `${keyPrefix}-end`,
+        topPx: Math.round(endRowIndex * pxPerRow),
+        label: formatRowClock(marker.endMs),
+        variant: 'end',
+      })
+    }
+  }
+  return labels
+}
+
+// Only a PINNED (Shift+Click) signal ever shows its start/end times — merely
+// hovering renders nothing. hoverSignalMarker itself is still tracked (see
+// onWaterfallMouseMove) purely so a Shift+Click can pin the exact box the
+// operator is already looking at rather than re-detecting at the click
+// instant, which is what made a signal hard to reliably select before.
+const signalMarkerLabels = computed<SignalMarkerLabel[]>(() => {
+  // Read the tick so labels re-derive (and drop off) as rows scroll down.
+  void rowClockTick.value
+  if (!store.showWaterfallTimestamps) return []
+  const labels: SignalMarkerLabel[] = []
+  for (const pinned of pinnedSignalMarkers.value) {
+    labels.push(...signalMarkerTimeLabels(pinned, `signal-pin-${pinned.id}`))
+  }
+  return labels
+})
+
+// A label (.sdr-wf-time-label) has real height on screen — 11px font plus
+// 5px of padding top and bottom, ≈21px total — so a tick landing merely
+// close to one, not just on its exact row, would still visually cut across
+// it. Filtering by pixel proximity (rather than by row/second identity, as
+// waterfallSecondTicks' own isLabelledSecond check does) also covers the
+// signal start/end labels, which — unlike the interval labels — aren't
+// aligned to whole-second boundaries and so can land on any row.
+const WF_TIME_LABEL_HALF_HEIGHT_PX = 11
+
+const visibleWaterfallSecondTicks = computed<WaterfallSecondTick[]>(() => {
+  const occupiedTopPx = [
+    ...waterfallTimeMarkers.value.map((marker) => marker.topPx),
+    ...signalMarkerLabels.value.map((label) => label.topPx),
+  ]
+  if (occupiedTopPx.length === 0) return waterfallSecondTicks.value
+  return waterfallSecondTicks.value.filter((tick) =>
+    occupiedTopPx.every((topPx) => Math.abs(tick.topPx - topPx) > WF_TIME_LABEL_HALF_HEIGHT_PX),
+  )
 })
 
 // Frequency scaling for the current frame. xstart = left-edge Hz, xdelta =
@@ -2460,6 +2817,11 @@ watch(
       livePanOffsetHz.value = 0
     }
     if (frame.bins.length !== subsize || scaleChanged) {
+      // A retune/bin-count change invalidates every retained row's frequency
+      // mapping — drop the history (and any hover/pinned signal marker
+      // measured against the old scale) rather than silently mismeasuring it
+      // against the new one.
+      clearRowPushTimes()
       lastCenterHz = frame.center_hz
       lastSampleRate = frame.sample_rate
       xstartHz = spanStartHz.value
@@ -2488,7 +2850,7 @@ watch(
     if (now - lastRowMs >= WF_ROW_MIN_MS) {
       lastRowMs = now
       wfPlot.push(wfUuid, frame.bins)
-      recordRowPushTime(Date.now())
+      recordRowPushTime(Date.now(), frame.bins)
       // sigplot's Layer2D push only writes the layer's advancing time-window
       // (this.ymin/this.ymax) back into Mx.stk when Mx.level === 0
       // (sigplot.layer2d.js:409-414). When the user has zoomed, Mx.level > 0
@@ -2956,12 +3318,18 @@ onBeforeUnmount(() => {
       :style="rasterStyle"
       @mousedown.capture="onPlotMouseDown"
       @mouseup.capture="onPlotMouseUp"
+      @mousemove="onWaterfallMouseMove"
+      @mouseleave="onWaterfallMouseLeave"
       @touchstart.capture="onPlotTouchStart"
       @wheel.capture="onPlotWheel"
       @contextmenu.prevent
     >
       <div
-        v-if="waterfallTimeMarkers.length > 0"
+        v-if="
+          waterfallTimeMarkers.length > 0 ||
+          visibleWaterfallSecondTicks.length > 0 ||
+          signalMarkerLabels.length > 0
+        "
         class="sdr-wf-time-overlay"
         :style="timeMarkerOverlayStyle"
       >
@@ -2972,6 +3340,28 @@ onBeforeUnmount(() => {
           :style="{ top: marker.topPx + 'px' }"
         >
           <span class="sdr-wf-time-label">{{ marker.label }}</span>
+        </div>
+        <div
+          v-for="tick in visibleWaterfallSecondTicks"
+          :key="`sec-${tick.key}`"
+          class="sdr-wf-second-tick"
+          :style="{ top: tick.topPx + 'px' }"
+        ></div>
+        <div
+          v-for="signalLabel in signalMarkerLabels"
+          :key="signalLabel.key"
+          class="sdr-wf-time-marker"
+          :style="{ top: signalLabel.topPx + 'px' }"
+        >
+          <span
+            class="sdr-wf-time-label"
+            :class="
+              signalLabel.variant === 'start'
+                ? 'sdr-wf-time-label--signal-start'
+                : 'sdr-wf-time-label--signal-end'
+            "
+            >{{ signalLabel.label }}</span
+          >
         </div>
       </div>
     </div>

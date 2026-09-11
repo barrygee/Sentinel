@@ -3139,3 +3139,569 @@ describe('SdrWaterfall — waterfall time markers', () => {
     expect(wrapper.find('.sdr-wf-time-overlay').exists()).toBe(false)
   })
 })
+
+// =============================================================================
+// Per-second tick marks. Regression coverage for the bucket-transition bug: a
+// tick must land on every whole-second row EXCEPT the one row that
+// waterfallTimeMarkers itself labels — identified by "the interval bucket also
+// changed on this row", not by "is this wall-clock second a round multiple of
+// the interval" (the buggy check this replaces, which leaves the row right
+// before the real label with no tick because the label's row is essentially
+// never itself a round multiple of the interval).
+describe('SdrWaterfall — waterfall per-second tick marks', () => {
+  let wallClockMs: number
+  let wallClock: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    // A start time deliberately NOT aligned to the 3 s interval used below, so
+    // the interval-bucket boundary lands on an "unround" wall-clock second —
+    // exactly the case the fixed modulo-free check must still handle.
+    wallClockMs = Date.UTC(2026, 0, 1, 12, 0, 0, 700)
+    wallClock = vi.spyOn(Date, 'now').mockImplementation(() => wallClockMs)
+  })
+
+  afterEach(() => {
+    wallClock.mockRestore()
+  })
+
+  async function pushRows(
+    store: ReturnType<typeof useSdrStore>,
+    count: number,
+    msPerRow: number,
+  ): Promise<void> {
+    store.setPlaying(true)
+    for (let index = 0; index < count; index++) {
+      nowMs += 50
+      wallClockMs += msPerRow
+      store.setSpectrum(makeFrame())
+      await flushPromises()
+    }
+  }
+
+  const tickTops = (wrapper: VueWrapper) =>
+    wrapper
+      .findAll('.sdr-wf-second-tick')
+      .map((tick) => Number(/top: (\d+)px/.exec(tick.attributes('style') ?? '')?.[1]))
+  const markerTops = (wrapper: VueWrapper) =>
+    wrapper
+      .findAll('.sdr-wf-time-marker')
+      .map((marker) => Number(/top: (\d+)px/.exec(marker.attributes('style') ?? '')?.[1]))
+
+  it('draws a tick on every whole second except the row the labelled marker itself occupies', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setWaterfallTimestampIntervalSec(3)
+
+    // 10 ms per row, 400 rows => 4 s of history, spanning at least one 3 s
+    // interval boundary plus several plain whole-second rows.
+    await pushRows(store, 400, 10)
+
+    const ticks = tickTops(wrapper)
+    const markers = markerTops(wrapper)
+    expect(ticks.length).toBeGreaterThan(0)
+    expect(markers.length).toBeGreaterThan(0)
+    // No tick ever lands on the exact row a labelled marker occupies.
+    for (const markerTop of markers) {
+      expect(ticks).not.toContain(markerTop)
+    }
+    // The old (buggy) modulo-based check skipped the tick immediately
+    // adjacent to a label, leaving a gap; the fixed check leaves no such gap —
+    // every second not labelled gets its own tick.
+    expect(ticks.length + markers.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('draws no ticks or markers when the waterfall timestamps setting is off', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setShowWaterfallTimestamps(false)
+    store.setWaterfallTimestampIntervalSec(3)
+    await pushRows(store, 400, 10)
+    expect(wrapper.findAll('.sdr-wf-second-tick')).toHaveLength(0)
+    expect(wrapper.find('.sdr-wf-time-overlay').exists()).toBe(false)
+  })
+
+  it('hides a second tick that would land within the half-height of a labelled marker or signal label', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setWaterfallTimestampIntervalSec(3)
+    await pushRows(store, 400, 10)
+
+    const ticks = tickTops(wrapper)
+    const markers = markerTops(wrapper)
+    // Every remaining (visible) tick clears every marker by more than the
+    // 11px half-height — visibleWaterfallSecondTicks' proximity filter, not
+    // just the identity filter above, is what's under test here.
+    for (const tickTop of ticks) {
+      for (const markerTop of markers) {
+        expect(Math.abs(tickTop - markerTop)).toBeGreaterThan(11)
+      }
+    }
+  })
+})
+
+// =============================================================================
+// Signal marker: hover-only tracking (invisible) + Shift+Click pin/unpin. All
+// detection maths live in the pure useSdrSignalMarker composable (see its own
+// spec) — these tests exercise the component's wiring: geometry mapping,
+// hover stickiness, the pin/unpin toggle, and the plain-click regression.
+describe('SdrWaterfall — signal marker (hover tracking & Shift+Click pin)', () => {
+  let wallClockMs: number
+  let wallClock: ReturnType<typeof vi.spyOn>
+
+  const CENTER_HZ = 100_000_000
+  const SAMPLE_RATE = 6_400
+  const BIN_COUNT = 64
+  const SPAN_LO_HZ = CENTER_HZ - SAMPLE_RATE / 2
+  const SPAN_HI_HZ = CENTER_HZ + SAMPLE_RATE / 2
+  const BIN_WIDTH_HZ = SAMPLE_RATE / BIN_COUNT
+  // Bin 32 (row centre) carries the signal in most tests below.
+  const SIGNAL_FREQ_HZ = CENTER_HZ
+  const SIGNAL_RANGE: [number, number] = [28, 36]
+  // Bin 5: far outside SIGNAL_RANGE and never populated with a signal.
+  const OFF_SIGNAL_FREQ_HZ = SPAN_LO_HZ + 5 * BIN_WIDTH_HZ
+
+  beforeEach(() => {
+    wallClockMs = Date.UTC(2026, 0, 1, 12, 0, 0)
+    wallClock = vi.spyOn(Date, 'now').mockImplementation(() => wallClockMs)
+  })
+
+  afterEach(() => {
+    wallClock.mockRestore()
+  })
+
+  /** A row's FFT bins: -20dB (well clear of the -90dB noise floor) across
+   *  `range` (inclusive), -90dB (flat noise) everywhere else. `null` pushes an
+   *  all-noise row (no signal anywhere). */
+  function makeBins(range: [number, number] | null): number[] {
+    const bins = new Array(BIN_COUNT).fill(-90)
+    if (range) {
+      for (let index = range[0]; index <= range[1]; index++) bins[index] = -20
+    }
+    return bins
+  }
+
+  /** Pushes one raster row, advancing both the rate-cap clock and the row's
+   *  own wall-clock stamp so consecutive rows get distinct push times. */
+  async function pushSignalRow(
+    store: ReturnType<typeof useSdrStore>,
+    range: [number, number] | null,
+  ): Promise<void> {
+    store.setPlaying(true)
+    nowMs += 50
+    wallClockMs += 100
+    store.setSpectrum(
+      makeFrame({ center_hz: CENTER_HZ, sample_rate: SAMPLE_RATE, bins: makeBins(range) }),
+    )
+    await flushPromises()
+  }
+
+  /** Reads the live data-box geometry straight off the mocked plots — the
+   *  exact same numbers syncBandInset()/syncWaterfallDataBox() derive inside
+   *  the component — so a clientX/clientY can be computed that lands on a
+   *  known frequency/row without hardcoding sigplot's mock layout constants. */
+  function geometry() {
+    const spec = specPlot()._Mx
+    const wf = wfPlotInstance()._Mx
+    return {
+      leftPx: Math.max(0, Math.floor(spec.l)),
+      rightPx: Math.max(0, Math.ceil(spec.width - spec.r)),
+      topPx: Math.max(0, Math.round(wf.t)),
+      heightPx: Math.round(wf.b - wf.t),
+    }
+  }
+
+  function clientXForFreqHz(freqHz: number): number {
+    const box = geometry()
+    const dataWidth = 1000 - box.leftPx - box.rightPx
+    const frac = (freqHz - SPAN_LO_HZ) / (SPAN_HI_HZ - SPAN_LO_HZ)
+    return box.leftPx + frac * dataWidth
+  }
+
+  function clientYForRowIndex(rowIndex: number): number {
+    const box = geometry()
+    const pxPerRow = box.heightPx / 400 // WF_ROWS
+    return box.topPx + rowIndex * pxPerRow + pxPerRow / 2
+  }
+
+  async function moveAt(wrapper: VueWrapper, rowIndex: number, freqHz: number): Promise<void> {
+    await wrapper.find('.sdr-wf-raster').trigger('mousemove', {
+      clientX: clientXForFreqHz(freqHz),
+      clientY: clientYForRowIndex(rowIndex),
+    })
+  }
+
+  async function leaveRaster(wrapper: VueWrapper): Promise<void> {
+    await wrapper.find('.sdr-wf-raster').trigger('mouseleave')
+  }
+
+  async function shiftClickAt(
+    wrapper: VueWrapper,
+    rowIndex: number,
+    freqHz: number,
+  ): Promise<void> {
+    const raster = wrapper.find('.sdr-wf-raster')
+    const clientX = clientXForFreqHz(freqHz)
+    const clientY = clientYForRowIndex(rowIndex)
+    await raster.trigger('mousedown', { button: 0, clientX, clientY, shiftKey: true })
+    await raster.trigger('mouseup', { button: 0, clientX, clientY, shiftKey: true })
+  }
+
+  async function plainClickAt(
+    wrapper: VueWrapper,
+    rowIndex: number,
+    freqHz: number,
+  ): Promise<void> {
+    const raster = wrapper.find('.sdr-wf-raster')
+    const clientX = clientXForFreqHz(freqHz)
+    const clientY = clientYForRowIndex(rowIndex)
+    await raster.trigger('mousedown', { button: 0, clientX, clientY })
+    await raster.trigger('mouseup', { button: 0, clientX, clientY })
+  }
+
+  const hasStartLabel = (wrapper: VueWrapper) =>
+    wrapper.find('.sdr-wf-time-label--signal-start').exists()
+  const hasEndLabel = (wrapper: VueWrapper) =>
+    wrapper.find('.sdr-wf-time-label--signal-end').exists()
+
+  it('renders no timestamp label while merely hovering a signal — only a pin shows one', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+    expect(hasEndLabel(wrapper)).toBe(false)
+  })
+
+  it('Shift+Click pins the currently hovered signal, rendering its start label', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    // Still touching the newest row => no end time yet.
+    expect(hasStartLabel(wrapper)).toBe(true)
+    expect(hasEndLabel(wrapper)).toBe(false)
+  })
+
+  it('a Shift+Click with no prior hover falls back to detecting the signal at the click point', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+
+    // No mousemove beforehand (e.g. a touch/pen tap) — pin logic must still work.
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(true)
+  })
+
+  it('Shift+Click on an already-pinned signal unpins it', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('a plain click still tunes the radio even when a signal sits under the cursor', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.autoCenterWaterfallOnTune = true
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+
+    await plainClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(tuneSpy).toHaveBeenCalled()
+    // A plain click must never pin — only Shift+Click does.
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('a Shift+Click on the spectrum plot (not the raster) still tunes and never pins', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.autoCenterWaterfallOnTune = true
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    const tuneSpy = vi.spyOn(store, 'requestTune')
+    const clientX = clientXForFreqHz(SIGNAL_FREQ_HZ)
+    const spectrum = wrapper.find('.sdr-wf-spectrum')
+
+    await spectrum.trigger('mousedown', { button: 0, clientX, clientY: 100, shiftKey: true })
+    await spectrum.trigger('mouseup', { button: 0, clientX, clientY: 100, shiftKey: true })
+
+    expect(tuneSpy).toHaveBeenCalled()
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('keeps a hovered box alive through a momentary noise dip in the live row, then Shift+Click still pins it', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    // Establish the hover while the signal is genuinely present at row 0.
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    // A fresh, signal-free row lands at row 0 — a momentary dip in the live
+    // edge. A fresh detection here alone would return null.
+    await pushSignalRow(store, null)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    // The stale-but-still-onscreen box must still be what Shift+Click pins.
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+  })
+
+  it('clears the hovered box when the cursor moves off the retained row history entirely', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    // Far below the raster's data box / retained row count — pointToRowAndBin
+    // returns null, so the hover must be dropped outright (not left stale).
+    await wrapper
+      .find('.sdr-wf-raster')
+      .trigger('mousemove', { clientX: clientXForFreqHz(SIGNAL_FREQ_HZ), clientY: 100_000 })
+    // Click on a signal-free frequency with no further mousemove first: if the
+    // out-of-bounds move had NOT cleared the hover, Shift+Click would use the
+    // stale (still-valid) hover directly and wrongly pin it despite the click
+    // itself landing nowhere near a signal.
+    await shiftClickAt(wrapper, 0, OFF_SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('drops the hovered box once the cursor moves to a frequency with no signal, outside its box', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    // A different frequency, clearly outside the signal's own edges, with no
+    // signal of its own — the cursor has genuinely left the box.
+    await moveAt(wrapper, 0, OFF_SIGNAL_FREQ_HZ)
+    await shiftClickAt(wrapper, 0, OFF_SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('mouseleave clears the hovered box so a stale/vanished signal cannot later be pinned', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    await leaveRaster(wrapper)
+    // The signal genuinely vanishes entirely after the cursor left.
+    await pushSignalRow(store, null)
+
+    // No fresh mousemove after mouseleave — if the hover box were still held,
+    // Shift+Click would use it directly (bypassing fresh detection) and pin a
+    // signal that no longer exists anywhere.
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('refreshes the hovered box with a new detection (not just the stale one) as the signal scrolls clear of the live row', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ) // endMs still null: touches row 0
+
+    // The signal scrolls out of the live row; row 1 now holds what was row 0.
+    await pushSignalRow(store, null)
+    await moveAt(wrapper, 1, SIGNAL_FREQ_HZ)
+    // A second move over the now-ended (endMs !== null) box exercises the
+    // sticky check's own end-time row lookup, not just the start-time one.
+    await moveAt(wrapper, 1, SIGNAL_FREQ_HZ)
+
+    await shiftClickAt(wrapper, 1, SIGNAL_FREQ_HZ)
+
+    // A stale (never-refreshed) marker would still show endMs === null — the
+    // refreshed detection now has a real end time, so both labels render.
+    expect(hasStartLabel(wrapper)).toBe(true)
+    expect(hasEndLabel(wrapper)).toBe(true)
+  })
+
+  it('clears pinned and hovered signal markers when a retune invalidates the row history', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+
+    // A new centre frequency invalidates every retained row's frequency mapping.
+    nowMs += 50
+    store.setSpectrum(
+      makeFrame({
+        center_hz: CENTER_HZ + 1_000_000,
+        sample_rate: SAMPLE_RATE,
+        bins: makeBins(SIGNAL_RANGE),
+      }),
+    )
+    await flushPromises()
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('clears pinned signal markers when playback stops', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+
+    store.setPlaying(false)
+    await flushPromises()
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('a pinned signal label disappears once its row scrolls out of the retained history', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+
+    // Push well past WF_ROWS (400) plain noise rows so the pinned marker's
+    // recorded start time ages out of the retained history entirely.
+    for (let index = 0; index < 410; index++) await pushSignalRow(store, null)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('a pinned signal marker with both a start and end time disappears once both age out of history', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ) // endMs still null: touches row 0
+    // The signal scrolls out of the live row, giving the marker a real end
+    // time before it's pinned — unlike the still-live marker aged out above,
+    // this exercises the end-time lookup's own "aged out of history" branch,
+    // not just the start-time one.
+    await pushSignalRow(store, null)
+    await moveAt(wrapper, 1, SIGNAL_FREQ_HZ)
+    await shiftClickAt(wrapper, 1, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+    expect(hasEndLabel(wrapper)).toBe(true)
+
+    // Push well past WF_ROWS (400) plain noise rows so BOTH the pinned
+    // marker's start and end times age out of the retained history.
+    for (let index = 0; index < 410; index++) await pushSignalRow(store, null)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+    expect(hasEndLabel(wrapper)).toBe(false)
+  })
+
+  it('never detects a signal before the waterfall timestamps setting is on', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.setShowWaterfallTimestamps(false)
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    store.setShowWaterfallTimestamps(true)
+    await wrapper.vm.$nextTick()
+
+    // Nothing was pinned while the setting was off, so turning it back on
+    // reveals no label.
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('never detects a signal while the display is paused', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    store.displayPaused = true
+
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('never detects a signal while a frequency search sweep is active', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    store.searchSweeping = true
+
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('detects nothing before any raster row has ever been recorded', async () => {
+    const { wrapper } = mountWaterfall()
+    // No frames pushed at all — rowBins is empty, so both hover and a
+    // Shift+Click fallback detection must be inert, not throw.
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('treats a raster narrower than the shared axis gutters as having no data box to map', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    // Shrink ONLY the raster element's own rect (not the shared spectrum
+    // gutter insets it's mapped against) so the computed data width goes
+    // negative — a real defensive case if the raster is ever laid out
+    // narrower than the axis gutters it shares with the spectrum.
+    const rasterEl = wrapper.find('.sdr-wf-raster').element as HTMLElement
+    const narrowRect = { ...rasterEl.getBoundingClientRect(), width: 10, right: 10 } as DOMRect
+    rasterEl.getBoundingClientRect = () => narrowRect
+
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('treats an unmeasured (zero-height) data box as having no rows to hover', async () => {
+    // Force the very first layout pass (mount's own resize) to measure an
+    // invalid box, so wfDataHeightPx never leaves its zero default — mirrors
+    // waterfallTimeMarkers' own "mid-layout box" guard, but exercised through
+    // signal-marker detection instead.
+    // 20px is small enough that the fake plot's own checkresize() computes
+    // mx.b <= mx.t (an inverted/degenerate box) — 0 would instead hit the
+    // mock's `clientHeight || 300` fallback and measure a perfectly valid box.
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')!
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: 20 })
+    const { wrapper, store } = mountWaterfall()
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', original)
+
+    // Rows can still be recorded (recording doesn't depend on layout), but
+    // without ever a valid resize/draw pass, wfDataHeightPx stays at 0.
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('a Shift+Click with no prior hover and a cursor beyond the retained rows pins nothing', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    const raster = wrapper.find('.sdr-wf-raster')
+    const clientX = clientXForFreqHz(SIGNAL_FREQ_HZ)
+    // No mousemove first, so the click's fallback detection runs fresh and
+    // must itself fail cleanly (no row at this point) rather than pin.
+    await raster.trigger('mousedown', { button: 0, clientX, clientY: 100_000, shiftKey: true })
+    await raster.trigger('mouseup', { button: 0, clientX, clientY: 100_000, shiftKey: true })
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('drops a hovered box once its recorded start row ages out of the retained history', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 3; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    // Push well past WF_ROWS (400) noise-only rows: the row the hovered
+    // marker's start time pointed at has now scrolled out of history
+    // entirely, even though the hover ref itself was never explicitly cleared.
+    for (let index = 0; index < 410; index++) await pushSignalRow(store, null)
+    await moveAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+
+    expect(hasStartLabel(wrapper)).toBe(false)
+  })
+
+  it('has no accessibility violations with a pinned signal marker shown', async () => {
+    const { wrapper, store } = mountWaterfall()
+    for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
+    await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
+    expect(hasStartLabel(wrapper)).toBe(true)
+
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+})
