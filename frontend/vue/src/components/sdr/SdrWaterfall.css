@@ -400,7 +400,25 @@
   pointer-events: auto;
 }
 
+/* The carrier/tuning line is drawn by sigplot straight down the plot canvas,
+ * underneath this HTML overlay, so without a backdrop it runs straight through
+ * the ring. This opaque disc — matching the plot background, slightly larger
+ * than the ring — masks that stretch so the line visibly breaks with a small
+ * gap above and below the dot instead of cutting through it. */
+.sdr-wf-known-marker-dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  background: #0a0d14;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .sdr-wf-known-marker-ring {
+  position: relative;
   display: block;
 }
 

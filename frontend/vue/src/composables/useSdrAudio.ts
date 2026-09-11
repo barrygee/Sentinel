@@ -88,6 +88,14 @@ let _unavailableReason: string | null = null
 let _initPromise: Promise<void> | null = null
 let _mode = 'AM'
 let _squelch = -120
+// Demod filter bandwidth (Hz) — isolates the tuned channel from the rest of the
+// FFT span. Sent with every IQ block (like _mode) so it survives worklet
+// recreation AND doesn't race worklet creation: callers set this well before
+// the (async) worklet exists, and a direct 'bw' postMessage sent in that window
+// used to be silently dropped, leaving the worklet's channel LPF permanently
+// skipped (bwHz stuck at its 0 default) — every signal in the span played at
+// once regardless of the tuned frequency. See useSdrAudio.spec.ts.
+let _bwHz = 0
 // Demod frequency offset from the hardware centre (Hz). Non-zero only when
 // auto-centre is OFF and the user has clicked away from centre. Sent with every
 // IQ block (like _mode) so it survives worklet recreation.
@@ -183,6 +191,7 @@ const PROCESSOR_SRC = `registerProcessor('sdr-demod-processor', class extends Au
             if(squelch_dbfs!==undefined)this._squelch=squelch_dbfs;
             if(sample_rate!==undefined)this._sampleRate=sample_rate;
             if(offset_hz!==undefined)this._offsetHz=offset_hz;
+            if(bandwidth_hz!==undefined)this._bwHz=bandwidth_hz;
             let iA=new Float32Array(i),qA=new Float32Array(q);
             // Choose integer IQ decimation so the LPF (if needed) runs over
             // ≤~1 Msps and bwRatio stays in the cheap "skip LPF" zone for wide
@@ -360,6 +369,7 @@ function _openIqSocket(radioId: number) {
         squelch_dbfs: _squelch,
         sample_rate: sampleRate,
         offset_hz: _offsetHz,
+        bandwidth_hz: _bwHz,
       },
       [i.buffer, q.buffer],
     )
@@ -753,6 +763,7 @@ export function useSdrAudio() {
   }
 
   function setBandwidthHz(hz: number) {
+    _bwHz = hz
     if (_worklet) _worklet.port.postMessage({ type: 'bw', bandwidth_hz: hz })
   }
 
