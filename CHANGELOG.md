@@ -353,6 +353,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Dismiss teleported menus only on clicks outside them
 - Classify military aircraft from the feed's dbFlags marker (#308)
 - Point ADS-B docs and settings default at adsb.lol (#310)
+- Align waterfall time labels with the raster edge
 
 ### Chores
 
@@ -1180,6 +1181,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #311 from barrygee/test/adsb-mil-e2e
 - Merge pull request #312 from barrygee/style/overhead-alerts-layout
 - Merge pull request #313 from barrygee/feat/waterfall-timestamps
+- Merge pull request #316 from barrygee/fix/sdr-waterfall-timestamp-styling
 
 ### Refactoring
 
