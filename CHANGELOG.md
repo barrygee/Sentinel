@@ -355,6 +355,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Classify military aircraft from the feed's dbFlags marker (#308)
 - Point ADS-B docs and settings default at adsb.lol (#310)
 - Align waterfall time labels with the raster edge
+- Correct known-frequency marker alignment and demod bandwidth race
 
 ### Chores
 
@@ -1184,6 +1185,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #313 from barrygee/feat/waterfall-timestamps
 - Merge pull request #316 from barrygee/fix/sdr-waterfall-timestamp-styling
 - Merge pull request #317 from barrygee/feat/sdr-waterfall-signal-marker
+- Merge pull request #318 from barrygee/fix/sdr-known-freq-marker-alignment
 
 ### Refactoring
 
