@@ -145,6 +145,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add configurable timestamps to the waterfall
 - Remove the display pause button (#314)
 - Show known frequencies as a dot with click-to-reveal name (#315)
+- Waterfall signal marker with Shift+Click start/end timestamps
 
 ### Bug Fixes
 
@@ -1182,6 +1183,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #312 from barrygee/style/overhead-alerts-layout
 - Merge pull request #313 from barrygee/feat/waterfall-timestamps
 - Merge pull request #316 from barrygee/fix/sdr-waterfall-timestamp-styling
+- Merge pull request #317 from barrygee/feat/sdr-waterfall-signal-marker
 
 ### Refactoring
 
