@@ -1909,8 +1909,10 @@ function formatRowClock(atMs: number): string {
 }
 
 // Overlay rectangle: the raster's data box. Anchored to the waterfall plot's
-// own top/height rather than the element's, so the labels never drift onto the
-// canvas's reserved (invisible) axis gutters.
+// own top/height (not the element's) so the labels never drift onto the
+// canvas's reserved (invisible) axis gutters, and inset to the data box's left
+// edge so the clock labels sit flush against the waterfall raster itself rather
+// than out in the y-axis gutter.
 const timeMarkerOverlayStyle = computed(() => ({
   left: `${bandInsetLeftPx.value}px`,
   right: `${bandInsetRightPx.value}px`,
