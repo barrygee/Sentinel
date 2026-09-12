@@ -7,7 +7,14 @@
       "latitude": "",
       "longitude": ""
     },
-    "notificationSound": false
+    "notificationSound": false,
+    "rangeRingOrigin": {
+      "kind": "user",
+      "sentryHostId": null
+    },
+    "mapLayers": {
+      "names": false
+    }
   },
   "air": {
     "enabled": true,
@@ -16,6 +23,16 @@
     "onlineDataSourceURL": "https://api.adsb.lol/v2",
     "offgridDataSourceURL": {
       "url": ""
+    },
+    "offgridSdrSource": null,
+    "mapLayers": {
+      "rangeRings": false,
+      "aara": true,
+      "awacs": true,
+      "groundVehicles": true,
+      "towers": true,
+      "airports": true,
+      "militaryBases": true
     },
     "labelDataPoints": {
       "civil": {
@@ -64,11 +81,19 @@
   },
   "sea": {
     "enabled": false,
-    "sourceOverride": "auto"
+    "sourceOverride": "auto",
+    "onlineUrl": "",
+    "offgridSource": {
+      "url": ""
+    }
   },
   "land": {
     "enabled": false,
     "sourceOverride": "auto",
+    "onlineUrl": "",
+    "offgridSource": {
+      "url": ""
+    },
     "labelDataPoints": {
       "time": false,
       "callsign": true,
@@ -97,10 +122,15 @@
     "defaultGain": 30,
     "defaultSquelch": -60,
     "autoCenterWaterfallOnTune": true,
+    "snapToKnown": true,
     "showBandPlan": true,
     "showKnownFreqs": true,
+    "showWaterfallTimestamps": true,
+    "waterfallTimestampIntervalSec": 5,
+    "resumeDelaySec": 0,
     "digitalDecodeDefault": false,
     "muteAudioWhileDecoding": true,
+    "aprs_radio_id": null,
     "radios": []
   }
 }

@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
+import { notifySettingsChanged } from '@/services/settingsApi'
 import { isValidLatLon } from '@/utils/locationUtils'
 
 export interface UserLocation {
@@ -113,7 +114,9 @@ window.addEventListener('sentinel:setUserLocation', (e: Event) => {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: { latitude, longitude } }),
-    }).catch(() => {})
+    })
+      .then(notifySettingsChanged)
+      .catch(() => {})
   }
 })
 
@@ -145,7 +148,9 @@ function _startWatch(highAccuracy: boolean): void {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: { latitude: loc.lat, longitude: loc.lon } }),
-        }).catch(() => {})
+        })
+          .then(notifySettingsChanged)
+          .catch(() => {})
       }
     },
     (err) => {

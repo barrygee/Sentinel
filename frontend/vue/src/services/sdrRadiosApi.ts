@@ -10,6 +10,7 @@
  * `sentry_device_id` (ADR-0009); a manually-entered radio leaves both null and
  * behaves exactly as it always has.
  */
+import { notifySettingsChanged } from '@/services/settingsApi'
 
 export interface SdrRadioRecord {
   id: number
@@ -63,6 +64,7 @@ export async function createRadio(input: SdrRadioInput): Promise<SdrRadioRecord 
     body: JSON.stringify(input),
   })
   if (!response.ok) return null
+  notifySettingsChanged()
   return (await response.json()) as SdrRadioRecord
 }
 
@@ -76,11 +78,13 @@ export async function updateRadio(
     body: JSON.stringify(input),
   })
   if (!response.ok) return null
+  notifySettingsChanged()
   return (await response.json()) as SdrRadioRecord
 }
 
 export async function deleteRadio(radioId: number): Promise<boolean> {
   const response = await fetch(`${RADIOS_BASE}/${radioId}`, { method: 'DELETE' })
+  if (response.ok) notifySettingsChanged()
   return response.ok
 }
 

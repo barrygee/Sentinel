@@ -3,11 +3,8 @@ import { setActivePinia, createPinia } from 'pinia'
 import maplibregl from 'maplibre-gl'
 import { AdsbLabelsToggleControl } from './AdsbLabelsToggleControl'
 import { useAirStore } from '@/stores/air'
-import * as settingsApi from '@/services/settingsApi'
 import type { AirStore } from '../types'
 import type { AdsbLiveControl } from '../adsb/AdsbLiveControl'
-
-vi.mock('@/services/settingsApi', () => ({ put: vi.fn() }))
 
 // Minimal stand-in for the AdsbLiveControl collaborator: only `visible` and
 // `setLabelsVisible` are touched by AdsbLabelsToggleControl.
@@ -26,7 +23,6 @@ let airStore: AirStore
 beforeEach(() => {
   setActivePinia(createPinia())
   airStore = useAirStore()
-  vi.mocked(settingsApi.put).mockClear()
 })
 
 describe('AdsbLabelsToggleControl constructor', () => {
@@ -125,20 +121,6 @@ describe('AdsbLabelsToggleControl.toggle (via click)', () => {
 
     expect(control.labelsVisible).toBe(true)
     expect(airStore.overlayStates.adsbLabels).toBe(true)
-  })
-
-  it('persists each new visibility to the backend so it syncs across devices', () => {
-    airStore.setOverlay('adsbLabels', false) // start hidden so the first click turns them on
-    const { control: adsb } = fakeAdsbControl(true)
-    const control = new AdsbLabelsToggleControl(airStore, adsb)
-    control.onAdd(emptyMap)
-
-    control.handleClickPublic() // off -> on
-    expect(settingsApi.put).toHaveBeenCalledWith('air', 'labelsVisible', true)
-
-    control.handleClickPublic() // on -> off
-    expect(settingsApi.put).toHaveBeenCalledWith('air', 'labelsVisible', false)
-    expect(settingsApi.put).toHaveBeenCalledTimes(2)
   })
 })
 

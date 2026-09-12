@@ -994,6 +994,24 @@ describe('sdr store', () => {
       )
     })
 
+    it('startAprs announces a settings change once the backend accepts', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAprs(3)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAprs does not announce a settings change on a refused start', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAprs(3)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
     it('startAprs returns false on a non-ok response', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
       expect(await useSdrStore().startAprs(1)).toBe(false)
@@ -1012,6 +1030,24 @@ describe('sdr store', () => {
         '/api/sdr/aprs/stop',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ radio_id: 9 }) }),
       )
+    })
+
+    it('stopAprs announces a settings change once the backend accepts', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().stopAprs(9)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('stopAprs does not announce a settings change on a refused stop', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().stopAprs(9)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
     })
 
     it('stopAprs returns false on a non-ok response', async () => {

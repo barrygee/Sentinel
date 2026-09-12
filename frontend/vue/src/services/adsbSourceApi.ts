@@ -12,6 +12,7 @@
  * in the console instead of a message in the UI. The claim's failure *is* the
  * information the operator needs, so it is data.
  */
+import { notifySettingsChanged } from '@/services/settingsApi'
 
 /** Which Sentry device feeds AIR, as the backend reports it. */
 export interface AdsbSourceConfig {
@@ -93,6 +94,7 @@ export async function setAdsbSource(
       }),
     })
     if (!response.ok) return null
+    notifySettingsChanged()
     return (await response.json()) as AdsbSourceConfig
   } catch {
     return null

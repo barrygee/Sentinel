@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount, mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import { useSettingsStore } from '@/stores/settings'
+
+// Every mount registers a document listener; unmount so earlier tests' instances
+// cannot answer a later test's event.
+enableAutoUnmount(afterEach)
 
 const LOCATION_LS_KEY = 'sentinel_user_location'
 const SS_KEY = 'sentinel_config_preview_visible'
@@ -77,6 +81,50 @@ describe('ConfigCurrentControl', () => {
     store.closePanel()
     await flushPromises()
     store.openPanel()
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('refetches the config when another control announces a settings change', async () => {
+    const fetchMock = stubFetch({ app: {} })
+    mount(ConfigCurrentControl)
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    document.dispatchEvent(new CustomEvent('sentinel:settings-changed'))
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps unsaved JSON edits when a settings change is announced', async () => {
+    const fetchMock = stubFetch({ app: {} })
+    const wrapper = mount(ConfigCurrentControl)
+    await flushPromises()
+    await wrapper.find('textarea').setValue('{"app": {"edited": true}}')
+    document.dispatchEvent(new CustomEvent('sentinel:settings-changed'))
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain('"edited"')
+  })
+
+  it('stops refetching on settings changes once unmounted', async () => {
+    const fetchMock = stubFetch({ app: {} })
+    const wrapper = mount(ConfigCurrentControl)
+    await flushPromises()
+    wrapper.unmount()
+    document.dispatchEvent(new CustomEvent('sentinel:settings-changed'))
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('refetches the config when the editor is revealed, but not when hidden', async () => {
+    const fetchMock = stubFetch({ app: {} })
+    const wrapper = mount(ConfigCurrentControl)
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await wrapper.findAll('.settings-config-btn')[0]!.trigger('click') // EDIT → shown
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await wrapper.findAll('.settings-config-btn')[0]!.trigger('click') // HIDE
     await flushPromises()
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })

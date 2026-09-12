@@ -55,6 +55,15 @@ describe('getAdsbSource', () => {
     })
   })
 
+  it('never announces a settings change — reading is not a write', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ configured: true }))
+    const listener = vi.fn()
+    document.addEventListener('sentinel:settings-changed', listener)
+    await getAdsbSource()
+    expect(listener).not.toHaveBeenCalled()
+    document.removeEventListener('sentinel:settings-changed', listener)
+  })
+
   it('returns null on a non-2xx rather than throwing', async () => {
     fetchSpy.mockResolvedValue(jsonResponse({}, false, 500))
 
@@ -79,6 +88,24 @@ describe('setAdsbSource', () => {
       sentry_host_id: 7,
       sentry_device_id: 'serial:97710286',
     })
+  })
+
+  it('announces a settings change once the backend has accepted the source', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ configured: true }))
+    const listener = vi.fn()
+    document.addEventListener('sentinel:settings-changed', listener)
+    await setAdsbSource(1, 'serial:ABC')
+    expect(listener).toHaveBeenCalledTimes(1)
+    document.removeEventListener('sentinel:settings-changed', listener)
+  })
+
+  it('does not announce a settings change when the backend refuses the source', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({}, false, 400))
+    const listener = vi.fn()
+    document.addEventListener('sentinel:settings-changed', listener)
+    await setAdsbSource(1, 'serial:ABC')
+    expect(listener).not.toHaveBeenCalled()
+    document.removeEventListener('sentinel:settings-changed', listener)
   })
 
   it('returns null on a rejection', async () => {

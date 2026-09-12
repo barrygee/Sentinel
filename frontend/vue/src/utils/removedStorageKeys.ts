@@ -17,6 +17,9 @@ export const REMOVED_STORAGE_KEYS: readonly string[] = [
   // the last-selected channel-map filename.
   'sdrTrunkTrackingEnabled',
   'sdrTrunkChannelMap',
+  // ADS-B per-aircraft label field list (removed 2026-09-11): the picker was
+  // never rendered in Settings and the map never read the cached value.
+  'adsbLabelFields',
 ]
 
 /**

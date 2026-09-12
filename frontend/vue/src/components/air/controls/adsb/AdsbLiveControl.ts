@@ -161,8 +161,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
   _hideGroundVehicles = false
   _hideTowers = false
 
-  private _labelFields: { civil: string[]; mil: string[] } = { civil: ['type'], mil: ['type'] }
-  private _onLabelFieldsChanged: ((e: Event) => void) | null = null
   private _tagFields: { civil: Record<string, boolean>; mil: Record<string, boolean> } = {
     civil: {},
     mil: { aircraftType: true },
@@ -194,7 +192,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._geojson = { type: 'FeatureCollection', features: [] }
     this._trailsGeojson = { type: 'FeatureCollection', features: [] }
     this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
-    this._labelFields = this._loadLabelFields()
     this._tagFields = {
       civil: { ...airStore.adsbTagFields.civil },
       mil: { ...airStore.adsbTagFields.mil },
@@ -216,22 +213,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
       }
       if (typeof p.allHidden === 'boolean') this._allHidden = p.allHidden
     } catch {}
-  }
-
-  private _loadLabelFields(): { civil: string[]; mil: string[] } {
-    try {
-      const raw = localStorage.getItem('adsbLabelFields')
-      if (raw) {
-        const p = JSON.parse(raw)
-        if (p && typeof p === 'object' && !Array.isArray(p)) {
-          return {
-            civil: Array.isArray(p.civil) ? p.civil : ['type'],
-            mil: Array.isArray(p.mil) ? p.mil : ['type'],
-          }
-        }
-      }
-    } catch {}
-    return { civil: ['type'], mil: ['type'] }
   }
 
   // ---- Public filter setters ----
@@ -398,14 +379,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.once('style.load', () => this.initLayers())
     }
 
-    this._onLabelFieldsChanged = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { civil: string[]; mil: string[] }
-      if (detail) this._labelFields = detail
-      this._clearCallsignMarkers()
-      this._updateCallsignMarkers()
-    }
-    window.addEventListener('adsb:labelFieldsChanged', this._onLabelFieldsChanged)
-
     this._onTagFieldsChanged = (e: Event) => {
       const detail = (e as CustomEvent).detail as {
         civil: Record<string, boolean>
@@ -424,10 +397,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._stopPolling()
     // Don't deactivate — keep the onUntrack callback so untracking from another
     // section clears adsbTracking in localStorage. _handleUntrack guards all map ops.
-    if (this._onLabelFieldsChanged) {
-      window.removeEventListener('adsb:labelFieldsChanged', this._onLabelFieldsChanged)
-      this._onLabelFieldsChanged = null
-    }
     if (this._onTagFieldsChanged) {
       window.removeEventListener('adsb:tagFieldsChanged', this._onTagFieldsChanged)
       this._onTagFieldsChanged = null

@@ -121,3 +121,58 @@ describe('basemap store legacy Air-overlay seeding', () => {
     expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
   })
 })
+
+describe('basemap store config mirroring', () => {
+  let putSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(async () => {
+    const settingsApi = await import('@/services/settingsApi')
+    putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
+  })
+
+  it('writes app.mapLayers to the config database on every setLayer', () => {
+    const store = useBasemapStore()
+    store.setLayer('names', true)
+    expect(putSpy).toHaveBeenCalledWith('app', 'mapLayers', { roads: false, names: true })
+    store.setLayer('roads', true)
+    expect(putSpy).toHaveBeenLastCalledWith('app', 'mapLayers', { roads: true, names: true })
+  })
+
+  it('persistLayers writes a detached copy, not the live reactive object', async () => {
+    const store = useBasemapStore()
+    await store.persistLayers()
+    const written = putSpy.mock.calls[0]![2] as Record<string, boolean>
+    expect(written).toEqual({ roads: false, names: false })
+    expect(written).not.toBe(store.layers)
+  })
+
+  describe('hydrateLayers', () => {
+    it('adopts boolean values for known layers', () => {
+      const store = useBasemapStore()
+      store.hydrateLayers({ roads: true, names: true })
+      expect(store.layers).toEqual({ roads: true, names: true })
+      expect(persisted()).toEqual({ roads: true, names: true })
+    })
+
+    it('ignores unknown keys and non-boolean values', () => {
+      const store = useBasemapStore()
+      store.hydrateLayers({ roads: 'yes', names: 1, terrain: true })
+      expect(store.layers).toEqual({ roads: false, names: false })
+    })
+
+    it.each([null, undefined, 'names', 42, ['names']])(
+      'ignores a non-object value: %s',
+      (value) => {
+        const store = useBasemapStore()
+        store.setLayer('names', true)
+        store.hydrateLayers(value)
+        expect(store.layers.names).toBe(true)
+      },
+    )
+
+    it('does not write back to the config database', () => {
+      useBasemapStore().hydrateLayers({ names: true })
+      expect(putSpy).not.toHaveBeenCalled()
+    })
+  })
+})

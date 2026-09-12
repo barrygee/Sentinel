@@ -34,6 +34,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { SETTINGS_CHANGED_EVENT } from '@/services/settingsApi'
+import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { isValidLatLon } from '@/utils/locationUtils'
 import BaseButton from '@/components/base/BaseButton.vue'
 
@@ -85,11 +87,19 @@ watch(
   },
 )
 
+// Settings saved elsewhere while the panel is open (a map-layer switch, the
+// location card's own SAVE, a radio added, an APRS/ADS-B source picked) change
+// what the config contains — refetch so the JSON always shows the UI's state.
+// loadPreview no-ops while the user has unsaved JSON edits (`dirty`).
+useDocumentEvent(SETTINGS_CHANGED_EVENT, () => void loadPreview())
+
 function toggleVisible(): void {
   visible.value = !visible.value
   try {
     sessionStorage.setItem(SS_KEY, visible.value ? '1' : '0')
   } catch {}
+  // Revealing the editor is the moment the JSON is read: make sure it is current.
+  if (visible.value) void loadPreview()
 }
 
 // Trap Tab so it indents the JSON instead of moving focus out of the editor.

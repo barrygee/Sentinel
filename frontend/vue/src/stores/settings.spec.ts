@@ -161,5 +161,23 @@ describe('settings store', () => {
       await store.put('air', 'showLabels', false)
       expect(store.getSetting('air', 'showLabels', true)).toBe(false)
     })
+
+    it('announces the change so the config JSON editor can refresh', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSettingsStore().put('air', 'showLabels', false)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('does not announce a change when the request fails', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSettingsStore().put('air', 'showLabels', false)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
   })
 })

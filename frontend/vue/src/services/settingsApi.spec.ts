@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { getNamespace, put, del, getAll } from './settingsApi'
+import {
+  getNamespace,
+  put,
+  del,
+  getAll,
+  notifySettingsChanged,
+  SETTINGS_CHANGED_EVENT,
+} from './settingsApi'
 
 function mockFetch(impl: (url: string, opts?: RequestInit) => unknown): void {
   global.fetch = vi.fn((url: string | URL | Request, opts?: RequestInit) =>
@@ -74,5 +81,45 @@ describe('settingsApi.getAll', () => {
   it('returns null when the fetch rejects', async () => {
     global.fetch = vi.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof fetch
     await expect(getAll()).resolves.toBeNull()
+  })
+})
+
+describe('settingsApi change notifications', () => {
+  function listenForChange(): ReturnType<typeof vi.fn<EventListener>> {
+    const listener = vi.fn<EventListener>()
+    document.addEventListener(SETTINGS_CHANGED_EVENT, listener)
+    return listener
+  }
+
+  it('notifySettingsChanged dispatches the settings-changed document event', () => {
+    const listener = listenForChange()
+    notifySettingsChanged()
+    expect(listener).toHaveBeenCalledTimes(1)
+    document.removeEventListener(SETTINGS_CHANGED_EVENT, listener)
+  })
+
+  it('put announces the change after the request', async () => {
+    mockFetch(() => ({ ok: true }))
+    const listener = listenForChange()
+    await put('sdr', 'gain', 42)
+    expect(listener).toHaveBeenCalledTimes(1)
+    document.removeEventListener(SETTINGS_CHANGED_EVENT, listener)
+  })
+
+  it('del announces the change after the request', async () => {
+    mockFetch(() => ({ ok: true }))
+    const listener = listenForChange()
+    await del('sdr', 'gain')
+    expect(listener).toHaveBeenCalledTimes(1)
+    document.removeEventListener(SETTINGS_CHANGED_EVENT, listener)
+  })
+
+  it('does not announce a change when the request never left the browser', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof fetch
+    const listener = listenForChange()
+    await put('sdr', 'gain', 1)
+    await del('sdr', 'gain')
+    expect(listener).not.toHaveBeenCalled()
+    document.removeEventListener(SETTINGS_CHANGED_EVENT, listener)
   })
 })

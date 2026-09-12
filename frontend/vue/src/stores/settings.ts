@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { notifySettingsChanged } from '@/services/settingsApi'
 
 export const useSettingsStore = defineStore('settings', () => {
   const open = ref(false)
@@ -75,6 +76,7 @@ export const useSettingsStore = defineStore('settings', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value }),
       })
+      notifySettingsChanged()
     } catch {}
   }
 

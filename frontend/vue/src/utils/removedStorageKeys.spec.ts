@@ -7,8 +7,12 @@ describe('clearRemovedStorageKeys', () => {
     vi.restoreAllMocks()
   })
 
-  it('lists the trunk-tracking keys removed with the feature', () => {
-    expect([...REMOVED_STORAGE_KEYS]).toEqual(['sdrTrunkTrackingEnabled', 'sdrTrunkChannelMap'])
+  it('lists the keys left behind by removed features', () => {
+    expect([...REMOVED_STORAGE_KEYS]).toEqual([
+      'sdrTrunkTrackingEnabled',
+      'sdrTrunkChannelMap',
+      'adsbLabelFields',
+    ])
   })
 
   it('deletes every listed key', () => {
