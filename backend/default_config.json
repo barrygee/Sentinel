@@ -63,8 +63,30 @@
     }
   },
   "sea": {
-    "enabled": false,
-    "sourceOverride": "auto"
+    "enabled": true,
+    "sourceOverride": "auto",
+    "onlineUrl": "wss://stream.aisstream.io/v0/stream",
+    "offgridSource": {
+      "url": ""
+    },
+    "aisBoundingBoxes": [
+      [
+        [-90, -180],
+        [90, 180]
+      ]
+    ],
+    "labelDataPoints": {
+      "name": true,
+      "type": false,
+      "mmsi": false,
+      "destination": false,
+      "speed": false,
+      "course": false
+    },
+    "defaultLayers": [
+      "vessels",
+      "vesselLabels"
+    ]
   },
   "land": {
     "enabled": false,

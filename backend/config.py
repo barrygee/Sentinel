@@ -42,6 +42,44 @@ class Settings(BaseSettings):
     # Celestrak TLE URL for the ISS (NORAD ID 25544)
     celestrak_iss_url: str = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
 
+    # ── Sea / AIS (AISStream.io live vessels) ─────────────────────────────────
+    # Private AISStream.io key for the backend's WebSocket subscription. Set it in
+    # `.env` (never committed); a key saved from Settings › SEA takes precedence.
+    aisstream_api_key: str = ""
+    # AISStream endpoint. Overridable so the watchdog can be exercised against a
+    # local stand-in without spending the one-connection-per-key slot upstream.
+    aisstream_ws_url: str = "wss://stream.aisstream.io/v0/stream"
+    # Drop a vessel not heard for this long (30 min — AIS Class A reports every
+    # 2–10 s under way, so half an hour of silence means it has left coverage).
+    sea_ais_stale_ms: int = 1_800_000
+    # Hard cap on the in-memory vessel store; oldest vessels are evicted first.
+    sea_ais_cache_max: int = 50_000
+    # Per-vessel recent-path ring buffer: samples kept, and the minimum time and
+    # distance between stored fixes so an anchored ship collapses to one point.
+    sea_ais_track_samples: int = 64
+    sea_ais_track_min_gap_s: int = 30
+    sea_ais_track_min_move_m: int = 25
+    # Feed silence is REPORTED quickly (the map must read a dead feed as dead
+    # within ~2 min) but ACTED ON slowly: the socket is only recycled after
+    # `recycle_ratio` × the report threshold, because a reconnect storm would
+    # trip AISStream's one-connection-per-key limit and lock the feed out.
+    sea_ais_silence_report_ms: int = 120_000
+    sea_ais_recycle_ratio: float = 2.5
+    # Reconnect back-off ladder for transport failures, then the slow retry
+    # cadence once the ladder is spent and the feed reads DOWN.
+    sea_ais_backoff_ms: list[int] = [5_000, 15_000, 60_000, 300_000]
+    sea_ais_down_retry_ms: int = 900_000
+    # A rejected key cannot be fixed by retrying; probe hourly only so an
+    # upstream-side mistake still recovers without hammering the endpoint.
+    sea_ais_auth_probe_ms: int = 3_600_000
+    # How often the watchdog re-evaluates the connection without request traffic.
+    sea_ais_tick_ms: int = 15_000
+    # How often the in-memory store is snapshotted to SQLite so a restart (or an
+    # upstream outage) can serve the last-known picture as STALE.
+    sea_ais_snapshot_persist_ms: int = 30_000
+    # Largest bounding box list accepted from Settings › SEA (defence in depth).
+    sea_ais_max_bounding_boxes: int = 10
+
     # ── Digital-decode sidecar (dsd-fme) ──────────────────────────────────────
     # TCP port the backend listens on to serve FM-demodulated 48 kHz mono s16 PCM
     # to the decoder container (dsd-fme connects here as a client; SDR++ "TCP
