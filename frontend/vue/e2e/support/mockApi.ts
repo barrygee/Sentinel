@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import seaVesselsFixture from '../fixtures/sea-vessels.json' with { type: 'json' }
 
 /**
  * Install default catch-all API stubs for every Sentinel `/api/**` route.
@@ -149,6 +150,30 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) })
   })
 
+  // Sea: the vessel snapshot the map polls, the feed status, and the key
+  // status. Two vessels in the Channel, feed live, key configured.
+  const seaVessels = JSON.stringify(seaVesselsFixture)
+  await page.route('**/api/sea/vessels**', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: seaVessels })
+  })
+  await page.route('**/api/sea/status', (route) => {
+    const { vessels: _vessels, ...feed } = seaVesselsFixture
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify(feed) })
+  })
+  await page.route('**/api/sea/ais-key', (route) => {
+    if (route.request().method() !== 'GET') {
+      void route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' }),
+      })
+      return
+    }
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ configured: true, source: 'settings', fingerprint: '4f4552bff5b2' }),
+    })
+  })
+
   // Settings catch-all, registered FIRST so the per-namespace routes below
   // (added later) take priority — Playwright matches most-recently-registered
   // first. GET returns an empty object; PUT/DELETE are acknowledged silently.
@@ -172,8 +197,16 @@ export async function installDefaultMocks(page: Page): Promise<void> {
   await page.route('/api/settings/air', (route) => {
     void route.fulfill({ contentType: 'application/json', body: onlineDataSource })
   })
+  // Sea stores its source under the default `onlineUrl` key (an AISStream
+  // WebSocket), unlike Air's `onlineDataSourceURL`.
   await page.route('/api/settings/sea', (route) => {
-    void route.fulfill({ contentType: 'application/json', body: onlineDataSource })
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        onlineUrl: 'wss://stream.aisstream.io/v0/stream',
+        defaultLayers: ['vessels', 'vesselLabels'],
+      }),
+    })
   })
   await page.route('/api/settings/land', (route) => {
     void route.fulfill({ contentType: 'application/json', body: onlineDataSource })

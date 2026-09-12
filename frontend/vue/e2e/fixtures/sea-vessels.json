@@ -1,0 +1,51 @@
+{
+  "vessels": [
+    {
+      "mmsi": "232012345",
+      "name": "PRIDE OF KENT",
+      "imo": "9015266",
+      "callsign": "GBPK",
+      "type": "60",
+      "typeLabel": "PASSENGER",
+      "family": "passenger",
+      "destination": "DOVER",
+      "lat": 51.07,
+      "lon": 1.42,
+      "sog": 18.4,
+      "cog": 122.0,
+      "heading": 121,
+      "navStatus": 0,
+      "lastPositionMs": 1789202463000,
+      "lastPositionUtc": "2026-09-12T08:41:03Z"
+    },
+    {
+      "mmsi": "235099999",
+      "name": "OCEAN HARVESTER",
+      "imo": "",
+      "callsign": "",
+      "type": "30",
+      "typeLabel": "FISHING",
+      "family": "fishing",
+      "destination": "",
+      "lat": 50.9,
+      "lon": -1.2,
+      "sog": 0.0,
+      "cog": null,
+      "heading": null,
+      "navStatus": 1,
+      "lastPositionMs": 1789202400000,
+      "lastPositionUtc": "2026-09-12T08:40:00Z"
+    }
+  ],
+  "source": "AISStream",
+  "status": "live",
+  "error": null,
+  "lastMessageAt": 1789202463500,
+  "silentForMs": 500,
+  "reconnectAttempt": 0,
+  "nextAttemptAt": null,
+  "staleAfterMs": 120000,
+  "retentionMs": 1800000,
+  "newestPositionAt": 1789202463000,
+  "vesselCount": 2
+}

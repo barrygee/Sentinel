@@ -103,6 +103,17 @@
       v-else-if="item.type === 'land-aprs-label-fields'"
       @stage="emit('stage', item.id, $event)"
     />
+    <!-- No stage/commit: the key is a secret with its own endpoint, saved the
+         moment SAVE KEY is pressed rather than via APPLY CHANGES. -->
+    <SeaAisKeyControl v-else-if="item.type === 'sea-ais-key'" />
+    <SeaCoverageAreaControl
+      v-else-if="item.type === 'sea-coverage-area'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <SeaLabelFieldsControl
+      v-else-if="item.type === 'sea-label-fields'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <AirReplayToggleControl
       v-else-if="item.type === 'air-replay-toggle'"
       @stage="emit('stage', item.id, $event)"
@@ -160,6 +171,9 @@ import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbLabelFieldsControl from './AdsbLabelFieldsControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
+import SeaAisKeyControl from './SeaAisKeyControl.vue'
+import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
+import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
@@ -195,6 +209,9 @@ const HALF_TYPES = new Set([
   'space-hover-preview',
   'air-tag-fields',
   'land-aprs-label-fields',
+  'sea-ais-key',
+  'sea-coverage-area',
+  'sea-label-fields',
 ])
 // Two columns wide, but each starting a fresh row, so the SDR pair stacks
 // rather than sitting shoulder to shoulder.
@@ -204,6 +221,8 @@ const HALF_STACKED_TYPES = new Set(['sdr-frequencies-file', 'sdr-bandplan-file']
 const FULL_TYPES = new Set(['space-sat-radio-file', 'config-current'])
 const NATURAL_HEIGHT_TYPES = new Set([
   'location',
+  'sea-ais-key',
+  'sea-coverage-area',
   'range-ring-origin',
   'map-layers',
   'overhead-alerts',

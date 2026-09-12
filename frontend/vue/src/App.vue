@@ -217,6 +217,7 @@ useDocumentEvent('open-space-search', () => sidebarRef.value?.switchTab('search'
 // Clicking an APRS station on the Land map opens its details in the FILTER pane
 // (LandFilter expands the matching row).
 useDocumentEvent('aprs-station-selected', () => sidebarRef.value?.switchTab('search'))
+useDocumentEvent('sea-open-vessel', () => sidebarRef.value?.switchTab('search'))
 
 const menuOpen = ref(false)
 
@@ -249,10 +250,13 @@ watch(
 
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 
-// Only Air and Space render a right-edge controls rail (#side-menu /
-// #space-side-menu); the footer's side-menu toggle keys off this.
+// Air, Space and Sea render a right-edge controls rail (#side-menu /
+// #space-side-menu / #sea-side-menu); the footer's side-menu toggle keys off this.
 const hasRightSideMenu = computed(
-  () => route.path.startsWith('/air') || route.path.startsWith('/space'),
+  () =>
+    route.path.startsWith('/air') ||
+    route.path.startsWith('/space') ||
+    route.path.startsWith('/sea'),
 )
 
 watch(isSdrRoute, (isSdr) => {
