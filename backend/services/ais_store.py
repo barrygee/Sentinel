@@ -464,11 +464,15 @@ class AisVesselStore:
             for cached in result.scalars().all():
                 try:
                     record = json.loads(cached.payload)
-                    samples = json.loads(cached.track)
                 except (json.JSONDecodeError, TypeError):
                     continue
                 if not isinstance(record, dict) or record.get("mmsi") != cached.mmsi:
                     continue
+                # A corrupt track is not a reason to lose the vessel itself.
+                try:
+                    samples = json.loads(cached.track)
+                except (json.JSONDecodeError, TypeError):
+                    samples = []
                 record["_updatedAt"] = cached.updated_at
                 self._vessels[cached.mmsi] = record
                 track: deque[tuple[float, float, int]] = deque(maxlen=settings.sea_ais_track_samples)

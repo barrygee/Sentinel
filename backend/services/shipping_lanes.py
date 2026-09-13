@@ -156,22 +156,23 @@ async def _fetch_and_store(cell: tuple[int, int]) -> None:
     key = cell_key(cell)
     try:
         cell_features = await fetch_cell(cell)
+        payload = json.dumps(cell_features)
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(SeaLaneCache).where(SeaLaneCache.cell == key))
+            row = result.scalar_one_or_none()
+            if row is None:
+                db.add(SeaLaneCache(cell=key, payload=payload, fetched_at=now_ms()))
+            else:
+                row.payload = payload
+                row.fetched_at = now_ms()
+            await db.commit()
+        logger.info("Sea: cached %d shipping-route features for cell %s", len(cell_features), key)
     except Exception as exc:  # noqa: BLE001 — any upstream failure just leaves the cell for next time
         logger.warning("Sea: shipping-lane fetch for cell %s failed: %s", key, exc)
-        return
     finally:
+        # Only once the row is written, so a request landing mid-fetch sees the
+        # cell as in flight rather than queueing a second fetch.
         _in_flight.discard(key)
-    payload = json.dumps(cell_features)
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(select(SeaLaneCache).where(SeaLaneCache.cell == key))
-        row = result.scalar_one_or_none()
-        if row is None:
-            db.add(SeaLaneCache(cell=key, payload=payload, fetched_at=now_ms()))
-        else:
-            row.payload = payload
-            row.fetched_at = now_ms()
-        await db.commit()
-    logger.info("Sea: cached %d shipping-route features for cell %s", len(cell_features), key)
 
 
 async def lanes_for_bbox(south: float, west: float, north: float, east: float) -> dict[str, Any]:
