@@ -36,8 +36,8 @@ export interface VesselCount {
 export interface VesselLabelPlan {
   labelled: SeaVessel[]
   counts: VesselCount[]
-  /** Vessels drawn as a bare arrow: a wide view's singletons, which have no
-   *  neighbour to be counted with and no claim to a pill at that scale. */
+  /** Vessels drawn as a bare arrow. Always empty today — every vessel is a
+   *  pill or inside a count — kept so a caller can still honour it. */
   loose: SeaVessel[]
 }
 
@@ -170,8 +170,8 @@ export function planVesselLabels(
   }
   for (const vessel of ordered) {
     if (vessel === selected) continue
-    // A wide view groups everything: pills are only for vessels with no
-    // neighbour to be counted with (handled with the leftovers below).
+    // A wide view groups everything it can: pills go only to vessels with no
+    // neighbour to be counted with (decided with the leftovers below).
     if (options.groupAll) {
       leftOver.push(vessel)
       continue
@@ -197,11 +197,10 @@ export function planVesselLabels(
   const loose: SeaVessel[] = []
   for (const [key, members] of cells) {
     if (members.length === 1) {
-      // A count of one says less than a pill, so a lone leftover is labelled
-      // anyway and allowed to overlap — except in a wide view, where the
-      // rule is "group the ships" and a singleton is simply its arrow.
-      if (options.groupAll) loose.push(members[0]!)
-      else labelled.push(members[0]!)
+      // A count of one says less than a pill, so a lone leftover keeps its
+      // pill (and is allowed to overlap) whatever the view width: the details
+      // the operator switched on are shown by default, never on hover alone.
+      labelled.push(members[0]!)
       continue
     }
     let sumX = 0
