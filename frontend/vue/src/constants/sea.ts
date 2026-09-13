@@ -20,14 +20,13 @@ export const SEA_REFETCH_GUARD_MS = SEA_POLL_INTERVAL_MS - 1_000
 export const SEA_MAX_RENDER_ROWS = 12_000
 
 /**
- * Most vessels a view may hold and still label every one of them.
- *
- * Labelling is all-or-nothing per view: at or under this count every vessel
- * on screen carries the black pill, as aircraft do on the Air map; over it,
- * every vessel is a bare arrow and the pills come back as the operator zooms
- * in. A view is never half pills and half arrows.
+ * Hard ceiling on label pills in one view — a browser safeguard, not a
+ * design choice. Every vessel on screen carries the black pill, as aircraft
+ * do on the Air map; only past this many (a worldwide-scale view of a busy
+ * sea) do the remaining vessels fall back to bare arrows, because thousands
+ * of DOM markers would freeze the page.
  */
-export const SEA_MAX_LABELS = 500
+export const SEA_MAX_LABELS = 2000
 
 /**
  * Dead-reckoning tick: how often vessel positions are advanced between polls.

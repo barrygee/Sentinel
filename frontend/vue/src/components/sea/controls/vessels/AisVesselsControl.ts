@@ -419,23 +419,26 @@ export class AisVesselsControl extends SentinelControlBase {
   // ── labels ──────────────────────────────────────────────────────────────────
 
   /**
-   * The vessels that get a label pill — all of those on screen, or none.
+   * The vessels that get a label pill — every one on screen.
    *
-   * At or under the cap every vessel in view carries the black pill with its
-   * arrow well, exactly as aircraft do; over it the view is too busy to read
-   * pills at all, so every vessel is a bare arrow until the operator zooms
-   * in. Never a mix. The selected vessel keeps its pill either way.
+   * Only past the DOM safeguard cap do the remaining vessels fall back to
+   * bare arrows (the selected vessel always keeps its pill). With labels
+   * switched off on the rail, everything is an arrow.
    */
   private _labelCandidates(): { labelled: VesselFeature[]; overflow: boolean } {
     const selected = this._seaStore.selectedMmsi
-    const labelsOn = this.visible && this._seaStore.overlayStates.vesselLabels
     const bounds = this.map.getBounds()
     const inView = this._features.filter((feature) =>
       bounds.contains(feature.geometry.coordinates as [number, number]),
     )
-    if (labelsOn && inView.length <= SEA_MAX_LABELS) return { labelled: inView, overflow: false }
     const selectedFeature = inView.find((feature) => feature.properties.mmsi === selected)
-    return { labelled: selectedFeature ? [selectedFeature] : [], overflow: true }
+    if (!this.visible || !this._seaStore.overlayStates.vesselLabels) {
+      return { labelled: selectedFeature ? [selectedFeature] : [], overflow: true }
+    }
+    if (inView.length <= SEA_MAX_LABELS) return { labelled: inView, overflow: false }
+    const labelled = inView.slice(0, SEA_MAX_LABELS)
+    if (selectedFeature && !labelled.includes(selectedFeature)) labelled.push(selectedFeature)
+    return { labelled, overflow: true }
   }
 
   private _renderLabels(): void {
