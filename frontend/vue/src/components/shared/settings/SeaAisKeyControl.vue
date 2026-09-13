@@ -4,7 +4,7 @@
 
     <p v-if="errorText" class="settings-location-notice" role="alert">{{ errorText }}</p>
 
-    <div class="settings-location-fields">
+    <div class="settings-location-fields sea-key-fields">
       <div class="settings-location-field">
         <label class="settings-location-label" :for="keyInputId">API KEY</label>
         <input
@@ -19,7 +19,14 @@
           @keydown.enter="save"
         />
         <p :id="keyHintId" class="settings-location-hint">
-          Free from aisstream.io. Kept on the server only — never shown again, never exported.
+          Get a free key at
+          <a
+            class="sea-key-link"
+            href="https://aisstream.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            >aisstream.io</a
+          >. Kept on the server only — never shown again, never exported.
         </p>
       </div>
     </div>
@@ -109,6 +116,21 @@ async function clearKey(): Promise<void> {
 </script>
 
 <style scoped>
+/* A single key, not a coordinate pair: one full-width field rather than the
+   location card's two columns. */
+.sea-key-fields {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 100%;
+}
+.sea-key-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sea-key-link:hover,
+.sea-key-link:focus-visible {
+  color: rgba(16, 19, 29, 0.92);
+}
 .sea-key-actions {
   display: flex;
   gap: 10px;

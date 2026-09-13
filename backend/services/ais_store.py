@@ -16,6 +16,7 @@ recent path, thinned by time and distance so anchored ships collapse to a point.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -28,8 +29,12 @@ from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.models import SeaVesselCache
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 logger = logging.getLogger(__name__)
+
+# Rows per snapshot transaction — small enough that each write lock is brief.
+_PERSIST_CHUNK = 1_000
 
 # ── AIS ship-type mapping ─────────────────────────────────────────────────────
 # ITU-R M.1371 ship-and-cargo type codes. Tens digit = family; a handful of
@@ -200,7 +205,14 @@ class AisVesselStore:
         # Newest position timestamp across the whole store — the "how fresh is
         # this picture" figure the snapshot endpoint reports.
         self.newest_position_ms: int | None = None
+        # MMSIs changed since the last snapshot, so a persist only writes what
+        # moved rather than rewriting the whole store.
+        self._dirty_mmsis: set[str] = set()
         self._dirty = False
+
+    def _mark_dirty(self, mmsi: str) -> None:
+        self._dirty_mmsis.add(mmsi)
+        self._dirty = True
 
     # ── ingest ────────────────────────────────────────────────────────────────
 
@@ -278,8 +290,13 @@ class AisVesselStore:
         if self.newest_position_ms is None or position_ms > self.newest_position_ms:
             self.newest_position_ms = position_ms
         self._append_track_sample(mmsi, latitude, longitude, position_ms // 1000)
-        self._dirty = True
-        self.prune(received)
+        self._mark_dirty(mmsi)
+        # Expiry is swept by the reader's watchdog tick, not here: a full pass
+        # over tens of thousands of vessels on every message (hundreds a second
+        # worldwide) starved the event loop and dropped the WebSocket. Only the
+        # hard cap is enforced inline, and only once it is actually exceeded.
+        if len(self._vessels) > settings.sea_ais_cache_max:
+            self.prune(received)
         return True
 
     def _merge_static_into_live(self, mmsi: str, static_data: dict[str, str]) -> None:
@@ -294,7 +311,7 @@ class AisVesselStore:
         for field in ("destination", "imo", "callsign"):
             if static_data[field] and not existing[field]:
                 existing[field] = static_data[field]
-        self._dirty = True
+        self._mark_dirty(mmsi)
 
     def _append_track_sample(self, mmsi: str, latitude: float, longitude: float, epoch_s: int) -> None:
         track = self._tracks.get(mmsi)
@@ -335,6 +352,7 @@ class AisVesselStore:
         self._vessels.pop(mmsi, None)
         self._tracks.pop(mmsi, None)
         self._static.pop(mmsi, None)
+        self._dirty_mmsis.discard(mmsi)
 
     def clear(self) -> None:
         """Forget everything (tests, and a source switch)."""
@@ -342,6 +360,7 @@ class AisVesselStore:
         self._static.clear()
         self._tracks.clear()
         self.newest_position_ms = None
+        self._dirty_mmsis.clear()
         self._dirty = True
 
     # ── reads ─────────────────────────────────────────────────────────────────
@@ -379,29 +398,57 @@ class AisVesselStore:
     # ── persistence ───────────────────────────────────────────────────────────
 
     async def persist_snapshot(self, force: bool = False) -> int:
-        """Write the current picture to ``sea_vessel_cache``.
+        """Write the vessels changed since the last snapshot to ``sea_vessel_cache``.
 
-        Skipped when nothing changed since the last write (unless ``force``).
-        Returns the number of rows written. Rows for vessels no longer in the
-        store are deleted so the table never outgrows the retention window.
+        Incremental and chunked on purpose: a worldwide feed holds tens of
+        thousands of vessels, and rewriting them all in one transaction locked
+        SQLite for seconds and blocked every other writer. Only dirty MMSIs are
+        upserted (``force`` writes everything), in chunks each committed on its
+        own with the event loop yielded between them; rows outside the retention
+        window are deleted afterwards. Returns the number of rows written.
         """
         if not self._dirty and not force:
             return 0
-        rows = list(self._vessels.values())
+        mmsis = list(self._vessels) if force else [mmsi for mmsi in self._dirty_mmsis if mmsi in self._vessels]
+        self._dirty_mmsis.clear()
+        self._dirty = False
+        written = 0
+        cutoff = now_ms() - settings.sea_ais_stale_ms
         async with AsyncSessionLocal() as db:
-            await db.execute(delete(SeaVesselCache))
-            for row in rows:
-                db.add(
-                    SeaVesselCache(
-                        mmsi=row["mmsi"],
-                        payload=json.dumps(_public_record(row)),
-                        track=json.dumps([list(sample) for sample in self._tracks.get(row["mmsi"], ())]),
-                        updated_at=row["_updatedAt"],
+            for start in range(0, len(mmsis), _PERSIST_CHUNK):
+                rows = []
+                for mmsi in mmsis[start : start + _PERSIST_CHUNK]:
+                    row = self._vessels.get(mmsi)
+                    if row is None:
+                        continue
+                    rows.append(
+                        {
+                            "mmsi": mmsi,
+                            "payload": json.dumps(_public_record(row)),
+                            "track": json.dumps([list(sample) for sample in self._tracks.get(mmsi, ())]),
+                            "updated_at": row["_updatedAt"],
+                        }
+                    )
+                if not rows:
+                    continue
+                statement = sqlite_insert(SeaVesselCache).values(rows)
+                await db.execute(
+                    statement.on_conflict_do_update(
+                        index_elements=[SeaVesselCache.mmsi],
+                        set_={
+                            "payload": statement.excluded.payload,
+                            "track": statement.excluded.track,
+                            "updated_at": statement.excluded.updated_at,
+                        },
                     )
                 )
+                await db.commit()
+                written += len(rows)
+                # Let the WebSocket reader run between chunks.
+                await asyncio.sleep(0)
+            await db.execute(delete(SeaVesselCache).where(SeaVesselCache.updated_at < cutoff))
             await db.commit()
-        self._dirty = False
-        return len(rows)
+        return written
 
     async def load_snapshot(self, current_ms: int | None = None) -> int:
         """Warm the empty store from ``sea_vessel_cache``; returns vessels loaded.

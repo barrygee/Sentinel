@@ -19,12 +19,21 @@ export const SEA_REFETCH_GUARD_MS = SEA_POLL_INTERVAL_MS - 1_000
  *  project's render cap; a viewport bbox keeps real requests far smaller. */
 export const SEA_MAX_RENDER_ROWS = 12_000
 
-/** Zoom at which vessel name labels appear. Below this the chevrons alone carry
- *  the picture — thousands of pills at low zoom would blank out the sea. */
-export const SEA_LABEL_MIN_ZOOM = 9
+/**
+ * Most label pills drawn at once. Vessels are labelled at every zoom — the
+ * black pill is the vessel's mark, as it is for aircraft — but a worldwide
+ * view can hold tens of thousands, so past this many the plain chevrons carry
+ * the rest until the operator zooms in.
+ */
+export const SEA_MAX_LABELS = 600
 
-/** Most labels drawn at once, so a crowded harbour never floods the DOM. */
-export const SEA_MAX_LABELS = 400
+/**
+ * Screen grid (px) used to spread label pills out. At most one vessel per
+ * cell gets a pill; the rest of the cell falls back to bare arrows until the
+ * operator zooms in. Without this the cap was filled newest-first, which piled
+ * hundreds of pills onto one busy port and left the rest of the view bare.
+ */
+export const SEA_LABEL_GRID_PX = 118
 
 /**
  * Dead-reckoning tick: how often vessel positions are advanced between polls.

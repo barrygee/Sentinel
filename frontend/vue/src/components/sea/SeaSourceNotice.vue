@@ -1,14 +1,17 @@
 <template>
-  <div v-if="message" class="sea-source-notice" role="status">
-    <p class="sea-source-notice-message">{{ message }}</p>
-    <button
-      v-if="showSettings"
-      type="button"
-      class="sea-source-notice-action"
-      @click="settingsStore.openPanel('sea')"
-    >
-      Open settings
-    </button>
+  <!-- A feed that cannot deliver anything (no key, rejected key, domain off,
+       no source) takes the section over with the same full-screen card the
+       URL gate uses; a feed that is merely degraded keeps the map — its cached
+       vessels are still useful — and says so in a banner. -->
+  <NoDataOverlay
+    v-if="blocking"
+    domain="sea"
+    :title="blocking.title"
+    :message="blocking.message"
+    @open-settings="settingsStore.openPanel('sea')"
+  />
+  <div v-else-if="degradedMessage" class="sea-source-notice" role="status">
+    <p class="sea-source-notice-message">{{ degradedMessage }}</p>
   </div>
 </template>
 
@@ -16,39 +19,63 @@
 /**
  * Says why the Sea map is empty, when it is empty for a reason the operator
  * can act on — the AISStream key is missing or rejected, the feed is down, or
- * the backend cannot be reached. Mirrors AdsbSourceNotice: only rendered when
- * there is something to say; a live feed needs no announcement.
+ * the backend cannot be reached. Only rendered when there is something to
+ * say; a live feed needs no announcement.
  */
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import type { SeaFeedInfo } from '@/stores/sea'
+import NoDataOverlay from '@/components/shared/NoDataOverlay.vue'
 
 const props = defineProps<{ feed: SeaFeedInfo }>()
 const settingsStore = useSettingsStore()
 
-const showSettings = computed(() =>
-  ['missing-key', 'auth-failed', 'no-source', 'unsupported-source', 'disabled'].includes(
-    props.feed.status,
-  ),
-)
-
-const message = computed<string | null>(() => {
-  const { status, error, reconnectAttempt } = props.feed
+/** The full-screen card for states in which no vessel can ever arrive. */
+const blocking = computed<{ title: string; message: string } | null>(() => {
+  const { status, error } = props.feed
   switch (status) {
     case 'missing-key':
-      return 'No AISStream API key configured — add one in Settings › SEA to receive live vessels.'
+      return {
+        title: 'No AISStream API key configured.',
+        message:
+          'Live vessels come from AISStream.io, which needs a free API key. Add yours under Settings › SEA › AISStream API Key to continue.',
+      }
     case 'auth-failed':
-      return `AISStream rejected the API key${error ? ` (${error})` : ''}. Check the key in Settings › SEA.`
+      return {
+        title: 'AISStream rejected the API key.',
+        message: `${error ? `${error}. ` : ''}Check the key under Settings › SEA › AISStream API Key — it is retried once an hour, or straight away once the key changes.`,
+      }
     case 'disabled':
-      return 'The Sea domain is switched off in Settings › SEA.'
+      return {
+        title: 'Sea domain is switched off.',
+        message: 'The Sea domain is disabled in settings. Enable it to receive live vessels.',
+      }
     case 'no-source':
-      return 'Off Grid mode is active but no Off Grid data source is set for SEA.'
+      return {
+        title: 'No data source configured.',
+        message:
+          'Off Grid mode is active but no Off Grid Data Source has been set for SEA. Configure a source in settings or switch connectivity mode to continue.',
+      }
     case 'unsupported-source':
-      return error ?? 'The configured Sea data source is not a supported AIS feed.'
+      return {
+        title: 'Unsupported data source.',
+        message:
+          error ??
+          'The configured Sea data source is not a supported AIS feed. Use an AISStream wss:// URL.',
+      }
+    default:
+      return null
+  }
+})
+
+/** The banner for a feed that is degraded but still has cached vessels. */
+const degradedMessage = computed<string | null>(() => {
+  const { status, error, reconnectAttempt } = props.feed
+  switch (status) {
     case 'down':
-      return `The AIS feed is down${error ? ` — ${error}` : ''}. Retrying every 15 minutes; cached vessels may be stale.`
+      return `The AIS feed is down${error ? ` — ${error}` : ''}. Retrying every 15 minutes; vessels shown may be stale.`
     case 'reconnecting':
-      return `Reconnecting to the AIS feed (attempt ${reconnectAttempt})${error ? ` — ${error}` : ''}. Cached vessels may be stale.`
+      return `Reconnecting to the AIS feed (attempt ${reconnectAttempt})${error ? ` — ${error}` : ''}. Vessels shown may be stale.`
     case 'stale':
       return `No AIS traffic received recently${error ? ` — ${error}` : ''}. Vessels shown may be stale.`
     case 'unreachable':
@@ -84,22 +111,5 @@ const message = computed<string | null>(() => {
 }
 .sea-source-notice-message {
   margin: 0;
-}
-.sea-source-notice-action {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 3px;
-  background: var(--color-ink-on-accent, #0a0c10);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.sea-source-notice-action:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
 }
 </style>

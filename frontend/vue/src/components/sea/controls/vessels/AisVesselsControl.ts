@@ -2,7 +2,7 @@ import maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { createBracket } from '@/components/air/controls/adsb/adsbSprites'
-import { createVesselChevron, createVesselDot } from './vesselSprites'
+import { createVesselArrow, createVesselDot } from './vesselSprites'
 import {
   appendMirrored,
   createAccentBadge,
@@ -18,7 +18,7 @@ import {
 import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
 import {
   SEA_INTERPOLATE_INTERVAL_MS,
-  SEA_LABEL_MIN_ZOOM,
+  SEA_LABEL_GRID_PX,
   SEA_MAX_LABELS,
   SEA_MIN_MOVING_KNOTS,
   SEA_VIEWPORT_PAD_FRACTION,
@@ -229,7 +229,7 @@ export class AisVesselsControl extends SentinelControlBase {
             ['case', ['==', ['get', 'hasCourse'], 1], 'sea-vessel-', 'sea-dot-'],
             ['get', 'family'],
           ] as maplibregl.ExpressionSpecification,
-          'icon-size': 0.9,
+          'icon-size': 0.55,
           'icon-rotate': ['get', 'rotate'],
           'icon-rotation-alignment': 'map',
           'icon-pitch-alignment': 'map',
@@ -419,25 +419,58 @@ export class AisVesselsControl extends SentinelControlBase {
 
   // ── labels ──────────────────────────────────────────────────────────────────
 
-  /** The vessels that get a label: on screen, above the label zoom, capped. */
-  private _labelCandidates(): VesselFeature[] {
-    if (!this.visible || !this._seaStore.overlayStates.vesselLabels) return []
-    if (this.map.getZoom() < SEA_LABEL_MIN_ZOOM) return []
-    const bounds = this.map.getBounds()
-    const candidates: VesselFeature[] = []
-    for (const feature of this._features) {
-      const [lon, lat] = feature.geometry.coordinates as [number, number]
-      if (bounds.contains([lon, lat])) candidates.push(feature)
-      if (candidates.length >= SEA_MAX_LABELS) break
+  /**
+   * The vessels that get a label pill: those on screen, spread over a screen
+   * grid so at most one pill lands in each cell, up to the cap.
+   *
+   * Every vessel is labelled once the view is quiet enough — the black pill
+   * with its arrow well is the vessel's mark, exactly as it is for aircraft.
+   * In a busy view the vessels that lose out fall back to the plain arrow
+   * layer, which _renderLabels switches on for that case. The selected vessel
+   * always keeps its pill.
+   */
+  private _labelCandidates(): { labelled: VesselFeature[]; overflow: boolean } {
+    if (!this.visible || !this._seaStore.overlayStates.vesselLabels) {
+      return { labelled: [], overflow: true }
     }
-    return candidates
+    const bounds = this.map.getBounds()
+    const selected = this._seaStore.selectedMmsi
+    const takenCells = new Set<string>()
+    const labelled: VesselFeature[] = []
+    let overflow = false
+    for (const feature of this._features) {
+      const coords = feature.geometry.coordinates as [number, number]
+      if (!bounds.contains(coords)) continue
+      const isSelected = feature.properties.mmsi === selected
+      if (labelled.length >= SEA_MAX_LABELS && !isSelected) {
+        overflow = true
+        continue
+      }
+      const screen = this.map.project(coords)
+      const cell = `${Math.floor(screen.x / SEA_LABEL_GRID_PX)}:${Math.floor(screen.y / SEA_LABEL_GRID_PX)}`
+      if (takenCells.has(cell) && !isSelected) {
+        overflow = true
+        continue
+      }
+      takenCells.add(cell)
+      labelled.push(feature)
+    }
+    return { labelled, overflow }
   }
 
   private _renderLabels(): void {
     if (!this._layersReady) return
+    const { labelled, overflow } = this._labelCandidates()
+    // As on the Air map, the bare chevron layer only shows when the pills are
+    // not carrying every vessel — labels off, or more on screen than the cap.
+    this.map.setLayoutProperty(
+      LAYER_ICONS,
+      'visibility',
+      this.visible && overflow ? 'visible' : 'none',
+    )
     const vesselsByMmsi = new Map(this._seaStore.vessels.map((vessel) => [vessel.mmsi, vessel]))
     const seen = new Set<string>()
-    for (const feature of this._labelCandidates()) {
+    for (const feature of labelled) {
       const vessel = vesselsByMmsi.get(feature.properties.mmsi)
       if (!vessel) continue
       seen.add(vessel.mmsi)
@@ -464,7 +497,9 @@ export class AisVesselsControl extends SentinelControlBase {
     const marker = new maplibregl.Marker({
       element: this._buildLabelElement(vessel),
       anchor: leftFacing ? 'right' : 'left',
-      offset: leftFacing ? [-14, 0] : [14, 0],
+      // Pull the pill back by half the glyph well so the well sits centred on
+      // the vessel's position — the same geometry as the Air map's labels.
+      offset: leftFacing ? [13, 0] : [-13, 0],
     })
       .setLngLat(coords)
       .addTo(this.map)
@@ -560,7 +595,9 @@ export class AisVesselsControl extends SentinelControlBase {
     this._hoverMarker = new maplibregl.Marker({
       element,
       anchor: leftFacing ? 'right' : 'left',
-      offset: leftFacing ? [-14, 0] : [14, 0],
+      // Pull the pill back by half the glyph well so the well sits centred on
+      // the vessel's position — the same geometry as the Air map's labels.
+      offset: leftFacing ? [13, 0] : [-13, 0],
     })
       .setLngLat(feature.geometry.coordinates as [number, number])
       .addTo(this.map)
@@ -607,7 +644,7 @@ export class AisVesselsControl extends SentinelControlBase {
     }
     for (const family of VESSEL_FAMILIES) {
       const color = vesselFamilyColor(family)
-      addOrUpdate(`sea-vessel-${family}`, createVesselChevron(color, 1.1))
+      addOrUpdate(`sea-vessel-${family}`, createVesselArrow(color, 1))
       addOrUpdate(`sea-dot-${family}`, createVesselDot(color, 1))
     }
     addOrUpdate('sea-bracket', createBracket('#ffffff'))

@@ -1,17 +1,11 @@
 <template>
-  <div v-if="visible" class="no-url-overlay">
-    <div class="no-url-overlay-box">
-      <div class="no-url-overlay-title">
-        <span class="no-url-overlay-title-accent">{{ domain.toUpperCase() }}</span>
-        <span class="no-url-overlay-title-main">{{ title }}</span>
-      </div>
-      <div class="no-url-overlay-msg">{{ message }}</div>
-      <button class="no-url-overlay-btn" @click="openSettings">
-        <span>OPEN SETTINGS</span>
-        <span class="no-url-overlay-btn-arrow">&rarr;</span>
-      </button>
-    </div>
-  </div>
+  <NoDataOverlay
+    v-if="visible"
+    :domain="domain"
+    :title="title"
+    :message="message"
+    @open-settings="openSettings"
+  />
 </template>
 
 <script setup lang="ts">
@@ -20,6 +14,7 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { onlineKey, offgridKey } from '@/utils/domainKeys'
+import NoDataOverlay from './NoDataOverlay.vue'
 
 const props = defineProps<{ domain: string }>()
 
@@ -69,18 +64,8 @@ const message = computed(() => {
 })
 const visible = computed(() => !hasUrl.value)
 
-// While the overlay is up the section has no usable content, so the surrounding
-// map chrome (sidebar rail + panel, the footer's panel-toggle button, and the
-// MapLibre controls) must be suppressed rather than left peeking through or
-// focusable behind the overlay. A body-level flag drives that via global CSS,
-// mirroring how the router sets `body.dataset.domain`. Removing the attribute
-// (vs setting 'false') keeps the `body[data-no-data]` selector accurate.
-function syncNoDataChrome(isOverlayVisible: boolean): void {
-  if (isOverlayVisible) document.body.dataset.noData = 'true'
-  else delete document.body.dataset.noData
-}
-
-watch(visible, syncNoDataChrome)
+// While the overlay is up the section has no usable content, so NoDataOverlay
+// suppresses the surrounding map chrome for as long as it is mounted.
 
 function _isPlaceholder(url: string): boolean {
   const t = url.trim()
@@ -214,9 +199,6 @@ onMounted(() => {
 })
 onUnmounted(() => {
   window.removeEventListener('sentinel:sourceOverrideChanged', onSettingsClosed)
-  // Never leave the chrome hidden after the overlay's view is torn down (e.g.
-  // navigating to another section), regardless of the last `visible` value.
-  syncNoDataChrome(false)
 })
 
 useDocumentEvent('settings-panel-closed', onSettingsClosed)

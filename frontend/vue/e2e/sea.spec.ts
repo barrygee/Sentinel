@@ -114,7 +114,9 @@ test.describe('Sea domain', () => {
     await expect(list.getByRole('option', { name: /ocean harvester/i })).toHaveCount(0)
   })
 
-  test('a missing AISStream key surfaces a notice with a settings shortcut', async ({ page }) => {
+  test('a missing AISStream key takes over the section with a settings shortcut', async ({
+    page,
+  }) => {
     const noKey = {
       vessels: [],
       source: 'AISStream',
@@ -134,10 +136,12 @@ test.describe('Sea domain', () => {
     await page.goto('/sea/')
     await waitForShellHydration(page)
 
-    const notice = page.locator('.sea-source-notice')
-    await expect(notice).toBeVisible({ timeout: 10_000 })
-    await expect(notice).toContainText(/no aisstream api key/i)
-    await notice.getByRole('button', { name: /open settings/i }).click()
+    // A missing key blocks the whole section, so it takes the full-screen
+    // card the URL gate uses rather than a banner over an empty map.
+    const overlay = page.locator('.no-url-overlay')
+    await expect(overlay).toBeVisible({ timeout: 10_000 })
+    await expect(overlay).toContainText(/no aisstream api key/i)
+    await overlay.locator('.no-url-overlay-btn').click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
   })
 
@@ -150,5 +154,6 @@ test.describe('Sea domain', () => {
       { timeout: 10_000 },
     )
     await expect(page.locator('.sea-source-notice')).toHaveCount(0)
+    await expect(page.locator('.no-url-overlay')).toHaveCount(0)
   })
 })

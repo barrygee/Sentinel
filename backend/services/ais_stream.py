@@ -196,6 +196,8 @@ class AisStreamReader:
         """
         config = await self._read_config()
         current = self._now()
+        # Expiry sweep lives here, once a tick, rather than per message.
+        self.store.prune(current)
 
         if not config["enabled"] or config["mode"] == "no-source":
             await self._close_socket()

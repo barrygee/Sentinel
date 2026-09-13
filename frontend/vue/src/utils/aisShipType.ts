@@ -5,9 +5,9 @@
  * family (see `backend/services/ais_store.py`); this module maps that family to
  * the colour its chevron and label chip take. The hues follow the source
  * project's palette so tankers, cargo, passenger and fishing vessels read the
- * same way an analyst used to God's Eye View expects — except military and SAR,
- * which take Sentinel's own military accent so the meaning of that lime is the
- * same on every map.
+ * same way an analyst used to God's Eye View expects — except military, which
+ * takes Sentinel's own military accent so the meaning of that lime is the same
+ * on every map, and SAR, which takes lifeboat orange.
  */
 
 /** A vessel family as reported by GET /api/sea/vessels. */
@@ -39,6 +39,10 @@ export const VESSEL_FAMILIES: readonly VesselFamily[] = [
  *  one meaning across domains. */
 export const SEA_MILITARY_COLOR = '#c8ff00'
 
+/** Search-and-rescue craft — lifeboats — in the RNLI's orange, the colour a
+ *  lifeboat actually is, so one reads at a glance among the commercial hues. */
+export const SEA_SAR_COLOR = '#ff6a13'
+
 const FAMILY_COLORS: Record<VesselFamily, string> = {
   cargo: '#39d5ff',
   tanker: '#ffb347',
@@ -46,7 +50,7 @@ const FAMILY_COLORS: Record<VesselFamily, string> = {
   fishing: '#7cff9b',
   service: '#f7f0a3',
   military: SEA_MILITARY_COLOR,
-  sar: SEA_MILITARY_COLOR,
+  sar: SEA_SAR_COLOR,
   pleasure: '#c9c9ff',
   other: '#9fb3c8',
 }
