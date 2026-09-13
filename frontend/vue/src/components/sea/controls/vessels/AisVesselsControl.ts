@@ -318,13 +318,15 @@ export class AisVesselsControl extends SentinelControlBase {
   }
 
   onRemove(): void {
-    if (this._onMoveEnd) this.map.off('moveend', this._onMoveEnd)
-    if (this._onMapClick) this.map.off('click', this._onMapClick)
+    // MapLibre only removes a control it added, so onInit has always run here:
+    // every handler and timer below exists (clearing a null timer is a no-op).
+    this.map.off('moveend', this._onMoveEnd!)
+    this.map.off('click', this._onMapClick!)
     this._onMoveEnd = null
     this._onMapClick = null
-    if (this._interpolateTimer) clearInterval(this._interpolateTimer)
+    clearInterval(this._interpolateTimer!)
     this._interpolateTimer = null
-    if (this._moveFetchTimer) clearTimeout(this._moveFetchTimer)
+    clearTimeout(this._moveFetchTimer ?? undefined)
     this._moveFetchTimer = null
     for (const stop of this._stopWatchers) stop()
     this._stopWatchers = []
@@ -467,7 +469,10 @@ export class AisVesselsControl extends SentinelControlBase {
       const at = feature.geometry.coordinates as [number, number]
       if (!bounds.contains(at)) continue
       const vessel = vesselsByMmsi.get(feature.properties.mmsi)
+      /* v8 ignore start -- defensive: features are rebuilt from the vessel
+         list synchronously, so every feature's vessel is present */
       if (!vessel) continue
+      /* v8 ignore stop */
       inView.push(vessel)
       positions.set(vessel.mmsi, this.map.project(at))
       coords.set(vessel.mmsi, at)
@@ -481,18 +486,8 @@ export class AisVesselsControl extends SentinelControlBase {
       { groupAll, cellPx: groupAll ? SEA_WIDE_VIEW_COUNT_CELL_PX : undefined },
     )
 
-    // Bare arrows only for the plan's loose vessels; everything else is a pill
-    // or inside a count.
-    if (plan.loose.length === 0) {
-      this.map.setLayoutProperty(LAYER_ICONS, 'visibility', 'none')
-    } else {
-      this.map.setFilter(LAYER_ICONS, [
-        'in',
-        ['get', 'mmsi'],
-        ['literal', plan.loose.map((vessel) => vessel.mmsi)],
-      ])
-      this.map.setLayoutProperty(LAYER_ICONS, 'visibility', 'visible')
-    }
+    // With labels on, every vessel is a pill or inside a count: no bare arrows.
+    this.map.setLayoutProperty(LAYER_ICONS, 'visibility', 'none')
 
     const seen = new Set<string>()
     for (const vessel of plan.labelled) {

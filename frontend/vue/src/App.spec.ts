@@ -323,6 +323,12 @@ describe('App', () => {
       expect(sidebarSpies.switchTab).toHaveBeenCalledWith('search')
     })
 
+    it('opens the search tab when a vessel is clicked on the Sea map', async () => {
+      mountApp()
+      document.dispatchEvent(new CustomEvent('sea-open-vessel', { detail: { mmsi: '1' } }))
+      expect(sidebarSpies.switchTab).toHaveBeenCalledWith('search')
+    })
+
     it('opens the search tab when an APRS station is clicked on the Land map', async () => {
       // The pane itself expands the matching row; App only owns the sidebar.
       mountApp()
@@ -345,11 +351,15 @@ describe('App', () => {
       expect(sidebarSpies.toggle).toHaveBeenCalled()
     })
 
-    it('tells the footer a right menu exists on Air and Space, but not on other routes', async () => {
+    it('tells the footer a right menu exists on Air, Space and Sea, but not on other routes', async () => {
       mountApp() // starts on /air/
       expect(footerProps!.hasRightMenu).toBe(true)
 
       shared.route!.path = '/space/'
+      await nextTick()
+      expect(footerProps!.hasRightMenu).toBe(true)
+
+      shared.route!.path = '/sea/'
       await nextTick()
       expect(footerProps!.hasRightMenu).toBe(true)
 

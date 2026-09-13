@@ -92,9 +92,11 @@ export class ShippingLanesControl extends SentinelControlBase {
   }
 
   onRemove(): void {
-    if (this._onMoveEnd) this.map.off('moveend', this._onMoveEnd)
+    // MapLibre only removes a control it added, so onInit has always run here
+    // and the handler exists; clearing a null timer is a no-op.
+    this.map.off('moveend', this._onMoveEnd!)
     this._onMoveEnd = null
-    if (this._fetchTimer) clearTimeout(this._fetchTimer)
+    clearTimeout(this._fetchTimer ?? undefined)
     this._fetchTimer = null
     this._inFlight?.abort()
     this._inFlight = null
@@ -186,8 +188,10 @@ export class ShippingLanesControl extends SentinelControlBase {
   /** Push the store's flag onto the layers and the button, fetching if newly on. */
   applyVisibility(): void {
     const shown = this.visible ? 'visible' : 'none'
+    // Called from initLayers once every layer exists, and from the store watch
+    // only after onAdd — so the layers are always there.
     for (const layer of [LAYER_FILL, LAYER_LINE, LAYER_LINE_DASHED]) {
-      if (this.map.getLayer(layer)) this.map.setLayoutProperty(layer, 'visibility', shown)
+      this.map.setLayoutProperty(layer, 'visibility', shown)
     }
     this.setButtonActive(this.visible)
     if (this.visible) this._scheduleFetch()

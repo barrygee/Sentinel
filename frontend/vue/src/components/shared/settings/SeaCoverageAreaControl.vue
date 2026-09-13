@@ -103,15 +103,27 @@ function validate(): string | null {
 
 onMounted(async () => {
   const data = await settingsApi.getNamespace('sea')
-  const boxes = data?.aisBoundingBoxes
-  if (Array.isArray(boxes) && Array.isArray(boxes[0]) && boxes[0].length === 2) {
-    const [[south, west], [north, east]] = boxes[0] as [[number, number], [number, number]]
+  const box = readFirstBox(data?.aisBoundingBoxes)
+  if (box) {
+    const [[south, west], [north, east]] = box
     drafts.south = String(south)
     drafts.west = String(west)
     drafts.north = String(north)
     drafts.east = String(east)
   }
 })
+
+/** The first box of a stored `aisBoundingBoxes` value, or null if it is not
+ *  two numeric corners — the value is user-editable config, so never trusted. */
+function readFirstBox(value: unknown): [[number, number], [number, number]] | null {
+  if (!Array.isArray(value) || !Array.isArray(value[0]) || value[0].length !== 2) return null
+  const corners = value[0] as unknown[]
+  const isCorner = (corner: unknown): corner is [number, number] =>
+    Array.isArray(corner) &&
+    corner.length === 2 &&
+    corner.every((edge) => typeof edge === 'number' && Number.isFinite(edge))
+  return isCorner(corners[0]) && isCorner(corners[1]) ? [corners[0], corners[1]] : null
+}
 
 function onInput(): void {
   errorText.value = validate()
@@ -129,7 +141,10 @@ function onInput(): void {
 
 function useCurrentView(): void {
   const bbox = viewportBbox.value
+  /* v8 ignore start -- defensive: the button is disabled while there is no
+     viewport, so this guard is never the path taken. */
   if (!bbox) return
+  /* v8 ignore stop */
   const [south, west, north, east] = bbox
   drafts.south = south.toFixed(2)
   drafts.west = west.toFixed(2)

@@ -6,6 +6,7 @@ import MapSidebar from './MapSidebar.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore } from '@/stores/air'
 import { useSpaceStore } from '@/stores/space'
+import { useSeaStore } from '@/stores/sea'
 
 const TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
 const OPEN_KEY = 'sentinel_sidebar_open'
@@ -442,6 +443,28 @@ describe('MapSidebar', () => {
       expect(exoticTab.attributes('data-tooltip')).toBe('EXOTIC')
       await wrapper.find('.msb-rail-subbtn[data-filter-cat="navigation"]').trigger('click')
       expect(useSpaceStore().spaceFilterCategory).toBe('navigation')
+    })
+
+    it('offers the vessel families as sea sub-tabs and sets the sea category', async () => {
+      setPath('/sea/')
+      const wrapper = mountSidebar()
+      document.dispatchEvent(
+        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'sea', prev: 'air' } }),
+      )
+      await openFilter(wrapper)
+      const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
+      expect(cats).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other'])
+      expect(
+        wrapper.find('.msb-rail-subbtn[data-filter-cat="all"]').attributes('data-tooltip'),
+      ).toBe('ALL VESSELS')
+      expect(wrapper.find('.msb-rail-subbtn[data-filter-cat="all"]').classes()).toContain(
+        'msb-rail-btn-active',
+      )
+      await wrapper.find('.msb-rail-subbtn[data-filter-cat="tanker"]').trigger('click')
+      expect(useSeaStore().seaFilterCategory).toBe('tanker')
+      expect(wrapper.find('.msb-rail-subbtn[data-filter-cat="tanker"]').classes()).toContain(
+        'msb-rail-btn-active',
+      )
     })
 
     it('shows no sub-tabs on a domain that has none', async () => {

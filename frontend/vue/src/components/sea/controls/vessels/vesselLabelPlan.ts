@@ -36,9 +36,6 @@ export interface VesselCount {
 export interface VesselLabelPlan {
   labelled: SeaVessel[]
   counts: VesselCount[]
-  /** Vessels drawn as a bare arrow. Always empty today — every vessel is a
-   *  pill or inside a count — kept so a caller can still honour it. */
-  loose: SeaVessel[]
 }
 
 interface Rect {
@@ -194,7 +191,6 @@ export function planVesselLabels(
     else cells.set(key, [vessel])
   }
   const counts: VesselCount[] = []
-  const loose: SeaVessel[] = []
   for (const [key, members] of cells) {
     if (members.length === 1) {
       // A count of one says less than a pill, so a lone leftover keeps its
@@ -221,5 +217,5 @@ export function planVesselLabels(
       lngLat: [sumLon / members.length, sumLat / members.length],
     })
   }
-  return { labelled, counts, loose }
+  return { labelled, counts }
 }

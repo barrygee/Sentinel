@@ -1,76 +1,116 @@
-/* eslint-disable vue/one-component-per-file -- this spec defines tiny stub
-   components to stand in for SeaView's children. */
+/* eslint-disable vue/one-component-per-file, vue/require-prop-types -- this spec
+   defines tiny stub components (with untyped capture props) to stand in for
+   SeaView's children. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, enableAutoUnmount } from '@vue/test-utils'
+import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { defineComponent, h, nextTick } from 'vue'
 import { axe } from 'jest-axe'
 
-// ---- Shared mock state ----------------------------------------------------
-const shared = vi.hoisted(() => ({
-  emit: null as null | ((event: string, ...args: unknown[]) => void),
-  connectivityCb: null as null | ((online: boolean) => void),
+// User location: a controllable ref.
+const locationState = vi.hoisted(() => ({
+  location: null as null | { value: { lat: number; lon: number } | null },
 }))
+vi.mock('@/composables/useUserLocation', async () => {
+  const { ref: vueRef } = await import('vue')
+  locationState.location = vueRef(null)
+  return { useUserLocation: () => ({ location: locationState.location, start: vi.fn() }) }
+})
 
-// Capture the connectivity callback so tests can drive online/offline flips.
-vi.mock('@/composables/useConnectivity', () => ({
-  useConnectivity: (cb: (online: boolean) => void) => {
-    shared.connectivityCb = cb
-  },
+// SeaMap is stubbed: it has its own spec. The stub exposes the same handles
+// SeaView reaches for, over a fake map.
+const mapSpies = vi.hoisted(() => ({
+  zoomIn: vi.fn(),
+  zoomOut: vi.fn(),
+  flyTo: vi.fn(),
+  getZoom: vi.fn(() => 6),
+  namesClick: vi.fn(),
+  selectByMmsi: vi.fn(),
+  mapPresent: true,
 }))
-
-// MapLibreMap stub: captures `emit` so tests drive map-created / style-loaded,
-// and re-renders styleUrl so the prop can be asserted.
-const MapLibreMapStub = defineComponent({
-  name: 'MapLibreMap',
-  props: {
-    styleUrl: { type: String, default: '' },
-    center: { type: Array, default: () => [] },
-    zoom: { type: Number, default: 0 },
-  },
-  emits: ['map-created', 'style-loaded'],
-  setup(_props, { emit }) {
-    shared.emit = emit as (event: string, ...args: unknown[]) => void
-    return () => h('div', { class: 'maplibre-stub' })
+const SeaMapStub = defineComponent({
+  name: 'SeaMap',
+  setup(_props, { expose }) {
+    expose({
+      getMap: () =>
+        mapSpies.mapPresent
+          ? {
+              zoomIn: mapSpies.zoomIn,
+              zoomOut: mapSpies.zoomOut,
+              flyTo: mapSpies.flyTo,
+              getZoom: mapSpies.getZoom,
+            }
+          : null,
+      getNamesControl: () => ({ handleClickPublic: mapSpies.namesClick }),
+      getVesselsControl: () => ({ selectByMmsi: mapSpies.selectByMmsi }),
+    })
+    return () => h('div', { class: 'sea-map-stub' })
   },
 })
 
+// Capture the props SeaView passes to the side menu so the handlers can be
+// invoked and the active-state props asserted.
+let sideMenuProps: Record<string, unknown> | null = null
+const SeaSideMenuStub = defineComponent({
+  name: 'SeaSideMenu',
+  props: [
+    'zoomIn',
+    'zoomOut',
+    'goToLocation',
+    'toggleVessels',
+    'toggleLabels',
+    'toggleRangeRings',
+    'toggleShippingLanes',
+    'toggleNames',
+    'setFilterCategory',
+    'filterCategory',
+    'vesselsActive',
+    'labelsActive',
+    'rangeRingsActive',
+    'shippingLanesActive',
+    'namesActive',
+    'locationActive',
+  ],
+  setup(props) {
+    sideMenuProps = props as unknown as Record<string, unknown>
+    return () => h('nav', { class: 'sea-side-menu-stub', 'aria-label': 'Sea map controls' })
+  },
+})
+
+let filterEmit: null | ((event: 'locate', mmsi: string) => void) = null
+const SeaFilterStub = defineComponent({
+  name: 'SeaFilter',
+  emits: ['locate'],
+  setup(_props, { emit }) {
+    filterEmit = emit as (event: 'locate', mmsi: string) => void
+    return () => h('div', { class: 'sea-filter-stub' })
+  },
+})
 const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div') })
 
 import SeaView from './SeaView.vue'
-import { useAppStore } from '@/stores/app'
+import { useSeaStore } from '@/stores/sea'
+import { useBasemapStore } from '@/stores/basemap'
 
-const ONLINE_STYLE = '/assets/fiord-online.json'
-const OFFLINE_STYLE = '/assets/fiord.json'
-
-interface FakeMap {
-  setStyle: ReturnType<typeof vi.fn>
-  getContainer: () => HTMLElement
-  on: ReturnType<typeof vi.fn>
-  off: ReturnType<typeof vi.fn>
-  project: ReturnType<typeof vi.fn>
-  getZoom: ReturnType<typeof vi.fn>
-  easeTo: ReturnType<typeof vi.fn>
-}
-
-function makeFakeMap(): FakeMap {
-  const container = document.createElement('div')
-  return {
-    setStyle: vi.fn(),
-    // The Sentry-sites control appends its accessible table to the map
-    // container and regroups its markers on movement.
-    getContainer: () => container,
-    on: vi.fn(),
-    off: vi.fn(),
-    project: vi.fn(() => ({ x: 0, y: 0 })),
-    getZoom: vi.fn(() => 5),
-    easeTo: vi.fn(),
-  }
+/** Stand in for the sidebar pane MapSidebar owns, which SeaView teleports into. */
+function teleportTarget(): void {
+  const searchPane = document.createElement('div')
+  searchPane.id = 'msb-pane-search'
+  document.body.append(searchPane)
 }
 
 function mountView() {
   return mount(SeaView, {
-    global: { stubs: { MapLibreMap: MapLibreMapStub, NoUrlOverlay: InertStub } },
+    attachTo: document.body,
+    global: {
+      stubs: {
+        SeaMap: SeaMapStub,
+        SeaSideMenu: SeaSideMenuStub,
+        SeaFilter: SeaFilterStub,
+        SeaSourceNotice: InertStub,
+        NoUrlOverlay: InertStub,
+      },
+    },
   })
 }
 
@@ -79,98 +119,110 @@ enableAutoUnmount(afterEach)
 describe('SeaView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
-    shared.emit = null
-    shared.connectivityCb = null
     localStorage.clear()
+    vi.clearAllMocks()
+    mapSpies.mapPresent = true
+    sideMenuProps = null
+    filterEmit = null
+    if (locationState.location) locationState.location.value = null
     document.body.innerHTML = ''
   })
 
-  describe('style selection', () => {
-    it('seeds the UK-centred view with the online style when online', () => {
-      const wrapper = mountView()
-      const props = wrapper.findComponent(MapLibreMapStub).props()
-      expect(props.styleUrl).toBe(ONLINE_STYLE)
-      expect(props.center).toEqual([-2, 54])
-      expect(props.zoom).toBe(5)
-    })
-
-    it('uses the offline style when offline', async () => {
-      const app = useAppStore()
-      app.isOnline = false
-      const wrapper = mountView()
-      await nextTick()
-      expect(wrapper.findComponent(MapLibreMapStub).props('styleUrl')).toBe(OFFLINE_STYLE)
-    })
-  })
-
-  describe('style reconciliation on load', () => {
-    it('reloads the style when connectivity flipped between create and load', async () => {
-      const app = useAppStore()
-      const map = makeFakeMap()
-      mountView()
-      // map-created records the initial (online) style…
-      shared.emit!('map-created', map)
-      // …then connectivity flips offline before the style finishes loading.
-      app.isOnline = false
-      await nextTick()
-      shared.emit!('style-loaded', map)
-      expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE)
-    })
-
-    it('does not reload when connectivity was unchanged before load', () => {
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
-      shared.emit!('style-loaded', map)
-      expect(map.setStyle).not.toHaveBeenCalled()
-    })
-
-    it('does not reload when no map-created preceded the style load', () => {
-      const map = makeFakeMap()
-      mountView()
-      // _initialStyleUrl is still null → the reconciliation guard short-circuits.
-      shared.emit!('style-loaded', map)
-      expect(map.setStyle).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('connectivity changes', () => {
-    it('switches to the offline style when connectivity drops', () => {
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
-      shared.connectivityCb!(false)
-      expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE)
-    })
-
-    it('switches to the online style when connectivity returns', () => {
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
-      shared.connectivityCb!(true)
-      expect(map.setStyle).toHaveBeenCalledWith(ONLINE_STYLE)
-    })
-
-    it('does nothing when the map is not yet created', () => {
-      mountView()
-      // _map is null → the optional-chained setStyle is a no-op.
-      expect(() => shared.connectivityCb!(false)).not.toThrow()
-    })
-  })
-
-  it('has no accessibility violations', async () => {
+  it('composes the map, rail, overlays and the teleported filter pane', () => {
+    teleportTarget()
     const wrapper = mountView()
-    expect(
-      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
-    ).toHaveNoViolations()
+    expect(wrapper.find('#map-wrap').attributes('data-domain')).toBe('sea')
+    expect(wrapper.find('.sea-map-stub').exists()).toBe(true)
+    expect(wrapper.find('.sea-side-menu-stub').exists()).toBe(true)
+    expect(document.querySelector('#msb-pane-search .sea-filter-stub')).not.toBeNull()
   })
 
-  it('exposes a single screen-reader heading for the view', () => {
+  it('leaves the filter pane unmounted while the sidebar target is absent', () => {
+    mountView()
+    expect(document.querySelector('.sea-filter-stub')).toBeNull()
+  })
+
+  it('drives the map from the rail handlers', () => {
+    teleportTarget()
+    mountView()
+    const props = sideMenuProps as Record<string, () => void>
+    props.zoomIn!()
+    props.zoomOut!()
+    expect(mapSpies.zoomIn).toHaveBeenCalledOnce()
+    expect(mapSpies.zoomOut).toHaveBeenCalledOnce()
+    props.toggleNames!()
+    expect(mapSpies.namesClick).toHaveBeenCalledOnce()
+    // Without a map yet, zooming is a harmless no-op.
+    mapSpies.mapPresent = false
+    expect(() => props.zoomIn!()).not.toThrow()
+  })
+
+  it('flies to the operator only once a fix exists, never below the locate zoom', () => {
+    teleportTarget()
+    mountView()
+    const props = sideMenuProps as Record<string, () => void>
+    props.goToLocation!()
+    expect(mapSpies.flyTo).not.toHaveBeenCalled()
+    locationState.location!.value = { lat: 51, lon: 1 }
+    props.goToLocation!()
+    expect(mapSpies.flyTo).toHaveBeenCalledWith({ center: [1, 51], zoom: 10, duration: 800 })
+    mapSpies.getZoom.mockReturnValueOnce(13)
+    props.goToLocation!()
+    expect(mapSpies.flyTo).toHaveBeenLastCalledWith({ center: [1, 51], zoom: 13, duration: 800 })
+  })
+
+  it('every overlay toggle writes the store, which the rail reads back', async () => {
+    teleportTarget()
+    mountView()
+    const store = useSeaStore()
+    const props = sideMenuProps as Record<string, unknown>
+    expect(props.vesselsActive).toBe(true)
+    expect(props.labelsActive).toBe(true)
+    expect(props.rangeRingsActive).toBe(false)
+    expect(props.shippingLanesActive).toBe(false)
+    expect(props.namesActive).toBe(useBasemapStore().layers.names)
+    expect(props.filterCategory).toBe('all')
+    ;(props.toggleVessels as () => void)()
+    ;(props.toggleLabels as () => void)()
+    ;(props.toggleRangeRings as () => void)()
+    ;(props.toggleShippingLanes as () => void)()
+    ;(props.setFilterCategory as (category: string) => void)('cargo')
+    await nextTick()
+    expect(store.overlayStates).toEqual({
+      vessels: false,
+      vesselLabels: false,
+      rangeRings: true,
+      shippingLanes: true,
+    })
+    expect(store.seaFilterCategory).toBe('cargo')
+    expect(sideMenuProps!.vesselsActive).toBe(false)
+    expect(sideMenuProps!.filterCategory).toBe('cargo')
+  })
+
+  it('reports whether a location fix exists', async () => {
+    teleportTarget()
+    mountView()
+    expect(sideMenuProps!.locationActive).toBe(false)
+    locationState.location!.value = { lat: 51, lon: 1 }
+    await nextTick()
+    expect(sideMenuProps!.locationActive).toBe(true)
+  })
+
+  it('SHOW ON MAP from the pane selects the vessel and flies to it', () => {
+    teleportTarget()
+    mountView()
+    filterEmit!('locate', '232012345')
+    expect(mapSpies.selectByMmsi).toHaveBeenCalledWith('232012345', { flyTo: true })
+  })
+
+  it('has one screen-reader heading and no accessibility violations', async () => {
+    teleportTarget()
     const wrapper = mountView()
-    const heading = wrapper.find('h1')
-    expect(heading.exists()).toBe(true)
-    expect(heading.classes()).toContain('sr-only')
-    expect(heading.text()).toBe('Sea domain')
+    await flushPromises()
+    const headings = wrapper.findAll('h1')
+    expect(headings).toHaveLength(1)
+    expect(headings[0]!.text()).toBe('Sea — live vessel tracking')
+    expect(headings[0]!.classes()).toContain('sr-only')
+    expect(await axe(wrapper.element)).toHaveNoViolations()
   })
 })
