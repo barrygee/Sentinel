@@ -79,6 +79,17 @@ class Settings(BaseSettings):
     sea_ais_snapshot_persist_ms: int = 30_000
     # Largest bounding box list accepted from Settings › SEA (defence in depth).
     sea_ais_max_bounding_boxes: int = 10
+    # ── Sea / charted shipping routes (OpenStreetMap via Overpass) ────────────
+    sea_lanes_overpass_url: str = "https://overpass-api.de/api/interpreter"
+    # Route geometry is fetched one coarse grid cell at a time and cached; a
+    # separation scheme changes by IMO resolution, so the cache lives 90 days.
+    sea_lanes_cell_deg: float = 2.0
+    sea_lanes_ttl_ms: int = 90 * 24 * 3_600_000
+    # Most cells one request may cover — wider views draw no routes.
+    sea_lanes_max_cells: int = 16
+    # Overpass is a shared public service: space outbound queries out.
+    sea_lanes_min_request_interval_ms: int = 3_000
+    sea_lanes_overpass_timeout_s: int = 60
 
     # ── Digital-decode sidecar (dsd-fme) ──────────────────────────────────────
     # TCP port the backend listens on to serve FM-demodulated 48 kHz mono s16 PCM

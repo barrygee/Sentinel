@@ -355,3 +355,19 @@ class SeaVesselCache(Base):
     payload = Column(Text, nullable=False)  # JSON-serialised vessel record (see ais_store.vessel_record)
     track = Column(Text, nullable=False, default="[]")  # JSON list of [lat, lon, epoch_s] recent fixes
     updated_at = Column(Integer, nullable=False)  # Unix ms of the newest position report
+
+
+class SeaLaneCache(Base):
+    """Charted shipping-route geometry for one coarse grid cell, from Overpass.
+
+    ``cell`` is ``"{lat_index}_{lon_index}"`` in ``sea_lanes_cell_deg`` units;
+    ``payload`` is a JSON list of GeoJSON features (see
+    ``backend.services.shipping_lanes``). Refreshed after ``sea_lanes_ttl_ms``.
+    """
+
+    __tablename__ = "sea_lane_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cell = Column(Text, nullable=False, unique=True)
+    payload = Column(Text, nullable=False)
+    fetched_at = Column(Integer, nullable=False)  # Unix ms
