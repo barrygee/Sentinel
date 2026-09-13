@@ -18,7 +18,6 @@ import {
 import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
 import {
   SEA_INTERPOLATE_INTERVAL_MS,
-  SEA_LABEL_GRID_PX,
   SEA_MAX_LABELS,
   SEA_MIN_MOVING_KNOTS,
   SEA_VIEWPORT_PAD_FRACTION,
@@ -420,42 +419,23 @@ export class AisVesselsControl extends SentinelControlBase {
   // ── labels ──────────────────────────────────────────────────────────────────
 
   /**
-   * The vessels that get a label pill: those on screen, spread over a screen
-   * grid so at most one pill lands in each cell, up to the cap.
+   * The vessels that get a label pill — all of those on screen, or none.
    *
-   * Every vessel is labelled once the view is quiet enough — the black pill
-   * with its arrow well is the vessel's mark, exactly as it is for aircraft.
-   * In a busy view the vessels that lose out fall back to the plain arrow
-   * layer, which _renderLabels switches on for that case. The selected vessel
-   * always keeps its pill.
+   * At or under the cap every vessel in view carries the black pill with its
+   * arrow well, exactly as aircraft do; over it the view is too busy to read
+   * pills at all, so every vessel is a bare arrow until the operator zooms
+   * in. Never a mix. The selected vessel keeps its pill either way.
    */
   private _labelCandidates(): { labelled: VesselFeature[]; overflow: boolean } {
-    if (!this.visible || !this._seaStore.overlayStates.vesselLabels) {
-      return { labelled: [], overflow: true }
-    }
-    const bounds = this.map.getBounds()
     const selected = this._seaStore.selectedMmsi
-    const takenCells = new Set<string>()
-    const labelled: VesselFeature[] = []
-    let overflow = false
-    for (const feature of this._features) {
-      const coords = feature.geometry.coordinates as [number, number]
-      if (!bounds.contains(coords)) continue
-      const isSelected = feature.properties.mmsi === selected
-      if (labelled.length >= SEA_MAX_LABELS && !isSelected) {
-        overflow = true
-        continue
-      }
-      const screen = this.map.project(coords)
-      const cell = `${Math.floor(screen.x / SEA_LABEL_GRID_PX)}:${Math.floor(screen.y / SEA_LABEL_GRID_PX)}`
-      if (takenCells.has(cell) && !isSelected) {
-        overflow = true
-        continue
-      }
-      takenCells.add(cell)
-      labelled.push(feature)
-    }
-    return { labelled, overflow }
+    const labelsOn = this.visible && this._seaStore.overlayStates.vesselLabels
+    const bounds = this.map.getBounds()
+    const inView = this._features.filter((feature) =>
+      bounds.contains(feature.geometry.coordinates as [number, number]),
+    )
+    if (labelsOn && inView.length <= SEA_MAX_LABELS) return { labelled: inView, overflow: false }
+    const selectedFeature = inView.find((feature) => feature.properties.mmsi === selected)
+    return { labelled: selectedFeature ? [selectedFeature] : [], overflow: true }
   }
 
   private _renderLabels(): void {

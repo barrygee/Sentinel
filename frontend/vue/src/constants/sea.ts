@@ -20,20 +20,14 @@ export const SEA_REFETCH_GUARD_MS = SEA_POLL_INTERVAL_MS - 1_000
 export const SEA_MAX_RENDER_ROWS = 12_000
 
 /**
- * Most label pills drawn at once. Vessels are labelled at every zoom — the
- * black pill is the vessel's mark, as it is for aircraft — but a worldwide
- * view can hold tens of thousands, so past this many the plain chevrons carry
- * the rest until the operator zooms in.
+ * Most vessels a view may hold and still label every one of them.
+ *
+ * Labelling is all-or-nothing per view: at or under this count every vessel
+ * on screen carries the black pill, as aircraft do on the Air map; over it,
+ * every vessel is a bare arrow and the pills come back as the operator zooms
+ * in. A view is never half pills and half arrows.
  */
-export const SEA_MAX_LABELS = 600
-
-/**
- * Screen grid (px) used to spread label pills out. At most one vessel per
- * cell gets a pill; the rest of the cell falls back to bare arrows until the
- * operator zooms in. Without this the cap was filled newest-first, which piled
- * hundreds of pills onto one busy port and left the rest of the view bare.
- */
-export const SEA_LABEL_GRID_PX = 118
+export const SEA_MAX_LABELS = 500
 
 /**
  * Dead-reckoning tick: how often vessel positions are advanced between polls.
