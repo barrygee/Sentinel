@@ -20,13 +20,27 @@ export const SEA_REFETCH_GUARD_MS = SEA_POLL_INTERVAL_MS - 1_000
 export const SEA_MAX_RENDER_ROWS = 12_000
 
 /**
- * Hard ceiling on label pills in one view — a browser safeguard, not a
- * design choice. Every vessel on screen carries the black pill, as aircraft
- * do on the Air map; only past this many (a worldwide-scale view of a busy
- * sea) do the remaining vessels fall back to bare arrows, because thousands
- * of DOM markers would freeze the page.
+ * Fill of a count marker's centre and its ring — the same black-on-black as
+ * the pills, so a group reads as part of the same set as the labels it stands
+ * in for (mirrors the Land map's APRS counts).
  */
-export const SEA_MAX_LABELS = 2000
+export const SEA_COUNT_FILL = '#000000'
+export const SEA_COUNT_RING = 'rgba(20, 23, 28, 0.55)'
+export const SEA_COUNT_TEXT = '#ffffff'
+
+/** How far a click on a count zooms in to open it up. */
+export const SEA_COUNT_ZOOM_STEP = 2
+
+/**
+ * Views wider than this (nautical miles across the screen) group every
+ * vessel into counts; only a vessel with no neighbour keeps its pill. Under
+ * it, pills are the rule and counts appear only where they would pile up.
+ */
+export const SEA_GROUP_ALL_ABOVE_NM = 50
+
+/** Screen cell (px) a count covers in a wide view — coarser than the marker
+ *  itself, so a wide view is a handful of counts rather than a tiling of them. */
+export const SEA_WIDE_VIEW_COUNT_CELL_PX = 72
 
 /**
  * Dead-reckoning tick: how often vessel positions are advanced between polls.
@@ -43,7 +57,10 @@ export const SEA_MIN_MOVING_KNOTS = 0.5
 
 /**
  * Viewport padding (as a fraction of the visible span) added to the bbox sent
- * with each snapshot request, so a small pan does not empty the edges of the
- * map before the next poll.
+ * with each snapshot request. Kept to a sliver: only what is on screen is
+ * fetched, and a pan asks for the new view straight away.
  */
-export const SEA_VIEWPORT_PAD_FRACTION = 0.5
+export const SEA_VIEWPORT_PAD_FRACTION = 0.05
+
+/** Settle time after a pan or zoom before the new view's vessels are fetched. */
+export const SEA_MOVE_FETCH_DEBOUNCE_MS = 400

@@ -13,13 +13,20 @@ import {
   createGlyphWell,
   createLabelPill,
   createNameSegment,
-  isLeftFacing,
 } from '@/components/shared/map-label/mapLabelParts'
 import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
+import { buildCountMarker } from '@/components/shared/map-cluster/mapCluster'
+import { planVesselLabels, vesselFacesLeft, type VesselCount } from './vesselLabelPlan'
 import {
+  SEA_COUNT_FILL,
+  SEA_COUNT_RING,
+  SEA_COUNT_TEXT,
+  SEA_COUNT_ZOOM_STEP,
+  SEA_GROUP_ALL_ABOVE_NM,
+  SEA_WIDE_VIEW_COUNT_CELL_PX,
   SEA_INTERPOLATE_INTERVAL_MS,
-  SEA_MAX_LABELS,
   SEA_MIN_MOVING_KNOTS,
+  SEA_MOVE_FETCH_DEBOUNCE_MS,
   SEA_VIEWPORT_PAD_FRACTION,
 } from '@/constants/sea'
 import {
@@ -80,6 +87,9 @@ export class AisVesselsControl extends SentinelControlBase {
   private _features: VesselFeature[] = []
   private _labelMarkers = new Map<string, maplibregl.Marker>()
   private _labelSignatures = new Map<string, string>()
+  private _countMarkers = new Map<string, maplibregl.Marker>()
+  private _countSizes = new Map<string, number>()
+  private _moveFetchTimer: ReturnType<typeof setTimeout> | null = null
   private _hoverMarker: maplibregl.Marker | null = null
   private _hoverMmsi: string | null = null
   private _interpolateTimer: ReturnType<typeof setInterval> | null = null
@@ -124,6 +134,13 @@ export class AisVesselsControl extends SentinelControlBase {
     this._onMoveEnd = () => {
       this._publishViewport()
       this._renderLabels()
+      // Only what is on screen is held, so a pan needs the new view's vessels
+      // now rather than at the next poll.
+      if (this._moveFetchTimer) clearTimeout(this._moveFetchTimer)
+      this._moveFetchTimer = setTimeout(() => {
+        this._moveFetchTimer = null
+        void this._seaStore.fetchVessels()
+      }, SEA_MOVE_FETCH_DEBOUNCE_MS)
     }
     this.map.on('moveend', this._onMoveEnd)
 
@@ -307,10 +324,13 @@ export class AisVesselsControl extends SentinelControlBase {
     this._onMapClick = null
     if (this._interpolateTimer) clearInterval(this._interpolateTimer)
     this._interpolateTimer = null
+    if (this._moveFetchTimer) clearTimeout(this._moveFetchTimer)
+    this._moveFetchTimer = null
     for (const stop of this._stopWatchers) stop()
     this._stopWatchers = []
     this._seaStore.stopPolling()
     this._clearLabels()
+    this._clearCounts()
     this._hideHoverLabel()
     this._a11yRegion?.remove()
     this._a11yRegion = null
@@ -419,45 +439,65 @@ export class AisVesselsControl extends SentinelControlBase {
   // ── labels ──────────────────────────────────────────────────────────────────
 
   /**
-   * The vessels that get a label pill — every one on screen.
+   * Draw the pills and counts for everything on screen.
    *
-   * Only past the DOM safeguard cap do the remaining vessels fall back to
-   * bare arrows (the selected vessel always keeps its pill). With labels
-   * switched off on the rail, everything is an arrow.
+   * Every vessel in view is either labelled or inside a count, so the bare
+   * arrow layer only shows while labels are switched off on the rail. Planning
+   * is screen-space (see vesselLabelPlan), so it re-runs after every move.
    */
-  private _labelCandidates(): { labelled: VesselFeature[]; overflow: boolean } {
-    const selected = this._seaStore.selectedMmsi
-    const bounds = this.map.getBounds()
-    const inView = this._features.filter((feature) =>
-      bounds.contains(feature.geometry.coordinates as [number, number]),
-    )
-    const selectedFeature = inView.find((feature) => feature.properties.mmsi === selected)
-    if (!this.visible || !this._seaStore.overlayStates.vesselLabels) {
-      return { labelled: selectedFeature ? [selectedFeature] : [], overflow: true }
-    }
-    if (inView.length <= SEA_MAX_LABELS) return { labelled: inView, overflow: false }
-    const labelled = inView.slice(0, SEA_MAX_LABELS)
-    if (selectedFeature && !labelled.includes(selectedFeature)) labelled.push(selectedFeature)
-    return { labelled, overflow: true }
-  }
-
   private _renderLabels(): void {
     if (!this._layersReady) return
-    const { labelled, overflow } = this._labelCandidates()
-    // As on the Air map, the bare chevron layer only shows when the pills are
-    // not carrying every vessel — labels off, or more on screen than the cap.
+    const labelsOn = this.visible && this._seaStore.overlayStates.vesselLabels
     this.map.setLayoutProperty(
       LAYER_ICONS,
       'visibility',
-      this.visible && overflow ? 'visible' : 'none',
+      this.visible && !labelsOn ? 'visible' : 'none',
     )
+    if (!labelsOn) {
+      this._clearLabels()
+      this._clearCounts()
+      return
+    }
     const vesselsByMmsi = new Map(this._seaStore.vessels.map((vessel) => [vessel.mmsi, vessel]))
-    const seen = new Set<string>()
-    for (const feature of labelled) {
+    const bounds = this.map.getBounds()
+    const inView: SeaVessel[] = []
+    const positions = new Map<string, { x: number; y: number }>()
+    const coords = new Map<string, [number, number]>()
+    for (const feature of this._features) {
+      const at = feature.geometry.coordinates as [number, number]
+      if (!bounds.contains(at)) continue
       const vessel = vesselsByMmsi.get(feature.properties.mmsi)
       if (!vessel) continue
+      inView.push(vessel)
+      positions.set(vessel.mmsi, this.map.project(at))
+      coords.set(vessel.mmsi, at)
+    }
+    const groupAll = this._viewWidthNm() > SEA_GROUP_ALL_ABOVE_NM
+    const plan = planVesselLabels(
+      inView,
+      positions,
+      this._seaStore.labelFields,
+      this._seaStore.selectedMmsi,
+      { groupAll, cellPx: groupAll ? SEA_WIDE_VIEW_COUNT_CELL_PX : undefined },
+    )
+
+    // Bare arrows only for the plan's loose vessels; everything else is a pill
+    // or inside a count.
+    if (plan.loose.length === 0) {
+      this.map.setLayoutProperty(LAYER_ICONS, 'visibility', 'none')
+    } else {
+      this.map.setFilter(LAYER_ICONS, [
+        'in',
+        ['get', 'mmsi'],
+        ['literal', plan.loose.map((vessel) => vessel.mmsi)],
+      ])
+      this.map.setLayoutProperty(LAYER_ICONS, 'visibility', 'visible')
+    }
+
+    const seen = new Set<string>()
+    for (const vessel of plan.labelled) {
       seen.add(vessel.mmsi)
-      this._syncLabel(vessel, feature.geometry.coordinates as [number, number])
+      this._syncLabel(vessel, coords.get(vessel.mmsi)!)
     }
     for (const [mmsi, marker] of this._labelMarkers) {
       if (!seen.has(mmsi)) {
@@ -466,6 +506,68 @@ export class AisVesselsControl extends SentinelControlBase {
         this._labelSignatures.delete(mmsi)
       }
     }
+
+    const seenCounts = new Set<string>()
+    for (const count of plan.counts) {
+      seenCounts.add(count.key)
+      this._syncCount(count)
+    }
+    for (const [key, marker] of this._countMarkers) {
+      if (!seenCounts.has(key)) {
+        marker.remove()
+        this._countMarkers.delete(key)
+        this._countSizes.delete(key)
+      }
+    }
+  }
+
+  /** How wide the current view is, in nautical miles, along its centre line. */
+  private _viewWidthNm(): number {
+    const bounds = this.map.getBounds()
+    const centreLat = (bounds.getNorth() + bounds.getSouth()) / 2
+    const spanDeg = Math.min(360, bounds.getEast() - bounds.getWest())
+    // One degree of longitude is 60 NM at the equator, shrinking with latitude.
+    return spanDeg * 60 * Math.cos((centreLat * Math.PI) / 180)
+  }
+
+  /** Place (or move) the count standing for a huddle of vessels; a click
+   *  zooms in on it so the vessels it stands for open into pills. */
+  private _syncCount(count: VesselCount): void {
+    const existing = this._countMarkers.get(count.key)
+    if (existing && this._countSizes.get(count.key) === count.members.length) {
+      existing.setLngLat(count.lngLat)
+      return
+    }
+    existing?.remove()
+    const element = buildCountMarker({
+      count: count.members.length,
+      ariaLabel: `${count.members.length} vessels here — zoom in to see them`,
+      className: 'sea-count-marker',
+      countClassName: 'sea-count-count',
+      ringColor: SEA_COUNT_RING,
+      fillColor: SEA_COUNT_FILL,
+      textColor: SEA_COUNT_TEXT,
+    })
+    element.addEventListener('click', (domEvent: Event) => {
+      domEvent.stopPropagation()
+      this.map.easeTo({
+        center: count.lngLat,
+        zoom: this.map.getZoom() + SEA_COUNT_ZOOM_STEP,
+        duration: 300,
+      })
+    })
+    const marker = new maplibregl.Marker({ element, anchor: 'center' })
+      .setLngLat(count.lngLat)
+      .addTo(this.map)
+    setMarkerAccessibleName(marker, `${count.members.length} vessels here — zoom in to see them`)
+    this._countMarkers.set(count.key, marker)
+    this._countSizes.set(count.key, count.members.length)
+  }
+
+  private _clearCounts(): void {
+    for (const marker of this._countMarkers.values()) marker.remove()
+    this._countMarkers.clear()
+    this._countSizes.clear()
   }
 
   private _syncLabel(vessel: SeaVessel, coords: [number, number]): void {
@@ -509,8 +611,7 @@ export class AisVesselsControl extends SentinelControlBase {
   }
 
   private _isLeftFacing(vessel: SeaVessel): boolean {
-    const bearing = vessel.heading ?? vessel.cog
-    return typeof bearing === 'number' && isLeftFacing(bearing)
+    return vesselFacesLeft(vessel)
   }
 
   /** The shared Sentinel pill, in the vessel's family colour, with whichever
