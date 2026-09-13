@@ -9,12 +9,14 @@
       :toggle-vessels="toggleVessels"
       :toggle-labels="toggleLabels"
       :toggle-range-rings="toggleRangeRings"
+      :toggle-shipping-lanes="toggleShippingLanes"
       :toggle-names="toggleNames"
       :set-filter-category="setFilterCategory"
       :filter-category="seaStore.seaFilterCategory"
       :vessels-active="seaStore.overlayStates.vessels"
       :labels-active="seaStore.overlayStates.vesselLabels"
       :range-rings-active="seaStore.overlayStates.rangeRings"
+      :shipping-lanes-active="seaStore.overlayStates.shippingLanes"
       :names-active="basemapStore.layers.names"
       :location-active="locationActive"
     />
@@ -84,6 +86,9 @@ function toggleLabels() {
 }
 function toggleRangeRings() {
   seaStore.setOverlay('rangeRings', !seaStore.overlayStates.rangeRings)
+}
+function toggleShippingLanes() {
+  seaStore.setOverlay('shippingLanes', !seaStore.overlayStates.shippingLanes)
 }
 function toggleNames() {
   seaMapRef.value?.getNamesControl()?.handleClickPublic()

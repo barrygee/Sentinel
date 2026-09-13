@@ -70,6 +70,8 @@ export interface SeaOverlayStates {
   vessels: boolean
   vesselLabels: boolean
   rangeRings: boolean
+  /** OpenSeaMap seamark overlay — charted shipping lanes (online only). */
+  shippingLanes: boolean
 }
 
 /**
@@ -88,10 +90,15 @@ export interface SeaLabelFieldMap {
 /** A valid key of {@link SeaLabelFieldMap}. */
 export type SeaLabelField = keyof SeaLabelFieldMap
 
-const LS_OVERLAYS_KEY = 'seaOverlayStates_v1'
+const LS_OVERLAYS_KEY = 'seaOverlayStates_v2'
 const LS_LABEL_FIELDS_KEY = 'seaLabelFields_v1'
 
-const DEFAULT_OVERLAYS: SeaOverlayStates = { vessels: true, vesselLabels: true, rangeRings: false }
+const DEFAULT_OVERLAYS: SeaOverlayStates = {
+  vessels: true,
+  vesselLabels: true,
+  rangeRings: false,
+  shippingLanes: false,
+}
 const DEFAULT_LABEL_FIELDS: SeaLabelFieldMap = {
   name: true,
   type: false,
@@ -130,9 +137,29 @@ export const useSeaStore = defineStore('sea', () => {
   const lastFetchedAt = ref(0)
 
   // ── overlays & label fields ────────────────────────────────────────────────
+  // Whether this browser already holds an overlay choice. The `sea.defaultLayers`
+  // config is a *default*: it seeds a first visit and is never allowed to undo
+  // a toggle the operator has since made on the rail.
+  let overlaysChosen = false
+  try {
+    overlaysChosen = localStorage.getItem(LS_OVERLAYS_KEY) !== null
+  } catch {
+    overlaysChosen = false
+  }
   const overlayStates = usePersistedObject<SeaOverlayStates>(LS_OVERLAYS_KEY, DEFAULT_OVERLAYS)
   function setOverlay(key: keyof SeaOverlayStates, on: boolean): void {
+    overlaysChosen = true
     overlayStates.value = { ...overlayStates.value, [key]: on }
+  }
+  /** Seed the overlays from the config's default-layers list — first visit only. */
+  function applyDefaultLayers(layers: string[]): void {
+    if (overlaysChosen) return
+    overlayStates.value = {
+      ...overlayStates.value,
+      vessels: layers.includes('vessels'),
+      vesselLabels: layers.includes('vesselLabels'),
+      shippingLanes: layers.includes('shippingLanes'),
+    }
   }
 
   const labelFields = usePersistedObject<SeaLabelFieldMap>(
@@ -290,6 +317,7 @@ export const useSeaStore = defineStore('sea', () => {
     lastFetchedAt,
     overlayStates,
     setOverlay,
+    applyDefaultLayers,
     labelFields,
     setLabelFields,
     seaFilterCategory,

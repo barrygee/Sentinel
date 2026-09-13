@@ -16,7 +16,8 @@
           placeholder="paste your AISStream key"
           spellcheck="false"
           autocomplete="off"
-          @keydown.enter="save"
+          @input="onInput"
+          @keydown.enter="emit('commit')"
         />
         <p :id="keyHintId" class="settings-location-hint">
           Get a free key at
@@ -31,19 +32,11 @@
       </div>
     </div>
 
-    <div class="settings-location-actions sea-key-actions">
-      <BaseButton variant="primary" :disabled="saving || keyDraft.trim().length < 8" @click="save">
-        {{ saving ? 'SAVING…' : 'SAVE KEY' }}
-      </BaseButton>
-      <BaseButton
-        v-if="keyStatus.configured && keyStatus.source === 'settings'"
-        variant="ghost"
-        bordered
-        :disabled="saving"
-        @click="clearKey"
-      >
-        FORGET KEY
-      </BaseButton>
+    <div
+      v-if="keyStatus.configured && keyStatus.source === 'settings'"
+      class="settings-location-actions"
+    >
+      <BaseButton variant="ghost" bordered @click="stageForget">FORGET KEY</BaseButton>
     </div>
   </div>
 </template>
@@ -53,21 +46,27 @@
  * Settings › SEA › AISStream API Key.
  *
  * The key is a secret, so — unlike every other Sea setting — it never passes
- * through the generic settings API or the exported config. It is written to
- * its own endpoint the moment SAVE KEY is pressed (no APPLY CHANGES staging),
- * and the card only ever reports that a key is configured and where it came
- * from (this panel, or the server's `.env`), plus a short fingerprint so the
- * operator can tell one key from another.
+ * through the generic settings API or the exported config: the staged write
+ * goes to the key's own endpoint. Like the other cards it is staged into
+ * APPLY CHANGES rather than saved on its own button. The card only ever
+ * reports that a key is configured and where it came from (this panel, or the
+ * server's `.env`), plus a short fingerprint so one key can be told from
+ * another.
  */
 import { ref, computed, onMounted, useId } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import * as seaApi from '@/services/seaApi'
+import { useDocumentEvent } from '@/composables/useDocumentEvent'
+
+const emit = defineEmits<{
+  stage: [fn: () => Promise<unknown> | void]
+  commit: []
+}>()
 
 const keyInputId = useId()
 const keyHintId = useId()
 
 const keyDraft = ref('')
-const saving = ref(false)
 const errorText = ref<string | null>(null)
 const keyStatus = ref<seaApi.AisKeyStatus>({ configured: false, source: null, fingerprint: null })
 const feedStatus = ref<string | null>(null)
@@ -86,32 +85,36 @@ async function refresh(): Promise<void> {
 }
 
 onMounted(refresh)
+// APPLY CHANGES closes the panel; re-read so a reopened card shows the new key.
+useDocumentEvent('settings-panel-closed', () => void refresh())
 
-async function save(): Promise<void> {
-  const key = keyDraft.value.trim()
-  if (key.length < 8 || saving.value) return
-  saving.value = true
+/** Stage the typed key for APPLY CHANGES; a cleared field stages nothing. */
+function onInput(): void {
   errorText.value = null
-  const result = await seaApi.putAisKey(key)
-  saving.value = false
-  if (!result.ok) {
-    errorText.value = result.error
-    return
-  }
-  keyDraft.value = ''
-  await refresh()
+  const key = keyDraft.value.trim()
+  emit('stage', async () => {
+    if (key.length < 8) return
+    const result = await seaApi.putAisKey(key)
+    if (!result.ok) {
+      errorText.value = result.error
+      return
+    }
+    keyDraft.value = ''
+    await refresh()
+  })
 }
 
-async function clearKey(): Promise<void> {
-  saving.value = true
+/** Stage forgetting the saved key; the `.env` key, if any, applies again. */
+function stageForget(): void {
   errorText.value = null
-  const result = await seaApi.deleteAisKey()
-  saving.value = false
-  if (!result.ok) {
-    errorText.value = result.error
-    return
-  }
-  await refresh()
+  emit('stage', async () => {
+    const result = await seaApi.deleteAisKey()
+    if (!result.ok) {
+      errorText.value = result.error
+      return
+    }
+    await refresh()
+  })
 }
 </script>
 
@@ -130,10 +133,5 @@ async function clearKey(): Promise<void> {
 .sea-key-link:hover,
 .sea-key-link:focus-visible {
   color: rgba(16, 19, 29, 0.92);
-}
-.sea-key-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 </style>

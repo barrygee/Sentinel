@@ -103,9 +103,13 @@
       v-else-if="item.type === 'land-aprs-label-fields'"
       @stage="emit('stage', item.id, $event)"
     />
-    <!-- No stage/commit: the key is a secret with its own endpoint, saved the
-         moment SAVE KEY is pressed rather than via APPLY CHANGES. -->
-    <SeaAisKeyControl v-else-if="item.type === 'sea-ais-key'" />
+    <!-- Staged like the rest, but the write goes to the key's own endpoint —
+         a secret never travels through the generic settings API. -->
+    <SeaAisKeyControl
+      v-else-if="item.type === 'sea-ais-key'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
     <SeaCoverageAreaControl
       v-else-if="item.type === 'sea-coverage-area'"
       @stage="emit('stage', item.id, $event)"

@@ -34,6 +34,7 @@ import { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsTogg
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 import { AisVesselsControl } from './controls/vessels/AisVesselsControl'
+import { ShippingLanesControl } from './controls/shipping-lanes/ShippingLanesControl'
 
 const appStore = useAppStore()
 const seaStore = useSeaStore()
@@ -62,6 +63,7 @@ let _currentStyleUrl: string | null = null
 
 // Control instances — plain variables, initialised in onStyleLoaded.
 let vesselsControl: AisVesselsControl | null = null
+let shippingLanesControl: ShippingLanesControl | null = null
 let rangeRingsControl: LandRangeRingsControl | null = null
 let roadsControl: RoadsToggleControl | null = null
 let namesControl: NamesToggleControl | null = null
@@ -70,6 +72,7 @@ let sentrySitesControl: SentrySitesControl | null = null
 
 defineExpose({
   getVesselsControl: () => vesselsControl,
+  getShippingLanes: () => shippingLanesControl,
   getRangeRings: () => rangeRingsControl,
   getNamesControl: () => namesControl,
   getMap: () => _map,
@@ -80,6 +83,7 @@ function _reinitAfterStyle(): void {
   namesControl?.applyVisibility()
   rangeRingsControl?._initRings()
   vesselsControl?.initLayers()
+  shippingLanesControl?.initLayers()
 }
 
 useConnectivity((online) => {
@@ -104,6 +108,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   if (vesselsControl) return // already initialised (style reload handled above)
 
   vesselsControl = new AisVesselsControl(seaStore)
+  shippingLanesControl = new ShippingLanesControl(seaStore)
   rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
@@ -115,6 +120,8 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // onAdd wires each control to the map; the returned buttons are discarded —
   // SeaSideMenu owns the visible controls.
   vesselsControl.onAdd(m)
+  // After the vessel layers exist, so the chart slots in beneath them.
+  shippingLanesControl.onAdd(m)
   rangeRingsControl.onAdd(m)
   roadsControl.onAdd(m)
   namesControl.onAdd(m)
@@ -165,14 +172,16 @@ onMounted(() => {
     () => basemapStore.layers.names,
     (on) => namesControl?.setVisible(on),
   )
-  // Apply the default-layers config once it is known, and again if it changes.
+  watch(
+    () => seaStore.overlayStates.shippingLanes,
+    () => shippingLanesControl?.applyVisibility(),
+  )
+  // Seed the overlays from the default-layers config once it is known. The
+  // store only honours it until the operator has made a choice of their own.
   void seaStore.hydrateDefaultLayers()
   watch(
     () => seaStore.defaultLayers,
-    (layers) => {
-      seaStore.setOverlay('vessels', layers.includes('vessels'))
-      seaStore.setOverlay('vesselLabels', layers.includes('vesselLabels'))
-    },
+    (layers) => seaStore.applyDefaultLayers(layers),
   )
 })
 
@@ -186,12 +195,14 @@ onBeforeUnmount(() => {
   }
   _map = null
   vesselsControl?.onRemove()
+  shippingLanesControl?.onRemove()
   rangeRingsControl?.onRemove()
   roadsControl?.onRemove()
   namesControl?.onRemove()
   sentrySitesControl?.onRemove()
   _locationMarker.remove()
   vesselsControl = null
+  shippingLanesControl = null
   rangeRingsControl = null
   roadsControl = null
   namesControl = null

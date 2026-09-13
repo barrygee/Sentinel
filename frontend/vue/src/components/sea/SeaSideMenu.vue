@@ -189,6 +189,45 @@
             <circle cx="12" cy="12" r="1.5" fill="currentColor" />
           </svg>
         </BaseIconButton>
+        <!-- SHIPPING LANES (OpenSeaMap seamark overlay, online only) -->
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          :class="{ active: shippingLanesActive }"
+          :active="shippingLanesActive"
+          tooltip-side="left"
+          tooltip="SHIPPING LANES"
+          accessible-name="Shipping lanes"
+          @click="toggleShippingLanes"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 8h13m0 0-3-3m3 3-3 3"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M21 16H8m0 0 3-3m-3 3 3 3"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M3 12h18" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3" />
+          </svg>
+        </BaseIconButton>
         <!-- LOCATION NAMES (shared base-map layer) -->
         <BaseIconButton
           class="sm-btn sm-sub-btn"
@@ -241,12 +280,14 @@ defineProps<{
   toggleVessels: () => void
   toggleLabels: () => void
   toggleRangeRings: () => void
+  toggleShippingLanes: () => void
   toggleNames: () => void
   setFilterCategory: (category: SeaFilterCategory) => void
   filterCategory: SeaFilterCategory
   vesselsActive: boolean
   labelsActive: boolean
   rangeRingsActive: boolean
+  shippingLanesActive: boolean
   namesActive: boolean
   locationActive: boolean
 }>()
