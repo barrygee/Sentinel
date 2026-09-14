@@ -39,6 +39,9 @@ services:
       # from the voice feed's 7355 so voice + APRS can decode at once on two
       # dongles.
       - APRS_DECODER_PCM_PORT=7357
+      # Sea domain: AISStream.io key for live vessels (optional — the Sea map can
+      # also take the key from Settings › SEA). Read from .env, never committed.
+      - AISSTREAM_API_KEY=${AISSTREAM_API_KEY:-}
     command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     networks:

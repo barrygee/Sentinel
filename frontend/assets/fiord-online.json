@@ -1511,6 +1511,14 @@
           "motorway"
         ],
         [
+          "!=",
+          [
+            "get",
+            "class"
+          ],
+          "ferry"
+        ],
+        [
           "match",
           [
             "geometry-type"

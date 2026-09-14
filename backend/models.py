@@ -336,3 +336,22 @@ class AprsStation(Base):
     path = Column(Text)  # digipeater path, e.g. "WIDE1-1,WIDE2-1"
     raw = Column(Text)  # the raw TNC2 packet the fix was parsed from
     last_heard_ms = Column(Integer, nullable=False)  # Unix ms this station was last heard
+
+
+class SeaVesselCache(Base):
+    """Last-known snapshot of every live AIS vessel, persisted for warm starts.
+
+    The live vessel picture lives in memory (``backend.services.ais_store``) and is
+    written through here on a slow cadence (``sea_ais_snapshot_persist_ms``). On
+    startup the store reloads any rows still inside the retention window so the
+    Sea map shows the last-known picture — flagged STALE — while the AISStream
+    socket reconnects, and keeps showing it if the upstream is unreachable.
+    """
+
+    __tablename__ = "sea_vessel_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    mmsi = Column(Text, nullable=False, unique=True)  # Maritime Mobile Service Identity, 5–10 digits
+    payload = Column(Text, nullable=False)  # JSON-serialised vessel record (see ais_store.vessel_record)
+    track = Column(Text, nullable=False, default="[]")  # JSON list of [lat, lon, epoch_s] recent fixes
+    updated_at = Column(Integer, nullable=False)  # Unix ms of the newest position report

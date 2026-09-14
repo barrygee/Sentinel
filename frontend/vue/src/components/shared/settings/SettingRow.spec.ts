@@ -33,6 +33,10 @@ import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
+import SeaAisKeyControl from './SeaAisKeyControl.vue'
+import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
+import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
+import SeaMapLayersControl from './SeaMapLayersControl.vue'
 import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
@@ -79,6 +83,10 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['space-hover-preview', SpaceHoverPreviewControl],
   ['air-tag-fields', AdsbTagFieldsControl],
   ['land-aprs-label-fields', AprsLabelFieldsControl],
+  ['sea-ais-key', SeaAisKeyControl],
+  ['sea-coverage-area', SeaCoverageAreaControl],
+  ['sea-label-fields', SeaLabelFieldsControl],
+  ['sea-map-layers', SeaMapLayersControl],
   ['air-replay-toggle', AirReplayToggleControl],
   ['sdr-devices', SdrDevicesControl],
   ['sdr-options', SdrOptionsControl],

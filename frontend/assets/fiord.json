@@ -870,6 +870,14 @@
       "source": "openmaptiles",
       "source-layer": "roads",
       "minzoom": 9,
+      "filter": [
+        "!=",
+        [
+          "get",
+          "kind"
+        ],
+        "ferry"
+      ],
       "layout": {
         "line-cap": "round",
         "line-join": "round"
@@ -1513,6 +1521,14 @@
           ],
           true,
           false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "kind"
+          ],
+          "ferry"
         ]
       ],
       "layout": {

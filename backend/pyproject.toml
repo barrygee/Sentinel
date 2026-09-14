@@ -16,6 +16,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "numpy>=1.26",
     "aiofiles>=24.1",
+    "websockets>=13",
 ]
 
 [dependency-groups]

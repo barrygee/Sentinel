@@ -7,14 +7,7 @@
       "latitude": "",
       "longitude": ""
     },
-    "notificationSound": false,
-    "rangeRingOrigin": {
-      "kind": "user",
-      "sentryHostId": null
-    },
-    "mapLayers": {
-      "names": false
-    }
+    "notificationSound": false
   },
   "air": {
     "enabled": true,
@@ -23,16 +16,6 @@
     "onlineDataSourceURL": "https://api.adsb.lol/v2",
     "offgridDataSourceURL": {
       "url": ""
-    },
-    "offgridSdrSource": null,
-    "mapLayers": {
-      "rangeRings": false,
-      "aara": true,
-      "awacs": true,
-      "groundVehicles": true,
-      "towers": true,
-      "airports": true,
-      "militaryBases": true
     },
     "labelDataPoints": {
       "civil": {
@@ -80,20 +63,37 @@
     }
   },
   "sea": {
-    "enabled": false,
+    "enabled": true,
     "sourceOverride": "auto",
-    "onlineUrl": "",
+    "onlineUrl": "wss://stream.aisstream.io/v0/stream",
     "offgridSource": {
       "url": ""
-    }
+    },
+    "aisBoundingBoxes": [
+      [
+        [-90, -180],
+        [90, 180]
+      ]
+    ],
+    "labelDataPoints": {
+      "name": true,
+      "type": false,
+      "mmsi": false,
+      "flag": false,
+      "destination": false,
+      "speed": false,
+      "course": false
+    },
+    "defaultLayers": [
+      "vessels",
+      "vesselLabels",
+      "ferryRoutes",
+      "ports"
+    ]
   },
   "land": {
     "enabled": false,
     "sourceOverride": "auto",
-    "onlineUrl": "",
-    "offgridSource": {
-      "url": ""
-    },
     "labelDataPoints": {
       "time": false,
       "callsign": true,
@@ -122,15 +122,10 @@
     "defaultGain": 30,
     "defaultSquelch": -60,
     "autoCenterWaterfallOnTune": true,
-    "snapToKnown": true,
     "showBandPlan": true,
     "showKnownFreqs": true,
-    "showWaterfallTimestamps": true,
-    "waterfallTimestampIntervalSec": 5,
-    "resumeDelaySec": 0,
     "digitalDecodeDefault": false,
     "muteAudioWhileDecoding": true,
-    "aprs_radio_id": null,
     "radios": []
   }
 }

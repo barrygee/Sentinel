@@ -34,6 +34,12 @@ class SettingValueIn(BaseModel):
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
+# Settings that are secrets. They are stored in user_settings like any other
+# value but never leave the backend through this router (redacted on read,
+# refused on write, skipped on config upload) — each has its own endpoint that
+# reports only whether it is configured. See routers/sea.py for the AIS key.
+_SECRET_SETTING_KEYS: frozenset[tuple[str, str]] = frozenset({("sea", "aisstreamApiKey")})
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +110,8 @@ def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
     their original order)."""
     parsed: dict = {}
     for row in rows:
+        if (row.namespace, row.key) in _SECRET_SETTING_KEYS:
+            continue
         try:
             parsed[row.key] = json.loads(row.value)
         except (json.JSONDecodeError, TypeError):
@@ -422,6 +430,10 @@ async def config_upload(
             # dedicated stores.
             if _is_hidden_key(namespace, key):
                 continue
+            # Secrets are redacted from exports, so an uploaded config can only
+            # ever carry a blank — never let it wipe the stored one.
+            if (namespace, key) in _SECRET_SETTING_KEYS:
+                continue
             result = await db.execute(
                 select(UserSettings).where(
                     UserSettings.namespace == namespace,
@@ -473,6 +485,8 @@ async def upsert_setting_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Upsert a single user setting. Creates the row if it doesn't exist."""
+    if (namespace, key) in _SECRET_SETTING_KEYS:
+        raise HTTPException(status_code=400, detail=f"{namespace}/{key} is a secret — use its dedicated endpoint")
     value = body.value
     if namespace == "app" and key == "location":
         value = _validated_location(value)

@@ -178,6 +178,13 @@ describe('SentrySitesControl', () => {
       expect(siteMarkers()[0]!.anchor).toBe('center')
     })
 
+    it('works without an operator position or marker (a map that has neither)', () => {
+      sitesStore.sites = [site()]
+      const control = new SentrySitesControl(sitesStore, settingsStore)
+      control.onAdd(makeFakeMap() as never)
+      expect(siteMarkers()).toHaveLength(1)
+    })
+
     it('stops polling and tears down markers and the a11y region on remove', () => {
       const stopSpy = vi.spyOn(sitesStore, 'stopPolling')
       sitesStore.sites = [site()]
