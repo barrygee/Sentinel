@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
+import * as settingsApi from '@/services/settingsApi'
 import MapLayersControl from './MapLayersControl.vue'
+
+vi.mock('@/services/settingsApi', () => ({ getNamespace: vi.fn(), put: vi.fn() }))
 
 enableAutoUnmount(afterEach)
 
@@ -136,5 +139,47 @@ describe('MapLayersControl', () => {
 
   it('has no axe violations', async () => {
     expect(await axe(mountControl().element as HTMLElement)).toHaveNoViolations()
+  })
+
+  describe('re-syncing after a config upload', () => {
+    it('adopts both layer sets from the config database on sentinel:config-uploaded', async () => {
+      vi.mocked(settingsApi.getNamespace).mockImplementation(async (namespace) =>
+        namespace === 'air'
+          ? { mapLayers: { rangeRings: true, awacs: false } }
+          : { mapLayers: { names: true } },
+      )
+      const wrapper = mountControl()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(settingsApi.getNamespace).toHaveBeenCalledWith('air')
+      expect(settingsApi.getNamespace).toHaveBeenCalledWith('app')
+      expect(isOn(wrapper, 'Range rings')).toBe(true)
+      expect(isOn(wrapper, 'AWACS')).toBe(false)
+      expect(isOn(wrapper, 'Location names')).toBe(true)
+    })
+
+    it('leaves the switches alone when the config database is unreachable', async () => {
+      vi.mocked(settingsApi.getNamespace).mockResolvedValue(null)
+      const wrapper = mountControl()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(isOn(wrapper, 'Range rings')).toBe(false)
+      expect(isOn(wrapper, 'AWACS')).toBe(true)
+    })
+
+    it('stops listening once unmounted', async () => {
+      vi.mocked(settingsApi.getNamespace).mockResolvedValue({ mapLayers: { rangeRings: true } })
+      const wrapper = mountControl()
+      wrapper.unmount()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(settingsApi.getNamespace).not.toHaveBeenCalled()
+    })
   })
 })

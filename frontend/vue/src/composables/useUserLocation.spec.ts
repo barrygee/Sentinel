@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-vi.mock('@/services/settingsApi', () => ({ getNamespace: vi.fn() }))
+vi.mock('@/services/settingsApi', () => ({ getNamespace: vi.fn(), notifySettingsChanged: vi.fn() }))
 
 interface GeoCallbacks {
   success?: PositionCallback

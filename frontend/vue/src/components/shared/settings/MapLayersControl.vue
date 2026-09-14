@@ -25,6 +25,8 @@
  */
 import { useAirStore, type OverlayStates } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
+import * as settingsApi from '@/services/settingsApi'
+import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'
 
 /** An Air overlay flag, or the shared base-map place-name layer. */
@@ -53,6 +55,21 @@ function isLayerOn(_columnKey: string, layer: string): boolean {
   if (key === 'names') return basemapStore.layers.names
   return airStore.overlayStates[key]
 }
+
+/**
+ * Re-adopt both layer sets from the config database after the app-config JSON
+ * is uploaded, so an edit made in the JSON editor moves these switches (and the
+ * maps) without waiting for the post-apply reload.
+ */
+async function hydrateLayersFromDb(): Promise<void> {
+  const [airSettings, appSettings] = await Promise.all([
+    settingsApi.getNamespace('air'),
+    settingsApi.getNamespace('app'),
+  ])
+  airStore.hydrateMapLayers(airSettings?.mapLayers)
+  basemapStore.hydrateLayers(appSettings?.mapLayers)
+}
+useDocumentEvent('sentinel:config-uploaded', () => void hydrateLayersFromDb())
 
 function toggleLayer(layer: MapLayerKey): void {
   if (layer === 'names') {

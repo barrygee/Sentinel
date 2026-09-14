@@ -303,6 +303,7 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 // replaces them, so the waterfall reacts even when the settings panel isn't
 // mounted (the toggle controls also subscribe, but only while rendered).
 useDocumentEvent('sentinel:config-uploaded', () => {
+  void store.hydrateSnapToKnownFromDb()
   void store.hydrateShowBandPlanFromDb()
   void store.hydrateShowKnownFreqsFromDb()
   void store.hydrateShowWaterfallTimestampsFromDb()
@@ -2743,6 +2744,7 @@ onMounted(() => {
   // Pull overlay-visibility flags from the DB so the live spectrum reflects
   // the persisted config on first paint (localStorage is the fallback, not
   // the source of truth across machines).
+  void store.hydrateSnapToKnownFromDb()
   void store.hydrateShowBandPlanFromDb()
   void store.hydrateShowKnownFreqsFromDb()
   void store.hydrateShowWaterfallTimestampsFromDb()

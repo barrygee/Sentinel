@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { getAdsbSource } from '@/services/adsbSourceApi'
+import { notifySettingsChanged } from '@/services/settingsApi'
 
 export interface SdrRadio {
   id: number
@@ -679,7 +680,11 @@ export const useSdrStore = defineStore('sdr', () => {
       })
       // Track the decoding radio only once the backend has accepted it, so a
       // failed start never mutes a radio that isn't decoding.
-      if (res.ok) setAprsRadioId(radioId)
+      if (res.ok) {
+        setAprsRadioId(radioId)
+        // The backend persisted `sdr.aprs_radio_id` — let the config JSON follow.
+        notifySettingsChanged()
+      }
       return res.ok
     } catch {
       return false
@@ -694,6 +699,7 @@ export const useSdrStore = defineStore('sdr', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ radio_id: radioId }),
       })
+      if (res.ok) notifySettingsChanged()
       return res.ok
     } catch {
       return false

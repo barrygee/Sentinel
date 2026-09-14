@@ -15,8 +15,9 @@ import router from './router'
 import { useAppStore } from './stores/app'
 import type { ConnectivityMode } from './stores/app'
 import { useAirStore } from './stores/air'
-import type { AdsbLabelFields, AdsbTagFields } from './stores/air'
+import type { AdsbTagFields } from './stores/air'
 import { useLandStore } from './stores/land'
+import { useBasemapStore } from './stores/basemap'
 import type { AprsLabelFieldMap } from './stores/land'
 import { useSettingsStore } from './stores/settings'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
@@ -52,6 +53,7 @@ const ALL_DOMAINS = ['air', 'space', 'sea', 'land', 'sdr'] as const
 const DOMAINS_ON_BY_DEFAULT = new Set(['air', 'space', 'sdr'])
 const airStore = useAirStore()
 const landStore = useLandStore()
+const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
 
 const DEFAULT_LABEL_DATA_POINTS = {
@@ -109,6 +111,12 @@ const DEFAULT_LABEL_DATA_POINTS = {
       const soundOn = data.app?.notificationSound
       appStore.setNotificationSound(typeof soundOn === 'boolean' ? soundOn : false)
 
+      // Map overlays (Settings > AIR > Map Layers) and the shared base-map
+      // layers — adopt the config so a choice made in the app-config JSON or on
+      // another device is what the maps draw from the first frame.
+      airStore.hydrateMapLayers(data.air?.mapLayers)
+      basemapStore.hydrateLayers(data.app?.mapLayers)
+
       // Replay recording toggle — default OFF when absent from the DB.
       const replayOn = data.air?.replayEnabled
       airStore.setReplayEnabled(typeof replayOn === 'boolean' ? replayOn : false)
@@ -150,45 +158,6 @@ const DEFAULT_LABEL_DATA_POINTS = {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: landStore.aprsLabelFields }),
-        }).catch(() => {})
-      }
-
-      // ADS-B labels master toggle — backend-synced so the show/hide choice
-      // follows the user across devices (localStorage alone is per-browser, which
-      // is why labels appeared on the host but not on a second device). When the
-      // key is absent from the DB, seed it from the current (localStorage) value
-      // so an existing per-browser preference becomes the shared default instead
-      // of being reset to off.
-      const remoteLabelsVisible = data.air?.labelsVisible
-      if (typeof remoteLabelsVisible === 'boolean') {
-        airStore.setOverlay('adsbLabels', remoteLabelsVisible)
-      } else {
-        fetch('/api/settings/air/labelsVisible', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: airStore.overlayStates.adsbLabels }),
-        }).catch(() => {})
-      }
-
-      // Per-aircraft label fields (type/alt, separately for civil and military) —
-      // same cross-device rationale and the same seed-from-localStorage migration.
-      const remoteLabelFields = data.air?.labelFields as AdsbLabelFields | undefined
-      if (
-        remoteLabelFields &&
-        typeof remoteLabelFields === 'object' &&
-        !Array.isArray(remoteLabelFields) &&
-        Array.isArray(remoteLabelFields.civil) &&
-        Array.isArray(remoteLabelFields.mil)
-      ) {
-        airStore.setAdsbLabelFields({
-          civil: remoteLabelFields.civil,
-          mil: remoteLabelFields.mil,
-        })
-      } else {
-        fetch('/api/settings/air/labelFields', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: airStore.adsbLabelFields }),
         }).catch(() => {})
       }
     }

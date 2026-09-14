@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { usePersistedObject, usePersistedRef } from './_persist'
+import * as settingsApi from '@/services/settingsApi'
 
 // The Air search/filter categories, surfaced as single-select rail sub-tabs
 // beneath the FILTER tab. Exactly one is shown in the panel at a time.
@@ -26,8 +27,6 @@ export interface OverlayStates {
   towers: boolean
 }
 
-export type AdsbLabelField = 'type' | 'alt'
-
 // Last-known search-result entry for an expanded aircraft, persisted so the
 // selection survives navigating away from Air and back. Structurally matches
 // AirFilter's PlaneResult, kept here (not imported from the .vue) so the store
@@ -49,11 +48,6 @@ export interface SearchExpandedPlane {
   snapshot: SearchExpandedPlaneSnapshot | null
 }
 
-export interface AdsbLabelFields {
-  civil: AdsbLabelField[]
-  mil: AdsbLabelField[]
-}
-
 export interface AdsbTagFields {
   civil: AdsbTagFieldMap
   mil: AdsbTagFieldMap
@@ -71,7 +65,24 @@ export interface AdsbTagFieldMap {
 }
 
 const LS_KEY = 'overlayStates'
-const LS_LABEL_FIELDS_KEY = 'adsbLabelFields'
+
+/**
+ * The overlays an operator configures (Settings > AIR > Map Layers, and the
+ * rail shortcuts). `adsb` and `adsbLabels` are deliberately absent: the ADS-B
+ * layer is the map's reason to exist and its labels are permanently on.
+ */
+export const MAP_LAYER_KEYS = [
+  'rangeRings',
+  'aara',
+  'awacs',
+  'groundVehicles',
+  'towers',
+  'airports',
+  'militaryBases',
+] as const
+export type MapLayerKey = (typeof MAP_LAYER_KEYS)[number]
+/** The persisted shape of `air.mapLayers` in the app config. */
+export type MapLayerStates = Record<MapLayerKey, boolean>
 const LS_TAG_FIELDS_KEY = 'adsbTagFields_v3'
 const LS_OVERHEAD_RADIUS_KEY = 'overheadAlertRadiusNm'
 const LS_OVERHEAD_ALERTS_KEY = 'overheadAlerts'
@@ -136,7 +147,6 @@ function readPersistedOverheadAlerts(): Record<string, OverheadAlertConfig> {
   }
 }
 
-const DEFAULT_LABEL_FIELDS: AdsbLabelFields = { civil: ['type'], mil: ['type'] }
 const DEFAULT_TAG_FIELDS: AdsbTagFields = {
   civil: {
     callsign: true,
@@ -186,14 +196,6 @@ function migrateOverlays(parsed: unknown): Partial<OverlayStates> {
   return obj
 }
 
-function migrateLabelFields(parsed: unknown): Partial<AdsbLabelFields> {
-  const obj = parsed as Partial<AdsbLabelFields>
-  return {
-    civil: Array.isArray(obj.civil) ? obj.civil : DEFAULT_LABEL_FIELDS.civil,
-    mil: Array.isArray(obj.mil) ? obj.mil : DEFAULT_LABEL_FIELDS.mil,
-  }
-}
-
 function isTagFieldMap(v: unknown): v is AdsbTagFieldMap {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
@@ -235,11 +237,6 @@ function readPersistedRadius(): number {
 
 export const useAirStore = defineStore('air', () => {
   const overlayStates = usePersistedObject<OverlayStates>(LS_KEY, DEFAULTS, migrateOverlays)
-  const adsbLabelFields = usePersistedObject<AdsbLabelFields>(
-    LS_LABEL_FIELDS_KEY,
-    DEFAULT_LABEL_FIELDS,
-    migrateLabelFields,
-  )
   const adsbTagFields = usePersistedObject<AdsbTagFields>(
     LS_TAG_FIELDS_KEY,
     DEFAULT_TAG_FIELDS,
@@ -276,10 +273,36 @@ export const useAirStore = defineStore('air', () => {
 
   function setOverlay(key: keyof OverlayStates, visible: boolean) {
     overlayStates.value[key] = visible
+    // The Settings > Map Layers switches and the map rails are both views of
+    // this state, and the app-config JSON is a third: mirror every change of a
+    // configurable layer to `air.mapLayers` so the JSON follows the UI.
+    if (MAP_LAYER_KEYS.includes(key as MapLayerKey)) void persistMapLayers()
   }
 
-  function setAdsbLabelFields(fields: AdsbLabelFields) {
-    adsbLabelFields.value = fields
+  /** The `air.mapLayers` config value: every operator-configurable overlay. */
+  function mapLayersConfig(): MapLayerStates {
+    const layers = {} as MapLayerStates
+    for (const layerKey of MAP_LAYER_KEYS) layers[layerKey] = overlayStates.value[layerKey]
+    return layers
+  }
+
+  /** Write the configurable overlays to the config database (`air.mapLayers`). */
+  function persistMapLayers(): Promise<void> {
+    return settingsApi.put('air', 'mapLayers', mapLayersConfig())
+  }
+
+  /**
+   * Adopt `air.mapLayers` from the config database (startup, or after the
+   * app-config JSON is uploaded). Unknown keys are ignored; only boolean values
+   * are applied so a hand-edited config cannot poison the overlay state.
+   */
+  function hydrateMapLayers(remote: unknown): void {
+    if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return
+    const candidate = remote as Partial<Record<MapLayerKey, unknown>>
+    for (const layerKey of MAP_LAYER_KEYS) {
+      const value = candidate[layerKey]
+      if (typeof value === 'boolean') overlayStates.value[layerKey] = value
+    }
   }
 
   function setAdsbTagFields(fields: AdsbTagFields) {
@@ -353,7 +376,6 @@ export const useAirStore = defineStore('air', () => {
 
   return {
     overlayStates,
-    adsbLabelFields,
     adsbTagFields,
     overheadAlerts,
     overheadAlertFor,
@@ -370,7 +392,8 @@ export const useAirStore = defineStore('air', () => {
     mapZoom,
     pitch,
     setOverlay,
-    setAdsbLabelFields,
+    persistMapLayers,
+    hydrateMapLayers,
     setAdsbTagFields,
     setReplayEnabled,
     setFilter,

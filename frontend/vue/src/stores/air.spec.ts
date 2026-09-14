@@ -8,7 +8,6 @@ import {
 } from './air'
 
 const LS_OVERLAYS = 'overlayStates'
-const LS_LABELS = 'adsbLabelFields'
 const LS_TAGS = 'adsbTagFields_v3'
 const LS_RADIUS = 'overheadAlertRadiusNm'
 const LS_REPLAY = 'airReplayEnabled'
@@ -177,22 +176,6 @@ describe('air store', () => {
     })
   })
 
-  describe('label-field migration', () => {
-    it('keeps array values and defaults non-array ones', () => {
-      localStorage.setItem(LS_LABELS, JSON.stringify({ civil: ['alt'], mil: 'bad' }))
-      const store = useAirStore()
-      expect(store.adsbLabelFields.civil).toEqual(['alt'])
-      expect(store.adsbLabelFields.mil).toEqual(['type'])
-    })
-
-    it('defaults a non-array civil while keeping an array mil', () => {
-      localStorage.setItem(LS_LABELS, JSON.stringify({ civil: 'bad', mil: ['alt'] }))
-      const store = useAirStore()
-      expect(store.adsbLabelFields.civil).toEqual(['type'])
-      expect(store.adsbLabelFields.mil).toEqual(['alt'])
-    })
-  })
-
   describe('tag-field migration', () => {
     it('merges a stored tag map over the defaults', () => {
       localStorage.setItem(LS_TAGS, JSON.stringify({ civil: { altitude: true } }))
@@ -287,10 +270,8 @@ describe('air store', () => {
     expect(JSON.parse(localStorage.getItem(LS_OVERLAYS)!).airports).toBe(false)
   })
 
-  it('setAdsbLabelFields and setAdsbTagFields replace the field config', () => {
+  it('setAdsbTagFields replaces the field config', () => {
     const store = useAirStore()
-    store.setAdsbLabelFields({ civil: ['alt'], mil: ['alt'] })
-    expect(store.adsbLabelFields.civil).toEqual(['alt'])
     store.setAdsbTagFields({
       ...store.adsbTagFields,
       civil: { ...store.adsbTagFields.civil, squawk: true },
@@ -378,5 +359,85 @@ describe('air store — ADS-B filter overlays', () => {
     const stored = JSON.parse(localStorage.getItem('overlayStates') ?? '{}')
     expect(stored.groundVehicles).toBe(false)
     expect(stored.towers).toBe(false)
+  })
+})
+
+describe('air store — map layers config mirroring', () => {
+  let putSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(async () => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+    const settingsApi = await import('@/services/settingsApi')
+    putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const ALL_DEFAULT_LAYERS = {
+    rangeRings: false,
+    aara: true,
+    awacs: true,
+    groundVehicles: true,
+    towers: true,
+    airports: true,
+    militaryBases: true,
+  }
+
+  it('writes air.mapLayers when a configurable overlay changes', () => {
+    const store = useAirStore()
+    store.setOverlay('rangeRings', true)
+    expect(putSpy).toHaveBeenCalledWith('air', 'mapLayers', {
+      ...ALL_DEFAULT_LAYERS,
+      rangeRings: true,
+    })
+  })
+
+  it.each(['adsb', 'adsbLabels'] as const)(
+    'does not write air.mapLayers for the non-configurable %s overlay',
+    (overlayKey) => {
+      useAirStore().setOverlay(overlayKey, false)
+      expect(putSpy).not.toHaveBeenCalled()
+    },
+  )
+
+  it('persistMapLayers writes only the configurable overlays', async () => {
+    const store = useAirStore()
+    await store.persistMapLayers()
+    const written = putSpy.mock.calls[0]![2] as Record<string, boolean>
+    expect(written).toEqual(ALL_DEFAULT_LAYERS)
+    expect(written).not.toHaveProperty('adsb')
+    expect(written).not.toHaveProperty('adsbLabels')
+  })
+
+  describe('hydrateMapLayers', () => {
+    it('adopts boolean values for configurable overlays', () => {
+      const store = useAirStore()
+      store.hydrateMapLayers({ rangeRings: true, airports: false })
+      expect(store.overlayStates.rangeRings).toBe(true)
+      expect(store.overlayStates.airports).toBe(false)
+      expect(store.overlayStates.awacs).toBe(true)
+    })
+
+    it('ignores non-boolean values and keys that are not configurable overlays', () => {
+      const store = useAirStore()
+      store.hydrateMapLayers({ rangeRings: 'on', adsb: false, adsbLabels: false })
+      expect(store.overlayStates.rangeRings).toBe(false)
+      expect(store.overlayStates.adsb).toBe(true)
+      expect(store.overlayStates.adsbLabels).toBe(true)
+    })
+
+    it.each([null, undefined, 'x', 7, [true]])('ignores a non-object value: %s', (value) => {
+      const store = useAirStore()
+      store.hydrateMapLayers(value)
+      expect(store.overlayStates.rangeRings).toBe(false)
+    })
+
+    it('does not write back to the config database', () => {
+      useAirStore().hydrateMapLayers({ rangeRings: true })
+      expect(putSpy).not.toHaveBeenCalled()
+    })
   })
 })

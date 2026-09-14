@@ -1155,9 +1155,22 @@ describe('SdrWaterfall — document & sidebar events', () => {
     const { store } = mountWaterfall()
     const bandSpy = vi.spyOn(store, 'hydrateShowBandPlanFromDb')
     const knownSpy = vi.spyOn(store, 'hydrateShowKnownFreqsFromDb')
+    const snapSpy = vi.spyOn(store, 'hydrateSnapToKnownFromDb')
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     expect(bandSpy).toHaveBeenCalled()
     expect(knownSpy).toHaveBeenCalled()
+    expect(snapSpy).toHaveBeenCalled()
+  })
+
+  it('hydrates snap-to-known from the DB at mount, not only when SDR settings are opened', () => {
+    // The Settings > SDR options box used to be the only thing re-reading this
+    // flag, so a value changed in the config JSON was ignored by the waterfall
+    // until that section was visited.
+    const store = useSdrStore()
+    const snapSpy = vi.spyOn(store, 'hydrateSnapToKnownFromDb').mockResolvedValue()
+    mount(SdrWaterfall, { attachTo: document.body })
+    flushRaf()
+    expect(snapSpy).toHaveBeenCalledTimes(1)
   })
 
   it('reads an open sidebar from sessionStorage at mount', () => {

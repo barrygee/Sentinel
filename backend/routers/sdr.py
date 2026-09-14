@@ -1505,6 +1505,42 @@ async def aprs_decode_config(x_decode_secret: str = Header(default="")):
     return JSONResponse({"active": bool(bridge and bridge.running)})
 
 
+async def _start_aprs_best_effort(radios: list, radio_id: int) -> None:
+    """Start the APRS bridge on ``radio_id`` without raising.
+
+    Shared by the startup resume and the config-upload reconciliation: in both
+    cases the radio was chosen earlier (persisted), so a missing radio or an
+    unreachable dongle is logged and skipped rather than failing the caller.
+    """
+    radio = _get_radio_by_id(radios, radio_id)
+    if not radio:
+        logging.getLogger(__name__).warning("Persisted APRS radio %s not found; skipping start", radio_id)
+        return
+    try:
+        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
+        bridge = await sdr_decode.get_or_create_aprs_bridge(radio["host"], radio["port"], broadcaster)
+        await bridge.start()
+    except (ConnectionError, OSError):
+        logging.getLogger(__name__).exception("Failed to start APRS decode on radio %s", radio_id)
+
+
+async def reconcile_aprs_decode(db: AsyncSession, previous_radio_id: object, next_radio_id: object) -> None:
+    """Move the running APRS bridge to match a changed ``sdr.aprs_radio_id``.
+
+    Called after the app-config JSON is uploaded, so editing the APRS radio in
+    the JSON behaves exactly like choosing it in Settings > LAND: the bridge on
+    the old radio is stopped and one is started on the new radio (best-effort,
+    like the startup resume). A radio id that is not an int means "no radio".
+    """
+    radios = await _get_radios(db)
+    if isinstance(previous_radio_id, int):
+        previous = _get_radio_by_id(radios, previous_radio_id)
+        if previous:
+            await sdr_decode.stop_aprs_bridge(previous["host"], previous["port"])
+    if isinstance(next_radio_id, int):
+        await _start_aprs_best_effort(radios, next_radio_id)
+
+
 async def resume_persisted_aprs() -> None:
     """Restart APRS decode on the persisted radio at startup, if one was enabled.
 
@@ -1519,16 +1555,7 @@ async def resume_persisted_aprs() -> None:
         if not isinstance(radio_id, int):
             return
         radios = await _get_radios(db)
-    radio = _get_radio_by_id(radios, radio_id)
-    if not radio:
-        logging.getLogger(__name__).warning("Persisted APRS radio %s not found; skipping resume", radio_id)
-        return
-    try:
-        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
-        bridge = await sdr_decode.get_or_create_aprs_bridge(radio["host"], radio["port"], broadcaster)
-        await bridge.start()
-    except (ConnectionError, OSError):
-        logging.getLogger(__name__).exception("Failed to resume APRS decode on radio %s", radio_id)
+    await _start_aprs_best_effort(radios, radio_id)
 
 
 @router.get("/api/sdr/decode/status/{radio_id}")

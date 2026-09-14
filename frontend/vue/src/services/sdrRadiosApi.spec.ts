@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   listRadios,
   createRadio,
@@ -128,5 +128,42 @@ describe('getRadioStatus', () => {
   it('returns null when the request throws', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('offline')) as unknown as typeof fetch
     await expect(getRadioStatus(3)).resolves.toBeNull()
+  })
+})
+
+describe('settings-changed notifications', () => {
+  let listener: ReturnType<typeof vi.fn<EventListener>>
+  beforeEach(() => {
+    listener = vi.fn<EventListener>()
+    document.addEventListener('sentinel:settings-changed', listener)
+  })
+  afterEach(() => {
+    document.removeEventListener('sentinel:settings-changed', listener)
+  })
+
+  it('createRadio announces the change on success', async () => {
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve(sampleRadio) }))
+    await createRadio(sampleInput)
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('updateRadio announces the change on success', async () => {
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve(sampleRadio) }))
+    await updateRadio(3, sampleInput)
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('deleteRadio announces the change on success', async () => {
+    mockFetch(() => ({ ok: true }))
+    await deleteRadio(3)
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('none of the writes announce a change when the backend refuses', async () => {
+    mockFetch(() => ({ ok: false, json: () => Promise.resolve({}) }))
+    await createRadio(sampleInput)
+    await updateRadio(3, sampleInput)
+    await deleteRadio(3)
+    expect(listener).not.toHaveBeenCalled()
   })
 })

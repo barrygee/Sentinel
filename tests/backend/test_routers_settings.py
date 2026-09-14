@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+from unittest.mock import AsyncMock
 
 
 # ── GET /api/settings ─────────────────────────────────────────────────────────
@@ -198,6 +199,15 @@ class TestConfigPreview:
         body = json.loads(client.get("/api/settings/config/preview").content)
         assert body == {"air": {"a": 1}, "space": {"b": 2}}
 
+    def test_hides_internal_instance_id(self, client):
+        # app.instanceId is this Sentinel's identity for Sentry reservations,
+        # not a setting: it must never be exported (a copied config would make
+        # two installs look like the same client).
+        client.put("/api/settings/app/instanceId", json={"value": "sentinel:abc"})
+        client.put("/api/settings/app/notificationSound", json={"value": True})
+        body = json.loads(client.get("/api/settings/config/preview").content)
+        assert body == {"app": {"notificationSound": True}}
+
 
 # ── POST /api/settings/config/upload ──────────────────────────────────────────
 
@@ -256,6 +266,55 @@ class TestConfigUpload:
         # `b` already had id=5; `a` and `c` must have integer ids and not collide with each other.
         assert all(isinstance(i, int) for i in ids)
         assert len(set(ids)) == 3
+
+    def test_ignores_internal_instance_id_on_upload(self, client):
+        client.put("/api/settings/app/instanceId", json={"value": "sentinel:mine"})
+        self._upload(
+            client,
+            {"app": {"instanceId": "sentinel:theirs", "notificationSound": True}},
+        )
+        app_settings = client.get("/api/settings/app").json()
+        assert app_settings["instanceId"] == "sentinel:mine"
+        assert app_settings["notificationSound"] is True
+
+    # ── APRS decoder follows sdr.aprs_radio_id ────────────────────────────────
+
+    def test_reconciles_aprs_decoder_when_radio_changes(self, client, monkeypatch):
+        from backend.routers import sdr as sdr_router
+
+        reconcile = AsyncMock()
+        monkeypatch.setattr(sdr_router, "reconcile_aprs_decode", reconcile)
+        client.put("/api/settings/sdr/aprs_radio_id", json={"value": 1})
+
+        self._upload(client, {"sdr": {"aprs_radio_id": 2}})
+
+        reconcile.assert_awaited_once()
+        _db, previous_radio_id, next_radio_id = reconcile.await_args.args
+        assert (previous_radio_id, next_radio_id) == (1, 2)
+
+    def test_reconciles_aprs_decoder_when_radio_cleared(self, client, monkeypatch):
+        from backend.routers import sdr as sdr_router
+
+        reconcile = AsyncMock()
+        monkeypatch.setattr(sdr_router, "reconcile_aprs_decode", reconcile)
+        client.put("/api/settings/sdr/aprs_radio_id", json={"value": 1})
+
+        self._upload(client, {"sdr": {"aprs_radio_id": None}})
+
+        _db, previous_radio_id, next_radio_id = reconcile.await_args.args
+        assert (previous_radio_id, next_radio_id) == (1, None)
+
+    def test_leaves_aprs_decoder_alone_when_radio_unchanged(self, client, monkeypatch):
+        from backend.routers import sdr as sdr_router
+
+        reconcile = AsyncMock()
+        monkeypatch.setattr(sdr_router, "reconcile_aprs_decode", reconcile)
+        client.put("/api/settings/sdr/aprs_radio_id", json={"value": 1})
+
+        self._upload(client, {"sdr": {"aprs_radio_id": 1, "showBandPlan": False}})
+        self._upload(client, {"app": {"notificationSound": True}})
+
+        reconcile.assert_not_awaited()
 
     # ── sdr.groups authority on import ────────────────────────────────────────
     # SDR groups/frequencies are no longer part of config-upload (they live in a

@@ -1,7 +1,6 @@
 import { SentinelControlBase } from '../sentinel-control-base/SentinelControlBase'
 import type { AirStore } from '../types'
 import type { AdsbLiveControl } from '../adsb/AdsbLiveControl'
-import * as settingsApi from '@/services/settingsApi'
 
 export class AdsbLabelsToggleControl extends SentinelControlBase {
   labelsVisible: boolean
@@ -39,9 +38,6 @@ export class AdsbLabelsToggleControl extends SentinelControlBase {
     this.button.style.color = this.labelsVisible ? '#c8ff00' : '#ffffff'
     if (this._adsbControl) this._adsbControl.setLabelsVisible(this.labelsVisible)
     this._airStore.setOverlay('adsbLabels', this.labelsVisible)
-    // Persist to the backend (not just localStorage) so the choice follows the
-    // user to other devices. See main.ts for the matching startup hydrate.
-    settingsApi.put('air', 'labelsVisible', this.labelsVisible)
   }
 
   syncToAdsb(adsbVisible: boolean): void {

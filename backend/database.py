@@ -256,6 +256,11 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
     # and the channel-map documents rendered to the CSVs dsd-fme loaded.
     ("sdr", "trunkTrackingEnabled"),
     ("sdr", "channel_maps"),
+    # ADS-B label master switch and per-aircraft field list (removed
+    # 2026-09-11): labels are permanently on and the field picker was never
+    # rendered in Settings, so nothing edited or read these any more.
+    ("air", "labelsVisible"),
+    ("air", "labelFields"),
 )
 
 

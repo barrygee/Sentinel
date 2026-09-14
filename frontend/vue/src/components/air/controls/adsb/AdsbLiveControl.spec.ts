@@ -350,17 +350,6 @@ describe('AdsbLiveControl constructor', () => {
     localStorage.setItem('adsbFilter', '{not json')
     expect(() => makeControl()).not.toThrow()
   })
-
-  it('loads persisted label fields and falls back for malformed shapes', () => {
-    localStorage.setItem('adsbLabelFields', JSON.stringify({ civil: ['callsign'], mil: ['type'] }))
-    expect(() => makeControl()).not.toThrow()
-    localStorage.setItem('adsbLabelFields', JSON.stringify({ civil: 'x' }))
-    expect(() => makeControl()).not.toThrow()
-    localStorage.setItem('adsbLabelFields', '[1,2,3]')
-    expect(() => makeControl()).not.toThrow()
-    localStorage.setItem('adsbLabelFields', '{bad')
-    expect(() => makeControl()).not.toThrow()
-  })
 })
 
 describe('AdsbLiveControl.onAdd / onRemove', () => {
@@ -390,14 +379,9 @@ describe('AdsbLiveControl.onAdd / onRemove', () => {
     expect(control.button.style.background).toBe('rgb(0, 0, 0)')
   })
 
-  it('reacts to adsb:labelFieldsChanged and adsb:tagFieldsChanged events', () => {
+  it('reacts to adsb:tagFieldsChanged events', () => {
     const { control } = mounted()
     seedFeature(control)
-    window.dispatchEvent(
-      new CustomEvent('adsb:labelFieldsChanged', {
-        detail: { civil: ['callsign'], mil: ['type'] },
-      }),
-    )
     window.dispatchEvent(
       new CustomEvent('adsb:tagFieldsChanged', {
         detail: { civil: { callsign: true }, mil: { aircraftType: true } },
@@ -408,7 +392,6 @@ describe('AdsbLiveControl.onAdd / onRemove', () => {
 
   it('handles field-change events with no detail payload', () => {
     mounted() // registers the field-change listeners
-    window.dispatchEvent(new CustomEvent('adsb:labelFieldsChanged', {}))
     window.dispatchEvent(new CustomEvent('adsb:tagFieldsChanged', {}))
     expect(true).toBe(true)
   })
@@ -418,7 +401,6 @@ describe('AdsbLiveControl.onAdd / onRemove', () => {
     const removeSpy = vi.spyOn(window, 'removeEventListener')
     document.body.appendChild(control.container)
     control.onRemove()
-    expect(removeSpy).toHaveBeenCalledWith('adsb:labelFieldsChanged', expect.any(Function))
     expect(removeSpy).toHaveBeenCalledWith('adsb:tagFieldsChanged', expect.any(Function))
     expect(control.container.parentNode).toBeNull()
   })
@@ -1576,11 +1558,6 @@ describe('AdsbLiveControl misc lifecycle branches', () => {
     control.labelsVisible = true
     enableAllFields(control)
     seedFeature(control)
-    window.dispatchEvent(
-      new CustomEvent('adsb:labelFieldsChanged', {
-        detail: { civil: ['callsign'], mil: ['callsign'] },
-      }),
-    )
     window.dispatchEvent(
       new CustomEvent('adsb:tagFieldsChanged', {
         detail: { civil: { callsign: true }, mil: { callsign: true } },

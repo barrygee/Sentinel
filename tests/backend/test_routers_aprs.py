@@ -350,3 +350,115 @@ class TestResumePersistedAprs:
         # Must not raise — a failed resume never blocks startup.
         await sdr_router.resume_persisted_aprs()
         assert sdr_decode.get_active_aprs_bridge() is None
+
+
+# ── reconcile_aprs_decode ─────────────────────────────────────────────────────
+
+
+def _bridge_double() -> MagicMock:
+    bridge = MagicMock()
+    bridge.start = AsyncMock()
+    return bridge
+
+
+def _patch_bridge_factories(monkeypatch, bridge: MagicMock) -> None:
+    monkeypatch.setattr(
+        sdr_svc, "get_or_create_broadcaster", AsyncMock(return_value=_FakeBroadcaster())
+    )
+    monkeypatch.setattr(
+        sdr_decode, "get_or_create_aprs_bridge", AsyncMock(return_value=bridge)
+    )
+
+
+class TestReconcileAprsDecode:
+    """The config-upload path: `sdr.aprs_radio_id` changed in the JSON must move
+    the running bridge exactly as picking the radio in Settings would."""
+
+    async def _session(self):
+        return backend_database.AsyncSessionLocal()
+
+    async def test_stops_previous_and_starts_next(self, client, monkeypatch):
+        previous_id = _add_radio(client, host="h1", port=1)
+        next_id = _add_radio(client, host="h2", port=2)
+        previous_bridge = _register_aprs_bridge(host="h1", port=1)
+        previous_bridge.stop = AsyncMock()
+        next_bridge = _bridge_double()
+        _patch_bridge_factories(monkeypatch, next_bridge)
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, previous_id, next_id)
+
+        previous_bridge.stop.assert_awaited_once()
+        assert "h1:1" not in sdr_decode._aprs_bridges
+        next_bridge.start.assert_awaited_once()
+
+    async def test_only_stops_when_radio_cleared(self, client, monkeypatch):
+        previous_id = _add_radio(client, host="h1", port=1)
+        previous_bridge = _register_aprs_bridge(host="h1", port=1)
+        previous_bridge.stop = AsyncMock()
+        start_factory = AsyncMock()
+        monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", start_factory)
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, previous_id, None)
+
+        previous_bridge.stop.assert_awaited_once()
+        start_factory.assert_not_awaited()
+
+    async def test_only_starts_when_nothing_was_running(self, client, monkeypatch):
+        next_id = _add_radio(client, host="h2", port=2)
+        next_bridge = _bridge_double()
+        _patch_bridge_factories(monkeypatch, next_bridge)
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, None, next_id)
+
+        next_bridge.start.assert_awaited_once()
+
+    async def test_previous_radio_no_longer_configured_is_skipped(
+        self, client, monkeypatch
+    ):
+        # The upload may have removed the old radio from sdr.radios too; there
+        # is then nothing to look up, and that must not stop the new start.
+        next_id = _add_radio(client, host="h2", port=2)
+        next_bridge = _bridge_double()
+        _patch_bridge_factories(monkeypatch, next_bridge)
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, 4242, next_id)
+
+        next_bridge.start.assert_awaited_once()
+
+    async def test_next_radio_not_found_is_logged_and_skipped(
+        self, client, monkeypatch
+    ):
+        start_factory = AsyncMock()
+        monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", start_factory)
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, None, 4242)
+
+        start_factory.assert_not_awaited()
+        assert sdr_decode.get_active_aprs_bridge() is None
+
+    async def test_non_int_ids_mean_no_radio(self, client, monkeypatch):
+        start_factory = AsyncMock()
+        monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", start_factory)
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, "1", "2")
+
+        start_factory.assert_not_awaited()
+
+    async def test_connect_failure_on_start_is_swallowed(self, client, monkeypatch):
+        next_id = _add_radio(client, host="h2", port=2)
+        monkeypatch.setattr(
+            sdr_svc,
+            "get_or_create_broadcaster",
+            AsyncMock(side_effect=OSError("no dongle")),
+        )
+
+        async with await self._session() as db:
+            await sdr_router.reconcile_aprs_decode(db, None, next_id)
+
+        assert sdr_decode.get_active_aprs_bridge() is None

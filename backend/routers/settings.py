@@ -15,7 +15,7 @@ from typing import Any
 
 from backend.cache import now_ms
 from backend.database import get_db
-from backend.db_helpers import upsert_setting
+from backend.db_helpers import get_setting, upsert_setting
 from backend.models import UserSettings
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
@@ -344,14 +344,27 @@ _EXCLUDED_DATA_KEYS: dict[str, frozenset[str]] = {
     "space": frozenset({"satelliteRadio"}),
 }
 
+# Internal state that lives in user_settings for convenience but is not a
+# setting: nothing in the Settings UI edits it, and copying it between
+# installs is actively harmful (two Sentinels sharing an instanceId look like
+# the same client to Sentry's device reservations). Hidden from the exported /
+# editable config and ignored on upload.
+_INTERNAL_KEYS: dict[str, frozenset[str]] = {
+    "app": frozenset({"instanceId"}),
+}
+
+
+def _is_hidden_key(namespace: str, key: str) -> bool:
+    """True for keys that never round-trip through the app-config JSON."""
+    return key in _EXCLUDED_DATA_KEYS.get(namespace, frozenset()) or key in _INTERNAL_KEYS.get(namespace, frozenset())
+
 
 def _strip_data_keys(config: dict) -> dict:
     """Drop the moved data keys (SDR frequencies/groups/bandplan, satellite
-    radio) from an exported config dict."""
-    for ns, excluded in _EXCLUDED_DATA_KEYS.items():
-        block = config.get(ns)
+    radio) and internal-only keys from an exported config dict."""
+    for ns, block in list(config.items()):
         if isinstance(block, dict):
-            config[ns] = {k: v for k, v in block.items() if k not in excluded}
+            config[ns] = {k: v for k, v in block.items() if not _is_hidden_key(ns, k)}
     return config
 
 
@@ -400,6 +413,11 @@ async def config_upload(
     if isinstance(app_ns, dict) and "location" in app_ns:
         app_ns["location"] = _validated_location(app_ns["location"])
 
+    # The APRS decoder is a running process, not just a stored value: if the
+    # upload changes `sdr.aprs_radio_id`, the bridge must follow it so the JSON
+    # edit takes effect exactly as picking the radio in Settings > LAND would.
+    previous_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
+
     ts = now_ms()
     for namespace, keys in config.items():
         if not isinstance(keys, dict):
@@ -410,7 +428,7 @@ async def config_upload(
             # files with their own editors. Ignore them here so an old/exported
             # config that still carries them can't silently overwrite the
             # dedicated stores.
-            if key in _EXCLUDED_DATA_KEYS.get(namespace, frozenset()):
+            if _is_hidden_key(namespace, key):
                 continue
             # Secrets are redacted from exports, so an uploaded config can only
             # ever carry a blank — never let it wipe the stored one.
@@ -438,6 +456,12 @@ async def config_upload(
                 )
 
     await db.commit()
+
+    next_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
+    if next_aprs_radio_id != previous_aprs_radio_id:
+        from backend.routers.sdr import reconcile_aprs_decode  # avoid import cycle at module load
+
+        await reconcile_aprs_decode(db, previous_aprs_radio_id, next_aprs_radio_id)
 
     return JSONResponse({"status": "ok"})
 

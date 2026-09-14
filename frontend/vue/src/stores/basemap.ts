@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { usePersistedObject } from './_persist'
+import * as settingsApi from '@/services/settingsApi'
 
 /**
  * Base-map layer toggles that are shared by every domain map (Air, Land,
@@ -62,9 +63,29 @@ export const useBasemapStore = defineStore('basemap', () => {
   /** Set one base-map layer's visibility (persisted for every map). */
   function setLayer(key: keyof BasemapLayerStates, visible: boolean): void {
     layers.value[key] = visible
+    // Mirror to `app.mapLayers` so the app-config JSON follows the UI.
+    void persistLayers()
   }
 
-  return { layers, setLayer }
+  /** Write the base-map layers to the config database (`app.mapLayers`). */
+  function persistLayers(): Promise<void> {
+    return settingsApi.put('app', 'mapLayers', { ...layers.value })
+  }
+
+  /**
+   * Adopt `app.mapLayers` from the config database (startup, or after the
+   * app-config JSON is uploaded). Only boolean values for known layers apply.
+   */
+  function hydrateLayers(remote: unknown): void {
+    if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return
+    const candidate = remote as Partial<Record<keyof BasemapLayerStates, unknown>>
+    for (const layerKey of Object.keys(DEFAULTS) as (keyof BasemapLayerStates)[]) {
+      const value = candidate[layerKey]
+      if (typeof value === 'boolean') layers.value[layerKey] = value
+    }
+  }
+
+  return { layers, setLayer, persistLayers, hydrateLayers }
 })
 
 export type BasemapStore = ReturnType<typeof useBasemapStore>
