@@ -3,9 +3,9 @@
  *
  * The seed mirrors the Air map's airport list: the UK and Irish commercial
  * ports and ferry terminals, keyed by UN/LOCODE the way airports are keyed by
- * ICAO. Channels are the port-control / VTS working channels from the ALRS
- * (Admiralty List of Radio Signals) plus Ch 16, the international calling and
- * distress channel every port watches. Frequencies are derived from the
+ * ICAO. Channels are the port-control / VTS working channels as published by
+ * each harbour authority (verified September 2026) plus Ch 16, the
+ * international calling and distress channel every port watches. Frequencies are derived from the
  * channel plan in `@/utils/marineVhf`, so the data only ever names channels.
  */
 
@@ -53,8 +53,8 @@ export const PORTS_DATA: GeoJSON.FeatureCollection<GeoJSON.Point, PortProperties
         { label: 'Patrol', channel: 14 },
       ],
     ),
-    port('GBPME', 'Portsmouth', [-1.1085, 50.7975], [{ label: 'QHM', channel: 11 }]),
-    port('GBPOO', 'Poole', [-1.99, 50.71], [{ label: 'Harbour Control', channel: 14 }]),
+    port('GBPME', 'Portsmouth', [-1.1085, 50.7975], [{ label: 'VTS', channel: 11 }]),
+    port('GBPOO', 'Poole', [-1.99, 50.71], [{ label: 'VTS', channel: 14 }]),
     port('GBPTL', 'Portland', [-2.44, 50.57], [{ label: 'Harbour Radio', channel: 74 }]),
     port('GBPLY', 'Plymouth', [-4.15, 50.365], [{ label: 'Longroom', channel: 14 }]),
     port('GBFAL', 'Falmouth', [-5.06, 50.155], [{ label: 'Harbour Radio', channel: 12 }]),
@@ -73,17 +73,26 @@ export const PORTS_DATA: GeoJSON.FeatureCollection<GeoJSON.Point, PortProperties
       ],
     ),
     port('GBSSS', 'Sheerness', [0.745, 51.445], [{ label: 'Medway VTS', channel: 74 }]),
-    port('GBFXT', 'Felixstowe', [1.31, 51.955], [{ label: 'Harwich VTS', channel: 71 }]),
+    port(
+      'GBFXT',
+      'Felixstowe',
+      [1.31, 51.955],
+      [
+        { label: 'Harwich VTS', channel: 71 },
+        { label: 'Berthing', channel: 74 },
+      ],
+    ),
     port(
       'GBHRW',
       'Harwich',
       [1.285, 51.947],
       [
         { label: 'Harwich VTS', channel: 71 },
-        { label: 'Port Control', channel: 11 },
+        { label: 'Berthing', channel: 13 },
+        { label: 'Nav Warnings', channel: 11 },
       ],
     ),
-    port('GBIPS', 'Ipswich', [1.16, 52.045], [{ label: 'Port Radio', channel: 68 }]),
+    port('GBIPS', 'Ipswich', [1.16, 52.045], [{ label: 'Orwell Navigation', channel: 68 }]),
     port('GBGTY', 'Great Yarmouth', [1.735, 52.58], [{ label: 'Port Radio', channel: 12 }]),
     // ── Humber, Tees, Tyne and the north-east ──────────────────────────────
     port(
@@ -104,10 +113,10 @@ export const PORTS_DATA: GeoJSON.FeatureCollection<GeoJSON.Point, PortProperties
         { label: 'Docks', channel: 68 },
       ],
     ),
-    port('GBTEE', 'Teesport', [-1.155, 54.61], [{ label: 'Port Control', channel: 14 }]),
-    port('GBSUN', 'Sunderland', [-1.37, 54.915], [{ label: 'Port Control', channel: 14 }]),
+    port('GBTEE', 'Teesport', [-1.155, 54.61], [{ label: 'Tees VTS', channel: 14 }]),
+    port('GBSUN', 'Sunderland', [-1.37, 54.915], [{ label: 'Harbour Radio', channel: 14 }]),
     port('GBTYN', 'Tyne', [-1.43, 55.005], [{ label: 'VTS', channel: 12 }]),
-    port('GBBLY', 'Blyth', [-1.5, 55.125], [{ label: 'Harbour Control', channel: 12 }]),
+    port('GBBLY', 'Blyth', [-1.5, 55.125], [{ label: 'Harbour Radio', channel: 12 }]),
     // ── Scotland ────────────────────────────────────────────────────────────
     port('GBGRG', 'Grangemouth', [-3.71, 56.02], [{ label: 'Forth Navigation', channel: 71 }]),
     port('GBDUN', 'Dundee', [-2.955, 56.46], [{ label: 'Harbour Radio', channel: 12 }]),
@@ -129,7 +138,15 @@ export const PORTS_DATA: GeoJSON.FeatureCollection<GeoJSON.Point, PortProperties
     port('IMDGS', 'Douglas', [-4.47, 54.15], [{ label: 'Harbour', channel: 12 }]),
     // ── Ireland ─────────────────────────────────────────────────────────────
     port('GBBEL', 'Belfast', [-5.895, 54.615], [{ label: 'Harbour Radio', channel: 12 }]),
-    port('GBLAR', 'Larne', [-5.795, 54.85], [{ label: 'Harbour', channel: 14 }]),
+    port(
+      'GBLAR',
+      'Larne',
+      [-5.795, 54.85],
+      [
+        { label: 'Port Control', channel: 11 },
+        { label: 'Secondary', channel: 10 },
+      ],
+    ),
     port('IEDUB', 'Dublin', [-6.205, 53.3455], [{ label: 'VTS', channel: 12 }]),
     port('IEROS', 'Rosslare', [-6.34, 52.25], [{ label: 'Harbour', channel: 12 }]),
     port('IEORK', 'Cork', [-8.3, 51.84], [{ label: 'Harbour Radio', channel: 12 }]),
