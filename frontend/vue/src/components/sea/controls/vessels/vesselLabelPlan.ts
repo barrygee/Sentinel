@@ -1,5 +1,6 @@
 import { COUNT_MARKER_SIZE_PX } from '@/components/shared/map-cluster/mapCluster'
 import { isLeftFacing, MAP_LABEL_SIZE_PX } from '@/components/shared/map-label/mapLabelParts'
+import { FLAG_WIDTH_PX } from './vesselFlagBadge'
 import type { SeaLabelFieldMap, SeaVessel } from '@/stores/sea'
 
 /**
@@ -60,6 +61,7 @@ export function estimateLabelWidth(vessel: SeaVessel, fields: SeaLabelFieldMap):
   if (fields.name) width += vessel.name.length * LABEL_CHAR_PX
   if (fields.type && vessel.typeLabel) width += vessel.typeLabel.length * LABEL_CHAR_PX + 14
   if (fields.mmsi) width += BADGE_FIXED_PX + 9 * LABEL_CHAR_PX
+  if (fields.flag) width += FLAG_WIDTH_PX + 14
   if (fields.destination && vessel.destination) {
     width += BADGE_FIXED_PX + vessel.destination.length * LABEL_CHAR_PX
   }

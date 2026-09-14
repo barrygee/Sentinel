@@ -59,7 +59,7 @@ describe('sea store', () => {
       vessels: true,
       vesselLabels: true,
       rangeRings: false,
-      shippingLanes: false,
+      ferryRoutes: true,
     })
     expect(store.labelFields.name).toBe(true)
     expect(store.seaFilterCategory).toBe('all')
@@ -235,14 +235,14 @@ describe('sea store', () => {
   describe('persisted preferences', () => {
     it('persists overlays, the filter category, the search state and label fields', () => {
       const store = useSeaStore()
-      store.setOverlay('shippingLanes', true)
+      store.setOverlay('ferryRoutes', true)
       store.setSeaFilterCategory('tanker')
       store.setSearchQuery('kent')
       store.setSearchExpandedMmsi('1')
       store.setLabelFields({ ...store.labelFields, mmsi: true })
       setActivePinia(createPinia())
       const again = useSeaStore()
-      expect(again.overlayStates.shippingLanes).toBe(true)
+      expect(again.overlayStates.ferryRoutes).toBe(true)
       expect(again.seaFilterCategory).toBe('tanker')
       expect(again.searchQuery).toBe('kent')
       expect(again.searchExpandedMmsi).toBe('1')
@@ -287,22 +287,42 @@ describe('sea store', () => {
       expect(store.defaultLayers).toEqual(['vessels'])
     })
 
+    it('forces live vessels on, ignoring a stored "off" from an earlier build', () => {
+      localStorage.setItem(
+        'seaOverlayStates_v2',
+        JSON.stringify({
+          vessels: false,
+          vesselLabels: false,
+          rangeRings: false,
+          ferryRoutes: false,
+        }),
+      )
+      const store = useSeaStore()
+      expect(store.overlayStates.vessels).toBe(true)
+      expect(store.overlayStates.vesselLabels).toBe(false) // other choices stand
+      // Neither can the default-layers config turn them off.
+      setActivePinia(createPinia())
+      const fresh = useSeaStore()
+      fresh.applyDefaultLayers(['vesselLabels'])
+      expect(fresh.overlayStates.vessels).toBe(true)
+    })
+
     it('seeds the overlays on a first visit only', () => {
       const store = useSeaStore()
       store.applyDefaultLayers(['vessels'])
       expect(store.overlayStates).toMatchObject({
         vessels: true,
         vesselLabels: false,
-        shippingLanes: false,
+        ferryRoutes: false,
       })
-      store.setOverlay('shippingLanes', true)
+      store.setOverlay('ferryRoutes', true)
       store.applyDefaultLayers([])
-      expect(store.overlayStates.shippingLanes).toBe(true) // the operator's choice stands
+      expect(store.overlayStates.ferryRoutes).toBe(true) // the operator's choice stands
       // A browser with a stored choice never re-applies the defaults.
       setActivePinia(createPinia())
       const again = useSeaStore()
       again.applyDefaultLayers([])
-      expect(again.overlayStates.shippingLanes).toBe(true)
+      expect(again.overlayStates.ferryRoutes).toBe(true)
     })
   })
 })

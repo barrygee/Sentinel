@@ -20,12 +20,14 @@ export const SEA_REFETCH_GUARD_MS = SEA_POLL_INTERVAL_MS - 1_000
 export const SEA_MAX_RENDER_ROWS = 12_000
 
 /**
- * Fill of a count marker's centre and its ring — the same black-on-black as
- * the pills, so a group reads as part of the same set as the labels it stands
- * in for (mirrors the Land map's APRS counts).
+ * Fill of a count marker's centre and its ring. The centre is the same black
+ * as the pills, so a group reads as part of the same set as the labels it
+ * stands in for; the ring is a faint wash of the SDR spectrum's signal blue, so
+ * a group of vessels is told apart at a glance from the dark-ringed
+ * Sentinel/Sentry site markers (mirrors the Land map's APRS counts).
  */
 export const SEA_COUNT_FILL = '#000000'
-export const SEA_COUNT_RING = 'rgba(20, 23, 28, 0.55)'
+export const SEA_COUNT_RING = 'rgba(0, 170, 255, 0.25)'
 export const SEA_COUNT_TEXT = '#ffffff'
 
 /** How far a click on a count zooms in to open it up. */

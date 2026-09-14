@@ -11,18 +11,14 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
     goToLocation: vi.fn(),
-    toggleVessels: vi.fn(),
     toggleLabels: vi.fn(),
     toggleRangeRings: vi.fn(),
-    toggleShippingLanes: vi.fn(),
-    toggleNames: vi.fn(),
+    toggleFerryRoutes: vi.fn(),
     setFilterCategory: vi.fn(),
     filterCategory: 'all' as SeaFilterCategory,
-    vesselsActive: true,
     labelsActive: true,
     rangeRingsActive: false,
-    shippingLanesActive: false,
-    namesActive: true,
+    ferryRoutesActive: false,
     locationActive: false,
     ...overrides,
   }
@@ -80,32 +76,27 @@ describe('SeaSideMenu', () => {
   })
 
   it('wires the MAP LAYERS buttons and reflects their active state', async () => {
-    const { wrapper, props } = mountMenu({ shippingLanesActive: true, rangeRingsActive: true })
-    await wrapper.find('[aria-label="Live vessels"]').trigger('click')
+    const { wrapper, props } = mountMenu({ ferryRoutesActive: true, rangeRingsActive: true })
     await wrapper.find('[aria-label="Vessel labels"]').trigger('click')
     await wrapper.find('[aria-label="Range ring"]').trigger('click')
-    await wrapper.find('[aria-label="Shipping lanes"]').trigger('click')
-    await wrapper.find('[aria-label="Location names"]').trigger('click')
-    expect(props.toggleVessels).toHaveBeenCalledOnce()
+    await wrapper.find('[aria-label="Ferry routes"]').trigger('click')
     expect(props.toggleLabels).toHaveBeenCalledOnce()
     expect(props.toggleRangeRings).toHaveBeenCalledOnce()
-    expect(props.toggleShippingLanes).toHaveBeenCalledOnce()
-    expect(props.toggleNames).toHaveBeenCalledOnce()
-    expect(wrapper.find('[aria-label="Shipping lanes"]').classes()).toContain('active')
+    expect(props.toggleFerryRoutes).toHaveBeenCalledOnce()
+    expect(wrapper.find('[aria-label="Ferry routes"]').classes()).toContain('active')
     expect(wrapper.find('[aria-label="Range ring"]').classes()).toContain('active')
-    expect(wrapper.find('[aria-label="Live vessels"]').classes()).toContain('active')
   })
 
-  it('shows toggles as inactive when off', () => {
+  it('shows toggles as inactive when off, and offers no vessels or place-names toggle', () => {
     const { wrapper } = mountMenu({
-      vesselsActive: false,
       labelsActive: false,
-      namesActive: false,
       locationActive: true,
     })
-    expect(wrapper.find('[aria-label="Live vessels"]').classes()).not.toContain('active')
+    // Live vessels and place names are always on at sea: FILTER narrows the
+    // vessels, and nothing on the rail can hide the names.
+    expect(wrapper.find('[aria-label="Live vessels"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Location names"]').exists()).toBe(false)
     expect(wrapper.find('[aria-label="Vessel labels"]').classes()).not.toContain('active')
-    expect(wrapper.find('[aria-label="Location names"]').classes()).not.toContain('active')
     expect(wrapper.find('[aria-label="Go to my location"]').classes()).toContain('active')
   })
 

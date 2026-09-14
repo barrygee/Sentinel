@@ -79,13 +79,15 @@
       "name": true,
       "type": false,
       "mmsi": false,
+      "flag": false,
       "destination": false,
       "speed": false,
       "course": false
     },
     "defaultLayers": [
       "vessels",
-      "vesselLabels"
+      "vesselLabels",
+      "ferryRoutes"
     ]
   },
   "land": {

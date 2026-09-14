@@ -360,6 +360,7 @@ describe('AisVesselsControl', () => {
       name: true,
       type: true,
       mmsi: true,
+      flag: true,
       destination: true,
       speed: true,
       course: true,

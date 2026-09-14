@@ -70,8 +70,8 @@ export interface SeaOverlayStates {
   vessels: boolean
   vesselLabels: boolean
   rangeRings: boolean
-  /** OpenSeaMap seamark overlay — charted shipping lanes (online only). */
-  shippingLanes: boolean
+  /** Charted ferry routes from the base map, drawn dashed with their names. */
+  ferryRoutes: boolean
 }
 
 /**
@@ -82,6 +82,8 @@ export interface SeaLabelFieldMap {
   name: boolean
   type: boolean
   mmsi: boolean
+  /** The flag state, resolved from the MMSI's maritime identification digits. */
+  flag: boolean
   destination: boolean
   speed: boolean
   course: boolean
@@ -97,12 +99,13 @@ const DEFAULT_OVERLAYS: SeaOverlayStates = {
   vessels: true,
   vesselLabels: true,
   rangeRings: false,
-  shippingLanes: false,
+  ferryRoutes: true,
 }
 const DEFAULT_LABEL_FIELDS: SeaLabelFieldMap = {
   name: true,
   type: false,
   mmsi: false,
+  flag: false,
   destination: false,
   speed: false,
   course: false,
@@ -147,6 +150,10 @@ export const useSeaStore = defineStore('sea', () => {
     overlaysChosen = false
   }
   const overlayStates = usePersistedObject<SeaOverlayStates>(LS_OVERLAYS_KEY, DEFAULT_OVERLAYS)
+  // Live vessels are always plotted at sea — the rail has no toggle for them
+  // (FILTER narrows the picture instead) — so a stale stored "off" from an
+  // earlier build must not hide the layer with no way back.
+  if (!overlayStates.value.vessels) overlayStates.value = { ...overlayStates.value, vessels: true }
   function setOverlay(key: keyof SeaOverlayStates, on: boolean): void {
     overlaysChosen = true
     overlayStates.value = { ...overlayStates.value, [key]: on }
@@ -156,9 +163,9 @@ export const useSeaStore = defineStore('sea', () => {
     if (overlaysChosen) return
     overlayStates.value = {
       ...overlayStates.value,
-      vessels: layers.includes('vessels'),
+      vessels: true,
       vesselLabels: layers.includes('vesselLabels'),
-      shippingLanes: layers.includes('shippingLanes'),
+      ferryRoutes: layers.includes('ferryRoutes'),
     }
   }
 
@@ -208,7 +215,7 @@ export const useSeaStore = defineStore('sea', () => {
   }
 
   // Which layers are on by default (from the `sea.defaultLayers` config).
-  const defaultLayers = ref<string[]>(['vessels', 'vesselLabels'])
+  const defaultLayers = ref<string[]>(['vessels', 'vesselLabels', 'ferryRoutes'])
   async function hydrateDefaultLayers(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sea')

@@ -13,7 +13,7 @@ vi.mock('@/services/settingsApi', () => ({
 }))
 import * as settingsApi from '@/services/settingsApi'
 
-const ROW = { name: 0, type: 1, mmsi: 2, destination: 3, speed: 4, course: 5 } as const
+const ROW = { name: 0, type: 1, mmsi: 2, flag: 3, destination: 4, speed: 5, course: 6 } as const
 
 describe('SeaLabelFieldsControl', () => {
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe('SeaLabelFieldsControl', () => {
     const wrapper = mount(SeaLabelFieldsControl)
     await flushPromises()
     const boxes = wrapper.findAll('input[type="checkbox"]')
-    expect(boxes).toHaveLength(6)
+    expect(boxes).toHaveLength(7)
     expect(boxes[ROW.name]!.attributes('aria-label')).toBe('Vessel name')
     expect((boxes[ROW.name]!.element as HTMLInputElement).checked).toBe(true)
     expect((boxes[ROW.mmsi]!.element as HTMLInputElement).checked).toBe(false)

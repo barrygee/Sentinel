@@ -59,8 +59,8 @@ vi.mock('@/components/land/controls/range-rings/LandRangeRingsControl', () => ({
 vi.mock('./controls/vessels/AisVesselsControl', () => ({
   AisVesselsControl: controlMocks.make('vessels'),
 }))
-vi.mock('./controls/shipping-lanes/ShippingLanesControl', () => ({
-  ShippingLanesControl: controlMocks.make('lanes'),
+vi.mock('./controls/ferry-routes/FerryRoutesControl', () => ({
+  FerryRoutesControl: controlMocks.make('ferries'),
 }))
 
 vi.mock('@/components/shared/UserLocationMarker', () => ({
@@ -207,17 +207,17 @@ describe('SeaMap', () => {
     expect(shared.ctx!.attach).toHaveBeenCalledWith(map)
   })
 
-  it('builds and adds every control once the style has loaded, lanes after vessels', () => {
+  it('builds and adds every control once the style has loaded, ferry routes after vessels', () => {
     const map = makeFakeMap()
     mountMap()
     bringUp(map)
-    for (const name of ['vessels', 'lanes', 'rangeRings', 'roads', 'names', 'sentrySites']) {
+    for (const name of ['vessels', 'ferries', 'rangeRings', 'roads', 'names', 'sentrySites']) {
       expect(last(name).onAdd).toHaveBeenCalledWith(map)
     }
     expect(controlMocks.instances.vessels).toHaveLength(1)
     // The chart layer slots beneath the vessel layers, so vessels go first.
     const order = last('vessels').onAdd.mock.invocationCallOrder[0]!
-    expect(last('lanes').onAdd.mock.invocationCallOrder[0]!).toBeGreaterThan(order)
+    expect(last('ferries').onAdd.mock.invocationCallOrder[0]!).toBeGreaterThan(order)
     expect(map.nativeCtrl.style.display).toBe('none')
     // A second style-loaded (a reload) does not rebuild the controls.
     shared.emit!('style-loaded', map)
@@ -250,18 +250,16 @@ describe('SeaMap', () => {
     const wrapper = mountMap()
     const exposed = wrapper.vm as unknown as {
       getVesselsControl: () => unknown
-      getShippingLanes: () => unknown
+      getFerryRoutes: () => unknown
       getRangeRings: () => unknown
-      getNamesControl: () => unknown
       getMap: () => unknown
     }
     expect(exposed.getVesselsControl()).toBeNull()
     expect(exposed.getMap()).toBeNull()
     bringUp(map)
     expect(exposed.getVesselsControl()).toBe(last('vessels'))
-    expect(exposed.getShippingLanes()).toBe(last('lanes'))
+    expect(exposed.getFerryRoutes()).toBe(last('ferries'))
     expect(exposed.getRangeRings()).toBe(last('rangeRings'))
-    expect(exposed.getNamesControl()).toBe(last('names'))
     expect(exposed.getMap()).toBe(map)
   })
 
@@ -279,7 +277,7 @@ describe('SeaMap', () => {
       expect(last('names').applyVisibility).toHaveBeenCalled()
       expect(last('rangeRings')._initRings).toHaveBeenCalled()
       expect(last('vessels').initLayers).toHaveBeenCalled()
-      expect(last('lanes').initLayers).toHaveBeenCalled()
+      expect(last('ferries').initLayers).toHaveBeenCalled()
       // The same style again is a no-op.
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledTimes(1)
@@ -326,17 +324,19 @@ describe('SeaMap', () => {
       expect(rings.handleClickPublic).toHaveBeenCalledOnce()
     })
 
-    it('re-applies the shipping-lanes flag and follows the shared names layer', async () => {
+    it('re-applies the ferry-routes flag and keeps place names on regardless of the shared flag', async () => {
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
-      useSeaStore().setOverlay('shippingLanes', true)
+      useSeaStore().setOverlay('ferryRoutes', false)
       await nextTick()
-      expect(last('lanes').applyVisibility).toHaveBeenCalled()
+      expect(last('ferries').applyVisibility).toHaveBeenCalled()
+      // Names are forced on once, and the shared basemap flag is not followed.
+      expect(last('names').setVisible).toHaveBeenCalledExactlyOnceWith(true)
       const basemap = useBasemapStore()
       basemap.setLayer('names', !basemap.layers.names)
       await nextTick()
-      expect(last('names').setVisible).toHaveBeenCalledWith(basemap.layers.names)
+      expect(last('names').setVisible).toHaveBeenCalledOnce()
     })
 
     it('seeds the overlays from the default-layers config on a first visit', async () => {
@@ -384,7 +384,7 @@ describe('SeaMap', () => {
     expect(useSeaStore().mapCenter).toEqual([1, 51])
     expect(useSeaStore().mapZoom).toBe(8)
     expect(shared.ctx!.detach).toHaveBeenCalledWith(map)
-    for (const name of ['vessels', 'lanes', 'rangeRings', 'roads', 'names', 'sentrySites']) {
+    for (const name of ['vessels', 'ferries', 'rangeRings', 'roads', 'names', 'sentrySites']) {
       expect(last(name).onRemove).toHaveBeenCalledOnce()
     }
     expect(shared.marker!.remove).toHaveBeenCalled()
