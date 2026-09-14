@@ -149,6 +149,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Live AIS vessel tracking, shipping lanes and Sea settings (#320)
 - Ferry routes, vessel flags and always-on vessels replace Overpass lanes (#321)
 - Plot known ports with VHF working channels (#322)
+- Keep the Settings UI and Application Config JSON in sync (#319)
 
 ### Bug Fixes
 
