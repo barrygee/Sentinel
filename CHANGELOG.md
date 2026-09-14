@@ -146,6 +146,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the display pause button (#314)
 - Show known frequencies as a dot with click-to-reveal name (#315)
 - Waterfall signal marker with Shift+Click start/end timestamps
+- Live AIS vessel tracking, shipping lanes and Sea settings (#320)
 
 ### Bug Fixes
 
