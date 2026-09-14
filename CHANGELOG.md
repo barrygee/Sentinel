@@ -150,6 +150,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Ferry routes, vessel flags and always-on vessels replace Overpass lanes (#321)
 - Plot known ports with VHF working channels (#322)
 - Keep the Settings UI and Application Config JSON in sync (#319)
+- Draw the selected vessel's trail like an aircraft's, fading at the tail (#323)
 
 ### Bug Fixes
 
