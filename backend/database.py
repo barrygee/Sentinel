@@ -501,7 +501,9 @@ async def seed_default_settings() -> None:
         await session.commit()
 
     # Remove stale rows seeded by earlier versions.
-    #   sea/land: no built-in default URLs; users must configure them.
+    #   land: no built-in default URLs; users must configure them. (sea now
+    #   ships a default — the AISStream endpoint — so its keys are seeded, not
+    #   purged.)
     # sdr.groups is intentionally NOT purged here: it is the live {name, slug}
     # catalogue, owned by the sdr_frequency_groups table and rewritten by
     # sync_sdr_groups_to_config. Deleting it each boot would drop user renames
@@ -517,8 +519,6 @@ async def seed_default_settings() -> None:
         ("sdr", "offlineSource"),
         ("sdr", "initialGroups"),
         ("sdr", "autoCenter"),
-        ("sea", "onlineUrl"),
-        ("sea", "offgridSource"),
         ("land", "onlineUrl"),
         ("land", "offgridSource"),
     ]

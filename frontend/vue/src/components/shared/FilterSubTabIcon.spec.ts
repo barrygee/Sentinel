@@ -21,6 +21,13 @@ const CATEGORIES = [
   'cubesat',
   'unknown',
   'totally-unrecognised',
+  // Sea: reuses the side menu's hull glyphs.
+  'all',
+  'cargo',
+  'tanker',
+  'passenger',
+  'fishing',
+  'other',
 ]
 
 describe('FilterSubTabIcon', () => {

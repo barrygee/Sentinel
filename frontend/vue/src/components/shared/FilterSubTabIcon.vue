@@ -249,6 +249,8 @@
     <line x1="1.5" y1="12" x2="7.5" y2="12" stroke="currentColor" stroke-width="0.9" />
     <line x1="16.5" y1="12" x2="22.5" y2="12" stroke="currentColor" stroke-width="0.9" />
   </svg>
+  <!-- ── Sea categories: the same hull glyphs the Sea map's own rail uses. ── -->
+  <SeaFamilyGlyph v-else-if="isSeaFilterCategory(category)" :category="category" :size="19" />
   <svg
     v-else
     width="19"
@@ -273,6 +275,10 @@
 <script setup lang="ts">
 // Renders the line-style glyph for a FILTER rail sub-tab category. Air uses the
 // aircraft/airports/mil glyphs (mirroring the map side menu); Space uses one glyph
-// per satellite category. Any unrecognised id falls back to the "unknown" glyph.
+// per satellite category; Sea reuses its side menu's hull glyphs. Any
+// unrecognised id falls back to the "unknown" glyph.
+import SeaFamilyGlyph from '@/components/sea/SeaFamilyGlyph.vue'
+import { isSeaFilterCategory } from '@/utils/aisShipType'
+
 defineProps<{ category: string }>()
 </script>

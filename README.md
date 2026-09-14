@@ -16,7 +16,7 @@ It is built **offline-first**: each domain has online and offline data sources w
 | **AIR** | ✅ Live | Real-time ADS-B aircraft tracking, flight replay, military/civil filtering, airports & airspace overlays |
 | **SPACE** | ✅ Live | SGP4 satellite propagation, ground tracks & footprints, pass prediction, day/night terminator, TLE management, satellite-radio auto-tune |
 | **SDR** | ✅ Live | Live RTL-SDR spectrum + waterfall over `rtl_tcp`, tuning, audio demod, frequency groups, frequency search, recordings |
-| **SEA** | 🚧 Stub | Routing/settings scaffolding only — no data integration yet |
+| **SEA** | ✅ Live | Live AIS vessel tracking from [AISStream.io](https://aisstream.io) (free key), type-coloured hull icons, dead reckoning between fixes, vessel filter/search, recent-track on select |
 | **LAND** | 🚧 Stub | Routing/settings scaffolding only — no data integration yet |
 
 ### AIR
@@ -28,6 +28,11 @@ Optional **flight replay** (off by default, behind `air.replayEnabled`) records 
 
 ### SPACE
 Satellites are propagated from TLE data using **SGP4**. The default view tracks the ISS; any catalogued satellite can be selected by NORAD ID to show its current position, multi-orbit ground track, and visibility footprint. Pass prediction lists upcoming passes over your location, with heads-up notifications and optional **auto-tune** that drives the SDR to a satellite's downlink frequency during a pass. A day/night terminator overlay and full **TLE database management** (fetch from Celestrak, upload `.txt`, categorise, clear) are built in.
+
+### SEA
+Live vessels come from **[AISStream.io](https://aisstream.io)**, a free AIS WebSocket feed (sign up for a key, then paste it into **Settings › SEA › AISStream API Key** — or set `AISSTREAM_API_KEY` in `.env`). The backend holds **one** WebSocket per process (AISStream allows one connection per key) and keeps the live picture in memory: every vessel's latest position report merged with its static data (name, type, destination, IMO), retained for 30 minutes after its last fix, with a thinned recent-track ring buffer per vessel. The map polls a viewport-limited snapshot every 10 s and dead-reckons moving vessels from speed and course in between. Vessels render as hull chevrons coloured by family (cargo, tanker, passenger, fishing, service, military/SAR, pleasure, other); clicking one brackets it, draws its recent track and opens its row in the FILTER pane, which is also the map's accessible data list. A watchdog reports a silent feed within two minutes but recycles the socket slowly (back-off 5 s → 15 s → 60 s → 5 min, then every 15 min) so a reconnect storm can never trip the per-key limit; a rejected key is probed hourly until it changes. The in-memory store is snapshotted to SQLite every 30 s so a restart shows the last-known picture (flagged STALE) while the feed reconnects.
+
+**Coverage area** (Settings › SEA) sets the bounding box the subscription asks for — worldwide by default, which is hundreds of messages a second; a regional box is lighter on a small host. AISStream is terrestrial AIS, so coverage is coastal and mid-ocean goes quiet. **Shipping lanes** (MAP LAYERS › SHIPPING LANES) draws the charted route structure — traffic separation lanes, zones and boundaries, roundabouts, precautionary areas, inshore traffic zones, two-way/recommended/deep-water routes and fairways — from OpenStreetMap seamarks via Overpass, fetched one 2° cell at a time and cached in SQLite for 90 days (`sea_lane_cache`). Only the routes are drawn, never lights or buoys. The Off Grid slot (NMEA AIVDM over TCP/UDP from `rtl_ais`/AIS-catcher) is reserved for a follow-up.
 
 ### SDR
 Each configured radio connects to a remote **`rtl_tcp`** daemon. The backend runs one IQ broadcaster per radio and fans computed FFT frames out to all subscribed WebSocket clients, which render a live **spectrum + waterfall**. You can tune, set bandwidth/gain, demodulate audio, organise frequencies into colour-coded groups, run a frequency **search** across ranges, overlay a band plan, and **record** audio (WAV) and raw IQ clips for later playback. An optional **digital decode** mode (P25/DMR/NXDN/D-STAR/YSF via a separate `dsd-fme` container) surfaces decoded call metadata and voice — see [Digital decoding](#digital-decoding-optional). An optional **APRS decode** mode (via a separate Direwolf `aprs-decoder` container) plots received stations on the Land map and lists packets below the waterfall — see [APRS decoding](#aprs-decoding-optional). A third sidecar decodes **ADS-B** for the AIR map's Off Grid mode — see [Off Grid ADS-B](#off-grid-ads-b-optional). All three can run concurrently, but each needs **its own dongle**: a receiver serves one tuned purpose at a time, and Sentinel takes an enforced lease on the one it is using.
@@ -396,6 +401,12 @@ Backend settings live in `backend/config.py` (Pydantic Settings) and can be over
 | `TLE_STALE_MS` | `43200000` (12 h) | TLE stale window |
 | `TLE_MANUAL_TTL_MS` | `2592000000` (30 d) | TTL for manually-uploaded TLE data |
 | `CELESTRAK_ISS_URL` | Celestrak active-satellites TLE feed | Default TLE feed URL |
+| `AISSTREAM_API_KEY` | *(empty)* | AISStream.io key for the SEA feed (a key saved in Settings › SEA takes precedence; never committed) |
+| `AISSTREAM_WS_URL` | `wss://stream.aisstream.io/v0/stream` | AISStream endpoint (overridable for a local stand-in) |
+| `SEA_AIS_STALE_MS` | `1800000` (30 min) | Drop a vessel not heard for this long |
+| `SEA_AIS_CACHE_MAX` | `50000` | Hard cap on vessels held in memory |
+| `SEA_AIS_SILENCE_REPORT_MS` | `120000` | Feed reads STALE after this much silence; socket recycled at 2.5× |
+| `SEA_AIS_SNAPSHOT_PERSIST_MS` | `30000` | How often the vessel store is snapshotted to SQLite |
 
 `config.py` also defines the optional **digital-decode** settings (`DECODER_*`, `SDR_RELAY_CONTROL_*`) used by the `dsd-fme` sidecar, and the **APRS-decode** settings (`APRS_DECODER_*`, `APRS_STATION_TTL_MS`) used by the Direwolf sidecar. These are auto-wired by `docker-compose.yml` — see [Digital decoding](#digital-decoding-optional) and [APRS decoding](#aprs-decoding-optional) — and normally need no manual configuration.
 
@@ -429,6 +440,15 @@ Interactive docs are available at `/api/docs` (Swagger) and `/api/redoc` when th
 | PATCH | `/tle/category` · `/tle/satellite` | Categorise / edit satellites |
 | DELETE | `/tle` | Clear TLE data (`?confirm=true`) |
 | GET · POST | `/radio/file` | Satellite-radio frequency data |
+
+### SEA — `/api/sea`
+| Method | Path | Description |
+|---|---|---|
+| GET | `/vessels?bbox=S,W,N,E&max_rows=` | Live vessel snapshot (newest first) plus feed status; `X-Cache: LIVE\|STALE` |
+| GET | `/vessels/{mmsi}/track` | One vessel's recent path (thinned to ≥30 s / ≥25 m between fixes) |
+| GET | `/status` | Feed health: connection state, silence, retry schedule, vessel count |
+| GET | `/lanes?bbox=S,W,N,E` | Charted shipping routes for a bbox as GeoJSON (`partial` while cells are still being fetched, `tooWide` past the cell budget) |
+| GET · PUT · DELETE | `/ais-key` | Whether an AISStream key is configured / save one / forget it (the key itself is never returned; the generic settings API redacts it) |
 
 ### SDR — `/api/sdr`
 | Method | Path | Description |
@@ -480,7 +500,7 @@ pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles \
 
 SQLite tables are created automatically from the ORM models on startup:
 
-`adsb_cache` · `tle_cache` · `satellite_catalogue` · `air_messages` · `air_tracking` · `air_aircraft` · `air_flights` · `air_snapshots` · `sdr_radios` · `sdr_frequency_groups` · `sdr_stored_frequencies` · `sdr_frequency_group_links` · `sdr_search_ranges` · `sdr_recordings` · `user_settings`
+`adsb_cache` · `tle_cache` · `satellite_catalogue` · `air_messages` · `air_tracking` · `air_aircraft` · `air_flights` · `air_snapshots` · `sdr_radios` · `sdr_frequency_groups` · `sdr_stored_frequencies` · `sdr_frequency_group_links` · `sdr_search_ranges` · `sdr_recordings` · `sea_vessel_cache` · `sea_lane_cache` · `user_settings`
 
 ---
 

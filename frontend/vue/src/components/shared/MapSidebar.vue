@@ -196,12 +196,15 @@ import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore, type AirFilterCategory } from '@/stores/air'
 import { useSpaceStore } from '@/stores/space'
+import { useSeaStore } from '@/stores/sea'
+import { SEA_FILTER_CATEGORIES, type SeaFilterCategory } from '@/utils/aisShipType'
 import { SATELLITE_CATEGORY_SECTION_LABELS } from '@/utils/satelliteUtils'
 import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
 
 const notifStore = useNotificationsStore()
 const airStore = useAirStore()
 const spaceStore = useSpaceStore()
+const seaStore = useSeaStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
@@ -270,8 +273,15 @@ const AIR_FILTER_SUBTABS: { id: string; label: string }[] = [
   { id: 'airports', label: 'AIRPORTS' },
   { id: 'mil', label: 'MILITARY BASES' },
 ]
+const SEA_FILTER_SUBTABS: { id: string; label: string }[] = SEA_FILTER_CATEGORIES.map(
+  (category) => ({
+    id: category,
+    label: category === 'all' ? 'ALL VESSELS' : category.toUpperCase(),
+  }),
+)
 const filterSubTabs = computed<{ id: string; label: string }[]>(() => {
   if (activeDomain.value === 'air') return AIR_FILTER_SUBTABS
+  if (activeDomain.value === 'sea') return SEA_FILTER_SUBTABS
   if (activeDomain.value === 'space')
     return spaceStore.spaceAvailableCategories.map((cat) => ({
       id: cat,
@@ -284,6 +294,7 @@ const filterSubTabs = computed<{ id: string; label: string }[]>(() => {
 // sub-tab active highlight.
 const activeFilterCategory = computed<string>(() => {
   if (activeDomain.value === 'air') return airStore.airFilterCategory
+  if (activeDomain.value === 'sea') return seaStore.seaFilterCategory
   // defensive: the only reader of this computed is the per-item v-for below,
   // gated on the same air/space check via filterSubTabs — for every other
   // domain that list is empty, so the v-for body (and this computed) is never
@@ -302,6 +313,8 @@ function selectFilterCategory(id: string) {
   switchTab('search')
   if (activeDomain.value === 'air') {
     airStore.setAirFilterCategory(id as AirFilterCategory)
+  } else if (activeDomain.value === 'sea') {
+    seaStore.setSeaFilterCategory(id as SeaFilterCategory)
   } else {
     // defensive: this is only ever called from the sub-tab rail buttons,
     // themselves only rendered (via filterSubTabs) for the air/space domains —
@@ -920,7 +933,8 @@ body[data-domain='sdr'] #map-sidebar {
      despite this rule's higher specificity (the bundled sheet repeats the
      MapSidebar block, so a later same-specificity copy re-asserts right: 0). */
   body[data-domain='air'] #map-sidebar,
-  body[data-domain='space'] #map-sidebar {
+  body[data-domain='space'] #map-sidebar,
+  body[data-domain='sea'] #map-sidebar {
     right: 44px !important;
   }
   .msb-mobile-close {
@@ -949,7 +963,8 @@ body[data-domain='sdr'] #map-sidebar {
      while the drawer is open at this size, so the panel takes the full width. */
   #map-sidebar,
   body[data-domain='air'] #map-sidebar,
-  body[data-domain='space'] #map-sidebar {
+  body[data-domain='space'] #map-sidebar,
+  body[data-domain='sea'] #map-sidebar {
     left: 44px !important;
     right: 0 !important;
     width: auto !important;

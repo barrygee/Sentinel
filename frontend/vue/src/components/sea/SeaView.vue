@@ -1,66 +1,104 @@
 <template>
   <div id="map-wrap" data-domain="sea">
-    <h1 class="sr-only">Sea domain</h1>
-    <NoUrlOverlay domain="sea" />
-    <MapLibreMap
-      ref="mapRef"
-      :style-url="styleUrl"
-      region-label="Sea domain map"
-      :center="[-2, 54]"
-      :zoom="5"
-      @map-created="onMapCreated"
-      @style-loaded="onStyleLoaded"
+    <h1 class="sr-only">Sea — live vessel tracking</h1>
+    <SeaMap ref="seaMapRef" />
+    <SeaSideMenu
+      :zoom-in="zoomIn"
+      :zoom-out="zoomOut"
+      :go-to-location="goToLocation"
+      :toggle-vessels="toggleVessels"
+      :toggle-labels="toggleLabels"
+      :toggle-range-rings="toggleRangeRings"
+      :toggle-shipping-lanes="toggleShippingLanes"
+      :toggle-names="toggleNames"
+      :set-filter-category="setFilterCategory"
+      :filter-category="seaStore.seaFilterCategory"
+      :vessels-active="seaStore.overlayStates.vessels"
+      :labels-active="seaStore.overlayStates.vesselLabels"
+      :range-rings-active="seaStore.overlayStates.rangeRings"
+      :shipping-lanes-active="seaStore.overlayStates.shippingLanes"
+      :names-active="basemapStore.layers.names"
+      :location-active="locationActive"
     />
+    <NoUrlOverlay domain="sea" />
+    <SeaSourceNotice :feed="seaStore.feed" />
+    <!-- msb-pane-search lives in MapSidebar, a sibling of <RouterView> in
+         App.vue — see useSidebarPaneTarget for why this waits rather than
+         teleporting unconditionally. -->
+    <Teleport v-if="searchPaneReady" :to="sidebarPaneSelector('search')">
+      <SeaFilter @locate="locateVessel" />
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue'
-import type { Map } from 'maplibre-gl'
-import { useAppStore } from '@/stores/app'
-import { useConnectivity } from '@/composables/useConnectivity'
-import MapLibreMap from '@/components/shared/MapLibreMap.vue'
+import { ref, computed } from 'vue'
+import SeaMap from './SeaMap.vue'
+import SeaSideMenu from './SeaSideMenu.vue'
+import SeaFilter from './SeaFilter.vue'
+import SeaSourceNotice from './SeaSourceNotice.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
-import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
-import { useSentrySitesStore } from '@/stores/sentrySites'
-import { useSettingsStore } from '@/stores/settings'
+import { sidebarPaneSelector } from '@/constants/sidebarPanes'
+import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
+import { useUserLocation } from '@/composables/useUserLocation'
+import { useSeaStore } from '@/stores/sea'
+import { useBasemapStore } from '@/stores/basemap'
+import type { SeaFilterCategory } from '@/utils/aisShipType'
 
-const appStore = useAppStore()
-const sentrySitesStore = useSentrySitesStore()
-const settingsStore = useSettingsStore()
-const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
+/** Zoom level the map flies to when centring on the user's location. */
+const LOCATE_ZOOM = 10
 
-let _map: Map | null = null
-let _initialStyleUrl: string | null = null
-// The Sentry sites layer — plotted on every domain map, this one included,
-// even though Sea is otherwise still scaffolding.
-let _sentrySitesControl: SentrySitesControl | null = null
+const seaStore = useSeaStore()
+const basemapStore = useBasemapStore()
+const seaMapRef = ref<InstanceType<typeof SeaMap> | null>(null)
+const { ready: searchPaneReady } = useSidebarPaneTarget('search')
+const { location: userLocation } = useUserLocation()
+const locationActive = computed(() => userLocation.value !== null)
 
-const styleUrl = computed(() =>
-  appStore.isOnline ? '/assets/fiord-online.json' : '/assets/fiord.json',
-)
-
-useConnectivity((online) => {
-  _map?.setStyle(online ? '/assets/fiord-online.json' : '/assets/fiord.json')
-})
-
-function onMapCreated(m: Map) {
-  _map = m
-  _initialStyleUrl = styleUrl.value
-  _sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore)
-  _sentrySitesControl.onAdd(m)
+function getMap() {
+  return seaMapRef.value?.getMap() ?? null
 }
 
-onBeforeUnmount(() => {
-  _sentrySitesControl?.onRemove()
-  _sentrySitesControl = null
-  _map = null
-})
-function onStyleLoaded(m: Map) {
-  const desiredStyle = styleUrl.value
-  if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {
-    m.setStyle(desiredStyle)
-  }
-  _initialStyleUrl = null
+// ── side-menu handlers ─────────────────────────────────────────────────────
+function zoomIn() {
+  getMap()?.zoomIn()
+}
+function zoomOut() {
+  getMap()?.zoomOut()
+}
+function goToLocation() {
+  const map = getMap()
+  const location = userLocation.value
+  if (!map || !location) return
+  map.flyTo({
+    center: [location.lon, location.lat],
+    zoom: Math.max(map.getZoom(), LOCATE_ZOOM),
+    duration: 800,
+  })
+}
+// Every overlay is store-driven: the rail writes the store and the map's
+// controls follow it, so Settings › Map Layers and the rail can never disagree.
+function toggleVessels() {
+  seaStore.setOverlay('vessels', !seaStore.overlayStates.vessels)
+}
+function toggleLabels() {
+  seaStore.setOverlay('vesselLabels', !seaStore.overlayStates.vesselLabels)
+}
+function toggleRangeRings() {
+  seaStore.setOverlay('rangeRings', !seaStore.overlayStates.rangeRings)
+}
+function toggleShippingLanes() {
+  seaStore.setOverlay('shippingLanes', !seaStore.overlayStates.shippingLanes)
+}
+function toggleNames() {
+  seaMapRef.value?.getNamesControl()?.handleClickPublic()
+}
+function setFilterCategory(category: SeaFilterCategory) {
+  seaStore.setSeaFilterCategory(category)
+}
+
+// "Show on map" from the FILTER pane: select the vessel and fly to it.
+function locateVessel(mmsi: string) {
+  seaMapRef.value?.getVesselsControl()?.selectByMmsi(mmsi, { flyTo: true })
 }
 </script>
