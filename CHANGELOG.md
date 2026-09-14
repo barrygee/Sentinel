@@ -148,6 +148,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Waterfall signal marker with Shift+Click start/end timestamps
 - Live AIS vessel tracking, shipping lanes and Sea settings (#320)
 - Ferry routes, vessel flags and always-on vessels replace Overpass lanes (#321)
+- Plot known ports with VHF working channels (#322)
 
 ### Bug Fixes
 
