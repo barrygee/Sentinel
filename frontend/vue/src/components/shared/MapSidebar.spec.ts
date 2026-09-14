@@ -453,6 +453,7 @@ describe('MapSidebar', () => {
       )
       await openFilter(wrapper)
       const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
+      // Ports are an overlay (Settings > SEA > Map Layers), never a category.
       expect(cats).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other'])
       expect(
         wrapper.find('.msb-rail-subbtn[data-filter-cat="all"]').attributes('data-tooltip'),

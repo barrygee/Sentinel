@@ -38,6 +38,7 @@ describe('aisShipType', () => {
 
   it('validates FILTER rail categories', () => {
     for (const category of SEA_FILTER_CATEGORIES) expect(isSeaFilterCategory(category)).toBe(true)
+    expect(isSeaFilterCategory('ports')).toBe(false) // an overlay, not a category
     expect(isSeaFilterCategory('military')).toBe(false)
     expect(isSeaFilterCategory(null)).toBe(false)
   })

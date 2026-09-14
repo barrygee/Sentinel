@@ -218,6 +218,7 @@ useDocumentEvent('open-space-search', () => sidebarRef.value?.switchTab('search'
 // (LandFilter expands the matching row).
 useDocumentEvent('aprs-station-selected', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('sea-open-vessel', () => sidebarRef.value?.switchTab('search'))
+useDocumentEvent('sea-open-port', () => sidebarRef.value?.switchTab('search'))
 
 const menuOpen = ref(false)
 

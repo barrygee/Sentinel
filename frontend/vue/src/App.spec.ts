@@ -323,10 +323,13 @@ describe('App', () => {
       expect(sidebarSpies.switchTab).toHaveBeenCalledWith('search')
     })
 
-    it('opens the search tab when a vessel is clicked on the Sea map', async () => {
+    it('opens the search tab when a vessel or a port is clicked on the Sea map', async () => {
       mountApp()
       document.dispatchEvent(new CustomEvent('sea-open-vessel', { detail: { mmsi: '1' } }))
       expect(sidebarSpies.switchTab).toHaveBeenCalledWith('search')
+      sidebarSpies.switchTab.mockClear()
+      document.dispatchEvent(new CustomEvent('sea-open-port', { detail: { locode: 'GBSOU' } }))
+      expect(sidebarSpies.switchTab).toHaveBeenCalledExactlyOnceWith('search')
     })
 
     it('opens the search tab when an APRS station is clicked on the Land map', async () => {

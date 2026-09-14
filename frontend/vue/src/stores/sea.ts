@@ -72,6 +72,8 @@ export interface SeaOverlayStates {
   rangeRings: boolean
   /** Charted ferry routes from the base map, drawn dashed with their names. */
   ferryRoutes: boolean
+  /** Known ports with their VHF working channels — the Sea map's airports. */
+  ports: boolean
 }
 
 /**
@@ -100,6 +102,7 @@ const DEFAULT_OVERLAYS: SeaOverlayStates = {
   vesselLabels: true,
   rangeRings: false,
   ferryRoutes: true,
+  ports: true,
 }
 const DEFAULT_LABEL_FIELDS: SeaLabelFieldMap = {
   name: true,
@@ -158,6 +161,14 @@ export const useSeaStore = defineStore('sea', () => {
     overlaysChosen = true
     overlayStates.value = { ...overlayStates.value, [key]: on }
   }
+  /** The overlays `sea.defaultLayers` records, in the order the config lists them. */
+  const DEFAULT_LAYER_KEYS = ['vesselLabels', 'ferryRoutes', 'ports'] as const
+  /** The `sea.defaultLayers` list the current flags describe — what Settings
+   *  writes back so other devices and fresh browsers start the same way.
+   *  Vessels are always in; range rings are a per-station aid, never saved. */
+  function currentDefaultLayers(): string[] {
+    return ['vessels', ...DEFAULT_LAYER_KEYS.filter((key) => overlayStates.value[key])]
+  }
   /** Seed the overlays from the config's default-layers list — first visit only. */
   function applyDefaultLayers(layers: string[]): void {
     if (overlaysChosen) return
@@ -166,6 +177,7 @@ export const useSeaStore = defineStore('sea', () => {
       vessels: true,
       vesselLabels: layers.includes('vesselLabels'),
       ferryRoutes: layers.includes('ferryRoutes'),
+      ports: layers.includes('ports'),
     }
   }
 
@@ -199,11 +211,16 @@ export const useSeaStore = defineStore('sea', () => {
   }
   const searchQuery = usePersistedRef<string>('sentinel_sea_filterQuery', '')
   const searchExpandedMmsi = usePersistedRef<string>('sentinel_sea_filterExpanded', '')
+  /** The port row open in the FILTER pane's PORTS list, by UN/LOCODE. */
+  const searchExpandedPort = usePersistedRef<string>('sentinel_sea_filterExpandedPort', '')
   function setSearchQuery(query: string): void {
     searchQuery.value = query
   }
   function setSearchExpandedMmsi(mmsi: string): void {
     searchExpandedMmsi.value = mmsi
+  }
+  function setSearchExpandedPort(locode: string): void {
+    searchExpandedPort.value = locode
   }
 
   // ── map state ──────────────────────────────────────────────────────────────
@@ -215,7 +232,7 @@ export const useSeaStore = defineStore('sea', () => {
   }
 
   // Which layers are on by default (from the `sea.defaultLayers` config).
-  const defaultLayers = ref<string[]>(['vessels', 'vesselLabels', 'ferryRoutes'])
+  const defaultLayers = ref<string[]>(['vessels', 'vesselLabels', 'ferryRoutes', 'ports'])
   async function hydrateDefaultLayers(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sea')
@@ -325,6 +342,7 @@ export const useSeaStore = defineStore('sea', () => {
     overlayStates,
     setOverlay,
     applyDefaultLayers,
+    currentDefaultLayers,
     labelFields,
     setLabelFields,
     seaFilterCategory,
@@ -336,6 +354,8 @@ export const useSeaStore = defineStore('sea', () => {
     searchQuery,
     setSearchQuery,
     searchExpandedMmsi,
+    searchExpandedPort,
+    setSearchExpandedPort,
     setSearchExpandedMmsi,
     mapCenter,
     mapZoom,

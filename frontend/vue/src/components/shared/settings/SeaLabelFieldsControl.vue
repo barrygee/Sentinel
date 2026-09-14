@@ -8,6 +8,12 @@
  *
  * The Sea counterpart of AprsLabelFieldsControl: one shared table, a single
  * column. The map picks changes up by watching the store, so no event bridge.
+ *
+ * The fields and the Map Layers "Vessel labels" switch describe one thing —
+ * whether a label is drawn — so they are kept consistent here: unticking the
+ * last field switches the labels layer off, and ticking a field while the
+ * layer is off switches it back on. Either way the layer change is saved
+ * with the fields on APPLY, as `sea.defaultLayers`.
  */
 import { ref, onMounted } from 'vue'
 import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
@@ -50,8 +56,13 @@ function onToggle(_column: string, key: string): void {
   const field = key as keyof SeaLabelFieldMap
   fields.value = { ...fields.value, [field]: !fields.value[field] }
   seaStore.setLabelFields({ ...fields.value })
+  const anyFieldShown = Object.values(fields.value).some(Boolean)
+  const layerChanged = anyFieldShown !== seaStore.overlayStates.vesselLabels
+  if (layerChanged) seaStore.setOverlay('vesselLabels', anyFieldShown)
   emit('stage', () => {
     settingsApi.put('sea', 'labelDataPoints', { ...fields.value })
+    // One staged writer per setting, so the layer flip rides along here.
+    if (layerChanged) settingsApi.put('sea', 'defaultLayers', seaStore.currentDefaultLayers())
   })
 }
 </script>

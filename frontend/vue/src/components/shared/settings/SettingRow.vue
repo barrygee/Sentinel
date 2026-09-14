@@ -118,6 +118,10 @@
       v-else-if="item.type === 'sea-label-fields'"
       @stage="emit('stage', item.id, $event)"
     />
+    <SeaMapLayersControl
+      v-else-if="item.type === 'sea-map-layers'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <AirReplayToggleControl
       v-else-if="item.type === 'air-replay-toggle'"
       @stage="emit('stage', item.id, $event)"
@@ -160,6 +164,7 @@ import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
+import SeaMapLayersControl from './SeaMapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
@@ -203,6 +208,7 @@ const HALF_TYPES = new Set([
   'location',
   'range-ring-origin',
   'map-layers',
+  'sea-map-layers',
   'overhead-alerts',
   'sdr-sentry-hosts',
   'sdr-devices',
@@ -229,6 +235,7 @@ const NATURAL_HEIGHT_TYPES = new Set([
   'sea-coverage-area',
   'range-ring-origin',
   'map-layers',
+  'sea-map-layers',
   'overhead-alerts',
 ])
 const isTriple = false

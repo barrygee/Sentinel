@@ -62,6 +62,9 @@ vi.mock('./controls/vessels/AisVesselsControl', () => ({
 vi.mock('./controls/ferry-routes/FerryRoutesControl', () => ({
   FerryRoutesControl: controlMocks.make('ferries'),
 }))
+vi.mock('./controls/ports/PortsControl', () => ({
+  PortsControl: controlMocks.make('ports'),
+}))
 
 vi.mock('@/components/shared/UserLocationMarker', () => ({
   UserLocationMarker: class {
@@ -211,7 +214,15 @@ describe('SeaMap', () => {
     const map = makeFakeMap()
     mountMap()
     bringUp(map)
-    for (const name of ['vessels', 'ferries', 'rangeRings', 'roads', 'names', 'sentrySites']) {
+    for (const name of [
+      'vessels',
+      'ferries',
+      'ports',
+      'rangeRings',
+      'roads',
+      'names',
+      'sentrySites',
+    ]) {
       expect(last(name).onAdd).toHaveBeenCalledWith(map)
     }
     expect(controlMocks.instances.vessels).toHaveLength(1)
@@ -251,6 +262,7 @@ describe('SeaMap', () => {
     const exposed = wrapper.vm as unknown as {
       getVesselsControl: () => unknown
       getFerryRoutes: () => unknown
+      getPorts: () => unknown
       getRangeRings: () => unknown
       getMap: () => unknown
     }
@@ -259,6 +271,7 @@ describe('SeaMap', () => {
     bringUp(map)
     expect(exposed.getVesselsControl()).toBe(last('vessels'))
     expect(exposed.getFerryRoutes()).toBe(last('ferries'))
+    expect(exposed.getPorts()).toBe(last('ports'))
     expect(exposed.getRangeRings()).toBe(last('rangeRings'))
     expect(exposed.getMap()).toBe(map)
   })
@@ -278,6 +291,7 @@ describe('SeaMap', () => {
       expect(last('rangeRings')._initRings).toHaveBeenCalled()
       expect(last('vessels').initLayers).toHaveBeenCalled()
       expect(last('ferries').initLayers).toHaveBeenCalled()
+      expect(last('ports').initLayers).toHaveBeenCalled()
       // The same style again is a no-op.
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledTimes(1)
@@ -324,13 +338,17 @@ describe('SeaMap', () => {
       expect(rings.handleClickPublic).toHaveBeenCalledOnce()
     })
 
-    it('re-applies the ferry-routes flag and keeps place names on regardless of the shared flag', async () => {
+    it('re-applies the ferry-routes and ports flags and keeps place names on regardless of the shared flag', async () => {
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
       useSeaStore().setOverlay('ferryRoutes', false)
       await nextTick()
       expect(last('ferries').applyVisibility).toHaveBeenCalled()
+      expect(last('ports').applyVisibility).not.toHaveBeenCalled()
+      useSeaStore().setOverlay('ports', false)
+      await nextTick()
+      expect(last('ports').applyVisibility).toHaveBeenCalledOnce()
       // Names are forced on once, and the shared basemap flag is not followed.
       expect(last('names').setVisible).toHaveBeenCalledExactlyOnceWith(true)
       const basemap = useBasemapStore()
@@ -384,7 +402,15 @@ describe('SeaMap', () => {
     expect(useSeaStore().mapCenter).toEqual([1, 51])
     expect(useSeaStore().mapZoom).toBe(8)
     expect(shared.ctx!.detach).toHaveBeenCalledWith(map)
-    for (const name of ['vessels', 'ferries', 'rangeRings', 'roads', 'names', 'sentrySites']) {
+    for (const name of [
+      'vessels',
+      'ferries',
+      'ports',
+      'rangeRings',
+      'roads',
+      'names',
+      'sentrySites',
+    ]) {
       expect(last(name).onRemove).toHaveBeenCalledOnce()
     }
     expect(shared.marker!.remove).toHaveBeenCalled()

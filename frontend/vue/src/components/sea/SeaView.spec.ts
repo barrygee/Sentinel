@@ -55,14 +55,8 @@ const SeaSideMenuStub = defineComponent({
     'zoomIn',
     'zoomOut',
     'goToLocation',
-    'toggleLabels',
     'toggleRangeRings',
-    'toggleFerryRoutes',
-    'setFilterCategory',
-    'filterCategory',
-    'labelsActive',
     'rangeRingsActive',
-    'ferryRoutesActive',
     'locationActive',
   ],
   setup(props) {
@@ -162,29 +156,26 @@ describe('SeaView', () => {
     expect(mapSpies.flyTo).toHaveBeenLastCalledWith({ center: [1, 51], zoom: 13, duration: 800 })
   })
 
-  it('every overlay toggle writes the store, which the rail reads back', async () => {
+  it('the range-ring toggle writes the store, which the rail reads back', async () => {
     teleportTarget()
     mountView()
     const store = useSeaStore()
     const props = sideMenuProps as Record<string, unknown>
-    expect(props.labelsActive).toBe(true)
     expect(props.rangeRingsActive).toBe(false)
-    expect(props.ferryRoutesActive).toBe(true)
-    expect(props.filterCategory).toBe('all')
-    ;(props.toggleLabels as () => void)()
     ;(props.toggleRangeRings as () => void)()
-    ;(props.toggleFerryRoutes as () => void)()
-    ;(props.setFilterCategory as (category: string) => void)('cargo')
     await nextTick()
-    expect(store.overlayStates).toEqual({
-      vessels: true,
-      vesselLabels: false,
-      rangeRings: true,
-      ferryRoutes: false,
-    })
-    expect(store.seaFilterCategory).toBe('cargo')
-    expect(sideMenuProps!.labelsActive).toBe(false)
-    expect(sideMenuProps!.filterCategory).toBe('cargo')
+    expect(store.overlayStates.rangeRings).toBe(true)
+    expect(sideMenuProps!.rangeRingsActive).toBe(true)
+    // The other overlays are Settings-only: the rail neither shows nor drives them.
+    for (const name of [
+      'toggleLabels',
+      'toggleFerryRoutes',
+      'togglePorts',
+      'labelsActive',
+      'portsActive',
+    ]) {
+      expect(props[name]).toBeUndefined()
+    }
   })
 
   it('reports whether a location fix exists', async () => {

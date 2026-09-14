@@ -572,6 +572,15 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'sea',
     sectionLabel: 'SEA',
+    id: 'sea-map-layers',
+    label: 'Map Layers',
+    desc: 'Which overlays the Sea map draws. Changes show on the map at once; APPLY CHANGES saves them as the defaults for every device.',
+    searchTerms: 'vessel labels range rings ferry routes ports harbours vhf overlays',
+    type: 'sea-map-layers',
+  },
+  {
+    section: 'sea',
+    sectionLabel: 'SEA',
     id: 'sea-label-fields',
     label: 'Vessel Label Fields',
     desc: 'Which details each vessel shows on its map label',
