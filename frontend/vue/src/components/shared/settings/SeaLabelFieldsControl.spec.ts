@@ -69,6 +69,78 @@ describe('SeaLabelFieldsControl', () => {
     )
   })
 
+  it('switches the labels layer off with the last field, and back on with the first', async () => {
+    const store = useSeaStore()
+    // Start from a single shown field so one untick empties the set.
+    store.setLabelFields({
+      name: true,
+      type: false,
+      mmsi: false,
+      flag: false,
+      destination: false,
+      speed: false,
+      course: false,
+    })
+    const wrapper = mount(SeaLabelFieldsControl)
+    await flushPromises()
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[ROW.name]!.trigger('change')
+    expect(store.labelFields.name).toBe(false)
+    expect(store.overlayStates.vesselLabels).toBe(false)
+    // The layer flip is saved with the fields on APPLY.
+    let staged = wrapper.emitted('stage')!
+    ;(staged[staged.length - 1]![0] as () => void)()
+    expect(settingsApi.put).toHaveBeenCalledWith('sea', 'defaultLayers', [
+      'vessels',
+      'ferryRoutes',
+      'ports',
+    ])
+    vi.mocked(settingsApi.put).mockClear()
+
+    await checkboxes[ROW.destination]!.trigger('change')
+    expect(store.overlayStates.vesselLabels).toBe(true)
+    staged = wrapper.emitted('stage')!
+    ;(staged[staged.length - 1]![0] as () => void)()
+    expect(settingsApi.put).toHaveBeenCalledWith('sea', 'defaultLayers', [
+      'vessels',
+      'vesselLabels',
+      'ferryRoutes',
+      'ports',
+    ])
+    vi.mocked(settingsApi.put).mockClear()
+
+    // A second field while the layer is already on changes nothing about the layer.
+    await checkboxes[ROW.name]!.trigger('change')
+    expect(store.overlayStates.vesselLabels).toBe(true)
+    staged = wrapper.emitted('stage')!
+    ;(staged[staged.length - 1]![0] as () => void)()
+    expect(settingsApi.put).toHaveBeenCalledExactlyOnceWith(
+      'sea',
+      'labelDataPoints',
+      expect.objectContaining({ name: true, destination: true }),
+    )
+  })
+
+  it('brings a switched-off labels layer back as soon as any field is shown', async () => {
+    const store = useSeaStore()
+    store.setOverlay('vesselLabels', false)
+    const wrapper = mount(SeaLabelFieldsControl)
+    await flushPromises()
+    // Ticking a second field while the name is already shown: fields are
+    // shown and the layer was off, so the two disagree and the fields win.
+    await wrapper.findAll('input[type="checkbox"]')[ROW.type]!.trigger('change')
+    expect(store.labelFields.type).toBe(true)
+    expect(store.overlayStates.vesselLabels).toBe(true)
+  })
+
+  it('does not touch the labels layer just for opening the panel', async () => {
+    const store = useSeaStore()
+    store.setOverlay('vesselLabels', false)
+    mount(SeaLabelFieldsControl)
+    await flushPromises()
+    expect(store.overlayStates.vesselLabels).toBe(false)
+  })
+
   it('has no accessibility violations', async () => {
     const wrapper = mount(SeaLabelFieldsControl, { attachTo: document.body })
     await flushPromises()

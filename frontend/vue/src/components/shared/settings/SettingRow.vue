@@ -118,7 +118,10 @@
       v-else-if="item.type === 'sea-label-fields'"
       @stage="emit('stage', item.id, $event)"
     />
-    <SeaMapLayersControl v-else-if="item.type === 'sea-map-layers'" />
+    <SeaMapLayersControl
+      v-else-if="item.type === 'sea-map-layers'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <AirReplayToggleControl
       v-else-if="item.type === 'air-replay-toggle'"
       @stage="emit('stage', item.id, $event)"

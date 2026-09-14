@@ -1,9 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useSeaStore } from '@/stores/sea'
+import * as settingsApi from '@/services/settingsApi'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
+
+vi.mock('@/services/settingsApi', () => ({
+  put: vi.fn(),
+}))
 
 enableAutoUnmount(afterEach)
 
@@ -23,7 +28,14 @@ describe('SeaMapLayersControl', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
+    vi.mocked(settingsApi.put).mockReset().mockResolvedValue(undefined)
   })
+
+  /** The staged writer the control handed the panel with its last `stage`. */
+  function lastStaged(wrapper: ReturnType<typeof mountControl>): (() => void) | undefined {
+    const staged = wrapper.emitted('stage')
+    return staged?.[staged.length - 1]?.[0] as (() => void) | undefined
+  }
 
   it('lists every Sea overlay once, and never the always-on vessels', () => {
     const wrapper = mountControl()
@@ -61,6 +73,32 @@ describe('SeaMapLayersControl', () => {
     expect(seaStore.overlayStates[key]).toBe(!before)
     await switchOf(wrapper, label).trigger('click')
     expect(seaStore.overlayStates[key]).toBe(before)
+  })
+
+  it('stages the default-layers config for APPLY, written only when applied', async () => {
+    const wrapper = mountControl()
+    await switchOf(wrapper, 'Ports').trigger('click')
+    await switchOf(wrapper, 'Ferry routes').trigger('click')
+    expect(wrapper.emitted('stage')).toHaveLength(2)
+    // Nothing reaches the backend until the panel runs the staged writer.
+    expect(settingsApi.put).not.toHaveBeenCalled()
+    lastStaged(wrapper)!()
+    expect(settingsApi.put).toHaveBeenCalledExactlyOnceWith('sea', 'defaultLayers', [
+      'vessels',
+      'vesselLabels',
+    ])
+    // Vessels are always in; the list follows the flags as they stand at apply time.
+    await switchOf(wrapper, 'Ports').trigger('click')
+    await switchOf(wrapper, 'Vessel labels').trigger('click')
+    lastStaged(wrapper)!()
+    expect(settingsApi.put).toHaveBeenLastCalledWith('sea', 'defaultLayers', ['vessels', 'ports'])
+  })
+
+  it('keeps range rings local: no config write is staged for them', async () => {
+    const wrapper = mountControl()
+    await switchOf(wrapper, 'Range rings').trigger('click')
+    expect(useSeaStore().overlayStates.rangeRings).toBe(true)
+    expect(wrapper.emitted('stage')).toBeUndefined()
   })
 
   it('leaves the other layers alone', async () => {

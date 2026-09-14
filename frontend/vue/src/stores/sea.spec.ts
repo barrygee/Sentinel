@@ -331,5 +331,21 @@ describe('sea store', () => {
       again.applyDefaultLayers([])
       expect(again.overlayStates.ferryRoutes).toBe(true)
     })
+
+    it('describes the current flags as a default-layers list, vessels always in, rings never', () => {
+      const store = useSeaStore()
+      expect(store.currentDefaultLayers()).toEqual([
+        'vessels',
+        'vesselLabels',
+        'ferryRoutes',
+        'ports',
+      ])
+      store.setOverlay('vesselLabels', false)
+      store.setOverlay('ports', false)
+      store.setOverlay('rangeRings', true)
+      expect(store.currentDefaultLayers()).toEqual(['vessels', 'ferryRoutes'])
+      store.setOverlay('ferryRoutes', false)
+      expect(store.currentDefaultLayers()).toEqual(['vessels'])
+    })
   })
 })

@@ -161,6 +161,14 @@ export const useSeaStore = defineStore('sea', () => {
     overlaysChosen = true
     overlayStates.value = { ...overlayStates.value, [key]: on }
   }
+  /** The overlays `sea.defaultLayers` records, in the order the config lists them. */
+  const DEFAULT_LAYER_KEYS = ['vesselLabels', 'ferryRoutes', 'ports'] as const
+  /** The `sea.defaultLayers` list the current flags describe — what Settings
+   *  writes back so other devices and fresh browsers start the same way.
+   *  Vessels are always in; range rings are a per-station aid, never saved. */
+  function currentDefaultLayers(): string[] {
+    return ['vessels', ...DEFAULT_LAYER_KEYS.filter((key) => overlayStates.value[key])]
+  }
   /** Seed the overlays from the config's default-layers list — first visit only. */
   function applyDefaultLayers(layers: string[]): void {
     if (overlaysChosen) return
@@ -334,6 +342,7 @@ export const useSeaStore = defineStore('sea', () => {
     overlayStates,
     setOverlay,
     applyDefaultLayers,
+    currentDefaultLayers,
     labelFields,
     setLabelFields,
     seaFilterCategory,

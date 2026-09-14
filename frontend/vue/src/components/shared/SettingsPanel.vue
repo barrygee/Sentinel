@@ -574,7 +574,7 @@ const ALL_SETTINGS: SettingItem[] = [
     sectionLabel: 'SEA',
     id: 'sea-map-layers',
     label: 'Map Layers',
-    desc: 'Which overlays the Sea map draws. Range rings can also be flipped from the map rail; that updates here too.',
+    desc: 'Which overlays the Sea map draws. Changes show on the map at once; APPLY CHANGES saves them as the defaults for every device.',
     searchTerms: 'vessel labels range rings ferry routes ports harbours vhf overlays',
     type: 'sea-map-layers',
   },
