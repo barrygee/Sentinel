@@ -45,9 +45,10 @@ describe('aisShipType', () => {
 
   it('matches families to categories, with OTHER catching the rest', () => {
     expect(familyMatchesCategory('cargo', 'all')).toBe(true)
-    // PORTS swaps the list, not the plotted vessels: every family stays.
-    expect(familyMatchesCategory('cargo', 'ports')).toBe(true)
-    expect(familyMatchesCategory('unknown', 'ports')).toBe(true)
+    // PORTS narrows the map like any other category: no family is a port.
+    expect(familyMatchesCategory('cargo', 'ports')).toBe(false)
+    expect(familyMatchesCategory('other', 'ports')).toBe(false)
+    expect(familyMatchesCategory('unknown', 'ports')).toBe(false)
     expect(familyMatchesCategory('cargo', 'cargo')).toBe(true)
     expect(familyMatchesCategory('cargo', 'tanker')).toBe(false)
     expect(familyMatchesCategory('cargo', 'other')).toBe(false)
