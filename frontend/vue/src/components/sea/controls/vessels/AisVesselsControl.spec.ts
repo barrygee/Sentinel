@@ -54,13 +54,20 @@ vi.mock('@/components/air/controls/adsb/adsbSprites', () => ({
   createBracket: vi.fn(() => ({ width: 64, height: 64, data: new Uint8ClampedArray(4) })),
 }))
 
-import { AisVesselsControl, deadReckon, isMoving, wrapLongitude } from './AisVesselsControl'
+import {
+  AisVesselsControl,
+  deadReckon,
+  isMoving,
+  trailGradient,
+  wrapLongitude,
+} from './AisVesselsControl'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
 import {
   SEA_GROUP_ALL_ABOVE_NM,
   SEA_INTERPOLATE_INTERVAL_MS,
   SEA_MOVE_FETCH_DEBOUNCE_MS,
 } from '@/constants/sea'
+import { vesselFamilyColor } from '@/utils/aisShipType'
 
 function vessel(overrides: Partial<SeaVessel> = {}): SeaVessel {
   return {
@@ -88,6 +95,8 @@ interface FakeSource {
   setData: ReturnType<typeof vi.fn>
   loaded: () => boolean
   isLoaded: boolean
+  /** The options the control created the source with. */
+  spec: Record<string, unknown>
 }
 
 function makeFakeMap(options: { spanDeg?: number; zoom?: number } = {}) {
@@ -98,6 +107,7 @@ function makeFakeMap(options: { spanDeg?: number; zoom?: number } = {}) {
   const sources = new Map<string, FakeSource>()
   const layers = new Map<string, Record<string, unknown>>()
   const layout: Record<string, Record<string, unknown>> = {}
+  const paint: Record<string, Record<string, unknown>> = {}
   const filters: Record<string, unknown> = {}
   const images = new Set<string>()
   const spanDeg = options.spanDeg ?? 0.5
@@ -138,8 +148,13 @@ function makeFakeMap(options: { spanDeg?: number; zoom?: number } = {}) {
     _emit: (key: string, event?: unknown) =>
       (handlers[key] ?? []).forEach((handler) => handler(event)),
     _handlerCount: (key: string) => (handlers[key] ?? []).length,
-    addSource: (id: string) => {
-      sources.set(id, { setData: vi.fn(), loaded: () => sources.get(id)!.isLoaded, isLoaded: true })
+    addSource: (id: string, spec: Record<string, unknown>) => {
+      sources.set(id, {
+        setData: vi.fn(),
+        loaded: () => sources.get(id)!.isLoaded,
+        isLoaded: true,
+        spec,
+      })
     },
     getSource: (id: string) => sources.get(id),
     addLayer: (layer: { id: string }) => {
@@ -150,6 +165,9 @@ function makeFakeMap(options: { spanDeg?: number; zoom?: number } = {}) {
     setLayoutProperty: (id: string, name: string, value: unknown) => {
       layout[id]![name] = value
     },
+    setPaintProperty: (id: string, name: string, value: unknown) => {
+      ;(paint[id] ??= {})[name] = value
+    },
     setFilter: (id: string, filter: unknown) => {
       filters[id] = filter
     },
@@ -159,6 +177,7 @@ function makeFakeMap(options: { spanDeg?: number; zoom?: number } = {}) {
     _sources: sources,
     _layers: layers,
     _layout: layout,
+    _paint: paint,
     _filters: filters,
     _images: images,
   }
@@ -175,6 +194,22 @@ function countMarkers(): RecordedMarker[] {
     (marker) => !marker.removed && marker.element.classList.contains('sea-count-marker'),
   )
 }
+
+describe('trailGradient', () => {
+  it('runs from the transparent colour at the tail to the solid colour at the vessel', () => {
+    expect(trailGradient('#39d5ff')).toEqual([
+      'interpolate',
+      ['linear'],
+      ['line-progress'],
+      0,
+      'rgba(57, 213, 255, 0)',
+      1,
+      'rgb(57, 213, 255)',
+    ])
+    expect(trailGradient('#000000')[4]).toBe('rgba(0, 0, 0, 0)')
+    expect(trailGradient('#ffffff')[6]).toBe('rgb(255, 255, 255)')
+  })
+})
 
 describe('AisVesselsControl', () => {
   let store: ReturnType<typeof useSeaStore>
@@ -218,9 +253,14 @@ describe('AisVesselsControl', () => {
     expect(control.buttonLabel.startsWith('<svg')).toBe(true)
     expect(control.button.getAttribute('aria-label')).toBe('Toggle live vessels')
     expect(startSpy).toHaveBeenCalledOnce()
-    expect([...map._sources.keys()]).toEqual(['sea-vessels', 'sea-vessel-track'])
+    expect([...map._sources.keys()]).toEqual([
+      'sea-vessels',
+      'sea-vessel-track',
+      'sea-vessel-track-dots',
+    ])
     expect([...map._layers.keys()]).toEqual([
       'sea-vessel-track-line',
+      'sea-vessel-track-dots',
       'sea-vessel-icons',
       'sea-vessel-bracket',
       'sea-vessel-hit',
@@ -235,7 +275,7 @@ describe('AisVesselsControl', () => {
   it('re-running initLayers after a style reload keeps a single set and refreshes images', () => {
     const { control, map } = addControl()
     control.initLayers()
-    expect(map._layers.size).toBe(4)
+    expect(map._layers.size).toBe(5)
     expect(map.updateImage).toHaveBeenCalled()
   })
 
@@ -328,6 +368,7 @@ describe('AisVesselsControl', () => {
       'sea-vessel-bracket',
       'sea-vessel-hit',
       'sea-vessel-track-line',
+      'sea-vessel-track-dots',
     ]) {
       expect(map._layout[layer]!.visibility).toBe('none')
     }
@@ -492,23 +533,109 @@ describe('AisVesselsControl', () => {
     control.selectByMmsi('unknown', { flyTo: true })
     expect(map.easeTo).toHaveBeenCalledTimes(1)
     await nextTick()
-    // The track line is drawn in the family colour once samples arrive.
+    // The trail is drawn the way the Air map draws an aircraft's: a line in
+    // the family colour, on to the live position, under dots that fade in
+    // from the oldest sample to full strength at the newest.
     const trackSource = map._sources.get('sea-vessel-track')!
+    const dotsSource = map._sources.get('sea-vessel-track-dots')!
+    store.setSelectedMmsi('232012345')
+    store.setSelectedTrack([
+      { lat: 50.8, lon: 0.8, t: 1 },
+      { lat: 50.9, lon: 0.9, t: 2 },
+      { lat: 50.95, lon: 0.95, t: 3 },
+    ])
+    await nextTick()
+    const color = vesselFamilyColor('passenger')
+    // The line fades along its length, so the source carries line metrics and
+    // the gradient is painted in the vessel's colour.
+    expect(trackSource.spec).toMatchObject({ lineMetrics: true })
+    expect(map._paint['sea-vessel-track-line']!['line-gradient']).toEqual(trailGradient(color))
+    const line = trackSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
+    expect(line.features).toHaveLength(1)
+    expect(line.features[0]!.properties).toEqual({ color })
+    expect((line.features[0]!.geometry as GeoJSON.LineString).coordinates).toEqual([
+      [0.8, 50.8],
+      [0.9, 50.9],
+      [0.95, 50.95],
+      [1, 51], // the vessel's live position closes the trail
+    ])
+    const dots = dotsSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
+    expect(dots.features.map((feature) => feature.properties)).toEqual([
+      { color, opacity: 1 / 3 },
+      { color, opacity: 2 / 3 },
+      { color, opacity: 1 },
+    ])
+    expect(dots.features.map((feature) => (feature.geometry as GeoJSON.Point).coordinates)).toEqual(
+      [
+        [0.8, 50.8],
+        [0.9, 50.9],
+        [0.95, 50.95],
+      ],
+    )
+    // A sample already at the live position is not repeated as a zero-length segment.
+    store.setSelectedTrack([
+      { lat: 50.9, lon: 0.9, t: 2 },
+      { lat: 51, lon: 1, t: 3 },
+    ])
+    await nextTick()
+    expect(
+      (
+        (trackSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection).features[0]!
+          .geometry as GeoJSON.LineString
+      ).coordinates,
+    ).toEqual([
+      [0.9, 50.9],
+      [1, 51],
+    ])
+    // A single fix is not a track: both layers empty.
+    store.setSelectedTrack([{ lat: 51, lon: 1, t: 2 }])
+    await nextTick()
+    expect(
+      (trackSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection).features,
+    ).toEqual([])
+    expect(
+      (dotsSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection).features,
+    ).toEqual([])
+  })
+
+  it('draws dots but no line for a moored vessel whose fixes all sit on one spot', async () => {
+    const { map } = addControl()
+    store.vessels = [vessel()]
+    store.setSelectedMmsi('232012345')
+    store.setSelectedTrack([
+      { lat: 51, lon: 1, t: 1 },
+      { lat: 51, lon: 1, t: 2 },
+      { lat: 51, lon: 1, t: 3 },
+    ])
+    await nextTick()
+    const line = map._sources
+      .get('sea-vessel-track')!
+      .setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
+    const dots = map._sources
+      .get('sea-vessel-track-dots')!
+      .setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
+    expect(line.features).toEqual([]) // one point is not a line
+    expect(dots.features).toHaveLength(3)
+  })
+
+  it('draws a trail even when the selected vessel has left the snapshot, ending at the last sample', async () => {
+    const { map } = addControl()
+    store.vessels = []
     store.setSelectedMmsi('232012345')
     store.setSelectedTrack([
       { lat: 50.9, lon: 0.9, t: 1 },
       { lat: 51, lon: 1, t: 2 },
     ])
     await nextTick()
-    const drawn = trackSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
-    expect(drawn.features).toHaveLength(1)
-    expect(drawn.features[0]!.properties).toEqual({ color: expect.stringMatching(/^#/) })
-    // A single fix is not a track.
-    store.setSelectedTrack([{ lat: 51, lon: 1, t: 2 }])
-    await nextTick()
-    expect(
-      (trackSource.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection).features,
-    ).toEqual([])
+    const line = map._sources
+      .get('sea-vessel-track')!
+      .setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
+    expect((line.features[0]!.geometry as GeoJSON.LineString).coordinates).toEqual([
+      [0.9, 50.9],
+      [1, 51],
+    ])
+    // Unknown family: the default colour, still a hex.
+    expect(line.features[0]!.properties!.color).toBe(vesselFamilyColor(undefined))
   })
 
   it('clicking empty sea clears the selection; clicking a vessel selects it', async () => {
