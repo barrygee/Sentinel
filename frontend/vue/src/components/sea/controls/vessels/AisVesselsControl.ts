@@ -51,8 +51,29 @@ const STALE_AFTER_MS = 10 * 60 * 1000
 const MAX_DEAD_RECKON_MS = 10 * 60 * 1000
 
 const SOURCE_ID = 'sea-vessels'
+/**
+ * The trail line's fade: transparent at the tail (`line-progress` 0) up to the
+ * full family colour at the vessel (1). Colours are the `#rrggbb` family hexes.
+ */
+export function trailGradient(hexColor: string): maplibregl.ExpressionSpecification {
+  const red = parseInt(hexColor.slice(1, 3), 16)
+  const green = parseInt(hexColor.slice(3, 5), 16)
+  const blue = parseInt(hexColor.slice(5, 7), 16)
+  return [
+    'interpolate',
+    ['linear'],
+    ['line-progress'],
+    0,
+    `rgba(${red}, ${green}, ${blue}, 0)`,
+    1,
+    `rgb(${red}, ${green}, ${blue})`,
+  ]
+}
+
 const TRACK_SOURCE_ID = 'sea-vessel-track'
+const TRACK_DOTS_SOURCE_ID = 'sea-vessel-track-dots'
 const LAYER_TRACK = 'sea-vessel-track-line'
+const LAYER_TRACK_DOTS = 'sea-vessel-track-dots'
 const LAYER_ICONS = 'sea-vessel-icons'
 const LAYER_BRACKET = 'sea-vessel-bracket'
 const LAYER_HIT = 'sea-vessel-hit'
@@ -221,18 +242,48 @@ export class AisVesselsControl extends SentinelControlBase {
       this.map.addSource(SOURCE_ID, { type: 'geojson', data: this._collection() })
     }
     if (!this.map.getSource(TRACK_SOURCE_ID)) {
+      // lineMetrics gives the line layer `line-progress`, which the fade runs on.
       this.map.addSource(TRACK_SOURCE_ID, {
+        type: 'geojson',
+        lineMetrics: true,
+        data: { type: 'FeatureCollection', features: [] },
+      })
+    }
+    if (!this.map.getSource(TRACK_DOTS_SOURCE_ID)) {
+      this.map.addSource(TRACK_DOTS_SOURCE_ID, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
     }
+    // The selected vessel's trail, drawn the way the Air map draws an
+    // aircraft's: a line in the vessel's family colour under a run of dots,
+    // both fading in from nothing at the tail to full strength at the vessel.
+    // `line-gradient` cannot read feature data, so the colour is painted on
+    // per render (see _renderTrack) — there is only ever one trail.
     if (!this.map.getLayer(LAYER_TRACK)) {
       this.map.addLayer({
         id: LAYER_TRACK,
         type: 'line',
         source: TRACK_SOURCE_ID,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-width': 3, 'line-opacity': 0.55, 'line-color': ['get', 'color'] },
+        paint: {
+          'line-width': 4,
+          'line-opacity': 0.55,
+          'line-gradient': trailGradient(vesselFamilyColor(undefined)),
+        },
+      })
+    }
+    if (!this.map.getLayer(LAYER_TRACK_DOTS)) {
+      this.map.addLayer({
+        id: LAYER_TRACK_DOTS,
+        type: 'circle',
+        source: TRACK_DOTS_SOURCE_ID,
+        paint: {
+          'circle-radius': 2.5,
+          'circle-opacity': ['get', 'opacity'],
+          'circle-stroke-width': 0,
+          'circle-color': ['get', 'color'],
+        },
       })
     }
     if (!this.map.getLayer(LAYER_ICONS)) {
@@ -406,7 +457,7 @@ export class AisVesselsControl extends SentinelControlBase {
   private _applyVisibility(): void {
     if (!this._layersReady) return
     const shown = this.visible ? 'visible' : 'none'
-    for (const layer of [LAYER_ICONS, LAYER_BRACKET, LAYER_HIT, LAYER_TRACK]) {
+    for (const layer of [LAYER_ICONS, LAYER_BRACKET, LAYER_HIT, LAYER_TRACK, LAYER_TRACK_DOTS]) {
       this.map.setLayoutProperty(layer, 'visibility', shown)
     }
     this.setButtonActive(this.visible)
@@ -422,21 +473,46 @@ export class AisVesselsControl extends SentinelControlBase {
 
   private _renderTrack(samples: SeaTrackSample[]): void {
     if (!this._layersReady) return
-    const source = this.map.getSource(TRACK_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+    const lineSource = this.map.getSource(TRACK_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+    const dotsSource = this.map.getSource(TRACK_DOTS_SOURCE_ID) as
+      | maplibregl.GeoJSONSource
+      | undefined
     const mmsi = this._seaStore.selectedMmsi
     const vessel = this._seaStore.vessels.find((candidate) => candidate.mmsi === mmsi)
-    const features: GeoJSON.Feature[] = []
+    const lineFeatures: GeoJSON.Feature[] = []
+    const dotFeatures: GeoJSON.Feature[] = []
     if (mmsi && samples.length >= 2) {
-      features.push({
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: samples.map((sample) => [sample.lon, sample.lat]),
-        },
-        properties: { color: vesselFamilyColor(vessel?.family) },
+      const color = vesselFamilyColor(vessel?.family)
+      this.map.setPaintProperty(LAYER_TRACK, 'line-gradient', trailGradient(color))
+      // Oldest → newest, so the fade runs from a faint tail to the vessel.
+      const sampleCount = samples.length
+      samples.forEach((sample, index) => {
+        dotFeatures.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [sample.lon, sample.lat] },
+          properties: { color, opacity: (index + 1) / sampleCount },
+        })
       })
+      // The line runs on to the vessel's live position so the trail never
+      // stops short of the icon between track refreshes.
+      const coordinates: [number, number][] = samples.map((sample) => [sample.lon, sample.lat])
+      if (vessel) coordinates.push([vessel.lon, vessel.lat])
+      const deduped = coordinates.filter(
+        (coordinate, index) =>
+          index === 0 ||
+          coordinate[0] !== coordinates[index - 1]![0] ||
+          coordinate[1] !== coordinates[index - 1]![1],
+      )
+      if (deduped.length >= 2) {
+        lineFeatures.push({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: deduped },
+          properties: { color },
+        })
+      }
     }
-    source?.setData({ type: 'FeatureCollection', features })
+    lineSource?.setData({ type: 'FeatureCollection', features: lineFeatures })
+    dotsSource?.setData({ type: 'FeatureCollection', features: dotFeatures })
   }
 
   // ── labels ──────────────────────────────────────────────────────────────────
