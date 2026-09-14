@@ -19,6 +19,16 @@ import seaVesselsFixture from '../fixtures/sea-vessels.json' with { type: 'json'
  * `page.routeWebSocket(...)`.
  */
 export async function installDefaultMocks(page: Page): Promise<void> {
+  // Map styles are served by FastAPI under /assets, so the preview 404s them and
+  // MapLibre never fires `style.load` — and the map controls that hang off it
+  // (the Sea vessel layers, their status line and the feed polling) are never
+  // created. An empty style loads instantly and needs no tiles, sprites or
+  // glyphs, which is all the accessible-surface assertions need.
+  const emptyStyle = JSON.stringify({ version: 8, sources: {}, layers: [] })
+  await page.route('**/assets/fiord*.json', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: emptyStyle })
+  })
+
   // ADS-B point data — empty aircraft list
   await page.route('/api/adsb/point', (route) => {
     void route.fulfill({
