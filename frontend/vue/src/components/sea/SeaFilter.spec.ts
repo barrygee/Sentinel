@@ -47,6 +47,9 @@ describe('SeaFilter', () => {
     setActivePinia(createPinia())
     localStorage.clear()
     store = useSeaStore()
+    // The vessel-list tests want vessels alone; the ports overlay (on by
+    // default) has its own describe block below.
+    store.setOverlay('ports', false)
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -158,67 +161,111 @@ describe('SeaFilter', () => {
     wrapper.unmount()
   })
 
-  describe('PORTS category', () => {
+  describe('ports overlay', () => {
     beforeEach(() => {
       store.vessels = [vessel(), TRAWLER]
-      store.setSeaFilterCategory('ports')
+      store.setOverlay('ports', true)
     })
 
-    it('lists every port by name and LOCODE instead of the vessels, with its own prompts', () => {
+    it('lists every port after the vessels while the overlay is on, with wider prompts', async () => {
       const wrapper = mount(SeaFilter)
       const rows = wrapper.findAll('.bfp-result-item')
-      expect(rows).toHaveLength(PORTS_DATA.features.length)
-      expect(rows[0]!.find('.bfp-result-primary').text()).toBe('SOUTHAMPTON')
-      expect(rows[0]!.find('.bfp-result-secondary').text()).toBe('GBSOU')
-      expect(rows[0]!.find('[role="option"]').attributes('aria-label')).toBe(
+      expect(rows).toHaveLength(2 + PORTS_DATA.features.length)
+      expect(rows[0]!.find('.bfp-result-primary').text()).toBe('PRIDE OF KENT')
+      expect(rows[2]!.find('.bfp-result-primary').text()).toBe('SOUTHAMPTON')
+      expect(rows[2]!.find('.bfp-result-secondary').text()).toBe('GBSOU')
+      expect(rows[2]!.find('[role="option"]').attributes('aria-label')).toBe(
         'Southampton, port, GBSOU',
       )
-      expect(wrapper.text()).not.toContain('PRIDE OF KENT')
-      expect(wrapper.find('input').attributes('placeholder')).toBe('NAME · LOCODE')
-      expect(wrapper.find('input').attributes('aria-label')).toBe('Filter ports by name or LOCODE')
-      expect(wrapper.find('[role="listbox"]').attributes('aria-label')).toBe('Ports')
+      expect(wrapper.find('input').attributes('placeholder')).toBe(
+        'NAME · MMSI · TYPE · DESTINATION · PORT',
+      )
+      expect(wrapper.find('input').attributes('aria-label')).toBe(
+        'Filter vessels and ports by name, MMSI, type, destination or LOCODE',
+      )
+      expect(wrapper.find('[role="listbox"]').attributes('aria-label')).toBe(
+        'Live vessels and ports',
+      )
+      // Off again: the ports leave, the vessels and the vessel prompts stay.
+      store.setOverlay('ports', false)
+      await nextTick()
+      expect(wrapper.findAll('.bfp-result-item')).toHaveLength(2)
+      expect(wrapper.find('[role="listbox"]').attributes('aria-label')).toBe('Live vessels')
     })
 
-    it('searches name and LOCODE, and explains an empty list', async () => {
+    it('is independent of the vessel category', async () => {
+      const wrapper = mount(SeaFilter)
+      store.setSeaFilterCategory('fishing')
+      await nextTick()
+      const names = wrapper.findAll('.bfp-result-primary').map((row) => row.text())
+      expect(names[0]).toBe('OCEAN HARVESTER')
+      expect(names).toContain('DOVER')
+      expect(names).not.toContain('PRIDE OF KENT')
+    })
+
+    it('searches name and LOCODE alongside the vessels, and explains an empty list', async () => {
       const wrapper = mount(SeaFilter)
       store.setSearchQuery('iedub')
       await nextTick()
       expect(wrapper.findAll('.bfp-result-primary').map((row) => row.text())).toEqual(['DUBLIN'])
-      store.setSearchQuery('milford')
+      store.setSearchQuery('dover')
       await nextTick()
+      // The vessel bound for Dover and the port of Dover both match.
       expect(wrapper.findAll('.bfp-result-primary').map((row) => row.text())).toEqual([
-        'MILFORD HAVEN',
+        'PRIDE OF KENT',
+        'DOVER',
       ])
       store.setSearchQuery('atlantis')
       await nextTick()
       expect(wrapper.findAll('.bfp-result-item')).toHaveLength(0)
-      expect(wrapper.text()).toContain('No ports match')
+      expect(wrapper.text()).toContain('No vessels or ports match')
+      // Even with the vessels layer off, the ports are still there to search.
+      store.setOverlay('vessels', false)
+      store.setSearchQuery('')
+      await nextTick()
+      expect(wrapper.findAll('.bfp-result-item')).toHaveLength(PORTS_DATA.features.length)
     })
 
-    it('expands a port into its details, remembered separately from the vessel row', async () => {
+    it('opens one row at a time, vessel or port, remembering each separately', async () => {
       store.setSearchExpandedMmsi('232012345')
       const wrapper = mount(SeaFilter)
-      expect(wrapper.find('.bfp-expanded').exists()).toBe(false) // the vessel key is not a port
-      await wrapper.find('.bfp-result-item').trigger('click')
-      expect(store.searchExpandedPort).toBe('GBSOU')
-      expect(store.searchExpandedMmsi).toBe('232012345')
-      expect(wrapper.text()).toContain('VHF CHANNELS')
-      expect(wrapper.text()).toContain('VTS · CH 12')
-      expect(wrapper.find('.sea-filter-actions').exists()).toBe(false)
-      // Back on vessels, the vessel row is still the one open.
-      store.setSeaFilterCategory('all')
-      await nextTick()
       expect(wrapper.find('.bfp-expanded').text()).toContain('PRIDE OF KENT')
+      await wrapper.findAll('.bfp-result-item')[2]!.trigger('click')
+      expect(store.searchExpandedPort).toBe('GBSOU')
+      expect(store.searchExpandedMmsi).toBe('')
+      expect(wrapper.find('.bfp-expanded').text()).toContain('VHF CHANNELS')
+      expect(wrapper.find('.bfp-expanded').text()).toContain('VTS · CH 12')
+      expect(wrapper.find('.sea-filter-actions').exists()).toBe(false)
+      // Opening a vessel closes the port.
+      await wrapper.findAll('.bfp-result-item')[0]!.trigger('click')
+      expect(store.searchExpandedMmsi).toBe('232012345')
+      expect(store.searchExpandedPort).toBe('')
+      expect(wrapper.find('.bfp-expanded').text()).toContain('SHOW ON MAP')
     })
 
-    it('switches to PORTS and opens the row for a port clicked on the map', async () => {
-      store.setSeaFilterCategory('all')
+    it('falls back to the vessel row when the ports go off with a port open', async () => {
+      store.setSearchExpandedPort('GBSOU')
+      store.setSearchExpandedMmsi('')
+      const wrapper = mount(SeaFilter)
+      expect(wrapper.find('.bfp-expanded').text()).toContain('SOUTHAMPTON')
+      store.setOverlay('ports', false)
+      await nextTick()
+      expect(wrapper.find('.bfp-expanded').exists()).toBe(false)
+    })
+
+    it('opens the row for a port clicked on the map', async () => {
+      store.setSearchExpandedMmsi('232012345')
       const wrapper = mount(SeaFilter)
       document.dispatchEvent(new CustomEvent('sea-open-port', { detail: { locode: 'GBDVR' } }))
       await nextTick()
-      expect(store.seaFilterCategory).toBe('ports')
       expect(store.searchExpandedPort).toBe('GBDVR')
+      expect(store.searchExpandedMmsi).toBe('')
       expect(wrapper.find('.bfp-expanded').text()).toContain('DOVER')
+      // …and a vessel click closes the port row again.
+      document.dispatchEvent(new CustomEvent('sea-open-vessel', { detail: { mmsi: '232012345' } }))
+      await nextTick()
+      expect(store.searchExpandedPort).toBe('')
+      expect(wrapper.find('.bfp-expanded').text()).toContain('PRIDE OF KENT')
     })
 
     it('asks for an SDR before tuning, then tunes the channel and notifies', async () => {

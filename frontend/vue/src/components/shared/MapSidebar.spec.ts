@@ -445,7 +445,7 @@ describe('MapSidebar', () => {
       expect(useSpaceStore().spaceFilterCategory).toBe('navigation')
     })
 
-    it('offers the vessel families and PORTS as sea sub-tabs and sets the sea category', async () => {
+    it('offers the vessel families as sea sub-tabs and sets the sea category', async () => {
       setPath('/sea/')
       const wrapper = mountSidebar()
       document.dispatchEvent(
@@ -453,13 +453,11 @@ describe('MapSidebar', () => {
       )
       await openFilter(wrapper)
       const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
-      expect(cats).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other', 'ports'])
+      // Ports are an overlay (Settings > SEA > Map Layers), never a category.
+      expect(cats).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other'])
       expect(
         wrapper.find('.msb-rail-subbtn[data-filter-cat="all"]').attributes('data-tooltip'),
       ).toBe('ALL VESSELS')
-      expect(
-        wrapper.find('.msb-rail-subbtn[data-filter-cat="ports"]').attributes('data-tooltip'),
-      ).toBe('PORTS')
       expect(wrapper.find('.msb-rail-subbtn[data-filter-cat="all"]').classes()).toContain(
         'msb-rail-btn-active',
       )

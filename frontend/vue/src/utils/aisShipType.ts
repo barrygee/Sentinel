@@ -85,17 +85,8 @@ export function vesselFamilyLabel(family: unknown): string {
 /**
  * The FILTER rail's categories: the four big commercial families each get a
  * button, everything else is grouped so the rail stays a glanceable size.
- * `ports` switches the FILTER list to the known ports and, like every other
- * category, narrows the map to match — no vessel is plotted under it.
  */
-export type SeaFilterCategory =
-  | 'all'
-  | 'cargo'
-  | 'tanker'
-  | 'passenger'
-  | 'fishing'
-  | 'other'
-  | 'ports'
+export type SeaFilterCategory = 'all' | 'cargo' | 'tanker' | 'passenger' | 'fishing' | 'other'
 export const SEA_FILTER_CATEGORIES: readonly SeaFilterCategory[] = [
   'all',
   'cargo',
@@ -103,7 +94,6 @@ export const SEA_FILTER_CATEGORIES: readonly SeaFilterCategory[] = [
   'passenger',
   'fishing',
   'other',
-  'ports',
 ]
 
 /** Whether a string is a known {@link SeaFilterCategory}. */
@@ -114,8 +104,6 @@ export function isSeaFilterCategory(value: unknown): value is SeaFilterCategory 
 /** Whether a vessel of `family` belongs under the given FILTER category. */
 export function familyMatchesCategory(family: unknown, category: SeaFilterCategory): boolean {
   if (category === 'all') return true
-  // PORTS is a vessel-free picture: the ports are the only markers plotted.
-  if (category === 'ports') return false
   if (category === 'other') {
     return !['cargo', 'tanker', 'passenger', 'fishing'].includes(String(family))
   }

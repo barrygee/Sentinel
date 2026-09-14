@@ -49,13 +49,18 @@ test.describe('Sea domain', () => {
 
     const layersTrigger = rail.getByRole('button', { name: /map layers/i })
     await layersTrigger.click()
-    await expect(rail.getByRole('button', { name: /vessel labels/i })).toBeVisible()
+    // Only the range ring is worth flipping mid-task; vessel labels, ferry
+    // routes and ports are set in Settings > SEA > Map Layers.
     await expect(rail.getByRole('button', { name: /range ring/i })).toBeVisible()
-    await expect(rail.getByRole('button', { name: /ferry routes/i })).toBeVisible()
-    await expect(rail.getByRole('button', { name: /port markers/i })).toBeVisible()
-    // Live vessels and place names are always on at sea: no toggles for them.
-    await expect(rail.getByRole('button', { name: /live vessels/i })).toHaveCount(0)
-    await expect(rail.getByRole('button', { name: /location names/i })).toHaveCount(0)
+    for (const name of [
+      /vessel labels/i,
+      /ferry routes/i,
+      /ports/i,
+      /live vessels/i,
+      /location names/i,
+    ]) {
+      await expect(rail.getByRole('button', { name })).toHaveCount(0)
+    }
   })
 
   test('FILTER pane lists the plotted vessels and opens a vessel accordion', async ({ page }) => {

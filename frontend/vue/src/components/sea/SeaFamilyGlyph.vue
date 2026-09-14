@@ -56,17 +56,6 @@
         stroke-linejoin="round"
       />
     </template>
-    <!-- PORTS: an anchor. -->
-    <template v-else-if="category === 'ports'">
-      <circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.5" />
-      <path d="M12 7v13M7 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-      <path
-        d="M4 14c0 4 3.5 6 8 6s8-2 8-6"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-      />
-    </template>
     <!-- OTHER: a plain hull with a single mast. -->
     <template v-else>
       <path d="M3 15h18l-2 4H5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
@@ -79,8 +68,7 @@
 <script setup lang="ts">
 /**
  * The rail glyph for one Sea FILTER category — a tiny hull whose deck cargo
- * says which family it stands for (an anchor for PORTS). Decorative: the
- * button carries the name.
+ * says which family it stands for. Decorative: the button carries the name.
  */
 import type { SeaFilterCategory } from '@/utils/aisShipType'
 

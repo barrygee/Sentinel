@@ -5,12 +5,14 @@
     :expanded-key="expandedKey"
     id-prefix="sea-filter"
     :input-label="
-      portsMode
-        ? 'Filter ports by name or LOCODE'
+      portsOn
+        ? 'Filter vessels and ports by name, MMSI, type, destination or LOCODE'
         : 'Filter vessels by name, MMSI, type or destination'
     "
-    :placeholder="portsMode ? 'NAME · LOCODE' : 'NAME · MMSI · TYPE · DESTINATION'"
-    :listbox-label="portsMode ? 'Ports' : 'Live vessels'"
+    :placeholder="
+      portsOn ? 'NAME · MMSI · TYPE · DESTINATION · PORT' : 'NAME · MMSI · TYPE · DESTINATION'
+    "
+    :listbox-label="portsOn ? 'Live vessels and ports' : 'Live vessels'"
     :empty-message="emptyMessage"
     @update:query="seaStore.setSearchQuery"
     @update:expanded-key="onExpand"
@@ -18,7 +20,7 @@
     <template #accordion="{ item }">
       <div class="sea-filter-accordion">
         <SeaPortDetails
-          v-if="portsMode && portFor(item.key)"
+          v-if="portFor(item.key)"
           :port="portFor(item.key)!.properties"
           :coordinates="portFor(item.key)!.geometry.coordinates as [number, number]"
           :sdr-connected="sdrStore.connected"
@@ -46,8 +48,8 @@
 
 <script setup lang="ts">
 /**
- * Sea FILTER pane — the searchable list of live AIS vessels, or, under the
- * rail's PORTS category, of the known ports with their VHF channels.
+ * Sea FILTER pane — the searchable list of live AIS vessels and, while the
+ * ports overlay is on, of the known ports with their VHF channels.
  *
  * Mirrors the Land pane's shape (shared BaseFilterPanel shell, an expandable
  * per-item accordion of BaseDataGrid sections) over AIS data. The list tracks
@@ -81,8 +83,9 @@ const sdrStore = useSdrStore()
 const notificationsStore = useNotificationsStore()
 const emit = defineEmits<{ locate: [mmsi: string] }>()
 
-/** Whether the rail has the list showing ports rather than vessels. */
-const portsMode = computed(() => seaStore.seaFilterCategory === 'ports')
+/** Whether the ports overlay is on — the ports are listed exactly when they
+ *  are plotted, independent of the vessel FILTER category. */
+const portsOn = computed(() => seaStore.overlayStates.ports)
 
 /** Vessels under the rail category that match the search text. */
 const matchingVessels = computed<SeaVessel[]>(() => {
@@ -99,8 +102,10 @@ const matchingVessels = computed<SeaVessel[]>(() => {
   })
 })
 
-/** Ports matching the search text, in the seed's (regional) order. */
+/** Ports matching the search text, in the seed's (regional) order; none
+ *  while the overlay is off. */
 const matchingPorts = computed(() => {
+  if (!portsOn.value) return []
   const needle = seaStore.searchQuery.trim().toLowerCase()
   return PORTS_DATA.features.filter((feature) => {
     if (!needle) return true
@@ -133,16 +138,19 @@ const portItems = computed<FilterPanelItem[]>(() =>
   }),
 )
 
-const items = computed<FilterPanelItem[]>(() =>
-  portsMode.value ? portItems.value : vesselItems.value,
-)
+// Live vessels first, the fixed ports after them.
+const items = computed<FilterPanelItem[]>(() => [...vesselItems.value, ...portItems.value])
 
+// One row is open at a time, vessel or port; opening one clears the other.
 const expandedKey = computed(() =>
-  portsMode.value ? seaStore.searchExpandedPort : seaStore.searchExpandedMmsi,
+  portsOn.value && seaStore.searchExpandedPort
+    ? seaStore.searchExpandedPort
+    : seaStore.searchExpandedMmsi,
 )
 
 const emptyMessage = computed(() => {
-  if (portsMode.value) return 'No ports match'
+  // With the ports on, an empty list can only mean the search missed.
+  if (portsOn.value) return 'No vessels or ports match'
   if (!seaStore.overlayStates.vessels) return 'Vessels layer hidden'
   if (seaStore.vessels.length === 0) {
     const { status, error } = seaStore.feed
@@ -161,8 +169,13 @@ function portFor(locode: string) {
 }
 
 function onExpand(key: string): void {
-  if (portsMode.value) seaStore.setSearchExpandedPort(key)
-  else seaStore.setSearchExpandedMmsi(key)
+  if (portFor(key)) {
+    seaStore.setSearchExpandedPort(key)
+    seaStore.setSearchExpandedMmsi('')
+  } else {
+    seaStore.setSearchExpandedMmsi(key)
+    seaStore.setSearchExpandedPort('')
+  }
 }
 
 // ── tuning a port channel ──────────────────────────────────────────────────
@@ -194,19 +207,18 @@ function tunePortChannel(port: PortProperties, portChannel: PortChannel): void {
   })
 }
 
-// A port clicked on the map switches the list to PORTS and expands it. The
-// sidebar tab switch is App.vue's job, as for vessels.
+// A port clicked on the map expands its row here. The sidebar tab switch is
+// App.vue's job, as for vessels.
 useDocumentEvent('sea-open-port', (event: Event) => {
   const { locode } = (event as CustomEvent<{ locode: string }>).detail
-  seaStore.setSeaFilterCategory('ports')
-  seaStore.setSearchExpandedPort(locode)
+  onExpand(locode)
 })
 
 // A vessel clicked on the map expands here. The sidebar tab switch is App.vue's
 // job (it owns the sidebar); this side only has to open the right row.
 useDocumentEvent('sea-open-vessel', (event: Event) => {
   const { mmsi } = (event as CustomEvent<{ mmsi: string }>).detail
-  seaStore.setSearchExpandedMmsi(mmsi)
+  onExpand(mmsi)
 })
 
 // Collapse the accordion if its vessel leaves the snapshot (aged out, or now

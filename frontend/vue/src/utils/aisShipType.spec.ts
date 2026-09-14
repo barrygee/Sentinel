@@ -38,17 +38,13 @@ describe('aisShipType', () => {
 
   it('validates FILTER rail categories', () => {
     for (const category of SEA_FILTER_CATEGORIES) expect(isSeaFilterCategory(category)).toBe(true)
-    expect(isSeaFilterCategory('ports')).toBe(true)
+    expect(isSeaFilterCategory('ports')).toBe(false) // an overlay, not a category
     expect(isSeaFilterCategory('military')).toBe(false)
     expect(isSeaFilterCategory(null)).toBe(false)
   })
 
   it('matches families to categories, with OTHER catching the rest', () => {
     expect(familyMatchesCategory('cargo', 'all')).toBe(true)
-    // PORTS narrows the map like any other category: no family is a port.
-    expect(familyMatchesCategory('cargo', 'ports')).toBe(false)
-    expect(familyMatchesCategory('other', 'ports')).toBe(false)
-    expect(familyMatchesCategory('unknown', 'ports')).toBe(false)
     expect(familyMatchesCategory('cargo', 'cargo')).toBe(true)
     expect(familyMatchesCategory('cargo', 'tanker')).toBe(false)
     expect(familyMatchesCategory('cargo', 'other')).toBe(false)

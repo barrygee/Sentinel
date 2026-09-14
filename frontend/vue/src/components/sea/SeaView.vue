@@ -6,14 +6,8 @@
       :zoom-in="zoomIn"
       :zoom-out="zoomOut"
       :go-to-location="goToLocation"
-      :toggle-labels="toggleLabels"
       :toggle-range-rings="toggleRangeRings"
-      :toggle-ferry-routes="toggleFerryRoutes"
-      :toggle-ports="togglePorts"
-      :labels-active="seaStore.overlayStates.vesselLabels"
       :range-rings-active="seaStore.overlayStates.rangeRings"
-      :ferry-routes-active="seaStore.overlayStates.ferryRoutes"
-      :ports-active="seaStore.overlayStates.ports"
       :location-active="locationActive"
     />
     <NoUrlOverlay domain="sea" />
@@ -69,19 +63,10 @@ function goToLocation() {
     duration: 800,
   })
 }
-// Every overlay is store-driven: the rail writes the store and the map's
-// controls follow it, so Settings › Map Layers and the rail can never disagree.
-function toggleLabels() {
-  seaStore.setOverlay('vesselLabels', !seaStore.overlayStates.vesselLabels)
-}
+// The overlay is store-driven: the rail writes the store and the map's control
+// follows it, so Settings › SEA › Map Layers and the rail can never disagree.
 function toggleRangeRings() {
   seaStore.setOverlay('rangeRings', !seaStore.overlayStates.rangeRings)
-}
-function toggleFerryRoutes() {
-  seaStore.setOverlay('ferryRoutes', !seaStore.overlayStates.ferryRoutes)
-}
-function togglePorts() {
-  seaStore.setOverlay('ports', !seaStore.overlayStates.ports)
 }
 
 // "Show on map" from the FILTER pane: select the vessel and fly to it.
