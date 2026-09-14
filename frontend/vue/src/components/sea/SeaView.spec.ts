@@ -58,11 +58,13 @@ const SeaSideMenuStub = defineComponent({
     'toggleLabels',
     'toggleRangeRings',
     'toggleFerryRoutes',
+    'togglePorts',
     'setFilterCategory',
     'filterCategory',
     'labelsActive',
     'rangeRingsActive',
     'ferryRoutesActive',
+    'portsActive',
     'locationActive',
   ],
   setup(props) {
@@ -170,10 +172,12 @@ describe('SeaView', () => {
     expect(props.labelsActive).toBe(true)
     expect(props.rangeRingsActive).toBe(false)
     expect(props.ferryRoutesActive).toBe(true)
+    expect(props.portsActive).toBe(true)
     expect(props.filterCategory).toBe('all')
     ;(props.toggleLabels as () => void)()
     ;(props.toggleRangeRings as () => void)()
     ;(props.toggleFerryRoutes as () => void)()
+    ;(props.togglePorts as () => void)()
     ;(props.setFilterCategory as (category: string) => void)('cargo')
     await nextTick()
     expect(store.overlayStates).toEqual({
@@ -181,9 +185,11 @@ describe('SeaView', () => {
       vesselLabels: false,
       rangeRings: true,
       ferryRoutes: false,
+      ports: false,
     })
     expect(store.seaFilterCategory).toBe('cargo')
     expect(sideMenuProps!.labelsActive).toBe(false)
+    expect(sideMenuProps!.portsActive).toBe(false)
     expect(sideMenuProps!.filterCategory).toBe('cargo')
   })
 

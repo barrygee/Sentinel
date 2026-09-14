@@ -60,6 +60,7 @@ describe('sea store', () => {
       vesselLabels: true,
       rangeRings: false,
       ferryRoutes: true,
+      ports: true,
     })
     expect(store.labelFields.name).toBe(true)
     expect(store.seaFilterCategory).toBe('all')
@@ -239,6 +240,7 @@ describe('sea store', () => {
       store.setSeaFilterCategory('tanker')
       store.setSearchQuery('kent')
       store.setSearchExpandedMmsi('1')
+      store.setSearchExpandedPort('GBSOU')
       store.setLabelFields({ ...store.labelFields, mmsi: true })
       setActivePinia(createPinia())
       const again = useSeaStore()
@@ -246,6 +248,7 @@ describe('sea store', () => {
       expect(again.seaFilterCategory).toBe('tanker')
       expect(again.searchQuery).toBe('kent')
       expect(again.searchExpandedMmsi).toBe('1')
+      expect(again.searchExpandedPort).toBe('GBSOU')
       expect(again.labelFields.mmsi).toBe(true)
     })
 
@@ -300,6 +303,7 @@ describe('sea store', () => {
       const store = useSeaStore()
       expect(store.overlayStates.vessels).toBe(true)
       expect(store.overlayStates.vesselLabels).toBe(false) // other choices stand
+      expect(store.overlayStates.ports).toBe(true) // a key the old build never stored takes its default
       // Neither can the default-layers config turn them off.
       setActivePinia(createPinia())
       const fresh = useSeaStore()
@@ -309,12 +313,15 @@ describe('sea store', () => {
 
     it('seeds the overlays on a first visit only', () => {
       const store = useSeaStore()
-      store.applyDefaultLayers(['vessels'])
+      store.applyDefaultLayers(['vessels', 'ports'])
       expect(store.overlayStates).toMatchObject({
         vessels: true,
         vesselLabels: false,
         ferryRoutes: false,
+        ports: true,
       })
+      store.applyDefaultLayers(['vessels'])
+      expect(store.overlayStates.ports).toBe(false)
       store.setOverlay('ferryRoutes', true)
       store.applyDefaultLayers([])
       expect(store.overlayStates.ferryRoutes).toBe(true) // the operator's choice stands

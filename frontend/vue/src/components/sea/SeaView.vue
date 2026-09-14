@@ -9,11 +9,13 @@
       :toggle-labels="toggleLabels"
       :toggle-range-rings="toggleRangeRings"
       :toggle-ferry-routes="toggleFerryRoutes"
+      :toggle-ports="togglePorts"
       :set-filter-category="setFilterCategory"
       :filter-category="seaStore.seaFilterCategory"
       :labels-active="seaStore.overlayStates.vesselLabels"
       :range-rings-active="seaStore.overlayStates.rangeRings"
       :ferry-routes-active="seaStore.overlayStates.ferryRoutes"
+      :ports-active="seaStore.overlayStates.ports"
       :location-active="locationActive"
     />
     <NoUrlOverlay domain="sea" />
@@ -80,6 +82,9 @@ function toggleRangeRings() {
 }
 function toggleFerryRoutes() {
   seaStore.setOverlay('ferryRoutes', !seaStore.overlayStates.ferryRoutes)
+}
+function togglePorts() {
+  seaStore.setOverlay('ports', !seaStore.overlayStates.ports)
 }
 function setFilterCategory(category: SeaFilterCategory) {
   seaStore.setSeaFilterCategory(category)

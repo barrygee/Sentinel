@@ -207,6 +207,22 @@
             />
           </svg>
         </BaseIconButton>
+        <!-- PORTS (known ports with their VHF channels) -->
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          :class="{ active: portsActive }"
+          :active="portsActive"
+          tooltip-side="left"
+          tooltip="PORTS"
+          accessible-name="Port markers"
+          @click="togglePorts"
+        >
+          <SeaFamilyGlyph category="ports" />
+        </BaseIconButton>
       </template>
     </IconRailAccordion>
   </IconRail>
@@ -229,11 +245,13 @@ defineProps<{
   toggleLabels: () => void
   toggleRangeRings: () => void
   toggleFerryRoutes: () => void
+  togglePorts: () => void
   setFilterCategory: (category: SeaFilterCategory) => void
   filterCategory: SeaFilterCategory
   labelsActive: boolean
   rangeRingsActive: boolean
   ferryRoutesActive: boolean
+  portsActive: boolean
   locationActive: boolean
 }>()
 
@@ -247,6 +265,7 @@ const FILTER_OPTIONS: { id: SeaFilterCategory; tooltip: string; accessibleName: 
   { id: 'passenger', tooltip: 'PASSENGER', accessibleName: 'Passenger vessels only' },
   { id: 'fishing', tooltip: 'FISHING', accessibleName: 'Fishing vessels only' },
   { id: 'other', tooltip: 'OTHER', accessibleName: 'Other vessels only' },
+  { id: 'ports', tooltip: 'PORTS', accessibleName: 'List ports' },
 ]
 </script>
 

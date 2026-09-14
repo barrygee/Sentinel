@@ -85,8 +85,17 @@ export function vesselFamilyLabel(family: unknown): string {
 /**
  * The FILTER rail's categories: the four big commercial families each get a
  * button, everything else is grouped so the rail stays a glanceable size.
+ * `ports` switches the FILTER list to the known ports (the Air rail's
+ * airports category) and leaves the plotted vessels alone.
  */
-export type SeaFilterCategory = 'all' | 'cargo' | 'tanker' | 'passenger' | 'fishing' | 'other'
+export type SeaFilterCategory =
+  | 'all'
+  | 'cargo'
+  | 'tanker'
+  | 'passenger'
+  | 'fishing'
+  | 'other'
+  | 'ports'
 export const SEA_FILTER_CATEGORIES: readonly SeaFilterCategory[] = [
   'all',
   'cargo',
@@ -94,6 +103,7 @@ export const SEA_FILTER_CATEGORIES: readonly SeaFilterCategory[] = [
   'passenger',
   'fishing',
   'other',
+  'ports',
 ]
 
 /** Whether a string is a known {@link SeaFilterCategory}. */
@@ -103,7 +113,8 @@ export function isSeaFilterCategory(value: unknown): value is SeaFilterCategory 
 
 /** Whether a vessel of `family` belongs under the given FILTER category. */
 export function familyMatchesCategory(family: unknown, category: SeaFilterCategory): boolean {
-  if (category === 'all') return true
+  // PORTS lists ports, not vessels; the map keeps every vessel plotted.
+  if (category === 'all' || category === 'ports') return true
   if (category === 'other') {
     return !['cargo', 'tanker', 'passenger', 'fishing'].includes(String(family))
   }

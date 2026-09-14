@@ -72,6 +72,8 @@ export interface SeaOverlayStates {
   rangeRings: boolean
   /** Charted ferry routes from the base map, drawn dashed with their names. */
   ferryRoutes: boolean
+  /** Known ports with their VHF working channels — the Sea map's airports. */
+  ports: boolean
 }
 
 /**
@@ -100,6 +102,7 @@ const DEFAULT_OVERLAYS: SeaOverlayStates = {
   vesselLabels: true,
   rangeRings: false,
   ferryRoutes: true,
+  ports: true,
 }
 const DEFAULT_LABEL_FIELDS: SeaLabelFieldMap = {
   name: true,
@@ -166,6 +169,7 @@ export const useSeaStore = defineStore('sea', () => {
       vessels: true,
       vesselLabels: layers.includes('vesselLabels'),
       ferryRoutes: layers.includes('ferryRoutes'),
+      ports: layers.includes('ports'),
     }
   }
 
@@ -199,11 +203,16 @@ export const useSeaStore = defineStore('sea', () => {
   }
   const searchQuery = usePersistedRef<string>('sentinel_sea_filterQuery', '')
   const searchExpandedMmsi = usePersistedRef<string>('sentinel_sea_filterExpanded', '')
+  /** The port row open in the FILTER pane's PORTS list, by UN/LOCODE. */
+  const searchExpandedPort = usePersistedRef<string>('sentinel_sea_filterExpandedPort', '')
   function setSearchQuery(query: string): void {
     searchQuery.value = query
   }
   function setSearchExpandedMmsi(mmsi: string): void {
     searchExpandedMmsi.value = mmsi
+  }
+  function setSearchExpandedPort(locode: string): void {
+    searchExpandedPort.value = locode
   }
 
   // ── map state ──────────────────────────────────────────────────────────────
@@ -215,7 +224,7 @@ export const useSeaStore = defineStore('sea', () => {
   }
 
   // Which layers are on by default (from the `sea.defaultLayers` config).
-  const defaultLayers = ref<string[]>(['vessels', 'vesselLabels', 'ferryRoutes'])
+  const defaultLayers = ref<string[]>(['vessels', 'vesselLabels', 'ferryRoutes', 'ports'])
   async function hydrateDefaultLayers(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sea')
@@ -336,6 +345,8 @@ export const useSeaStore = defineStore('sea', () => {
     searchQuery,
     setSearchQuery,
     searchExpandedMmsi,
+    searchExpandedPort,
+    setSearchExpandedPort,
     setSearchExpandedMmsi,
     mapCenter,
     mapZoom,

@@ -87,7 +87,8 @@
     "defaultLayers": [
       "vessels",
       "vesselLabels",
-      "ferryRoutes"
+      "ferryRoutes",
+      "ports"
     ]
   },
   "land": {

@@ -14,11 +14,13 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     toggleLabels: vi.fn(),
     toggleRangeRings: vi.fn(),
     toggleFerryRoutes: vi.fn(),
+    togglePorts: vi.fn(),
     setFilterCategory: vi.fn(),
     filterCategory: 'all' as SeaFilterCategory,
     labelsActive: true,
     rangeRingsActive: false,
     ferryRoutesActive: false,
+    portsActive: true,
     locationActive: false,
     ...overrides,
   }
@@ -65,26 +67,35 @@ describe('SeaSideMenu', () => {
     expect(props.goToLocation).toHaveBeenCalledOnce()
   })
 
-  it('offers one FILTER sub-button per vessel family and reports the active one', async () => {
+  it('offers one FILTER sub-button per vessel family plus PORTS, and reports the active one', async () => {
     const { wrapper, props } = mountMenu({ filterCategory: 'tanker' })
     const modes = wrapper.findAll('[data-mode]').map((button) => button.attributes('data-mode'))
-    expect(modes).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other'])
+    expect(modes).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other', 'ports'])
     expect(wrapper.find('[data-mode="tanker"]').classes()).toContain('active')
     expect(wrapper.find('[data-mode="all"]').classes()).not.toContain('active')
     await wrapper.find('[aria-label="Fishing vessels only"]').trigger('click')
     expect(props.setFilterCategory).toHaveBeenCalledWith('fishing')
+    await wrapper.find('[data-mode="ports"]').trigger('click')
+    expect(props.setFilterCategory).toHaveBeenLastCalledWith('ports')
   })
 
   it('wires the MAP LAYERS buttons and reflects their active state', async () => {
-    const { wrapper, props } = mountMenu({ ferryRoutesActive: true, rangeRingsActive: true })
+    const { wrapper, props } = mountMenu({
+      ferryRoutesActive: true,
+      rangeRingsActive: true,
+      portsActive: false,
+    })
     await wrapper.find('[aria-label="Vessel labels"]').trigger('click')
     await wrapper.find('[aria-label="Range ring"]').trigger('click')
     await wrapper.find('[aria-label="Ferry routes"]').trigger('click')
+    await wrapper.find('[aria-label="Port markers"]').trigger('click')
     expect(props.toggleLabels).toHaveBeenCalledOnce()
     expect(props.toggleRangeRings).toHaveBeenCalledOnce()
     expect(props.toggleFerryRoutes).toHaveBeenCalledOnce()
+    expect(props.togglePorts).toHaveBeenCalledOnce()
     expect(wrapper.find('[aria-label="Ferry routes"]').classes()).toContain('active')
     expect(wrapper.find('[aria-label="Range ring"]').classes()).toContain('active')
+    expect(wrapper.find('[aria-label="Port markers"]').classes()).not.toContain('active')
   })
 
   it('shows toggles as inactive when off, and offers no vessels or place-names toggle', () => {

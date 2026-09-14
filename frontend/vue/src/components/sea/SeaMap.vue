@@ -35,6 +35,7 @@ import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/Se
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 import { AisVesselsControl } from './controls/vessels/AisVesselsControl'
 import { FerryRoutesControl } from './controls/ferry-routes/FerryRoutesControl'
+import { PortsControl } from './controls/ports/PortsControl'
 
 const appStore = useAppStore()
 const seaStore = useSeaStore()
@@ -64,6 +65,7 @@ let _currentStyleUrl: string | null = null
 // Control instances — plain variables, initialised in onStyleLoaded.
 let vesselsControl: AisVesselsControl | null = null
 let ferryRoutesControl: FerryRoutesControl | null = null
+let portsControl: PortsControl | null = null
 let rangeRingsControl: LandRangeRingsControl | null = null
 let roadsControl: RoadsToggleControl | null = null
 let namesControl: NamesToggleControl | null = null
@@ -73,6 +75,7 @@ let sentrySitesControl: SentrySitesControl | null = null
 defineExpose({
   getVesselsControl: () => vesselsControl,
   getFerryRoutes: () => ferryRoutesControl,
+  getPorts: () => portsControl,
   getRangeRings: () => rangeRingsControl,
   getMap: () => _map,
 })
@@ -83,6 +86,7 @@ function _reinitAfterStyle(): void {
   rangeRingsControl?._initRings()
   vesselsControl?.initLayers()
   ferryRoutesControl?.initLayers()
+  portsControl?.initLayers()
 }
 
 useConnectivity((online) => {
@@ -108,6 +112,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
 
   vesselsControl = new AisVesselsControl(seaStore)
   ferryRoutesControl = new FerryRoutesControl(seaStore)
+  portsControl = new PortsControl(seaStore)
   rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
@@ -121,6 +126,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   vesselsControl.onAdd(m)
   // After the vessel layers exist, so the routes slot in beneath them.
   ferryRoutesControl.onAdd(m)
+  portsControl.onAdd(m)
   rangeRingsControl.onAdd(m)
   roadsControl.onAdd(m)
   namesControl.onAdd(m)
@@ -174,6 +180,10 @@ onMounted(() => {
     () => seaStore.overlayStates.ferryRoutes,
     () => ferryRoutesControl?.applyVisibility(),
   )
+  watch(
+    () => seaStore.overlayStates.ports,
+    () => portsControl?.applyVisibility(),
+  )
   // Seed the overlays from the default-layers config once it is known. The
   // store only honours it until the operator has made a choice of their own.
   void seaStore.hydrateDefaultLayers()
@@ -194,6 +204,7 @@ onBeforeUnmount(() => {
   _map = null
   vesselsControl?.onRemove()
   ferryRoutesControl?.onRemove()
+  portsControl?.onRemove()
   rangeRingsControl?.onRemove()
   roadsControl?.onRemove()
   namesControl?.onRemove()
