@@ -10,8 +10,6 @@
       :toggle-range-rings="toggleRangeRings"
       :toggle-ferry-routes="toggleFerryRoutes"
       :toggle-ports="togglePorts"
-      :set-filter-category="setFilterCategory"
-      :filter-category="seaStore.seaFilterCategory"
       :labels-active="seaStore.overlayStates.vesselLabels"
       :range-rings-active="seaStore.overlayStates.rangeRings"
       :ferry-routes-active="seaStore.overlayStates.ferryRoutes"
@@ -40,7 +38,6 @@ import { sidebarPaneSelector } from '@/constants/sidebarPanes'
 import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useSeaStore } from '@/stores/sea'
-import type { SeaFilterCategory } from '@/utils/aisShipType'
 
 /** Zoom level the map flies to when centring on the user's location. */
 const LOCATE_ZOOM = 10
@@ -85,9 +82,6 @@ function toggleFerryRoutes() {
 }
 function togglePorts() {
   seaStore.setOverlay('ports', !seaStore.overlayStates.ports)
-}
-function setFilterCategory(category: SeaFilterCategory) {
-  seaStore.setSeaFilterCategory(category)
 }
 
 // "Show on map" from the FILTER pane: select the vessel and fly to it.

@@ -59,8 +59,6 @@ const SeaSideMenuStub = defineComponent({
     'toggleRangeRings',
     'toggleFerryRoutes',
     'togglePorts',
-    'setFilterCategory',
-    'filterCategory',
     'labelsActive',
     'rangeRingsActive',
     'ferryRoutesActive',
@@ -173,12 +171,10 @@ describe('SeaView', () => {
     expect(props.rangeRingsActive).toBe(false)
     expect(props.ferryRoutesActive).toBe(true)
     expect(props.portsActive).toBe(true)
-    expect(props.filterCategory).toBe('all')
     ;(props.toggleLabels as () => void)()
     ;(props.toggleRangeRings as () => void)()
     ;(props.toggleFerryRoutes as () => void)()
     ;(props.togglePorts as () => void)()
-    ;(props.setFilterCategory as (category: string) => void)('cargo')
     await nextTick()
     expect(store.overlayStates).toEqual({
       vessels: true,
@@ -187,10 +183,8 @@ describe('SeaView', () => {
       ferryRoutes: false,
       ports: false,
     })
-    expect(store.seaFilterCategory).toBe('cargo')
     expect(sideMenuProps!.labelsActive).toBe(false)
     expect(sideMenuProps!.portsActive).toBe(false)
-    expect(sideMenuProps!.filterCategory).toBe('cargo')
   })
 
   it('reports whether a location fix exists', async () => {

@@ -31,7 +31,9 @@ test.describe('Sea domain', () => {
     )
   })
 
-  test('right-edge rail exposes zoom, filter and map-layer controls', async ({ page }) => {
+  test('right-edge rail exposes zoom and map-layer controls, not the FILTER categories', async ({
+    page,
+  }) => {
     await page.goto('/sea/')
     await waitForShellHydration(page)
 
@@ -40,21 +42,17 @@ test.describe('Sea domain', () => {
     await expect(rail.getByRole('button', { name: /zoom in/i })).toBeVisible()
     await expect(rail.getByRole('button', { name: /zoom out/i })).toBeVisible()
 
-    const filterTrigger = rail.getByRole('button', { name: /filter vessels/i })
-    await expect(filterTrigger).toHaveAttribute('aria-expanded', 'false')
-    await filterTrigger.click()
-    await expect(filterTrigger).toHaveAttribute('aria-expanded', 'true')
-    // One sub-button per FILTER category, "all" active by default.
-    await expect(rail.getByRole('button', { name: /show all vessels/i })).toBeVisible()
-    await expect(rail.getByRole('button', { name: /cargo vessels only/i })).toBeVisible()
-    await expect(rail.getByRole('button', { name: /tankers only/i })).toBeVisible()
-    await expect(rail.getByRole('button', { name: /fishing vessels only/i })).toBeVisible()
+    // The vessel FILTER categories live on the left sidebar's FILTER tab only;
+    // the rail does not repeat them.
+    await expect(rail.getByRole('button', { name: /filter vessels/i })).toHaveCount(0)
+    await expect(rail.getByRole('button', { name: /show all vessels/i })).toHaveCount(0)
 
     const layersTrigger = rail.getByRole('button', { name: /map layers/i })
     await layersTrigger.click()
     await expect(rail.getByRole('button', { name: /vessel labels/i })).toBeVisible()
     await expect(rail.getByRole('button', { name: /range ring/i })).toBeVisible()
     await expect(rail.getByRole('button', { name: /ferry routes/i })).toBeVisible()
+    await expect(rail.getByRole('button', { name: /port markers/i })).toBeVisible()
     // Live vessels and place names are always on at sea: no toggles for them.
     await expect(rail.getByRole('button', { name: /live vessels/i })).toHaveCount(0)
     await expect(rail.getByRole('button', { name: /location names/i })).toHaveCount(0)
