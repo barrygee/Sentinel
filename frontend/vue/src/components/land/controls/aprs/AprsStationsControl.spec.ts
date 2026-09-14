@@ -627,7 +627,7 @@ describe('AprsStationsControl', () => {
       // behind it. jsdom drops the shorthand `background: none`, so the
       // effective colour is what is checked.
       expect(marker.style.backgroundColor).toBe('')
-      expect(marker.style.border).toBe('6px solid rgba(20, 23, 28, 0.55)')
+      expect(marker.style.border).toBe('6px solid rgba(0, 170, 255, 0.25)')
       // 20px centre + a 6px ring either side: the ring meets the centre with
       // no gap between them.
       expect(marker.style.width).toBe('32px')

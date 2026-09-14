@@ -5,7 +5,6 @@ Endpoints:
   GET    /api/sea/vessels                 — Vessel snapshot the Sea map polls (optional bbox / max_rows)
   GET    /api/sea/vessels/{mmsi}/track    — One vessel's recent path (accumulated since it was first heard)
   GET    /api/sea/status                  — Feed status (connection state, silence, retry schedule)
-  GET    /api/sea/lanes?bbox=             — Charted shipping routes (TSS, fairways…) as GeoJSON, cell-cached
   GET    /api/sea/ais-key                 — Whether an AISStream key is configured (never the key itself)
   PUT    /api/sea/ais-key                 — Save / replace the AISStream key from Settings › SEA
   DELETE /api/sea/ais-key                 — Forget the saved key (the .env key, if any, applies again)
@@ -24,7 +23,7 @@ from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import UserSettings
-from backend.services import ais_store, shipping_lanes
+from backend.services import ais_store
 from backend.services.ais_stream import key_fingerprint, reader
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -109,21 +108,6 @@ async def get_feed_status():
     """Feed health for Settings › SEA and the map's status line."""
     await reader.ensure()
     return JSONResponse(reader.snapshot(), headers={"Cache-Control": "no-store"})
-
-
-@router.get("/lanes")
-async def get_shipping_lanes(bbox: str = Query(description="south,west,north,east in degrees")):
-    """Charted route structure (separation lanes/zones, routes, fairways) for a bbox.
-
-    Served from the per-cell SQLite cache, fetching missing cells from
-    Overpass. ``tooWide`` is true (with no features) when the bbox spans more
-    cells than one request may cover — zoom in.
-    """
-    parsed = _parse_bbox(bbox)
-    if parsed is None:
-        raise HTTPException(status_code=400, detail="bbox is required")
-    collection = await shipping_lanes.lanes_for_bbox(*parsed)
-    return JSONResponse(collection, headers={"Cache-Control": "no-store"})
 
 
 # ── API key ────────────────────────────────────────────────────────────────────

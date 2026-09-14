@@ -83,7 +83,8 @@
       </template>
     </IconRailAccordion>
 
-    <!-- LAYERS group: the Sea overlays, then the shared base-map layer. -->
+    <!-- LAYERS group: the Sea overlays. Live vessels and place names are always
+         on here (vessels are narrowed with FILTER), so neither has a toggle. -->
     <IconRailAccordion panel-id="sea-layers-panel">
       <template #trigger="{ open: layersAccordionOpen, toggle: toggleLayersAccordion }">
         <BaseIconButton
@@ -120,22 +121,6 @@
         </BaseIconButton>
       </template>
       <template #panel>
-        <!-- VESSELS -->
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          :class="{ active: vesselsActive }"
-          :active="vesselsActive"
-          tooltip-side="left"
-          tooltip="VESSELS"
-          accessible-name="Live vessels"
-          @click="toggleVessels"
-        >
-          <SeaFamilyGlyph category="all" />
-        </BaseIconButton>
         <!-- VESSEL LABELS -->
         <BaseIconButton
           class="sm-btn sm-sub-btn"
@@ -189,19 +174,19 @@
             <circle cx="12" cy="12" r="1.5" fill="currentColor" />
           </svg>
         </BaseIconButton>
-        <!-- SHIPPING LANES (OpenSeaMap seamark overlay, online only) -->
+        <!-- FERRY ROUTES (dashed, from the base-map tiles) -->
         <BaseIconButton
           class="sm-btn sm-sub-btn"
           style="
             --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
             --ba-rail-transition: color 0.15s ease;
           "
-          :class="{ active: shippingLanesActive }"
-          :active="shippingLanesActive"
+          :class="{ active: ferryRoutesActive }"
+          :active="ferryRoutesActive"
           tooltip-side="left"
-          tooltip="SHIPPING LANES"
-          accessible-name="Shipping lanes"
-          @click="toggleShippingLanes"
+          tooltip="FERRY ROUTES"
+          accessible-name="Ferry routes"
+          @click="toggleFerryRoutes"
         >
           <svg
             width="16"
@@ -211,50 +196,14 @@
             xmlns="http://www.w3.org/2000/svg"
             aria-hidden="true"
           >
+            <circle cx="5" cy="18" r="2.2" stroke="currentColor" stroke-width="1.5" />
+            <circle cx="19" cy="6" r="2.2" stroke="currentColor" stroke-width="1.5" />
             <path
-              d="M3 8h13m0 0-3-3m3 3-3 3"
+              d="M7 16 17 8"
               stroke="currentColor"
               stroke-width="1.5"
               stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M21 16H8m0 0 3-3m-3 3 3 3"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path d="M3 12h18" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 3" />
-          </svg>
-        </BaseIconButton>
-        <!-- LOCATION NAMES (shared base-map layer) -->
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          :class="{ active: namesActive }"
-          :active="namesActive"
-          tooltip-side="left"
-          tooltip="LOCATION NAMES"
-          accessible-name="Location names"
-          @click="toggleNames"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M4 7h16M4 12h10M4 17h13"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
+              stroke-dasharray="2.5 2.5"
             />
           </svg>
         </BaseIconButton>
@@ -277,18 +226,14 @@ defineProps<{
   zoomIn: () => void
   zoomOut: () => void
   goToLocation: () => void
-  toggleVessels: () => void
   toggleLabels: () => void
   toggleRangeRings: () => void
-  toggleShippingLanes: () => void
-  toggleNames: () => void
+  toggleFerryRoutes: () => void
   setFilterCategory: (category: SeaFilterCategory) => void
   filterCategory: SeaFilterCategory
-  vesselsActive: boolean
   labelsActive: boolean
   rangeRingsActive: boolean
-  shippingLanesActive: boolean
-  namesActive: boolean
+  ferryRoutesActive: boolean
   locationActive: boolean
 }>()
 

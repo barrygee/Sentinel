@@ -24,7 +24,6 @@ const mapSpies = vi.hoisted(() => ({
   zoomOut: vi.fn(),
   flyTo: vi.fn(),
   getZoom: vi.fn(() => 6),
-  namesClick: vi.fn(),
   selectByMmsi: vi.fn(),
   mapPresent: true,
 }))
@@ -41,7 +40,6 @@ const SeaMapStub = defineComponent({
               getZoom: mapSpies.getZoom,
             }
           : null,
-      getNamesControl: () => ({ handleClickPublic: mapSpies.namesClick }),
       getVesselsControl: () => ({ selectByMmsi: mapSpies.selectByMmsi }),
     })
     return () => h('div', { class: 'sea-map-stub' })
@@ -57,18 +55,14 @@ const SeaSideMenuStub = defineComponent({
     'zoomIn',
     'zoomOut',
     'goToLocation',
-    'toggleVessels',
     'toggleLabels',
     'toggleRangeRings',
-    'toggleShippingLanes',
-    'toggleNames',
+    'toggleFerryRoutes',
     'setFilterCategory',
     'filterCategory',
-    'vesselsActive',
     'labelsActive',
     'rangeRingsActive',
-    'shippingLanesActive',
-    'namesActive',
+    'ferryRoutesActive',
     'locationActive',
   ],
   setup(props) {
@@ -90,7 +84,6 @@ const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div
 
 import SeaView from './SeaView.vue'
 import { useSeaStore } from '@/stores/sea'
-import { useBasemapStore } from '@/stores/basemap'
 
 /** Stand in for the sidebar pane MapSidebar owns, which SeaView teleports into. */
 function teleportTarget(): void {
@@ -150,8 +143,6 @@ describe('SeaView', () => {
     props.zoomOut!()
     expect(mapSpies.zoomIn).toHaveBeenCalledOnce()
     expect(mapSpies.zoomOut).toHaveBeenCalledOnce()
-    props.toggleNames!()
-    expect(mapSpies.namesClick).toHaveBeenCalledOnce()
     // Without a map yet, zooming is a harmless no-op.
     mapSpies.mapPresent = false
     expect(() => props.zoomIn!()).not.toThrow()
@@ -176,26 +167,23 @@ describe('SeaView', () => {
     mountView()
     const store = useSeaStore()
     const props = sideMenuProps as Record<string, unknown>
-    expect(props.vesselsActive).toBe(true)
     expect(props.labelsActive).toBe(true)
     expect(props.rangeRingsActive).toBe(false)
-    expect(props.shippingLanesActive).toBe(false)
-    expect(props.namesActive).toBe(useBasemapStore().layers.names)
+    expect(props.ferryRoutesActive).toBe(true)
     expect(props.filterCategory).toBe('all')
-    ;(props.toggleVessels as () => void)()
     ;(props.toggleLabels as () => void)()
     ;(props.toggleRangeRings as () => void)()
-    ;(props.toggleShippingLanes as () => void)()
+    ;(props.toggleFerryRoutes as () => void)()
     ;(props.setFilterCategory as (category: string) => void)('cargo')
     await nextTick()
     expect(store.overlayStates).toEqual({
-      vessels: false,
+      vessels: true,
       vesselLabels: false,
       rangeRings: true,
-      shippingLanes: true,
+      ferryRoutes: false,
     })
     expect(store.seaFilterCategory).toBe('cargo')
-    expect(sideMenuProps!.vesselsActive).toBe(false)
+    expect(sideMenuProps!.labelsActive).toBe(false)
     expect(sideMenuProps!.filterCategory).toBe('cargo')
   })
 

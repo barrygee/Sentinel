@@ -3,6 +3,7 @@ import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { createBracket } from '@/components/air/controls/adsb/adsbSprites'
 import { createVesselArrow, createVesselDot } from './vesselSprites'
+import { createFlagBadge } from './vesselFlagBadge'
 import {
   appendMirrored,
   createAccentBadge,
@@ -599,6 +600,7 @@ export class AisVesselsControl extends SentinelControlBase {
       shown(fields.name, vessel.name),
       shown(fields.type, vessel.typeLabel),
       shown(fields.mmsi, vessel.mmsi),
+      shown(fields.flag, vessel.mmsi),
       shown(fields.destination, vessel.destination),
       shown(fields.speed, vessel.sog),
       shown(fields.course, vessel.cog),
@@ -643,6 +645,8 @@ export class AisVesselsControl extends SentinelControlBase {
         fields.course && vessel.cog !== null
           ? createDimBadge('CRS', `${Math.round(vessel.cog)}°`, color)
           : null,
+        // The flag closes the pill, at its outer edge.
+        fields.flag ? createFlagBadge(vessel.mmsi) : null,
       ],
       leftFacing,
     )

@@ -7,7 +7,6 @@ The Sea HTTP surface:
     GET    /api/sea/vessels/{mmsi}/track  — 400 / 404 / 200
     GET    /api/sea/status                — feed health
     GET/PUT/DELETE /api/sea/ais-key       — key status / save / forget, validation
-    GET    /api/sea/lanes                 — charted routes (bbox required, tooWide)
 
 plus the generic settings router's handling of the AIS key as a secret
 (redacted on read, refused on write, skipped on config upload) and the
@@ -23,7 +22,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database as backend_database
 from backend.config import settings
-from backend.services import ais_store, ais_stream, shipping_lanes
+from backend.services import ais_store, ais_stream
 
 KEY = "abcdefgh12345678"
 
@@ -202,54 +201,6 @@ class TestAisKey:
         assert upload.status_code == 200
         assert client.get("/api/sea/ais-key").json()["source"] == "settings"
         assert client.get("/api/settings/sea").json()["enabled"] is True
-
-
-# ── /lanes ────────────────────────────────────────────────────────────────────
-
-
-class TestLanes:
-    @pytest.fixture(autouse=True)
-    def _lanes_db(self, test_engine, db_setup, monkeypatch):
-        factory = sessionmaker(
-            bind=test_engine, class_=AsyncSession, expire_on_commit=False
-        )
-        monkeypatch.setattr(shipping_lanes, "AsyncSessionLocal", factory)
-
-    def test_bbox_is_required_and_validated(self, client):
-        assert client.get("/api/sea/lanes").status_code == 422
-        assert client.get("/api/sea/lanes", params={"bbox": ""}).status_code == 400
-        assert client.get("/api/sea/lanes", params={"bbox": "1,2,3"}).status_code == 400
-
-    def test_too_wide_a_view_draws_nothing(self, client):
-        body = client.get("/api/sea/lanes", params={"bbox": "-80,-170,80,170"}).json()
-        assert body == {
-            "type": "FeatureCollection",
-            "features": [],
-            "partial": True,
-            "tooWide": True,
-        }
-
-    def test_missing_cells_are_scheduled_in_the_background(self, client, monkeypatch):
-        """The endpoint answers at once and queues one fetch per missing cell;
-        the cache/serve path itself is covered in test_shipping_lanes.py."""
-        scheduled = []
-
-        async def fake_fetch_and_store(cell):
-            scheduled.append(cell)
-
-        monkeypatch.setattr(shipping_lanes, "_fetch_and_store", fake_fetch_and_store)
-        shipping_lanes._in_flight.clear()
-        first = client.get(
-            "/api/sea/lanes", params={"bbox": "50.5,0.5,51.5,1.5"}
-        ).json()
-        assert (
-            first["partial"] is True
-            and first["tooWide"] is False
-            and first["features"] == []
-        )
-        assert first["type"] == "FeatureCollection"
-        assert scheduled == [(25, 0)]
-        shipping_lanes._in_flight.clear()
 
 
 # ── seeder ────────────────────────────────────────────────────────────────────

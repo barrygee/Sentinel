@@ -29,12 +29,13 @@ export const APRS_COUNT_FILL = '#000000'
 /**
  * Ring around a count marker.
  *
- * Very dark grey — nearly the black of the centre, so the marker reads as one
- * dark object rather than a light ring around a hole. Not quite black, so the
- * ring still separates from the centre where the two meet.
+ * The SDR spectrum's signal blue around the black centre, so the marker reads
+ * as a group of plotted items rather than a site marker.
  *
  * Semitransparent: the ring sits flush against the centre and is wide enough to
  * hide a fair patch of ground, so letting the map through keeps a group of
- * stations from blanking out what it stands over.
+ * stations from blanking out what it stands over. Blue, not black, so a
+ * group of stations is told apart at a glance from the dark-ringed
+ * Sentinel/Sentry site markers.
  */
-export const APRS_COUNT_RING = 'rgba(20, 23, 28, 0.55)'
+export const APRS_COUNT_RING = 'rgba(0, 170, 255, 0.25)'

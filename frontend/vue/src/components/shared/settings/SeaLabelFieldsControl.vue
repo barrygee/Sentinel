@@ -25,6 +25,7 @@ const ROWS: LabelFieldRow[] = [
   { key: 'name', abbr: 'NAME', label: 'Vessel name' },
   { key: 'type', abbr: 'TYPE', label: 'Vessel type' },
   { key: 'mmsi', abbr: 'MMSI', label: 'MMSI' },
+  { key: 'flag', abbr: 'FLAG', label: 'Country flag (from MMSI)' },
   { key: 'destination', abbr: 'DEST', label: 'Destination' },
   { key: 'speed', abbr: 'SPD', label: 'Speed' },
   { key: 'course', abbr: 'CRS', label: 'Course' },

@@ -6,18 +6,14 @@
       :zoom-in="zoomIn"
       :zoom-out="zoomOut"
       :go-to-location="goToLocation"
-      :toggle-vessels="toggleVessels"
       :toggle-labels="toggleLabels"
       :toggle-range-rings="toggleRangeRings"
-      :toggle-shipping-lanes="toggleShippingLanes"
-      :toggle-names="toggleNames"
+      :toggle-ferry-routes="toggleFerryRoutes"
       :set-filter-category="setFilterCategory"
       :filter-category="seaStore.seaFilterCategory"
-      :vessels-active="seaStore.overlayStates.vessels"
       :labels-active="seaStore.overlayStates.vesselLabels"
       :range-rings-active="seaStore.overlayStates.rangeRings"
-      :shipping-lanes-active="seaStore.overlayStates.shippingLanes"
-      :names-active="basemapStore.layers.names"
+      :ferry-routes-active="seaStore.overlayStates.ferryRoutes"
       :location-active="locationActive"
     />
     <NoUrlOverlay domain="sea" />
@@ -42,14 +38,12 @@ import { sidebarPaneSelector } from '@/constants/sidebarPanes'
 import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useSeaStore } from '@/stores/sea'
-import { useBasemapStore } from '@/stores/basemap'
 import type { SeaFilterCategory } from '@/utils/aisShipType'
 
 /** Zoom level the map flies to when centring on the user's location. */
 const LOCATE_ZOOM = 10
 
 const seaStore = useSeaStore()
-const basemapStore = useBasemapStore()
 const seaMapRef = ref<InstanceType<typeof SeaMap> | null>(null)
 const { ready: searchPaneReady } = useSidebarPaneTarget('search')
 const { location: userLocation } = useUserLocation()
@@ -78,20 +72,14 @@ function goToLocation() {
 }
 // Every overlay is store-driven: the rail writes the store and the map's
 // controls follow it, so Settings › Map Layers and the rail can never disagree.
-function toggleVessels() {
-  seaStore.setOverlay('vessels', !seaStore.overlayStates.vessels)
-}
 function toggleLabels() {
   seaStore.setOverlay('vesselLabels', !seaStore.overlayStates.vesselLabels)
 }
 function toggleRangeRings() {
   seaStore.setOverlay('rangeRings', !seaStore.overlayStates.rangeRings)
 }
-function toggleShippingLanes() {
-  seaStore.setOverlay('shippingLanes', !seaStore.overlayStates.shippingLanes)
-}
-function toggleNames() {
-  seaMapRef.value?.getNamesControl()?.handleClickPublic()
+function toggleFerryRoutes() {
+  seaStore.setOverlay('ferryRoutes', !seaStore.overlayStates.ferryRoutes)
 }
 function setFilterCategory(category: SeaFilterCategory) {
   seaStore.setSeaFilterCategory(category)
