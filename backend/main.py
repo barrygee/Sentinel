@@ -17,7 +17,7 @@ from backend.database import (
     seed_sdr_data_from_files,
 )
 from backend.routers import adsb_source as adsb_source_router
-from backend.routers import air, land, sea, space
+from backend.routers import air, land, land_feeds, sea, space
 from backend.routers import sdr as sdr_router
 from backend.routers import sentry as sentry_router
 from backend.routers import settings as settings_router
@@ -26,6 +26,7 @@ from backend.services import sdr as sdr_service
 from backend.services import sdr_decode as sdr_decode_service
 from backend.services.ais_stream import reader as ais_reader
 from backend.services.flight_history import cleanup_old_snapshots
+from backend.services.land_feeds.poller import poller as land_feeds_poller
 from backend.services.sentry_fleet import fleet_poller
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -73,6 +74,8 @@ async def lifespan(app: FastAPI):
     # Sea: warm the vessel store from the last snapshot and start the AISStream
     # watchdog (it only opens the socket once the domain is enabled and keyed).
     await ais_reader.start()
+    # Land: start one poll task per enabled live feed (traffic cameras etc).
+    await land_feeds_poller.start()
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
     # signal arrives so blocked WS stream loops exit immediately, THEN run
@@ -111,6 +114,7 @@ async def lifespan(app: FastAPI):
         pass
     await fleet_poller.stop_all()
     await ais_reader.stop()
+    await land_feeds_poller.stop()
     await sdr_decode_service.shutdown_all_decoders()
     await sdr_service.shutdown_all()
 
@@ -129,6 +133,7 @@ app = FastAPI(
 app.include_router(air.router)
 app.include_router(space.router)
 app.include_router(land.router)
+app.include_router(land_feeds.router)
 app.include_router(sea.router)
 app.include_router(settings_router.router)
 app.include_router(sdr_router.router)
