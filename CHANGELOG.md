@@ -151,6 +151,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Plot known ports with VHF working channels (#322)
 - Keep the Settings UI and Application Config JSON in sync (#319)
 - Draw the selected vessel's trail like an aircraft's, fading at the tail (#323)
+- Live traffic camera feeds (Durham, TfL, UTMC, TrafficWatchNI) on the Land map (#324)
 
 ### Bug Fixes
 
