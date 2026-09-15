@@ -11,12 +11,16 @@ from __future__ import annotations
 from backend.services.land_feeds.adapters.durham import DurhamAdapter
 from backend.services.land_feeds.adapters.snapshot import SnapshotAdapter
 from backend.services.land_feeds.adapters.tfl_jamcams import TflJamCamsAdapter
+from backend.services.land_feeds.adapters.twni import TwniAdapter
+from backend.services.land_feeds.adapters.utmc import UtmcAdapter
 from backend.services.land_feeds.base import FeedAdapter
 
 _ADAPTERS: dict[str, FeedAdapter] = {
     "snapshot": SnapshotAdapter(),
     "durham": DurhamAdapter(),
     "tfl-jamcams": TflJamCamsAdapter(),
+    "utmc": UtmcAdapter(),
+    "twni": TwniAdapter(),
 }
 
 

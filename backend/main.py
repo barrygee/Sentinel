@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 from backend.database import (
     backfill_satellite_radio_store,
     create_tables,
+    merge_default_land_feeds,
     migrate_sdr_radios_to_settings,
     prune_removed_settings,
     seed_default_settings,
@@ -59,6 +60,9 @@ async def lifespan(app: FastAPI):
     # so a stale key can never be mistaken for a live default.
     await prune_removed_settings()
     await seed_default_settings()
+    # Runs after the seeder so a fresh install (no row yet) is a no-op here
+    # and an existing one picks up feeds added to the defaults since.
+    await merge_default_land_feeds()
     await seed_sdr_data_from_files()
     await seed_sdr_bandplan_from_file()
     await backfill_satellite_radio_store()

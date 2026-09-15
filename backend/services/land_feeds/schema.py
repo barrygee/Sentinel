@@ -30,7 +30,7 @@ FEED_REF_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 _AUTH_HEADER_OR_PARAM_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 FeedCategory = Literal["traffic-cameras", "traffic-data", "webcams"]
-FeedProvider = Literal["snapshot", "durham", "tfl-jamcams"]
+FeedProvider = Literal["snapshot", "durham", "tfl-jamcams", "utmc", "twni"]
 FeedAuthType = Literal["none", "basic", "apiKey"]
 FeedFeatureState = Literal["live", "stale", "offline"]
 

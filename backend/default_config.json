@@ -130,6 +130,32 @@
                 "bbox": null,
                 "location": null,
                 "auth": { "type": "apiKey", "queryParam": "app_key", "optional": true }
+            },
+            {
+                "id": "utmc-tyne-wear",
+                "name": "Tyne & Wear + Durham UTMC",
+                "category": "traffic-cameras",
+                "provider": "utmc",
+                "url": "https://www.netraveldata.co.uk/api/v2",
+                "enabled": false,
+                "refreshSeconds": 60,
+                "datasets": ["cctv"],
+                "bbox": null,
+                "location": null,
+                "auth": { "type": "basic" }
+            },
+            {
+                "id": "twni",
+                "name": "TrafficWatchNI",
+                "category": "traffic-cameras",
+                "provider": "twni",
+                "url": "https://www.trafficwatchni.com",
+                "enabled": false,
+                "refreshSeconds": 300,
+                "datasets": ["cameras"],
+                "bbox": null,
+                "location": null,
+                "auth": { "type": "none" }
             }
         ]
     },
