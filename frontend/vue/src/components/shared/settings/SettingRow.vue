@@ -122,6 +122,16 @@
       v-else-if="item.type === 'air-replay-toggle'"
       @stage="emit('stage', item.id, $event)"
     />
+    <!-- No stage/commit: a layer switch belongs to the map it draws on, so it
+         applies the moment it is flipped, exactly as MapLayersControl does. -->
+    <LandMapLayersControl
+      v-else-if="item.type === 'land-map-layers'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <LandFeedsControl
+      v-else-if="item.type === 'land-feeds'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <SentryHostsControl v-else-if="item.type === 'sdr-sentry-hosts'" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
     <SdrOptionsControl
@@ -179,6 +189,8 @@ import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import AirReplayToggleControl from './AirReplayToggleControl.vue'
+import LandMapLayersControl from './LandMapLayersControl.vue'
+import LandFeedsControl from './LandFeedsControl.vue'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
@@ -217,6 +229,8 @@ const HALF_TYPES = new Set([
   'sea-ais-key',
   'sea-coverage-area',
   'sea-label-fields',
+  'land-map-layers',
+  'land-feeds',
 ])
 // Two columns wide, but each starting a fresh row, so the SDR pair stacks
 // rather than sitting shoulder to shoulder.
@@ -231,6 +245,7 @@ const NATURAL_HEIGHT_TYPES = new Set([
   'range-ring-origin',
   'map-layers',
   'sea-map-layers',
+  'land-map-layers',
   'overhead-alerts',
 ])
 const isTriple = false

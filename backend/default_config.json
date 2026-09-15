@@ -1,131 +1,178 @@
 {
-  "_comment": "Default application configuration \u2014 loaded on first startup to seed the database. Upload a modified copy via Settings > Config to override all settings at once.",
-  "app": {
-    "connectivityMode": "online",
-    "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico",
-    "location": {
-      "latitude": "",
-      "longitude": ""
+    "_comment": "Default application configuration \u2014 loaded on first startup to seed the database. Upload a modified copy via Settings > Config to override all settings at once.",
+    "app": {
+        "connectivityMode": "online",
+        "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico",
+        "location": {
+            "latitude": "",
+            "longitude": ""
+        },
+        "notificationSound": false
     },
-    "notificationSound": false
-  },
-  "air": {
-    "enabled": true,
-    "replayEnabled": false,
-    "sourceOverride": "auto",
-    "onlineDataSourceURL": "https://api.adsb.lol/v2",
-    "offgridDataSourceURL": {
-      "url": ""
+    "air": {
+        "enabled": true,
+        "replayEnabled": false,
+        "sourceOverride": "auto",
+        "onlineDataSourceURL": "https://api.adsb.lol/v2",
+        "offgridDataSourceURL": {
+            "url": ""
+        },
+        "labelDataPoints": {
+            "civil": {
+                "callsign": true,
+                "altitude": false,
+                "speed": false,
+                "heading": false,
+                "aircraftType": false,
+                "registration": false,
+                "squawk": false,
+                "category": false
+            },
+            "mil": {
+                "callsign": true,
+                "altitude": false,
+                "speed": false,
+                "heading": false,
+                "aircraftType": true,
+                "registration": false,
+                "squawk": false,
+                "category": false
+            }
+        },
+        "overheadAlerts": {
+            "civil": false,
+            "mil": false,
+            "radiusNm": 10
+        }
     },
-    "labelDataPoints": {
-      "civil": {
-        "callsign": true,
-        "altitude": false,
-        "speed": false,
-        "heading": false,
-        "aircraftType": false,
-        "registration": false,
-        "squawk": false,
-        "category": false
-      },
-      "mil": {
-        "callsign": true,
-        "altitude": false,
-        "speed": false,
-        "heading": false,
-        "aircraftType": true,
-        "registration": false,
-        "squawk": false,
-        "category": false
-      }
+    "space": {
+        "enabled": true,
+        "sourceOverride": "auto",
+        "filterHoverPreview": "stay",
+        "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+        "onlineUrls": {
+            "space_station": "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
+            "amateur": "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
+            "weather": "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle",
+            "military": "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
+            "navigation": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
+            "science": "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
+            "cubesat": "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
+            "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+            "unknown": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
+        }
     },
-    "overheadAlerts": {
-      "civil": false,
-      "mil": false,
-      "radiusNm": 10
+    "sea": {
+        "enabled": true,
+        "sourceOverride": "auto",
+        "onlineUrl": "wss://stream.aisstream.io/v0/stream",
+        "offgridSource": {
+            "url": ""
+        },
+        "aisBoundingBoxes": [
+            [
+                [-90, -180],
+                [90, 180]
+            ]
+        ],
+        "labelDataPoints": {
+            "name": true,
+            "type": false,
+            "mmsi": false,
+            "flag": false,
+            "destination": false,
+            "speed": false,
+            "course": false
+        },
+        "defaultLayers": ["vessels", "vesselLabels", "ferryRoutes", "ports"]
+    },
+    "land": {
+        "enabled": false,
+        "sourceOverride": "auto",
+        "labelDataPoints": {
+            "time": false,
+            "callsign": true,
+            "symbol": true,
+            "symbolText": false,
+            "latitude": false,
+            "longitude": false,
+            "course": false,
+            "speed": false,
+            "altitude": false,
+            "path": false,
+            "comment": false
+        },
+        "aprsRetentionMinutes": 5,
+        "defaultLayers": ["aprs", "trafficCameras"],
+        "feeds": [
+            {
+                "id": "durham-cc",
+                "name": "Durham County Council",
+                "category": "traffic-cameras",
+                "provider": "durham",
+                "url": "https://spatial.durham.gov.uk/arcgis/rest/services/External/VectorPoint/MapServer/30",
+                "enabled": false,
+                "refreshSeconds": 60,
+                "datasets": ["cameras"],
+                "bbox": null,
+                "location": null,
+                "auth": { "type": "none" }
+            },
+            {
+                "id": "tfl-jamcams",
+                "name": "TfL JamCams",
+                "category": "traffic-cameras",
+                "provider": "tfl-jamcams",
+                "url": "https://api.tfl.gov.uk",
+                "enabled": false,
+                "refreshSeconds": 300,
+                "datasets": ["jamcams"],
+                "bbox": null,
+                "location": null,
+                "auth": { "type": "apiKey", "queryParam": "app_key", "optional": true }
+            },
+            {
+                "id": "utmc-tyne-wear",
+                "name": "Tyne & Wear + Durham UTMC",
+                "category": "traffic-cameras",
+                "provider": "utmc",
+                "url": "https://www.netraveldata.co.uk/api/v2",
+                "enabled": false,
+                "refreshSeconds": 60,
+                "datasets": ["cctv"],
+                "bbox": null,
+                "location": null,
+                "auth": { "type": "basic" }
+            },
+            {
+                "id": "twni",
+                "name": "TrafficWatchNI",
+                "category": "traffic-cameras",
+                "provider": "twni",
+                "url": "https://www.trafficwatchni.com",
+                "enabled": false,
+                "refreshSeconds": 300,
+                "datasets": ["cameras"],
+                "bbox": null,
+                "location": null,
+                "auth": { "type": "none" }
+            }
+        ]
+    },
+    "sdr": {
+        "enabled": true,
+        "onlineUrl": "https://",
+        "offgridSource": {
+            "url": "http://localhost"
+        },
+        "defaultSampleRate": 2048000,
+        "defaultGain": 30,
+        "defaultSquelch": -60,
+        "autoCenterWaterfallOnTune": true,
+        "showBandPlan": true,
+        "showKnownFreqs": true,
+        "digitalDecodeDefault": false,
+        "muteAudioWhileDecoding": true,
+        "radios": []
     }
-  },
-  "space": {
-    "enabled": true,
-    "sourceOverride": "auto",
-    "filterHoverPreview": "stay",
-    "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
-    "onlineUrls": {
-      "space_station": "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
-      "amateur": "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
-      "weather": "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle",
-      "military": "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
-      "navigation": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
-      "science": "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
-      "cubesat": "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
-      "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
-      "unknown": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
-    }
-  },
-  "sea": {
-    "enabled": true,
-    "sourceOverride": "auto",
-    "onlineUrl": "wss://stream.aisstream.io/v0/stream",
-    "offgridSource": {
-      "url": ""
-    },
-    "aisBoundingBoxes": [
-      [
-        [-90, -180],
-        [90, 180]
-      ]
-    ],
-    "labelDataPoints": {
-      "name": true,
-      "type": false,
-      "mmsi": false,
-      "flag": false,
-      "destination": false,
-      "speed": false,
-      "course": false
-    },
-    "defaultLayers": [
-      "vessels",
-      "vesselLabels",
-      "ferryRoutes",
-      "ports"
-    ]
-  },
-  "land": {
-    "enabled": false,
-    "sourceOverride": "auto",
-    "labelDataPoints": {
-      "time": false,
-      "callsign": true,
-      "symbol": true,
-      "symbolText": false,
-      "latitude": false,
-      "longitude": false,
-      "course": false,
-      "speed": false,
-      "altitude": false,
-      "path": false,
-      "comment": false
-    },
-    "aprsRetentionMinutes": 5,
-    "defaultLayers": [
-      "aprs"
-    ]
-  },
-  "sdr": {
-    "enabled": true,
-    "onlineUrl": "https://",
-    "offgridSource": {
-      "url": "http://localhost"
-    },
-    "defaultSampleRate": 2048000,
-    "defaultGain": 30,
-    "defaultSquelch": -60,
-    "autoCenterWaterfallOnTune": true,
-    "showBandPlan": true,
-    "showKnownFreqs": true,
-    "digitalDecodeDefault": false,
-    "muteAudioWhileDecoding": true,
-    "radios": []
-  }
 }

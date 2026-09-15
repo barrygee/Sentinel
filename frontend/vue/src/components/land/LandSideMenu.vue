@@ -98,6 +98,34 @@
             <path d="M3.4 6.4a6.6 6.6 0 0 1 9.2 0" />
           </svg>
         </BaseIconButton>
+        <BaseIconButton
+          class="sm-btn sm-sub-btn"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          tooltip-side="left"
+          tooltip="TRAFFIC CAMERAS"
+          accessible-name="Traffic cameras"
+          :class="{ active: trafficCamerasActive }"
+          :active="trafficCamerasActive"
+          @click="toggleTrafficCameras"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" />
+            <circle cx="8" cy="9" r="2.2" />
+          </svg>
+        </BaseIconButton>
       </template>
     </IconRailAccordion>
 
@@ -209,11 +237,13 @@ defineProps<{
   goToLocation: () => void
   toggleRangeRings: () => void
   toggleAprs: () => void
+  toggleTrafficCameras: () => void
   toggleNames: () => void
   rangeRingsActive: boolean
   aprsActive: boolean
   /** Whether an SDR has been chosen as the APRS receiver in Settings → LAND. */
   aprsSourceConfigured: boolean
+  trafficCamerasActive: boolean
   locationActive: boolean
 }>()
 

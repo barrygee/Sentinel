@@ -540,3 +540,116 @@ describe('BaseFilterPanel', () => {
     })
   })
 })
+
+describe('BaseFilterPanel — grouped rows', () => {
+  const GROUPED: FilterPanelItem[] = [
+    { key: 'M0ABC', primary: 'M0ABC', groupLabel: 'APRS STATIONS' },
+    {
+      key: 'durham-cc:a',
+      idKey: 'cam-durham-cc-a',
+      primary: 'Framwellgate Peth',
+      groupLabel: 'Durham County Council',
+      groupMeta: '2 of 33 in view',
+      groupNote: 'OGL v3.0',
+    },
+    {
+      key: 'durham-cc:b',
+      idKey: 'cam-durham-cc-b',
+      primary: 'Milburngate',
+      groupLabel: 'Durham County Council',
+      groupMeta: '2 of 33 in view',
+      groupNote: 'OGL v3.0',
+    },
+    { key: 'ungrouped', primary: 'Loose row' },
+  ]
+
+  async function pressKey(wrapper: ReturnType<typeof mountPanel>, key: string) {
+    await wrapper.find('input').trigger('keydown', { key })
+    await nextTick()
+  }
+
+  it('opens each run of same-group rows with one heading carrying label, meta and note', () => {
+    const wrapper = mountPanel({ items: GROUPED })
+    const headings = wrapper.findAll('.bfp-group-heading')
+    expect(headings).toHaveLength(2)
+    expect(headings[0]!.text()).toContain('APRS STATIONS')
+    expect(headings[1]!.text()).toContain('Durham County Council')
+    expect(headings[1]!.find('.bfp-group-heading-meta').text()).toBe('2 of 33 in view')
+    expect(headings[1]!.find('.bfp-group-heading-note').text()).toBe('OGL v3.0')
+    expect(headings[0]!.find('.bfp-group-heading-meta').exists()).toBe(false)
+    // Ungrouped rows get no heading of their own.
+    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(4)
+  })
+
+  it("collapses and re-expands a group from its heading, hiding only that group's rows", async () => {
+    const wrapper = mountPanel({ items: GROUPED })
+    const durhamHeading = wrapper.findAll('.bfp-group-heading')[1]!
+    expect(durhamHeading.attributes('aria-expanded')).toBe('true')
+    await durhamHeading.trigger('click')
+    expect(durhamHeading.attributes('aria-expanded')).toBe('false')
+    expect(durhamHeading.classes()).toContain('bfp-group-heading--collapsed')
+    expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(false)
+    expect(wrapper.find('#test-filter-row-M0ABC').exists()).toBe(true)
+    expect(wrapper.find('#test-filter-row-ungrouped').exists()).toBe(true)
+    // The listbox no longer owns the hidden options.
+    expect(wrapper.find('[role="listbox"]').attributes('aria-owns')).not.toContain(
+      'test-filter-opt-cam-durham-cc-a',
+    )
+    await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+    expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(true)
+  })
+
+  it('does not toggle a row when its heading is clicked', async () => {
+    const wrapper = mountPanel({ items: GROUPED })
+    await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+    expect(wrapper.emitted('update:expandedKey')).toBeUndefined()
+  })
+
+  it('skips collapsed rows during keyboard navigation and drops focus from a row that folds away', async () => {
+    const wrapper = mountPanel({ items: GROUPED })
+    await pressKey(wrapper, 'ArrowDown')
+    await pressKey(wrapper, 'ArrowDown')
+    expect(wrapper.find('input').attributes('aria-activedescendant')).toBe(
+      'test-filter-opt-cam-durham-cc-a',
+    )
+    await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+    expect(wrapper.find('input').attributes('aria-activedescendant')).toBeUndefined()
+    await pressKey(wrapper, 'ArrowDown')
+    // From nothing, the walk starts at the first *visible* row again…
+    expect(wrapper.find('input').attributes('aria-activedescendant')).toBe('test-filter-opt-M0ABC')
+    await pressKey(wrapper, 'ArrowDown')
+    // …and steps straight over the folded group to the loose row.
+    expect(wrapper.find('input').attributes('aria-activedescendant')).toBe(
+      'test-filter-opt-ungrouped',
+    )
+  })
+
+  it('keeps a focused row focused when a different group folds', async () => {
+    const wrapper = mountPanel({ items: GROUPED })
+    await pressKey(wrapper, 'ArrowDown')
+    expect(wrapper.find('input').attributes('aria-activedescendant')).toBe('test-filter-opt-M0ABC')
+    await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+    expect(wrapper.find('input').attributes('aria-activedescendant')).toBe('test-filter-opt-M0ABC')
+  })
+
+  it('has no accessibility violations with group headings', async () => {
+    // Multi-root component: mount into its own container so axe scans just
+    // this panel, not everything other tests left attached to the body.
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    mount(BaseFilterPanel, {
+      props: {
+        items: GROUPED,
+        query: '',
+        expandedKey: '',
+        idPrefix: 'grouped-filter',
+        inputLabel: 'Filter',
+        placeholder: 'FILTER',
+        listboxLabel: 'Rows',
+      },
+      attachTo: container,
+    })
+    expect(await axe(container, { rules: { region: { enabled: false } } })).toHaveNoViolations()
+    container.remove()
+  })
+})

@@ -18,10 +18,12 @@
       :go-to-location="goToLocation"
       :toggle-range-rings="toggleRangeRings"
       :toggle-aprs="toggleAprs"
+      :toggle-traffic-cameras="toggleTrafficCameras"
       :toggle-names="toggleNames"
       :range-rings-active="rangeRingsActive"
       :aprs-active="aprsActive"
       :aprs-source-configured="aprsSourceConfigured"
+      :traffic-cameras-active="trafficCamerasActive"
       :location-active="locationActive"
     />
     <!-- msb-pane-search lives in MapSidebar, a sibling of <RouterView> in
@@ -38,6 +40,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
+import { useLandFeedsStore } from '@/stores/landFeeds'
 import { useBasemapStore } from '@/stores/basemap'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
@@ -54,6 +57,7 @@ import { useSentrySitesStore } from '@/stores/sentrySites'
 import { useSettingsStore } from '@/stores/settings'
 import { useSdrStore } from '@/stores/sdr'
 import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
+import { TrafficCamerasControl } from '@/components/land/controls/traffic-cameras/TrafficCamerasControl'
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
@@ -64,6 +68,7 @@ const LOCATE_ZOOM = 10
 
 const appStore = useAppStore()
 const landStore = useLandStore()
+const landFeedsStore = useLandFeedsStore()
 const basemapStore = useBasemapStore()
 const sentrySitesStore = useSentrySitesStore()
 const settingsStore = useSettingsStore()
@@ -91,6 +96,7 @@ const ctxMenu = useMapContextMenu()
 let _map: Map | null = null
 let _initialStyleUrl: string | null = null
 let _aprsControl: AprsStationsControl | null = null
+let _trafficCamerasControl: TrafficCamerasControl | null = null
 let _rangeRingsControl: LandRangeRingsControl | null = null
 let _namesControl: NamesToggleControl | null = null
 // Sentry sites are plotted on every domain map, this one included — see
@@ -108,6 +114,9 @@ const aprsActive = computed(() => landStore.aprsLayerVisible)
 // forced off and its side-menu button disabled rather than offering a toggle
 // that could only ever show an empty map.
 const aprsSourceConfigured = computed(() => sdrStore.aprsRadioId !== null)
+// Traffic cameras have no receiver dependency — the layer flips on as soon as
+// a feed is configured and enabled in Settings → LAND → LIVE FEEDS.
+const trafficCamerasActive = computed(() => landStore.trafficCamerasLayerVisible)
 const rangeRingsActive = ref(false)
 const locationActive = computed(() => userLocation.value !== null)
 
@@ -128,6 +137,7 @@ function onMapCreated(m: Map) {
   // owns the visible controls — and hide the native control corner.
   _rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   _aprsControl = new AprsStationsControl(landStore)
+  _trafficCamerasControl = new TrafficCamerasControl(landStore, landFeedsStore)
   // Location names and roads are shared base-map layers driven by the
   // cross-domain basemap store, so Land shows whatever the other domains were
   // last set to. Roads has no button of its own — the control exists purely to
@@ -144,11 +154,14 @@ function onMapCreated(m: Map) {
   _sentrySitesControl.onAdd(m)
   _rangeRingsControl.onAdd(m)
   _aprsControl.onAdd(m)
+  _trafficCamerasControl.onAdd(m)
   _namesControl.onAdd(m)
   _roadsControl.onAdd(m)
   // APRS starts visible per the land.defaultLayers config (default ["aprs"]),
   // but only once a radio is decoding it.
   _aprsControl.setVisible(aprsSourceConfigured.value && landStore.defaultLayers.includes('aprs'))
+  // Traffic cameras follow the same config, with no receiver gate.
+  _trafficCamerasControl.setVisible(landStore.defaultLayers.includes('trafficCameras'))
   rangeRingsActive.value = _rangeRingsControl.visible
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
@@ -184,6 +197,10 @@ function toggleAprs() {
   // The control flips the shared store flag, which `aprsActive` tracks.
   _aprsControl?.handleClickPublic()
 }
+function toggleTrafficCameras() {
+  // The control flips the shared store flag, which `trafficCamerasActive` tracks.
+  _trafficCamerasControl?.handleClickPublic()
+}
 function toggleNames() {
   // The control flips the basemap store, which LandSideMenu reads directly.
   _namesControl?.handleClickPublic()
@@ -201,6 +218,10 @@ onMounted(() => {
   watch([() => landStore.defaultLayers, aprsSourceConfigured], ([layers, hasSource]) => {
     _aprsControl?.setVisible(hasSource && layers.includes('aprs'))
   })
+  watch(
+    () => landStore.defaultLayers,
+    (layers) => _trafficCamerasControl?.setVisible(layers.includes('trafficCameras')),
+  )
 
   // Keep the location marker in sync with the live fix.
   watch(
@@ -232,12 +253,14 @@ onUnmounted(() => {
   ctxMenu.detach(_map)
   _rangeRingsControl?.onRemove()
   _aprsControl?.onRemove()
+  _trafficCamerasControl?.onRemove()
   _namesControl?.onRemove()
   _roadsControl?.onRemove()
   _sentrySitesControl?.onRemove()
   _sentrySitesControl = null
   _locationMarker.remove()
   _rangeRingsControl = _aprsControl = null
+  _trafficCamerasControl = null
   _namesControl = _roadsControl = null
 })
 

@@ -106,6 +106,15 @@ export const useLandStore = defineStore('land', () => {
     aprsLayerVisible.value = visible
   }
 
+  // Whether the traffic-cameras layer is currently shown, wired to
+  // `land.defaultLayers` exactly as `aprsLayerVisible` is above — the flag
+  // starts true and `hydrateDefaultLayers`/the config-upload listener below
+  // narrow it to whatever the persisted default actually says.
+  const trafficCamerasLayerVisible = ref(true)
+  function setTrafficCamerasLayerVisible(visible: boolean): void {
+    trafficCamerasLayerVisible.value = visible
+  }
+
   // SEARCH pane (LandFilter). Held on the store rather than in the teleported
   // pane, whose mount timing is fragile — this way the pane resumes exactly as
   // left when returning to Land, and a map click can expand a row before the
@@ -120,8 +129,8 @@ export const useLandStore = defineStore('land', () => {
   }
 
   // Which map layers are shown by default (from the `land.defaultLayers` config).
-  // Currently only "aprs"; more layers land here as they are added.
-  const defaultLayers = ref<string[]>(['aprs'])
+  // More layers land here as they are added.
+  const defaultLayers = ref<string[]>(['aprs', 'trafficCameras'])
   async function hydrateDefaultLayers(): Promise<void> {
     try {
       const res = await fetch('/api/settings/land')
@@ -131,6 +140,18 @@ export const useLandStore = defineStore('land', () => {
     } catch {
       /* offline / transient — keep the default */
     }
+  }
+
+  /**
+   * The `land.defaultLayers` list the current flags describe — read by
+   * `LandMapLayersControl` when it stages a toggle as the new persisted
+   * default, mirroring `useSeaStore.currentDefaultLayers()`.
+   */
+  function currentDefaultLayers(): string[] {
+    const layers: string[] = []
+    if (aprsLayerVisible.value) layers.push('aprs')
+    if (trafficCamerasLayerVisible.value) layers.push('trafficCameras')
+    return layers
   }
 
   let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -174,12 +195,15 @@ export const useLandStore = defineStore('land', () => {
     setAprsLabelFields,
     aprsLayerVisible,
     setAprsLayerVisible,
+    trafficCamerasLayerVisible,
+    setTrafficCamerasLayerVisible,
     searchQuery,
     setSearchQuery,
     searchExpandedCallsign,
     setSearchExpandedCallsign,
     defaultLayers,
     hydrateDefaultLayers,
+    currentDefaultLayers,
     fetchAprsStations,
     startAprsPolling,
     stopAprsPolling,

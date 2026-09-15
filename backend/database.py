@@ -473,6 +473,46 @@ async def backfill_satellite_radio_store() -> None:
         await upsert_setting(session, "space", "satelliteRadio", merged)
 
 
+async def merge_default_land_feeds() -> None:
+    """Append any default ``land.feeds`` entry an existing database lacks.
+
+    ``seed_default_settings`` only inserts *missing keys*, so once an install
+    has a ``land.feeds`` row a feed added to ``default_config.json`` later
+    (TrafficWatchNI, UTMC, …) would never appear for it. This merges by feed
+    id: stored feeds are left exactly as the operator has them (enabled or
+    not, edited or not) and new defaults are appended — disabled, as they are
+    seeded — so they show up in Settings › LAND › LIVE FEEDS ready to switch on.
+    """
+    from backend.models import UserSettings  # avoid circular import
+
+    default_feeds = next(
+        (value for namespace, key, value in _build_default_settings() if (namespace, key) == ("land", "feeds")),
+        None,
+    )
+    if not isinstance(default_feeds, list):
+        return
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(UserSettings).where(UserSettings.namespace == "land", UserSettings.key == "feeds")
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return  # seed_default_settings will insert the full default list
+        try:
+            stored = json.loads(row.value)
+        except (json.JSONDecodeError, TypeError):
+            return
+        if not isinstance(stored, list):
+            return
+        stored_ids = {feed.get("id") for feed in stored if isinstance(feed, dict)}
+        missing = [feed for feed in default_feeds if isinstance(feed, dict) and feed.get("id") not in stored_ids]
+        if not missing:
+            return
+        row.value = json.dumps([*stored, *missing])
+        row.updated_at = int(time.time() * 1000)
+        await session.commit()
+
+
 async def seed_default_settings() -> None:
     """Insert default URL settings on startup — only if a row does not already exist."""
     from backend.models import UserSettings  # avoid circular import

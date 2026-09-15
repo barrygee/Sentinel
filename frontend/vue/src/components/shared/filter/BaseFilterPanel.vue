@@ -57,55 +57,74 @@
 
     <div v-if="items.length === 0" class="bfp-no-results">{{ emptyMessage }}</div>
     <div v-else class="bfp-results-body">
-      <div
-        v-for="item in items"
-        :id="`${idPrefix}-row-${idToken(item)}`"
-        :key="item.key"
-        :ref="(element) => registerRow(item.key, element)"
-        class="bfp-result-item"
-        :class="[
-          item.rowClass,
-          {
-            'bfp-expanded': expandedKey === item.key,
-            'bfp-keyboard-focused': focusedKey === item.key,
-          },
-        ]"
-        @click="toggleExpanded(item.key)"
-        @mouseenter="emit('rowEnter', item.key)"
-        @mouseleave="emit('rowLeave')"
-      >
-        <!-- The option is just the row header (identity + chevron); the expanded
-             accordion is a sibling so its content isn't nested inside the option. -->
-        <div
-          :id="`${idPrefix}-opt-${idToken(item)}`"
-          role="option"
-          :aria-selected="focusedKey === item.key"
-          :aria-label="item.optionLabel ?? optionLabel(item)"
-          class="bfp-result-option"
+      <template v-for="(item, index) in items" :key="item.key">
+        <!-- A group heading opens each run of rows that share a `groupLabel`
+             (a camera feed's cameras, say) and collapses the run on click, so a
+             source with hundreds of rows can be folded away. It is a plain
+             disclosure button outside the listbox: keyboard row navigation and
+             `aria-activedescendant` only ever see the rows of open groups. -->
+        <button
+          v-if="item.groupLabel && item.groupLabel !== items[index - 1]?.groupLabel"
+          type="button"
+          class="bfp-group-heading"
+          :class="{ 'bfp-group-heading--collapsed': collapsedGroups.has(item.groupLabel) }"
+          :aria-expanded="!collapsedGroups.has(item.groupLabel)"
+          @click.stop="toggleGroup(item.groupLabel)"
         >
-          <div class="bfp-result-info">
-            <div class="bfp-result-primary">{{ item.primary }}</div>
-            <div v-if="item.secondary" class="bfp-result-secondary">{{ item.secondary }}</div>
-          </div>
-          <!-- A row that carries no accordion shows no chevron: the disclosure
+          <span class="bfp-group-heading-label">{{ item.groupLabel }}</span>
+          <span v-if="item.groupMeta" class="bfp-group-heading-meta">{{ item.groupMeta }}</span>
+          <span class="bfp-group-heading-chevron"><ChevronIcon /></span>
+          <span v-if="item.groupNote" class="bfp-group-heading-note">{{ item.groupNote }}</span>
+        </button>
+        <div
+          v-if="!item.groupLabel || !collapsedGroups.has(item.groupLabel)"
+          :id="`${idPrefix}-row-${idToken(item)}`"
+          :ref="(element) => registerRow(item.key, element)"
+          class="bfp-result-item"
+          :class="[
+            item.rowClass,
+            {
+              'bfp-expanded': expandedKey === item.key,
+              'bfp-keyboard-focused': focusedKey === item.key,
+            },
+          ]"
+          @click="toggleExpanded(item.key)"
+          @mouseenter="emit('rowEnter', item.key)"
+          @mouseleave="emit('rowLeave')"
+        >
+          <!-- The option is just the row header (identity + chevron); the expanded
+             accordion is a sibling so its content isn't nested inside the option. -->
+          <div
+            :id="`${idPrefix}-opt-${idToken(item)}`"
+            role="option"
+            :aria-selected="focusedKey === item.key"
+            :aria-label="item.optionLabel ?? optionLabel(item)"
+            class="bfp-result-option"
+          >
+            <div class="bfp-result-info">
+              <div class="bfp-result-primary">{{ item.primary }}</div>
+              <div v-if="item.secondary" class="bfp-result-secondary">{{ item.secondary }}</div>
+            </div>
+            <!-- A row that carries no accordion shows no chevron: the disclosure
                cue would promise an expansion that never happens. Its trailing
                slot (a badge, say) takes the same place. -->
-          <span v-if="item.expandable !== false" class="bfp-item-chevron">
-            <ChevronIcon />
-          </span>
-          <span v-else class="bfp-item-trailing">
-            <slot name="row-trailing" :item="item" />
-          </span>
-        </div>
-        <!-- The accordion is nested in the row so it moves with it, but it is
+            <span v-if="item.expandable !== false" class="bfp-item-chevron">
+              <ChevronIcon />
+            </span>
+            <span v-else class="bfp-item-trailing">
+              <slot name="row-trailing" :item="item" />
+            </span>
+          </div>
+          <!-- The accordion is nested in the row so it moves with it, but it is
              disclosed content, not part of the row's hit target: without
              stopping the click here, using anything inside it (a button, or
              just a stray click on a value) would bubble to the row handler and
              shut the accordion under the user's cursor. -->
-        <div v-if="expandedKey === item.key" class="bfp-accordion-body" @click.stop>
-          <slot name="accordion" :item="item" />
+          <div v-if="expandedKey === item.key" class="bfp-accordion-body" @click.stop>
+            <slot name="accordion" :item="item" />
+          </div>
         </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -150,6 +169,15 @@ export interface FilterPanelItem {
    * selectable option, it just has nothing to disclose.
    */
   expandable?: boolean
+  /**
+   * Optional group this row belongs to. Consecutive rows sharing a label are
+   * introduced by one heading carrying the label, an optional `groupMeta`
+   * (a count, say) and an optional `groupNote` (an attribution line). Callers
+   * keep grouped rows contiguous; the panel only compares neighbours.
+   */
+  groupLabel?: string
+  groupMeta?: string
+  groupNote?: string
 }
 
 const props = withDefaults(
@@ -211,6 +239,26 @@ const inputRef = ref<HTMLInputElement | null>(null)
 // Distinct from the expanded row: you can walk the list without opening rows.
 const focusedKey = ref<string | null>(null)
 
+/** Group labels the user has folded shut. Pane-local: a group re-opens on remount. */
+const collapsedGroups = ref(new Set<string>())
+
+function toggleGroup(groupLabel: string): void {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(groupLabel)) next.delete(groupLabel)
+  else next.add(groupLabel)
+  collapsedGroups.value = next
+  // A row inside a group that just closed can no longer be the active
+  // descendant; drop the virtual focus rather than point at a hidden option.
+  if (focusedKey.value && !visibleItems.value.some((item) => item.key === focusedKey.value)) {
+    focusedKey.value = null
+  }
+}
+
+/** The rows actually rendered — everything except rows of collapsed groups. */
+const visibleItems = computed<FilterPanelItem[]>(() =>
+  props.items.filter((item) => !item.groupLabel || !collapsedGroups.value.has(item.groupLabel)),
+)
+
 /** The token a row's element ids are built from (see FilterPanelItem.idKey). */
 function idToken(item: FilterPanelItem): string {
   return item.idKey ?? item.key
@@ -220,7 +268,7 @@ function idToken(item: FilterPanelItem): string {
 // claims these via aria-owns — they live outside it in the DOM so the row's
 // chevron and accordion chrome stay valid.
 const ownedOptionIds = computed<string>(() =>
-  props.items.map((item) => `${props.idPrefix}-opt-${idToken(item)}`).join(' '),
+  visibleItems.value.map((item) => `${props.idPrefix}-opt-${idToken(item)}`).join(' '),
 )
 
 // The combobox popup only exists when at least one option is rendered — an empty
@@ -231,7 +279,7 @@ const listboxShown = computed<boolean>(() => ownedOptionIds.value.length > 0)
 // Always references a rendered option: `focusedKey` is only ever set to a key
 // taken from `items`, and the watcher below clears it the moment that row goes.
 const activeDescId = computed<string | undefined>(() => {
-  const focused = props.items.find((item) => item.key === focusedKey.value)
+  const focused = visibleItems.value.find((item) => item.key === focusedKey.value)
   return focused ? `${props.idPrefix}-opt-${idToken(focused)}` : undefined
 })
 
@@ -261,7 +309,7 @@ function onKeydown(event: KeyboardEvent): void {
     clearQuery()
     return
   }
-  const items = props.items
+  const items = visibleItems.value
   if (!items.length) return
   const index = items.findIndex((item) => item.key === focusedKey.value)
   if (event.key === 'ArrowDown') {
@@ -322,7 +370,7 @@ watch(
 // Keep the virtual focus on a row that still exists: in a live list the focused
 // row can vanish (an APRS station expiring, an aircraft leaving range).
 watch(
-  () => props.items,
+  () => visibleItems.value,
   (items) => {
     if (focusedKey.value && !items.some((item) => item.key === focusedKey.value)) {
       focusedKey.value = null
@@ -411,6 +459,58 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .bfp-results-body {
   display: flex;
   flex-direction: column;
+}
+
+/* Group heading: the same label voice as a data-grid title, set on the panel
+   surface with no rule above or below — the change of type does the work. */
+.bfp-group-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  width: 100%;
+  padding: 16px 24px 6px;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Barlow', sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.bfp-group-heading-chevron {
+  margin-left: auto;
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.4);
+  transition: transform 0.15s;
+}
+.bfp-group-heading--collapsed .bfp-group-heading-chevron {
+  transform: rotate(-90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bfp-group-heading-chevron {
+    transition: none;
+  }
+}
+.bfp-group-heading-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+}
+.bfp-group-heading-meta {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+}
+.bfp-group-heading-note {
+  flex-basis: 100%;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .bfp-no-results {

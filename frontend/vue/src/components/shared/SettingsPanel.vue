@@ -645,6 +645,26 @@ const ALL_SETTINGS: SettingItem[] = [
     ns: 'land',
   },
   {
+    section: 'land',
+    sectionLabel: 'LAND',
+    id: 'land-map-layers',
+    label: 'Map Layers',
+    desc: 'Which live-feed overlays the Land map draws. Changes show on the map at once; APPLY CHANGES saves them as the defaults for every device.',
+    searchTerms: 'traffic cameras overlays',
+    type: 'land-map-layers',
+  },
+  {
+    section: 'land',
+    sectionLabel: 'LAND',
+    id: 'land-feeds',
+    label: 'Live Feeds',
+    desc: 'Configure traffic camera and other live-feed sources for the Land map (Durham County Council, TfL JamCams). Credentials are stored on the server only.',
+    searchTerms:
+      'traffic cameras durham tfl jamcams webcams live feeds snapshot api key credential',
+    type: 'land-feeds',
+    groupLabel: 'LIVE FEEDS',
+  },
+  {
     section: 'sdr',
     sectionLabel: 'SDR',
     id: 'sdr-sentry-hosts',

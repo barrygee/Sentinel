@@ -12,10 +12,12 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     goToLocation: vi.fn(),
     toggleRangeRings: vi.fn(),
     toggleAprs: vi.fn(),
+    toggleTrafficCameras: vi.fn(),
     toggleNames: vi.fn(),
     rangeRingsActive: false,
     aprsActive: true,
     aprsSourceConfigured: true,
+    trafficCamerasActive: true,
     locationActive: false,
     ...overrides,
   }
@@ -51,6 +53,7 @@ describe('LandSideMenu', () => {
       'Go to my location',
       'Filter stations',
       'APRS stations',
+      'Traffic cameras',
       'Map layers',
       'Range rings',
       'Location name labels',
@@ -95,6 +98,8 @@ describe('LandSideMenu', () => {
     const { wrapper, props } = mountMenu()
     await wrapper.find('[aria-label="APRS stations"]').trigger('click')
     expect(props.toggleAprs).toHaveBeenCalledOnce()
+    await wrapper.find('[aria-label="Traffic cameras"]').trigger('click')
+    expect(props.toggleTrafficCameras).toHaveBeenCalledOnce()
     await wrapper.find('[aria-label="Range rings"]').trigger('click')
     expect(props.toggleRangeRings).toHaveBeenCalledOnce()
     await wrapper.find('[aria-label="Location name labels"]').trigger('click')
@@ -105,10 +110,12 @@ describe('LandSideMenu', () => {
     const { wrapper } = mountMenu({
       rangeRingsActive: true,
       aprsActive: true,
+      trafficCamerasActive: true,
       locationActive: true,
     })
     expect(wrapper.find('[aria-label="Range rings"]').classes()).toContain('active')
     expect(wrapper.find('[aria-label="APRS stations"]').classes()).toContain('active')
+    expect(wrapper.find('[aria-label="Traffic cameras"]').classes()).toContain('active')
     expect(wrapper.find('[aria-label="Go to my location"]').classes()).toContain('active')
   })
 
@@ -116,10 +123,12 @@ describe('LandSideMenu', () => {
     const { wrapper } = mountMenu({
       rangeRingsActive: false,
       aprsActive: false,
+      trafficCamerasActive: false,
       locationActive: false,
     })
     expect(wrapper.find('[aria-label="Range rings"]').classes()).not.toContain('active')
     expect(wrapper.find('[aria-label="APRS stations"]').classes()).not.toContain('active')
+    expect(wrapper.find('[aria-label="Traffic cameras"]').classes()).not.toContain('active')
     expect(wrapper.find('[aria-label="Go to my location"]').classes()).not.toContain('active')
   })
 
@@ -182,12 +191,12 @@ describe('LandSideMenu accordions', () => {
     expect(panelDisplay(wrapper, '#land-layers-panel')).toBe('none')
   })
 
-  it('puts APRS stations in the FILTER panel', () => {
+  it('puts APRS stations and traffic cameras in the FILTER panel', () => {
     const { wrapper } = mountMenu()
     const labels = wrapper
       .findAll('#land-filter-panel button')
       .map((button) => button.attributes('aria-label'))
-    expect(labels).toEqual(['APRS stations'])
+    expect(labels).toEqual(['APRS stations', 'Traffic cameras'])
   })
 
   it('puts range rings above the shared base-map layers in the LAYERS panel', () => {

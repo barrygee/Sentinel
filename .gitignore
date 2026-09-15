@@ -33,3 +33,6 @@ __pycache__/
 decoder/build/
 **/mbelib/
 *.so
+
+# A venv symlink (as a worktree leaves behind) is a file, which `.venv/` alone misses
+.venv

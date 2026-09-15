@@ -19,7 +19,7 @@ from backend.db_helpers import get_setting, upsert_setting
 from backend.models import UserSettings
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +39,20 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 # refused on write, skipped on config upload) — each has its own endpoint that
 # reports only whether it is configured. See routers/sea.py for the AIS key.
 _SECRET_SETTING_KEYS: frozenset[tuple[str, str]] = frozenset({("sea", "aisstreamApiKey")})
+
+# Same idea as _SECRET_SETTING_KEYS but for a *family* of keys sharing a
+# prefix rather than one exact key — Land feed credentials are stored one row
+# per feed id (`feedCredential:<id>`, see services/land_feeds/credentials.py),
+# so there is no fixed key to list here.
+_SECRET_SETTING_PREFIXES: tuple[tuple[str, str], ...] = (("land", "feedCredential:"),)
+
+
+def _is_secret_setting(namespace: str, key: str) -> bool:
+    """True for a setting that never round-trips through the generic settings
+    API — redacted on read, refused on write, skipped on config upload."""
+    if (namespace, key) in _SECRET_SETTING_KEYS:
+        return True
+    return any(namespace == ns and key.startswith(prefix) for ns, prefix in _SECRET_SETTING_PREFIXES)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -85,6 +99,36 @@ def _validated_location(value: Any) -> dict:
     return {"latitude": lat, "longitude": lon}
 
 
+def _validated_feeds(value: Any) -> list[dict]:
+    """Validate/normalise a `land.feeds` list against `FeedConfig`.
+
+    Raises HTTPException(400) on any schema violation (bad id/url/refresh
+    range/etc — see `services/land_feeds/schema.py`) or a duplicate feed id,
+    so an invalid edit can never reach the poller or be persisted.
+    """
+    from backend.services.land_feeds.schema import FeedConfig  # avoid import cycle at module load
+
+    if not isinstance(value, list):
+        raise HTTPException(status_code=400, detail="feeds must be a list")
+
+    seen_ids: set[str] = set()
+    validated: list[dict] = []
+    for index, entry in enumerate(value):
+        if not isinstance(entry, dict):
+            raise HTTPException(status_code=400, detail=f"feeds[{index}] must be an object")
+        try:
+            config = FeedConfig(**entry)
+        except ValidationError as exc:
+            first_error = exc.errors()[0]
+            field = ".".join(str(part) for part in first_error.get("loc", ()))
+            raise HTTPException(status_code=400, detail=f"feeds[{index}].{field}: {first_error['msg']}") from exc
+        if config.id in seen_ids:
+            raise HTTPException(status_code=400, detail=f"duplicate feed id {config.id!r}")
+        seen_ids.add(config.id)
+        validated.append(config.model_dump(by_alias=True))
+    return validated
+
+
 @lru_cache(maxsize=1)
 def _canonical_key_order() -> dict[str, list[str]]:
     """Per-namespace canonical key order, read from default_config.json.
@@ -110,7 +154,7 @@ def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
     their original order)."""
     parsed: dict = {}
     for row in rows:
-        if (row.namespace, row.key) in _SECRET_SETTING_KEYS:
+        if _is_secret_setting(row.namespace, row.key):
             continue
         try:
             parsed[row.key] = json.loads(row.value)
@@ -432,8 +476,13 @@ async def config_upload(
                 continue
             # Secrets are redacted from exports, so an uploaded config can only
             # ever carry a blank — never let it wipe the stored one.
-            if (namespace, key) in _SECRET_SETTING_KEYS:
+            if _is_secret_setting(namespace, key):
                 continue
+            # land.feeds drives a live poller: a malformed entry must reject
+            # the whole upload (like app.location below) rather than persist
+            # a config the poller then silently skips.
+            if namespace == "land" and key == "feeds":
+                value = _validated_feeds(value)
             result = await db.execute(
                 select(UserSettings).where(
                     UserSettings.namespace == namespace,
@@ -463,6 +512,12 @@ async def config_upload(
 
         await reconcile_aprs_decode(db, previous_aprs_radio_id, next_aprs_radio_id)
 
+    land_ns = config.get("land")
+    if isinstance(land_ns, dict) and "feeds" in land_ns:
+        from backend.services.land_feeds.poller import poller as land_feeds_poller  # avoid import cycle at module load
+
+        await land_feeds_poller.resync(land_ns["feeds"])
+
     return JSONResponse({"status": "ok"})
 
 
@@ -485,12 +540,18 @@ async def upsert_setting_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Upsert a single user setting. Creates the row if it doesn't exist."""
-    if (namespace, key) in _SECRET_SETTING_KEYS:
+    if _is_secret_setting(namespace, key):
         raise HTTPException(status_code=400, detail=f"{namespace}/{key} is a secret — use its dedicated endpoint")
     value = body.value
     if namespace == "app" and key == "location":
         value = _validated_location(value)
+    if namespace == "land" and key == "feeds":
+        value = _validated_feeds(value)
     await upsert_setting(db, namespace, key, value)
+    if namespace == "land" and key == "feeds":
+        from backend.services.land_feeds.poller import poller as land_feeds_poller  # avoid import cycle at module load
+
+        await land_feeds_poller.resync(value)
     return JSONResponse({"status": "ok"})
 
 
@@ -508,4 +569,8 @@ async def delete_setting_endpoint(
         )
     )
     await db.commit()
+    if namespace == "land" and key == "feeds":
+        from backend.services.land_feeds.poller import poller as land_feeds_poller  # avoid import cycle at module load
+
+        await land_feeds_poller.resync([])
     return JSONResponse({"status": "ok"})

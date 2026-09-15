@@ -4,16 +4,28 @@
     :query="landStore.searchQuery"
     :expanded-key="landStore.searchExpandedCallsign"
     id-prefix="land-filter"
-    input-label="Filter APRS stations by callsign, symbol, path or comment"
-    placeholder="CALLSIGN · SYMBOL · PATH · COMMENT"
-    listbox-label="APRS stations"
+    :input-label="
+      camerasOn
+        ? 'Filter APRS stations and traffic cameras by name, callsign, source or road'
+        : 'Filter APRS stations by callsign, symbol, path or comment'
+    "
+    :placeholder="
+      camerasOn ? 'CALLSIGN · CAMERA · ROAD · SOURCE' : 'CALLSIGN · SYMBOL · PATH · COMMENT'
+    "
+    :listbox-label="camerasOn ? 'APRS stations and traffic cameras' : 'APRS stations'"
     :empty-message="emptyMessage"
     @update:query="landStore.setSearchQuery"
     @update:expanded-key="landStore.setSearchExpandedCallsign"
   >
     <template #accordion="{ item }">
       <div class="land-filter-accordion">
-        <template v-if="stationFor(item.key)">
+        <LandCameraDetails
+          v-if="cameraFor(item.key)"
+          :camera="cameraFor(item.key)!"
+          :refresh-seconds="refreshSecondsFor(cameraFor(item.key)!.properties.sourceId)"
+          @locate="locateCamera"
+        />
+        <template v-else-if="stationFor(item.key)">
           <BaseDataGrid title="STATION" :columns="3">
             <BaseDataCell label="CALLSIGN" :value="stationFor(item.key)!.callsign" />
             <BaseDataCell label="SYMBOL">
@@ -91,6 +103,12 @@
  * The list tracks the map exactly: it renders the same polled snapshot the map
  * plots, so a station that stops beaconing and ages out of the retention window
  * disappears from both at the same moment.
+ *
+ * Traffic cameras share the pane: while the layer is on, every camera in the
+ * map's viewport is listed after the stations, grouped under a heading per
+ * source (TfL JamCams, Durham CC, …) with its in-view count and licence line,
+ * and expands to `LandCameraDetails` — the still, its position and SHOW ON
+ * MAP — the way a vessel does in the Sea pane.
  */
 import { computed, ref, watch } from 'vue'
 import BaseFilterPanel, {
@@ -100,7 +118,11 @@ import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
 import BaseDataCell from '@/components/base/BaseDataCell.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
+import LandCameraDetails from '@/components/land/LandCameraDetails.vue'
 import { useLandStore, type AprsStation } from '@/stores/land'
+import { useLandFeedsStore } from '@/stores/landFeeds'
+import { useVisibleCameras } from '@/composables/useVisibleCameras'
+import type { CameraFeature } from '@/types/landFeeds'
 import { aprsSymbolIcon } from '@/utils/aprsSymbols'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import {
@@ -111,6 +133,13 @@ import {
 } from './controls/aprs/AprsStationsControl'
 
 const landStore = useLandStore()
+const landFeedsStore = useLandFeedsStore()
+const { sources: cameraSources, cameraById } = useVisibleCameras()
+
+/** Whether cameras take part in this pane at all (layer on + a source enabled). */
+const camerasOn = computed(
+  () => landStore.trafficCamerasLayerVisible && cameraSources.value.length > 0,
+)
 
 // Whether the expanded station's raw frame is showing. Only one station is open
 // at a time, so one flag covers the pane; it closes again whenever a different
@@ -144,19 +173,84 @@ const matchingStations = computed<AprsStation[]>(() => {
   )
 })
 
-const items = computed<FilterPanelItem[]>(() =>
-  matchingStations.value.map((station) => ({
+/** Element-id-safe token for a camera key ("durham-cc:dutmc_24" has a colon). */
+function cameraIdToken(featureId: string): string {
+  return `cam-${featureId.replace(/[^A-Za-z0-9_-]/g, '-')}`
+}
+
+function cameraMatches(camera: CameraFeature, needle: string): boolean {
+  const { name, view, sourceName, description } = camera.properties
+  return [name, view ?? '', sourceName, description].join(' ').toLowerCase().includes(needle)
+}
+
+/** One grouped row per in-view camera, per source, after the stations. */
+const cameraItems = computed<FilterPanelItem[]>(() => {
+  if (!camerasOn.value) return []
+  const needle = landStore.searchQuery.trim().toLowerCase()
+  return cameraSources.value.flatMap((source) => {
+    const matching = needle
+      ? source.visible.filter((camera) => cameraMatches(camera, needle))
+      : source.visible
+    const groupMeta =
+      source.visible.length === source.total
+        ? `${source.total}`
+        : `${source.visible.length} of ${source.total} in view`
+    return matching.map((camera) => ({
+      key: camera.properties.id,
+      idKey: cameraIdToken(camera.properties.id),
+      primary: camera.properties.name,
+      secondary: [camera.properties.view, camera.properties.state.toUpperCase()]
+        .filter((part): part is string => Boolean(part))
+        .join(' · '),
+      optionLabel: `Traffic camera ${camera.properties.name}, ${source.feed.name}, ${camera.properties.state}`,
+      groupLabel: source.feed.name,
+      groupMeta,
+      groupNote: source.attribution || undefined,
+    }))
+  })
+})
+
+const items = computed<FilterPanelItem[]>(() => {
+  const stationItems: FilterPanelItem[] = matchingStations.value.map((station) => ({
     key: station.callsign,
     primary: station.callsign,
     secondary: `${symbolLabel(station)} · ${formatHeardTime(station.last_heard_ms)}`,
     optionLabel: `${station.callsign}, ${symbolLabel(station)}, heard ${formatHeardTime(station.last_heard_ms)}`,
-  })),
-)
+    // Stations only get a heading once cameras are in the same list; alone
+    // they read as they always have.
+    groupLabel: camerasOn.value ? 'APRS STATIONS' : undefined,
+  }))
+  return [...stationItems, ...cameraItems.value]
+})
 
 const emptyMessage = computed(() => {
+  if (camerasOn.value) {
+    const anyVisible = cameraSources.value.some((source) => source.visible.length > 0)
+    if (!landStore.aprsLayerVisible && !anyVisible) return 'No traffic cameras in view'
+    return 'No stations or cameras match'
+  }
   if (!landStore.aprsLayerVisible) return 'APRS layer hidden'
   return landStore.aprsStations.length === 0 ? 'No APRS stations heard' : 'No stations match'
 })
+
+/** Camera keys are "feedId:ref"; APRS callsigns never carry a colon. */
+function isCameraKey(key: string): boolean {
+  return key.includes(':')
+}
+
+function cameraFor(key: string): CameraFeature | undefined {
+  return isCameraKey(key) ? cameraById(key) : undefined
+}
+
+/** The camera's feed cadence — undefined lets `LandCameraDetails` apply its default. */
+function refreshSecondsFor(feedId: string): number | undefined {
+  return landFeedsStore.feeds.find((feed) => feed.id === feedId)?.refreshSeconds
+}
+
+/** SHOW ON MAP — the same event `TrafficCamerasControl` flies to. */
+function locateCamera(featureId: string): void {
+  document.dispatchEvent(new CustomEvent('land-camera-selected', { detail: { featureId } }))
+}
 
 function stationFor(callsign: string): AprsStation | undefined {
   return landStore.aprsStations.find((station) => station.callsign === callsign)
@@ -175,11 +269,29 @@ watch(
   () => landStore.aprsStations,
   (stations) => {
     const expanded = landStore.searchExpandedCallsign
-    if (expanded && !stations.some((station) => station.callsign === expanded)) {
+    // Camera rows share this expanded-key slot; an APRS poll must not shut one.
+    if (
+      expanded &&
+      !isCameraKey(expanded) &&
+      !stations.some((station) => station.callsign === expanded)
+    ) {
       landStore.setSearchExpandedCallsign('')
     }
   },
   { deep: true },
+)
+
+// The same courtesy for cameras: collapse a camera row whose camera has left
+// the feed (or whose feed was disabled), so the pane never holds an expanded
+// row for something no longer on the map.
+watch(
+  () => cameraSources.value,
+  () => {
+    const expanded = landStore.searchExpandedCallsign
+    if (expanded && isCameraKey(expanded) && !cameraById(expanded)) {
+      landStore.setSearchExpandedCallsign('')
+    }
+  },
 )
 </script>
 

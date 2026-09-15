@@ -76,6 +76,50 @@ export function groupByProximity<TPoint extends ClusterablePoint>(
 }
 
 /**
+ * Gather points into groups by the screen-space grid cell they fall in.
+ *
+ * The complement to `groupByProximity`. Single-linkage is right for a few
+ * huddles of markers, but on a dense lattice — 890 London traffic cameras a
+ * few pixels apart — every point bridges to the next and the whole city
+ * collapses into one count. Bucketing by a fixed cell instead keeps each group
+ * to roughly one marker's footprint, so a busy borough reads as a spread of
+ * counts that split as you zoom, and it is O(n) rather than O(n²).
+ *
+ * The count sits at the members' centroid, not the first member, so it lands
+ * inside the huddle it stands for. Group keys are the cell coordinates, which
+ * shift when the map pans — callers should rebuild or diff on key + size.
+ */
+export function groupByGridCell<TPoint extends ClusterablePoint>(
+  points: TPoint[],
+  positions: Map<string, ScreenPosition>,
+  cellPx: number,
+): PointCluster<TPoint>[] {
+  const cells = new Map<string, PointCluster<TPoint>>()
+  for (const point of points) {
+    const position = positions.get(point.key)!
+    const cellKey = `${Math.floor(position.x / cellPx)}:${Math.floor(position.y / cellPx)}`
+    const cluster = cells.get(cellKey)
+    if (cluster) {
+      cluster.members.push(point)
+      continue
+    }
+    cells.set(cellKey, { key: `cell:${cellKey}`, members: [point], position: { ...position } })
+  }
+  for (const cluster of cells.values()) {
+    if (cluster.members.length === 1) continue
+    let sumX = 0
+    let sumY = 0
+    for (const member of cluster.members) {
+      const position = positions.get(member.key)!
+      sumX += position.x
+      sumY += position.y
+    }
+    cluster.position = { x: sumX / cluster.members.length, y: sumY / cluster.members.length }
+  }
+  return [...cells.values()]
+}
+
+/**
  * Largest count shown as a number; beyond it the marker reads "99+".
  *
  * The marker is a fixed circle, so the text has to fit it — and past a hundred

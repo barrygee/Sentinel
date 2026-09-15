@@ -124,6 +124,13 @@ class Settings(BaseSettings):
     # this value.
     aprs_station_ttl_ms: int = 300_000
 
+    # ── Land live feeds (traffic cameras / traffic data / webcams) ───────────
+    # Optional headless-deployment override for feed credentials, keyed by
+    # feed id: {"durham-cc": {...}, "tfl-jamcams": {"apiKey": "..."}}. Set in
+    # `.env` (never committed); a credential saved from Settings › LAND
+    # (per-feed, via `PUT /api/land/feeds/{id}/credentials`) takes precedence.
+    land_feed_credentials_json: str = ""
+
     # ── Sentry integration (ADR-0009: Sentry owns SDR device state, Sentinel is a client) ──
     # How often each enabled Sentry host is polled for GET /api/status, in seconds.
     sentry_poll_interval_s: float = 2.0

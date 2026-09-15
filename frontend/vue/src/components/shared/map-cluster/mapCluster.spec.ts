@@ -6,6 +6,7 @@ import {
   COUNT_MARKER_RING_PX,
   COUNT_MARKER_SIZE_PX,
   formatCount,
+  groupByGridCell,
   groupByProximity,
   type ClusterablePoint,
   type ScreenPosition,
@@ -90,6 +91,92 @@ describe('groupByProximity', () => {
   it('groups coincident points', () => {
     const { points, screen } = pointsAt({ a: [12, 12], b: [12, 12] })
     expect(groupByProximity(points, screen, 30)).toHaveLength(1)
+  })
+})
+
+describe('groupByGridCell', () => {
+  it('returns no groups for no points', () => {
+    expect(groupByGridCell([], new Map(), 30)).toEqual([])
+  })
+
+  it('keeps a lone point in a cell of its own, at its own true position', () => {
+    const { points, screen } = pointsAt({ a: [5, 5] })
+    const clusters = groupByGridCell(points, screen, 30)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0]!.members).toEqual([{ key: 'a' }])
+    // A singleton keeps its own position — no averaging needed or applied.
+    expect(clusters[0]!.position).toEqual({ x: 5, y: 5 })
+  })
+
+  it('prefixes every cluster key with "cell:", distinguishing it from groupByProximity keys', () => {
+    const { points, screen } = pointsAt({ a: [5, 5] })
+    const clusters = groupByGridCell(points, screen, 30)
+    expect(clusters[0]!.key).toMatch(/^cell:/)
+  })
+
+  it('buckets two points in the same cell together and positions the count at their centroid', () => {
+    const { points, screen } = pointsAt({ a: [10, 10], b: [15, 15] })
+    const clusters = groupByGridCell(points, screen, 30)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0]!.members.map((member) => member.key).sort()).toEqual(['a', 'b'])
+    // Centroid of (10,10) and (15,15) — not either member's own position.
+    expect(clusters[0]!.position).toEqual({ x: 12.5, y: 12.5 })
+  })
+
+  it('keeps points in different cells apart even when they are close enough for groupByProximity to chain them', () => {
+    // A dense lattice, one point every 10px: groupByProximity would chain the
+    // whole row into a single group via single-linkage, but the grid keeps
+    // each 30px cell to its own bucket instead.
+    const { points, screen } = pointsAt({
+      a: [0, 0],
+      b: [10, 0],
+      c: [40, 0],
+      d: [50, 0],
+    })
+    const clusters = groupByGridCell(points, screen, 30)
+    // a+b fall in cell 0, c+d fall in cell 1 — two buckets, not one chain.
+    expect(clusters).toHaveLength(2)
+    const memberSets = clusters
+      .map((cluster) => cluster.members.map((member) => member.key).sort())
+      .sort()
+    expect(memberSets).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+  })
+
+  it('runs the lattice case in O(n) buckets rather than an O(n^2) proximity scan', () => {
+    // 500 points spread far enough apart that none should ever merge; this is
+    // primarily a scale smoke test that the bucketing is linear-time, not a
+    // hand-checked geometry case.
+    const positions: Record<string, [number, number]> = {}
+    for (let index = 0; index < 500; index += 1) {
+      positions[`p${index}`] = [index * 1000, 0]
+    }
+    const { points, screen } = pointsAt(positions)
+    const clusters = groupByGridCell(points, screen, 30)
+    expect(clusters).toHaveLength(500)
+  })
+
+  it('assigns a point to its cell by flooring, so a point exactly on a cell edge belongs to the higher cell', () => {
+    // cellPx = 10: x=10 is the start of cell 1, not the end of cell 0.
+    const { points, screen } = pointsAt({ a: [9.999, 0], b: [10, 0] })
+    const clusters = groupByGridCell(points, screen, 10)
+    expect(clusters).toHaveLength(2)
+  })
+
+  it('buckets on both axes independently, so a shared column does not merge separate rows', () => {
+    const { points, screen } = pointsAt({ a: [5, 5], b: [5, 500] })
+    const clusters = groupByGridCell(points, screen, 30)
+    expect(clusters).toHaveLength(2)
+  })
+
+  it('groups more than two members into one cell and averages every one of them', () => {
+    const { points, screen } = pointsAt({ a: [0, 0], b: [10, 0], c: [20, 0] })
+    const clusters = groupByGridCell(points, screen, 30)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0]!.members).toHaveLength(3)
+    expect(clusters[0]!.position).toEqual({ x: 10, y: 0 })
   })
 })
 
