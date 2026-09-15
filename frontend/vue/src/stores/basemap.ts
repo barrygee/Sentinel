@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { usePersistedObject } from './_persist'
 import * as settingsApi from '@/services/settingsApi'
 
@@ -13,14 +14,17 @@ export interface BasemapLayerStates {
   roads: boolean
   /** Place-name labels (country/state/city/town/village/suburb + water names). */
   names: boolean
+  /** Shaded relief and contour lines from the local elevation archive. */
+  terrain: boolean
 }
 
 const LS_KEY = 'sentinel_basemapLayers'
 
-/** Both off by default — the maps start uncluttered and the operator opts in. */
+/** All off by default — the maps start uncluttered and the operator opts in. */
 const DEFAULTS: BasemapLayerStates = {
   roads: false,
   names: false,
+  terrain: false,
 }
 
 /** Pre-unification localStorage key holding the Air map's overlay states, which
@@ -59,6 +63,12 @@ export const useBasemapStore = defineStore('basemap', () => {
     ...DEFAULTS,
     ...seedFromLegacyAirOverlays(),
   })
+  /**
+   * Whether the terrain elevation archive was found on this server. Not
+   * persisted — the file can be installed between sessions, so every launch
+   * starts optimistic and the first map to open the archive settles it.
+   */
+  const terrainAvailable = ref(true)
 
   /** Set one base-map layer's visibility (persisted for every map). */
   function setLayer(key: keyof BasemapLayerStates, visible: boolean): void {
@@ -85,7 +95,11 @@ export const useBasemapStore = defineStore('basemap', () => {
     }
   }
 
-  return { layers, setLayer, persistLayers, hydrateLayers }
+  function setTerrainAvailable(available: boolean): void {
+    terrainAvailable.value = available
+  }
+
+  return { layers, terrainAvailable, setLayer, setTerrainAvailable, persistLayers, hydrateLayers }
 })
 
 export type BasemapStore = ReturnType<typeof useBasemapStore>

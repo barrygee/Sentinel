@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useAppStore } from '@/stores/app'
+import { useBasemapStore } from '@/stores/basemap'
 
 // Controllable user-location ref for the locActive computed + goToLocation.
 const shared = vi.hoisted(() => ({
@@ -178,6 +180,23 @@ describe('AirSideMenu', () => {
       expect(controls.rangeRings.handleClickPublic).toHaveBeenCalled()
       expect(controls.aara.toggle).toHaveBeenCalled()
       expect(controls.awacs.toggle).toHaveBeenCalled()
+    })
+
+    it('toggles the shared terrain layer on the basemap store and greys out without tiles', async () => {
+      const basemapStore = useBasemapStore()
+      const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+      expect(terrain().classes()).not.toContain('active')
+      expect(terrain().attributes('disabled')).toBeUndefined()
+
+      await terrain().trigger('click')
+      expect(basemapStore.layers.terrain).toBe(true)
+      expect(terrain().classes()).toContain('active')
+      await terrain().trigger('click')
+      expect(basemapStore.layers.terrain).toBe(false)
+
+      basemapStore.setTerrainAvailable(false)
+      await nextTick()
+      expect(terrain().attributes('disabled')).toBeDefined()
     })
 
     it('expands the LAYERS accordion on click and highlights the button while open', async () => {

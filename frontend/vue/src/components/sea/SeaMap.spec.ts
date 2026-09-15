@@ -50,6 +50,9 @@ vi.mock('@/components/shared/controls/names/NamesToggleControl', () => ({
 vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
   RoadsToggleControl: controlMocks.make('roads'),
 }))
+vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
+  TerrainToggleControl: controlMocks.make('terrain'),
+}))
 vi.mock('@/components/shared/controls/sentry-sites/SentrySitesControl', () => ({
   SentrySitesControl: controlMocks.make('sentrySites'),
 }))
@@ -221,6 +224,7 @@ describe('SeaMap', () => {
       'rangeRings',
       'roads',
       'names',
+      'terrain',
       'sentrySites',
     ]) {
       expect(last(name).onAdd).toHaveBeenCalledWith(map)
@@ -288,6 +292,7 @@ describe('SeaMap', () => {
       map.onceHandlers['style.load']!()
       expect(last('roads').applyVisibility).toHaveBeenCalled()
       expect(last('names').applyVisibility).toHaveBeenCalled()
+      expect(last('terrain').initLayers).toHaveBeenCalled()
       expect(last('rangeRings')._initRings).toHaveBeenCalled()
       expect(last('vessels').initLayers).toHaveBeenCalled()
       expect(last('ferries').initLayers).toHaveBeenCalled()
@@ -355,6 +360,10 @@ describe('SeaMap', () => {
       basemap.setLayer('names', !basemap.layers.names)
       await nextTick()
       expect(last('names').setVisible).toHaveBeenCalledOnce()
+      // Terrain, by contrast, does follow the shared basemap flag.
+      basemap.setLayer('terrain', true)
+      await nextTick()
+      expect(last('terrain').setVisible).toHaveBeenCalledExactlyOnceWith(true)
     })
 
     it('seeds the overlays from the default-layers config on a first visit', async () => {
@@ -409,6 +418,7 @@ describe('SeaMap', () => {
       'rangeRings',
       'roads',
       'names',
+      'terrain',
       'sentrySites',
     ]) {
       expect(last(name).onRemove).toHaveBeenCalledOnce()

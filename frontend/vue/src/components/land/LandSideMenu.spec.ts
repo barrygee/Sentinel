@@ -143,6 +143,27 @@ describe('LandSideMenu', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[aria-label="Location name labels"]').classes()).toContain('active')
   })
+
+  it('toggles the shared terrain layer on the basemap store and reflects it, disabled without tiles', async () => {
+    const basemapStore = useBasemapStore()
+    const { wrapper } = mountMenu()
+    const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+    expect(terrain().classes()).not.toContain('active')
+    expect(terrain().attributes('disabled')).toBeUndefined()
+
+    await terrain().trigger('click')
+    expect(basemapStore.layers.terrain).toBe(true)
+    expect(terrain().classes()).toContain('active')
+    await terrain().trigger('click')
+    expect(basemapStore.layers.terrain).toBe(false)
+
+    // The first map to open a missing archive marks it unavailable on the
+    // store; every rail then greys the button out and says why.
+    basemapStore.setTerrainAvailable(false)
+    await wrapper.vm.$nextTick()
+    expect(terrain().attributes('disabled')).toBeDefined()
+    expect(terrain().attributes('data-tooltip') ?? terrain().text()).toBeDefined()
+  })
 })
 
 describe('LandSideMenu accordions', () => {
@@ -204,7 +225,11 @@ describe('LandSideMenu accordions', () => {
     const labels = wrapper
       .findAll('#land-layers-panel button')
       .map((button) => button.attributes('aria-label'))
-    expect(labels).toEqual(['Range rings', 'Location name labels'])
+    expect(labels).toEqual([
+      'Range rings',
+      'Location name labels',
+      'Terrain relief and contour lines',
+    ])
   })
 })
 

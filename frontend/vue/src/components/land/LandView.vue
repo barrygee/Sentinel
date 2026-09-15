@@ -62,6 +62,7 @@ import { LandRangeRingsControl } from '@/components/land/controls/range-rings/La
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
 import { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsToggleControl'
+import { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 
 /** Zoom level the map flies to when centring on the user's location. */
 const LOCATE_ZOOM = 10
@@ -103,6 +104,7 @@ let _namesControl: NamesToggleControl | null = null
 // SentrySitesControl. No side-menu button: the sites are always shown.
 let _sentrySitesControl: SentrySitesControl | null = null
 let _roadsControl: RoadsToggleControl | null = null
+let _terrainControl: TerrainToggleControl | null = null
 
 // Reactive toggle state backing the side-menu buttons' active (green) styling.
 // APRS visibility lives on the store, so the map and the side panel's station
@@ -144,6 +146,7 @@ function onMapCreated(m: Map) {
   // apply the stored visibility to this map's style.
   _namesControl = new NamesToggleControl(basemapStore)
   _roadsControl = new RoadsToggleControl(basemapStore)
+  _terrainControl = new TerrainToggleControl(basemapStore)
   _sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
     // The operator's own position joins the grouping pass, so a Sentry sitting
     // on top of it collapses into a count instead of two marks smearing
@@ -157,6 +160,7 @@ function onMapCreated(m: Map) {
   _trafficCamerasControl.onAdd(m)
   _namesControl.onAdd(m)
   _roadsControl.onAdd(m)
+  _terrainControl.onAdd(m)
   // APRS starts visible per the land.defaultLayers config (default ["aprs"]),
   // but only once a radio is decoding it.
   _aprsControl.setVisible(aprsSourceConfigured.value && landStore.defaultLayers.includes('aprs'))
@@ -247,6 +251,10 @@ onMounted(() => {
     () => basemapStore.layers.names,
     (on) => _namesControl?.setVisible(on),
   )
+  watch(
+    () => basemapStore.layers.terrain,
+    (on) => _terrainControl?.setVisible(on),
+  )
 })
 
 onUnmounted(() => {
@@ -256,12 +264,13 @@ onUnmounted(() => {
   _trafficCamerasControl?.onRemove()
   _namesControl?.onRemove()
   _roadsControl?.onRemove()
+  _terrainControl?.onRemove()
   _sentrySitesControl?.onRemove()
   _sentrySitesControl = null
   _locationMarker.remove()
   _rangeRingsControl = _aprsControl = null
   _trafficCamerasControl = null
-  _namesControl = _roadsControl = null
+  _namesControl = _roadsControl = _terrainControl = null
 })
 
 function onStyleLoaded(m: Map) {
@@ -274,5 +283,6 @@ function onStyleLoaded(m: Map) {
   // base-map toggles every time one loads.
   _namesControl?.applyVisibility()
   _roadsControl?.applyVisibility()
+  _terrainControl?.initLayers()
 }
 </script>

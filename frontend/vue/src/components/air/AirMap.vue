@@ -36,6 +36,7 @@ import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
 import { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsToggleControl'
+import { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 import { RangeRingsControl } from './controls/range-rings/RangeRingsControl'
 import { OverheadZoneControl } from './controls/overhead-zone/OverheadZoneControl'
 import { AdsbLabelsToggleControl } from './controls/adsb-labels/AdsbLabelsToggleControl'
@@ -101,6 +102,7 @@ let adsbLabelsControl: AdsbLabelsToggleControl | null = null
 let rangeRingsControl: RangeRingsControl | null = null
 let overheadZoneControl: OverheadZoneControl | null = null
 let roadsControl: RoadsToggleControl | null = null
+let terrainControl: TerrainToggleControl | null = null
 let namesControl: NamesToggleControl | null = null
 let airportsControl: AirportsToggleControl | null = null
 let militaryBasesControl: MilitaryBasesToggleControl | null = null
@@ -154,6 +156,7 @@ useConnectivity((online) => {
   m.once('style.load', () => {
     roadsControl?.applyVisibility()
     namesControl?.applyVisibility()
+    terrainControl?.initLayers()
     rangeRingsControl?._initRings()
     overheadZoneControl?.reinit()
     airportsControl?.initLayers()
@@ -209,6 +212,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   })
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
+  terrainControl = new TerrainToggleControl(basemapStore)
   airportsControl = new AirportsToggleControl(airStore)
   militaryBasesControl = new MilitaryBasesToggleControl(airStore, is3DActive)
   aaraControl = new AaraToggleControl(airStore)
@@ -233,6 +237,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   rangeRingsControl.onAdd(m)
   roadsControl.onAdd(m)
   namesControl.onAdd(m)
+  terrainControl.onAdd(m)
   airportsControl.onAdd(m)
   militaryBasesControl.onAdd(m)
   aaraControl.onAdd(m)
@@ -257,6 +262,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
     m.once('style.load', () => {
       roadsControl?.applyVisibility()
       namesControl?.applyVisibility()
+      terrainControl?.initLayers()
       rangeRingsControl?._initRings()
       airportsControl?.initLayers()
       militaryBasesControl?.initLayers()
@@ -411,6 +417,11 @@ onMounted(() => {
     () => basemapStore.layers.names,
     (on) => namesControl?.setVisible(on),
   )
+  // Terrain relief/contours likewise — one shared choice across Air, Sea and Land.
+  watch(
+    () => basemapStore.layers.terrain,
+    (on) => terrainControl?.setVisible(on),
+  )
 
   // Only the drawn zones are driven here; overhead-alert detection lives in
   // useAirAlertsService, off the same list.
@@ -468,6 +479,7 @@ onBeforeUnmount(() => {
   rangeRingsControl?.onRemove()
   roadsControl?.onRemove()
   namesControl?.onRemove()
+  terrainControl?.onRemove()
   airportsControl?.onRemove()
   militaryBasesControl?.onRemove()
   aaraControl?.onRemove()
@@ -479,6 +491,7 @@ onBeforeUnmount(() => {
   overheadZoneControl = null
   roadsControl = null
   namesControl = null
+  terrainControl = null
   airportsControl = null
   militaryBasesControl = null
   aaraControl = null

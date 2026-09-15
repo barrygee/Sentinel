@@ -217,6 +217,27 @@
             <circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none" />
           </svg>
         </BaseIconButton>
+        <!-- TERRAIN: shaded relief + contour lines from the local elevation
+             archive. A shared base-map layer (basemap store), so the choice
+             follows the operator to the other maps. Disabled, with the tooltip
+             saying why, when the archive is not installed on this server. -->
+        <BaseIconButton
+          id="land-sm-terrain-btn"
+          class="sm-btn sm-sub-btn"
+          style="
+            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-transition: color 0.15s ease;
+          "
+          :class="{ active: basemapStore.layers.terrain }"
+          :active="basemapStore.layers.terrain"
+          :disabled="!basemapStore.terrainAvailable"
+          tooltip-side="left"
+          :tooltip="basemapStore.terrainAvailable ? 'TERRAIN' : 'TERRAIN — TILES NOT INSTALLED'"
+          accessible-name="Terrain relief and contour lines"
+          @click="toggleTerrain"
+        >
+          <TerrainIcon />
+        </BaseIconButton>
       </template>
     </IconRailAccordion>
   </IconRail>
@@ -230,6 +251,7 @@ import IconRail from '@/components/base/IconRail.vue'
 import IconRailAccordion from '@/components/base/IconRailAccordion.vue'
 import FilterFunnelIcon from '@/components/shared/FilterFunnelIcon.vue'
 import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
+import TerrainIcon from '@/components/shared/TerrainIcon.vue'
 
 defineProps<{
   zoomIn: () => void
@@ -251,6 +273,11 @@ const appStore = useAppStore()
 // Location names are a shared base-map layer, so the active state is read
 // straight off the cross-domain store rather than passed in from LandView.
 const basemapStore = useBasemapStore()
+
+/** Flip the shared terrain layer; every map watches the store and follows. */
+function toggleTerrain(): void {
+  basemapStore.setLayer('terrain', !basemapStore.layers.terrain)
+}
 </script>
 
 <style>

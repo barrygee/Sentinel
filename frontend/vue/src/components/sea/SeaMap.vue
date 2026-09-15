@@ -31,6 +31,7 @@ import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
 import { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsToggleControl'
+import { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 import { AisVesselsControl } from './controls/vessels/AisVesselsControl'
@@ -69,6 +70,7 @@ let portsControl: PortsControl | null = null
 let rangeRingsControl: LandRangeRingsControl | null = null
 let roadsControl: RoadsToggleControl | null = null
 let namesControl: NamesToggleControl | null = null
+let terrainControl: TerrainToggleControl | null = null
 // Sentry sites are plotted on every domain map — no side-menu button.
 let sentrySitesControl: SentrySitesControl | null = null
 
@@ -83,6 +85,7 @@ defineExpose({
 function _reinitAfterStyle(): void {
   roadsControl?.applyVisibility()
   namesControl?.applyVisibility()
+  terrainControl?.initLayers()
   rangeRingsControl?._initRings()
   vesselsControl?.initLayers()
   ferryRoutesControl?.initLayers()
@@ -116,6 +119,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
+  terrainControl = new TerrainToggleControl(basemapStore)
   sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
     getUserLocation,
     userMarker: _locationMarker,
@@ -133,6 +137,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // Place names are always on at sea — a chart without them is hard to read
   // and the rail has no toggle — whatever the shared basemap choice says.
   namesControl.setVisible(true)
+  terrainControl.onAdd(m)
   sentrySitesControl.onAdd(m)
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
@@ -184,6 +189,12 @@ onMounted(() => {
     () => seaStore.overlayStates.ports,
     () => portsControl?.applyVisibility(),
   )
+  // Terrain relief/contours are a shared base-map layer, so this map follows
+  // the basemap store — whether flipped on its own rail, another map, or Settings.
+  watch(
+    () => basemapStore.layers.terrain,
+    (on) => terrainControl?.setVisible(on),
+  )
   // Seed the overlays from the default-layers config once it is known. The
   // store only honours it until the operator has made a choice of their own.
   void seaStore.hydrateDefaultLayers()
@@ -208,6 +219,7 @@ onBeforeUnmount(() => {
   rangeRingsControl?.onRemove()
   roadsControl?.onRemove()
   namesControl?.onRemove()
+  terrainControl?.onRemove()
   sentrySitesControl?.onRemove()
   _locationMarker.remove()
   vesselsControl = null
@@ -215,6 +227,7 @@ onBeforeUnmount(() => {
   rangeRingsControl = null
   roadsControl = null
   namesControl = null
+  terrainControl = null
   sentrySitesControl = null
 })
 </script>

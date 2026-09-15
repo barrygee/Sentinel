@@ -206,6 +206,22 @@ vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
   },
 }))
 
+// Terrain (hillshade + contours) is the third shared base-map layer.
+const terrainSpies = vi.hoisted(() => ({
+  onAdd: vi.fn(),
+  onRemove: vi.fn(),
+  initLayers: vi.fn(),
+  setVisible: vi.fn(),
+}))
+vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
+  TerrainToggleControl: class {
+    onAdd = terrainSpies.onAdd
+    onRemove = terrainSpies.onRemove
+    initLayers = terrainSpies.initLayers
+    setVisible = terrainSpies.setVisible
+  },
+}))
+
 const MapLibreMapStub = defineComponent({
   name: 'MapLibreMap',
   props: {
@@ -459,6 +475,18 @@ describe('LandView', () => {
       expect(namesSpies.setVisible).toHaveBeenCalledWith(true)
     })
 
+    it('follows a terrain change made on another map or in Settings', async () => {
+      const basemapStore = useBasemapStore()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      await nextTick()
+
+      basemapStore.setLayer('terrain', true)
+      await nextTick()
+      expect(terrainSpies.setVisible).toHaveBeenCalledWith(true)
+    })
+
     it('shows the APRS layer by default per the land.defaultLayers config', () => {
       const map = makeFakeMap()
       mountView()
@@ -579,6 +607,7 @@ describe('LandView', () => {
       shared.emit!('map-created', map)
       expect(namesSpies.onAdd).toHaveBeenCalledWith(map)
       expect(roadsSpies.onAdd).toHaveBeenCalledWith(map)
+      expect(terrainSpies.onAdd).toHaveBeenCalledWith(map)
     })
 
     it('toggling place names drives the control and flips the shared basemap flag', async () => {
@@ -605,13 +634,17 @@ describe('LandView', () => {
       shared.emit!('map-created', map)
       namesSpies.applyVisibility.mockClear()
       roadsSpies.applyVisibility.mockClear()
-      // A fresh style ships its own layer visibilities, so both must reapply.
+      terrainSpies.initLayers.mockClear()
+      // A fresh style ships its own layer visibilities (and drops the terrain
+      // overlay's sources/layers), so all three must reapply.
       shared.emit!('style-loaded', map)
       expect(namesSpies.applyVisibility).toHaveBeenCalledOnce()
       expect(roadsSpies.applyVisibility).toHaveBeenCalledOnce()
+      expect(terrainSpies.initLayers).toHaveBeenCalledOnce()
       shared.emit!('style-loaded', map)
       expect(namesSpies.applyVisibility).toHaveBeenCalledTimes(2)
       expect(roadsSpies.applyVisibility).toHaveBeenCalledTimes(2)
+      expect(terrainSpies.initLayers).toHaveBeenCalledTimes(2)
     })
 
     it('updates the marker + range-rings centre when a location fix arrives', async () => {
@@ -649,6 +682,7 @@ describe('LandView', () => {
       expect(aprsSpies.onRemove).toHaveBeenCalledOnce()
       expect(trafficCamerasSpies.onRemove).toHaveBeenCalledOnce()
       expect(namesSpies.onRemove).toHaveBeenCalledOnce()
+      expect(terrainSpies.onRemove).toHaveBeenCalledOnce()
       expect(roadsSpies.onRemove).toHaveBeenCalledOnce()
       expect(markerSpies.remove).toHaveBeenCalled()
     })

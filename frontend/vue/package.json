@@ -26,6 +26,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "maplibre-contour": "^0.1.0",
     "maplibre-gl": "^4.5.0",
     "pinia": "^2.2.0",
     "pmtiles": "^3.2.0",

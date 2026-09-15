@@ -39,6 +39,7 @@ describe('MapLayersControl', () => {
       'Ground vehicles',
       'Towers',
       'Location names',
+      'Terrain relief & contours',
       'Airports',
       'Military bases',
     ])
@@ -107,6 +108,17 @@ describe('MapLayersControl', () => {
       await switchOf(wrapper, 'Location names').trigger('click')
 
       expect(basemapStore.layers.names).toBe(true)
+    })
+
+    it('reads and writes terrain on the basemap store too', async () => {
+      const basemapStore = useBasemapStore()
+      const wrapper = mountControl()
+      expect(isOn(wrapper, 'Terrain relief & contours')).toBe(false)
+
+      await switchOf(wrapper, 'Terrain relief & contours').trigger('click')
+
+      expect(basemapStore.layers.terrain).toBe(true)
+      expect(isOn(wrapper, 'Terrain relief & contours')).toBe(true)
     })
 
     it('toggles back off again', async () => {
