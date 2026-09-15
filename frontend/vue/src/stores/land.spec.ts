@@ -115,8 +115,8 @@ describe('land store', () => {
   })
 
   describe('default layers', () => {
-    it('defaults to ["aprs"]', () => {
-      expect(useLandStore().defaultLayers).toEqual(['aprs'])
+    it('defaults to ["aprs", "trafficCameras"]', () => {
+      expect(useLandStore().defaultLayers).toEqual(['aprs', 'trafficCameras'])
     })
 
     it('hydrates the layer list from the land settings', async () => {
@@ -136,7 +136,7 @@ describe('land store', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
       const store = useLandStore()
       await store.hydrateDefaultLayers()
-      expect(store.defaultLayers).toEqual(['aprs'])
+      expect(store.defaultLayers).toEqual(['aprs', 'trafficCameras'])
     })
 
     it('keeps the default when the payload has no layer array', async () => {
@@ -146,14 +146,14 @@ describe('land store', () => {
       )
       const store = useLandStore()
       await store.hydrateDefaultLayers()
-      expect(store.defaultLayers).toEqual(['aprs'])
+      expect(store.defaultLayers).toEqual(['aprs', 'trafficCameras'])
     })
 
     it('swallows a network error', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
       const store = useLandStore()
       await expect(store.hydrateDefaultLayers()).resolves.toBeUndefined()
-      expect(store.defaultLayers).toEqual(['aprs'])
+      expect(store.defaultLayers).toEqual(['aprs', 'trafficCameras'])
     })
   })
 
@@ -210,6 +210,43 @@ describe('land store', () => {
       expect(store.aprsLayerVisible).toBe(false)
       store.setAprsLayerVisible(true)
       expect(store.aprsLayerVisible).toBe(true)
+    })
+  })
+
+  describe('traffic cameras layer visibility', () => {
+    it('starts visible', () => {
+      expect(useLandStore().trafficCamerasLayerVisible).toBe(true)
+    })
+
+    it('toggles, so the map control and the layers control stay in step', () => {
+      const store = useLandStore()
+      store.setTrafficCamerasLayerVisible(false)
+      expect(store.trafficCamerasLayerVisible).toBe(false)
+      store.setTrafficCamerasLayerVisible(true)
+      expect(store.trafficCamerasLayerVisible).toBe(true)
+    })
+  })
+
+  describe('currentDefaultLayers', () => {
+    it('lists both layers when both are visible', () => {
+      const store = useLandStore()
+      expect(store.currentDefaultLayers()).toEqual(['aprs', 'trafficCameras'])
+    })
+
+    it('drops a layer that has been switched off', () => {
+      const store = useLandStore()
+      store.setTrafficCamerasLayerVisible(false)
+      expect(store.currentDefaultLayers()).toEqual(['aprs'])
+      store.setTrafficCamerasLayerVisible(true)
+      store.setAprsLayerVisible(false)
+      expect(store.currentDefaultLayers()).toEqual(['trafficCameras'])
+    })
+
+    it('returns an empty list when every layer is off', () => {
+      const store = useLandStore()
+      store.setAprsLayerVisible(false)
+      store.setTrafficCamerasLayerVisible(false)
+      expect(store.currentDefaultLayers()).toEqual([])
     })
   })
 

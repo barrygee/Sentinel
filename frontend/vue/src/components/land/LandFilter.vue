@@ -78,6 +78,7 @@
       </div>
     </template>
   </BaseFilterPanel>
+  <LandCamerasList />
 </template>
 
 <script setup lang="ts">
@@ -100,6 +101,7 @@ import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
 import BaseDataCell from '@/components/base/BaseDataCell.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
+import LandCamerasList from '@/components/land/LandCamerasList.vue'
 import { useLandStore, type AprsStation } from '@/stores/land'
 import { aprsSymbolIcon } from '@/utils/aprsSymbols'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'

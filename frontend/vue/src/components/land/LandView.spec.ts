@@ -112,6 +112,39 @@ vi.mock('@/components/land/controls/aprs/AprsStationsControl', () => ({
   },
 }))
 
+const trafficCamerasSpies = vi.hoisted(() => ({
+  onAdd: vi.fn(),
+  onRemove: vi.fn(),
+  handleClickPublic: vi.fn(),
+  setVisible: vi.fn(),
+}))
+// Traffic cameras have no receiver gate (unlike APRS), but otherwise own their
+// visibility on the land store the same way, so the map and rail can't disagree.
+vi.mock('@/components/land/controls/traffic-cameras/TrafficCamerasControl', () => ({
+  TrafficCamerasControl: class {
+    private _store: {
+      trafficCamerasLayerVisible: boolean
+      setTrafficCamerasLayerVisible: (visible: boolean) => void
+    }
+    constructor(store: {
+      trafficCamerasLayerVisible: boolean
+      setTrafficCamerasLayerVisible: (visible: boolean) => void
+    }) {
+      this._store = store
+    }
+    onAdd = trafficCamerasSpies.onAdd
+    onRemove = trafficCamerasSpies.onRemove
+    handleClickPublic = (...args: unknown[]) => {
+      this._store.setTrafficCamerasLayerVisible(!this._store.trafficCamerasLayerVisible)
+      return trafficCamerasSpies.handleClickPublic(...args)
+    }
+    setVisible = (visible: boolean) => {
+      this._store.setTrafficCamerasLayerVisible(visible)
+      return trafficCamerasSpies.setVisible(visible)
+    }
+  },
+}))
+
 // The shared base-map layer controls (location names / roads). Mocked for the same
 // reason as the others — they own real maplibre layer visibility and have their
 // own specs — but each keeps the basemap store wired up, since the side menu
@@ -199,10 +232,12 @@ const LandSideMenuStub = defineComponent({
     'goToLocation',
     'toggleRangeRings',
     'toggleAprs',
+    'toggleTrafficCameras',
     'toggleNames',
     'rangeRingsActive',
     'aprsActive',
     'aprsSourceConfigured',
+    'trafficCamerasActive',
     'locationActive',
   ],
   setup(props) {
@@ -239,6 +274,15 @@ function makeFakeMap() {
     once: vi.fn(),
     getLayer: vi.fn(() => undefined),
     setLayoutProperty: vi.fn(),
+    // The traffic-cameras control reads the viewport bounds on every render.
+    getBounds: vi.fn(() => ({
+      getWest: () => -2,
+      getSouth: () => 53,
+      getEast: () => -1,
+      getNorth: () => 55,
+      getSouthWest: () => ({ lng: -2, lat: 53 }),
+      getNorthEast: () => ({ lng: -1, lat: 55 }),
+    })),
     _container: container,
   }
 }
@@ -376,6 +420,7 @@ describe('LandView', () => {
       shared.emit!('map-created', map)
       expect(ringsSpies.onAdd).toHaveBeenCalledWith(map)
       expect(aprsSpies.onAdd).toHaveBeenCalledWith(map)
+      expect(trafficCamerasSpies.onAdd).toHaveBeenCalledWith(map)
       expect(native.style.display).toBe('none') // native controls hidden
       expect(locationState.start).toHaveBeenCalledOnce()
       expect(markerSpies.addTo).toHaveBeenCalledWith(map)
@@ -423,6 +468,16 @@ describe('LandView', () => {
       expect(sideMenuProps!.aprsActive).toBe(true)
     })
 
+    it('shows the traffic-cameras layer by default per the land.defaultLayers config', () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      // Default config includes "trafficCameras", so the layer starts visible
+      // with no receiver gate (unlike APRS).
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(sideMenuProps!.trafficCamerasActive).toBe(true)
+    })
+
     it('loads the default-layers config on mount', () => {
       const land = useLandStore()
       const spy = vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
@@ -441,6 +496,21 @@ describe('LandView', () => {
       await nextTick()
       expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
       expect(sideMenuProps!.aprsActive).toBe(false)
+    })
+
+    it('applies a later defaultLayers change to the traffic-cameras layer independently of APRS', async () => {
+      const land = useLandStore()
+      vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      trafficCamerasSpies.setVisible.mockClear()
+      land.defaultLayers = ['aprs'] // config now hides traffic cameras only
+      await nextTick()
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(false)
+      expect(sideMenuProps!.trafficCamerasActive).toBe(false)
+      // APRS stays on — the two layers are gated independently.
+      expect(sideMenuProps!.aprsActive).toBe(true)
     })
 
     it('zoom buttons drive the map', () => {
@@ -490,6 +560,17 @@ describe('LandView', () => {
       await nextTick()
       expect(aprsSpies.handleClickPublic).toHaveBeenCalledOnce()
       expect(sideMenuProps!.aprsActive).toBe(false)
+    })
+
+    it('toggling traffic cameras drives the control and flips its active state', async () => {
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      expect(sideMenuProps!.trafficCamerasActive).toBe(true)
+      ;(sideMenuProps!.toggleTrafficCameras as () => void)()
+      await nextTick()
+      expect(trafficCamerasSpies.handleClickPublic).toHaveBeenCalledOnce()
+      expect(sideMenuProps!.trafficCamerasActive).toBe(false)
     })
 
     it('initialises the shared location-names and roads controls on the map', () => {
@@ -566,6 +647,7 @@ describe('LandView', () => {
       wrapper.unmount()
       expect(ringsSpies.onRemove).toHaveBeenCalledOnce()
       expect(aprsSpies.onRemove).toHaveBeenCalledOnce()
+      expect(trafficCamerasSpies.onRemove).toHaveBeenCalledOnce()
       expect(namesSpies.onRemove).toHaveBeenCalledOnce()
       expect(roadsSpies.onRemove).toHaveBeenCalledOnce()
       expect(markerSpies.remove).toHaveBeenCalled()

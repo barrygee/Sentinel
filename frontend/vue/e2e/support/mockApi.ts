@@ -184,6 +184,24 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     })
   })
 
+  // Land live feeds: an empty feed list and empty per-feed feature
+  // collections, so the traffic-cameras control and the LIVE FEEDS settings
+  // card have something well-formed to read without the Land view falling
+  // back to the no-data overlay.
+  await page.route('**/api/land/feeds', (route) => {
+    if (route.request().method() !== 'GET') {
+      void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ feeds: [] }) })
+      return
+    }
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ feeds: [] }) })
+  })
+  await page.route('**/api/land/feeds/*/features', (route) => {
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ type: 'FeatureCollection', features: [] }),
+    })
+  })
+
   // Settings catch-all, registered FIRST so the per-namespace routes below
   // (added later) take priority — Playwright matches most-recently-registered
   // first. GET returns an empty object; PUT/DELETE are acknowledged silently.
