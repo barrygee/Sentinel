@@ -482,7 +482,7 @@ Sentinel renders offline from [PMTiles](https://protomaps.com) vector archives p
 | `uk.pmtiles` | Regional detail (e.g. UK, zoom 0–14) |
 | `uk-terrain.pmtiles` | Optional elevation model for the **Terrain** layer (hillshade + contour lines) |
 
-Install the `pmtiles` CLI (`brew install protomaps/homebrew-tap/pmtiles`) and extract a region from a Protomaps planet build:
+Install the `pmtiles` CLI (`brew install pmtiles`, or a binary from [go-pmtiles releases](https://github.com/protomaps/go-pmtiles/releases)) and extract a region from a Protomaps planet build:
 
 ```bash
 mkdir -p frontend/assets/tiles
