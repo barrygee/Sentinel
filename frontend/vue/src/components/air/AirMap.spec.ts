@@ -73,6 +73,9 @@ vi.mock('@/components/shared/controls/names/NamesToggleControl', () => ({
 vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
   RoadsToggleControl: controlMocks.make('roads'),
 }))
+vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
+  TerrainToggleControl: controlMocks.make('terrain'),
+}))
 vi.mock('@/components/shared/controls/sentry-sites/SentrySitesControl', () => ({
   SentrySitesControl: controlMocks.make('sentrySites'),
 }))
@@ -253,6 +256,7 @@ describe('AirMap', () => {
         'rangeRings',
         'roads',
         'names',
+        'terrain',
         'airports',
         'mil',
         'aara',
@@ -353,6 +357,7 @@ describe('AirMap', () => {
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
       map.onceHandlers['style.load']!()
       expect(last('roads').applyVisibility).toHaveBeenCalled()
+      expect(last('terrain').initLayers).toHaveBeenCalled()
       expect(last('overheadZone').reinit).toHaveBeenCalled()
       expect(last('adsb').initLayers).toHaveBeenCalled()
     })
@@ -472,6 +477,18 @@ describe('AirMap', () => {
       await nextTick()
 
       expect(last('names').setVisible).toHaveBeenCalledWith(true)
+    })
+
+    it('pushes a terrain change onto the shared control', async () => {
+      const basemap = useBasemapStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+
+      basemap.setLayer('terrain', true)
+      await nextTick()
+
+      expect(last('terrain').setVisible).toHaveBeenCalledWith(true)
     })
   })
 
@@ -771,6 +788,7 @@ describe('AirMap', () => {
       expect(shared.ctx!.detach).toHaveBeenCalledWith(map)
       expect(saveSpy).toHaveBeenCalledWith([1, 2], 7, 30)
       expect(last('adsb').onRemove).toHaveBeenCalled()
+      expect(last('terrain').onRemove).toHaveBeenCalled()
       expect(last('overheadZone').onRemove).toHaveBeenCalled()
     })
 

@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SeaSideMenu from './SeaSideMenu.vue'
 import { useAppStore } from '@/stores/app'
+import { useBasemapStore } from '@/stores/basemap'
 
 function makeProps(overrides: Record<string, unknown> = {}) {
   return {
@@ -55,7 +56,7 @@ describe('SeaSideMenu', () => {
     expect(props.goToLocation).toHaveBeenCalledOnce()
   })
 
-  it('offers only the range ring under MAP LAYERS, wired and reflecting its state', async () => {
+  it('offers the range ring and terrain under MAP LAYERS, wired and reflecting state', async () => {
     const { wrapper, props } = mountMenu({ rangeRingsActive: true, locationActive: true })
     await wrapper.find('[aria-label="Range ring"]').trigger('click')
     expect(props.toggleRangeRings).toHaveBeenCalledOnce()
@@ -73,7 +74,28 @@ describe('SeaSideMenu', () => {
     ]) {
       expect(wrapper.find(`[aria-label="${name}"]`).exists()).toBe(false)
     }
-    expect(wrapper.findAll('#sea-layers-panel button')).toHaveLength(1)
+    expect(wrapper.findAll('#sea-layers-panel button')).toHaveLength(2)
+  })
+
+  it('toggles the shared terrain layer on the basemap store and reflects it, disabled without tiles', async () => {
+    const basemapStore = useBasemapStore()
+    const { wrapper } = mountMenu()
+    const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+    expect(terrain().classes()).not.toContain('active')
+    expect(terrain().attributes('disabled')).toBeUndefined()
+
+    await terrain().trigger('click')
+    expect(basemapStore.layers.terrain).toBe(true)
+    expect(terrain().classes()).toContain('active')
+    await terrain().trigger('click')
+    expect(basemapStore.layers.terrain).toBe(false)
+
+    // The first map to open a missing archive marks it unavailable on the
+    // store; every rail then greys the button out and says why.
+    basemapStore.setTerrainAvailable(false)
+    await wrapper.vm.$nextTick()
+    expect(terrain().attributes('disabled')).toBeDefined()
+    expect(terrain().attributes('data-tooltip') ?? terrain().text()).toBeDefined()
   })
 
   it('shows the range ring as inactive when off', () => {

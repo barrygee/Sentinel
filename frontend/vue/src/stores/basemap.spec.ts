@@ -21,19 +21,19 @@ afterEach(() => {
 
 describe('basemap store defaults', () => {
   it('starts with both shared layers off', () => {
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 
   it('restores previously persisted layers', () => {
-    localStorage.setItem(LS_KEY, JSON.stringify({ roads: true, names: false }))
+    localStorage.setItem(LS_KEY, JSON.stringify({ roads: true, names: false, terrain: false }))
     setActivePinia(createPinia())
-    expect(useBasemapStore().layers).toEqual({ roads: true, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: true, names: false, terrain: false })
   })
 
   it('fills in a missing key from the defaults', () => {
     localStorage.setItem(LS_KEY, JSON.stringify({ names: true }))
     setActivePinia(createPinia())
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: true })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: true, terrain: false })
   })
 })
 
@@ -57,7 +57,7 @@ describe('basemap store setLayer', () => {
     const store = useBasemapStore()
     store.setLayer('names', true)
     expect(store.layers.roads).toBe(false)
-    expect(persisted()).toEqual({ roads: false, names: true })
+    expect(persisted()).toEqual({ roads: false, names: true, terrain: false })
   })
 })
 
@@ -71,46 +71,46 @@ describe('basemap store legacy Air-overlay seeding', () => {
 
   it('adopts both flags from the legacy Air overlay state', () => {
     seedLegacy({ adsb: true, roads: true, names: true })
-    expect(useBasemapStore().layers).toEqual({ roads: true, names: true })
+    expect(useBasemapStore().layers).toEqual({ roads: true, names: true, terrain: false })
   })
 
   it('lets an explicit new-key choice win over the legacy seed', () => {
-    localStorage.setItem(LS_KEY, JSON.stringify({ roads: true, names: true }))
-    seedLegacy({ roads: false, names: false })
+    localStorage.setItem(LS_KEY, JSON.stringify({ roads: true, names: true, terrain: false }))
+    seedLegacy({ roads: false, names: false, terrain: false })
     // The new key still wins — seeding only supplies the base the new key
     // merges over, so an explicit later choice is never clobbered.
-    expect(useBasemapStore().layers).toEqual({ roads: true, names: true })
+    expect(useBasemapStore().layers).toEqual({ roads: true, names: true, terrain: false })
   })
 
   it('adopts only the flags the legacy state actually carried', () => {
     seedLegacy({ names: true })
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: true })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: true, terrain: false })
   })
 
   it('ignores legacy values of the wrong type', () => {
     seedLegacy({ roads: 'yes', names: 1 })
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 
   it('ignores a legacy key holding an array', () => {
     seedLegacy(['roads'])
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 
   it('ignores a legacy key holding null', () => {
     seedLegacy(null)
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 
   it('ignores a legacy key holding a non-object', () => {
     seedLegacy(42)
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 
   it('ignores malformed legacy JSON', () => {
     localStorage.setItem(LEGACY_AIR_OVERLAYS_KEY, '{not json')
     setActivePinia(createPinia())
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 
   it('falls back to the defaults when localStorage throws', () => {
@@ -118,7 +118,7 @@ describe('basemap store legacy Air-overlay seeding', () => {
       throw new Error('storage disabled')
     })
     setActivePinia(createPinia())
-    expect(useBasemapStore().layers).toEqual({ roads: false, names: false })
+    expect(useBasemapStore().layers).toEqual({ roads: false, names: false, terrain: false })
   })
 })
 
@@ -133,31 +133,39 @@ describe('basemap store config mirroring', () => {
   it('writes app.mapLayers to the config database on every setLayer', () => {
     const store = useBasemapStore()
     store.setLayer('names', true)
-    expect(putSpy).toHaveBeenCalledWith('app', 'mapLayers', { roads: false, names: true })
+    expect(putSpy).toHaveBeenCalledWith('app', 'mapLayers', {
+      roads: false,
+      names: true,
+      terrain: false,
+    })
     store.setLayer('roads', true)
-    expect(putSpy).toHaveBeenLastCalledWith('app', 'mapLayers', { roads: true, names: true })
+    expect(putSpy).toHaveBeenLastCalledWith('app', 'mapLayers', {
+      roads: true,
+      names: true,
+      terrain: false,
+    })
   })
 
   it('persistLayers writes a detached copy, not the live reactive object', async () => {
     const store = useBasemapStore()
     await store.persistLayers()
     const written = putSpy.mock.calls[0]![2] as Record<string, boolean>
-    expect(written).toEqual({ roads: false, names: false })
+    expect(written).toEqual({ roads: false, names: false, terrain: false })
     expect(written).not.toBe(store.layers)
   })
 
   describe('hydrateLayers', () => {
     it('adopts boolean values for known layers', () => {
       const store = useBasemapStore()
-      store.hydrateLayers({ roads: true, names: true })
-      expect(store.layers).toEqual({ roads: true, names: true })
-      expect(persisted()).toEqual({ roads: true, names: true })
+      store.hydrateLayers({ roads: true, names: true, terrain: false })
+      expect(store.layers).toEqual({ roads: true, names: true, terrain: false })
+      expect(persisted()).toEqual({ roads: true, names: true, terrain: false })
     })
 
     it('ignores unknown keys and non-boolean values', () => {
       const store = useBasemapStore()
-      store.hydrateLayers({ roads: 'yes', names: 1, terrain: true })
-      expect(store.layers).toEqual({ roads: false, names: false })
+      store.hydrateLayers({ roads: 'yes', names: 1, contours: true })
+      expect(store.layers).toEqual({ roads: false, names: false, terrain: false })
     })
 
     it.each([null, undefined, 'names', 42, ['names']])(
@@ -173,6 +181,23 @@ describe('basemap store config mirroring', () => {
     it('does not write back to the config database', () => {
       useBasemapStore().hydrateLayers({ names: true })
       expect(putSpy).not.toHaveBeenCalled()
+    })
+
+    it('adopts the terrain flag like any other layer', () => {
+      const store = useBasemapStore()
+      store.hydrateLayers({ terrain: true })
+      expect(store.layers.terrain).toBe(true)
+    })
+  })
+
+  describe('terrainAvailable', () => {
+    it('starts optimistic and is not persisted', () => {
+      const store = useBasemapStore()
+      expect(store.terrainAvailable).toBe(true)
+      store.setTerrainAvailable(false)
+      expect(store.terrainAvailable).toBe(false)
+      setActivePinia(createPinia())
+      expect(useBasemapStore().terrainAvailable).toBe(true)
     })
   })
 })

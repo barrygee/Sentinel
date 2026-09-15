@@ -21,6 +21,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      // maplibre-contour's `exports` map only lists "module"/"require"/"browser"
+      // (no "import"/"default"), so Node-condition resolution (vitest) rejects
+      // it. An absolute alias bypasses the exports map for both build and test.
+      'maplibre-contour': resolve(__dirname, 'node_modules/maplibre-contour/dist/index.mjs'),
     },
   },
   server: {

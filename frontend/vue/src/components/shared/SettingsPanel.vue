@@ -406,7 +406,7 @@ const ALL_SETTINGS: SettingItem[] = [
     label: 'Map Layers',
     desc: 'Which overlays the maps draw. The rails keep the few worth flipping mid-task; toggling one there updates it here.',
     searchTerms:
-      'range rings a2a refuelling refueling awacs ground vehicles towers location names airports military bases overlays',
+      'range rings a2a refuelling refueling awacs ground vehicles towers location names terrain relief contours hillshade elevation airports military bases overlays',
     type: 'map-layers',
     groupLabel: 'MAP',
   },

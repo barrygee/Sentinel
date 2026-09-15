@@ -20,8 +20,8 @@
  * this table and a switch here moves the layer on the map — there is one value,
  * not two that have to be kept in step.
  *
- * `names` lives on the shared basemap store because it describes the base map
- * every domain draws; the rest are Air overlays.
+ * `names` and `terrain` live on the shared basemap store because they describe
+ * the base map every domain draws; the rest are Air overlays.
  */
 import { useAirStore, type OverlayStates } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
@@ -29,8 +29,8 @@ import * as settingsApi from '@/services/settingsApi'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'
 
-/** An Air overlay flag, or the shared base-map place-name layer. */
-type MapLayerKey = keyof OverlayStates | 'names'
+/** An Air overlay flag, or a shared base-map layer (place names, terrain). */
+type MapLayerKey = keyof OverlayStates | 'names' | 'terrain'
 
 // One unlabelled column: every row is a plain on/off, so a heading would say
 // nothing the switch does not.
@@ -43,6 +43,7 @@ const LAYER_ROWS: LabelFieldRow[] = [
   { key: 'groundVehicles', label: 'Ground vehicles' },
   { key: 'towers', label: 'Towers' },
   { key: 'names', label: 'Location names' },
+  { key: 'terrain', label: 'Terrain relief & contours' },
   { key: 'airports', label: 'Airports' },
   { key: 'militaryBases', label: 'Military bases' },
 ]
@@ -52,7 +53,7 @@ const basemapStore = useBasemapStore()
 
 function isLayerOn(_columnKey: string, layer: string): boolean {
   const key = layer as MapLayerKey
-  if (key === 'names') return basemapStore.layers.names
+  if (key === 'names' || key === 'terrain') return basemapStore.layers[key]
   return airStore.overlayStates[key]
 }
 
@@ -72,8 +73,8 @@ async function hydrateLayersFromDb(): Promise<void> {
 useDocumentEvent('sentinel:config-uploaded', () => void hydrateLayersFromDb())
 
 function toggleLayer(layer: MapLayerKey): void {
-  if (layer === 'names') {
-    basemapStore.setLayer('names', !basemapStore.layers.names)
+  if (layer === 'names' || layer === 'terrain') {
+    basemapStore.setLayer(layer, !basemapStore.layers[layer])
     return
   }
   airStore.setOverlay(layer, !airStore.overlayStates[layer])

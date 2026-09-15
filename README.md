@@ -480,8 +480,9 @@ Sentinel renders offline from [PMTiles](https://protomaps.com) vector archives p
 |---|---|
 | `surroundings.pmtiles` | Global overview (zoom 0–6) |
 | `uk.pmtiles` | Regional detail (e.g. UK, zoom 0–14) |
+| `uk-terrain.pmtiles` | Optional elevation model for the **Terrain** layer (hillshade + contour lines) |
 
-Install the `pmtiles` CLI (`brew install protomaps/homebrew-tap/pmtiles`) and extract a region from a Protomaps planet build:
+Install the `pmtiles` CLI (`brew install pmtiles`, or a binary from [go-pmtiles releases](https://github.com/protomaps/go-pmtiles/releases)) and extract a region from a Protomaps planet build:
 
 ```bash
 mkdir -p frontend/assets/tiles
@@ -492,6 +493,17 @@ pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles \
 ```
 
 `--bbox` is `west,south,east,north` in decimal degrees. With the files in place, switch via **Settings → Connectivity Mode → Offline**, or let Sentinel fail over automatically when it loses connectivity.
+
+### Terrain layer (optional)
+
+**TERRAIN** — in the MAP LAYERS rail group on the Air, Sea and Land maps, and under Settings → AIR → Map Layers — draws shaded relief and contour lines (with elevation labels) from a local Terrarium-encoded elevation archive. It is one shared base-map setting like roads and location names, works fully offline in every connectivity mode, and the button is simply disabled when the archive is absent. Extract one from the [Mapterhorn](https://mapterhorn.com) planet build (Copernicus DEM, 30 m):
+
+```bash
+pmtiles extract https://download.mapterhorn.com/planet.pmtiles \
+  frontend/assets/tiles/uk-terrain.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=12
+```
+
+Add `--dry-run` first to see the download size — each extra zoom level roughly doubles it. `--maxzoom=12` matches the DEM's native resolution; contours are generated in the browser from the same tiles, so no separate contour data is needed.
 
 ---
 
