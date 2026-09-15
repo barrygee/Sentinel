@@ -112,6 +112,17 @@ describe('LandFeedRow', () => {
     expect(wrapper.emitted('cancel-edit')).toHaveLength(1)
   })
 
+  it("forwards the form's live draft (and its withdrawal) so APPLY can stage it", () => {
+    const wrapper = mountRow({ open: true })
+    const edited: FeedConfig = { ...DURHAM, name: 'Half typed' }
+    wrapper.findComponent(LandFeedForm).vm.$emit('draft', edited, undefined)
+    wrapper.findComponent(LandFeedForm).vm.$emit('draft', null, undefined)
+    expect(wrapper.emitted('draft')).toEqual([
+      [edited, undefined],
+      [null, undefined],
+    ])
+  })
+
   describe('status dot', () => {
     it('shows null (unknown) when the feed is disabled, regardless of status', () => {
       const wrapper = mountRow({

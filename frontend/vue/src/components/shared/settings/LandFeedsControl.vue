@@ -17,13 +17,14 @@
         @confirm-delete="confirmDelete(feed.id)"
         @cancel-delete="confirmId = null"
         @save="onFormSave"
-        @cancel-edit="openId = null"
+        @draft="onFormDraft"
+        @cancel-edit="onFormCancel"
       />
       <div
         v-if="openId === 'new'"
         class="sdr-device-item sdr-device-item--open sdr-device-item--new"
       >
-        <LandFeedForm :feed="null" @save="onFormSave" @cancel="openId = null" />
+        <LandFeedForm :feed="null" @save="onFormSave" @draft="onFormDraft" @cancel="onFormCancel" />
       </div>
     </div>
     <BaseButton variant="ghost" class="sdr-devices-add-btn" @click="toggleNew"
@@ -69,6 +70,27 @@ const confirmId = ref<string | null>(null)
  *  earlier op, which is correct: only the latest edit should apply. */
 const credentialOps = new Map<string, () => Promise<unknown>>()
 
+/**
+ * The open form's live, valid edit — staged straight away so APPLY CHANGES
+ * always includes what the operator can see in the form, SAVE or no SAVE.
+ * Null while the form is invalid or closed. Folded into `draftFeeds` only at
+ * write time, so cancelling the form really does discard it.
+ */
+const liveDraft = ref<{ feed: FeedConfig; credentialOp?: () => Promise<unknown> } | null>(null)
+
+/** The draft list as APPLY would write it: saved rows with the open form's
+ *  live edit merged on top (replacing its row, or appended when new). */
+function feedsToWrite(): FeedConfig[] {
+  const live = liveDraft.value
+  if (!live) return draftFeeds.value
+  const index = draftFeeds.value.findIndex((existing) => existing.id === live.feed.id)
+  return index === -1
+    ? [...draftFeeds.value, live.feed]
+    : draftFeeds.value.map((existing, currentIndex) =>
+        currentIndex === index ? live.feed : existing,
+      )
+}
+
 function stripStatus(feeds: FeedWithStatus[]): FeedConfig[] {
   return feeds.map(({ status: _status, ...config }) => config)
 }
@@ -78,6 +100,7 @@ async function loadDraft(): Promise<void> {
   draftFeeds.value = stripStatus(landFeedsStore.feeds)
   statusById.value = Object.fromEntries(landFeedsStore.feeds.map((feed) => [feed.id, feed.status]))
   credentialOps.clear()
+  liveDraft.value = null
 }
 
 onMounted(() => {
@@ -93,10 +116,30 @@ useDocumentEvent('settings-panel-closed', () => void loadDraft())
  *  closure always reads the latest `draftFeeds`/`credentialOps`. */
 function stageAll(): void {
   emit('stage', async () => {
-    await landFeedsStore.saveFeeds(draftFeeds.value)
+    const live = liveDraft.value
+    await landFeedsStore.saveFeeds(feedsToWrite())
+    if (live?.credentialOp) await live.credentialOp()
     for (const op of credentialOps.values()) await op()
     credentialOps.clear()
   })
+}
+
+/** The open form re-emits its validated state on every edit; stage it. */
+function onFormDraft(
+  feed: FeedConfig | null,
+  credentialOp: (() => Promise<unknown>) | undefined,
+): void {
+  liveDraft.value = feed ? { feed, credentialOp } : null
+  stageAll()
+}
+
+function onFormCancel(): void {
+  const hadLiveDraft = liveDraft.value !== null
+  liveDraft.value = null
+  openId.value = null
+  // Re-stage only when a live edit was withdrawn; cancelling an untouched form
+  // must not turn "no changes" into a no-op write.
+  if (hadLiveDraft) stageAll()
 }
 
 function toggleEdit(id: string): void {
@@ -128,6 +171,7 @@ function onFormSave(feed: FeedConfig, credentialOp: (() => Promise<unknown>) | u
       ? [...draftFeeds.value, feed]
       : draftFeeds.value.map((existing, currentIndex) => (currentIndex === index ? feed : existing))
   if (credentialOp) credentialOps.set(feed.id, credentialOp)
+  liveDraft.value = null
   openId.value = null
   stageAll()
 }

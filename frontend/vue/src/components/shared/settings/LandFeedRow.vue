@@ -66,6 +66,7 @@
       v-if="open"
       :feed="feed"
       @save="(updated, credentialOp) => emit('save', updated, credentialOp)"
+      @draft="(updated, credentialOp) => emit('draft', updated, credentialOp)"
       @cancel="emit('cancel-edit')"
     />
   </div>
@@ -90,6 +91,8 @@ const CATEGORY_LABEL: Record<FeedCategory, string> = {
 const PROVIDER_LABEL: Record<FeedProvider, string> = {
   durham: 'Durham CC',
   'tfl-jamcams': 'TfL JamCams',
+  utmc: 'UTMC',
+  twni: 'TrafficWatchNI',
   snapshot: 'Snapshot',
 }
 
@@ -117,6 +120,8 @@ const emit = defineEmits<{
   'confirm-delete': []
   'cancel-delete': []
   save: [feed: FeedConfig, credentialOp: (() => Promise<unknown>) | undefined]
+  /** Forwarded from the form on every edit — see `LandFeedForm`'s `draft`. */
+  draft: [feed: FeedConfig | null, credentialOp: (() => Promise<unknown>) | undefined]
   'cancel-edit': []
 }>()
 </script>

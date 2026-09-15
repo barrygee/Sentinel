@@ -145,6 +145,68 @@ describe('LandFeedsControl', () => {
     expect(wrapper.findComponent(LandFeedRow).props('open')).toBe(false)
   })
 
+  describe('live draft (APPLY without SAVE)', () => {
+    it("stages the open form's valid draft as soon as it is emitted, appended when new", async () => {
+      const wrapper = await mountControl()
+      await wrapper.find('.sdr-devices-add-btn').trigger('click')
+      const draft: FeedConfig = { ...toFeedConfig(DURHAM), id: 'new-feed', name: 'Half typed' }
+      wrapper.findComponent(LandFeedForm).vm.$emit('draft', draft, undefined)
+      await applyStaged(wrapper)
+      expect(landFeedsApi.saveFeeds).toHaveBeenCalledWith([draft])
+    })
+
+    it('merges a live edit of an existing row in place and runs its credential op after the list write', async () => {
+      vi.mocked(landFeedsApi.listFeeds).mockResolvedValue([DURHAM, TFL])
+      const wrapper = await mountControl()
+      const tflRow = wrapper.findAllComponents(LandFeedRow)[1]!
+      tflRow.vm.$emit('toggle-edit')
+      await flushPromises()
+      const order: string[] = []
+      vi.mocked(landFeedsApi.saveFeeds).mockImplementation(async () => {
+        order.push('feeds')
+      })
+      const credentialOp = vi.fn(async () => {
+        order.push('credential')
+      })
+      const edited: FeedConfig = { ...toFeedConfig(TFL), name: 'TfL (live edit)' }
+      wrapper.findAllComponents(LandFeedRow)[1]!.vm.$emit('draft', edited, credentialOp)
+      await applyStaged(wrapper)
+      expect(landFeedsApi.saveFeeds).toHaveBeenCalledWith([toFeedConfig(DURHAM), edited])
+      expect(order).toEqual(['feeds', 'credential'])
+    })
+
+    it('withdraws a draft that becomes invalid, so APPLY writes the saved list only', async () => {
+      vi.mocked(landFeedsApi.listFeeds).mockResolvedValue([DURHAM])
+      const wrapper = await mountControl()
+      await wrapper.find('.sdr-devices-add-btn').trigger('click')
+      const draft: FeedConfig = { ...toFeedConfig(DURHAM), id: 'new-feed' }
+      wrapper.findComponent(LandFeedForm).vm.$emit('draft', draft, undefined)
+      wrapper.findComponent(LandFeedForm).vm.$emit('draft', null, undefined)
+      await applyStaged(wrapper)
+      expect(landFeedsApi.saveFeeds).toHaveBeenCalledWith([toFeedConfig(DURHAM)])
+    })
+
+    it('cancelling a form with a live draft re-stages without it; SAVE clears the live draft', async () => {
+      vi.mocked(landFeedsApi.listFeeds).mockResolvedValue([DURHAM])
+      const wrapper = await mountControl()
+      await wrapper.find('.sdr-devices-add-btn').trigger('click')
+      const draft: FeedConfig = { ...toFeedConfig(DURHAM), id: 'new-feed' }
+      wrapper.findComponent(LandFeedForm).vm.$emit('draft', draft, undefined)
+      wrapper.findComponent(LandFeedForm).vm.$emit('cancel')
+      await flushPromises()
+      expect(wrapper.findComponent(LandFeedForm).exists()).toBe(false)
+      await applyStaged(wrapper)
+      expect(landFeedsApi.saveFeeds).toHaveBeenLastCalledWith([toFeedConfig(DURHAM)])
+
+      await wrapper.find('.sdr-devices-add-btn').trigger('click')
+      wrapper.findComponent(LandFeedForm).vm.$emit('draft', draft, undefined)
+      wrapper.findComponent(LandFeedForm).vm.$emit('save', draft, undefined)
+      await applyStaged(wrapper)
+      // Saved once, not once as the row and again as a live draft.
+      expect(landFeedsApi.saveFeeds).toHaveBeenLastCalledWith([toFeedConfig(DURHAM), draft])
+    })
+  })
+
   it('stages a new feed under a combined writer and saves it via the store on APPLY', async () => {
     const wrapper = await mountControl()
     await wrapper.find('.sdr-devices-add-btn').trigger('click')

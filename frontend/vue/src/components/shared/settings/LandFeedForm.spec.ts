@@ -333,6 +333,153 @@ describe('LandFeedForm', () => {
     })
   })
 
+  describe('UTMC (Basic auth) and TrafficWatchNI providers', () => {
+    const UTMC: FeedConfig = {
+      id: 'utmc-tyne-wear',
+      name: 'Tyne & Wear + Durham UTMC',
+      category: 'traffic-cameras',
+      provider: 'utmc',
+      url: 'https://www.netraveldata.co.uk/api/v2',
+      enabled: false,
+      refreshSeconds: 60,
+      datasets: ['cctv'],
+      bbox: null,
+      location: null,
+      auth: { type: 'basic' },
+    }
+
+    async function newUtmcForm() {
+      const wrapper = await mountForm(null)
+      await fieldFor(wrapper, 'Feed id').setValue('utmc')
+      await fieldFor(wrapper, 'Feed name').setValue('UTMC')
+      await fieldFor(wrapper, 'Feed URL').setValue('https://www.netraveldata.co.uk/api/v2')
+      await fieldFor(wrapper, 'Feed provider').setValue('utmc')
+      return wrapper
+    }
+
+    function usernameField(wrapper: ReturnType<typeof mount>) {
+      return wrapper.find('input[placeholder="netraveldata.co.uk account"]')
+    }
+    function passwordField(wrapper: ReturnType<typeof mount>) {
+      return wrapper.find('input[type="password"]')
+    }
+    function clickSave(wrapper: ReturnType<typeof mount>) {
+      return wrapper
+        .findAll('button')
+        .find((candidate) => candidate.text() === 'SAVE')!
+        .trigger('click')
+    }
+
+    it('shows username + password fields (and no app key) for UTMC, with the sign-up hint', async () => {
+      const wrapper = await newUtmcForm()
+      expect(usernameField(wrapper).exists()).toBe(true)
+      expect(passwordField(wrapper).exists()).toBe(true)
+      expect(wrapper.text()).toContain('Free account at netraveldata.co.uk')
+      expect(wrapper.text()).not.toContain('APP KEY')
+      expect(wrapper.text()).not.toContain('CLEAR CREDENTIALS')
+    })
+
+    it('refuses to save a new UTMC feed without credentials, and with only one half', async () => {
+      const wrapper = await newUtmcForm()
+      await clickSave(wrapper)
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+        'The UTMC feed needs a username and password.',
+      )
+      await usernameField(wrapper).setValue('barry')
+      await clickSave(wrapper)
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+        'The UTMC feed needs a username and password.',
+      )
+      expect(wrapper.emitted('save')).toBeUndefined()
+    })
+
+    it('saves a new UTMC feed with Basic auth defaults and a credential op carrying both halves', async () => {
+      const wrapper = await newUtmcForm()
+      await usernameField(wrapper).setValue(' barry ')
+      await passwordField(wrapper).setValue('s3cret')
+      await clickSave(wrapper)
+      const [feed, credentialOp] = lastSaveCall(wrapper)
+      expect(feed.provider).toBe('utmc')
+      expect(feed.datasets).toEqual(['cctv'])
+      expect(feed.auth).toEqual({ type: 'basic' })
+      expect(feed.refreshSeconds).toBe(60)
+      await credentialOp!()
+      expect(landFeedsApi.setCredential).toHaveBeenCalledWith('utmc', {
+        username: 'barry',
+        password: 's3cret',
+      })
+    })
+
+    it('loads the stored-credential status for an existing UTMC feed and lets it be kept or cleared', async () => {
+      vi.mocked(landFeedsApi.getCredentialStatus).mockResolvedValue({ configured: true })
+      const wrapper = await mountForm(UTMC)
+      await flushPromises()
+      expect(landFeedsApi.getCredentialStatus).toHaveBeenCalledWith('utmc-tyne-wear')
+      expect(wrapper.text()).toContain('A username and password are stored on the server.')
+      expect(passwordField(wrapper).attributes('placeholder')).toBe(
+        'stored — leave blank to keep it',
+      )
+
+      // Blank fields + stored credential: valid, no credential op.
+      await clickSave(wrapper)
+      expect(lastSaveCall(wrapper)[1]).toBeUndefined()
+
+      // Only a password typed: must complete the pair.
+      await passwordField(wrapper).setValue('new-pass')
+      await clickSave(wrapper)
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+        'Enter both the username and the password.',
+      )
+
+      // CLEAR CREDENTIALS blanks both and stages a clear.
+      await wrapper
+        .findAll('button')
+        .find((candidate) => candidate.text() === 'CLEAR CREDENTIALS')!
+        .trigger('click')
+      expect((passwordField(wrapper).element as HTMLInputElement).value).toBe('')
+      await clickSave(wrapper)
+      await lastSaveCall(wrapper)[1]!()
+      expect(landFeedsApi.clearCredential).toHaveBeenCalledWith('utmc-tyne-wear')
+    })
+
+    it('gives TrafficWatchNI the cameras dataset, no auth and the 300 s default', async () => {
+      const wrapper = await mountForm(null)
+      await fieldFor(wrapper, 'Feed id').setValue('twni')
+      await fieldFor(wrapper, 'Feed name').setValue('TrafficWatchNI')
+      await fieldFor(wrapper, 'Feed URL').setValue('https://www.trafficwatchni.com')
+      await fieldFor(wrapper, 'Feed provider').setValue('twni')
+      expect(
+        (fieldFor(wrapper, 'Refresh interval in seconds').element as HTMLInputElement).value,
+      ).toBe('300')
+      await clickSave(wrapper)
+      const [feed] = lastSaveCall(wrapper)
+      expect(feed).toMatchObject({
+        provider: 'twni',
+        datasets: ['cameras'],
+        auth: { type: 'none' },
+      })
+    })
+  })
+
+  describe('live draft', () => {
+    it('emits a validated draft on every edit and withdraws it (null) while invalid', async () => {
+      const wrapper = await mountForm(null)
+      await fieldFor(wrapper, 'Feed id').setValue('ab')
+      await fieldFor(wrapper, 'Feed name').setValue('Test')
+      // Still no URL: invalid → null.
+      const drafts = () => wrapper.emitted('draft') as Array<[FeedConfig | null, unknown]>
+      expect(drafts().at(-1)![0]).toBeNull()
+      await fieldFor(wrapper, 'Feed URL').setValue('https://example.com')
+      expect(drafts().at(-1)![0]).toMatchObject({
+        id: 'ab',
+        name: 'Test',
+        url: 'https://example.com',
+      })
+      await fieldFor(wrapper, 'Feed URL').setValue('http://insecure')
+      expect(drafts().at(-1)![0]).toBeNull()
+    })
+  })
+
   describe('save shape', () => {
     it("switching a new feed's provider re-applies that provider's default refresh interval", async () => {
       const wrapper = await mountForm(null)

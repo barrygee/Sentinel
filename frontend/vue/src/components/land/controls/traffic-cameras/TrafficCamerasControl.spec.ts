@@ -391,6 +391,232 @@ describe('TrafficCamerasControl', () => {
     })
   })
 
+  // ── always-open preview cards (street zoom, desktop) ──────────────────────
+
+  describe('preview cards', () => {
+    const PREVIEW_CARD_ZOOM = 15
+
+    function desktop(matches = true) {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({
+          matches: query.includes('min-width') ? matches : false,
+          media: query,
+          addEventListener: vi.fn(),
+        })),
+      )
+    }
+
+    function liveCard() {
+      return created.markers.find(
+        (marker) => !marker.removed && marker.element.querySelector('img'),
+      )!
+    }
+
+    it('renders every visible camera as a card with its live still at street zoom on a wide viewport', () => {
+      desktop()
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      const card = liveCard()
+      expect(card.element.getAttribute('role')).toBe('group')
+      expect(card.element.getAttribute('aria-label')).toBe(
+        'Traffic camera, Framwellgate Peth, West, LIVE',
+      )
+      const image = card.element.querySelector('img')!
+      expect(image.getAttribute('src')).toMatch(
+        /^\/api\/land\/feeds\/durham-cc\/image\/cam1\?t=\d+$/,
+      )
+      expect(image.alt).toBe('Framwellgate Peth — latest camera image')
+      // Card, not pill: sits above pills and other markers, resizable, no border.
+      expect(card.element.style.zIndex).toBe('10')
+      expect(card.element.style.resize).toBe('horizontal')
+      expect(card.element.style.width).toBe('480px')
+      expect(card.element.style.border).toBe('')
+      // The embedded header is decorative inside the card.
+      expect(card.element.querySelector('div[aria-label]')).toBeNull()
+    })
+
+    it('keeps pills + popup on a narrow viewport even at street zoom', () => {
+      desktop(false)
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      expect(created.markers.some((marker) => marker.element.querySelector('img'))).toBe(false)
+    })
+
+    it('keeps pills below the preview zoom even on a wide viewport', () => {
+      desktop()
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM - 1 }))
+      expect(created.markers.some((marker) => marker.element.querySelector('img'))).toBe(false)
+    })
+
+    it('shows the state in place of a still for a card whose camera has no image', () => {
+      desktop()
+      setFeatures([camera({ imageUrl: null, state: 'offline' })])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      const card = created.markers.find(
+        (marker) => !marker.removed && marker.element.getAttribute('role') === 'group',
+      )!
+      expect(card.element.querySelector('img')).toBeNull()
+      expect(card.element.textContent).toContain('OFFLINE')
+    })
+
+    it('names a card after the camera alone when it reports no view direction', () => {
+      desktop()
+      setFeatures([camera({ view: null })])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      expect(liveCard().element.getAttribute('aria-label')).toBe(
+        'Traffic camera, Framwellgate Peth, LIVE',
+      )
+    })
+
+    it('dims a stale card like a stale pill', () => {
+      desktop()
+      setFeatures([camera({ state: 'stale' })])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      expect(liveCard().element.style.opacity).toBe('0.45')
+    })
+
+    it('rebuilds a pill as a card when the zoom crosses the preview threshold', async () => {
+      desktop()
+      setFeatures([camera()])
+      let zoom = PREVIEW_CARD_ZOOM - 1
+      const map = makeFakeMap({ getZoom: () => zoom })
+      addControl(map)
+      const pill = created.markers[created.markers.length - 1]!
+      expect(pill.element.querySelector('img')).toBeNull()
+      zoom = PREVIEW_CARD_ZOOM
+      map._emit('moveend')
+      expect(pill.removed).toBe(true)
+      expect(liveCard()).toBeDefined()
+    })
+
+    it('clicking a card raises it above every other marker without opening a popup', () => {
+      desktop()
+      setFeatures([camera({ id: 'durham-cc:a' }, 0, 0), camera({ id: 'durham-cc:b' }, 300, 300)])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      const cards = created.markers.filter(
+        (marker) => !marker.removed && marker.element.querySelector('img'),
+      )
+      expect(cards).toHaveLength(2)
+      cards[1]!.element.dispatchEvent(new Event('click'))
+      expect(Number(cards[1]!.element.style.zIndex)).toBeGreaterThan(
+        Number(cards[0]!.element.style.zIndex),
+      )
+      cards[0]!.element.dispatchEvent(new Event('click'))
+      expect(Number(cards[0]!.element.style.zIndex)).toBeGreaterThan(
+        Number(cards[1]!.element.style.zIndex),
+      )
+      expect(created.popups).toHaveLength(0)
+    })
+
+    it('clicking a pill also raises it, so an overlapped label can be brought forward', () => {
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => LABEL_REVEAL_ZOOM }))
+      const pill = created.markers[created.markers.length - 1]!
+      pill.element.dispatchEvent(new Event('click'))
+      expect(Number(pill.element.style.zIndex)).toBeGreaterThan(10)
+    })
+
+    it('stops a mousedown on the card reaching the map so a resize drag does not pan', () => {
+      desktop()
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      const event = new Event('mousedown', { bubbles: true, cancelable: true })
+      const stop = vi.spyOn(event, 'stopPropagation')
+      liveCard().element.dispatchEvent(event)
+      expect(stop).toHaveBeenCalledOnce()
+    })
+
+    it('re-points a card image at a fresh cache-busted URL on a later poll, at most once per 15 s', async () => {
+      desktop()
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-09-15T12:00:00Z'))
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      const image = liveCard().element.querySelector('img')!
+      const firstSrc = image.getAttribute('src')
+      // A poll a second later re-renders with the same snapshot: too soon.
+      vi.setSystemTime(new Date('2026-09-15T12:00:01Z'))
+      setFeatures([camera()])
+      await nextTick()
+      expect(image.getAttribute('src')).toBe(firstSrc)
+      // A poll past the floor refreshes the still.
+      vi.setSystemTime(new Date('2026-09-15T12:00:20Z'))
+      setFeatures([camera()])
+      await nextTick()
+      expect(image.getAttribute('src')).not.toBe(firstSrc)
+      vi.useRealTimers()
+    })
+
+    it('does not touch a card whose camera has lost its image on refresh', async () => {
+      desktop()
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      // Same properties except imageUrl — that changes the signature, so the
+      // card is rebuilt rather than refreshed; the refresh guard's early return
+      // is what keeps `_refreshCardImage` from touching a card with no image.
+      setFeatures([camera({ imageUrl: null })])
+      await nextTick()
+      const noImageCard = created.markers.find(
+        (marker) => !marker.removed && marker.element.getAttribute('role') === 'group',
+      )!
+      expect(noImageCard.element.querySelector('img')).toBeNull()
+      setFeatures([camera({ imageUrl: null })])
+      await nextTick()
+      expect(noImageCard.removed).toBe(false)
+    })
+
+    it('remembers the width the operator drags a card to for the cards built after it', () => {
+      desktop()
+      const observers: Array<{ callback: ResizeObserverCallback; observed: Element[] }> = []
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observed: Element[] = []
+          constructor(public callback: ResizeObserverCallback) {
+            observers.push(this)
+          }
+          observe(element: Element) {
+            this.observed.push(element)
+          }
+          disconnect() {}
+        },
+      )
+      setFeatures([camera({ id: 'durham-cc:a' }, 0, 0)])
+      const { control } = addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      const firstCard = liveCard()
+      const observer = observers[0]!
+      expect(observer.observed).toContain(firstCard.element)
+      observer.callback(
+        [{ contentRect: { width: 640 } } as ResizeObserverEntry],
+        observer as unknown as ResizeObserver,
+      )
+      // A width under the minimum is ignored (the observer also fires while a
+      // card is being torn down).
+      observer.callback(
+        [{ contentRect: { width: 12 } } as ResizeObserverEntry],
+        observer as unknown as ResizeObserver,
+      )
+      setFeatures([camera({ id: 'durham-cc:a' }, 0, 0), camera({ id: 'durham-cc:b' }, 300, 300)])
+      return nextTick().then(() => {
+        const cards = created.markers.filter(
+          (marker) => !marker.removed && marker.element.querySelector('img'),
+        )
+        expect(cards[1]!.element.style.width).toBe('640px')
+        control.onRemove()
+      })
+    })
+
+    it('builds cards without a ResizeObserver (older engines) and still resizes via CSS', () => {
+      desktop()
+      vi.stubGlobal('ResizeObserver', undefined)
+      setFeatures([camera()])
+      addControl(makeFakeMap({ getZoom: () => PREVIEW_CARD_ZOOM }))
+      expect(liveCard().element.style.resize).toBe('horizontal')
+    })
+  })
+
   // ── clustering ─────────────────────────────────────────────────────────────
 
   describe('clustering (groupByGridCell at every zoom)', () => {
@@ -698,9 +924,10 @@ describe('TrafficCamerasControl', () => {
       expect(created.popups[1]!.removed).toBe(false)
     })
 
-    it('shows the state chip with the human label', () => {
+    it('carries no state chip — the picture is the popup, state lives on the marker and in the sidebar', () => {
       const { popup } = openPopup({ state: 'offline' })
-      expect(popup.content!.textContent).toContain('OFFLINE')
+      expect(popup.content!.textContent).not.toContain('OFFLINE')
+      expect(popup.content!.textContent).not.toContain('LIVE')
     })
 
     it('shows the view line as given, not upper-cased', () => {
@@ -717,26 +944,14 @@ describe('TrafficCamerasControl', () => {
       )
     })
 
-    it('shows the OPEN SOURCE link with a safe target/rel when an externalUrl is given', () => {
-      const { popup } = openPopup({ externalUrl: 'https://example.com/cam' })
-      const link = popup.content!.querySelector('a')!
-      expect(link.href).toBe('https://example.com/cam')
-      expect(link.target).toBe('_blank')
-      expect(link.rel).toBe('noopener noreferrer')
-      expect(link.textContent).toBe('OPEN SOURCE')
-    })
-
-    it('omits the OPEN SOURCE link when there is no externalUrl', () => {
-      const { popup } = openPopup({ externalUrl: null })
+    it('never links out or prints attribution — both moved to the sidebar source heading', () => {
+      const { popup } = openPopup({
+        externalUrl: 'https://example.com/cam',
+        attribution: 'Crown copyright',
+      })
       expect(popup.content!.querySelector('a')).toBeNull()
-    })
-
-    it('shows the attribution line when given, and omits it otherwise', () => {
-      const { popup } = openPopup({ attribution: 'Crown copyright' })
-      expect(popup.content!.textContent).toContain('Crown copyright')
-
-      const { popup: withoutAttribution } = openPopup({ attribution: '' })
-      expect(withoutAttribution.content!.textContent).not.toContain('Crown copyright')
+      expect(popup.content!.textContent).not.toContain('OPEN SOURCE')
+      expect(popup.content!.textContent).not.toContain('Crown copyright')
     })
 
     it('renders the image with an accessible alt text', () => {

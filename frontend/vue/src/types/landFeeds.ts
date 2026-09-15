@@ -10,7 +10,7 @@
 export type FeedCategory = 'traffic-cameras' | 'traffic-data' | 'webcams'
 
 /** Backend adapter that knows how to poll a feed. P0 allow-list only. */
-export type FeedProvider = 'snapshot' | 'durham' | 'tfl-jamcams'
+export type FeedProvider = 'snapshot' | 'durham' | 'tfl-jamcams' | 'utmc' | 'twni'
 
 /** How a feed authenticates with its upstream. The secret itself never lives
  *  in the feed config — see {@link FeedCredentialInput}. */

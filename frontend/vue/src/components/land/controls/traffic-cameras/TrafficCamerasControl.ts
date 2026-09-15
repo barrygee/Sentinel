@@ -34,6 +34,28 @@ const COUNT_GROUP_RADIUS_PX = COUNT_MARKER_SIZE_PX * 1.5
  *  stays a readable count while the sparse ones around it get their pins. */
 const LABEL_GROUP_RADIUS_PX = 120
 
+/** Zoom from which, on a desktop-sized viewport, every visible camera shows
+ *  its live preview as an always-open card instead of a pill you have to
+ *  click. Street level: at ~15 a camera's card no longer hides its neighbours. */
+const PREVIEW_CARD_ZOOM = 15
+
+/** Viewports narrower than this keep the tap-to-open popup at every zoom —
+ *  a phone cannot hold several 240 px cards and still show the road. Matches
+ *  the app's `--bp-mobile` breakpoint. */
+const PREVIEW_CARD_MIN_VIEWPORT_PX = 768
+
+/** Default width of an always-open preview card. Cards are drag-resizable
+ *  (CSS `resize`), and the last size the operator chose becomes the default
+ *  for cards built afterwards, so one drag re-sizes the layer as it re-renders. */
+const PREVIEW_CARD_DEFAULT_WIDTH_PX = 480
+const PREVIEW_CARD_MIN_WIDTH_PX = 200
+const PREVIEW_CARD_MAX_WIDTH_PX = 960
+
+/** Cards sit above every pill marker (which have no explicit z-index, i.e. 0)
+ *  so a card never hides behind a neighbouring label; raising a card by
+ *  clicking it counts upward from here. */
+const PREVIEW_CARD_BASE_Z_INDEX = 10
+
 /** How far a count marker's click zooms in — enough to split most groups
  *  without jumping past the surrounding context. */
 const CLUSTER_CLICK_ZOOM_STEP = 2
@@ -70,6 +92,14 @@ export class TrafficCamerasControl extends SentinelControlBase {
   private readonly _landFeedsStore: LandFeedsStore
   private _markers = new Map<string, maplibregl.Marker>()
   private _markerSignatures = new Map<string, string>()
+  /** Live images inside always-open preview cards, refreshed on each poll. */
+  private _cardImages = new Map<string, { image: HTMLImageElement; lastRefreshAt: number }>()
+  /** Monotonic z-index handed to whichever card was clicked last, so it sits
+   *  above its neighbours until another is raised. */
+  private _raisedZIndex = PREVIEW_CARD_BASE_Z_INDEX
+  /** Width the operator last dragged a card to; new cards start at it. */
+  private _previewCardWidthPx = PREVIEW_CARD_DEFAULT_WIDTH_PX
+  private _cardResizeObserver: ResizeObserver | null = null
   private _clusterMarkers = new Map<string, maplibregl.Marker>()
   private _clusterCounts = new Map<string, number>()
   private _onMapMoveEnd: (() => void) | null = null
@@ -262,24 +292,136 @@ export class TrafficCamerasControl extends SentinelControlBase {
     }))
   }
 
+  /** Whether cameras render as always-open preview cards right now: street
+   *  zoom on a desktop-sized viewport. Phones keep pills + popup. */
+  private _previewCardsActive(): boolean {
+    return (
+      this.map.getZoom() >= PREVIEW_CARD_ZOOM &&
+      window.matchMedia(`(min-width: ${PREVIEW_CARD_MIN_VIEWPORT_PX}px)`).matches
+    )
+  }
+
   private _syncCameraMarker(feature: CameraFeature): void {
     const id = feature.properties.id
-    const signature = JSON.stringify(feature.properties)
+    const asCard = this._previewCardsActive()
+    // The card/pill choice is part of the identity: crossing the preview zoom
+    // must rebuild the element, not just move it.
+    const signature = `${asCard ? 'card' : 'pill'}:${JSON.stringify(feature.properties)}`
     const existing = this._markers.get(id)
     if (existing && this._markerSignatures.get(id) === signature) {
       existing.setLngLat(feature.geometry.coordinates as LngLat)
+      this._refreshCardImage(id, feature)
       return
     }
     existing?.remove()
+    this._cardImages.delete(id)
     const marker = new maplibregl.Marker({
-      element: this._buildMarkerElement(feature),
+      element: asCard ? this._buildPreviewCardElement(feature) : this._buildMarkerElement(feature),
       anchor: 'top-left',
       offset: [8, -6],
     })
       .setLngLat(feature.geometry.coordinates as LngLat)
       .addTo(this.map)
+    // Cards start above every pill (and above the other domains' markers);
+    // a clicked card climbs above the rest via `_raiseMarker`.
+    if (asCard) marker.getElement().style.zIndex = String(PREVIEW_CARD_BASE_Z_INDEX)
     this._markers.set(id, marker)
     this._markerSignatures.set(id, signature)
+  }
+
+  /** Re-point a card's image at a fresh cache-busted URL, at most once per
+   *  refresh floor — `_render` runs on every store snapshot, which is already
+   *  the feed's own cadence, so this mostly just guards a burst of renders. */
+  private _refreshCardImage(id: string, feature: CameraFeature): void {
+    const entry = this._cardImages.get(id)
+    if (!entry || !feature.properties.imageUrl) return
+    const now = Date.now()
+    if (now - entry.lastRefreshAt < MIN_IMAGE_REFRESH_MS) return
+    const [feedId, ref] = splitFeatureId(feature.properties.id, feature.properties.sourceId)
+    entry.image.src = buildImageUrl(feedId, ref, now)
+    entry.lastRefreshAt = now
+  }
+
+  /** Bring one card above every other marker. MapLibre positions markers
+   *  absolutely, so a growing z-index on the marker element is enough. */
+  private _raiseMarker(id: string): void {
+    const marker = this._markers.get(id)
+    /* v8 ignore start -- defensive: only reachable from a click on an element
+       this control built for a marker it still holds */
+    if (!marker) return
+    /* v8 ignore stop */
+    this._raisedZIndex += 1
+    marker.getElement().style.zIndex = String(this._raisedZIndex)
+  }
+
+  /**
+   * An always-open preview card: the pill + name header the pill marker
+   * already draws, with the live still beneath it. Same monochrome surface
+   * as the popup (#15171d, square, no border). Clicking raises the card above
+   * its neighbours; that is the only click behaviour — the card already is
+   * the preview, so there is nothing to open.
+   */
+  private _buildPreviewCardElement(feature: CameraFeature): HTMLDivElement {
+    const properties = feature.properties
+    const state = properties.state
+    const markerOpacity = state === 'stale' ? '0.45' : '1'
+
+    const card = document.createElement('div')
+    const width = this._previewCardWidthPx
+    // `resize` only takes effect with a non-visible overflow; the image scales
+    // with the card, so nothing is actually clipped.
+    card.style.cssText = `width:${width}px;min-width:${PREVIEW_CARD_MIN_WIDTH_PX}px;max-width:${PREVIEW_CARD_MAX_WIDTH_PX}px;resize:horizontal;overflow:hidden;background:${APRS_BADGE_BACKGROUND};cursor:pointer;pointer-events:auto;user-select:none;opacity:${markerOpacity};position:relative`
+    card.setAttribute('role', 'group')
+    card.setAttribute(
+      'aria-label',
+      `Traffic camera, ${properties.name}${properties.view ? `, ${properties.view}` : ''}, ${stateLabel(state)}`,
+    )
+
+    const header = this._buildMarkerElement(feature)
+    // The header is decorative inside the card: the card carries the name.
+    header.removeAttribute('aria-label')
+    header.style.padding = '4px 8px 4px 0'
+    header.style.opacity = '1'
+    header.style.pointerEvents = 'none'
+    card.appendChild(header)
+
+    if (properties.imageUrl) {
+      const [feedId, ref] = splitFeatureId(properties.id, properties.sourceId)
+      const image = document.createElement('img')
+      image.alt = `${properties.name} — latest camera image`
+      image.style.cssText = 'display:block;width:100%;height:auto;background:#000'
+      image.draggable = false
+      image.src = buildImageUrl(feedId, ref, Date.now())
+      card.appendChild(image)
+      this._cardImages.set(properties.id, { image, lastRefreshAt: Date.now() })
+    } else {
+      const noImage = document.createElement('div')
+      noImage.style.cssText = `width:100%;aspect-ratio:4/3;background:#000;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.35);font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;letter-spacing:.08em;text-transform:uppercase`
+      noImage.textContent = stateLabel(state)
+      card.appendChild(noImage)
+    }
+
+    card.addEventListener('click', (domEvent: Event) => {
+      domEvent.stopPropagation()
+      this._raiseMarker(properties.id)
+    })
+    // A resize drag is a mousedown on the card's corner; stop it reaching the
+    // map so the drag resizes the card instead of panning.
+    card.addEventListener('mousedown', (domEvent: Event) => domEvent.stopPropagation())
+    this._observeCardResize(card)
+    return card
+  }
+
+  /** Remember the width the operator drags a card to, for cards built later. */
+  private _observeCardResize(card: HTMLDivElement): void {
+    if (typeof ResizeObserver === 'undefined') return
+    this._cardResizeObserver ??= new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = Math.round(entry.contentRect.width)
+        if (width >= PREVIEW_CARD_MIN_WIDTH_PX) this._previewCardWidthPx = width
+      }
+    })
+    this._cardResizeObserver.observe(card)
   }
 
   private _syncClusterMarker(cluster: FeatureCluster): void {
@@ -358,6 +500,7 @@ export class TrafficCamerasControl extends SentinelControlBase {
     )
     wrap.addEventListener('click', (domEvent: Event) => {
       domEvent.stopPropagation()
+      this._raiseMarker(properties.id)
       this._openPopup(feature, wrap)
     })
     return wrap
@@ -383,7 +526,7 @@ export class TrafficCamerasControl extends SentinelControlBase {
     this._popup = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: false,
-      maxWidth: '280px',
+      maxWidth: 'min(860px, calc(100vw - 48px))',
       className: 'traffic-camera-popup',
     })
       .setLngLat(feature.geometry.coordinates as LngLat)
@@ -410,7 +553,7 @@ export class TrafficCamerasControl extends SentinelControlBase {
     const properties = feature.properties
     const container = document.createElement('div')
     container.style.cssText =
-      'background:rgba(21,23,29,.98);color:#fff;width:260px;font-family:var(--font-primary,Barlow,sans-serif)'
+      'background:rgba(21,23,29,.98);color:#fff;width:840px;max-width:calc(100vw - 48px);font-family:var(--font-primary,Barlow,sans-serif)'
 
     const title = document.createElement('h2')
     title.style.cssText =
@@ -429,11 +572,8 @@ export class TrafficCamerasControl extends SentinelControlBase {
       container.appendChild(view)
     }
 
-    const chip = document.createElement('span')
-    const chipLive = properties.state === 'live'
-    chip.style.cssText = `display:inline-block;margin:0 12px 8px;padding:2px 8px;font-family:var(--font-condensed,'Barlow Condensed',sans-serif);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${chipLive ? '#fff' : 'rgba(255,255,255,.6)'};background:${chipLive ? 'var(--color-button-bg)' : 'rgba(0,0,0,.32)'}`
-    chip.textContent = stateLabel(properties.state)
-    container.appendChild(chip)
+    // State is carried by the marker's opacity and the sidebar row; the popup
+    // is the picture, so no LIVE chip here.
 
     if (properties.imageUrl || properties.clipUrl) {
       container.appendChild(this._buildMediaElement(feature))
@@ -452,24 +592,7 @@ export class TrafficCamerasControl extends SentinelControlBase {
       .join(' · ')
     container.appendChild(meta)
 
-    if (properties.externalUrl) {
-      const link = document.createElement('a')
-      link.href = properties.externalUrl
-      link.target = '_blank'
-      link.rel = 'noopener noreferrer'
-      link.textContent = 'OPEN SOURCE'
-      link.style.cssText =
-        "display:inline-block;margin:10px 12px 0;padding:6px 14px;background:var(--color-button-bg);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none"
-      container.appendChild(link)
-    }
-
-    if (properties.attribution) {
-      const attribution = document.createElement('p')
-      attribution.style.cssText =
-        'font-size:9px;color:rgba(255,255,255,.6);margin:10px 12px 12px;line-height:1.4'
-      attribution.textContent = properties.attribution
-      container.appendChild(attribution)
-    }
+    container.style.paddingBottom = '12px'
 
     return container
   }
@@ -597,6 +720,9 @@ export class TrafficCamerasControl extends SentinelControlBase {
     for (const marker of this._markers.values()) marker.remove()
     this._markers.clear()
     this._markerSignatures.clear()
+    this._cardImages.clear()
+    this._cardResizeObserver?.disconnect()
+    this._cardResizeObserver = null
     for (const marker of this._clusterMarkers.values()) marker.remove()
     this._clusterMarkers.clear()
     this._clusterCounts.clear()
