@@ -152,6 +152,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the Settings UI and Application Config JSON in sync (#319)
 - Draw the selected vessel's trail like an aircraft's, fading at the tail (#323)
 - Live traffic camera feeds (Durham, TfL, UTMC, TrafficWatchNI) on the Land map (#324)
+- Add offline terrain layer (hillshade + contours) to Air, Sea and Land
 
 ### Bug Fixes
 
@@ -1192,6 +1193,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #316 from barrygee/fix/sdr-waterfall-timestamp-styling
 - Merge pull request #317 from barrygee/feat/sdr-waterfall-signal-marker
 - Merge pull request #318 from barrygee/fix/sdr-known-freq-marker-alignment
+- Merge pull request #325 from barrygee/feat/terrain-overlay
 
 ### Refactoring
 
@@ -1267,6 +1269,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document Off Grid ADS-B setup and the decoder sidecar (#272)
 - Add the Sentinel design guide (#295)
 - Add the Sentinel backend guide (#297)
+- Fix stale pmtiles CLI install command
 
 ### Tests
 
