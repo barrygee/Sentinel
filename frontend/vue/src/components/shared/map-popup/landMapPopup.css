@@ -1,0 +1,75 @@
+/*
+ * MapLibre popup chrome for the traffic-camera popup. The popup DOM lives
+ * outside the Vue tree, so this cannot be a scoped block; it is imported by
+ * `TrafficCamerasControl.ts` and only ever matches the `land-map-popup`
+ * class that control sets. MapLibre's defaults are a white rounded card with a
+ * white tip and a black close glyph — the opposite of the Land map's flat
+ * charcoal surface (see docs/plans/land-live-feeds.md §5a), so every one of
+ * them is overridden here. The card has no border: the surface step against
+ * the map is the edge.
+ */
+/* Above every marker label (cards raise themselves with z-indexes counted up
+   from 10) — a preview must never sit under a neighbouring pill. */
+.land-map-popup {
+  z-index: 1000;
+}
+/* The card takes focus programmatically for Escape; its own outline would
+   draw a ring round the whole picture, so the close button carries the
+   visible focus cue instead. */
+.land-map-popup .maplibregl-popup-content > div:focus {
+  outline: none;
+}
+
+.land-map-popup .maplibregl-popup-content {
+  background: rgba(21, 23, 29, 0.98);
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.land-map-popup .maplibregl-popup-tip {
+  border-color: transparent;
+}
+.land-map-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.land-map-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.land-map-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: rgba(21, 23, 29, 0.98);
+}
+.land-map-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.land-map-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.land-map-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: rgba(21, 23, 29, 0.98);
+}
+.land-map-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: rgba(21, 23, 29, 0.98);
+}
+.land-map-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: rgba(21, 23, 29, 0.98);
+}
+
+.land-map-popup .maplibregl-popup-close-button {
+  /* Sized to the popup's 36px header line, so the glyph sits level with the
+     title beside it. */
+  top: 0;
+  right: 0;
+  height: 36px;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 12px;
+  border-radius: 0;
+  background: transparent;
+  transition: color 0.15s;
+}
+/* No background wash: the glyph itself turns accent on hover/press, as the
+   rail buttons do. */
+.land-map-popup .maplibregl-popup-close-button:hover,
+.land-map-popup .maplibregl-popup-close-button:active,
+.land-map-popup .maplibregl-popup-close-button:focus-visible {
+  background: transparent;
+  color: var(--color-accent, #c8ff00);
+}
+.land-map-popup .maplibregl-popup-close-button:focus-visible {
+  outline: 2px solid var(--color-accent, #c8ff00);
+  outline-offset: -2px;
+}

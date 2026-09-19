@@ -5,8 +5,15 @@ import { axe } from 'jest-axe'
 import LandFilter from './LandFilter.vue'
 import { useLandStore, type AprsStation } from '@/stores/land'
 import { useLandFeedsStore } from '@/stores/landFeeds'
+import { useRepeatersStore } from '@/stores/repeaters'
+import { useSdrStore, type SdrStoredFrequency } from '@/stores/sdr'
+import { useNotificationsStore } from '@/stores/notifications'
 import LandCameraDetails from './LandCameraDetails.vue'
+import LandRepeaterDetails from './LandRepeaterDetails.vue'
+import LandRepeaterFilters from './LandRepeaterFilters.vue'
+import { repeaterSearchKey } from '@/constants/repeaters'
 import type { CameraFeature, FeedWithStatus } from '@/types/landFeeds'
+import type { RepeaterChannel, RepeaterStation } from '@/types/repeaters'
 
 function station(overrides: Partial<AprsStation> = {}): AprsStation {
   return {
@@ -36,6 +43,10 @@ describe('LandFilter', () => {
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stations: [] }) }),
     )
     store = useLandStore()
+    // Every Land layer now starts OFF (the store lights exactly one from the
+    // persisted `land.defaultLayers`), so the APRS cases switch it on
+    // explicitly — the pane lists only what the map is drawing.
+    store.setAprsLayerVisible(true)
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -95,11 +106,12 @@ describe('LandFilter', () => {
       expect(wrapper.findAll('.bfp-result-item')).toHaveLength(2)
 
       // Hiding the layer clears the map, so the list must not keep listing
-      // stations that are no longer plotted.
+      // stations that are no longer plotted. With no other layer on, the pane
+      // says how to get one back rather than reporting an empty data set.
       store.setAprsLayerVisible(false)
       await flushPromises()
       expect(wrapper.findAll('.bfp-result-item')).toHaveLength(0)
-      expect(wrapper.find('.bfp-no-results').text()).toBe('APRS layer hidden')
+      expect(wrapper.find('.bfp-no-results').text()).toBe('No layers on — use the tabs to add one')
     })
 
     it('restores the list when the layer is shown again', async () => {
@@ -112,13 +124,23 @@ describe('LandFilter', () => {
       expect(wrapper.findAll('.bfp-result-item')).toHaveLength(1)
     })
 
-    it('reports the layer as hidden even while a search is active', async () => {
+    it('reports no layers on even while a search is active', async () => {
       store.aprsStations = [station()]
       const wrapper = mount(LandFilter)
       store.setSearchQuery('M0ABC')
       store.setAprsLayerVisible(false)
       await flushPromises()
-      expect(wrapper.find('.bfp-no-results').text()).toBe('APRS layer hidden')
+      expect(wrapper.find('.bfp-no-results').text()).toBe('No layers on — use the tabs to add one')
+    })
+
+    it('names the search field generically when no layer is on', async () => {
+      const wrapper = mount(LandFilter)
+      store.setAprsLayerVisible(false)
+      await flushPromises()
+      expect(wrapper.find('input').attributes('aria-label')).toBe(
+        'Filter Land map items by name or callsign',
+      )
+      expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
     })
   })
 
@@ -432,61 +454,63 @@ describe('LandFilter', () => {
   })
 })
 
+// ── traffic cameras ────────────────────────────────────────────────────────
+
+function feed(overrides: Partial<FeedWithStatus>): FeedWithStatus {
+  return {
+    id: 'durham-cc',
+    name: 'Durham County Council',
+    category: 'traffic-cameras',
+    provider: 'durham',
+    url: 'https://example.test',
+    enabled: true,
+    refreshSeconds: 60,
+    datasets: [],
+    bbox: null,
+    location: null,
+    auth: { type: 'none' },
+    status: {
+      lastFetchAt: null,
+      lastError: null,
+      featureCount: 0,
+      credentialConfigured: false,
+      running: true,
+    },
+    ...overrides,
+  }
+}
+
+function camera(
+  id: string,
+  sourceId: string,
+  overrides: Partial<CameraFeature['properties']> = {},
+  coordinates: [number, number] = [-1.58, 54.78],
+): CameraFeature {
+  return {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates },
+    properties: {
+      kind: 'camera',
+      id: `${sourceId}:${id}`,
+      name: id,
+      description: '',
+      view: null,
+      updatedAt: null,
+      state: 'live',
+      imageUrl: null,
+      clipUrl: null,
+      externalUrl: null,
+      sourceId,
+      sourceName: sourceId === 'durham-cc' ? 'Durham County Council' : 'TfL JamCams',
+      attribution: sourceId === 'durham-cc' ? 'OGL v3.0' : 'Powered by TfL Open Data',
+      ...overrides,
+    },
+  }
+}
+
 describe('LandFilter — traffic cameras', () => {
   let store: ReturnType<typeof useLandStore>
   let feedsStore: ReturnType<typeof useLandFeedsStore>
-
-  function feed(overrides: Partial<FeedWithStatus>): FeedWithStatus {
-    return {
-      id: 'durham-cc',
-      name: 'Durham County Council',
-      category: 'traffic-cameras',
-      provider: 'durham',
-      url: 'https://example.test',
-      enabled: true,
-      refreshSeconds: 60,
-      datasets: [],
-      bbox: null,
-      location: null,
-      auth: { type: 'none' },
-      status: {
-        lastFetchAt: null,
-        lastError: null,
-        featureCount: 0,
-        credentialConfigured: false,
-        running: true,
-      },
-      ...overrides,
-    }
-  }
-
-  function camera(
-    id: string,
-    sourceId: string,
-    overrides: Partial<CameraFeature['properties']> = {},
-    coordinates: [number, number] = [-1.58, 54.78],
-  ): CameraFeature {
-    return {
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates },
-      properties: {
-        kind: 'camera',
-        id: `${sourceId}:${id}`,
-        name: id,
-        description: '',
-        view: null,
-        updatedAt: null,
-        state: 'live',
-        imageUrl: null,
-        clipUrl: null,
-        externalUrl: null,
-        sourceId,
-        sourceName: sourceId === 'durham-cc' ? 'Durham County Council' : 'TfL JamCams',
-        attribution: sourceId === 'durham-cc' ? 'OGL v3.0' : 'Powered by TfL Open Data',
-        ...overrides,
-      },
-    }
-  }
 
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -495,8 +519,12 @@ describe('LandFilter — traffic cameras', () => {
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stations: [] }) }),
     )
     store = useLandStore()
-    feedsStore = useLandFeedsStore()
+    // Both flags are set directly: the map draws one layer at a time, but the
+    // pane is built to list several sets at once (group headings, the joined
+    // search label), so those branches need both on.
+    store.setAprsLayerVisible(true)
     store.setTrafficCamerasLayerVisible(true)
+    feedsStore = useLandFeedsStore()
     feedsStore.feeds = [
       feed({ id: 'durham-cc' }),
       feed({ id: 'tfl-jamcams', name: 'TfL JamCams', refreshSeconds: 300 }),
@@ -520,7 +548,7 @@ describe('LandFilter — traffic cameras', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lists cameras after the stations, grouped per source with count and licence line', () => {
+  it('lists cameras after the stations, grouped per source under a plain heading', () => {
     store.aprsStations = [station()]
     const wrapper = mount(LandFilter)
     const headings = wrapper.findAll('.bfp-group-heading')
@@ -529,8 +557,10 @@ describe('LandFilter — traffic cameras', () => {
       'Durham County Council',
       'TfL JamCams',
     ])
-    expect(headings[1]!.find('.bfp-group-heading-meta').text()).toBe('2')
-    expect(headings[1]!.find('.bfp-group-heading-note').text()).toBe('OGL v3.0')
+    // The in-view count and licence line were deliberately dropped so each
+    // source folds into one clean row.
+    expect(headings[1]!.find('.bfp-group-heading-meta').exists()).toBe(false)
+    expect(headings[1]!.find('.bfp-group-heading-note').exists()).toBe(false)
     const rows = wrapper.findAll('.bfp-result-item')
     expect(rows).toHaveLength(4)
     expect(rows[1]!.find('.bfp-result-primary').text()).toBe('Framwellgate Peth')
@@ -539,30 +569,36 @@ describe('LandFilter — traffic cameras', () => {
     )
     expect(rows[2]!.find('.bfp-result-secondary').text()).toBe('OFFLINE')
     expect(rows[1]!.attributes('id')).toBe('land-filter-row-cam-durham-cc-Framwellgate-Peth')
-    expect(wrapper.find('input').attributes('placeholder')).toBe(
-      'CALLSIGN · CAMERA · ROAD · SOURCE',
+    expect(wrapper.find('input').attributes('placeholder')).toBe('CALLSIGN · CAMERA · ROAD')
+  })
+
+  it('names each camera row for assistive tech with its source and state', () => {
+    const wrapper = mount(LandFilter)
+    const option = wrapper.find('#land-filter-opt-cam-durham-cc-Milburngate')
+    expect(option.attributes('aria-label')).toBe(
+      'Traffic camera Milburngate, Durham County Council, offline',
     )
   })
 
-  it('reports "x of y in view" when the viewport hides part of a source', () => {
+  it('lists only the cameras inside the map viewport', () => {
     feedsStore.setViewportBounds({ west: -2, east: -1, south: 54, north: 55 })
     const wrapper = mount(LandFilter)
     const headings = wrapper.findAll('.bfp-group-heading')
-    expect(headings[0]!.find('.bfp-group-heading-meta').text()).toBe('2')
-    // London is out of view: its heading is not rendered because it has no rows,
-    // but the durham heading counts against the full total.
+    // London is out of view, so the TfL heading is not rendered at all.
     expect(headings).toHaveLength(1)
+    expect(headings[0]!.find('.bfp-group-heading-label').text()).toBe('Durham County Council')
+    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(2)
   })
 
-  it('omits the licence line for a source whose cameras carry no attribution', () => {
-    feedsStore.featuresByFeed = {
-      'durham-cc': {
-        type: 'FeatureCollection',
-        features: [camera('Framwellgate Peth', 'durham-cc', { attribution: '' })],
-      },
-    }
+  it('names the search field for both sets once cameras are listed', () => {
+    store.aprsStations = [station()]
     const wrapper = mount(LandFilter)
-    expect(wrapper.find('.bfp-group-heading-note').exists()).toBe(false)
+    expect(wrapper.find('input').attributes('aria-label')).toBe(
+      'Filter APRS stations and traffic cameras by name or callsign',
+    )
+    expect(wrapper.find('[role="listbox"]').attributes('aria-label')).toBe(
+      'APRS stations and traffic cameras',
+    )
   })
 
   it('gives stations no group heading while no camera source is enabled', () => {
@@ -592,16 +628,18 @@ describe('LandFilter — traffic cameras', () => {
         .filter((name) => name !== 'M0ABC-9')
       expect(cameraRows).toEqual(expected)
     }
-    expect(wrapper.find('.bfp-no-results').text()).toBe('No stations or cameras match')
+    expect(wrapper.find('.bfp-no-results').text()).toBe('Nothing matches')
   })
 
   it('tells the operator when nothing is in view with the APRS layer off', () => {
     store.setAprsLayerVisible(false)
     feedsStore.setViewportBounds({ west: 10, east: 11, south: 10, north: 11 })
-    expect(mount(LandFilter).find('.bfp-no-results').text()).toBe('No traffic cameras in view')
+    expect(mount(LandFilter).find('.bfp-no-results').text()).toBe(
+      'Nothing in view — traffic cameras',
+    )
   })
 
-  it("expands a camera row into LandCameraDetails with the feed's cadence, and SHOW ON MAP flies there", async () => {
+  it("expands a camera row into LandCameraDetails with the feed's cadence, and the preview flies there", async () => {
     const wrapper = mount(LandFilter)
     await wrapper.find('#land-filter-row-cam-tfl-jamcams-A406-Billet-Upass-E').trigger('click')
     const details = wrapper.findComponent(LandCameraDetails)
@@ -609,10 +647,22 @@ describe('LandFilter — traffic cameras', () => {
     expect(details.props('refreshSeconds')).toBe(300)
     expect(store.searchExpandedCallsign).toBe('tfl-jamcams:A406 Billet Upass E')
     const dispatched = vi.spyOn(document, 'dispatchEvent')
-    details.vm.$emit('locate', 'tfl-jamcams:A406 Billet Upass E')
+    details.vm.$emit('preview', 'tfl-jamcams:A406 Billet Upass E')
     const event = dispatched.mock.calls[0]![0] as CustomEvent<{ featureId: string }>
-    expect(event.type).toBe('land-camera-selected')
+    // The old single `land-camera-selected` event was split in two; the pane's
+    // preview still opens the popup on the map (CAMERA_PREVIEW_EVENT).
+    expect(event.type).toBe('land-preview-camera')
     expect(event.detail.featureId).toBe('tfl-jamcams:A406 Billet Upass E')
+  })
+
+  it("falls back to LandCameraDetails' own cadence when the feed is gone", async () => {
+    const wrapper = mount(LandFilter)
+    // The feed row has been removed from Settings but its snapshot is still in
+    // the store, so no refreshSeconds can be resolved for the row.
+    feedsStore.feeds = [feed({ id: 'durham-cc' })]
+    await flushPromises()
+    await wrapper.find('#land-filter-row-cam-durham-cc-Milburngate').trigger('click')
+    expect(wrapper.findComponent(LandCameraDetails).props('refreshSeconds')).toBe(60)
   })
 
   it('keeps a camera row open across an APRS poll, but collapses it when the camera leaves the feed', async () => {
@@ -659,6 +709,455 @@ describe('LandFilter — traffic cameras', () => {
     store.aprsStations = [station()]
     const wrapper = mount(LandFilter, { attachTo: document.body })
     await wrapper.find('#land-filter-row-cam-durham-cc-Framwellgate-Peth').trigger('click')
+    expect(
+      await axe(wrapper.element.parentElement!, { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+})
+
+// ── UK repeater directory ──────────────────────────────────────────────────
+
+function channel(overrides: Partial<RepeaterChannel> = {}): RepeaterChannel {
+  return {
+    id: 1,
+    band: '2M',
+    channel: 'RV52',
+    txMhz: 145.65,
+    rxMhz: 145.05,
+    modes: ['A'],
+    ctcssHz: 118.8,
+    dmrColourCode: null,
+    heightMagl: 30,
+    erpDbw: 10,
+    status: 'OPERATIONAL',
+    ...overrides,
+  }
+}
+
+function repeater(overrides: Partial<RepeaterStation> = {}): RepeaterStation {
+  return {
+    callsign: 'GB3NM',
+    latitude: 54.9,
+    longitude: -1.6,
+    locator: 'IO94FX',
+    location: 'NEWCASTLE',
+    postcode: 'NE1',
+    region: 'NE',
+    keeper: 'G0ABC',
+    channels: [channel()],
+    ...overrides,
+  }
+}
+
+function storedFrequency(frequencyHz: number): SdrStoredFrequency {
+  return { id: 1, group_id: null, label: 'GB3NM 2M OUT', frequency_hz: frequencyHz, mode: 'NFM' }
+}
+
+describe('LandFilter — repeaters', () => {
+  let store: ReturnType<typeof useLandStore>
+  let repeatersStore: ReturnType<typeof useRepeatersStore>
+  let sdrStore: ReturnType<typeof useSdrStore>
+  let notificationsStore: ReturnType<typeof useNotificationsStore>
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stations: [] }) }),
+    )
+    store = useLandStore()
+    // The repeaters layer starts off like every other Land layer; switch it on
+    // so the pane lists the directory the map is drawing.
+    store.selectLayer('repeaters')
+    repeatersStore = useRepeatersStore()
+    repeatersStore.stations = [repeater()]
+    sdrStore = useSdrStore()
+    notificationsStore = useNotificationsStore()
+    // The pane pulls the Frequency Manager list once so the bookmarks are
+    // right from the first open; keep it off the network.
+    vi.spyOn(sdrStore, 'loadFrequencies').mockResolvedValue(undefined)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('lists every filtered repeater in view, with the filter chips above them', () => {
+    const wrapper = mount(LandFilter)
+    expect(wrapper.findComponent(LandRepeaterFilters).exists()).toBe(true)
+    const rows = wrapper.findAll('.bfp-result-item')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.find('.bfp-result-primary').text()).toBe('GB3NM')
+    expect(rows[0]!.find('.bfp-result-secondary').text()).toBe('NEWCASTLE · 2M · FM')
+    expect(rows[0]!.attributes('id')).toBe('land-filter-row-rpt-GB3NM')
+    expect(wrapper.find('#land-filter-opt-rpt-GB3NM').attributes('aria-label')).toBe(
+      'Repeater GB3NM, NEWCASTLE, 2M, FM',
+    )
+    expect(wrapper.find('input').attributes('placeholder')).toBe('CALLSIGN · TOWN · BAND · MODE')
+    expect(wrapper.find('input').attributes('aria-label')).toBe(
+      'Filter repeaters by name or callsign',
+    )
+  })
+
+  it('marks an off-air site in the row and its accessible name, withheld location and all', () => {
+    repeatersStore.stations = [
+      repeater({
+        callsign: 'GB3XX',
+        location: null,
+        channels: [channel({ status: 'NOT OPERATIONAL', band: '70CM', modes: ['M', 'A'] })],
+      }),
+    ]
+    const wrapper = mount(LandFilter)
+    expect(wrapper.find('.bfp-result-secondary').text()).toBe('70CM · FM · DMR · OFF AIR')
+    expect(wrapper.find('#land-filter-opt-rpt-GB3XX').attributes('aria-label')).toBe(
+      'Repeater GB3XX, location withheld, 70CM, FM · DMR, not operational',
+    )
+  })
+
+  it('hides the chips and the list when the layer is off', async () => {
+    const wrapper = mount(LandFilter)
+    store.setRepeatersLayerVisible(false)
+    await flushPromises()
+    expect(wrapper.findComponent(LandRepeaterFilters).exists()).toBe(false)
+    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(0)
+    expect(wrapper.find('.bfp-no-results').text()).toBe('No layers on — use the tabs to add one')
+  })
+
+  it('shows no repeater list until the directory has loaded', () => {
+    repeatersStore.stations = []
+    const wrapper = mount(LandFilter)
+    expect(wrapper.findComponent(LandRepeaterFilters).exists()).toBe(false)
+    expect(wrapper.find('.bfp-no-results').text()).toBe('No layers on — use the tabs to add one')
+  })
+
+  it('matches a repeater on callsign, town, locator, band and mode', async () => {
+    repeatersStore.stations = [
+      repeater(),
+      repeater({
+        callsign: 'GB3DU',
+        location: 'DURHAM',
+        locator: 'IO94GS',
+        channels: [channel({ band: '70CM', modes: ['M'] })],
+      }),
+    ]
+    const wrapper = mount(LandFilter)
+    for (const [needle, expected] of [
+      ['gb3du', ['GB3DU']],
+      ['newcastle', ['GB3NM']],
+      ['io94gs', ['GB3DU']],
+      ['70cm', ['GB3DU']],
+      ['dmr', ['GB3DU']],
+      ['zzz', []],
+    ] as Array<[string, string[]]>) {
+      store.setSearchQuery(needle)
+      await flushPromises()
+      expect(
+        wrapper.findAll('.bfp-result-item').map((row) => row.find('.bfp-result-primary').text()),
+      ).toEqual(expected)
+    }
+    expect(wrapper.find('.bfp-no-results').text()).toBe('Nothing matches')
+  })
+
+  it('tolerates a site whose register entry withheld the town and locator', async () => {
+    repeatersStore.stations = [repeater({ location: null, locator: null })]
+    const wrapper = mount(LandFilter)
+    store.setSearchQuery('gb3nm')
+    await flushPromises()
+    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(1)
+  })
+
+  it('says nothing is in view when the viewport holds no repeater', () => {
+    repeatersStore.setViewportBounds({ west: 10, east: 11, south: 10, north: 11 })
+    expect(mount(LandFilter).find('.bfp-no-results').text()).toBe('Nothing in view — repeaters')
+  })
+
+  it('lists all three sets together, stations first, with a joined label', () => {
+    store.setAprsLayerVisible(true)
+    store.setTrafficCamerasLayerVisible(true)
+    store.aprsStations = [station()]
+    const feedsStore = useLandFeedsStore()
+    feedsStore.feeds = [feed({ id: 'durham-cc' })]
+    feedsStore.featuresByFeed = {
+      'durham-cc': {
+        type: 'FeatureCollection',
+        features: [camera('Framwellgate Peth', 'durham-cc')],
+      },
+    }
+    const wrapper = mount(LandFilter)
+    expect(
+      wrapper.findAll('.bfp-result-item').map((row) => row.find('.bfp-result-primary').text()),
+    ).toEqual(['M0ABC-9', 'Framwellgate Peth', 'GB3NM'])
+    expect(wrapper.find('input').attributes('aria-label')).toBe(
+      'Filter APRS stations, traffic cameras and repeaters by name or callsign',
+    )
+    expect(wrapper.find('input').attributes('placeholder')).toBe(
+      'CALLSIGN · CAMERA · ROAD · TOWN · BAND · MODE',
+    )
+  })
+
+  it('expands a repeater row into its details, keeping an APRS callsign clash apart', async () => {
+    store.setAprsLayerVisible(true)
+    // A keeper beaconing from the site: same callsign, different row key.
+    store.aprsStations = [station({ callsign: 'GB3NM' })]
+    const wrapper = mount(LandFilter)
+    await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+    expect(store.searchExpandedCallsign).toBe(repeaterSearchKey('GB3NM'))
+    const details = wrapper.findComponent(LandRepeaterDetails)
+    expect(details.exists()).toBe(true)
+    expect(details.props('station').callsign).toBe('GB3NM')
+    // The APRS row with the same callsign stays shut.
+    expect(wrapper.find('#land-filter-row-GB3NM').classes()).not.toContain('bfp-expanded')
+  })
+
+  it('flies the map to a site when its position is clicked', async () => {
+    const wrapper = mount(LandFilter)
+    await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+    const dispatched = vi.spyOn(document, 'dispatchEvent')
+    await wrapper.find('.land-repeater-locate').trigger('click')
+    const event = dispatched.mock.calls[0]![0] as CustomEvent<{ callsign: string }>
+    expect(event.type).toBe('land-locate-repeater')
+    expect(event.detail.callsign).toBe('GB3NM')
+  })
+
+  it('collapses an expanded repeater the filters have removed from the map', async () => {
+    const wrapper = mount(LandFilter)
+    await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+    expect(store.searchExpandedCallsign).toBe(repeaterSearchKey('GB3NM'))
+
+    // A band the site does not carry: the map drops the site, so the pane must
+    // not keep its row open.
+    repeatersStore.filters = { bands: ['23CM'], modes: [], status: 'all' }
+    await flushPromises()
+    expect(store.searchExpandedCallsign).toBe('')
+  })
+
+  it('collapses an expanded repeater when the layer itself goes off', async () => {
+    const wrapper = mount(LandFilter)
+    await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+    store.setRepeatersLayerVisible(false)
+    await flushPromises()
+    expect(store.searchExpandedCallsign).toBe('')
+  })
+
+  it('keeps an expanded repeater open while it still passes the filters', async () => {
+    repeatersStore.stations = [repeater(), repeater({ callsign: 'GB3DU' })]
+    const wrapper = mount(LandFilter)
+    await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+    repeatersStore.filters = { bands: ['2M'], modes: [], status: 'all' }
+    await flushPromises()
+    expect(store.searchExpandedCallsign).toBe(repeaterSearchKey('GB3NM'))
+  })
+
+  it('leaves a non-repeater expansion alone when the repeater filters change', async () => {
+    store.setAprsLayerVisible(true)
+    store.aprsStations = [station()]
+    const wrapper = mount(LandFilter)
+    await wrapper.find('#land-filter-row-M0ABC-9').trigger('click')
+    repeatersStore.filters = { bands: ['23CM'], modes: [], status: 'all' }
+    await flushPromises()
+    expect(store.searchExpandedCallsign).toBe('M0ABC-9')
+  })
+
+  describe('tuning the SDR', () => {
+    it('tunes the output frequency and notifies, switching digital decode off for FM', async () => {
+      sdrStore.connected = true
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+      const tuned = vi.fn()
+      document.addEventListener('sentinel:sdr-tune-external', tuned)
+
+      await wrapper.find('[title="Tune to 145.6500 NFM"]').trigger('click')
+
+      const event = tuned.mock.calls[0]![0] as CustomEvent<{
+        hz: number
+        mode: string
+        satName: string
+        digital: boolean
+      }>
+      expect(event.detail).toEqual({
+        hz: 145_650_000,
+        mode: 'NFM',
+        satName: 'GB3NM 2M output',
+        digital: false,
+      })
+      expect(notificationsStore.items[0]).toMatchObject({
+        title: 'GB3NM 2M OUTPUT',
+        detail: 'Tuned 145.6500 MHz NFM',
+      })
+      document.removeEventListener('sentinel:sdr-tune-external', tuned)
+    })
+
+    it('tunes the input frequency and switches digital decode on for a DMR channel', async () => {
+      sdrStore.connected = true
+      repeatersStore.stations = [repeater({ channels: [channel({ modes: ['M'] })] })]
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+      const tuned = vi.fn()
+      document.addEventListener('sentinel:sdr-tune-external', tuned)
+
+      await wrapper.find('[title="Tune to 145.0500 NFM"]').trigger('click')
+
+      const event = tuned.mock.calls[0]![0] as CustomEvent<{
+        hz: number
+        satName: string
+        digital: boolean
+      }>
+      expect(event.detail.hz).toBe(145_050_000)
+      expect(event.detail.satName).toBe('GB3NM 2M input')
+      expect(event.detail.digital).toBe(true)
+      expect(notificationsStore.items[0]!.detail).toBe('Tuned 145.0500 MHz NFM · digital decode on')
+      document.removeEventListener('sentinel:sdr-tune-external', tuned)
+    })
+
+    it('asks for an SDR instead of tuning when none is connected, and clears the hint once one is', async () => {
+      sdrStore.connected = false
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+      const tuned = vi.fn()
+      document.addEventListener('sentinel:sdr-tune-external', tuned)
+
+      await wrapper.find('[title="Connect an SDR to tune"]').trigger('click')
+      expect(tuned).not.toHaveBeenCalled()
+      // Announced, not just styled — the hint is a live status region.
+      expect(wrapper.find('[role="status"]').text()).toBe('Connect an SDR before tuning')
+      expect(notificationsStore.items).toHaveLength(0)
+
+      sdrStore.connected = true
+      await flushPromises()
+      await wrapper.find('[title="Tune to 145.6500 NFM"]').trigger('click')
+      expect(tuned).toHaveBeenCalledOnce()
+      await flushPromises()
+      expect(wrapper.find('[role="status"]').exists()).toBe(false)
+      document.removeEventListener('sentinel:sdr-tune-external', tuned)
+    })
+  })
+
+  describe('saving a repeater frequency', () => {
+    it('files the output under a REPEATERS group, with the site details as notes', async () => {
+      const groupSpy = vi.spyOn(sdrStore, 'ensureFrequencyGroup').mockResolvedValue(7)
+      const saveSpy = vi
+        .spyOn(sdrStore, 'saveFrequency')
+        .mockResolvedValue(storedFrequency(145_650_000))
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+      await wrapper
+        .find('[aria-label="Save 145.6500 NFM to the frequency manager"]')
+        .trigger('click')
+      await flushPromises()
+
+      expect(groupSpy).toHaveBeenCalledWith('Repeaters')
+      expect(saveSpy).toHaveBeenCalledWith({
+        label: 'GB3NM 2M OUT',
+        frequency_hz: 145_650_000,
+        mode: 'NFM',
+        notes: 'NEWCASTLE · FM · Access 118.8 Hz · ukrepeater.net (RSGB ETCC)',
+        group_ids: [7],
+      })
+      expect(notificationsStore.items[0]).toMatchObject({
+        title: 'GB3NM 2M OUT',
+        detail: 'Saved 145.6500 MHz NFM to the frequency manager',
+      })
+    })
+
+    it('omits the access note (and the town) when the register carries neither', async () => {
+      repeatersStore.stations = [
+        repeater({
+          location: null,
+          channels: [channel({ ctcssHz: null, dmrColourCode: null })],
+        }),
+      ]
+      vi.spyOn(sdrStore, 'ensureFrequencyGroup').mockResolvedValue(7)
+      const saveSpy = vi
+        .spyOn(sdrStore, 'saveFrequency')
+        .mockResolvedValue(storedFrequency(145_050_000))
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+      await wrapper
+        .find('[aria-label="Save 145.0500 NFM to the frequency manager"]')
+        .trigger('click')
+      await flushPromises()
+
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: 'GB3NM 2M IN',
+          notes: 'FM · ukrepeater.net (RSGB ETCC)',
+        }),
+      )
+    })
+
+    it('says so rather than failing silently when the save cannot be filed', async () => {
+      vi.spyOn(sdrStore, 'ensureFrequencyGroup').mockRejectedValue(new Error('offline'))
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+      await wrapper
+        .find('[aria-label="Save 145.6500 NFM to the frequency manager"]')
+        .trigger('click')
+      await flushPromises()
+
+      expect(notificationsStore.items[0]).toMatchObject({
+        title: 'GB3NM 2M OUT',
+        detail: 'Could not save the frequency — is the backend reachable?',
+      })
+    })
+
+    it('shows a stored frequency as saved and removes it again on click', async () => {
+      sdrStore.frequencies = [storedFrequency(145_650_000)]
+      const removeSpy = vi.spyOn(sdrStore, 'removeStoredFrequency').mockResolvedValue(undefined)
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+      const bookmark = wrapper.find('[aria-label="Remove 145.6500 NFM from the frequency manager"]')
+      expect(bookmark.attributes('aria-pressed')).toBe('true')
+      // The input of the same channel is not stored, so its bookmark is empty.
+      expect(
+        wrapper.find('[aria-label="Save 145.0500 NFM to the frequency manager"]').exists(),
+      ).toBe(true)
+
+      await bookmark.trigger('click')
+      await flushPromises()
+      expect(removeSpy).toHaveBeenCalledWith(145_650_000)
+      expect(notificationsStore.items[0]).toMatchObject({
+        title: 'GB3NM 2M OUT',
+        detail: 'Removed 145.6500 MHz from the frequency manager',
+      })
+    })
+
+    it('says so when the removal cannot be completed', async () => {
+      sdrStore.frequencies = [storedFrequency(145_050_000)]
+      vi.spyOn(sdrStore, 'removeStoredFrequency').mockRejectedValue(new Error('offline'))
+      const wrapper = mount(LandFilter)
+      await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+      await wrapper
+        .find('[aria-label="Remove 145.0500 NFM from the frequency manager"]')
+        .trigger('click')
+      await flushPromises()
+
+      expect(notificationsStore.items[0]).toMatchObject({
+        title: 'GB3NM 2M IN',
+        detail: 'Could not remove the frequency — is the backend reachable?',
+      })
+    })
+
+    it('loads the frequency manager list once, and not at all when already loaded', () => {
+      const loadSpy = vi.spyOn(sdrStore, 'loadFrequencies').mockResolvedValue(undefined)
+      mount(LandFilter)
+      expect(loadSpy).toHaveBeenCalledOnce()
+
+      loadSpy.mockClear()
+      sdrStore.frequencies = [storedFrequency(145_650_000)]
+      mount(LandFilter)
+      expect(loadSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  it('has no accessibility violations with a repeater expanded', async () => {
+    sdrStore.connected = true
+    const wrapper = mount(LandFilter, { attachTo: document.body })
+    await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
     expect(
       await axe(wrapper.element.parentElement!, { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()

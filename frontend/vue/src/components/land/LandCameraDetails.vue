@@ -2,51 +2,63 @@
   <div class="land-camera-details">
     <!-- The still is the point of the row: full width of the pane, the same
          black letterbox as the map popup, refreshed while the row is open. -->
-    <div class="land-camera-details-preview">
+    <!-- The still is a button: it opens the camera's live view in a popup on
+         the map, flying there first — the same popup a marker click opens. -->
+    <button
+      v-if="camera.properties.imageUrl"
+      type="button"
+      class="land-camera-details-preview land-camera-details-preview-btn"
+      :title="`Show ${camera.properties.name} on the map`"
+      @click.stop="emit('preview', camera.properties.id)"
+    >
       <img
-        v-if="camera.properties.imageUrl"
         :src="imageSrc"
-        :alt="`${camera.properties.name} — latest camera image`"
+        :alt="`${camera.properties.name} — latest camera image; opens the live view on the map`"
         class="land-camera-details-image"
       />
-      <div v-else class="land-camera-details-no-image">
+    </button>
+    <div v-else class="land-camera-details-preview">
+      <div class="land-camera-details-no-image">
         {{ stateLabel(camera.properties.state) }}
       </div>
     </div>
-    <BaseDataGrid title="CAMERA" :columns="3">
+    <BaseDataGrid title="CAMERA" :columns="2">
       <BaseDataCell label="STATE" :value="stateLabel(camera.properties.state)" />
-      <BaseDataCell label="SOURCE" :value="camera.properties.sourceName" />
       <BaseDataCell label="UPDATED" :value="updatedLabel" />
+      <!-- Free text wraps to its full width rather than being cut at a
+           column edge: a source name, a view line or a description is
+           unreadable ellipsised, so each takes the whole row. -->
+      <div class="land-camera-details-prose">
+        <BaseDataCell label="SOURCE" :value="camera.properties.sourceName" wide />
+      </div>
     </BaseDataGrid>
-    <BaseDataGrid title="LOCATION" :columns="3">
+    <BaseDataGrid title="LOCATION" :columns="2">
       <BaseDataCell label="LATITUDE" :value="latitude.toFixed(5)" />
       <BaseDataCell label="LONGITUDE" :value="longitude.toFixed(5)" />
-      <BaseDataCell label="VIEW" :value="camera.properties.view ?? '—'" />
+      <div v-if="camera.properties.view" class="land-camera-details-prose">
+        <BaseDataCell label="VIEW" :value="camera.properties.view" wide />
+      </div>
     </BaseDataGrid>
     <BaseDataGrid v-if="camera.properties.description" title="NOTES" :columns="2">
-      <BaseDataCell label="DESCRIPTION" :value="camera.properties.description" wide />
+      <div class="land-camera-details-prose">
+        <BaseDataCell label="DESCRIPTION" :value="camera.properties.description" wide />
+      </div>
     </BaseDataGrid>
-    <div class="land-camera-details-actions">
-      <BaseButton variant="ghost" bordered @click.stop="emit('locate', camera.properties.id)">
-        SHOW ON MAP
-      </BaseButton>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * `LandCameraDetails` — the accordion body for one traffic camera in the Land
- * FILTER pane, the counterpart of `SeaVesselDetails`: the live still first,
- * then the same BaseDataGrid sections the other panes use for position and
- * provenance, then SHOW ON MAP.
+ * FILTER pane, the counterpart of `SeaVesselDetails`: the live still first
+ * (a button that opens the camera's popup on the map), then the same
+ * BaseDataGrid sections the other panes use for position and provenance.
  *
  * The image is re-requested (cache-busted) at the feed's own cadence while
  * the row is open, floored so a fast feed cannot be hammered by a row left
  * expanded, and stopped when the row collapses.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
 import BaseDataCell from '@/components/base/BaseDataCell.vue'
 import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
 import { imageUrl } from '@/services/landFeedsApi'
@@ -64,7 +76,7 @@ const props = withDefaults(
   { refreshSeconds: 60 },
 )
 
-const emit = defineEmits<{ locate: [featureId: string] }>()
+const emit = defineEmits<{ preview: [featureId: string] }>()
 
 const cacheBust = ref(Date.now())
 let refreshTimer: ReturnType<typeof setInterval> | undefined
@@ -113,6 +125,19 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
 </script>
 
 <style scoped>
+/* Wrapping, prose-weight values — the same treatment the APRS row gives its
+   packet fields — for the cells that hold a sentence rather than a reading. */
+.land-camera-details-prose {
+  display: contents;
+  --ba-cell-value-white-space: normal;
+  --ba-cell-value-word-break: break-word;
+  --ba-cell-align: flex-start;
+  --ba-cell-value-font-size: 13px;
+  --ba-cell-value-font-weight: 400;
+  --ba-cell-value-line-height: 1.45;
+  --ba-cell-value-letter-spacing: normal;
+  --ba-cell-value-color: rgba(255, 255, 255, 0.82);
+}
 .land-camera-details {
   display: flex;
   flex-direction: column;
@@ -121,6 +146,17 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
 .land-camera-details-preview {
   margin: 0 24px 10px;
   background: #000;
+}
+.land-camera-details-preview-btn {
+  display: block;
+  width: calc(100% - 48px);
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+.land-camera-details-preview-btn:focus-visible {
+  outline: 2px solid #c8ff00;
+  outline-offset: 2px;
 }
 .land-camera-details-image {
   display: block;
@@ -137,10 +173,5 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.35);
-}
-.land-camera-details-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 24px 0;
 }
 </style>

@@ -1,9 +1,13 @@
 <template>
   <!-- Fixed icon rail pinned to the right edge, mirroring the Air and Space side
-       menus — zoom, location, then the FILTER and MAP LAYERS accordions in the
-       same order those maps use. Buttons drive the map/controls via handlers
-       passed from LandView; the shell (rail, accordion, collapse, tooltips)
-       lives in IconRail/IconRailAccordion/BaseIconButton. -->
+       menus — zoom, location, then the MAP LAYERS accordion. The data layers
+       (APRS, cameras, repeaters) are chosen as lists from the left sidebar's
+       FILTER sub-tabs and switched on/off in Settings › LAND › Map Layers, and
+       place names are a Settings switch too, so this rail holds only map
+       navigation and annotation.
+       Buttons drive the map/controls via handlers passed from LandView; the
+       shell (rail, accordion, collapse, tooltips) lives in
+       IconRail/IconRailAccordion/BaseIconButton. -->
   <IconRail
     container-id="land-side-menu"
     accessible-name="Land map controls"
@@ -42,95 +46,8 @@
       <MyLocationIcon />
     </BaseIconButton>
 
-    <!-- FILTER group: which station types are plotted. APRS is the only Land
-         feed today, so it is the sole entry — more join it as they land. The
-         APRS button is disabled until a radio has been named as the APRS
-         receiver in Settings → LAND: with nothing decoding there is no traffic
-         to plot, and a live-looking toggle over an empty map reads as a bug. -->
-    <IconRailAccordion panel-id="land-filter-panel">
-      <template #trigger="{ open: filterAccordionOpen, toggle: toggleFilterAccordion }">
-        <BaseIconButton
-          id="land-filter-btn"
-          class="sm-btn"
-          tooltip-side="left"
-          tooltip="FILTER"
-          accessible-name="Filter stations"
-          :class="{ active: filterAccordionOpen }"
-          :active="filterAccordionOpen"
-          aria-controls="land-filter-panel"
-          :aria-expanded="filterAccordionOpen"
-          @click="toggleFilterAccordion"
-        >
-          <FilterFunnelIcon />
-        </BaseIconButton>
-      </template>
-      <template #panel>
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          tooltip-side="left"
-          :tooltip="aprsSourceConfigured ? 'APRS STATIONS' : 'APRS STATIONS — NO SDR SET'"
-          :accessible-name="
-            aprsSourceConfigured
-              ? 'APRS stations'
-              : 'APRS stations — unavailable until an APRS SDR is chosen in Land settings'
-          "
-          :class="{ active: aprsActive }"
-          :active="aprsActive"
-          :disabled="!aprsSourceConfigured"
-          @click="toggleAprs"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-            aria-hidden="true"
-          >
-            <circle cx="8" cy="11" r="1.6" fill="currentColor" stroke="none" />
-            <path d="M5.2 8.2a4 4 0 0 1 5.6 0" />
-            <path d="M3.4 6.4a6.6 6.6 0 0 1 9.2 0" />
-          </svg>
-        </BaseIconButton>
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          tooltip-side="left"
-          tooltip="TRAFFIC CAMERAS"
-          accessible-name="Traffic cameras"
-          :class="{ active: trafficCamerasActive }"
-          :active="trafficCamerasActive"
-          @click="toggleTrafficCameras"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" />
-            <circle cx="8" cy="9" r="2.2" />
-          </svg>
-        </BaseIconButton>
-      </template>
-    </IconRailAccordion>
-
     <!-- MAP LAYERS group: the map-annotation overlay (range rings) first, then
-         the shared base-map layers, matching the Air rail's panel order. -->
+         terrain, matching the Air rail's panel order. -->
     <IconRailAccordion panel-id="land-layers-panel">
       <template #trigger="{ open: layersAccordionOpen, toggle: toggleLayersAccordion }">
         <BaseIconButton
@@ -186,37 +103,6 @@
           </svg>
         </BaseIconButton>
 
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          tooltip-side="left"
-          tooltip="LOCATION NAMES"
-          accessible-name="Location name labels"
-          :class="{ active: basemapStore.layers.names }"
-          :active="basemapStore.layers.names"
-          @click="toggleNames"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 22C12 22 19 14 19 9A7 7 0 1 0 5 9C5 14 12 22 12 22Z"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linejoin="round"
-              fill="none"
-            />
-            <circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none" />
-          </svg>
-        </BaseIconButton>
         <!-- TERRAIN: shaded relief + contour lines from the local elevation
              archive. A shared base-map layer (basemap store), so the choice
              follows the operator to the other maps. Disabled, with the tooltip
@@ -249,7 +135,6 @@ import { useBasemapStore } from '@/stores/basemap'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import IconRail from '@/components/base/IconRail.vue'
 import IconRailAccordion from '@/components/base/IconRailAccordion.vue'
-import FilterFunnelIcon from '@/components/shared/FilterFunnelIcon.vue'
 import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
 import TerrainIcon from '@/components/shared/TerrainIcon.vue'
 
@@ -258,20 +143,13 @@ defineProps<{
   zoomOut: () => void
   goToLocation: () => void
   toggleRangeRings: () => void
-  toggleAprs: () => void
-  toggleTrafficCameras: () => void
-  toggleNames: () => void
   rangeRingsActive: boolean
-  aprsActive: boolean
-  /** Whether an SDR has been chosen as the APRS receiver in Settings → LAND. */
-  aprsSourceConfigured: boolean
-  trafficCamerasActive: boolean
   locationActive: boolean
 }>()
 
 const appStore = useAppStore()
-// Location names are a shared base-map layer, so the active state is read
-// straight off the cross-domain store rather than passed in from LandView.
+// Terrain is a shared base-map layer, so the active state is read straight
+// off the cross-domain store rather than passed in from LandView.
 const basemapStore = useBasemapStore()
 
 /** Flip the shared terrain layer; every map watches the store and follows. */

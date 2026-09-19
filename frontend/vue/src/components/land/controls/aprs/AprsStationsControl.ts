@@ -2,6 +2,7 @@ import maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { aprsSymbolIcon, aprsSymbolSvg } from '@/utils/aprsSymbols'
+import { escapeHtml } from '@/utils/escapeHtml'
 import {
   APRS_ACCENT_COLOR,
   APRS_BADGE_BACKGROUND,
@@ -105,7 +106,12 @@ export class AprsStationsControl extends SentinelControlBase {
           this._landStore.aprsLabelFields,
           this._landStore.aprsLayerVisible,
         ] as const,
-      () => this._render(this._landStore.aprsStations),
+      () => {
+        // The visibility flag can be flipped from the sidebar tabs or Settings
+        // as well as this control, so the button follows the store too.
+        this.setButtonActive(this._visible)
+        this._render(this._landStore.aprsStations)
+      },
       { immediate: true, deep: true },
     )
   }
@@ -734,14 +740,4 @@ export function truncate(value: string | null): string | null {
   return trimmed.length > MAX_LABEL_TEXT_LENGTH
     ? `${trimmed.slice(0, MAX_LABEL_TEXT_LENGTH - 1)}…`
     : trimmed
-}
-
-/** Escape a string for safe interpolation into marker/popup/table HTML. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }

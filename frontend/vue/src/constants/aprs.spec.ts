@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { APRS_ACCENT_COLOR, APRS_BADGE_BACKGROUND } from './aprs'
+import {
+  APRS_ACCENT_COLOR,
+  APRS_BADGE_BACKGROUND,
+  APRS_COUNT_RING,
+  REPEATER_COUNT_RING,
+  TRAFFIC_CAMERA_COUNT_RING,
+} from './aprs'
 
 /**
  * Cross-file invariants for the APRS label palette that no component test can
@@ -33,5 +39,26 @@ describe('APRS label palette', () => {
     // The Air domain uses hue to signal military / civil / emergency; Land must
     // not introduce a competing accent.
     expect(APRS_ACCENT_COLOR).toBe('#ffffff')
+  })
+
+  // Each Land layer groups its own points, and a count marker's ring is the
+  // only thing saying which set it stands for — so the three must differ, and
+  // each must stay translucent enough for the map to show through.
+  describe('Land count-marker rings', () => {
+    const rings = {
+      APRS: APRS_COUNT_RING,
+      'traffic cameras': TRAFFIC_CAMERA_COUNT_RING,
+      repeaters: REPEATER_COUNT_RING,
+    }
+
+    it('gives each layer a ring no other layer uses', () => {
+      expect(new Set(Object.values(rings)).size).toBe(Object.keys(rings).length)
+    })
+
+    it.each(Object.entries(rings))('keeps the %s ring translucent', (_layer, ring) => {
+      const alpha = Number(ring.match(/rgba\([^)]*,\s*([\d.]+)\)/)?.[1])
+      expect(alpha).toBeGreaterThan(0)
+      expect(alpha).toBeLessThan(1)
+    })
   })
 })

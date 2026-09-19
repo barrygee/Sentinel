@@ -6,7 +6,7 @@
       ref="mapRef"
       :style-url="styleUrl"
       region-label="Land domain map"
-      region-description="Interactive map of APRS stations heard by the SDR decoder. The same stations are listed in an accessible data table."
+      region-description="Interactive map of APRS stations, traffic cameras and UK amateur-radio repeaters. The same items are listed in accessible data tables."
       :center="[-2, 54]"
       :zoom="6"
       @map-created="onMapCreated"
@@ -17,13 +17,7 @@
       :zoom-out="zoomOut"
       :go-to-location="goToLocation"
       :toggle-range-rings="toggleRangeRings"
-      :toggle-aprs="toggleAprs"
-      :toggle-traffic-cameras="toggleTrafficCameras"
-      :toggle-names="toggleNames"
       :range-rings-active="rangeRingsActive"
-      :aprs-active="aprsActive"
-      :aprs-source-configured="aprsSourceConfigured"
-      :traffic-cameras-active="trafficCamerasActive"
       :location-active="locationActive"
     />
     <!-- msb-pane-search lives in MapSidebar, a sibling of <RouterView> in
@@ -41,6 +35,7 @@ import type { Map } from 'maplibre-gl'
 import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
 import { useLandFeedsStore } from '@/stores/landFeeds'
+import { useRepeatersStore } from '@/stores/repeaters'
 import { useBasemapStore } from '@/stores/basemap'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
@@ -58,6 +53,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useSdrStore } from '@/stores/sdr'
 import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
 import { TrafficCamerasControl } from '@/components/land/controls/traffic-cameras/TrafficCamerasControl'
+import { RepeatersControl } from '@/components/land/controls/repeaters/RepeatersControl'
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
@@ -70,6 +66,7 @@ const LOCATE_ZOOM = 10
 const appStore = useAppStore()
 const landStore = useLandStore()
 const landFeedsStore = useLandFeedsStore()
+const repeatersStore = useRepeatersStore()
 const basemapStore = useBasemapStore()
 const sentrySitesStore = useSentrySitesStore()
 const settingsStore = useSettingsStore()
@@ -98,6 +95,7 @@ let _map: Map | null = null
 let _initialStyleUrl: string | null = null
 let _aprsControl: AprsStationsControl | null = null
 let _trafficCamerasControl: TrafficCamerasControl | null = null
+let _repeatersControl: RepeatersControl | null = null
 let _rangeRingsControl: LandRangeRingsControl | null = null
 let _namesControl: NamesToggleControl | null = null
 // Sentry sites are plotted on every domain map, this one included — see
@@ -106,19 +104,13 @@ let _sentrySitesControl: SentrySitesControl | null = null
 let _roadsControl: RoadsToggleControl | null = null
 let _terrainControl: TerrainToggleControl | null = null
 
-// Reactive toggle state backing the side-menu buttons' active (green) styling.
-// APRS visibility lives on the store, so the map and the side panel's station
-// list can never disagree about what is currently shown.
-const aprsActive = computed(() => landStore.aprsLayerVisible)
 // APRS has a receiver only once an SDR has been named as the APRS radio in
 // Settings → LAND (backed by the same single backend decode bridge the SDR
 // panel's APRS button drives). Without one nothing is decoding, so the layer is
-// forced off and its side-menu button disabled rather than offering a toggle
-// that could only ever show an empty map.
+// forced off whatever the Settings switch says, rather than offering a layer
+// that could only ever be empty.
 const aprsSourceConfigured = computed(() => sdrStore.aprsRadioId !== null)
-// Traffic cameras have no receiver dependency — the layer flips on as soon as
-// a feed is configured and enabled in Settings → LAND → LIVE FEEDS.
-const trafficCamerasActive = computed(() => landStore.trafficCamerasLayerVisible)
+// Reactive toggle state backing the rail's range-rings button.
 const rangeRingsActive = ref(false)
 const locationActive = computed(() => userLocation.value !== null)
 
@@ -140,6 +132,7 @@ function onMapCreated(m: Map) {
   _rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   _aprsControl = new AprsStationsControl(landStore)
   _trafficCamerasControl = new TrafficCamerasControl(landStore, landFeedsStore)
+  _repeatersControl = new RepeatersControl(landStore, repeatersStore)
   // Location names and roads are shared base-map layers driven by the
   // cross-domain basemap store, so Land shows whatever the other domains were
   // last set to. Roads has no button of its own — the control exists purely to
@@ -158,14 +151,16 @@ function onMapCreated(m: Map) {
   _rangeRingsControl.onAdd(m)
   _aprsControl.onAdd(m)
   _trafficCamerasControl.onAdd(m)
+  _repeatersControl.onAdd(m)
   _namesControl.onAdd(m)
   _roadsControl.onAdd(m)
   _terrainControl.onAdd(m)
   // APRS starts visible per the land.defaultLayers config (default ["aprs"]),
   // but only once a radio is decoding it.
   _aprsControl.setVisible(aprsSourceConfigured.value && landStore.defaultLayers.includes('aprs'))
-  // Traffic cameras follow the same config, with no receiver gate.
+  // Traffic cameras and repeaters follow the same config, with no receiver gate.
   _trafficCamerasControl.setVisible(landStore.defaultLayers.includes('trafficCameras'))
+  _repeatersControl.setVisible(landStore.defaultLayers.includes('repeaters'))
   rangeRingsActive.value = _rangeRingsControl.visible
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
@@ -194,21 +189,6 @@ function toggleRangeRings() {
   _rangeRingsControl?.handleClickPublic()
   rangeRingsActive.value = !rangeRingsActive.value
 }
-function toggleAprs() {
-  // Guarded as well as disabled in the rail: the button is the only caller
-  // today, but a layer with no decoder behind it must never be switchable.
-  if (!aprsSourceConfigured.value) return
-  // The control flips the shared store flag, which `aprsActive` tracks.
-  _aprsControl?.handleClickPublic()
-}
-function toggleTrafficCameras() {
-  // The control flips the shared store flag, which `trafficCamerasActive` tracks.
-  _trafficCamerasControl?.handleClickPublic()
-}
-function toggleNames() {
-  // The control flips the basemap store, which LandSideMenu reads directly.
-  _namesControl?.handleClickPublic()
-}
 
 onMounted(() => {
   // The backend resumes the persisted APRS radio on startup, so the database is
@@ -219,12 +199,31 @@ onMounted(() => {
   // Load the default-layers config, then apply it to the APRS layer (and keep it
   // in sync if the config changes, or if the APRS radio is chosen/cleared).
   void landStore.hydrateDefaultLayers()
+  void repeatersStore.hydrateFiltersFromDb()
   watch([() => landStore.defaultLayers, aprsSourceConfigured], ([layers, hasSource]) => {
     _aprsControl?.setVisible(hasSource && layers.includes('aprs'))
   })
   watch(
     () => landStore.defaultLayers,
-    (layers) => _trafficCamerasControl?.setVisible(layers.includes('trafficCameras')),
+    (layers) => {
+      _trafficCamerasControl?.setVisible(layers.includes('trafficCameras'))
+      _repeatersControl?.setVisible(layers.includes('repeaters'))
+    },
+  )
+  // Settings › LAND › Map Layers flips the store flags directly; the controls
+  // own polling/loading and the rail button state, so each follows its flag
+  // (a no-op when the control itself made the change).
+  watch(
+    () => landStore.aprsLayerVisible,
+    (visible) => _aprsControl?.setVisible(aprsSourceConfigured.value && visible),
+  )
+  watch(
+    () => landStore.trafficCamerasLayerVisible,
+    (visible) => _trafficCamerasControl?.setVisible(visible),
+  )
+  watch(
+    () => landStore.repeatersLayerVisible,
+    (visible) => _repeatersControl?.setVisible(visible),
   )
 
   // Keep the location marker in sync with the live fix.
@@ -262,6 +261,7 @@ onUnmounted(() => {
   _rangeRingsControl?.onRemove()
   _aprsControl?.onRemove()
   _trafficCamerasControl?.onRemove()
+  _repeatersControl?.onRemove()
   _namesControl?.onRemove()
   _roadsControl?.onRemove()
   _terrainControl?.onRemove()
@@ -270,6 +270,7 @@ onUnmounted(() => {
   _locationMarker.remove()
   _rangeRingsControl = _aprsControl = null
   _trafficCamerasControl = null
+  _repeatersControl = null
   _namesControl = _roadsControl = _terrainControl = null
 })
 

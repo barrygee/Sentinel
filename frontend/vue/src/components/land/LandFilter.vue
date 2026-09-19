@@ -4,26 +4,38 @@
     :query="landStore.searchQuery"
     :expanded-key="landStore.searchExpandedCallsign"
     id-prefix="land-filter"
-    :input-label="
-      camerasOn
-        ? 'Filter APRS stations and traffic cameras by name, callsign, source or road'
-        : 'Filter APRS stations by callsign, symbol, path or comment'
-    "
-    :placeholder="
-      camerasOn ? 'CALLSIGN · CAMERA · ROAD · SOURCE' : 'CALLSIGN · SYMBOL · PATH · COMMENT'
-    "
-    :listbox-label="camerasOn ? 'APRS stations and traffic cameras' : 'APRS stations'"
+    :input-label="inputLabel"
+    :placeholder="placeholder"
+    :listbox-label="listboxLabel"
     :empty-message="emptyMessage"
     @update:query="landStore.setSearchQuery"
     @update:expanded-key="landStore.setSearchExpandedCallsign"
   >
+    <!-- Band, mode and status chips narrow the REPEATERS list and the map
+         together, folded under the search box. -->
+    <template v-if="repeatersOn" #below-input>
+      <LandRepeaterFilters />
+    </template>
     <template #accordion="{ item }">
       <div class="land-filter-accordion">
         <LandCameraDetails
           v-if="cameraFor(item.key)"
           :camera="cameraFor(item.key)!"
           :refresh-seconds="refreshSecondsFor(cameraFor(item.key)!.properties.sourceId)"
-          @locate="locateCamera"
+          @preview="previewCamera"
+        />
+        <LandRepeaterDetails
+          v-else-if="repeaterFor(item.key)"
+          :station="repeaterFor(item.key)!"
+          :sdr-connected="sdrStore.connected"
+          :is-saved="isFrequencySaved"
+          :tune-notice="tuneNotice === item.key"
+          @locate="locateRepeater"
+          @tune="(channel, side) => tuneRepeater(repeaterFor(item.key)!, channel, side)"
+          @save="(channel, side) => saveRepeaterFrequency(repeaterFor(item.key)!, channel, side)"
+          @unsave="
+            (channel, side) => removeRepeaterFrequency(repeaterFor(item.key)!, channel, side)
+          "
         />
         <template v-else-if="stationFor(item.key)">
           <BaseDataGrid title="STATION" :columns="3">
@@ -94,23 +106,27 @@
 
 <script setup lang="ts">
 /**
- * Land FILTER pane — the searchable list of APRS stations currently heard.
+ * Land FILTER pane — one searchable list per data layer the map is drawing,
+ * each under its own heading. The sidebar's sub-tabs beneath FILTER switch
+ * the layers on and off (several at once), and the pane lists exactly what
+ * is on:
  *
- * Mirrors the Space pane's shape (shared BaseFilterPanel shell, an expandable
- * per-item accordion of BaseDataGrid sections) over APRS data, and shows every
- * field the beacon carried rather than only those enabled for map labels.
+ * - APRS STATIONS — every station currently heard, showing every field the
+ *   beacon carried rather than only those enabled for map labels.
+ * - one heading per traffic-camera source (TfL JamCams, Durham CC, …) — the
+ *   cameras in the map's viewport, with the in-view count and licence line,
+ *   expanding to `LandCameraDetails` (the live still).
+ * - REPEATERS — every filtered UK repeater (ukrepeater.net) in the viewport,
+ *   expanding to `LandRepeaterDetails`, with BAND/MODE/STATUS chips above the
+ *   search box that narrow the map and the list together.
  *
- * The list tracks the map exactly: it renders the same polled snapshot the map
- * plots, so a station that stops beaconing and ages out of the retention window
- * disappears from both at the same moment.
- *
- * Traffic cameras share the pane: while the layer is on, every camera in the
- * map's viewport is listed after the stations, grouped under a heading per
- * source (TfL JamCams, Durham CC, …) with its in-view count and licence line,
- * and expands to `LandCameraDetails` — the still, its position and SHOW ON
- * MAP — the way a vessel does in the Sea pane.
+ * Each list tracks the map exactly: it renders the same snapshot the map
+ * plots, so a station that ages out, a camera whose feed is disabled or a
+ * repeater filtered away leaves both at the same moment. Clicking a marker on
+ * the map expands its row here — the pane holds all the detail; nothing
+ * opens on the map itself.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import BaseFilterPanel, {
   type FilterPanelItem,
 } from '@/components/shared/filter/BaseFilterPanel.vue'
@@ -119,8 +135,33 @@ import BaseDataCell from '@/components/base/BaseDataCell.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
 import LandCameraDetails from '@/components/land/LandCameraDetails.vue'
+import LandRepeaterFilters from '@/components/land/LandRepeaterFilters.vue'
+import LandRepeaterDetails from '@/components/land/LandRepeaterDetails.vue'
+import { useRepeatersStore } from '@/stores/repeaters'
+import {
+  formatRepeaterAccess,
+  formatRepeaterModes,
+  formatMhz,
+  channelHasDigitalDecode,
+  REPEATER_FREQUENCY_GROUP_NAME,
+  REPEATER_SDR_MODE,
+  REPEATER_SOURCE_NAME,
+  repeaterMhzToHz,
+  repeaterCallsignFromSearchKey,
+  repeaterSearchKey,
+  stationBands,
+  stationModes,
+  stationOffAir,
+} from '@/constants/repeaters'
+import type { RepeaterStation } from '@/types/repeaters'
 import { useLandStore, type AprsStation } from '@/stores/land'
 import { useLandFeedsStore } from '@/stores/landFeeds'
+import { useSdrStore } from '@/stores/sdr'
+import { useNotificationsStore } from '@/stores/notifications'
+import type { RepeaterFrequencySide } from '@/components/land/LandRepeaterDetails.vue'
+import { REPEATER_LOCATE_EVENT } from '@/components/land/controls/repeaters/RepeatersControl'
+import { CAMERA_PREVIEW_EVENT } from '@/components/land/controls/traffic-cameras/TrafficCamerasControl'
+import type { RepeaterChannel } from '@/types/repeaters'
 import { useVisibleCameras } from '@/composables/useVisibleCameras'
 import type { CameraFeature } from '@/types/landFeeds'
 import { aprsSymbolIcon } from '@/utils/aprsSymbols'
@@ -134,12 +175,49 @@ import {
 
 const landStore = useLandStore()
 const landFeedsStore = useLandFeedsStore()
+const repeatersStore = useRepeatersStore()
+const sdrStore = useSdrStore()
+const notificationsStore = useNotificationsStore()
 const { sources: cameraSources, cameraById } = useVisibleCameras()
 
 /** Whether cameras take part in this pane at all (layer on + a source enabled). */
 const camerasOn = computed(
   () => landStore.trafficCamerasLayerVisible && cameraSources.value.length > 0,
 )
+
+/** Whether repeaters take part in this pane (layer on + directory loaded). */
+const repeatersOn = computed(
+  () => landStore.repeatersLayerVisible && repeatersStore.stations.length > 0,
+)
+
+/** The search box describes whichever sets are currently listed. */
+const listedSets = computed<string[]>(() => {
+  const sets: string[] = []
+  if (landStore.aprsLayerVisible) sets.push('APRS stations')
+  if (camerasOn.value) sets.push('traffic cameras')
+  if (repeatersOn.value) sets.push('repeaters')
+  return sets
+})
+const listboxLabel = computed(() => joinSets(listedSets.value) || 'Land map items')
+const inputLabel = computed(() => {
+  if (listedSets.value.length === 0) return 'Filter Land map items by name or callsign'
+  if (listedSets.value.length === 1 && landStore.aprsLayerVisible) {
+    return 'Filter APRS stations by callsign, symbol, path or comment'
+  }
+  return `Filter ${joinSets(listedSets.value)} by name or callsign`
+})
+const placeholder = computed(() => {
+  const parts = ['CALLSIGN']
+  if (camerasOn.value) parts.push('CAMERA', 'ROAD')
+  if (repeatersOn.value) parts.push('TOWN', 'BAND', 'MODE')
+  if (!camerasOn.value && !repeatersOn.value) parts.push('SYMBOL', 'PATH', 'COMMENT')
+  return parts.join(' · ')
+})
+
+function joinSets(sets: string[]): string {
+  if (sets.length <= 1) return sets.join('')
+  return `${sets.slice(0, -1).join(', ')} and ${sets[sets.length - 1]}`
+}
 
 // Whether the expanded station's raw frame is showing. Only one station is open
 // at a time, so one flag covers the pane; it closes again whenever a different
@@ -183,7 +261,7 @@ function cameraMatches(camera: CameraFeature, needle: string): boolean {
   return [name, view ?? '', sourceName, description].join(' ').toLowerCase().includes(needle)
 }
 
-/** One grouped row per in-view camera, per source, after the stations. */
+/** One grouped row per in-view camera, per source. */
 const cameraItems = computed<FilterPanelItem[]>(() => {
   if (!camerasOn.value) return []
   const needle = landStore.searchQuery.trim().toLowerCase()
@@ -191,10 +269,6 @@ const cameraItems = computed<FilterPanelItem[]>(() => {
     const matching = needle
       ? source.visible.filter((camera) => cameraMatches(camera, needle))
       : source.visible
-    const groupMeta =
-      source.visible.length === source.total
-        ? `${source.total}`
-        : `${source.visible.length} of ${source.total} in view`
     return matching.map((camera) => ({
       key: camera.properties.id,
       idKey: cameraIdToken(camera.properties.id),
@@ -203,39 +277,85 @@ const cameraItems = computed<FilterPanelItem[]>(() => {
         .filter((part): part is string => Boolean(part))
         .join(' · '),
       optionLabel: `Traffic camera ${camera.properties.name}, ${source.feed.name}, ${camera.properties.state}`,
+      // Heading only: the count and the licence line are left off so each
+      // source folds into one clean row.
       groupLabel: source.feed.name,
-      groupMeta,
-      groupNote: source.attribution || undefined,
     }))
   })
 })
 
+/** Callsign, town, bands and modes — what an operator would search a repeater by. */
+function repeaterMatches(station: RepeaterStation, needle: string): boolean {
+  return [
+    station.callsign,
+    station.location ?? '',
+    station.locator ?? '',
+    stationBands(station).join(' '),
+    formatRepeaterModes(stationModes(station)),
+  ]
+    .join(' ')
+    .toLowerCase()
+    .includes(needle)
+}
+
+/** One row per in-view repeater — a flat list, since the map draws one layer at a time. */
+const repeaterItems = computed<FilterPanelItem[]>(() => {
+  if (!repeatersOn.value) return []
+  const needle = landStore.searchQuery.trim().toLowerCase()
+  const visible = repeatersStore.visibleStations
+  const matching = needle ? visible.filter((station) => repeaterMatches(station, needle)) : visible
+  return matching.map((station) => {
+    const bands = stationBands(station).join(' · ')
+    const modes = formatRepeaterModes(stationModes(station))
+    const offAir = stationOffAir(station)
+    return {
+      key: repeaterSearchKey(station.callsign),
+      idKey: `rpt-${station.callsign}`,
+      primary: station.callsign,
+      secondary: [station.location, bands, modes, offAir ? 'OFF AIR' : null]
+        .filter((part): part is string => Boolean(part))
+        .join(' · '),
+      optionLabel: `Repeater ${station.callsign}, ${station.location ?? 'location withheld'}, ${bands}, ${modes}${offAir ? ', not operational' : ''}`,
+    }
+  })
+})
+
 const items = computed<FilterPanelItem[]>(() => {
+  const grouped = camerasOn.value || repeatersOn.value
   const stationItems: FilterPanelItem[] = matchingStations.value.map((station) => ({
     key: station.callsign,
     primary: station.callsign,
     secondary: `${symbolLabel(station)} · ${formatHeardTime(station.last_heard_ms)}`,
     optionLabel: `${station.callsign}, ${symbolLabel(station)}, heard ${formatHeardTime(station.last_heard_ms)}`,
-    // Stations only get a heading once cameras are in the same list; alone
+    // Stations only get a heading once another set shares the list; alone
     // they read as they always have.
-    groupLabel: camerasOn.value ? 'APRS STATIONS' : undefined,
+    groupLabel: grouped ? 'APRS STATIONS' : undefined,
   }))
-  return [...stationItems, ...cameraItems.value]
+  return [...stationItems, ...cameraItems.value, ...repeaterItems.value]
 })
 
 const emptyMessage = computed(() => {
-  if (camerasOn.value) {
-    const anyVisible = cameraSources.value.some((source) => source.visible.length > 0)
-    if (!landStore.aprsLayerVisible && !anyVisible) return 'No traffic cameras in view'
-    return 'No stations or cameras match'
+  if (listedSets.value.length === 0) return 'No layers on — use the tabs to add one'
+  if (camerasOn.value || repeatersOn.value) {
+    const anyCameraVisible = cameraSources.value.some((source) => source.visible.length > 0)
+    const anyRepeaterVisible = repeatersStore.visibleStations.length > 0
+    if (!landStore.aprsLayerVisible && !anyCameraVisible && !anyRepeaterVisible) {
+      return `Nothing in view — ${joinSets(listedSets.value)}`
+    }
+    return 'Nothing matches'
   }
-  if (!landStore.aprsLayerVisible) return 'APRS layer hidden'
   return landStore.aprsStations.length === 0 ? 'No APRS stations heard' : 'No stations match'
 })
 
-/** Camera keys are "feedId:ref"; APRS callsigns never carry a colon. */
+/** Camera keys are "feedId:ref"; APRS callsigns never carry a colon, and
+ *  repeater keys carry their own prefix (checked first). */
 function isCameraKey(key: string): boolean {
-  return key.includes(':')
+  return repeaterCallsignFromSearchKey(key) === null && key.includes(':')
+}
+
+function repeaterFor(key: string): RepeaterStation | undefined {
+  const callsign = repeaterCallsignFromSearchKey(key)
+  return callsign === null ? undefined : repeatersStore.stationByCallsign(callsign)
 }
 
 function cameraFor(key: string): CameraFeature | undefined {
@@ -247,17 +367,141 @@ function refreshSecondsFor(feedId: string): number | undefined {
   return landFeedsStore.feeds.find((feed) => feed.id === feedId)?.refreshSeconds
 }
 
-/** SHOW ON MAP — the same event `TrafficCamerasControl` flies to. */
-function locateCamera(featureId: string): void {
-  document.dispatchEvent(new CustomEvent('land-camera-selected', { detail: { featureId } }))
-}
-
 function stationFor(callsign: string): AprsStation | undefined {
   return landStore.aprsStations.find((station) => station.callsign === callsign)
 }
 
+// ── tuning / saving a repeater frequency ───────────────────────────────────
+// Which repeater row is showing the "connect an SDR" hint (by row key).
+const tuneNotice = ref<string | null>(null)
+
+// The bookmark's filled state reads the Frequency Manager list, which only
+// the SDR panel loads otherwise — fetch it once so the pane is right from
+// the first open.
+onMounted(() => {
+  if (sdrStore.frequencies.length === 0) void sdrStore.loadFrequencies()
+})
+
+function isFrequencySaved(mhz: number): boolean {
+  return sdrStore.hasStoredFrequency(repeaterMhzToHz(mhz))
+}
+
+function channelSideMhz(channel: RepeaterChannel, side: RepeaterFrequencySide): number {
+  return side === 'output' ? channel.txMhz : channel.rxMhz
+}
+
+/** Tune the SDR to a repeater's output or input, the way the Sea pane tunes a port channel. */
+function tuneRepeater(
+  station: RepeaterStation,
+  channel: RepeaterChannel,
+  side: RepeaterFrequencySide,
+): void {
+  const rowKey = repeaterSearchKey(station.callsign)
+  if (!sdrStore.connected) {
+    tuneNotice.value = rowKey
+    return
+  }
+  tuneNotice.value = null
+  const mhz = channelSideMhz(channel, side)
+  // A DMR / D-STAR / Fusion / P25 / NXDN channel also switches the SDR's
+  // digital decoder on; an FM-only one switches it off so audio isn't muted.
+  const digital = channelHasDigitalDecode(channel)
+  document.dispatchEvent(
+    new CustomEvent('sentinel:sdr-tune-external', {
+      detail: {
+        hz: repeaterMhzToHz(mhz),
+        mode: REPEATER_SDR_MODE,
+        satName: `${station.callsign} ${channel.band} ${side}`,
+        digital,
+      },
+    }),
+  )
+  notificationsStore.add({
+    type: 'system',
+    title: `${station.callsign} ${channel.band} ${side.toUpperCase()}`,
+    detail: `Tuned ${formatMhz(mhz)} ${REPEATER_SDR_MODE}${digital ? ' · digital decode on' : ''}`,
+  })
+}
+
+/** A row's preview still clicked — fly the map to the camera and open its popup. */
+function previewCamera(featureId: string): void {
+  document.dispatchEvent(new CustomEvent(CAMERA_PREVIEW_EVENT, { detail: { featureId } }))
+}
+
+/** LAT/LONG clicked in an expanded row — fly the map to the site, zoomed out of any count. */
+function locateRepeater(callsign: string): void {
+  document.dispatchEvent(new CustomEvent(REPEATER_LOCATE_EVENT, { detail: { callsign } }))
+}
+
+/** Add a repeater's output or input to the SDR Frequency Manager. */
+async function saveRepeaterFrequency(
+  station: RepeaterStation,
+  channel: RepeaterChannel,
+  side: RepeaterFrequencySide,
+): Promise<void> {
+  const mhz = channelSideMhz(channel, side)
+  const label = `${station.callsign} ${channel.band} ${side === 'output' ? 'OUT' : 'IN'}`
+  const notes = [
+    station.location,
+    formatRepeaterModes(channel.modes),
+    formatRepeaterAccess(channel) === '—' ? null : `Access ${formatRepeaterAccess(channel)}`,
+    REPEATER_SOURCE_NAME,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ')
+  try {
+    // Filed under a REPEATERS group so they stay together in the manager —
+    // created on first use if the operator has not made one.
+    const groupId = await sdrStore.ensureFrequencyGroup(REPEATER_FREQUENCY_GROUP_NAME)
+    await sdrStore.saveFrequency({
+      label,
+      frequency_hz: repeaterMhzToHz(mhz),
+      mode: REPEATER_SDR_MODE,
+      notes,
+      group_ids: [groupId],
+    })
+    notificationsStore.add({
+      type: 'system',
+      title: label,
+      detail: `Saved ${formatMhz(mhz)} ${REPEATER_SDR_MODE} to the frequency manager`,
+    })
+  } catch {
+    notificationsStore.add({
+      type: 'system',
+      title: label,
+      detail: 'Could not save the frequency — is the backend reachable?',
+    })
+  }
+}
+
+/** Take a repeater's output or input back out of the SDR Frequency Manager. */
+async function removeRepeaterFrequency(
+  station: RepeaterStation,
+  channel: RepeaterChannel,
+  side: RepeaterFrequencySide,
+): Promise<void> {
+  const mhz = channelSideMhz(channel, side)
+  const label = `${station.callsign} ${channel.band} ${side === 'output' ? 'OUT' : 'IN'}`
+  try {
+    await sdrStore.removeStoredFrequency(repeaterMhzToHz(mhz))
+    notificationsStore.add({
+      type: 'system',
+      title: label,
+      detail: `Removed ${formatMhz(mhz)} from the frequency manager`,
+    })
+  } catch {
+    notificationsStore.add({
+      type: 'system',
+      title: label,
+      detail: 'Could not remove the frequency — is the backend reachable?',
+    })
+  }
+}
+
 // A station clicked on the map expands here. The sidebar tab switch is App.vue's
-// job (it owns the sidebar); this side only has to open the right row.
+// job (it owns the sidebar); this side only has to open the right row. (The
+// camera and repeater controls set the row on the store themselves before
+// firing their open events.)
 useDocumentEvent('aprs-station-selected', (event: Event) => {
   const { callsign } = (event as CustomEvent<{ callsign: string }>).detail
   landStore.setSearchExpandedCallsign(callsign)
@@ -269,16 +513,32 @@ watch(
   () => landStore.aprsStations,
   (stations) => {
     const expanded = landStore.searchExpandedCallsign
-    // Camera rows share this expanded-key slot; an APRS poll must not shut one.
+    // Camera and repeater rows share this expanded-key slot; an APRS poll
+    // must not shut one.
     if (
       expanded &&
       !isCameraKey(expanded) &&
+      repeaterCallsignFromSearchKey(expanded) === null &&
       !stations.some((station) => station.callsign === expanded)
     ) {
       landStore.setSearchExpandedCallsign('')
     }
   },
   { deep: true },
+)
+
+// And for repeaters: collapse a repeater row the band/mode filters (or the
+// layer switch) have just removed from the map.
+watch(
+  () => [repeatersStore.filteredStations, landStore.repeatersLayerVisible] as const,
+  ([filtered, layerOn]) => {
+    const expanded = landStore.searchExpandedCallsign
+    const callsign = repeaterCallsignFromSearchKey(expanded)
+    if (callsign === null) return
+    if (!layerOn || !filtered.some((station) => station.callsign === callsign)) {
+      landStore.setSearchExpandedCallsign('')
+    }
+  },
 )
 
 // The same courtesy for cameras: collapse a camera row whose camera has left
@@ -296,6 +556,15 @@ watch(
 </script>
 
 <style scoped>
+/* With the REPEATER FILTERS bar between the search box and the list, the
+   shell's input→first-row gap (held inside the first row's header) would
+   stack on the bar's own height; drop it so the first repeater sits as close
+   under the bar as the rows do under each other. Unscoped selector by
+   design — the results body is the shell's, rendered outside this scope. */
+:global(.lrf ~ #land-filter-results .bfp-results-body) {
+  --bfp-results-top-gap: 0px;
+}
+
 .land-filter-accordion {
   display: flex;
   flex-direction: column;

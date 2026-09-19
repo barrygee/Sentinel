@@ -39,3 +39,13 @@ export const APRS_COUNT_FILL = '#000000'
  * Sentinel/Sentry site markers.
  */
 export const APRS_COUNT_RING = 'rgba(0, 170, 255, 0.25)'
+
+/**
+ * Rings for the other Land layers' count markers. Each layer groups its own
+ * points, and several layers can be on at once, so a count's ring says which
+ * set it stands for: APRS blue (above), cameras dark green, repeaters lime —
+ * at the same transparency so the map still shows through. (Cameras were
+ * amber, which read as brown over the dark base map.)
+ */
+export const TRAFFIC_CAMERA_COUNT_RING = 'rgba(0, 120, 60, 0.45)'
+export const REPEATER_COUNT_RING = 'rgba(200, 255, 0, 0.3)'
