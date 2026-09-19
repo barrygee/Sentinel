@@ -43,19 +43,22 @@ test.describe('Air domain', () => {
     await expect(layersButton).toHaveAttribute('aria-expanded', 'false')
   })
 
-  test('AirSideMenu FILTER accordion exposes civil and military aircraft modes', async ({
+  test('the sidebar FILTER sub-tabs expose all / civil / military aircraft modes', async ({
     page,
   }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
-    // The aircraft-filter modes live inside the FILTER accordion, revealed when
-    // the FILTER icon is clicked.
-    await page.getByRole('button', { name: /^filter aircraft$/i }).click()
+    // The aircraft-filter modes are the left sidebar's sub-tabs beneath FILTER,
+    // shown while the FILTER tab is open.
+    await page.locator('[data-tab="search"]').click()
 
-    await expect(page.getByRole('button', { name: /civil aircraft only/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /military aircraft only/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /show all aircraft/i })).toBeVisible()
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="aircraft"]')).toBeVisible()
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="civil"]')).toBeVisible()
+    await expect(page.locator('.msb-rail-subbtn[data-filter-cat="milAircraft"]')).toBeVisible()
+    await expect(page.getByRole('button', { name: /^civil aircraft$/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^military aircraft$/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^all aircraft$/i })).toBeVisible()
   })
 
   test('filter combobox is rendered in the SEARCH sidebar pane', async ({ page }) => {
@@ -345,10 +348,9 @@ test.describe('Air domain aircraft classification', () => {
     // Both are on the map before any filtering.
     await expect(arrowShapeFor(page, 'BAW123')).toHaveAttribute('stroke', CIVIL_BLUE)
 
-    // The aircraft-filter modes live inside the FILTER accordion, revealed when
-    // the FILTER icon is clicked.
-    await page.getByRole('button', { name: /^filter aircraft$/i }).click()
-    await page.getByRole('button', { name: /military aircraft only/i }).click()
+    // The aircraft-filter modes are the sidebar's sub-tabs beneath FILTER.
+    await page.locator('[data-tab="search"]').click()
+    await page.locator('.msb-rail-subbtn[data-filter-cat="milAircraft"]').click()
 
     await expect(page.locator('.maplibregl-marker').filter({ hasText: 'BAW123' })).toHaveCount(0)
     await expect(arrowShapeFor(page, 'RCH456')).toHaveAttribute('stroke', MILITARY_LIME)

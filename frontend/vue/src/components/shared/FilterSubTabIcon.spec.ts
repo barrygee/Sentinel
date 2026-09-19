@@ -9,6 +9,9 @@ expect.extend(toHaveNoViolations)
 // that must fall through to the "unknown" glyph (the v-else branch).
 const CATEGORIES = [
   'aircraft',
+  // Air's ALL / CIVIL / MILITARY aircraft tabs (the old side-menu filter icons).
+  'civil',
+  'milAircraft',
   'airports',
   'mil',
   'space_station',
@@ -28,6 +31,10 @@ const CATEGORIES = [
   'passenger',
   'fishing',
   'other',
+  // Land: one per data layer.
+  'aprs',
+  'trafficCameras',
+  'repeaters',
 ]
 
 describe('FilterSubTabIcon', () => {

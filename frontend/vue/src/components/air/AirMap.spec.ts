@@ -46,6 +46,10 @@ const controlMocks = vi.hoisted(() => {
       toggle = vi.fn()
       namesVisible = false
       setHideGroundVehicles = vi.fn()
+      // The ADS-B control's civil/military/all filter, driven from the store.
+      _allHidden = false
+      setAllHidden = vi.fn()
+      setTypeFilter = vi.fn()
       setHideTowers = vi.fn()
       setZones = vi.fn()
       updateCenter = vi.fn()
@@ -383,6 +387,77 @@ describe('AirMap', () => {
       await nextTick()
 
       expect(control.toggle).toHaveBeenCalledOnce()
+    })
+
+    it.each(['civil', 'mil'] as const)(
+      'pushes the %s ADS-B type filter onto the control and asks the list to re-filter',
+      async (mode) => {
+        const air = useAirStore()
+        const map = makeFakeMap()
+        mountMap()
+        bringUp(map)
+        const control = last('adsb')
+        const onFilterChange = vi.fn()
+        document.addEventListener('adsb-filter-change', onFilterChange)
+
+        air.setAdsbTypeFilter(mode)
+        await nextTick()
+
+        expect(control.setTypeFilter).toHaveBeenCalledWith(mode)
+        expect(onFilterChange).toHaveBeenCalledOnce()
+        document.removeEventListener('adsb-filter-change', onFilterChange)
+      },
+    )
+
+    it('pushes ALL back onto the control when the operator widens the filter again', async () => {
+      const air = useAirStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+      const control = last('adsb')
+
+      air.setAdsbTypeFilter('mil')
+      await nextTick()
+      air.setAdsbTypeFilter('all')
+      await nextTick()
+
+      expect(control.setTypeFilter).toHaveBeenLastCalledWith('all')
+    })
+
+    it('un-hides the layer first when every aircraft was hidden', async () => {
+      const air = useAirStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+      const control = last('adsb')
+      ;(control as unknown as { _allHidden: boolean })._allHidden = true
+
+      air.setAdsbTypeFilter('mil')
+      await nextTick()
+
+      expect(control.setAllHidden).toHaveBeenCalledWith(false)
+      expect(control.setTypeFilter).toHaveBeenCalledWith('mil')
+    })
+
+    it('leaves the hidden flag alone when the layer is already showing', async () => {
+      const air = useAirStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+      const control = last('adsb')
+
+      air.setAdsbTypeFilter('civil')
+      await nextTick()
+
+      expect(control.setAllHidden).not.toHaveBeenCalled()
+    })
+
+    it('ignores a filter change made before the map has built its controls', async () => {
+      const air = useAirStore()
+      mountMap()
+      air.setAdsbTypeFilter('mil')
+      await expect(nextTick()).resolves.toBeUndefined()
+      expect(controlMocks.instances.adsb).toBeUndefined()
     })
 
     it('leaves a control that already agrees alone', async () => {

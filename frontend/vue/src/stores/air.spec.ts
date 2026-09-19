@@ -440,4 +440,54 @@ describe('air store — map layers config mirroring', () => {
       expect(putSpy).not.toHaveBeenCalled()
     })
   })
+  describe('ADS-B type filter (ALL / CIVIL / MILITARY)', () => {
+    it('starts at ALL when nothing has been persisted', () => {
+      expect(useAirStore().adsbTypeFilter).toBe('all')
+    })
+
+    it.each(['all', 'civil', 'mil'] as const)('restores the persisted %s filter', (mode) => {
+      localStorage.setItem('adsbFilter', JSON.stringify({ typeFilter: mode, allHidden: false }))
+      setActivePinia(createPinia())
+      expect(useAirStore().adsbTypeFilter).toBe(mode)
+    })
+
+    it('falls back to ALL when the persisted filter names an unknown mode', () => {
+      localStorage.setItem('adsbFilter', JSON.stringify({ typeFilter: 'gliders' }))
+      setActivePinia(createPinia())
+      expect(useAirStore().adsbTypeFilter).toBe('all')
+    })
+
+    it('falls back to ALL when the persisted entry is not valid JSON', () => {
+      localStorage.setItem('adsbFilter', 'not json at all')
+      setActivePinia(createPinia())
+      expect(useAirStore().adsbTypeFilter).toBe('all')
+    })
+
+    it('falls back to ALL when localStorage cannot be read', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('storage disabled')
+      })
+      setActivePinia(createPinia())
+      expect(useAirStore().adsbTypeFilter).toBe('all')
+    })
+
+    it('records the chosen mode and persists it under the key the map control reads', () => {
+      const store = useAirStore()
+      store.setAdsbTypeFilter('mil')
+      expect(store.adsbTypeFilter).toBe('mil')
+      expect(JSON.parse(localStorage.getItem('adsbFilter')!)).toEqual({
+        typeFilter: 'mil',
+        allHidden: false,
+      })
+    })
+
+    it('still records the mode when the write to localStorage fails', () => {
+      const store = useAirStore()
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota exceeded')
+      })
+      store.setAdsbTypeFilter('civil')
+      expect(store.adsbTypeFilter).toBe('civil')
+    })
+  })
 })

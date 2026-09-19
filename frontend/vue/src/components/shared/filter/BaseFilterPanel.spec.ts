@@ -10,8 +10,9 @@ const ITEMS: FilterPanelItem[] = [
   { key: 'M7FRH', primary: 'M7FRH', secondary: 'Person · 21:28:11' },
 ]
 
-function mountPanel(overrides: Record<string, unknown> = {}) {
+function mountPanel(overrides: Record<string, unknown> = {}, slots: Record<string, string> = {}) {
   return mount(BaseFilterPanel, {
+    slots,
     props: {
       items: ITEMS,
       query: '',
@@ -58,6 +59,20 @@ describe('BaseFilterPanel', () => {
       expect(wrapper.find('#land-filter-listbox').exists()).toBe(true)
       expect(wrapper.find('#land-filter-row-M0ABC').exists()).toBe(true)
       expect(wrapper.find('#land-filter-opt-M0ABC').exists()).toBe(true)
+    })
+
+    it('renders the below-input slot between the search box and the results', () => {
+      const wrapper = mountPanel({}, { 'below-input': '<div class="lrf">BAND</div>' })
+      const extras = wrapper.find('.lrf')
+      expect(extras.exists()).toBe(true)
+      // Order matters: the bar sits after the input row and before the results.
+      const markup = wrapper.html()
+      expect(markup.indexOf('test-filter-input')).toBeLessThan(markup.indexOf('class="lrf"'))
+      expect(markup.indexOf('class="lrf"')).toBeLessThan(markup.indexOf('test-filter-results'))
+    })
+
+    it('renders nothing extra when no below-input slot is supplied', () => {
+      expect(mountPanel().find('.lrf').exists()).toBe(false)
     })
 
     it('applies the caller accent, defaulting to the app accent token', () => {

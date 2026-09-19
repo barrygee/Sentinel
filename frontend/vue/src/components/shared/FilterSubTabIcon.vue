@@ -12,9 +12,40 @@
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden="true"
   >
+    <rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+    <rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+    <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+    <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
+  </svg>
+  <svg
+    v-else-if="category === 'civil'"
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
     <path
       d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
       fill="currentColor"
+    />
+  </svg>
+  <svg
+    v-else-if="category === 'milAircraft'"
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <polygon
+      points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
+      stroke="currentColor"
+      stroke-width="1.4"
+      stroke-linejoin="round"
+      fill="none"
     />
   </svg>
   <svg
@@ -251,6 +282,55 @@
   </svg>
   <!-- ── Sea categories: the same hull glyphs the Sea map's own rail uses. ── -->
   <SeaFamilyGlyph v-else-if="isSeaFilterCategory(category)" :category="category" :size="19" />
+
+  <!-- ── Land categories ── (the same glyphs the map markers carry) -->
+  <svg
+    v-else-if="category === 'aprs'"
+    width="19"
+    height="19"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.4"
+    stroke-linecap="round"
+    aria-hidden="true"
+  >
+    <circle cx="8" cy="11" r="1.6" fill="currentColor" stroke="none" />
+    <path d="M5.2 8.2a4 4 0 0 1 5.6 0" />
+    <path d="M3.4 6.4a6.6 6.6 0 0 1 9.2 0" />
+  </svg>
+  <svg
+    v-else-if="category === 'trafficCameras'"
+    width="19"
+    height="19"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" />
+    <circle cx="8" cy="9" r="2.2" />
+  </svg>
+  <svg
+    v-else-if="category === 'repeaters'"
+    width="19"
+    height="19"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M8 6.5v8M5.2 14.5l2.8-8 2.8 8M6.2 11.6h3.6" />
+    <circle cx="8" cy="4.6" r="1.4" />
+    <path d="M4.6 2.6a4.6 4.6 0 0 1 6.8 0" />
+    <path d="M5.9 3.9a2.8 2.8 0 0 1 4.2 0" />
+  </svg>
   <svg
     v-else
     width="19"
@@ -274,8 +354,10 @@
 
 <script setup lang="ts">
 // Renders the line-style glyph for a FILTER rail sub-tab category. Air uses the
-// aircraft/airports/mil glyphs (mirroring the map side menu); Space uses one glyph
-// per satellite category; Sea reuses its side menu's hull glyphs. Any
+// all/civil/military-aircraft glyphs (the old side-menu filter icons) plus
+// airports and military bases; Space uses one glyph
+// per satellite category; Sea reuses its side menu's hull glyphs; Land uses
+// the APRS / camera / repeater glyphs its map markers carry. Any
 // unrecognised id falls back to the "unknown" glyph.
 import SeaFamilyGlyph from '@/components/sea/SeaFamilyGlyph.vue'
 import { isSeaFilterCategory } from '@/utils/aisShipType'

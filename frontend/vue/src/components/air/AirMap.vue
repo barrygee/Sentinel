@@ -341,6 +341,18 @@ function _clearLocationVisuals(): void {
   _locationMarker.remove()
 }
 
+// The sidebar's ALL / CIVIL / MILITARY tabs write the store; the control
+// (non-reactive) follows here, and the search list is told to re-filter.
+watch(
+  () => airStore.adsbTypeFilter,
+  (mode) => {
+    if (!adsbControl) return
+    if (adsbControl._allHidden) adsbControl.setAllHidden(false)
+    adsbControl.setTypeFilter(mode)
+    document.dispatchEvent(new CustomEvent('adsb-filter-change'))
+  },
+)
+
 onMounted(() => {
   window.addEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
   watch(
