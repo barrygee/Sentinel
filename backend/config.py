@@ -131,6 +131,20 @@ class Settings(BaseSettings):
     # (per-feed, via `PUT /api/land/feeds/{id}/credentials`) takes precedence.
     land_feed_credentials_json: str = ""
 
+    # ── UK amateur-radio repeaters (ukrepeater.net / RSGB ETCC) ───────────────
+    # The ETCC "voice repeaters and gateways (with status)" CSV export. The list
+    # changes a few times a week at most, so it is refreshed daily and the last
+    # good copy is kept for a month; a bundled snapshot (`backend/data/
+    # uk_repeaters.csv`) covers a fresh install that has never been online.
+    repeaters_upstream_url: str = "https://ukrepeater.net/csvcreate8.php"
+    repeaters_ttl_ms: int = 86_400_000
+    repeaters_stale_ms: int = 2_592_000_000
+    # How long a directory uploaded from Settings › LAND › REPEATERS is served
+    # before the daily upstream refresh resumes (30 days, as manual TLEs are).
+    repeaters_manual_ttl_ms: int = 2_592_000_000
+    # Upstream fetch timeout (seconds) — the export is ~150 KB from a small site.
+    repeaters_fetch_timeout_s: float = 20.0
+
     # ── Sentry integration (ADR-0009: Sentry owns SDR device state, Sentinel is a client) ──
     # How often each enabled Sentry host is polled for GET /api/status, in seconds.
     sentry_poll_interval_s: float = 2.0

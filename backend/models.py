@@ -355,3 +355,21 @@ class SeaVesselCache(Base):
     payload = Column(Text, nullable=False)  # JSON-serialised vessel record (see ais_store.vessel_record)
     track = Column(Text, nullable=False, default="[]")  # JSON list of [lat, lon, epoch_s] recent fixes
     updated_at = Column(Integer, nullable=False)  # Unix ms of the newest position report
+
+
+class RepeaterCache(Base):
+    """Cached UK amateur-radio repeater list (ukrepeater.net / RSGB ETCC CSV export).
+
+    One row per source (``cache_key`` is the export name, currently just ``"uk"``);
+    ``payload`` is the normalised station list as JSON so a warm start or an
+    unreachable upstream can serve the last-known list. Refreshed on demand once
+    ``expires_at`` passes (see ``backend.services.repeaters``).
+    """
+
+    __tablename__ = "repeater_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cache_key = Column(Text, nullable=False, unique=True)  # export identity, e.g. "uk"
+    payload = Column(Text, nullable=False)  # JSON list of normalised repeater stations
+    fetched_at = Column(Integer, nullable=False)  # Unix ms when the upstream CSV was fetched
+    expires_at = Column(Integer, nullable=False)  # fetched_at + repeaters_ttl_ms

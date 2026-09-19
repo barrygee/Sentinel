@@ -566,6 +566,12 @@ async def seed_default_settings() -> None:
         ("sdr", "autoCenter"),
         ("land", "onlineUrl"),
         ("land", "offgridSource"),
+        # Land has no remote feed URL or connectivity override: its data is the
+        # APRS sidecar, the live camera feeds (their own `land.feeds` list) and
+        # the bundled repeater directory.
+        ("land", "sourceOverride"),
+        ("land", "onlineDataSourceURL"),
+        ("land", "offgridDataSourceURL"),
     ]
     async with AsyncSessionLocal() as session:
         for namespace, key in _OBSOLETE_KEYS:
