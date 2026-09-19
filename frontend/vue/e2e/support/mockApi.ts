@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import seaVesselsFixture from '../fixtures/sea-vessels.json' with { type: 'json' }
+import landRepeatersFixture from '../fixtures/land-repeaters.json' with { type: 'json' }
 
 /**
  * Install default catch-all API stubs for every Sentinel `/api/**` route.
@@ -199,6 +200,30 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     void route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({ type: 'FeatureCollection', features: [] }),
+    })
+  })
+
+  // UK repeater directory. `repeaters` is the Land map's DEFAULT layer, so the
+  // RepeatersControl fetches this on every /land/ visit — left unmocked the SPA
+  // fallback HTML would make the map, the REPEATERS list and the accessible
+  // data table all empty, and the BAND/MODE chips would never render (the chip
+  // rows only list the bands and modes the directory actually carries).
+  await page.route('**/api/land/repeaters', (route) => {
+    void route.fulfill({
+      contentType: 'application/json',
+      headers: { 'X-Cache': 'HIT' },
+      body: JSON.stringify(landRepeatersFixture),
+    })
+  })
+  // The editable JSON document behind Settings › LAND › REPEATERS.
+  await page.route('**/api/land/repeaters/file', (route) => {
+    if (route.request().method() !== 'GET') {
+      void route.fulfill({ status: 204 })
+      return
+    }
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ stations: landRepeatersFixture.stations }),
     })
   })
 

@@ -1,0 +1,94 @@
+{
+  "source": "cached",
+  "fetchedAt": 1758240000000,
+  "stations": [
+    {
+      "callsign": "GB3NR",
+      "latitude": 52.6309,
+      "longitude": 1.2974,
+      "locator": "JO02BQ",
+      "location": "NORWICH",
+      "postcode": "NR2",
+      "region": "EA",
+      "keeper": "G4XYZ",
+      "channels": [
+        {
+          "id": 1001,
+          "band": "2M",
+          "channel": "RV52",
+          "txMhz": 145.6875,
+          "rxMhz": 145.0875,
+          "modes": ["A"],
+          "ctcssHz": 82.5,
+          "dmrColourCode": null,
+          "heightMagl": 30,
+          "erpDbw": 12,
+          "status": "OPERATIONAL"
+        },
+        {
+          "id": 1002,
+          "band": "70CM",
+          "channel": "RU70",
+          "txMhz": 433.175,
+          "rxMhz": 434.775,
+          "modes": ["M", "A"],
+          "ctcssHz": 82.5,
+          "dmrColourCode": 1,
+          "heightMagl": 30,
+          "erpDbw": 10,
+          "status": "OPERATIONAL"
+        }
+      ]
+    },
+    {
+      "callsign": "GB3CA",
+      "latitude": 54.8951,
+      "longitude": -2.9382,
+      "locator": "IO84GQ",
+      "location": "CARLISLE",
+      "postcode": "CA1",
+      "region": "NW",
+      "keeper": "G3ABC",
+      "channels": [
+        {
+          "id": 2001,
+          "band": "2M",
+          "channel": "RV49",
+          "txMhz": 145.6125,
+          "rxMhz": 145.0125,
+          "modes": ["A"],
+          "ctcssHz": 71.9,
+          "dmrColourCode": null,
+          "heightMagl": 20,
+          "erpDbw": 8,
+          "status": "NOT OPERATIONAL"
+        }
+      ]
+    },
+    {
+      "callsign": "GB7DN",
+      "latitude": 54.7761,
+      "longitude": -1.5733,
+      "locator": "IO94EX",
+      "location": "DURHAM",
+      "postcode": "DH1",
+      "region": "NE",
+      "keeper": "M0DEF",
+      "channels": [
+        {
+          "id": 3001,
+          "band": "70CM",
+          "channel": "DVU12",
+          "txMhz": 439.4625,
+          "rxMhz": 430.4625,
+          "modes": ["M"],
+          "ctcssHz": null,
+          "dmrColourCode": 2,
+          "heightMagl": 45,
+          "erpDbw": 14,
+          "status": "OPERATIONAL"
+        }
+      ]
+    }
+  ]
+}

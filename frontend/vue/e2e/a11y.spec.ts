@@ -38,6 +38,15 @@ async function auditPage(page: Page) {
 test.describe('Live accessibility audit (axe-core, WCAG 2.2 AA)', () => {
   for (const { domain, path } of DOMAIN_ROUTES) {
     test(`${domain} view has no WCAG 2.2 AA violations`, async ({ page }) => {
+      // A full-page axe run is the most expensive thing in the suite: it walks
+      // every element for the layout-dependent rules (contrast, target size)
+      // inside one `frame.evaluate`. Alone each takes ~4s, but with
+      // `fullyParallel` four of these can land on the same cores at once, and
+      // the Sea view — the densest DOM, with a label per vessel — then blows
+      // through the 60s default. Triple the budget rather than thin the audit
+      // or drop workers; the same parallel-load allowance is why the vitest
+      // jest-axe timeout is raised in `vitest.config.ts`.
+      test.slow()
       await page.goto(path)
       // Gate on the always-visible header nav (proves the shell has hydrated) and
       // the routed view's <main> being in the DOM, so axe audits a fully-rendered
