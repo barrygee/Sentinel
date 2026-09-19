@@ -153,6 +153,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw the selected vessel's trail like an aircraft's, fading at the tail (#323)
 - Live traffic camera feeds (Durham, TfL, UTMC, TrafficWatchNI) on the Land map (#324)
 - Add offline terrain layer (hillshade + contours) to Air, Sea and Land
+- Serve the UK amateur-radio repeater directory
+- Support byte ranges when streaming camera clips
+- Move the aircraft filter modes into the sidebar sub-tab rail
+- Plot and list UK repeaters on the Land map
 
 ### Bug Fixes
 
@@ -390,6 +394,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
+- Rebuild the SPA bundle
 
 ### Other
 
@@ -1194,6 +1199,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #317 from barrygee/feat/sdr-waterfall-signal-marker
 - Merge pull request #318 from barrygee/fix/sdr-known-freq-marker-alignment
 - Merge pull request #325 from barrygee/feat/terrain-overlay
+- Merge pull request #326 from barrygee/feat/land-uk-repeaters
 
 ### Refactoring
 
@@ -1256,6 +1262,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Widen the SDR options box and switch its rows to toggles (#281)
 - Remove trunk tracking (#283) **(breaking change)**
 - Restyle the SDR settings and drop the input fill (#285)
+- Stage location edits and share the SDR radio picker
 
 ### Documentation
 
@@ -1270,6 +1277,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the Sentinel design guide (#295)
 - Add the Sentinel backend guide (#297)
 - Fix stale pmtiles CLI install command
+- Document the UK repeater directory
 
 ### Tests
 
@@ -1306,6 +1314,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Update e2e specs for the restored frequency manager tab
 - Put the reconnect-cancel test on fake timers (#262)
 - Restore the map-rendering classification tests
+- Cover the Land repeater pane and widen the axe audit budget
 
 ### Build System
 
