@@ -51,12 +51,6 @@
         <p v-else :id="longitudeHintId" class="settings-location-hint">{{ LONGITUDE_HINT }}</p>
       </div>
     </div>
-
-    <div class="settings-location-actions">
-      <BaseButton variant="primary" :disabled="saving" @click="save">
-        {{ saving ? 'SAVING…' : 'SAVE LOCATION' }}
-      </BaseButton>
-    </div>
   </div>
 </template>
 
@@ -65,10 +59,9 @@
  * Settings > Sentinel Location — a fixed latitude/longitude for your own position.
  *
  * Mirrors Sentry's Sentry Location panel: a "last set" line, stacked labelled
- * fields with a decimal-degrees hint apiece, per-field validation on blur, and
- * its own SAVE LOCATION button. Unlike every other control in this panel it
- * does not stage into APPLY CHANGES — the coordinates are applied the moment
- * they are saved, which is also what moves the marker on the maps.
+ * fields with a decimal-degrees hint apiece and per-field validation on blur.
+ * Edits stage into APPLY CHANGES like every other control here (Enter in a
+ * field applies at once); saving is what moves the marker on the maps.
  */
 import { ref, computed, onMounted, onUnmounted, useId } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
@@ -79,7 +72,6 @@ import {
   validateLatitude,
   validateLongitude,
 } from '@/utils/locationValidation'
-import BaseButton from '@/components/base/BaseButton.vue'
 
 // Held once rather than repeated in the template and in the aria wiring: the
 // hint and the range it describes must stay in step with locationValidation.
@@ -177,12 +169,21 @@ function onLatitudeInput(): void {
   hasUnsavedEdits.value = true
   latitudeError.value = null
   pairError.value = null
+  stageSave()
 }
 
 function onLongitudeInput(): void {
   hasUnsavedEdits.value = true
   longitudeError.value = null
   pairError.value = null
+  stageSave()
+}
+
+const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
+
+/** Queue the current drafts for APPLY CHANGES; `save` re-validates when it runs. */
+function stageSave(): void {
+  emit('stage', () => save())
 }
 
 function onLatitudeBlur(): void {

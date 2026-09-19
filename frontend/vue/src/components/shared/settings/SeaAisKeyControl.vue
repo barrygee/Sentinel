@@ -1,6 +1,6 @@
 <template>
   <div class="settings-location-wrap">
-    <p class="settings-location-status" aria-live="polite">{{ statusText }}</p>
+    <p class="settings-location-status sea-key-status" aria-live="polite">{{ statusText }}</p>
 
     <p v-if="errorText" class="settings-location-notice" role="alert">{{ errorText }}</p>
 
@@ -11,39 +11,37 @@
           :id="keyInputId"
           v-model="keyDraft"
           type="password"
-          class="settings-location-input"
-          :aria-describedby="keyHintId"
-          placeholder="paste your AISStream key"
+          class="settings-location-input sea-key-input"
+          :disabled="keyLocked"
           spellcheck="false"
           autocomplete="off"
           @input="onInput"
           @keydown.enter="emit('commit')"
         />
-        <p :id="keyHintId" class="settings-location-hint">
-          Get a free key at
-          <a
-            class="sea-key-link"
-            href="https://aisstream.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            >aisstream.io</a
-          >. Kept on the server only — never shown again, never exported.
-        </p>
       </div>
     </div>
 
-    <div
-      v-if="keyStatus.configured && keyStatus.source === 'settings'"
-      class="settings-location-actions"
-    >
-      <BaseButton variant="ghost" bordered @click="stageForget">FORGET KEY</BaseButton>
+    <!-- One action: GET a key while none is saved, FORGET it once one is. A
+         key from the server .env is neither — nothing to get, nothing here
+         to forget. -->
+    <div class="settings-location-actions sea-key-actions">
+      <BaseButton
+        v-if="keyStatus.configured && keyStatus.source === 'settings'"
+        variant="ghost"
+        bordered
+        @click="stageForget"
+        >FORGET KEY</BaseButton
+      >
+      <BaseButton v-else-if="!keyStatus.configured" variant="ghost" bordered @click="openKeyPage"
+        >GET AIS API KEY</BaseButton
+      >
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * Settings › SEA › AISStream API Key.
+ * Settings › SEA › AIS Data API Key (the aisstream.io key).
  *
  * The key is a secret, so — unlike every other Sea setting — it never passes
  * through the generic settings API or the exported config: the staged write
@@ -64,19 +62,31 @@ const emit = defineEmits<{
 }>()
 
 const keyInputId = useId()
-const keyHintId = useId()
 
 const keyDraft = ref('')
 const errorText = ref<string | null>(null)
 const keyStatus = ref<seaApi.AisKeyStatus>({ configured: false, source: null, fingerprint: null })
 const feedStatus = ref<string | null>(null)
 
+/** A terse status label: the key's fingerprint (and its origin only when it
+ *  came from the server .env, which the panel cannot forget), or none. */
 const statusText = computed(() => {
-  if (!keyStatus.value.configured) return 'No key configured — the Sea map cannot receive vessels.'
-  const origin = keyStatus.value.source === 'env' ? 'from the server .env' : 'saved here'
-  const feed = feedStatus.value ? ` Feed: ${feedStatus.value.toUpperCase()}.` : ''
-  return `Key ${keyStatus.value.fingerprint ?? ''} configured (${origin}).${feed}`
+  if (!keyStatus.value.configured) return 'No key · Sea map cannot receive vessels'
+  const fingerprint = `Key ${keyStatus.value.fingerprint ?? ''}`.trim()
+  return keyStatus.value.source === 'env' ? `${fingerprint} · from server .env` : fingerprint
 })
+
+/** The field is locked while a key saved here is in force: replace it by
+ *  forgetting it first, so a key is never overwritten by accident. */
+const keyLocked = computed(
+  () => keyStatus.value.configured && keyStatus.value.source === 'settings',
+)
+
+/** aisstream.io's sign-in / API-key page, in a new tab. */
+const AISSTREAM_KEY_PAGE = 'https://aisstream.io/authenticate'
+function openKeyPage(): void {
+  window.open(AISSTREAM_KEY_PAGE, '_blank', 'noopener,noreferrer')
+}
 
 async function refresh(): Promise<void> {
   keyStatus.value = await seaApi.getAisKeyStatus()
@@ -119,19 +129,27 @@ function stageForget(): void {
 </script>
 
 <style scoped>
+/* Status as a small caps label, matching the field labels beneath it. */
+.sea-key-status {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+/* Left-aligned under the field, unlike the shared right-aligned row. */
+.sea-key-actions {
+  justify-content: flex-start;
+}
 /* A single key, not a coordinate pair: one full-width field rather than the
    location card's two columns. */
 .sea-key-fields {
   grid-template-columns: minmax(0, 1fr);
+  /* The same measure as the data-source URL field above it. */
+  max-width: var(--settings-control-measure);
+}
+/* A key is ~40 characters, not a coordinate: the whole measure, not the
+   location card's 220px rule. */
+.sea-key-input {
   max-width: 100%;
-}
-.sea-key-link {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.sea-key-link:hover,
-.sea-key-link:focus-visible {
-  color: rgba(16, 19, 29, 0.92);
 }
 </style>

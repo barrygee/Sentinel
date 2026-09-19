@@ -66,6 +66,11 @@ describe('APRS map/list parity', () => {
     setActivePinia(createPinia())
     mocks.created.markers.length = 0
     store = useLandStore()
+    // Land layers now start OFF (lit by the persisted default-layers config or
+    // the sidebar's layer tabs), and the pane lists only the layers that are on.
+    // Parity is about the two surfaces agreeing while APRS IS the chosen layer,
+    // so select it the way the sidebar tab does.
+    store.selectLayer('aprs')
     // The control polls on init; echo the current snapshot back so the poll
     // never clobbers what a test has set.
     vi.stubGlobal(
@@ -153,12 +158,14 @@ describe('APRS map/list parity', () => {
 
   it('empties both when the APRS layer is toggled off, and restores both', async () => {
     store.aprsStations = [station({ callsign: 'A' })]
-    const { control, listed } = mountBoth()
+    const { control, listed, panel } = mountBoth()
 
     control.handleClickPublic()
     await flushPromises()
     expect(plotted()).toEqual([])
     expect(listed()).toEqual([])
+    // With no layer on, the pane says so rather than silently showing nothing.
+    expect(panel.find('.bfp-no-results').text()).toBe('No layers on — use the tabs to add one')
 
     control.handleClickPublic()
     await flushPromises()

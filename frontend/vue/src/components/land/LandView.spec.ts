@@ -145,6 +145,41 @@ vi.mock('@/components/land/controls/traffic-cameras/TrafficCamerasControl', () =
   },
 }))
 
+const repeatersSpies = vi.hoisted(() => ({
+  onAdd: vi.fn(),
+  onRemove: vi.fn(),
+  handleClickPublic: vi.fn(),
+  setVisible: vi.fn(),
+}))
+// The UK repeater directory layer, added with the same store-owned visibility
+// contract as APRS and the cameras: the control writes the land store's flag so
+// the map and the FILTER pane's REPEATERS list can never disagree.
+vi.mock('@/components/land/controls/repeaters/RepeatersControl', () => ({
+  REPEATER_LOCATE_EVENT: 'land-locate-repeater',
+  RepeatersControl: class {
+    private _store: {
+      repeatersLayerVisible: boolean
+      setRepeatersLayerVisible: (visible: boolean) => void
+    }
+    constructor(store: {
+      repeatersLayerVisible: boolean
+      setRepeatersLayerVisible: (visible: boolean) => void
+    }) {
+      this._store = store
+    }
+    onAdd = repeatersSpies.onAdd
+    onRemove = repeatersSpies.onRemove
+    handleClickPublic = (...args: unknown[]) => {
+      this._store.setRepeatersLayerVisible(!this._store.repeatersLayerVisible)
+      return repeatersSpies.handleClickPublic(...args)
+    }
+    setVisible = (visible: boolean) => {
+      this._store.setRepeatersLayerVisible(visible)
+      return repeatersSpies.setVisible(visible)
+    }
+  },
+}))
+
 // The shared base-map layer controls (location names / roads). Mocked for the same
 // reason as the others — they own real maplibre layer visibility and have their
 // own specs — but each keeps the basemap store wired up, since the side menu
@@ -242,18 +277,15 @@ const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div
 let sideMenuProps: Record<string, unknown> | null = null
 const LandSideMenuStub = defineComponent({
   name: 'LandSideMenu',
+  // The data-layer and place-name toggles left the rail with the repeater
+  // feature: layers are now chosen from the sidebar's FILTER sub-tabs and
+  // Settings › LAND › Map Layers, so only navigation props remain.
   props: [
     'zoomIn',
     'zoomOut',
     'goToLocation',
     'toggleRangeRings',
-    'toggleAprs',
-    'toggleTrafficCameras',
-    'toggleNames',
     'rangeRingsActive',
-    'aprsActive',
-    'aprsSourceConfigured',
-    'trafficCamerasActive',
     'locationActive',
   ],
   setup(props) {
@@ -265,6 +297,7 @@ const LandSideMenuStub = defineComponent({
 import LandView from './LandView.vue'
 import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
+import { useRepeatersStore } from '@/stores/repeaters'
 import { useBasemapStore } from '@/stores/basemap'
 
 const ONLINE_STYLE = '/assets/fiord-online.json'
@@ -337,6 +370,9 @@ describe('LandView', () => {
     // so the map-control cases start from a configured receiver; the gating
     // itself is exercised in its own cases below.
     useSdrStore().setAprsRadioId(1)
+    // The repeater filters hydrate from the config database on mount; stub the
+    // request so no test depends on a backend (asserted in its own case below).
+    vi.spyOn(useRepeatersStore(), 'hydrateFiltersFromDb').mockResolvedValue()
     vi.clearAllMocks()
     shared.emit = null
     shared.connectivityCb = null
@@ -437,6 +473,7 @@ describe('LandView', () => {
       expect(ringsSpies.onAdd).toHaveBeenCalledWith(map)
       expect(aprsSpies.onAdd).toHaveBeenCalledWith(map)
       expect(trafficCamerasSpies.onAdd).toHaveBeenCalledWith(map)
+      expect(repeatersSpies.onAdd).toHaveBeenCalledWith(map)
       expect(native.style.display).toBe('none') // native controls hidden
       expect(locationState.start).toHaveBeenCalledOnce()
       expect(markerSpies.addTo).toHaveBeenCalledWith(map)
@@ -487,58 +524,74 @@ describe('LandView', () => {
       expect(terrainSpies.setVisible).toHaveBeenCalledWith(true)
     })
 
-    it('shows the APRS layer by default per the land.defaultLayers config', () => {
+    it('shows only the layer land.defaultLayers names, off by default', () => {
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
-      // Default config is ["aprs"], so the layer starts visible.
-      expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
-      expect(sideMenuProps!.aprsActive).toBe(true)
+      // The shipped default is ["repeaters"], and exactly one layer is ever
+      // drawn — so the other two are explicitly switched off.
+      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
-    it('shows the traffic-cameras layer by default per the land.defaultLayers config', () => {
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
-      // Default config includes "trafficCameras", so the layer starts visible
-      // with no receiver gate (unlike APRS).
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
-      expect(sideMenuProps!.trafficCamerasActive).toBe(true)
-    })
-
-    it('loads the default-layers config on mount', () => {
+    it('shows the APRS layer when the config names it, with a receiver present', () => {
       const land = useLandStore()
-      const spy = vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      land.defaultLayers = ['aprs']
+      const map = makeFakeMap()
       mountView()
-      expect(spy).toHaveBeenCalledOnce()
+      shared.emit!('map-created', map)
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
+    })
+
+    it('shows the traffic-cameras layer when the config names it, with no receiver gate', () => {
+      const land = useLandStore()
+      vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      land.defaultLayers = ['trafficCameras']
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
+      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
+    })
+
+    it('loads the default-layers config and the repeater filters on mount', () => {
+      const land = useLandStore()
+      const layersSpy = vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      const filtersSpy = vi.spyOn(useRepeatersStore(), 'hydrateFiltersFromDb').mockResolvedValue()
+      mountView()
+      expect(layersSpy).toHaveBeenCalledOnce()
+      expect(filtersSpy).toHaveBeenCalledOnce()
     })
 
     it('applies a later defaultLayers change to the APRS layer', async () => {
       const land = useLandStore()
       vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+      land.defaultLayers = ['aprs']
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
       aprsSpies.setVisible.mockClear()
-      land.defaultLayers = [] // config now hides APRS
+      land.defaultLayers = [] // config now names no layer at all
       await nextTick()
       expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
-      expect(sideMenuProps!.aprsActive).toBe(false)
     })
 
-    it('applies a later defaultLayers change to the traffic-cameras layer independently of APRS', async () => {
+    it('applies a later defaultLayers change to the traffic-cameras and repeater layers', async () => {
       const land = useLandStore()
       vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
       trafficCamerasSpies.setVisible.mockClear()
-      land.defaultLayers = ['aprs'] // config now hides traffic cameras only
+      repeatersSpies.setVisible.mockClear()
+      land.defaultLayers = ['trafficCameras'] // the config swaps repeaters for cameras
       await nextTick()
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(false)
-      expect(sideMenuProps!.trafficCamerasActive).toBe(false)
-      // APRS stays on — the two layers are gated independently.
-      expect(sideMenuProps!.aprsActive).toBe(true)
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
+      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
     it('zoom buttons drive the map', () => {
@@ -579,26 +632,77 @@ describe('LandView', () => {
       expect(sideMenuProps!.rangeRingsActive).toBe(true)
     })
 
-    it('toggling APRS drives the control and flips its active state', async () => {
+    // The rail no longer carries the data-layer buttons: the sidebar's FILTER
+    // sub-tabs and Settings › LAND › Map Layers flip the store flags directly,
+    // and the view drives each control off its flag. These replace the old
+    // "toggling APRS / traffic cameras from the rail" cases.
+    it('follows an APRS layer switch made on the store', async () => {
+      const land = useLandStore()
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
-      expect(sideMenuProps!.aprsActive).toBe(true)
-      ;(sideMenuProps!.toggleAprs as () => void)()
+      aprsSpies.setVisible.mockClear()
+
+      land.selectLayer('aprs')
       await nextTick()
-      expect(aprsSpies.handleClickPublic).toHaveBeenCalledOnce()
-      expect(sideMenuProps!.aprsActive).toBe(false)
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
+
+      aprsSpies.setVisible.mockClear()
+      land.setAprsLayerVisible(false)
+      await nextTick()
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
-    it('toggling traffic cameras drives the control and flips its active state', async () => {
+    it('keeps the APRS layer off when its flag goes on with no receiver', async () => {
+      const land = useLandStore()
+      useSdrStore().setAprsRadioId(null)
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
-      expect(sideMenuProps!.trafficCamerasActive).toBe(true)
-      ;(sideMenuProps!.toggleTrafficCameras as () => void)()
+      aprsSpies.setVisible.mockClear()
+
+      land.setAprsLayerVisible(true)
       await nextTick()
-      expect(trafficCamerasSpies.handleClickPublic).toHaveBeenCalledOnce()
-      expect(sideMenuProps!.trafficCamerasActive).toBe(false)
+      // Nothing is decoding, so the flag alone must not light the layer.
+      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
+      expect(aprsSpies.setVisible).not.toHaveBeenCalledWith(true)
+    })
+
+    it('follows a traffic-cameras layer switch made on the store', async () => {
+      const land = useLandStore()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      trafficCamerasSpies.setVisible.mockClear()
+
+      land.selectLayer('trafficCameras')
+      await nextTick()
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
+
+      trafficCamerasSpies.setVisible.mockClear()
+      land.setTrafficCamerasLayerVisible(false)
+      await nextTick()
+      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(false)
+    })
+
+    it('follows a repeaters layer switch made on the store', async () => {
+      const land = useLandStore()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      // Let the watcher settle on the config-driven "on" before switching it
+      // off, so the assertion below reads the switch and not the initial state.
+      await nextTick()
+      repeatersSpies.setVisible.mockClear()
+
+      land.setRepeatersLayerVisible(false)
+      await nextTick()
+      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
+
+      repeatersSpies.setVisible.mockClear()
+      land.selectLayer('repeaters')
+      await nextTick()
+      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(true)
     })
 
     it('initialises the shared location-names and roads controls on the map', () => {
@@ -610,22 +714,27 @@ describe('LandView', () => {
       expect(terrainSpies.onAdd).toHaveBeenCalledWith(map)
     })
 
-    it('toggling place names drives the control and flips the shared basemap flag', async () => {
-      const map = makeFakeMap()
+    // LOCATION NAMES left the rail for Settings, so the view no longer passes a
+    // toggle down — it only follows the shared basemap store (covered by
+    // "follows a place-names change made on another map or in Settings" above).
+    // What still needs proving is that a store change arriving before the map
+    // exists is harmless, since the control is null until map-created.
+    it('does nothing when a base-map layer changes before the map exists', async () => {
       const basemapStore = useBasemapStore()
       mountView()
-      shared.emit!('map-created', map)
-      expect(basemapStore.layers.names).toBe(false)
-      ;(sideMenuProps!.toggleNames as () => void)()
+      basemapStore.setLayer('names', true)
+      basemapStore.setLayer('terrain', true)
       await nextTick()
-      expect(namesSpies.handleClickPublic).toHaveBeenCalledOnce()
-      expect(basemapStore.layers.names).toBe(true)
+      expect(namesSpies.setVisible).not.toHaveBeenCalled()
+      expect(terrainSpies.setVisible).not.toHaveBeenCalled()
     })
 
-    it('does nothing when the base-map toggle fires before the map exists', () => {
+    it('does nothing when a data layer changes before the map exists', async () => {
+      const land = useLandStore()
       mountView()
-      expect(() => (sideMenuProps!.toggleNames as () => void)()).not.toThrow()
-      expect(namesSpies.handleClickPublic).not.toHaveBeenCalled()
+      land.selectLayer('aprs')
+      await nextTick()
+      expect(aprsSpies.setVisible).not.toHaveBeenCalled()
     })
 
     it('re-asserts the base-map layer visibility on every style load', () => {
@@ -681,6 +790,7 @@ describe('LandView', () => {
       expect(ringsSpies.onRemove).toHaveBeenCalledOnce()
       expect(aprsSpies.onRemove).toHaveBeenCalledOnce()
       expect(trafficCamerasSpies.onRemove).toHaveBeenCalledOnce()
+      expect(repeatersSpies.onRemove).toHaveBeenCalledOnce()
       expect(namesSpies.onRemove).toHaveBeenCalledOnce()
       expect(terrainSpies.onRemove).toHaveBeenCalledOnce()
       expect(roadsSpies.onRemove).toHaveBeenCalledOnce()
@@ -710,12 +820,19 @@ describe('LandView', () => {
 })
 
 // The APRS layer only has data behind it when a radio is named as the APRS
-// receiver in Settings → LAND. Without one the layer is forced off and its rail
-// button disabled, rather than offering a toggle over a permanently empty map.
+// receiver in Settings → LAND. Without one the layer is forced off whatever the
+// config or the Settings switch says, rather than drawing a permanently empty
+// layer. (The rail no longer carries an APRS button, so there is no prop to
+// report the missing receiver with — the gate is the forced-off layer itself.)
 describe('LandView — APRS with no receiver', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     useSdrStore().setAprsRadioId(null)
+    vi.spyOn(useRepeatersStore(), 'hydrateFiltersFromDb').mockResolvedValue()
+    // The config names APRS, so only the missing receiver can hold it off.
+    const land = useLandStore()
+    vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
+    land.defaultLayers = ['aprs']
     vi.clearAllMocks()
     shared.emit = null
     sideMenuProps = null
@@ -723,23 +840,13 @@ describe('LandView — APRS with no receiver', () => {
     document.body.innerHTML = ''
   })
 
-  it('keeps the layer off and tells the rail there is no receiver', () => {
+  it('keeps the layer off even though the config asks for it', () => {
     const map = makeFakeMap()
     mountView()
     shared.emit!('map-created', map)
 
     expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
-    expect(sideMenuProps!.aprsSourceConfigured).toBe(false)
-  })
-
-  it('ignores a toggle request while nothing is decoding', async () => {
-    const map = makeFakeMap()
-    mountView()
-    shared.emit!('map-created', map)
-    ;(sideMenuProps!.toggleAprs as () => void)()
-    await nextTick()
-
-    expect(aprsSpies.handleClickPublic).not.toHaveBeenCalled()
+    expect(aprsSpies.setVisible).not.toHaveBeenCalledWith(true)
   })
 
   it('brings the layer back when a receiver is chosen', async () => {
@@ -752,7 +859,6 @@ describe('LandView — APRS with no receiver', () => {
     await nextTick()
 
     expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
-    expect(sideMenuProps!.aprsSourceConfigured).toBe(true)
   })
 
   it('drops the layer again if the receiver is cleared', async () => {

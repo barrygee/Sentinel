@@ -58,6 +58,13 @@ export interface UseSdrAutoTuneOptions {
   startRecording: () => Promise<boolean>
   /** useSdrRecording's stopRecordingIfActive — finalises an in-progress clip. */
   stopRecordingIfActive: () => Promise<void>
+  /**
+   * useSdrDigitalDecode's setDigital — switches the dsd-fme decode on/off. An
+   * external tune may ask for it (`detail.digital`): the Land pane turns it on
+   * for a DMR/D-STAR/Fusion/P25/NXDN repeater and off for an FM-only one.
+   * Optional so callers without a decoder simply ignore the request.
+   */
+  setDigital?: (on: boolean) => void
   /** True when the control socket exists and is OPEN (apply immediately). */
   isSocketOpen: () => boolean
   /** True when the control socket is still CONNECTING (its open will drain). */
@@ -93,6 +100,7 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
     stopRecordingIfActive,
     isSocketOpen,
     isSocketConnecting,
+    setDigital,
   } = options
 
   // Pending external (auto-tune) request, applied once the control socket opens.
@@ -103,6 +111,7 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
     noradId?: string
     token?: string
     record?: boolean
+    digital?: boolean
   } | null = null
 
   // State captured the moment an auto-tune takes over the radio, so the LOS
@@ -168,6 +177,8 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
         noradId?: string
         token?: string
         record?: boolean
+        /** Switch digital decode on/off with the tune; omitted = leave as is. */
+        digital?: boolean
       }>
     ).detail
     if (!detail || !detail.hz) return
@@ -177,6 +188,7 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
     const noradId = detail.noradId
     const token = detail.token
     const record = !!detail.record
+    const digital = typeof detail.digital === 'boolean' ? detail.digital : undefined
 
     // Lock-in priority: if an earlier overlapping pass already holds the radio,
     // skip this later one rather than grabbing the tuner mid-copy. Leave the
@@ -221,6 +233,7 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
       sendCmd({ cmd: 'tune', frequency_hz: hz })
       sendCmd({ cmd: 'mode', mode })
       _notifyAutoTuned(satName, hz, mode, noradId)
+      _applyDigitalRequest(digital)
       if (record) void _startAutoTuneRecording(satName, noradId)
       return
     }
@@ -247,7 +260,7 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
     }
 
     // Queue the tune to fire once the control socket is open.
-    _pendingExternalTune = { hz, mode, satName, noradId, token, record }
+    _pendingExternalTune = { hz, mode, satName, noradId, token, record, digital }
     const sameRadio = selectedRadioId.value === radio.id
     const sockOpen = isSocketOpen()
     const sockConnecting = isSocketConnecting()
@@ -290,7 +303,14 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
     sendCmd({ cmd: 'tune', frequency_hz: p.hz })
     sendCmd({ cmd: 'mode', mode: p.mode })
     _notifyAutoTuned(p.satName, p.hz, p.mode, p.noradId)
+    _applyDigitalRequest(p.digital)
     if (p.record) void _startAutoTuneRecording(p.satName, p.noradId)
+  }
+
+  /** Honour a tune's digital-decode request, when the panel has a decoder. */
+  function _applyDigitalRequest(digital: boolean | undefined): void {
+    if (digital === undefined || !setDigital) return
+    setDigital(digital)
   }
 
   // Applies a queued auto-tune once the control socket can accept commands

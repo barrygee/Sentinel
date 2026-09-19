@@ -6,6 +6,28 @@ import * as settingsApi from '@/services/settingsApi'
 // The Air search/filter categories, surfaced as single-select rail sub-tabs
 // beneath the FILTER tab. Exactly one is shown in the panel at a time.
 export type AirFilterCategory = 'aircraft' | 'airports' | 'mil'
+
+/** Which aircraft the ADS-B layer plots: everything, civil only, or military only. */
+export type AdsbTypeFilter = 'all' | 'civil' | 'mil'
+
+/** localStorage key the ADS-B control also reads at construction (`_loadFilterState`). */
+const ADSB_FILTER_STORAGE_KEY = 'adsbFilter'
+
+function isAdsbTypeFilter(value: unknown): value is AdsbTypeFilter {
+  return value === 'all' || value === 'civil' || value === 'mil'
+}
+
+/** The persisted type filter, so the store starts in step with the control. */
+function readStoredAdsbTypeFilter(): AdsbTypeFilter {
+  try {
+    const raw = localStorage.getItem(ADSB_FILTER_STORAGE_KEY)
+    if (!raw) return 'all'
+    const parsed = JSON.parse(raw) as { typeFilter?: unknown }
+    return isAdsbTypeFilter(parsed?.typeFilter) ? parsed.typeFilter : 'all'
+  } catch {
+    return 'all'
+  }
+}
 const AIR_FILTER_CATEGORIES: readonly AirFilterCategory[] = ['aircraft', 'airports', 'mil']
 function isAirFilterCategory(value: unknown): value is AirFilterCategory {
   return typeof value === 'string' && (AIR_FILTER_CATEGORIES as readonly string[]).includes(value)
@@ -364,6 +386,22 @@ export const useAirStore = defineStore('air', () => {
     airFilterCategory.value = category
   }
 
+  // The ADS-B civil/military/all filter, chosen from the sidebar's sub-tabs.
+  // Mirrored here (the control's own field is not reactive) so the tabs can
+  // light the active mode; AirMap pushes changes onto the control. Persisted
+  // under the key the control restores from, so the first poll already
+  // renders under the right filter.
+  const adsbTypeFilter = ref<AdsbTypeFilter>(readStoredAdsbTypeFilter())
+  function setAdsbTypeFilter(mode: AdsbTypeFilter) {
+    adsbTypeFilter.value = mode
+    try {
+      localStorage.setItem(
+        ADSB_FILTER_STORAGE_KEY,
+        JSON.stringify({ typeFilter: mode, allHidden: false }),
+      )
+    } catch {}
+  }
+
   function toggleFilter() {
     filterOpen.value = !filterOpen.value
   }
@@ -398,6 +436,8 @@ export const useAirStore = defineStore('air', () => {
     setReplayEnabled,
     setFilter,
     setAirFilterCategory,
+    adsbTypeFilter,
+    setAdsbTypeFilter,
     toggleFilter,
     saveMapState,
   }

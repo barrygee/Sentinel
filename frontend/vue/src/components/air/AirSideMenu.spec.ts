@@ -22,8 +22,9 @@ import AirSideMenu from './AirSideMenu.vue'
 
 // ---- Fake AirMap + controls ----------------------------------------------
 function makeControls() {
-  // The real AdsbLiveControl mutates _typeFilter/_allHidden in these setters; the
-  // mock mirrors that so the menu's filter-state sync reads the updated values.
+  // Kept (with its filter setters) purely so the specs below can prove this rail
+  // no longer reaches for the ADS-B control at all — the aircraft ALL/CIVIL/
+  // MILITARY filter moved to the left sidebar's FILTER sub-tabs.
   const adsb = {
     toggle: vi.fn(),
     visible: true,
@@ -65,7 +66,9 @@ type Controls = ReturnType<typeof makeControls>
 function makeAirMap(controls: Controls) {
   return {
     getMap: () => controls.map,
-    getAdsbControl: () => controls.adsb,
+    // A spy, not a plain accessor: the rail must never consult the ADS-B control
+    // any more, and the specs assert that by checking this is never called.
+    getAdsbControl: vi.fn(() => controls.adsb),
     getAdsbLabels: () => controls.labels,
     getRangeRings: () => controls.rangeRings,
     getAara: () => controls.aara,
@@ -96,11 +99,13 @@ describe('AirSideMenu', () => {
 
   describe('with the map available', () => {
     let controls: Controls
+    let airMap: ReturnType<typeof makeAirMap>
     let wrapper: ReturnType<typeof mountMenu>
 
     beforeEach(() => {
       controls = makeControls()
-      wrapper = mountMenu(makeAirMap(controls))
+      airMap = makeAirMap(controls)
+      wrapper = mountMenu(airMap)
     })
 
     it('renders a rail with no expand/collapse toggle and every option always visible', () => {
@@ -116,7 +121,6 @@ describe('AirSideMenu', () => {
         'A2A REFUELING',
         'AWACS',
         'MAP LAYERS',
-        'FILTER',
       ]) {
         const button = wrapper.find(tip(label))
         expect(button.exists()).toBe(true)
@@ -129,13 +133,6 @@ describe('AirSideMenu', () => {
       // no longer carries them; the three worth flipping in flight stay.
       for (const layer of ['ground', 'towers', 'names', 'airports', 'mil']) {
         expect(wrapper.find(`[data-loc="${layer}"]`).exists()).toBe(false)
-      }
-      // The aircraft-filter modes live inside the FILTER accordion panel.
-      for (const mode of ['all', 'civil', 'mil']) {
-        const modeButton = wrapper.find(`#filter-mode-flyout [data-mode="${mode}"]`)
-        expect(modeButton.exists()).toBe(true)
-        expect(modeButton.attributes('aria-label')).toBeTruthy()
-        expect(modeButton.attributes('data-tooltip')).toBeTruthy()
       }
     })
 
@@ -216,68 +213,51 @@ describe('AirSideMenu', () => {
       expect(button.classes()).not.toContain('active')
     })
 
-    it('expands and collapses the mode accordion on click, highlighting the button while open', async () => {
-      const button = wrapper.find('#sm-filter-btn')
-      expect(button.attributes('aria-expanded')).toBe('false')
-      expect(button.classes()).not.toContain('active')
-      await button.trigger('click')
-      expect(button.attributes('aria-expanded')).toBe('true')
-      expect(button.classes()).toContain('active')
-      await button.trigger('click')
-      expect(button.attributes('aria-expanded')).toBe('false')
-      expect(button.classes()).not.toContain('active')
+    // ---- The aircraft filter left this rail -------------------------------
+    // Replaces the five FILTER-accordion tests (open/collapse, resync-on-open,
+    // set-mode-and-persist, un-hide-all-first, localStorage failure). ALL /
+    // CIVIL / MILITARY are now single-select sub-tabs on the left sidebar's
+    // FILTER rail, driven through `airStore.setAdsbTypeFilter` — that behaviour
+    // is covered by MapSidebar.spec.ts and stores/air.spec.ts. What has to hold
+    // *here* is that the rail carries none of it any more.
+    it('no longer carries a FILTER accordion or any aircraft-mode buttons', () => {
+      expect(wrapper.find('#sm-filter-btn').exists()).toBe(false)
+      expect(wrapper.find('#filter-mode-flyout').exists()).toBe(false)
+      expect(wrapper.find(tip('FILTER')).exists()).toBe(false)
+      expect(wrapper.findAll('[data-mode]')).toHaveLength(0)
+      for (const accessibleName of [
+        'Filter aircraft',
+        'Show all aircraft',
+        'Civil aircraft only',
+        'Military aircraft only',
+      ]) {
+        expect(wrapper.find(`[aria-label="${accessibleName}"]`).exists()).toBe(false)
+      }
+      // LAYERS is the only accordion left on the rail.
+      expect(wrapper.findAll('[aria-expanded]')).toHaveLength(1)
     })
 
-    it('resyncs the mode highlight from the control when the panel opens, even without an adsb-filter-change event', async () => {
-      // Pins the reason onFilterAccordionTriggerClick calls syncFilterStateFromControl
-      // on every trigger click (replacing the pre-migration watch(filterAccordionOpen,
-      // ...)): something outside this component can mutate the ADS-B control's filter
-      // fields directly (e.g. another view driving the same control) without going
-      // through setFilterMode/dispatching 'adsb-filter-change'. Opening the FILTER
-      // accordion must still reflect that external change immediately.
-      controls.adsb._typeFilter = 'mil'
-      controls.adsb._allHidden = false
-
-      const button = wrapper.find('#sm-filter-btn')
-      await button.trigger('click')
-
-      expect(wrapper.find('[data-mode="mil"]').classes()).toContain('active')
-      expect(wrapper.find('[data-mode="all"]').classes()).not.toContain('active')
-      expect(wrapper.find('[data-mode="civil"]').classes()).not.toContain('active')
+    it('never reaches for the ADS-B control, so nothing here can move the filter', async () => {
+      shared.loc!.value = { lon: 1, lat: 2 } // so GO TO MY LOCATION does its work too
+      await nextTick()
+      // Open LAYERS first so the panel's buttons are rendered, then click every
+      // button the rail offers — none of them may consult the ADS-B control.
+      await wrapper.find('#sm-layers-btn').trigger('click')
+      for (const button of wrapper.findAll('button')) await button.trigger('click')
+      expect(wrapper.findAll('button').length).toBeGreaterThan(4)
+      expect(airMap.getAdsbControl).not.toHaveBeenCalled()
+      expect(controls.adsb.setTypeFilter).not.toHaveBeenCalled()
+      expect(controls.adsb.setAllHidden).not.toHaveBeenCalled()
+      expect(localStorage.getItem('adsbFilter')).toBeNull()
     })
 
-    it('sets the filter mode, persists it, and keeps it highlighted', async () => {
-      const events: string[] = []
-      document.addEventListener('adsb-filter-change', () => events.push('change'))
-      await wrapper.find('[data-mode="civil"]').trigger('click')
-      expect(controls.adsb.setTypeFilter).toHaveBeenCalledWith('civil')
-      expect(JSON.parse(localStorage.getItem('adsbFilter')!)).toEqual({
-        typeFilter: 'civil',
-        allHidden: false,
-      })
-      expect(events).toContain('change')
-      // The selected mode stays green (active); the others do not.
-      expect(wrapper.find('[data-mode="civil"]').classes()).toContain('active')
-      expect(wrapper.find('[data-mode="all"]').classes()).not.toContain('active')
-      expect(wrapper.find('[data-mode="mil"]').classes()).not.toContain('active')
-    })
-
-    it('un-hides all aircraft before applying a mode when everything was hidden', async () => {
-      controls.adsb._allHidden = true
-      await wrapper.find('[data-mode="mil"]').trigger('click')
-      expect(controls.adsb.setAllHidden).toHaveBeenCalledWith(false)
-      expect(controls.adsb.setTypeFilter).toHaveBeenCalledWith('mil')
-    })
-
-    it('marks the active filter mode and tolerates a localStorage failure', async () => {
-      // _typeFilter 'all' → the ALL mode button is active.
-      expect(wrapper.find('[data-mode="all"]').classes()).toContain('active')
-      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-        throw new Error('blocked')
-      })
-      // Re-selecting ALL still applies the filter and swallows the storage error.
-      await expect(wrapper.find('[data-mode="all"]').trigger('click')).resolves.not.toThrow()
-      expect(controls.adsb.setTypeFilter).toHaveBeenCalledWith('all')
+    it('no longer listens for adsb-filter-change on the document', async () => {
+      // The rail used to mirror the control's filter fields into local refs on
+      // this event. Nothing on it depends on the filter now, so the listener is
+      // gone — a reintroduced one would consult the control again here.
+      document.dispatchEvent(new CustomEvent('adsb-filter-change'))
+      await nextTick()
+      expect(airMap.getAdsbControl).not.toHaveBeenCalled()
     })
   })
 
@@ -299,16 +279,18 @@ describe('AirSideMenu', () => {
         'A2A REFUELING',
         'AWACS',
         'MAP LAYERS',
-        'FILTER',
       ]) {
         await expect(wrapper.find(tip(label)).trigger('click')).resolves.not.toThrow()
       }
     })
 
-    it('selecting a filter mode without a control is a no-op', async () => {
-      await expect(wrapper.find('[data-mode="civil"]').trigger('click')).resolves.not.toThrow()
-      // With no control the click changes nothing — CIVIL never becomes active.
-      expect(wrapper.find('[data-mode="civil"]').classes()).not.toContain('active')
+    it('still toggles the shared terrain layer, which needs no map control', async () => {
+      // Replaces "selecting a filter mode without a control is a no-op" (the
+      // mode buttons are gone): terrain is the one rail action that goes to a
+      // store rather than the map, so it works with no map attached at all.
+      const basemapStore = useBasemapStore()
+      await wrapper.find('[aria-label="Terrain relief and contour lines"]').trigger('click')
+      expect(basemapStore.layers.terrain).toBe(true)
     })
   })
 

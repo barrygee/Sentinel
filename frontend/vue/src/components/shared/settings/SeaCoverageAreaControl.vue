@@ -167,7 +167,11 @@ function useWorldwide(): void {
 }
 .sea-coverage-actions {
   display: flex;
+  /* Left-aligned under the fields, unlike the shared right-aligned row, and
+     set a little further off them. */
+  justify-content: flex-start;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 8px;
 }
 </style>

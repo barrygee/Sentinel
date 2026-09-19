@@ -33,9 +33,10 @@
       @stage="emit('stage', item.id, $event)"
       @commit="emit('commit')"
     />
-    <!-- No stage/commit: the location card owns its own SAVE LOCATION button
-         (matching Sentry's panel) rather than committing via APPLY CHANGES. -->
-    <LocationControl v-else-if="item.type === 'location'" />
+    <!-- Stages only: an edit hands back a closure that APPLY CHANGES runs, so
+         the location saves with the rest of the panel. No `commit` — pressing
+         Enter in a field saves that field there and then. -->
+    <LocationControl v-else-if="item.type === 'location'" @stage="emit('stage', item.id, $event)" />
     <!-- No stage/commit either: choosing an origin moves the rings at once,
          which is the whole point of choosing one. -->
     <!-- Mirrors to the store at once (the rings move as you choose) and stages
@@ -95,8 +96,16 @@
       v-else-if="item.type === 'air-tag-fields'"
       @stage="emit('stage', item.id, $event)"
     />
+    <SeaAisSdrSourceControl
+      v-else-if="item.type === 'sea-ais-sdr-source'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <AprsLabelFieldsControl
       v-else-if="item.type === 'land-aprs-label-fields'"
+      @stage="emit('stage', item.id, $event)"
+    />
+    <RepeaterLabelFieldsControl
+      v-else-if="item.type === 'land-repeater-label-fields'"
       @stage="emit('stage', item.id, $event)"
     />
     <!-- Staged like the rest, but the write goes to the key's own endpoint —
@@ -138,6 +147,13 @@
       v-else-if="item.type === 'sdr-options'"
       @stage="emit('stage', item.id, $event)"
       @commit="emit('commit')"
+    />
+    <JsonDataControl
+      v-else-if="item.type === 'land-repeaters-file'"
+      get-url="/api/land/repeaters/file"
+      post-url="/api/land/repeaters/file"
+      filename="uk_repeaters.json"
+      @stage="emit('stage', item.id, $event)"
     />
     <JsonDataControl
       v-else-if="item.type === 'sdr-frequencies-file'"
@@ -185,6 +201,8 @@ import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
+import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
+import RepeaterLabelFieldsControl from './RepeaterLabelFieldsControl.vue'
 import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
@@ -226,6 +244,7 @@ const HALF_TYPES = new Set([
   'space-hover-preview',
   'air-tag-fields',
   'land-aprs-label-fields',
+  'land-repeater-label-fields',
   'sea-ais-key',
   'sea-coverage-area',
   'sea-label-fields',
@@ -237,7 +256,7 @@ const HALF_TYPES = new Set([
 const HALF_STACKED_TYPES = new Set(['sdr-frequencies-file', 'sdr-bandplan-file'])
 // The remaining raw-JSON editors take the full row, at the width indented JSON
 // wants — neither has a sibling to pair with.
-const FULL_TYPES = new Set(['space-sat-radio-file', 'config-current'])
+const FULL_TYPES = new Set(['space-sat-radio-file', 'land-repeaters-file', 'config-current'])
 const NATURAL_HEIGHT_TYPES = new Set([
   'location',
   'sea-ais-key',

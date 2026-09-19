@@ -44,117 +44,6 @@
       <MyLocationIcon />
     </BaseIconButton>
 
-    <!-- FILTER group: a click-to-expand accordion of aircraft-filter modes
-         (all / civil / military) shown below the icon. -->
-    <IconRailAccordion panel-id="filter-mode-flyout">
-      <template #trigger="{ open: filterAccordionOpen, toggle: toggleFilterAccordion }">
-        <BaseIconButton
-          id="sm-filter-btn"
-          class="sm-btn"
-          style="--ba-rail-transition: color 0.15s ease"
-          :class="{ active: filterAccordionOpen }"
-          :active="filterAccordionOpen"
-          tooltip-side="left"
-          tooltip="FILTER"
-          accessible-name="Filter aircraft"
-          aria-controls="filter-mode-flyout"
-          :aria-expanded="filterAccordionOpen"
-          @click="onFilterAccordionTriggerClick(toggleFilterAccordion)"
-        >
-          <FilterFunnelIcon />
-        </BaseIconButton>
-      </template>
-      <template #panel>
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          :class="{ active: isFilterModeActive('all') }"
-          :active="isFilterModeActive('all')"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          data-mode="all"
-          tooltip-side="left"
-          tooltip="ALL AIRCRAFT"
-          accessible-name="Show all aircraft"
-          @click="setFilterMode('all')"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-            <rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-            <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-            <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-          </svg>
-        </BaseIconButton>
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          :class="{ active: isFilterModeActive('civil') }"
-          :active="isFilterModeActive('civil')"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          data-mode="civil"
-          tooltip-side="left"
-          tooltip="CIVIL AIRCRAFT"
-          accessible-name="Civil aircraft only"
-          @click="setFilterMode('civil')"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
-              fill="currentColor"
-            />
-          </svg>
-        </BaseIconButton>
-        <BaseIconButton
-          class="sm-btn sm-sub-btn"
-          :class="{ active: isFilterModeActive('mil') }"
-          :active="isFilterModeActive('mil')"
-          style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
-            --ba-rail-transition: color 0.15s ease;
-          "
-          data-mode="mil"
-          tooltip-side="left"
-          tooltip="MILITARY AIRCRAFT"
-          accessible-name="Military aircraft only"
-          @click="setFilterMode('mil')"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <polygon
-              points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
-              stroke="currentColor"
-              stroke-width="1.4"
-              stroke-linejoin="round"
-              fill="none"
-            />
-          </svg>
-        </BaseIconButton>
-      </template>
-    </IconRailAccordion>
-
     <!-- LAYERS group: a click-to-expand accordion of every map overlay shown
          below the icon — the map-annotation overlays first (range ring, A2A
          refuelling, AWACS), then the data/base-map layers (ground vehicles,
@@ -324,11 +213,9 @@ import { useBasemapStore } from '@/stores/basemap'
 import TerrainIcon from '@/components/shared/TerrainIcon.vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
-import FilterFunnelIcon from '@/components/shared/FilterFunnelIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import IconRail from '@/components/base/IconRail.vue'
 import IconRailAccordion from '@/components/base/IconRailAccordion.vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import type AirMap from './AirMap.vue'
 
 // Receives a markRaw proxy so Vue never re-renders this component when the map
@@ -357,48 +244,16 @@ const { location: userLocation } = useUserLocation()
 const cleared = ref(false)
 const locActive = computed(() => userLocation.value !== null)
 
-// FILTER and LAYERS each expand a vertical icon accordion on click; the group
-// button is highlighted (green) while its panel is open. The open/toggle state
-// itself now lives inside IconRailAccordion (see its #trigger scoped-slot
-// binding in the template) rather than a local useDisclosure() call here —
-// same transient, non-store lifecycle either way.
-
-// The ADS-B control's filter fields aren't reactive, so mirror them into refs to
-// drive the active (green) mode highlight. Synced from the control whenever the
-// FILTER accordion's trigger is clicked (covers the open transition — syncing
-// again on close is a harmless no-op, the panel is hidden either way) and
-// whenever the filter changes anywhere else in the app.
-const filterTypeMode = ref<'all' | 'civil' | 'mil'>('all')
-const filterAllHidden = ref(false)
-
-function syncFilterStateFromControl() {
-  const control = getAdsb()
-  if (!control) return
-  filterTypeMode.value = control._typeFilter
-  filterAllHidden.value = control._allHidden
-}
-
-// IconRailAccordion's `open` flag is internal to that component instance (only
-// exposed via its #trigger scoped slot), so this component can no longer
-// `watch` it directly — the trigger's click handler resyncs explicitly instead.
-function onFilterAccordionTriggerClick(toggleFilterAccordion: () => void): void {
-  toggleFilterAccordion()
-  syncFilterStateFromControl()
-}
-
-useDocumentEvent('adsb-filter-change', syncFilterStateFromControl)
+// LAYERS expands a vertical icon accordion on click; the group button is
+// highlighted (green) while its panel is open. The open/toggle state lives
+// inside IconRailAccordion (see its #trigger scoped-slot binding in the
+// template). The aircraft ALL / CIVIL / MILITARY filter is no longer on this
+// rail — it is the left sidebar's sub-tabs beneath FILTER (MapSidebar).
 
 // ---- Map access helpers ----
 function getMap() {
   const m = mapRef.value as { getMap?: () => import('maplibre-gl').Map | null } | null
   return m?.getMap?.() ?? null
-}
-function getAdsb() {
-  return (
-    (mapRef.value?.getAdsbControl?.() as
-      | import('./controls/adsb/AdsbLiveControl').AdsbLiveControl
-      | null) ?? null
-  )
 }
 // ---- Location ----
 function goToLocation() {
@@ -422,43 +277,6 @@ function _toggleClear() {
   cleared.value = ctrl._cleared
 }
 /* v8 ignore stop */
-
-// ---- Filter accordion ----
-function isFilterModeActive(mode: string): boolean {
-  return !filterAllHidden.value && filterTypeMode.value === mode
-}
-
-function setFilterMode(mode: string) {
-  const c = getAdsb()
-  if (!c) return
-  if (c._allHidden) c.setAllHidden(false)
-  c.setTypeFilter(mode as 'all' | 'civil' | 'mil')
-  _saveFilter()
-  // Let the search list re-apply the same filter to its aircraft section.
-  document.dispatchEvent(new CustomEvent('adsb-filter-change'))
-}
-
-function _saveFilter() {
-  const c = getAdsb()
-  /* v8 ignore start -- defensive: the only caller (setFilterMode) already returns
-     early when there is no control, so this guard is never the path taken. */
-  if (!c) return
-  /* v8 ignore stop */
-  try {
-    localStorage.setItem(
-      'adsbFilter',
-      JSON.stringify({
-        typeFilter: c._typeFilter,
-        allHidden: c._allHidden,
-      }),
-    )
-  } catch {}
-}
-
-// Persisted filter state (localStorage `adsbFilter`) is restored inside the
-// AdsbLiveControl constructor (_loadFilterState) so the first poll renders under
-// the correct filter — restoring it here via setTimeout caused civil aircraft to
-// flash for ~1s on load before the filter applied.
 </script>
 
 <style>

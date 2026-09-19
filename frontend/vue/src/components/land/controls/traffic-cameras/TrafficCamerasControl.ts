@@ -1,14 +1,23 @@
 import maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
-import { APRS_BADGE_BACKGROUND, APRS_COUNT_FILL, APRS_COUNT_RING } from '@/constants/aprs'
+import { APRS_BADGE_BACKGROUND, APRS_COUNT_FILL, TRAFFIC_CAMERA_COUNT_RING } from '@/constants/aprs'
 import {
   buildCountMarker,
   groupByGridCell,
   COUNT_MARKER_SIZE_PX,
 } from '@/components/shared/map-cluster/mapCluster'
 import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
-import './trafficCamerasPopup.css'
+import { escapeHtml } from '@/utils/escapeHtml'
+import {
+  appendMirrored,
+  createAccentBadge,
+  createGlyphWell,
+  createLabelPill,
+  createNameSegment,
+  MAP_LABEL_SIZE_PX,
+} from '@/components/shared/map-label/mapLabelParts'
+import '@/components/shared/map-popup/landMapPopup.css'
 import { imageUrl as buildImageUrl, clipUrl as buildClipUrl } from '@/services/landFeedsApi'
 import type { useLandStore } from '@/stores/land'
 import type { useLandFeedsStore } from '@/stores/landFeeds'
@@ -65,10 +74,28 @@ const CLUSTER_CLICK_ZOOM_STEP = 2
  *  in and out as the map is nudged. */
 const VIEWPORT_PADDING_PX = 120
 
-/** How often an open popup's image is re-fetched, in milliseconds — the
- *  feed's own refresh cadence, floored so a fast feed can't be hammered by a
- *  left-open popup. */
+/** Floor on how often an always-open card's image is re-fetched, in
+ *  milliseconds, so a fast feed can't be hammered by a busy render loop. */
 const MIN_IMAGE_REFRESH_MS = 15_000
+
+/**
+ * Document event a marker click fires so the sidebar opens on the FILTER
+ * tab (App.vue) with the camera's row expanded (LandFilter).
+ */
+export const CAMERA_OPEN_EVENT = 'land-open-camera'
+
+/**
+ * Document event the FILTER pane fires (a click on a row's preview still) to
+ * fly the map to that camera and open its live view in a popup — the same
+ * popup a click on the marker opens.
+ */
+export const CAMERA_PREVIEW_EVENT = 'land-preview-camera'
+
+/** The camera glyph in the label's leading well, and on the rail button. */
+const CAMERA_GLYPH_SVG =
+  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#ffffff" stroke-width="1.4" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block">' +
+  '<path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" /><circle cx="8" cy="9" r="2.2" /></svg>'
 
 /**
  * Land-map control that plots live traffic camera feeds (Durham CC, TfL
@@ -76,12 +103,16 @@ const MIN_IMAGE_REFRESH_MS = 15_000
  * `docs/plans/land-live-feeds.md` §5a for the exact visual spec every colour
  * and size below is taken from.
  *
- * Markers are monochrome pills, built exactly like `PortsControl`'s, grouped
- * into APRS-style count markers below `LABEL_REVEAL_ZOOM` and drawn
- * individually above it, both scoped to the current viewport so the DOM
- * marker count never reflects the full ~1,000-camera dataset at once.
- * Clicking a marker (or a count, which first zooms in) opens a focus-managed
- * popup with the latest image, optional clip, status chip and source link.
+ * Each camera is the shared Sentinel label pill the Air and Sea maps draw —
+ * the camera glyph in the leading well, the name, then its view/location as
+ * a badge — kept monochrome per the Land rule, grouped into APRS-style count
+ * markers below `LABEL_REVEAL_ZOOM` and drawn individually above it, both
+ * scoped to the current viewport so the DOM marker count never reflects the
+ * full ~1,000-camera dataset at once. Clicking a label (or a count, which
+ * first zooms in) opens the camera's live view in a focus-managed popup on
+ * the map — the latest still, refreshed at the feed's cadence, plus the
+ * looping clip where the provider offers one — and expands the camera's row
+ * in the FILTER pane; the pane's preview still opens the same popup.
  *
  * Visibility and polling live on the Land stores so the rail button, the
  * default-layers config, the sidebar list and this control can never disagree
@@ -106,16 +137,16 @@ export class TrafficCamerasControl extends SentinelControlBase {
   private _stopWatch: WatchStopHandle | null = null
   private _a11yRegion: HTMLDivElement | null = null
   private _popup: maplibregl.Popup | null = null
+  private _popupResizeObserver: ResizeObserver | null = null
   private _popupImageTimer: ReturnType<typeof setInterval> | null = null
   private _popupReturnFocusTo: HTMLElement | null = null
 
   /**
    * Bound once so `document.addEventListener`/`removeEventListener` target
-   * the same function reference — the CAMERAS sidebar list ↔ map parity
-   * mechanism, mirroring `aprs-station-selected` in `AprsStationsControl`,
-   * just in the opposite direction (list click drives the map here).
+   * the same function reference — the pane's preview still asks for the
+   * camera's popup, so the map flies there first and opens it on arrival.
    */
-  private readonly _onCameraSelected = (event: Event): void => {
+  private readonly _onPreviewRequested = (event: Event): void => {
     const { featureId } = (event as CustomEvent<{ featureId: string }>).detail
     const feature = this._allFeatures().find((candidate) => candidate.properties.id === featureId)
     if (!feature) return
@@ -132,13 +163,7 @@ export class TrafficCamerasControl extends SentinelControlBase {
   }
 
   get buttonLabel(): string {
-    // A simple camera glyph — body + lens, matching the marker's own icon.
-    return (
-      '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
-      'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" />' +
-      '<circle cx="8" cy="9" r="2.2" /></svg>'
-    )
+    return CAMERA_GLYPH_SVG.replace('stroke="#ffffff"', 'stroke="currentColor"')
   }
 
   get buttonTitle(): string {
@@ -149,18 +174,26 @@ export class TrafficCamerasControl extends SentinelControlBase {
     return this._landStore.trafficCamerasLayerVisible
   }
 
+  /** Whether this control currently holds a poll on the feeds store, so the
+   *  store flag can change from anywhere (the sidebar tabs, Settings, a config
+   *  upload) and polling always follows it exactly once. */
+  private _polling = false
+
   protected onInit(): void {
-    this.setButtonActive(this._visible)
     this._ensureA11yRegion()
-    if (this._visible) void this._landFeedsStore.startPolling()
     this._onMapMoveEnd = () => this._render()
     this.map.on('moveend', this._onMapMoveEnd)
+    // The store flag is the truth: whoever flips it, the button, the poll and
+    // the markers follow here.
     this._stopWatch = watch(
       () => [this._landFeedsStore.featuresByFeed, this._visible] as const,
-      () => this._render(),
+      () => {
+        this._applyVisibility()
+        this._render()
+      },
       { immediate: true, deep: true },
     )
-    document.addEventListener('land-camera-selected', this._onCameraSelected)
+    document.addEventListener(CAMERA_PREVIEW_EVENT, this._onPreviewRequested)
   }
 
   protected handleClick(): void {
@@ -172,10 +205,18 @@ export class TrafficCamerasControl extends SentinelControlBase {
   setVisible(visible: boolean): void {
     if (this._visible === visible) return
     this._landStore.setTrafficCamerasLayerVisible(visible)
-    this.setButtonActive(visible)
-    if (visible) void this._landFeedsStore.startPolling()
-    else this._landFeedsStore.stopPolling()
-    this._render()
+  }
+
+  /** Bring the button and the feed poll in line with the store flag. */
+  private _applyVisibility(): void {
+    this.setButtonActive(this._visible)
+    if (this._visible && !this._polling) {
+      this._polling = true
+      void this._landFeedsStore.startPolling()
+    } else if (!this._visible && this._polling) {
+      this._polling = false
+      this._landFeedsStore.stopPolling()
+    }
   }
 
   onRemove(): void {
@@ -186,9 +227,12 @@ export class TrafficCamerasControl extends SentinelControlBase {
     this._onMapMoveEnd = null
     this._stopWatch?.()
     this._stopWatch = null
-    document.removeEventListener('land-camera-selected', this._onCameraSelected)
-    if (this._visible) this._landFeedsStore.stopPolling()
+    document.removeEventListener(CAMERA_PREVIEW_EVENT, this._onPreviewRequested)
     this._closePopup()
+    if (this._polling) {
+      this._polling = false
+      this._landFeedsStore.stopPolling()
+    }
     this._clearMarkers()
     this._a11yRegion?.remove()
     this._a11yRegion = null
@@ -317,8 +361,10 @@ export class TrafficCamerasControl extends SentinelControlBase {
     this._cardImages.delete(id)
     const marker = new maplibregl.Marker({
       element: asCard ? this._buildPreviewCardElement(feature) : this._buildMarkerElement(feature),
-      anchor: 'top-left',
-      offset: [8, -6],
+      // A pill sits with its glyph well centred on the camera, as the Air and
+      // Sea labels do; a card hangs from that same point.
+      anchor: asCard ? 'top-left' : 'left',
+      offset: asCard ? [8, -6] : [-MAP_LABEL_SIZE_PX / 2, 0],
     })
       .setLngLat(feature.geometry.coordinates as LngLat)
       .addTo(this.map)
@@ -372,15 +418,11 @@ export class TrafficCamerasControl extends SentinelControlBase {
     // with the card, so nothing is actually clipped.
     card.style.cssText = `width:${width}px;min-width:${PREVIEW_CARD_MIN_WIDTH_PX}px;max-width:${PREVIEW_CARD_MAX_WIDTH_PX}px;resize:horizontal;overflow:hidden;background:${APRS_BADGE_BACKGROUND};cursor:pointer;pointer-events:auto;user-select:none;opacity:${markerOpacity};position:relative`
     card.setAttribute('role', 'group')
-    card.setAttribute(
-      'aria-label',
-      `Traffic camera, ${properties.name}${properties.view ? `, ${properties.view}` : ''}, ${stateLabel(state)}`,
-    )
+    card.setAttribute('aria-label', cameraAccessibleName(feature))
 
     const header = this._buildMarkerElement(feature)
     // The header is decorative inside the card: the card carries the name.
     header.removeAttribute('aria-label')
-    header.style.padding = '4px 8px 4px 0'
     header.style.opacity = '1'
     header.style.pointerEvents = 'none'
     card.appendChild(header)
@@ -436,7 +478,7 @@ export class TrafficCamerasControl extends SentinelControlBase {
       ariaLabel: `${cluster.features.length} traffic cameras here — zoom in to see them`,
       className: 'traffic-camera-cluster-marker',
       countClassName: 'traffic-camera-cluster-count',
-      ringColor: APRS_COUNT_RING,
+      ringColor: TRAFFIC_CAMERA_COUNT_RING,
       fillColor: APRS_COUNT_FILL,
       textColor: '#ffffff',
     })
@@ -459,56 +501,51 @@ export class TrafficCamerasControl extends SentinelControlBase {
     this._clusterCounts.set(cluster.key, cluster.features.length)
   }
 
-  /** Build one camera's marker pill — a 20x20 chip carrying the camera glyph
-   *  plus a two-line label, styled exactly per §5a: live at full opacity,
-   *  stale dimmed to .45, offline recoloured and dimmed to .35. No borders
-   *  anywhere; state is carried by fill and opacity alone (with the state
-   *  chip in the popup giving the same information as text). */
+  /**
+   * The shared Sentinel pill for one camera: camera glyph in the well, the
+   * name, then its view (the road or direction it looks along) as a badge.
+   * Monochrome per the Land rule; state is carried by opacity alone — stale
+   * dimmed to .45, offline to .35 — with the state spelled out in the pane.
+   */
   private _buildMarkerElement(feature: CameraFeature): HTMLDivElement {
     const properties = feature.properties
     const state = properties.state
-    const pillBackground = state === 'offline' ? 'var(--color-button-bg)' : APRS_BADGE_BACKGROUND
-    const glyphAndTextOpacity = state === 'offline' ? '0.35' : '1'
-    const markerOpacity = state === 'stale' ? '0.45' : '1'
-
-    const wrap = document.createElement('div')
-    wrap.style.cssText = `padding:6px 16px 6px 0;cursor:pointer;pointer-events:auto;user-select:none;opacity:${markerOpacity};display:flex;align-items:center;gap:6px`
-
-    const well = document.createElement('div')
-    well.style.cssText = `flex-shrink:0;width:20px;height:20px;border-radius:0;background:${pillBackground};display:flex;align-items:center;justify-content:center;opacity:${glyphAndTextOpacity}`
-    well.innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.4" ' +
-      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" /><circle cx="8" cy="9" r="2.2" /></svg>'
-
-    const label = document.createElement('div')
-    label.style.cssText = `color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none;text-transform:uppercase;opacity:${glyphAndTextOpacity}`
-    const name = document.createElement('span')
-    name.textContent = properties.name
-    label.appendChild(name)
-    if (properties.view) {
-      const view = document.createElement('span')
-      view.style.cssText = 'opacity:0.7;font-weight:400;display:block'
-      view.textContent = properties.view.toUpperCase()
-      label.appendChild(view)
-    }
-
-    wrap.append(well, label)
-    wrap.setAttribute(
-      'aria-label',
-      `Traffic camera, ${properties.name}${properties.view ? `, ${properties.view}` : ''}, ${stateLabel(state)}`,
+    const pill = createLabelPill()
+    pill.style.pointerEvents = 'auto'
+    if (state === 'stale') pill.style.opacity = '0.45'
+    if (state === 'offline') pill.style.opacity = '0.35'
+    pill.setAttribute('aria-label', cameraAccessibleName(feature))
+    appendMirrored(
+      pill,
+      [
+        createGlyphWell(CAMERA_GLYPH_SVG, APRS_BADGE_BACKGROUND),
+        createNameSegment(properties.name, 'right'),
+        properties.view
+          ? createAccentBadge(properties.view, APRS_BADGE_BACKGROUND, '#ffffff')
+          : null,
+      ],
+      false,
     )
-    wrap.addEventListener('click', (domEvent: Event) => {
+    pill.addEventListener('click', (domEvent: Event) => {
       domEvent.stopPropagation()
       this._raiseMarker(properties.id)
-      this._openPopup(feature, wrap)
+      this.openInPane(properties.id)
+      this._openPopup(feature, pill)
     })
-    return wrap
+    return pill
+  }
+
+  /** Expand the camera's row in the FILTER pane and bring the pane forward. */
+  openInPane(featureId: string): void {
+    this._landStore.setSearchExpandedCallsign(featureId)
+    document.dispatchEvent(new CustomEvent(CAMERA_OPEN_EVENT, { detail: { featureId } }))
   }
 
   // ── popup ────────────────────────────────────────────────────────────────
 
   private _closePopup(): void {
+    this._popupResizeObserver?.disconnect()
+    this._popupResizeObserver = null
     if (this._popupImageTimer !== null) {
       clearInterval(this._popupImageTimer)
       this._popupImageTimer = null
@@ -527,7 +564,12 @@ export class TrafficCamerasControl extends SentinelControlBase {
       closeButton: true,
       closeOnClick: false,
       maxWidth: 'min(860px, calc(100vw - 48px))',
-      className: 'traffic-camera-popup',
+      className: 'land-map-popup',
+      // Pinned below-centre of the camera rather than MapLibre's auto anchor:
+      // auto flips the card sideways near an edge, which would undo the
+      // centring pan below. With a fixed anchor the card is always centred
+      // on the camera horizontally, so one pan puts it mid-viewport.
+      anchor: 'bottom',
     })
       .setLngLat(feature.geometry.coordinates as LngLat)
       .setDOMContent(content)
@@ -540,13 +582,71 @@ export class TrafficCamerasControl extends SentinelControlBase {
       this._popup = null
     })
     content.tabIndex = -1
+    // Focus is taken for Escape only; the ring would frame the whole picture.
+    content.style.outline = 'none'
     content.addEventListener('keydown', (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.key === 'Escape') {
         keyboardEvent.stopPropagation()
         this._closePopup()
       }
     })
-    content.focus()
+    // preventScroll: focusing a card that overhangs the map's edge would
+    // otherwise scroll the (overflow-hidden) map container itself, shifting
+    // every marker off its canvas position — the map is moved by panning, never
+    // by scrolling.
+    content.focus({ preventScroll: true })
+    // Centre the popup itself, not the camera under it: once laid out, and
+    // again whenever the card changes size — the still arriving, the clip
+    // taking over — since with a bottom anchor the card grows upward.
+    requestAnimationFrame(() => this._centrePopup())
+    if (typeof ResizeObserver !== 'undefined') {
+      this._popupResizeObserver = new ResizeObserver(() =>
+        requestAnimationFrame(() => this._centrePopup()),
+      )
+      this._popupResizeObserver.observe(content)
+    }
+  }
+
+  /**
+   * Pan so the open popup's card sits in the middle of the *visible* map.
+   *
+   * Checked again once the pan has settled: the card can change size while
+   * the pan is in flight (the still or the clip arriving), and a pan started
+   * from a mid-animation position lands short, so up to three passes run
+   * until the card is within a couple of pixels of centre.
+   */
+  private _centrePopup(attempt = 0): void {
+    const element = this._popup?.getElement()
+    if (!element) return
+    const card = element.getBoundingClientRect()
+    const visible = this._visibleMapBox()
+    const offsetX = card.left + card.width / 2 - (visible.left + visible.width / 2)
+    const offsetY = card.top + card.height / 2 - (visible.top + visible.height / 2)
+    if (Math.abs(offsetX) < 2 && Math.abs(offsetY) < 2) return
+    this.map.panBy([offsetX, offsetY], { duration: 250 })
+    if (attempt < 3) setTimeout(() => this._centrePopup(attempt + 1), 320)
+  }
+
+  /**
+   * The part of the map the operator can actually see: the container minus
+   * the sidebar drawer + its tab rail on the left, the icon rail on the right
+   * and the app header along the top, all fixed over the map rather than
+   * beside it.
+   */
+  private _visibleMapBox(): { left: number; top: number; width: number; height: number } {
+    const box = this.map.getContainer().getBoundingClientRect()
+    let left = box.left
+    let right = box.right
+    // The app header runs across the top of the map.
+    const nav = document.getElementById('nav')?.getBoundingClientRect()
+    const top = nav && nav.bottom > box.top && nav.top <= box.top + 1 ? nav.bottom : box.top
+    for (const id of ['map-sidebar-rail', 'map-sidebar']) {
+      const rect = document.getElementById(id)?.getBoundingClientRect()
+      if (rect && rect.width > 0 && rect.right > left && rect.left <= left + 1) left = rect.right
+    }
+    const rail = document.getElementById('land-side-menu')?.getBoundingClientRect()
+    if (rail && rail.width > 0 && rail.left < right && rail.right >= right - 1) right = rail.left
+    return { left, top, width: Math.max(0, right - left), height: Math.max(0, box.bottom - top) }
   }
 
   private _buildPopupContent(feature: CameraFeature): HTMLDivElement {
@@ -555,44 +655,32 @@ export class TrafficCamerasControl extends SentinelControlBase {
     container.style.cssText =
       'background:rgba(21,23,29,.98);color:#fff;width:840px;max-width:calc(100vw - 48px);font-family:var(--font-primary,Barlow,sans-serif)'
 
+    // Header: the name, with the frame's timestamp beside it (smaller, dimmer)
+    // when the feed reports one — kept on one 36px line so it sits level with
+    // MapLibre's close button. The image itself is shown as the provider
+    // serves it; any time burned into the frame is theirs, not a footer.
+    const header = document.createElement('div')
+    header.style.cssText =
+      'display:flex;align-items:baseline;gap:10px;min-height:36px;box-sizing:border-box;padding:0 44px 0 12px;align-items:center'
     const title = document.createElement('h2')
     title.style.cssText =
-      "font-family:var(--font-condensed,'Barlow Condensed',sans-serif);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;margin:0 0 6px;padding:10px 12px 0"
+      "font-family:var(--font-condensed,'Barlow Condensed',sans-serif);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;margin:0"
     title.textContent = properties.name
-    container.appendChild(title)
-
-    // The camera's view line ("View towards the City Centre", "West") — the
-    // body text of the popup, per §5a; TfL gives a compass point, Durham a
-    // sentence, so it is shown as given rather than upper-cased.
-    if (properties.view) {
-      const view = document.createElement('p')
-      view.style.cssText =
-        'font-size:13px;color:rgba(255,255,255,.82);margin:0 12px 8px;line-height:1.4'
-      view.textContent = properties.view
-      container.appendChild(view)
+    header.appendChild(title)
+    if (properties.updatedAt) {
+      const stamp = document.createElement('span')
+      stamp.style.cssText =
+        "font-family:var(--font-condensed,'Barlow Condensed',sans-serif);font-size:9px;font-weight:400;letter-spacing:.08em;color:rgba(255,255,255,.5)"
+      stamp.textContent = formatUpdatedAt(properties.updatedAt)
+      header.appendChild(stamp)
     }
+    container.appendChild(header)
 
-    // State is carried by the marker's opacity and the sidebar row; the popup
-    // is the picture, so no LIVE chip here.
-
+    // Just the name and the picture: the view line, state, cadence and source
+    // all live in the pane's row, which opens alongside the popup.
     if (properties.imageUrl || properties.clipUrl) {
       container.appendChild(this._buildMediaElement(feature))
     }
-
-    const meta = document.createElement('p')
-    meta.style.cssText =
-      'font-size:9px;color:var(--color-text-muted,rgba(255,255,255,.75));margin:8px 12px 0;line-height:1.5'
-    const refreshSeconds = this._refreshSecondsFor(properties.sourceId)
-    meta.textContent = [
-      properties.updatedAt ? `Updated ${formatUpdatedAt(properties.updatedAt)}` : null,
-      refreshSeconds ? `refreshes every ~${refreshSeconds}s` : null,
-      properties.sourceName,
-    ]
-      .filter((part): part is string => Boolean(part))
-      .join(' · ')
-    container.appendChild(meta)
-
-    container.style.paddingBottom = '12px'
 
     return container
   }
@@ -602,9 +690,9 @@ export class TrafficCamerasControl extends SentinelControlBase {
   }
 
   /**
-   * The image (always) and, when the feed offers one, the looping clip — a
-   * still under `prefers-reduced-motion` regardless of the toggle, per the
-   * accessibility guardrail on motion.
+   * The image (always) and, when the feed offers one, the looping clip
+   * playing automatically over it — a still under `prefers-reduced-motion`
+   * regardless, per the accessibility guardrail on motion.
    */
   private _buildMediaElement(feature: CameraFeature): HTMLDivElement {
     const properties = feature.properties
@@ -615,6 +703,9 @@ export class TrafficCamerasControl extends SentinelControlBase {
     const image = document.createElement('img')
     image.alt = `${properties.name}${properties.view ? `, ${properties.view}` : ''} — latest camera image`
     image.style.cssText = 'display:block;width:100%;height:auto'
+    image.addEventListener('load', () =>
+      applyCifAspect(image, image.naturalWidth, image.naturalHeight),
+    )
     const setImageSrc = () => {
       if (!properties.imageUrl) return
       const [feedId, ref] = splitFeatureId(properties.id, properties.sourceId)
@@ -628,10 +719,15 @@ export class TrafficCamerasControl extends SentinelControlBase {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!properties.clipUrl || reducedMotion) return holder
 
+    // Where the provider offers a clip (TfL JamCams), it plays at once,
+    // muted and looping, over the still — the still stays underneath as the
+    // poster and the fallback if the clip cannot load, and is what shows
+    // under a reduced-motion preference.
     const [feedId, ref] = splitFeatureId(properties.id, properties.sourceId)
     const video = document.createElement('video')
     video.muted = true
     video.loop = true
+    video.autoplay = true
     video.playsInline = true
     video.style.cssText = 'display:none;width:100%;height:auto;background:#000'
     video.poster = image.src
@@ -640,26 +736,38 @@ export class TrafficCamerasControl extends SentinelControlBase {
       'aria-label',
       `${properties.name}${properties.view ? `, ${properties.view}` : ''} — looping clip`,
     )
-    imageWrap.appendChild(video)
-
-    const toggle = document.createElement('button')
-    toggle.type = 'button'
-    let playing = false
-    const setToggleLabel = () => {
-      toggle.textContent = playing ? 'STILL' : 'PLAY'
-    }
-    toggle.style.cssText =
-      "display:block;margin:6px 12px 0;padding:6px 14px;background:var(--color-button-bg);color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:none;cursor:pointer"
-    setToggleLabel()
-    toggle.addEventListener('click', () => {
-      playing = !playing
-      video.style.display = playing ? 'block' : 'none'
-      image.style.display = playing ? 'none' : 'block'
-      if (playing) void video.play()
-      else video.pause()
-      setToggleLabel()
+    video.addEventListener('loadedmetadata', () =>
+      applyCifAspect(video, video.videoWidth, video.videoHeight),
+    )
+    video.addEventListener('playing', () => {
+      video.style.display = 'block'
+      image.style.display = 'none'
     })
-    holder.appendChild(toggle)
+    video.addEventListener('error', () => {
+      video.style.display = 'none'
+      image.style.display = 'block'
+    })
+    // Nothing here ever pauses the clip, so a pause is the browser giving up
+    // on the loop (a seek it could not make); kick it off again from the top.
+    video.addEventListener('pause', () => {
+      if (video.error || !video.isConnected) return
+      video.currentTime = 0
+      void video.play().catch(() => {
+        /* still refused: the last frame stays up */
+      })
+    })
+    // Played once the clip can play, not here: the element is not in the
+    // document yet, and a play() on a detached video is aborted by the load
+    // that follows its insertion.
+    video.addEventListener(
+      'canplay',
+      () =>
+        void video.play().catch(() => {
+          /* autoplay refused: the still stays up */
+        }),
+      { once: true },
+    )
+    imageWrap.appendChild(video)
 
     return holder
   }
@@ -729,6 +837,12 @@ export class TrafficCamerasControl extends SentinelControlBase {
   }
 }
 
+/** Accessible name for a camera's label: name, view, state. */
+function cameraAccessibleName(feature: CameraFeature): string {
+  const properties = feature.properties
+  return `Traffic camera, ${properties.name}${properties.view ? `, ${properties.view}` : ''}, ${stateLabel(properties.state)}`
+}
+
 /** A group of camera features too close together on screen to draw apart. */
 interface FeatureCluster {
   key: string
@@ -736,12 +850,26 @@ interface FeatureCluster {
   coordinates: LngLat
 }
 
-/** Human label for a camera's state, used on both the marker's accessible
- *  name and the popup's status chip. */
+/** Human label for a camera's state, for the marker's accessible name and
+ *  the screen-reader table. */
 function stateLabel(state: CameraFeatureState): string {
   if (state === 'live') return 'LIVE'
   if (state === 'stale') return 'STALE'
   return 'OFFLINE'
+}
+
+/**
+ * Show CIF-sized media (352×288, PAL's non-square pixels — TfL JamCams) at
+ * the 4:3 it was shot for. Rendered at its stored pixel ratio (1.22:1) the
+ * picture is stretched tall; nothing else is touched, so a feed that already
+ * serves square pixels keeps its own ratio.
+ */
+function applyCifAspect(element: HTMLElement, width: number, height: number): void {
+  if (!width || !height) return
+  if (Math.abs(width / height - 352 / 288) > 0.01) return
+  element.style.aspectRatio = '4 / 3'
+  element.style.height = 'auto'
+  element.style.objectFit = 'fill'
 }
 
 /** Split a feature id (`"<feedId>:<providerRef>"`) back into its parts,
@@ -759,14 +887,4 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
  *  APRS control's `formatHeardTime`. */
 function formatUpdatedAt(isoTimestamp: string): string {
   return new Date(isoTimestamp).toLocaleTimeString([], { hour12: false })
-}
-
-/** Escape a string for safe interpolation into the a11y table's HTML. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }

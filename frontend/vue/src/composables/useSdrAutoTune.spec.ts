@@ -283,6 +283,78 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
     expect(harness.sendCmd).not.toHaveBeenCalled() // queued for the open handler
   })
 
+  describe('digital decode requested with the tune', () => {
+    it('switches the decoder on for a digital repeater channel, playing already', () => {
+      const setDigital = vi.fn()
+      const harness = createHarness({
+        playing: ref(true),
+        selectedRadioId: ref<number | null>(1),
+        setDigital,
+      })
+      harness.autoTune.onExternalTune(
+        aosEvent({ hz: 439_712_500, mode: 'NFM', satName: 'GB7NB 70CM output', digital: true }),
+      )
+      expect(setDigital).toHaveBeenCalledWith(true)
+    })
+
+    it('switches the decoder off for an FM-only channel', () => {
+      const setDigital = vi.fn()
+      const harness = createHarness({
+        playing: ref(true),
+        selectedRadioId: ref<number | null>(1),
+        setDigital,
+      })
+      harness.autoTune.onExternalTune(
+        aosEvent({ hz: 145_725_000, mode: 'NFM', satName: 'GB3NB 2M output', digital: false }),
+      )
+      expect(setDigital).toHaveBeenCalledWith(false)
+    })
+
+    it('leaves the decoder alone when the tune says nothing about it', () => {
+      const setDigital = vi.fn()
+      const harness = createHarness({
+        playing: ref(true),
+        selectedRadioId: ref<number | null>(1),
+        setDigital,
+      })
+      harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19' }))
+      expect(setDigital).not.toHaveBeenCalled()
+    })
+
+    it('ignores a non-boolean digital flag rather than guessing', () => {
+      const setDigital = vi.fn()
+      const harness = createHarness({
+        playing: ref(true),
+        selectedRadioId: ref<number | null>(1),
+        setDigital,
+      })
+      harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, digital: 'yes' }))
+      expect(setDigital).not.toHaveBeenCalled()
+    })
+
+    it('is a no-op for a caller with no decoder wired in', () => {
+      const harness = createHarness({
+        playing: ref(true),
+        selectedRadioId: ref<number | null>(1),
+      })
+      expect(() =>
+        harness.autoTune.onExternalTune(aosEvent({ hz: 439_712_500, digital: true })),
+      ).not.toThrow()
+      expect(harness.sendCmd).toHaveBeenCalledWith({ cmd: 'tune', frequency_hz: 439_712_500 })
+    })
+
+    it('carries the request through the queued/drain path too', async () => {
+      const setDigital = vi.fn()
+      const harness = createHarness({ setDigital })
+      harness.autoTune.onExternalTune(aosEvent({ hz: 439_712_500, digital: true }))
+      expect(setDigital).not.toHaveBeenCalled() // still queued
+      harness.options.selectedRadioId.value = 1
+      harness.autoTune.drainPendingExternalTune()
+      await flushPromises()
+      expect(setDigital).toHaveBeenCalledWith(true)
+    })
+  })
+
   it('drainPendingExternalTune is a no-op with nothing queued', () => {
     const harness = createHarness()
     harness.autoTune.drainPendingExternalTune()

@@ -124,6 +124,11 @@ describe('AprsStationsControl', () => {
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stations: [] }) }),
     )
     store = useLandStore()
+    // Land layers now start OFF and are lit by `hydrateDefaultLayers` (or the
+    // sidebar's layer tabs) — the store is the single source of truth. These
+    // specs exercise a shown layer, so turn it on explicitly; the default-off
+    // behaviour has its own tests in the "store-driven visibility" block below.
+    store.setAprsLayerVisible(true)
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -204,6 +209,54 @@ describe('AprsStationsControl', () => {
     expect(created.markers.every((marker) => marker.removed)).toBe(true)
     control.handleClickPublic() // show again
     expect(created.markers.filter((marker) => !marker.removed).length).toBeGreaterThan(0)
+  })
+
+  /**
+   * The visibility flag can be flipped from anywhere — the sidebar's layer
+   * tabs, Settings › LAND › Map Layers, a config upload — and not just from
+   * this control's own button, so the control's watch has to bring the rail
+   * button's active styling in line with the store rather than assuming its
+   * own click was the cause.
+   */
+  describe('store-driven visibility', () => {
+    /** The rail button's active styling: lime when on, white + dimmed when off. */
+    function buttonState(control: AprsStationsControl): { color: string; opacity: string } {
+      return { color: control.button.style.color, opacity: control.button.style.opacity }
+    }
+
+    it('draws nothing and dims the button when the layer starts off', () => {
+      store.setAprsLayerVisible(false)
+      store.aprsStations = [station()]
+      const { control } = addControl()
+      expect(created.markers.filter((marker) => !marker.removed)).toHaveLength(0)
+      expect(buttonState(control)).toEqual({ color: 'rgb(255, 255, 255)', opacity: '0.3' })
+    })
+
+    it('lights the button when another surface selects the APRS layer', async () => {
+      store.setAprsLayerVisible(false)
+      store.aprsStations = [station()]
+      const { control } = addControl()
+
+      // What the sidebar's layer tabs and the Settings picker both call.
+      store.selectLayer('aprs')
+      await nextTick()
+
+      expect(buttonState(control)).toEqual({ color: 'rgb(200, 255, 0)', opacity: '1' })
+      expect(created.markers.filter((marker) => !marker.removed)).toHaveLength(1)
+    })
+
+    it('dims the button when another surface selects a different layer', async () => {
+      store.aprsStations = [station()]
+      const { control } = addControl()
+      expect(buttonState(control)).toEqual({ color: 'rgb(200, 255, 0)', opacity: '1' })
+
+      // Land draws one layer at a time, so choosing cameras turns APRS off.
+      store.selectLayer('trafficCameras')
+      await nextTick()
+
+      expect(buttonState(control)).toEqual({ color: 'rgb(255, 255, 255)', opacity: '0.3' })
+      expect(created.markers.every((marker) => marker.removed)).toBe(true)
+    })
   })
 
   it('stops polling and tears down markers and the a11y region on remove', () => {

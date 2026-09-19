@@ -6,7 +6,8 @@ import type { CameraFeature } from '@/types/landFeeds'
 
 /**
  * `LandCameraDetails` is the accordion body for one camera in the Land FILTER
- * pane: the live still, the CAMERA / LOCATION / NOTES grids and SHOW ON MAP.
+ * pane: the live still — itself a button that opens the camera's popup on the
+ * map — and the CAMERA / LOCATION / NOTES grids.
  */
 
 function camera(overrides: Partial<CameraFeature['properties']> = {}): CameraFeature {
@@ -44,7 +45,9 @@ describe('LandCameraDetails', () => {
   it('shows the proxied still with an accessible alt, cache-busted', () => {
     const wrapper = mountDetails()
     const image = wrapper.get('img')
-    expect(image.attributes('alt')).toBe('Framwellgate Peth — latest camera image')
+    expect(image.attributes('alt')).toBe(
+      'Framwellgate Peth — latest camera image; opens the live view on the map',
+    )
     expect(image.attributes('src')).toMatch(
       /^\/api\/land\/feeds\/durham-cc\/image\/dutmc_24\?t=\d+$/,
     )
@@ -66,10 +69,12 @@ describe('LandCameraDetails', () => {
     expect(text).toContain('street lighting column number 332')
   })
 
-  it('omits the NOTES grid when there is no description and dashes a missing view', () => {
+  it('omits the NOTES and VIEW cells entirely when the camera carries neither', () => {
     const wrapper = mountDetails({ description: '', view: null })
     expect(wrapper.text()).not.toContain('NOTES')
-    expect(wrapper.text()).toContain('—')
+    // A missing view no longer shows a dashed cell — prose wraps to its own
+    // full-width row, and an empty one would only be a stray label.
+    expect(wrapper.text()).not.toContain('VIEW')
   })
 
   it('falls back to the feed cadence for UPDATED when the camera carries no timestamp', () => {
@@ -104,10 +109,18 @@ describe('LandCameraDetails', () => {
     expect(clearSpy).toHaveBeenCalled()
   })
 
-  it('emits locate with the feature id from SHOW ON MAP', async () => {
+  it('makes the still a button that asks the map for this camera’s live view', async () => {
     const wrapper = mountDetails()
-    await wrapper.get('button').trigger('click')
-    expect(wrapper.emitted('locate')).toEqual([['durham-cc:dutmc_24']])
+    const previewButton = wrapper.get('button')
+    expect(previewButton.attributes('title')).toBe('Show Framwellgate Peth on the map')
+    await previewButton.trigger('click')
+    expect(wrapper.emitted('preview')).toEqual([['durham-cc:dutmc_24']])
+  })
+
+  it('offers no preview button when the camera has no still to click', () => {
+    const wrapper = mountDetails({ imageUrl: null, state: 'offline' })
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.emitted('preview')).toBeUndefined()
   })
 
   it('has no accessibility violations with and without an image', async () => {

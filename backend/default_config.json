@@ -7,7 +7,12 @@
             "latitude": "",
             "longitude": ""
         },
-        "notificationSound": false
+        "notificationSound": false,
+        "mapLayers": {
+            "roads": false,
+            "names": false,
+            "terrain": false
+        }
     },
     "air": {
         "enabled": true,
@@ -84,11 +89,11 @@
             "speed": false,
             "course": false
         },
-        "defaultLayers": ["vessels", "vesselLabels", "ferryRoutes", "ports"]
+        "defaultLayers": ["vessels", "vesselLabels", "ferryRoutes", "ports"],
+        "aisSdrRadioId": null
     },
     "land": {
         "enabled": false,
-        "sourceOverride": "auto",
         "labelDataPoints": {
             "time": false,
             "callsign": true,
@@ -103,7 +108,26 @@
             "comment": false
         },
         "aprsRetentionMinutes": 5,
-        "defaultLayers": ["aprs", "trafficCameras"],
+        "defaultLayers": ["repeaters"],
+        "repeaterFilters": {
+            "bands": [],
+            "modes": [],
+            "status": "all"
+        },
+        "repeaterLabelFields": {
+            "symbol": true,
+            "callsign": true,
+            "band": true,
+            "location": false,
+            "modes": false,
+            "output": false,
+            "input": false,
+            "tone": false,
+            "channel": false,
+            "locator": false,
+            "keeper": false,
+            "status": false
+        },
         "feeds": [
             {
                 "id": "durham-cc",

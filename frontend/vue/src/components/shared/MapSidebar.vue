@@ -100,19 +100,23 @@
         </svg>
       </BaseIconButton>
 
-      <!-- Category sub-tabs: single-select rail buttons shown beneath the FILTER
-           tab while it is the open tab. Air = aircraft/airports/military bases;
-           Space = one per satellite category that currently has data. Selecting
-           one drives which category the search pane (AirFilter/SpaceFilter) shows.
-           Styled to mirror the right rail's accordion sub-buttons (IconRailAccordion
-           panel look): grey panel background, stronger hover fill, active = accent
-           icon only. -->
+      <!-- Category sub-tabs: rail buttons shown beneath the FILTER tab while it
+           is the open tab. Air = aircraft/airports/military bases; Space = one
+           per satellite category that currently has data — single-select,
+           driving which category the search pane (AirFilter/SpaceFilter)
+           shows. Land = its three data layers (APRS / cameras / repeaters),
+           also single-select: the chosen tab is the one layer the map draws
+           (each is hundreds of markers, so they are never stacked) and the
+           pane lists it. Styled to mirror the right
+           rail's accordion sub-buttons (IconRailAccordion panel look): grey
+           panel background, stronger hover fill, active = accent icon only. -->
       <BaseIconButton
         v-for="sub in tab.id === 'search' && activeTab === 'search' && open ? filterSubTabs : []"
         :key="`sub-${sub.id}`"
         class="msb-rail-btn msb-rail-subbtn"
-        :class="{ 'msb-rail-btn-active': activeFilterCategory === sub.id }"
-        :active="activeFilterCategory === sub.id"
+        :class="{ 'msb-rail-btn-active': isFilterCategoryActive(sub.id) }"
+        :active="isFilterCategoryActive(sub.id)"
+        :disabled="sub.disabled"
         style="
           --ba-rail-bg: var(--color-button-bg);
           --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
@@ -122,7 +126,7 @@
         tooltip-side="right"
         :tooltip="sub.label"
         :accessible-name="sub.label"
-        :aria-pressed="activeFilterCategory === sub.id"
+        :aria-pressed="isFilterCategoryActive(sub.id)"
         @click="selectFilterCategory(sub.id)"
       >
         <FilterSubTabIcon :category="sub.id" />
@@ -194,10 +198,12 @@ import FilterFunnelIcon from './FilterFunnelIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
-import { useAirStore, type AirFilterCategory } from '@/stores/air'
+import { useAirStore, type AdsbTypeFilter, type AirFilterCategory } from '@/stores/air'
 import { useSpaceStore } from '@/stores/space'
 import { useSeaStore } from '@/stores/sea'
 import { SEA_FILTER_CATEGORIES, type SeaFilterCategory } from '@/utils/aisShipType'
+import { useLandStore, type LandLayer } from '@/stores/land'
+import { useSdrStore } from '@/stores/sdr'
 import { SATELLITE_CATEGORY_SECTION_LABELS } from '@/utils/satelliteUtils'
 import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
 
@@ -205,6 +211,8 @@ const notifStore = useNotificationsStore()
 const airStore = useAirStore()
 const spaceStore = useSpaceStore()
 const seaStore = useSeaStore()
+const landStore = useLandStore()
+const sdrStore = useSdrStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
@@ -268,8 +276,17 @@ const tabs = computed(() => [
 // FILTER category sub-tabs shown in the rail beneath the FILTER tab. Air has a
 // fixed set; Space is data-driven (only categories that currently have satellites,
 // published by SpaceFilter into the store). Empty on other domains (no sub-tabs).
+// The three aircraft tabs share the aircraft list and set the ADS-B type
+// filter (all / civil / military) on the map as well.
+const AIR_AIRCRAFT_SUBTABS: Record<string, AdsbTypeFilter> = {
+  aircraft: 'all',
+  civil: 'civil',
+  milAircraft: 'mil',
+}
 const AIR_FILTER_SUBTABS: { id: string; label: string }[] = [
-  { id: 'aircraft', label: 'AIRCRAFT' },
+  { id: 'aircraft', label: 'ALL AIRCRAFT' },
+  { id: 'civil', label: 'CIVIL AIRCRAFT' },
+  { id: 'milAircraft', label: 'MILITARY AIRCRAFT' },
   { id: 'airports', label: 'AIRPORTS' },
   { id: 'mil', label: 'MILITARY BASES' },
 ]
@@ -279,9 +296,31 @@ const SEA_FILTER_SUBTABS: { id: string; label: string }[] = SEA_FILTER_CATEGORIE
     label: category === 'all' ? 'ALL VESSELS' : category.toUpperCase(),
   }),
 )
-const filterSubTabs = computed<{ id: string; label: string }[]>(() => {
+interface FilterSubTab {
+  id: string
+  label: string
+  /** Greyed out, with the label saying why (Land's APRS with no receiver). */
+  disabled?: boolean
+}
+// Land's tabs are layer toggles. APRS has a receiver only once an SDR has been
+// named as the APRS radio in Settings → LAND; without one nothing is decoding,
+// so its tab is disabled rather than offering a layer that could only be empty.
+const landFilterSubTabs = computed<FilterSubTab[]>(() => {
+  const aprsSourceConfigured = sdrStore.aprsRadioId !== null
+  return [
+    {
+      id: 'aprs',
+      label: aprsSourceConfigured ? 'APRS STATIONS' : 'APRS STATIONS — NO SDR SET',
+      disabled: !aprsSourceConfigured,
+    },
+    { id: 'trafficCameras', label: 'TRAFFIC CAMERAS' },
+    { id: 'repeaters', label: 'REPEATERS' },
+  ]
+})
+const filterSubTabs = computed<FilterSubTab[]>(() => {
   if (activeDomain.value === 'air') return AIR_FILTER_SUBTABS
   if (activeDomain.value === 'sea') return SEA_FILTER_SUBTABS
+  if (activeDomain.value === 'land') return landFilterSubTabs.value
   if (activeDomain.value === 'space')
     return spaceStore.spaceAvailableCategories.map((cat) => ({
       id: cat,
@@ -290,8 +329,8 @@ const filterSubTabs = computed<{ id: string; label: string }[]>(() => {
   return []
 })
 
-// The currently-selected FILTER category for the active domain, driving the
-// sub-tab active highlight.
+// The currently-selected FILTER category for the single-select domains,
+// driving the sub-tab active highlight.
 const activeFilterCategory = computed<string>(() => {
   if (activeDomain.value === 'air') return airStore.airFilterCategory
   if (activeDomain.value === 'sea') return seaStore.seaFilterCategory
@@ -307,14 +346,38 @@ const activeFilterCategory = computed<string>(() => {
   /* v8 ignore stop */
 })
 
+/** Whether a sub-tab is lit: the chosen category on Air/Sea/Space, the
+ *  layer the map is drawing on Land. */
+function isFilterCategoryActive(id: string): boolean {
+  if (activeDomain.value === 'land') return landStore.activeLayer === id
+  if (activeDomain.value === 'air' && id in AIR_AIRCRAFT_SUBTABS) {
+    return (
+      airStore.airFilterCategory === 'aircraft' &&
+      airStore.adsbTypeFilter === AIR_AIRCRAFT_SUBTABS[id]
+    )
+  }
+  return activeFilterCategory.value === id
+}
+
 // Pick a FILTER category from a rail sub-tab: open the panel on the FILTER tab and
-// set the active domain's category so its search pane shows just that list.
+// set the active domain's category so its search pane shows just that list —
+// or, on Land, make that the one layer the map draws, saved as
+// `land.defaultLayers` at once.
 function selectFilterCategory(id: string) {
   switchTab('search')
   if (activeDomain.value === 'air') {
-    airStore.setAirFilterCategory(id as AirFilterCategory)
+    const typeFilter = AIR_AIRCRAFT_SUBTABS[id]
+    if (typeFilter) {
+      airStore.setAirFilterCategory('aircraft')
+      airStore.setAdsbTypeFilter(typeFilter)
+    } else {
+      airStore.setAirFilterCategory(id as AirFilterCategory)
+    }
   } else if (activeDomain.value === 'sea') {
     seaStore.setSeaFilterCategory(id as SeaFilterCategory)
+  } else if (activeDomain.value === 'land') {
+    landStore.selectLayer(id as LandLayer)
+    void landStore.persistDefaultLayers()
   } else {
     // defensive: this is only ever called from the sub-tab rail buttons,
     // themselves only rendered (via filterSubTabs) for the air/space domains —

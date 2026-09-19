@@ -29,6 +29,10 @@
       ✕
     </BaseIconAction>
   </div>
+  <!-- Optional controls that sit between the search box and the results and
+       stay put while the results scroll — the Land pane's repeater BAND /
+       MODE / STATUS accordion. Nothing renders when the slot is empty. -->
+  <slot name="below-input" />
   <!-- The scroll container is keyboard-focusable (WCAG 2.1.1 / axe
        scrollable-region-focusable): when rows overflow, none of the content is
        tabbable — options are driven from the combobox via aria-activedescendant
@@ -469,7 +473,9 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   align-items: baseline;
   gap: 4px 10px;
   width: 100%;
-  padding: 16px 24px 6px;
+  /* Sized to a result row (13px padding around a two-line body ≈ 63px), so
+     a run of collapsed groups reads with the same rhythm as the rows. */
+  padding: 22px 24px;
   margin: 0;
   border: 0;
   background: none;

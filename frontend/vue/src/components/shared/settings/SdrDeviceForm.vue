@@ -135,86 +135,6 @@
       </div>
     </div>
 
-    <BaseAccordionSection
-      v-if="isSentryBacked"
-      v-model:expanded="tuningExpanded"
-      title="TUNING"
-      variant="form"
-      body-id="sdr-device-form-tuning"
-    >
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">SAMPLE RATE</span>
-        <input
-          v-model.number="form.sampleRate"
-          type="number"
-          class="sdr-devices-form-input"
-          aria-label="Sample rate in Hz"
-          min="0"
-        />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">GAIN (DB)</span>
-        <input
-          v-model.number="form.gainDb"
-          type="number"
-          class="sdr-devices-form-input"
-          aria-label="Gain in decibels"
-          step="0.1"
-          :disabled="form.gainAuto"
-        />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">AGC</span>
-        <BaseToggleSwitch v-model="form.gainAuto" accessible-name="Automatic gain control" />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">PPM CORRECTION</span>
-        <input
-          v-model.number="form.ppmCorrection"
-          type="number"
-          class="sdr-devices-form-input"
-          aria-label="Frequency correction in parts per million"
-        />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">BIAS-TEE</span>
-        <BaseToggleSwitch v-model="form.biasTee" accessible-name="Bias-tee power" />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">DIRECT SAMPLING</span>
-        <div class="sdr-devices-enabled-group" role="radiogroup" aria-label="Direct sampling mode">
-          <BasePillToggle
-            v-for="option in DIRECT_SAMPLING_OPTIONS"
-            :key="option.value"
-            class="sdr-devices-enabled-btn"
-            role="radio"
-            :aria-checked="form.directSampling === option.value"
-            :tabindex="directSamplingKeyboard.radioTabindex(option.value)"
-            :active="form.directSampling === option.value"
-            active-class="is-active"
-            @click="form.directSampling = option.value"
-            @keydown="directSamplingKeyboard.onRadioKeydown($event, option.value)"
-          >
-            {{ option.label }}
-          </BasePillToggle>
-        </div>
-      </div>
-    </BaseAccordionSection>
-
-    <div v-if="usbIdentity" class="sdr-device-usb-identity">
-      <div class="sdr-devices-form-label">USB IDENTITY</div>
-      <dl class="sdr-device-usb-identity-list">
-        <dt>Manufacturer</dt>
-        <dd>{{ usbIdentity.manufacturer || '—' }}</dd>
-        <dt>Product</dt>
-        <dd>{{ usbIdentity.product || '—' }}</dd>
-        <dt>Serial</dt>
-        <dd>{{ usbIdentity.serial || '—' }}</dd>
-        <dt>Topology path</dt>
-        <dd>{{ usbIdentity.topology_path || '—' }}</dd>
-      </dl>
-    </div>
-
     <SdrSerialFlashControl
       v-if="needsIdentification"
       :host-id="needsIdentification.hostId"
@@ -272,8 +192,6 @@
 import { ref, computed, onMounted } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
-import BaseToggleSwitch from '@/components/base/BaseToggleSwitch.vue'
-import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
 import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
 import {
@@ -304,20 +222,14 @@ const PRIMARY_BUTTON_STYLE =
   '--ba-primary-font-weight: 600; --ba-primary-letter-spacing: 0.16em; ' +
   '--ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 
-const DIRECT_SAMPLING_OPTIONS = [
-  { value: 0, label: 'OFF' },
-  { value: 1, label: 'I' },
-  { value: 2, label: 'Q' },
-] as const
-
 const props = defineProps<{
   /** The radio being edited, or null when adding a new manual radio. */
   radio: SdrRadioRecord | null
   /**
-   * Live Sentry device status for this radio (USB identity, needs-
-   * identification flag, current tuning). Present only when `radio` mirrors
-   * a Sentry device and the fleet poller currently has a snapshot for it;
-   * null for a manual radio or before the first successful poll.
+   * Live Sentry device status for this radio (needs-identification flag).
+   * Present only when `radio` mirrors a Sentry device and the fleet poller
+   * currently has a snapshot for it; null for a manual radio or before the
+   * first successful poll.
    */
   sentryDeviceStatus?: SentryDeviceStatus | null
 }>()
@@ -325,10 +237,6 @@ const emit = defineEmits<{ save: []; cancel: [] }>()
 
 const isSentryBacked = computed(
   () => props.radio?.sentry_host_id != null && props.radio?.sentry_device_id != null,
-)
-
-const usbIdentity = computed(
-  () => props.sentryDeviceStatus?.usb ?? props.sentryDeviceStatus?.usb_last_known ?? null,
 )
 
 /** Non-null only when the flash-serial action should be offered: a Sentry-
@@ -343,7 +251,6 @@ const needsIdentification = computed(() => {
 const nameRef = ref<HTMLInputElement | null>(null)
 const errorMsg = ref('')
 const saving = ref(false)
-const tuningExpanded = ref(false)
 
 const form = ref({
   name: props.radio?.name ?? '',
@@ -420,13 +327,6 @@ const visibilityKeyboard = useRadioGroupKeyboard({
   selectedIndex: () => (form.value.visibility === 'public' ? 0 : 1),
   select: (optionIndex) => {
     form.value.visibility = optionIndex === 0 ? 'public' : 'private'
-  },
-})
-const directSamplingKeyboard = useRadioGroupKeyboard({
-  optionCount: () => DIRECT_SAMPLING_OPTIONS.length,
-  selectedIndex: () => form.value.directSampling,
-  select: (optionIndex) => {
-    form.value.directSampling = optionIndex
   },
 })
 
@@ -537,24 +437,5 @@ async function save(): Promise<void> {
   min-height: 56px;
   padding: 8px 10px;
   resize: vertical;
-}
-.sdr-device-usb-identity {
-  padding: 10px 0;
-  border-top: 1px solid rgba(16, 19, 29, 0.08);
-}
-.sdr-device-usb-identity-list {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 10px;
-  margin: 6px 0 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
-}
-.sdr-device-usb-identity-list dt {
-  color: rgba(16, 19, 29, 0.5);
-}
-.sdr-device-usb-identity-list dd {
-  margin: 0;
-  color: rgba(16, 19, 29, 0.85);
 }
 </style>

@@ -500,6 +500,11 @@
   overflow: hidden;
 }
 
+/* A row with no leading label: the field starts at the card's left edge. */
+.settings-datasource-row--bare .settings-datasource-input {
+  padding-left: 0;
+}
+
 .settings-datasource-row:focus-within {
   box-shadow: inset 0 -2px 0 var(--color-accent);
 }

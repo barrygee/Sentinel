@@ -1460,6 +1460,7 @@ const { onExternalTune, onExternalTuneRestore, drainPendingExternalTune } = useS
   stopRecordingIfActive,
   isSocketOpen,
   isSocketConnecting,
+  setDigital,
 })
 
 // ── Tune ──────────────────────────────────────────────────────────────────────

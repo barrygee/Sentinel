@@ -1,7 +1,8 @@
 <template>
   <div class="settings-datasource-wrap">
-    <div class="settings-datasource-row settings-datasource-row--dropdown">
-      <span class="settings-datasource-label">SDR</span>
+    <div
+      class="settings-datasource-row settings-datasource-row--dropdown settings-datasource-row--bare"
+    >
       <SettingsDropdown
         v-model="selected"
         :options="dropdownOptions"

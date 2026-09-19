@@ -340,6 +340,15 @@ describe('App', () => {
       )
       expect(sidebarSpies.switchTab).toHaveBeenCalledWith('search')
     })
+
+    it.each(['land-open-camera', 'land-open-repeater'])(
+      'opens the search tab on %s, so the clicked marker’s row is on screen',
+      (eventName) => {
+        mountApp()
+        document.dispatchEvent(new CustomEvent(eventName, { detail: { featureId: 'tfl:1' } }))
+        expect(sidebarSpies.switchTab).toHaveBeenCalledExactlyOnceWith('search')
+      },
+    )
   })
 
   describe('footer ↔ sidebar wiring', () => {

@@ -236,6 +236,54 @@ describe('SettingsPanel', () => {
     })
   })
 
+  describe('LAND and SEA section rows', () => {
+    function renderedItemIds(wrapper: ReturnType<typeof mountPanel>): string[] {
+      return wrapper
+        .findAllComponents(SettingRow)
+        .map((row) => (row.props('item') as { id: string }).id)
+    }
+
+    async function openSection(wrapper: ReturnType<typeof mountPanel>, tooltip: string) {
+      const nav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === tooltip)!
+      await nav.trigger('click')
+    }
+
+    it('offers the repeater rows and no longer offers a Land data-source URL', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'LAND')
+      const ids = renderedItemIds(wrapper)
+      expect(ids).toContain('land-map-layers')
+      expect(ids).toContain('land-repeater-label-fields')
+      expect(ids).toContain('land-repeaters-file')
+      // The Land map has no single feed URL to point at — the layers each have
+      // their own source — so these rows were dropped, not renamed.
+      expect(ids).not.toContain('land-online-source')
+      expect(ids).not.toContain('land-offline-source')
+      expect(ids).not.toContain('land-source-override')
+    })
+
+    it('groups the Land rows under APRS, REPEATERS and LIVE FEEDS', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'LAND')
+      expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
+        'APRS',
+        'REPEATERS',
+        'LIVE FEEDS',
+      ])
+    })
+
+    it('groups every AIS row together and offers the off-grid SDR instead of a URL', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'SEA')
+      const ids = renderedItemIds(wrapper)
+      expect(ids).toContain('sea-ais-sdr-source')
+      expect(ids).not.toContain('sea-offline-source')
+      expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toContain('AIS')
+    })
+  })
+
   describe('selecting a section resets transient state', () => {
     it('clears the search query and staged changes', async () => {
       const wrapper = mountPanel()

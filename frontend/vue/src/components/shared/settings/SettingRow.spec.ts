@@ -33,6 +33,8 @@ import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
 import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
+import RepeaterLabelFieldsControl from './RepeaterLabelFieldsControl.vue'
+import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
 import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
@@ -85,6 +87,9 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['space-hover-preview', SpaceHoverPreviewControl],
   ['air-tag-fields', AdsbTagFieldsControl],
   ['land-aprs-label-fields', AprsLabelFieldsControl],
+  ['land-repeater-label-fields', RepeaterLabelFieldsControl],
+  ['land-repeaters-file', JsonDataControl],
+  ['sea-ais-sdr-source', SeaAisSdrSourceControl],
   ['sea-ais-key', SeaAisKeyControl],
   ['sea-coverage-area', SeaCoverageAreaControl],
   ['sea-label-fields', SeaLabelFieldsControl],
@@ -116,6 +121,25 @@ describe('SettingRow', () => {
     expect(online.findComponent(OnlineSourceControl).props('defaultUrl')).toBe('')
     const offline = mountRow({ id: 'f', type: 'offline-source', label: 'Offline', ns: 'air' })
     expect(offline.findComponent(OfflineSourceControl).props('defaultUrl')).toBe('')
+  })
+
+  it('points the repeater-directory editor at the Land repeaters file endpoint', () => {
+    const wrapper = mountRow({
+      id: 'land-repeaters-file',
+      type: 'land-repeaters-file',
+      label: 'Repeater Directory (JSON)',
+    })
+    const editor = wrapper.findComponent(JsonDataControl)
+    expect(editor.props('getUrl')).toBe('/api/land/repeaters/file')
+    expect(editor.props('postUrl')).toBe('/api/land/repeaters/file')
+    expect(editor.props('filename')).toBe('uk_repeaters.json')
+  })
+
+  it('stages the location card like every other control, rather than saving on its own', () => {
+    const wrapper = mountRow({ id: 'sentinel-location', type: 'location', label: 'Location' })
+    const staged = () => {}
+    wrapper.findComponent(LocationControl).vm.$emit('stage', staged)
+    expect(wrapper.emitted('stage')).toEqual([['sentinel-location', staged]])
   })
 
   it('renders only the label for an unrecognised type', () => {

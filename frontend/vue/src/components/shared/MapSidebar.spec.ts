@@ -7,6 +7,9 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useAirStore } from '@/stores/air'
 import { useSpaceStore } from '@/stores/space'
 import { useSeaStore } from '@/stores/sea'
+import { useLandStore } from '@/stores/land'
+import { useSdrStore } from '@/stores/sdr'
+import * as settingsApi from '@/services/settingsApi'
 
 const TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
 const OPEN_KEY = 'sentinel_sidebar_open'
@@ -388,8 +391,18 @@ describe('MapSidebar', () => {
       // Hidden until FILTER is the active/open tab.
       expect(wrapper.findAll('.msb-rail-subbtn')).toHaveLength(0)
       await openFilter(wrapper)
-      const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
-      expect(cats).toEqual(['aircraft', 'airports', 'mil'])
+      const categories = wrapper
+        .findAll('.msb-rail-subbtn')
+        .map((subTab) => subTab.attributes('data-filter-cat'))
+      // The ALL / CIVIL / MILITARY aircraft filter moved off the right rail and
+      // onto these tabs, so it now leads the list.
+      expect(categories).toEqual(['aircraft', 'civil', 'milAircraft', 'airports', 'mil'])
+      expect(
+        wrapper.find('.msb-rail-subbtn[data-filter-cat="aircraft"]').attributes('data-tooltip'),
+      ).toBe('ALL AIRCRAFT')
+      expect(
+        wrapper.find('.msb-rail-subbtn[data-filter-cat="milAircraft"]').attributes('data-tooltip'),
+      ).toBe('MILITARY AIRCRAFT')
     })
 
     it('selecting a sub-tab sets the air category, highlights it, and keeps the panel open', async () => {
@@ -401,6 +414,50 @@ describe('MapSidebar', () => {
       const active = wrapper.find('.msb-rail-subbtn[data-filter-cat="mil"]')
       expect(active.classes()).toContain('msb-rail-btn-active')
       expect(active.attributes('aria-pressed')).toBe('true')
+    })
+
+    describe('the three aircraft sub-tabs', () => {
+      it.each([
+        ['aircraft', 'all'],
+        ['civil', 'civil'],
+        ['milAircraft', 'mil'],
+      ] as const)(
+        'the %s tab shows the aircraft list under the %s ADS-B filter',
+        async (subTabId, expectedFilter) => {
+          const wrapper = mountSidebar()
+          await openFilter(wrapper)
+          await wrapper.find(`.msb-rail-subbtn[data-filter-cat="${subTabId}"]`).trigger('click')
+          const airStore = useAirStore()
+          expect(airStore.airFilterCategory).toBe('aircraft')
+          expect(airStore.adsbTypeFilter).toBe(expectedFilter)
+          const active = wrapper.find(`.msb-rail-subbtn[data-filter-cat="${subTabId}"]`)
+          expect(active.classes()).toContain('msb-rail-btn-active')
+          expect(active.attributes('aria-pressed')).toBe('true')
+        },
+      )
+
+      it('lights exactly one aircraft tab at a time', async () => {
+        const wrapper = mountSidebar()
+        await openFilter(wrapper)
+        await wrapper.find('.msb-rail-subbtn[data-filter-cat="civil"]').trigger('click')
+        expect(
+          wrapper.find('.msb-rail-subbtn[data-filter-cat="aircraft"]').classes(),
+        ).not.toContain('msb-rail-btn-active')
+        expect(
+          wrapper.find('.msb-rail-subbtn[data-filter-cat="milAircraft"]').classes(),
+        ).not.toContain('msb-rail-btn-active')
+      })
+
+      it('lights no aircraft tab while a non-aircraft category is chosen', async () => {
+        const wrapper = mountSidebar()
+        await openFilter(wrapper)
+        await wrapper.find('.msb-rail-subbtn[data-filter-cat="airports"]').trigger('click')
+        for (const subTabId of ['aircraft', 'civil', 'milAircraft']) {
+          expect(
+            wrapper.find(`.msb-rail-subbtn[data-filter-cat="${subTabId}"]`).classes(),
+          ).not.toContain('msb-rail-btn-active')
+        }
+      })
     })
 
     it('styles the sub-tabs like the right rail’s accordion sub-buttons', async () => {
@@ -437,7 +494,9 @@ describe('MapSidebar', () => {
       // must fall back to a titlecased version of the raw category key.
       useSpaceStore().setSpaceAvailableCategories(['weather', 'navigation', 'exotic'])
       await openFilter(wrapper)
-      const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
+      const cats = wrapper
+        .findAll('.msb-rail-subbtn')
+        .map((subTab) => subTab.attributes('data-filter-cat'))
       expect(cats).toEqual(['weather', 'navigation', 'exotic'])
       const exoticTab = wrapper.find('.msb-rail-subbtn[data-filter-cat="exotic"]')
       expect(exoticTab.attributes('data-tooltip')).toBe('EXOTIC')
@@ -452,7 +511,9 @@ describe('MapSidebar', () => {
         new CustomEvent('sentinel:domain-changed', { detail: { domain: 'sea', prev: 'air' } }),
       )
       await openFilter(wrapper)
-      const cats = wrapper.findAll('.msb-rail-subbtn').map((s) => s.attributes('data-filter-cat'))
+      const cats = wrapper
+        .findAll('.msb-rail-subbtn')
+        .map((subTab) => subTab.attributes('data-filter-cat'))
       // Ports are an overlay (Settings > SEA > Map Layers), never a category.
       expect(cats).toEqual(['all', 'cargo', 'tanker', 'passenger', 'fishing', 'other'])
       expect(
@@ -466,6 +527,68 @@ describe('MapSidebar', () => {
       expect(wrapper.find('.msb-rail-subbtn[data-filter-cat="tanker"]').classes()).toContain(
         'msb-rail-btn-active',
       )
+    })
+
+    describe('Land layer sub-tabs', () => {
+      async function openLandFilter() {
+        setPath('/land/')
+        const wrapper = mountSidebar()
+        document.dispatchEvent(
+          new CustomEvent('sentinel:domain-changed', { detail: { domain: 'land', prev: 'air' } }),
+        )
+        await openFilter(wrapper)
+        return wrapper
+      }
+
+      it('offers one tab per data layer', async () => {
+        const wrapper = await openLandFilter()
+        const categories = wrapper
+          .findAll('.msb-rail-subbtn')
+          .map((subTab) => subTab.attributes('data-filter-cat'))
+        expect(categories).toEqual(['aprs', 'trafficCameras', 'repeaters'])
+      })
+
+      it('disables APRS and says why while no SDR is decoding it', async () => {
+        const wrapper = await openLandFilter()
+        const aprsTab = wrapper.find('.msb-rail-subbtn[data-filter-cat="aprs"]')
+        expect(aprsTab.attributes('disabled')).toBeDefined()
+        expect(aprsTab.attributes('data-tooltip')).toBe('APRS STATIONS — NO SDR SET')
+      })
+
+      it('enables APRS once a radio has been named as the APRS receiver', async () => {
+        useSdrStore().aprsRadioId = 4
+        const wrapper = await openLandFilter()
+        const aprsTab = wrapper.find('.msb-rail-subbtn[data-filter-cat="aprs"]')
+        expect(aprsTab.attributes('disabled')).toBeUndefined()
+        expect(aprsTab.attributes('data-tooltip')).toBe('APRS STATIONS')
+      })
+
+      it('makes the clicked tab the one layer the map draws, and saves it at once', async () => {
+        const putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
+        const wrapper = await openLandFilter()
+        const landStore = useLandStore()
+
+        await wrapper.find('.msb-rail-subbtn[data-filter-cat="trafficCameras"]').trigger('click')
+        expect(landStore.activeLayer).toBe('trafficCameras')
+        expect(putSpy).toHaveBeenLastCalledWith('land', 'defaultLayers', ['trafficCameras'])
+        expect(
+          wrapper.find('.msb-rail-subbtn[data-filter-cat="trafficCameras"]').classes(),
+        ).toContain('msb-rail-btn-active')
+
+        await wrapper.find('.msb-rail-subbtn[data-filter-cat="repeaters"]').trigger('click')
+        expect(landStore.activeLayer).toBe('repeaters')
+        expect(putSpy).toHaveBeenLastCalledWith('land', 'defaultLayers', ['repeaters'])
+        // Single-select: the previous layer's tab goes dark.
+        expect(
+          wrapper.find('.msb-rail-subbtn[data-filter-cat="trafficCameras"]').classes(),
+        ).not.toContain('msb-rail-btn-active')
+      })
+
+      it('lights no tab while every layer is off', async () => {
+        const wrapper = await openLandFilter()
+        expect(useLandStore().activeLayer).toBe(null)
+        expect(wrapper.findAll('.msb-rail-subbtn.msb-rail-btn-active')).toHaveLength(0)
+      })
     })
 
     it('shows no sub-tabs on a domain that has none', async () => {
