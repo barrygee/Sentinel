@@ -4,7 +4,11 @@ import { axe } from 'jest-axe'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
 import type { SdrRadioRecord } from '@/services/sdrRadiosApi'
-import { SentryApiRequestError, type SentryDeviceStatus } from '@/services/sentryApi'
+import {
+  SentryApiRequestError,
+  type SentryDeviceRecord,
+  type SentryDeviceStatus,
+} from '@/services/sentryApi'
 
 vi.mock('@/services/sdrRadiosApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/sdrRadiosApi')>()
@@ -75,10 +79,39 @@ const SENTRY_STATUS: SentryDeviceStatus = {
 
 function emptyRecordsPayload() {
   return {
-    devices: [],
+    devices: [] as SentryDeviceRecord[],
     port_suggestion: null,
     constraints: { min_port: 1, max_port: 65535, control_port_offset: 1, reserved_ports: [] },
   }
+}
+
+/** One persisted Sentry device record for `rtl-9`, with the given fields overridden. */
+function sentryDeviceRecord(overrides: Partial<SentryDeviceRecord> = {}): SentryDeviceRecord {
+  return {
+    device_id: 'rtl-9',
+    record_id: 1,
+    name: 'Attic RTL',
+    description: '',
+    notes: '',
+    antenna: '',
+    output_port: 1234,
+    control_port: 1235,
+    enabled: true,
+    visibility: 'public',
+    present: true,
+    state: 'streaming',
+    needs_identification: false,
+    identity_kind: 'serial',
+    identity_key: 'abc',
+    last_serial: 'abc',
+    last_topology_path: '1-1',
+    ...overrides,
+  }
+}
+
+/** The records payload Sentry returns for host 3, carrying the given records. */
+function recordsPayloadWith(...records: SentryDeviceRecord[]) {
+  return { ...emptyRecordsPayload(), devices: records }
 }
 
 describe('SdrDeviceForm', () => {
@@ -268,7 +301,7 @@ describe('SdrDeviceForm', () => {
   })
 
   describe('Sentry-backed radio', () => {
-    it('renders OUTPUT PORT/VISIBILITY/NOTES/ANTENNA instead of IP/PORT, plus a TUNING section', async () => {
+    it('renders OUTPUT PORT/VISIBILITY/NOTES/ANTENNA instead of IP/PORT, and no TUNING section', async () => {
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
@@ -277,8 +310,24 @@ describe('SdrDeviceForm', () => {
       expect(wrapper.text()).toContain('VISIBILITY')
       expect(wrapper.text()).toContain('NOTES')
       expect(wrapper.text()).toContain('ANTENNA')
-      expect(wrapper.text()).toContain('TUNING')
       expect(wrapper.text()).not.toContain('IP ADDRESS')
+      // Tuning is Sentry's own business now (ADR-0009): the section and every
+      // field it held are gone from this form, though the stored values are
+      // still loaded and written straight back (see the round-trip tests).
+      expect(wrapper.text()).not.toContain('TUNING')
+      for (const tuningFieldName of [
+        'Sample rate in Hz',
+        'Gain in decibels',
+        'Automatic gain control',
+        'Frequency correction in parts per million',
+        'Bias-tee power',
+        'Direct sampling mode',
+      ]) {
+        expect(
+          wrapper.find(`[aria-label="${tuningFieldName}"]`).exists(),
+          `${tuningFieldName} must no longer be rendered`,
+        ).toBe(false)
+      }
     })
 
     it('prefills output port, visibility, notes, and antenna from the radio', async () => {
@@ -349,95 +398,73 @@ describe('SdrDeviceForm', () => {
       )
     })
 
-    it('updates SAMPLE RATE/GAIN/PPM CORRECTION and toggles BIAS-TEE as the operator edits tuning', async () => {
+    it("writes Sentry's stored tuning straight back when the operator only renames the device", async () => {
+      // Replaces the removed "operator edits tuning" test: the tuning fields
+      // (sample rate, gain, PPM, bias-tee, direct sampling) are no longer in
+      // this form, so the contract that matters is that the values loaded from
+      // Sentry survive a save of the fields that ARE editable, unchanged.
+      mockGetSentryDeviceRecords.mockResolvedValue(
+        recordsPayloadWith(
+          sentryDeviceRecord({
+            sample_rate: 2048000,
+            gain_db: 20.5,
+            gain_auto: false,
+            ppm_correction: 3,
+            bias_tee: true,
+            direct_sampling: 2,
+          }),
+        ),
+      )
+      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      await wrapper.find('[aria-label="Sample rate in Hz"]').setValue(3000000)
-      await wrapper.find('[aria-label="Gain in decibels"]').setValue(12.5)
-      await wrapper.find('[aria-label="Frequency correction in parts per million"]').setValue(7)
-      expect(
-        (wrapper.find('[aria-label="Sample rate in Hz"]').element as HTMLInputElement).value,
-      ).toBe('3000000')
-      expect(
-        (wrapper.find('[aria-label="Gain in decibels"]').element as HTMLInputElement).value,
-      ).toBe('12.5')
-      expect(
-        (
-          wrapper.find('[aria-label="Frequency correction in parts per million"]')
-            .element as HTMLInputElement
-        ).value,
-      ).toBe('7')
-      const switches = wrapper.findAll('[role="switch"]')
-      const biasTeeSwitch = switches[1]! // AGC is the first switch, BIAS-TEE the second
-      expect(biasTeeSwitch.attributes('aria-checked')).toBe('false')
-      await biasTeeSwitch.trigger('click')
-      expect(biasTeeSwitch.attributes('aria-checked')).toBe('true')
-    })
-
-    it('shows the USB identity block from live usb data, with em-dash fallbacks for unset fields', async () => {
-      const wrapper = mount(SdrDeviceForm, {
-        props: {
-          radio: EXISTING_SENTRY,
-          sentryDeviceStatus: {
-            ...SENTRY_STATUS,
-            usb: { manufacturer: 'RTL', product: null, serial: null, topology_path: null },
-          },
-        },
-      })
+      await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('Renamed RTL')
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      const identity = wrapper.find('.sdr-device-usb-identity')
-      expect(identity.exists()).toBe(true)
-      expect(identity.text()).toContain('RTL')
-      expect(identity.findAll('dd').filter((dd) => dd.text() === '—')).toHaveLength(3)
-    })
-
-    it('shows em-dash fallbacks for every USB identity field, including manufacturer, when all are unset', async () => {
-      const wrapper = mount(SdrDeviceForm, {
-        props: {
-          radio: EXISTING_SENTRY,
-          sentryDeviceStatus: {
-            ...SENTRY_STATUS,
-            usb: { manufacturer: null, product: null, serial: null, topology_path: null },
-          },
-        },
+      expect(mockPatchSentryDevice.mock.calls[0]![2]).toMatchObject({
+        name: 'Renamed RTL',
+        sample_rate: 2048000,
+        gain_db: 20.5,
+        gain_auto: false,
+        ppm_correction: 3,
+        bias_tee: true,
+        direct_sampling: 2,
       })
-      await flushPromises()
-      const identity = wrapper.find('.sdr-device-usb-identity')
-      expect(identity.findAll('dd').filter((dd) => dd.text() === '—')).toHaveLength(4)
     })
 
-    it('falls back to usb_last_known when usb is null', async () => {
+    it('renders no USB identity block, even when Sentry reports full USB data', async () => {
+      // Replaces the four USB-identity rendering tests: the block was removed
+      // from this form (USB identity is read on Sentry's own device page), so
+      // neither live `usb` nor `usb_last_known` may put it back.
       const wrapper = mount(SdrDeviceForm, {
         props: {
           radio: EXISTING_SENTRY,
           sentryDeviceStatus: {
             ...SENTRY_STATUS,
-            usb: null,
-            usb_last_known: {
+            usb: {
               manufacturer: 'RTL',
               product: 'RTL2838',
               serial: 'abc123',
               topology_path: '1-1',
             },
+            usb_last_known: {
+              manufacturer: 'RTL',
+              product: 'RTL2832U',
+              serial: 'old123',
+              topology_path: '1-2',
+            },
           },
         },
       })
       await flushPromises()
-      expect(wrapper.find('.sdr-device-usb-identity').text()).toContain('RTL2838')
-    })
-
-    it('shows no USB identity block when neither usb nor usb_last_known is known', async () => {
-      const wrapper = mount(SdrDeviceForm, {
-        props: {
-          radio: EXISTING_SENTRY,
-          sentryDeviceStatus: { ...SENTRY_STATUS, usb: null, usb_last_known: null },
-        },
-      })
-      await flushPromises()
       expect(wrapper.find('.sdr-device-usb-identity').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('USB IDENTITY')
+      expect(wrapper.text()).not.toContain('RTL2838')
+      expect(wrapper.text()).not.toContain('RTL2832U')
+      expect(wrapper.findAll('dd')).toHaveLength(0)
     })
 
     it('offers FLASH SERIAL when Sentry flags the device as needing identification', async () => {
@@ -475,69 +502,44 @@ describe('SdrDeviceForm', () => {
       expect(wrapper.findComponent(SdrSerialFlashControl).exists()).toBe(false)
     })
 
-    it('loads persisted tuning via getSentryDeviceRecords when the form opens', async () => {
-      mockGetSentryDeviceRecords.mockResolvedValue({
-        devices: [
-          {
-            device_id: 'rtl-9',
-            record_id: 1,
-            name: 'Attic RTL',
-            description: '',
-            notes: '',
-            antenna: '',
-            output_port: 1234,
-            control_port: 1235,
-            enabled: true,
-            visibility: 'public',
-            present: true,
-            state: 'streaming',
-            needs_identification: false,
-            identity_kind: 'serial',
-            identity_key: 'abc',
-            last_serial: 'abc',
-            last_topology_path: '1-1',
-            center_hz: 100000000,
-            sample_rate: 2048000,
-            gain_db: 20.5,
-            gain_auto: false,
-            ppm_correction: 3,
-            bias_tee: true,
-            direct_sampling: 2,
-          },
-        ],
-        port_suggestion: null,
-        constraints: { min_port: 1, max_port: 65535, control_port_offset: 1, reserved_ports: [] },
-      })
+    it("adopts the record's output port when the form opens, so OUTPUT PORT shows Sentry's value", async () => {
+      // The one loaded field that is still visible: `record.output_port` wins
+      // over the mirrored radio row's port (1234) when the two have drifted.
+      mockGetSentryDeviceRecords.mockResolvedValue(
+        recordsPayloadWith(sentryDeviceRecord({ output_port: 4321, control_port: 4322 })),
+      )
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
       expect(mockGetSentryDeviceRecords).toHaveBeenCalledWith(3)
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      const sampleRateInput = wrapper.find('[aria-label="Sample rate in Hz"]')
-        .element as HTMLInputElement
-      expect(sampleRateInput.value).toBe('2048000')
-      const gainInput = wrapper.find('[aria-label="Gain in decibels"]').element as HTMLInputElement
-      expect(gainInput.value).toBe('20.5')
-      const ppmInput = wrapper.find('[aria-label="Frequency correction in parts per million"]')
-        .element as HTMLInputElement
-      expect(ppmInput.value).toBe('3')
-      const directSamplingGroup = wrapper.find('[aria-label="Direct sampling mode"]')
-      expect(directSamplingGroup.findAll('.sdr-devices-enabled-btn')[2]!.classes()).toContain(
-        'is-active',
-      )
+      expect(
+        (wrapper.find('[aria-label="Output IQ port"]').element as HTMLInputElement).value,
+      ).toBe('4321')
     })
 
     it('leaves tuning at its defaults when the device id is not found in the records payload', async () => {
       mockGetSentryDeviceRecords.mockResolvedValue(emptyRecordsPayload())
+      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      const sampleRateInput = wrapper.find('[aria-label="Sample rate in Hz"]')
-        .element as HTMLInputElement
-      expect(sampleRateInput.value).toBe('')
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      // No record to load from → the unknown fields stay out of the patch
+      // entirely (so Sentry keeps whatever it holds) and the ones with a real
+      // default are sent as that default.
+      expect(patch.sample_rate).toBeUndefined()
+      expect(patch.gain_db).toBeUndefined()
+      expect(patch).toMatchObject({
+        gain_auto: false,
+        ppm_correction: 0,
+        bias_tee: false,
+        direct_sampling: 0,
+      })
     })
 
     it('does not write blank tuning values back to Sentry when the persisted-tuning load fails', async () => {
@@ -592,50 +594,33 @@ describe('SdrDeviceForm', () => {
     })
 
     it('fills in tuning defaults for any field Sentry omits from an otherwise-found record', async () => {
-      mockGetSentryDeviceRecords.mockResolvedValue({
-        devices: [
-          {
-            device_id: 'rtl-9',
-            record_id: 1,
-            name: 'Attic RTL',
-            description: '',
-            notes: '',
-            antenna: '',
-            output_port: null,
-            control_port: null,
-            enabled: true,
-            visibility: 'public',
-            present: true,
-            state: 'streaming',
-            needs_identification: false,
-            identity_kind: 'serial',
-            identity_key: 'abc',
-            last_serial: 'abc',
-            last_topology_path: '1-1',
-            // Every optional tuning field left unset — each must fall back to
-            // its own default rather than the record's absent value.
-          },
-        ],
-        port_suggestion: null,
-        constraints: { min_port: 1, max_port: 65535, control_port_offset: 1, reserved_ports: [] },
-      })
+      // Every optional tuning field left unset — each must fall back to its own
+      // default rather than the record's absent value, and output_port must
+      // fall back to the form's existing value rather than the record's null.
+      mockGetSentryDeviceRecords.mockResolvedValue(
+        recordsPayloadWith(sentryDeviceRecord({ output_port: null, control_port: null })),
+      )
+      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
-      // output_port fell back to the form's existing value (from radio.port)
-      // rather than being blanked by the record's null.
       const outputPortInput = wrapper.find('[aria-label="Output IQ port"]')
         .element as HTMLInputElement
       expect(outputPortInput.value).toBe('1234')
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      const sampleRateInput = wrapper.find('[aria-label="Sample rate in Hz"]')
-        .element as HTMLInputElement
-      expect(sampleRateInput.value).toBe('')
-      const directSamplingGroup = wrapper.find('[aria-label="Direct sampling mode"]')
-      expect(directSamplingGroup.findAll('.sdr-devices-enabled-btn')[0]!.classes()).toContain(
-        'is-active',
-      ) // OFF (0) default
+
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      expect(patch.sample_rate).toBeUndefined()
+      expect(patch).toMatchObject({
+        output_port: 1234,
+        gain_auto: false,
+        ppm_correction: 0,
+        bias_tee: false,
+        direct_sampling: 0, // OFF
+      })
     })
 
     it('requires a name before saving a Sentry-backed device', async () => {
@@ -771,34 +756,20 @@ describe('SdrDeviceForm', () => {
       )
     })
 
-    it('omits gain_db from the patch while automatic gain control is on', async () => {
-      mockPatchSentryDevice.mockResolvedValue({
-        device_id: 'rtl-9',
-        record_id: 1,
-        name: 'Attic RTL',
-        description: '',
-        notes: '',
-        antenna: '',
-        output_port: 1234,
-        control_port: 1235,
-        enabled: true,
-        visibility: 'public',
-        present: true,
-        state: 'streaming',
-        needs_identification: false,
-        identity_kind: 'serial',
-        identity_key: 'abc',
-        last_serial: 'abc',
-        last_topology_path: '1-1',
-      })
+    it('omits gain_db from the patch when Sentry has automatic gain control on', async () => {
+      // Replaces the removed AGC-switch tests (the toggle and the disabled GAIN
+      // field are gone with the TUNING section): AGC now comes from Sentry's own
+      // record, and while it is on a manual gain must not be sent at all —
+      // otherwise the patch would fight the device's own AGC.
+      mockGetSentryDeviceRecords.mockResolvedValue(
+        recordsPayloadWith(sentryDeviceRecord({ gain_auto: true, gain_db: 20 })),
+      )
+      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
       mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      const agcSwitch = wrapper.find('[role="switch"]')
-      await agcSwitch.trigger('click')
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
       const patch = mockPatchSentryDevice.mock.calls[0]![2]
@@ -852,47 +823,31 @@ describe('SdrDeviceForm', () => {
       expect(mockPatchSentryDevice).not.toHaveBeenCalled()
     })
 
-    it('toggles DIRECT SAMPLING via click and ArrowRight keyboard', async () => {
+    it('exposes only the STATUS and VISIBILITY radio groups — no tuning switches or radios', async () => {
+      // Replaces the removed DIRECT SAMPLING keyboard test: with the TUNING
+      // section gone, the only composite widgets left on a Sentry-backed form
+      // are the two two-option pill groups, and there are no toggle switches.
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      const group = wrapper.find('[aria-label="Direct sampling mode"]')
-      const options = group.findAll('.sdr-devices-enabled-btn')
-      expect(options[0]!.classes()).toContain('is-active') // OFF is the default
-      await options[1]!.trigger('click')
-      expect(options[1]!.classes()).toContain('is-active')
-      await options[1]!.trigger('keydown', { key: 'ArrowRight' })
-      expect(options[2]!.attributes('aria-checked')).toBe('true')
+      expect(
+        wrapper.findAll('[role="radiogroup"]').map((group) => group.attributes('aria-label')),
+      ).toEqual(['Device visibility', 'Device status'])
+      expect(wrapper.findAll('[role="radio"]')).toHaveLength(4)
+      expect(wrapper.findAll('[role="switch"]')).toHaveLength(0)
     })
 
-    it('disables the GAIN field while automatic gain control is on', async () => {
-      const wrapper = mount(SdrDeviceForm, {
-        props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
-      })
-      await flushPromises()
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
-      const gainInput = wrapper.find('[aria-label="Gain in decibels"]')
-      expect(gainInput.attributes('disabled')).toBeUndefined()
-      await wrapper.find('[role="switch"]').trigger('click')
-      expect(gainInput.attributes('disabled')).toBeDefined()
-    })
-
-    it('has no accessibility violations with tuning and USB identity expanded', async () => {
+    it('has no accessibility violations with the flash-serial action offered', async () => {
       mockGetSentryDeviceRecords.mockResolvedValue(emptyRecordsPayload())
       const wrapper = mount(SdrDeviceForm, {
         props: {
           radio: EXISTING_SENTRY,
-          sentryDeviceStatus: {
-            ...SENTRY_STATUS,
-            needs_identification: true,
-            usb: { manufacturer: 'RTL', product: 'RTL2838', serial: 'abc', topology_path: '1-1' },
-          },
+          sentryDeviceStatus: { ...SENTRY_STATUS, needs_identification: true },
         },
       })
       await flushPromises()
-      await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
+      expect(wrapper.findComponent(SdrSerialFlashControl).exists()).toBe(true)
       expect(
         await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
       ).toHaveNoViolations()

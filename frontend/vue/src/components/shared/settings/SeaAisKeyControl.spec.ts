@@ -35,16 +35,31 @@ describe('SeaAisKeyControl', () => {
     vi.mocked(seaApi.deleteAisKey).mockResolvedValue({ ok: true })
   })
 
-  it('says when no key is configured and offers no forget button', async () => {
+  it('says when no key is configured and offers the sign-up link instead of FORGET', async () => {
     const wrapper = await mountControl()
-    expect(wrapper.text()).toContain('No key configured')
-    expect(wrapper.find('input[type="password"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('No key · Sea map cannot receive vessels')
+    const field = wrapper.find('input[type="password"]')
+    expect(field.exists()).toBe(true)
+    // Nothing saved yet, so the field is open for a key to be pasted in.
+    expect(field.attributes('disabled')).toBeUndefined()
     expect(wrapper.text()).not.toContain('FORGET KEY')
-    expect(wrapper.find('a.sea-key-link').attributes('href')).toBe('https://aisstream.io')
+    expect(wrapper.text()).toContain('GET AIS API KEY')
     wrapper.unmount()
   })
 
-  it('reports an env key and the feed status without ever showing the key', async () => {
+  it('opens the aisstream key page in a safe new tab from GET AIS API KEY', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const wrapper = await mountControl()
+    await wrapper.find('button').trigger('click')
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://aisstream.io/authenticate',
+      '_blank',
+      'noopener,noreferrer',
+    )
+    wrapper.unmount()
+  })
+
+  it('names the server .env as the origin of a key it cannot manage, and offers no action', async () => {
     vi.mocked(seaApi.getAisKeyStatus).mockResolvedValue({
       configured: true,
       source: 'env',
@@ -52,19 +67,34 @@ describe('SeaAisKeyControl', () => {
     })
     vi.mocked(seaApi.getFeedStatus).mockResolvedValue({ status: 'live' } as never)
     const wrapper = await mountControl()
-    expect(wrapper.text()).toContain('Key abc123 configured (from the server .env). Feed: LIVE.')
-    expect(wrapper.text()).not.toContain('FORGET KEY') // only a saved key can be forgotten
+    expect(wrapper.text()).toContain('Key abc123 · from server .env')
+    // Nothing to forget (the panel does not own it) and nothing to get.
+    expect(wrapper.text()).not.toContain('FORGET KEY')
+    expect(wrapper.text()).not.toContain('GET AIS API KEY')
+    expect(wrapper.findAll('button')).toHaveLength(0)
     wrapper.unmount()
   })
 
-  it('copes with a configured key that has no fingerprint', async () => {
+  it('shows a bare Key label for a configured key with no fingerprint', async () => {
     vi.mocked(seaApi.getAisKeyStatus).mockResolvedValue({
       configured: true,
       source: 'settings',
       fingerprint: null,
     })
     const wrapper = await mountControl()
-    expect(wrapper.text()).toContain('Key  configured (saved here).')
+    expect(wrapper.find('.sea-key-status').text()).toBe('Key')
+    wrapper.unmount()
+  })
+
+  it('locks the field while a key saved here is in force, so one is never overwritten', async () => {
+    vi.mocked(seaApi.getAisKeyStatus).mockResolvedValue({
+      configured: true,
+      source: 'settings',
+      fingerprint: 'fp',
+    })
+    const wrapper = await mountControl()
+    expect(wrapper.find('input[type="password"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('FORGET KEY')
     wrapper.unmount()
   })
 
@@ -81,7 +111,7 @@ describe('SeaAisKeyControl', () => {
     await runStaged(wrapper)
     expect(seaApi.putAisKey).toHaveBeenCalledWith('abcdefgh12345678')
     expect((input.element as HTMLInputElement).value).toBe('')
-    expect(wrapper.text()).toContain('saved here')
+    expect(wrapper.find('.sea-key-status').text()).toBe('Key fp')
     expect(wrapper.text()).toContain('FORGET KEY')
     wrapper.unmount()
   })
@@ -121,7 +151,7 @@ describe('SeaAisKeyControl', () => {
     vi.mocked(seaApi.getAisKeyStatus).mockResolvedValue({ ...UNSET })
     await runStaged(wrapper)
     expect(seaApi.deleteAisKey).toHaveBeenCalledOnce()
-    expect(wrapper.text()).toContain('No key configured')
+    expect(wrapper.text()).toContain('No key · Sea map cannot receive vessels')
 
     vi.mocked(seaApi.getAisKeyStatus).mockResolvedValue({
       configured: true,

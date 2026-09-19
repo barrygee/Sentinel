@@ -35,7 +35,25 @@ const errorTexts = (wrapper: ReturnType<typeof mountControl>) =>
   wrapper.findAll('.settings-location-error').map((node) => node.text())
 const hintTexts = (wrapper: ReturnType<typeof mountControl>) =>
   wrapper.findAll('.settings-location-hint').map((node) => node.text())
-const saveButton = (wrapper: ReturnType<typeof mountControl>) => wrapper.find('button')
+/**
+ * The staged save this control last emitted for APPLY CHANGES.
+ *
+ * The control no longer owns a SAVE LOCATION button: every edit emits `stage`
+ * with a closure that SettingsPanel keeps in its pending map and runs when the
+ * operator presses APPLY CHANGES. Tests drive saving the way the panel does.
+ */
+function lastStagedSave(wrapper: ReturnType<typeof mountControl>): () => Promise<unknown> | void {
+  const stageEvents = wrapper.emitted('stage')
+  expect(stageEvents, 'the control must stage a save before it can be applied').toBeTruthy()
+  const [stagedSave] = stageEvents!.at(-1) as [() => Promise<unknown> | void]
+  return stagedSave
+}
+
+/** Run the staged save the way APPLY CHANGES does, then let its promises settle. */
+async function applyStagedSave(wrapper: ReturnType<typeof mountControl>): Promise<void> {
+  await lastStagedSave(wrapper)()
+  await flushPromises()
+}
 
 const NO_POSITION = 'No position set — using browser geolocation, if it is available.'
 
@@ -271,8 +289,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       expect(settingsApi.put).toHaveBeenCalledWith('app', 'location', {
         latitude: 51.5,
@@ -304,8 +321,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
       expect(statusText(wrapper)).toBe(`Last set ${new Date(storedTimestamp).toLocaleString()}.`)
       window.removeEventListener('sentinel:setUserLocation', store)
     })
@@ -322,8 +338,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('')
       await fields.lon.setValue('')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       expect(clearedSpy).toHaveBeenCalled()
       expect(settingsApi.put).toHaveBeenCalledWith('app', 'location', {
@@ -340,8 +355,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('200')
       await fields.lon.setValue('10')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       expect(settingsApi.put).not.toHaveBeenCalled()
       expect(errorTexts(wrapper)).toEqual(['Latitude must be between -90 and 90.'])
@@ -355,8 +369,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('10')
       await fields.lon.setValue('500')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       expect(settingsApi.put).not.toHaveBeenCalled()
       expect(errorTexts(wrapper)).toEqual(['Longitude must be between -180 and 180.'])
@@ -369,8 +382,7 @@ describe('LocationControl', () => {
       await flushPromises()
       const fields = inputs(wrapper)
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       expect(settingsApi.put).not.toHaveBeenCalled()
       expect(wrapper.find('.settings-location-notice').text()).toBe(
@@ -385,8 +397,7 @@ describe('LocationControl', () => {
       await flushPromises()
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       expect(settingsApi.put).not.toHaveBeenCalled()
       expect(wrapper.find('.settings-location-notice').text()).toBe(
@@ -404,37 +415,60 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('200')
       await fields.lon.setValue('10')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
       expect(errorTexts(wrapper)).toEqual(['Latitude must be between -90 and 90.'])
     })
 
-    it('disables the button and shows progress while the save is in flight', async () => {
-      let releasePut: () => void = () => {}
-      vi.mocked(settingsApi.put).mockReturnValue(
-        new Promise<void>((resolve) => {
-          releasePut = resolve
-        }),
-      )
+    it('carries no save button of its own — every edit stages the save for APPLY CHANGES', async () => {
+      // Replaces the old "disables the button and shows progress" test: the
+      // control no longer owns a SAVE LOCATION button (it was removed when the
+      // card joined the panel's staged APPLY CHANGES flow), so there is no
+      // in-flight button state left to assert. What must hold now is that
+      // editing either field stages a save closure the panel can run.
       const wrapper = mountControl()
       await flushPromises()
+      expect(wrapper.find('button').exists()).toBe(false)
+      expect(wrapper.emitted('stage')).toBeUndefined()
+
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
+      expect(wrapper.emitted('stage')).toHaveLength(1)
+      expect(typeof lastStagedSave(wrapper)).toBe('function')
+
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
+      expect(wrapper.emitted('stage')).toHaveLength(2)
 
-      expect(saveButton(wrapper).text()).toBe('SAVING…')
-      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
-
-      releasePut()
-      await flushPromises()
-      expect(saveButton(wrapper).text()).toBe('SAVE LOCATION')
+      // Nothing is written until the staged closure is run.
+      expect(settingsApi.put).not.toHaveBeenCalled()
+      await applyStagedSave(wrapper)
+      expect(settingsApi.put).toHaveBeenCalledWith('app', 'location', {
+        latitude: 51.5,
+        longitude: -0.12,
+      })
     })
 
-    it('ignores an Enter press while a save is still in flight', async () => {
-      // The button disables itself while saving, but the fields do not — so
-      // Enter is the way a second save can actually be asked for, and the
-      // re-entry guard is what stops it becoming a duplicate PUT.
+    it('re-validates the drafts at apply time rather than at stage time', async () => {
+      // The staged closure is captured while the value is still valid; the
+      // operator then breaks it before pressing APPLY CHANGES. Validation has
+      // to run inside the closure, not when it was staged.
+      const wrapper = mountControl()
+      await flushPromises()
+      const fields = inputs(wrapper)
+      await fields.lat.setValue('51.5')
+      await fields.lon.setValue('-0.12')
+      const stagedSave = lastStagedSave(wrapper)
+      await fields.lat.setValue('200')
+
+      await stagedSave()
+      await flushPromises()
+      expect(settingsApi.put).not.toHaveBeenCalled()
+      expect(errorTexts(wrapper)).toEqual(['Latitude must be between -90 and 90.'])
+    })
+
+    it('ignores a second apply, and an Enter press, while a save is still in flight', async () => {
+      // APPLY CHANGES can be pressed again (and Enter in a field always saves
+      // at once) while the first PUT is outstanding — the re-entry guard is
+      // what stops that becoming a duplicate write.
       let releasePut: () => void = () => {}
       vi.mocked(settingsApi.put).mockReturnValue(
         new Promise<void>((resolve) => {
@@ -446,12 +480,21 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
+      const stagedSave = lastStagedSave(wrapper)
+      // Deliberately un-awaited: both calls happen while the first PUT is still
+      // outstanding, which is the only way to observe the guard.
+      const firstSave = stagedSave()
+      const secondSave = stagedSave()
       await fields.lat.trigger('keydown.enter')
 
       expect(settingsApi.put).toHaveBeenCalledTimes(1)
+
       releasePut()
+      await Promise.all([firstSave, secondSave])
       await flushPromises()
+      // Once settled, applying again is allowed through.
+      await applyStagedSave(wrapper)
+      expect(settingsApi.put).toHaveBeenCalledTimes(2)
     })
 
     it('saves when Enter is pressed in a field', async () => {
@@ -513,8 +556,7 @@ describe('LocationControl', () => {
       // A save must have happened for the guard to let the sync through.
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       window.dispatchEvent(
         new CustomEvent('settings:locationSynced', {
@@ -540,8 +582,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       // The typed text is left exactly as typed — had the echo been applied,
       // these would have been reformatted to '51.50000' / '-0.12000' under the
@@ -574,8 +615,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
-      await saveButton(wrapper).trigger('click')
-      await flushPromises()
+      await applyStagedSave(wrapper)
 
       window.dispatchEvent(
         new CustomEvent('settings:locationSynced', {

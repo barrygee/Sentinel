@@ -1,7 +1,6 @@
 <template>
   <div class="settings-datasource-wrap">
-    <div class="settings-datasource-row">
-      <span class="settings-datasource-label">URL</span>
+    <div class="settings-datasource-row settings-datasource-row--bare">
       <input
         v-model="urlValue"
         type="url"

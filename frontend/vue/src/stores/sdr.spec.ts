@@ -1341,6 +1341,222 @@ describe('sdr store', () => {
     })
   })
 
+  // ── Saving frequencies from outside the SDR panel (the Land pane's repeaters)
+  describe('ensureFrequencyGroup', () => {
+    const REPEATERS_GROUP = {
+      id: 7,
+      name: 'Repeaters',
+      slug: 'repeaters',
+      color: '#c8ff00',
+      sort_order: 0,
+    }
+
+    it('loads the groups first when the store has none, and reuses a matching group', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [REPEATERS_GROUP] })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      await expect(store.ensureFrequencyGroup('Repeaters')).resolves.toBe(7)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/groups')
+      // No POST: the existing group was reused.
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      ['a differing case', 'repeaters'],
+      ['surrounding spaces', '  Repeaters  '],
+      ['a singular name', 'Repeater'],
+    ])('reuses an existing group despite %s', async (_description, requestedName) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.groups = [REPEATERS_GROUP]
+      await expect(store.ensureFrequencyGroup(requestedName)).resolves.toBe(7)
+    })
+
+    it('creates the group in the SDR accent colour after the existing ones', async () => {
+      const created = { ...REPEATERS_GROUP, id: 12, sort_order: 2 }
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          return Promise.resolve({ ok: true, json: async () => created })
+        }
+        return Promise.resolve({ ok: true, json: async () => [created] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.groups = [
+        { id: 1, name: 'Airband', slug: 'airband', color: '#fff', sort_order: 0 },
+        { id: 2, name: 'Marine', slug: 'marine', color: '#fff', sort_order: 1 },
+      ]
+      await expect(store.ensureFrequencyGroup('Repeaters')).resolves.toBe(12)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Repeaters', color: '#c8ff00', sort_order: 2 }),
+      })
+      // The list is reloaded so the manager shows the new group.
+      expect(store.groups).toEqual([created])
+    })
+
+    it('rejects when creating the group fails', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      store.groups = [{ id: 1, name: 'Airband', slug: 'airband', color: '#fff', sort_order: 0 }]
+      await expect(store.ensureFrequencyGroup('Repeaters')).rejects.toThrow(
+        'Failed to create frequency group (status 503)',
+      )
+    })
+  })
+
+  describe('saveFrequency', () => {
+    const savedRow: SdrStoredFrequency = {
+      id: 42,
+      group_id: null,
+      label: 'GB3NB 2M OUT',
+      frequency_hz: 145_725_000,
+      mode: 'NFM',
+      favourite: false,
+    }
+
+    it('POSTs the frequency with the manager defaults and reloads the list', async () => {
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'POST')
+          return Promise.resolve({ ok: true, json: async () => savedRow })
+        return Promise.resolve({ ok: true, json: async () => [savedRow] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      await expect(
+        store.saveFrequency({
+          label: 'GB3NB 2M OUT',
+          frequency_hz: 145_725_000,
+          mode: 'NFM',
+          notes: 'NORWICH',
+          group_ids: [7],
+        }),
+      ).resolves.toEqual(savedRow)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: 'GB3NB 2M OUT',
+          frequency_hz: 145_725_000,
+          mode: 'NFM',
+          scannable: true,
+          favourite: false,
+          group_ids: [7],
+          notes: 'NORWICH',
+        }),
+      })
+      expect(store.frequencies).toEqual([savedRow])
+    })
+
+    it('defaults the notes and group list when the caller omits them', async () => {
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'POST')
+          return Promise.resolve({ ok: true, json: async () => savedRow })
+        return Promise.resolve({ ok: true, json: async () => [savedRow] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      await store.saveFrequency({ label: 'GB3NB 2M OUT', frequency_hz: 145_725_000, mode: 'NFM' })
+      const [, init] = fetchMock.mock.calls[0]
+      expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
+        group_ids: [],
+        notes: '',
+      })
+    })
+
+    it('rejects on a non-OK response and leaves the list alone', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      await expect(
+        store.saveFrequency({ label: 'Bad', frequency_hz: 1, mode: 'NFM' }),
+      ).rejects.toThrow('Failed to save frequency (status 422)')
+      expect(store.frequencies).toEqual([])
+    })
+  })
+
+  describe('hasStoredFrequency', () => {
+    it('is true only for an exact Hz match', () => {
+      const store = useSdrStore()
+      store.frequencies = [
+        {
+          id: 1,
+          group_id: null,
+          label: 'GB3NB',
+          frequency_hz: 145_725_000,
+          mode: 'NFM',
+          favourite: false,
+        },
+      ]
+      expect(store.hasStoredFrequency(145_725_000)).toBe(true)
+      expect(store.hasStoredFrequency(145_725_001)).toBe(false)
+    })
+
+    it('is false when nothing is stored', () => {
+      expect(useSdrStore().hasStoredFrequency(145_725_000)).toBe(false)
+    })
+  })
+
+  describe('removeStoredFrequency', () => {
+    function makeRow(id: number, frequencyHz: number): SdrStoredFrequency {
+      return {
+        id,
+        group_id: null,
+        label: `Row ${id}`,
+        frequency_hz: frequencyHz,
+        mode: 'NFM',
+        favourite: false,
+      }
+    }
+
+    it('DELETEs every row at that frequency and reloads the list', async () => {
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'DELETE') return Promise.resolve({ ok: true, json: async () => ({}) })
+        return Promise.resolve({ ok: true, json: async () => [] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.frequencies = [
+        makeRow(1, 145_725_000),
+        makeRow(2, 433_000_000),
+        makeRow(3, 145_725_000),
+      ]
+      await store.removeStoredFrequency(145_725_000)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies/1', { method: 'DELETE' })
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies/3', { method: 'DELETE' })
+      expect(fetchMock).not.toHaveBeenCalledWith('/api/sdr/frequencies/2', { method: 'DELETE' })
+      expect(store.frequencies).toEqual([])
+    })
+
+    it('reloads without deleting anything when no row matches', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.frequencies = [makeRow(1, 433_000_000)]
+      await store.removeStoredFrequency(145_725_000)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies')
+    })
+
+    it('rejects on a non-OK delete', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      store.frequencies = [makeRow(1, 145_725_000)]
+      await expect(store.removeStoredFrequency(145_725_000)).rejects.toThrow(
+        'Failed to remove frequency (status 404)',
+      )
+    })
+  })
+
   // ── Domain reservations (AIR's ADS-B receiver, LAND's APRS receiver) ───────
   // A reserved radio is locked out of the SDR panel, so getting this wrong
   // either strands a dongle the operator can still use, or hands the panel a

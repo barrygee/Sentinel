@@ -1041,6 +1041,89 @@ export const useSdrStore = defineStore('sdr', () => {
     if (index !== -1) frequencies.value[index] = updated
   }
 
+  /** What a caller supplies to {@link saveFrequency}; everything else takes the
+   *  backend's per-frequency defaults, as a Frequency Manager "add" does. */
+  interface SaveFrequencyInput {
+    label: string
+    frequency_hz: number
+    mode: SdrMode
+    notes?: string
+    /** Frequency-group ids to file the frequency under (none = Default). */
+    group_ids?: number[]
+  }
+
+  /**
+   * The id of the frequency group with this name, creating it (in the SDR
+   * accent colour, after the existing groups) if the manager has none yet —
+   * so a caller filing frequencies from elsewhere (the Land pane's repeaters)
+   * can keep them together without the operator making the group first.
+   * Rejects on a non-OK response.
+   */
+  async function ensureFrequencyGroup(name: string): Promise<number> {
+    if (groups.value.length === 0) await loadGroups()
+    // Matched loosely — case, spacing and a plural "s" ignored — so an
+    // operator's existing "Repeater" group is reused rather than doubled.
+    const normalise = (value: string) => value.trim().toLowerCase().replace(/s$/, '')
+    const wanted = normalise(name)
+    const existing = groups.value.find((group) => normalise(group.name) === wanted)
+    if (existing) return existing.id
+    const res = await fetch('/api/sdr/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, color: '#c8ff00', sort_order: groups.value.length }),
+    })
+    if (!res.ok) throw new Error(`Failed to create frequency group (status ${res.status})`)
+    const created = (await res.json()) as SdrFrequencyGroup
+    await loadGroups()
+    return created.id
+  }
+
+  /**
+   * Add a frequency to the Frequency Manager from outside the SDR panel — a
+   * repeater's output in the Land pane, say. `POST /api/sdr/frequencies` with
+   * the manager's own defaults (scannable, not a favourite, no group), then
+   * the list is reloaded so the waterfall markers and favourites follow.
+   * Rejects on a non-OK response so callers can surface the failure.
+   */
+  async function saveFrequency(input: SaveFrequencyInput): Promise<SdrStoredFrequency> {
+    const res = await fetch('/api/sdr/frequencies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        label: input.label,
+        frequency_hz: input.frequency_hz,
+        mode: input.mode,
+        scannable: true,
+        favourite: false,
+        group_ids: input.group_ids ?? [],
+        notes: input.notes ?? '',
+      }),
+    })
+    if (!res.ok) throw new Error(`Failed to save frequency (status ${res.status})`)
+    const saved = (await res.json()) as SdrStoredFrequency
+    await loadFrequencies()
+    return saved
+  }
+
+  /** Whether the Frequency Manager already holds this exact frequency (Hz). */
+  function hasStoredFrequency(frequencyHz: number): boolean {
+    return frequencies.value.some((freq) => freq.frequency_hz === frequencyHz)
+  }
+
+  /**
+   * Remove every stored frequency at exactly this Hz — the bookmark's undo,
+   * from outside the SDR panel. `DELETE /api/sdr/frequencies/{id}` per row,
+   * then the list is reloaded. Rejects on a non-OK response.
+   */
+  async function removeStoredFrequency(frequencyHz: number): Promise<void> {
+    const matching = frequencies.value.filter((freq) => freq.frequency_hz === frequencyHz)
+    for (const freq of matching) {
+      const res = await fetch(`/api/sdr/frequencies/${freq.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(`Failed to remove frequency (status ${res.status})`)
+    }
+    await loadFrequencies()
+  }
+
   _restoreSession()
 
   return {
@@ -1051,6 +1134,10 @@ export const useSdrStore = defineStore('sdr', () => {
     groupsWithFreqs,
     favouriteFrequencies,
     setFrequencyFavourite,
+    saveFrequency,
+    ensureFrequencyGroup,
+    hasStoredFrequency,
+    removeStoredFrequency,
     currentRadioId,
     playing,
     connected,
