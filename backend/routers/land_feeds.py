@@ -31,7 +31,7 @@ from backend.services.land_feeds.schema import (
     FeedConfig,
     FeedCredentialIn,
 )
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, Header, HTTPException, Path
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,15 +106,61 @@ async def get_feed_image(feed_id: str = _FeedIdPath, ref: str = _RefPath):
     return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
 
 
+def _parse_byte_range(range_header: str | None, total: int) -> tuple[int, int] | None:
+    """The single ``bytes=start-end`` range a browser video element asks for, clamped to ``total``.
+
+    None for no/unsupported header (the whole body is served); raises a 416 for a
+    range that starts past the end. Multi-range requests are served whole too —
+    ``<video>`` never issues them.
+    """
+    if not range_header or not range_header.startswith("bytes="):
+        return None
+    spec = range_header[len("bytes=") :].strip()
+    if "," in spec or "-" not in spec:
+        return None
+    start_text, end_text = spec.split("-", 1)
+    try:
+        if start_text == "":
+            # Suffix range: the last N bytes.
+            length = int(end_text)
+            if length <= 0:
+                return None
+            return max(0, total - length), total - 1
+        start = int(start_text)
+        end = int(end_text) if end_text else total - 1
+    except ValueError:
+        return None
+    if start >= total:
+        raise HTTPException(
+            status_code=416, detail="range not satisfiable", headers={"Content-Range": f"bytes */{total}"}
+        )
+    return start, min(end, total - 1)
+
+
 @router.get("/{feed_id}/clip/{ref}")
-async def get_feed_clip(feed_id: str = _FeedIdPath, ref: str = _RefPath):
-    """Proxy one camera's short video clip (only providers that expose one, e.g. TfL JamCams)."""
+async def get_feed_clip(
+    feed_id: str = _FeedIdPath,
+    ref: str = _RefPath,
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Proxy one camera's short video clip (only providers that expose one, e.g. TfL JamCams).
+
+    Honours a single byte range: a ``<video loop>`` seeks back to the start of a
+    clip by re-requesting a range, and treats a source that ignores ranges as
+    unseekable — the loop then stalls and the element pauses at 0.
+    """
     _require_feed(feed_id)
     try:
         content, content_type = await poller.get_asset(feed_id, ref, kind="clip")
     except (FeedRefNotFound, FeedOffline, FeedUpstreamError) as exc:
         raise HTTPException(status_code=_asset_error_status(exc), detail="clip unavailable") from exc
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    headers = {"Cache-Control": "no-store", "Accept-Ranges": "bytes"}
+    byte_range = _parse_byte_range(range_header, len(content))
+    if byte_range is None:
+        return Response(content=content, media_type=content_type, headers=headers)
+    start, end = byte_range
+    headers["Content-Range"] = f"bytes {start}-{end}/{len(content)}"
+    return Response(content=content[start : end + 1], status_code=206, media_type=content_type, headers=headers)
 
 
 @router.get("/{feed_id}/credentials")
