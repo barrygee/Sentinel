@@ -31,6 +31,10 @@ const mocks = vi.hoisted(() => {
       this.lngLat = coords
       return this
     }
+    setOffset(offset: [number, number]): this {
+      this.offset = offset
+      return this
+    }
     getElement(): HTMLElement {
       return this.element
     }
@@ -453,6 +457,84 @@ describe('RepeatersControl', () => {
 
   // ── visibility ───────────────────────────────────────────────────────────
 
+  describe('stacking past the stacking zoom', () => {
+    /** Two sites on one mast and a third in the same cell but 20 px lower. */
+    function stackedFixture() {
+      repeatersStore.stations = [
+        station({ callsign: 'GB7A', longitude: 0, latitude: 52 }),
+        station({ callsign: 'GB3A', longitude: 0, latitude: 52 }),
+        station({ callsign: 'GB3C', longitude: 0.1, latitude: 51.8 }),
+      ]
+    }
+
+    /** The label marker for a callsign, by the pill's accessible name. */
+    function labelFor(callsign: string): RecordedMarker | undefined {
+      return labelMarkers().find((marker) =>
+        marker.element.getAttribute('aria-label')?.startsWith(`Repeater ${callsign},`),
+      )
+    }
+
+    it('keeps sharing a cell as a count below the stacking zoom', () => {
+      stackedFixture()
+      const { map } = addControl()
+      map.zoom = 11
+      map._emit('moveend')
+      expect(clusterMarkers()).toHaveLength(1)
+      expect(labelMarkers()).toHaveLength(0)
+    })
+
+    it('draws every site in the cell as its own label from the stacking zoom', () => {
+      stackedFixture()
+      const { map } = addControl()
+      map.zoom = 12
+      map._emit('moveend')
+      expect(clusterMarkers()).toHaveLength(0)
+      expect(labelMarkers()).toHaveLength(3)
+    })
+
+    it('pushes a label that would overprint the one above down by one pitch', () => {
+      stackedFixture()
+      const { map } = addControl()
+      map.zoom = 12
+      map._emit('moveend')
+      // Same row → alphabetical: GB3A sits on the mast, GB7A one pitch (26 + 4)
+      // below it, and GB3C — 20 px down of its own accord — is pushed to the
+      // next free pitch, 60 px below the mast, 40 px below its own spot.
+      expect(labelFor('GB3A')?.offset).toEqual([-13, 0])
+      expect(labelFor('GB7A')?.offset).toEqual([-13, 30])
+      expect(labelFor('GB3C')?.offset).toEqual([-13, 40])
+      // Each pill is still anchored at its own site, not the stack's.
+      expect(labelFor('GB3C')?.lngLat).toEqual([0.1, 51.8])
+    })
+
+    it('leaves a site far enough below the stack at its own spot', () => {
+      repeatersStore.stations = [
+        station({ callsign: 'GB3A', longitude: 0, latitude: 52 }),
+        station({ callsign: 'GB3C', longitude: 0.1, latitude: 51.5 }),
+      ]
+      const { map } = addControl()
+      map.zoom = 12
+      map._emit('moveend')
+      // 50 px below the first label — clear of its 30 px pitch, so no push.
+      expect(labelFor('GB3C')?.offset).toEqual([-13, 0])
+    })
+
+    it('re-seats a reused pill when its place in the stack changes', async () => {
+      stackedFixture()
+      const { map } = addControl()
+      map.zoom = 12
+      map._emit('moveend')
+      const before = labelFor('GB3C')
+      expect(before?.offset).toEqual([-13, 40])
+      // GB7A leaves the filtered set: GB3C moves up one pitch in the same pill.
+      repeatersStore.stations = repeatersStore.stations.filter((each) => each.callsign !== 'GB7A')
+      await nextTick()
+      const after = labelFor('GB3C')
+      expect(after).toBe(before)
+      expect(after?.offset).toEqual([-13, 10])
+    })
+  })
+
   it('setVisible hides and shows the layer, and is a no-op when unchanged', async () => {
     repeatersStore.stations = [station()]
     const { control } = addControl()
@@ -524,8 +606,20 @@ describe('RepeatersControl', () => {
     ]
     const { map } = addControl()
     locate('GB3A')
-    // Neighbour 50 px away, 300 px of clearance needed → +log2(6) ≈ 2.6 zooms.
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 13, duration: 600 })
+    // Neighbour 50 px away, 300 px of clearance needed → +log2(6) ≈ 2.6 zooms,
+    // but the stacking zoom (12) is as deep as a reveal ever needs to go.
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 12, duration: 600 })
+  })
+
+  it('flies only as deep as the nearest neighbour needs, short of the stacking zoom', () => {
+    repeatersStore.stations = [
+      station({ callsign: 'GB3A', longitude: 0 }),
+      station({ callsign: 'GB3B', longitude: 1.5 }),
+    ]
+    const { map } = addControl()
+    locate('GB3A')
+    // Neighbour 150 px away, 300 px of clearance needed → +log2(2) = 1 zoom.
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 11, duration: 600 })
   })
 
   it('never zooms out below the current level to reveal a station', () => {
@@ -539,21 +633,21 @@ describe('RepeatersControl', () => {
     expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 10, duration: 600 })
   })
 
-  it('goes to the deepest reveal zoom for a station with no plotted neighbour', () => {
+  it('goes to the stacking zoom for a station with no plotted neighbour', () => {
     repeatersStore.stations = [station({ callsign: 'GB3A' })]
     const { map } = addControl()
     locate('GB3A')
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 16, duration: 600 })
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 12, duration: 600 })
   })
 
-  it('goes to the deepest reveal zoom for stations sharing a mast', () => {
+  it('goes to the stacking zoom for stations sharing a mast, where they are drawn apart', () => {
     repeatersStore.stations = [
       station({ callsign: 'GB3A', longitude: 0, latitude: 52 }),
       station({ callsign: 'GB7A', longitude: 0, latitude: 52 }),
     ]
     const { map } = addControl()
     locate('GB7A')
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 16, duration: 600 })
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 12, duration: 600 })
   })
 
   it('ignores a locate request for a callsign the directory does not hold', () => {

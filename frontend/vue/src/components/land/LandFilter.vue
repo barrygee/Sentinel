@@ -8,6 +8,7 @@
     :placeholder="placeholder"
     :listbox-label="listboxLabel"
     :empty-message="emptyMessage"
+    groups-collapsed-by-default
     @update:query="landStore.setSearchQuery"
     @update:expanded-key="landStore.setSearchExpandedCallsign"
   >

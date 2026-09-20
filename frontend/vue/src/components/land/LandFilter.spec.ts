@@ -15,6 +15,17 @@ import { repeaterSearchKey } from '@/constants/repeaters'
 import type { CameraFeature, FeedWithStatus } from '@/types/landFeeds'
 import type { RepeaterChannel, RepeaterStation } from '@/types/repeaters'
 
+/**
+ * Mount the pane and unfold every group heading — the Land pane starts its
+ * camera / station groups collapsed, and most assertions here are about the
+ * rows inside them.
+ */
+async function mountWithGroupsOpen(options: { attachTo?: Element } = {}) {
+  const wrapper = mount(LandFilter, options)
+  for (const heading of wrapper.findAll('.bfp-group-heading')) await heading.trigger('click')
+  return wrapper
+}
+
 function station(overrides: Partial<AprsStation> = {}): AprsStation {
   return {
     callsign: 'M0ABC-9',
@@ -548,9 +559,9 @@ describe('LandFilter — traffic cameras', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lists cameras after the stations, grouped per source under a plain heading', () => {
+  it('lists cameras after the stations, grouped per source under a plain heading', async () => {
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     const headings = wrapper.findAll('.bfp-group-heading')
     expect(headings.map((heading) => heading.find('.bfp-group-heading-label').text())).toEqual([
       'APRS STATIONS',
@@ -572,17 +583,30 @@ describe('LandFilter — traffic cameras', () => {
     expect(wrapper.find('input').attributes('placeholder')).toBe('CALLSIGN · CAMERA · ROAD')
   })
 
-  it('names each camera row for assistive tech with its source and state', () => {
+  it('starts every group folded shut, with the headings alone showing', () => {
+    store.aprsStations = [station()]
     const wrapper = mount(LandFilter)
+    const headings = wrapper.findAll('.bfp-group-heading')
+    expect(headings).toHaveLength(3)
+    expect(headings.map((heading) => heading.attributes('aria-expanded'))).toEqual([
+      'false',
+      'false',
+      'false',
+    ])
+    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(0)
+  })
+
+  it('names each camera row for assistive tech with its source and state', async () => {
+    const wrapper = await mountWithGroupsOpen()
     const option = wrapper.find('#land-filter-opt-cam-durham-cc-Milburngate')
     expect(option.attributes('aria-label')).toBe(
       'Traffic camera Milburngate, Durham County Council, offline',
     )
   })
 
-  it('lists only the cameras inside the map viewport', () => {
+  it('lists only the cameras inside the map viewport', async () => {
     feedsStore.setViewportBounds({ west: -2, east: -1, south: 54, north: 55 })
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     const headings = wrapper.findAll('.bfp-group-heading')
     // London is out of view, so the TfL heading is not rendered at all.
     expect(headings).toHaveLength(1)
@@ -590,9 +614,9 @@ describe('LandFilter — traffic cameras', () => {
     expect(wrapper.findAll('.bfp-result-item')).toHaveLength(2)
   })
 
-  it('names the search field for both sets once cameras are listed', () => {
+  it('names the search field for both sets once cameras are listed', async () => {
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     expect(wrapper.find('input').attributes('aria-label')).toBe(
       'Filter APRS stations and traffic cameras by name or callsign',
     )
@@ -640,7 +664,7 @@ describe('LandFilter — traffic cameras', () => {
   })
 
   it("expands a camera row into LandCameraDetails with the feed's cadence, and the preview flies there", async () => {
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     await wrapper.find('#land-filter-row-cam-tfl-jamcams-A406-Billet-Upass-E').trigger('click')
     const details = wrapper.findComponent(LandCameraDetails)
     expect(details.exists()).toBe(true)
@@ -656,7 +680,7 @@ describe('LandFilter — traffic cameras', () => {
   })
 
   it("falls back to LandCameraDetails' own cadence when the feed is gone", async () => {
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     // The feed row has been removed from Settings but its snapshot is still in
     // the store, so no refreshSeconds can be resolved for the row.
     feedsStore.feeds = [feed({ id: 'durham-cc' })]
@@ -667,7 +691,7 @@ describe('LandFilter — traffic cameras', () => {
 
   it('keeps a camera row open across an APRS poll, but collapses it when the camera leaves the feed', async () => {
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     await wrapper.find('#land-filter-row-cam-durham-cc-Milburngate').trigger('click')
     expect(store.searchExpandedCallsign).toBe('durham-cc:Milburngate')
     store.aprsStations = [station({ callsign: 'MB7UMS' })]
@@ -685,7 +709,7 @@ describe('LandFilter — traffic cameras', () => {
 
   it('leaves an expanded station (or nothing) alone when the camera sources change', async () => {
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     feedsStore.setViewportBounds({ west: -2, east: -1, south: 54, north: 55 })
     await flushPromises()
     expect(store.searchExpandedCallsign).toBe('')
@@ -697,7 +721,7 @@ describe('LandFilter — traffic cameras', () => {
 
   it('still collapses an expanded station that ages out while cameras are listed', async () => {
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     await wrapper.find('#land-filter-row-M0ABC-9').trigger('click')
     expect(store.searchExpandedCallsign).toBe('M0ABC-9')
     store.aprsStations = []
@@ -707,7 +731,7 @@ describe('LandFilter — traffic cameras', () => {
 
   it('has no accessibility violations with grouped camera rows, one expanded', async () => {
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter, { attachTo: document.body })
+    const wrapper = await mountWithGroupsOpen({ attachTo: document.body })
     await wrapper.find('#land-filter-row-cam-durham-cc-Framwellgate-Peth').trigger('click')
     expect(
       await axe(wrapper.element.parentElement!, { rules: { region: { enabled: false } } }),
@@ -871,7 +895,7 @@ describe('LandFilter — repeaters', () => {
     expect(mount(LandFilter).find('.bfp-no-results').text()).toBe('Nothing in view — repeaters')
   })
 
-  it('lists all three sets together, stations first, with a joined label', () => {
+  it('lists all three sets together, stations first, with a joined label', async () => {
     store.setAprsLayerVisible(true)
     store.setTrafficCamerasLayerVisible(true)
     store.aprsStations = [station()]
@@ -883,7 +907,7 @@ describe('LandFilter — repeaters', () => {
         features: [camera('Framwellgate Peth', 'durham-cc')],
       },
     }
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     expect(
       wrapper.findAll('.bfp-result-item').map((row) => row.find('.bfp-result-primary').text()),
     ).toEqual(['M0ABC-9', 'Framwellgate Peth', 'GB3NM'])
@@ -899,7 +923,7 @@ describe('LandFilter — repeaters', () => {
     store.setAprsLayerVisible(true)
     // A keeper beaconing from the site: same callsign, different row key.
     store.aprsStations = [station({ callsign: 'GB3NM' })]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
     expect(store.searchExpandedCallsign).toBe(repeaterSearchKey('GB3NM'))
     const details = wrapper.findComponent(LandRepeaterDetails)
@@ -951,7 +975,7 @@ describe('LandFilter — repeaters', () => {
   it('leaves a non-repeater expansion alone when the repeater filters change', async () => {
     store.setAprsLayerVisible(true)
     store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
+    const wrapper = await mountWithGroupsOpen()
     await wrapper.find('#land-filter-row-M0ABC-9').trigger('click')
     repeatersStore.filters = { bands: ['23CM'], modes: [], status: 'all' }
     await flushPromises()

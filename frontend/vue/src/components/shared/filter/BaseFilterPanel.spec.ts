@@ -647,6 +647,62 @@ describe('BaseFilterPanel — grouped rows', () => {
     expect(wrapper.find('input').attributes('aria-activedescendant')).toBe('test-filter-opt-M0ABC')
   })
 
+  describe('groupsCollapsedByDefault', () => {
+    it('starts every group folded, leaving only the headings and loose rows', () => {
+      const wrapper = mountPanel({ items: GROUPED, groupsCollapsedByDefault: true })
+      const headings = wrapper.findAll('.bfp-group-heading')
+      expect(headings).toHaveLength(2)
+      for (const heading of headings) {
+        expect(heading.attributes('aria-expanded')).toBe('false')
+        expect(heading.classes()).toContain('bfp-group-heading--collapsed')
+      }
+      expect(wrapper.findAll('.bfp-result-item')).toHaveLength(1)
+      expect(wrapper.find('#test-filter-row-ungrouped').exists()).toBe(true)
+    })
+
+    it('opens a folded group from its heading and folds it again on the next click', async () => {
+      const wrapper = mountPanel({ items: GROUPED, groupsCollapsedByDefault: true })
+      await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+      expect(wrapper.findAll('.bfp-group-heading')[1]!.attributes('aria-expanded')).toBe('true')
+      expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(true)
+      // The other group stays folded — the toggle is per group.
+      expect(wrapper.find('#test-filter-row-M0ABC').exists()).toBe(false)
+      await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+      expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(false)
+    })
+
+    it('keeps folded rows out of keyboard navigation', async () => {
+      const wrapper = mountPanel({ items: GROUPED, groupsCollapsedByDefault: true })
+      await pressKey(wrapper, 'ArrowDown')
+      expect(wrapper.find('input').attributes('aria-activedescendant')).toBe(
+        'test-filter-opt-ungrouped',
+      )
+    })
+
+    it('opens every group while a query is typed, so no match is hidden', async () => {
+      const wrapper = mountPanel({ items: GROUPED, groupsCollapsedByDefault: true })
+      await wrapper.setProps({ query: 'mil' })
+      expect(wrapper.findAll('.bfp-result-item')).toHaveLength(4)
+      for (const heading of wrapper.findAll('.bfp-group-heading')) {
+        expect(heading.attributes('aria-expanded')).toBe('true')
+      }
+      // Whitespace alone is not a query.
+      await wrapper.setProps({ query: '   ' })
+      expect(wrapper.findAll('.bfp-result-item')).toHaveLength(1)
+    })
+
+    it('also overrides a group the user folded by hand while a query is typed', async () => {
+      const wrapper = mountPanel({ items: GROUPED })
+      await wrapper.findAll('.bfp-group-heading')[1]!.trigger('click')
+      expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(false)
+      await wrapper.setProps({ query: 'a' })
+      expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(true)
+      // Clearing the query restores the fold the user chose.
+      await wrapper.setProps({ query: '' })
+      expect(wrapper.find('#test-filter-row-cam-durham-cc-a').exists()).toBe(false)
+    })
+  })
+
   it('has no accessibility violations with group headings', async () => {
     // Multi-root component: mount into its own container so axe scans just
     // this panel, not everything other tests left attached to the body.
