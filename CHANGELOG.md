@@ -367,6 +367,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Point ADS-B docs and settings default at adsb.lol (#310)
 - Align waterfall time labels with the raster edge
 - Correct known-frequency marker alignment and demod bandwidth race
+- Resolve all 19 Dependabot alerts, migrate to maplibre-gl 6 (#328)
 
 ### Chores
 
