@@ -166,12 +166,16 @@ const MapLibreMapStub = defineComponent({
 })
 
 import AirMap from './AirMap.vue'
+import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
 import { useSettingsStore } from '@/stores/settings'
 import { usePlaybackStore } from '@/stores/playback'
 import { getAircraftClickHandler } from '@/stores/notifications'
+
+/** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
+const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }
 
 interface FakeMap {
   onceHandlers: Record<string, () => void>
@@ -289,7 +293,7 @@ describe('AirMap', () => {
       app.isOnline = false // desired style is now offline
       await nextTick()
       shared.emit!('style-loaded', map)
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       // The post-reload style.load handler re-initialises every layer.
       map.onceHandlers['style.load']!()
       expect(last('adsb').initLayers).toHaveBeenCalled()
@@ -358,7 +362,7 @@ describe('AirMap', () => {
       mountMap()
       bringUp(map)
       shared.connectivityCb!(false) // online → offline
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()
       expect(last('roads').applyVisibility).toHaveBeenCalled()
       expect(last('terrain').initLayers).toHaveBeenCalled()

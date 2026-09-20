@@ -295,10 +295,14 @@ const LandSideMenuStub = defineComponent({
 })
 
 import LandView from './LandView.vue'
+import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
 import { useRepeatersStore } from '@/stores/repeaters'
 import { useBasemapStore } from '@/stores/basemap'
+
+/** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
+const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }
 
 const ONLINE_STYLE = '/assets/fiord-online.json'
 const OFFLINE_STYLE = '/assets/fiord.json'
@@ -426,7 +430,7 @@ describe('LandView', () => {
       app.isOnline = false
       await nextTick()
       shared.emit!('style-loaded', map)
-      expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE)
+      expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE, STYLE_OPTIONS)
     })
 
     it('does not reload when connectivity was unchanged before load', () => {
@@ -451,9 +455,9 @@ describe('LandView', () => {
       mountView()
       shared.emit!('map-created', map)
       shared.connectivityCb!(false)
-      expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE)
+      expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE, STYLE_OPTIONS)
       shared.connectivityCb!(true)
-      expect(map.setStyle).toHaveBeenCalledWith(ONLINE_STYLE)
+      expect(map.setStyle).toHaveBeenCalledWith(ONLINE_STYLE, STYLE_OPTIONS)
     })
 
     it('does nothing when the map is not yet created', () => {

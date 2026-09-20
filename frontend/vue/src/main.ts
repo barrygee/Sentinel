@@ -1,6 +1,12 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import * as maplibregl from 'maplibre-gl'
+// MapLibre 6 runs tile parsing in a separate worker module that it expects to
+// find beside its own bundle (`./maplibre-gl-worker.mjs`). Vite folds the
+// library into the app chunk and emits no such file, so tiles never load and
+// every basemap stays blank. `?worker&url` has Vite build the worker (with its
+// shared-chunk import resolved) as its own asset and hand back the served URL.
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import * as pmtiles from 'pmtiles'
 
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -21,6 +27,8 @@ import { useBasemapStore } from './stores/basemap'
 import type { AprsLabelFieldMap } from './stores/land'
 import { useSettingsStore } from './stores/settings'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
+
+maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 // Register PMTiles protocol once at app startup — never inside a component.
 const protocol = new pmtiles.Protocol()

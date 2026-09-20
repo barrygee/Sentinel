@@ -19,6 +19,7 @@
 // Never put it in ref() or reactive() — Vue's Proxy wrapping breaks WebGL internals.
 import { ref, onMounted, onUnmounted, useId } from 'vue'
 import * as maplibregl from 'maplibre-gl'
+import { setMapStyle } from '@/utils/mapStyle'
 import type { Map } from 'maplibre-gl'
 
 // `regionLabel`/`regionDescription` are deliberately NOT named `ariaLabel` etc.:
@@ -58,7 +59,9 @@ onMounted(() => {
   /* v8 ignore stop */
   map = new maplibregl.Map({
     container: containerRef.value,
-    style: props.styleUrl,
+    // No `style` here: the constructor cannot take a style transform, so the
+    // style is set just below through `setMapStyle`, which applies the sprite
+    // fix the bundled styles need under MapLibre 6.
     center: props.center ?? [0, 51.5],
     zoom: props.zoom ?? 6,
     pitch: props.pitch ?? 0,
@@ -69,6 +72,7 @@ onMounted(() => {
     // makes every symbol layer (labels included) appear instantly.
     fadeDuration: 0,
   })
+  setMapStyle(map, props.styleUrl)
 
   map.on('load', () => {
     map?.resize()

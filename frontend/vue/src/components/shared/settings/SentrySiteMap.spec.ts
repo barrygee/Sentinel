@@ -14,6 +14,7 @@ interface FakeMap {
   on: ReturnType<typeof vi.fn>
   addControl: ReturnType<typeof vi.fn>
   setCenter: ReturnType<typeof vi.fn>
+  setStyle: ReturnType<typeof vi.fn>
   resize: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
 }
@@ -32,6 +33,7 @@ vi.mock('maplibre-gl', () => {
     })
     this.addControl = vi.fn((control: unknown) => mapRegistry.controls.push(control))
     this.setCenter = vi.fn()
+    this.setStyle = vi.fn()
     this.resize = vi.fn()
     this.remove = vi.fn()
     mapRegistry.instances.push(this)
@@ -62,6 +64,7 @@ vi.mock('maplibre-gl', () => {
 })
 
 import SentrySiteMap from './SentrySiteMap.vue'
+import { absoluteSpriteTransform } from '@/utils/mapStyle'
 
 const GATESHEAD = { latitude: 54.951186, longitude: -1.532995, label: 'Gateshead' }
 
@@ -83,13 +86,17 @@ describe('SentrySiteMap', () => {
     mountMap()
     const created = mapRegistry.instances[0]!
     expect(created.options).toMatchObject({
-      style: '/assets/fiord-online.json',
       center: [-1.532995, 54.951186],
       zoom: 11,
       attributionControl: false,
       fadeDuration: 0,
     })
     expect(created.options.container).toBeInstanceOf(HTMLElement)
+    // Style applied after construction with the MapLibre 6 sprite fix.
+    expect(created.options).not.toHaveProperty('style')
+    expect(created.setStyle).toHaveBeenCalledWith('/assets/fiord-online.json', {
+      transformStyle: absoluteSpriteTransform,
+    })
   })
 
   // Without this the map swallows the settings panel's own scroll, which is the
