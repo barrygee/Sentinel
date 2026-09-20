@@ -500,6 +500,14 @@
   overflow: hidden;
 }
 
+/* A row holding a SettingsDropdown (the SDR radio pickers): its option list
+   is positioned absolutely below the trigger, so the row must not clip it —
+   with `overflow: hidden` the list opened invisibly and nothing could be
+   chosen. The hidden overflow above exists only for rows of plain inputs. */
+.settings-datasource-row--dropdown {
+  overflow: visible;
+}
+
 /* A row with no leading label: the field starts at the card's left edge. */
 .settings-datasource-row--bare .settings-datasource-input {
   padding-left: 0;
