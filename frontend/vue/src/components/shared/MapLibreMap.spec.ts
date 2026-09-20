@@ -66,6 +66,13 @@ describe('MapLibreMap', () => {
     expect(created.options.container).toBeInstanceOf(HTMLElement)
   })
 
+  // A wide display at 2× overflows MapLibre's 4096² default canvas cap, which
+  // would silently drop the pixel ratio and blur the map.
+  it('raises the canvas cap so a large high-DPI display renders at full resolution', () => {
+    mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
+    expect(mapRegistry.instances[0]!.options.maxCanvasSize).toEqual([8192, 8192])
+  })
+
   // The constructor has no style-transform option, so the style is applied
   // through setStyle with the sprite fix MapLibre 6 needs — never via the
   // constructor's `style`, which would load the bundled styles unfixed.

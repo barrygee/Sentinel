@@ -50,6 +50,9 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLElement | null>(null)
 
+/** Canvas size cap per axis — covers a 5K display at 2× (5120 px wide). */
+const MAX_CANVAS_SIZE_PX = 8192
+
 let map: Map | null = null
 
 onMounted(() => {
@@ -71,6 +74,11 @@ onMounted(() => {
     // LOCATION NAMES layer made the labels drift in rather than snap on. Zero
     // makes every symbol layer (labels included) appear instantly.
     fadeDuration: 0,
+    // The default canvas cap (4096²) is smaller than a wide display at 2×, so
+    // MapLibre would drop the pixel ratio and blur the map. Raising it keeps
+    // full resolution; MapLibre still clamps to the GPU's MAX_TEXTURE_SIZE
+    // if the hardware cannot go this large.
+    maxCanvasSize: [MAX_CANVAS_SIZE_PX, MAX_CANVAS_SIZE_PX],
   })
   setMapStyle(map, props.styleUrl)
 
