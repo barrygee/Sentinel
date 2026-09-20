@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { APRS_BADGE_BACKGROUND, APRS_COUNT_FILL, REPEATER_COUNT_RING } from '@/constants/aprs'

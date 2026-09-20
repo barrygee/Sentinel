@@ -24,7 +24,7 @@ vi.mock('maplibre-gl', () => {
     this.remove = vi.fn()
     mapRegistry.instances.push(this)
   }
-  return { default: { Map } }
+  return { Map }
 })
 
 import MapLibreMap from './MapLibreMap.vue'

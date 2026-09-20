@@ -58,7 +58,7 @@ vi.mock('maplibre-gl', () => {
       record.removed = true
     }
   }
-  return { default: { Map, Marker, NavigationControl } }
+  return { Map, Marker, NavigationControl }
 })
 
 import SentrySiteMap from './SentrySiteMap.vue'

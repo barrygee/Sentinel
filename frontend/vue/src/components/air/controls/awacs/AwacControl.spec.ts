@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { AwacToggleControl } from './AwacControl'
 import { useAirStore } from '@/stores/air'
 import type { AirStore } from '../types'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 
 const SOURCE_ID = 'awacs-orbits'
 const LAYER_IDS = ['awacs-fill', 'awacs-outline']

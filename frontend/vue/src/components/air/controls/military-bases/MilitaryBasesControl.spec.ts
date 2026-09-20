@@ -26,13 +26,13 @@ vi.mock('maplibre-gl', () => {
     })
     markerRegistry.instances.push(this)
   }
-  return { default: { Marker } }
+  return { Marker }
 })
 
 import { MilitaryBasesToggleControl, MILITARY_BASES_DATA } from './MilitaryBasesControl'
 import { useAirStore } from '@/stores/air'
 import type { AirStore } from '../types'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 
 interface FakeMap {
   map: maplibregl.Map

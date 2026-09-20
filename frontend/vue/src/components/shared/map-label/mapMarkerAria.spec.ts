@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 import { setMarkerAccessibleName } from './mapMarkerAria'
 
 /** The part of MapLibre's Marker this helper touches, with `addTo`'s own

@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import type { AirStore, AirNotifStore, NotificationsStore, TrackingStore } from '../types'
 import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '@/stores/airNotif'
 import { parseAlt, isMilitary, type AdsbApiEntry } from './adsbParse'

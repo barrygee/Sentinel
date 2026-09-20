@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { createBracket } from '@/components/air/controls/adsb/adsbSprites'

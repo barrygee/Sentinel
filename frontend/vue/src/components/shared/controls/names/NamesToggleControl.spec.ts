@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { NamesToggleControl } from './NamesToggleControl'
 import { useBasemapStore, type BasemapStore } from '@/stores/basemap'
 

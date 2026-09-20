@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 
 /** The dot colour of the operator's own position — the app accent. */
 export const LOCATION_MARKER_DOT_COLOR = '#c8ff00'

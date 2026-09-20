@@ -91,7 +91,7 @@ const mocks = vi.hoisted(() => {
 })
 const created = mocks.created
 
-vi.mock('maplibre-gl', () => ({ default: { Marker: mocks.MockMarker, Popup: mocks.MockPopup } }))
+vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker, Popup: mocks.MockPopup }))
 
 import {
   CAMERA_OPEN_EVENT,

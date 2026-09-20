@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { ResetViewControl } from './ResetViewControl'
 
 function fakeMap(): { map: maplibregl.Map; flyTo: ReturnType<typeof vi.fn> } {

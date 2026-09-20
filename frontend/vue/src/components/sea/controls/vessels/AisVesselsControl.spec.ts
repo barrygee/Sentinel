@@ -43,7 +43,7 @@ const mocks = vi.hoisted(() => {
   return { created, MockMarker }
 })
 const created = mocks.created
-vi.mock('maplibre-gl', () => ({ default: { Marker: mocks.MockMarker } }))
+vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker }))
 
 // Canvas sprites need a 2D context jsdom does not have.
 vi.mock('./vesselSprites', () => ({

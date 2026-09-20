@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { flushPromises } from '@vue/test-utils'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 
 // ---- Marker mock registry ----
 interface FakeMarker {
@@ -32,7 +32,7 @@ vi.mock('maplibre-gl', () => {
     })
     markerRegistry.instances.push(this)
   }
-  return { default: { Marker } }
+  return { Marker }
 })
 
 // Sprite factories touch <canvas>; stub the icon/bracket to sentinels and make

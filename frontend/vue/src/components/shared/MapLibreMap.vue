@@ -18,7 +18,8 @@
 // IMPORTANT: The MapLibre Map instance is stored as a plain module-level variable.
 // Never put it in ref() or reactive() — Vue's Proxy wrapping breaks WebGL internals.
 import { ref, onMounted, onUnmounted, useId } from 'vue'
-import maplibregl, { type Map } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import type { Map } from 'maplibre-gl'
 
 // `regionLabel`/`regionDescription` are deliberately NOT named `ariaLabel` etc.:
 // `aria-*` attributes on a component fall through to the root element instead of
@@ -210,7 +211,16 @@ defineExpose({ getMap })
    marker is one button: clicking the mark or its details opens that host in
    Settings.
 
-   NB: no `position` here — see the note on `.user-location-marker` above. */
+   NB: no `position` here — see the note on `.user-location-marker` above.
+   The z-index lifts the button above the passive label markers (airports,
+   aircraft) that share the canvas container at z-index 0: MapLibre stacks
+   markers in DOM order, which follows fetch/style-load timing, so without it
+   a nearby airport label can land on top and swallow the hover and click. */
+.sentry-map-marker,
+.sentry-cluster-marker {
+  z-index: 1;
+}
+
 .sentry-map-marker {
   display: block;
   width: 60px;
