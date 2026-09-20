@@ -1278,6 +1278,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the Sentinel backend guide (#297)
 - Fix stale pmtiles CLI install command
 - Document the UK repeater directory
+- Thin the README and move setup to the top (#327)
 
 ### Tests
 
