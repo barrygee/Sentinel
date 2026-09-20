@@ -29,7 +29,11 @@ ENV PATH="/opt/venv/bin:${PATH}"
 # never transmit).
 RUN printf 'pcm.!default { type null }\nctl.!default { type null }\n' > /etc/asound.conf
 
+# Direwolf refuses to start without a configuration file (it does not fall back
+# to built-in defaults), so the receive-only config ships in the image and
+# entrypoint.py passes it with `-c`. See direwolf.conf for the details.
 COPY entrypoint.py /app/entrypoint.py
+COPY direwolf.conf /app/direwolf.conf
 
 USER aprs
 WORKDIR /app
@@ -41,6 +45,7 @@ ENV IQ_PCM_HOST=app \
     IQ_PCM_PORT=7357 \
     INGEST_URL=http://app:8000/api/sdr/aprs/ingest \
     CONFIG_URL=http://app:8000/api/sdr/aprs/config \
-    INGEST_SECRET_FILE=/run/decoder/secret
+    INGEST_SECRET_FILE=/run/decoder/secret \
+    DIREWOLF_CONFIG=/app/direwolf.conf
 
 CMD ["python3", "/app/entrypoint.py"]

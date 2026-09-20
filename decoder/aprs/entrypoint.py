@@ -24,6 +24,7 @@ Environment:
     CONFIG_URL                  backend APRS decode-config endpoint (active gate)
     INGEST_SECRET               shared secret (explicit override)
     INGEST_SECRET_FILE          path to the auto-generated shared secret file
+    DIREWOLF_CONFIG             path to the Direwolf config file (see -c, below)
     APRS_EXTRA_ARGS             optional extra direwolf args (space-separated)
 """
 
@@ -47,10 +48,26 @@ import aprslib
 # How long to wait for the backend to write the shared secret file on startup.
 _SECRET_WAIT_SECONDS = 30
 
-# Direwolf prints each decoded frame prefixed with its channel/slice, e.g.
-# "[0.1] M0ABC-9>APU25N,WIDE1-1:!5129.83N/00005.32W>Comment". The remainder after
-# the prefix is the TNC2-format packet aprslib understands.
-_PACKET_LINE = re.compile(r"^\[\d+(?:\.\d+)?\]\s+(.+)$")
+# Direwolf REQUIRES a configuration file. Given none in the working directory or
+# $HOME it prints "Could not open configuration file" and exits(1) rather than
+# falling back to built-in defaults, which left the supervisor respawning it
+# every few seconds and decoding nothing. The file ships in the image beside this
+# script; override only for local experiments.
+_DIREWOLF_CONFIG = "/app/direwolf.conf"
+
+# A Direwolf run shorter than this never got as far as decoding — it died during
+# startup (bad/missing config, unopenable audio device) or the PCM feed went away
+# immediately. Used to turn a silent respawn loop into a visible error.
+_STARTUP_SECONDS = 5.0
+
+# Direwolf prints each decoded frame prefixed with its channel, e.g.
+# "[0] M0ABC-9>APU25N,WIDE1-1:!5129.83N/00005.32W>Comment". The prefix also
+# carries a subchannel and/or slicer index when the modem runs several of them —
+# "[0.2]" for the default "A+" multi-slicer modem, "[0.1.2]" when APRS_EXTRA_ARGS
+# selects multiple demodulators as well (e.g. -P ABC+) — so accept any number of
+# dot-separated indices. The remainder after the prefix is the TNC2-format packet
+# aprslib understands.
+_PACKET_LINE = re.compile(r"^\[\d+(?:\.\d+)*\]\s+(.+)$")
 
 
 def resolve_secret() -> str | None:
@@ -194,16 +211,50 @@ def fetch_decode_config(config_url: str, secret: str) -> dict:
 def build_direwolf_command() -> list[str]:
     """Assemble the Direwolf command line.
 
-    ``-t 0`` disables coloured output (so stdout parses cleanly), ``-r 48000
-    -b 16`` matches the backend's 48 kHz mono s16 PCM, ``-B 1200`` selects the
-    standard APRS AFSK1200 modem, and the trailing ``-`` reads audio from stdin
-    (fed from the backend PCM socket by :func:`pump_pcm`).
+    ``-c`` points at the bundled config file, which Direwolf cannot run without
+    (see :data:`_DIREWOLF_CONFIG`). ``-t 0`` disables coloured output (so stdout
+    parses cleanly), ``-r 48000 -b 16`` matches the backend's 48 kHz mono s16 PCM,
+    ``-B 1200`` selects the standard APRS AFSK1200 modem, and the trailing ``-``
+    reads audio from stdin (fed from the backend PCM socket by :func:`pump_pcm`).
+    Command-line options are applied after the config file, so these win over it.
     """
-    command = ["direwolf", "-t", "0", "-r", "48000", "-b", "16", "-B", "1200", "-"]
+    config = os.environ.get("DIREWOLF_CONFIG", "").strip() or _DIREWOLF_CONFIG
+    command = [
+        "direwolf",
+        "-c",
+        config,
+        "-t",
+        "0",
+        "-r",
+        "48000",
+        "-b",
+        "16",
+        "-B",
+        "1200",
+        "-",
+    ]
     extra = os.environ.get("APRS_EXTRA_ARGS", "").strip()
     if extra:
         command.extend(shlex.split(extra))
     return command
+
+
+def describe_direwolf_exit(status: int, ran_seconds: float) -> str | None:
+    """Describe an abnormal Direwolf exit, or None when it looks normal.
+
+    A healthy run ends when the backend stops serving PCM: Direwolf reaches EOF
+    on stdin and exits 0, having decoded for as long as the session lasted. A
+    non-zero status, or an exit within :data:`_STARTUP_SECONDS` of launch, means
+    it never got as far as decoding — a missing or invalid config file and an
+    unopenable audio output device both exit immediately. Those would otherwise
+    show only as a silent relaunch every few seconds with no packets ever
+    arriving, so the caller logs whatever this returns.
+    """
+    if status != 0:
+        return f"direwolf exited with status {status} after {ran_seconds:.1f}s"
+    if ran_seconds < _STARTUP_SECONDS:
+        return f"direwolf exited after only {ran_seconds:.1f}s without decoding"
+    return None
 
 
 def pump_pcm(
@@ -286,6 +337,7 @@ def run_direwolf_once(
 
     command = build_direwolf_command()
     print(f"[aprs] launching: {' '.join(command)}", file=sys.stderr, flush=True)
+    started = time.monotonic()
     process = subprocess.Popen(  # noqa: S603 - command built from trusted env, not user input
         command,
         stdin=subprocess.PIPE,
@@ -311,9 +363,18 @@ def run_direwolf_once(
             pass
         process.terminate()
         try:
-            process.wait(timeout=5)
+            status = process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             process.kill()
+            status = process.wait()
+        problem = describe_direwolf_exit(status, time.monotonic() - started)
+        if problem:
+            print(
+                f"[aprs] {problem} — see Direwolf's output above; the supervisor "
+                "will retry, but nothing decodes until this is fixed",
+                file=sys.stderr,
+                flush=True,
+            )
 
 
 def main() -> int:  # pragma: no cover - container entrypoint loop

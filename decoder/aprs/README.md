@@ -62,3 +62,23 @@ on restart.
 | `CONFIG_URL`         | `http://app:8000/api/sdr/aprs/config`     | Polled `active` gate before launching        |
 | `INGEST_SECRET_FILE` | `/run/decoder/secret`                     | Shared auto-generated ingest secret (volume) |
 | `APRS_EXTRA_ARGS`    | _(unset)_                                 | Extra `direwolf` flags (space-separated)     |
+| `DIREWOLF_CONFIG`    | `/app/direwolf.conf`                      | Direwolf config file passed as `-c`          |
+
+## Troubleshooting
+
+- **No packets, and the container log repeats `launching: direwolf …` every few
+  seconds.** Direwolf is exiting during startup; the supervisor now says so
+  explicitly (`direwolf exited with status 1 …`) and Direwolf's own error is in
+  the lines above. The usual cause is a missing or unreadable config file —
+  Direwolf has no built-in defaults and calls `exit(1)` when it cannot open one,
+  so `-c` (see `DIREWOLF_CONFIG`) must point at a real file.
+- **`Audio input level is too low. Increase so most stations are around 50.`**
+  Expected, and harmless. The backend's FM discriminator normalises to ±π
+  radians, which puts a 3 kHz-deviation APRS signal around −46 dBFS. Direwolf's
+  AFSK demodulator is scale-invariant (its slicers work on ratios), so decode
+  performance is unaffected — only the reported level is.
+- **Packets in Direwolf's output but nothing on the Land map.** The Land map
+  plots position-bearing packets only; status, message and telemetry frames show
+  in the SDR panels' raw log but have no fix to plot. Check
+  `GET /api/land/aprs/stations`, and that the station was heard within
+  Settings › LAND › APRS retention.
