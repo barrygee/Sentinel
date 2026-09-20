@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { AdsbLabelsToggleControl } from './AdsbLabelsToggleControl'
 import { useAirStore } from '@/stores/air'
 import type { AirStore } from '../types'

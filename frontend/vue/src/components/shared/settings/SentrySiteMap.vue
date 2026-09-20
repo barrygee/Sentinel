@@ -32,7 +32,8 @@
  * Vue's Proxy wrapping breaks MapLibre's WebGL internals.
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import maplibregl, { type Map as MapLibreGlMap } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 
 /** The same online style the Air/Land domain maps load. */

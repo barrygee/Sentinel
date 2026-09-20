@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from './SentinelControlBase'
 
 // A minimal concrete subclass exercising the abstract base. `labelOverride`

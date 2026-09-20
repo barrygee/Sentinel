@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { ClearOverlaysControl } from './ClearOverlaysControl'
 
 // Builders for the sibling-control fakes. Each exposes only the surface

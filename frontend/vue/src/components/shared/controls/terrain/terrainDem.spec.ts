@@ -70,7 +70,7 @@ vi.mock('maplibre-contour', () => ({
   },
 }))
 
-vi.mock('maplibre-gl', () => ({ default: { addProtocol: fakes.addProtocol } }))
+vi.mock('maplibre-gl', () => ({ addProtocol: fakes.addProtocol }))
 
 import {
   loadTerrainDem,

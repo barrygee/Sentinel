@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '../../../air/controls/sentinel-control-base/SentinelControlBase'
 import type { useSpaceStore } from '@/stores/space'
 

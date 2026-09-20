@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { buildRingsGeoJSON, RING_DISTANCES_NM } from '@/utils/rangeRings'
 import type { ResolvedRingOrigin } from '@/composables/useRangeRingOrigin'

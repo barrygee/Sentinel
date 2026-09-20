@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { OverheadZoneControl } from './OverheadZoneControl'
 
 const SOURCE_ID = 'overhead-zone'

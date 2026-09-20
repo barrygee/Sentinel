@@ -25,7 +25,7 @@ vi.mock('maplibre-gl', () => {
     this.getElement = () => this.options.element
     markerRegistry.instances.push(this)
   }
-  return { default: { Marker } }
+  return { Marker }
 })
 
 import { UserLocationMarker } from './UserLocationMarker'

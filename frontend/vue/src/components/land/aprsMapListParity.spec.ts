@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => {
   }
   return { created, MockMarker }
 })
-vi.mock('maplibre-gl', () => ({ default: { Marker: mocks.MockMarker } }))
+vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker }))
 
 import { AprsStationsControl } from './controls/aprs/AprsStationsControl'
 import LandFilter from './LandFilter.vue'

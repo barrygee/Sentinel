@@ -6,7 +6,7 @@
 // the `pmtiles://` URL. Contours are generated client-side by maplibre-contour,
 // which normally fetches DEM tiles over HTTP — here its tile fetch is swapped
 // for a direct PMTiles range read so it reads the same local archive.
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import mlcontour from 'maplibre-contour'
 import { PMTiles } from 'pmtiles'
 

@@ -46,7 +46,7 @@ const mocks = vi.hoisted(() => {
 })
 const created = mocks.created
 
-vi.mock('maplibre-gl', () => ({ default: { Marker: mocks.MockMarker } }))
+vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker }))
 vi.mock('@/services/repeatersApi', () => ({ fetchRepeaterDirectory: vi.fn() }))
 vi.mock('@/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
 

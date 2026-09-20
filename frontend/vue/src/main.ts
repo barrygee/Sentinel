@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import * as pmtiles from 'pmtiles'
 
 import 'maplibre-gl/dist/maplibre-gl.css'

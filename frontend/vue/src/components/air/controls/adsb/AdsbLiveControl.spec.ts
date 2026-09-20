@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 import { ADSB_POLL_INTERVAL_MS } from '@/constants/adsb'
 
 // ---- Marker mock registry ----
@@ -32,7 +32,7 @@ vi.mock('maplibre-gl', () => {
     })
     markerRegistry.instances.push(this)
   }
-  return { default: { Marker } }
+  return { Marker }
 })
 
 // Sprite factories touch <canvas>; stub them to opaque sentinels.

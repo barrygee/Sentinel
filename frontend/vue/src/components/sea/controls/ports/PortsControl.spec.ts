@@ -24,7 +24,7 @@ vi.mock('maplibre-gl', () => {
     })
     markerRegistry.instances.push(this)
   }
-  return { default: { Marker } }
+  return { Marker }
 })
 
 import { PortsControl } from './PortsControl'
