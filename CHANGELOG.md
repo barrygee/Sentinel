@@ -372,6 +372,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restore the basemap under maplibre-gl 6
 - Render at full resolution on large high-DPI displays
 - Show the SDR radio picker's options
+- Ship a Direwolf config so the decoder can start at all (#330)
 
 ### Chores
 
