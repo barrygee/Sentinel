@@ -158,6 +158,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move the aircraft filter modes into the sidebar sub-tab rail
 - Plot and list UK repeaters on the Land map
 - Add the APRS Channel field under LAND
+- Redraw the layer glyphs and show repeater status as a dot
 
 ### Bug Fixes
 
@@ -402,6 +403,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
+- Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
@@ -1215,6 +1217,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #326 from barrygee/feat/land-uk-repeaters
 - Merge pull request #329 from barrygee/fix/land-camera-groups-repeater-stacks
 - Merge pull request #331 from barrygee/fix/aprs-owned-channel-frequency
+- Merge pull request #332 from barrygee/feat/land-repeater-aprs-icons
 
 ### Refactoring
 
