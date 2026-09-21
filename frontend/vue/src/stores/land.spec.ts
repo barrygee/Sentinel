@@ -119,6 +119,15 @@ describe('land store', () => {
     })
   })
 
+  describe('APRS channel setting', () => {
+    it('defaults to 144.8 MHz (the Europe/UK channel) and can be set', () => {
+      const store = useLandStore()
+      expect(store.aprsChannelMhz).toBe(144.8)
+      store.setAprsChannelMhz(144.39)
+      expect(store.aprsChannelMhz).toBe(144.39)
+    })
+  })
+
   describe('default layers', () => {
     it('defaults to the repeater layer, the one layer shown out of the box', () => {
       expect(useLandStore().defaultLayers).toEqual(['repeaters'])

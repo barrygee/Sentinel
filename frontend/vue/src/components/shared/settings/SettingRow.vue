@@ -28,6 +28,11 @@
       @stage="emit('stage', item.id, $event)"
       @commit="emit('commit')"
     />
+    <LandAprsChannelControl
+      v-else-if="item.type === 'land-aprs-channel'"
+      @stage="emit('stage', item.id, $event)"
+      @commit="emit('commit')"
+    />
     <ProbeUrlControl
       v-else-if="item.type === 'probe-url'"
       @stage="emit('stage', item.id, $event)"
@@ -182,6 +187,7 @@ import type { SettingItem } from '@/types/settings'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
+import LandAprsChannelControl from './LandAprsChannelControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'

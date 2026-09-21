@@ -14,6 +14,7 @@ import type { SettingItem } from '@/types/settings'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
+import LandAprsChannelControl from './LandAprsChannelControl.vue'
 import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
@@ -67,6 +68,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['connectivity-toggle', ConnectivityToggle],
   ['overhead-alerts', OverheadAlertsControl],
   ['land-aprs-retention', LandAprsRetentionControl],
+  ['land-aprs-channel', LandAprsChannelControl],
   ['probe-url', ProbeUrlControl],
   ['location', LocationControl],
   ['range-ring-origin', RangeRingOriginControl],
