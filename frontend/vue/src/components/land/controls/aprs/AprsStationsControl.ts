@@ -65,12 +65,13 @@ export class AprsStationsControl extends SentinelControlBase {
   }
 
   get buttonLabel(): string {
-    // A small broadcast/beacon glyph (waves rising from a point).
+    // A handheld transceiver (the same glyph FilterSubTabIcon draws for the
+    // APRS STATIONS sub-tab — keep them in step).
     return (
       '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
-      'stroke-width="1.4" stroke-linecap="round" aria-hidden="true">' +
-      '<circle cx="8" cy="11" r="1.6" fill="currentColor" stroke="none" />' +
-      '<path d="M5.2 8.2a4 4 0 0 1 5.6 0" /><path d="M3.4 6.4a6.6 6.6 0 0 1 9.2 0" /></svg>'
+      'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M5.5 5.5V1.5" /><rect x="3.5" y="5.5" width="9" height="9" rx="1" />' +
+      '<rect x="5.5" y="7.5" width="5" height="2.5" rx="0.4" /><path d="M6 12.2h4" /></svg>'
     )
   }
 

@@ -38,7 +38,7 @@
             (channel, side) => removeRepeaterFrequency(repeaterFor(item.key)!, channel, side)
           "
         />
-        <template v-else-if="stationFor(item.key)">
+        <div v-else-if="stationFor(item.key)" class="land-filter-station">
           <BaseDataGrid title="STATION" :columns="3">
             <BaseDataCell label="CALLSIGN" :value="stationFor(item.key)!.callsign" />
             <BaseDataCell label="SYMBOL">
@@ -99,7 +99,7 @@
               </div>
             </div>
           </div>
-        </template>
+        </div>
       </div>
     </template>
   </BaseFilterPanel>
@@ -570,6 +570,19 @@ watch(
   display: flex;
   flex-direction: column;
   padding-bottom: 12px;
+}
+/* APRS station values sit one step below the shared 14px telemetry size and
+   read in capitals throughout — beacon text arrives in whatever case the
+   operator typed, so uppercasing keeps the panel looking like the Air pane's
+   all-caps readings rather than a mix. `display: contents` keeps the grids as
+   direct flex children of the accordion. */
+.land-filter-station {
+  display: contents;
+  --ba-cell-value-font-size: 13px;
+}
+.land-filter-station :deep(.ba-data-cell-value),
+.land-filter-station .land-filter-raw-body {
+  text-transform: uppercase;
 }
 /* Only the free-text packet fields deviate from the shared cell styling the
    Space pane uses for telemetry: they wrap rather than being ellipsized at the

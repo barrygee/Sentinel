@@ -237,6 +237,9 @@ describe('LandFilter', () => {
       expect(text).toContain('30 KM/H')
       expect(text).toContain('WIDE1-1')
       expect(text).toContain('rolling')
+      // Every APRS value renders inside the wrapper that uppercases and
+      // resizes it; the camera and repeater accordions are outside it.
+      expect(wrapper.find('.bfp-accordion-body .land-filter-station').exists()).toBe(true)
 
       // The raw frame is reference material, so it starts collapsed.
       expect(wrapper.find('.land-filter-raw-body').exists()).toBe(false)

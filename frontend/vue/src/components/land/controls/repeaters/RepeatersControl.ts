@@ -6,8 +6,10 @@ import {
   formatMhz,
   formatRepeaterAccess,
   formatRepeaterModes,
+  formatRepeaterStatus,
   repeaterBandColor,
   repeaterSearchKey,
+  REPEATER_STATUS_COLORS,
   stationBands,
   stationOffAir,
 } from '@/constants/repeaters'
@@ -20,6 +22,8 @@ import {
   appendMirrored,
   createAccentBadge,
   createDimBadge,
+  createFilledDotShape,
+  createGlyphSvg,
   createGlyphWell,
   createLabelPill,
   createNameSegment,
@@ -29,7 +33,7 @@ import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarker
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { useLandStore } from '@/stores/land'
 import type { useRepeatersStore } from '@/stores/repeaters'
-import type { RepeaterChannel, RepeaterStation } from '@/types/repeaters'
+import type { RepeaterChannel, RepeaterStation, RepeaterStatus } from '@/types/repeaters'
 
 type LandStore = ReturnType<typeof useLandStore>
 type RepeatersStore = ReturnType<typeof useRepeatersStore>
@@ -85,13 +89,47 @@ export const REPEATER_OPEN_EVENT = 'land-open-repeater'
 /** Document event the FILTER pane fires (callsign click) to fly the map to a station. */
 export const REPEATER_LOCATE_EVENT = 'land-locate-repeater'
 
-/** The tower glyph in the label's leading well, and on the rail button. */
+/**
+ * The rail button's repeater glyph: a mast on splayed legs with RX/TX arcs either side
+ * of the antenna (the same artwork FilterSubTabIcon draws for the REPEATERS
+ * sub-tab — keep them in step). The map label pills deliberately don't carry
+ * it — at marker size the tower is unreadable, so their well holds a plain
+ * filled dot instead (see the `symbol` field below).
+ */
 const REPEATER_GLYPH_SVG =
-  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#ffffff" stroke-width="1.4" ' +
+  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" ' +
   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block">' +
-  '<path d="M8 6.5v8M5.2 14.5l2.8-8 2.8 8M6.2 11.6h3.6" />' +
-  '<circle cx="8" cy="4.6" r="1.4" /><path d="M4.6 2.6a4.6 4.6 0 0 1 6.8 0" />' +
-  '<path d="M5.9 3.9a2.8 2.8 0 0 1 4.2 0" /></svg>'
+  '<path d="M8 1.8v12.7" />' +
+  '<path d="M8 7.4l-3.6 7.1M8 7.4l3.6 7.1" />' +
+  '<path d="M5.4 1.6a3.4 3.4 0 0 0 0 5.2M10.6 1.6a3.4 3.4 0 0 1 0 5.2" /></svg>'
+
+/**
+ * The status a site's leading dot shows when the STATUS label field is on —
+ * the worst case across its channels, so a dual-band site with one channel
+ * off air reads as reduced rather than green — plus its accessible name: the
+ * status word, or one entry per band when the channels differ.
+ */
+export function stationStatusSummary(channels: readonly RepeaterChannel[]): {
+  status: RepeaterStatus
+  statusText: string
+} {
+  const statuses = [...new Set(channels.map((channel) => channel.status))]
+  const status: RepeaterStatus =
+    statuses.length === 1
+      ? statuses[0]!
+      : statuses.includes('NOT OPERATIONAL') || statuses.includes('REDUCED OUTPUT')
+        ? 'REDUCED OUTPUT'
+        : statuses.includes('OPERATIONAL')
+          ? 'OPERATIONAL'
+          : 'UNKNOWN'
+  const statusText =
+    statuses.length === 1
+      ? formatRepeaterStatus(statuses[0]!)
+      : channels
+          .map((channel) => `${channel.band} · ${formatRepeaterStatus(channel.status)}`)
+          .join(' · ')
+  return { status, statusText }
+}
 
 /**
  * Land-map control that plots the UK amateur-radio repeater directory
@@ -166,7 +204,7 @@ export class RepeatersControl extends SentinelControlBase {
   }
 
   get buttonLabel(): string {
-    return REPEATER_GLYPH_SVG.replace('stroke="#ffffff"', 'stroke="currentColor"')
+    return REPEATER_GLYPH_SVG
   }
 
   get buttonTitle(): string {
@@ -423,9 +461,29 @@ export class RepeatersControl extends SentinelControlBase {
   }
 
   /**
+   * The label's leading dot. Plain white by default; with the STATUS label
+   * field on it takes the site's status colour (see
+   * {@link REPEATER_STATUS_COLORS}) — no STATUS badge, the dot is the whole
+   * indicator; the accessible name still carries the words.
+   */
+  private _buildStatusWell(station: RepeaterStation, showStatus: boolean): HTMLSpanElement {
+    if (!showStatus) {
+      return createGlyphWell(createGlyphSvg(createFilledDotShape('#ffffff')), APRS_BADGE_BACKGROUND)
+    }
+    const { status, statusText } = stationStatusSummary(station.channels)
+    const well = createGlyphWell(
+      createGlyphSvg(createFilledDotShape(REPEATER_STATUS_COLORS[status])),
+      APRS_BADGE_BACKGROUND,
+    )
+    well.setAttribute('role', 'img')
+    well.setAttribute('aria-label', `Status: ${statusText}`)
+    return well
+  }
+
+  /**
    * The shared Sentinel pill for one site, carrying whichever fields the
-   * operator has enabled (Settings › LAND › Repeater Label Fields): tower
-   * glyph in the well, the callsign, a badge per band in that band's colour,
+   * operator has enabled (Settings › LAND › Repeater Label Fields): the dot
+   * in the well, the callsign, a badge per band in that band's colour,
    * then the dimmed data badges. Per-channel fields (output, input, tone,
    * channel, modes) list every channel's value, so a dual-band site reads
    * "OUT 145.6875 · 433.1750". A site whose every channel is off air is dimmed
@@ -448,9 +506,12 @@ export class RepeatersControl extends SentinelControlBase {
     appendMirrored(
       pill,
       [
-        fields.symbol ? createGlyphWell(REPEATER_GLYPH_SVG, APRS_BADGE_BACKGROUND) : null,
+        fields.symbol || fields.status ? this._buildStatusWell(station, fields.status) : null,
         fields.callsign
-          ? createNameSegment(station.callsign, fields.symbol ? 'right' : 'standalone')
+          ? createNameSegment(
+              station.callsign,
+              fields.symbol || fields.status ? 'right' : 'standalone',
+            )
           : null,
         ...(fields.band
           ? stationBands(station).map((band) =>
@@ -496,12 +557,6 @@ export class RepeatersControl extends SentinelControlBase {
           : null,
         fields.locator ? dim('LOC', station.locator) : null,
         fields.keeper ? dim('KPR', station.keeper) : null,
-        fields.status
-          ? dim(
-              'STAT',
-              perChannel((channel) => channel.status),
-            )
-          : null,
       ],
       false,
     )

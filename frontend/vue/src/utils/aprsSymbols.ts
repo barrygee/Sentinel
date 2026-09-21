@@ -157,10 +157,12 @@ const SYMBOLS: Record<string, AprsSymbolIcon> = {
       '<circle cx="12" cy="11.5" r="1.3" fill="currentColor" stroke="none" />',
   },
   r: {
+    // Lattice mast with RX/TX arcs either side — matches the Land repeater
+    // directory's marker/rail glyph so both kinds of repeater read the same.
     label: 'Repeater',
     paths:
-      '<path d="M12 4v16M8.5 20h7" /><path d="M8.5 8a5 5 0 0 1 7 0M6 6a8 8 0 0 1 12 0" />' +
-      '<circle cx="12" cy="11.5" r="1.3" fill="currentColor" stroke="none" />',
+      '<path d="M12 2.7v19.1" /><path d="M12 10.8l-4.5 11M12 10.8l4.5 11M9.75 16.5h4.5M6.6 21.75h10.8" />' +
+      '<path d="M8.1 2.4a5.1 5.1 0 0 0 0 7.8M15.9 2.4a5.1 5.1 0 0 1 0 7.8" />',
   },
   n: {
     label: 'Node',

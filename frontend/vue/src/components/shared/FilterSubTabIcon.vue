@@ -293,11 +293,14 @@
     stroke="currentColor"
     stroke-width="1.4"
     stroke-linecap="round"
+    stroke-linejoin="round"
     aria-hidden="true"
   >
-    <circle cx="8" cy="11" r="1.6" fill="currentColor" stroke="none" />
-    <path d="M5.2 8.2a4 4 0 0 1 5.6 0" />
-    <path d="M3.4 6.4a6.6 6.6 0 0 1 9.2 0" />
+    <!-- Handheld transceiver: antenna, body, display, keypad. -->
+    <path d="M5.5 5.5V1.5" />
+    <rect x="3.5" y="5.5" width="9" height="9" rx="1" />
+    <rect x="5.5" y="7.5" width="5" height="2.5" rx="0.4" />
+    <path d="M6 12.2h4" />
   </svg>
   <svg
     v-else-if="category === 'trafficCameras'"
@@ -311,8 +314,10 @@
     stroke-linejoin="round"
     aria-hidden="true"
   >
-    <path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" />
-    <circle cx="8" cy="9" r="2.2" />
+    <!-- Pole-mounted CCTV housing with its lens hood, not a photo camera. -->
+    <path d="M2 2v12M2 4.5h4.5v2" />
+    <rect x="4" y="6.5" width="7.5" height="4" rx="1" />
+    <path d="M11.5 7.6l2.8-1.1v5l-2.8-1.1" />
   </svg>
   <svg
     v-else-if="category === 'repeaters'"
@@ -326,10 +331,10 @@
     stroke-linejoin="round"
     aria-hidden="true"
   >
-    <path d="M8 6.5v8M5.2 14.5l2.8-8 2.8 8M6.2 11.6h3.6" />
-    <circle cx="8" cy="4.6" r="1.4" />
-    <path d="M4.6 2.6a4.6 4.6 0 0 1 6.8 0" />
-    <path d="M5.9 3.9a2.8 2.8 0 0 1 4.2 0" />
+    <!-- Mast on splayed legs with RX/TX arcs either side of the antenna. -->
+    <path d="M8 1.8v12.7" />
+    <path d="M8 7.4l-3.6 7.1M8 7.4l3.6 7.1" />
+    <path d="M5.4 1.6a3.4 3.4 0 0 0 0 5.2M10.6 1.6a3.4 3.4 0 0 1 0 5.2" />
   </svg>
   <svg
     v-else

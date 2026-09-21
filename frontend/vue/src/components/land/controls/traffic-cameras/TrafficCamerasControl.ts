@@ -95,7 +95,8 @@ export const CAMERA_PREVIEW_EVENT = 'land-preview-camera'
 const CAMERA_GLYPH_SVG =
   '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#ffffff" stroke-width="1.4" ' +
   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block">' +
-  '<path d="M2 5.5h2.4l.9-1.5h5.4l.9 1.5H14v7.5H2z" /><circle cx="8" cy="9" r="2.2" /></svg>'
+  '<path d="M2 2v12M2 4.5h4.5v2" /><rect x="4" y="6.5" width="7.5" height="4" rx="1" />' +
+  '<path d="M11.5 7.6l2.8-1.1v5l-2.8-1.1" /></svg>'
 
 /**
  * Land-map control that plots live traffic camera feeds (Durham CC, TfL
