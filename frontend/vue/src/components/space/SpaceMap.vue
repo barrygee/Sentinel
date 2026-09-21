@@ -15,6 +15,7 @@
 import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
+import { setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSpaceStore } from '@/stores/space'
 import { useBasemapStore } from '@/stores/basemap'
@@ -73,7 +74,7 @@ function getUserLocation(): [number, number] | null {
 useConnectivity((online) => {
   const m = _map
   if (!m) return
-  m.setStyle(online ? STYLE_ONLINE : STYLE_OFFLINE)
+  setMapStyle(m, online ? STYLE_ONLINE : STYLE_OFFLINE)
   m.once('style.load', () => {
     daynightControl?.initLayers()
     namesControl?.applyVisibility()
@@ -164,7 +165,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // If connectivity mode changed between map creation and style load, apply the correct style now.
   const desiredStyle = styleUrl.value
   if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {
-    m.setStyle(desiredStyle)
+    setMapStyle(m, desiredStyle)
     m.once('style.load', () => {
       daynightControl?.initLayers()
       namesControl?.applyVisibility()

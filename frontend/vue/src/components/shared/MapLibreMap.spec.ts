@@ -9,6 +9,7 @@ interface FakeMap {
   options: Record<string, unknown>
   handlers: Record<string, () => void>
   on: ReturnType<typeof vi.fn>
+  setStyle: ReturnType<typeof vi.fn>
   resize: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
 }
@@ -20,6 +21,7 @@ vi.mock('maplibre-gl', () => {
     this.on = vi.fn((event: string, cb: () => void) => {
       this.handlers[event] = cb
     })
+    this.setStyle = vi.fn()
     this.resize = vi.fn()
     this.remove = vi.fn()
     mapRegistry.instances.push(this)
@@ -28,6 +30,7 @@ vi.mock('maplibre-gl', () => {
 })
 
 import MapLibreMap from './MapLibreMap.vue'
+import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { axe } from 'jest-axe'
 
 const STYLE = 'https://tiles.example/style.json'
@@ -54,7 +57,6 @@ describe('MapLibreMap', () => {
     })
     const created = mapRegistry.instances[0]!
     expect(created.options).toMatchObject({
-      style: STYLE,
       center: [10, 20],
       zoom: 9,
       pitch: 45,
@@ -62,6 +64,26 @@ describe('MapLibreMap', () => {
       attributionControl: false,
     })
     expect(created.options.container).toBeInstanceOf(HTMLElement)
+  })
+
+  // A wide display at 2× overflows MapLibre's 4096² default canvas cap, which
+  // would silently drop the pixel ratio and blur the map.
+  it('raises the canvas cap so a large high-DPI display renders at full resolution', () => {
+    mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
+    expect(mapRegistry.instances[0]!.options.maxCanvasSize).toEqual([8192, 8192])
+  })
+
+  // The constructor has no style-transform option, so the style is applied
+  // through setStyle with the sprite fix MapLibre 6 needs — never via the
+  // constructor's `style`, which would load the bundled styles unfixed.
+  it('sets the style after construction with the sprite transform, not via the constructor', () => {
+    mount(MapLibreMap, { props: { styleUrl: STYLE, regionLabel: 'Test map' } })
+    const created = mapRegistry.instances[0]!
+    expect(created.options).not.toHaveProperty('style')
+    expect(created.setStyle).toHaveBeenCalledTimes(1)
+    expect(created.setStyle).toHaveBeenCalledWith(STYLE, {
+      transformStyle: absoluteSpriteTransform,
+    })
   })
 
   // Every domain map is built through this component, so disabling MapLibre's

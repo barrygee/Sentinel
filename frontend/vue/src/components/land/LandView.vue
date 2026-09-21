@@ -32,6 +32,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'maplibre-gl'
+import { setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useLandStore } from '@/stores/land'
 import { useLandFeedsStore } from '@/stores/landFeeds'
@@ -119,7 +120,7 @@ const styleUrl = computed(() =>
 )
 
 useConnectivity((online) => {
-  _map?.setStyle(online ? '/assets/fiord-online.json' : '/assets/fiord.json')
+  if (_map) setMapStyle(_map, online ? '/assets/fiord-online.json' : '/assets/fiord.json')
 })
 
 function onMapCreated(m: Map) {
@@ -277,7 +278,7 @@ onUnmounted(() => {
 function onStyleLoaded(m: Map) {
   const desiredStyle = styleUrl.value
   if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {
-    m.setStyle(desiredStyle)
+    setMapStyle(m, desiredStyle)
   }
   _initialStyleUrl = null
   // A fresh style ships with its own layer visibilities, so re-assert the

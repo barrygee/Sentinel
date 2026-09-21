@@ -57,9 +57,20 @@ const LABEL_GROUP_RADIUS_PER_FIELD_PX = 90
 /** How far a count marker's click zooms in. */
 const CLUSTER_CLICK_ZOOM_STEP = 2
 
-/** Deepest the map goes when revealing one station from the pane — enough to
- *  split any two sites that are not literally co-located. */
-const REVEAL_MAX_ZOOM = 16
+/** Zoom from which every site is drawn as its own label, whatever shares its
+ *  grouping cell. Grid grouping is purely screen-space, and 500-odd directory
+ *  entries share a mast (or a locator-rounded position) with another, so a
+ *  count over those would never split however far the map zoomed. From here
+ *  labels that would overprint are stacked vertically instead — a cell is
+ *  ~3 km at this zoom, so a stack is one hilltop, not a whole town. */
+const STACK_REVEAL_ZOOM = 12
+
+/** Vertical pitch between stacked labels — the pill plus a hairline gap. */
+const STACK_PITCH_PX = MAP_LABEL_SIZE_PX + 4
+
+/** Deepest the map goes when revealing one station from the pane — the
+ *  stacking zoom, since past it every site already stands alone. */
+const REVEAL_MAX_ZOOM = STACK_REVEAL_ZOOM
 
 /** Margin (CSS px) around the visible map when deciding which sites get
  *  markers, so one just off-screen doesn't pop as the map is nudged. */
@@ -89,7 +100,8 @@ const REPEATER_GLYPH_SVG =
  * Each site is the shared Sentinel label pill the Air and Sea maps draw —
  * the tower glyph in the leading well, the callsign, then one colour-coded
  * badge per band — grouped into APRS-style count markers below
- * `LABEL_REVEAL_ZOOM` and drawn individually above it, both scoped to the
+ * `LABEL_REVEAL_ZOOM`, drawn individually above it, and from
+ * `STACK_REVEAL_ZOOM` stacked wherever sites share a mast, all scoped to the
  * current viewport. Clicking a label opens the site's row in the FILTER
  * pane, which holds every channel's details; nothing opens on the map.
  *
@@ -120,7 +132,8 @@ export class RepeatersControl extends SentinelControlBase {
    * its nearest plotted neighbour: screen distances scale with 2^zoom, so the
    * level at which that neighbour clears the grouping cell (with a cell of
    * margin, since grid cells group by boundary rather than by distance) is
-   * computed directly — capped at `REVEAL_MAX_ZOOM` for sites sharing a mast.
+   * computed directly — capped at `REVEAL_MAX_ZOOM`, where sites sharing a
+   * mast are stacked rather than counted, so it never needs to go deeper.
    */
   private _revealStation(callsign: string): void {
     const station = this._repeatersStore.stationByCallsign(callsign)
@@ -252,13 +265,20 @@ export class RepeatersControl extends SentinelControlBase {
     const seen = new Set<string>()
     const seenClusters = new Set<string>()
 
-    const labelsShowing = this.map.getZoom() >= LABEL_REVEAL_ZOOM
+    const zoom = this.map.getZoom()
+    const labelsShowing = zoom >= LABEL_REVEAL_ZOOM
+    const stacksShowing = zoom >= STACK_REVEAL_ZOOM
     const groupRadiusPx = labelsShowing ? this._labelGroupRadiusPx() : COUNT_GROUP_RADIUS_PX
     for (const cluster of this._groupStations(stations, groupRadiusPx)) {
       const loneStation = cluster.stations.length === 1 ? cluster.stations[0] : undefined
       if (labelsShowing && loneStation) {
         seen.add(loneStation.callsign)
-        this._syncStationMarker(loneStation)
+        this._syncStationMarker(loneStation, 0)
+      } else if (stacksShowing) {
+        for (const { station, offsetY } of this._stackStations(cluster.stations)) {
+          seen.add(station.callsign)
+          this._syncStationMarker(station, offsetY)
+        }
       } else {
         seenClusters.add(cluster.key)
         this._syncClusterMarker(cluster)
@@ -315,21 +335,52 @@ export class RepeatersControl extends SentinelControlBase {
     }))
   }
 
-  private _syncStationMarker(station: RepeaterStation): void {
+  /**
+   * Lay a grouping cell's sites out as a stack: each label sits at its own
+   * position unless that would overprint the one above, in which case it is
+   * pushed down to the next free pitch. Sites sharing a mast therefore read
+   * as a column of pills from the mast downward, while two that are merely in
+   * the same cell keep their own spots. Ordered by screen row, then callsign,
+   * so the column is stable between renders.
+   */
+  private _stackStations(
+    stations: RepeaterStation[],
+  ): { station: RepeaterStation; offsetY: number }[] {
+    const rows = stations
+      .map((station) => ({
+        station,
+        screenY: this.map.project([station.longitude, station.latitude]).y,
+      }))
+      .sort(
+        (left, right) =>
+          left.screenY - right.screenY ||
+          left.station.callsign.localeCompare(right.station.callsign),
+      )
+    let nextFreeY = Number.NEGATIVE_INFINITY
+    return rows.map(({ station, screenY }) => {
+      const placedY = Math.max(screenY, nextFreeY)
+      nextFreeY = placedY + STACK_PITCH_PX
+      return { station, offsetY: placedY - screenY }
+    })
+  }
+
+  private _syncStationMarker(station: RepeaterStation, offsetY: number): void {
+    // Pull the pill back by half the glyph well so the well sits centred on
+    // the site's position — the same geometry as the Air and Sea labels — and
+    // down by its place in a stack, if any.
+    const offset: [number, number] = [-MAP_LABEL_SIZE_PX / 2, offsetY]
     // The field choice is part of the identity: a change must rebuild the pill.
     const signature = JSON.stringify([station, this._repeatersStore.labelFields])
     const existing = this._markers.get(station.callsign)
     if (existing && this._markerSignatures.get(station.callsign) === signature) {
-      existing.setLngLat([station.longitude, station.latitude])
+      existing.setLngLat([station.longitude, station.latitude]).setOffset(offset)
       return
     }
     existing?.remove()
     const marker = new maplibregl.Marker({
       element: this._buildLabelElement(station),
       anchor: 'left',
-      // Pull the pill back by half the glyph well so the well sits centred on
-      // the site's position — the same geometry as the Air and Sea labels.
-      offset: [-MAP_LABEL_SIZE_PX / 2, 0],
+      offset,
     })
       .setLngLat([station.longitude, station.latitude])
       .addTo(this.map)

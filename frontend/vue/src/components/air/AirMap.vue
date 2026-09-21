@@ -17,6 +17,7 @@
 // All IControl subclasses receive Pinia store refs instead of window.* globals.
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
+import { setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
@@ -151,7 +152,7 @@ useConnectivity((online) => {
     return
   }
   _currentStyleUrl = targetStyle
-  m.setStyle(targetStyle)
+  setMapStyle(m, targetStyle)
   // Re-init layers after style reload, clear aircraft
   m.once('style.load', () => {
     roadsControl?.applyVisibility()
@@ -258,7 +259,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   const desiredStyle = styleUrl.value
   if (_currentStyleUrl !== desiredStyle) {
     _currentStyleUrl = desiredStyle
-    m.setStyle(desiredStyle)
+    setMapStyle(m, desiredStyle)
     m.once('style.load', () => {
       roadsControl?.applyVisibility()
       namesControl?.applyVisibility()

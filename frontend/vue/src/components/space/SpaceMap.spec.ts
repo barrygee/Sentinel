@@ -105,9 +105,13 @@ const MapLibreMapStub = defineComponent({
 })
 
 import SpaceMap from './SpaceMap.vue'
+import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSpaceStore } from '@/stores/space'
 import { getSatelliteClickHandler } from '@/stores/notifications'
+
+/** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
+const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }
 
 interface FakeMap {
   onceHandlers: Record<string, () => void>
@@ -258,7 +262,7 @@ describe('SpaceMap', () => {
       app.isOnline = false // desired style now offline
       await nextTick()
       shared.emit!('style-loaded', map)
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       // The post-reload handler re-inits all layers.
       map.onceHandlers['style.load']!()
       expect(last('daynight').initLayers).toHaveBeenCalled()
@@ -286,7 +290,7 @@ describe('SpaceMap', () => {
       mountMap()
       bringUp(map)
       shared.connectivityCb!(false)
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()
       expect(last('daynight').initLayers).toHaveBeenCalled()
       expect(last('names').applyVisibility).toHaveBeenCalled()
@@ -298,7 +302,7 @@ describe('SpaceMap', () => {
       mountMap()
       bringUp(map)
       shared.connectivityCb!(true)
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord-online.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord-online.json', STYLE_OPTIONS)
     })
   })
 

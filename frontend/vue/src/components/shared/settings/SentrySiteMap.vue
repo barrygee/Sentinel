@@ -33,6 +33,7 @@
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
+import { setMapStyle } from '@/utils/mapStyle'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 
@@ -61,12 +62,13 @@ onMounted(() => {
   /* v8 ignore stop */
   map = new maplibregl.Map({
     container: containerRef.value,
-    style: STYLE_ONLINE,
+    // Style set just below via `setMapStyle` — see MapLibreMap for why.
     center: [props.longitude, props.latitude],
     zoom: SITE_ZOOM,
     attributionControl: false,
     fadeDuration: 0,
   })
+  setMapStyle(map, STYLE_ONLINE)
   // Everything except the wheel: see the component doc for why.
   map.scrollZoom.disable()
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')

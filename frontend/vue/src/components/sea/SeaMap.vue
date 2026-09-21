@@ -18,6 +18,7 @@
 // so the Sea map reads and behaves exactly like the Air map.
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
+import { setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSeaStore } from '@/stores/sea'
 import { useBasemapStore } from '@/stores/basemap'
@@ -98,7 +99,7 @@ useConnectivity((online) => {
   const targetStyle = online ? STYLE_ONLINE : STYLE_OFFLINE
   if (_currentStyleUrl === targetStyle) return
   _currentStyleUrl = targetStyle
-  m.setStyle(targetStyle)
+  setMapStyle(m, targetStyle)
   m.once('style.load', _reinitAfterStyle)
 })
 
@@ -148,7 +149,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   const desiredStyle = styleUrl.value
   if (_currentStyleUrl !== desiredStyle) {
     _currentStyleUrl = desiredStyle
-    m.setStyle(desiredStyle)
+    setMapStyle(m, desiredStyle)
     m.once('style.load', _reinitAfterStyle)
   }
 }

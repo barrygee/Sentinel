@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import sdrRadios from './fixtures/sdr-radios.json' with { type: 'json' }
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
 import { clearPersistedState } from './support/seedStore'
@@ -126,6 +127,42 @@ test.describe('Settings panel', () => {
     await page.keyboard.press('Space')
 
     await expect(checkbox).toBeChecked({ checked: !initiallyChecked })
+  })
+
+  // Regression: the picker sits inside a settings-datasource-row, whose hidden
+  // overflow once clipped the absolutely positioned option list to the row's
+  // own height — the dropdown reported itself open but nothing could be
+  // chosen, so the APRS layer could never be enabled. Only a real layout shows
+  // the clipping, hence an e2e check rather than a unit test.
+  test('LAND › APRS SDR picker drops its radio options into view', async ({ page }) => {
+    await page.route('/api/sdr/radios', (route) => {
+      void route.fulfill({ contentType: 'application/json', body: JSON.stringify(sdrRadios) })
+    })
+    await page.goto('/land/')
+    await waitForShellHydration(page)
+
+    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="LAND"]').click()
+    await expect(page.locator('#settings-section-heading')).toHaveText(/land/i)
+
+    const trigger = page.getByRole('combobox', { name: 'APRS decode SDR' })
+    await expect(trigger).toContainText(/not set/i)
+    await trigger.click()
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+
+    const option = page.getByRole('listbox', { name: 'APRS decode SDR' }).getByRole('option', {
+      name: /RTL-SDR v3/i,
+    })
+    // `toBeVisible` passes for an element clipped by an ancestor's overflow, so
+    // check the option actually receives the pointer at its own centre.
+    await expect(option).toBeVisible()
+    const box = await option.boundingBox()
+    expect(box).not.toBeNull()
+    const hit = await page.evaluate(
+      ([x, y]) => document.elementFromPoint(x, y)?.closest('[role="option"]')?.textContent ?? '',
+      [box!.x + box!.width / 2, box!.y + box!.height / 2],
+    )
+    expect(hit).toMatch(/RTL-SDR v3/i)
   })
 
   test('settings footer shows "NO CHANGES" when no edits are pending', async ({ page }) => {

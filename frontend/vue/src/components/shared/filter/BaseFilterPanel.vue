@@ -71,8 +71,8 @@
           v-if="item.groupLabel && item.groupLabel !== items[index - 1]?.groupLabel"
           type="button"
           class="bfp-group-heading"
-          :class="{ 'bfp-group-heading--collapsed': collapsedGroups.has(item.groupLabel) }"
-          :aria-expanded="!collapsedGroups.has(item.groupLabel)"
+          :class="{ 'bfp-group-heading--collapsed': isGroupCollapsed(item.groupLabel) }"
+          :aria-expanded="!isGroupCollapsed(item.groupLabel)"
           @click.stop="toggleGroup(item.groupLabel)"
         >
           <span class="bfp-group-heading-label">{{ item.groupLabel }}</span>
@@ -81,7 +81,7 @@
           <span v-if="item.groupNote" class="bfp-group-heading-note">{{ item.groupNote }}</span>
         </button>
         <div
-          v-if="!item.groupLabel || !collapsedGroups.has(item.groupLabel)"
+          v-if="!item.groupLabel || !isGroupCollapsed(item.groupLabel)"
           :id="`${idPrefix}-row-${idToken(item)}`"
           :ref="(element) => registerRow(item.key, element)"
           class="bfp-result-item"
@@ -211,12 +211,20 @@ const props = withDefaults(
      * moved is more confusing than starting the walk again.
      */
     clearFocusOnInput?: boolean
+    /**
+     * Whether groups start folded shut. Suits a pane whose groups are long
+     * lists the user picks from (a camera feed's every camera, say), where
+     * opening on a wall of rows hides the group headings themselves. A search
+     * query opens every group regardless, so a match is never folded away.
+     */
+    groupsCollapsedByDefault?: boolean
   }>(),
   {
     emptyMessage: 'No results',
     accentColor: 'var(--color-accent)',
     enterActivatesFirstRow: true,
     clearFocusOnInput: false,
+    groupsCollapsedByDefault: false,
   },
 )
 
@@ -243,14 +251,23 @@ const inputRef = ref<HTMLInputElement | null>(null)
 // Distinct from the expanded row: you can walk the list without opening rows.
 const focusedKey = ref<string | null>(null)
 
-/** Group labels the user has folded shut. Pane-local: a group re-opens on remount. */
-const collapsedGroups = ref(new Set<string>())
+/** Group labels the user has flipped away from the default state (open, or
+ *  shut under `groupsCollapsedByDefault`). Pane-local: a group returns to its
+ *  default on remount. */
+const toggledGroups = ref(new Set<string>())
+
+/** Whether a group's rows are hidden right now. A live query overrides the
+ *  fold so every match shows — see `groupsCollapsedByDefault`. */
+function isGroupCollapsed(groupLabel: string): boolean {
+  if (props.query.trim() !== '') return false
+  return props.groupsCollapsedByDefault !== toggledGroups.value.has(groupLabel)
+}
 
 function toggleGroup(groupLabel: string): void {
-  const next = new Set(collapsedGroups.value)
+  const next = new Set(toggledGroups.value)
   if (next.has(groupLabel)) next.delete(groupLabel)
   else next.add(groupLabel)
-  collapsedGroups.value = next
+  toggledGroups.value = next
   // A row inside a group that just closed can no longer be the active
   // descendant; drop the virtual focus rather than point at a hidden option.
   if (focusedKey.value && !visibleItems.value.some((item) => item.key === focusedKey.value)) {
@@ -260,7 +277,7 @@ function toggleGroup(groupLabel: string): void {
 
 /** The rows actually rendered — everything except rows of collapsed groups. */
 const visibleItems = computed<FilterPanelItem[]>(() =>
-  props.items.filter((item) => !item.groupLabel || !collapsedGroups.value.has(item.groupLabel)),
+  props.items.filter((item) => !item.groupLabel || !isGroupCollapsed(item.groupLabel)),
 )
 
 /** The token a row's element ids are built from (see FilterPanelItem.idKey). */

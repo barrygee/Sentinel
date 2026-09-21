@@ -121,9 +121,13 @@ const MapLibreMapStub = defineComponent({
 })
 
 import SeaMap from './SeaMap.vue'
+import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSeaStore } from '@/stores/sea'
 import { useBasemapStore } from '@/stores/basemap'
+
+/** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
+const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }
 
 interface FakeMap {
   onceHandlers: Record<string, () => void>
@@ -288,7 +292,7 @@ describe('SeaMap', () => {
       shared.connectivityCb!(true) // already online: nothing to do
       expect(map.setStyle).not.toHaveBeenCalled()
       shared.connectivityCb!(false)
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()
       expect(last('roads').applyVisibility).toHaveBeenCalled()
       expect(last('names').applyVisibility).toHaveBeenCalled()
@@ -314,7 +318,7 @@ describe('SeaMap', () => {
       shared.emit!('map-created', map)
       app.isOnline = false
       shared.emit!('style-loaded', map)
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json')
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()
       expect(last('vessels').initLayers).toHaveBeenCalled()
     })
