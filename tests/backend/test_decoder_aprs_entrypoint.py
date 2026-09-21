@@ -53,6 +53,16 @@ class TestExtractPacket:
     def test_bare_channel_prefix(self):
         assert entrypoint.extract_packet("[0] G0XYZ>APRS:hello") == "G0XYZ>APRS:hello"
 
+    def test_slicer_prefix(self):
+        # Direwolf's DEFAULT 1200-baud modem is "A+" (one demodulator, many
+        # slicers), so real output is "[chan.slice]" — not the bare "[chan]".
+        assert entrypoint.extract_packet("[0.2] G0XYZ>APRS:hi") == "G0XYZ>APRS:hi"
+
+    def test_subchannel_and_slicer_prefix(self):
+        # Multiple demodulators AND slicers (e.g. APRS_EXTRA_ARGS="-P ABC+")
+        # produce a three-part "[chan.subchan.slice]" prefix.
+        assert entrypoint.extract_packet("[0.1.2] G0XYZ>APRS:hi") == "G0XYZ>APRS:hi"
+
     def test_non_packet_line_is_none(self):
         assert entrypoint.extract_packet("M0ABC-9 audio level = 50") is None
 
@@ -274,16 +284,61 @@ class TestFetchDecodeConfig:
 class TestBuildDirewolfCommand:
     def test_default_flags(self, monkeypatch):
         monkeypatch.delenv("APRS_EXTRA_ARGS", raising=False)
+        monkeypatch.delenv("DIREWOLF_CONFIG", raising=False)
         command = entrypoint.build_direwolf_command()
         assert command[0] == "direwolf"
         assert command[-1] == "-"  # read audio from stdin
         for flag in ("-r", "48000", "-b", "16", "-B", "1200"):
             assert flag in command
 
+    def test_config_file_is_always_passed(self, monkeypatch):
+        # Direwolf exits(1) when it cannot open a config file — it has no
+        # built-in defaults — so -c is mandatory, not a nicety.
+        monkeypatch.delenv("APRS_EXTRA_ARGS", raising=False)
+        monkeypatch.delenv("DIREWOLF_CONFIG", raising=False)
+        command = entrypoint.build_direwolf_command()
+        assert command[command.index("-c") + 1] == entrypoint._DIREWOLF_CONFIG
+
+    def test_config_file_env_override(self, monkeypatch):
+        monkeypatch.delenv("APRS_EXTRA_ARGS", raising=False)
+        monkeypatch.setenv("DIREWOLF_CONFIG", "/etc/custom.conf")
+        command = entrypoint.build_direwolf_command()
+        assert command[command.index("-c") + 1] == "/etc/custom.conf"
+
+    def test_blank_config_env_falls_back_to_default(self, monkeypatch):
+        monkeypatch.delenv("APRS_EXTRA_ARGS", raising=False)
+        monkeypatch.setenv("DIREWOLF_CONFIG", "   ")
+        command = entrypoint.build_direwolf_command()
+        assert command[command.index("-c") + 1] == entrypoint._DIREWOLF_CONFIG
+
     def test_extra_args_appended(self, monkeypatch):
         monkeypatch.setenv("APRS_EXTRA_ARGS", "-d x -a 3")
         command = entrypoint.build_direwolf_command()
         assert command[-4:] == ["-d", "x", "-a", "3"]
+
+
+# ── describe_direwolf_exit ────────────────────────────────────────────────────
+
+
+class TestDescribeDirewolfExit:
+    def test_normal_end_of_session_is_silent(self):
+        # Backend stopped serving PCM after a long session: stdin EOF, status 0.
+        assert entrypoint.describe_direwolf_exit(0, 600.0) is None
+
+    def test_nonzero_status_is_reported(self):
+        message = entrypoint.describe_direwolf_exit(1, 0.2)
+        assert message is not None
+        assert "status 1" in message
+
+    def test_immediate_clean_exit_is_reported(self):
+        message = entrypoint.describe_direwolf_exit(0, 0.5)
+        assert message is not None
+        assert "without decoding" in message
+
+    def test_nonzero_status_reported_even_after_a_long_run(self):
+        message = entrypoint.describe_direwolf_exit(2, 900.0)
+        assert message is not None
+        assert "status 2" in message
 
 
 # ── handle_line ───────────────────────────────────────────────────────────────
