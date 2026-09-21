@@ -376,6 +376,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show the SDR radio picker's options
 - Ship a Direwolf config so the decoder can start at all (#330)
 - Make the APRS bridge own its channel frequency
+- Stop an unreachable TLE upstream stalling the passes list
 
 ### Chores
 
@@ -403,6 +404,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
+- Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
@@ -1218,6 +1220,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #329 from barrygee/fix/land-camera-groups-repeater-stacks
 - Merge pull request #331 from barrygee/fix/aprs-owned-channel-frequency
 - Merge pull request #332 from barrygee/feat/land-repeater-aprs-icons
+- Merge pull request #333 from barrygee/fix/tle-upstream-breaker
 
 ### Refactoring
 
