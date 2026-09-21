@@ -331,6 +331,59 @@ describe('SpacePasses — fetch error handling', () => {
     expect(wrapper.find('.spp-message').text()).toContain('Network error')
   })
 
+  it('treats a non-Error rejection as a network error rather than crashing', async () => {
+    fetchOverride = () => Promise.reject('offline')
+    const wrapper = await mountReady()
+    expect(wrapper.find('.spp-message').text()).toContain('Network error')
+  })
+
+  it('clears the COMPUTING status bar when the fetch fails', async () => {
+    fetchOverride = () => Promise.reject(new Error('offline'))
+    const wrapper = await mountReady()
+    expect(wrapper.find('#spp-status-bar').exists()).toBe(false)
+  })
+
+  it('gives up on a request that outlives the client-side ceiling and says so', async () => {
+    vi.useFakeTimers()
+    // A fetch that only ever settles when its signal is aborted — the shape of
+    // a backend walking a large catalogue against an unreachable TLE upstream.
+    fetchOverride = (_url, opts) =>
+      new Promise((_resolve, reject) => {
+        opts?.signal?.addEventListener('abort', () => reject(opts.signal?.reason))
+      })
+    const wrapper = mountPasses()
+    await flushPromises()
+    expect(wrapper.find('#spp-status-bar').text()).toBe('COMPUTING PASSES…')
+
+    // Just short of the ceiling the pane is still waiting…
+    await vi.advanceTimersByTimeAsync(89_999)
+    expect(wrapper.find('.spp-message').exists()).toBe(false)
+    // …and at it the request is abandoned with a timeout-specific message, not
+    // the generic network one, and not swallowed like a user-initiated abort.
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(wrapper.find('.spp-message').text()).toBe(
+      'Pass computation timed out — check the TLE source and retry.',
+    )
+    expect(wrapper.find('#spp-status-bar').exists()).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('cancels the ceiling once a request completes, so it cannot abort a later one', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountPasses()
+    await flushPromises()
+    const abortSpy = vi.spyOn(AbortController.prototype, 'abort')
+    // Past the ceiling with the first request long finished: nothing fires.
+    await vi.advanceTimersByTimeAsync(90_000)
+    expect(abortSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('.spp-message').exists()).toBe(false)
+    abortSpy.mockRestore()
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
   it('silently ignores an AbortError (no error message rendered)', async () => {
     const abortError = new Error('aborted')
     abortError.name = 'AbortError'

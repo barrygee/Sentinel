@@ -32,6 +32,33 @@ _KNOWN_SATELLITE_CATEGORIES: dict[str, tuple[str, str]] = {
 }
 
 
+# ── Upstream circuit breaker ─────────────────────────────────────────────────
+# Multi-satellite callers (the passes list) call fetch_tle once per satellite,
+# sequentially. When an upstream host is unreachable every expired entry would
+# otherwise pay the full connect timeout for each of its URLs — ~40 s per
+# satellite, an hour for a hundred — while the caller sits on the request. After
+# one transport failure a host is skipped for a short window and callers get the
+# cache instead, so an outage costs one timeout, not one per satellite.
+_UPSTREAM_DOWN_WINDOW_MS = 5 * 60 * 1000
+_upstream_host_down_until_ms: dict[str, int] = {}
+
+
+def _upstream_host_is_down(url: str) -> bool:
+    """True while `url`'s host is inside its post-failure back-off window."""
+    host = urlparse(url).netloc
+    return now_ms() < _upstream_host_down_until_ms.get(host, 0)
+
+
+def _mark_upstream_host_down(url: str) -> None:
+    """Start the back-off window for `url`'s host after a transport-level failure."""
+    _upstream_host_down_until_ms[urlparse(url).netloc] = now_ms() + _UPSTREAM_DOWN_WINDOW_MS
+
+
+def reset_upstream_breaker() -> None:
+    """Forget every host back-off (used by tests and manual refresh flows)."""
+    _upstream_host_down_until_ms.clear()
+
+
 # ── Category priority ordering (higher index = higher priority) ──────────────
 # Keys are valid category *values* — 'user' is intentionally excluded because it
 # is a category_source sentinel, never a stored category value.
@@ -320,9 +347,17 @@ async def fetch_tle(
                 fetch_urls.append(candidate)
 
     for url in fetch_urls:
+        if _upstream_host_is_down(url):
+            continue
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(url)
+                try:
+                    resp = await client.get(url)
+                except httpx.TransportError:
+                    # Connection-level failure (DNS, refused, connect/read
+                    # timeout): the host is unreachable, not just this entry.
+                    _mark_upstream_host_down(url)
+                    raise
                 resp.raise_for_status()
                 text = resp.text.strip()
 

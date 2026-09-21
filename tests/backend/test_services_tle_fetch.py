@@ -81,10 +81,21 @@ def _install_stub_upstream(
         async def get(self, url: str) -> _StubResponse:
             requested.append(url)
             if url not in responses:
-                raise httpx.ConnectTimeout("timed out")
+                # A per-URL miss (e.g. 404 on a CATNR lookup), not a transport
+                # failure — the latter trips the per-host breaker and would
+                # hide the ordering these tests assert.
+                raise httpx.HTTPStatusError("not found", request=None, response=None)  # type: ignore[arg-type]
             return _StubResponse(responses[url])
 
     monkeypatch.setattr(tle_service.httpx, "AsyncClient", _RecordingClient)
+
+
+@pytest.fixture(autouse=True)
+def _reset_upstream_breaker():
+    """The per-host back-off is module state; a tripped host must not leak between tests."""
+    tle_service.reset_upstream_breaker()
+    yield
+    tle_service.reset_upstream_breaker()
 
 
 @pytest.fixture()
@@ -324,3 +335,139 @@ class TestFetchTleCache:
             RuntimeError, match=f"TLE unavailable for NORAD {NOAA_20_NORAD}"
         ):
             await tle_service.fetch_tle(NOAA_20_NORAD, db, GROUP_FEED_URL)
+
+
+# ── Upstream circuit breaker ─────────────────────────────────────────────────
+
+
+def _install_transport_failing_upstream(
+    monkeypatch,
+    failing_hosts: set[str],
+    responses: dict[str, str],
+    requested: list[str],
+):
+    """Like `_install_stub_upstream`, but URLs on `failing_hosts` raise a transport error.
+
+    That is the connection-level failure (DNS, refused, connect timeout) the
+    breaker keys on, as opposed to a per-URL HTTP miss.
+    """
+
+    class _FlakyClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc_info) -> bool:
+            return False
+
+        async def get(self, url: str) -> _StubResponse:
+            requested.append(url)
+            if tle_service.urlparse(url).netloc in failing_hosts:
+                raise httpx.ConnectTimeout("unreachable")
+            if url not in responses:
+                raise httpx.HTTPStatusError("not found", request=None, response=None)  # type: ignore[arg-type]
+            return _StubResponse(responses[url])
+
+    monkeypatch.setattr(tle_service.httpx, "AsyncClient", _FlakyClient)
+
+
+class TestUpstreamBreaker:
+    def test_host_is_not_down_until_marked(self):
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is False
+
+    def test_marking_a_host_down_covers_every_url_on_that_host(self):
+        tle_service._mark_upstream_host_down(GROUP_FEED_URL)
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is True
+        # Same host, different path/query — one outage, one back-off.
+        assert tle_service._upstream_host_is_down(DERIVED_CATNR_URL) is True
+        # A different host is untouched.
+        assert tle_service._upstream_host_is_down(OFFGRID_FEED_URL) is False
+
+    def test_back_off_window_expires(self, monkeypatch):
+        tle_service._mark_upstream_host_down(GROUP_FEED_URL)
+        host = tle_service.urlparse(GROUP_FEED_URL).netloc
+        deadline = tle_service._upstream_host_down_until_ms[host]
+        assert deadline - now_ms() == pytest.approx(
+            tle_service._UPSTREAM_DOWN_WINDOW_MS, abs=1000
+        )
+        # Step the clock to the deadline: the window is closed, not still open.
+        monkeypatch.setattr(tle_service, "now_ms", lambda: deadline)
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is False
+        monkeypatch.setattr(tle_service, "now_ms", lambda: deadline - 1)
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is True
+
+    def test_reset_forgets_every_host(self):
+        tle_service._mark_upstream_host_down(GROUP_FEED_URL)
+        tle_service._mark_upstream_host_down(OFFGRID_FEED_URL)
+        tle_service.reset_upstream_breaker()
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is False
+        assert tle_service._upstream_host_is_down(OFFGRID_FEED_URL) is False
+
+    async def test_transport_failure_trips_the_host_and_later_fetches_skip_it(
+        self, db, monkeypatch
+    ):
+        requested: list[str] = []
+        host = tle_service.urlparse(GROUP_FEED_URL).netloc
+        _install_transport_failing_upstream(monkeypatch, {host}, {}, requested)
+
+        with pytest.raises(RuntimeError):
+            await tle_service.fetch_tle(NOAA_20_NORAD, db, GROUP_FEED_URL)
+        # The first URL's transport failure trips the host, so the group feed on
+        # the same host is never tried — one timeout for the whole outage.
+        assert requested == [DERIVED_CATNR_URL]
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is True
+
+        # A second satellite against the same host makes no request at all.
+        requested.clear()
+        with pytest.raises(RuntimeError):
+            await tle_service.fetch_tle("25544", db, GROUP_FEED_URL)
+        assert requested == []
+
+    async def test_tripped_host_serves_the_stale_cache(self, db, monkeypatch):
+        requested: list[str] = []
+        _install_stub_upstream(monkeypatch, {}, requested)
+        db.add(
+            TleCache(
+                cache_key=NOAA_20_NORAD,
+                payload=NOAA_20_TLE,
+                fetched_at=now_ms() - 1_000,  # just fetched, but marked expired
+                expires_at=now_ms() - 1,
+                source="online",
+            )
+        )
+        await db.commit()
+        tle_service._mark_upstream_host_down(GROUP_FEED_URL)
+
+        result = await tle_service.fetch_tle(NOAA_20_NORAD, db, GROUP_FEED_URL)
+
+        assert result == NOAA_20_TLE
+        assert requested == []
+
+    async def test_http_miss_does_not_trip_the_host(self, db, monkeypatch):
+        requested: list[str] = []
+        # The per-satellite URL 404s but the group feed on the same host answers:
+        # an HTTP-level miss is one bad URL, not an unreachable host.
+        _install_stub_upstream(monkeypatch, {GROUP_FEED_URL: NOAA_20_TLE}, requested)
+
+        result = await tle_service.fetch_tle(NOAA_20_NORAD, db, GROUP_FEED_URL)
+
+        assert result.splitlines()[0] == "NOAA 20"
+        assert requested == [DERIVED_CATNR_URL, GROUP_FEED_URL]
+        assert tle_service._upstream_host_is_down(GROUP_FEED_URL) is False
+
+    async def test_other_hosts_are_still_tried_when_one_is_down(self, db, monkeypatch):
+        requested: list[str] = []
+        host = tle_service.urlparse(GROUP_FEED_URL).netloc
+        _install_transport_failing_upstream(
+            monkeypatch, {host}, {OFFGRID_FEED_URL: NOAA_20_TLE}, requested
+        )
+        tle_service._mark_upstream_host_down(GROUP_FEED_URL)
+
+        result = await tle_service.fetch_tle(
+            NOAA_20_NORAD, db, GROUP_FEED_URL, offline_url=OFFGRID_FEED_URL
+        )
+
+        assert result.splitlines()[0] == "NOAA 20"
+        assert requested == [OFFGRID_FEED_URL]
