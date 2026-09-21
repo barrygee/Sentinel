@@ -368,6 +368,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Align waterfall time labels with the raster edge
 - Correct known-frequency marker alignment and demod bandwidth race
 - Resolve all 19 Dependabot alerts, migrate to maplibre-gl 6 (#328)
+- Start camera groups folded and stack shared-mast repeaters
+- Restore the basemap under maplibre-gl 6
+- Render at full resolution on large high-DPI displays
+- Show the SDR radio picker's options
 
 ### Chores
 
@@ -395,6 +399,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
+- Rebuild the SPA bundle
+- Rebuild the SPA bundle
+- Rebuild the SPA bundle
+- Rebuild the SPA bundle
 - Rebuild the SPA bundle
 
 ### Other
@@ -1201,6 +1209,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #318 from barrygee/fix/sdr-known-freq-marker-alignment
 - Merge pull request #325 from barrygee/feat/terrain-overlay
 - Merge pull request #326 from barrygee/feat/land-uk-repeaters
+- Merge pull request #329 from barrygee/fix/land-camera-groups-repeater-stacks
 
 ### Refactoring
 
@@ -1317,6 +1326,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Put the reconnect-cancel test on fake timers (#262)
 - Restore the map-rendering classification tests
 - Cover the Land repeater pane and widen the axe audit budget
+- Cover the SDR radio picker's options being reachable
 
 ### Build System
 
