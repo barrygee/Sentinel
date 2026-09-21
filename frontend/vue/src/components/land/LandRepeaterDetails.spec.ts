@@ -121,8 +121,20 @@ describe('LandRepeaterDetails', () => {
     expect(cells['ERP']).toBe('12 dBW')
     expect(cells['OFFSET']).toBe('+1.6000 MHz')
     expect(cells['CTCSS / CC']).toBe('118.8 Hz · CC5')
-    expect(cells['STATUS']).toBe('OPERATIONAL')
+    expect(cells['STATUS']).toBe('ON AIR')
     expect(cells['MODES']).toBe('FM · DMR')
+  })
+
+  it('words an off-air channel as OFF AIR, in a cell that may wrap', () => {
+    const wrapper = mountDetails({
+      station: station({ channels: [channel({ status: 'NOT OPERATIONAL' })] }),
+    })
+    expect(cellsByLabel(wrapper)['STATUS']).toBe('OFF AIR')
+    // The wrapping wrapper is what stops a long status ellipsising mid-word.
+    const statusCell = wrapper
+      .findAll('.land-repeater-wrapping .ba-data-cell')
+      .find((cell) => cell.get('.ba-data-cell-label').text() === 'STATUS')
+    expect(statusCell).toBeDefined()
   })
 
   it('dashes the mode list of a channel the register lists no modes for', () => {

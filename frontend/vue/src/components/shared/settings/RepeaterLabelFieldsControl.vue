@@ -34,7 +34,7 @@ const ROWS: LabelFieldRow[] = [
   { key: 'channel', abbr: 'CH', label: 'Channel' },
   { key: 'locator', abbr: 'LOC', label: 'Locator' },
   { key: 'keeper', abbr: 'KPR', label: 'Keeper' },
-  { key: 'status', abbr: 'STAT', label: 'Status' },
+  { key: 'status', abbr: 'STATUS', label: 'Status' },
 ]
 
 // Adopt the backend's stored choice on open, so the panel reflects what other

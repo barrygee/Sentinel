@@ -59,6 +59,7 @@ import {
   REPEATER_LOCATE_EVENT,
   REPEATER_OPEN_EVENT,
   stationAccessibleName,
+  stationStatusSummary,
 } from './RepeatersControl'
 import { useLandStore } from '@/stores/land'
 import { useRepeatersStore, DEFAULT_REPEATER_LABEL_FIELDS } from '@/stores/repeaters'
@@ -810,7 +811,47 @@ describe('RepeatersControl', () => {
       expect(text).toContain('RV52 · DVU12')
       expect(text).toContain('JO02PP')
       expect(text).toContain('G4XYZ')
-      expect(text).toContain('OPERATIONAL · NOT OPERATIONAL')
+      // Status is the leading dot, never words on the pill.
+      expect(text).not.toContain('OPERATIONAL')
+      expect(text).not.toContain('STATUS')
+    })
+
+    it('colours the leading dot by status when the STATUS field is on', () => {
+      repeatersStore.stations = [station({ channels: [channel({ status: OFF_AIR })] })]
+      repeatersStore.setLabelFields({ ...DEFAULT_REPEATER_LABEL_FIELDS, status: true })
+      addControl()
+      const well = labelMarkers()[0]!.element.querySelector('.adsb-arrow-wrap')!
+      expect(well.querySelector('circle')?.getAttribute('fill')).toBe('#ff4040')
+      expect(well.getAttribute('role')).toBe('img')
+      expect(well.getAttribute('aria-label')).toBe('Status: OFF AIR')
+      // No hover tooltip — the colour is the indicator, the name is for AT.
+      expect(well.getAttribute('title')).toBeNull()
+    })
+
+    it('keeps the dot plain white when the STATUS field is off', () => {
+      repeatersStore.stations = [station({ channels: [channel({ status: OFF_AIR })] })]
+      addControl()
+      const well = labelMarkers()[0]!.element.querySelector('.adsb-arrow-wrap')!
+      expect(well.querySelector('circle')?.getAttribute('fill')).toBe('#ffffff')
+      expect(well.getAttribute('role')).toBeNull()
+      expect(well.getAttribute('aria-label')).toBeNull()
+    })
+
+    it('shows the status dot even with the symbol field off, and shapes the callsign to sit beside it', () => {
+      repeatersStore.stations = [station()]
+      repeatersStore.setLabelFields({
+        ...DEFAULT_REPEATER_LABEL_FIELDS,
+        symbol: false,
+        status: true,
+      })
+      addControl()
+      const pill = labelMarkers()[0]!.element
+      expect(pill.querySelector('.adsb-arrow-wrap circle')?.getAttribute('fill')).toBe('#c8ff00')
+      // A 'right' segment (6px left pad, hugging the dot) rather than the
+      // 'standalone' shape (12px) the glyph-less pill uses.
+      expect((pill.querySelector('.adsb-label-name') as HTMLElement).style.padding).toBe(
+        '3px 10px 3px 6px',
+      )
     })
 
     it('collapses a value shared by every channel to one entry', () => {
@@ -820,8 +861,8 @@ describe('RepeatersControl', () => {
       repeatersStore.setLabelFields(ALL_FIELDS_ON)
       addControl()
       const text = labelMarkers()[0]!.element.textContent ?? ''
-      expect(text).toContain('OPERATIONAL')
-      expect(text).not.toContain('OPERATIONAL · OPERATIONAL')
+      expect(text).toContain('RV52')
+      expect(text).not.toContain('RV52 · RV52')
     })
 
     it('omits a field no channel or the site itself has a value for', () => {
@@ -966,5 +1007,49 @@ describe('stationAccessibleName', () => {
     expect(stationAccessibleName(station({ channels: [] }))).toBe(
       'Repeater GB3NR, NORWICH, not operational',
     )
+  })
+})
+
+describe('stationStatusSummary', () => {
+  it('reports a single-status site as that status, worded for the screen', () => {
+    expect(stationStatusSummary([channel(), channel({ band: '70CM' })])).toEqual({
+      status: 'OPERATIONAL',
+      statusText: 'ON AIR',
+    })
+    expect(stationStatusSummary([channel({ status: OFF_AIR })])).toEqual({
+      status: 'NOT OPERATIONAL',
+      statusText: 'OFF AIR',
+    })
+  })
+
+  it('reads a site with one channel off air as reduced, naming each band', () => {
+    const summary = stationStatusSummary([
+      channel({ band: '2M' }),
+      channel({ band: '70CM', status: OFF_AIR }),
+    ])
+    expect(summary.status).toBe('REDUCED OUTPUT')
+    expect(summary.statusText).toBe('2M · ON AIR · 70CM · OFF AIR')
+  })
+
+  it('reads a site with a reduced-output channel as reduced', () => {
+    expect(
+      stationStatusSummary([channel(), channel({ band: '70CM', status: 'REDUCED OUTPUT' })]).status,
+    ).toBe('REDUCED OUTPUT')
+  })
+
+  it('reads an on-air channel beside an unknown one as on air', () => {
+    expect(
+      stationStatusSummary([channel(), channel({ band: '70CM', status: 'UNKNOWN' })]).status,
+    ).toBe('OPERATIONAL')
+  })
+
+  it('falls back to unknown when no channel reports a usable status', () => {
+    // Two distinct statuses, neither on air nor degraded, can only be UNKNOWN
+    // paired with something the register has not defined yet.
+    const summary = stationStatusSummary([
+      channel({ status: 'UNKNOWN' }),
+      channel({ band: '70CM', status: '' as RepeaterStatus }),
+    ])
+    expect(summary.status).toBe('UNKNOWN')
   })
 })

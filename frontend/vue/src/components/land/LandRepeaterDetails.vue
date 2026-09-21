@@ -64,12 +64,16 @@
       />
       <BaseDataCell label="OFFSET" :value="formatRepeaterOffset(channel)" />
       <BaseDataCell label="CTCSS / CC" :value="formatRepeaterAccess(channel)" />
-      <BaseDataCell label="STATUS" :value="channel.status" />
+      <!-- "REDUCED OUTPUT" overruns a third-column cell, so it wraps onto
+           two lines rather than ellipsising to "REDUCED OU…". -->
+      <div class="land-repeater-wrapping">
+        <BaseDataCell label="STATUS" :value="formatRepeaterStatus(channel.status)" />
+      </div>
       <BaseDataCell label="HEIGHT" :value="formatHeight(channel.heightMagl)" />
       <BaseDataCell label="ERP" :value="formatErp(channel.erpDbw)" />
       <!-- A multimode site lists up to six modes: the whole row, wrapping,
            rather than a third-column cell that ellipsises after two. -->
-      <div class="land-repeater-modes">
+      <div class="land-repeater-wrapping">
         <BaseDataCell label="MODES" :value="formatRepeaterModes(channel.modes)" wide />
       </div>
     </BaseDataGrid>
@@ -92,6 +96,7 @@ import {
   formatRepeaterAccess,
   formatRepeaterModes,
   formatRepeaterOffset,
+  formatRepeaterStatus,
   REPEATER_SDR_MODE,
 } from '@/constants/repeaters'
 import type { RepeaterChannel, RepeaterStation } from '@/types/repeaters'
@@ -136,7 +141,9 @@ function formatErp(erpDbw: number | null): string {
 
 <style scoped>
 /* The modes list spans the grid and wraps, at the cells' own weight. */
-.land-repeater-modes {
+/* Cells whose value may run past the column (MODES, STATUS) wrap instead
+   of ellipsising. */
+.land-repeater-wrapping {
   display: contents;
   --ba-cell-value-white-space: normal;
   --ba-cell-value-word-break: break-word;
@@ -145,6 +152,10 @@ function formatErp(erpDbw: number | null): string {
 .land-repeater-details {
   display: flex;
   flex-direction: column;
+  /* Values read in capitals throughout — units ("m AGL", "dBW", "MHz") and
+     register text alike — matching the Air pane's all-caps readings. The
+     size is BaseDataCell's shared 14px, the same as Air. */
+  text-transform: uppercase;
   padding-bottom: 12px;
 }
 /* The position cells as links to the map, styled like the frequency cells'

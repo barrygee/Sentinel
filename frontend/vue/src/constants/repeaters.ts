@@ -3,7 +3,12 @@
  * map control, the FILTER pane and Settings so a band, mode or frequency is
  * spelled the same everywhere.
  */
-import type { RepeaterChannel, RepeaterModeCode, RepeaterStation } from '@/types/repeaters'
+import type {
+  RepeaterChannel,
+  RepeaterModeCode,
+  RepeaterStation,
+  RepeaterStatus,
+} from '@/types/repeaters'
 
 /** Human label for each ETCC mode letter (the register's own key). */
 export const REPEATER_MODE_LABELS: Readonly<Record<RepeaterModeCode, string>> = {
@@ -154,6 +159,35 @@ export function stationBands(station: Pick<RepeaterStation, 'channels'>): string
 export function stationModes(station: Pick<RepeaterStation, 'channels'>): RepeaterModeCode[] {
   const modes = new Set(station.channels.flatMap((channel) => channel.modes))
   return REPEATER_MODE_CODES.filter((code) => modes.has(code))
+}
+
+/**
+ * Colour of the status dot a map label shows per channel: green on air, red
+ * off air, amber for a site running at reduced output, grey when the register
+ * left the field blank.
+ */
+export const REPEATER_STATUS_COLORS: Readonly<Record<RepeaterStatus, string>> = {
+  OPERATIONAL: '#c8ff00',
+  'NOT OPERATIONAL': '#ff4040',
+  'REDUCED OUTPUT': '#ffb020',
+  UNKNOWN: '#8a8f99',
+}
+
+/**
+ * How a channel's licence status is worded on screen — the register's
+ * "OPERATIONAL" / "NOT OPERATIONAL" become the plainer "ON AIR" / "OFF AIR"
+ * the filter chips already use.
+ */
+export const REPEATER_STATUS_LABELS: Readonly<Record<RepeaterStatus, string>> = {
+  OPERATIONAL: 'ON AIR',
+  'NOT OPERATIONAL': 'OFF AIR',
+  'REDUCED OUTPUT': 'REDUCED OUTPUT',
+  UNKNOWN: 'UNKNOWN',
+}
+
+/** The on-screen wording for a channel's status (see {@link REPEATER_STATUS_LABELS}). */
+export function formatRepeaterStatus(status: RepeaterStatus): string {
+  return REPEATER_STATUS_LABELS[status]
 }
 
 /** Whether every channel of the site is off air — the map dims such sites. */

@@ -10,6 +10,9 @@ import {
   REPEATER_SEARCH_KEY_PREFIX,
   REPEATER_SOURCE_NAME,
   REPEATER_SOURCE_URL,
+  REPEATER_STATUS_COLORS,
+  REPEATER_STATUS_LABELS,
+  formatRepeaterStatus,
   channelHasDigitalDecode,
   formatMhz,
   formatRepeaterAccess,
@@ -276,5 +279,31 @@ describe('FILTER-pane row keys', () => {
 
   it('reads an empty callsign back as an empty string, not null', () => {
     expect(repeaterCallsignFromSearchKey('rpt:')).toBe('')
+  })
+})
+
+describe('repeater status vocabulary', () => {
+  const EVERY_STATUS: readonly RepeaterStatus[] = [
+    'OPERATIONAL',
+    'NOT OPERATIONAL',
+    'REDUCED OUTPUT',
+    'UNKNOWN',
+  ]
+
+  it('gives every status a distinct dot colour, lime for a site on air', () => {
+    const colours = EVERY_STATUS.map((status) => REPEATER_STATUS_COLORS[status])
+    expect(new Set(colours).size).toBe(EVERY_STATUS.length)
+    expect(REPEATER_STATUS_COLORS.OPERATIONAL).toBe('#c8ff00')
+    expect(REPEATER_STATUS_COLORS['NOT OPERATIONAL']).toBe('#ff4040')
+  })
+
+  it('words the register statuses as ON AIR / OFF AIR and leaves the rest as they are', () => {
+    expect(formatRepeaterStatus('OPERATIONAL')).toBe('ON AIR')
+    expect(formatRepeaterStatus('NOT OPERATIONAL')).toBe('OFF AIR')
+    expect(formatRepeaterStatus('REDUCED OUTPUT')).toBe('REDUCED OUTPUT')
+    expect(formatRepeaterStatus('UNKNOWN')).toBe('UNKNOWN')
+    for (const status of EVERY_STATUS) {
+      expect(formatRepeaterStatus(status)).toBe(REPEATER_STATUS_LABELS[status])
+    }
   })
 })
