@@ -89,6 +89,12 @@ const APRS_POLL_INTERVAL_MS = 5000
  */
 /** Fallback retention shown in Settings until the DB value hydrates (minutes). */
 const DEFAULT_APRS_RETENTION_MINUTES = 5
+/**
+ * Fallback APRS channel shown in Settings until the DB value hydrates (MHz).
+ * 144.800 is the 2 m APRS channel in Europe/UK; mirrors the backend's
+ * `aprs_channel_hz` default.
+ */
+const DEFAULT_APRS_CHANNEL_MHZ = 144.8
 
 export const useLandStore = defineStore('land', () => {
   const aprsStations = ref<AprsStation[]>([])
@@ -98,6 +104,14 @@ export const useLandStore = defineStore('land', () => {
   const aprsRetentionMinutes = ref<number>(DEFAULT_APRS_RETENTION_MINUTES)
   function setAprsRetentionMinutes(minutes: number): void {
     aprsRetentionMinutes.value = minutes
+  }
+
+  // The APRS channel the decode bridge keeps its radio on (MHz). Backend-owned
+  // (`land/aprsChannelHz`, tuned by the bridge itself); this mirror exists only
+  // so the Settings control can read/edit it.
+  const aprsChannelMhz = ref<number>(DEFAULT_APRS_CHANNEL_MHZ)
+  function setAprsChannelMhz(megahertz: number): void {
+    aprsChannelMhz.value = megahertz
   }
 
   // Which data fields appear on APRS map labels. Persisted locally for instant
@@ -243,6 +257,8 @@ export const useLandStore = defineStore('land', () => {
     aprsStations,
     aprsRetentionMinutes,
     setAprsRetentionMinutes,
+    aprsChannelMhz,
+    setAprsChannelMhz,
     aprsLabelFields,
     setAprsLabelFields,
     aprsLayerVisible,

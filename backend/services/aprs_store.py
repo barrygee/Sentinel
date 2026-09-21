@@ -42,6 +42,39 @@ async def _retention_ms(db: AsyncSession) -> int:
     return int(minutes * 60_000)
 
 
+# Sanity bounds for a user-set APRS channel: anything an RTL-SDR can tune.
+APRS_CHANNEL_MIN_HZ = 24_000_000
+APRS_CHANNEL_MAX_HZ = 1_766_000_000
+
+
+def coerce_aprs_channel_hz(raw: object) -> int | None:
+    """Return ``raw`` as a valid APRS channel frequency (Hz), or None.
+
+    Accepts an int/float/numeric string within the tunable range; anything else
+    (blank, non-numeric, out of range) is None so callers fall back to the
+    default rather than tuning the dongle somewhere nonsensical.
+    """
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        channel_hz = int(round(float(raw)))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if not APRS_CHANNEL_MIN_HZ <= channel_hz <= APRS_CHANNEL_MAX_HZ:
+        return None
+    return channel_hz
+
+
+async def read_aprs_channel_hz(db: AsyncSession) -> int:
+    """Resolve the APRS channel (Hz) the decode bridge should keep the radio on.
+
+    Reads ``land``/``aprsChannelHz``; falls back to ``settings.aprs_channel_hz``
+    (144.800 MHz) when unset or invalid.
+    """
+    raw = await get_setting(db, "land", "aprsChannelHz", default=None)
+    return coerce_aprs_channel_hz(raw) or settings.aprs_channel_hz
+
+
 def _coerce_float(value: object) -> float | None:
     """Return ``value`` as a float, or None if it is missing/non-numeric.
 

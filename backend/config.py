@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     # (~5 kHz deviation), a touch wider than the 12.5 kHz voice channel so the
     # 1200/2200 Hz AFSK tones and deviation pass cleanly.
     aprs_decoder_default_bw_hz: int = 15_000
+    # Fallback APRS channel (Hz) the decode bridge keeps the radio on, used when
+    # no user override is set. 144.800 MHz is the 2 m APRS channel in Europe/UK
+    # (North America uses 144.390 MHz). The user can override this per-install
+    # via the `land`/`aprsChannelHz` setting; the bridge reads that and falls
+    # back to this value. The bridge owns the channel: it tunes the dongle here
+    # on start and re-derives its demod offset from the live centre frequency,
+    # so a viewer's retune (or a satellite auto-tune) can't silently move APRS
+    # off channel.
+    aprs_channel_hz: int = 144_800_000
     # Fallback retention (ms) for a heard APRS station on the Land map before it
     # is dropped, used when no user override is set. Default 5 minutes. The user
     # can override this per-install via the `land`/`aprsRetentionMinutes` setting

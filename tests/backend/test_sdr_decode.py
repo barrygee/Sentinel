@@ -15,6 +15,7 @@ Covered:
 """
 
 import asyncio
+import logging
 import math
 import struct
 from pathlib import Path
@@ -263,13 +264,27 @@ class TestDemodChunk:
 # ── DigitalDecodeBridge ───────────────────────────────────────────────────────
 
 
-class _FakeBroadcaster:
-    """Minimal stand-in exposing just the IQ fan-out the bridge needs."""
+class _FakeConnection:
+    """Stand-in for the rtl_tcp connection: mirrors centre/rate, records retunes."""
 
-    def __init__(self) -> None:
+    def __init__(self, center_hz: int = 0, sample_rate: int = 1_024_000) -> None:
+        self.center_hz = center_hz
+        self.sample_rate = sample_rate
+        self.tuned_to: list[int] = []
+
+    async def set_frequency(self, freq_hz: int) -> None:
+        self.tuned_to.append(freq_hz)
+        self.center_hz = freq_hz
+
+
+class _FakeBroadcaster:
+    """Minimal stand-in exposing just the IQ fan-out (and connection) the bridge needs."""
+
+    def __init__(self, connection: _FakeConnection | None = None) -> None:
         self.iq_queue: asyncio.Queue = asyncio.Queue()
         self.subscribed = False
         self.unsubscribed = False
+        self.connection = connection or _FakeConnection()
 
     def subscribe_iq(self) -> asyncio.Queue:
         self.subscribed = True
@@ -613,8 +628,8 @@ class TestAprsDecodeBridge:
         # The APRS bridge shares the PCM spine but adds no decoded-voice UDP path
         # (Direwolf reads PCM and returns packets purely as ingested events).
         broadcaster = _FakeBroadcaster()
-        bridge = AprsDecodeBridge(broadcaster, pcm_port=0)
-        await bridge.start(offset_hz=0, bw_hz=DEFAULT_DECODE_BW_HZ)
+        bridge = AprsDecodeBridge(broadcaster, pcm_port=0, channel_hz=144_800_000)
+        await bridge.start(bw_hz=DEFAULT_DECODE_BW_HZ)
         try:
             assert bridge.kind == "aprs"
             assert broadcaster.subscribed
@@ -622,7 +637,7 @@ class TestAprsDecodeBridge:
             assert await _wait_until(lambda: bridge.decoder_reachable)
 
             raw = _fm_iq_bytes(1500, 2500, 0, 1_024_000, 40_000)
-            await broadcaster.iq_queue.put(_iq_payload(1_024_000, 100_000_000, raw))
+            await broadcaster.iq_queue.put(_iq_payload(1_024_000, 144_800_000, raw))
             pcm = await asyncio.wait_for(reader.read(256), timeout=2.0)
             assert len(pcm) > 0
             writer.close()
@@ -658,6 +673,204 @@ class TestAprsDecodeBridge:
         assert events.get_nowait() is None  # sentinel on stop
 
 
+class TestAprsBridgeChannelOwnership:
+    """The APRS bridge owns an absolute channel: it tunes the dongle onto it and
+    follows the live centre frequency rather than trusting a caller's offset."""
+
+    def test_channel_defaults_to_settings(self):
+        bridge = AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert bridge.channel_hz == settings.aprs_channel_hz
+        assert bridge.on_channel is False
+
+    async def test_start_tunes_dongle_when_channel_outside_span(self):
+        # A fresh connection sits wherever rtl_tcp last was (100 MHz default).
+        connection = _FakeConnection(center_hz=100_000_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_800_000
+        )
+        await bridge.start()
+        try:
+            assert connection.tuned_to == [144_800_000]
+        finally:
+            await bridge.stop()
+
+    async def test_start_leaves_dongle_alone_when_span_already_covers_channel(self):
+        connection = _FakeConnection(center_hz=144_800_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_390_000
+        )
+        await bridge.start()
+        try:
+            assert connection.tuned_to == []
+        finally:
+            await bridge.stop()
+
+    async def test_start_tunes_when_connection_centre_is_unknown(self):
+        # center_hz == 0 means nothing has been mirrored yet: tune rather than guess.
+        connection = _FakeConnection(center_hz=0, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_800_000
+        )
+        await bridge.start()
+        try:
+            assert connection.tuned_to == [144_800_000]
+        finally:
+            await bridge.stop()
+
+    async def test_tuning_failure_is_logged_not_raised(self, caplog):
+        connection = _FakeConnection(center_hz=100_000_000)
+
+        async def refuse(_freq_hz: int) -> None:
+            raise RuntimeError("another instance owns the tuner")
+
+        connection.set_frequency = refuse  # type: ignore[method-assign]
+        bridge = AprsDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        with caplog.at_level(logging.WARNING):
+            await bridge.start()
+        try:
+            assert bridge.running
+            assert "could not tune radio" in caplog.text
+        finally:
+            await bridge.stop()
+
+    def test_accept_chunk_derives_offset_from_live_centre(self, caplog):
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(), pcm_port=0, channel_hz=144_800_000
+        )
+        with caplog.at_level(logging.INFO):
+            accepted = bridge._accept_chunk(
+                sample_rate=2_048_000, center_hz=144_500_000
+            )
+        assert accepted is True
+        assert bridge._state.offset_hz == 300_000
+        assert bridge.on_channel is True
+        assert "back in span" in caplog.text
+        # A second in-span chunk retunes the offset silently (no repeat log).
+        caplog.clear()
+        assert (
+            bridge._accept_chunk(sample_rate=2_048_000, center_hz=144_900_000) is True
+        )
+        assert bridge._state.offset_hz == -100_000
+        assert caplog.text == ""
+
+    async def test_accept_chunk_treats_the_rolled_off_span_edge_as_out_of_span(self):
+        connection = _FakeConnection(center_hz=144_300_000, sample_rate=1_024_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_800_000
+        )
+        # 1.024 MHz span: usable half-span is 460.8 kHz, so 500 kHz off is out.
+        assert (
+            bridge._accept_chunk(sample_rate=1_024_000, center_hz=144_300_000) is False
+        )
+        await bridge._retune_task
+        assert connection.tuned_to == [144_800_000]
+
+    async def test_accept_chunk_rejects_zero_sample_rate(self):
+        connection = _FakeConnection(center_hz=144_800_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        assert bridge._accept_chunk(sample_rate=0, center_hz=144_800_000) is False
+        # The connection's own mirror still covers the channel, so no retune is sent.
+        await bridge._retune_task
+        assert connection.tuned_to == []
+
+    async def test_off_span_chunk_is_skipped_and_schedules_a_retune(self, caplog):
+        connection = _FakeConnection(center_hz=144_800_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_800_000
+        )
+        assert bridge._accept_chunk(sample_rate=2_048_000, center_hz=144_800_000)
+        # Something parks the dongle on the ISS (145.800 MHz).
+        connection.center_hz = 145_800_000
+        with caplog.at_level(logging.WARNING):
+            accepted = bridge._accept_chunk(
+                sample_rate=2_048_000, center_hz=145_800_000
+            )
+        assert accepted is False
+        assert bridge.on_channel is False
+        assert "outside the captured span" in caplog.text
+        assert bridge._retune_task is not None
+        await bridge._retune_task
+        assert connection.tuned_to == [144_800_000]
+
+    async def test_retune_is_throttled_while_one_is_pending_or_recent(self):
+        connection = _FakeConnection(center_hz=145_800_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_800_000
+        )
+        bridge._schedule_retune()
+        first_task = bridge._retune_task
+        assert first_task is not None
+        bridge._schedule_retune()  # pending → not replaced
+        assert bridge._retune_task is first_task
+        await first_task
+        assert connection.tuned_to == [144_800_000]
+        # Done, but within the interval → no new attempt.
+        connection.center_hz = 145_800_000
+        bridge._schedule_retune()
+        assert bridge._retune_task is first_task
+        # Once the interval has elapsed a fresh attempt is made.
+        bridge._last_retune_monotonic -= sdr_decode.APRS_RETUNE_INTERVAL_S
+        bridge._schedule_retune()
+        assert bridge._retune_task is not first_task
+        await bridge._retune_task
+        assert connection.tuned_to == [144_800_000, 144_800_000]
+
+    async def test_set_channel_hz_retunes_a_running_bridge(self):
+        connection = _FakeConnection(center_hz=144_800_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(
+            _FakeBroadcaster(connection), pcm_port=0, channel_hz=144_800_000
+        )
+        await bridge.start()
+        try:
+            await bridge.set_channel_hz(144_800_000)  # unchanged → no-op
+            assert connection.tuned_to == []
+            await bridge.set_channel_hz(432_500_000)  # 70 cm: outside the 2 m span
+            assert bridge.channel_hz == 432_500_000
+            assert connection.tuned_to == [432_500_000]
+        finally:
+            await bridge.stop()
+
+    async def test_set_channel_hz_on_a_stopped_bridge_only_records_it(self):
+        connection = _FakeConnection(center_hz=100_000_000)
+        bridge = AprsDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        await bridge.set_channel_hz(144_390_000)
+        assert bridge.channel_hz == 144_390_000
+        assert connection.tuned_to == []
+
+    async def test_stop_cancels_a_pending_retune_and_clears_on_channel(self):
+        connection = _FakeConnection(center_hz=144_800_000, sample_rate=2_048_000)
+        bridge = AprsDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        await bridge.start()
+        assert bridge._accept_chunk(sample_rate=2_048_000, center_hz=144_800_000)
+        never_finishes: asyncio.Future = asyncio.get_running_loop().create_future()
+        bridge._retune_task = asyncio.ensure_future(never_finishes)
+        await bridge.stop()
+        assert bridge._retune_task is None
+        assert never_finishes.cancelled()
+        assert bridge.on_channel is False
+
+    async def test_run_loop_skips_off_span_chunks(self):
+        # End-to-end through the demod loop: an off-span chunk yields no PCM,
+        # an in-span one does.
+        connection = _FakeConnection(center_hz=144_800_000, sample_rate=1_024_000)
+        broadcaster = _FakeBroadcaster(connection)
+        bridge = AprsDecodeBridge(broadcaster, pcm_port=0, channel_hz=144_800_000)
+        bridge._last_retune_monotonic = float("inf")  # never retune during the test
+        await bridge.start(bw_hz=DEFAULT_DECODE_BW_HZ)
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", bridge.pcm_port)
+            assert await _wait_until(lambda: bridge.decoder_reachable)
+            raw = _fm_iq_bytes(1500, 2500, 0, 1_024_000, 40_000)
+            await broadcaster.iq_queue.put(_iq_payload(1_024_000, 145_800_000, raw))
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(reader.read(256), timeout=0.3)
+            await broadcaster.iq_queue.put(_iq_payload(1_024_000, 144_800_000, raw))
+            assert len(await asyncio.wait_for(reader.read(256), timeout=2.0)) > 0
+            writer.close()
+        finally:
+            await bridge.stop()
+
+
 # ── APRS bridge cache helpers ─────────────────────────────────────────────────
 
 
@@ -670,6 +883,28 @@ class TestAprsBridgeCacheHelpers:
         assert first is second
         assert isinstance(first, AprsDecodeBridge)
         assert sdr_decode.get_aprs_bridge("h1", 1234) is first
+
+    async def test_get_or_create_applies_a_channel_to_a_new_bridge(self, monkeypatch):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        bridge = await sdr_decode.get_or_create_aprs_bridge(
+            "h1", 1234, _FakeBroadcaster(), channel_hz=144_390_000
+        )
+        assert bridge.channel_hz == 144_390_000
+
+    async def test_get_or_create_moves_an_existing_bridge_to_the_channel(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)
+        broadcaster = _FakeBroadcaster()
+        existing = await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        again = await sdr_decode.get_or_create_aprs_bridge(
+            "h1", 1234, broadcaster, channel_hz=144_390_000
+        )
+        assert again is existing
+        assert existing.channel_hz == 144_390_000
+        # Omitting the channel leaves the existing bridge's channel alone.
+        await sdr_decode.get_or_create_aprs_bridge("h1", 1234, broadcaster)
+        assert existing.channel_hz == 144_390_000
 
     async def test_get_or_create_stops_other_radio_aprs_bridge(self, monkeypatch):
         monkeypatch.setattr(settings, "aprs_decoder_pcm_port", 0)

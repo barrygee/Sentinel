@@ -270,3 +270,54 @@ class TestRetentionWindow:
         assert [s["callsign"] for s in stations] == ["FRESH"]
         removed = await aprs_store.cleanup_expired(now)
         assert removed == 1
+
+
+# ── APRS channel setting ──────────────────────────────────────────────────────
+
+
+class TestCoerceAprsChannelHz:
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            (144_800_000, 144_800_000),
+            (144_390_000.4, 144_390_000),  # float rounds to whole Hz
+            ("144800000", 144_800_000),  # numeric string
+            (aprs_store.APRS_CHANNEL_MIN_HZ, aprs_store.APRS_CHANNEL_MIN_HZ),
+            (aprs_store.APRS_CHANNEL_MAX_HZ, aprs_store.APRS_CHANNEL_MAX_HZ),
+        ],
+    )
+    def test_accepts_in_range_numeric_values(self, raw, expected):
+        assert aprs_store.coerce_aprs_channel_hz(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            None,
+            True,  # bool is an int subclass but never a frequency
+            "",
+            "two metres",
+            [],
+            aprs_store.APRS_CHANNEL_MIN_HZ - 1,
+            aprs_store.APRS_CHANNEL_MAX_HZ + 1,
+            0,
+            -144_800_000,
+        ],
+    )
+    def test_rejects_missing_non_numeric_and_out_of_range(self, raw):
+        assert aprs_store.coerce_aprs_channel_hz(raw) is None
+
+
+class TestReadAprsChannelHz:
+    async def test_defaults_to_settings_when_unset(self, session_factory):
+        async with session_factory() as db:
+            assert await aprs_store.read_aprs_channel_hz(db) == settings.aprs_channel_hz
+
+    async def test_reads_a_valid_user_override(self, session_factory):
+        async with session_factory() as db:
+            await upsert_setting(db, "land", "aprsChannelHz", 144_390_000)
+            assert await aprs_store.read_aprs_channel_hz(db) == 144_390_000
+
+    async def test_falls_back_on_an_invalid_override(self, session_factory):
+        async with session_factory() as db:
+            await upsert_setting(db, "land", "aprsChannelHz", "nope")
+            assert await aprs_store.read_aprs_channel_hz(db) == settings.aprs_channel_hz

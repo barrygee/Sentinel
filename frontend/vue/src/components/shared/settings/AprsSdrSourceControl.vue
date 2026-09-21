@@ -25,9 +25,10 @@
  * settings and runs on APPLY CHANGES, so the button reports what the operator
  * just did instead of "NO CHANGES".
  *
- * The radio must be tuned to the APRS channel (2 m packet, e.g. 144.800 MHz in
- * Europe / 144.390 MHz in North America) in the SDR view for packets to arrive;
- * this control chooses the receiver, it does not retune it.
+ * The backend's APRS bridge owns the radio's frequency: it tunes the chosen
+ * receiver to the APRS channel (Settings › LAND › APRS Channel, 144.800 MHz by
+ * default) and pulls it back if a viewer or satellite auto-tune moves it off,
+ * so nothing needs retuning by hand here.
  */
 import { onMounted, ref, watch } from 'vue'
 import SdrRadioSelect from './SdrRadioSelect.vue'
