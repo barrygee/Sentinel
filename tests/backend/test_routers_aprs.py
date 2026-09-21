@@ -121,14 +121,39 @@ class TestAprsStart:
 
         resp = client.post(
             "/api/sdr/aprs/start",
-            json={"radio_id": radio_id, "offset_hz": 100, "bw_hz": 15000},
+            json={"radio_id": radio_id, "bw_hz": 15000},
         )
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok", "radio_id": radio_id, "active": True}
-        bridge.start.assert_awaited_once_with(offset_hz=100, bw_hz=15000)
+        bridge.start.assert_awaited_once_with(bw_hz=15000)
         # The enabled radio is persisted so it resumes on restart.
         settings_dump = client.get("/api/settings/sdr").json()
         assert settings_dump["aprs_radio_id"] == radio_id
+
+    def test_passes_the_configured_channel_to_the_bridge(self, client, monkeypatch):
+        radio_id = _add_radio(client)
+        client.put("/api/settings/land/aprsChannelHz", json={"value": 144_390_000})
+        factory = AsyncMock(return_value=_bridge_double())
+        monkeypatch.setattr(
+            sdr_svc,
+            "get_or_create_broadcaster",
+            AsyncMock(return_value=_FakeBroadcaster()),
+        )
+        monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", factory)
+        client.post("/api/sdr/aprs/start", json={"radio_id": radio_id})
+        assert factory.await_args.kwargs == {"channel_hz": 144_390_000}
+
+    def test_falls_back_to_the_default_channel_when_unset(self, client, monkeypatch):
+        radio_id = _add_radio(client)
+        factory = AsyncMock(return_value=_bridge_double())
+        monkeypatch.setattr(
+            sdr_svc,
+            "get_or_create_broadcaster",
+            AsyncMock(return_value=_FakeBroadcaster()),
+        )
+        monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", factory)
+        client.post("/api/sdr/aprs/start", json={"radio_id": radio_id})
+        assert factory.await_args.kwargs == {"channel_hz": settings.aprs_channel_hz}
 
     def test_zero_bandwidth_passes_none(self, client, monkeypatch):
         radio_id = _add_radio(client)
@@ -143,7 +168,7 @@ class TestAprsStart:
             sdr_decode, "get_or_create_aprs_bridge", AsyncMock(return_value=bridge)
         )
         client.post("/api/sdr/aprs/start", json={"radio_id": radio_id})
-        bridge.start.assert_awaited_once_with(offset_hz=0, bw_hz=None)
+        bridge.start.assert_awaited_once_with(bw_hz=None)
 
 
 # ── POST /api/sdr/aprs/stop ───────────────────────────────────────────────────
@@ -181,7 +206,18 @@ class TestAprsStatus:
             "radio_id": radio_id,
             "active": False,
             "decoder_reachable": False,
+            "channel_hz": None,
+            "on_channel": False,
         }
+
+    def test_reports_the_bridge_channel_and_on_channel_state(self, client):
+        radio_id = _add_radio(client)
+        bridge = _register_aprs_bridge()
+        bridge._channel_hz = 144_390_000
+        bridge._on_channel = True
+        body = client.get(f"/api/sdr/aprs/status/{radio_id}").json()
+        assert body["channel_hz"] == 144_390_000
+        assert body["on_channel"] is True
 
     def test_running_bridge_reports_active(self, client):
         radio_id = _add_radio(client)
@@ -339,6 +375,20 @@ class TestResumePersistedAprs:
         await sdr_router.resume_persisted_aprs()
         bridge.start.assert_awaited_once()
 
+    async def test_resume_uses_the_persisted_channel(self, client, monkeypatch):
+        radio_id = _add_radio(client)
+        client.put("/api/settings/sdr/aprs_radio_id", json={"value": radio_id})
+        client.put("/api/settings/land/aprsChannelHz", json={"value": 144_390_000})
+        factory = AsyncMock(return_value=_bridge_double())
+        monkeypatch.setattr(
+            sdr_svc,
+            "get_or_create_broadcaster",
+            AsyncMock(return_value=_FakeBroadcaster()),
+        )
+        monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", factory)
+        await sdr_router.resume_persisted_aprs()
+        assert factory.await_args.kwargs == {"channel_hz": 144_390_000}
+
     async def test_connect_failure_is_swallowed(self, client, monkeypatch):
         radio_id = _add_radio(client)
         client.put("/api/settings/sdr/aprs_radio_id", json={"value": radio_id})
@@ -461,4 +511,19 @@ class TestReconcileAprsDecode:
         async with await self._session() as db:
             await sdr_router.reconcile_aprs_decode(db, None, next_id)
 
+        assert sdr_decode.get_active_aprs_bridge() is None
+
+
+# ── apply_aprs_channel ────────────────────────────────────────────────────────
+
+
+class TestApplyAprsChannel:
+    async def test_moves_the_active_bridge(self):
+        bridge = _register_aprs_bridge()
+        bridge.set_channel_hz = AsyncMock()
+        await sdr_router.apply_aprs_channel(144_390_000)
+        bridge.set_channel_hz.assert_awaited_once_with(144_390_000)
+
+    async def test_noop_without_a_running_bridge(self):
+        await sdr_router.apply_aprs_channel(144_390_000)  # must not raise
         assert sdr_decode.get_active_aprs_bridge() is None

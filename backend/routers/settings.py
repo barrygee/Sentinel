@@ -99,6 +99,27 @@ def _validated_location(value: Any) -> dict:
     return {"latitude": lat, "longitude": lon}
 
 
+def _validated_aprs_channel_hz(value: Any) -> int:
+    """Validate a `land/aprsChannelHz` write: an integer Hz within the tunable range.
+
+    Rejected (400) rather than silently defaulted so a typo in Settings doesn't
+    quietly leave APRS decoding the wrong channel.
+    """
+    from backend.services.aprs_store import (  # avoid import cycle at module load
+        APRS_CHANNEL_MAX_HZ,
+        APRS_CHANNEL_MIN_HZ,
+        coerce_aprs_channel_hz,
+    )
+
+    channel_hz = coerce_aprs_channel_hz(value)
+    if channel_hz is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"aprsChannelHz must be a frequency in Hz between {APRS_CHANNEL_MIN_HZ} and {APRS_CHANNEL_MAX_HZ}",
+        )
+    return channel_hz
+
+
 def _validated_feeds(value: Any) -> list[dict]:
     """Validate/normalise a `land.feeds` list against `FeedConfig`.
 
@@ -511,6 +532,12 @@ async def config_upload(
         from backend.routers.sdr import reconcile_aprs_decode  # avoid import cycle at module load
 
         await reconcile_aprs_decode(db, previous_aprs_radio_id, next_aprs_radio_id)
+    elif isinstance(config.get("land"), dict) and "aprsChannelHz" in config["land"]:
+        # Same radio, but the uploaded JSON may have moved the APRS channel.
+        from backend.routers.sdr import apply_aprs_channel  # avoid import cycle at module load
+        from backend.services.aprs_store import read_aprs_channel_hz  # avoid import cycle at module load
+
+        await apply_aprs_channel(await read_aprs_channel_hz(db))
 
     land_ns = config.get("land")
     if isinstance(land_ns, dict) and "feeds" in land_ns:
@@ -547,7 +574,13 @@ async def upsert_setting_endpoint(
         value = _validated_location(value)
     if namespace == "land" and key == "feeds":
         value = _validated_feeds(value)
+    if namespace == "land" and key == "aprsChannelHz":
+        value = _validated_aprs_channel_hz(value)
     await upsert_setting(db, namespace, key, value)
+    if namespace == "land" and key == "aprsChannelHz":
+        from backend.routers.sdr import apply_aprs_channel  # avoid import cycle at module load
+
+        await apply_aprs_channel(value)
     if namespace == "land" and key == "feeds":
         from backend.services.land_feeds.poller import poller as land_feeds_poller  # avoid import cycle at module load
 

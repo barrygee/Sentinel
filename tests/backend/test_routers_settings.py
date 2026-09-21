@@ -10,6 +10,8 @@ import io
 import json
 from unittest.mock import AsyncMock
 
+import pytest
+
 
 # ── GET /api/settings ─────────────────────────────────────────────────────────
 
@@ -316,6 +318,46 @@ class TestConfigUpload:
 
         reconcile.assert_not_awaited()
 
+    # ── APRS channel follows land.aprsChannelHz ───────────────────────────────
+
+    def test_applies_an_uploaded_aprs_channel_when_radio_unchanged(
+        self, client, monkeypatch
+    ):
+        from backend.routers import sdr as sdr_router
+
+        apply_channel = AsyncMock()
+        monkeypatch.setattr(sdr_router, "apply_aprs_channel", apply_channel)
+        client.put("/api/settings/sdr/aprs_radio_id", json={"value": 1})
+
+        self._upload(client, {"land": {"aprsChannelHz": 144390000}})
+
+        apply_channel.assert_awaited_once_with(144390000)
+
+    def test_uploaded_invalid_aprs_channel_falls_back_to_default(
+        self, client, monkeypatch
+    ):
+        from backend.config import settings as app_settings
+        from backend.routers import sdr as sdr_router
+
+        apply_channel = AsyncMock()
+        monkeypatch.setattr(sdr_router, "apply_aprs_channel", apply_channel)
+
+        self._upload(client, {"land": {"aprsChannelHz": "junk"}})
+
+        apply_channel.assert_awaited_once_with(app_settings.aprs_channel_hz)
+
+    def test_upload_without_aprs_channel_does_not_touch_the_bridge(
+        self, client, monkeypatch
+    ):
+        from backend.routers import sdr as sdr_router
+
+        apply_channel = AsyncMock()
+        monkeypatch.setattr(sdr_router, "apply_aprs_channel", apply_channel)
+
+        self._upload(client, {"land": {"aprsRetentionMinutes": 10}})
+
+        apply_channel.assert_not_awaited()
+
     # ── sdr.groups authority on import ────────────────────────────────────────
     # SDR groups/frequencies are no longer part of config-upload (they live in a
     # dedicated store, excluded via _EXCLUDED_DATA_KEYS). POST /api/sdr/data/
@@ -535,3 +577,43 @@ class TestSettingCoercionHelpers:
         assert _DEFAULT_BW_BY_MODE["USB"] == 3_000
         assert _DEFAULT_BW_BY_MODE["LSB"] == 3_000
         assert _DEFAULT_BW_BY_MODE["CW"] == 500
+
+
+# ── PUT /api/settings/land/aprsChannelHz ──────────────────────────────────────
+
+
+class TestAprsChannelSetting:
+    def test_valid_channel_is_stored_and_applied(self, client, monkeypatch):
+        from backend.routers import sdr as sdr_router
+
+        apply_channel = AsyncMock()
+        monkeypatch.setattr(sdr_router, "apply_aprs_channel", apply_channel)
+
+        resp = client.put("/api/settings/land/aprsChannelHz", json={"value": 144390000})
+
+        assert resp.status_code == 200
+        assert client.get("/api/settings/land").json()["aprsChannelHz"] == 144390000
+        apply_channel.assert_awaited_once_with(144390000)
+
+    def test_numeric_string_is_normalised_to_int_hz(self, client, monkeypatch):
+        from backend.routers import sdr as sdr_router
+
+        monkeypatch.setattr(sdr_router, "apply_aprs_channel", AsyncMock())
+        client.put("/api/settings/land/aprsChannelHz", json={"value": "144800000"})
+        assert client.get("/api/settings/land").json()["aprsChannelHz"] == 144800000
+
+    @pytest.mark.parametrize("value", ["junk", None, 1000, 2_000_000_000, True])
+    def test_invalid_channel_is_rejected_and_not_stored(
+        self, client, monkeypatch, value
+    ):
+        from backend.routers import sdr as sdr_router
+
+        apply_channel = AsyncMock()
+        monkeypatch.setattr(sdr_router, "apply_aprs_channel", apply_channel)
+
+        resp = client.put("/api/settings/land/aprsChannelHz", json={"value": value})
+
+        assert resp.status_code == 400
+        assert "aprsChannelHz" in resp.json()["detail"]
+        assert "aprsChannelHz" not in client.get("/api/settings/land").json()
+        apply_channel.assert_not_awaited()

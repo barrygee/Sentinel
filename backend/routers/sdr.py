@@ -210,14 +210,14 @@ class DecodeEventIn(BaseModel):
 class AprsControlIn(BaseModel):
     """Body for starting/stopping APRS decode on a specific radio.
 
-    ``offset_hz``/``bw_hz`` select the demod channel within the captured span
-    (0 = span centre / the bridge's default bandwidth). APRS runs in the
-    background independent of the SDR view, so it is controlled over HTTP rather
-    than the spectrum WebSocket (which tears its bridge down on close).
+    ``bw_hz`` overrides the demod channel bandwidth (0 = the bridge's default).
+    There is no offset: the bridge decodes the absolute APRS channel from the
+    ``land``/``aprsChannelHz`` setting and tunes the radio itself. APRS runs in
+    the background independent of the SDR view, so it is controlled over HTTP
+    rather than the spectrum WebSocket (which tears its bridge down on close).
     """
 
     radio_id: int
-    offset_hz: int = 0
     bw_hz: int = 0
 
 
@@ -1425,8 +1425,11 @@ async def aprs_start(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
         broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
     except ConnectionError as exc:
         raise HTTPException(502, f"radio connect failed: {exc}") from exc
-    bridge = await sdr_decode.get_or_create_aprs_bridge(radio["host"], radio["port"], broadcaster)
-    await bridge.start(offset_hz=body.offset_hz, bw_hz=body.bw_hz or None)
+    channel_hz = await aprs_store.read_aprs_channel_hz(db)
+    bridge = await sdr_decode.get_or_create_aprs_bridge(
+        radio["host"], radio["port"], broadcaster, channel_hz=channel_hz
+    )
+    await bridge.start(bw_hz=body.bw_hz or None)
     await upsert_setting(db, "sdr", "aprs_radio_id", body.radio_id)
     return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
 
@@ -1445,7 +1448,9 @@ async def aprs_stop(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
 
 @router.get("/api/sdr/aprs/status/{radio_id}")
 async def aprs_status(radio_id: int, db: AsyncSession = Depends(get_db)):
-    """Report whether APRS decode is running for a radio and decoder reachability."""
+    """Report whether APRS decode is running for a radio, decoder reachability,
+    and whether the radio's captured span currently covers the APRS channel
+    (``on_channel`` false = the bridge is decoding silence and will retune)."""
     radios = await _get_radios(db)
     radio = _get_radio_by_id(radios, radio_id)
     if not radio:
@@ -1456,6 +1461,8 @@ async def aprs_status(radio_id: int, db: AsyncSession = Depends(get_db)):
             "radio_id": radio_id,
             "active": bool(bridge and bridge.running),
             "decoder_reachable": bool(bridge and bridge.decoder_reachable),
+            "channel_hz": bridge.channel_hz if bridge else None,
+            "on_channel": bool(bridge and bridge.on_channel),
         }
     )
 
@@ -1505,8 +1512,8 @@ async def aprs_decode_config(x_decode_secret: str = Header(default="")):
     return JSONResponse({"active": bool(bridge and bridge.running)})
 
 
-async def _start_aprs_best_effort(radios: list, radio_id: int) -> None:
-    """Start the APRS bridge on ``radio_id`` without raising.
+async def _start_aprs_best_effort(radios: list, radio_id: int, channel_hz: int) -> None:
+    """Start the APRS bridge on ``radio_id`` at ``channel_hz`` without raising.
 
     Shared by the startup resume and the config-upload reconciliation: in both
     cases the radio was chosen earlier (persisted), so a missing radio or an
@@ -1518,7 +1525,9 @@ async def _start_aprs_best_effort(radios: list, radio_id: int) -> None:
         return
     try:
         broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
-        bridge = await sdr_decode.get_or_create_aprs_bridge(radio["host"], radio["port"], broadcaster)
+        bridge = await sdr_decode.get_or_create_aprs_bridge(
+            radio["host"], radio["port"], broadcaster, channel_hz=channel_hz
+        )
         await bridge.start()
     except (ConnectionError, OSError):
         logging.getLogger(__name__).exception("Failed to start APRS decode on radio %s", radio_id)
@@ -1538,7 +1547,20 @@ async def reconcile_aprs_decode(db: AsyncSession, previous_radio_id: object, nex
         if previous:
             await sdr_decode.stop_aprs_bridge(previous["host"], previous["port"])
     if isinstance(next_radio_id, int):
-        await _start_aprs_best_effort(radios, next_radio_id)
+        channel_hz = await aprs_store.read_aprs_channel_hz(db)
+        await _start_aprs_best_effort(radios, next_radio_id, channel_hz)
+
+
+async def apply_aprs_channel(channel_hz: int) -> None:
+    """Move a running APRS bridge to ``channel_hz`` (the Settings › LAND channel).
+
+    Called after ``land``/``aprsChannelHz`` is written so the change takes
+    effect immediately — the bridge retunes the radio if the new channel is
+    outside its current span. No-op when APRS decode isn't running.
+    """
+    bridge = sdr_decode.get_active_aprs_bridge()
+    if bridge is not None:
+        await bridge.set_channel_hz(channel_hz)
 
 
 async def resume_persisted_aprs() -> None:
@@ -1555,7 +1577,8 @@ async def resume_persisted_aprs() -> None:
         if not isinstance(radio_id, int):
             return
         radios = await _get_radios(db)
-    await _start_aprs_best_effort(radios, radio_id)
+        channel_hz = await aprs_store.read_aprs_channel_hz(db)
+    await _start_aprs_best_effort(radios, radio_id, channel_hz)
 
 
 @router.get("/api/sdr/decode/status/{radio_id}")

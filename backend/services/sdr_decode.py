@@ -460,6 +460,15 @@ class PcmDecodeBridge:
     def _clear_extra_subscribers(self) -> None:
         """Drop references to any extra subscriber queues after draining."""
 
+    def _accept_chunk(self, *, sample_rate: int, center_hz: int) -> bool:
+        """Decide whether to demodulate an IQ chunk, given the span it was captured on.
+
+        Runs on the demod loop before each chunk, so a subclass can re-derive its
+        channel offset from the live centre frequency (or skip the chunk when its
+        channel isn't in the span). The base bridge trusts the caller's offset.
+        """
+        return True
+
     def _drain_subscribers(self) -> None:
         """Push a None sentinel to every subscriber so WS drains exit promptly."""
         for queue in [*self._event_subs, *self._extra_subscriber_queues()]:
@@ -523,7 +532,9 @@ class PcmDecodeBridge:
                     break
                 if self._pcm_writer is None or len(payload) < 8:
                     continue
-                sample_rate = struct.unpack("<I", payload[:4])[0]
+                sample_rate, center_hz = struct.unpack("<II", payload[:8])
+                if not self._accept_chunk(sample_rate=sample_rate, center_hz=center_hz):
+                    continue
                 raw_iq = payload[8:]
                 pcm = await asyncio.to_thread(demod_chunk, raw_iq, sample_rate, self._state)
                 if not pcm:
@@ -720,13 +731,30 @@ class DigitalDecodeBridge(PcmDecodeBridge):
         }
 
 
+# Minimum gap (s) between the APRS bridge's attempts to pull the dongle back onto
+# its channel after something else tuned it out of the span. Long enough not to
+# fight a viewer who is deliberately sweeping the band, short enough that APRS
+# recovers promptly once they stop.
+APRS_RETUNE_INTERVAL_S = 15.0
+
+
 class AprsDecodeBridge(PcmDecodeBridge):
     """APRS packet-decode bridge (Direwolf sidecar).
 
     Adds nothing to the PCM spine: Direwolf consumes the 48 kHz s16 feed and the
     decoded APRS packets arrive back purely as HTTP-ingested events (there is no
-    decoded-voice UDP stream). Only the default PCM port
-    and channel bandwidth differ from the voice bridge.
+    decoded-voice UDP stream).
+
+    Unlike the voice bridge, which demodulates wherever the viewer points it,
+    this bridge **owns an absolute channel** (``channel_hz``, e.g. 144.800 MHz).
+    APRS runs unattended in the background, so it can't rely on a viewer having
+    left the dongle in the right place: on start it tunes the dongle to the
+    channel, and for every IQ chunk it re-derives its demod offset from the
+    centre frequency the chunk was actually captured on. A viewer retuning
+    within the span therefore doesn't disturb decode at all, and one that moves
+    the span off the channel (or a satellite auto-tune parking the radio on the
+    ISS) is pulled back after :data:`APRS_RETUNE_INTERVAL_S` rather than leaving
+    Direwolf decoding silence indefinitely.
     """
 
     kind = "aprs"
@@ -735,6 +763,7 @@ class AprsDecodeBridge(PcmDecodeBridge):
         self,
         broadcaster: RadioBroadcaster,
         *,
+        channel_hz: int | None = None,
         pcm_port: int | None = None,
         default_bw_hz: int | None = None,
     ) -> None:
@@ -743,6 +772,94 @@ class AprsDecodeBridge(PcmDecodeBridge):
             pcm_port=settings.aprs_decoder_pcm_port if pcm_port is None else pcm_port,
             default_bw_hz=default_bw_hz or settings.aprs_decoder_default_bw_hz,
         )
+        self._channel_hz = channel_hz or settings.aprs_channel_hz
+        self._on_channel = False
+        self._last_retune_monotonic = 0.0
+        self._retune_task: asyncio.Task | None = None
+
+    @property
+    def channel_hz(self) -> int:
+        """The absolute frequency (Hz) this bridge decodes."""
+        return self._channel_hz
+
+    @property
+    def on_channel(self) -> bool:
+        """True while the radio's captured span contains the APRS channel."""
+        return self._on_channel
+
+    async def set_channel_hz(self, channel_hz: int) -> None:
+        """Move the bridge to a new channel (Settings change) and retune at once."""
+        if channel_hz == self._channel_hz:
+            return
+        self._channel_hz = channel_hz
+        if self._running:
+            await self._tune_to_channel()
+
+    async def _on_start(self) -> None:
+        # Nothing has told the dongle where APRS lives yet — a fresh connection
+        # sits on whatever the relay/rtl_tcp last had (see the 145.800 MHz
+        # incident), so put it on the channel before the first chunk arrives.
+        await self._tune_to_channel()
+
+    async def _on_stop(self) -> None:
+        if self._retune_task is not None:
+            self._retune_task.cancel()
+            self._retune_task = None
+        self._on_channel = False
+
+    def _channel_in_span(self, *, sample_rate: int, center_hz: int) -> bool:
+        """Whether the channel (plus its bandwidth) fits inside the captured span.
+
+        The outer ~10% of an RTL-SDR span is rolled off by the tuner's anti-alias
+        filter, so a channel there decodes poorly; treat it as out of span too.
+        """
+        usable_half_span = sample_rate * 0.45
+        return abs(self._channel_hz - center_hz) + self._state.bw_hz / 2 <= usable_half_span
+
+    def _accept_chunk(self, *, sample_rate: int, center_hz: int) -> bool:
+        if sample_rate and self._channel_in_span(sample_rate=sample_rate, center_hz=center_hz):
+            self._state.offset_hz = self._channel_hz - center_hz
+            if not self._on_channel:
+                self._on_channel = True
+                logger.info("aprs channel %d Hz back in span (centre %d Hz)", self._channel_hz, center_hz)
+            return True
+        if self._on_channel:
+            self._on_channel = False
+            logger.warning(
+                "aprs channel %d Hz outside the captured span (centre %d Hz, rate %d); retuning",
+                self._channel_hz,
+                center_hz,
+                sample_rate,
+            )
+        self._schedule_retune()
+        return False
+
+    def _schedule_retune(self) -> None:
+        """Kick off a throttled retune from the demod loop without blocking it."""
+        if self._retune_task is not None and not self._retune_task.done():
+            return
+        if time.monotonic() - self._last_retune_monotonic < APRS_RETUNE_INTERVAL_S:
+            return
+        self._retune_task = asyncio.create_task(self._tune_to_channel(), name="sdr-aprs-retune")
+
+    async def _tune_to_channel(self) -> None:
+        """Point the dongle at the channel, unless the current span already covers it.
+
+        Best-effort: a tuner owned by another Sentinel instance, or a dropped
+        connection, is logged and left for the next throttled attempt — the
+        bridge keeps serving (silence) rather than tearing down.
+        """
+        self._last_retune_monotonic = time.monotonic()
+        connection = self._broadcaster.connection
+        if connection.center_hz and self._channel_in_span(
+            sample_rate=connection.sample_rate, center_hz=connection.center_hz
+        ):
+            return
+        try:
+            await connection.set_frequency(self._channel_hz)
+            logger.info("aprs bridge tuned radio to channel %d Hz", self._channel_hz)
+        except Exception as exc:  # noqa: BLE001 - any tuning failure is non-fatal here
+            logger.warning("aprs bridge could not tune radio to %d Hz: %s", self._channel_hz, exc)
 
 
 # ── Bridge cache helpers ────────────────────────────────────────────────────────
@@ -799,15 +916,19 @@ def get_active_aprs_bridge() -> AprsDecodeBridge | None:
     return next(iter(_aprs_bridges.values()), None)
 
 
-async def get_or_create_aprs_bridge(host: str, port: int, broadcaster: RadioBroadcaster) -> AprsDecodeBridge:
+async def get_or_create_aprs_bridge(
+    host: str, port: int, broadcaster: RadioBroadcaster, *, channel_hz: int | None = None
+) -> AprsDecodeBridge:
     key = _bridge_key(host, port)
     for other_key in list(_aprs_bridges):
         if other_key != key:
             await stop_aprs_bridge(*other_key.rsplit(":", 1))
     bridge = _aprs_bridges.get(key)
     if bridge is None:
-        bridge = AprsDecodeBridge(broadcaster)
+        bridge = AprsDecodeBridge(broadcaster, channel_hz=channel_hz)
         _aprs_bridges[key] = bridge
+    elif channel_hz is not None:
+        await bridge.set_channel_hz(channel_hz)
     return bridge
 
 
