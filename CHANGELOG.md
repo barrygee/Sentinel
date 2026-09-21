@@ -157,6 +157,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Support byte ranges when streaming camera clips
 - Move the aircraft filter modes into the sidebar sub-tab rail
 - Plot and list UK repeaters on the Land map
+- Add the APRS Channel field under LAND
 
 ### Bug Fixes
 
@@ -373,6 +374,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Render at full resolution on large high-DPI displays
 - Show the SDR radio picker's options
 - Ship a Direwolf config so the decoder can start at all (#330)
+- Make the APRS bridge own its channel frequency
 
 ### Chores
 
@@ -400,6 +402,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
+- Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
@@ -1211,6 +1214,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #325 from barrygee/feat/terrain-overlay
 - Merge pull request #326 from barrygee/feat/land-uk-repeaters
 - Merge pull request #329 from barrygee/fix/land-camera-groups-repeater-stacks
+- Merge pull request #331 from barrygee/fix/aprs-owned-channel-frequency
 
 ### Refactoring
 
