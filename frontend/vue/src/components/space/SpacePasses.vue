@@ -566,6 +566,10 @@ const polarLive = computed<SkyPoint | null>(() => {
 })
 
 let fetchAbort: AbortController | null = null
+// The multi-satellite passes route walks every catalogued satellite on the
+// backend; when its TLE upstream is unreachable that can run long. Without a
+// client-side ceiling the pane would sit on "COMPUTING PASSES…" indefinitely.
+const PASSES_FETCH_TIMEOUT_MS = 90_000
 let accFetchAbort: AbortController | null = null
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 let tickInterval: ReturnType<typeof setInterval> | null = null
@@ -586,6 +590,10 @@ async function fetchPasses(): Promise<void> {
   loading.value = true
   statusText.value = 'COMPUTING PASSES…'
   message.value = ''
+  const timeoutHandle = setTimeout(
+    () => abort.abort(new DOMException('Passes request timed out', 'TimeoutError')),
+    PASSES_FETCH_TIMEOUT_MS,
+  )
   try {
     // No `categories` param — the backend includes every valid category, so the
     // list spans all satellite types (space stations included). The chips above
@@ -598,6 +606,7 @@ async function fetchPasses(): Promise<void> {
         error?: string
         no_tle_data?: boolean
       }
+      statusText.value = ''
       if (data.no_tle_data) {
         message.value = 'No TLE data. Import satellites in Settings.'
         return
@@ -616,9 +625,17 @@ async function fetchPasses(): Promise<void> {
       message.value = 'No passes found. Try broader categories, lower elevation, or longer window.'
     restoreExpandedAccordion()
   } catch (e: unknown) {
-    if (e instanceof Error && e.name === 'AbortError') return
-    message.value = 'Network error — check connection and retry.'
+    // Matched by name rather than `instanceof Error`: the abort reason is a
+    // DOMException, which is not an Error in every realm (jsdom's is not).
+    const errorName = e instanceof Error || e instanceof DOMException ? e.name : ''
+    if (errorName === 'AbortError') return
+    statusText.value = ''
+    message.value =
+      errorName === 'TimeoutError'
+        ? 'Pass computation timed out — check the TLE source and retry.'
+        : 'Network error — check connection and retry.'
   } finally {
+    clearTimeout(timeoutHandle)
     loading.value = false
   }
 }
