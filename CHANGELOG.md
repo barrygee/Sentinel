@@ -163,6 +163,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Ingest off-grid AIS decode into the shared vessel store
 - Add the off-grid AIS sidecar container
 - Start off-grid AIS decode when Sea is opened off grid
+- Add an "all" profile that starts every decoder at once
 
 ### Bug Fixes
 
@@ -1238,6 +1239,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #337 from barrygee/chore/sea-ais-sdr-label
 - Merge pull request #338 from barrygee/fix/land-feeds-reappear-after-delete
 - Merge pull request #339 from barrygee/fix/sea-notice-banner
+- Merge pull request #340 from barrygee/feat/compose-all-decoders-profile
 
 ### Refactoring
 
@@ -1318,6 +1320,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document the UK repeater directory
 - Thin the README and move setup to the top (#327)
 - Document off-grid AIS decode, and rebuild the SPA bundle
+- Lead the Docker section with the all-decoders command
 
 ### Tests
 
