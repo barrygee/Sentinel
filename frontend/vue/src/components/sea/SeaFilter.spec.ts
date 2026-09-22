@@ -114,20 +114,23 @@ describe('SeaFilter', () => {
     expect(wrapper.find('.bfp-no-results').text()).toBe('Vessels layer hidden')
   })
 
-  it('expands a row into the vessel details with a SHOW ON MAP action', async () => {
+  it('expands a row into the vessel details', async () => {
     store.vessels = [vessel()]
     const wrapper = mount(SeaFilter)
     await wrapper.find('.bfp-result-item').trigger('click')
     expect(store.searchExpandedMmsi).toBe('232012345')
     expect(wrapper.text()).toContain('DOVER')
-    const button = wrapper.find('.sea-filter-actions button')
-    expect(button.text()).toBe('SHOW ON MAP')
-    expect(button.attributes('aria-pressed')).toBe('false')
-    await button.trigger('click')
-    expect(wrapper.emitted('locate')).toEqual([['232012345']])
-    store.setSelectedMmsi('232012345')
-    await nextTick()
-    expect(wrapper.find('.sea-filter-actions button').text()).toBe('SELECTED')
+  })
+
+  it('offers no map action in the expanded row', async () => {
+    // The pane reads vessel data; selecting one on the map is done from the
+    // map itself, so the row carries no action button.
+    store.vessels = [vessel()]
+    const wrapper = mount(SeaFilter)
+    await wrapper.find('.bfp-result-item').trigger('click')
+    expect(wrapper.find('.sea-filter-actions').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('SHOW ON MAP')
+    expect(wrapper.text()).not.toContain('SELECTED')
   })
 
   it('opens the row for a vessel clicked on the map', async () => {
@@ -240,7 +243,7 @@ describe('SeaFilter', () => {
       await wrapper.findAll('.bfp-result-item')[0]!.trigger('click')
       expect(store.searchExpandedMmsi).toBe('232012345')
       expect(store.searchExpandedPort).toBe('')
-      expect(wrapper.find('.bfp-expanded').text()).toContain('SHOW ON MAP')
+      expect(wrapper.find('.bfp-expanded').text()).toContain('DOVER')
     })
 
     it('falls back to the vessel row when the ports go off with a port open', async () => {

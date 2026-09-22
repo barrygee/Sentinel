@@ -29,17 +29,6 @@
         />
         <template v-else-if="vesselFor(item.key)">
           <SeaVesselDetails :vessel="vesselFor(item.key)!" />
-          <div class="sea-filter-actions">
-            <BaseButton
-              variant="ghost"
-              bordered
-              :active="seaStore.selectedMmsi === item.key"
-              :aria-pressed="seaStore.selectedMmsi === item.key"
-              @click.stop="emit('locate', item.key)"
-            >
-              {{ seaStore.selectedMmsi === item.key ? 'SELECTED' : 'SHOW ON MAP' }}
-            </BaseButton>
-          </div>
         </template>
       </div>
     </template>
@@ -62,7 +51,6 @@ import { computed, ref, watch } from 'vue'
 import BaseFilterPanel, {
   type FilterPanelItem,
 } from '@/components/shared/filter/BaseFilterPanel.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
 import SeaVesselDetails from './SeaVesselDetails.vue'
 import SeaPortDetails from './SeaPortDetails.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
@@ -81,7 +69,6 @@ import { formatMarineVhfMhz, marineVhfChannelHz, MARINE_VHF_MODE } from '@/utils
 const seaStore = useSeaStore()
 const sdrStore = useSdrStore()
 const notificationsStore = useNotificationsStore()
-const emit = defineEmits<{ locate: [mmsi: string] }>()
 
 /** Whether the ports overlay is on — the ports are listed exactly when they
  *  are plotted, independent of the vessel FILTER category. */
@@ -240,10 +227,5 @@ watch(
   display: flex;
   flex-direction: column;
   padding-bottom: 12px;
-}
-.sea-filter-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 24px 0;
 }
 </style>
