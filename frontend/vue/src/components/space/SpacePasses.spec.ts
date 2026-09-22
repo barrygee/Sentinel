@@ -643,6 +643,41 @@ describe('SpacePasses — accordion expand/collapse', () => {
     expect(wrapper.find('.spp-acc-status').text()).toBe('SET LOCATION TO CALCULATE PASSES')
   })
 
+  it('discards an accordion fetch that was aborted while in flight', async () => {
+    // Hold the first card's accordion request open, expand a second card (which
+    // aborts the first), then release — the stale response must not clobber the
+    // second card's accordion state.
+    passesResult.body = {
+      passes: [makePass(), makePass({ norad_id: '24278', name: 'JAS-2 (FO-29)' })],
+      satellite_count: 2,
+      computed_at: '',
+    }
+    let release: (value: unknown) => void = () => {}
+    const gate = new Promise((resolve) => {
+      release = resolve
+    })
+    let accordionCalls = 0
+    fetchOverride = (url) => {
+      if (url.includes('/api/space/satellite/')) {
+        accordionCalls++
+        if (accordionCalls === 1) return gate.then(() => makeResponse(accResult))
+        return makeResponse(accResult)
+      }
+      return makeResponse(passesResult)
+    }
+    const wrapper = await mountReady()
+    const headers = wrapper.findAll('.spp-pass-card-header')
+    await headers[0]!.trigger('click') // first accordion fetch, held open
+    await headers[1]!.trigger('click') // aborts it and fetches the second
+    release(null)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.spp-expanded')).toHaveLength(1)
+    expect(wrapper.find('.spp-expanded').text()).toContain('JAS-2')
+    expect(wrapper.find('.spp-acc-status').classes()).not.toContain('spp-acc-status-loading')
+    expect(wrapper.find('.spp-acc-pass-list').exists()).toBe(true)
+  })
+
   it('renders the no-passes-in-24h note when the accordion returns an empty list', async () => {
     accResult.body = { passes: [], computed_at: new Date().toISOString() }
     const wrapper = await mountReady()
@@ -653,8 +688,8 @@ describe('SpacePasses — accordion expand/collapse', () => {
 
 // =============================================================================
 describe('SpacePasses — restoring a persisted expansion', () => {
-  it('re-opens the exact pass that was left expanded', async () => {
-    const control = makeFakeControl()
+  it('re-opens the exact pass that was left expanded and re-selects it when the map already shows it', async () => {
+    const control = makeFakeControl({ activeNoradId: '25544' })
     const wrapper = mountPasses({ control })
     // Set the persisted key to the fixture pass before the refresh re-opens it.
     const pass = makePass()
@@ -665,6 +700,81 @@ describe('SpacePasses — restoring a persisted expansion', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.spp-acc-body').exists()).toBe(true)
     expect(control.switchSatellite).toHaveBeenCalledWith('25544', 'ISS (ZARYA)')
+  })
+
+  it('re-opens the card without stealing the map when it shows a different satellite', async () => {
+    const control = makeFakeControl({ activeNoradId: '24278' })
+    const wrapper = mountPasses({ control })
+    const pass = makePass()
+    const spaceStore = (await import('@/stores/space')).useSpaceStore()
+    spaceStore.passesExpandedKey = `${pass.norad_id}_${pass.aos_unix_ms}`
+    await (wrapper.vm as unknown as { fetchPasses: () => Promise<void> }).fetchPasses()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.spp-acc-body').exists()).toBe(true)
+    expect(control.switchSatellite).not.toHaveBeenCalled()
+  })
+
+  it('a click on a card still selects its satellite even when the map shows another', async () => {
+    const control = makeFakeControl({ activeNoradId: '24278' })
+    const wrapper = await mountReady({ control })
+    await expandFirstCard(wrapper)
+    expect(control.switchSatellite).toHaveBeenCalledWith('25544', 'ISS (ZARYA)')
+  })
+
+  it('keeps the card open across a periodic refresh without re-selecting the satellite', async () => {
+    vi.useFakeTimers()
+    const control = makeFakeControl({ activeNoradId: '25544' })
+    const wrapper = mountPasses({ control })
+    const pass = makePass()
+    const spaceStore = (await import('@/stores/space')).useSpaceStore()
+    spaceStore.passesExpandedKey = `${pass.norad_id}_${pass.aos_unix_ms}`
+    // The mount-time fetch may have resolved before the key was set; run the
+    // first (restoring) fetch explicitly so the initial re-select is known.
+    await (wrapper.vm as unknown as { fetchPasses: () => Promise<void> }).fetchPasses()
+    await flushPromises()
+    expect(control.switchSatellite).toHaveBeenCalledTimes(1)
+    control.switchSatellite.mockClear()
+
+    // The recomputed list carries the same pass with a drifted AOS: the open
+    // card follows it onto the new key, but the map is left alone.
+    const driftedAos = pass.aos_unix_ms + 7
+    passesResult.body = {
+      passes: [makePass({ aos_unix_ms: driftedAos })],
+      satellite_count: 1,
+      computed_at: '',
+    }
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(spaceStore.passesExpandedKey).toBe(`25544_${driftedAos}`)
+    expect(wrapper.find('.spp-acc-body').exists()).toBe(true)
+    expect(control.switchSatellite).not.toHaveBeenCalled()
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('collapses on a periodic refresh when the satellite has no pass left', async () => {
+    vi.useFakeTimers()
+    const control = makeFakeControl({ activeNoradId: '25544' })
+    const wrapper = mountPasses({ control })
+    const pass = makePass()
+    const spaceStore = (await import('@/stores/space')).useSpaceStore()
+    spaceStore.passesExpandedKey = `${pass.norad_id}_${pass.aos_unix_ms}`
+    await (wrapper.vm as unknown as { fetchPasses: () => Promise<void> }).fetchPasses()
+    await flushPromises()
+    passesResult.body = {
+      passes: [makePass({ norad_id: '99999', name: 'OTHER' })],
+      satellite_count: 1,
+      computed_at: '',
+    }
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(spaceStore.passesExpandedKey).toBe('')
+    expect(wrapper.find('.spp-acc-body').exists()).toBe(false)
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it('falls back to the same satellite nearest pass when the exact AOS drifted', async () => {

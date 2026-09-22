@@ -848,8 +848,8 @@ describe('SpaceFilter — accordion expand/collapse', () => {
 
 // =============================================================================
 describe('SpaceFilter — persisted expansion restore', () => {
-  it('re-opens the satellite left expanded once the database loads', async () => {
-    const control = makeFakeControl()
+  it('re-opens the satellite left expanded and re-selects it when the map already shows it', async () => {
+    const control = makeFakeControl({ activeNoradId: '25544' })
     const wrapper = mountFilter({ control })
     const spaceStore = useSpaceStore()
     spaceStore.searchExpandedNorad = '25544'
@@ -857,6 +857,17 @@ describe('SpaceFilter — persisted expansion restore', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.bfp-accordion-body').exists()).toBe(true)
     expect(control.switchSatellite).toHaveBeenCalledWith('25544', 'ISS (ZARYA)')
+  })
+
+  it('re-opens the accordion without stealing the map when it shows a different satellite', async () => {
+    const control = makeFakeControl({ activeNoradId: '24278' })
+    const wrapper = mountFilter({ control })
+    const spaceStore = useSpaceStore()
+    spaceStore.searchExpandedNorad = '25544'
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.bfp-accordion-body').exists()).toBe(true)
+    expect(control.switchSatellite).not.toHaveBeenCalled()
   })
 
   it('clears a stale persisted id when that satellite is gone from the database', async () => {

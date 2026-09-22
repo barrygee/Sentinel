@@ -746,14 +746,22 @@ function onMouseLeave(): void {
 // position polling that feeds the live POSITION/ORBITAL fields and polar plot
 // via 'sat-position-update' — without moving the camera, so it's safe on a
 // passive restore too. (Skipping it left the restored accordion's data blank.)
-function openAccordion(sat: SatEntry): void {
+//
+// A restore, unlike a click, must not take the map away from a different
+// satellite: the PASSES pane restores its own persisted expansion at the same
+// time and the map can only show one. Whichever pane's satellite the map is
+// already showing re-selects it (to start polling); the other just re-opens.
+function openAccordion(sat: SatEntry, restoring = false): void {
   expandedNoradId.value = sat.norad_id
   accordionPasses.value = []
   accordionStatus.value = 'COMPUTING PASSES…'
   accordionLoading.value = true
   liveTelemetry.value = {}
   liveAzEl.value = null
-  props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
+  const ctrl = props.satelliteControl
+  if (ctrl && (!restoring || ctrl.activeNoradId === sat.norad_id)) {
+    ctrl.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
+  }
   notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
   void fetchAccordionPasses(sat.norad_id)
   if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
@@ -917,7 +925,7 @@ function restoreExpandedAccordion(): void {
     // Switch to the restored satellite's category so its row (and open accordion)
     // is in the visible single-category list.
     spaceStore.setSpaceFilterCategory(sat.category || 'unknown')
-    openAccordion(sat)
+    openAccordion(sat, true)
   } else expandedNoradId.value = ''
 }
 
