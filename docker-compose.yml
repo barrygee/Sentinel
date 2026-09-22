@@ -60,7 +60,7 @@ services:
       context: ./decoder
       dockerfile: Dockerfile
     container_name: sentinel-decoder
-    profiles: ["decoder"]
+    profiles: ["decoder", "all"]
     depends_on:
       - app
     environment:
@@ -96,7 +96,7 @@ services:
       context: ./decoder/aprs
       dockerfile: Dockerfile
     container_name: sentinel-aprs-decoder
-    profiles: ["aprs"]
+    profiles: ["aprs", "all"]
     depends_on:
       - app
     environment:
@@ -133,7 +133,7 @@ services:
       context: ./decoder/ais
       dockerfile: Dockerfile
     container_name: sentinel-ais-decoder
-    profiles: ["ais"]
+    profiles: ["ais", "all"]
     depends_on:
       - app
     environment:
@@ -170,7 +170,7 @@ services:
       context: ./decoder/adsb
       dockerfile: Dockerfile
     container_name: sentinel-adsb-decoder
-    profiles: ["adsb"]
+    profiles: ["adsb", "all"]
     depends_on:
       - app
     environment:
