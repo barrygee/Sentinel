@@ -21,10 +21,22 @@ It is **offline-first**: every domain has online and offline data sources with a
 ### Run with Docker
 
 ```bash
-docker compose up --build -d      # http://localhost:8080
+docker compose --profile all up --build -d    # app + ALL decoders — http://localhost:8080
+docker compose up --build -d                  # app only, no decoders
 ```
 
-The build compiles the SPA and packages the backend; the SQLite database is created, seeded and persisted in the `sentinel_db` volume on first run. `--build` is only needed again when dependencies change.
+**Start here if you want the radio features.** The decoders (digital voice, APRS, off-grid AIS, off-grid ADS-B) are opt-in sidecar containers, so a bare `docker compose up` starts only the app and the map stays empty of anything an SDR would feed. `--profile all` starts every one of them in a single command.
+
+| Want | Command |
+| --- | --- |
+| Everything | `docker compose --profile all up --build -d` |
+| Just one | `docker compose --profile ais up --build -d` (or `aprs` · `adsb` · `decoder`) |
+| App only | `docker compose up --build -d` |
+| No flag at all | set `COMPOSE_PROFILES=all` in `.env`, then plain `docker compose up -d` |
+
+**Each decoder needs its own dongle.** They cannot share a receiver — every one holds its own `rtl_tcp` connection and tunes it — so `--profile all` means four radios. With one stick, start the single profile you want. Details for each: [Optional decoder sidecars](#optional-decoder-sidecars).
+
+The build compiles the SPA and packages the backend; the SQLite database is created, seeded and persisted in the `sentinel_db` volume on first run. `--build` is only needed again when dependencies change. The first `--profile all` build takes several minutes — it compiles `mbelib` for the voice decoder and Direwolf from source for AIS.
 
 Once running, open **Settings** (gear icon, bottom-right) and set **My Location**.
 
