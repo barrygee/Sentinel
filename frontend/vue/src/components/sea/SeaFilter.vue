@@ -29,16 +29,19 @@
         />
         <template v-else-if="vesselFor(item.key)">
           <SeaVesselDetails :vessel="vesselFor(item.key)!" />
-          <div class="sea-filter-actions">
-            <BaseButton
-              variant="ghost"
-              bordered
+          <!-- Same affordance as the AIR aircraft row: an icon action rather
+               than a labelled button, so the row stays a data view. -->
+          <div class="sea-acc-action-row">
+            <BaseIconAction
+              class="sea-acc-btn"
               :active="seaStore.selectedMmsi === item.key"
-              :aria-pressed="seaStore.selectedMmsi === item.key"
+              active-class="sea-acc-btn--active"
+              accessible-name="Centre on map"
+              tooltip="Centre on map"
               @click.stop="emit('locate', item.key)"
             >
-              {{ seaStore.selectedMmsi === item.key ? 'SELECTED' : 'SHOW ON MAP' }}
-            </BaseButton>
+              <CentreOnMapIcon />
+            </BaseIconAction>
           </div>
         </template>
       </div>
@@ -62,8 +65,9 @@ import { computed, ref, watch } from 'vue'
 import BaseFilterPanel, {
   type FilterPanelItem,
 } from '@/components/shared/filter/BaseFilterPanel.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
 import SeaVesselDetails from './SeaVesselDetails.vue'
+import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import CentreOnMapIcon from '@/components/shared/CentreOnMapIcon.vue'
 import SeaPortDetails from './SeaPortDetails.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
 import { useSdrStore } from '@/stores/sdr'
@@ -78,10 +82,10 @@ import {
 } from './controls/ports/portsData'
 import { formatMarineVhfMhz, marineVhfChannelHz, MARINE_VHF_MODE } from '@/utils/marineVhf'
 
+const emit = defineEmits<{ locate: [mmsi: string] }>()
 const seaStore = useSeaStore()
 const sdrStore = useSdrStore()
 const notificationsStore = useNotificationsStore()
-const emit = defineEmits<{ locate: [mmsi: string] }>()
 
 /** Whether the ports overlay is on — the ports are listed exactly when they
  *  are plotted, independent of the vessel FILTER category. */
@@ -241,9 +245,24 @@ watch(
   flex-direction: column;
   padding-bottom: 12px;
 }
-.sea-filter-actions {
+
+/* Mirrors the AIR aircraft accordion's action row (.acft-acc-action-row /
+   .acft-acc-btn) so the same action reads the same in both panes. */
+.sea-acc-action-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
   padding: 8px 24px 0;
+}
+
+/* 36px square control, matching the aircraft and satellite accordions. */
+.sea-acc-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  background: #0d1015;
+  border: none;
 }
 </style>

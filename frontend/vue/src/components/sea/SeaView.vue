@@ -16,7 +16,7 @@
          App.vue — see useSidebarPaneTarget for why this waits rather than
          teleporting unconditionally. -->
     <Teleport v-if="searchPaneReady" :to="sidebarPaneSelector('search')">
-      <SeaFilter @locate="locateVessel" />
+      <SeaFilter @locate="centreOnVessel" />
     </Teleport>
   </div>
 </template>
@@ -68,14 +68,15 @@ function goToLocation() {
     duration: 800,
   })
 }
+// "Centre on map" from the FILTER pane: select the vessel and fly to it — the
+// pane's equivalent of clicking its marker, which a screen reader cannot do.
+function centreOnVessel(mmsi: string) {
+  seaMapRef.value?.getVesselsControl()?.selectByMmsi(mmsi, { flyTo: true })
+}
+
 // The overlay is store-driven: the rail writes the store and the map's control
 // follows it, so Settings › SEA › Map Layers and the rail can never disagree.
 function toggleRangeRings() {
   seaStore.setOverlay('rangeRings', !seaStore.overlayStates.rangeRings)
-}
-
-// "Show on map" from the FILTER pane: select the vessel and fly to it.
-function locateVessel(mmsi: string) {
-  seaMapRef.value?.getVesselsControl()?.selectByMmsi(mmsi, { flyTo: true })
 }
 </script>

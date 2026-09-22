@@ -187,7 +187,9 @@ describe('SeaView', () => {
     expect(sideMenuProps!.locationActive).toBe(true)
   })
 
-  it('SHOW ON MAP from the pane selects the vessel and flies to it', () => {
+  it('centres the map on a vessel the FILTER pane picks', () => {
+    // The pane's icon action is the accessible equivalent of clicking the
+    // vessel's marker, which a screen reader cannot reach on the canvas.
     teleportTarget()
     mountView()
     filterEmit!('locate', '232012345')
