@@ -88,7 +88,20 @@ describe('SeaSourceNotice', () => {
     expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
     const banner = wrapper.find('.sea-source-notice')
     expect(banner.attributes('role')).toBe('status')
-    expect(banner.text()).toBe(message)
+    // The shared banner prefixes the wording with its warning glyph and a
+    // screen-reader-only "Warning:", so the message is carried rather than
+    // being the whole text.
+    expect(banner.find('.map-notice-message').text()).toBe(`Warning: ${message}`)
+    expect(banner.text()).toContain(message)
+  })
+
+  it('announces the warning for screen readers and hides the glyph from them', () => {
+    // GOV.UK's warning pattern: the mark is decorative, so the meaning has to
+    // reach assistive tech as words rather than as a yellow box and a glyph.
+    const wrapper = mount(SeaSourceNotice, { props: { feed: feed('stale') } })
+    const banner = wrapper.find('.sea-source-notice')
+    expect(banner.find('.map-notice-icon').attributes('aria-hidden')).toBe('true')
+    expect(banner.find('.map-notice-message .sr-only').text()).toBe('Warning:')
   })
 
   it('appends the backend error to the degraded banners', () => {
