@@ -124,7 +124,7 @@ export const useLandFeedsStore = defineStore('landFeeds', () => {
     featureTimers.clear()
   }
 
-  /** Persist the whole feed list (Settings › LAND › LIVE FEEDS' APPLY step),
+  /** Persist the whole feed list (Settings › LAND › LIVE CAMERA FEEDS' APPLY step),
    *  then re-read status and re-sync polling against the new list. */
   async function saveFeeds(list: FeedConfig[]): Promise<void> {
     await landFeedsApi.saveFeeds(list)

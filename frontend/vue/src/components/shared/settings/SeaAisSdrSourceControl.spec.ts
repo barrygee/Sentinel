@@ -8,7 +8,7 @@ import * as settingsApi from '@/services/settingsApi'
 import { useSdrStore } from '@/stores/sdr'
 
 /**
- * Settings › SEA › AIS › AIS SDR. The control records which radio is the
+ * Settings › SEA › AIS › Off Grid AIS SDR. The control records which radio is the
  * off-grid AIS receiver: a plain `sea.aisSdrRadioId` setting staged into APPLY
  * CHANGES. The tests guard the one thing that is easy to get wrong in this
  * shape — reading the stored value back must not look like an operator's edit

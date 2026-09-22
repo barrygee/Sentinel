@@ -552,7 +552,7 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'sea',
     sectionLabel: 'SEA',
     id: 'sea-ais-sdr-source',
-    label: 'AIS SDR',
+    label: 'Off Grid AIS SDR',
     desc: 'Which SDR radio receives AIS when the Sea map is off grid',
     searchTerms: 'ais sdr radio receiver off grid aivdm',
     type: 'sea-ais-sdr-source',
@@ -603,7 +603,7 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'land',
     sectionLabel: 'LAND',
     id: 'land-aprs-sdr-source',
-    label: 'APRS SDR',
+    label: 'Off Grid APRS SDR',
     desc: 'Which SDR radio decodes APRS. Decode runs in the background on it and keeps it on the APRS channel; until one is set, the map\u2019s APRS layer stays off',
     searchTerms: 'aprs radio receiver direwolf packet land map layer',
     type: 'aprs-sdr-source',
@@ -665,15 +665,15 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'land',
     sectionLabel: 'LAND',
     id: 'land-feeds',
-    label: 'Live Feeds',
-    // The LIVE FEEDS group heading already introduces this card, so its own
-    // title stays for screen readers only and it carries no description.
+    label: 'Live Camera Feeds',
+    // The LIVE CAMERA FEEDS group heading already introduces this card, so its
+    // own title stays for screen readers only and it carries no description.
     hideLabel: true,
     desc: '',
     searchTerms:
       'traffic cameras durham tfl jamcams webcams live feeds snapshot api key credential',
     type: 'land-feeds',
-    groupLabel: 'LIVE FEEDS',
+    groupLabel: 'LIVE CAMERA FEEDS',
   },
   {
     section: 'sdr',

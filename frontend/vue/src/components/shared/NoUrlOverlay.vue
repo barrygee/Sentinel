@@ -74,7 +74,7 @@ const message = computed(() => {
   }
   const isOffgrid = _effectiveMode() === 'offgrid'
   if (isOffgrid && _isSea) {
-    return 'Off Grid mode is active but SEA has no off-grid source. Either choose an AIS receiver under Settings › SEA › AIS › AIS SDR, or set an Off Grid Data Source URL — or switch connectivity mode to continue.'
+    return 'Off Grid mode is active but SEA has no off-grid source. Either choose an AIS receiver under Settings › SEA › AIS › Off Grid AIS SDR, or set an Off Grid Data Source URL — or switch connectivity mode to continue.'
   }
   const mode = isOffgrid ? 'Off Grid' : 'Online'
   const setting = isOffgrid ? 'Off Grid Data Source' : 'Online Data Source'

@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 /**
- * `LandFeedsControl` — the Settings → LAND → LIVE FEEDS editor: Durham CC and
+ * `LandFeedsControl` — the Settings → LAND → LIVE CAMERA FEEDS editor: Durham CC and
  * TfL JamCams traffic-camera feeds in P0, cloned from `SdrDevicesControl`'s
  * list/add/edit/delete shape.
  *

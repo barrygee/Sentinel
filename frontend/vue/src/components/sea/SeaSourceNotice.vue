@@ -47,7 +47,7 @@ const blocking = computed<{ title: string; message: string } | null>(() => {
     return {
       title: 'No off-grid AIS receiver selected.',
       message:
-        'Off Grid mode is active, so vessels are decoded from an SDR rather than AISStream. Choose the receiver under Settings › SEA › AIS › AIS SDR to continue.',
+        'Off Grid mode is active, so vessels are decoded from an SDR rather than AISStream. Choose the receiver under Settings › SEA › AIS › Off Grid AIS SDR to continue.',
     }
   }
   switch (status) {

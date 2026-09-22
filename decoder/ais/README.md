@@ -62,7 +62,7 @@ given a dongle each.
 
 Then, in the app:
 
-1. **Settings › SEA › AIS › AIS SDR** — pick the radio that is on the
+1. **Settings › SEA › AIS › Off Grid AIS SDR** — pick the radio that is on the
    marine antenna.
 2. Set the Sea domain to off grid (globally via connectivity mode, or per-domain
    via the SEA source override).
