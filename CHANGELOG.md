@@ -159,6 +159,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Plot and list UK repeaters on the Land map
 - Add the APRS Channel field under LAND
 - Redraw the layer glyphs and show repeater status as a dot
+- Add a dual-channel AIS decode bridge on the PCM spine
+- Ingest off-grid AIS decode into the shared vessel store
+- Add the off-grid AIS sidecar container
+- Start off-grid AIS decode when Sea is opened off grid
 
 ### Bug Fixes
 
@@ -1223,6 +1227,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #332 from barrygee/feat/land-repeater-aprs-icons
 - Merge pull request #333 from barrygee/fix/tle-upstream-breaker
 - Merge pull request #334 from barrygee/fix/space-passes-refresh-reselect
+- Merge pull request #335 from barrygee/feat/ais-sdr-decode
 
 ### Refactoring
 
@@ -1302,6 +1307,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fix stale pmtiles CLI install command
 - Document the UK repeater directory
 - Thin the README and move setup to the top (#327)
+- Document off-grid AIS decode, and rebuild the SPA bundle
 
 ### Tests
 
@@ -1340,6 +1346,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restore the map-rendering classification tests
 - Cover the Land repeater pane and widen the axe audit budget
 - Cover the SDR radio picker's options being reachable
+- Cover the off-grid AIS decode path
+- Cover the off-grid AIS frontend at 100%
 
 ### Build System
 
