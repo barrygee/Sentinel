@@ -31,6 +31,7 @@ import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import { sidebarPaneSelector } from '@/constants/sidebarPanes'
 import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import { useUserLocation } from '@/composables/useUserLocation'
+import { useOffgridAisDecode } from '@/composables/useOffgridAisDecode'
 import { useSeaStore } from '@/stores/sea'
 
 /** Zoom level the map flies to when centring on the user's location. */
@@ -41,6 +42,10 @@ const seaMapRef = ref<InstanceType<typeof SeaMap> | null>(null)
 const { ready: searchPaneReady } = useSidebarPaneTarget('search')
 const { location: userLocation } = useUserLocation()
 const locationActive = computed(() => userLocation.value !== null)
+// Off grid, the vessels come from an SDR rather than AISStream: opening Sea
+// tunes the designated radio to the AIS channels and starts decoding. It keeps
+// running after this view unmounts — see the composable for why.
+useOffgridAisDecode()
 
 function getMap() {
   return seaMapRef.value?.getMap() ?? null

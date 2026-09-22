@@ -9,6 +9,7 @@ import type { SeaFeedInfo, SeaFeedStatus } from '@/stores/sea'
 function feed(status: SeaFeedStatus, overrides: Partial<SeaFeedInfo> = {}): SeaFeedInfo {
   return {
     status,
+    mode: 'online',
     error: null,
     source: 'AISStream',
     lastMessageAt: null,

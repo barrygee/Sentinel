@@ -43,9 +43,15 @@ export type SeaFeedStatus =
   | 'auth-failed'
   | 'unreachable'
 
+/** Which source produced the picture: the online AISStream upstream, or the
+ *  off-grid SDR decode bridge. Both report the same shape, so this is what
+ *  tells the UI whether to talk about an API key or a radio. */
+export type SeaFeedMode = 'online' | 'offgrid'
+
 /** Feed metadata carried by the snapshot response (everything but the rows). */
 export interface SeaFeedInfo {
   status: SeaFeedStatus
+  mode: SeaFeedMode
   error: string | null
   source: string
   lastMessageAt: number | null
@@ -115,6 +121,7 @@ const DEFAULT_LABEL_FIELDS: SeaLabelFieldMap = {
 }
 const DEFAULT_FEED: SeaFeedInfo = {
   status: 'connecting',
+  mode: 'online',
   error: null,
   source: 'AISStream',
   lastMessageAt: null,
@@ -279,6 +286,7 @@ export const useSeaStore = defineStore('sea', () => {
       if (Array.isArray(data.vessels)) vessels.value = data.vessels
       feed.value = {
         status: (data.status as SeaFeedStatus) ?? 'connecting',
+        mode: (data.mode as SeaFeedMode) ?? 'online',
         error: data.error ?? null,
         source: data.source ?? 'AISStream',
         lastMessageAt: data.lastMessageAt ?? null,

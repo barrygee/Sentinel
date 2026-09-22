@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
 import * as sdrRadiosApi from '@/services/sdrRadiosApi'
@@ -66,10 +67,19 @@ async function applyStaged(wrapper: ReturnType<typeof mount>) {
 }
 
 beforeEach(() => {
+  // The control reaches for the SDR store to stop decode when the receiver is
+  // cleared, so it needs a live Pinia.
+  setActivePinia(createPinia())
   vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
+  // hydrateAisFromDb runs on mount; without a stub it hits the real fetch.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) } as unknown as Response),
+  )
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 

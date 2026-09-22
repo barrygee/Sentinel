@@ -18,9 +18,12 @@
 <script setup lang="ts">
 /**
  * Says why the Sea map is empty, when it is empty for a reason the operator
- * can act on — the AISStream key is missing or rejected, the feed is down, or
- * the backend cannot be reached. Only rendered when there is something to
- * say; a live feed needs no announcement.
+ * can act on. What those reasons ARE depends on where the vessels come from,
+ * so the messages are split by `feed.mode`: online it is the AISStream key or
+ * the upstream connection; off grid there is no key and no upstream at all,
+ * and the answer is a missing receiver, a stopped decoder container, or a
+ * radio that has been tuned away from the AIS channels. Only rendered when
+ * there is something to say; a live feed needs no announcement.
  */
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
@@ -30,9 +33,23 @@ import NoDataOverlay from '@/components/shared/NoDataOverlay.vue'
 const props = defineProps<{ feed: SeaFeedInfo }>()
 const settingsStore = useSettingsStore()
 
+/** True when the picture comes from the SDR decoder rather than AISStream. */
+const isOffgrid = computed(() => props.feed.mode === 'offgrid')
+
 /** The full-screen card for states in which no vessel can ever arrive. */
 const blocking = computed<{ title: string; message: string } | null>(() => {
   const { status, error } = props.feed
+  // Off grid there is no API key and no upstream to reconnect to, so the
+  // key/auth states cannot occur and 'no-source' means something different:
+  // no radio has been designated as the AIS receiver.
+  if (isOffgrid.value) {
+    if (status !== 'no-source') return null
+    return {
+      title: 'No off-grid AIS receiver selected.',
+      message:
+        'Off Grid mode is active, so vessels are decoded from an SDR rather than AISStream. Choose the receiver under Settings › SEA › AIS › Off Grid SDR to continue.',
+    }
+  }
   switch (status) {
     case 'missing-key':
       return {
@@ -71,6 +88,18 @@ const blocking = computed<{ title: string; message: string } | null>(() => {
 /** The banner for a feed that is degraded but still has cached vessels. */
 const degradedMessage = computed<string | null>(() => {
   const { status, error, reconnectAttempt } = props.feed
+  if (isOffgrid.value) {
+    switch (status) {
+      case 'down':
+        return `The AIS decoder is not running${error ? ` — ${error}` : ''}. Start it with \`docker compose --profile ais up -d\`; vessels shown may be stale.`
+      case 'stale':
+        return `The AIS receiver has been tuned away from the AIS channels${error ? ` — ${error}` : ''}. It retunes itself within about 15 seconds; vessels shown may be stale.`
+      case 'unreachable':
+        return 'Cannot reach the Sentinel backend — vessels shown are the last received.'
+      default:
+        return null
+    }
+  }
   switch (status) {
     case 'down':
       return `The AIS feed is down${error ? ` — ${error}` : ''}. Retrying every 15 minutes; vessels shown may be stale.`
