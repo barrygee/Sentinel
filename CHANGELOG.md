@@ -164,6 +164,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the off-grid AIS sidecar container
 - Start off-grid AIS decode when Sea is opened off grid
 - Add an "all" profile that starts every decoder at once
+- Give the vessel row AIR's Centre on map icon action
 
 ### Bug Fixes
 
@@ -424,6 +425,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the SPA bundle
 - Rename SEA's Off Grid SDR to AIS SDR and lead the group
 - Name both decoder receivers Off Grid, and Live Camera Feeds
+- Remove the SHOW ON MAP / SELECTED action from the vessel row
 
 ### Other
 
@@ -1240,6 +1242,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #338 from barrygee/fix/land-feeds-reappear-after-delete
 - Merge pull request #339 from barrygee/fix/sea-notice-banner
 - Merge pull request #340 from barrygee/feat/compose-all-decoders-profile
+- Merge pull request #341 from barrygee/chore/remove-sea-locate-button
 
 ### Refactoring
 
