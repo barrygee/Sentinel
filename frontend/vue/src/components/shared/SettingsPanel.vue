@@ -551,6 +551,16 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'sea',
     sectionLabel: 'SEA',
+    id: 'sea-ais-sdr-source',
+    label: 'AIS SDR',
+    desc: 'Which SDR radio receives AIS when the Sea map is off grid',
+    searchTerms: 'ais sdr radio receiver off grid aivdm',
+    type: 'sea-ais-sdr-source',
+    groupLabel: 'AIS',
+  },
+  {
+    section: 'sea',
+    sectionLabel: 'SEA',
     id: 'sea-online-source',
     label: 'Online Data Source',
     desc: 'AISStream WebSocket URL for live vessel positions',
@@ -578,16 +588,6 @@ const ALL_SETTINGS: SettingItem[] = [
     desc: 'The bounding box AIS covers. Worldwide is hundreds of messages a second — a regional box is lighter.',
     searchTerms: 'ais bounding box bbox region area subscription',
     type: 'sea-coverage-area',
-    groupLabel: 'AIS',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-ais-sdr-source',
-    label: 'Off Grid SDR',
-    desc: 'Which SDR radio receives AIS when the Sea map is off grid',
-    searchTerms: 'ais sdr radio receiver off grid aivdm',
-    type: 'sea-ais-sdr-source',
     groupLabel: 'AIS',
   },
   {

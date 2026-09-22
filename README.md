@@ -114,7 +114,7 @@ Decodes ship AIS off the air with **Direwolf**, so the Sea map works with no int
 
 Both AIS channels are decoded at once. Ships alternate between **A (161.975 MHz)** and **B (162.025 MHz)**, so the backend parks the dongle on their midpoint, demodulates each channel from the same I/Q and interleaves them as stereo into a two-channel Direwolf — decoding one would lose roughly half the traffic.
 
-1. **Settings › SEA › AIS › Off Grid SDR** — pick the radio on your marine antenna.
+1. **Settings › SEA › AIS › AIS SDR** — pick the radio on your marine antenna.
 2. Switch SEA off grid (globally, or via the SEA source override).
 3. Open **SEA**. The radio is tuned and decoding starts; it keeps running in the background and resumes on restart.
 

@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 /**
- * Settings › SEA › AIS › Off Grid SDR — which configured SDR radio is the AIS
+ * Settings › SEA › AIS › AIS SDR — which configured SDR radio is the AIS
  * receiver when the Sea map is off grid, the Sea twin of LAND's APRS SDR.
  *
  * This control only *designates* the receiver (`sea.aisSdrRadioId`, staged into
