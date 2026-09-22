@@ -382,6 +382,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make the APRS bridge own its channel frequency
 - Stop an unreachable TLE upstream stalling the passes list
 - Stop a restored pane expansion stealing the map satellite
+- Stop node_modules symlinks being committed
 
 ### Chores
 
@@ -1228,6 +1229,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #333 from barrygee/fix/tle-upstream-breaker
 - Merge pull request #334 from barrygee/fix/space-passes-refresh-reselect
 - Merge pull request #335 from barrygee/feat/ais-sdr-decode
+- Merge pull request #336 from barrygee/fix/committed-node-modules-symlinks
 
 ### Refactoring
 
