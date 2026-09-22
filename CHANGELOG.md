@@ -418,6 +418,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
 - Rebuild the SPA bundle
+- Rename SEA's Off Grid SDR to AIS SDR and lead the group
+- Name both decoder receivers Off Grid, and Live Camera Feeds
 
 ### Other
 
@@ -1230,6 +1232,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #334 from barrygee/fix/space-passes-refresh-reselect
 - Merge pull request #335 from barrygee/feat/ais-sdr-decode
 - Merge pull request #336 from barrygee/fix/committed-node-modules-symlinks
+- Merge pull request #337 from barrygee/chore/sea-ais-sdr-label
 
 ### Refactoring
 
