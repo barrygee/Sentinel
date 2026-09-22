@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import re
 
+from backend.cache import now_ms
 from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.db_helpers import get_setting, upsert_setting
@@ -70,32 +71,53 @@ def _parse_bbox(raw: str | None) -> tuple[float, float, float, float] | None:
 def _offgrid_decode_snapshot() -> dict[str, object]:
     """Feed status for the off-grid source: the SDR AIS decode bridge.
 
-    Shaped like :meth:`AisStreamReader.snapshot` so the map's status line reads
-    one contract whichever source is live. "live" requires the sidecar to be
-    connected AND the radio to be on channel — a bridge decoding silence because
-    something swept the dongle off 162 MHz is reported as degraded, not live,
-    since the vessel picture is going stale either way.
+    Shaped exactly like :meth:`AisStreamReader.snapshot` — same keys, same
+    status vocabulary — so the map's status line and the store's ``SeaFeedInfo``
+    read one contract whichever source is live, and only ``mode`` says which one
+    produced it. The statuses are chosen for what the operator can DO about them:
+
+      * ``no-source``  — no radio picked yet: nothing can ever arrive (actionable)
+      * ``down``       — bridge running but the sidecar container isn't connected
+      * ``stale``      — decoding, but the radio has been moved off 162 MHz, so
+                         only silence is reaching Direwolf until it retunes
+      * ``live``       — on channel with the decoder attached
+
+    The retune case is deliberately not ``live``: the vessel picture is going
+    stale either way, and calling it live would hide the one fault the operator
+    can actually see and fix.
     """
     bridge = sdr_decode.get_active_ais_bridge()
     running = bool(bridge and bridge.running)
     on_channel = bool(bridge and bridge.on_channel)
     decoder_reachable = bool(bridge and bridge.decoder_reachable)
     if not running:
-        status = "down"
-    elif on_channel and decoder_reachable:
-        status = "live"
+        status, error = "no-source", "No off-grid AIS receiver selected"
+    elif not decoder_reachable:
+        status, error = "down", "The AIS decoder container is not connected"
+    elif not on_channel:
+        status, error = "stale", "The radio has been tuned away from the AIS channels"
     else:
-        status = "degraded"
+        status, error = "live", None
+    newest_position_ms = ais_store.store.newest_position_ms
     return {
-        "source": "offgrid",
+        "mode": "offgrid",
+        "source": "SDR off-grid AIS decode",
         "status": status,
-        "active": running,
+        "error": error,
+        "lastMessageAt": newest_position_ms,
+        "silentForMs": (now_ms() - newest_position_ms) if newest_position_ms is not None else None,
+        "reconnectAttempt": 0,
+        "nextAttemptAt": None,
+        "staleAfterMs": app_settings.sea_ais_silence_report_ms,
+        "retentionMs": app_settings.sea_ais_stale_ms,
+        "newestPositionAt": newest_position_ms,
+        "vesselCount": len(ais_store.store),
+        # Off-grid-only diagnostics, for Settings › SEA and the sidecar README's
+        # troubleshooting steps. Absent from the online snapshot.
         "decoderReachable": decoder_reachable,
         "onChannel": on_channel,
         "channelAHz": bridge.channel_a_hz if bridge else None,
         "channelBHz": bridge.channel_b_hz if bridge else None,
-        "newestPositionMs": ais_store.store.newest_position_ms,
-        "vesselCount": len(ais_store.store),
     }
 
 
@@ -112,7 +134,7 @@ async def _ensure_active_feed(db: AsyncSession) -> dict[str, object]:
     if await resolve_effective_mode("sea", db) == "offgrid":
         return _offgrid_decode_snapshot()
     await reader.ensure()
-    return {"source": "online", **reader.snapshot()}
+    return {"mode": "online", **reader.snapshot()}
 
 
 def _status_headers(feed_status: object = None) -> dict[str, str]:
