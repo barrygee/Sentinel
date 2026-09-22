@@ -133,6 +133,30 @@ class Settings(BaseSettings):
     # this value.
     aprs_station_ttl_ms: int = 300_000
 
+    # ── AIS-decode sidecar (Direwolf, off-grid Sea) ───────────────────────────
+    # Off-grid AIS decode is the Sea twin of APRS: the same FM-demod PCM spine
+    # feeds its own Direwolf sidecar, which runs Direwolf's `AIS` modem (9600 bps
+    # GMSK) instead of AFSK1200. It is the off-grid alternative to the online
+    # AISStream.io feed, and decodes into the SAME vessel store so the Sea map,
+    # tracks and snapshot cache work identically whichever source is live.
+    #
+    # TCP port the backend serves the AIS PCM feed on — distinct from the voice
+    # (7355) and APRS (7357) feeds so all three can decode at once on separate
+    # dongles.
+    ais_decoder_pcm_port: int = 7358
+    # AIS is transmitted alternately on two 25 kHz channels 50 kHz apart, so
+    # decoding only one loses roughly half the traffic. The bridge demodulates
+    # BOTH and interleaves them as stereo PCM (left = A, right = B) into a
+    # two-channel Direwolf, which is why these are a pair rather than the single
+    # channel APRS owns.
+    ais_channel_a_hz: int = 161_975_000
+    ais_channel_b_hz: int = 162_025_000
+    # Default per-channel bandwidth (Hz). AIS 9600 GMSK occupies ~14 kHz inside
+    # its 25 kHz channel, so a 16 kHz LPF passes it intact while rejecting the
+    # other AIS channel 50 kHz away. Wider than APRS's 15 kHz because the symbol
+    # rate is 8x higher.
+    ais_decoder_default_bw_hz: int = 16_000
+
     # ── Land live feeds (traffic cameras / traffic data / webcams) ───────────
     # Optional headless-deployment override for feed credentials, keyed by
     # feed id: {"durham-cc": {...}, "tfl-jamcams": {"apiKey": "..."}}. Set in
