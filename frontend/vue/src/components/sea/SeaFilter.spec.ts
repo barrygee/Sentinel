@@ -122,15 +122,37 @@ describe('SeaFilter', () => {
     expect(wrapper.text()).toContain('DOVER')
   })
 
-  it('offers no map action in the expanded row', async () => {
-    // The pane reads vessel data; selecting one on the map is done from the
-    // map itself, so the row carries no action button.
+  it('offers a Centre on map icon action, not a labelled button', async () => {
+    // Matches the AIR aircraft row: an icon action, so the row stays a data
+    // view rather than carrying a chunky SHOW ON MAP button.
     store.vessels = [vessel()]
     const wrapper = mount(SeaFilter)
     await wrapper.find('.bfp-result-item').trigger('click')
-    expect(wrapper.find('.sea-filter-actions').exists()).toBe(false)
+    const action = wrapper.find('.sea-acc-action-row button')
+    expect(action.exists()).toBe(true)
+    expect(action.attributes('aria-label')).toBe('Centre on map')
     expect(wrapper.text()).not.toContain('SHOW ON MAP')
     expect(wrapper.text()).not.toContain('SELECTED')
+  })
+
+  it('asks the view to centre the map on the vessel', async () => {
+    store.vessels = [vessel()]
+    const wrapper = mount(SeaFilter)
+    await wrapper.find('.bfp-result-item').trigger('click')
+    await wrapper.find('.sea-acc-action-row button').trigger('click')
+    expect(wrapper.emitted('locate')).toEqual([['232012345']])
+  })
+
+  it('marks the action active for the vessel already selected', async () => {
+    // The pane and the map share one selection, so the row has to show which
+    // vessel the map is currently on.
+    store.vessels = [vessel()]
+    const wrapper = mount(SeaFilter)
+    await wrapper.find('.bfp-result-item').trigger('click')
+    expect(wrapper.find('.sea-acc-btn--active').exists()).toBe(false)
+    store.setSelectedMmsi('232012345')
+    await nextTick()
+    expect(wrapper.find('.sea-acc-btn--active').exists()).toBe(true)
   })
 
   it('opens the row for a vessel clicked on the map', async () => {

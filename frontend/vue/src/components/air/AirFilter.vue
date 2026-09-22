@@ -118,27 +118,7 @@
               tooltip="Centre on map"
               @click.stop="centrePlane(planeFor(item.key)!)"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="4"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  fill="none"
-                />
-                <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="1.8" />
-                <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="1.8" />
-                <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="1.8" />
-                <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.8" />
-              </svg>
+              <CentreOnMapIcon />
             </BaseIconAction>
           </div>
         </div>
@@ -211,6 +191,7 @@ import BaseFilterPanel, {
 } from '@/components/shared/filter/BaseFilterPanel.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import LocationPinIcon from '@/components/shared/LocationPinIcon.vue'
+import CentreOnMapIcon from '@/components/shared/CentreOnMapIcon.vue'
 import BellIcon from '@/components/shared/BellIcon.vue'
 import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
