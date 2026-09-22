@@ -39,6 +39,10 @@ services:
       # from the voice feed's 7355 so voice + APRS can decode at once on two
       # dongles.
       - APRS_DECODER_PCM_PORT=7357
+      # Off-grid AIS decode PCM feed (used only when the `ais` profile runs).
+      # Distinct from voice (7355) and APRS (7357) so all three can decode at
+      # once on three dongles. This feed is STEREO — one AIS channel per side.
+      - AIS_DECODER_PCM_PORT=7358
       # Sea domain: AISStream.io key for live vessels (optional — the Sea map can
       # also take the key from Settings › SEA). Read from .env, never committed.
       - AISSTREAM_API_KEY=${AISSTREAM_API_KEY:-}
@@ -104,6 +108,43 @@ services:
       - INGEST_SECRET_FILE=/run/decoder/secret
       - IQ_PCM_HOST=app
       - IQ_PCM_PORT=7357
+    volumes:
+      - decoder_secret:/run/decoder:ro
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  # Off-grid AIS decoder (Direwolf, AIS modem). OPT-IN: only builds/starts with
+  # `--profile ais`. The Sea twin of aprs-decoder: same image base and the same
+  # plain-GPL Direwolf (no patent-encumbered vocoder), but running Direwolf's
+  # 9600 bps GMSK AIS modem on TWO channels at once.
+  #
+  # AIS ships alternate between channel A (161.975 MHz) and B (162.025 MHz), so
+  # the backend demodulates both from one IQ span and serves them as interleaved
+  # STEREO PCM (left = A, right = B); direwolf.conf runs an AIS modem on each.
+  # Decoding a single channel would miss roughly half of all transmissions.
+  #
+  # This is the off-grid alternative to the online AISStream.io feed — decoded
+  # vessels land in the same store, so the Sea map is identical either way. It
+  # decodes independently of the voice and APRS decoders, so all three profiles
+  # can run together on three dongles. See decoder/ais/README.md.
+  ais-decoder:
+    build:
+      context: ./decoder/ais
+      dockerfile: Dockerfile
+    container_name: sentinel-ais-decoder
+    profiles: ["ais"]
+    depends_on:
+      - app
+    environment:
+      - INGEST_URL=http://app:8000/api/sdr/ais/ingest
+      - CONFIG_URL=http://app:8000/api/sdr/ais/config
+      # Reads the auto-generated secret the backend wrote to the shared volume;
+      # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
+      - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - INGEST_SECRET_FILE=/run/decoder/secret
+      - IQ_PCM_HOST=app
+      - IQ_PCM_PORT=7358
     volumes:
       - decoder_secret:/run/decoder:ro
     restart: unless-stopped
