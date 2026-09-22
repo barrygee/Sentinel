@@ -72,6 +72,7 @@ async def lifespan(app: FastAPI):
     # Resume background APRS decode on the persisted radio (best-effort; a missing
     # radio or unreachable dongle is logged and skipped, never blocking startup).
     await sdr_router.resume_persisted_aprs()
+    await sdr_router.resume_persisted_ais()
     cleanup_task = asyncio.create_task(_daily_cleanup_loop())
     # Start one poller task per enabled Sentry host (ADR-0009).
     await fleet_poller.start_all()
