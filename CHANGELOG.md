@@ -384,6 +384,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop a restored pane expansion stealing the map satellite
 - Stop node_modules symlinks being committed
 - Stop a deleted camera feed reappearing on every restart
+- Centre the warning banner on the page and mark it as a warning
+- Centre the warning banner in the visible map, not the viewport
 
 ### Chores
 
@@ -1235,6 +1237,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #336 from barrygee/fix/committed-node-modules-symlinks
 - Merge pull request #337 from barrygee/chore/sea-ais-sdr-label
 - Merge pull request #338 from barrygee/fix/land-feeds-reappear-after-delete
+- Merge pull request #339 from barrygee/fix/sea-notice-banner
 
 ### Refactoring
 
