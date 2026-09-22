@@ -201,7 +201,7 @@
 <script setup lang="ts">
 /**
  * `LandFeedForm` — the add/edit form for one row in `LandFeedsControl`
- * (Settings › LAND › LIVE FEEDS), cloned from `SdrDeviceForm`'s shape.
+ * (Settings › LAND › LIVE CAMERA FEEDS), cloned from `SdrDeviceForm`'s shape.
  *
  * Unlike the SDR devices editor, this form does not write to the backend
  * directly: it hands the edited {@link FeedConfig} (and, for a TfL JamCams

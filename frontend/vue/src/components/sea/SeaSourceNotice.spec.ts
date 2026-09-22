@@ -129,7 +129,7 @@ describe('SeaSourceNotice off grid', () => {
     const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed('no-source') } })
     const text = wrapper.text()
     expect(text).toContain('No off-grid AIS receiver selected')
-    expect(text).toContain('Settings › SEA › AIS › Off Grid SDR')
+    expect(text).toContain('Settings › SEA › AIS › Off Grid AIS SDR')
     // It may mention AISStream to contrast the two sources, but it must never
     // send the operator looking for an API key that cannot apply off grid.
     expect(text).not.toContain('API key')

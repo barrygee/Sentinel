@@ -264,13 +264,13 @@ describe('SettingsPanel', () => {
       expect(ids).not.toContain('land-source-override')
     })
 
-    it('groups the Land rows under APRS, REPEATERS and LIVE FEEDS', async () => {
+    it('groups the Land rows under APRS, REPEATERS and LIVE CAMERA FEEDS', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'LAND')
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'APRS',
         'REPEATERS',
-        'LIVE FEEDS',
+        'LIVE CAMERA FEEDS',
       ])
     })
 

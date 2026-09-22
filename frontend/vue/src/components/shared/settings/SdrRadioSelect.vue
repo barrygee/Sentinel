@@ -19,7 +19,7 @@
 <script setup lang="ts">
 /**
  * `SdrRadioSelect` — the "which SDR radio" dropdown shared by the settings
- * cards that hand a receiver to a decoder (LAND's APRS SDR, SEA's AIS SDR).
+ * cards that hand a receiver to a decoder (LAND's Off Grid APRS SDR, SEA's Off Grid AIS SDR).
  *
  * Owns only the radio list: it re-reads the configured radios every few
  * seconds (a radio can be added, disabled or — for a Sentry-mirrored device
