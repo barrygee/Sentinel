@@ -221,3 +221,174 @@ async def test_seeder_keeps_the_sea_source_keys(test_engine, db_setup, monkeypat
         assert await get_setting(db, "sea", "aisBoundingBoxes") == [
             [[-90, -180], [90, 180]]
         ]
+
+
+# ── Off-grid source (SDR AIS decode) ──────────────────────────────────────────
+
+
+class TestOffgridFeedSelection:
+    """Off grid, Sea reads the SDR decode bridge instead of AISStream.
+
+    The single most important behaviour here is the NEGATIVE one: the online
+    upstream must not be dialled at all. Off grid there is no internet to reach
+    AISStream on, and an attempt burns the reconnect back-off ladder and logs
+    hourly auth probes for a key that cannot be used.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear_ais_bridges(self):
+        from backend.services import sdr_decode
+
+        sdr_decode._ais_bridges.clear()
+        yield
+        sdr_decode._ais_bridges.clear()
+
+    def _go_offgrid(self, client):
+        client.put("/api/settings/app/connectivityMode", json={"value": "offgrid"})
+
+    def _register_bridge(self, *, running=True, on_channel=True, reachable=True):
+        import asyncio
+
+        from backend.services import sdr_decode
+
+        class _FakeBroadcaster:
+            def subscribe_iq(self):
+                return asyncio.Queue()
+
+            def unsubscribe_iq(self, queue):
+                pass
+
+        bridge = sdr_decode.AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        bridge._running = running
+        bridge._on_channel = on_channel
+        bridge._decoder_connected = reachable
+        sdr_decode._ais_bridges["h1:1234"] = bridge
+        return bridge
+
+    def test_online_mode_still_reports_the_upstream(self, client):
+        body = client.get("/api/sea/status").json()
+        assert body["mode"] == "online"
+
+    def test_offgrid_never_touches_the_aisstream_reader(self, client, monkeypatch):
+        from backend.routers import sea as sea_router
+
+        called = {"ensure": 0}
+
+        async def _ensure():
+            called["ensure"] += 1
+            return "live"
+
+        monkeypatch.setattr(sea_router.reader, "ensure", _ensure)
+        self._go_offgrid(client)
+        self._register_bridge()
+        client.get("/api/sea/status")
+        client.get("/api/sea/vessels")
+        assert called["ensure"] == 0
+
+    def test_online_mode_does_nudge_the_reader(self, client, monkeypatch):
+        # The mirror of the test above: when online, the snapshot must still
+        # wake the watchdog so a reconnect doesn't wait for the background tick.
+        from backend.routers import sea as sea_router
+
+        called = {"ensure": 0}
+
+        async def _ensure():
+            called["ensure"] += 1
+            return "live"
+
+        monkeypatch.setattr(sea_router.reader, "ensure", _ensure)
+        client.get("/api/sea/vessels")
+        assert called["ensure"] == 1
+
+    def test_offgrid_reports_no_source_without_a_receiver(self, client):
+        # Nothing can ever arrive until a radio is designated — the one state
+        # the operator can act on.
+        self._go_offgrid(client)
+        body = client.get("/api/sea/status").json()
+        assert body["mode"] == "offgrid"
+        assert body["status"] == "no-source"
+        assert body["error"]
+
+    def test_offgrid_reports_live_when_decoding_on_channel(self, client):
+        self._go_offgrid(client)
+        self._register_bridge()
+        body = client.get("/api/sea/status").json()
+        assert body["status"] == "live"
+        assert body["error"] is None
+        assert body["onChannel"] is True
+        assert body["decoderReachable"] is True
+        assert body["channelAHz"] == settings.ais_channel_a_hz
+        assert body["channelBHz"] == settings.ais_channel_b_hz
+
+    def test_offgrid_reports_down_when_the_sidecar_is_absent(self, client):
+        # The bridge is serving PCM but no decoder container has connected.
+        self._go_offgrid(client)
+        self._register_bridge(reachable=False)
+        body = client.get("/api/sea/status").json()
+        assert body["status"] == "down"
+
+    def test_offgrid_reports_stale_when_tuned_off_channel(self, client):
+        # Deliberately NOT "live": the radio has been moved off 162 MHz, so
+        # only silence reaches Direwolf and the picture is going stale.
+        self._go_offgrid(client)
+        self._register_bridge(on_channel=False)
+        body = client.get("/api/sea/status").json()
+        assert body["status"] == "stale"
+
+    def test_offgrid_snapshot_keeps_the_common_feed_shape(self, client):
+        # Both sources must report one contract, or the store's SeaFeedInfo
+        # silently loses fields depending on which one is live.
+        self._go_offgrid(client)
+        self._register_bridge()
+        body = client.get("/api/sea/vessels").json()
+        for field in (
+            "status",
+            "mode",
+            "error",
+            "source",
+            "lastMessageAt",
+            "silentForMs",
+            "reconnectAttempt",
+            "nextAttemptAt",
+            "newestPositionAt",
+            "vesselCount",
+        ):
+            assert field in body, field
+
+    def test_offgrid_serves_vessels_from_the_shared_store(self, client, _fresh_store):
+        # Decoded vessels are read back through the same endpoint as online ones.
+        self._go_offgrid(client)
+        self._register_bridge()
+        _ingest(_fresh_store)
+        body = client.get("/api/sea/vessels").json()
+        assert [vessel["mmsi"] for vessel in body["vessels"]] == ["232012345"]
+        assert body["vesselCount"] == 1
+
+    def test_a_sea_source_override_beats_the_global_mode(self, client, monkeypatch):
+        # Global online, but SEA pinned off grid: the domain override wins, so
+        # the reader must still not be dialled.
+        from backend.routers import sea as sea_router
+
+        called = {"ensure": 0}
+
+        async def _ensure():
+            called["ensure"] += 1
+            return "live"
+
+        monkeypatch.setattr(sea_router.reader, "ensure", _ensure)
+        client.put("/api/settings/app/connectivityMode", json={"value": "online"})
+        client.put("/api/settings/sea/sourceOverride", json={"value": "offgrid"})
+        body = client.get("/api/sea/status").json()
+        assert body["mode"] == "offgrid"
+        assert called["ensure"] == 0
+
+    def test_an_online_override_beats_a_global_offgrid_mode(self, client):
+        self._go_offgrid(client)
+        client.put("/api/settings/sea/sourceOverride", json={"value": "online"})
+        assert client.get("/api/sea/status").json()["mode"] == "online"
+
+    def test_offgrid_cache_header_is_stale_until_decode_is_live(self, client):
+        self._go_offgrid(client)
+        assert client.get("/api/sea/vessels").headers["X-Cache"] == "STALE"
+        self._register_bridge()
+        assert client.get("/api/sea/vessels").headers["X-Cache"] == "LIVE"

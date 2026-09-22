@@ -587,15 +587,102 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
+  // SEA's off-grid AIS receiver. Mirrors the APRS block above, with one
+  // difference in *when* decode starts: APRS begins the moment a radio is
+  // picked in Settings, whereas AIS is designated in Settings (`sea.aisSdrRadioId`)
+  // and only starts when the operator opens the Sea section off grid — see
+  // SeaView. `aisRadioId` is therefore "which radio is decoding right now",
+  // not "which radio is designated".
+  function _readAisRadioId(): number | null {
+    try {
+      const raw = parseInt(localStorage.getItem('sdrAisRadioId') || '', 10)
+      return Number.isFinite(raw) ? raw : null
+    } catch {
+      return null
+    }
+  }
+  const aisRadioId = ref<number | null>(_readAisRadioId())
+  function setAisRadioId(radioId: number | null) {
+    aisRadioId.value = radioId
+    try {
+      if (radioId == null) localStorage.removeItem('sdrAisRadioId')
+      else localStorage.setItem('sdrAisRadioId', String(radioId))
+    } catch {}
+  }
+
+  /**
+   * Reconcile the AIS decode state with the database. The backend resumes the
+   * persisted AIS radio on startup (resume_persisted_ais), so after a reload
+   * the DB — not localStorage — is the truth about which radio is decoding.
+   */
+  async function hydrateAisFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const persistedRadioId = data?.ais_radio_id
+      const nextRadioId = typeof persistedRadioId === 'number' ? persistedRadioId : null
+      if (nextRadioId !== aisRadioId.value) setAisRadioId(nextRadioId)
+    } catch {
+      /* offline / transient — keep the cached value */
+    }
+  }
+
+  /**
+   * Start background off-grid AIS decode on a radio. The bridge tunes the radio
+   * to the midpoint of the two AIS channels and keeps decoding even once the
+   * operator leaves the Sea section, so the vessel picture stays warm. Persists
+   * server-side, so it also survives a restart. Returns success.
+   */
+  async function startAis(radioId: number, bwHz = 0): Promise<boolean> {
+    try {
+      const res = await fetch('/api/sdr/ais/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ radio_id: radioId, bw_hz: bwHz }),
+      })
+      // Track the decoding radio only once the backend has accepted it, so a
+      // failed start never reserves a radio that isn't decoding.
+      if (res.ok) {
+        setAisRadioId(radioId)
+        // The backend persisted `sdr.ais_radio_id` — let the config JSON follow.
+        notifySettingsChanged()
+      }
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
+  /** Stop background off-grid AIS decode on a radio and clear the persisted choice. */
+  async function stopAis(radioId: number): Promise<boolean> {
+    try {
+      const res = await fetch('/api/sdr/ais/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ radio_id: radioId }),
+      })
+      if (res.ok) notifySettingsChanged()
+      return res.ok
+    } catch {
+      return false
+    } finally {
+      // Clear regardless of the response: the operator asked for decode to
+      // stop, so the radio must not stay reserved even if the call failed.
+      setAisRadioId(null)
+    }
+  }
+
   // ── Domain reservations (AIR's ADS-B receiver, LAND's APRS receiver) ──────
   // A radio named as a domain's receiver is doing a job for that domain
   // full-time: ADS-B holds and tunes it to 1090 MHz while AIR is open off grid,
   // APRS keeps a decode bridge on it. Letting the SDR panel retune the same
   // dongle would silently break the domain that depends on it, so a reserved
   // radio is locked out of the panel (padlock, not selectable) until it is
-  // deselected in Settings. The APRS side is `aprsRadioId` above; the ADS-B
-  // side is a Sentry host+device pair, which is matched to a radio by its
-  // mirror fields (ADR-0009).
+  // deselected in Settings. The APRS side is `aprsRadioId` above and the AIS
+  // side `aisRadioId` (its bridge holds the dongle on 162 MHz the same way);
+  // the ADS-B side is a Sentry host+device pair, which is matched to a radio by
+  // its mirror fields (ADR-0009).
   const adsbSourceKey = ref<string | null>(null)
 
   /** Read which Sentry device AIR uses as its ADS-B receiver, if any. */
@@ -613,8 +700,9 @@ export const useSdrStore = defineStore('sdr', () => {
    * Returns the domain's operator-facing name so callers can say *why* a radio
    * is locked — "reserved" with no reason sends people hunting through settings.
    */
-  function radioReservation(radioId: number): 'APRS' | 'ADS-B' | null {
+  function radioReservation(radioId: number): 'APRS' | 'AIS' | 'ADS-B' | null {
     if (aprsRadioId.value === radioId) return 'APRS'
+    if (aisRadioId.value === radioId) return 'AIS'
     if (adsbSourceKey.value === null) return null
     const radio = radios.value.find((candidate) => candidate.id === radioId)
     if (!radio || radio.sentry_host_id == null || !radio.sentry_device_id) return null
@@ -1200,6 +1288,11 @@ export const useSdrStore = defineStore('sdr', () => {
     aprsEnabled,
     setAprsEnabled,
     aprsRadioId,
+    aisRadioId,
+    setAisRadioId,
+    hydrateAisFromDb,
+    startAis,
+    stopAis,
     setAprsRadioId,
     hydrateAprsFromDb,
     adsbSourceKey,

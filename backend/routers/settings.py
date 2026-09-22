@@ -482,6 +482,7 @@ async def config_upload(
     # upload changes `sdr.aprs_radio_id`, the bridge must follow it so the JSON
     # edit takes effect exactly as picking the radio in Settings > LAND would.
     previous_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
+    previous_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
 
     ts = now_ms()
     for namespace, keys in config.items():
@@ -538,6 +539,12 @@ async def config_upload(
         from backend.services.aprs_store import read_aprs_channel_hz  # avoid import cycle at module load
 
         await apply_aprs_channel(await read_aprs_channel_hz(db))
+
+    next_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
+    if next_ais_radio_id != previous_ais_radio_id:
+        from backend.routers.sdr import reconcile_ais_decode  # avoid import cycle at module load
+
+        await reconcile_ais_decode(db, previous_ais_radio_id, next_ais_radio_id)
 
     land_ns = config.get("land")
     if isinstance(land_ns, dict) and "feeds" in land_ns:

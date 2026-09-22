@@ -114,6 +114,9 @@ _IQ_DECIM_MAX = 8
 # matching the worklet's 64-order / 65-tap Hamming-windowed sinc.
 _FIR_M = 64
 
+# Shared empty result for the demod path, so the no-samples case allocates nothing.
+_EMPTY_AUDIO = np.zeros(0, dtype=np.float64)
+
 
 def _compute_iq_decim(sample_rate: int, bw_hz: int) -> int:
     """Pick the integer IQ-decimation factor (power of two, ≤ _IQ_DECIM_MAX).
@@ -300,18 +303,21 @@ def _resample_to_output(samples: np.ndarray, input_rate: float, state: DemodStat
     return np.asarray(output, dtype=np.float64)
 
 
-def demod_chunk(raw_iq: bytes, sample_rate: int, state: DemodState) -> bytes:
-    """FM-demodulate one raw IQ chunk to 48 kHz mono s16 LE PCM bytes.
+def demodulate_to_audio(raw_iq: bytes, sample_rate: int, state: DemodState) -> np.ndarray:
+    """FM-demodulate one raw IQ chunk to 48 kHz real audio (discriminator radians).
 
     Reproduces the browser worklet's chain — IQ decimate, NCO mix, channel LPF,
-    FM discriminator, fractional resample — without de-emphasis or squelch, then
-    scales the discriminator output (range ±π) to full-scale int16. Returns the
-    PCM bytes to write to the decoder's TCP audio feed; ``state`` is mutated to
-    carry filter memory to the next chunk.
+    FM discriminator, fractional resample — without de-emphasis or squelch.
+    ``state`` is mutated to carry filter memory to the next chunk. Returns the
+    float audio (range ±π); callers scale it to PCM with :func:`audio_to_pcm_bytes`.
+
+    Split out from :func:`demod_chunk` so a bridge can demodulate the SAME IQ
+    chunk twice, at two different offsets, and interleave the results into
+    stereo PCM (see :func:`demod_chunk_stereo`).
     """
     samples = _iq_bytes_to_complex(raw_iq).astype(np.complex128)
     if samples.size == 0:
-        return b""
+        return _EMPTY_AUDIO
 
     decim = _compute_iq_decim(sample_rate, state.bw_hz)
     if decim != state.iq_decim:
@@ -321,7 +327,7 @@ def demod_chunk(raw_iq: bytes, sample_rate: int, state: DemodState) -> bytes:
 
     samples = _decimate_iq(samples, decim, state)
     if samples.size == 0:
-        return b""
+        return _EMPTY_AUDIO
 
     if state.offset_hz != 0:
         samples = _mix_nco(samples, state.offset_hz, effective_sr, state)
@@ -334,13 +340,60 @@ def demod_chunk(raw_iq: bytes, sample_rate: int, state: DemodState) -> bytes:
         samples = _lpf_channel(samples, effective_sr, state)
 
     discriminated = _fm_discriminate(samples, state)
-    audio = _resample_to_output(discriminated, effective_sr, state)
+    return _resample_to_output(discriminated, effective_sr, state)
+
+
+def audio_to_pcm_bytes(audio: np.ndarray) -> bytes:
+    """Scale discriminator audio (±π radians) to full-scale s16 LE PCM bytes."""
     if audio.size == 0:
         return b""
-
-    # Discriminator output is in radians (±π); normalise to ±1 then scale to s16.
     scaled = np.clip(audio / math.pi * 32767.0, -32768, 32767).astype("<i2")
     return scaled.tobytes()
+
+
+def demod_chunk(raw_iq: bytes, sample_rate: int, state: DemodState) -> bytes:
+    """FM-demodulate one raw IQ chunk to 48 kHz MONO s16 LE PCM bytes.
+
+    The single-channel case (voice, APRS): demodulate at ``state.offset_hz`` and
+    scale to PCM for the decoder's TCP audio feed.
+    """
+    return audio_to_pcm_bytes(demodulate_to_audio(raw_iq, sample_rate, state))
+
+
+def demod_chunk_stereo(
+    raw_iq: bytes,
+    sample_rate: int,
+    left_state: DemodState,
+    right_state: DemodState,
+) -> bytes:
+    """FM-demodulate one IQ chunk at two offsets into interleaved STEREO s16 PCM.
+
+    Used by the AIS bridge: AIS alternates between two channels 50 kHz apart, so
+    both are demodulated from the same IQ and handed to a two-channel Direwolf as
+    one interleaved stream (left = channel A, right = channel B), which reads
+    stdin as ``ACHANNELS``-wide interleaved audio.
+
+    Both states see the same input length, bandwidth and decimation, so their
+    resamplers emit the same number of samples. The lengths are still reconciled
+    defensively: a mismatch would otherwise offset one channel against the other
+    for the rest of the session, turning stereo into noise.
+    """
+    left_audio = demodulate_to_audio(raw_iq, sample_rate, left_state)
+    right_audio = demodulate_to_audio(raw_iq, sample_rate, right_state)
+    paired_count = min(left_audio.size, right_audio.size)
+    if paired_count == 0:
+        return b""
+    if left_audio.size != right_audio.size:
+        logger.warning(
+            "AIS stereo demod length mismatch (A=%d, B=%d); truncating to %d",
+            left_audio.size,
+            right_audio.size,
+            paired_count,
+        )
+    interleaved = np.empty(paired_count * 2, dtype=np.float64)
+    interleaved[0::2] = left_audio[:paired_count]
+    interleaved[1::2] = right_audio[:paired_count]
+    return audio_to_pcm_bytes(interleaved)
 
 
 # ── Decoder bridges ─────────────────────────────────────────────────────────────
@@ -460,6 +513,15 @@ class PcmDecodeBridge:
     def _clear_extra_subscribers(self) -> None:
         """Drop references to any extra subscriber queues after draining."""
 
+    def _demodulate(self, raw_iq: bytes, sample_rate: int) -> bytes:
+        """Demodulate one IQ chunk into the PCM bytes served to the sidecar.
+
+        Called in a worker thread (the DSP is CPU-bound). The base bridge serves
+        one channel as mono; :class:`AisDecodeBridge` overrides this to serve its
+        two channels as interleaved stereo.
+        """
+        return demod_chunk(raw_iq, sample_rate, self._state)
+
     def _accept_chunk(self, *, sample_rate: int, center_hz: int) -> bool:
         """Decide whether to demodulate an IQ chunk, given the span it was captured on.
 
@@ -536,7 +598,7 @@ class PcmDecodeBridge:
                 if not self._accept_chunk(sample_rate=sample_rate, center_hz=center_hz):
                     continue
                 raw_iq = payload[8:]
-                pcm = await asyncio.to_thread(demod_chunk, raw_iq, sample_rate, self._state)
+                pcm = await asyncio.to_thread(self._demodulate, raw_iq, sample_rate)
                 if not pcm:
                     continue
                 writer = self._pcm_writer
@@ -731,30 +793,150 @@ class DigitalDecodeBridge(PcmDecodeBridge):
         }
 
 
-# Minimum gap (s) between the APRS bridge's attempts to pull the dongle back onto
-# its channel after something else tuned it out of the span. Long enough not to
-# fight a viewer who is deliberately sweeping the band, short enough that APRS
-# recovers promptly once they stop.
+# Minimum gap (s) between a channel-owning bridge's attempts to pull the dongle
+# back onto its channel after something else tuned it out of the span. Long
+# enough not to fight a viewer who is deliberately sweeping the band, short
+# enough that decode recovers promptly once they stop.
 APRS_RETUNE_INTERVAL_S = 15.0
 
 
-class AprsDecodeBridge(PcmDecodeBridge):
+class ChannelOwningDecodeBridge(PcmDecodeBridge):
+    """A PCM bridge that OWNS an absolute channel rather than following a viewer.
+
+    The voice bridge demodulates wherever the viewer points it. The background
+    packet bridges (APRS, AIS) can't: they run unattended, so they cannot rely on
+    a viewer having left the dongle in the right place. This base gives them the
+    shared ownership behaviour:
+
+      * on start, tune the dongle so the owned channel(s) fall in the span;
+      * for every IQ chunk, re-derive the demod offset(s) from the centre
+        frequency the chunk was actually captured on, so a viewer retuning
+        *within* the span doesn't disturb decode at all;
+      * when something moves the span off channel (a viewer sweeping the band, a
+        satellite auto-tune parking the radio on the ISS), pull it back after
+        :data:`APRS_RETUNE_INTERVAL_S` rather than decoding silence indefinitely.
+
+    Subclasses define *which* frequencies they own (:meth:`owned_channels_hz`),
+    where the dongle should sit to hear them (:meth:`tune_target_hz`), and how an
+    in-span centre maps onto their demod offset(s) (:meth:`_apply_offsets`).
+    """
+
+    def __init__(
+        self,
+        broadcaster: RadioBroadcaster,
+        *,
+        pcm_port: int | None = None,
+        default_bw_hz: int | None = None,
+    ) -> None:
+        super().__init__(broadcaster, pcm_port=pcm_port, default_bw_hz=default_bw_hz)
+        self._on_channel = False
+        self._last_retune_monotonic = 0.0
+        self._retune_task: asyncio.Task | None = None
+
+    # ── subclass contract ──────────────────────────────────────────────────
+    def owned_channels_hz(self) -> tuple[int, ...]:
+        """The absolute frequencies that must all be inside the captured span."""
+        raise NotImplementedError
+
+    def tune_target_hz(self) -> int:
+        """Where to put the dongle's centre so every owned channel is heard."""
+        raise NotImplementedError
+
+    def _apply_offsets(self, center_hz: int) -> None:
+        """Re-derive this bridge's demod offset(s) from the live centre frequency."""
+        raise NotImplementedError
+
+    @property
+    def on_channel(self) -> bool:
+        """True while the radio's captured span covers every owned channel."""
+        return self._on_channel
+
+    # ── lifecycle ──────────────────────────────────────────────────────────
+    async def _on_start(self) -> None:
+        # Nothing has told the dongle where this channel lives yet — a fresh
+        # connection sits on whatever the relay/rtl_tcp last had (see the
+        # 145.800 MHz incident), so put it on channel before the first chunk.
+        await self._tune_to_channel()
+
+    async def _on_stop(self) -> None:
+        if self._retune_task is not None:
+            self._retune_task.cancel()
+            self._retune_task = None
+        self._on_channel = False
+
+    # ── span tracking ──────────────────────────────────────────────────────
+    def _channels_in_span(self, *, sample_rate: int, center_hz: int) -> bool:
+        """Whether every owned channel (plus its bandwidth) fits in the span.
+
+        The outer ~10% of an RTL-SDR span is rolled off by the tuner's anti-alias
+        filter, so a channel there decodes poorly; treat it as out of span too.
+        """
+        usable_half_span = sample_rate * 0.45
+        return all(
+            abs(channel_hz - center_hz) + self._state.bw_hz / 2 <= usable_half_span
+            for channel_hz in self.owned_channels_hz()
+        )
+
+    def _accept_chunk(self, *, sample_rate: int, center_hz: int) -> bool:
+        if sample_rate and self._channels_in_span(sample_rate=sample_rate, center_hz=center_hz):
+            self._apply_offsets(center_hz)
+            if not self._on_channel:
+                self._on_channel = True
+                logger.info(
+                    "%s channel(s) %s back in span (centre %d Hz)",
+                    self.kind,
+                    self.owned_channels_hz(),
+                    center_hz,
+                )
+            return True
+        if self._on_channel:
+            self._on_channel = False
+            logger.warning(
+                "%s channel(s) %s outside the captured span (centre %d Hz, rate %d); retuning",
+                self.kind,
+                self.owned_channels_hz(),
+                center_hz,
+                sample_rate,
+            )
+        self._schedule_retune()
+        return False
+
+    def _schedule_retune(self) -> None:
+        """Kick off a throttled retune from the demod loop without blocking it."""
+        if self._retune_task is not None and not self._retune_task.done():
+            return
+        if time.monotonic() - self._last_retune_monotonic < APRS_RETUNE_INTERVAL_S:
+            return
+        self._retune_task = asyncio.create_task(self._tune_to_channel(), name=f"sdr-{self.kind}-retune")
+
+    async def _tune_to_channel(self) -> None:
+        """Point the dongle at the channel, unless the current span already covers it.
+
+        Best-effort: a tuner owned by another Sentinel instance, or a dropped
+        connection, is logged and left for the next throttled attempt — the
+        bridge keeps serving (silence) rather than tearing down.
+        """
+        self._last_retune_monotonic = time.monotonic()
+        connection = self._broadcaster.connection
+        if connection.center_hz and self._channels_in_span(
+            sample_rate=connection.sample_rate, center_hz=connection.center_hz
+        ):
+            return
+        target_hz = self.tune_target_hz()
+        try:
+            await connection.set_frequency(target_hz)
+            logger.info("%s bridge tuned radio to %d Hz", self.kind, target_hz)
+        except Exception as exc:  # noqa: BLE001 - any tuning failure is non-fatal here
+            logger.warning("%s bridge could not tune radio to %d Hz: %s", self.kind, target_hz, exc)
+
+
+class AprsDecodeBridge(ChannelOwningDecodeBridge):
     """APRS packet-decode bridge (Direwolf sidecar).
 
-    Adds nothing to the PCM spine: Direwolf consumes the 48 kHz s16 feed and the
-    decoded APRS packets arrive back purely as HTTP-ingested events (there is no
-    decoded-voice UDP stream).
-
-    Unlike the voice bridge, which demodulates wherever the viewer points it,
-    this bridge **owns an absolute channel** (``channel_hz``, e.g. 144.800 MHz).
-    APRS runs unattended in the background, so it can't rely on a viewer having
-    left the dongle in the right place: on start it tunes the dongle to the
-    channel, and for every IQ chunk it re-derives its demod offset from the
-    centre frequency the chunk was actually captured on. A viewer retuning
-    within the span therefore doesn't disturb decode at all, and one that moves
-    the span off the channel (or a satellite auto-tune parking the radio on the
-    ISS) is pulled back after :data:`APRS_RETUNE_INTERVAL_S` rather than leaving
-    Direwolf decoding silence indefinitely.
+    Adds nothing to the PCM spine: Direwolf consumes the 48 kHz s16 mono feed and
+    the decoded APRS packets arrive back purely as HTTP-ingested events (there is
+    no decoded-voice UDP stream). It owns a single absolute channel
+    (``channel_hz``, e.g. 144.800 MHz) — see :class:`ChannelOwningDecodeBridge`.
     """
 
     kind = "aprs"
@@ -773,19 +955,20 @@ class AprsDecodeBridge(PcmDecodeBridge):
             default_bw_hz=default_bw_hz or settings.aprs_decoder_default_bw_hz,
         )
         self._channel_hz = channel_hz or settings.aprs_channel_hz
-        self._on_channel = False
-        self._last_retune_monotonic = 0.0
-        self._retune_task: asyncio.Task | None = None
 
     @property
     def channel_hz(self) -> int:
         """The absolute frequency (Hz) this bridge decodes."""
         return self._channel_hz
 
-    @property
-    def on_channel(self) -> bool:
-        """True while the radio's captured span contains the APRS channel."""
-        return self._on_channel
+    def owned_channels_hz(self) -> tuple[int, ...]:
+        return (self._channel_hz,)
+
+    def tune_target_hz(self) -> int:
+        return self._channel_hz
+
+    def _apply_offsets(self, center_hz: int) -> None:
+        self._state.offset_hz = self._channel_hz - center_hz
 
     async def set_channel_hz(self, channel_hz: int) -> None:
         """Move the bridge to a new channel (Settings change) and retune at once."""
@@ -795,81 +978,80 @@ class AprsDecodeBridge(PcmDecodeBridge):
         if self._running:
             await self._tune_to_channel()
 
-    async def _on_start(self) -> None:
-        # Nothing has told the dongle where APRS lives yet — a fresh connection
-        # sits on whatever the relay/rtl_tcp last had (see the 145.800 MHz
-        # incident), so put it on the channel before the first chunk arrives.
-        await self._tune_to_channel()
 
-    async def _on_stop(self) -> None:
-        if self._retune_task is not None:
-            self._retune_task.cancel()
-            self._retune_task = None
-        self._on_channel = False
+class AisDecodeBridge(ChannelOwningDecodeBridge):
+    """Off-grid AIS decode bridge (two-channel Direwolf sidecar).
 
-    def _channel_in_span(self, *, sample_rate: int, center_hz: int) -> bool:
-        """Whether the channel (plus its bandwidth) fits inside the captured span.
+    The Sea twin of :class:`AprsDecodeBridge`, with one structural difference:
+    AIS ships alternate between two 25 kHz channels 50 kHz apart (A 161.975 MHz,
+    B 162.025 MHz), so decoding one loses roughly half the traffic. This bridge
+    therefore owns BOTH: it parks the dongle on their midpoint and demodulates
+    the same IQ chunk twice, interleaving the results into stereo PCM (left = A,
+    right = B) for a Direwolf running ``ACHANNELS 2``. Decoded AIVDM sentences
+    arrive back as HTTP-ingested events, exactly as APRS packets do.
+    """
 
-        The outer ~10% of an RTL-SDR span is rolled off by the tuner's anti-alias
-        filter, so a channel there decodes poorly; treat it as out of span too.
-        """
-        usable_half_span = sample_rate * 0.45
-        return abs(self._channel_hz - center_hz) + self._state.bw_hz / 2 <= usable_half_span
+    kind = "ais"
 
-    def _accept_chunk(self, *, sample_rate: int, center_hz: int) -> bool:
-        if sample_rate and self._channel_in_span(sample_rate=sample_rate, center_hz=center_hz):
-            self._state.offset_hz = self._channel_hz - center_hz
-            if not self._on_channel:
-                self._on_channel = True
-                logger.info("aprs channel %d Hz back in span (centre %d Hz)", self._channel_hz, center_hz)
-            return True
-        if self._on_channel:
-            self._on_channel = False
-            logger.warning(
-                "aprs channel %d Hz outside the captured span (centre %d Hz, rate %d); retuning",
-                self._channel_hz,
-                center_hz,
-                sample_rate,
-            )
-        self._schedule_retune()
-        return False
+    def __init__(
+        self,
+        broadcaster: RadioBroadcaster,
+        *,
+        channel_a_hz: int | None = None,
+        channel_b_hz: int | None = None,
+        pcm_port: int | None = None,
+        default_bw_hz: int | None = None,
+    ) -> None:
+        super().__init__(
+            broadcaster,
+            pcm_port=settings.ais_decoder_pcm_port if pcm_port is None else pcm_port,
+            default_bw_hz=default_bw_hz or settings.ais_decoder_default_bw_hz,
+        )
+        self._channel_a_hz = channel_a_hz or settings.ais_channel_a_hz
+        self._channel_b_hz = channel_b_hz or settings.ais_channel_b_hz
+        # Channel A uses the inherited `_state`; channel B needs its own filter
+        # memory (its own NCO phase, FIR delay line and resampler phase), so the
+        # two demodulations stay continuous and independent across chunks.
+        self._channel_b_state = DemodState(bw_hz=self._state.bw_hz)
 
-    def _schedule_retune(self) -> None:
-        """Kick off a throttled retune from the demod loop without blocking it."""
-        if self._retune_task is not None and not self._retune_task.done():
-            return
-        if time.monotonic() - self._last_retune_monotonic < APRS_RETUNE_INTERVAL_S:
-            return
-        self._retune_task = asyncio.create_task(self._tune_to_channel(), name="sdr-aprs-retune")
+    @property
+    def channel_a_hz(self) -> int:
+        """Absolute frequency (Hz) of AIS channel A (left in the stereo feed)."""
+        return self._channel_a_hz
 
-    async def _tune_to_channel(self) -> None:
-        """Point the dongle at the channel, unless the current span already covers it.
+    @property
+    def channel_b_hz(self) -> int:
+        """Absolute frequency (Hz) of AIS channel B (right in the stereo feed)."""
+        return self._channel_b_hz
 
-        Best-effort: a tuner owned by another Sentinel instance, or a dropped
-        connection, is logged and left for the next throttled attempt — the
-        bridge keeps serving (silence) rather than tearing down.
-        """
-        self._last_retune_monotonic = time.monotonic()
-        connection = self._broadcaster.connection
-        if connection.center_hz and self._channel_in_span(
-            sample_rate=connection.sample_rate, center_hz=connection.center_hz
-        ):
-            return
-        try:
-            await connection.set_frequency(self._channel_hz)
-            logger.info("aprs bridge tuned radio to channel %d Hz", self._channel_hz)
-        except Exception as exc:  # noqa: BLE001 - any tuning failure is non-fatal here
-            logger.warning("aprs bridge could not tune radio to %d Hz: %s", self._channel_hz, exc)
+    def owned_channels_hz(self) -> tuple[int, ...]:
+        return (self._channel_a_hz, self._channel_b_hz)
+
+    def tune_target_hz(self) -> int:
+        """The midpoint of the two channels, so one span covers both equally."""
+        return (self._channel_a_hz + self._channel_b_hz) // 2
+
+    def _apply_offsets(self, center_hz: int) -> None:
+        self._state.offset_hz = self._channel_a_hz - center_hz
+        self._channel_b_state.offset_hz = self._channel_b_hz - center_hz
+        # Bandwidth is user/settings-driven on the inherited state only; keep the
+        # second channel in step so both filters stay identical (and, with it,
+        # their sample counts — see demod_chunk_stereo).
+        self._channel_b_state.bw_hz = self._state.bw_hz
+
+    def _demodulate(self, raw_iq: bytes, sample_rate: int) -> bytes:
+        return demod_chunk_stereo(raw_iq, sample_rate, self._state, self._channel_b_state)
 
 
 # ── Bridge cache helpers ────────────────────────────────────────────────────────
 
-# Two registries, one per decoder kind. Keeping them separate means starting an
-# APRS decode never disturbs a running voice decode (each ``get_or_create_*``
+# One registry per decoder kind. Keeping them separate means starting an APRS or
+# AIS decode never disturbs a running voice decode (each ``get_or_create_*``
 # stops only *other bridges of the same kind* — one sidecar container per kind),
-# so voice and APRS can run concurrently on two different radios/dongles.
+# so voice, APRS and AIS can run concurrently on three different radios/dongles.
 _bridges: dict[str, DigitalDecodeBridge] = {}
 _aprs_bridges: dict[str, AprsDecodeBridge] = {}
+_ais_bridges: dict[str, AisDecodeBridge] = {}
 
 
 def _bridge_key(host: str, port: int | str) -> str:
@@ -938,16 +1120,56 @@ async def stop_aprs_bridge(host: str, port: int | str) -> None:
         await bridge.stop()
 
 
+# ── AIS (Direwolf, off-grid Sea) ─────────────────────────────────────────────
+
+
+def get_ais_bridge(host: str, port: int) -> AisDecodeBridge | None:
+    return _ais_bridges.get(_bridge_key(host, port))
+
+
+def get_active_ais_bridge() -> AisDecodeBridge | None:
+    return next(iter(_ais_bridges.values()), None)
+
+
+async def get_or_create_ais_bridge(
+    host: str,
+    port: int,
+    broadcaster: RadioBroadcaster,
+    *,
+    channel_a_hz: int | None = None,
+    channel_b_hz: int | None = None,
+) -> AisDecodeBridge:
+    key = _bridge_key(host, port)
+    for other_key in list(_ais_bridges):
+        if other_key != key:
+            await stop_ais_bridge(*other_key.rsplit(":", 1))
+    bridge = _ais_bridges.get(key)
+    if bridge is None:
+        bridge = AisDecodeBridge(broadcaster, channel_a_hz=channel_a_hz, channel_b_hz=channel_b_hz)
+        _ais_bridges[key] = bridge
+    return bridge
+
+
+async def stop_ais_bridge(host: str, port: int | str) -> None:
+    bridge = _ais_bridges.pop(_bridge_key(host, port), None)
+    if bridge is not None:
+        await bridge.stop()
+
+
 # ── all-kinds lifecycle ──────────────────────────────────────────────────────
 
 
 def wake_all_decoders() -> None:
-    for bridge in [*_bridges.values(), *_aprs_bridges.values()]:
+    for bridge in [*_bridges.values(), *_aprs_bridges.values(), *_ais_bridges.values()]:
         bridge.wake()
 
 
 async def shutdown_all_decoders() -> None:
-    for registry, stopper in ((_bridges, stop_bridge), (_aprs_bridges, stop_aprs_bridge)):
+    for registry, stopper in (
+        (_bridges, stop_bridge),
+        (_aprs_bridges, stop_aprs_bridge),
+        (_ais_bridges, stop_ais_bridge),
+    ):
         for key in list(registry):
             host, _, port = key.rpartition(":")
             try:

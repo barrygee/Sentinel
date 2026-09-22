@@ -77,6 +77,9 @@ describe('sea store', () => {
       expect(store.vessels).toEqual([VESSEL])
       expect(store.feed).toEqual({
         status: 'live',
+        // The snapshot carries no `mode`, so the store falls back to 'online' —
+        // the source a response predating the off-grid decoder must be from.
+        mode: 'online',
         error: null,
         source: 'AISStream',
         lastMessageAt: 1,

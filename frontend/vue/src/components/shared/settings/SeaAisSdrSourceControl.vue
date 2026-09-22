@@ -12,15 +12,24 @@
  * Settings › SEA › AIS › Off Grid SDR — which configured SDR radio is the AIS
  * receiver when the Sea map is off grid, the Sea twin of LAND's APRS SDR.
  *
- * The choice is a plain setting (`sea.aisSdrRadioId`, in the app-config JSON),
- * staged into APPLY CHANGES like the rest of the panel. Nothing decodes from
- * it yet — the AIVDM decode path from a radio is a follow-up — so for now it
- * only records the receiver.
+ * This control only *designates* the receiver (`sea.aisSdrRadioId`, staged into
+ * APPLY CHANGES like the rest of the panel). It deliberately does not start
+ * decoding, which is where it differs from `AprsSdrSourceControl`: APRS runs
+ * unattended from the moment a radio is picked, whereas AIS starts when the
+ * operator opens the Sea section off grid (see `useOffgridAisDecode`). Naming a
+ * receiver while online would otherwise tie up a dongle to duplicate a feed
+ * already arriving from AISStream.
+ *
+ * Clearing the selection *does* act immediately, because the operator is
+ * asking for the radio back: whatever is decoding is stopped here rather than
+ * left holding the dongle until the next visit to Sea.
  */
 import { onMounted, ref, watch } from 'vue'
 import SdrRadioSelect from './SdrRadioSelect.vue'
+import { useSdrStore } from '@/stores/sdr'
 import * as settingsApi from '@/services/settingsApi'
 
+const sdrStore = useSdrStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const selectedRadioValue = ref('')
 /** True while the persisted choice is written into the dropdown, so the model
@@ -32,7 +41,15 @@ watch(
   (nextValue) => {
     if (isHydrating) return
     const radioId = nextValue ? Number(nextValue) : null
-    emit('stage', () => settingsApi.put('sea', 'aisSdrRadioId', radioId))
+    emit('stage', async () => {
+      await settingsApi.put('sea', 'aisSdrRadioId', radioId)
+      // Giving the radio back takes effect now; taking one waits until Sea is
+      // actually opened off grid.
+      if (radioId === null && sdrStore.aisRadioId !== null) {
+        const stopped = await sdrStore.stopAis(sdrStore.aisRadioId)
+        if (!stopped) throw new Error('Off-grid AIS decode could not be stopped')
+      }
+    })
   },
   { flush: 'sync' },
 )
@@ -43,5 +60,8 @@ onMounted(async () => {
   isHydrating = true
   selectedRadioValue.value = typeof stored === 'number' ? String(stored) : ''
   isHydrating = false
+  // The backend resumes the persisted AIS radio on startup, so the database —
+  // not the store's localStorage cache — is the truth about what is decoding.
+  await sdrStore.hydrateAisFromDb()
 })
 </script>

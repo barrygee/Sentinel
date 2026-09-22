@@ -50,6 +50,20 @@ const _isSpace = props.domain === 'space'
 // URL gate does not apply.
 const _isLand = props.domain === 'land'
 
+// Sea is URL-less in ONE direction only, which is why it can't be exempted
+// outright like land. Online it reads AISStream over a configured wss:// URL,
+// but off grid it has two possible sources: such a URL (a local AISStream-
+// compatible aggregator) OR the SDR AIS decoder, which has no URL at all. So
+// an off-grid Sea with a receiver designated is properly configured, and
+// gating it on a URL would blank the section for exactly the setup the
+// off-grid decoder exists to serve.
+const _isSea = props.domain === 'sea'
+
+/** True when SEA has an SDR designated as its off-grid AIS receiver. */
+function _hasAisReceiver(settings: Record<string, unknown>): boolean {
+  return typeof settings.aisSdrRadioId === 'number'
+}
+
 const title = computed(() =>
   _isSpace ? 'No satellite data available.' : 'No data source configured.',
 )
@@ -58,8 +72,12 @@ const message = computed(() => {
   if (_isSpace) {
     return 'No satellite TLE data is stored in the local database. Import TLE data — or set an Online Data Source URL and fetch it — in settings to continue.'
   }
-  const mode = _effectiveMode() === 'offgrid' ? 'Off Grid' : 'Online'
-  const setting = _effectiveMode() === 'offgrid' ? 'Off Grid Data Source' : 'Online Data Source'
+  const isOffgrid = _effectiveMode() === 'offgrid'
+  if (isOffgrid && _isSea) {
+    return 'Off Grid mode is active but SEA has no off-grid source. Either choose an AIS receiver under Settings › SEA › AIS › Off Grid SDR, or set an Off Grid Data Source URL — or switch connectivity mode to continue.'
+  }
+  const mode = isOffgrid ? 'Off Grid' : 'Online'
+  const setting = isOffgrid ? 'Off Grid Data Source' : 'Online Data Source'
   return `${mode} mode is active but no ${setting} URL has been set for ${props.domain.toUpperCase()}. Configure a URL in settings or switch connectivity mode to continue.`
 })
 const visible = computed(() => !hasUrl.value)
@@ -159,6 +177,11 @@ async function checkWithBackend() {
       backendUrl = src?.url ?? ''
     } else {
       backendUrl = (data[_nKey] as string) ?? ''
+    }
+    if (mode === 'offgrid' && _isSea && _hasAisReceiver(data)) {
+      // An AIS receiver is a source in its own right — no URL needed.
+      hasUrl.value = true
+      return
     }
     if (backendUrl && !_isPlaceholder(backendUrl)) {
       hasUrl.value = true

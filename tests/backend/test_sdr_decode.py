@@ -12,6 +12,8 @@ Covered:
     DemodState            — carried filter state + reset
     demod_chunk           — full chain, output format, signal correctness,
                             and chunk-boundary continuity
+    demod_chunk_stereo    — two offsets interleaved into one stereo stream
+    AisDecodeBridge       — dual-channel ownership and stereo PCM
 """
 
 import asyncio
@@ -28,6 +30,7 @@ from backend.services import sdr_decode
 from backend.services.sdr_decode import (
     DEFAULT_DECODE_BW_HZ,
     OUTPUT_RATE,
+    AisDecodeBridge,
     AprsDecodeBridge,
     DigitalDecodeBridge,
     DemodState,
@@ -36,6 +39,7 @@ from backend.services.sdr_decode import (
     _build_lpf_taps,
     _compute_iq_decim,
     demod_chunk,
+    demod_chunk_stereo,
 )
 
 
@@ -304,10 +308,12 @@ def _clear_bridges():
     """Keep the module-level bridge caches + secret cache clean between tests."""
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
+    sdr_decode._ais_bridges.clear()
     sdr_decode._ingest_secret = None
     yield
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
+    sdr_decode._ais_bridges.clear()
     sdr_decode._ingest_secret = None
 
 
@@ -965,3 +971,371 @@ class TestAprsBridgeCacheHelpers:
         await sdr_decode.shutdown_all_decoders()
         assert sdr_decode._bridges == {}
         assert sdr_decode._aprs_bridges == {}
+
+
+# ── demod_chunk_stereo ────────────────────────────────────────────────────────
+
+
+def _tone_snr_db(audio: np.ndarray, tone_hz: float, rate: int = OUTPUT_RATE) -> float:
+    """Power at `tone_hz` against neighbouring empty bins, in dB.
+
+    A plain RMS comparison cannot tell these channels apart: an FM discriminator
+    fed noise produces large random phase jumps, so an EMPTY channel has the
+    *higher* RMS of the two. Projecting onto the known tone and comparing with
+    its neighbours measures what actually matters — whether the modulated signal
+    came through on this channel.
+    """
+    count = audio.size
+    times = np.arange(count) / rate
+
+    def bin_magnitude(frequency: float) -> float:
+        return float(
+            abs(np.sum(audio * np.exp(-2j * math.pi * frequency * times))) / count
+        )
+
+    noise_floor = float(
+        np.mean([bin_magnitude(hz) for hz in (4000, 5000, 6000, 7000, 8000)])
+    )
+    return 20 * math.log10(bin_magnitude(tone_hz) / max(noise_floor, 1e-12))
+
+
+class TestDemodChunkStereo:
+    """AIS needs both channels, so the same IQ is demodulated twice and the two
+    results interleaved. These guard the interleave and the channel separation
+    that makes it worth doing."""
+
+    SAMPLE_RATE = 2_048_000
+    OFFSET_A_HZ = -25_000
+    OFFSET_B_HZ = 25_000
+
+    def _states(self) -> tuple[DemodState, DemodState]:
+        return (
+            DemodState(bw_hz=16_000, offset_hz=self.OFFSET_A_HZ),
+            DemodState(bw_hz=16_000, offset_hz=self.OFFSET_B_HZ),
+        )
+
+    def test_empty_input_yields_no_pcm(self):
+        left, right = self._states()
+        assert demod_chunk_stereo(b"", self.SAMPLE_RATE, left, right) == b""
+
+    def test_output_is_exactly_twice_the_mono_length(self):
+        # Interleaving two channels must produce two samples per output frame —
+        # any other ratio would desynchronise Direwolf's channel split.
+        raw = _fm_iq_bytes(1000, 2500, self.OFFSET_A_HZ, self.SAMPLE_RATE, 80_000)
+        left, right = self._states()
+        stereo = demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right)
+        mono = demod_chunk(
+            raw, self.SAMPLE_RATE, DemodState(bw_hz=16_000, offset_hz=self.OFFSET_A_HZ)
+        )
+        assert len(stereo) == 2 * len(mono)
+
+    def test_output_frame_count_is_even(self):
+        # An odd number of int16 samples would mean a half-frame, which shifts
+        # every subsequent sample into the wrong channel.
+        raw = _fm_iq_bytes(1000, 2500, 0, self.SAMPLE_RATE, 40_000)
+        left, right = self._states()
+        samples = np.frombuffer(
+            demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right), dtype="<i2"
+        )
+        assert samples.size % 2 == 0
+
+    def test_left_channel_carries_channel_a_only(self):
+        # A signal on A must arrive on the left and be absent from the right.
+        raw = _fm_iq_bytes(1000, 2500, self.OFFSET_A_HZ, self.SAMPLE_RATE, 400_000)
+        left, right = self._states()
+        samples = np.frombuffer(
+            demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right), dtype="<i2"
+        )
+        left_audio = samples[0::2].astype(np.float64)[500:]
+        right_audio = samples[1::2].astype(np.float64)[500:]
+        assert _tone_snr_db(left_audio, 1000) > 40
+        assert _tone_snr_db(right_audio, 1000) < 20
+
+    def test_right_channel_carries_channel_b_only(self):
+        # The mirror image: a signal on B arrives on the right, not the left.
+        raw = _fm_iq_bytes(1000, 2500, self.OFFSET_B_HZ, self.SAMPLE_RATE, 400_000)
+        left, right = self._states()
+        samples = np.frombuffer(
+            demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right), dtype="<i2"
+        )
+        left_audio = samples[0::2].astype(np.float64)[500:]
+        right_audio = samples[1::2].astype(np.float64)[500:]
+        assert _tone_snr_db(right_audio, 1000) > 40
+        assert _tone_snr_db(left_audio, 1000) < 20
+
+    def test_states_are_independent(self):
+        # Each channel carries its own filter memory; sharing it would smear one
+        # channel's NCO phase and FIR delay line into the other.
+        raw = _fm_iq_bytes(1000, 2500, self.OFFSET_A_HZ, self.SAMPLE_RATE, 40_000)
+        left, right = self._states()
+        demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right)
+        assert left.offset_hz != right.offset_hz
+        assert left.nco_phase != right.nco_phase
+
+    def test_mismatched_lengths_are_truncated_and_logged(self, caplog, monkeypatch):
+        # Defensive: the two channels see identical input so their resamplers
+        # agree, but a mismatch left unreconciled would offset one channel
+        # against the other for the rest of the session.
+        real_demodulate = sdr_decode.demodulate_to_audio
+        calls = {"count": 0}
+
+        def uneven_demodulate(raw_iq, sample_rate, state):
+            calls["count"] += 1
+            audio = real_demodulate(raw_iq, sample_rate, state)
+            # Shorten only the second (right-channel) call.
+            return audio[:-3] if calls["count"] % 2 == 0 else audio
+
+        monkeypatch.setattr(sdr_decode, "demodulate_to_audio", uneven_demodulate)
+        raw = _fm_iq_bytes(1000, 2500, 0, self.SAMPLE_RATE, 40_000)
+        left, right = self._states()
+        with caplog.at_level(logging.WARNING):
+            stereo = demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right)
+        samples = np.frombuffer(stereo, dtype="<i2")
+        assert samples.size % 2 == 0
+        assert "stereo demod length mismatch" in caplog.text
+
+    def test_all_zero_length_audio_yields_no_pcm(self, monkeypatch):
+        # When neither channel produced a sample there is nothing to interleave.
+        monkeypatch.setattr(
+            sdr_decode,
+            "demodulate_to_audio",
+            lambda *_args: np.zeros(0, dtype=np.float64),
+        )
+        left, right = self._states()
+        raw = _fm_iq_bytes(1000, 2500, 0, self.SAMPLE_RATE, 40_000)
+        assert demod_chunk_stereo(raw, self.SAMPLE_RATE, left, right) == b""
+
+
+# ── AisDecodeBridge ───────────────────────────────────────────────────────────
+
+
+class TestAisDecodeBridge:
+    """The Sea twin of the APRS bridge, differing in that it owns TWO channels
+    and serves them as one interleaved stereo stream."""
+
+    def test_defaults_come_from_ais_settings(self):
+        bridge = AisDecodeBridge(_FakeBroadcaster())
+        assert bridge.kind == "ais"
+        assert bridge.pcm_port == settings.ais_decoder_pcm_port
+        assert bridge._state.bw_hz == settings.ais_decoder_default_bw_hz
+        assert bridge.channel_a_hz == settings.ais_channel_a_hz
+        assert bridge.channel_b_hz == settings.ais_channel_b_hz
+        assert bridge.on_channel is False
+
+    def test_explicit_channels_override_settings(self):
+        bridge = AisDecodeBridge(
+            _FakeBroadcaster(),
+            pcm_port=0,
+            channel_a_hz=100_000_000,
+            channel_b_hz=100_050_000,
+        )
+        assert bridge.owned_channels_hz() == (100_000_000, 100_050_000)
+
+    def test_tune_target_is_the_midpoint_of_both_channels(self):
+        # Parking on either channel would push the other toward the rolled-off
+        # edge of the span; the midpoint hears both equally.
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert (
+            bridge.tune_target_hz() == (bridge.channel_a_hz + bridge.channel_b_hz) // 2
+        )
+        assert bridge.tune_target_hz() == 162_000_000
+
+    def test_offsets_are_derived_from_the_live_centre(self):
+        # A viewer retuning within the span must not disturb decode: both
+        # offsets are re-derived from where the chunk was actually captured.
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        bridge._apply_offsets(162_000_000)
+        assert bridge._state.offset_hz == -25_000
+        assert bridge._channel_b_state.offset_hz == 25_000
+        bridge._apply_offsets(162_010_000)
+        assert bridge._state.offset_hz == -35_000
+        assert bridge._channel_b_state.offset_hz == 15_000
+
+    def test_second_channel_follows_the_first_bandwidth(self):
+        # Identical filters keep the two channels' sample counts identical,
+        # which is what lets them be interleaved without drifting apart.
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        bridge.set_channel(offset_hz=0, bw_hz=20_000)
+        bridge._apply_offsets(162_000_000)
+        assert bridge._channel_b_state.bw_hz == 20_000
+
+    def test_span_must_contain_both_channels(self):
+        # In-span for AIS means BOTH channels, not either: losing one silently
+        # halves the traffic, which is the failure this bridge exists to avoid.
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert (
+            bridge._channels_in_span(sample_rate=2_048_000, center_hz=162_000_000)
+            is True
+        )
+        # Centred on channel A, B sits 50 kHz away — still inside a 2.048 MHz span.
+        assert (
+            bridge._channels_in_span(sample_rate=2_048_000, center_hz=161_975_000)
+            is True
+        )
+        # A narrow span centred on A cannot reach B.
+        assert (
+            bridge._channels_in_span(sample_rate=80_000, center_hz=161_975_000) is False
+        )
+        # Nowhere near either channel.
+        assert (
+            bridge._channels_in_span(sample_rate=2_048_000, center_hz=100_000_000)
+            is False
+        )
+
+    def test_accept_chunk_marks_on_channel_and_sets_offsets(self):
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert (
+            bridge._accept_chunk(sample_rate=2_048_000, center_hz=162_000_000) is True
+        )
+        assert bridge.on_channel is True
+        assert bridge._state.offset_hz == -25_000
+
+    async def test_accept_chunk_rejects_and_schedules_retune_when_off_channel(self):
+        # Async because the rejection path schedules a retune task — in
+        # production _accept_chunk only ever runs inside the demod loop.
+        connection = _FakeConnection(center_hz=100_000_000, sample_rate=2_048_000)
+        bridge = AisDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        bridge._accept_chunk(sample_rate=2_048_000, center_hz=162_000_000)
+        assert (
+            bridge._accept_chunk(sample_rate=2_048_000, center_hz=100_000_000) is False
+        )
+        assert bridge.on_channel is False
+        # The scheduled retune pulls the dongle back onto the midpoint.
+        assert bridge._retune_task is not None
+        await bridge._retune_task
+        assert connection.tuned_to == [162_000_000]
+
+    async def test_start_tunes_the_dongle_to_the_midpoint(self):
+        # A fresh connection sits wherever rtl_tcp last was — the bridge must
+        # put it on channel before the first chunk arrives.
+        connection = _FakeConnection(center_hz=100_000_000, sample_rate=2_048_000)
+        bridge = AisDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        await bridge.start()
+        try:
+            assert connection.tuned_to == [162_000_000]
+        finally:
+            await bridge.stop()
+
+    async def test_start_leaves_a_span_that_already_covers_both_channels(self):
+        # Retuning a dongle that can already hear both channels would pointlessly
+        # disturb a viewer watching the same span.
+        connection = _FakeConnection(center_hz=162_010_000, sample_rate=2_048_000)
+        bridge = AisDecodeBridge(_FakeBroadcaster(connection), pcm_port=0)
+        await bridge.start()
+        try:
+            assert connection.tuned_to == []
+        finally:
+            await bridge.stop()
+
+    async def test_serves_interleaved_stereo_pcm(self):
+        connection = _FakeConnection(center_hz=162_000_000, sample_rate=2_048_000)
+        broadcaster = _FakeBroadcaster(connection)
+        bridge = AisDecodeBridge(broadcaster, pcm_port=0)
+        await bridge.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", bridge.pcm_port)
+            assert await _wait_until(lambda: bridge.decoder_reachable)
+            raw = _fm_iq_bytes(1000, 2500, -25_000, 2_048_000, 80_000)
+            await broadcaster.iq_queue.put(_iq_payload(2_048_000, 162_000_000, raw))
+            pcm = await asyncio.wait_for(reader.read(4096), timeout=2.0)
+            # Two bytes per sample, two samples per stereo frame.
+            assert len(pcm) > 0
+            assert len(pcm) % 4 == 0
+            writer.close()
+        finally:
+            await bridge.stop()
+
+    def test_demodulate_produces_stereo_not_mono(self):
+        # The overridden hook is what makes the served PCM two-channel.
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        bridge._apply_offsets(162_000_000)
+        raw = _fm_iq_bytes(1000, 2500, -25_000, 2_048_000, 40_000)
+        stereo = bridge._demodulate(raw, 2_048_000)
+        mono = demod_chunk(
+            raw, 2_048_000, DemodState(bw_hz=bridge._state.bw_hz, offset_hz=-25_000)
+        )
+        assert len(stereo) == 2 * len(mono)
+
+    def test_has_no_voice_only_methods(self):
+        # AIS carries no decoded voice, so it must not expose the audio API.
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert not hasattr(bridge, "subscribe_audio")
+
+    def test_status_frame_has_no_audio_rate(self):
+        bridge = AisDecodeBridge(_FakeBroadcaster(), pcm_port=0)
+        assert bridge._status_frame() == {
+            "type": "decode_status",
+            "decoder_reachable": False,
+        }
+
+
+class TestAisBridgeRegistry:
+    """One registry per decoder kind, so AIS never disturbs voice or APRS."""
+
+    async def test_get_or_create_returns_the_same_bridge_for_a_radio(self):
+        broadcaster = _FakeBroadcaster()
+        first = await sdr_decode.get_or_create_ais_bridge("h1", 1234, broadcaster)
+        second = await sdr_decode.get_or_create_ais_bridge("h1", 1234, broadcaster)
+        assert first is second
+
+    async def test_starting_on_another_radio_stops_the_previous_one(self):
+        # There is one sidecar container, so only one AIS bridge may be active.
+        broadcaster = _FakeBroadcaster()
+        first = await sdr_decode.get_or_create_ais_bridge("h1", 1234, broadcaster)
+        await first.start()
+        second = await sdr_decode.get_or_create_ais_bridge(
+            "h2", 5678, _FakeBroadcaster()
+        )
+        assert second is not first
+        assert first.running is False
+        assert list(sdr_decode._ais_bridges) == ["h2:5678"]
+        await second.stop()
+
+    async def test_does_not_disturb_voice_or_aprs_bridges(self):
+        # Three kinds can decode at once on three dongles.
+        voice = await sdr_decode.get_or_create_bridge("h1", 1, _FakeBroadcaster())
+        aprs = await sdr_decode.get_or_create_aprs_bridge("h2", 2, _FakeBroadcaster())
+        ais = await sdr_decode.get_or_create_ais_bridge("h3", 3, _FakeBroadcaster())
+        assert sdr_decode.get_bridge("h1", 1) is voice
+        assert sdr_decode.get_aprs_bridge("h2", 2) is aprs
+        assert sdr_decode.get_ais_bridge("h3", 3) is ais
+
+    async def test_get_active_returns_the_single_bridge(self):
+        assert sdr_decode.get_active_ais_bridge() is None
+        bridge = await sdr_decode.get_or_create_ais_bridge(
+            "h1", 1234, _FakeBroadcaster()
+        )
+        assert sdr_decode.get_active_ais_bridge() is bridge
+
+    async def test_stop_removes_the_bridge_from_the_registry(self):
+        bridge = await sdr_decode.get_or_create_ais_bridge(
+            "h1", 1234, _FakeBroadcaster()
+        )
+        await bridge.start()
+        await sdr_decode.stop_ais_bridge("h1", 1234)
+        assert sdr_decode.get_ais_bridge("h1", 1234) is None
+        assert bridge.running is False
+
+    async def test_stop_is_a_no_op_for_an_unknown_radio(self):
+        await sdr_decode.stop_ais_bridge("ghost", 9999)
+        assert sdr_decode._ais_bridges == {}
+
+    async def test_shutdown_all_stops_ais_bridges_too(self):
+        bridge = await sdr_decode.get_or_create_ais_bridge(
+            "h1", 1234, _FakeBroadcaster()
+        )
+        await bridge.start()
+        await sdr_decode.shutdown_all_decoders()
+        assert sdr_decode._ais_bridges == {}
+        assert bridge.running is False
+
+    async def test_wake_all_wakes_ais_subscribers(self):
+        # Shutdown chains SIGTERM to wake WS queues; AIS must be included or its
+        # subscribers block the shutdown.
+        bridge = await sdr_decode.get_or_create_ais_bridge(
+            "h1", 1234, _FakeBroadcaster()
+        )
+        queue = bridge.subscribe_events()
+        queue.get_nowait()  # drop the seeded status frame
+        sdr_decode.wake_all_decoders()
+        assert queue.get_nowait() is None

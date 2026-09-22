@@ -39,7 +39,7 @@ from backend.config import settings
 from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
-from backend.services import aprs_store, sdr_decode
+from backend.services import ais_decode, aprs_store, sdr_decode
 from backend.services import sdr as sdr_svc
 from backend.services.sdr_data import write_sdr_frequencies_file
 from backend.services.sentry_fleet import fleet_poller
@@ -207,14 +207,16 @@ class DecodeEventIn(BaseModel):
         return value
 
 
-class AprsControlIn(BaseModel):
-    """Body for starting/stopping APRS decode on a specific radio.
+class PacketDecodeControlIn(BaseModel):
+    """Body for starting/stopping a background packet decode on a specific radio.
 
-    ``bw_hz`` overrides the demod channel bandwidth (0 = the bridge's default).
-    There is no offset: the bridge decodes the absolute APRS channel from the
-    ``land``/``aprsChannelHz`` setting and tunes the radio itself. APRS runs in
-    the background independent of the SDR view, so it is controlled over HTTP
-    rather than the spectrum WebSocket (which tears its bridge down on close).
+    Shared by APRS (Land) and off-grid AIS (Sea), which are controlled
+    identically. ``bw_hz`` overrides the demod channel bandwidth (0 = the
+    bridge's default). There is no offset: these bridges own absolute channels
+    (``land``/``aprsChannelHz`` for APRS, the two AIS channels for Sea) and tune
+    the radio themselves. Both run in the background independent of the SDR
+    view, so they are controlled over HTTP rather than the spectrum WebSocket
+    (which tears its bridge down on close).
     """
 
     radio_id: int
@@ -1399,7 +1401,7 @@ async def decode_config(x_decode_secret: str = Header(default="")):
 
 
 @router.post("/api/sdr/aprs/start")
-async def aprs_start(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
+async def aprs_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_db)):
     """Start (or retune) background APRS decode on a radio and persist the choice.
 
     Independent of the SDR view: the APRS bridge subscribes to the radio's IQ
@@ -1435,7 +1437,7 @@ async def aprs_start(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/api/sdr/aprs/stop")
-async def aprs_stop(body: AprsControlIn, db: AsyncSession = Depends(get_db)):
+async def aprs_stop(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_db)):
     """Stop background APRS decode on a radio and clear the persisted choice."""
     radios = await _get_radios(db)
     radio = _get_radio_by_id(radios, body.radio_id)
@@ -1581,6 +1583,178 @@ async def resume_persisted_aprs() -> None:
     await _start_aprs_best_effort(radios, radio_id, channel_hz)
 
 
+# ── AIS decode (Direwolf sidecar, off-grid Sea) ─────────────────────────────────
+# The Sea twin of the APRS block above. Same control surface, same secret-authed
+# ingest/config contract; the differences are that the bridge owns TWO channels
+# (it serves them as stereo PCM) and that decoded vessels land in the shared AIS
+# vessel store, so off-grid and online AIS produce one picture.
+
+
+@router.post("/api/sdr/ais/start")
+async def ais_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_db)):
+    """Start background off-grid AIS decode on a radio and persist the choice.
+
+    Independent of the SDR view: the bridge subscribes to the radio's IQ fan-out
+    (keeping its broadcaster alive) and serves stereo PCM to the Direwolf sidecar
+    until explicitly stopped, so the Sea map keeps its vessel picture even when
+    another radio is being viewed or the user has left the Sea section. The
+    enabled radio is persisted so it resumes on restart (see
+    :func:`resume_persisted_ais`).
+    """
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, body.radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    # Checked before dialling: a mirrored radio whose device has been unplugged
+    # or replugged elsewhere would otherwise fail as a bare connection refusal,
+    # which tells the operator nothing about what to do.
+    available, reason = _device_availability(radio)
+    if not available:
+        raise HTTPException(
+            503,
+            f"{radio.get('name') or 'This radio'} is unavailable. {reason}",
+        )
+    try:
+        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
+    except ConnectionError as exc:
+        raise HTTPException(502, f"radio connect failed: {exc}") from exc
+    bridge = await sdr_decode.get_or_create_ais_bridge(radio["host"], radio["port"], broadcaster)
+    await bridge.start(bw_hz=body.bw_hz or None)
+    await upsert_setting(db, "sdr", "ais_radio_id", body.radio_id)
+    return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
+
+
+@router.post("/api/sdr/ais/stop")
+async def ais_stop(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_db)):
+    """Stop background off-grid AIS decode on a radio and clear the persisted choice."""
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, body.radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    await sdr_decode.stop_ais_bridge(radio["host"], radio["port"])
+    await upsert_setting(db, "sdr", "ais_radio_id", None)
+    return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": False})
+
+
+@router.get("/api/sdr/ais/status/{radio_id}")
+async def ais_status(radio_id: int, db: AsyncSession = Depends(get_db)):
+    """Report whether off-grid AIS decode is running for a radio, decoder
+    reachability, and whether the radio's captured span currently covers BOTH
+    AIS channels (``on_channel`` false = the bridge is decoding silence and will
+    retune)."""
+    radios = await _get_radios(db)
+    radio = _get_radio_by_id(radios, radio_id)
+    if not radio:
+        raise HTTPException(404, "Radio not found")
+    bridge = sdr_decode.get_ais_bridge(radio["host"], radio["port"])
+    return JSONResponse(
+        {
+            "radio_id": radio_id,
+            "active": bool(bridge and bridge.running),
+            "decoder_reachable": bool(bridge and bridge.decoder_reachable),
+            "channel_a_hz": bridge.channel_a_hz if bridge else None,
+            "channel_b_hz": bridge.channel_b_hz if bridge else None,
+            "on_channel": bool(bridge and bridge.on_channel),
+        }
+    )
+
+
+@router.post("/api/sdr/ais/ingest")
+async def ingest_ais_event(body: DecodeEventIn, x_decode_secret: str = Header(default="")):
+    """Receive a decoded AIS event from the Direwolf sidecar and fan it out.
+
+    Authenticated with the same shared secret as the voice/APRS ingests (fails
+    closed). Position and static-data messages are merged into the shared AIS
+    vessel store — the same one AISStream.io feeds — so the Sea map renders
+    off-grid vessels exactly as online ones. Every event is also relayed to the
+    active session's WS subscribers (the waterfall panels); raw ``log`` lines
+    carry no vessel data and are relay-only.
+    """
+    secret = sdr_decode.resolve_ingest_secret()
+    if not secret:
+        raise HTTPException(503, "decode ingestion disabled")
+    if not secrets.compare_digest(x_decode_secret, secret):
+        raise HTTPException(401, "invalid decode secret")
+    bridge = sdr_decode.get_active_ais_bridge()
+    if bridge is None:
+        raise HTTPException(409, "ais decode not active")
+    ais_decode.ingest_event(body.event)
+    # Default the frame type to "ais" so the frontend can route it; the sidecar
+    # may override it (e.g. "log", "decode_status") via its own "type" key.
+    bridge.publish_event({"type": "ais", **body.event})
+    return JSONResponse({"status": "ok"})
+
+
+@router.get("/api/sdr/ais/config")
+async def ais_decode_config(x_decode_secret: str = Header(default="")):
+    """Report whether an off-grid AIS decode session is serving PCM, for the sidecar.
+
+    Secret-authed twin of the APRS ``aprs_decode_config``. The Direwolf
+    supervisor gates on ``active``: with no session the PCM port isn't
+    listening, so launching Direwolf would just fail to connect and flood ingest
+    with rejected startup output.
+    """
+    secret = sdr_decode.resolve_ingest_secret()
+    if not secret:
+        raise HTTPException(503, "decode ingestion disabled")
+    if not secrets.compare_digest(x_decode_secret, secret):
+        raise HTTPException(401, "invalid decode secret")
+    bridge = sdr_decode.get_active_ais_bridge()
+    return JSONResponse({"active": bool(bridge and bridge.running)})
+
+
+async def _start_ais_best_effort(radios: list, radio_id: int) -> None:
+    """Start the off-grid AIS bridge on ``radio_id`` without raising.
+
+    Shared by the startup resume and the config-upload reconciliation: in both
+    cases the radio was chosen earlier (persisted), so a missing radio or an
+    unreachable dongle is logged and skipped rather than failing the caller.
+    """
+    radio = _get_radio_by_id(radios, radio_id)
+    if not radio:
+        logging.getLogger(__name__).warning("Persisted AIS radio %s not found; skipping start", radio_id)
+        return
+    try:
+        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
+        bridge = await sdr_decode.get_or_create_ais_bridge(radio["host"], radio["port"], broadcaster)
+        await bridge.start()
+    except (ConnectionError, OSError):
+        logging.getLogger(__name__).exception("Failed to start AIS decode on radio %s", radio_id)
+
+
+async def reconcile_ais_decode(db: AsyncSession, previous_radio_id: object, next_radio_id: object) -> None:
+    """Move the running AIS bridge to match a changed ``sdr.ais_radio_id``.
+
+    Called after the app-config JSON is uploaded, so editing the AIS radio in the
+    JSON behaves exactly like choosing it in Settings > SEA. A radio id that is
+    not an int means "no radio".
+    """
+    radios = await _get_radios(db)
+    if isinstance(previous_radio_id, int):
+        previous = _get_radio_by_id(radios, previous_radio_id)
+        if previous:
+            await sdr_decode.stop_ais_bridge(previous["host"], previous["port"])
+    if isinstance(next_radio_id, int):
+        await _start_ais_best_effort(radios, next_radio_id)
+
+
+async def resume_persisted_ais() -> None:
+    """Restart off-grid AIS decode on the persisted radio at startup, if enabled.
+
+    Best-effort: a missing radio or an unreachable dongle is logged and skipped
+    so a failed resume never blocks application startup. Called from the app
+    lifespan after tables/settings are ready.
+    """
+    from backend.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
+        if not isinstance(radio_id, int):
+            return
+        radios = await _get_radios(db)
+    await _start_ais_best_effort(radios, radio_id)
+
+
 @router.get("/api/sdr/decode/status/{radio_id}")
 async def decode_status(radio_id: int, db: AsyncSession = Depends(get_db)):
     """Report whether digital decode is active for a radio and decoder reachability."""
@@ -1599,17 +1773,22 @@ async def decode_status(radio_id: int, db: AsyncSession = Depends(get_db)):
 
 
 async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_decode.PcmDecodeBridge | None:
-    """Poll briefly for a decode bridge (voice or APRS) to appear for this radio.
+    """Poll briefly for a decode bridge (voice, APRS or AIS) to appear for this radio.
 
     The bridge is created asynchronously — a voice bridge by the control socket's
-    `digital_decode` command (which may race the opening of this socket), or an
-    APRS bridge by the `/api/sdr/aprs/start` endpoint. A radio runs at most one
-    kind at a time, so whichever registry has it is the right bridge to stream.
+    `digital_decode` command (which may race the opening of this socket), an APRS
+    bridge by `/api/sdr/aprs/start`, or an AIS bridge by `/api/sdr/ais/start`. A
+    radio runs at most one kind at a time, so whichever registry has it is the
+    right bridge to stream.
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
-        bridge = sdr_decode.get_bridge(host, port) or sdr_decode.get_aprs_bridge(host, port)
+        bridge = (
+            sdr_decode.get_bridge(host, port)
+            or sdr_decode.get_aprs_bridge(host, port)
+            or sdr_decode.get_ais_bridge(host, port)
+        )
         if bridge is not None:
             return bridge
         await asyncio.sleep(0.1)
@@ -1666,8 +1845,9 @@ async def sdr_decode_audio_websocket(radio_id: int, websocket: WebSocket):
     if broadcaster is None:
         return
     bridge = await _wait_for_bridge(radio["host"], radio["port"])
-    # Only the voice bridge produces decoded audio; APRS has no voice stream, so
-    # close cleanly if this radio is running an APRS decode instead.
+    # Only the voice bridge produces decoded audio; the packet bridges (APRS,
+    # AIS) have no voice stream, so close cleanly if this radio is running one
+    # of those instead.
     if not isinstance(bridge, sdr_decode.DigitalDecodeBridge):
         try:
             await websocket.close()

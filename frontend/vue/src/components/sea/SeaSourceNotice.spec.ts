@@ -6,9 +6,14 @@ import SeaSourceNotice from './SeaSourceNotice.vue'
 import { useSettingsStore } from '@/stores/settings'
 import type { SeaFeedInfo, SeaFeedStatus } from '@/stores/sea'
 
+function offgridFeed(status: SeaFeedStatus, overrides: Partial<SeaFeedInfo> = {}): SeaFeedInfo {
+  return feed(status, { mode: 'offgrid', source: 'SDR off-grid AIS decode', ...overrides })
+}
+
 function feed(status: SeaFeedStatus, overrides: Partial<SeaFeedInfo> = {}): SeaFeedInfo {
   return {
     status,
+    mode: 'online',
     error: null,
     source: 'AISStream',
     lastMessageAt: null,
@@ -104,6 +109,93 @@ describe('SeaSourceNotice', () => {
     card.unmount()
     const banner = mount(SeaSourceNotice, {
       props: { feed: feed('stale') },
+      attachTo: document.body,
+    })
+    expect(await axe(banner.element)).toHaveNoViolations()
+    banner.unmount()
+  })
+})
+
+describe('SeaSourceNotice off grid', () => {
+  /**
+   * Off grid the vessels come from an SDR, so the online explanations are not
+   * merely unhelpful — they are impossible. There is no API key to be missing
+   * and no upstream to reconnect to, and telling an operator to check a key
+   * they never set sends them hunting through the wrong settings.
+   */
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('asks for a receiver rather than an API key when none is designated', () => {
+    const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed('no-source') } })
+    const text = wrapper.text()
+    expect(text).toContain('No off-grid AIS receiver selected')
+    expect(text).toContain('Settings › SEA › AIS › Off Grid SDR')
+    // It may mention AISStream to contrast the two sources, but it must never
+    // send the operator looking for an API key that cannot apply off grid.
+    expect(text).not.toContain('API key')
+  })
+
+  it('says the decoder container is not running when the feed is down', () => {
+    const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed('down') } })
+    const text = wrapper.text()
+    expect(text).toContain('AIS decoder is not running')
+    expect(text).toContain('--profile ais')
+  })
+
+  it('explains an off-channel radio when the feed is stale', () => {
+    const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed('stale') } })
+    expect(wrapper.text()).toContain('tuned away from the AIS channels')
+  })
+
+  it('appends the reported error to the decoder-down banner', () => {
+    const wrapper = mount(SeaSourceNotice, {
+      props: { feed: offgridFeed('down', { error: 'container not connected' }) },
+    })
+    expect(wrapper.text()).toContain('container not connected')
+  })
+
+  it('appends the reported error to the off-channel banner', () => {
+    const wrapper = mount(SeaSourceNotice, {
+      props: { feed: offgridFeed('stale', { error: 'tuned to 145.800 MHz' }) },
+    })
+    expect(wrapper.text()).toContain('tuned to 145.800 MHz')
+  })
+
+  it('still reports an unreachable backend', () => {
+    const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed('unreachable') } })
+    expect(wrapper.text()).toContain('Cannot reach the Sentinel backend')
+  })
+
+  it('says nothing when the off-grid decode is live', () => {
+    const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed('live') } })
+    expect(wrapper.text()).toBe('')
+  })
+
+  it('never shows the key states, which cannot occur off grid', () => {
+    for (const status of ['missing-key', 'auth-failed'] as SeaFeedStatus[]) {
+      const wrapper = mount(SeaSourceNotice, { props: { feed: offgridFeed(status) } })
+      expect(wrapper.text()).toBe('')
+    }
+  })
+
+  it('does not offer the online reconnect wording off grid', () => {
+    // 'reconnecting' belongs to the AISStream watchdog; there is no upstream
+    // to reconnect to when the source is a local radio.
+    const wrapper = mount(SeaSourceNotice, {
+      props: { feed: offgridFeed('reconnecting', { reconnectAttempt: 3 }) },
+    })
+    expect(wrapper.text()).toBe('')
+  })
+
+  it('has no accessibility violations in both off-grid forms', async () => {
+    const card = mount(SeaSourceNotice, {
+      props: { feed: offgridFeed('no-source') },
+      attachTo: document.body,
+    })
+    expect(await axe(card.element)).toHaveNoViolations()
+    card.unmount()
+    const banner = mount(SeaSourceNotice, {
+      props: { feed: offgridFeed('down') },
       attachTo: document.body,
     })
     expect(await axe(banner.element)).toHaveNoViolations()

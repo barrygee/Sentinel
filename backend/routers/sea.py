@@ -4,27 +4,33 @@ Sea domain router — live AIS vessel tracking.
 Endpoints:
   GET    /api/sea/vessels                 — Vessel snapshot the Sea map polls (optional bbox / max_rows)
   GET    /api/sea/vessels/{mmsi}/track    — One vessel's recent path (accumulated since it was first heard)
-  GET    /api/sea/status                  — Feed status (connection state, silence, retry schedule)
+  GET    /api/sea/status                  — Active feed status (online upstream, or off-grid SDR decode)
   GET    /api/sea/ais-key                 — Whether an AISStream key is configured (never the key itself)
   PUT    /api/sea/ais-key                 — Save / replace the AISStream key from Settings › SEA
   DELETE /api/sea/ais-key                 — Forget the saved key (the .env key, if any, applies again)
 
 The vessel picture is owned by :mod:`backend.services.ais_store` and fed by
-:mod:`backend.services.ais_stream`; this router only reads it. Every snapshot
-request also nudges the feed watchdog (``reader.ensure``) so a reconnect never
-has to wait for the background tick when someone is actually looking.
+EITHER source, depending on the domain's connectivity mode: online by
+:mod:`backend.services.ais_stream` (AISStream.io), off grid by the SDR AIS
+decode bridge via :mod:`backend.services.ais_decode`. This router only reads the
+store, so its responses are identical either way apart from the ``source`` field
+in the feed status. Every snapshot request also nudges the *active* feed so a
+reconnect never has to wait for the background tick when someone is looking —
+and, crucially, never dials AISStream while off grid.
 """
 
 from __future__ import annotations
 
 import re
 
+from backend.cache import now_ms
 from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import UserSettings
-from backend.services import ais_store
+from backend.services import ais_store, sdr_decode
 from backend.services.ais_stream import key_fingerprint, reader
+from backend.utils import resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -62,8 +68,79 @@ def _parse_bbox(raw: str | None) -> tuple[float, float, float, float] | None:
     return south, west, north, east
 
 
-def _status_headers() -> dict[str, str]:
-    cache_state = "LIVE" if reader.status == "live" else "STALE"
+def _offgrid_decode_snapshot() -> dict[str, object]:
+    """Feed status for the off-grid source: the SDR AIS decode bridge.
+
+    Shaped exactly like :meth:`AisStreamReader.snapshot` — same keys, same
+    status vocabulary — so the map's status line and the store's ``SeaFeedInfo``
+    read one contract whichever source is live, and only ``mode`` says which one
+    produced it. The statuses are chosen for what the operator can DO about them:
+
+      * ``no-source``  — no radio picked yet: nothing can ever arrive (actionable)
+      * ``down``       — bridge running but the sidecar container isn't connected
+      * ``stale``      — decoding, but the radio has been moved off 162 MHz, so
+                         only silence is reaching Direwolf until it retunes
+      * ``live``       — on channel with the decoder attached
+
+    The retune case is deliberately not ``live``: the vessel picture is going
+    stale either way, and calling it live would hide the one fault the operator
+    can actually see and fix.
+    """
+    bridge = sdr_decode.get_active_ais_bridge()
+    running = bool(bridge and bridge.running)
+    on_channel = bool(bridge and bridge.on_channel)
+    decoder_reachable = bool(bridge and bridge.decoder_reachable)
+    if not running:
+        status, error = "no-source", "No off-grid AIS receiver selected"
+    elif not decoder_reachable:
+        status, error = "down", "The AIS decoder container is not connected"
+    elif not on_channel:
+        status, error = "stale", "The radio has been tuned away from the AIS channels"
+    else:
+        status, error = "live", None
+    newest_position_ms = ais_store.store.newest_position_ms
+    return {
+        "mode": "offgrid",
+        "source": "SDR off-grid AIS decode",
+        "status": status,
+        "error": error,
+        "lastMessageAt": newest_position_ms,
+        "silentForMs": (now_ms() - newest_position_ms) if newest_position_ms is not None else None,
+        "reconnectAttempt": 0,
+        "nextAttemptAt": None,
+        "staleAfterMs": app_settings.sea_ais_silence_report_ms,
+        "retentionMs": app_settings.sea_ais_stale_ms,
+        "newestPositionAt": newest_position_ms,
+        "vesselCount": len(ais_store.store),
+        # Off-grid-only diagnostics, for Settings › SEA and the sidecar README's
+        # troubleshooting steps. Absent from the online snapshot.
+        "decoderReachable": decoder_reachable,
+        "onChannel": on_channel,
+        "channelAHz": bridge.channel_a_hz if bridge else None,
+        "channelBHz": bridge.channel_b_hz if bridge else None,
+    }
+
+
+async def _ensure_active_feed(db: AsyncSession) -> dict[str, object]:
+    """Nudge whichever feed the Sea domain is configured to use, and describe it.
+
+    Online is the AISStream WebSocket (``reader.ensure`` also serves as the
+    "someone is looking" nudge that skips the background tick's wait). Off grid
+    it is the SDR decode bridge, which must NOT dial AISStream — the whole point
+    of off-grid mode is that there is no internet to reach it on, and an
+    unreachable upstream would otherwise burn the reconnect ladder and log auth
+    probes forever.
+    """
+    if await resolve_effective_mode("sea", db) == "offgrid":
+        return _offgrid_decode_snapshot()
+    await reader.ensure()
+    return {"mode": "online", **reader.snapshot()}
+
+
+def _status_headers(feed_status: object = None) -> dict[str, str]:
+    """Cache headers labelling the picture LIVE or STALE for the active feed."""
+    state = feed_status if isinstance(feed_status, str) else reader.status
+    cache_state = "LIVE" if state == "live" else "STALE"
     return {"X-Cache": cache_state, "Cache-Control": "no-store"}
 
 
@@ -71,6 +148,7 @@ def _status_headers() -> dict[str, str]:
 async def get_vessels(
     bbox: str | None = Query(default=None, description="south,west,north,east in degrees"),
     max_rows: int = Query(default=_DEFAULT_MAX_ROWS, ge=1, le=50_000),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return the current vessel picture, newest position first.
 
@@ -80,9 +158,9 @@ async def get_vessels(
     upstream is silent or reconnecting, rather than silently drawing old data.
     """
     parsed_bbox = _parse_bbox(bbox)
-    await reader.ensure()
+    feed = await _ensure_active_feed(db)
     vessels = ais_store.store.vessels(max_rows, parsed_bbox)
-    return JSONResponse({"vessels": vessels, **reader.snapshot()}, headers=_status_headers())
+    return JSONResponse({"vessels": vessels, **feed}, headers=_status_headers(feed.get("status")))
 
 
 @router.get("/vessels/{mmsi}/track")
@@ -104,10 +182,15 @@ async def get_vessel_track(mmsi: str):
 
 
 @router.get("/status")
-async def get_feed_status():
-    """Feed health for Settings › SEA and the map's status line."""
-    await reader.ensure()
-    return JSONResponse(reader.snapshot(), headers={"Cache-Control": "no-store"})
+async def get_feed_status(db: AsyncSession = Depends(get_db)):
+    """Feed health for Settings › SEA and the map's status line.
+
+    Reports whichever source the domain is set to — the AISStream upstream when
+    online, the SDR decode bridge when off grid — under a common shape, with
+    ``source`` naming which one.
+    """
+    feed = await _ensure_active_feed(db)
+    return JSONResponse(feed, headers={"Cache-Control": "no-store"})
 
 
 # ── API key ────────────────────────────────────────────────────────────────────

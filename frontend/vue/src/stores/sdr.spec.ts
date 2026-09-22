@@ -916,6 +916,193 @@ describe('sdr store', () => {
     })
   })
 
+  describe('off-grid AIS decode', () => {
+    /**
+     * The Sea twin of the APRS block below, with one difference that matters:
+     * `aisRadioId` means "which radio is decoding right now", not "which radio
+     * is designated" — the designation lives in `sea.aisSdrRadioId` and is only
+     * turned into decode when SEA is opened off grid (see useOffgridAisDecode).
+     */
+    it('defaults aisRadioId to null', () => {
+      expect(useSdrStore().aisRadioId).toBe(null)
+    })
+
+    it('reads a persisted aisRadioId from localStorage on init', () => {
+      localStorage.setItem('sdrAisRadioId', '4')
+      expect(useSdrStore().aisRadioId).toBe(4)
+    })
+
+    it('ignores a non-numeric persisted aisRadioId', () => {
+      localStorage.setItem('sdrAisRadioId', 'not-a-radio')
+      expect(useSdrStore().aisRadioId).toBe(null)
+    })
+
+    it('falls back to null when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().aisRadioId).toBe(null)
+      spy.mockRestore()
+    })
+
+    it('setAisRadioId persists the radio and clears it on null', () => {
+      const store = useSdrStore()
+      store.setAisRadioId(4)
+      expect(localStorage.getItem('sdrAisRadioId')).toBe('4')
+      store.setAisRadioId(null)
+      expect(store.aisRadioId).toBe(null)
+      expect(localStorage.getItem('sdrAisRadioId')).toBe(null)
+    })
+
+    it('setAisRadioId swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setAisRadioId(4)).not.toThrow()
+      expect(store.aisRadioId).toBe(4)
+      spy.mockRestore()
+    })
+
+    it('startAis POSTs the radio and bandwidth and returns ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      expect(await store.startAis(7, 16000)).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/ais/start',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ radio_id: 7, bw_hz: 16000 }),
+        }),
+      )
+    })
+
+    it('startAis defaults the bandwidth to zero (the bridge default)', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      await useSdrStore().startAis(3)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/ais/start',
+        expect.objectContaining({ body: JSON.stringify({ radio_id: 3, bw_hz: 0 }) }),
+      )
+    })
+
+    it('startAis records the decoding radio only once the backend accepts', async () => {
+      // A failed start must never reserve a radio that is not decoding.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      expect(await store.startAis(7)).toBe(false)
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('startAis records the radio on success', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      await store.startAis(7)
+      expect(store.aisRadioId).toBe(7)
+    })
+
+    it('startAis announces a settings change once the backend accepts', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAis(3)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAis does not announce a settings change on a refused start', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAis(3)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAis returns false when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      expect(await useSdrStore().startAis(1)).toBe(false)
+    })
+
+    it('stopAis POSTs the radio and clears the decoding radio', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(await store.stopAis(7)).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/ais/stop',
+        expect.objectContaining({ body: JSON.stringify({ radio_id: 7 }) }),
+      )
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('stopAis clears the radio even when the backend refuses', async () => {
+      // The operator asked for the radio back; leaving it reserved would lock
+      // it out of the SDR panel for a decode that is not running.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(await store.stopAis(7)).toBe(false)
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('stopAis clears the radio even when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(await store.stopAis(7)).toBe(false)
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('hydrateAisFromDb adopts the backend-persisted radio', async () => {
+      // The backend resumes the persisted radio on startup, so the DB — not
+      // localStorage — is the truth about what is decoding after a reload.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ais_radio_id: 5 }) }),
+      )
+      const store = useSdrStore()
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(5)
+    })
+
+    it('hydrateAisFromDb clears the radio when the DB has none', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAisRadioId(5)
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('hydrateAisFromDb keeps the cached value on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAisRadioId(5)
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(5)
+    })
+
+    it('hydrateAisFromDb keeps the cached value when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      store.setAisRadioId(5)
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(5)
+    })
+
+    it('reserves an AIS radio in the SDR panel, like APRS and ADS-B', async () => {
+      // The AIS bridge holds and tunes the dongle to 162 MHz, so letting the
+      // panel retune it would silently break the Sea map.
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(store.radioReservation(7)).toBe('AIS')
+      expect(store.radioReservation(8)).toBe(null)
+    })
+  })
+
   describe('APRS decode', () => {
     it('defaults aprsEnabled to false and decodeStreamKind to voice', () => {
       const store = useSdrStore()

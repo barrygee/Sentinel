@@ -406,3 +406,95 @@ describe('NoUrlOverlay', () => {
     ).toHaveNoViolations()
   })
 })
+
+describe('NoUrlOverlay — SEA off grid', () => {
+  /**
+   * SEA is URL-less in one direction only, which is why it cannot be exempted
+   * outright the way LAND is. Online it reads AISStream over a configured
+   * wss:// URL; off grid it has two possible sources — such a URL, or the SDR
+   * AIS decoder, which has no URL at all.
+   *
+   * Gating the off-grid case on a URL blanked the whole section for exactly the
+   * setup the off-grid decoder exists to serve, which is the bug these pin.
+   */
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete document.body.dataset.noData
+  })
+
+  it('shows the map when a receiver is designated and no URL is set', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 3, offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+  })
+
+  it('still shows the map when an off-grid URL is set and no receiver is', async () => {
+    // The pre-existing off-grid source must keep working unchanged.
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: 'wss://local.box/ais' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+  })
+
+  it('blocks the section when neither a receiver nor a URL is configured', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('offers both remedies in the message, not just a URL', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    const text = wrapper.text()
+    expect(text).toContain('AIS receiver')
+    expect(text).toContain('Off Grid Data Source')
+  })
+
+  it('ignores a non-numeric receiver id', async () => {
+    // A hand-edited config JSON must not satisfy the gate with a string.
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 'three', offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('does not accept a receiver as an ONLINE source', async () => {
+    // Online, SEA genuinely needs its AISStream URL; a designated radio is
+    // irrelevant and must not wave the gate through.
+    useAppStore().setConnectivityMode('online')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 3, onlineUrl: '' }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('does not let a receiver satisfy another domain off grid', async () => {
+    // The allowance is SEA-specific; AIR off grid still needs its URL.
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 3, offgridDataSourceURL: { url: '' } }))
+
+    const wrapper = await mountOverlay('air')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('has no accessibility violations in the SEA off-grid message', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: '' } }))
+
+    const wrapper = mount(NoUrlOverlay, { props: { domain: 'sea' }, attachTo: document.body })
+    await flushPromises()
+    expect(await axe(wrapper.element)).toHaveNoViolations()
+    wrapper.unmount()
+  })
+})
