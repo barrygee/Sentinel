@@ -1,7 +1,10 @@
 tiles/
 pmtiles
 *.pmtiles
-node_modules/
+# No trailing slash: with one, this matches only directories, so a node_modules
+# SYMLINK (as a /tmp git worktree needs) slips past and gets committed — which
+# then replaces the real directory with a self-referential link on pull.
+node_modules
 coverage/
 .coverage
 test-results/
