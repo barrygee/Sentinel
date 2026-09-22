@@ -1,16 +1,16 @@
 <template>
-  <div v-if="error" class="adsb-source-notice" role="status">
-    <p class="adsb-source-notice-message">{{ error.message }}</p>
-    <button
-      v-if="error.code === 'device_reserved'"
-      type="button"
-      class="adsb-source-notice-action"
-      :disabled="isClaiming"
-      @click="emit('takeControl')"
-    >
-      {{ isClaiming ? 'Taking…' : 'Take control' }}
-    </button>
-  </div>
+  <MapNoticeBanner v-if="error" class="adsb-source-notice" :message="error.message">
+    <template v-if="error.code === 'device_reserved'" #action>
+      <button
+        type="button"
+        class="adsb-source-notice-action"
+        :disabled="isClaiming"
+        @click="emit('takeControl')"
+      >
+        {{ isClaiming ? 'Taking…' : 'Take control' }}
+      </button>
+    </template>
+  </MapNoticeBanner>
 </template>
 
 <script setup lang="ts">
@@ -31,6 +31,7 @@
  * over hardware should be a decision, not a side effect of a timer.
  */
 import type { AdsbClaimError } from '@/services/adsbSourceApi'
+import MapNoticeBanner from '@/components/shared/MapNoticeBanner.vue'
 
 defineProps<{
   error: AdsbClaimError | null
@@ -41,36 +42,12 @@ const emit = defineEmits<{ takeControl: [] }>()
 </script>
 
 <style scoped>
-.adsb-source-notice {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: min(560px, calc(100vw - 24px));
-  padding: 10px 14px;
-  border-radius: 4px;
-  /* The warn fill rather than danger: nothing is broken and no data is lost —
-     the map is simply not receiving yet, and the operator can usually fix it. */
-  background: var(--color-warn-fill, #f0c419);
-  color: var(--color-ink-on-accent, #0a0c10);
-  font-size: 12.5px;
-  line-height: 1.55;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
-}
-
-.adsb-source-notice-message {
-  margin: 0;
-}
-
+/* The banner itself is styled by MapNoticeBanner; only this domain's extra
+   control needs rules of its own. */
 .adsb-source-notice-action {
-  flex-shrink: 0;
   padding: 6px 12px;
   border: none;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--color-ink-on-accent, #0a0c10);
   color: #fff;
   font-size: 11px;
@@ -83,11 +60,5 @@ const emit = defineEmits<{ takeControl: [] }>()
 .adsb-source-notice-action:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .adsb-source-notice {
-    transition: opacity 150ms ease;
-  }
 }
 </style>

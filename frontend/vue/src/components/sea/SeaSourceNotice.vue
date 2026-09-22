@@ -10,9 +10,11 @@
     :message="blocking.message"
     @open-settings="settingsStore.openPanel('sea')"
   />
-  <div v-else-if="degradedMessage" class="sea-source-notice" role="status">
-    <p class="sea-source-notice-message">{{ degradedMessage }}</p>
-  </div>
+  <MapNoticeBanner
+    v-else-if="degradedMessage"
+    class="sea-source-notice"
+    :message="degradedMessage"
+  />
 </template>
 
 <script setup lang="ts">
@@ -29,6 +31,7 @@ import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import type { SeaFeedInfo } from '@/stores/sea'
 import NoDataOverlay from '@/components/shared/NoDataOverlay.vue'
+import MapNoticeBanner from '@/components/shared/MapNoticeBanner.vue'
 
 const props = defineProps<{ feed: SeaFeedInfo }>()
 const settingsStore = useSettingsStore()
@@ -114,31 +117,3 @@ const degradedMessage = computed<string | null>(() => {
   }
 })
 </script>
-
-<style scoped>
-.sea-source-notice {
-  position: absolute;
-  /* #map-wrap is not a positioning context, so measure from the page: just
-     below the top nav, over the map. */
-  top: calc(var(--nav-height) + 12px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: min(560px, calc(100vw - 24px));
-  padding: 10px 14px;
-  border-radius: 4px;
-  /* The warn fill rather than danger: nothing is broken and no data is lost —
-     the map is simply not receiving yet, and the operator can usually fix it. */
-  background: var(--color-warn-fill, #f0c419);
-  color: var(--color-ink-on-accent, #0a0c10);
-  font-size: 12.5px;
-  line-height: 1.55;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
-}
-.sea-source-notice-message {
-  margin: 0;
-}
-</style>
