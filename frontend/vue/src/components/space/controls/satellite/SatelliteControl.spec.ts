@@ -525,6 +525,82 @@ describe('SatelliteControl follow persistence read', () => {
   })
 })
 
+describe('SatelliteControl active-satellite persistence', () => {
+  it('resumes on the persisted active satellite when not following', async () => {
+    localStorage.setItem(
+      'sentinel_space_activeSat',
+      JSON.stringify({ noradId: '24278', name: 'JAS-2 (FO-29)' }),
+    )
+    const { control } = await mounted()
+    expect(control.activeNoradId).toBe('24278')
+    expect(control.isFollowing).toBe(false)
+    control.onRemove()
+  })
+
+  it('lets a persisted follow win over the persisted active satellite', async () => {
+    localStorage.setItem(
+      'sentinel_space_follow',
+      JSON.stringify({ noradId: '99999', name: 'NOAA 19' }),
+    )
+    localStorage.setItem(
+      'sentinel_space_activeSat',
+      JSON.stringify({ noradId: '24278', name: 'JAS-2 (FO-29)' }),
+    )
+    const { control } = await mounted()
+    expect(control.activeNoradId).toBe('99999')
+    control.onRemove()
+  })
+
+  it('falls back to the norad id as the name when none was stored', async () => {
+    localStorage.setItem('sentinel_space_activeSat', JSON.stringify({ noradId: '24278' }))
+    const { control } = await mounted()
+    expect(control.activeNoradId).toBe('24278')
+    expect(control._activeSatName).toBe('24278')
+    control.onRemove()
+  })
+
+  it('ignores malformed JSON in the active-satellite key', async () => {
+    localStorage.setItem('sentinel_space_activeSat', '{bad json')
+    const { control } = await mounted()
+    expect(control.activeNoradId).toBe('25544')
+    control.onRemove()
+  })
+
+  it('ignores an active-satellite entry with no noradId', async () => {
+    localStorage.setItem('sentinel_space_activeSat', JSON.stringify({ name: 'x' }))
+    const { control } = await mounted()
+    expect(control.activeNoradId).toBe('25544')
+    control.onRemove()
+  })
+
+  it('persists the active satellite on switch and resets it when tracking is turned off', async () => {
+    const { control } = await mounted()
+    control.switchSatellite('40000', 'STARLINK')
+    await flushPromises()
+    expect(JSON.parse(localStorage.getItem('sentinel_space_activeSat')!)).toEqual({
+      noradId: '40000',
+      name: 'STARLINK',
+    })
+    control.toggleIss() // off: the map falls back to the ISS
+    expect(JSON.parse(localStorage.getItem('sentinel_space_activeSat')!)).toEqual({
+      noradId: '25544',
+      name: 'ISS (ZARYA)',
+    })
+    control.onRemove()
+  })
+
+  it('survives a localStorage write failure on switch', async () => {
+    const { control } = await mounted()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    expect(() => control.switchSatellite('40000', 'STARLINK')).not.toThrow()
+    expect(control.activeNoradId).toBe('40000')
+    setItem.mockRestore()
+    control.onRemove()
+  })
+})
+
 describe('SatelliteControl.switchSatellite', () => {
   it('switches the active satellite, reveals ISS layers and notifies listeners', async () => {
     const onSwitch = vi.fn()

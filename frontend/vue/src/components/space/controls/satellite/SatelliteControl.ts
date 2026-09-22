@@ -12,6 +12,12 @@ import { updatePassNotifName } from './passNotifStore'
 // remount the fresh control restores the follow from this key — mirrors AIR's
 // `adsbTracking`. Stores the active norad+name; cleared when the user untracks.
 const FOLLOW_LS_KEY = 'sentinel_space_follow'
+// Persists the satellite the map is showing (followed or not) so a remount
+// resumes on the same one instead of snapping back to the ISS. The side panes
+// consult this on their own restore: a persisted pane expansion may re-select
+// the satellite only when it is the one the map already shows, so two panes
+// restoring different satellites can no longer fight over the map.
+const ACTIVE_SAT_LS_KEY = 'sentinel_space_activeSat'
 
 type SpaceStore = ReturnType<typeof useSpaceStore>
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
@@ -125,6 +131,13 @@ export class SatelliteControl extends SentinelControlBase {
       this.issVisible = true
       this.setButtonActive(true)
       this._spaceStore.setOverlay('iss', true)
+    } else {
+      // Not following: still resume on the satellite the map last showed.
+      const persistedActive = this._readActiveSat()
+      if (persistedActive) {
+        this._activeNoradId = persistedActive.noradId
+        this._activeSatName = persistedActive.name
+      }
     }
 
     this.setButtonActive(this.issVisible)
@@ -648,6 +661,29 @@ export class SatelliteControl extends SentinelControlBase {
     }
   }
 
+  // ---- Active-satellite persistence (survives section changes) ----
+  private _saveActiveSat(): void {
+    try {
+      localStorage.setItem(
+        ACTIVE_SAT_LS_KEY,
+        JSON.stringify({ noradId: this._activeNoradId, name: this._activeSatName }),
+      )
+    } catch {}
+  }
+
+  private _readActiveSat(): { noradId: string; name: string } | null {
+    try {
+      const raw = localStorage.getItem(ACTIVE_SAT_LS_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as { noradId?: string; name?: string }
+      return parsed.noradId
+        ? { noradId: parsed.noradId, name: parsed.name || parsed.noradId }
+        : null
+    } catch {
+      return null
+    }
+  }
+
   // ---- Status bar ----
   private _showStatusBar(p: IssPosition): void {
     this._trackingStore.register({
@@ -851,6 +887,7 @@ export class SatelliteControl extends SentinelControlBase {
     const isSameSat = this._activeNoradId === noradId
     this._activeNoradId = noradId
     this._activeSatName = name
+    this._saveActiveSat()
     if (!isSameSat) this._lastPosition = this._previewPositions.get(noradId) ?? null
     this._trackingRestored = true
 
@@ -943,6 +980,7 @@ export class SatelliteControl extends SentinelControlBase {
       this._hideLabel()
       this._activeNoradId = '25544'
       this._activeSatName = 'ISS (ZARYA)'
+      this._saveActiveSat()
     } else {
       this._fetch()
       this._startPolling()

@@ -575,6 +575,10 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 let tickInterval: ReturnType<typeof setInterval> | null = null
 let locationPoll: ReturnType<typeof setInterval> | null = null
 let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
+// Set once the persisted expansion has been re-opened after mount. Later
+// pass refreshes must not re-select the satellite on the map (see
+// restoreExpandedAccordion).
+let expansionRestored = false
 
 // ---- Fetch ----
 async function fetchPasses(): Promise<void> {
@@ -680,14 +684,22 @@ function collapseExpanded(): void {
 // via 'sat-position-update' — without moving the camera, so it's safe to run on
 // a passive restore too. (Skipping it left the restored accordion's live data
 // blank, since no position events would ever arrive.)
-function openAccordion(pass: SatPass): void {
+//
+// A restore, unlike a click, must not take the map away from a different
+// satellite: the SEARCH pane restores its own persisted expansion at the same
+// time and the map can only show one. Whichever pane's satellite the map is
+// already showing re-selects it (to start polling); the other just re-opens.
+function openAccordion(pass: SatPass, restoring = false): void {
   expandedKey.value = passKey(pass)
   accPasses.value = []
   accStatus.value = 'COMPUTING PASSES…'
   accLoading.value = true
   liveTelemetry.value = {}
   liveAzEl.value = null
-  props.satelliteControl?.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
+  const ctrl = props.satelliteControl
+  if (ctrl && (!restoring || ctrl.activeNoradId === pass.norad_id)) {
+    ctrl.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
+  }
   notifNoradId.value = readPassNotifState(pass.norad_id) ? pass.norad_id : null
   void fetchAccordionPasses(pass.norad_id)
 }
@@ -703,25 +715,44 @@ function onCardClick(pass: SatPass): void {
 // few ms between recomputations (and the original pass may have rolled into the
 // past), which would otherwise make an exact key match fail every time. Clear the
 // key only when that satellite has no pass left in the list.
+//
+// Only the first restore after mount goes through openAccordion — it is the one
+// that has to re-select the satellite so the accordion's live telemetry flows.
+// fetchPasses also runs on a 5-minute timer, and re-selecting on every refresh
+// yanked the map back to the expanded card's satellite (and dropped any follow
+// the user had engaged on another one) every five minutes. On a refresh the
+// open card is just re-keyed onto the recomputed pass so it stays expanded.
 function restoreExpandedAccordion(): void {
   const key = expandedKey.value
   if (!key) return
-  const exact = passes.value.find((p) => passKey(p) === key)
-  if (exact) {
-    openAccordion(exact)
-    return
-  }
-  const noradId = key.slice(0, key.lastIndexOf('_'))
-  const targetAos = Number(key.slice(key.lastIndexOf('_') + 1))
-  const sameSat = passes.value.filter((p) => p.norad_id === noradId)
-  if (sameSat.length === 0) {
+  const match = findPersistedPass(key)
+  if (!match) {
     expandedKey.value = ''
     return
   }
-  const nearest = sameSat.reduce((best, p) =>
-    Math.abs(p.aos_unix_ms - targetAos) < Math.abs(best.aos_unix_ms - targetAos) ? p : best,
+  if (expansionRestored) {
+    expandedKey.value = passKey(match)
+    return
+  }
+  expansionRestored = true
+  openAccordion(match, true)
+}
+
+// Resolve a persisted expansion key to a pass in the current list: the exact
+// pass if it is still there, otherwise the same satellite's pass nearest to the
+// persisted AOS, or null when that satellite has no pass left.
+function findPersistedPass(key: string): SatPass | null {
+  const exact = passes.value.find((candidate) => passKey(candidate) === key)
+  if (exact) return exact
+  const noradId = key.slice(0, key.lastIndexOf('_'))
+  const targetAos = Number(key.slice(key.lastIndexOf('_') + 1))
+  const sameSat = passes.value.filter((candidate) => candidate.norad_id === noradId)
+  if (sameSat.length === 0) return null
+  return sameSat.reduce((best, candidate) =>
+    Math.abs(candidate.aos_unix_ms - targetAos) < Math.abs(best.aos_unix_ms - targetAos)
+      ? candidate
+      : best,
   )
-  openAccordion(nearest)
 }
 
 async function fetchAccordionPasses(noradId: string): Promise<void> {
