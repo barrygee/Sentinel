@@ -1773,17 +1773,22 @@ async def decode_status(radio_id: int, db: AsyncSession = Depends(get_db)):
 
 
 async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_decode.PcmDecodeBridge | None:
-    """Poll briefly for a decode bridge (voice or APRS) to appear for this radio.
+    """Poll briefly for a decode bridge (voice, APRS or AIS) to appear for this radio.
 
     The bridge is created asynchronously — a voice bridge by the control socket's
-    `digital_decode` command (which may race the opening of this socket), or an
-    APRS bridge by the `/api/sdr/aprs/start` endpoint. A radio runs at most one
-    kind at a time, so whichever registry has it is the right bridge to stream.
+    `digital_decode` command (which may race the opening of this socket), an APRS
+    bridge by `/api/sdr/aprs/start`, or an AIS bridge by `/api/sdr/ais/start`. A
+    radio runs at most one kind at a time, so whichever registry has it is the
+    right bridge to stream.
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
-        bridge = sdr_decode.get_bridge(host, port) or sdr_decode.get_aprs_bridge(host, port)
+        bridge = (
+            sdr_decode.get_bridge(host, port)
+            or sdr_decode.get_aprs_bridge(host, port)
+            or sdr_decode.get_ais_bridge(host, port)
+        )
         if bridge is not None:
             return bridge
         await asyncio.sleep(0.1)
@@ -1840,8 +1845,9 @@ async def sdr_decode_audio_websocket(radio_id: int, websocket: WebSocket):
     if broadcaster is None:
         return
     bridge = await _wait_for_bridge(radio["host"], radio["port"])
-    # Only the voice bridge produces decoded audio; APRS has no voice stream, so
-    # close cleanly if this radio is running an APRS decode instead.
+    # Only the voice bridge produces decoded audio; the packet bridges (APRS,
+    # AIS) have no voice stream, so close cleanly if this radio is running one
+    # of those instead.
     if not isinstance(bridge, sdr_decode.DigitalDecodeBridge):
         try:
             await websocket.close()
