@@ -20,12 +20,16 @@
  * say and when; this owns how it looks and where it sits, so the two cannot
  * drift apart.
  *
- * **Positioned against the page, not the map.** The map sidebar is
- * `position: fixed` and overlays the map, so a banner sitting below it in the
- * stacking order was partly hidden whenever the panel was open — which reads
- * as the message being off-centre rather than covered. This sits above the
- * sidebar and centres on the viewport, so it is in the same place whether the
- * panel is open or not.
+ * **Centred on the map you can actually see.** The sidebar is `position: fixed`
+ * and overlays the map rather than reflowing it, so a viewport-centred banner
+ * drifts left of the visible map's middle as soon as the panel opens. The
+ * banner is therefore inset by whatever the sidebar currently occupies — the
+ * 44px rail alone, or the rail plus the 386px panel — and centred in the
+ * remainder. It also sits above the sidebar, since below it the panel simply
+ * covered its left-hand end.
+ *
+ * Only from 769px up: at narrower widths the panel stretches across the map, so
+ * there is no remainder to centre in and the banner stays on the page's centre.
  *
  * It is also click-through (`pointer-events: none`), so covering the sidebar
  * rail never costs the operator a control; only the optional action slot takes
@@ -39,11 +43,17 @@ defineProps<{
 
 <style scoped>
 .map-notice {
-  /* Fixed rather than absolute: the notice belongs to the page, so it stays put
-     regardless of the map's own box or the sidebar's state. */
+  /* How much of the map's left edge the sidebar is covering right now. Zero by
+     default (narrow screens, where the panel spans the map); widened below. */
+  --map-notice-inset-left: 0px;
+
+  /* Fixed rather than absolute: the notice belongs to the page, not to the
+     map's own box, which no ancestor positions anyway. */
   position: fixed;
   top: calc(var(--nav-height) + 12px);
-  left: 50%;
+  /* The centre of the strip between the sidebar and the right edge:
+     inset + (100vw - inset) / 2, which reduces to 50% + inset / 2. */
+  left: calc(50% + var(--map-notice-inset-left) / 2);
   transform: translateX(-50%);
   /* Above the sidebar panel (1002) and rail (1003) — below either, the panel
      covered it. */
@@ -54,7 +64,7 @@ defineProps<{
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: min(560px, calc(100vw - 24px));
+  max-width: min(560px, calc(100vw - var(--map-notice-inset-left) - 24px));
   padding: 10px 14px;
   /* Square, matching the settings design language. */
   border-radius: 0;
@@ -65,6 +75,21 @@ defineProps<{
   font-size: 12.5px;
   line-height: 1.55;
   box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+
+/* From 769px the sidebar sits beside the map rather than over all of it, so the
+   banner centres in what is left. `data-sidebar-open` is already set on <body>
+   by MapSidebar, so this needs no extra plumbing. */
+@media (min-width: 769px) {
+  .map-notice {
+    /* The icon rail, always present. */
+    --map-notice-inset-left: 44px;
+  }
+
+  body[data-sidebar-open] .map-notice {
+    /* Rail (44px) + open panel (386px). */
+    --map-notice-inset-left: 430px;
+  }
 }
 
 .map-notice-icon {
