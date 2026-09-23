@@ -170,7 +170,7 @@ function onInput(event: Event): void {
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 .number-setting-input {
   width: 60px;
@@ -182,8 +182,8 @@ function onInput(event: Event): void {
   background: transparent;
   border: none;
   border-radius: 0;
-  box-shadow: inset 0 -1px 0 var(--settings-field-line, rgba(16, 19, 29, 0.18));
-  color: rgba(16, 19, 29, 0.92);
+  box-shadow: inset 0 -1px 0 var(--settings-field-line, var(--rule));
+  color: var(--ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 500;
@@ -200,6 +200,6 @@ function onInput(event: Event): void {
   opacity: 0.5;
 }
 .number-setting-input--invalid {
-  box-shadow: inset 0 -2px 0 #d94436;
+  box-shadow: inset 0 -2px 0 var(--danger);
 }
 </style>

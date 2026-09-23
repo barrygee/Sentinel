@@ -53,7 +53,7 @@ withDefaults(defineProps<BaseListItemProps>(), {
 
 .ba-list-item--interactive:hover,
 .ba-list-item--active {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink-rgb), 0.04);
 }
 
 .ba-list-item-actions {

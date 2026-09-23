@@ -90,7 +90,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 <style>
 .tracking-card {
   width: 100%;
-  color: #fff;
+  color: var(--ink-strong);
   font-family: var(--font-primary);
   pointer-events: auto;
   display: flex;
@@ -129,7 +129,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.2em;
-  color: var(--color-accent, #c8ff00);
+  color: var(--accent-text);
   text-transform: uppercase;
   line-height: 1;
 }
@@ -139,7 +139,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: #fff;
+  color: var(--ink-strong);
   line-height: 1.2;
   text-transform: uppercase;
   white-space: nowrap;
@@ -153,7 +153,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   border: none;
   cursor: pointer;
   padding: 0;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ink-muted);
   font-family: var(--font-primary);
   font-size: 12px;
   font-weight: 400;
@@ -165,7 +165,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 }
 
 .tracking-card-close:hover {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 .tracking-card-close::after {
@@ -174,8 +174,8 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   right: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.85);
-  color: rgba(255, 255, 255, 0.7);
+  background: rgba(var(--shadow-rgb), 0.85);
+  color: rgba(var(--rail-ink-rgb), 0.7);
   font-family: var(--font-condensed, 'Barlow Condensed', 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 700;
@@ -204,7 +204,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   --ba-grid-column-gap: 10px;
   --ba-grid-row-gap: 14px;
   --ba-cell-gap: 2px;
-  --ba-cell-label-color: rgba(255, 255, 255, 0.55);
+  --ba-cell-label-color: var(--ink-secondary);
   --ba-cell-value-font-size: 13px;
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-white-space: normal;
@@ -216,7 +216,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 }
 
 .tracking-card .tracking-card-name {
-  color: #ffffff;
+  color: var(--ink-strong);
 }
 
 #tracking-toggle-btn {
@@ -230,7 +230,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #fff;
+  color: var(--rail-ink);
   opacity: 0.6;
   transition:
     background 0.2s,
@@ -263,7 +263,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   line-height: 1;
   margin-bottom: 4px;
 }

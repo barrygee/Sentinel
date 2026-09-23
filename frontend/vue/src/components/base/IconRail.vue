@@ -54,7 +54,7 @@ withDefaults(defineProps<IconRailProps>(), {
   bottom: var(--footer-height);
   right: 0;
   width: 44px;
-  background: rgba(10, 13, 20, 0.98);
+  background: var(--rail-bg);
   z-index: 1003;
   display: flex;
   flex-direction: column;

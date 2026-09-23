@@ -76,7 +76,7 @@ function toggleValue(): void {
      (this atom only renders inside the settings panel). */
   border-radius: 0;
   border: none;
-  background: rgba(16, 19, 29, 0.14);
+  background: rgba(var(--ink-rgb), 0.14);
   cursor: pointer;
   padding: 0;
   transition: background 0.18s;
@@ -86,7 +86,7 @@ function toggleValue(): void {
   opacity: 0.5;
 }
 .toggle-track.is-on {
-  background: #c8ff00;
+  background: var(--accent);
 }
 .toggle-thumb {
   position: absolute;
@@ -95,13 +95,13 @@ function toggleValue(): void {
   width: 19px;
   height: 19px;
   border-radius: 0;
-  background: #ffffff;
+  background: var(--knob-ink);
   transition:
     left 0.18s,
     background 0.18s;
 }
 .toggle-track.is-on .toggle-thumb {
-  background: #0a0c10;
+  background: var(--accent-ink);
   left: 24px;
 }
 </style>

@@ -468,7 +468,9 @@ describe('MapSidebar', () => {
       const subTabStyle = (subTab.element as HTMLElement).style
       // Grey accordion-panel background with the right rail's stronger hover fill…
       expect(subTabStyle.getPropertyValue('--ba-rail-bg')).toBe('var(--color-button-bg)')
-      expect(subTabStyle.getPropertyValue('--ba-rail-hover-bg')).toBe('rgba(255, 255, 255, 0.2)')
+      expect(subTabStyle.getPropertyValue('--ba-rail-hover-bg')).toBe(
+        'rgba(var(--rail-ink-rgb), 0.2)',
+      )
       expect(subTabStyle.getPropertyValue('--ba-rail-transition')).toBe('color 0.15s ease')
       // …at the rail's default 40px button height (no per-site height override).
       expect(subTabStyle.getPropertyValue('--ba-rail-height')).toBe('')

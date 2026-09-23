@@ -70,11 +70,11 @@ defineProps<{
   border-radius: 0;
   /* The warn fill rather than danger: nothing is broken and no data is lost —
      the map is simply not receiving yet, and the operator can usually fix it. */
-  background: var(--color-warn-fill, #f0c419);
-  color: var(--color-ink-on-accent, #0a0c10);
+  background: var(--sev-warn);
+  color: var(--accent-ink);
   font-size: 12.5px;
   line-height: 1.55;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+  box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.25);
 }
 
 /* From 769px the sidebar sits beside the map rather than over all of it, so the
@@ -101,8 +101,8 @@ defineProps<{
   height: 26px;
   /* The one round thing here, on purpose: GOV.UK's warning mark is a circle. */
   border-radius: 50%;
-  background: var(--color-ink-on-accent, #0a0c10);
-  color: var(--color-warn-fill, #f0c419);
+  background: var(--accent-ink);
+  color: var(--sev-warn);
   font-size: 17px;
   font-weight: 700;
   line-height: 1;

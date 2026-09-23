@@ -77,7 +77,7 @@ withDefaults(
 .ba-icon-action[data-tooltip]::before {
   content: attr(data-tooltip);
   position: absolute;
-  background: var(--ba-icon-action-tooltip-bg, #000);
+  background: var(--ba-icon-action-tooltip-bg, var(--tooltip-bg));
   color: var(--ba-icon-action-tooltip-color, var(--color-text-muted));
   font-family: var(--ba-icon-action-tooltip-font, 'Barlow', 'Helvetica Neue', Arial, sans-serif);
   font-size: 9px;
