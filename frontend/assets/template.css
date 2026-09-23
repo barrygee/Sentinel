@@ -76,7 +76,13 @@
     --surface: #26292e; /* filled control (search bar, editors, groups) */
     --surface-raised: #13171f; /* popovers and dropdown menus */
     --surface-sunken: rgba(0, 0, 0, 0.32); /* wells set into the canvas */
+    /* A sunken control under the pointer. On dark it sinks further; on light
+       it darkens — the stack inverts, which is why both are named. */
+    --surface-sunken-hover: rgba(0, 0, 0, 0.6);
     --surface-pressed: #232a36; /* a filled control while open/held */
+    /* Behind a photo or video frame: black in both themes, because it is the
+       letterbox around someone else's picture, not app chrome. */
+    --media-bg: #000000;
 
     /* ── Rails (dark in BOTH themes) ────────────────────────── */
     /* The nav bar, footer and icon rails stay dark in the light theme — they
@@ -107,6 +113,11 @@
        still reads as the brand hue at AA. `-deep` is its emphatic step. */
     --accent-text: #c8ff00;
     --accent-text-deep: #c8ff00;
+    /* Focus rings follow `--accent-text`, not `--accent`: WCAG 2.2 wants 3:1
+       for a non-text indicator, and the raw lime manages ~1.6:1 on the light
+       canvas. Declared in both blocks because a `var()` value freezes where it
+       is declared. */
+    --focus-ring: var(--accent-text);
 
     /* ── Status ─────────────────────────────────────────────── */
     /* Shared across themes for now: these hues were picked against the light
@@ -128,7 +139,8 @@
        form-level danger/warn pair above. `--sev-alert` is the loud red an
        unread alert row and an emphasised value share. */
     --sev-alert: #ff2222;
-    --sev-critical: #ff4040;
+    --sev-critical-rgb: 255, 64, 64;
+    --sev-critical: rgb(var(--sev-critical-rgb));
     --sev-error: #ff5050;
     --sev-warn: #f0c419;
     --sev-info: rgba(100, 160, 255, 0.8);
@@ -165,11 +177,13 @@
     --surface: #e8eaed;
     --surface-raised: #ffffff;
     --surface-sunken: #f1efe9;
+    --surface-sunken-hover: #e6e2d9;
     --surface-pressed: #dcdfe3;
 
     --accent-text: #5a8a00;
     --accent-text-deep: #446b00;
     --accent-soft: rgba(var(--accent-rgb), 0.18);
+    --focus-ring: var(--accent-text);
 
     --rail-bg: rgba(var(--rail-rgb), 0.98);
     --rail-ink-muted: rgba(var(--rail-ink-rgb), 0.75);
@@ -177,6 +191,7 @@
 
     --danger-soft: rgba(var(--danger-wash-rgb), 0.12);
     --warn-text-strong: rgba(var(--warn-rgb), 0.95);
+    --sev-critical: rgb(var(--sev-critical-rgb));
 }
 
 /* ============================================================

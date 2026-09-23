@@ -426,7 +426,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   background: none;
   border: none;
   outline: none;
-  color: #fff;
+  color: var(--ink-strong);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 14px;
   font-weight: 400;
@@ -437,7 +437,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .bfp-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
   font-size: 11px;
   letter-spacing: 0.14em;
 }
@@ -446,7 +446,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   font-family: 'Barlow', sans-serif;
   font-size: 10px;
   font-weight: 700;
@@ -506,7 +506,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .bfp-group-heading-chevron {
   margin-left: auto;
   display: inline-flex;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   transition: transform 0.15s;
 }
 .bfp-group-heading--collapsed .bfp-group-heading-chevron {
@@ -520,12 +520,12 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 .bfp-group-heading-label {
   font-size: 10px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(var(--ink-rgb), 0.75);
 }
 .bfp-group-heading-meta {
   font-size: 9px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 .bfp-group-heading-note {
   flex-basis: 100%;
@@ -533,7 +533,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   font-weight: 400;
   letter-spacing: 0.04em;
   text-transform: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 
 .bfp-no-results {
@@ -543,7 +543,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
 }
 
 .bfp-result-item {
@@ -590,7 +590,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
    onto this shell. */
 .bfp-result-item.bfp-expanded > .bfp-result-option,
 .bfp-result-item.bfp-expanded > .bfp-accordion-body {
-  background: var(--bfp-row-highlight, rgba(255, 255, 255, 0.04));
+  background: var(--bfp-row-highlight, rgba(var(--ink-rgb), 0.04));
 }
 
 /* The keyboard cue marks the OPTION — the row header — not the row element,
@@ -600,7 +600,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
    tint so a focused row that is also open shows the focus weight on its header.
  */
 .bfp-result-item.bfp-keyboard-focused > .bfp-result-option {
-  background: var(--bfp-focus-highlight, var(--bfp-row-highlight, rgba(255, 255, 255, 0.04)));
+  background: var(--bfp-focus-highlight, var(--bfp-row-highlight, rgba(var(--ink-rgb), 0.04)));
   outline: 1px solid var(--bfp-focus-outline, var(--bfp-accent));
   outline-offset: -1px;
 }
@@ -609,7 +609,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #fff;
+  color: var(--ink-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -619,7 +619,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -634,7 +634,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   transition:
     transform 0.2s ease,
     color 0.15s;

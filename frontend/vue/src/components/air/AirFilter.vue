@@ -917,17 +917,17 @@ defineExpose({
 /* Keyboard focus is a touch stronger here, and its outline keeps the softened
    accent this pane has always used. */
 #filter-results .bfp-result-item {
-  --bfp-focus-outline: rgba(200, 255, 0, 0.4);
+  --bfp-focus-outline: rgba(var(--accent-rgb), 0.4);
 }
 #filter-results .bfp-result-item {
-  --bfp-focus-highlight: rgba(255, 255, 255, 0.06);
+  --bfp-focus-highlight: rgba(var(--ink-rgb), 0.06);
 }
 
 /* Emergency squawk (7500/7600/7700): the aircraft goes red on the map, so flag it
    the same way in the side panel — callsign in the row and the detail accordion's
-   section headings. #ff4040 matches the map's emergency callsign label colour. */
+   section headings. var(--sev-critical) matches the map's emergency callsign label colour. */
 .filter-result-item--emergency .bfp-result-primary {
-  color: #ff4040;
+  color: var(--sev-critical);
 }
 
 /* This pane centres its empty state and sets it smaller and dimmer than the
@@ -941,7 +941,7 @@ defineExpose({
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   text-align: center;
 }
 
@@ -949,7 +949,7 @@ defineExpose({
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   flex-shrink: 0;
 }
 
@@ -979,14 +979,14 @@ defineExpose({
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--color-accent);
+  color: var(--accent-text);
   text-transform: uppercase;
 }
 
 /* POSITION / IDENTIFICATION headings go red for an aircraft with an emergency
    squawk, matching the red callsign and the map marker. */
 .acft-acc-body--emergency .apt-acc-section-title {
-  color: #ff4040;
+  color: var(--sev-critical);
 }
 
 .apt-acc-grid {
@@ -1015,7 +1015,7 @@ defineExpose({
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   text-transform: uppercase;
 }
 
@@ -1024,14 +1024,14 @@ defineExpose({
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: #fff;
+  color: var(--ink-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .apt-acc-cell-mode {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   font-weight: 400;
   margin-left: 2px;
 }
@@ -1056,14 +1056,14 @@ defineExpose({
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   text-transform: uppercase;
 }
 
 /* ---- Aircraft live-telemetry accordion ---- */
 /* When the aircraft drops out of the feed, dim the (last-known) values. */
 .acft-acc-body--stale .apt-acc-cell-value {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 
 .acft-acc-signal-lost {
@@ -1074,9 +1074,9 @@ defineExpose({
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #ff4040;
-  background: rgba(255, 64, 64, 0.1);
-  border-left: 2px solid #ff4040;
+  color: var(--sev-critical);
+  background: rgba(var(--sev-critical-rgb), 0.1);
+  border-left: 2px solid var(--sev-critical);
 }
 
 .acft-acc-action-section {
@@ -1106,10 +1106,10 @@ defineExpose({
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
-  background: #0d1015;
+  background: var(--surface-sunken);
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 0;
   display: flex;
   align-items: center;
@@ -1120,17 +1120,17 @@ defineExpose({
 }
 
 .acft-acc-btn:hover {
-  color: var(--color-accent);
-  background: #05070a;
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
 }
 
 .acft-acc-btn.acft-acc-btn--active {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .acft-acc-btn.acft-acc-btn--active:hover {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 /* The hover tooltip (black pill above the button, left-anchored) comes from

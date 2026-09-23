@@ -134,12 +134,7 @@
     </template>
   </div>
 
-  <!-- `theme-dark` pins the dark palette for the panel and everything
-       teleported into it. Its own chrome is on the tokens already, but the
-       domain panes it hosts (Air/Space/Sea/Land filters) are still on white
-       literals, so letting it follow the theme would put white text on a
-       light canvas. Drop the class in the domain-pane slice. -->
-  <div id="map-sidebar" class="theme-dark" :class="{ 'msb-hidden': !open }">
+  <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
     <!-- Mobile close affordance. Hidden on the SDR route (hideTabs), where the
          left rail's active tab already toggles the panel — the extra × is redundant. -->
     <button v-if="!hideTabs" class="msb-mobile-close" aria-label="Close panel" @click="hide">
@@ -168,24 +163,32 @@
         >
           <TrackingPanel />
         </div>
+        <!-- `theme-dark` pins the dark palette for this pane and anything
+             teleported into it. Space's passes list is still on white literals — Space slice.
+             Drop the class with that slice. -->
         <div
           :id="SIDEBAR_PANE_IDS.passes"
-          class="msb-pane"
+          class="msb-pane theme-dark"
           :class="{ 'msb-pane-active': activeTab === 'passes' }"
         >
           <slot name="passes" />
         </div>
+        <!-- `theme-dark` pins the dark palette for this pane and anything
+             teleported into it. The replay timeline paints itself on a <canvas>, which no stylesheet reaches — it moves with the other canvas/overlay palettes.
+             Drop the class with that slice. -->
         <div
           :id="SIDEBAR_PANE_IDS.playback"
-          class="msb-pane"
+          class="msb-pane theme-dark"
           :class="{ 'msb-pane-active': activeTab === 'playback' }"
         >
           <slot name="playback" />
         </div>
       </template>
+      <!-- `theme-dark` pins the dark palette for this pane. The SDR panel is the last slice, and it is the largest stylesheet in the app.
+           Drop the class with that slice. -->
       <div
         :id="SIDEBAR_PANE_IDS.radio"
-        class="msb-pane msb-pane-radio"
+        class="msb-pane msb-pane-radio theme-dark"
         :class="{ 'msb-pane-active': hideTabs || activeTab === 'radio' }"
       >
         <slot name="radio" />

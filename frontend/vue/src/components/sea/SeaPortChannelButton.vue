@@ -47,11 +47,11 @@ const frequencyMhz = computed(() => formatMarineVhfMhz(props.channel))
   opacity: 0.7;
 }
 .sea-port-channel:focus-visible {
-  outline: 2px solid #c8ff00;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .sea-port-channel-mode {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   font-weight: 400;
   margin-left: 2px;
 }

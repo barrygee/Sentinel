@@ -48,8 +48,8 @@ const emit = defineEmits<{ takeControl: [] }>()
   padding: 6px 12px;
   border: none;
   border-radius: 0;
-  background: var(--color-ink-on-accent, #0a0c10);
-  color: #fff;
+  background: var(--accent-ink);
+  color: var(--rail-ink);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;

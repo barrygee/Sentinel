@@ -173,13 +173,13 @@ function formatErp(erpDbw: number | null): string {
 .land-repeater-locate :deep(.ba-data-cell-value) {
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: rgba(255, 255, 255, 0.35);
+  text-decoration-color: rgba(var(--ink-rgb), 0.35);
 }
 .land-repeater-locate:hover {
   opacity: 0.7;
 }
 .land-repeater-locate:focus-visible {
-  outline: 2px solid #c8ff00;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 /* The same hint as the Sea pane's port channels, but as a warning: red and
@@ -190,7 +190,7 @@ function formatErp(erpDbw: number | null): string {
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.14em;
-  color: rgb(255, 90, 80);
+  color: rgb(var(--danger-wash-rgb));
   text-transform: uppercase;
 }
 </style>
