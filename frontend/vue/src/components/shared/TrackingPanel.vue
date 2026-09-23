@@ -248,7 +248,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 
 #tracking-toggle-btn.tracking-btn-active {
   opacity: 1;
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 #tracking-icon {
@@ -269,6 +269,6 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 }
 
 #tracking-count.tracking-count-active {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 </style>

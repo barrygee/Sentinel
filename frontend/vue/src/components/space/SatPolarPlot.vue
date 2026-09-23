@@ -121,7 +121,7 @@ const livePos = computed(() => (props.live ? project(props.live.az, props.live.e
 
 .spp-polar-track {
   fill: none;
-  stroke: var(--color-accent);
+  stroke: var(--accent-text);
   stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -129,21 +129,21 @@ const livePos = computed(() => (props.live ? project(props.live.az, props.live.e
 }
 
 .spp-polar-aos {
-  fill: var(--color-accent);
+  fill: var(--accent-text);
 }
 
 .spp-polar-los {
   fill: none;
-  stroke: var(--color-accent);
+  stroke: var(--accent-text);
   stroke-width: 1.25;
 }
 
 .spp-polar-sat {
-  fill: var(--color-accent);
+  fill: var(--accent-text);
 }
 
 .spp-polar-sat-halo {
-  fill: var(--color-accent);
+  fill: var(--accent-text);
   opacity: 0.22;
 }
 

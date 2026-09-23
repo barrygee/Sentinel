@@ -84,7 +84,7 @@ withDefaults(defineProps<BaseDataGridProps>(), {
   font-size: var(--ba-grid-title-font-size, 9px);
   font-weight: var(--ba-grid-title-font-weight, 700);
   letter-spacing: var(--ba-grid-title-letter-spacing, 0.18em);
-  color: var(--ba-grid-title-color, var(--color-accent));
+  color: var(--ba-grid-title-color, var(--accent-text));
   text-transform: uppercase;
 }
 
