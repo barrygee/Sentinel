@@ -4,7 +4,8 @@
    across all CSS files in the project.
    ============================================================ */
 :root {
-    --color-accent: #c8ff00;
+    /* Legacy alias — the semantic layer below owns the value now. */
+    --color-accent: var(--accent);
     --color-bg: #000000;
     --color-text: rgba(255, 255, 255, 0.9);
     --color-text-muted: rgba(255, 255, 255, 0.75);
@@ -25,6 +26,109 @@
     --font-condensed: 'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
     --nav-height: calc(68px + env(safe-area-inset-top, 0px));
     --footer-height: calc(44px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ============================================================
+   SEMANTIC THEME TOKENS
+   The palette the UI chrome is drawn from, expressed by ROLE
+   (canvas, surface, ink, rule) rather than by colour, so one
+   declaration block flips the whole app between themes.
+
+   `:root` carries the dark values — the operational default —
+   and the light block below overrides them wherever the light
+   palette differs. Anything not overridden (the accent, the
+   dark rails, the status hues) is deliberately shared.
+
+   Two scopes get the light values:
+     • `:root[data-theme='light']` — the whole app, set by the
+       theme store (and pre-paint in index.html).
+     • `.theme-light` — an island that is light in BOTH themes.
+       The settings panel is the only one today.
+
+   INK: text and hairlines are the same hue at a dozen alphas,
+   so the hue ships as a bare `r, g, b` triplet and callers
+   compose the alpha they need: `rgba(var(--ink-rgb), 0.45)`.
+   The named steps below cover the recurring roles.
+   ============================================================ */
+:root {
+    /* ── Ink ────────────────────────────────────────────────── */
+    --ink-rgb: 255, 255, 255;
+    --ink-strong: #ffffff; /* headings, caret — full-strength ink */
+    --ink: rgba(var(--ink-rgb), 0.92); /* body text */
+    --ink-secondary: rgba(var(--ink-rgb), 0.55); /* labels, captions */
+    --ink-muted: rgba(var(--ink-rgb), 0.35); /* placeholders, disabled */
+    --rule: rgba(var(--ink-rgb), 0.18); /* the hairline under a field */
+    --border: rgba(var(--ink-rgb), 0.08); /* container edges */
+    --hover-surface: rgba(var(--ink-rgb), 0.06); /* row/button hover wash */
+
+    /* ── Surfaces ───────────────────────────────────────────── */
+    /* Provisional dark values: today only the always-light settings panel
+       consumes these tokens, so the dark column is set from the greys the
+       dark panels already use and is confirmed slice by slice as the rest of
+       the chrome is retrofitted onto the tokens. */
+    /* Held as a triplet too: gradients that fade the canvas out must fade to
+       a transparent canvas, not to `transparent` (= transparent BLACK, which
+       greys the ramp in sRGB). */
+    --canvas-rgb: 13, 16, 21;
+    --canvas: rgb(var(--canvas-rgb)); /* the ground a panel's content sits on */
+    --surface: #13171f; /* filled control (search bar, editors, groups) */
+    --surface-raised: #1a1f2a; /* popovers and dropdown menus */
+    --surface-sunken: #05070a; /* wells set into the canvas */
+    --surface-pressed: #232a36; /* a filled control while open/held */
+
+    /* ── Rails (dark in BOTH themes) ────────────────────────── */
+    /* The nav bar, footer and icon rails stay dark in the light theme — they
+       carry the white logo and the accent language, which only work on a dark
+       ground. Their ink is therefore always white, never `--ink`. */
+    --rail-bg: #10131d;
+    --rail-border: rgba(255, 255, 255, 0.06);
+
+    /* ── Accent ─────────────────────────────────────────────── */
+    --accent: #c8ff00; /* fills and rules — the brand lime */
+    --accent-ink: #0a0c10; /* text/icons drawn ON the accent */
+    --accent-soft: rgba(200, 255, 0, 0.18); /* accent wash behind a label */
+    /* Lime used AS text. It carries ~19:1 on black but only ~1.6:1 on the
+       light canvas, so the light theme substitutes a darkened olive that
+       still reads as the brand hue at AA. `-deep` is its emphatic step. */
+    --accent-text: #c8ff00;
+    --accent-text-deep: #c8ff00;
+
+    /* ── Status ─────────────────────────────────────────────── */
+    /* Shared across themes for now: these hues were picked against the light
+       canvas and are re-judged against the dark one when the slice that owns
+       each status surface lands. */
+    --danger: #d94436;
+    --danger-hover: #c23a2d;
+    --danger-strong: #b02f22;
+    --danger-ink-muted: rgba(180, 60, 60, 0.9); /* danger text at caption size */
+    /* The wash behind a danger control is the same coral at three strengths
+       (rest / notice / hover), so it ships as a triplet like the ink. */
+    --danger-wash-rgb: 255, 90, 80;
+    --danger-soft: rgba(var(--danger-wash-rgb), 0.12);
+    --warn-rgb: 120, 78, 0;
+    --warn-text: #946000;
+    --warn-text-strong: rgba(var(--warn-rgb), 0.95);
+    --warn-soft: rgba(214, 140, 0, 0.14);
+
+    /* ── Elevation ──────────────────────────────────────────── */
+    /* Shadow is black in both themes — on the dark canvas it reads as a
+       deepening rather than a cast shadow, which is the intent. */
+    --shadow-rgb: 0, 0, 0;
+}
+
+:root[data-theme='light'],
+.theme-light {
+    --ink-rgb: 16, 19, 29;
+    --ink-strong: #16191d;
+
+    --canvas-rgb: 246, 246, 244;
+    --surface: #e8eaed;
+    --surface-raised: #ffffff;
+    --surface-sunken: #f1efe9;
+    --surface-pressed: #dcdfe3;
+
+    --accent-text: #5a8a00;
+    --accent-text-deep: #446b00;
 }
 
 /* ============================================================
