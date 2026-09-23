@@ -54,7 +54,11 @@ withDefaults(defineProps<IconRailProps>(), {
   bottom: var(--footer-height);
   right: 0;
   width: 44px;
-  background: var(--rail-bg);
+  /* `--map-bar-bg`, not `--rail-bg`: in the light theme the right-hand map
+     bar reads as part of the frame (a step darker than the left icon rail,
+     which is the lightest of the three greys). On dark the two are the same
+     charcoal, so this only shows in light. */
+  background: var(--map-bar-bg);
   z-index: 1003;
   display: flex;
   flex-direction: column;

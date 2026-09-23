@@ -1371,7 +1371,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--accent-text);
   opacity: 0.65;
 }
 </style>

@@ -10,7 +10,7 @@
         style="
           --ba-icon-btn-tooltip-offset: 8px;
           --ba-icon-btn-tooltip-bg: rgba(var(--rail-rgb), 0.96);
-          --ba-icon-btn-tooltip-color: var(--rail-ink);
+          --ba-icon-btn-tooltip-color: var(--tooltip-ink);
           --ba-icon-btn-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
           --ba-icon-btn-tooltip-padding: 0 10px;
           --ba-icon-btn-tooltip-height: 24px;

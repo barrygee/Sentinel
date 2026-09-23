@@ -95,6 +95,11 @@
        frames (darker than the canvas on dark, lighter on light), and the
        tooltips that hang off it deliberately do NOT follow (below). */
     --chrome-bg: #000000; /* the nav bar and footer */
+    /* The right-hand map bar (the domain side menus and MapLibre's own
+       controls). It sits on the map rather than beside a panel, so on dark it
+       matches the icon rails, and on light it joins the chrome — a step darker
+       than the left rail. */
+    --map-bar-bg: rgba(var(--rail-rgb), 0.98);
     --rail-rgb: 16, 19, 29;
     --rail-bg: rgba(var(--rail-rgb), 0.98); /* the 44px icon rails */
     --rail-border: rgba(255, 255, 255, 0.06);
@@ -110,6 +115,11 @@
        spelled out here rather than following `--rail-ink`, which now flips. */
     --tooltip-bg: #000000;
     --tooltip-ink: rgba(255, 255, 255, 0.75);
+    /* Ink for labels and chips drawn ON the map — satellite and vessel names,
+       the ADS-B source notice. White in BOTH themes: the canvas filter dims
+       either basemap to a mid grey, so this is the reading that works on both
+       and it keeps the map's own labels consistent with the overlays. */
+    --overlay-ink: #ffffff;
 
     /* ── Accent ─────────────────────────────────────────────── */
     --accent-rgb: 200, 255, 0;
@@ -190,27 +200,32 @@
     --border: rgba(var(--ink-rgb), 0.08);
     --hover-surface: rgba(var(--ink-rgb), 0.06);
 
-    --canvas-rgb: 246, 246, 244;
+    /* Three greys, deliberately ordered: the left icon rail is the lightest
+       surface, the panel it opens sits a step down from it, and the chrome
+       that frames them both — nav bar, footer, the right-hand map bar — is
+       darkest. On dark the same ordering runs the other way (the chrome is
+       black, the rails and panel lift off it). */
+    --canvas-rgb: 233, 235, 237;
     --canvas: rgb(var(--canvas-rgb));
     --panel-bg: rgba(var(--canvas-rgb), 0.98);
-    --surface: #e8eaed;
+    --surface: #dcdfe3;
     --surface-raised: #ffffff;
-    --surface-sunken: #f1efe9;
-    --surface-sunken-hover: #e6e2d9;
-    --surface-pressed: #dcdfe3;
+    --surface-sunken: #e3e5e8;
+    --surface-sunken-hover: #d8dbdf;
+    --surface-pressed: #d2d6db;
 
     --accent-text: #5a8a00;
     --accent-text-deep: #446b00;
     --accent-soft: rgba(var(--accent-rgb), 0.18);
     --focus-ring: var(--accent-text);
 
-    /* Chrome in light: the nav bar and footer take the canvas, and the rails
-       a step down from it, so a rail still reads as a strip beside the panel
-       the way it does on dark. */
-    --chrome-bg: #f6f6f4;
-    --rail-bg: #e8eaed;
+    /* Chrome in light: darkest of the three greys, so the frame reads as the
+       frame. The left icon rail is the lightest of them (above). */
+    --chrome-bg: #cfd4da;
+    --map-bar-bg: #cfd4da;
+    --rail-bg: #f2f3f4;
     --rail-border: rgba(16, 19, 29, 0.08);
-    --rail-surface: #dcdfe3;
+    --rail-surface: #e6e8eb;
     --rail-ink-rgb: 16, 19, 29;
     --rail-ink: #16191d;
     --rail-ink-muted: rgba(var(--rail-ink-rgb), 0.75);
@@ -453,7 +468,7 @@ html {
     left: 50%;
     transform: translateX(-50%);
     background: var(--tooltip-bg);
-    color: var(--color-text-muted);
+    color: var(--tooltip-ink);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
     font-weight: 400;
@@ -517,7 +532,7 @@ html {
     bottom: calc(100% + 6px);
     right: 0;
     background: var(--tooltip-bg);
-    color: var(--color-text-muted);
+    color: var(--tooltip-ink);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
     font-weight: 400;
@@ -582,7 +597,7 @@ html {
     right: calc(100% + 6px);
     transform: translateY(-50%);
     background: var(--tooltip-bg);
-    color: var(--color-text-muted);
+    color: var(--tooltip-ink);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
     font-weight: 400;

@@ -148,22 +148,29 @@ defineExpose({ getMap })
 }
 
 .maplibregl-ctrl-group {
-  background-color: #000000 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--map-bar-bg) !important;
+  border: 1px solid var(--rail-border) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 
 .maplibregl-ctrl-group button + button {
-  border-top: 1px solid var(--color-border) !important;
+  border-top: 1px solid var(--rail-border) !important;
 }
 
 .maplibregl-ctrl-icon {
   filter: invert(1) brightness(1.2) !important;
 }
 
+/* MapLibre's own control icons are black artwork, inverted above so they read
+   on the dark chrome. The light chrome needs them as drawn. */
+:root[data-theme='light'] .maplibregl-ctrl-icon,
+:root[data-theme='light'] .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
+  filter: none !important;
+}
+
 .maplibregl-ctrl-group button:hover {
-  background-color: #111111 !important;
+  background-color: rgba(var(--rail-ink-rgb), 0.06) !important;
 }
 
 .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
@@ -183,7 +190,7 @@ defineExpose({ getMap })
 }
 
 .maplibregl-ctrl:not(.maplibregl-ctrl-group) {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--rail-border) !important;
   border-radius: 0 !important;
 }
 
