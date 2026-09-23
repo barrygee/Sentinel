@@ -85,7 +85,7 @@ withDefaults(defineProps<BaseDataCellProps>(), {
   font-size: var(--ba-cell-label-font-size, 9px);
   font-weight: var(--ba-cell-label-font-weight, 700);
   letter-spacing: var(--ba-cell-label-letter-spacing, 0.14em);
-  color: var(--ba-cell-label-color, rgba(255, 255, 255, 0.35));
+  color: var(--ba-cell-label-color, var(--ink-muted));
   text-transform: uppercase;
 }
 
@@ -94,7 +94,7 @@ withDefaults(defineProps<BaseDataCellProps>(), {
   font-size: var(--ba-cell-value-font-size, 14px);
   font-weight: var(--ba-cell-value-font-weight, 600);
   letter-spacing: var(--ba-cell-value-letter-spacing, 0.06em);
-  color: var(--ba-cell-value-color, #fff);
+  color: var(--ba-cell-value-color, var(--ink-strong));
   white-space: var(--ba-cell-value-white-space, nowrap);
   overflow: var(--ba-cell-value-overflow, hidden);
   text-overflow: var(--ba-cell-value-text-overflow, ellipsis);
@@ -104,7 +104,7 @@ withDefaults(defineProps<BaseDataCellProps>(), {
 }
 
 .ba-data-cell-value--emphasis {
-  color: var(--ba-cell-value-emphasis-color, #ff4040);
+  color: var(--ba-cell-value-emphasis-color, var(--sev-critical));
   font-weight: 700;
 }
 
@@ -113,7 +113,7 @@ withDefaults(defineProps<BaseDataCellProps>(), {
    since it lives in the caller's slot content, not this component's own
    template — the single source of truth stays in this component either way. */
 :slotted(.ba-data-cell-mode) {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   font-weight: 400;
   margin-left: 2px;
 }

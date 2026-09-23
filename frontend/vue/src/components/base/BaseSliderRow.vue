@@ -112,20 +112,20 @@ const emit = defineEmits<{
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #c8ff00;
+  background: var(--accent);
   border: none;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1px 4px rgba(var(--shadow-rgb), 0.5);
 }
 
 .sdr-panel-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #c8ff00;
+  background: var(--accent);
   border: none;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1px 4px rgba(var(--shadow-rgb), 0.5);
 }
 
 .sdr-panel-slider::-moz-range-track {

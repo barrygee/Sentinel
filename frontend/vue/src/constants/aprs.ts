@@ -15,10 +15,14 @@ export const APRS_ACCENT_COLOR = '#ffffff'
  * Fill behind the APRS symbol icon and its type chip.
  *
  * The same charcoal as the sidebar list the stations are listed in
- * (`#map-sidebar` in `MapSidebar.vue`, `rgba(21, 23, 29, 0.98)`), so a label
- * and its row read as one surface. Duplicated as a hex rather than read from
- * the custom property because marker elements are handed to MapLibre and live
- * outside the Vue tree; `aprsStyle.spec.ts` guards the two staying in step.
+ * (`#map-sidebar` in `MapSidebar.vue`, painted with `--panel-bg` = the dark
+ * theme's `--canvas-rgb`), so a label and its row read as one surface.
+ * Duplicated as a hex rather than read from the custom property because marker
+ * elements are handed to MapLibre and live outside the Vue tree;
+ * `aprs.spec.ts` guards the two staying in step.
+ *
+ * Still the dark value in both themes: map-marker colours are overlay work,
+ * retuned for the light basemap alongside the other `IControl` palettes.
  */
 export const APRS_BADGE_BACKGROUND = '#15171d'
 

@@ -91,8 +91,8 @@ withDefaults(defineProps<BaseIconButtonProps>(), {
   left: calc(100% + var(--ba-icon-btn-tooltip-offset, 6px));
   top: 50%;
   transform: translateY(-50%);
-  background: var(--ba-icon-btn-tooltip-bg, #000);
-  color: var(--ba-icon-btn-tooltip-color, var(--color-text-muted));
+  background: var(--ba-icon-btn-tooltip-bg, var(--tooltip-bg));
+  color: var(--ba-icon-btn-tooltip-color, var(--tooltip-ink));
   font-family: var(--ba-icon-btn-tooltip-font, 'Barlow', 'Helvetica Neue', Arial, sans-serif);
   font-size: 9px;
   font-weight: 400;
@@ -121,13 +121,13 @@ withDefaults(defineProps<BaseIconButtonProps>(), {
 
 @keyframes ba-icon-btn-pulse {
   0% {
-    color: #fff;
+    color: var(--rail-ink);
   }
   50% {
-    color: var(--color-accent);
+    color: var(--accent);
   }
   100% {
-    color: #fff;
+    color: var(--rail-ink);
   }
 }
 

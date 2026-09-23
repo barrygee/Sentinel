@@ -253,7 +253,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   border-right: 1px solid var(--color-border);
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -267,8 +267,8 @@ onUnmounted(() => {
 }
 
 #notif-clear-all-btn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--color-text-muted);
+  background: rgba(var(--ink-rgb), 0.04);
+  color: var(--ink-secondary);
 }
 
 #notif-list {
@@ -291,7 +291,7 @@ onUnmounted(() => {
   flex: 1;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ink-muted);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -336,7 +336,7 @@ onUnmounted(() => {
 .notif-item {
   width: 100%;
   background: transparent;
-  color: #fff;
+  color: var(--ink-strong);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   pointer-events: auto;
   display: flex;
@@ -365,7 +365,7 @@ onUnmounted(() => {
 }
 
 .notif-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-surface);
 }
 
 .notif-header {
@@ -389,43 +389,43 @@ onUnmounted(() => {
 }
 
 .notif-item[data-type='flight'] .notif-label {
-  color: var(--color-accent);
+  color: var(--accent-text);
   opacity: 0.75;
 }
 .notif-item[data-type='departure'] .notif-label {
-  color: var(--color-accent);
+  color: var(--accent-text);
   opacity: 0.75;
 }
 .notif-item[data-type='track'] .notif-label {
-  color: var(--color-accent);
+  color: var(--accent-text);
   opacity: 0.75;
 }
 .notif-item[data-type='tracking'] .notif-label {
-  color: var(--color-accent);
+  color: var(--accent-text);
   opacity: 0.75;
 }
 .notif-item[data-type='autotune'] .notif-label {
-  color: var(--color-accent);
+  color: var(--accent-text);
   opacity: 0.75;
 }
 .notif-item[data-type='overhead'] .notif-label {
-  color: var(--color-accent);
+  color: var(--accent-text);
   opacity: 0.75;
 }
 .notif-item[data-type='notif-off'] .notif-label {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 .notif-item[data-type='system'] .notif-label {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 .notif-item[data-type='message'] .notif-label {
-  color: rgba(100, 160, 255, 0.8);
+  color: var(--sev-info);
 }
 .notif-item[data-type='emergency'] .notif-label {
-  color: #ff2222;
+  color: var(--sev-alert);
 }
 .notif-item[data-type='squawk-clr'] .notif-label {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 
 .notif-dismiss {
@@ -434,7 +434,7 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   padding: 0;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -459,21 +459,21 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #fff;
+  color: var(--ink-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .notif-item[data-type='emergency'] .notif-title {
-  color: #ff2222;
+  color: var(--sev-alert);
 }
 
 .notif-detail {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,7 +484,7 @@ onUnmounted(() => {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   margin-top: 0;
 }
 
@@ -495,7 +495,7 @@ onUnmounted(() => {
   cursor: pointer;
   padding: 0;
   margin-right: -2px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -503,7 +503,7 @@ onUnmounted(() => {
 }
 
 .notif-action:hover {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .notif-label-default {
@@ -512,7 +512,7 @@ onUnmounted(() => {
 
 .notif-label-disable {
   display: none;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 .notif-header:has(.notif-action:hover) .notif-label-default {
@@ -526,15 +526,15 @@ onUnmounted(() => {
 @keyframes notif-bell-pulse {
   0% {
     opacity: 0.6;
-    color: #fff;
+    color: var(--rail-ink);
   }
   50% {
     opacity: 1;
-    color: var(--color-accent);
+    color: var(--accent);
   }
   100% {
     opacity: 0.6;
-    color: #fff;
+    color: var(--rail-ink);
   }
 }
 
@@ -553,7 +553,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #fff;
+  color: var(--rail-ink);
   opacity: 0.6;
   transition:
     background 0.2s,
@@ -571,7 +571,7 @@ onUnmounted(() => {
 
 #notif-toggle-btn.notif-btn-active {
   opacity: 1;
-  color: #fff;
+  color: var(--rail-ink);
 }
 
 #notif-toggle-btn:not(.notif-btn-active) {
@@ -589,7 +589,7 @@ onUnmounted(() => {
   top: 50%;
   width: 2px;
   height: 22px;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(var(--rail-ink-rgb), 0.55);
   transform: translate(-50%, -50%) rotate(45deg);
   pointer-events: none;
 }
@@ -606,12 +606,12 @@ onUnmounted(() => {
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--rail-ink-rgb), 0.4);
   line-height: 1;
   margin-bottom: 4px;
 }
 
 #notif-count.notif-count-unread {
-  color: var(--color-accent);
+  color: var(--accent);
 }
 </style>
