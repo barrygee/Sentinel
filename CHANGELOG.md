@@ -170,6 +170,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add light basemap styles derived from the dark fiord pair
 - Add a light theme switch that repaints every map
 - Draw satellite ground tracks in black on the light basemap
+- Add the semantic token layer the light chrome is drawn from
 
 ### Bug Fixes
 
@@ -1262,6 +1263,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #345 from barrygee/chore/air-settings-data-sources-first
 - Merge pull request #346 from barrygee/fix/space-sea-panel-tweaks
 - Merge pull request #347 from barrygee/feat/map-light-style
+- Merge pull request #348 from barrygee/feat/light-theme-tokens
 
 ### Refactoring
 
