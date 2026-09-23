@@ -221,7 +221,7 @@ const props = withDefaults(
   }>(),
   {
     emptyMessage: 'No results',
-    accentColor: 'var(--color-accent)',
+    accentColor: 'var(--accent-text)',
     enterActivatesFirstRow: true,
     clearFocusOnInput: false,
     groupsCollapsedByDefault: false,

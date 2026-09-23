@@ -77,7 +77,7 @@ describe('BaseFilterPanel', () => {
 
     it('applies the caller accent, defaulting to the app accent token', () => {
       expect(mountPanel().find('.bfp-results').attributes('style')).toContain(
-        '--bfp-accent: var(--color-accent)',
+        '--bfp-accent: var(--accent-text)',
       )
       expect(
         mountPanel({ accentColor: '#b07cff' }).find('.bfp-results').attributes('style'),

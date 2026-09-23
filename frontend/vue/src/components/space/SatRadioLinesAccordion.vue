@@ -62,7 +62,7 @@ const bodyId = useId()
   color: rgba(var(--ink-rgb), 0.6);
 }
 .srla-toggle:focus-visible {
-  outline: 1px solid var(--color-accent);
+  outline: 1px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .srla-chevron {

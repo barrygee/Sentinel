@@ -88,16 +88,17 @@
        this near-black, and an instrument is read, not decorated. */
     --instrument-bg: #0a0d14;
 
-    /* ── Rails (dark in BOTH themes) ────────────────────────── */
-    /* The nav bar, footer and icon rails stay dark in the light theme — they
-       carry the white logo and the accent language, which only work on a dark
-       ground. Their ink is therefore always white: inside a rail use
-       `--rail-ink*`, never `--ink*`, or the text disappears in light theme. */
+    /* ── App chrome: nav bar, footer, icon rails ────────────── */
+    /* These follow the theme like everything else. They were pinned dark at
+       first — the white logo was the blocker — which is why they still have
+       their own token family: the chrome is one step apart from the panel it
+       frames (darker than the canvas on dark, lighter on light), and the
+       tooltips that hang off it deliberately do NOT follow (below). */
+    --chrome-bg: #000000; /* the nav bar and footer */
     --rail-rgb: 16, 19, 29;
-    --rail-bg: rgba(var(--rail-rgb), 0.98);
+    --rail-bg: rgba(var(--rail-rgb), 0.98); /* the 44px icon rails */
     --rail-border: rgba(255, 255, 255, 0.06);
-    /* A filled control ON a rail — a sub-tab strip, an accordion panel. It is
-       rail furniture, so it does not follow the theme either. */
+    /* A filled control ON a rail — a sub-tab strip, an accordion panel. */
     --rail-surface: #26292e;
     --rail-ink-rgb: 255, 255, 255;
     --rail-ink: #ffffff;
@@ -105,9 +106,10 @@
 
     /* ── Tooltips (dark in BOTH themes) ─────────────────────── */
     /* Transient black chips that float over the map and over both palettes —
-       they read as an annotation layer rather than as panel chrome. */
+       they read as an annotation layer rather than as chrome, so their ink is
+       spelled out here rather than following `--rail-ink`, which now flips. */
     --tooltip-bg: #000000;
-    --tooltip-ink: var(--rail-ink-muted);
+    --tooltip-ink: rgba(255, 255, 255, 0.75);
 
     /* ── Accent ─────────────────────────────────────────────── */
     --accent-rgb: 200, 255, 0;
@@ -202,9 +204,16 @@
     --accent-soft: rgba(var(--accent-rgb), 0.18);
     --focus-ring: var(--accent-text);
 
-    --rail-bg: rgba(var(--rail-rgb), 0.98);
+    /* Chrome in light: the nav bar and footer take the canvas, and the rails
+       a step down from it, so a rail still reads as a strip beside the panel
+       the way it does on dark. */
+    --chrome-bg: #f6f6f4;
+    --rail-bg: #e8eaed;
+    --rail-border: rgba(16, 19, 29, 0.08);
+    --rail-surface: #dcdfe3;
+    --rail-ink-rgb: 16, 19, 29;
+    --rail-ink: #16191d;
     --rail-ink-muted: rgba(var(--rail-ink-rgb), 0.75);
-    --tooltip-ink: var(--rail-ink-muted);
 
     --danger-soft: rgba(var(--danger-wash-rgb), 0.12);
     --warn-text-strong: rgba(var(--warn-rgb), 0.95);
@@ -243,7 +252,7 @@ html {
     width: 100%;
     height: 100%;
     overflow: hidden; /* map fills the viewport — no page scroll */
-    background: #000;
+    background: var(--chrome-bg);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -260,7 +269,7 @@ html {
     left: 0;
     right: 0;
     height: 68px;
-    background: #000000;
+    background: var(--chrome-bg);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -317,7 +326,7 @@ html {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     text-decoration: none;
-    color: #ffffff;
+    color: var(--rail-ink);
     transition: color 0.2s;
 }
 
@@ -329,7 +338,7 @@ html {
    page; no accent preview needed). */
 .nav-link--active,
 .nav-link--active:hover {
-    color: #ffffff;
+    color: var(--rail-ink);
 }
 
 /* The active-domain dot. left compensates for the trailing 0.2em
@@ -359,7 +368,7 @@ html {
     left: 0;
     right: 0;
     height: 44px;
-    background: #000000;
+    background: var(--chrome-bg);
     border-top: 1px solid var(--color-border);
     display: flex;
     align-items: center;
@@ -388,7 +397,7 @@ html {
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.18em;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(var(--rail-ink-rgb), 0.4);
     text-transform: uppercase;
 }
 
@@ -398,7 +407,7 @@ html {
     font-size: 10px;
     font-weight: 100;
     letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.2);
+    color: rgba(var(--rail-ink-rgb), 0.2);
     text-transform: uppercase;
 }
 
@@ -421,19 +430,19 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(var(--rail-ink-rgb), 0.6);
     transition: color 0.2s;
     position: relative;
     flex-shrink: 0;
 }
 
 #playback-toggle-btn:hover {
-    color: #fff;
+    color: var(--rail-ink);
 }
 
 #playback-toggle-btn.playback-btn-active {
     color: var(--color-accent);
-    background: rgba(200, 255, 0, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     border-radius: 6px;
 }
 
@@ -443,7 +452,7 @@ html {
     bottom: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
-    background: #000;
+    background: var(--tooltip-bg);
     color: var(--color-text-muted);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
@@ -485,7 +494,7 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--rail-ink);
     opacity: 0.6;
     text-decoration: none;
     transition:
@@ -507,7 +516,7 @@ html {
     position: absolute;
     bottom: calc(100% + 6px);
     right: 0;
-    background: #000;
+    background: var(--tooltip-bg);
     color: var(--color-text-muted);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
@@ -532,7 +541,7 @@ html {
 #docs-btn.docs-btn-active {
     opacity: 1;
     color: var(--color-accent);
-    background: rgba(200, 255, 0, 0.08);
+    background: rgba(var(--accent-rgb), 0.08);
     border-radius: 6px;
 }
 
@@ -550,7 +559,7 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--rail-ink);
     opacity: 0.6;
     transition:
         background 0.2s,
@@ -572,7 +581,7 @@ html {
     top: 50%;
     right: calc(100% + 6px);
     transform: translateY(-50%);
-    background: #000;
+    background: var(--tooltip-bg);
     color: var(--color-text-muted);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 9px;
@@ -611,7 +620,7 @@ html {
 }
 
 #footer-sdr .footer-sdr-name {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(var(--rail-ink-rgb), 0.45);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -630,7 +639,7 @@ html {
     z-index: 500;
     /* Match the darkened contour SVG's background fill so the blurred ::before
        edge doesn't reveal a lighter band as a line below the header. */
-    background-color: #0c0e16;
+    background-color: var(--canvas);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -684,7 +693,7 @@ html {
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-weight: 400;
     font-size: clamp(18px, 2.2vw, 30px);
-    color: #fff;
+    color: var(--ink-strong);
     letter-spacing: -0.01em;
     white-space: nowrap;
 }
@@ -694,7 +703,7 @@ html {
     font-size: 13px;
     font-weight: 400;
     letter-spacing: 0.02em;
-    color: #fff;
+    color: var(--ink-strong);
     line-height: 1.55;
     max-width: 480px;
     margin-top: 0;
@@ -709,7 +718,7 @@ html {
     border: none;
     border-radius: 999px;
     padding: 9px 20px;
-    color: #0a0f1a;
+    color: var(--accent-ink);
     font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
     font-weight: 700;
@@ -727,7 +736,7 @@ html {
 }
 
 .no-url-overlay-btn:hover {
-    background: #d8ff33;
+    background: var(--accent-hover);
     transform: translateY(-1px);
 }
 
@@ -805,13 +814,13 @@ body[data-no-data] .maplibregl-control-container {
     border: none;
     cursor: pointer;
     padding: 0;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(var(--rail-ink-rgb), 0.8);
     flex-shrink: 0;
     transition: color 0.2s;
 }
 
 #nav-burger-btn:hover {
-    color: #fff;
+    color: var(--rail-ink);
 }
 
 /* Mobile fullscreen nav overlay — sits above everything (settings panel is
@@ -824,7 +833,7 @@ body[data-no-data] .maplibregl-control-container {
     left: 0;
     right: 0;
     /* Match the no-data-source screen: dark base + blurred contour SVG overlay */
-    background-color: #0c0e16;
+    background-color: var(--canvas);
     background-image: url('/assets/sentinel-contour-background.svg');
     background-repeat: no-repeat;
     background-position: center;
@@ -847,7 +856,7 @@ body[data-no-data] .maplibregl-control-container {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     text-decoration: none;
-    color: #fff;
+    color: var(--ink-strong);
     padding: 18px 24px;
     transition:
         color 0.15s,
@@ -857,15 +866,15 @@ body[data-no-data] .maplibregl-control-container {
 }
 
 .nav-overlay-link:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.04);
+    color: var(--ink-strong);
+    background: rgba(var(--ink-rgb), 0.04);
 }
 
 /* Active domain in the overlay: same treatment as the header links — white
    text with a subtle accent dot centred beneath (see .nav-link--active). */
 .nav-overlay-link--active,
 .nav-overlay-link--active:hover {
-    color: #fff;
+    color: var(--ink-strong);
     position: relative;
 }
 

@@ -435,7 +435,7 @@ describe('LandFilter', () => {
     store.aprsStations = [station()]
     const wrapper = mount(LandFilter)
     expect(wrapper.find('.bfp-results').attributes('style')).toContain(
-      '--bfp-accent: var(--color-accent)',
+      '--bfp-accent: var(--accent-text)',
     )
   })
 

@@ -145,7 +145,7 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--rail.ba-btn--active {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .ba-btn--rail.ba-btn--bordered {

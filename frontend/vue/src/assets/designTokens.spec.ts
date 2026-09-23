@@ -28,6 +28,24 @@ describe('design tokens', () => {
     expect(logoRingStroke?.toLowerCase()).toBe(wordmarkFill?.toLowerCase())
   })
 
+  it('keeps the light-theme logo identical to the white one but for its ink', () => {
+    // The light nav bar needs the mark and wordmark in ink rather than white,
+    // and an <img> cannot be recoloured from CSS — so logo-ink.svg is a second
+    // copy of the same artwork. Strip the generated-file banner and swap the
+    // ink back, and the two files must be byte-identical: any geometry change
+    // that lands in one and not the other goes red here.
+    const assets = resolve(process.cwd(), '../../frontend/assets')
+    const whiteLogo = readFileSync(resolve(assets, 'logo.svg'), 'utf8')
+    const inkLogo = readFileSync(resolve(assets, 'logo-ink.svg'), 'utf8')
+
+    const withoutBanner = inkLogo.replace(/^<!--[\s\S]*?-->\n/, '')
+    expect(withoutBanner).not.toBe(inkLogo) // the banner is part of the contract
+    expect(withoutBanner.replace(/#16191d/g, '#ffffff')).toBe(whiteLogo)
+
+    // The brand's green dot is NOT recoloured — it reads on either ground.
+    expect(inkLogo).toContain('#c8ff00')
+  })
+
   it('keeps the favicon’s ring the same white as the logo mark', () => {
     // The favicon is the same ⊙ mark on a tile; the raster variants
     // (favicon-16/32.png, favicon.ico, apple-touch-icon.png) are generated

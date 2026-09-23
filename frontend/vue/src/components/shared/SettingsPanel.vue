@@ -10,7 +10,14 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <div id="settings-sidebar" :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }">
+    <!-- `theme-dark`: the app's rails now follow the theme, but this one keeps
+         its charcoal in both — it is the settings panel's own furniture, and
+         the panel is a fixed light island by design. -->
+    <div
+      id="settings-sidebar"
+      class="theme-dark"
+      :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }"
+    >
       <BaseIconButton
         v-for="s in visibleSections"
         :key="s.key"
