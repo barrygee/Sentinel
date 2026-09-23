@@ -3,7 +3,7 @@
   "metadata": {
     "sentinel:theme": "light",
     "sentinel:derived-from": "fiord.json (Sentinel dark basemap)",
-    "sentinel:palette": "Colours from openmaptiles/positron-gl-style — BSD-3-Clause (code), design derived from CartoDB Basemaps by Stamen/Paul Norman, CC-BY 3.0. Geometry, filters, sources, sprite and glyphs are Sentinel's own."
+    "sentinel:palette": "Colours from openmaptiles/positron-gl-style — BSD-3-Clause (code), design derived from CartoDB Basemaps by Stamen/Paul Norman, CC-BY 3.0. Geometry, filters, sources, sprite and glyphs are Sentinel's own. The only structural change from the dark style: park/park_outline are drawn beneath water, so protected areas do not paint over the sea."
   },
   "sources": {
     "openmaptiles": {
@@ -244,6 +244,53 @@
       }
     },
     {
+      "id": "park",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "park",
+      "filter": [
+        "match",
+        [
+          "geometry-type"
+        ],
+        [
+          "MultiPolygon",
+          "Polygon"
+        ],
+        true,
+        false
+      ],
+      "paint": {
+        "fill-color": "rgb(230, 233, 229)",
+        "fill-opacity": 0.55
+      }
+    },
+    {
+      "id": "park_outline",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "park",
+      "filter": [
+        "match",
+        [
+          "geometry-type"
+        ],
+        [
+          "MultiPolygon",
+          "Polygon"
+        ],
+        true,
+        false
+      ],
+      "paint": {
+        "line-color": "hsl(140, 14%, 72%)",
+        "line-dasharray": [
+          2,
+          2
+        ]
+      }
+    },
+    {
       "id": "water",
       "type": "fill",
       "source": "openmaptiles",
@@ -389,53 +436,6 @@
           0,
           12,
           1
-        ]
-      }
-    },
-    {
-      "id": "park",
-      "type": "fill",
-      "source": "openmaptiles",
-      "source-layer": "park",
-      "filter": [
-        "match",
-        [
-          "geometry-type"
-        ],
-        [
-          "MultiPolygon",
-          "Polygon"
-        ],
-        true,
-        false
-      ],
-      "paint": {
-        "fill-color": "rgb(230, 233, 229)",
-        "fill-opacity": 0.35
-      }
-    },
-    {
-      "id": "park_outline",
-      "type": "line",
-      "source": "openmaptiles",
-      "source-layer": "park",
-      "filter": [
-        "match",
-        [
-          "geometry-type"
-        ],
-        [
-          "MultiPolygon",
-          "Polygon"
-        ],
-        true,
-        false
-      ],
-      "paint": {
-        "line-color": "hsla(140, 12%, 66%, 0.45)",
-        "line-dasharray": [
-          2,
-          2
         ]
       }
     },
