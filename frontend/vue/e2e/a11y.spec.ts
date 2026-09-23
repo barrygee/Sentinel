@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { installDefaultMocks } from './support/mockApi'
 
 /**
  * Live accessibility audit — runs the real axe-core engine in a real browser
@@ -80,6 +81,11 @@ test.describe('Live accessibility audit (axe-core, WCAG 2.2 AA)', () => {
     // itself guards the structural rules (names, roles, target size) in a
     // theme no other test renders.
     test.slow()
+    // Unlike the audits above, this one drives the sidebar — and with no API
+    // answering, `NoUrlOverlay` hides the rail entirely (`body[data-no-data]`),
+    // so the rail button would never appear. The audits above don't need it;
+    // this one does, so it mocks the API like the sidebar specs do.
+    await installDefaultMocks(page)
     await page.goto('/air/')
     await expect(page.getByRole('navigation', { name: /domains/i })).toBeVisible()
     await expect(page.locator('main#main')).toBeAttached()
