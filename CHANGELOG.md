@@ -1266,6 +1266,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #347 from barrygee/feat/map-light-style
 - Merge pull request #348 from barrygee/feat/light-theme-tokens
 - Merge pull request #349 from barrygee/feat/light-theme-shell
+- Merge branch 'main' into feat/shared-radio-icon
+- Merge pull request #350 from barrygee/feat/shared-radio-icon
 
 ### Refactoring
 
@@ -1330,6 +1332,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restyle the SDR settings and drop the input fill (#285)
 - Stage location edits and share the SDR radio picker
 - Draw the shell chrome from the semantic tokens
+- Give the SDR mark one component and use it for auto-tune
 
 ### Documentation
 
