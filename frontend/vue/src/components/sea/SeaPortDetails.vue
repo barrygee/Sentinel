@@ -59,7 +59,7 @@ function formatLongitude(longitude: number): string {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   text-transform: uppercase;
 }
 </style>

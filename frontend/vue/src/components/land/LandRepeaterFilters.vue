@@ -133,14 +133,14 @@ function toggleMode(key: string): void {
   text-transform: uppercase;
 }
 .lrf-heading:focus-visible {
-  outline: 1px solid var(--color-accent, #c8ff00);
+  outline: 1px solid var(--focus-ring);
   outline-offset: -1px;
 }
 .lrf-heading-label {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: #fff;
+  color: var(--ink-strong);
 }
 /* Hover and expanded state light the chevron, never a background wash. */
 .lrf-heading-chevron {
@@ -150,7 +150,7 @@ function toggleMode(key: string): void {
   height: 44px;
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   transform: rotate(-90deg);
   transition:
     transform 0.2s ease,
@@ -158,7 +158,7 @@ function toggleMode(key: string): void {
 }
 .lrf-heading:hover .lrf-heading-chevron,
 .lrf-heading--expanded .lrf-heading-chevron {
-  color: var(--color-accent, #c8ff00);
+  color: var(--accent-text);
 }
 .lrf-heading--expanded .lrf-heading-chevron {
   transform: rotate(0deg);

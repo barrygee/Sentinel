@@ -106,7 +106,7 @@ function onBookmarkClick(): void {
   opacity: 0.7;
 }
 .lrfc-tune:focus-visible {
-  outline: 2px solid #c8ff00;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .lrfc-save {
@@ -129,20 +129,20 @@ function onBookmarkClick(): void {
   cursor: pointer;
   /* Sits on the value line, under the cell's label. */
   margin-bottom: 3px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 .lrfc-save:disabled {
   cursor: default;
 }
 .lrfc-save:focus-visible {
-  outline: 2px solid #c8ff00;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .lrfc-save:hover:not(:disabled) {
-  color: #c8ff00;
+  color: var(--accent-text);
 }
 .lrfc-save--saved {
-  color: #c8ff00;
+  color: var(--accent-text);
   opacity: 0.8;
 }
 @media (prefers-reduced-motion: reduce) {

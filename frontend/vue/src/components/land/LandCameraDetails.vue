@@ -136,7 +136,7 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-line-height: 1.45;
   --ba-cell-value-letter-spacing: normal;
-  --ba-cell-value-color: rgba(255, 255, 255, 0.82);
+  --ba-cell-value-color: rgba(var(--ink-rgb), 0.82);
 }
 .land-camera-details {
   display: flex;
@@ -145,7 +145,7 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
 }
 .land-camera-details-preview {
   margin: 0 24px 10px;
-  background: #000;
+  background: var(--media-bg);
 }
 .land-camera-details-preview-btn {
   display: block;
@@ -155,7 +155,7 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
   cursor: pointer;
 }
 .land-camera-details-preview-btn:focus-visible {
-  outline: 2px solid #c8ff00;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .land-camera-details-image {
@@ -172,6 +172,6 @@ function splitFeatureId(featureId: string, feedId: string): [string, string] {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
 }
 </style>

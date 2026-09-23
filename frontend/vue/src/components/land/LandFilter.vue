@@ -598,7 +598,7 @@ watch(
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-line-height: 1.45;
   --ba-cell-value-letter-spacing: normal;
-  --ba-cell-value-color: rgba(255, 255, 255, 0.82);
+  --ba-cell-value-color: rgba(var(--ink-rgb), 0.82);
 }
 
 .land-filter-raw {
@@ -622,7 +622,7 @@ watch(
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
 }
 .land-filter-raw-chevron {
   display: flex;
@@ -634,7 +634,7 @@ watch(
   transform: rotate(0deg);
 }
 .land-filter-raw-toggle:hover {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 .land-filter-raw-label {
   font-family: var(--font-primary);
@@ -652,7 +652,7 @@ watch(
   font-weight: 400;
   line-height: 1.45;
   letter-spacing: normal;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(var(--ink-rgb), 0.82);
   word-break: break-word;
 }
 </style>

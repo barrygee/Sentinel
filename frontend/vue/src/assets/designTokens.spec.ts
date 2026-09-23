@@ -212,9 +212,11 @@ describe('semantic theme tokens', () => {
     }
 
     expect(settingsPanelVue).toContain('class="theme-light"')
+    // The sidebar pins the panes whose contents have not moved onto the tokens
+    // yet (passes, playback, radio) — the class may sit alongside others.
     expect(
       readFileSync(resolve(process.cwd(), 'src/components/shared/MapSidebar.vue'), 'utf8'),
-    ).toContain('class="theme-dark"')
+    ).toMatch(/class="[^"]*\btheme-dark\b/)
   })
 
   it('leaves no colour literals in the retrofitted settings panel stylesheet', () => {

@@ -60,7 +60,7 @@ const emit = defineEmits<{ toggle: [key: string] }>()
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
 }
 .lfc-chips {
   display: flex;
@@ -72,7 +72,7 @@ const emit = defineEmits<{ toggle: [key: string] }>()
   align-items: center;
   height: 28px;
   padding: 0 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: 1px solid transparent;
   border-radius: 2px;
   font-family: var(--font-primary, 'Barlow', sans-serif);
@@ -80,23 +80,23 @@ const emit = defineEmits<{ toggle: [key: string] }>()
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
   cursor: pointer;
   transition:
     color 0.15s,
     background 0.15s;
 }
 .lfc-chip:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--ink-rgb), 0.12);
+  color: var(--accent-text);
 }
 .lfc-chip:focus-visible {
-  outline: 2px solid #c8ff00;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 .lfc-chip.lfc-chip-active {
-  color: #c8ff00;
-  background: rgba(200, 255, 0, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 .lfc-chip:disabled {
   opacity: 0.4;

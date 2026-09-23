@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { installDefaultMocks } from './support/mockApi'
 
 /**
  * Live accessibility audit — runs the real axe-core engine in a real browser
@@ -65,6 +66,51 @@ test.describe('Live accessibility audit (axe-core, WCAG 2.2 AA)', () => {
       ).toEqual([])
     })
   }
+
+  test('light theme has no WCAG 2.2 AA violations with a domain pane open', async ({ page }) => {
+    // Every audit above runs in the dark theme, so nothing else in the suite
+    // renders the light palette at all. One route with the sidebar open covers
+    // the surface the theme changes: the shell chrome plus a domain pane (the
+    // rails and the map stay dark by design).
+    //
+    // What this does NOT cover: colour contrast inside the sidebar. The panel
+    // is 98% opaque, and axe reports contrast over a partially transparent
+    // background as `incomplete` rather than a violation — a deliberately
+    // broken light palette still passes here. The `toHaveCSS` assertion below
+    // is what proves the light values actually reached the DOM; the audit
+    // itself guards the structural rules (names, roles, target size) in a
+    // theme no other test renders.
+    test.slow()
+    // Unlike the audits above, this one drives the sidebar — and with no API
+    // answering, `NoUrlOverlay` hides the rail entirely (`body[data-no-data]`),
+    // so the rail button would never appear. The audits above don't need it;
+    // this one does, so it mocks the API like the sidebar specs do.
+    await installDefaultMocks(page)
+    await page.goto('/air/')
+    await expect(page.getByRole('navigation', { name: /domains/i })).toBeVisible()
+    await expect(page.locator('main#main')).toBeAttached()
+    // Flip the attribute the stylesheets key off, AFTER hydration: the theme
+    // store re-applies its own restored value while booting (and rewrites the
+    // persisted key), so a value seeded into localStorage is overwritten
+    // before the audit runs. What is being audited is the rendered palette,
+    // and this is the same attribute the store itself sets.
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = 'light'
+    })
+    await page.locator('#map-sidebar-rail .msb-rail-btn[data-tab="search"]').click()
+    await expect(page.locator('#msb-pane-search.msb-pane-active')).toBeVisible()
+    await expect(page.locator('#map-sidebar')).toHaveCSS(
+      'background-color',
+      'rgba(246, 246, 244, 0.98)',
+    )
+
+    const results = await auditPage(page)
+
+    expect(
+      results.violations,
+      `axe violations in the light theme: ${results.violations.map((violation) => violation.id).join(', ')}`,
+    ).toEqual([])
+  })
 
   test('skip link is the first focusable element and targets the main landmark', async ({
     page,
