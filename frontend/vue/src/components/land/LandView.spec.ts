@@ -450,12 +450,19 @@ describe('LandView', () => {
   })
 
   describe('connectivity changes', () => {
-    it('switches the style when connectivity drops after load', () => {
+    it('switches the style when connectivity drops after load', async () => {
+      const app = useAppStore()
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
+      // useConnectivity sets the store before it calls back, so the spec does
+      // too — the style the map wants is derived from the store, not the arg.
+      app.isOnline = false
+      await nextTick()
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE, STYLE_OPTIONS)
+      app.isOnline = true
+      await nextTick()
       shared.connectivityCb!(true)
       expect(map.setStyle).toHaveBeenCalledWith(ONLINE_STYLE, STYLE_OPTIONS)
     })

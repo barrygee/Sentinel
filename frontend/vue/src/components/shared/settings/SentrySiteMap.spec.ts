@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { axe } from 'jest-axe'
 
 // Registry of constructed fake maps + the options each was built with, so the
@@ -74,6 +75,8 @@ function mountMap(props = GATESHEAD) {
 
 describe('SentrySiteMap', () => {
   beforeEach(() => {
+    // The component reads the theme store to pick the basemap it loads.
+    setActivePinia(createPinia())
     mapRegistry.instances.length = 0
     mapRegistry.controls.length = 0
     markerRegistry.instances.length = 0

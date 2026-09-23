@@ -1,4 +1,5 @@
 import type { Map, StyleSpecification, TransformStyleFunction } from 'maplibre-gl'
+import type { AppTheme } from '@/stores/theme'
 
 /**
  * Make a style's `sprite` URL absolute against the page origin.
@@ -26,4 +27,22 @@ export const absoluteSpriteTransform: TransformStyleFunction = (
  */
 export function setMapStyle(map: Map, styleUrl: string): void {
   map.setStyle(styleUrl, { transformStyle: absoluteSpriteTransform })
+}
+
+/**
+ * The four bundled basemaps: a dark (`fiord`) and a light (`positron`) pair,
+ * each with an online build (planet vector tiles) and an offline one (the
+ * local PMTiles archives). The light styles are recolours of the dark ones —
+ * same sources, same layer ids — so a theme change is a repaint, not a
+ * different map.
+ */
+const BASEMAP_STYLES: Record<AppTheme, { online: string; offline: string }> = {
+  dark: { online: '/assets/fiord-online.json', offline: '/assets/fiord.json' },
+  light: { online: '/assets/positron-online.json', offline: '/assets/positron.json' },
+}
+
+/** The basemap style a map should be showing for the given connectivity and theme. */
+export function basemapStyleUrl(online: boolean, theme: AppTheme): string {
+  const pair = BASEMAP_STYLES[theme]
+  return online ? pair.online : pair.offline
 }

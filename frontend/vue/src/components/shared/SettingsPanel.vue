@@ -384,6 +384,15 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'app',
     sectionLabel: 'App Settings',
+    id: 'theme',
+    label: 'Light Theme',
+    desc: 'Render the maps and the interface in the light palette instead of the dark one',
+    searchTerms: 'theme light dark mode palette appearance basemap colour color',
+    type: 'theme',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
     id: 'location',
     label: 'Sentinel Location',
     desc: 'Set a fixed latitude / longitude for your position',

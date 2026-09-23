@@ -15,7 +15,7 @@
 import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
-import { setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSpaceStore } from '@/stores/space'
 import { useBasemapStore } from '@/stores/basemap'
@@ -25,6 +25,7 @@ import {
   clearSatelliteClickHandler,
 } from '@/stores/notifications'
 import { useTrackingStore } from '@/stores/tracking'
+import { useThemeStore } from '@/stores/theme'
 import { useSentrySitesStore } from '@/stores/sentrySites'
 import { useSettingsStore } from '@/stores/settings'
 import { useConnectivity } from '@/composables/useConnectivity'
@@ -44,14 +45,12 @@ const sentrySitesStore = useSentrySitesStore()
 const settingsStore = useSettingsStore()
 const notificationsStore = useNotificationsStore()
 const trackingStore = useTrackingStore()
+const themeStore = useThemeStore()
 const { location: userLocation, start: startLocation } = useUserLocation()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const STYLE_ONLINE = '/assets/fiord-online.json'
-const STYLE_OFFLINE = '/assets/fiord.json'
-
-const styleUrl = computed(() => (appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
 
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
@@ -71,16 +70,36 @@ function getUserLocation(): [number, number] | null {
   return loc ? [loc.lon, loc.lat] : null
 }
 
-useConnectivity((online) => {
+/**
+ * Re-add the overlays this map owns. `setStyle` discards every source and
+ * layer the controls added, so this runs after each basemap reload — from a
+ * connectivity change or a theme change alike.
+ */
+function reinitAfterStyleLoad(): void {
+  daynightControl?.initLayers()
+  namesControl?.applyVisibility()
+  satelliteControl?.initLayers()
+}
+
+function loadStyle(m: MapLibreGlMap, url: string): void {
+  setMapStyle(m, url)
+  m.once('style.load', reinitAfterStyleLoad)
+}
+
+useConnectivity(() => {
   const m = _map
   if (!m) return
-  setMapStyle(m, online ? STYLE_ONLINE : STYLE_OFFLINE)
-  m.once('style.load', () => {
-    daynightControl?.initLayers()
-    namesControl?.applyVisibility()
-    satelliteControl?.initLayers()
-  })
+  loadStyle(m, styleUrl.value)
 })
+
+watch(
+  () => themeStore.theme,
+  () => {
+    const m = _map
+    if (!m) return
+    loadStyle(m, styleUrl.value)
+  },
+)
 
 let _initialStyleUrl: string | null = null
 
@@ -162,15 +181,11 @@ function onStyleLoaded(m: MapLibreGlMap) {
   const ctrlEl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (ctrlEl) ctrlEl.style.display = 'none'
 
-  // If connectivity mode changed between map creation and style load, apply the correct style now.
+  // If connectivity mode or theme changed between map creation and style load,
+  // apply the correct style now.
   const desiredStyle = styleUrl.value
   if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {
-    setMapStyle(m, desiredStyle)
-    m.once('style.load', () => {
-      daynightControl?.initLayers()
-      namesControl?.applyVisibility()
-      satelliteControl?.initLayers()
-    })
+    loadStyle(m, desiredStyle)
   }
   _initialStyleUrl = null
 }

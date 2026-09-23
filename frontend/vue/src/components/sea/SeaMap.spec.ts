@@ -285,12 +285,17 @@ describe('SeaMap', () => {
   })
 
   describe('connectivity', () => {
-    it('swaps the style and re-inits every layer control after the reload', () => {
+    it('swaps the style and re-inits every layer control after the reload', async () => {
+      const app = useAppStore()
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
       shared.connectivityCb!(true) // already online: nothing to do
       expect(map.setStyle).not.toHaveBeenCalled()
+      // useConnectivity sets the store before it calls back, so the spec does
+      // too — the style the map wants is derived from the store, not the arg.
+      app.isOnline = false
+      await nextTick()
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()

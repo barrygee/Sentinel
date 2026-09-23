@@ -60,6 +60,9 @@
       v-else-if="item.type === 'notification-sound'"
       @stage="emit('stage', item.id, $event)"
     />
+    <!-- Mirrors to the store at once (the maps repaint as you switch it) and
+         stages the config-database write for APPLY CHANGES. -->
+    <ThemeControl v-else-if="item.type === 'theme'" @stage="emit('stage', item.id, $event)" />
     <SourceOverrideControl
       v-else-if="item.type === 'source-override'"
       :ns="item.ns!"
@@ -197,6 +200,7 @@ import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
+import ThemeControl from './ThemeControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
 import OfflineSourceControl from './OfflineSourceControl.vue'
