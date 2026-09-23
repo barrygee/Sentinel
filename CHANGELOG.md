@@ -167,6 +167,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give the vessel row AIR's Centre on map icon action
 - Read the bundled ADS-B decoder off grid and drop the URL setting
 - Fold satellite PACKET / DIGITAL and NOTES into accordions
+- Add light basemap styles derived from the dark fiord pair
+- Add a light theme switch that repaints every map
+- Draw satellite ground tracks in black on the light basemap
 
 ### Bug Fixes
 
@@ -393,6 +396,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make CLEAR remove satellite pass alerts
 - Make AIR map-layer changes register with APPLY and relabel the ADS-B SDR
 - Clear the vessel picture when the source switches
+- Stop the dark-basemap dimmer flattening the light theme
+- Keep the light basemap dimmed and sink parks beneath water
 
 ### Chores
 
@@ -1256,6 +1261,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #344 from barrygee/chore/remove-air-offgrid-url-setting
 - Merge pull request #345 from barrygee/chore/air-settings-data-sources-first
 - Merge pull request #346 from barrygee/fix/space-sea-panel-tweaks
+- Merge pull request #347 from barrygee/feat/map-light-style
 
 ### Refactoring
 
@@ -1377,6 +1383,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the SDR radio picker's options being reachable
 - Cover the off-grid AIS decode path
 - Cover the off-grid AIS frontend at 100%
+- Cover the light theme to the 100% gate
 
 ### Build System
 
