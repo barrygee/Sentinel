@@ -107,6 +107,7 @@ const MapLibreMapStub = defineComponent({
 import SpaceMap from './SpaceMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
+import { useThemeStore } from '@/stores/theme'
 import { useSpaceStore } from '@/stores/space'
 import { getSatelliteClickHandler } from '@/stores/notifications'
 
@@ -276,6 +277,27 @@ describe('SpaceMap', () => {
       shared.emit!('map-created', map)
       shared.emit!('style-loaded', map)
       expect(map.setStyle).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('theme changes', () => {
+    it('reloads the light basemap and re-inits layers when the theme flips', async () => {
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+      useThemeStore().setTheme('light')
+      await nextTick()
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/positron-online.json', STYLE_OPTIONS)
+      map.onceHandlers['style.load']!()
+      expect(last('daynight').initLayers).toHaveBeenCalled()
+      expect(last('names').applyVisibility).toHaveBeenCalled()
+      expect(last('satellite').initLayers).toHaveBeenCalled()
+    })
+
+    it('does nothing when the map is not yet created', async () => {
+      mountMap()
+      useThemeStore().setTheme('light')
+      await expect(nextTick()).resolves.not.toThrow()
     })
   })
 

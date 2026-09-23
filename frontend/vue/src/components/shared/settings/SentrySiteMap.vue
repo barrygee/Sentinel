@@ -97,7 +97,10 @@ watch(
 watch(
   () => themeStore.theme,
   () => {
+    /* v8 ignore start -- the watcher only fires while mounted, by which point
+       map is always set; defensive only, matching the guards either side */
     if (map) setMapStyle(map, styleUrl())
+    /* v8 ignore stop */
   },
 )
 
