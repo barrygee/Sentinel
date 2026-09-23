@@ -25,31 +25,7 @@
         @click="onSdrTabClick(tab.id)"
       >
         <!-- radio (receiver with antenna and dial) -->
-        <svg
-          v-if="tab.id === 'radio'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          stroke-linecap="round"
-        >
-          <line x1="6" y1="9" x2="18" y2="3" stroke="currentColor" stroke-width="1.6" />
-          <rect
-            x="3"
-            y="9"
-            width="18"
-            height="12"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linejoin="miter"
-            fill="none"
-          />
-          <circle cx="16" cy="15" r="2.6" stroke="currentColor" stroke-width="1.6" />
-          <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6" />
-          <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6" />
-        </svg>
+        <RadioIcon v-if="tab.id === 'radio'" />
         <!-- frequency manager (bookmark) -->
         <svg
           v-else-if="tab.id === 'frequency-manager'"
@@ -594,6 +570,7 @@
 
 <script setup lang="ts">
 import './SdrPanel.css'
+import RadioIcon from '@/components/shared/RadioIcon.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSdrAudio } from '@/composables/useSdrAudio'

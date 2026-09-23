@@ -147,31 +147,7 @@
             />
           </svg>
           <!-- SDR (default): radio (matches SdrPanel radio tab icon) -->
-          <svg
-            v-else
-            class="settings-nav-icon"
-            width="19"
-            height="19"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-            stroke-linecap="round"
-          >
-            <line x1="6" y1="9" x2="18" y2="3" stroke="currentColor" stroke-width="1.6" />
-            <rect
-              x="3"
-              y="9"
-              width="18"
-              height="12"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linejoin="miter"
-              fill="none"
-            />
-            <circle cx="16" cy="15" r="2.6" stroke="currentColor" stroke-width="1.6" />
-            <line x1="6" y1="13" x2="11" y2="13" stroke="currentColor" stroke-width="1.6" />
-            <line x1="6" y1="17" x2="11" y2="17" stroke="currentColor" stroke-width="1.6" />
-          </svg>
+          <RadioIcon v-else class="settings-nav-icon" />
         </span>
       </BaseIconButton>
     </div>
@@ -305,6 +281,7 @@
 
 <script setup lang="ts">
 import './SettingsPanel.css'
+import RadioIcon from '@/components/shared/RadioIcon.vue'
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
