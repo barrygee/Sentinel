@@ -467,16 +467,6 @@ const ALL_SETTINGS: SettingItem[] = [
     defaultUrl: 'https://api.adsb.lol/v2',
   },
   {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-offline-source',
-    label: 'Off Grid Data Source',
-    desc: 'Local server URL and port for air data',
-    type: 'offline-source',
-    ns: 'air',
-    defaultUrl: '',
-  },
-  {
     section: 'space',
     sectionLabel: 'SPACE',
     id: 'space-online-source',

@@ -7,6 +7,7 @@ import logging
 
 import httpx
 
+from backend.config import settings
 from backend.services import adsb as adsb_service
 
 
@@ -331,3 +332,68 @@ class TestAdsbUpstreamFailover:
         assert resp.status_code == 200
         assert calls == [self.ONLINE]
         assert self._air_warnings(caplog) == ""
+
+
+# ── /api/air/adsb/point — off-grid source with no Settings field ──────────────
+
+
+class TestAdsbOffgridDecoderDefault:
+    """Off grid, AIR reads the bundled decoder unless a stored URL says otherwise.
+
+    The Settings › AIR › Off Grid Data Source field was removed, so this default
+    is the only way a fresh install finds its off-grid aircraft.
+    """
+
+    POINT = "/api/air/adsb/point/54.0/-1.5/100"
+    DECODER = "http://decoder.test:8080/data/aircraft.json"
+
+    def _patch_fetch(self, monkeypatch):
+        calls: list[str] = []
+
+        async def fake_fetch(lat, lon, radius, base_url):
+            calls.append(base_url)
+            return {"ac": [], "total": 0}
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+        return calls
+
+    def test_reads_the_configured_decoder_when_no_url_is_stored(
+        self, client, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "adsb_offgrid_url", self.DECODER)
+        client.put("/api/settings/app/connectivityMode", json={"value": "offgrid"})
+        client.put(
+            "/api/settings/air/offgridDataSourceURL", json={"value": {"url": ""}}
+        )
+        calls = self._patch_fetch(monkeypatch)
+
+        resp = client.get(self.POINT)
+
+        assert resp.status_code == 200
+        assert calls == [self.DECODER]
+
+    def test_a_stored_url_still_wins(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "adsb_offgrid_url", self.DECODER)
+        client.put("/api/settings/app/connectivityMode", json={"value": "offgrid"})
+        client.put(
+            "/api/settings/air/offgridDataSourceURL",
+            json={"value": {"url": "http://stored.test/data/aircraft.json"}},
+        )
+        calls = self._patch_fetch(monkeypatch)
+
+        client.get(self.POINT)
+
+        assert calls[0] == "http://stored.test/data/aircraft.json"
+
+
+def test_offgrid_url_defaults_to_the_compose_decoder():
+    from backend.config import Settings
+
+    assert Settings().adsb_offgrid_url == "http://adsb-decoder:8080/data/aircraft.json"
+
+
+def test_offgrid_url_is_overridable_from_the_environment(monkeypatch):
+    from backend.config import Settings
+
+    monkeypatch.setenv("ADSB_OFFGRID_URL", "http://elsewhere:8090/data/aircraft.json")
+    assert Settings().adsb_offgrid_url == "http://elsewhere:8090/data/aircraft.json"

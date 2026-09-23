@@ -471,7 +471,7 @@ describe('SettingsPanel', () => {
   })
 
   describe('AIR data sources', () => {
-    it('names the ADS-B receiver and lists it between Source Override and Online Data Source', async () => {
+    it('names the ADS-B receiver and lists it between Source Override and Online Data Source, with no Off Grid URL field', async () => {
       const wrapper = mountPanel()
       await wrapper
         .findAll('.settings-nav-item')
@@ -482,12 +482,13 @@ describe('SettingsPanel', () => {
         .map((row) => row.props('item') as { id: string; label: string })
       const ids = airItems.map((item) => item.id)
       const sourceStart = ids.indexOf('air-source-override')
-      expect(ids.slice(sourceStart, sourceStart + 4)).toEqual([
+      // The off-grid URL field is gone: AIR reads the bundled decoder off grid.
+      expect(ids.slice(sourceStart)).toEqual([
         'air-source-override',
         'air-offgrid-sdr-source',
         'air-online-source',
-        'air-offline-source',
       ])
+      expect(ids).not.toContain('air-offline-source')
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',
       )

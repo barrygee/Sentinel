@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Ceiling applied to an upstream `Retry-After` before it is honoured, so a
     # misconfigured or hostile header cannot park the feed for hours.
     adsb_rate_limit_max_penalty_ms: int = 600_000
+    # Where Off Grid AIR reads decoded aircraft from: the compose `adsb-decoder`
+    # sidecar's readsb JSON. It is the only off-grid ADS-B source Sentinel ships,
+    # so this is a default rather than a Settings field; override it only for a
+    # decoder running outside the compose network. A stored
+    # `air.offgridDataSourceURL` (e.g. from the config JSON) still wins.
+    adsb_offgrid_url: str = "http://adsb-decoder:8080/data/aircraft.json"
 
     # TLE data TTL — 6 hours (TLE changes slowly; Celestrak updates daily)
     tle_ttl_ms: int = 21_600_000

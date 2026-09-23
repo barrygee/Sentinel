@@ -142,9 +142,10 @@ Needs a VHF marine antenna and line of sight — AIS is line-of-sight, so height
 Decodes 1090 MHz locally with **readsb** fed raw I/Q from a Sentry Pi's `rtl_tcp` — roughly **38 Mbps sustained** on your LAN, so not for constrained links. Setup:
 
 1. **Settings › SDR** — add the Sentry host with its console password.
-2. **Settings › AIR › Off Grid SDR** — pick the dongle.
-3. **Settings › AIR › Off Grid Data Source** — `http://adsb-decoder:8080/data/aircraft.json` (or `http://<host>:8090/…` from outside the compose network).
-4. Switch to **Off Grid** and open **AIR**.
+2. **Settings › AIR › Off Grid ADS-B SDR** — pick the dongle.
+3. Switch to **Off Grid** and open **AIR**.
+
+AIR reads aircraft from the `adsb-decoder` sidecar automatically. If the decoder runs outside the compose network, set `ADSB_OFFGRID_URL` in `.env` (e.g. `http://<host>:8090/data/aircraft.json`).
 
 Opening AIR claims the dongle, tunes it to 1090 MHz and holds a TTL lease that self-heals after a replug or Sentry restart and releases when the tab closes. If the map stays empty, the notice at the top of AIR says why. Details: [`decoder/adsb/README.md`](decoder/adsb/README.md), [ADR 0003](docs/adr/0003-sentry-sdr-lock-and-tune.md).
 
