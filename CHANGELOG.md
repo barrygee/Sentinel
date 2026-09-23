@@ -389,6 +389,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centre the warning banner on the page and mark it as a warning
 - Centre the warning banner in the visible map, not the viewport
 - Make CLEAR remove satellite pass alerts
+- Make AIR map-layer changes register with APPLY and relabel the ADS-B SDR
 
 ### Chores
 
@@ -1245,6 +1246,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #340 from barrygee/feat/compose-all-decoders-profile
 - Merge pull request #341 from barrygee/chore/remove-sea-locate-button
 - Merge pull request #342 from barrygee/fix/notif-clear-all
+- Merge pull request #343 from barrygee/fix/air-settings-apply-and-sdr-order
 
 ### Refactoring
 
