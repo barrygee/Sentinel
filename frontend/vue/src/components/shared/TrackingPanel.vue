@@ -241,7 +241,7 @@ function sectionsFor(fields: TrackingField[]): Section[] {
 }
 
 #tracking-toggle-btn:hover {
-  background: var(--color-border);
+  background: rgba(var(--rail-ink-rgb), 0.08);
   border-radius: 6px;
   opacity: 1;
 }

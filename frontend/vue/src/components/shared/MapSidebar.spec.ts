@@ -467,7 +467,7 @@ describe('MapSidebar', () => {
       expect(subTab.classes()).not.toContain('ba-btn--bordered')
       const subTabStyle = (subTab.element as HTMLElement).style
       // Grey accordion-panel background with the right rail's stronger hover fill…
-      expect(subTabStyle.getPropertyValue('--ba-rail-bg')).toBe('var(--color-button-bg)')
+      expect(subTabStyle.getPropertyValue('--ba-rail-bg')).toBe('var(--rail-surface)')
       expect(subTabStyle.getPropertyValue('--ba-rail-hover-bg')).toBe(
         'rgba(var(--rail-ink-rgb), 0.2)',
       )

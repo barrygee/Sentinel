@@ -106,16 +106,16 @@ const livePos = computed(() => (props.live ? project(props.live.az, props.live.e
 
 .spp-polar-ring {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: rgba(var(--ink-rgb), 0.12);
   stroke-width: 1;
 }
 
 .spp-polar-ring--horizon {
-  stroke: rgba(255, 255, 255, 0.25);
+  stroke: rgba(var(--ink-rgb), 0.25);
 }
 
 .spp-polar-axis {
-  stroke: rgba(255, 255, 255, 0.08);
+  stroke: rgba(var(--ink-rgb), 0.08);
   stroke-width: 1;
 }
 
@@ -148,7 +148,7 @@ const livePos = computed(() => (props.live ? project(props.live.az, props.live.e
 }
 
 .spp-polar-label {
-  fill: rgba(255, 255, 255, 0.4);
+  fill: rgba(var(--ink-rgb), 0.4);
   font-family: var(--font-primary);
   font-size: 10px;
   font-weight: 700;

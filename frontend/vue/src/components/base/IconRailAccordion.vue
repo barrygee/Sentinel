@@ -45,7 +45,7 @@ const { open, toggle } = useDisclosure(props.initiallyOpen)
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  background: var(--color-button-bg);
+  background: var(--rail-surface);
 }
 
 /* Touch screens: hover tooltips aren't useful (mirrors IconRail's identical

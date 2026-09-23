@@ -86,7 +86,7 @@
         <BaseIconButton
           class="sm-btn sm-sub-btn"
           style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-hover-bg: rgba(var(--rail-ink-rgb), 0.2);
             --ba-rail-transition: color 0.15s ease;
           "
           tooltip-side="left"
@@ -116,7 +116,7 @@
         <BaseIconButton
           class="sm-btn sm-sub-btn"
           style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-hover-bg: rgba(var(--rail-ink-rgb), 0.2);
             --ba-rail-transition: color 0.15s ease;
           "
           tooltip-side="left"
@@ -163,7 +163,7 @@
         <BaseIconButton
           class="sm-btn sm-sub-btn"
           style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-hover-bg: rgba(var(--rail-ink-rgb), 0.2);
             --ba-rail-transition: color 0.15s ease;
           "
           tooltip-side="left"
@@ -189,7 +189,7 @@
         <BaseIconButton
           class="sm-btn sm-sub-btn"
           style="
-            --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+            --ba-rail-hover-bg: rgba(var(--rail-ink-rgb), 0.2);
             --ba-rail-transition: color 0.15s ease;
           "
           tooltip-side="left"

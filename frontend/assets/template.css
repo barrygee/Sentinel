@@ -92,6 +92,9 @@
     --rail-rgb: 16, 19, 29;
     --rail-bg: rgba(var(--rail-rgb), 0.98);
     --rail-border: rgba(255, 255, 255, 0.06);
+    /* A filled control ON a rail — a sub-tab strip, an accordion panel. It is
+       rail furniture, so it does not follow the theme either. */
+    --rail-surface: #26292e;
     --rail-ink-rgb: 255, 255, 255;
     --rail-ink: #ffffff;
     --rail-ink-muted: rgba(var(--rail-ink-rgb), 0.75);
@@ -138,12 +141,21 @@
     /* Severity hues for notifications and live readouts — a scale, not the
        form-level danger/warn pair above. `--sev-alert` is the loud red an
        unread alert row and an emphasised value share. */
-    --sev-alert: #ff2222;
+    /* Each of these is drawn AS TEXT on the panel canvas, so the light theme
+       darkens it to clear 4.5:1 while keeping the hue — the raw values manage
+       2–3.5:1 on near-white. `--sev-warn` is the exception: it is a FILL (the
+       map notice banner, with `--accent-ink` on top), so it stays put. */
+    --sev-alert: #ff2222; /* an unread emergency */
     --sev-critical-rgb: 255, 64, 64;
-    --sev-critical: rgb(var(--sev-critical-rgb));
+    --sev-critical: rgb(var(--sev-critical-rgb)); /* an emphasised readout */
     --sev-error: #ff5050;
     --sev-warn: #f0c419;
     --sev-info: rgba(100, 160, 255, 0.8);
+    --sev-live: #ff9900; /* happening right now — a pass in progress */
+    /* Caution: a wash + rule + label, e.g. the pass lock-in warning. The wash
+       keeps the amber hue in both themes; the label darkens with the canvas. */
+    --sev-caution-rgb: 255, 176, 0;
+    --sev-caution-text: #ffb000;
     /* The knob of a toggle switch is white in BOTH themes: on light it rides
        an ink-tinted track, on dark a near-black surface. */
     --knob-ink: #ffffff;
@@ -191,7 +203,12 @@
 
     --danger-soft: rgba(var(--danger-wash-rgb), 0.12);
     --warn-text-strong: rgba(var(--warn-rgb), 0.95);
-    --sev-critical: rgb(var(--sev-critical-rgb));
+    --sev-critical: #c62828;
+    --sev-alert: #c81414;
+    --sev-error: #c0392b;
+    --sev-info: #1f5fbf;
+    --sev-live: #a85500;
+    --sev-caution-text: var(--warn-text);
 }
 
 /* ============================================================

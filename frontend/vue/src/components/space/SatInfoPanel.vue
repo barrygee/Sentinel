@@ -38,7 +38,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   padding: 18px 28px 18px 28px;
   background: none;
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(var(--ink-rgb), 0.08);
   cursor: pointer;
   transition: background 0.12s;
   box-sizing: border-box;
@@ -47,7 +47,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
 /* Hover lights the chevron accent rather than washing the header background —
    matches the SDR panel's section accordions (.sdr-scanner-header-row). */
 .sip-toggle:hover .sip-toggle-icon {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sip-toggle-left {
@@ -60,7 +60,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
 .sip-toggle-icon {
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   transition:
     transform 0.2s ease,
     color 0.15s;
@@ -70,7 +70,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
 
 .sip-toggle.sip-expanded .sip-toggle-icon {
   transform: rotate(0deg);
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sip-toggle-label {
@@ -78,13 +78,13 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   text-transform: uppercase;
   transition: color 0.15s;
 }
 
 .sip-toggle.sip-expanded .sip-toggle-label {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .sip-toggle-right {
@@ -107,7 +107,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -120,7 +120,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(var(--ink-rgb), 0.22);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -148,7 +148,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   display: flex;
   flex-direction: column;
   gap: 3px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(var(--ink-rgb), 0.06);
 }
 
 .sip-body-name {
@@ -156,7 +156,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #fff;
+  color: var(--ink-strong);
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -168,7 +168,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(var(--ink-rgb), 0.32);
   text-transform: uppercase;
 }
 
@@ -192,7 +192,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   text-transform: uppercase;
   min-width: 28px;
   flex-shrink: 0;
@@ -203,7 +203,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 .sip-status {
@@ -216,7 +216,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--color-accent);
+  color: var(--accent-text);
   text-transform: uppercase;
   padding: 10px 28px 4px 28px;
 }
@@ -230,7 +230,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   align-items: center;
   gap: 14px;
   padding: 10px 28px 10px 28px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(var(--ink-rgb), 0.04);
 }
 
 .sip-pass-card:first-child {
@@ -247,7 +247,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(var(--ink-rgb), 0.18);
   flex-shrink: 0;
   min-width: 18px;
 }
@@ -271,7 +271,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -281,7 +281,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 .sip-pass-los {
@@ -289,7 +289,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
 }
 
@@ -306,13 +306,13 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--color-accent);
+  color: var(--accent-text);
   white-space: nowrap;
   text-transform: uppercase;
 }
 
 .sip-pass-countdown.sip-in-progress {
-  color: #ff9900;
+  color: var(--sev-live);
 }
 
 .sip-pass-maxel {
@@ -320,7 +320,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(var(--ink-rgb), 0.32);
   white-space: nowrap;
   text-transform: uppercase;
 }
@@ -331,7 +331,7 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   text-transform: uppercase;
   display: flex;
   flex-direction: column;
@@ -342,13 +342,13 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
 
 .sip-action-btn {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(var(--ink-rgb), 0.2);
   cursor: pointer;
   font-family: var(--font-primary);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 5px 10px;
   text-transform: uppercase;
   transition:
@@ -357,8 +357,8 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
 }
 
 .sip-action-btn:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.5);
+  color: var(--ink-strong);
+  border-color: rgba(var(--ink-rgb), 0.5);
 }
 
 .sip-toggle,

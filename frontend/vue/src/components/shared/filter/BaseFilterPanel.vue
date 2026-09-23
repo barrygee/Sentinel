@@ -410,7 +410,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
   /* Match the height of the FILTER rail tab button (.msb-rail-btn). */
   height: 40px;
   padding: 0 20px 0 24px;
-  background: var(--color-search-field-bg);
+  background: var(--surface-sunken);
   box-sizing: border-box;
   transition: background 0.12s;
 }
@@ -462,7 +462,7 @@ defineExpose({ focus: () => inputRef.value?.focus() })
 }
 
 .bfp-clear-btn:hover {
-  color: var(--color-text-muted);
+  color: var(--ink-secondary);
 }
 
 .bfp-results {
