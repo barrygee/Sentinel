@@ -166,6 +166,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add an "all" profile that starts every decoder at once
 - Give the vessel row AIR's Centre on map icon action
 - Read the bundled ADS-B decoder off grid and drop the URL setting
+- Fold satellite PACKET / DIGITAL and NOTES into accordions
 
 ### Bug Fixes
 
@@ -391,6 +392,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centre the warning banner in the visible map, not the viewport
 - Make CLEAR remove satellite pass alerts
 - Make AIR map-layer changes register with APPLY and relabel the ADS-B SDR
+- Clear the vessel picture when the source switches
 
 ### Chores
 
@@ -430,6 +432,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Name both decoder receivers Off Grid, and Live Camera Feeds
 - Remove the SHOW ON MAP / SELECTED action from the vessel row
 - Lead AIR and SEA with data sources, move LAND map layers last
+- Remove the vessel row's Centre on map action
+- Rebuild bundle
 
 ### Other
 
@@ -1251,6 +1255,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #343 from barrygee/fix/air-settings-apply-and-sdr-order
 - Merge pull request #344 from barrygee/chore/remove-air-offgrid-url-setting
 - Merge pull request #345 from barrygee/chore/air-settings-data-sources-first
+- Merge pull request #346 from barrygee/fix/space-sea-panel-tweaks
 
 ### Refactoring
 
