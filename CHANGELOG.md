@@ -429,6 +429,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename SEA's Off Grid SDR to AIS SDR and lead the group
 - Name both decoder receivers Off Grid, and Live Camera Feeds
 - Remove the SHOW ON MAP / SELECTED action from the vessel row
+- Lead AIR and SEA with data sources, move LAND map layers last
 
 ### Other
 
@@ -1249,6 +1250,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #342 from barrygee/fix/notif-clear-all
 - Merge pull request #343 from barrygee/fix/air-settings-apply-and-sdr-order
 - Merge pull request #344 from barrygee/chore/remove-air-offgrid-url-setting
+- Merge pull request #345 from barrygee/chore/air-settings-data-sources-first
 
 ### Refactoring
 
