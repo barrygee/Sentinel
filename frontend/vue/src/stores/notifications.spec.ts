@@ -216,17 +216,84 @@ describe('notifications store', () => {
   })
 
   describe('clearAll', () => {
-    it('removes dismissible items but keeps actioned and tracking ones', () => {
+    const deleteUrl = (id: string) => `/api/air/messages/${encodeURIComponent(id)}`
+
+    it('removes dismissible items, including action-less tracking ones, but keeps actioned ones', () => {
       const store = useNotificationsStore()
       store.add({ title: 'plain' })
       store.add({ title: 'actioned', action: { label: 'x', callback: () => {} } })
       store.add({ type: 'tracking', title: 'tracking' })
       store.clearAll()
       const titles = store.items.map((item) => item.title)
-      expect(titles).toContain('actioned')
-      expect(titles).toContain('tracking')
-      expect(titles).not.toContain('plain')
+      expect(titles).toEqual(['actioned'])
       expect(store.unreadCount).toBe(0)
+    })
+
+    it('clears satellite pass heads-ups and DELETEs them on the backend', () => {
+      const store = useNotificationsStore()
+      // Same shape SatellitePassScheduler._fireHeadsUp emits — typed 'tracking'
+      // with no action, which is what the old rule wrongly kept.
+      const passId = store.add({
+        type: 'tracking',
+        title: 'LILACSAT-2 PASS',
+        detail: 'AOS ~5 min — max 51.5° elev at 19:56 UTC',
+        noradId: '40908',
+        satName: 'LILACSAT-2',
+      })
+      store.clearAll()
+      expect(store.items).toEqual([])
+      expect(store.total).toBe(0)
+      expect(fetch).toHaveBeenCalledWith(
+        deleteUrl(passId),
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+
+    it('keeps a card with a live bell action and does not DELETE it', () => {
+      const store = useNotificationsStore()
+      const keptId = store.add({
+        type: 'tracking',
+        title: 'BAW123',
+        action: { label: 'DISABLE NOTIFICATIONS', callback: () => {} },
+      })
+      store.clearAll()
+      expect(store.items.map((item) => item.id)).toEqual([keptId])
+      expect(fetch).not.toHaveBeenCalledWith(deleteUrl(keptId), expect.anything())
+    })
+
+    it('clears a tracking card reloaded from storage, which has lost its action', () => {
+      // _save strips actions, so a persisted "notifications on" card comes back
+      // action-less; it is cleared just like pressing its ✕.
+      localStorage.setItem(
+        LS_KEY,
+        JSON.stringify([
+          {
+            id: 'tracking_1_abcd',
+            type: 'tracking',
+            title: 'ISS',
+            detail: 'Pass notifications enabled',
+            ts: 1,
+            noradId: '25544',
+          },
+        ]),
+      )
+      const store = useNotificationsStore()
+      expect(store.total).toBe(1)
+      store.clearAll()
+      expect(store.items).toEqual([])
+      expect(JSON.parse(localStorage.getItem(LS_KEY)!)).toEqual([])
+      expect(fetch).toHaveBeenCalledWith(
+        deleteUrl('tracking_1_abcd'),
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+
+    it('is a no-op on an empty list', () => {
+      const store = useNotificationsStore()
+      store.clearAll()
+      expect(store.items).toEqual([])
+      expect(store.unreadCount).toBe(0)
+      expect(fetch).not.toHaveBeenCalled()
     })
   })
 

@@ -226,9 +226,12 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   function clearAll(): void {
-    // Keep items that have an action (active tracking notifications)
-    const toKeep = items.value.filter((i) => !!i.action || i.type === 'tracking')
-    const toRemove = items.value.filter((i) => !i.action && i.type !== 'tracking')
+    // Keep only cards holding a live action (the bell that turns an active
+    // subscription off). Don't keep by type: satellite pass heads-ups are also
+    // typed 'tracking' but are one-shot alerts, and keeping them meant CLEAR
+    // left the list full.
+    const toKeep = items.value.filter((i) => !!i.action)
+    const toRemove = items.value.filter((i) => !i.action)
     toRemove.forEach((i) => {
       fetch(`/api/air/messages/${encodeURIComponent(i.id)}`, { method: 'DELETE' }).catch(() => {})
     })
