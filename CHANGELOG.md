@@ -165,6 +165,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Start off-grid AIS decode when Sea is opened off grid
 - Add an "all" profile that starts every decoder at once
 - Give the vessel row AIR's Centre on map icon action
+- Read the bundled ADS-B decoder off grid and drop the URL setting
 
 ### Bug Fixes
 
@@ -1247,6 +1248,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #341 from barrygee/chore/remove-sea-locate-button
 - Merge pull request #342 from barrygee/fix/notif-clear-all
 - Merge pull request #343 from barrygee/fix/air-settings-apply-and-sdr-order
+- Merge pull request #344 from barrygee/chore/remove-air-offgrid-url-setting
 
 ### Refactoring
 
