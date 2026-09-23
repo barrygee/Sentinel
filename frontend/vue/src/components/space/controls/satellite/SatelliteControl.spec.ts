@@ -272,6 +272,38 @@ describe('SatelliteControl constructor + getters', () => {
   })
 })
 
+describe('SatelliteControl ground-track colour', () => {
+  /** The `line-color` each orbit track was added with, in layer order. */
+  async function orbitTrackColours(): Promise<string[]> {
+    const { map, control } = await mounted()
+    const addLayer = map.map.addLayer as unknown as ReturnType<typeof vi.fn>
+    const colours = (addLayer.mock.calls as [{ id: string; paint?: Record<string, unknown> }][])
+      .map(([layer]) => layer)
+      .filter((layer) => layer.id.startsWith('iss-track-orbit'))
+      .map((layer) => layer.paint!['line-color'] as string)
+    control.onRemove()
+    return colours
+  }
+
+  afterEach(() => {
+    delete document.documentElement.dataset.theme
+  })
+
+  it('draws every orbit in the brand lime on the dark basemap', async () => {
+    document.documentElement.dataset.theme = 'dark'
+    const colours = await orbitTrackColours()
+    expect(colours).toHaveLength(4)
+    expect(colours).toEqual(['#c8ff00', '#c8ff00', '#c8ff00', '#c8ff00'])
+  })
+
+  it('draws every orbit in black on the light basemap, where lime vanishes', async () => {
+    document.documentElement.dataset.theme = 'light'
+    const colours = await orbitTrackColours()
+    expect(colours).toHaveLength(4)
+    expect(colours).toEqual(['#000000', '#000000', '#000000', '#000000'])
+  })
+})
+
 describe('SatelliteControl.onInit', () => {
   it('builds layers immediately when the style is already loaded', async () => {
     const { map } = await mounted()

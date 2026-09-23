@@ -298,7 +298,7 @@ describe('AirMap', () => {
       map.onceHandlers['style.load']!()
       expect(last('adsb').initLayers).toHaveBeenCalled()
       expect(last('adsb').handleConnectivityChange).toHaveBeenCalled()
-      expect(last('overheadZone').reinit).not.toHaveBeenCalled() // corrective path skips reinit
+      expect(last('overheadZone').reinit).toHaveBeenCalled()
     })
 
     it('routes a registered aircraft click to the adsb control', () => {
@@ -357,10 +357,15 @@ describe('AirMap', () => {
       expect(last('adsb').handleConnectivityChange).toHaveBeenCalled()
     })
 
-    it('reloads the style and re-inits layers when connectivity flips', () => {
+    it('reloads the style and re-inits layers when connectivity flips', async () => {
+      const app = useAppStore()
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
+      // useConnectivity sets the store before it calls back, so the spec does
+      // too — the style the map wants is derived from the store, not the arg.
+      app.isOnline = false
+      await nextTick()
       shared.connectivityCb!(false) // online → offline
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()

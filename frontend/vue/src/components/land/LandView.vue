@@ -32,8 +32,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'maplibre-gl'
-import { setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
+import { useThemeStore } from '@/stores/theme'
 import { useLandStore } from '@/stores/land'
 import { useLandFeedsStore } from '@/stores/landFeeds'
 import { useRepeatersStore } from '@/stores/repeaters'
@@ -65,6 +66,7 @@ import { TerrainToggleControl } from '@/components/shared/controls/terrain/Terra
 const LOCATE_ZOOM = 10
 
 const appStore = useAppStore()
+const themeStore = useThemeStore()
 const landStore = useLandStore()
 const landFeedsStore = useLandFeedsStore()
 const repeatersStore = useRepeatersStore()
@@ -115,13 +117,16 @@ const aprsSourceConfigured = computed(() => sdrStore.aprsRadioId !== null)
 const rangeRingsActive = ref(false)
 const locationActive = computed(() => userLocation.value !== null)
 
-const styleUrl = computed(() =>
-  appStore.isOnline ? '/assets/fiord-online.json' : '/assets/fiord.json',
-)
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
 
-useConnectivity((online) => {
-  if (_map) setMapStyle(_map, online ? '/assets/fiord-online.json' : '/assets/fiord.json')
-})
+// Connectivity and theme both swap the basemap; `onStyleLoaded` re-asserts the
+// layer toggles once the new style has loaded.
+function syncStyleToState(): void {
+  if (_map) setMapStyle(_map, styleUrl.value)
+}
+
+useConnectivity(syncStyleToState)
+watch(() => themeStore.theme, syncStyleToState)
 
 function onMapCreated(m: Map) {
   _map = m

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { axe } from 'jest-axe'
 
 // Registry of constructed fake maps + the options each was built with, so the
@@ -65,6 +67,7 @@ vi.mock('maplibre-gl', () => {
 
 import SentrySiteMap from './SentrySiteMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
+import { useThemeStore } from '@/stores/theme'
 
 const GATESHEAD = { latitude: 54.951186, longitude: -1.532995, label: 'Gateshead' }
 
@@ -74,6 +77,8 @@ function mountMap(props = GATESHEAD) {
 
 describe('SentrySiteMap', () => {
   beforeEach(() => {
+    // The component reads the theme store to pick the basemap it loads.
+    setActivePinia(createPinia())
     mapRegistry.instances.length = 0
     mapRegistry.controls.length = 0
     markerRegistry.instances.length = 0
@@ -95,6 +100,30 @@ describe('SentrySiteMap', () => {
     // Style applied after construction with the MapLibre 6 sprite fix.
     expect(created.options).not.toHaveProperty('style')
     expect(created.setStyle).toHaveBeenCalledWith('/assets/fiord-online.json', {
+      transformStyle: absoluteSpriteTransform,
+    })
+  })
+
+  it('builds on the light basemap when the light theme is active', () => {
+    useThemeStore().setTheme('light')
+    mountMap()
+    expect(mapRegistry.instances[0]!.setStyle).toHaveBeenCalledWith(
+      '/assets/positron-online.json',
+      { transformStyle: absoluteSpriteTransform },
+    )
+  })
+
+  it("repaints onto the other theme's basemap when the theme changes", async () => {
+    mountMap()
+    const created = mapRegistry.instances[0]!
+    useThemeStore().setTheme('light')
+    await nextTick()
+    expect(created.setStyle).toHaveBeenLastCalledWith('/assets/positron-online.json', {
+      transformStyle: absoluteSpriteTransform,
+    })
+    useThemeStore().setTheme('dark')
+    await nextTick()
+    expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord-online.json', {
       transformStyle: absoluteSpriteTransform,
     })
   })

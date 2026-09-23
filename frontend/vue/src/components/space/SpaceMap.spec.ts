@@ -107,6 +107,7 @@ const MapLibreMapStub = defineComponent({
 import SpaceMap from './SpaceMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
+import { useThemeStore } from '@/stores/theme'
 import { useSpaceStore } from '@/stores/space'
 import { getSatelliteClickHandler } from '@/stores/notifications'
 
@@ -279,16 +280,42 @@ describe('SpaceMap', () => {
     })
   })
 
+  describe('theme changes', () => {
+    it('reloads the light basemap and re-inits layers when the theme flips', async () => {
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+      useThemeStore().setTheme('light')
+      await nextTick()
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/positron-online.json', STYLE_OPTIONS)
+      map.onceHandlers['style.load']!()
+      expect(last('daynight').initLayers).toHaveBeenCalled()
+      expect(last('names').applyVisibility).toHaveBeenCalled()
+      expect(last('satellite').initLayers).toHaveBeenCalled()
+    })
+
+    it('does nothing when the map is not yet created', async () => {
+      mountMap()
+      useThemeStore().setTheme('light')
+      await expect(nextTick()).resolves.not.toThrow()
+    })
+  })
+
   describe('connectivity changes', () => {
     it('does nothing when the map is not yet created', () => {
       mountMap()
       expect(() => shared.connectivityCb!(false)).not.toThrow()
     })
 
-    it('reloads the style and re-inits layers when connectivity flips', () => {
+    it('reloads the style and re-inits layers when connectivity flips', async () => {
+      const app = useAppStore()
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
+      // useConnectivity sets the store before it calls back, so the spec does
+      // too — the style the map wants is derived from the store, not the arg.
+      app.isOnline = false
+      await nextTick()
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()

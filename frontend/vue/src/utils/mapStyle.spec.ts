@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { Map, StyleSpecification } from 'maplibre-gl'
-import { absoluteSpriteTransform, setMapStyle } from './mapStyle'
+import { absoluteSpriteTransform, basemapStyleUrl, setMapStyle } from './mapStyle'
 
 function style(sprite: StyleSpecification['sprite']): StyleSpecification {
   return { version: 8, sources: {}, layers: [], sprite }
@@ -49,5 +49,23 @@ describe('setMapStyle', () => {
     expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', {
       transformStyle: absoluteSpriteTransform,
     })
+  })
+})
+
+describe('basemapStyleUrl', () => {
+  it.each([
+    [true, 'dark', '/assets/fiord-online.json'],
+    [false, 'dark', '/assets/fiord.json'],
+    [true, 'light', '/assets/positron-online.json'],
+    [false, 'light', '/assets/positron.json'],
+  ] as const)('picks the %s/%s basemap', (online, theme, expected) => {
+    expect(basemapStyleUrl(online, theme)).toBe(expected)
+  })
+
+  it('keeps the offline pair distinct from the online one in both themes', () => {
+    // The offline styles read the local PMTiles archives; picking an online
+    // style off grid leaves the map blank, which is the failure this guards.
+    expect(basemapStyleUrl(false, 'dark')).not.toBe(basemapStyleUrl(true, 'dark'))
+    expect(basemapStyleUrl(false, 'light')).not.toBe(basemapStyleUrl(true, 'light'))
   })
 })

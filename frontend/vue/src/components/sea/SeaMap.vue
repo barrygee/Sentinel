@@ -18,12 +18,13 @@
 // so the Sea map reads and behaves exactly like the Air map.
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
-import { setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSeaStore } from '@/stores/sea'
 import { useBasemapStore } from '@/stores/basemap'
 import { useSettingsStore } from '@/stores/settings'
 import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useThemeStore } from '@/stores/theme'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
@@ -44,12 +45,11 @@ const seaStore = useSeaStore()
 const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
 const sentrySitesStore = useSentrySitesStore()
+const themeStore = useThemeStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const STYLE_ONLINE = '/assets/fiord-online.json'
-const STYLE_OFFLINE = '/assets/fiord.json'
-const styleUrl = computed(() => (appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
 
 // User location drives the "go to my location" button and the on-map marker.
 const { location: userLocation, start: startLocation } = useUserLocation()
@@ -93,15 +93,21 @@ function _reinitAfterStyle(): void {
   portsControl?.initLayers()
 }
 
-useConnectivity((online) => {
+/** Load `styleUrl` if it isn't already loaded, re-adding the overlays after. */
+function syncStyleToState(): void {
   const m = _map
   if (!m) return
-  const targetStyle = online ? STYLE_ONLINE : STYLE_OFFLINE
+  const targetStyle = styleUrl.value
   if (_currentStyleUrl === targetStyle) return
   _currentStyleUrl = targetStyle
   setMapStyle(m, targetStyle)
   m.once('style.load', _reinitAfterStyle)
-})
+}
+
+useConnectivity(syncStyleToState)
+
+// A theme change swaps the basemap the same way a connectivity change does.
+watch(() => themeStore.theme, syncStyleToState)
 
 function onMapCreated(m: MapLibreGlMap) {
   _map = m
@@ -144,14 +150,9 @@ function onStyleLoaded(m: MapLibreGlMap) {
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (nativeCtrl) nativeCtrl.style.display = 'none'
 
-  // The connectivity probe may have flipped before _map was set; correct the
-  // style now that the controls exist to re-init on it.
-  const desiredStyle = styleUrl.value
-  if (_currentStyleUrl !== desiredStyle) {
-    _currentStyleUrl = desiredStyle
-    setMapStyle(m, desiredStyle)
-    m.once('style.load', _reinitAfterStyle)
-  }
+  // The connectivity probe (or a theme change) may have landed before _map was
+  // set; correct the style now that the controls exist to re-init on it.
+  syncStyleToState()
 }
 
 function _clearLocationVisuals(): void {

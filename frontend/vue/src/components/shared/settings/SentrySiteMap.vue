@@ -33,12 +33,16 @@
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
-import { setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
+import { useThemeStore } from '@/stores/theme'
 
-/** The same online style the Air/Land domain maps load. */
-const STYLE_ONLINE = '/assets/fiord-online.json'
+/** The same online basemap the Air/Land domain maps load, in the current theme.
+ *  Online only: a Sentry site is being placed from a live host list, so there
+ *  is no off-grid case to serve here. */
+const themeStore = useThemeStore()
+const styleUrl = () => basemapStyleUrl(true, themeStore.theme)
 
 /** Close enough to read the Pi's surroundings without implying GPS precision. */
 const SITE_ZOOM = 11
@@ -68,7 +72,7 @@ onMounted(() => {
     attributionControl: false,
     fadeDuration: 0,
   })
-  setMapStyle(map, STYLE_ONLINE)
+  setMapStyle(map, styleUrl())
   // Everything except the wheel: see the component doc for why.
   map.scrollZoom.disable()
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
@@ -86,6 +90,17 @@ watch(
   ([longitude, latitude]) => {
     siteMarker.update(longitude, latitude)
     map?.setCenter([longitude, latitude])
+  },
+)
+
+// The marker lives outside the style, so a theme repaint only needs the style.
+watch(
+  () => themeStore.theme,
+  () => {
+    /* v8 ignore start -- the watcher only fires while mounted, by which point
+       map is always set; defensive only, matching the guards either side */
+    if (map) setMapStyle(map, styleUrl())
+    /* v8 ignore stop */
   },
 )
 

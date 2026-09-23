@@ -126,6 +126,12 @@ defineExpose({ getMap })
   background-color: #2d3548;
 }
 
+/* The same seam filler for the light theme: its water colour as the canvas
+   filter above renders it, not as the style declares it. */
+:root[data-theme='light'] .map-container {
+  background-color: rgb(127, 131, 132);
+}
+
 #map {
   position: absolute;
   top: var(--nav-height);
@@ -133,6 +139,10 @@ defineExpose({ getMap })
   width: 100%;
 }
 
+/* Settles the basemap beneath the overlays, in both themes: the aircraft,
+   vessels and rings are the subject, the map is the ground. Deliberately not
+   lifted for the light theme — undimmed positron is bright enough to compete
+   with the marks on top of it. */
 .maplibregl-canvas {
   filter: brightness(0.65) saturate(0.85);
 }

@@ -24,6 +24,7 @@ import { useAirStore } from './stores/air'
 import type { AdsbTagFields } from './stores/air'
 import { useLandStore } from './stores/land'
 import { useBasemapStore } from './stores/basemap'
+import { useThemeStore } from './stores/theme'
 import type { AprsLabelFieldMap } from './stores/land'
 import { useSettingsStore } from './stores/settings'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
@@ -63,6 +64,7 @@ const airStore = useAirStore()
 const landStore = useLandStore()
 const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
+const themeStore = useThemeStore()
 
 const DEFAULT_LABEL_DATA_POINTS = {
   civil: {
@@ -114,6 +116,10 @@ const DEFAULT_LABEL_DATA_POINTS = {
         } catch {}
         appStore.setConnectivityMode(backendMode as ConnectivityMode)
       }
+
+      // Theme — the backend is authoritative, so a choice made on another
+      // device wins over this browser's localStorage. Absent means dark.
+      themeStore.hydrateLightTheme(data.app?.lightTheme ?? false)
 
       // Notification blip sound — default OFF when absent from the DB.
       const soundOn = data.app?.notificationSound

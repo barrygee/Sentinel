@@ -6,6 +6,7 @@ import type { useTrackingStore } from '@/stores/tracking'
 import { createSatelliteIcon, createSatBracket, buildFootprintFeatures } from './satelliteSprites'
 import { SatellitePassNotifier } from './SatellitePassNotifier'
 import { updatePassNotifName } from './passNotifStore'
+import { overlayAccentColor } from '@/utils/mapTheme'
 
 // Persists the satellite the user is following so the follow survives a section
 // change (the Space map unmounts on navigation, destroying the control). On
@@ -229,6 +230,10 @@ export class SatelliteControl extends SentinelControlBase {
     const fpVis = this.issVisible && this.footprintVisible ? 'visible' : 'none'
     const issVis = this.issVisible ? 'visible' : 'none'
 
+    // One read per style load: a theme change reloads the basemap, which is
+    // what brings this method round again.
+    const trackColor = overlayAccentColor()
+
     this.map.addSource('iss-track-source', { type: 'geojson', data: this._trackGeojson })
     this.map.addSource('iss-footprint-source', { type: 'geojson', data: this._footprintGeojson })
     this.map.addSource('iss-live', { type: 'geojson', data: this._issGeojson })
@@ -240,7 +245,7 @@ export class SatelliteControl extends SentinelControlBase {
       filter: ['==', ['get', 'track'], 'orbit0'],
       layout: { visibility: trackVis },
       paint: {
-        'line-color': '#c8ff00',
+        'line-color': trackColor,
         'line-width': 1.5,
         'line-opacity': 0.35,
         'line-dasharray': [1, 2],
@@ -252,7 +257,7 @@ export class SatelliteControl extends SentinelControlBase {
       source: 'iss-track-source',
       filter: ['==', ['get', 'track'], 'orbit1'],
       layout: { visibility: trackVis },
-      paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.8 },
+      paint: { 'line-color': trackColor, 'line-width': 1.5, 'line-opacity': 0.8 },
     })
     this.map.addLayer({
       id: 'iss-track-orbit2',
@@ -260,7 +265,7 @@ export class SatelliteControl extends SentinelControlBase {
       source: 'iss-track-source',
       filter: ['==', ['get', 'track'], 'orbit2'],
       layout: { visibility: trackVis },
-      paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.55 },
+      paint: { 'line-color': trackColor, 'line-width': 1.5, 'line-opacity': 0.55 },
     })
     this.map.addLayer({
       id: 'iss-track-orbit3',
@@ -268,7 +273,7 @@ export class SatelliteControl extends SentinelControlBase {
       source: 'iss-track-source',
       filter: ['==', ['get', 'track'], 'orbit3'],
       layout: { visibility: trackVis },
-      paint: { 'line-color': '#c8ff00', 'line-width': 1.5, 'line-opacity': 0.3 },
+      paint: { 'line-color': trackColor, 'line-width': 1.5, 'line-opacity': 0.3 },
     })
     this.map.addLayer({
       id: 'iss-footprint-fill',

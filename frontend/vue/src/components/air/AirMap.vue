@@ -17,7 +17,7 @@
 // All IControl subclasses receive Pinia store refs instead of window.* globals.
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
-import { setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
@@ -26,6 +26,7 @@ import { useAirNotifStore } from '@/stores/airNotif'
 import { useTrackingStore } from '@/stores/tracking'
 import { useSettingsStore } from '@/stores/settings'
 import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useThemeStore } from '@/stores/theme'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
@@ -59,13 +60,11 @@ const trackingStore = useTrackingStore()
 const settingsStore = useSettingsStore()
 const playbackStore = usePlaybackStore()
 const sentrySitesStore = useSentrySitesStore()
+const themeStore = useThemeStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const STYLE_ONLINE = '/assets/fiord-online.json'
-const STYLE_OFFLINE = '/assets/fiord.json'
-
-const styleUrl = computed(() => (appStore.isOnline ? STYLE_ONLINE : STYLE_OFFLINE))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
 
 // The 3D view was removed from the map options, so the map is always flat. The
 // two readers below (ADS-B labels, military-base extrusions) still ask, and a
@@ -142,32 +141,46 @@ defineExpose({
   getMap: () => _map,
 })
 
-useConnectivity((online) => {
+/**
+ * Re-add everything this map draws on top of the basemap. `setStyle` discards
+ * every source and layer the controls added, so this runs after each style
+ * reload — whether the swap came from connectivity or from a theme change.
+ */
+function reinitAfterStyleLoad(): void {
+  roadsControl?.applyVisibility()
+  namesControl?.applyVisibility()
+  terrainControl?.initLayers()
+  rangeRingsControl?._initRings()
+  overheadZoneControl?.reinit()
+  airportsControl?.initLayers()
+  militaryBasesControl?.initLayers()
+  aaraControl?.initLayers()
+  awacsControl?.initLayers()
+  adsbControl?.initLayers()
+  adsbControl?.handleConnectivityChange()
+}
+
+/** Load `styleUrl` if it isn't already loaded, re-adding the overlays after. */
+function syncStyleToState(): boolean {
   const m = _map
-  if (!m) return
-  const targetStyle = online ? STYLE_ONLINE : STYLE_OFFLINE
-  if (_currentStyleUrl === targetStyle) {
-    // Style already correct — just update adsb state without a reload
-    adsbControl?.handleConnectivityChange()
-    return
-  }
+  if (!m) return false
+  const targetStyle = styleUrl.value
+  if (_currentStyleUrl === targetStyle) return false
   _currentStyleUrl = targetStyle
   setMapStyle(m, targetStyle)
-  // Re-init layers after style reload, clear aircraft
-  m.once('style.load', () => {
-    roadsControl?.applyVisibility()
-    namesControl?.applyVisibility()
-    terrainControl?.initLayers()
-    rangeRingsControl?._initRings()
-    overheadZoneControl?.reinit()
-    airportsControl?.initLayers()
-    militaryBasesControl?.initLayers()
-    aaraControl?.initLayers()
-    awacsControl?.initLayers()
-    adsbControl?.initLayers()
-    adsbControl?.handleConnectivityChange()
-  })
+  m.once('style.load', reinitAfterStyleLoad)
+  return true
+}
+
+useConnectivity(() => {
+  // A reload switches the ADS-B feed as part of re-adding the layers; when the
+  // style was already correct, that still has to happen on its own.
+  if (!syncStyleToState()) adsbControl?.handleConnectivityChange()
 })
+
+// A theme change is the same operation as a connectivity change: reload the
+// basemap, then put the overlays back.
+watch(() => themeStore.theme, syncStyleToState)
 
 function onMapCreated(m: MapLibreGlMap) {
   _map = m
@@ -253,26 +266,11 @@ function onStyleLoaded(m: MapLibreGlMap) {
   })
   sentrySitesControl.onAdd(m)
 
-  // If connectivity mode changed between map creation and style load (e.g. the offgrid
-  // probe fired before _map was set so the callback was a no-op), the map has loaded
-  // the wrong style. Trigger a corrective reload now that controls are initialised.
-  const desiredStyle = styleUrl.value
-  if (_currentStyleUrl !== desiredStyle) {
-    _currentStyleUrl = desiredStyle
-    setMapStyle(m, desiredStyle)
-    m.once('style.load', () => {
-      roadsControl?.applyVisibility()
-      namesControl?.applyVisibility()
-      terrainControl?.initLayers()
-      rangeRingsControl?._initRings()
-      airportsControl?.initLayers()
-      militaryBasesControl?.initLayers()
-      aaraControl?.initLayers()
-      awacsControl?.initLayers()
-      adsbControl?.initLayers()
-      adsbControl?.handleConnectivityChange()
-    })
-  }
+  // If connectivity mode or theme changed between map creation and style load
+  // (e.g. the offgrid probe fired before _map was set, so the callback was a
+  // no-op), the map has loaded the wrong style. Correct it now that the
+  // controls exist to be re-added.
+  syncStyleToState()
 }
 
 async function _loadMultiPlayback(): Promise<void> {
