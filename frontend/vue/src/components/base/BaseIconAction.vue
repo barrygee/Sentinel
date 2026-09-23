@@ -78,7 +78,7 @@ withDefaults(
   content: attr(data-tooltip);
   position: absolute;
   background: var(--ba-icon-action-tooltip-bg, var(--tooltip-bg));
-  color: var(--ba-icon-action-tooltip-color, var(--color-text-muted));
+  color: var(--ba-icon-action-tooltip-color, var(--tooltip-ink));
   font-family: var(--ba-icon-action-tooltip-font, 'Barlow', 'Helvetica Neue', Arial, sans-serif);
   font-size: 9px;
   font-weight: 400;

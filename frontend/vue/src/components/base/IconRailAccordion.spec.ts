@@ -83,14 +83,17 @@ describe('IconRailAccordion', () => {
   // jsdom never applies the SFC's scoped <style>, so the panel background can't
   // be asserted via getComputedStyle — assert against the component source
   // instead so a revert to the old --color-border grey goes red.
-  it('paints the sub-button panel with the shared button-grey token', () => {
+  //
+  // `--rail-surface`, not `--surface`: a rail and its accordion stay dark in
+  // the light theme, so this grey must NOT follow the palette.
+  it('paints the sub-button panel with the shared rail-surface token', () => {
     // (path from cwd, not import.meta.url — under jsdom that URL is http-scheme)
     const componentSource = readFileSync(
       resolve(process.cwd(), 'src/components/base/IconRailAccordion.vue'),
       'utf8',
     )
     expect(componentSource).toMatch(
-      /\.icon-rail-accordion__panel\s*\{[^}]*background:\s*var\(--color-button-bg\)/,
+      /\.icon-rail-accordion__panel\s*\{[^}]*background:\s*var\(--rail-surface\)/,
     )
   })
 

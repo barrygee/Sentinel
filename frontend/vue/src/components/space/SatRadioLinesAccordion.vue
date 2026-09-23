@@ -59,7 +59,7 @@ const bodyId = useId()
 }
 .srla-toggle:hover,
 .srla-toggle--expanded {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 .srla-toggle:focus-visible {
   outline: 1px solid var(--color-accent);
@@ -72,7 +72,7 @@ const bodyId = useId()
 }
 .srla-toggle:hover .srla-chevron,
 .srla-toggle--expanded .srla-chevron {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 .srla-toggle--expanded .srla-chevron {
   transform: rotate(0deg);

@@ -118,7 +118,7 @@
         :active="isFilterCategoryActive(sub.id)"
         :disabled="sub.disabled"
         style="
-          --ba-rail-bg: var(--color-button-bg);
+          --ba-rail-bg: var(--rail-surface);
           --ba-rail-hover-bg: rgba(var(--rail-ink-rgb), 0.2);
           --ba-rail-transition: color 0.15s ease;
         "
@@ -163,12 +163,9 @@
         >
           <TrackingPanel />
         </div>
-        <!-- `theme-dark` pins the dark palette for this pane and anything
-             teleported into it. Space's passes list is still on white literals — Space slice.
-             Drop the class with that slice. -->
         <div
           :id="SIDEBAR_PANE_IDS.passes"
-          class="msb-pane theme-dark"
+          class="msb-pane"
           :class="{ 'msb-pane-active': activeTab === 'passes' }"
         >
           <slot name="passes" />
@@ -579,7 +576,7 @@ defineExpose({
 }
 
 #radio-mini-btn:hover {
-  background: var(--color-border);
+  background: rgba(var(--rail-ink-rgb), 0.08);
   border-radius: 6px;
   opacity: 1;
 }
@@ -646,7 +643,7 @@ defineExpose({
 
 #map-sidebar-btn:hover,
 #side-menu-btn:hover {
-  background: var(--color-border);
+  background: rgba(var(--rail-ink-rgb), 0.08);
   border-radius: 6px;
   opacity: 1;
 }
@@ -932,7 +929,7 @@ body[data-domain='sdr'] #map-sidebar {
   flex-shrink: 0;
   padding: 6px 10px;
   gap: 6px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
 }
 
 #msb-tracks-btn {

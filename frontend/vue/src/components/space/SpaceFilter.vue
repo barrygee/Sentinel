@@ -949,7 +949,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
 
 /* Keyboard focus keeps the softened accent outline this pane has always used. */
 #space-filter-results .bfp-result-item {
-  --bfp-focus-outline: rgba(200, 255, 0, 0.4);
+  --bfp-focus-outline: rgba(var(--accent-rgb), 0.4);
 }
 
 /* This pane centres its empty state and sets it smaller and dimmer than the
@@ -960,7 +960,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   text-align: center;
 }
 
@@ -976,7 +976,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--color-accent);
+  color: var(--accent-text);
   text-transform: uppercase;
 }
 
@@ -993,7 +993,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   text-transform: uppercase;
 }
 
@@ -1014,10 +1014,10 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
-  background: #0d1015;
+  background: var(--surface-sunken);
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 0;
   display: flex;
   align-items: center;
@@ -1028,27 +1028,27 @@ defineExpose({ focus: () => panelRef.value?.focus() })
 }
 
 .sfr-acc-track-btn:hover {
-  color: var(--color-accent);
-  background: #05070a;
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
 }
 
 .sfr-acc-track-btn.sfr-acc-track-btn--active {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .sfr-acc-track-btn.sfr-acc-track-btn--active:hover {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 .sfr-acc-notif-btn {
   position: relative;
   flex: 0 0 auto;
   width: 36px;
-  background: #0d1015;
+  background: var(--surface-sunken);
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 0;
   display: flex;
   align-items: center;
@@ -1059,27 +1059,27 @@ defineExpose({ focus: () => panelRef.value?.focus() })
 }
 
 .sfr-acc-notif-btn:hover {
-  color: var(--color-accent);
-  background: #05070a;
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
 }
 
 .sfr-acc-notif-btn.sfr-acc-notif-btn--active {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .sfr-acc-notif-btn.sfr-acc-notif-btn--active:hover {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 .sfr-acc-autotune-btn {
   position: relative;
   flex: 0 0 auto;
   width: 36px;
-  background: #0d1015;
+  background: var(--surface-sunken);
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 0;
   display: flex;
   align-items: center;
@@ -1090,17 +1090,17 @@ defineExpose({ focus: () => panelRef.value?.focus() })
 }
 
 .sfr-acc-autotune-btn:hover {
-  color: var(--color-accent);
-  background: #05070a;
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
 }
 
 .sfr-acc-autotune-btn.sfr-acc-autotune-btn--active {
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .sfr-acc-autotune-btn.sfr-acc-autotune-btn--active:hover {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Record-on-pass button — sits beside auto-tune and is only enabled once
@@ -1109,10 +1109,10 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   position: relative;
   flex: 0 0 auto;
   width: 36px;
-  background: #0d1015;
+  background: var(--surface-sunken);
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 0;
   display: flex;
   align-items: center;
@@ -1123,22 +1123,22 @@ defineExpose({ focus: () => panelRef.value?.focus() })
 }
 
 .sfr-acc-record-btn:hover:not(:disabled) {
-  color: #ff4040;
-  background: #05070a;
+  color: var(--sev-critical);
+  background: var(--surface-sunken-hover);
 }
 
 .sfr-acc-record-btn.sfr-acc-record-btn--active {
-  color: #ff4040;
-  background: rgba(255, 64, 64, 0.12);
+  color: var(--sev-critical);
+  background: rgba(var(--sev-critical-rgb), 0.12);
 }
 
 .sfr-acc-record-btn.sfr-acc-record-btn--active:hover {
-  background: rgba(255, 64, 64, 0.18);
+  background: rgba(var(--sev-critical-rgb), 0.18);
 }
 
 .sfr-acc-record-btn:disabled {
   cursor: not-allowed;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(var(--ink-rgb), 0.18);
 }
 
 /* Inline lock-in conflict warning: another armed sat overlaps this one, so only
@@ -1149,9 +1149,9 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   gap: 6px;
   margin-top: 6px;
   padding: 5px 8px;
-  background: rgba(255, 176, 0, 0.08);
-  border-left: 2px solid #ffb000;
-  color: #ffb000;
+  background: rgba(var(--sev-caution-rgb), 0.08);
+  border-left: 2px solid var(--sev-caution-text);
+  color: var(--sev-caution-text);
   font-size: 10px;
   line-height: 1.3;
   text-transform: uppercase;
@@ -1184,7 +1184,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(var(--ink-rgb), 0.32);
   text-transform: uppercase;
 }
 
@@ -1195,7 +1195,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
 }
 
@@ -1217,12 +1217,12 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
 }
 
 .sfr-acc-status.sfr-acc-status-loading {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sfr-acc-no-passes {
@@ -1231,7 +1231,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
 }
 
@@ -1275,7 +1275,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -1285,7 +1285,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 .sfr-acc-pass-los {
@@ -1293,7 +1293,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(var(--ink-rgb), 0.28);
   text-transform: uppercase;
 }
 
@@ -1310,13 +1310,13 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--color-accent);
+  color: var(--accent-text);
   white-space: nowrap;
   text-transform: uppercase;
 }
 
 .sfr-acc-pass-countdown.sfr-in-progress {
-  color: #ff9900;
+  color: var(--sev-live);
 }
 
 .sfr-acc-pass-maxel {
@@ -1324,7 +1324,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(var(--ink-rgb), 0.32);
   white-space: nowrap;
   text-transform: uppercase;
 }
@@ -1344,7 +1344,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 13px;
   font-weight: 400;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(var(--ink-rgb), 0.78);
 }
 .sfr-acc-radio-list {
   margin: 0;
@@ -1361,7 +1361,7 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   font-size: 13px;
   font-weight: 400;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(var(--ink-rgb), 0.82);
 }
 .sfr-acc-radio-list li::before {
   content: '';

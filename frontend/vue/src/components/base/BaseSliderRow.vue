@@ -92,7 +92,7 @@ const emit = defineEmits<{
   appearance: none;
   width: 100%;
   height: 3px;
-  background: var(--color-button-bg);
+  background: var(--surface);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -131,6 +131,6 @@ const emit = defineEmits<{
 .sdr-panel-slider::-moz-range-track {
   height: 3px;
   border-radius: 2px;
-  background: var(--color-button-bg);
+  background: var(--surface);
 }
 </style>

@@ -252,7 +252,7 @@ onUnmounted(() => {
   pointer-events: all;
   background: none;
   border: none;
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--border);
   color: rgba(var(--ink-rgb), 0.4);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 10px;
@@ -319,7 +319,7 @@ onUnmounted(() => {
 }
 
 #notif-scroll-hint.notif-scroll-hint-visible:hover {
-  color: var(--color-text-muted);
+  color: var(--ink-secondary);
 }
 
 #notif-scroll-arrow {
@@ -446,7 +446,7 @@ onUnmounted(() => {
 }
 
 .notif-dismiss:hover {
-  color: var(--color-text-muted);
+  color: var(--ink-secondary);
 }
 
 .notif-body {
@@ -564,7 +564,7 @@ onUnmounted(() => {
 }
 
 #notif-toggle-btn:hover {
-  background: var(--color-border);
+  background: rgba(var(--rail-ink-rgb), 0.08);
   border-radius: 6px;
   opacity: 1;
 }

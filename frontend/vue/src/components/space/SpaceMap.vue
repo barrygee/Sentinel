@@ -224,8 +224,8 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #ffffff;
+  background: rgba(var(--shadow-rgb), 0.5);
+  color: var(--rail-ink);
   font-family: 'Barlow Condensed', 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -243,7 +243,7 @@ defineExpose({
 }
 
 .iss-tracking-badge {
-  color: #c8ff00;
+  color: var(--accent);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
