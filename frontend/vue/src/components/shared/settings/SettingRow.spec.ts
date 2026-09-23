@@ -160,6 +160,13 @@ describe('SettingRow', () => {
     expect(withoutDesc.find('.settings-item-desc').exists()).toBe(false)
   })
 
+  it('forwards the Air map-layers stage event with the item id', () => {
+    const wrapper = mountRow({ id: 'map-layers', type: 'map-layers', label: 'Map Layers' })
+    const staged = async () => {}
+    wrapper.findComponent(MapLayersControl).vm.$emit('stage', staged)
+    expect(wrapper.emitted('stage')).toEqual([['map-layers', staged]])
+  })
+
   it('forwards a child stage event with the item id', () => {
     const wrapper = mountRow({ id: 'probe-1', type: 'probe-url', label: 'Probe' })
     const staged = () => {}

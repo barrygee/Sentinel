@@ -52,7 +52,10 @@
     />
     <!-- No stage/commit: a layer switch belongs to the map it draws on, so it
          applies the moment it is flipped, exactly as the rail's does. -->
-    <MapLayersControl v-else-if="item.type === 'map-layers'" />
+    <MapLayersControl
+      v-else-if="item.type === 'map-layers'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <NotificationSoundControl
       v-else-if="item.type === 'notification-sound'"
       @stage="emit('stage', item.id, $event)"
