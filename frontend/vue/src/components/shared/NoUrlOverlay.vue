@@ -59,6 +59,11 @@ const _isLand = props.domain === 'land'
 // off-grid decoder exists to serve.
 const _isSea = props.domain === 'sea'
 
+// Air is URL-less off grid: it always reads the bundled `adsb-decoder` sidecar
+// (the backend's `adsb_offgrid_url` default), so there is no Settings field to
+// fill in and nothing to gate on. Online it still needs its feed URL.
+const _isAir = props.domain === 'air'
+
 /** True when SEA has an SDR designated as its off-grid AIS receiver. */
 function _hasAisReceiver(settings: Record<string, unknown>): boolean {
   return typeof settings.aisSdrRadioId === 'number'
@@ -72,13 +77,12 @@ const message = computed(() => {
   if (_isSpace) {
     return 'No satellite TLE data is stored in the local database. Import TLE data — or set an Online Data Source URL and fetch it — in settings to continue.'
   }
-  const isOffgrid = _effectiveMode() === 'offgrid'
-  if (isOffgrid && _isSea) {
+  // Off grid, only SEA can still be missing a source: AIR reads the bundled
+  // decoder, and space/land never gate on a URL. Every other case is online.
+  if (_effectiveMode() === 'offgrid') {
     return 'Off Grid mode is active but SEA has no off-grid source. Either choose an AIS receiver under Settings › SEA › AIS › Off Grid AIS SDR, or set an Off Grid Data Source URL — or switch connectivity mode to continue.'
   }
-  const mode = isOffgrid ? 'Off Grid' : 'Online'
-  const setting = isOffgrid ? 'Off Grid Data Source' : 'Online Data Source'
-  return `${mode} mode is active but no ${setting} URL has been set for ${props.domain.toUpperCase()}. Configure a URL in settings or switch connectivity mode to continue.`
+  return `Online mode is active but no Online Data Source URL has been set for ${props.domain.toUpperCase()}. Configure a URL in settings or switch connectivity mode to continue.`
 })
 const visible = computed(() => !hasUrl.value)
 
@@ -145,6 +149,12 @@ async function checkWithBackend() {
   const mode = _effectiveMode()
   const _oKey = offgridKey(ns)
   const _nKey = onlineKey(ns)
+
+  // Off-grid AIR has a fixed source, so there is no setting to fetch or check.
+  if (mode === 'offgrid' && _isAir) {
+    hasUrl.value = true
+    return
+  }
 
   // Space has no remote data source: gate purely on whether the local TLE
   // database holds any satellites, in both online and offgrid modes.

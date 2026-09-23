@@ -95,7 +95,9 @@ async def get_aircraft_near_point(
     # serve and cache live ADS-B data, but never populate the history tables.
     replay_enabled = bool(await get_setting(db, "air", "replayEnabled", default=False))
 
-    primary_url, fallback_url = await resolve_domain_urls("air", db, online_default=settings.adsb_upstream_base)
+    primary_url, fallback_url = await resolve_domain_urls(
+        "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
+    )
 
     # Look up any existing cache row for this key
     result = await db.execute(select(AdsbCache).where(AdsbCache.cache_key == cache_key))

@@ -117,6 +117,7 @@ async def resolve_domain_urls(
     domain: str,
     db: AsyncSession,
     online_default: str | None = None,
+    offgrid_default: str | None = None,
 ) -> tuple[str | None, str | None]:
     """Return (primary_url, fallback_url) for a given domain based on connectivity mode and override.
 
@@ -131,6 +132,7 @@ async def resolve_domain_urls(
         domain:         Domain namespace string, e.g. 'air' or 'space'.
         db:             Active async database session.
         online_default: Fallback online URL used when the DB has no onlineUrl configured.
+        offgrid_default: Fallback off-grid URL used when the DB has no off-grid source configured.
     """
     result = await db.execute(
         select(UserSettings).where(
@@ -166,6 +168,7 @@ async def resolve_domain_urls(
         offgrid = _valid_url(offgrid_raw.get("url"))
     else:
         offgrid = _valid_url(offgrid_raw)
+    offgrid = offgrid or _valid_url(offgrid_default)
 
     if effective_mode == "offgrid":
         return offgrid, online
