@@ -343,22 +343,12 @@ export class AisVesselsControl extends SentinelControlBase {
     this._renderTrack(this._seaStore.selectedTrack)
   }
 
-  /** Select a vessel from the map or the FILTER pane. */
-  selectByMmsi(mmsi: string, options: { openPane?: boolean; flyTo?: boolean } = {}): void {
+  /** Select a vessel (from its marker or a notification click). */
+  selectByMmsi(mmsi: string, options: { openPane?: boolean } = {}): void {
     this._seaStore.setSelectedMmsi(mmsi)
     void this._seaStore.fetchTrack(mmsi)
     if (options.openPane) {
       document.dispatchEvent(new CustomEvent('sea-open-vessel', { detail: { mmsi } }))
-    }
-    if (options.flyTo) {
-      const feature = this._features.find((candidate) => candidate.properties.mmsi === mmsi)
-      if (feature) {
-        this.map.easeTo({
-          center: feature.geometry.coordinates as [number, number],
-          zoom: Math.max(this.map.getZoom(), 11),
-          duration: 600,
-        })
-      }
     }
   }
 

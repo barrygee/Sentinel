@@ -209,6 +209,9 @@ class AisVesselStore:
         # moved rather than rewriting the whole store.
         self._dirty_mmsis: set[str] = set()
         self._dirty = False
+        # The Sea source ("online" / "offgrid") the held picture came from;
+        # None until the first check after startup (see switch_source).
+        self.source_mode: str | None = None
 
     def _mark_dirty(self, mmsi: str) -> None:
         self._dirty_mmsis.add(mmsi)
@@ -362,6 +365,28 @@ class AisVesselStore:
         self.newest_position_ms = None
         self._dirty_mmsis.clear()
         self._dirty = True
+
+    async def switch_source(self, mode: str) -> bool:
+        """Record the active Sea source, dropping everything when it changes.
+
+        Online (AISStream) and off-grid (SDR decode) vessels share this one
+        store, so without a reset the picture from the source just switched
+        away from lingers for the whole 30-minute retention window and passes
+        for live traffic from the new one. A change therefore empties the store
+        AND the ``sea_vessel_cache`` snapshot, so a restart can't warm it back.
+        The first call after startup only records the mode, keeping the warm
+        start. Returns whether the store was cleared.
+        """
+        previous = self.source_mode
+        self.source_mode = mode
+        if previous is None or previous == mode:
+            return False
+        self.clear()
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(SeaVesselCache))
+            await db.commit()
+        logger.info("Sea: source switched %s -> %s — vessel picture cleared", previous, mode)
+        return True
 
     # ── reads ─────────────────────────────────────────────────────────────────
 

@@ -31,25 +31,26 @@
         :value="formatStatus(radio.radio_status)"
       />
     </BaseDataGrid>
-    <div v-if="radio.packet_info" :class="`${classPrefix}-radio-line`">
-      <div :class="`${classPrefix}-cell-label`">PACKET / DIGITAL</div>
-      <ul :class="`${classPrefix}-radio-list`">
-        <li v-for="(p, i) in splitNotes(radio.packet_info)" :key="i">{{ p }}</li>
-      </ul>
-    </div>
-    <div v-if="radio.radio_notes" :class="`${classPrefix}-radio-line`">
-      <div :class="`${classPrefix}-cell-label`">NOTES</div>
-      <ul :class="`${classPrefix}-radio-list`">
-        <li v-for="(n, i) in splitNotes(radio.radio_notes)" :key="i">{{ n }}</li>
-      </ul>
-    </div>
+    <SatRadioLinesAccordion
+      v-if="radio.packet_info"
+      title="PACKET / DIGITAL"
+      :lines="splitNotes(radio.packet_info)"
+      :class-prefix="classPrefix"
+    />
+    <SatRadioLinesAccordion
+      v-if="radio.radio_notes"
+      title="NOTES"
+      :lines="splitNotes(radio.radio_notes)"
+      :class-prefix="classPrefix"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * SatRadioInfoSection — the RADIO accordion section (uplink/downlink/CTCSS/
- * transponder/beacon/status cells plus the PACKET and NOTES line lists) that
+ * transponder/beacon/status cells plus the collapsible PACKET and NOTES line
+ * lists, see SatRadioLinesAccordion) that
  * the Space search results and the upcoming-passes list rendered as
  * byte-identical ~40-line template blocks differing only in their CSS class
  * prefix. Renders nothing at all when the satellite carries no radio info
@@ -64,6 +65,7 @@
  */
 import BaseDataCell from '../base/BaseDataCell.vue'
 import BaseDataGrid from '../base/BaseDataGrid.vue'
+import SatRadioLinesAccordion from './SatRadioLinesAccordion.vue'
 import { formatHz, formatStatus, hasRadioInfo, splitNotes, type SatRadioInfo } from './satRadioInfo'
 
 defineProps<{

@@ -37,7 +37,7 @@ from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.db_helpers import get_setting
 from backend.services.ais_store import AisVesselStore, store
-from backend.utils import resolve_domain_urls
+from backend.utils import resolve_domain_urls, resolve_effective_mode
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +196,9 @@ class AisStreamReader:
         """
         config = await self._read_config()
         current = self._now()
+        # Runs every tick, so a source switch empties the store promptly even
+        # when no browser is polling.
+        await self.store.switch_source(config["source_mode"])
         # Expiry sweep lives here, once a tick, rather than per message.
         self.store.prune(current)
 
@@ -394,6 +397,7 @@ class AisStreamReader:
             primary_url, _fallback = await resolve_domain_urls("sea", db, online_default=settings.aisstream_ws_url)
             configured_key = await get_setting(db, "sea", "aisstreamApiKey", default="")
             raw_boxes = await get_setting(db, "sea", "aisBoundingBoxes", default=None)
+            source_mode = await resolve_effective_mode("sea", db)
         api_key = configured_key.strip() if isinstance(configured_key, str) and configured_key.strip() else ""
         api_key = api_key or settings.aisstream_api_key.strip()
         boxes = validate_bounding_boxes(raw_boxes) or WORLD_BOUNDING_BOXES
@@ -403,7 +407,14 @@ class AisStreamReader:
             mode = "aisstream"
         else:
             mode = "unsupported-source"
-        return {"enabled": enabled, "url": primary_url, "mode": mode, "api_key": api_key, "bounding_boxes": boxes}
+        return {
+            "enabled": enabled,
+            "url": primary_url,
+            "mode": mode,
+            "api_key": api_key,
+            "bounding_boxes": boxes,
+            "source_mode": source_mode,
+        }
 
     @staticmethod
     def _build_subscription(config: dict[str, Any]) -> dict[str, Any]:

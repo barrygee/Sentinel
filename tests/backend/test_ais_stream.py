@@ -105,6 +105,7 @@ def live_config(**overrides):
         "mode": "aisstream",
         "api_key": KEY,
         "bounding_boxes": ais_stream.WORLD_BOUNDING_BOXES,
+        "source_mode": "online",
     }
     config.update(overrides)
     return config
@@ -172,6 +173,24 @@ class TestGateStates:
         assert await reader.ensure() == "unsupported-source"
         assert "tcp://x:1" in reader.error
         assert connect.calls == 0
+
+    async def test_every_tick_reports_the_source_mode_to_the_store(self):
+        # The tick runs with no browser attached, so it alone must notice a
+        # switch; the store decides whether that means clearing.
+        reader, _ = make_reader(live_config(enabled=False), _never_connect())
+        seen = []
+
+        async def record(mode):
+            seen.append(mode)
+            return False
+
+        reader.store.switch_source = record
+        await reader.ensure()
+        reader._read_config = _config_returning(
+            live_config(enabled=False, source_mode="offgrid")
+        )
+        await reader.ensure()
+        assert seen == ["online", "offgrid"]
 
     async def test_missing_key(self):
         connect = _never_connect()
@@ -453,6 +472,7 @@ class TestReadConfig:
         )
         assert config["api_key"] == "env-key-0000000"
         assert config["bounding_boxes"] == ais_stream.WORLD_BOUNDING_BOXES
+        assert config["source_mode"] == "online"
 
     async def test_settings_rows_win(self, monkeypatch):
         monkeypatch.setattr(settings, "aisstream_api_key", "env-key-0000000")
@@ -469,6 +489,7 @@ class TestReadConfig:
         assert config["enabled"] is True
         assert config["api_key"] == "saved-key-000000"
         assert config["bounding_boxes"] == [[[50.0, 0.0], [52.0, 2.0]]]
+        assert config["source_mode"] == "offgrid"
         assert (
             config["mode"] == "unsupported-source"
             and config["url"] == "tcp://sentry:10110"

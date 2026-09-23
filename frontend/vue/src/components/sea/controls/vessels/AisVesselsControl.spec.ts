@@ -522,16 +522,13 @@ describe('AisVesselsControl', () => {
 
   // ── selection & track ────────────────────────────────────────────────────
 
-  it('selectByMmsi brackets the vessel, fetches its track and can fly to it', async () => {
+  it('selectByMmsi brackets the vessel and fetches its track', async () => {
     const { control, map } = addControl()
     const trackSpy = vi.spyOn(store, 'fetchTrack').mockResolvedValue()
     store.vessels = [vessel()]
     await nextTick()
-    control.selectByMmsi('232012345', { flyTo: true })
+    control.selectByMmsi('232012345')
     expect(trackSpy).toHaveBeenCalledWith('232012345')
-    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 11, center: [1, 51] }))
-    control.selectByMmsi('unknown', { flyTo: true })
-    expect(map.easeTo).toHaveBeenCalledTimes(1)
     await nextTick()
     // The trail is drawn the way the Air map draws an aircraft's: a line in
     // the family colour, on to the live position, under dots that fade in

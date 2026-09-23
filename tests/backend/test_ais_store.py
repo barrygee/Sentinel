@@ -392,6 +392,45 @@ class TestPersistence:
         assert len(restored.track("232000001")) >= 1
         assert await restored.persist_snapshot() == 0  # loaded clean
 
+    async def test_first_source_is_recorded_without_clearing(self):
+        # A startup's first check must keep the warm-started picture.
+        store = AisVesselStore()
+        store.ingest_envelope(position(), ais_store.now_ms())
+        assert await store.switch_source("online") is False
+        assert store.source_mode == "online"
+        assert len(store) == 1
+
+    async def test_same_source_again_keeps_the_picture(self):
+        store = AisVesselStore()
+        await store.switch_source("offgrid")
+        store.ingest_envelope(position(), ais_store.now_ms())
+        assert await store.switch_source("offgrid") is False
+        assert len(store) == 1
+
+    async def test_source_change_clears_store_and_snapshot(self):
+        store = AisVesselStore()
+        now = ais_store.now_ms()
+        await store.switch_source("online")
+        store.ingest_envelope(position(mmsi=232000001), now)
+        store.ingest_envelope(position(mmsi=232000002, lat=52.0), now)
+        assert await store.persist_snapshot() == 2
+
+        assert await store.switch_source("offgrid") is True
+        assert store.source_mode == "offgrid"
+        assert len(store) == 0
+        assert store.get("232000001") is None
+        assert store.track("232000001") == []
+        assert store.newest_position_ms is None
+        # The SQLite snapshot is gone too, so a restart can't warm it back.
+        assert await AisVesselStore().load_snapshot(now) == 0
+
+    async def test_switching_back_online_clears_offgrid_vessels(self):
+        store = AisVesselStore()
+        await store.switch_source("offgrid")
+        store.ingest_envelope(position(), ais_store.now_ms())
+        assert await store.switch_source("online") is True
+        assert len(store) == 0
+
     async def test_load_skips_expired_and_corrupt_rows(self, test_engine):
         from backend.models import SeaVesselCache
 
