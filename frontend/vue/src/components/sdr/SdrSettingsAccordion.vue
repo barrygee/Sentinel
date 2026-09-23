@@ -225,7 +225,7 @@ function pickSampleRate(v: number) {
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 10px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   letter-spacing: 0.1em;
   min-width: 60px;
   text-align: right;
@@ -259,7 +259,7 @@ function pickSampleRate(v: number) {
   /* Flat dark: no border, just a subtle fill — matches the dropdowns/inputs. */
   border: none;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -268,7 +268,7 @@ function pickSampleRate(v: number) {
 }
 
 .sdr-checkbox:checked + .sdr-checkbox-custom {
-  background: rgba(200, 255, 0, 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .sdr-checkbox:checked + .sdr-checkbox-custom::after {
@@ -276,8 +276,8 @@ function pickSampleRate(v: number) {
   display: block;
   width: 8px;
   height: 5px;
-  border-left: 1.5px solid #c8ff00;
-  border-bottom: 1.5px solid #c8ff00;
+  border-left: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
   transform: rotate(-45deg) translateY(-1px);
 }
 
@@ -285,7 +285,7 @@ function pickSampleRate(v: number) {
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 10px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   letter-spacing: 0.06em;
 }
 </style>

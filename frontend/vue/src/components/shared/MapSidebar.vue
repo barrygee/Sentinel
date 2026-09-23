@@ -181,11 +181,9 @@
           <slot name="playback" />
         </div>
       </template>
-      <!-- `theme-dark` pins the dark palette for this pane. The SDR panel is the last slice, and it is the largest stylesheet in the app.
-           Drop the class with that slice. -->
       <div
         :id="SIDEBAR_PANE_IDS.radio"
-        class="msb-pane msb-pane-radio theme-dark"
+        class="msb-pane msb-pane-radio"
         :class="{ 'msb-pane-active': hideTabs || activeTab === 'radio' }"
       >
         <slot name="radio" />

@@ -170,10 +170,10 @@ async function deleteGroup(id: number) {
 .sdr-frequency-manager-group-add-row .sdr-panel-input {
   flex: 1;
   height: 28px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: none;
   border-radius: 2px;
-  color: #fff;
+  color: var(--ink-strong);
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -185,7 +185,7 @@ async function deleteGroup(id: number) {
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-btn {
@@ -194,13 +194,13 @@ async function deleteGroup(id: number) {
   --ba-ghost-font-size: 9px;
   --ba-ghost-font-weight: 400;
   --ba-ghost-letter-spacing: 0.08em;
-  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
-  --ba-ghost-color: #fff;
+  --ba-ghost-bg: rgba(var(--ink-rgb), 0.08);
+  --ba-ghost-color: var(--ink-strong);
 }
 
 .sdr-frequency-manager-group-add-row .sdr-panel-btn:hover {
-  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.14);
-  --ba-ghost-hover-color: #fff;
+  --ba-ghost-hover-bg: rgba(var(--ink-rgb), 0.14);
+  --ba-ghost-hover-color: var(--ink-strong);
 }
 
 .sdr-group-pills {
@@ -214,7 +214,7 @@ async function deleteGroup(id: number) {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: none;
   border-radius: 2px;
   height: 28px;
@@ -224,7 +224,7 @@ async function deleteGroup(id: number) {
 }
 
 .sdr-group-pill:hover {
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(var(--ink-rgb), 0.13);
 }
 
 .sdr-group-pill-name {
@@ -233,12 +233,12 @@ async function deleteGroup(id: number) {
   font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
   white-space: nowrap;
 }
 
 .sdr-group-pill-del:hover {
-  color: rgba(255, 80, 80, 0.8);
+  color: rgba(var(--sev-error-rgb), 0.8);
 }
 
 .sdr-panel-add-row {

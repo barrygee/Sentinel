@@ -23,7 +23,7 @@ import SdrPanel from './SdrPanel.vue'
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 8px;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
   cursor: default;
   user-select: none;
 }

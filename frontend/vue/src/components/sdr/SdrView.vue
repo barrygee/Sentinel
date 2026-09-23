@@ -11,7 +11,11 @@ const sdrStore = useSdrStore()
 </script>
 
 <template>
-  <div id="sdr-page" data-domain="sdr">
+  <!-- `theme-dark`: the spectrum trace, its grid and the waterfall are an
+       instrument, and the waterfall's colour ramp is calibrated against black.
+       The page keeps the dark palette in both themes, exactly like the map —
+       the SDR panel's LIST tabs beside it are the parts that follow the theme. -->
+  <div id="sdr-page" class="theme-dark" data-domain="sdr">
     <h1 class="sr-only">SDR — radio spectrum</h1>
     <SdrWaterfall />
     <SdrDecodeDock v-if="sdrStore.decodeDockOpen" />

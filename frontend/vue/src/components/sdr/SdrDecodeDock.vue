@@ -312,7 +312,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   transition: left 0.2s ease;
   display: flex;
   flex-direction: column;
-  background: #0a0d14;
+  background: var(--instrument-bg);
   padding-left: var(--sdr-wf-inset-left, 56px);
   padding-right: calc(44px + var(--sdr-wf-inset-right, 12px));
   /* Gap between the last decode row and the footer bar below, so the rows don't
@@ -429,7 +429,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
   justify-content: center;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   width: 24px;
   height: 24px;
   padding: 0;
@@ -439,7 +439,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 }
 
 .sdr-decode-clear:hover {
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 /* The "Clear" tooltip pill itself comes from BaseIconAction
@@ -447,8 +447,8 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
    pill to this family's flat-navy look. */
 .sdr-decode-clear {
   --ba-icon-action-tooltip-offset: 8px;
-  --ba-icon-action-tooltip-bg: rgba(10, 13, 20, 0.96);
-  --ba-icon-action-tooltip-color: #fff;
+  --ba-icon-action-tooltip-bg: rgba(var(--rail-rgb), 0.96);
+  --ba-icon-action-tooltip-color: var(--ink-strong);
   --ba-icon-action-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
   --ba-icon-action-tooltip-padding: 0 10px;
   --ba-icon-action-tooltip-height: 24px;
@@ -544,13 +544,13 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 .sdr-decode-table thead th {
   position: sticky;
   top: 0;
-  background: #0a0d14;
+  background: var(--instrument-bg);
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--ink-strong);
   /* The messages column has no header band of its own, so the heading row stands
      in for it: this padding reproduces the logs header geometry. The top padding
      drops the headings to the same height as the logs "Synced…" status row, and
@@ -609,9 +609,9 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 }
 
 /* Error lines (CRC errors, lost sync, …): red, with an sr-only "Error:" prefix
-   so it is not colour-alone. #ff6b6b clears AA. */
+   so it is not colour-alone. var(--sev-error) clears AA. */
 .sdr-decode-log-line--error {
-  color: #ff6b6b;
+  color: var(--sev-error);
 }
 
 /* Scrollbars are hidden in both boxes — the bodies still scroll (and stay

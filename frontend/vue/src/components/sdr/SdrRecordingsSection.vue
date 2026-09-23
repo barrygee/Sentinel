@@ -655,7 +655,7 @@ defineExpose({ reload })
   height: 40px;
   flex: 0 0 auto;
   padding: 0 20px 0 24px;
-  background: var(--color-search-field-bg);
+  background: var(--surface-sunken);
   box-sizing: border-box;
   transition: background 0.12s;
 }
@@ -681,19 +681,19 @@ defineExpose({ reload })
   background: none;
   border: none;
   outline: none;
-  color: #fff;
+  color: var(--ink-strong);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  caret-color: var(--color-accent);
+  caret-color: var(--accent-text);
   min-width: 0;
   padding: 0;
 }
 
 .sdr-recordings-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
   font-size: 11px;
   letter-spacing: 0.14em;
 }
@@ -702,7 +702,7 @@ defineExpose({ reload })
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   font-family: 'Barlow', sans-serif;
   font-size: 10px;
   font-weight: 700;
@@ -713,7 +713,7 @@ defineExpose({ reload })
 }
 
 .sdr-recordings-search-clear:hover {
-  color: var(--color-text-muted);
+  color: var(--ink-secondary);
 }
 
 #sdr-recordings-empty {
@@ -753,7 +753,7 @@ defineExpose({ reload })
   justify-content: center;
   gap: 5px;
   height: 32px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -784,12 +784,12 @@ defineExpose({ reload })
 }
 
 .sdr-recording-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink-rgb), 0.04);
 }
 
 /* Subtle highlight on the whole row while playing. */
 .sdr-recording-playing {
-  background: rgba(200, 255, 0, 0.04);
+  background: rgba(var(--accent-rgb), 0.04);
 }
 
 .sdr-recording-content {
@@ -821,7 +821,7 @@ defineExpose({ reload })
   font-weight: 300;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-  color: #ffffff;
+  color: var(--ink-strong);
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -835,7 +835,7 @@ defineExpose({ reload })
   font-size: 14px;
   font-weight: 300;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 /* Mode (USB/AM/…) inline after the unit, separated by a dash. */
@@ -847,7 +847,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(var(--ink-rgb), 0.55);
 }
 
 /* Custom name under the freq, mirroring .sdr-freq-name. */
@@ -858,7 +858,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -884,14 +884,14 @@ defineExpose({ reload })
 
 .sdr-recording-meta-row dt {
   width: 64px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   text-transform: uppercase;
   flex-shrink: 0;
 }
 
 .sdr-recording-meta-row dd {
   margin: 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
   font-variant-numeric: tabular-nums;
 }
 
@@ -907,7 +907,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   margin-bottom: 5px;
 }
 
@@ -916,7 +916,7 @@ defineExpose({ reload })
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 11px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(var(--ink-rgb), 0.55);
   word-break: break-word;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -927,7 +927,7 @@ defineExpose({ reload })
 
 /* Pencil turns accent while its edit accordion is open. */
 .sdr-recording-edit--active {
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--accent-text);
 }
 
 /* ── Inline edit accordion (note only) ── */
@@ -949,11 +949,11 @@ defineExpose({ reload })
   overflow: hidden;
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(var(--ink-rgb), 0.12);
   border-radius: 0;
   padding: 4px 0;
   outline: none;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 11px;
   line-height: 1.45;
@@ -961,11 +961,11 @@ defineExpose({ reload })
 }
 
 .sdr-recording-edit-note:focus {
-  border-bottom-color: rgba(200, 255, 0, 0.5);
+  border-bottom-color: var(--accent-text);
 }
 
 .sdr-recording-edit-note::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
 }
 
 .sdr-recording-edit-actions {
@@ -997,12 +997,12 @@ defineExpose({ reload })
   flex: 1;
   height: 100%;
   border-radius: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   transition: background 0.15s ease;
 }
 
 .sdr-recording-seg--on {
-  background: #c8ff00;
+  background: var(--accent);
 }
 
 .sdr-recording-time {
@@ -1011,7 +1011,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -1032,7 +1032,7 @@ defineExpose({ reload })
   outline: none;
   cursor: pointer;
   padding: 0 2px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   transition: color 0.15s;
   display: flex;
   align-items: center;
@@ -1053,7 +1053,7 @@ defineExpose({ reload })
 .sdr-recording-del {
   --ba-icon-action-tooltip-offset: 8px;
   --ba-icon-action-tooltip-bg: rgba(10, 13, 20, 0.96);
-  --ba-icon-action-tooltip-color: #fff;
+  --ba-icon-action-tooltip-color: var(--ink-strong);
   --ba-icon-action-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
   --ba-icon-action-tooltip-padding: 0 10px;
   --ba-icon-action-tooltip-height: 24px;
@@ -1066,7 +1066,7 @@ defineExpose({ reload })
 }
 
 .sdr-recording-edit:hover {
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--accent-text);
 }
 
 .sdr-recording-del {
@@ -1074,21 +1074,21 @@ defineExpose({ reload })
 }
 
 .sdr-recording-del:hover {
-  color: rgba(255, 80, 80, 0.85);
+  color: rgba(var(--sev-error-rgb), 0.85);
 }
 
 /* Inline delete confirm: armed ✓ reads as a "go" colour, ✕ stays neutral/red. */
 .sdr-recording-del--confirm {
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--accent-text);
 }
 .sdr-recording-del--confirm:hover {
-  color: rgba(200, 255, 0, 1);
+  color: var(--accent-text);
 }
 .sdr-recording-del--cancel {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 .sdr-recording-del--cancel:hover {
-  color: rgba(255, 80, 80, 0.85);
+  color: rgba(var(--sev-error-rgb), 0.85);
 }
 
 /* Play + download pill row beneath the meta. Buttons match the radio controls
@@ -1106,12 +1106,12 @@ defineExpose({ reload })
 .sdr-recording-stop {
   height: 28px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   border: none;
   border-radius: 2px;
   outline: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   transition:
     background 0.15s,
     color 0.15s;
@@ -1130,7 +1130,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 80, 80, 0.85);
+  color: rgba(var(--sev-error-rgb), 0.85);
 }
 
 .sdr-recording-stop svg {
@@ -1138,8 +1138,8 @@ defineExpose({ reload })
 }
 
 .sdr-recording-stop:hover {
-  background: rgba(255, 80, 80, 0.15);
-  color: #ff5050;
+  background: rgba(var(--sev-error-rgb), 0.15);
+  color: var(--sev-error);
 }
 
 .sdr-recording-play {
@@ -1163,23 +1163,23 @@ defineExpose({ reload })
 }
 
 .sdr-recording-export:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: rgba(var(--ink-rgb), 0.15);
+  color: var(--ink-strong);
 }
 
 /* Play button carries the accent tint, like the radio's tune button. */
 .sdr-recording-play {
-  color: rgba(200, 255, 0, 0.75);
+  color: var(--accent-text);
 }
 
 .sdr-recording-play:hover {
-  background: rgba(200, 255, 0, 0.15);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent-text);
 }
 
 .sdr-recording-playing .sdr-recording-play {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-recording-iq {
@@ -1209,7 +1209,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(var(--ink-rgb), 0.65);
 }
 
 .sdr-recording-live-dot {
@@ -1217,7 +1217,7 @@ defineExpose({ reload })
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #c8ff00;
+  background: var(--accent);
   flex-shrink: 0;
   animation: sdr-rec-pulse 1.2s ease-in-out infinite;
 }
