@@ -24,7 +24,6 @@ const mapSpies = vi.hoisted(() => ({
   zoomOut: vi.fn(),
   flyTo: vi.fn(),
   getZoom: vi.fn(() => 6),
-  selectByMmsi: vi.fn(),
   mapPresent: true,
 }))
 const SeaMapStub = defineComponent({
@@ -40,7 +39,6 @@ const SeaMapStub = defineComponent({
               getZoom: mapSpies.getZoom,
             }
           : null,
-      getVesselsControl: () => ({ selectByMmsi: mapSpies.selectByMmsi }),
     })
     return () => h('div', { class: 'sea-map-stub' })
   },
@@ -65,14 +63,9 @@ const SeaSideMenuStub = defineComponent({
   },
 })
 
-let filterEmit: null | ((event: 'locate', mmsi: string) => void) = null
 const SeaFilterStub = defineComponent({
   name: 'SeaFilter',
-  emits: ['locate'],
-  setup(_props, { emit }) {
-    filterEmit = emit as (event: 'locate', mmsi: string) => void
-    return () => h('div', { class: 'sea-filter-stub' })
-  },
+  setup: () => () => h('div', { class: 'sea-filter-stub' }),
 })
 const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div') })
 
@@ -110,7 +103,6 @@ describe('SeaView', () => {
     vi.clearAllMocks()
     mapSpies.mapPresent = true
     sideMenuProps = null
-    filterEmit = null
     if (locationState.location) locationState.location.value = null
     document.body.innerHTML = ''
   })
@@ -185,15 +177,6 @@ describe('SeaView', () => {
     locationState.location!.value = { lat: 51, lon: 1 }
     await nextTick()
     expect(sideMenuProps!.locationActive).toBe(true)
-  })
-
-  it('centres the map on a vessel the FILTER pane picks', () => {
-    // The pane's icon action is the accessible equivalent of clicking the
-    // vessel's marker, which a screen reader cannot reach on the canvas.
-    teleportTarget()
-    mountView()
-    filterEmit!('locate', '232012345')
-    expect(mapSpies.selectByMmsi).toHaveBeenCalledWith('232012345', { flyTo: true })
   })
 
   it('has one screen-reader heading and no accessibility violations', async () => {

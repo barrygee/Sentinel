@@ -84,9 +84,8 @@ test.describe('Sea domain', () => {
     // The MMSI appears in the row's secondary line too, so pin to the grid cell.
     await expect(pane.getByText('DOVER')).toBeVisible()
     await expect(pane.getByText('UNDER WAY')).toBeVisible()
-    // The map action is an icon, named for assistive tech — the same
-    // affordance the AIR aircraft row uses.
-    await expect(pane.getByRole('button', { name: /centre on map/i })).toBeVisible()
+    // The row is a data view only — there is no centre-on-map action.
+    await expect(pane.getByRole('button', { name: /centre on map/i })).toHaveCount(0)
   })
 
   test('FILTER rail sub-tab narrows the list to one vessel family', async ({ page }) => {
