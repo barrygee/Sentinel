@@ -402,6 +402,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the light basemap dimmed and sink parks beneath water
 - Keep the settings panel light when the app is dark
 - Mock the API in the light-theme audit so the rail renders
+- Restack the light greys and keep map ink white
 
 ### Chores
 
@@ -1274,6 +1275,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #352 from barrygee/feat/light-theme-space
 - Merge pull request #353 from barrygee/feat/light-theme-sdr
 - Merge pull request #354 from barrygee/feat/light-theme-chrome
+- Merge pull request #355 from barrygee/feat/light-theme-greys
 
 ### Refactoring
 
