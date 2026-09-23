@@ -2,6 +2,7 @@
   <div
     id="settings-panel"
     ref="panelRef"
+    class="theme-light"
     role="dialog"
     aria-modal="true"
     aria-labelledby="settings-section-heading"

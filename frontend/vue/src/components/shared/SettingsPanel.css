@@ -1,21 +1,22 @@
 /* ============================================================
-   Settings panel — LIGHT THEME (matches Claude Design mockup
-   Settings.dc.html). Everything here is scoped to the settings
-   panel via #settings-* / .settings-* / .tle-* / .sdr-devices-*
-   selectors, all of which only render inside #settings-panel, so
-   the rest of the (dark) app is unaffected.
+   Settings panel — an always-LIGHT island (matches Claude Design
+   mockup Settings.dc.html). Everything here is scoped to the
+   settings panel via #settings-* / .settings-* / .tle-* /
+   .sdr-devices-* selectors, all of which only render inside
+   #settings-panel, so the rest of the app is unaffected.
 
-   Palette:
-     canvas        #f6f6f4      card           (no fill — the canvas)
-     primary text  rgba(16,19,29,.92)
-     secondary     rgba(16,19,29,.5)
-     muted         rgba(16,19,29,.35)
-     field rule    rgba(16,19,29,.18) (the hairline under a value)
-     surface fill  #e8eaed (search bar, JSON editors, segmented controls)
-     hover surface rgba(16,19,29,.06)
-     border        rgba(16,19,29,.08)
-     accent (lime) #c8ff00      text-on-lime   #0a0c10
-     danger        #ff6a5e      sidebar (dark) #000000
+   Colours come from the semantic theme tokens in
+   frontend/assets/template.css — `var(--canvas)`, `var(--ink)`,
+   `var(--surface)`, `rgba(var(--ink-rgb), α)` and friends — not
+   from literals. This panel was the donor for that palette, so it
+   is also the proof the token names carry a real light UI.
+
+   It stays light in BOTH themes: `#settings-panel` carries the
+   `theme-light` class, which pins the light values regardless of
+   `<html data-theme>`. That is deliberate and matches the dark
+   `#settings-sidebar` rail inside it — the rails, nav bar and
+   footer are dark in both themes too, because they carry the
+   white logo and the accent language.
 
    Fields: every editable value in the panel — number, URL, lat/lon, device
    and host form inputs — carries no fill. It is a value written on the card
@@ -26,7 +27,9 @@
    ============================================================ */
 
 #settings-panel {
-  --settings-field-line: rgba(16, 19, 29, 0.18);
+  /* Local alias for the shared hairline — a handful of settings components
+     (BaseNumberSetting, OverheadAlertsControl) already consume this name. */
+  --settings-field-line: var(--rule);
   /* Shared measure for the controls inside a card — field rows, category
      pickers, data tables and the buttons aligned to them. Cards themselves are
      wider (see .settings-grid); this keeps a URL input, a dropdown row and the
@@ -40,7 +43,7 @@
   z-index: 10000;
   display: none;
   flex-direction: row;
-  background-color: #f6f6f4;
+  background-color: var(--canvas);
 }
 
 #settings-panel.settings-panel-visible {
@@ -65,8 +68,8 @@
 #settings-sidebar {
   width: 48px;
   flex-shrink: 0;
-  background: #10131d;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--rail-bg);
+  border-right: 1px solid var(--rail-border);
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -110,7 +113,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #16191d;
+  color: var(--ink-strong);
   /* 6px bottom + the following element's 26px top = a 32px gap below the title. */
   padding: 34px 44px 6px;
   flex-shrink: 0;
@@ -148,15 +151,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #e8eaed;
+  background: var(--surface);
   /* Kept in step with .settings-item's card shadow below. */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
+  box-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.025);
   padding: 13px 18px;
 }
 
 #settings-search-inner svg {
   flex-shrink: 0;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 #settings-search-input {
@@ -164,18 +167,18 @@
   background: none;
   border: none;
   outline: none;
-  color: rgba(16, 19, 29, 0.92);
+  color: var(--ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  caret-color: #16191d;
+  caret-color: var(--ink-strong);
   min-width: 0;
 }
 
 #settings-search-input::placeholder {
-  color: rgba(16, 19, 29, 0.38);
+  color: rgba(var(--ink-rgb), 0.38);
   letter-spacing: 0.14em;
 }
 
@@ -184,7 +187,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: rgba(16, 19, 29, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   display: none;
   align-items: center;
   justify-content: center;
@@ -197,21 +200,21 @@
 }
 
 #settings-search-clear:hover {
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 #settings-body {
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(16, 19, 29, 0.08) transparent;
+  scrollbar-color: rgba(var(--ink-rgb), 0.08) transparent;
 }
 
 #settings-body::-webkit-scrollbar {
   width: 10px;
 }
 #settings-body::-webkit-scrollbar-thumb {
-  background: rgba(16, 19, 29, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   border-radius: 8px;
 }
 #settings-body::-webkit-scrollbar-track {
@@ -242,7 +245,7 @@
   justify-content: flex-end;
   gap: 18px;
   padding: 18px 44px;
-  background: linear-gradient(to top, #f6f6f4 70%, rgba(246, 246, 244, 0));
+  background: linear-gradient(to top, var(--canvas) 70%, rgba(var(--canvas-rgb), 0));
 }
 
 #settings-apply-status {
@@ -256,11 +259,11 @@
 }
 
 #settings-apply-status.settings-apply-status--ok {
-  color: #5a8a00;
+  color: var(--accent-text);
 }
 
 #settings-apply-status.settings-apply-status--error {
-  color: #d94436;
+  color: var(--danger);
 }
 
 /* #settings-apply-btn's own chrome (background, padding, hover) now lives in
@@ -275,7 +278,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.22em;
-  color: rgba(16, 19, 29, 0.35);
+  color: var(--ink-muted);
   text-transform: uppercase;
   padding: 8px 0 0;
 }
@@ -287,7 +290,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.22em;
-  color: rgba(16, 19, 29, 0.35);
+  color: var(--ink-muted);
   text-transform: uppercase;
   padding: 4px 0 0;
 }
@@ -335,7 +338,7 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: rgba(16, 19, 29, 0.92);
+  color: var(--ink);
   text-transform: uppercase;
 }
 
@@ -344,7 +347,7 @@
   font-size: 12.5px;
   font-weight: 400;
   line-height: 1.55;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 .settings-empty {
@@ -353,7 +356,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: rgba(16, 19, 29, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   text-transform: uppercase;
 }
 
@@ -376,19 +379,19 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 .settings-location-notice {
   margin: 0;
   padding: 8px 10px;
-  background: rgba(255, 90, 80, 0.1);
+  background: rgba(var(--danger-wash-rgb), 0.1);
   border-radius: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11.5px;
   font-weight: 500;
   line-height: 1.45;
-  color: #c23a2d;
+  color: var(--danger-hover);
 }
 
 /* A latitude and a longitude are one coordinate, so they read as a pair on one
@@ -412,7 +415,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.16em;
-  color: rgba(16, 19, 29, 0.55);
+  color: var(--ink-secondary);
   text-transform: uppercase;
   user-select: none;
 }
@@ -427,7 +430,7 @@
   border: none;
   border-radius: 0;
   padding: 6px 0 8px;
-  color: rgba(16, 19, 29, 0.92);
+  color: var(--ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -435,7 +438,7 @@
   box-shadow: inset 0 -1px 0 var(--settings-field-line);
   transition: box-shadow 0.15s;
   outline: none;
-  caret-color: #16191d;
+  caret-color: var(--ink-strong);
   min-width: 0;
 }
 
@@ -447,11 +450,11 @@
    error text below it is anchored to a field that still looks wrong. */
 .settings-location-input--invalid,
 .settings-location-input--invalid:focus {
-  box-shadow: inset 0 -2px 0 #d94436;
+  box-shadow: inset 0 -2px 0 var(--danger);
 }
 
 .settings-location-input::placeholder {
-  color: rgba(16, 19, 29, 0.38);
+  color: rgba(var(--ink-rgb), 0.38);
   letter-spacing: 0.1em;
 }
 
@@ -461,7 +464,7 @@
   font-size: 11px;
   font-weight: 400;
   line-height: 1.45;
-  color: rgba(16, 19, 29, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 
 .settings-location-error {
@@ -470,7 +473,7 @@
   font-size: 11px;
   font-weight: 500;
   line-height: 1.45;
-  color: #c23a2d;
+  color: var(--danger-hover);
 }
 
 .settings-location-actions {
@@ -522,7 +525,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.16em;
-  color: rgba(16, 19, 29, 0.55);
+  color: var(--ink-secondary);
   text-transform: uppercase;
   display: flex;
   align-items: center;
@@ -536,18 +539,18 @@
   background: none;
   border: none;
   padding: 10px 12px;
-  color: rgba(16, 19, 29, 0.92);
+  color: var(--ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.04em;
   outline: none;
-  caret-color: #16191d;
+  caret-color: var(--ink-strong);
   min-width: 0;
 }
 
 .settings-datasource-input::placeholder {
-  color: rgba(16, 19, 29, 0.38);
+  color: rgba(var(--ink-rgb), 0.38);
   letter-spacing: 0.1em;
 }
 
@@ -570,7 +573,7 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
   user-select: none;
 }
 
@@ -592,7 +595,7 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.35);
+  color: var(--ink-muted);
   margin-bottom: 4px;
 }
 
@@ -607,13 +610,13 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: rgba(16, 19, 29, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
   width: 52px;
 }
 
 .settings-conn-override-arrow {
   font-size: 10px;
-  color: rgba(16, 19, 29, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   width: 32px;
   text-align: center;
   flex-shrink: 0;
@@ -627,10 +630,10 @@
 }
 
 .settings-conn-override-val--online {
-  color: #446b00;
+  color: var(--accent-text-deep);
 }
 .settings-conn-override-val--offline {
-  color: #b02f22;
+  color: var(--danger-strong);
 }
 
 .settings-connectivity-warning {
@@ -638,7 +641,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px 18px;
-  background: rgba(214, 140, 0, 0.14);
+  background: var(--warn-soft);
   border-radius: 0;
 }
 
@@ -647,7 +650,7 @@
   font-size: 11.5px;
   font-weight: 400;
   letter-spacing: 0.02em;
-  color: rgba(120, 78, 0, 0.95);
+  color: var(--warn-text-strong);
   line-height: 1.5;
 }
 
@@ -665,20 +668,20 @@
   border-radius: 0;
   overflow: hidden;
   width: fit-content;
-  background: #e8eaed;
+  background: var(--surface);
 }
 
 .settings-source-override-btn {
   background: transparent;
   border: none;
-  border-right: 1px solid rgba(16, 19, 29, 0.08);
+  border-right: 1px solid var(--border);
   padding: 8px 16px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -691,13 +694,13 @@
 }
 
 .settings-source-override-btn:hover {
-  background: rgba(16, 19, 29, 0.05);
-  color: rgba(16, 19, 29, 0.8);
+  background: rgba(var(--ink-rgb), 0.05);
+  color: rgba(var(--ink-rgb), 0.8);
 }
 
 .settings-source-override-btn.is-active {
   background: var(--color-accent);
-  color: #0a0c10;
+  color: var(--accent-ink);
 }
 
 .settings-source-override-note {
@@ -705,7 +708,7 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.02em;
-  color: rgba(120, 78, 0, 0.9);
+  color: rgba(var(--warn-rgb), 0.9);
   font-style: italic;
 }
 
@@ -724,13 +727,13 @@
    which outranks these. Hover is overridden too (the atom hardcodes a pink
    hover fill). */
 #settings-panel .tle-action-btn--danger {
-  --ba-danger-bg: #d94436;
-  --ba-danger-color: #ffffff;
+  --ba-danger-bg: var(--danger);
+  --ba-danger-color: var(--surface-raised);
   align-self: flex-end;
 }
 #settings-panel .tle-action-btn--danger:hover:not(:disabled) {
-  background: #c23a2d;
-  color: #ffffff;
+  background: var(--danger-hover);
+  color: var(--surface-raised);
 }
 
 .tle-dropdown {
@@ -749,7 +752,7 @@
   justify-content: space-between;
   height: 100%;
   padding: 0 12px;
-  background-color: #e8eaed;
+  background-color: var(--surface);
   border-radius: 0;
 }
 
@@ -759,7 +762,7 @@
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.55);
+  color: var(--ink-secondary);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -768,7 +771,7 @@
 }
 
 .tle-dropdown-selected-text--chosen {
-  color: rgba(16, 19, 29, 0.9);
+  color: rgba(var(--ink-rgb), 0.9);
 }
 
 .tle-dropdown-arrow {
@@ -776,7 +779,7 @@
   width: 8px;
   height: 5px;
   margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(16,19,29,0.5)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(var(--ink-rgb), 0.5)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   transition: transform 0.15s;
@@ -787,22 +790,22 @@
 }
 
 .tle-dropdown--open .tle-dropdown-selected {
-  background-color: #dcdfe3;
+  background-color: var(--surface-pressed);
 }
 
 .tle-dropdown-menu {
   display: none;
   position: absolute;
   z-index: 99999;
-  background: #ffffff;
+  background: var(--surface-raised);
   border-radius: 0;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.16);
   overflow-y: auto;
   max-height: 240px;
   padding: 4px;
   margin-top: 6px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(16, 19, 29, 0.15) transparent;
+  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
 }
 
 .tle-dropdown-menu::-webkit-scrollbar {
@@ -812,7 +815,7 @@
   background: transparent;
 }
 .tle-dropdown-menu::-webkit-scrollbar-thumb {
-  background: rgba(16, 19, 29, 0.15);
+  background: rgba(var(--ink-rgb), 0.15);
   border-radius: 2px;
 }
 
@@ -828,7 +831,7 @@
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.8);
+  color: rgba(var(--ink-rgb), 0.8);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -837,8 +840,8 @@
 }
 
 .tle-dropdown-item:hover {
-  background: rgba(16, 19, 29, 0.08);
-  color: #16191d;
+  background: rgba(var(--ink-rgb), 0.08);
+  color: var(--ink-strong);
 }
 
 .tle-cat-row-ctrl {
@@ -864,15 +867,15 @@
   border-radius: 0;
 }
 .tle-status-badge--ok {
-  color: #5a8a00;
-  background: rgba(200, 255, 0, 0.18);
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 .tle-status-badge--error {
-  color: #d94436;
-  background: rgba(255, 90, 80, 0.12);
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 .tle-status-badge--info {
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 .tle-online-wrap {
@@ -904,7 +907,7 @@
   padding: 0 12px;
   background: none;
   border: none;
-  color: rgba(16, 19, 29, 0.55);
+  color: var(--ink-secondary);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 600;
@@ -919,7 +922,7 @@
   user-select: none;
 }
 .tle-file-label:hover {
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 .tle-file-name {
   flex: 1;
@@ -929,7 +932,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: rgba(16, 19, 29, 0.55);
+  color: var(--ink-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -949,7 +952,7 @@
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 .tle-cat-table {
@@ -963,7 +966,7 @@
   grid-template-columns: 1fr 48px 90px 58px;
   align-items: center;
   padding: 11px 14px;
-  background: rgba(16, 19, 29, 0.02);
+  background: rgba(var(--ink-rgb), 0.02);
 }
 .tle-cat-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -971,20 +974,20 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
 }
 .tle-cat-count {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 15px;
   font-weight: 700;
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
   text-align: right;
   padding-right: 16px;
 }
 .tle-cat-age {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  color: rgba(16, 19, 29, 0.35);
+  color: var(--ink-muted);
   text-align: right;
   letter-spacing: 0.04em;
 }
@@ -995,8 +998,8 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
-  background: rgba(16, 19, 29, 0.06);
+  color: rgba(var(--ink-rgb), 0.5);
+  background: var(--hover-surface);
   border: none;
   border-radius: 0;
   padding: 4px 9px;
@@ -1007,16 +1010,16 @@
   white-space: nowrap;
 }
 .tle-cat-clear:hover:not(:disabled) {
-  color: #d94436;
-  background: rgba(255, 90, 80, 0.12);
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 .tle-cat-clear:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .tle-cat-clear--confirm {
-  color: #946000;
-  background: rgba(214, 140, 0, 0.14);
+  color: var(--warn-text);
+  background: var(--warn-soft);
 }
 
 .tle-uncat-wrap {
@@ -1029,7 +1032,7 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: rgba(16, 19, 29, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   text-decoration: none;
 }
 .tle-uncat-list {
@@ -1040,7 +1043,7 @@
   overflow-y: auto;
   border-radius: 0;
   scrollbar-width: thin;
-  scrollbar-color: rgba(16, 19, 29, 0.15) transparent;
+  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
 }
 .tle-uncat-list::-webkit-scrollbar {
   width: 4px;
@@ -1049,7 +1052,7 @@
   background: transparent;
 }
 .tle-uncat-list::-webkit-scrollbar-thumb {
-  background: rgba(16, 19, 29, 0.15);
+  background: rgba(var(--ink-rgb), 0.15);
   border-radius: 2px;
 }
 .tle-uncat-row {
@@ -1058,7 +1061,7 @@
   align-items: center;
   gap: 0;
   padding: 0;
-  background: rgba(16, 19, 29, 0.02);
+  background: rgba(var(--ink-rgb), 0.02);
   border-radius: 0;
   overflow: hidden;
 }
@@ -1066,7 +1069,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
   padding: 0 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -1076,7 +1079,7 @@
 .tle-uncat-id {
   font-family: 'Barlow Condensed', 'Barlow', monospace;
   font-size: 11px;
-  color: rgba(16, 19, 29, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   text-align: right;
   padding-right: 8px;
   letter-spacing: 0.04em;
@@ -1087,7 +1090,7 @@
 }
 .tle-uncat-row .tle-uncat-drop .tle-dropdown-selected {
   height: 34px;
-  background-color: #e8eaed;
+  background-color: var(--surface);
   border-radius: 0;
 }
 .tle-uncat-row .tle-uncat-drop .tle-dropdown-selected-text {
@@ -1109,8 +1112,8 @@
   height: 28px;
   border: none;
   border-radius: 0;
-  background: rgba(16, 19, 29, 0.06);
-  color: rgba(16, 19, 29, 0.5);
+  background: var(--hover-surface);
+  color: rgba(var(--ink-rgb), 0.5);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -1118,13 +1121,13 @@
   flex-shrink: 0;
 }
 .tle-satlist-toggle-btn:hover {
-  background: rgba(16, 19, 29, 0.1);
-  color: rgba(16, 19, 29, 0.8);
+  background: rgba(var(--ink-rgb), 0.1);
+  color: rgba(var(--ink-rgb), 0.8);
 }
 
 .tle-satlist-chevron {
   font-size: 9px;
-  color: rgba(16, 19, 29, 0.35);
+  color: var(--ink-muted);
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
@@ -1155,13 +1158,13 @@
   overflow-y: auto;
   border-radius: 0;
   scrollbar-width: thin;
-  scrollbar-color: rgba(16, 19, 29, 0.15) transparent;
+  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
 }
 .tle-satlist-table::-webkit-scrollbar {
   width: 4px;
 }
 .tle-satlist-table::-webkit-scrollbar-thumb {
-  background: rgba(16, 19, 29, 0.15);
+  background: rgba(var(--ink-rgb), 0.15);
   border-radius: 2px;
 }
 
@@ -1170,7 +1173,7 @@
   grid-template-columns: 1fr 60px 130px 72px;
   align-items: center;
   padding: 9px 14px;
-  background: rgba(16, 19, 29, 0.02);
+  background: rgba(var(--ink-rgb), 0.02);
   border-radius: 0;
 }
 
@@ -1178,7 +1181,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: rgba(16, 19, 29, 0.82);
+  color: rgba(var(--ink-rgb), 0.82);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1187,7 +1190,7 @@
 .tle-satlist-id {
   font-family: 'Barlow Condensed', 'Barlow', monospace;
   font-size: 11px;
-  color: rgba(16, 19, 29, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   text-align: left;
 }
 .tle-satlist-cat {
@@ -1196,15 +1199,15 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #5a8a00;
+  color: var(--accent-text);
 }
 .tle-satlist-cat--none {
-  color: rgba(16, 19, 29, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
 }
 .tle-satlist-age {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  color: rgba(16, 19, 29, 0.35);
+  color: var(--ink-muted);
   text-align: right;
   letter-spacing: 0.04em;
 }
@@ -1212,7 +1215,7 @@
 .tle-satlist-count {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
-  color: rgba(16, 19, 29, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   letter-spacing: 0.06em;
   text-align: right;
 }
@@ -1221,12 +1224,12 @@
   padding: 16px 14px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
-  color: rgba(16, 19, 29, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   letter-spacing: 0.06em;
 }
 
 .tle-satlist-name--user {
-  color: #5a8a00;
+  color: var(--accent-text);
 }
 
 /* ── Config JSON editor ───────────────────────────────────────────── */
@@ -1251,7 +1254,7 @@
   min-height: 520px;
   box-sizing: border-box;
   outline: none;
-  caret-color: #16191d;
+  caret-color: var(--ink-strong);
   font-family: 'Barlow Condensed', 'Barlow', monospace !important;
   font-size: 13px !important;
   font-weight: 400;
@@ -1263,20 +1266,20 @@
 }
 
 .settings-config-preview {
-  background: #f1efe9;
-  border: 1px solid rgba(16, 19, 29, 0.08);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
   border-radius: 0;
   padding: 16px;
   font-family: 'Barlow Condensed', 'Barlow', monospace;
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
   white-space: pre;
   overflow: auto;
   max-height: 600px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(16, 19, 29, 0.15) transparent;
+  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
 }
 
 /* Editable variant is an input field: the shared light-grey input fill with
@@ -1284,10 +1287,10 @@
    specificity — source order decides); the read-only preview keeps its own
    look above. */
 .settings-config-preview--textarea {
-  background: #e8eaed;
+  background: var(--surface);
   border-color: transparent;
   border-radius: 0;
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 .settings-config-action-row {
@@ -1319,7 +1322,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   letter-spacing: 0.06em;
-  color: rgba(16, 19, 29, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   padding: 4px 0 12px;
 }
 
@@ -1333,7 +1336,7 @@
   align-items: center;
   gap: 14px;
   padding: 13px 16px;
-  background: rgba(16, 19, 29, 0.025);
+  background: rgba(var(--ink-rgb), 0.025);
   border-radius: 0;
 }
 
@@ -1347,7 +1350,7 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1373,7 +1376,7 @@
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: rgba(180, 60, 60, 0.9);
+  color: var(--danger-ink-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1385,7 +1388,7 @@
   border: none;
   padding: 4px 5px;
   cursor: pointer;
-  color: rgba(16, 19, 29, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1393,15 +1396,15 @@
 }
 
 .sdr-device-btn:hover {
-  color: rgba(16, 19, 29, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 .sdr-device-btn--active {
-  color: #5a8a00;
+  color: var(--accent-text);
 }
 
 .sdr-device-btn--danger:hover {
-  color: #d94436;
+  color: var(--danger);
 }
 
 .sdr-device-confirm {
@@ -1416,16 +1419,16 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.16em;
-  color: #d94436;
+  color: var(--danger);
   text-transform: uppercase;
 }
 
 .sdr-device-confirm-btn {
-  background: rgba(16, 19, 29, 0.06);
+  background: var(--hover-surface);
   border: none;
   border-radius: 0;
   padding: 3px 9px;
-  color: rgba(16, 19, 29, 0.55);
+  color: var(--ink-secondary);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -1438,18 +1441,18 @@
 }
 
 .sdr-device-confirm-btn:hover {
-  background: rgba(16, 19, 29, 0.12);
-  color: rgba(16, 19, 29, 0.85);
+  background: rgba(var(--ink-rgb), 0.12);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 .sdr-device-confirm-btn--yes {
-  background: rgba(255, 90, 80, 0.12);
-  color: #d94436;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .sdr-device-confirm-btn--yes:hover {
-  background: rgba(255, 90, 80, 0.2);
-  color: #c23a2d;
+  background: rgba(var(--danger-wash-rgb), 0.2);
+  color: var(--danger-hover);
 }
 
 .sdr-devices-accordion {
@@ -1457,7 +1460,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(16, 19, 29, 0.015);
+  background: rgba(var(--ink-rgb), 0.015);
   border-radius: 0;
 }
 
@@ -1478,7 +1481,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   width: 110px;
   flex-shrink: 0;
 }
@@ -1490,13 +1493,13 @@
   border-radius: 0;
   box-shadow: inset 0 -1px 0 var(--settings-field-line);
   padding: 6px 0;
-  color: rgba(16, 19, 29, 0.92);
+  color: var(--ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.02em;
   outline: none;
-  caret-color: #16191d;
+  caret-color: var(--ink-strong);
   transition: box-shadow 0.15s;
   min-width: 0;
   -moz-appearance: textfield;
@@ -1507,7 +1510,7 @@
 }
 
 .sdr-devices-form-input::placeholder {
-  color: rgba(16, 19, 29, 0.38);
+  color: rgba(var(--ink-rgb), 0.38);
 }
 
 .sdr-devices-form-input::-webkit-outer-spin-button,
@@ -1522,11 +1525,11 @@
 }
 
 .sdr-devices-enabled-btn {
-  background: rgba(16, 19, 29, 0.06);
+  background: var(--hover-surface);
   border: none;
   border-radius: 0;
   padding: 6px 14px;
-  color: rgba(16, 19, 29, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 700;
@@ -1539,13 +1542,13 @@
 }
 
 .sdr-devices-enabled-btn:hover {
-  color: rgba(16, 19, 29, 0.7);
-  background: rgba(16, 19, 29, 0.1);
+  color: rgba(var(--ink-rgb), 0.7);
+  background: rgba(var(--ink-rgb), 0.1);
 }
 
 .sdr-devices-enabled-btn.is-active {
   background: var(--color-accent);
-  color: #0a0c10;
+  color: var(--accent-ink);
 }
 
 .sdr-devices-form-error {
@@ -1553,7 +1556,7 @@
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: #d94436;
+  color: var(--danger);
   padding: 0;
   margin-left: 124px;
 }
