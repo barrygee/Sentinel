@@ -125,57 +125,7 @@
                 :tooltip="autoTuneLabel()"
                 @click.stop="toggleAutoTune(pass)"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M5 7h14v12H5z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="miter"
-                    fill="none"
-                  />
-                  <line
-                    x1="6"
-                    y1="7"
-                    x2="17"
-                    y2="3"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                  <circle
-                    cx="9"
-                    cy="13"
-                    r="3"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    fill="none"
-                  />
-                  <line
-                    x1="15.5"
-                    y1="11"
-                    x2="17"
-                    y2="11"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                  <line
-                    x1="15.5"
-                    y1="15"
-                    x2="17"
-                    y2="15"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                </svg>
+                <RadioIcon :size="16" />
               </BaseIconAction>
               <BaseIconAction
                 v-if="pass.downlink_hz"
@@ -292,6 +242,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import RadioIcon from '@/components/shared/RadioIcon.vue'
 import { storeToRefs } from 'pinia'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BasePillToggle from '@/components/base/BasePillToggle.vue'
