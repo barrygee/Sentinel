@@ -1270,6 +1270,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge branch 'main' into feat/shared-radio-icon
 - Merge pull request #350 from barrygee/feat/shared-radio-icon
 - Merge pull request #351 from barrygee/feat/light-theme-domain-panes
+- Merge pull request #352 from barrygee/feat/light-theme-space
 
 ### Refactoring
 
@@ -1336,6 +1337,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw the shell chrome from the semantic tokens
 - Give the SDR mark one component and use it for auto-tune
 - Flip the Air, Sea and Land panes with the theme
+- Flip the Space pane and give the severity scale light values
 
 ### Documentation
 
