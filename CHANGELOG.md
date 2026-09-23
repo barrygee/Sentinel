@@ -1271,6 +1271,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #350 from barrygee/feat/shared-radio-icon
 - Merge pull request #351 from barrygee/feat/light-theme-domain-panes
 - Merge pull request #352 from barrygee/feat/light-theme-space
+- Merge pull request #353 from barrygee/feat/light-theme-sdr
 
 ### Refactoring
 
@@ -1338,6 +1339,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give the SDR mark one component and use it for auto-tune
 - Flip the Air, Sea and Land panes with the theme
 - Flip the Space pane and give the severity scale light values
+- Flip the SDR list tabs, keep the RADIO tab dark
 
 ### Documentation
 
