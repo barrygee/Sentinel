@@ -388,6 +388,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop a deleted camera feed reappearing on every restart
 - Centre the warning banner on the page and mark it as a warning
 - Centre the warning banner in the visible map, not the viewport
+- Make CLEAR remove satellite pass alerts
 
 ### Chores
 
@@ -1243,6 +1244,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #339 from barrygee/fix/sea-notice-banner
 - Merge pull request #340 from barrygee/feat/compose-all-decoders-profile
 - Merge pull request #341 from barrygee/chore/remove-sea-locate-button
+- Merge pull request #342 from barrygee/fix/notif-clear-all
 
 ### Refactoring
 
