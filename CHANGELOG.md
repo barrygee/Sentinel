@@ -400,6 +400,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop the dark-basemap dimmer flattening the light theme
 - Keep the light basemap dimmed and sink parks beneath water
 - Keep the settings panel light when the app is dark
+- Mock the API in the light-theme audit so the rail renders
 
 ### Chores
 
@@ -1268,6 +1269,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #349 from barrygee/feat/light-theme-shell
 - Merge branch 'main' into feat/shared-radio-icon
 - Merge pull request #350 from barrygee/feat/shared-radio-icon
+- Merge pull request #351 from barrygee/feat/light-theme-domain-panes
 
 ### Refactoring
 
@@ -1333,6 +1335,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stage location edits and share the SDR radio picker
 - Draw the shell chrome from the semantic tokens
 - Give the SDR mark one component and use it for auto-tune
+- Flip the Air, Sea and Land panes with the theme
 
 ### Documentation
 
