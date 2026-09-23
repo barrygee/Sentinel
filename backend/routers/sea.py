@@ -131,7 +131,11 @@ async def _ensure_active_feed(db: AsyncSession) -> dict[str, object]:
     unreachable upstream would otherwise burn the reconnect ladder and log auth
     probes forever.
     """
-    if await resolve_effective_mode("sea", db) == "offgrid":
+    mode = await resolve_effective_mode("sea", db)
+    # Also checked by the reader's tick; doing it here too means the first poll
+    # after a switch never serves the previous source's vessels.
+    await ais_store.store.switch_source(mode)
+    if mode == "offgrid":
         return _offgrid_decode_snapshot()
     await reader.ensure()
     return {"mode": "online", **reader.snapshot()}

@@ -300,6 +300,27 @@ class TestOffgridFeedSelection:
         client.get("/api/sea/vessels")
         assert called["ensure"] == 1
 
+    def test_switching_source_drops_the_previous_vessels(
+        self, client, test_engine, monkeypatch, _fresh_store
+    ):
+        # The first poll after going off grid must not serve AISStream vessels
+        # as if the radio had heard them — and going back online must not keep
+        # the radio's either.
+        monkeypatch.setattr(
+            ais_store,
+            "AsyncSessionLocal",
+            sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False),
+        )
+        _ingest(_fresh_store)
+        assert len(client.get("/api/sea/vessels").json()["vessels"]) == 1
+        self._go_offgrid(client)
+        body = client.get("/api/sea/vessels").json()
+        assert body["mode"] == "offgrid" and body["vessels"] == []
+        _ingest(_fresh_store, mmsi="235000001")
+        client.put("/api/settings/app/connectivityMode", json={"value": "online"})
+        body = client.get("/api/sea/vessels").json()
+        assert body["mode"] == "online" and body["vessels"] == []
+
     def test_offgrid_reports_no_source_without_a_receiver(self, client):
         # Nothing can ever arrive until a radio is designated — the one state
         # the operator can act on.
