@@ -264,23 +264,49 @@ describe('SettingsPanel', () => {
       expect(ids).not.toContain('land-source-override')
     })
 
-    it('groups the Land rows under APRS, REPEATERS and LIVE CAMERA FEEDS', async () => {
+    function groupLabels(wrapper: ReturnType<typeof mountPanel>): string[] {
+      return wrapper.findAll('.settings-group-label').map((node) => node.text())
+    }
+
+    it('groups the Land rows under APRS, REPEATERS and LIVE CAMERA FEEDS, with MAP last', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'LAND')
-      expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
-        'APRS',
-        'REPEATERS',
-        'LIVE CAMERA FEEDS',
+      // An exact list also proves no group is split in two: a heading renders
+      // wherever the group changes, so a stray row would repeat one.
+      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS', 'LIVE CAMERA FEEDS', 'MAP'])
+      expect(renderedItemIds(wrapper)).toEqual([
+        'land-aprs-sdr-source',
+        'land-aprs-channel',
+        'land-aprs-label-fields',
+        'land-aprs-retention',
+        'land-repeater-label-fields',
+        'land-repeaters-file',
+        'land-feeds',
+        'land-map-layers',
       ])
     })
 
-    it('groups every AIS row together and offers the off-grid SDR instead of a URL', async () => {
+    it('leads SEA with its data sources, Source Override included, then MAP and LABELS', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'SEA')
+      expect(groupLabels(wrapper)).toEqual(['DATA SOURCES', 'MAP', 'LABELS'])
+      expect(renderedItemIds(wrapper)).toEqual([
+        'sea-source-override',
+        'sea-ais-sdr-source',
+        'sea-online-source',
+        'sea-ais-key',
+        'sea-coverage-area',
+        'sea-map-layers',
+        'sea-label-fields',
+      ])
+    })
+
+    it('offers the SEA off-grid SDR instead of an off-grid URL', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'SEA')
       const ids = renderedItemIds(wrapper)
       expect(ids).toContain('sea-ais-sdr-source')
       expect(ids).not.toContain('sea-offline-source')
-      expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toContain('AIS')
     })
   })
 
@@ -471,7 +497,7 @@ describe('SettingsPanel', () => {
   })
 
   describe('AIR data sources', () => {
-    it('names the ADS-B receiver and lists it between Source Override and Online Data Source, with no Off Grid URL field', async () => {
+    it('leads AIR with its data sources, the ADS-B receiver between Source Override and Online Data Source', async () => {
       const wrapper = mountPanel()
       await wrapper
         .findAll('.settings-nav-item')
@@ -481,14 +507,24 @@ describe('SettingsPanel', () => {
         .findAllComponents(SettingRow)
         .map((row) => row.props('item') as { id: string; label: string })
       const ids = airItems.map((item) => item.id)
-      const sourceStart = ids.indexOf('air-source-override')
-      // The off-grid URL field is gone: AIR reads the bundled decoder off grid.
-      expect(ids.slice(sourceStart)).toEqual([
+      // Data sources lead the section. The off-grid URL field is gone: AIR
+      // reads the bundled decoder off grid.
+      expect(ids).toEqual([
         'air-source-override',
         'air-offgrid-sdr-source',
         'air-online-source',
+        'map-layers',
+        'air-overhead-alerts',
+        'air-tag-fields',
+        'air-replay-toggle',
       ])
-      expect(ids).not.toContain('air-offline-source')
+      expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
+        'DATA SOURCES',
+        'MAP',
+        'ALERTS',
+        'LABELS',
+        'REPLAY',
+      ])
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',
       )
