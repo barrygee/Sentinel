@@ -399,6 +399,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Clear the vessel picture when the source switches
 - Stop the dark-basemap dimmer flattening the light theme
 - Keep the light basemap dimmed and sink parks beneath water
+- Keep the settings panel light when the app is dark
 
 ### Chores
 
@@ -1264,6 +1265,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #346 from barrygee/fix/space-sea-panel-tweaks
 - Merge pull request #347 from barrygee/feat/map-light-style
 - Merge pull request #348 from barrygee/feat/light-theme-tokens
+- Merge pull request #349 from barrygee/feat/light-theme-shell
 
 ### Refactoring
 
@@ -1327,6 +1329,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove trunk tracking (#283) **(breaking change)**
 - Restyle the SDR settings and drop the input fill (#285)
 - Stage location edits and share the SDR radio picker
+- Draw the shell chrome from the semantic tokens
 
 ### Documentation
 
