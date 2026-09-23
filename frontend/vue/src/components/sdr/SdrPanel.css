@@ -4,7 +4,7 @@
   bottom: var(--footer-height);
   left: 0;
   width: 380px;
-  background: rgba(10, 13, 20, 0.92);
+  background: rgba(var(--canvas-rgb), 0.92);
   border-right: none;
   z-index: 200;
   display: flex;
@@ -64,7 +64,7 @@
 }
 
 .sdr-group-toggle:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--ink-rgb), 0.03);
 }
 
 .sdr-group-body {
@@ -85,12 +85,12 @@
   font-weight: 400;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   margin-bottom: 8px;
 }
 
 .sdr-radio-section .sdr-field-label {
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 /* The device-dropdown family (the .sdr-device-* trigger shell, teleported
@@ -107,14 +107,14 @@
 
 .sdr-mode-pill {
   flex: 1;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   border: none;
   cursor: pointer;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   padding: 0;
   height: 28px;
   text-transform: uppercase;
@@ -128,18 +128,18 @@
 }
 
 .sdr-mode-pill:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: rgba(var(--ink-rgb), 0.15);
+  color: var(--ink-strong);
 }
 
 .sdr-mode-pill.active {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-mode-pill.active:hover {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-mode-pill:disabled {
@@ -171,7 +171,7 @@
   font-weight: 300;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-  color: #ffffff;
+  color: var(--ink-strong);
   /* Transparent (not the panel colour) so the input stays invisible against
      whatever background the hosting side panel uses. */
   background: transparent;
@@ -202,7 +202,7 @@
 }
 
 .sdr-freq-input-large::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
 }
 
 .sdr-freq-input-large:disabled {
@@ -217,7 +217,7 @@
   font-size: 18px;
   font-weight: 300;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .sdr-freq-name {
@@ -231,27 +231,27 @@
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
 }
 
 .sdr-tune-btn {
   flex-shrink: 0;
-  color: rgba(200, 255, 0, 0.75);
+  color: var(--accent-text);
   padding: 0;
   width: 28px;
 }
 
 .sdr-tune-btn:hover {
-  color: #c8ff00;
+  color: var(--accent-text);
 }
 
 .sdr-stop-btn {
-  color: rgba(255, 80, 80, 0.75);
+  color: rgba(var(--sev-error-rgb), 0.75);
 }
 
 .sdr-stop-btn:hover {
-  background: rgba(255, 80, 80, 0.15) !important;
-  color: #ff5050;
+  background: rgba(var(--sev-error-rgb), 0.15) !important;
+  color: var(--sev-error);
 }
 
 .sdr-tune-btn:disabled {
@@ -292,16 +292,16 @@
   flex: 1;
   height: 100%;
   border-radius: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   transition: background 0.08s ease;
 }
 
 .sdr-signal-seg--on {
-  background: #c8ff00;
+  background: var(--accent);
 }
 
 .sdr-signal-segments--muted .sdr-signal-seg--on {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(var(--ink-rgb), 0.25);
 }
 
 .sdr-scan-controls {
@@ -406,7 +406,7 @@
   align-items: center;
   height: 28px;
   padding: 0 14px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: 1px solid transparent;
   border-radius: 2px;
   font-family: var(--font-primary, 'Barlow', sans-serif);
@@ -414,7 +414,7 @@
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
   cursor: pointer;
   transition:
     color 0.15s,
@@ -423,13 +423,13 @@
 }
 
 .sdr-scan-group-chip:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--ink-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-scan-group-chip.sdr-scan-group-chip-active {
-  color: #c8ff00;
-  background: rgba(200, 255, 0, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
   border-color: transparent;
 }
 
@@ -454,16 +454,16 @@
 
 .sdr-search-adhoc-col .sdr-field-label {
   margin-bottom: 6px;
-  color: #fff;
+  color: var(--ink-strong);
   font-size: 9px;
 }
 
 .sdr-panel-input.sdr-search-adhoc-input {
   width: 100%;
   height: 38px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: none;
-  color: #fff;
+  color: var(--ink-strong);
   font-size: 13px;
   letter-spacing: 0.08em;
   padding: 0 14px;
@@ -476,7 +476,7 @@
 }
 
 .sdr-search-adhoc-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 
 .sdr-search-adhoc-input:disabled {
@@ -511,9 +511,9 @@
   gap: 7px;
   width: 38px;
   height: 38px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   border: none;
-  color: #c8ff00;
+  color: var(--accent-text);
   cursor: pointer;
   transition:
     background 0.12s,
@@ -527,7 +527,7 @@
 }
 
 .sdr-search-adhoc-play:hover:not(:disabled) {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 .sdr-search-adhoc-play:disabled {
@@ -536,12 +536,12 @@
 }
 
 .sdr-search-adhoc-play--active {
-  background: rgba(255, 59, 48, 0.18);
-  color: #ff3b30;
+  background: rgba(var(--sev-error-rgb), 0.18);
+  color: var(--sev-error);
 }
 
 .sdr-search-adhoc-play--active:hover:not(:disabled) {
-  background: rgba(255, 59, 48, 0.28);
+  background: rgba(var(--sev-error-rgb), 0.28);
 }
 
 .sdr-search-range-list {
@@ -566,11 +566,11 @@
   text-align: left;
   transition: background 0.12s;
   font-family: var(--font-primary, 'Barlow', sans-serif);
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
 }
 
 .sdr-search-range-item:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
 }
 
 .sdr-search-range-item-body {
@@ -603,10 +603,10 @@
   width: 28px;
   height: 28px;
   flex: 0 0 auto;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   border: none;
   border-radius: 2px;
-  color: #c8ff00;
+  color: var(--accent-text);
   cursor: pointer;
   transition:
     background 0.12s,
@@ -614,7 +614,7 @@
 }
 
 .sdr-search-range-item-play:hover:not(:disabled) {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 .sdr-search-range-item-play:disabled {
@@ -623,12 +623,12 @@
 }
 
 .sdr-search-range-item-play--active {
-  background: rgba(255, 59, 48, 0.18);
-  color: #ff3b30;
+  background: rgba(var(--sev-error-rgb), 0.18);
+  color: var(--sev-error);
 }
 
 .sdr-search-range-item-play--active:hover:not(:disabled) {
-  background: rgba(255, 59, 48, 0.28);
+  background: rgba(var(--sev-error-rgb), 0.28);
 }
 
 .sdr-search-range-item:disabled {
@@ -641,7 +641,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 .sdr-search-range-secondary {
@@ -649,7 +649,7 @@
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
@@ -680,7 +680,7 @@
    going. Applied consistently to every side panel's section accordions
    (SDR here, .sip-toggle / .spp-filter-toggle in the Space panels). */
 .sdr-scanner-header-row:hover .sdr-frequency-manager-accordion-chevron {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sdr-scanner-header-row .sdr-field-label.sdr-frequency-manager-scanner-title {
@@ -688,7 +688,7 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: #fff;
+  color: var(--ink-strong);
   text-transform: uppercase;
 }
 
@@ -713,7 +713,7 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--ink-strong);
   /* Matches the .sdr-field-label title→content gap used across the other
      panel sections (MODULATION, SIGNAL, etc.) so GROUPS lines up with them. */
   margin-bottom: 8px;
@@ -735,7 +735,7 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ink-rgb), 0.7);
 }
 
 .sdr-scan-btns-row {
@@ -758,23 +758,23 @@
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.08);
+  color: rgba(var(--ink-rgb), 0.5);
+  background: rgba(var(--ink-rgb), 0.08);
   border-radius: 2px;
 }
 
 .sdr-scan-btn:not(:disabled):hover {
-  color: #c8ff00;
-  background: rgba(255, 255, 255, 0.15);
+  color: var(--accent-text);
+  background: rgba(var(--ink-rgb), 0.15);
 }
 
 .sdr-add-freq-btn {
   height: 36px;
   padding: 0 18px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: none;
   border-radius: 2px;
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--accent-text);
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 11px;
   font-weight: 600;
@@ -786,8 +786,8 @@
 }
 
 .sdr-add-freq-btn:hover:not(:disabled) {
-  color: #c8ff00;
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--accent-text);
+  background: rgba(var(--ink-rgb), 0.12);
 }
 
 .sdr-add-freq-btn:disabled {
@@ -817,7 +817,7 @@
 
 /* See the .sdr-scanner-header-row:hover note — chevron accent, no background. */
 .sdr-frequency-manager-accordion-toggle:hover .sdr-frequency-manager-accordion-chevron {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sdr-frequency-manager-accordion-chevron {
@@ -829,7 +829,7 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   transition:
     transform 0.2s ease,
     color 0.15s;
@@ -839,7 +839,7 @@
 
 .sdr-frequency-manager-accordion-toggle-expanded .sdr-frequency-manager-accordion-chevron {
   transform: rotate(0deg);
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sdr-field-label.sdr-frequency-manager-scanner-title {
@@ -863,14 +863,14 @@
   gap: 5px;
   height: 22px;
   padding: 0 10px;
-  background: rgba(200, 255, 0, 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
   border-radius: 2px;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #c8ff00;
+  color: var(--accent-text);
 }
 
 .sdr-editfreq-body {
@@ -905,14 +905,14 @@
 
 .sdr-editfreq-field .sdr-field-label {
   margin-bottom: 10px;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 .sdr-editfreq-body .sdr-panel-input {
   height: 36px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border: none;
-  color: #fff;
+  color: var(--ink-strong);
   font-size: 11px;
   letter-spacing: 0.08em;
   padding: 0 12px;
@@ -923,7 +923,7 @@
 }
 
 .sdr-editfreq-body .sdr-panel-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 
 .sdr-editfreq-body .sdr-panel-textarea {
@@ -993,15 +993,15 @@
   cursor: pointer;
   text-align: left;
   /* ChevronIcon strokes with currentColor. */
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
 }
 
 /* The form-variant accordion never had a hover background to drop, but it gets
    the same chevron-accent hover so both BaseAccordionSection variants agree.
    Only the chevron shifts: it strokes with currentColor, while the title sets
-   its own #fff. */
+   its own var(--ink-strong). */
 .sdr-ef-settings-toggle:hover {
-  color: var(--color-accent);
+  color: var(--accent-text);
 }
 
 .sdr-ef-settings-toggle-title {
@@ -1010,7 +1010,7 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 /* Gap between the header and the grid when the accordion is expanded. */
@@ -1033,8 +1033,8 @@
   width: 36px;
   height: 18px;
   border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(var(--ink-rgb), 0.2);
+  background: rgba(var(--ink-rgb), 0.04);
   cursor: pointer;
   padding: 0;
   transition:
@@ -1043,8 +1043,8 @@
 }
 
 .sdr-ef-toggle.is-on {
-  background: rgba(200, 255, 0, 0.2);
-  border-color: rgba(200, 255, 0, 0.6);
+  background: rgba(var(--accent-rgb), 0.2);
+  border-color: rgba(var(--accent-rgb), 0.6);
 }
 
 .sdr-ef-toggle-thumb {
@@ -1054,14 +1054,14 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(var(--ink-rgb), 0.55);
   transition:
     left 0.15s,
     background 0.15s;
 }
 
 .sdr-ef-toggle.is-on .sdr-ef-toggle-thumb {
-  background: #c8ff00;
+  background: var(--accent);
   left: 20px;
 }
 
@@ -1075,41 +1075,41 @@
 .sdr-editfreq-body .sdr-panel-input.sdr-input-error,
 .sdr-editfreq-body .sdr-mode-pills.sdr-input-error {
   box-shadow:
-    inset 0 0 0 1px #ff5470,
-    0 0 0 1px rgba(255, 84, 112, 0.35);
+    inset 0 0 0 1px var(--sev-error),
+    0 0 0 1px rgba(var(--sev-error-rgb), 0.35);
 }
 
 .sdr-editfreq-body .sdr-field-error {
   margin-top: 4px;
   font-size: 10px;
-  color: #ff5470;
+  color: var(--sev-error);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .sdr-editfreq-body .sdr-mode-pill {
   height: 28px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
   border: none;
   border-radius: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--ink-rgb), 0.5);
   font-size: 9px;
   letter-spacing: 0.14em;
 }
 
 .sdr-editfreq-body .sdr-mode-pill:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: rgba(var(--ink-rgb), 0.15);
+  color: var(--ink-strong);
 }
 
 .sdr-editfreq-body .sdr-mode-pill.active {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-editfreq-body .sdr-mode-pill.active:hover {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-editfreq-body .sdr-mode-pills {
@@ -1130,7 +1130,7 @@
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 .sdr-addfreq-title-row {
@@ -1138,14 +1138,14 @@
 }
 
 .sdr-addfreq-title-row .sdr-scanner-section-label {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .sdr-editfreq-body .sdr-ef-gpill {
   height: 28px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink-rgb), 0.06);
   border-radius: 2px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
   font-size: 9px;
   letter-spacing: 0.14em;
   flex: 0 0 auto;
@@ -1153,18 +1153,18 @@
 }
 
 .sdr-editfreq-body .sdr-ef-gpill:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: rgba(var(--ink-rgb), 0.12);
+  color: var(--ink-strong);
 }
 
 .sdr-editfreq-body .sdr-ef-gpill.active {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-editfreq-body .sdr-ef-gpill.active:hover {
-  background: rgba(200, 255, 0, 0.12);
-  color: #c8ff00;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
 }
 
 .sdr-editfreq-field .sdr-mode-pills {
@@ -1191,21 +1191,21 @@
 
 .sdr-editfreq-save-btn,
 .sdr-editfreq-body .sdr-editfreq-save-btn {
-  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
-  --ba-ghost-color: #fff;
+  --ba-ghost-bg: rgba(var(--ink-rgb), 0.08);
+  --ba-ghost-color: var(--ink-strong);
 }
 
 .sdr-editfreq-save-btn:hover,
 .sdr-editfreq-body .sdr-editfreq-save-btn:hover {
-  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.14);
-  --ba-ghost-hover-color: #fff;
+  --ba-ghost-hover-bg: rgba(var(--ink-rgb), 0.14);
+  --ba-ghost-hover-color: var(--ink-strong);
 }
 
 .sdr-panel-input {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(var(--ink-rgb), 0.04);
+  border: 1px solid rgba(var(--ink-rgb), 0.1);
   border-radius: 2px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 11px;
   padding: 6px 8px;
@@ -1215,11 +1215,11 @@
 }
 
 .sdr-panel-input:focus {
-  border-color: rgba(200, 255, 0, 0.5);
+  border-color: rgba(var(--accent-rgb), 0.5);
 }
 
 .sdr-panel-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
 }
 
 /* Chrome comes from BaseButton's ghost variant; these custom properties
@@ -1229,8 +1229,8 @@
    resolves exactly as before. Layout (flex centring) stays here — the variant
    doesn't own it. */
 .sdr-panel-btn {
-  --ba-ghost-bg: rgba(255, 255, 255, 0.08);
-  --ba-ghost-color: rgba(255, 255, 255, 0.5);
+  --ba-ghost-bg: rgba(var(--ink-rgb), 0.08);
+  --ba-ghost-color: rgba(var(--ink-rgb), 0.5);
   --ba-ghost-font-size: 9px;
   --ba-ghost-font-weight: 700;
   --ba-ghost-padding: 0 14px;
@@ -1243,8 +1243,8 @@
 }
 
 .sdr-panel-btn:hover {
-  --ba-ghost-hover-bg: rgba(255, 255, 255, 0.1);
-  --ba-ghost-hover-color: #fff;
+  --ba-ghost-hover-bg: rgba(var(--ink-rgb), 0.1);
+  --ba-ghost-hover-color: var(--ink-strong);
 }
 
 .sdr-panel-empty {
@@ -1255,7 +1255,7 @@
   letter-spacing: 0.1em;
   /* WCAG 1.4.3 (AA): ~4.5:1 against the panel background — rgba(…, 0.18) only
      managed ~1.68:1. */
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(var(--ink-rgb), 0.55);
   line-height: 1.8;
   display: none;
   text-transform: uppercase;
@@ -1266,7 +1266,7 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   text-transform: uppercase;
   transition: color 0.15s;
 }
@@ -1316,7 +1316,7 @@
   overflow-y: auto;
   min-height: 0;
   scrollbar-width: thin;
-  scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
 }
 .sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar {
   width: 6px;
@@ -1325,12 +1325,12 @@
   background: transparent;
 }
 .sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--ink-rgb), 0.1);
   border-radius: 3px;
 }
 .sdr-frequency-manager-freqs-body
   > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(200, 255, 0, 0.28);
+  background: rgba(var(--accent-rgb), 0.28);
 }
 
 #sdr-freq-list {
@@ -1379,7 +1379,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   font-family: var(--font-primary);
   font-size: 12px;
   font-weight: 400;
@@ -1388,23 +1388,23 @@
 }
 
 .sdr-freq-row-del:hover {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(var(--ink-rgb), 0.85);
 }
 
 /* Inline remove confirm — same colour language as the recordings list's
    armed delete (SdrRecordingsSection): ✓ reads as a "go" lime, ✕ stays
    neutral until hovered, then red. */
 .sdr-freq-row-del--confirm {
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--accent-text);
 }
 .sdr-freq-row-del--confirm:hover:not(:disabled) {
-  color: rgba(200, 255, 0, 1);
+  color: var(--accent-text);
 }
 .sdr-freq-row-del--cancel {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
 }
 .sdr-freq-row-del--cancel:hover {
-  color: rgba(255, 80, 80, 0.85);
+  color: rgba(var(--sev-error-rgb), 0.85);
 }
 
 .sdr-freq-row-main {
@@ -1418,7 +1418,7 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #fff;
+  color: var(--ink-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1432,7 +1432,7 @@
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1466,7 +1466,7 @@
   min-width: 24px;
   cursor: pointer;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
   transition: color 0.15s;
   display: flex;
   align-items: center;
@@ -1535,7 +1535,7 @@
 
 .sdr-freq-row-edit:hover:not(:disabled),
 .sdr-group-pill-edit:hover {
-  color: rgba(200, 255, 0, 0.75);
+  color: var(--accent-text);
 }
 
 /* Read-only follower: the per-row edit/delete controls are inert while another
@@ -1546,7 +1546,7 @@
   cursor: not-allowed;
 }
 .sdr-freq-row-del:disabled:hover {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(var(--ink-rgb), 0.2);
 }
 
 /* .sdr-favourites-row-play (the FAVOURITES row's play button) always carries
@@ -1556,13 +1556,13 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(var(--ink-rgb), 0.35);
   transition: color 0.15s;
   /* Box/alignment come from the shared row-action rule above. */
 }
 
 .sdr-freq-row-play:hover:not(:disabled) {
-  color: rgba(200, 255, 0, 0.85);
+  color: var(--accent-text);
 }
 
 .sdr-freq-row-play:disabled {
@@ -1579,23 +1579,23 @@
   cursor: pointer;
   /* WCAG 1.4.11 (AA, non-text contrast): 0.45 clears the 3:1 floor with margin
      (0.35 only just cleared it at ~3.18:1). */
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(var(--ink-rgb), 0.45);
   transition: color 0.15s;
   /* Box/alignment come from the shared row-action rule above. */
 }
 
 .sdr-freq-row-fav:hover:not(:disabled) {
-  color: rgba(200, 255, 0, 0.75);
+  color: var(--accent-text);
 }
 
 /* Favourited: the panel's lime accent, matching the -play/-edit hover colour
    and the Add Frequency button rather than introducing a second accent hue. */
 .sdr-freq-row-fav-active {
-  color: #c8ff00;
+  color: var(--accent-text);
 }
 
 .sdr-freq-row-fav-active:hover:not(:disabled) {
-  color: #d9ff4d;
+  color: var(--accent-hover);
 }
 
 .sdr-freq-row-fav:disabled {
@@ -1632,17 +1632,17 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(var(--ink-rgb), 0.15);
   flex-shrink: 0;
 }
 
 .sdr-scan-indicator.sdr-scan-running {
-  background: #c8ff00;
+  background: var(--accent);
   animation: sdr-scan-pulse 0.8s ease-in-out infinite;
 }
 
 .sdr-scan-indicator.sdr-scan-holding {
-  background: #ffd60a;
+  background: var(--sev-warn);
 }
 
 @keyframes sdr-scan-pulse {
@@ -1656,17 +1656,17 @@
 }
 
 .sdr-rec-btn {
-  color: rgba(255, 80, 80, 0.75);
+  color: rgba(var(--sev-error-rgb), 0.75);
 }
 
 .sdr-rec-btn:hover:not(:disabled) {
-  background: rgba(255, 80, 80, 0.15) !important;
-  color: #ff5050;
+  background: rgba(var(--sev-error-rgb), 0.15) !important;
+  color: var(--sev-error);
 }
 
 .sdr-rec-btn--active {
-  background: rgba(255, 80, 80, 0.14) !important;
-  color: #ff5050 !important;
+  background: rgba(var(--sev-error-rgb), 0.14) !important;
+  color: var(--sev-error) !important;
   animation: sdr-rec-pulse 0.9s ease-in-out infinite;
 }
 
@@ -1692,8 +1692,8 @@
 /* !important so the active tint survives the higher-specificity
    .sdr-mode-pill:hover rule, mirroring .sdr-mode-pill.active:hover. */
 .sdr-digital-btn--active {
-  background: rgba(200, 255, 0, 0.12) !important;
-  color: #c8ff00 !important;
+  background: rgba(var(--accent-rgb), 0.12) !important;
+  color: var(--accent-text) !important;
 }
 
 /* The trunk family (.sdr-trunk-* and the #sdr-trunk-section-body context
@@ -1719,7 +1719,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--ink-strong);
   opacity: 0.6;
   transition:
     background 0.2s,
@@ -1730,15 +1730,15 @@
 }
 
 #radio-mini-btn:hover {
-  background: var(--color-border);
+  background: rgba(var(--rail-ink-rgb), 0.08);
   border-radius: 6px;
   opacity: 1;
 }
 
 #radio-mini-btn.radio-mini-btn-active {
   opacity: 1;
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.08);
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.08);
   border-radius: 6px;
 }
 
@@ -1747,8 +1747,8 @@
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
-  background: #000;
-  color: var(--color-text-muted);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 400;
@@ -1780,7 +1780,7 @@
   bottom: var(--footer-height);
   left: 0;
   width: 44px;
-  background: rgba(10, 13, 20, 0.98);
+  background: var(--rail-bg);
   z-index: 1003;
   display: flex;
   flex-direction: column;
@@ -1844,6 +1844,15 @@
    scrolls. Height-constrain the whole chain (both mounts) so the pane, not
    the page, defines the available space. Overrides the #msb-pane-radio
    `overflow-y: visible` and the base `overflow-y: auto`. */
+/* The RADIO tab keeps the dark palette in both themes (it carries the
+   `theme-dark` pin — see SdrPanel.vue) and therefore paints its own ground:
+   the panel container behind it DOES follow the theme, so an unpainted tab
+   would show a light canvas behind the spectrum and waterfall. The token
+   resolves against the pin, so this is the dark charcoal in either theme. */
+.sdr-tab-pane--radio {
+  background: rgba(var(--canvas-rgb), 0.92);
+}
+
 .sdr-tab-panes:has(> .sdr-tab-pane--radio.active) {
   overflow-y: hidden !important;
   min-height: 0;
@@ -2017,7 +2026,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
 }
 
 #sdr-search-range-list::-webkit-scrollbar {
@@ -2027,11 +2036,11 @@
   background: transparent;
 }
 #sdr-search-range-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--ink-rgb), 0.1);
   border-radius: 3px;
 }
 #sdr-search-range-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(200, 255, 0, 0.28);
+  background: rgba(var(--accent-rgb), 0.28);
 }
 
 .sdr-search-range-row-body {
@@ -2045,7 +2054,7 @@
   overflow-y: auto;
   min-height: 0;
   scrollbar-width: thin;
-  scrollbar-color: rgba(200, 255, 0, 0.18) transparent;
+  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
 }
 
 /* The range editor has more fields than the frequency editor, so the shared
@@ -2092,5 +2101,5 @@
   font-weight: 600;
   letter-spacing: 0.03em;
   line-height: 1.5;
-  color: rgba(214, 118, 118, 0.95);
+  color: var(--danger-ink-muted);
 }

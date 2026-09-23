@@ -294,10 +294,10 @@ function onDropdownKey(e: KeyboardEvent) {
 }
 
 .sdr-dot-off {
-  background: rgba(255, 60, 60, 0.6);
+  background: rgba(var(--sev-error-rgb), 0.6);
 }
 
 .sdr-dot-on {
-  background: #c8ff00;
+  background: var(--accent);
 }
 </style>

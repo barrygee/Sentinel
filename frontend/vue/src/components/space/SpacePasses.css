@@ -145,7 +145,7 @@
 
 .spp-cat-btn.active {
   background: rgba(var(--ink-rgb), 0.08);
-  color: rgba(var(--accent-rgb), 0.75);
+  color: var(--accent-text);
 }
 
 .spp-cat-btn.active:hover {
@@ -296,7 +296,7 @@
 
 .spp-seg-btn.active {
   background: rgba(var(--ink-rgb), 0.08);
-  color: rgba(var(--accent-rgb), 0.75);
+  color: var(--accent-text);
 }
 
 .spp-seg-btn.active:hover {

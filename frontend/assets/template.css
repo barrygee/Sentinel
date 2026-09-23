@@ -83,6 +83,10 @@
     /* Behind a photo or video frame: black in both themes, because it is the
        letterbox around someone else's picture, not app chrome. */
     --media-bg: #000000;
+    /* The ground of a signal display — the SDR spectrum and waterfall. Also
+       fixed across themes: the waterfall's colour ramp is calibrated against
+       this near-black, and an instrument is read, not decorated. */
+    --instrument-bg: #0a0d14;
 
     /* ── Rails (dark in BOTH themes) ────────────────────────── */
     /* The nav bar, footer and icon rails stay dark in the light theme — they
@@ -148,7 +152,8 @@
     --sev-alert: #ff2222; /* an unread emergency */
     --sev-critical-rgb: 255, 64, 64;
     --sev-critical: rgb(var(--sev-critical-rgb)); /* an emphasised readout */
-    --sev-error: #ff5050;
+    --sev-error-rgb: 255, 80, 80;
+    --sev-error: rgb(var(--sev-error-rgb));
     --sev-warn: #f0c419;
     --sev-info: rgba(100, 160, 255, 0.8);
     --sev-live: #ff9900; /* happening right now — a pass in progress */

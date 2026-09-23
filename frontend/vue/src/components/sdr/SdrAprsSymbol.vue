@@ -39,6 +39,6 @@ const tooltip = computed(() =>
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--ink-strong);
 }
 </style>

@@ -9,8 +9,8 @@
         :class="{ 'sdr-rail-btn-active': activeSdrTab === tab.id && sidebarOpen }"
         style="
           --ba-icon-btn-tooltip-offset: 8px;
-          --ba-icon-btn-tooltip-bg: rgba(10, 13, 20, 0.96);
-          --ba-icon-btn-tooltip-color: #fff;
+          --ba-icon-btn-tooltip-bg: rgba(var(--rail-rgb), 0.96);
+          --ba-icon-btn-tooltip-color: var(--rail-ink);
           --ba-icon-btn-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
           --ba-icon-btn-tooltip-padding: 0 10px;
           --ba-icon-btn-tooltip-height: 24px;
@@ -94,7 +94,14 @@
     <!-- ── TAB PANES ── -->
     <div class="sdr-tab-panes">
       <!-- ───────────── RADIO TAB ───────────── -->
-      <div class="sdr-tab-pane sdr-tab-pane--radio" :class="{ active: activeSdrTab === 'radio' }">
+      <!-- `theme-dark`: the RADIO tab is an instrument — a spectrum trace and a
+           waterfall whose colour ramp is calibrated against black — so it keeps
+           the dark palette in both themes, the way the map and the rails do.
+           The list tabs beside it follow the theme like any other pane. -->
+      <div
+        class="sdr-tab-pane sdr-tab-pane--radio theme-dark"
+        :class="{ active: activeSdrTab === 'radio' }"
+      >
         <!-- Device dropdown -->
         <div class="sdr-radio-section sdr-radio-section--device">
           <SdrDeviceSelector
