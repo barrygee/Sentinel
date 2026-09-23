@@ -130,7 +130,7 @@ withDefaults(defineProps<BaseButtonProps>(), {
   flex-shrink: 0;
   background: var(--ba-rail-bg, none);
   border: none;
-  color: #fff;
+  color: var(--rail-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,8 +140,8 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--rail:hover {
-  color: var(--color-text-muted);
-  background: var(--ba-rail-hover-bg, var(--color-border));
+  color: var(--rail-ink-muted);
+  background: var(--ba-rail-hover-bg, rgba(var(--rail-ink-rgb), 0.08));
 }
 
 .ba-btn--rail.ba-btn--active {
@@ -153,8 +153,8 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--rail.ba-btn--bordered.ba-btn--active {
-  background: var(--ba-rail-active-bg, rgba(200, 255, 0, 0.08));
-  border-left-color: var(--color-accent);
+  background: var(--ba-rail-active-bg, rgba(var(--accent-rgb), 0.08));
+  border-left-color: var(--accent);
 }
 
 /* Matches the icon rails' shared sizing regardless of each SVG's own
@@ -167,12 +167,12 @@ withDefaults(defineProps<BaseButtonProps>(), {
 
 /* ---- ghost: neutral rgba-fill action button ---- */
 .ba-btn--ghost {
-  background: var(--ba-ghost-bg, rgba(16, 19, 29, 0.06));
+  background: var(--ba-ghost-bg, var(--hover-surface));
   border: none;
   border-radius: var(--ba-ghost-radius, 6px);
   height: var(--ba-ghost-height, 37px);
   padding: var(--ba-ghost-padding, 0 18px);
-  color: var(--ba-ghost-color, rgba(16, 19, 29, 0.85));
+  color: var(--ba-ghost-color, rgba(var(--ink-rgb), 0.85));
   font-size: var(--ba-ghost-font-size, 11px);
   font-weight: var(--ba-ghost-font-weight, 600);
   letter-spacing: var(--ba-ghost-letter-spacing, 0.16em);
@@ -185,8 +185,8 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--ghost:hover:not(:disabled) {
-  background: var(--ba-ghost-hover-bg, rgba(16, 19, 29, 0.12));
-  color: var(--ba-ghost-hover-color, var(--ba-ghost-color, rgba(16, 19, 29, 0.85)));
+  background: var(--ba-ghost-hover-bg, rgba(var(--ink-rgb), 0.12));
+  color: var(--ba-ghost-hover-color, var(--ba-ghost-color, rgba(var(--ink-rgb), 0.85)));
 }
 
 /* ---- primary: lime "commit" action ---- */
@@ -200,7 +200,7 @@ withDefaults(defineProps<BaseButtonProps>(), {
      tle-action-btn's fixed 37px) set --ba-primary-height explicitly instead. */
   height: var(--ba-primary-height, auto);
   padding: var(--ba-primary-padding, 12px 30px);
-  color: #0a0c10;
+  color: var(--accent-ink);
   font-size: var(--ba-primary-font-size, 11px);
   font-weight: var(--ba-primary-font-weight, 700);
   letter-spacing: var(--ba-primary-letter-spacing, 0.18em);
@@ -211,17 +211,17 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--primary:hover:not(:disabled) {
-  background: #d8ff33;
+  background: var(--accent-hover);
 }
 
 /* ---- danger: destructive/warning action ---- */
 .ba-btn--danger {
-  background: var(--ba-danger-bg, rgba(255, 90, 80, 0.1));
+  background: var(--ba-danger-bg, rgba(var(--danger-wash-rgb), 0.1));
   border: none;
   border-radius: 6px;
   height: 37px;
   padding: 0 18px;
-  color: var(--ba-danger-color, #d94436);
+  color: var(--ba-danger-color, var(--danger));
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -234,7 +234,7 @@ withDefaults(defineProps<BaseButtonProps>(), {
 }
 
 .ba-btn--danger:hover:not(:disabled) {
-  background: rgba(255, 90, 80, 0.18);
-  color: #c23a2d;
+  background: rgba(var(--danger-wash-rgb), 0.18);
+  color: var(--danger-hover);
 }
 </style>

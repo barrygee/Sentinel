@@ -119,7 +119,7 @@
         :disabled="sub.disabled"
         style="
           --ba-rail-bg: var(--color-button-bg);
-          --ba-rail-hover-bg: rgba(255, 255, 255, 0.2);
+          --ba-rail-hover-bg: rgba(var(--rail-ink-rgb), 0.2);
           --ba-rail-transition: color 0.15s ease;
         "
         :data-filter-cat="sub.id"
@@ -134,7 +134,12 @@
     </template>
   </div>
 
-  <div id="map-sidebar" :class="{ 'msb-hidden': !open }">
+  <!-- `theme-dark` pins the dark palette for the panel and everything
+       teleported into it. Its own chrome is on the tokens already, but the
+       domain panes it hosts (Air/Space/Sea/Land filters) are still on white
+       literals, so letting it follow the theme would put white text on a
+       light canvas. Drop the class in the domain-pane slice. -->
+  <div id="map-sidebar" class="theme-dark" :class="{ 'msb-hidden': !open }">
     <!-- Mobile close affordance. Hidden on the SDR route (hideTabs), where the
          left rail's active tab already toggles the panel — the extra × is redundant. -->
     <button v-if="!hideTabs" class="msb-mobile-close" aria-label="Close panel" @click="hide">
@@ -559,7 +564,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--rail-ink);
   opacity: 1;
   transition:
     background 0.2s,
@@ -578,8 +583,8 @@ defineExpose({
 
 #radio-mini-btn.radio-mini-btn-active {
   opacity: 1;
-  color: var(--color-accent);
-  background: rgba(200, 255, 0, 0.08);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.08);
   border-radius: 6px;
 }
 
@@ -588,8 +593,8 @@ defineExpose({
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
-  background: #000;
-  color: var(--color-text-muted);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 400;
@@ -626,7 +631,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--rail-ink);
   opacity: 0.6;
   transition:
     background 0.2s,
@@ -646,7 +651,7 @@ defineExpose({
 #map-sidebar-btn.msb-btn-active,
 #side-menu-btn.msb-btn-active {
   opacity: 1;
-  color: #fff;
+  color: var(--rail-ink);
   border-radius: 6px;
 }
 
@@ -690,8 +695,8 @@ defineExpose({
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
-  background: #000;
-  color: var(--color-text-muted);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9px;
   font-weight: 400;
@@ -721,7 +726,7 @@ defineExpose({
   bottom: var(--footer-height);
   left: 0;
   width: 44px;
-  background: rgba(10, 13, 20, 0.98);
+  background: var(--rail-bg);
   z-index: 1003;
   display: flex;
   flex-direction: column;
@@ -754,9 +759,9 @@ body[data-domain='sdr'] #map-sidebar-rail {
   bottom: var(--footer-height);
   left: 44px;
   width: 386px;
-  /* Lighter charcoal than the icon rail (which stays rgba(10, 13, 20)) so the
-     open panel reads as a distinct layer next to the minimised menu. */
-  background: rgba(21, 23, 29, 0.98);
+  /* The panel canvas — lighter than the icon rail beside it (`--rail-bg`) so
+     the open panel reads as a distinct layer next to the minimised menu. */
+  background: var(--panel-bg);
   border-right: none;
   z-index: 1002;
   display: flex;
@@ -892,7 +897,7 @@ body[data-domain='sdr'] #map-sidebar {
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.18);
+  color: var(--rule);
   text-align: center;
   width: 100%;
 }
@@ -915,7 +920,7 @@ body[data-domain='sdr'] #map-sidebar {
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.18);
+  color: var(--rule);
   text-align: center;
 }
 
@@ -934,7 +939,7 @@ body[data-domain='sdr'] #map-sidebar {
   padding: 0 10px;
   height: 28px;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--ink-rgb), 0.1);
   border-radius: 4px;
   cursor: pointer;
   font-family: var(--font-primary);
@@ -942,7 +947,7 @@ body[data-domain='sdr'] #map-sidebar {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--ink-rgb), 0.3);
   transition:
     color 0.15s,
     border-color 0.15s,
@@ -950,14 +955,14 @@ body[data-domain='sdr'] #map-sidebar {
 }
 
 #msb-tracks-btn:hover {
-  color: rgba(255, 255, 255, 0.7);
-  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.7);
+  border-color: rgba(var(--ink-rgb), 0.25);
 }
 
 #msb-tracks-btn.msb-tracks-btn-active {
-  color: var(--color-accent);
-  border-color: rgba(200, 255, 0, 0.3);
-  background: rgba(200, 255, 0, 0.06);
+  color: var(--accent-text);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--accent-rgb), 0.06);
 }
 
 /* ---- Mobile-only close affordance — hidden on desktop ---- */
@@ -970,7 +975,7 @@ body[data-domain='sdr'] #map-sidebar {
   height: 36px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--ink-secondary);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 28px;
   font-weight: 300;
@@ -980,7 +985,7 @@ body[data-domain='sdr'] #map-sidebar {
   padding: 0;
 }
 .msb-mobile-close:hover {
-  color: #fff;
+  color: var(--ink-strong);
 }
 
 /* ---- ≤768px: panel becomes full-width drawer ---- */

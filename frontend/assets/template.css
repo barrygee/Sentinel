@@ -50,7 +50,8 @@
    compose the alpha they need: `rgba(var(--ink-rgb), 0.45)`.
    The named steps below cover the recurring roles.
    ============================================================ */
-:root {
+:root,
+.theme-dark {
     /* ── Ink ────────────────────────────────────────────────── */
     --ink-rgb: 255, 255, 255;
     --ink-strong: #ffffff; /* headings, caret — full-strength ink */
@@ -62,31 +63,45 @@
     --hover-surface: rgba(var(--ink-rgb), 0.06); /* row/button hover wash */
 
     /* ── Surfaces ───────────────────────────────────────────── */
-    /* Provisional dark values: today only the always-light settings panel
-       consumes these tokens, so the dark column is set from the greys the
-       dark panels already use and is confirmed slice by slice as the rest of
-       the chrome is retrofitted onto the tokens. */
-    /* Held as a triplet too: gradients that fade the canvas out must fade to
-       a transparent canvas, not to `transparent` (= transparent BLACK, which
-       greys the ramp in sRGB). */
-    --canvas-rgb: 13, 16, 21;
+    /* The dark column is the app's existing panel greys, confirmed as each
+       slice moves onto the tokens. Note the stack inverts between themes: on
+       dark, a control surface is LIGHTER than the canvas it sits on; on
+       light it is DARKER. That is why these are named by role, not by value.
+       Held as a triplet too: a panel floats over the map at 98%, and a
+       gradient that fades the canvas out must fade to a transparent canvas,
+       not to `transparent` (= transparent BLACK, which greys the ramp). */
+    --canvas-rgb: 21, 23, 29;
     --canvas: rgb(var(--canvas-rgb)); /* the ground a panel's content sits on */
-    --surface: #13171f; /* filled control (search bar, editors, groups) */
-    --surface-raised: #1a1f2a; /* popovers and dropdown menus */
-    --surface-sunken: #05070a; /* wells set into the canvas */
+    --panel-bg: rgba(var(--canvas-rgb), 0.98); /* a panel floating over the map */
+    --surface: #26292e; /* filled control (search bar, editors, groups) */
+    --surface-raised: #13171f; /* popovers and dropdown menus */
+    --surface-sunken: rgba(0, 0, 0, 0.32); /* wells set into the canvas */
     --surface-pressed: #232a36; /* a filled control while open/held */
 
     /* ── Rails (dark in BOTH themes) ────────────────────────── */
     /* The nav bar, footer and icon rails stay dark in the light theme — they
        carry the white logo and the accent language, which only work on a dark
-       ground. Their ink is therefore always white, never `--ink`. */
-    --rail-bg: #10131d;
+       ground. Their ink is therefore always white: inside a rail use
+       `--rail-ink*`, never `--ink*`, or the text disappears in light theme. */
+    --rail-rgb: 16, 19, 29;
+    --rail-bg: rgba(var(--rail-rgb), 0.98);
     --rail-border: rgba(255, 255, 255, 0.06);
+    --rail-ink-rgb: 255, 255, 255;
+    --rail-ink: #ffffff;
+    --rail-ink-muted: rgba(var(--rail-ink-rgb), 0.75);
+
+    /* ── Tooltips (dark in BOTH themes) ─────────────────────── */
+    /* Transient black chips that float over the map and over both palettes —
+       they read as an annotation layer rather than as panel chrome. */
+    --tooltip-bg: #000000;
+    --tooltip-ink: var(--rail-ink-muted);
 
     /* ── Accent ─────────────────────────────────────────────── */
+    --accent-rgb: 200, 255, 0;
     --accent: #c8ff00; /* fills and rules — the brand lime */
+    --accent-hover: #d8ff33; /* the lime lifted, for a hovered accent fill */
     --accent-ink: #0a0c10; /* text/icons drawn ON the accent */
-    --accent-soft: rgba(200, 255, 0, 0.18); /* accent wash behind a label */
+    --accent-soft: rgba(var(--accent-rgb), 0.18); /* accent wash behind a label */
     /* Lime used AS text. It carries ~19:1 on black but only ~1.6:1 on the
        light canvas, so the light theme substitutes a darkened olive that
        still reads as the brand hue at AA. `-deep` is its emphatic step. */
@@ -109,6 +124,17 @@
     --warn-text: #946000;
     --warn-text-strong: rgba(var(--warn-rgb), 0.95);
     --warn-soft: rgba(214, 140, 0, 0.14);
+    /* Severity hues for notifications and live readouts — a scale, not the
+       form-level danger/warn pair above. `--sev-alert` is the loud red an
+       unread alert row and an emphasised value share. */
+    --sev-alert: #ff2222;
+    --sev-critical: #ff4040;
+    --sev-error: #ff5050;
+    --sev-warn: #f0c419;
+    --sev-info: rgba(100, 160, 255, 0.8);
+    /* The knob of a toggle switch is white in BOTH themes: on light it rides
+       an ink-tinted track, on dark a near-black surface. */
+    --knob-ink: #ffffff;
 
     /* ── Elevation ──────────────────────────────────────────── */
     /* Shadow is black in both themes — on the dark canvas it reads as a
@@ -116,12 +142,26 @@
     --shadow-rgb: 0, 0, 0;
 }
 
+/* A palette block must re-declare EVERY derived token, not just the raw
+   values they are built from. A custom property that references another one is
+   substituted where it is DECLARED, and the substituted value is what
+   inherits: a block overriding only `--ink-rgb` leaves `--ink` frozen at the
+   dark palette's white, because that is what `:root` already computed. The
+   duplication below is load-bearing, and `designTokens.spec.ts` enforces it. */
 :root[data-theme='light'],
 .theme-light {
     --ink-rgb: 16, 19, 29;
     --ink-strong: #16191d;
+    --ink: rgba(var(--ink-rgb), 0.92);
+    --ink-secondary: rgba(var(--ink-rgb), 0.55);
+    --ink-muted: rgba(var(--ink-rgb), 0.35);
+    --rule: rgba(var(--ink-rgb), 0.18);
+    --border: rgba(var(--ink-rgb), 0.08);
+    --hover-surface: rgba(var(--ink-rgb), 0.06);
 
     --canvas-rgb: 246, 246, 244;
+    --canvas: rgb(var(--canvas-rgb));
+    --panel-bg: rgba(var(--canvas-rgb), 0.98);
     --surface: #e8eaed;
     --surface-raised: #ffffff;
     --surface-sunken: #f1efe9;
@@ -129,6 +169,14 @@
 
     --accent-text: #5a8a00;
     --accent-text-deep: #446b00;
+    --accent-soft: rgba(var(--accent-rgb), 0.18);
+
+    --rail-bg: rgba(var(--rail-rgb), 0.98);
+    --rail-ink-muted: rgba(var(--rail-ink-rgb), 0.75);
+    --tooltip-ink: var(--rail-ink-muted);
+
+    --danger-soft: rgba(var(--danger-wash-rgb), 0.12);
+    --warn-text-strong: rgba(var(--warn-rgb), 0.95);
 }
 
 /* ============================================================

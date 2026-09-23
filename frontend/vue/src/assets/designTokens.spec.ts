@@ -87,6 +87,25 @@ describe('semantic theme tokens', () => {
     return bodiesBySelector
   }
 
+  /** Custom-property declarations ({name: value}) from rules passing `matches`. */
+  function declarationsFrom(
+    css: string,
+    matches: (selector: string) => boolean,
+    bodyMatches: (body: string) => boolean = () => true,
+  ): Map<string, string> {
+    const declarations = new Map<string, string>()
+    for (const [selector, bodies] of ruleBodies(css)) {
+      if (!matches(selector)) continue
+      for (const body of bodies) {
+        if (!bodyMatches(body)) continue
+        for (const [, token, value] of body.matchAll(/(--[a-z0-9-]+)\s*:([^;]*)/g)) {
+          declarations.set(token as string, (value as string).trim())
+        }
+      }
+    }
+    return declarations
+  }
+
   /** Custom-property names declared by every rule whose selector passes `matches`. */
   function tokensDeclaredBy(css: string, matches: (selector: string) => boolean): Set<string> {
     const declared = new Set<string>()
@@ -99,7 +118,22 @@ describe('semantic theme tokens', () => {
     return declared
   }
 
-  const LIGHT_SELECTOR = ":root[data-theme='light'], .theme-light"
+  /** Whether a rule's selector list contains `target` as one of its selectors. */
+  function selectorListHas(selectorList: string, target: string): boolean {
+    return selectorList.split(',').some((selector) => selector.trim() === target)
+  }
+
+  /** The palette block for a scope: the rule declaring the ink hue against it. */
+  function paletteDeclarations(scopeSelector: string): Map<string, string> {
+    return declarationsFrom(
+      templateCss,
+      (selector) => selectorListHas(selector, scopeSelector),
+      (body) => body.includes('--ink-rgb:'),
+    )
+  }
+
+  const DARK_SELECTORS = [':root', '.theme-dark']
+  const LIGHT_SELECTORS = [":root[data-theme='light']", '.theme-light']
 
   it('defines every token the settings panel references', () => {
     const declared = new Set([
@@ -122,8 +156,12 @@ describe('semantic theme tokens', () => {
   })
 
   it('gives every light-theme token a dark default to fall back to', () => {
-    const darkTokens = tokensDeclaredBy(templateCss, (selector) => selector === ':root')
-    const lightTokens = tokensDeclaredBy(templateCss, (selector) => selector === LIGHT_SELECTOR)
+    const darkTokens = tokensDeclaredBy(templateCss, (selector) =>
+      selectorListHas(selector, ':root'),
+    )
+    const lightTokens = tokensDeclaredBy(templateCss, (selector) =>
+      selectorListHas(selector, '.theme-light'),
+    )
 
     expect(lightTokens.size).toBeGreaterThan(0)
     // A light-only token would resolve to nothing in the dark theme — the
@@ -131,12 +169,52 @@ describe('semantic theme tokens', () => {
     expect([...lightTokens].filter((token) => !darkTokens.has(token))).toEqual([])
   })
 
-  it('scopes the light palette to both the themed root and an always-light island', () => {
-    // The settings panel is light in BOTH themes, which only works while the
-    // light values are also reachable through the `.theme-light` class the
-    // panel carries.
-    expect(ruleBodies(templateCss).has(LIGHT_SELECTOR)).toBe(true)
+  it('re-declares every derived token in the light palette', () => {
+    // A custom property that references another one is substituted where it is
+    // DECLARED, and the substituted value inherits. So a light block that
+    // overrides `--ink-rgb` alone leaves `--ink` frozen at the dark palette's
+    // white — the settings panel goes dark-on-dark and nothing else notices.
+    // Scoped to the palette blocks — the ones declaring the ink hue — so the
+    // legacy `:root` token block above them is not swept in.
+    const darkDeclarations = paletteDeclarations(':root')
+    const lightDeclarations = paletteDeclarations('.theme-light')
+
+    const derived = [...darkDeclarations].filter(([, value]) => value.includes('var('))
+    expect(derived.length).toBeGreaterThan(0)
+
+    const frozen = derived
+      .filter(([token]) => !lightDeclarations.has(token))
+      .map(([token]) => token)
+    expect(frozen, 'derived tokens missing from the light palette').toEqual([])
+  })
+
+  it('scopes each palette to both the themed root and a pinned island', () => {
+    // An island class pins its palette regardless of `<html data-theme>`: the
+    // settings panel is light in both themes, and the map sidebar is pinned
+    // dark until the domain panes inside it move onto the tokens. Both only
+    // work while the values are reachable through the class as well as the
+    // root selector.
+    const selectorLists = [...ruleBodies(templateCss).keys()]
+
+    // Each palette must be declared ONCE against both of its selectors — a
+    // block carrying only the root selector would leave the island class with
+    // nothing to pin, and vice versa.
+    for (const [rootSelector, islandSelector] of [DARK_SELECTORS, LIGHT_SELECTORS]) {
+      const block = selectorLists.find(
+        (selector) =>
+          selectorListHas(selector, rootSelector as string) &&
+          selectorListHas(selector, islandSelector as string),
+      )
+      expect(
+        block,
+        `no palette block declares both ${rootSelector} and ${islandSelector}`,
+      ).toBeDefined()
+    }
+
     expect(settingsPanelVue).toContain('class="theme-light"')
+    expect(
+      readFileSync(resolve(process.cwd(), 'src/components/shared/MapSidebar.vue'), 'utf8'),
+    ).toContain('class="theme-dark"')
   })
 
   it('leaves no colour literals in the retrofitted settings panel stylesheet', () => {

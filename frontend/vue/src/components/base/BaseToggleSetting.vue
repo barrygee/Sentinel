@@ -99,6 +99,6 @@ const { value, applyChange } = useStagedSetting<boolean>({
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
 }
 </style>

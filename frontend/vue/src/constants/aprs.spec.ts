@@ -24,13 +24,20 @@ describe('APRS label palette', () => {
       resolve(process.cwd(), 'src/components/shared/MapSidebar.vue'),
       'utf8',
     )
-    // #map-sidebar is the panel the stations are listed in.
-    const panelBackground = sidebarCss
-      .match(/#map-sidebar\s*\{[^}]*\}/)?.[0]
-      .match(/background:\s*rgba\((\d+),\s*(\d+),\s*(\d+)/)
-    expect(panelBackground).not.toBeNull()
+    // #map-sidebar is the panel the stations are listed in. It is painted from
+    // the shared token now, so the invariant walks one step further: the panel
+    // uses --panel-bg, whose hue is the dark theme's --canvas-rgb.
+    const panelFill = sidebarCss.match(/#map-sidebar\s*\{[^}]*\}/)?.[0]
+    expect(panelFill).toMatch(/background:\s*var\(--panel-bg\)/)
 
-    const [red, green, blue] = panelBackground!.slice(1, 4).map(Number)
+    const templateCss = readFileSync(
+      resolve(process.cwd(), '../../frontend/assets/template.css'),
+      'utf8',
+    )
+    const canvasHue = templateCss.match(/--canvas-rgb:\s*(\d+),\s*(\d+),\s*(\d+)/)
+    expect(canvasHue).not.toBeNull()
+
+    const [red, green, blue] = canvasHue!.slice(1, 4).map(Number)
     const asHex = `#${[red, green, blue].map((channel) => channel!.toString(16).padStart(2, '0')).join('')}`
     expect(APRS_BADGE_BACKGROUND).toBe(asHex)
   })

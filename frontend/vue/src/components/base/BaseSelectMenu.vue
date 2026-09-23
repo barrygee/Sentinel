@@ -190,7 +190,7 @@ defineExpose({
   cursor: pointer;
   outline: none;
   user-select: none;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink-rgb), 0.04);
   border: none;
   border-radius: 2px;
   box-sizing: border-box;
@@ -198,7 +198,7 @@ defineExpose({
 
 .sdr-device-dropdown:focus,
 .sdr-device-dropdown--open {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(var(--ink-rgb), 0.07);
 }
 
 .sdr-device-dropdown-selected {
@@ -220,7 +220,7 @@ defineExpose({
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -229,7 +229,7 @@ defineExpose({
 }
 
 .sdr-device-dropdown-text--chosen {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(var(--ink-rgb), 0.75);
 }
 
 /* Another Sentinel controls the shared tuner: the red padlock (below) signals
@@ -239,7 +239,7 @@ defineExpose({
 .sdr-device-lock {
   flex-shrink: 0;
   display: block;
-  color: #ff5050;
+  color: var(--sev-error);
 }
 
 .sdr-device-dropdown-arrow {
@@ -247,9 +247,13 @@ defineExpose({
   width: 8px;
   height: 5px;
   margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
+  /* Drawn as a mask rather than a fill-baked data URI: the glyph is the
+     theme's ink at 20%, and a colour inside a URL cannot read a token. */
+  background-color: rgba(var(--ink-rgb), 0.2);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23000'/%3E%3C/svg%3E")
+    no-repeat center;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23000'/%3E%3C/svg%3E")
+    no-repeat center;
   transition: transform 0.15s;
 }
 
@@ -267,13 +271,13 @@ defineExpose({
   display: none;
   position: fixed;
   z-index: 99999;
-  background: #13171f;
+  background: var(--surface-raised);
   border: none;
   overflow-y: auto;
   max-height: 220px;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: var(--rule) transparent;
 }
 
 .sdr-device-menu::-webkit-scrollbar {
@@ -283,12 +287,12 @@ defineExpose({
   background: transparent;
 }
 .sdr-device-menu::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--rule);
   border-radius: 4px;
-  border: 2px solid #13171f;
+  border: 2px solid var(--surface-raised);
 }
 .sdr-device-menu::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(var(--ink-rgb), 0.32);
 }
 
 .sdr-device-menu.sdr-device-menu--open {
@@ -306,7 +310,7 @@ defineExpose({
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--ink-rgb), 0.6);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -316,8 +320,8 @@ defineExpose({
 
 .sdr-device-menu-item:hover,
 .sdr-device-menu-item--active {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
+  background: rgba(var(--ink-rgb), 0.07);
+  color: var(--ink-strong);
 }
 
 .sdr-device-menu-item-label {
@@ -329,7 +333,7 @@ defineExpose({
    their normal colours so the row stays readable. */
 
 .sdr-device-menu-placeholder {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(var(--ink-rgb), 0.25);
 }
 
 .sdr-device-menu-item-host {
@@ -338,12 +342,12 @@ defineExpose({
   font-weight: 400;
   letter-spacing: 0.05em;
   text-transform: none;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ink-muted);
   margin-top: 2px;
 }
 
 .sdr-device-menu-item:hover .sdr-device-menu-item-host {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--ink-secondary);
 }
 
 /* Reserved row: the radio is a domain receiver (AIR's ADS-B source, LAND's APRS
@@ -352,16 +356,16 @@ defineExpose({
    deliberately left intact so arrowing past it still shows where you are. */
 .sdr-device-menu-item--reserved {
   cursor: default;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(var(--ink-rgb), 0.4);
 }
 
 .sdr-device-menu-item--reserved .sdr-device-menu-item-host,
 .sdr-device-menu-item--reserved:hover .sdr-device-menu-item-host {
-  color: #c8ff00;
+  color: var(--accent-text);
 }
 
 /* Highlight the currently chosen sample rate in the menu. */
 .sdr-device-menu-item--selected {
-  color: #c8ff00;
+  color: var(--accent-text);
 }
 </style>

@@ -84,7 +84,7 @@ defineExpose({ scrollContainer })
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.18);
+  color: var(--rule);
   text-align: center;
 }
 </style>
