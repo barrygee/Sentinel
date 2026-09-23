@@ -24,9 +24,10 @@ export async function installDefaultMocks(page: Page): Promise<void> {
   // MapLibre never fires `style.load` — and the map controls that hang off it
   // (the Sea vessel layers, their status line and the feed polling) are never
   // created. An empty style loads instantly and needs no tiles, sprites or
-  // glyphs, which is all the accessible-surface assertions need.
+  // glyphs, which is all the accessible-surface assertions need. The glob
+  // covers both themes — `fiord*` is the dark pair, `positron*` the light one.
   const emptyStyle = JSON.stringify({ version: 8, sources: {}, layers: [] })
-  await page.route('**/assets/fiord*.json', (route) => {
+  await page.route('**/assets/{fiord,positron}*.json', (route) => {
     void route.fulfill({ contentType: 'application/json', body: emptyStyle })
   })
 

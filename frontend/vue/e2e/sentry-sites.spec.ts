@@ -62,7 +62,7 @@ const BLANK_MAP_STYLE = {
 async function openMapWithSites(page: Page): Promise<void> {
   await clearPersistedState(page)
   await installDefaultMocks(page)
-  await page.route('**/assets/fiord*.json', (route) =>
+  await page.route('**/assets/{fiord,positron}*.json', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(BLANK_MAP_STYLE) }),
   )
   await page.route('**/api/sdr/sentry-hosts/locations', (route) =>
@@ -159,7 +159,7 @@ test.describe('Sentry sites on the map', () => {
     ]
     await clearPersistedState(page)
     await installDefaultMocks(page)
-    await page.route('**/assets/fiord*.json', (route) =>
+    await page.route('**/assets/{fiord,positron}*.json', (route) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(BLANK_MAP_STYLE) }),
     )
     await page.route('**/api/sdr/sentry-hosts/locations', (route) =>
