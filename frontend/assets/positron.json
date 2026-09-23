@@ -411,7 +411,7 @@
       ],
       "paint": {
         "fill-color": "rgb(230, 233, 229)",
-        "fill-opacity": 1
+        "fill-opacity": 0.35
       }
     },
     {
@@ -432,7 +432,7 @@
         false
       ],
       "paint": {
-        "line-color": "hsl(140, 17%, 76%)",
+        "line-color": "hsla(140, 12%, 66%, 0.45)",
         "line-dasharray": [
           2,
           2

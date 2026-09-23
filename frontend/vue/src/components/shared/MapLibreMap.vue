@@ -126,6 +126,11 @@ defineExpose({ getMap })
   background-color: #2d3548;
 }
 
+/* The same seam filler in the light theme's water colour. */
+:root[data-theme='light'] .map-container {
+  background-color: rgb(194, 200, 202);
+}
+
 #map {
   position: absolute;
   top: var(--nav-height);
@@ -135,6 +140,15 @@ defineExpose({ getMap })
 
 .maplibregl-canvas {
   filter: brightness(0.65) saturate(0.85);
+}
+
+/* The dimmer above exists to settle the dark basemap beneath the overlays.
+   The light basemap is already low-contrast, and dimming it drags near-white
+   land down to mid-grey and the sea to slate — the theme stops reading as
+   light at all. Keep only the slight desaturation, which is what stops the
+   basemap competing with the domain colours. */
+:root[data-theme='light'] .maplibregl-canvas {
+  filter: saturate(0.9);
 }
 
 .maplibregl-ctrl-group {
