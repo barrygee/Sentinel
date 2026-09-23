@@ -49,7 +49,7 @@ describe('SatRadioInfoSection', () => {
     expect(wrapper.find('.ba-data-cell-mode').exists()).toBe(false)
   })
 
-  it('renders the PACKET and NOTES line lists via splitNotes', () => {
+  it('renders the PACKET and NOTES line lists via splitNotes, collapsed', () => {
     const wrapper = mountSection({
       packet_info: 'APRS 1200bd; digipeater',
       radio_notes: 'Weekends only',
@@ -60,6 +60,10 @@ describe('SatRadioInfoSection', () => {
     expect(lines[0].findAll('li').map((item) => item.text())).toEqual(['APRS 1200bd', 'digipeater'])
     expect(lines[1].get('.sfr-acc-cell-label').text()).toBe('NOTES')
     expect(lines[1].get('li').text()).toBe('Weekends only')
+    // Each list sits behind its own disclosure, closed until asked for.
+    for (const line of lines) {
+      expect(line.get('button').attributes('aria-expanded')).toBe('false')
+    }
   })
 
   it('has no axe violations', async () => {
