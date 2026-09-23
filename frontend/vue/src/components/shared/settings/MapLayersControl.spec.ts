@@ -142,6 +142,61 @@ describe('MapLayersControl', () => {
     })
   })
 
+  describe('staging for APPLY CHANGES', () => {
+    // A flip applies at once, but must also stage a save — otherwise the panel's
+    // APPLY finds nothing pending and reports "NO CHANGES" after a real change.
+    it.each(['Airports', 'Location names', 'Terrain relief & contours'])(
+      'stages one save per flip of %s',
+      async (label) => {
+        const wrapper = mountControl()
+
+        await switchOf(wrapper, label).trigger('click')
+        await switchOf(wrapper, label).trigger('click')
+
+        const staged = wrapper.emitted('stage')!
+        expect(staged).toHaveLength(2)
+        expect(typeof staged[0]![0]).toBe('function')
+      },
+    )
+
+    it('does not stage anything until a switch is flipped', () => {
+      expect(mountControl().emitted('stage')).toBeUndefined()
+    })
+
+    it('writes the current state of both layer sets when the staged save runs', async () => {
+      const wrapper = mountControl()
+      await switchOf(wrapper, 'Airports').trigger('click')
+      await switchOf(wrapper, 'Location names').trigger('click')
+      // Ignore the immediate write each flip makes; only the staged one counts.
+      vi.mocked(settingsApi.put).mockClear()
+
+      const stagedSave = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<void>
+      await stagedSave()
+
+      expect(settingsApi.put).toHaveBeenCalledTimes(2)
+      expect(settingsApi.put).toHaveBeenCalledWith(
+        'air',
+        'mapLayers',
+        expect.objectContaining({ airports: false }),
+      )
+      expect(settingsApi.put).toHaveBeenCalledWith(
+        'app',
+        'mapLayers',
+        expect.objectContaining({ names: true }),
+      )
+    })
+
+    it('rejects when a write fails, so APPLY can report the error', async () => {
+      const wrapper = mountControl()
+      await switchOf(wrapper, 'Towers').trigger('click')
+      vi.mocked(settingsApi.put).mockRejectedValueOnce(new Error('offline'))
+
+      const stagedSave = wrapper.emitted('stage')![0]![0] as () => Promise<void>
+
+      await expect(stagedSave()).rejects.toThrow('offline')
+    })
+  })
+
   it('names every switch for assistive tech', () => {
     const wrapper = mountControl()
     for (const control of wrapper.findAll('[role="switch"]')) {

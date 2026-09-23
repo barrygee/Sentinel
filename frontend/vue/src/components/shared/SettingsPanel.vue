@@ -451,6 +451,14 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'air',
     sectionLabel: 'AIR',
+    id: 'air-offgrid-sdr-source',
+    label: 'Off Grid ADS-B SDR',
+    desc: 'Which Sentry SDR receives ADS-B. Held and tuned to 1090 MHz while AIR is open off grid',
+    type: 'adsb-sdr-source',
+  },
+  {
+    section: 'air',
+    sectionLabel: 'AIR',
     id: 'air-online-source',
     label: 'Online Data Source',
     desc: 'URL for live air data feed',
@@ -467,14 +475,6 @@ const ALL_SETTINGS: SettingItem[] = [
     type: 'offline-source',
     ns: 'air',
     defaultUrl: '',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-offgrid-sdr-source',
-    label: 'Off Grid SDR',
-    desc: 'Which Sentry SDR receives ADS-B. Held and tuned to 1090 MHz while AIR is open off grid',
-    type: 'adsb-sdr-source',
   },
   {
     section: 'space',

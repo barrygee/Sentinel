@@ -22,6 +22,10 @@
  *
  * `names` and `terrain` live on the shared basemap store because they describe
  * the base map every domain draws; the rest are Air overlays.
+ *
+ * A flip takes effect (and is saved) at once, but it also stages a re-save for
+ * APPLY CHANGES, as the Sea and Land tables do — otherwise APPLY finds nothing
+ * pending and reports "NO CHANGES" straight after the operator changed a layer.
  */
 import { useAirStore, type OverlayStates } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
@@ -50,6 +54,7 @@ const LAYER_ROWS: LabelFieldRow[] = [
 
 const airStore = useAirStore()
 const basemapStore = useBasemapStore()
+const emit = defineEmits<{ stage: [fn: () => Promise<void>] }>()
 
 function isLayerOn(_columnKey: string, layer: string): boolean {
   const key = layer as MapLayerKey
@@ -75,8 +80,13 @@ useDocumentEvent('sentinel:config-uploaded', () => void hydrateLayersFromDb())
 function toggleLayer(layer: MapLayerKey): void {
   if (layer === 'names' || layer === 'terrain') {
     basemapStore.setLayer(layer, !basemapStore.layers[layer])
-    return
+  } else {
+    airStore.setOverlay(layer, !airStore.overlayStates[layer])
   }
-  airStore.setOverlay(layer, !airStore.overlayStates[layer])
+  // One staged entry covers both layer sets, so any number of flips is a single
+  // idempotent write of the current state on APPLY.
+  emit('stage', async () => {
+    await Promise.all([airStore.persistMapLayers(), basemapStore.persistLayers()])
+  })
 }
 </script>
