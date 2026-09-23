@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { installDefaultMocks } from './support/mockApi'
@@ -99,9 +101,18 @@ test.describe('Live accessibility audit (axe-core, WCAG 2.2 AA)', () => {
     })
     await page.locator('#map-sidebar-rail .msb-rail-btn[data-tab="search"]').click()
     await expect(page.locator('#msb-pane-search.msb-pane-active')).toBeVisible()
+    // Read the expected value out of the stylesheet rather than hard-coding a
+    // grey: the light stack gets restacked from time to time, and a literal
+    // here would only ever catch that, never a palette that failed to apply.
+    const lightCanvas = readFileSync(
+      resolve(process.cwd(), '../../frontend/assets/template.css'),
+      'utf8',
+    ).match(/\.theme-light\s*\{[\s\S]*?--canvas-rgb:\s*([0-9]+),\s*([0-9]+),\s*([0-9]+)/)
+    expect(lightCanvas, 'the light palette should declare --canvas-rgb').not.toBeNull()
+
     await expect(page.locator('#map-sidebar')).toHaveCSS(
       'background-color',
-      'rgba(246, 246, 244, 0.98)',
+      `rgba(${lightCanvas?.[1]}, ${lightCanvas?.[2]}, ${lightCanvas?.[3]}, 0.98)`,
     )
 
     const results = await auditPage(page)

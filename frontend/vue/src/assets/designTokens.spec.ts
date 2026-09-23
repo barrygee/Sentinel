@@ -240,7 +240,17 @@ describe('semantic theme tokens', () => {
   it('leaves no colour literals in the retrofitted settings panel stylesheet', () => {
     // Every colour must come through the token layer, or the panel stops
     // tracking the palette the moment a token's value changes.
-    const literals = stripComments(settingsPanelCss).match(/#[0-9a-f]{3,8}\b|rgba?\(\s*[0-9]/gi)
+    //
+    // The exception is the panel's own palette block: it pins the greys it was
+    // designed against (`--canvas-rgb`, `--surface`…) so the app's light stack
+    // can be restacked around it without moving this island. Those lines ARE
+    // token declarations, so they are allowed to carry values; anything else
+    // must reference a token.
+    const literals = stripComments(settingsPanelCss)
+      .split('\n')
+      .filter((line) => !/^\s*--[a-z0-9-]+\s*:/.test(line))
+      .join('\n')
+      .match(/#[0-9a-f]{3,8}\b|rgba?\(\s*[0-9]/gi)
 
     expect(literals ?? []).toEqual([])
   })

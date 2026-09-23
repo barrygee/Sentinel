@@ -225,7 +225,7 @@ defineExpose({
   align-items: center;
   gap: 8px;
   background: rgba(var(--shadow-rgb), 0.5);
-  color: var(--rail-ink);
+  color: var(--overlay-ink);
   font-family: 'Barlow Condensed', 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 13px;
   font-weight: 400;

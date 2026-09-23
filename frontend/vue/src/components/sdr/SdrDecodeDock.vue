@@ -448,7 +448,7 @@ onUnmounted(() => document.removeEventListener('sentinel:sidebar-state', onSideb
 .sdr-decode-clear {
   --ba-icon-action-tooltip-offset: 8px;
   --ba-icon-action-tooltip-bg: rgba(var(--rail-rgb), 0.96);
-  --ba-icon-action-tooltip-color: var(--ink-strong);
+  --ba-icon-action-tooltip-color: var(--tooltip-ink);
   --ba-icon-action-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
   --ba-icon-action-tooltip-padding: 0 10px;
   --ba-icon-action-tooltip-height: 24px;

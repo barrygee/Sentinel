@@ -27,6 +27,14 @@
    ============================================================ */
 
 #settings-panel {
+  /* The app's light greys were restacked so the chrome, rails and panel read
+     as three layers; this panel keeps the palette it was designed against —
+     it is a fixed light island, not part of that stack. */
+  --canvas-rgb: 246, 246, 244;
+  --surface: #e8eaed;
+  --surface-sunken: #f1efe9;
+  --surface-sunken-hover: #e6e2d9;
+  --surface-pressed: #dcdfe3;
   /* Local alias for the shared hairline — a handful of settings components
      (BaseNumberSetting, OverheadAlertsControl) already consume this name. */
   --settings-field-line: var(--rule);
@@ -68,8 +76,11 @@
 #settings-sidebar {
   width: 48px;
   flex-shrink: 0;
-  background: var(--rail-bg);
-  border-right: 1px solid var(--rail-border);
+  /* `--surface`, not `--rail-bg`: the panel pins its own greys (above), and a
+     rail painted in the app's near-white would vanish against this canvas —
+     the surface grey keeps it reading as a strip. */
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding: 0;

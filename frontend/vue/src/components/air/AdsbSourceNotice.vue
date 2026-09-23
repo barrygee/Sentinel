@@ -49,7 +49,7 @@ const emit = defineEmits<{ takeControl: [] }>()
   border: none;
   border-radius: 0;
   background: var(--accent-ink);
-  color: var(--rail-ink);
+  color: var(--overlay-ink);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
