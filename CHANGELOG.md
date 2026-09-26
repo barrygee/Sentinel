@@ -175,6 +175,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Set the interface and the basemap palettes separately
 - Segmented INTERFACE and MAP rows, with a colour basemap
 - Drop the light interface, keep the map's three palettes
+- Remove live camera feeds and their settings **(breaking change)**
 
 ### Bug Fixes
 
@@ -1286,6 +1287,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #358 from barrygee/fix/light-chrome-grey
 - Merge pull request #359 from barrygee/feat/drop-light-interface
 - Merge pull request #360 from barrygee/chore/iss-radio-frequencies
+- Merge pull request #361 from barrygee/feat/remove-camera-feeds
 
 ### Refactoring
 
