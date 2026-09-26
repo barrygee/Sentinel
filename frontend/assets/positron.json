@@ -85,7 +85,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(230, 204, 207)",
+        "line-color": "rgb(168, 124, 131)",
         "line-dasharray": [
           2,
           2
@@ -1661,7 +1661,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(230, 204, 207)",
+        "line-color": "rgb(168, 124, 131)",
         "line-dasharray": [
           2,
           2
@@ -1713,7 +1713,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(230, 204, 207)",
+        "line-color": "rgb(168, 124, 131)",
         "line-dasharray": [
           2,
           2
@@ -1755,7 +1755,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(230, 204, 207)",
+        "line-color": "rgb(168, 124, 131)",
         "line-dasharray": [
           2,
           2
