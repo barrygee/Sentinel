@@ -277,5 +277,8 @@ function onStyleLoaded(m: Map) {
   _namesControl?.applyVisibility()
   _roadsControl?.applyVisibility()
   _terrainControl?.initLayers()
+  // setStyle drops the rings' sources and layers too; rebuild them so they
+  // survive a palette change and pick up that palette's stroke.
+  _rangeRingsControl?._initRings()
 }
 </script>

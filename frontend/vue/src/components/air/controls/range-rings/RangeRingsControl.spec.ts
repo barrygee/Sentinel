@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import * as maplibregl from 'maplibre-gl'
 import { RangeRingsControl } from './RangeRingsControl'
@@ -102,6 +102,10 @@ let airStore: AirStore
 beforeEach(() => {
   setActivePinia(createPinia())
   airStore = useAirStore()
+})
+
+afterEach(() => {
+  delete document.documentElement.dataset.mapTheme
 })
 
 describe('RangeRingsControl (Air specifics)', () => {
@@ -411,5 +415,62 @@ describe('RangeRingsControlBase.setOrigin', () => {
     control.onAdd(map.map) // deferred — no sources
     control.setOrigin(SENTRY)
     expect(map.setData.size).toBe(0)
+  })
+})
+
+describe('RangeRingsControlBase palette', () => {
+  interface PaintedLayer {
+    id: string
+    paint: Record<string, unknown>
+  }
+
+  // The paint block of the most recent addLayer call for `layerId`.
+  function paintOf(map: FakeMap, layerId: string): Record<string, unknown> {
+    const calls = map.addLayer.mock.calls.filter((call) => (call[0] as PaintedLayer).id === layerId)
+    return (calls.at(-1)![0] as PaintedLayer).paint
+  }
+
+  it.each(['light', 'colour'])(
+    'draws the rings, crosshair and label in black on the %s basemap, like the sat track',
+    (theme) => {
+      document.documentElement.dataset.mapTheme = theme
+      const control = new RangeRingsControl(airStore, SENTRY)
+      const map = fakeMap()
+      control.onAdd(map.map)
+
+      expect(paintOf(map, LAYER_ID)['line-color']).toBe('#000000')
+      expect(paintOf(map, ORIGIN_LAYER)['circle-stroke-color']).toBe('#000000')
+      expect(paintOf(map, ORIGIN_DOT_LAYER)['circle-color']).toBe('#000000')
+      expect(paintOf(map, LABEL_LAYER)).toMatchObject({
+        'text-color': '#000000',
+        'text-halo-color': '#ffffff',
+      })
+    },
+  )
+
+  it('keeps the faint white rings on the dark basemap', () => {
+    document.documentElement.dataset.mapTheme = 'dark'
+    const control = new RangeRingsControl(airStore, SENTRY)
+    const map = fakeMap()
+    control.onAdd(map.map)
+
+    expect(paintOf(map, LAYER_ID)['line-color']).toBe('rgba(255,255,255,0.40)')
+    expect(paintOf(map, ORIGIN_LAYER)['circle-stroke-color']).toBe('rgba(255,255,255,0.40)')
+    expect(paintOf(map, ORIGIN_DOT_LAYER)['circle-color']).toBe('rgba(255,255,255,0.40)')
+    expect(paintOf(map, LABEL_LAYER)).toMatchObject({
+      'text-color': 'rgba(255,255,255,0.65)',
+      'text-halo-color': '#000000',
+    })
+  })
+
+  it('re-reads the palette when a style reload rebuilds the rings', () => {
+    document.documentElement.dataset.mapTheme = 'dark'
+    const control = new RangeRingsControl(airStore, SENTRY)
+    const map = fakeMap()
+    control.onAdd(map.map)
+
+    document.documentElement.dataset.mapTheme = 'colour'
+    control._initRings()
+    expect(paintOf(map, LAYER_ID)['line-color']).toBe('#000000')
   })
 })

@@ -2,6 +2,7 @@ import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import { buildRingsGeoJSON, RING_DISTANCES_NM } from '@/utils/rangeRings'
 import type { ResolvedRingOrigin } from '@/composables/useRangeRingOrigin'
+import { isBrightBasemap, overlayAccentColor } from '@/utils/mapTheme'
 
 /**
  * The shared behaviour of every domain's range-rings control: concentric
@@ -19,8 +20,8 @@ import type { ResolvedRingOrigin } from '@/composables/useRangeRingOrigin'
  * centre would be a measurement of nothing.
  */
 export abstract class RangeRingsControlBase extends SentinelControlBase {
-  /** Stroke of the rings themselves, and of the origin crosshair. */
-  private static readonly STROKE = 'rgba(255,255,255,0.40)'
+  /** Stroke of the rings and origin crosshair on the dark basemap. */
+  private static readonly DARK_STROKE = 'rgba(255,255,255,0.40)'
 
   /** Whether the operator has the rings switched on for this map. */
   ringsVisible: boolean
@@ -101,6 +102,11 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
 
   /** Build the source data + layers for this map's style. Re-run on style reload. */
   _initRings(): void {
+    // Faint white disappears on the light and colour basemaps, so there the
+    // rings take the same black as the satellite ground track. Read here
+    // because a palette change reloads the style and re-runs this method.
+    const brightBasemap = isBrightBasemap()
+    const stroke = brightBasemap ? overlayAccentColor() : RangeRingsControlBase.DARK_STROKE
     for (const id of [this.labelLayerId, this.originDotLayerId, this.originLayerId, this.layerId]) {
       if (this.map.getLayer(id)) this.map.removeLayer(id)
     }
@@ -115,7 +121,7 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       source: this.layerId,
       layout: { visibility: 'none' },
       paint: {
-        'line-color': RangeRingsControlBase.STROKE,
+        'line-color': stroke,
         'line-width': 1,
         'line-dasharray': [4, 4],
       },
@@ -132,7 +138,7 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       paint: {
         'circle-radius': 5,
         'circle-color': 'rgba(0,0,0,0)',
-        'circle-stroke-color': RangeRingsControlBase.STROKE,
+        'circle-stroke-color': stroke,
         'circle-stroke-width': 1.2,
       },
     })
@@ -141,7 +147,7 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       type: 'circle',
       source: this.originLayerId,
       layout: { visibility: 'none' },
-      paint: { 'circle-radius': 1.6, 'circle-color': RangeRingsControlBase.STROKE },
+      paint: { 'circle-radius': 1.6, 'circle-color': stroke },
     })
 
     // One label per ring would repeat the same fact five times, so only the
@@ -166,8 +172,8 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
         'text-offset': [0, -0.9],
       },
       paint: {
-        'text-color': 'rgba(255,255,255,0.65)',
-        'text-halo-color': '#000000',
+        'text-color': brightBasemap ? '#000000' : 'rgba(255,255,255,0.65)',
+        'text-halo-color': brightBasemap ? '#ffffff' : '#000000',
         'text-halo-width': 1,
       },
     })
