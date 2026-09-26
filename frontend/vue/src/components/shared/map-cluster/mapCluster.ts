@@ -79,8 +79,8 @@ export function groupByProximity<TPoint extends ClusterablePoint>(
  * Gather points into groups by the screen-space grid cell they fall in.
  *
  * The complement to `groupByProximity`. Single-linkage is right for a few
- * huddles of markers, but on a dense lattice — 890 London traffic cameras a
- * few pixels apart — every point bridges to the next and the whole city
+ * huddles of markers, but on a dense lattice — hundreds of markers across a
+ * city a few pixels apart — every point bridges to the next and the whole city
  * collapses into one count. Bucketing by a fixed cell instead keeps each group
  * to roughly one marker's footprint, so a busy borough reads as a spread of
  * counts that split as you zoom, and it is O(n) rather than O(n²).

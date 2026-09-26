@@ -12,7 +12,7 @@ import type {
   RepeaterStation,
   RepeaterStatusFilter,
 } from '@/types/repeaters'
-import type { ViewportBounds } from '@/stores/landFeeds'
+import type { ViewportBounds } from '@/types/viewport'
 
 /** Everything shown: no band or mode narrowing, off-air sites included. */
 const DEFAULT_FILTERS: RepeaterFilters = { bands: [], modes: [], status: 'all' }

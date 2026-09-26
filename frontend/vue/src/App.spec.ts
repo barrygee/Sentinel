@@ -347,14 +347,13 @@ describe('App', () => {
       expect(sidebarSpies.switchTab).toHaveBeenCalledWith('search')
     })
 
-    it.each(['land-open-camera', 'land-open-repeater'])(
-      'opens the search tab on %s, so the clicked marker’s row is on screen',
-      (eventName) => {
-        mountApp()
-        document.dispatchEvent(new CustomEvent(eventName, { detail: { featureId: 'tfl:1' } }))
-        expect(sidebarSpies.switchTab).toHaveBeenCalledExactlyOnceWith('search')
-      },
-    )
+    it('opens the search tab on land-open-repeater, so the clicked marker’s row is on screen', () => {
+      mountApp()
+      document.dispatchEvent(
+        new CustomEvent('land-open-repeater', { detail: { callsign: 'GB3NR' } }),
+      )
+      expect(sidebarSpies.switchTab).toHaveBeenCalledExactlyOnceWith('search')
+    })
   })
 
   describe('footer ↔ sidebar wiring', () => {

@@ -19,14 +19,8 @@
     </template>
     <template #accordion="{ item }">
       <div class="land-filter-accordion">
-        <LandCameraDetails
-          v-if="cameraFor(item.key)"
-          :camera="cameraFor(item.key)!"
-          :refresh-seconds="refreshSecondsFor(cameraFor(item.key)!.properties.sourceId)"
-          @preview="previewCamera"
-        />
         <LandRepeaterDetails
-          v-else-if="repeaterFor(item.key)"
+          v-if="repeaterFor(item.key)"
           :station="repeaterFor(item.key)!"
           :sdr-connected="sdrStore.connected"
           :is-saved="isFrequencySaved"
@@ -114,15 +108,12 @@
  *
  * - APRS STATIONS — every station currently heard, showing every field the
  *   beacon carried rather than only those enabled for map labels.
- * - one heading per traffic-camera source (TfL JamCams, Durham CC, …) — the
- *   cameras in the map's viewport, with the in-view count and licence line,
- *   expanding to `LandCameraDetails` (the live still).
  * - REPEATERS — every filtered UK repeater (ukrepeater.net) in the viewport,
  *   expanding to `LandRepeaterDetails`, with BAND/MODE/STATUS chips above the
  *   search box that narrow the map and the list together.
  *
  * Each list tracks the map exactly: it renders the same snapshot the map
- * plots, so a station that ages out, a camera whose feed is disabled or a
+ * plots, so a station that ages out or a
  * repeater filtered away leaves both at the same moment. Clicking a marker on
  * the map expands its row here — the pane holds all the detail; nothing
  * opens on the map itself.
@@ -135,7 +126,6 @@ import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
 import BaseDataCell from '@/components/base/BaseDataCell.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
 import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
-import LandCameraDetails from '@/components/land/LandCameraDetails.vue'
 import LandRepeaterFilters from '@/components/land/LandRepeaterFilters.vue'
 import LandRepeaterDetails from '@/components/land/LandRepeaterDetails.vue'
 import { useRepeatersStore } from '@/stores/repeaters'
@@ -156,15 +146,11 @@ import {
 } from '@/constants/repeaters'
 import type { RepeaterStation } from '@/types/repeaters'
 import { useLandStore, type AprsStation } from '@/stores/land'
-import { useLandFeedsStore } from '@/stores/landFeeds'
 import { useSdrStore } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { RepeaterFrequencySide } from '@/components/land/LandRepeaterDetails.vue'
 import { REPEATER_LOCATE_EVENT } from '@/components/land/controls/repeaters/RepeatersControl'
-import { CAMERA_PREVIEW_EVENT } from '@/components/land/controls/traffic-cameras/TrafficCamerasControl'
 import type { RepeaterChannel } from '@/types/repeaters'
-import { useVisibleCameras } from '@/composables/useVisibleCameras'
-import type { CameraFeature } from '@/types/landFeeds'
 import { aprsSymbolIcon } from '@/utils/aprsSymbols'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import {
@@ -175,16 +161,9 @@ import {
 } from './controls/aprs/AprsStationsControl'
 
 const landStore = useLandStore()
-const landFeedsStore = useLandFeedsStore()
 const repeatersStore = useRepeatersStore()
 const sdrStore = useSdrStore()
 const notificationsStore = useNotificationsStore()
-const { sources: cameraSources, cameraById } = useVisibleCameras()
-
-/** Whether cameras take part in this pane at all (layer on + a source enabled). */
-const camerasOn = computed(
-  () => landStore.trafficCamerasLayerVisible && cameraSources.value.length > 0,
-)
 
 /** Whether repeaters take part in this pane (layer on + directory loaded). */
 const repeatersOn = computed(
@@ -195,7 +174,6 @@ const repeatersOn = computed(
 const listedSets = computed<string[]>(() => {
   const sets: string[] = []
   if (landStore.aprsLayerVisible) sets.push('APRS stations')
-  if (camerasOn.value) sets.push('traffic cameras')
   if (repeatersOn.value) sets.push('repeaters')
   return sets
 })
@@ -209,9 +187,8 @@ const inputLabel = computed(() => {
 })
 const placeholder = computed(() => {
   const parts = ['CALLSIGN']
-  if (camerasOn.value) parts.push('CAMERA', 'ROAD')
   if (repeatersOn.value) parts.push('TOWN', 'BAND', 'MODE')
-  if (!camerasOn.value && !repeatersOn.value) parts.push('SYMBOL', 'PATH', 'COMMENT')
+  if (!repeatersOn.value) parts.push('SYMBOL', 'PATH', 'COMMENT')
   return parts.join(' · ')
 })
 
@@ -252,39 +229,6 @@ const matchingStations = computed<AprsStation[]>(() => {
   )
 })
 
-/** Element-id-safe token for a camera key ("durham-cc:dutmc_24" has a colon). */
-function cameraIdToken(featureId: string): string {
-  return `cam-${featureId.replace(/[^A-Za-z0-9_-]/g, '-')}`
-}
-
-function cameraMatches(camera: CameraFeature, needle: string): boolean {
-  const { name, view, sourceName, description } = camera.properties
-  return [name, view ?? '', sourceName, description].join(' ').toLowerCase().includes(needle)
-}
-
-/** One grouped row per in-view camera, per source. */
-const cameraItems = computed<FilterPanelItem[]>(() => {
-  if (!camerasOn.value) return []
-  const needle = landStore.searchQuery.trim().toLowerCase()
-  return cameraSources.value.flatMap((source) => {
-    const matching = needle
-      ? source.visible.filter((camera) => cameraMatches(camera, needle))
-      : source.visible
-    return matching.map((camera) => ({
-      key: camera.properties.id,
-      idKey: cameraIdToken(camera.properties.id),
-      primary: camera.properties.name,
-      secondary: [camera.properties.view, camera.properties.state.toUpperCase()]
-        .filter((part): part is string => Boolean(part))
-        .join(' · '),
-      optionLabel: `Traffic camera ${camera.properties.name}, ${source.feed.name}, ${camera.properties.state}`,
-      // Heading only: the count and the licence line are left off so each
-      // source folds into one clean row.
-      groupLabel: source.feed.name,
-    }))
-  })
-})
-
 /** Callsign, town, bands and modes — what an operator would search a repeater by. */
 function repeaterMatches(station: RepeaterStation, needle: string): boolean {
   return [
@@ -322,7 +266,7 @@ const repeaterItems = computed<FilterPanelItem[]>(() => {
 })
 
 const items = computed<FilterPanelItem[]>(() => {
-  const grouped = camerasOn.value || repeatersOn.value
+  const grouped = repeatersOn.value
   const stationItems: FilterPanelItem[] = matchingStations.value.map((station) => ({
     key: station.callsign,
     primary: station.callsign,
@@ -332,15 +276,14 @@ const items = computed<FilterPanelItem[]>(() => {
     // they read as they always have.
     groupLabel: grouped ? 'APRS STATIONS' : undefined,
   }))
-  return [...stationItems, ...cameraItems.value, ...repeaterItems.value]
+  return [...stationItems, ...repeaterItems.value]
 })
 
 const emptyMessage = computed(() => {
   if (listedSets.value.length === 0) return 'No layers on — use the tabs to add one'
-  if (camerasOn.value || repeatersOn.value) {
-    const anyCameraVisible = cameraSources.value.some((source) => source.visible.length > 0)
+  if (repeatersOn.value) {
     const anyRepeaterVisible = repeatersStore.visibleStations.length > 0
-    if (!landStore.aprsLayerVisible && !anyCameraVisible && !anyRepeaterVisible) {
+    if (!landStore.aprsLayerVisible && !anyRepeaterVisible) {
       return `Nothing in view — ${joinSets(listedSets.value)}`
     }
     return 'Nothing matches'
@@ -348,24 +291,9 @@ const emptyMessage = computed(() => {
   return landStore.aprsStations.length === 0 ? 'No APRS stations heard' : 'No stations match'
 })
 
-/** Camera keys are "feedId:ref"; APRS callsigns never carry a colon, and
- *  repeater keys carry their own prefix (checked first). */
-function isCameraKey(key: string): boolean {
-  return repeaterCallsignFromSearchKey(key) === null && key.includes(':')
-}
-
 function repeaterFor(key: string): RepeaterStation | undefined {
   const callsign = repeaterCallsignFromSearchKey(key)
   return callsign === null ? undefined : repeatersStore.stationByCallsign(callsign)
-}
-
-function cameraFor(key: string): CameraFeature | undefined {
-  return isCameraKey(key) ? cameraById(key) : undefined
-}
-
-/** The camera's feed cadence — undefined lets `LandCameraDetails` apply its default. */
-function refreshSecondsFor(feedId: string): number | undefined {
-  return landFeedsStore.feeds.find((feed) => feed.id === feedId)?.refreshSeconds
 }
 
 function stationFor(callsign: string): AprsStation | undefined {
@@ -422,11 +350,6 @@ function tuneRepeater(
     title: `${station.callsign} ${channel.band} ${side.toUpperCase()}`,
     detail: `Tuned ${formatMhz(mhz)} ${REPEATER_SDR_MODE}${digital ? ' · digital decode on' : ''}`,
   })
-}
-
-/** A row's preview still clicked — fly the map to the camera and open its popup. */
-function previewCamera(featureId: string): void {
-  document.dispatchEvent(new CustomEvent(CAMERA_PREVIEW_EVENT, { detail: { featureId } }))
 }
 
 /** LAT/LONG clicked in an expanded row — fly the map to the site, zoomed out of any count. */
@@ -501,8 +424,8 @@ async function removeRepeaterFrequency(
 
 // A station clicked on the map expands here. The sidebar tab switch is App.vue's
 // job (it owns the sidebar); this side only has to open the right row. (The
-// camera and repeater controls set the row on the store themselves before
-// firing their open events.)
+// repeater control sets the row on the store itself before firing its open
+// event.)
 useDocumentEvent('aprs-station-selected', (event: Event) => {
   const { callsign } = (event as CustomEvent<{ callsign: string }>).detail
   landStore.setSearchExpandedCallsign(callsign)
@@ -514,11 +437,10 @@ watch(
   () => landStore.aprsStations,
   (stations) => {
     const expanded = landStore.searchExpandedCallsign
-    // Camera and repeater rows share this expanded-key slot; an APRS poll
-    // must not shut one.
+    // Repeater rows share this expanded-key slot; an APRS poll must not shut
+    // one.
     if (
       expanded &&
-      !isCameraKey(expanded) &&
       repeaterCallsignFromSearchKey(expanded) === null &&
       !stations.some((station) => station.callsign === expanded)
     ) {
@@ -537,19 +459,6 @@ watch(
     const callsign = repeaterCallsignFromSearchKey(expanded)
     if (callsign === null) return
     if (!layerOn || !filtered.some((station) => station.callsign === callsign)) {
-      landStore.setSearchExpandedCallsign('')
-    }
-  },
-)
-
-// The same courtesy for cameras: collapse a camera row whose camera has left
-// the feed (or whose feed was disabled), so the pane never holds an expanded
-// row for something no longer on the map.
-watch(
-  () => cameraSources.value,
-  () => {
-    const expanded = landStore.searchExpandedCallsign
-    if (expanded && isCameraKey(expanded) && !cameraById(expanded)) {
       landStore.setSearchExpandedCallsign('')
     }
   },

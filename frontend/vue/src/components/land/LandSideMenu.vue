@@ -1,7 +1,7 @@
 <template>
   <!-- Fixed icon rail pinned to the right edge, mirroring the Air and Space side
        menus — zoom, location, then the MAP LAYERS accordion. The data layers
-       (APRS, cameras, repeaters) are chosen as lists from the left sidebar's
+       (APRS, repeaters) are chosen as lists from the left sidebar's
        FILTER sub-tabs and switched on/off in Settings › LAND › Map Layers, and
        place names are a Settings switch too, so this rail holds only map
        navigation and annotation.

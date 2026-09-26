@@ -250,8 +250,8 @@ describe('AprsStationsControl', () => {
       const { control } = addControl()
       expect(buttonState(control)).toEqual({ color: 'rgb(200, 255, 0)', opacity: '1' })
 
-      // Land draws one layer at a time, so choosing cameras turns APRS off.
-      store.selectLayer('trafficCameras')
+      // Land draws one layer at a time, so choosing repeaters turns APRS off.
+      store.selectLayer('repeaters')
       await nextTick()
 
       expect(buttonState(control)).toEqual({ color: 'rgb(255, 255, 255)', opacity: '0.3' })

@@ -217,7 +217,6 @@ useDocumentEvent('open-space-search', () => sidebarRef.value?.switchTab('search'
 // Clicking an APRS station on the Land map opens its details in the FILTER pane
 // (LandFilter expands the matching row).
 useDocumentEvent('aprs-station-selected', () => sidebarRef.value?.switchTab('search'))
-useDocumentEvent('land-open-camera', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('land-open-repeater', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('sea-open-vessel', () => sidebarRef.value?.switchTab('search'))
 useDocumentEvent('sea-open-port', () => sidebarRef.value?.switchTab('search'))

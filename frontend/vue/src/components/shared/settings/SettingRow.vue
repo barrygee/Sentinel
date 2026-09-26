@@ -151,10 +151,6 @@
       v-else-if="item.type === 'land-map-layers'"
       @stage="emit('stage', item.id, $event)"
     />
-    <LandFeedsControl
-      v-else-if="item.type === 'land-feeds'"
-      @stage="emit('stage', item.id, $event)"
-    />
     <SentryHostsControl v-else-if="item.type === 'sdr-sentry-hosts'" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
     <SdrOptionsControl
@@ -224,7 +220,6 @@ import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import LandMapLayersControl from './LandMapLayersControl.vue'
-import LandFeedsControl from './LandFeedsControl.vue'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
@@ -265,7 +260,6 @@ const HALF_TYPES = new Set([
   'sea-coverage-area',
   'sea-label-fields',
   'land-map-layers',
-  'land-feeds',
 ])
 // Two columns wide, but each starting a fresh row, so the SDR pair stacks
 // rather than sitting shoulder to shoulder.

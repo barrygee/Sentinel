@@ -641,23 +641,9 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'land',
     sectionLabel: 'LAND',
-    id: 'land-feeds',
-    label: 'Live Camera Feeds',
-    // The LIVE CAMERA FEEDS group heading already introduces this card, so its
-    // own title stays for screen readers only and it carries no description.
-    hideLabel: true,
-    desc: '',
-    searchTerms:
-      'traffic cameras durham tfl jamcams webcams live feeds snapshot api key credential',
-    type: 'land-feeds',
-    groupLabel: 'LIVE CAMERA FEEDS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
     id: 'land-map-layers',
     label: 'Map Layers',
-    desc: 'Base-map overlays on the Land map. The data layer itself (APRS stations, traffic cameras or repeaters) is chosen from the tabs beneath FILTER in the side panel.',
+    desc: 'Base-map overlays on the Land map. The data layer itself (APRS stations or repeaters) is chosen from the tabs beneath FILTER in the side panel.',
     searchTerms: 'location names place names overlays',
     type: 'land-map-layers',
     groupLabel: 'MAP',

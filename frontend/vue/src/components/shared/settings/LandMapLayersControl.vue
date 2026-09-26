@@ -14,7 +14,7 @@
 /**
  * Settings > LAND > Map Layers — the shared base-map switches for the Land map.
  *
- * The data layers (APRS stations, traffic cameras, repeaters) are deliberately
+ * The data layers (APRS stations, repeaters) are deliberately
  * not here: the map draws one at a time and that choice is the sidebar's tabs
  * beneath FILTER (`landStore.selectLayer`, saved as `land.defaultLayers`).
  * Location names is the shared base-map layer (`app.mapLayers.names`) — the

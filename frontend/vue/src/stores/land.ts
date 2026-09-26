@@ -49,7 +49,7 @@ export type AprsLabelField = keyof AprsLabelFieldMap
  * layer is hundreds to thousands of DOM markers and stacking them buries the
  * map. Order is the fallback priority when a saved config lists several.
  */
-export const LAND_LAYERS = ['aprs', 'trafficCameras', 'repeaters'] as const
+export const LAND_LAYERS = ['aprs', 'repeaters'] as const
 export type LandLayer = (typeof LAND_LAYERS)[number]
 
 export function isLandLayer(value: unknown): value is LandLayer {
@@ -136,11 +136,6 @@ export const useLandStore = defineStore('land', () => {
     aprsLayerVisible.value = visible
   }
 
-  const trafficCamerasLayerVisible = ref(false)
-  function setTrafficCamerasLayerVisible(visible: boolean): void {
-    trafficCamerasLayerVisible.value = visible
-  }
-
   // The UK repeater directory itself lives in the `repeaters` store.
   const repeatersLayerVisible = ref(false)
   function setRepeatersLayerVisible(visible: boolean): void {
@@ -150,7 +145,6 @@ export const useLandStore = defineStore('land', () => {
   /** The layer currently drawn, or null when none is (e.g. APRS with no receiver). */
   const activeLayer = computed<LandLayer | null>(() => {
     if (aprsLayerVisible.value) return 'aprs'
-    if (trafficCamerasLayerVisible.value) return 'trafficCameras'
     if (repeatersLayerVisible.value) return 'repeaters'
     return null
   })
@@ -159,7 +153,6 @@ export const useLandStore = defineStore('land', () => {
    *  Settings picker both come through here. */
   function selectLayer(layer: LandLayer): void {
     aprsLayerVisible.value = layer === 'aprs'
-    trafficCamerasLayerVisible.value = layer === 'trafficCameras'
     repeatersLayerVisible.value = layer === 'repeaters'
   }
 
@@ -199,7 +192,10 @@ export const useLandStore = defineStore('land', () => {
    */
   function narrowToOneLayer(layers: unknown[]): string[] {
     const chosen = LAND_LAYERS.find((layer) => layers.includes(layer))
-    return chosen ? [chosen] : []
+    if (chosen) return [chosen]
+    // A saved layer that no longer exists (traffic cameras, since removed)
+    // falls back to the default rather than leaving the map blank.
+    return layers.length > 0 ? ['repeaters'] : []
   }
 
   /**
@@ -263,8 +259,6 @@ export const useLandStore = defineStore('land', () => {
     setAprsLabelFields,
     aprsLayerVisible,
     setAprsLayerVisible,
-    trafficCamerasLayerVisible,
-    setTrafficCamerasLayerVisible,
     repeatersLayerVisible,
     setRepeatersLayerVisible,
     activeLayer,
