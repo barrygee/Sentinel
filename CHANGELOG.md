@@ -405,6 +405,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the settings panel light when the app is dark
 - Mock the API in the light-theme audit so the rail renders
 - Restack the light greys and keep map ink white
+- Lighter chrome, matching map bar, vibrant colour basemap
 
 ### Chores
 
@@ -1280,6 +1281,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #355 from barrygee/feat/light-theme-greys
 - Merge pull request #356 from barrygee/feat/separate-map-theme
 - Merge pull request #357 from barrygee/feat/theme-segmented-controls
+- Merge pull request #358 from barrygee/fix/light-chrome-grey
 
 ### Refactoring
 
