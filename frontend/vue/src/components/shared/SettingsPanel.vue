@@ -10,15 +10,12 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <!-- The panel itself is a fixed light island, but this rail follows the
-         APP's interface palette: charcoal while the app is dark, light when
-         the app is light, so it matches the rails outside the panel. -->
+    <!-- The panel is a light island; `theme-dark` keeps its rail charcoal, so
+         it matches the app's rails outside the panel. -->
     <div
       id="settings-sidebar"
-      :class="{
-        'settings-sidebar--collapsed': !store.sidebarOpen,
-        'theme-dark': !theme.isLight,
-      }"
+      class="theme-dark"
+      :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }"
     >
       <BaseIconButton
         v-for="s in visibleSections"
@@ -294,7 +291,6 @@ import RadioIcon from '@/components/shared/RadioIcon.vue'
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
-import { useThemeStore } from '@/stores/theme'
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@/types/settings'
 import SettingRow from './settings/SettingRow.vue'
@@ -307,8 +303,6 @@ import BaseIconButton from '@/components/base/BaseIconButton.vue'
 export type { SettingItem }
 
 const store = useSettingsStore()
-// The panel's own rail follows the app's interface palette (see the template).
-const theme = useThemeStore()
 const appStore = useAppStore()
 
 const activeSection = ref('app')
@@ -370,15 +364,6 @@ const ALL_SETTINGS: SettingItem[] = [
     label: 'Notification Sound',
     desc: 'Play a subtle blip when a new alert or notification arrives',
     type: 'notification-sound',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'theme',
-    label: 'Interface',
-    desc: 'The palette the panels, rails and chrome are drawn in',
-    searchTerms: 'theme light dark mode palette appearance interface ui colour color',
-    type: 'theme',
   },
   {
     section: 'app',

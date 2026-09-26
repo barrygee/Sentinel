@@ -32,122 +32,26 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('theme store defaults', () => {
-  it('starts dark and publishes that on the document element', () => {
-    expect(useThemeStore().theme).toBe('dark')
-    expect(useThemeStore().isLight).toBe(false)
+describe('theme store interface palette', () => {
+  it('is dark, and publishes that on the document element', () => {
+    const store = useThemeStore()
+    expect(store.theme).toBe('dark')
     expect(themeAttribute()).toBe('dark')
   })
 
-  it('restores a persisted light theme and publishes it', () => {
+  it('stays dark whatever the old light-theme key says', () => {
+    // The light interface was dropped; an install that had it switched on
+    // still has the key, and must not resurrect a palette the app no longer
+    // ships a control for.
     localStorage.setItem(LS_KEY, JSON.stringify('light'))
-    setActivePinia(createPinia())
-    expect(useThemeStore().theme).toBe('light')
-    expect(useThemeStore().isLight).toBe(true)
-    expect(themeAttribute()).toBe('light')
-  })
-
-  it('falls back to dark when the persisted value is not a known theme', () => {
-    localStorage.setItem(LS_KEY, JSON.stringify('solarized'))
-    setActivePinia(createPinia())
-    expect(useThemeStore().theme).toBe('dark')
-    expect(themeAttribute()).toBe('dark')
-  })
-})
-
-describe('theme store setTheme', () => {
-  it('switches to light, persists it, and republishes the attribute', async () => {
     const store = useThemeStore()
-    store.setTheme('light')
-    await nextTick()
-    expect(store.theme).toBe('light')
-    expect(store.isLight).toBe(true)
-    expect(persisted()).toBe(JSON.stringify('light'))
-    expect(themeAttribute()).toBe('light')
-  })
-
-  it('switches back to dark', async () => {
-    const store = useThemeStore()
-    store.setTheme('light')
-    await nextTick()
-    store.setTheme('dark')
-    await nextTick()
     expect(store.theme).toBe('dark')
     expect(themeAttribute()).toBe('dark')
   })
-})
 
-describe('theme store setLightTheme', () => {
-  it.each([
-    [true, 'light'],
-    [false, 'dark'],
-  ] as const)('maps the %s flag onto the %s theme', async (flag, expected) => {
-    const store = useThemeStore()
-    store.setLightTheme(flag)
-    await nextTick()
-    expect(store.theme).toBe(expected)
-    expect(themeAttribute()).toBe(expected)
-  })
-})
-
-describe('theme store hydrateLightTheme', () => {
-  it('adopts a true flag from the config database', async () => {
-    const store = useThemeStore()
-    store.hydrateLightTheme(true)
-    await nextTick()
-    expect(store.theme).toBe('light')
-  })
-
-  it('adopts a false flag, overriding a locally restored light theme', async () => {
-    localStorage.setItem(LS_KEY, JSON.stringify('light'))
-    setActivePinia(createPinia())
-    const store = useThemeStore()
-    store.hydrateLightTheme(false)
-    await nextTick()
-    expect(store.theme).toBe('dark')
-  })
-
-  it.each([[undefined], [null], ['light'], [1]])(
-    'ignores the non-boolean value %s and keeps the restored theme',
-    async (remote) => {
-      localStorage.setItem(LS_KEY, JSON.stringify('light'))
-      setActivePinia(createPinia())
-      const store = useThemeStore()
-      store.hydrateLightTheme(remote)
-      await nextTick()
-      expect(store.theme).toBe('light')
-    },
-  )
-})
-
-describe('theme store hydrateLightThemeFromDb', () => {
-  it('adopts the flag the settings endpoint reports', async () => {
-    stubFetch({ lightTheme: true })
-    const store = useThemeStore()
-    await store.hydrateLightThemeFromDb()
-    expect(fetch).toHaveBeenCalledWith('/api/settings/app')
-    expect(store.theme).toBe('light')
-  })
-
-  it('keeps the current theme when the endpoint fails', async () => {
-    stubFetch({ lightTheme: true }, false)
-    const store = useThemeStore()
-    await store.hydrateLightThemeFromDb()
-    expect(store.theme).toBe('dark')
-  })
-
-  it('keeps the current theme when the request throws (offline)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
-    const store = useThemeStore()
-    await store.hydrateLightThemeFromDb()
-    expect(store.theme).toBe('dark')
-  })
-
-  it('keeps the current theme when the key is absent from the namespace', async () => {
-    stubFetch({})
-    const store = useThemeStore()
-    await store.hydrateLightThemeFromDb()
-    expect(store.theme).toBe('dark')
+  it('does not write the retired key back', () => {
+    useThemeStore()
+    expect(persisted()).toBeNull()
   })
 })
 
@@ -159,25 +63,15 @@ describe('theme store map theme', () => {
     expect(document.documentElement.dataset.mapTheme).toBe('dark')
   })
 
-  it('seeds from the interface theme when it has no key of its own', () => {
-    // The upgrade path: before the split, one switch drove both, so an
-    // operator running the light theme was looking at a light map. Seeding
-    // keeps that view through the first load after the split.
+  it('restores its own persisted value, ignoring the retired interface key', () => {
     localStorage.setItem(LS_KEY, JSON.stringify('light'))
+    localStorage.setItem(MAP_LS_KEY, JSON.stringify('colour'))
     const store = useThemeStore()
-    expect(store.mapTheme).toBe('light')
-    expect(document.documentElement.dataset.mapTheme).toBe('light')
+    expect(store.mapTheme).toBe('colour')
+    expect(store.theme).toBe('dark')
   })
 
-  it('prefers its own persisted value over the interface theme', () => {
-    localStorage.setItem(LS_KEY, JSON.stringify('light'))
-    localStorage.setItem(MAP_LS_KEY, JSON.stringify('dark'))
-    const store = useThemeStore()
-    expect(store.theme).toBe('light')
-    expect(store.mapTheme).toBe('dark')
-  })
-
-  it('switches independently of the interface, persisting its own key', async () => {
+  it('switches without touching the interface, persisting its own key', async () => {
     const store = useThemeStore()
     store.setMapTheme('light')
     await nextTick()
@@ -185,8 +79,7 @@ describe('theme store map theme', () => {
     expect(store.mapTheme).toBe('light')
     expect(document.documentElement.dataset.mapTheme).toBe('light')
     expect(localStorage.getItem(MAP_LS_KEY)).toBe(JSON.stringify('light'))
-    // The interface is untouched — and its key is never written, because
-    // nothing changed it (the store persists on change, not on creation).
+    // The interface is fixed dark and has no key to write.
     expect(store.theme).toBe('dark')
     expect(themeAttribute()).toBe('dark')
     expect(persisted()).toBeNull()
@@ -201,12 +94,13 @@ describe('theme store map theme', () => {
   })
 
   it('adopts a flag from the config database, and ignores a missing one', () => {
-    localStorage.setItem(LS_KEY, JSON.stringify('light'))
+    localStorage.setItem(MAP_LS_KEY, JSON.stringify('light'))
     const store = useThemeStore()
     expect(store.mapTheme).toBe('light')
 
-    // A config written before the split has no map key at all; leaving the
-    // seeded value alone is what stops the basemap flipping under the operator.
+    // A config written before the map had its own control has no key at all;
+    // leaving the restored value alone is what stops the basemap flipping
+    // under the operator.
     store.hydrateLightMapTheme(undefined)
     expect(store.mapTheme).toBe('light')
 

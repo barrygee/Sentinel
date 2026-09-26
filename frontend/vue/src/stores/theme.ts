@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { usePersistedRef } from './_persist'
 
 /**
@@ -16,10 +16,16 @@ export type AppTheme = 'dark' | 'light'
  */
 export type MapTheme = 'dark' | 'light' | 'colour'
 
-const LS_KEY = 'sentinel_theme'
 const MAP_LS_KEY = 'sentinel_map_theme'
 
-const DEFAULT_THEME: AppTheme = 'dark'
+/**
+ * The interface palette. Fixed: Sentinel's panels, rails and chrome are read
+ * in a darkened room, and the light build that briefly existed was dropped
+ * rather than kept as a setting nobody wanted. The token layer it was built
+ * on stays — the settings panel is a light island (`.theme-light`) and reads
+ * the same tokens — so re-introducing the choice is a control away.
+ */
+const INTERFACE_THEME: AppTheme = 'dark'
 
 function isAppTheme(candidate: unknown): candidate is AppTheme {
   return candidate === 'dark' || candidate === 'light'
@@ -60,43 +66,21 @@ function applyMapThemeAttribute(theme: MapTheme): void {
  * "app connectivity" concerns.
  */
 export const useThemeStore = defineStore('theme', () => {
-  const theme = usePersistedRef<AppTheme>(LS_KEY, DEFAULT_THEME, isAppTheme)
-
-  // The map had no palette of its own until the two were split, so an operator
-  // who had turned the light theme on was looking at a light map. Seeding the
-  // map from the interface theme when its own key is absent keeps that view
-  // intact through the upgrade; from then on the two move independently.
-  const mapTheme = usePersistedRef<MapTheme>(MAP_LS_KEY, theme.value, isMapTheme)
+  const theme = ref<AppTheme>(INTERFACE_THEME)
+  const mapTheme = usePersistedRef<MapTheme>(MAP_LS_KEY, INTERFACE_THEME, isMapTheme)
 
   // The pre-paint script in index.html has normally set these already;
   // re-apply so the attributes are still correct when the store is created in
   // a test or any other context that never ran that script.
   applyThemeAttribute(theme.value)
-  watch(theme, applyThemeAttribute)
   applyMapThemeAttribute(mapTheme.value)
   watch(mapTheme, applyMapThemeAttribute)
 
-  const isLight = computed(() => theme.value === 'light')
   const isMapLight = computed(() => mapTheme.value === 'light')
 
-  /** Switch theme. The persisted write is the settings control's to stage. */
-  function setTheme(next: AppTheme): void {
-    theme.value = next
-  }
-
-  /** The same for the basemap, which has its own control and its own key. */
+  /** Switch the basemap palette. The persisted write is the control's to stage. */
   function setMapTheme(next: MapTheme): void {
     mapTheme.value = next
-  }
-
-  /**
-   * Boolean face of `setTheme`, for the Settings toggle. The database stores
-   * the preference as `app.lightTheme` — a flag rather than the theme name,
-   * so it drops straight onto the shared toggle plumbing every other on/off
-   * setting uses.
-   */
-  function setLightTheme(light: boolean): void {
-    setTheme(light ? 'light' : 'dark')
   }
 
   /**
@@ -105,15 +89,6 @@ export const useThemeStore = defineStore('theme', () => {
    */
   function setLightMapTheme(light: boolean): void {
     setMapTheme(light ? 'light' : 'dark')
-  }
-
-  /**
-   * Adopt `app.lightTheme` from the config database (startup, or after the
-   * app-config JSON is uploaded). A missing or non-boolean value is ignored,
-   * leaving whatever localStorage restored.
-   */
-  function hydrateLightTheme(remote: unknown): void {
-    if (typeof remote === 'boolean') setLightTheme(remote)
   }
 
   /**
@@ -140,11 +115,6 @@ export const useThemeStore = defineStore('theme', () => {
     hydrateLightMapTheme(legacyLightFlag)
   }
 
-  /** Re-read `app.lightTheme` from the DB, for the control's staged lifecycle. */
-  async function hydrateLightThemeFromDb(): Promise<void> {
-    await hydrateFromDb(hydrateLightTheme, 'lightTheme')
-  }
-
   /** Re-read the basemap palette, preferring `app.mapTheme` over the flag. */
   async function hydrateMapThemeFromDb(): Promise<void> {
     try {
@@ -157,25 +127,8 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
-  /** Shared fetch for the two staged controls' re-hydration. */
-  async function hydrateFromDb(adopt: (value: unknown) => void, key: string): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/app')
-      if (!res.ok) return
-      const data = await res.json()
-      adopt(data?.[key])
-    } catch {
-      /* offline / transient — localStorage already holds a usable value */
-    }
-  }
-
   return {
     theme,
-    isLight,
-    setTheme,
-    setLightTheme,
-    hydrateLightTheme,
-    hydrateLightThemeFromDb,
     mapTheme,
     isMapLight,
     setMapTheme,

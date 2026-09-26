@@ -39,11 +39,12 @@
    palette differs. Anything not overridden (the accent, the
    dark rails, the status hues) is deliberately shared.
 
-   Two scopes get the light values:
-     • `:root[data-theme='light']` — the whole app, set by the
-       theme store (and pre-paint in index.html).
-     • `.theme-light` — an island that is light in BOTH themes.
-       The settings panel is the only one today.
+   The light values belong to an ISLAND, not to the app: the
+   interface palette is fixed dark, and `.theme-light` pins the
+   light one for a subtree. The settings panel is the only island
+   today. `:root[data-theme='light']` is kept alongside it so
+   re-introducing an app-wide light interface is a control and a
+   store field, not a stylesheet rewrite.
 
    INK: text and hairlines are the same hue at a dozen alphas,
    so the hue ships as a bare `r, g, b` triplet and callers

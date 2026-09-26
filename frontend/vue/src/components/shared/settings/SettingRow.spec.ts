@@ -20,7 +20,6 @@ import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
-import ThemeControl from './ThemeControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
@@ -76,7 +75,6 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['range-ring-origin', RangeRingOriginControl],
   ['map-layers', MapLayersControl],
   ['notification-sound', NotificationSoundControl],
-  ['theme', ThemeControl],
   ['map-theme', MapThemeControl],
   ['source-override', SourceOverrideControl, { ns: 'air' }],
   ['online-source', OnlineSourceControl, { ns: 'air', defaultUrl: '' }],
