@@ -244,9 +244,10 @@ describe('theme store map theme — the colour palette', () => {
     expect(document.documentElement.dataset.mapTheme).toBe('colour')
   })
 
-  it('is not "light" for overlay purposes', () => {
-    // Overlay ink asks `isMapLight`; the colour build is mid-toned and, dimmed
-    // by the canvas filter, takes the dark palette's lime and white.
+  it('is not "light" — colour is its own palette, not a shade of the light one', () => {
+    // `isMapLight` answers "is the LIGHT build selected", which is what the
+    // control needs. Overlays ask a different question — "is the ground
+    // bright?" — and that lives in `utils/mapTheme.ts`, where colour counts.
     const store = useThemeStore()
     store.setMapTheme('colour')
     expect(store.isMapLight).toBe(false)
