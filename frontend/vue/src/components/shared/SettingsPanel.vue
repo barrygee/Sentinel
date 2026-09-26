@@ -10,13 +10,15 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <!-- `theme-dark`: this rail keeps its charcoal whatever the app's palette
-         is doing. It is the settings panel's own furniture, and the panel is a
-         fixed light island by design. -->
+    <!-- The panel itself is a fixed light island, but this rail follows the
+         APP's interface palette: charcoal while the app is dark, light when
+         the app is light, so it matches the rails outside the panel. -->
     <div
       id="settings-sidebar"
-      class="theme-dark"
-      :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }"
+      :class="{
+        'settings-sidebar--collapsed': !store.sidebarOpen,
+        'theme-dark': !theme.isLight,
+      }"
     >
       <BaseIconButton
         v-for="s in visibleSections"
@@ -292,6 +294,7 @@ import RadioIcon from '@/components/shared/RadioIcon.vue'
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
+import { useThemeStore } from '@/stores/theme'
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@/types/settings'
 import SettingRow from './settings/SettingRow.vue'
@@ -304,6 +307,8 @@ import BaseIconButton from '@/components/base/BaseIconButton.vue'
 export type { SettingItem }
 
 const store = useSettingsStore()
+// The panel's own rail follows the app's interface palette (see the template).
+const theme = useThemeStore()
 const appStore = useAppStore()
 
 const activeSection = ref('app')
@@ -370,8 +375,8 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'theme',
-    label: 'Light Interface',
-    desc: 'Render the panels, rails and chrome in the light palette instead of the dark one',
+    label: 'Interface',
+    desc: 'The palette the panels, rails and chrome are drawn in',
     searchTerms: 'theme light dark mode palette appearance interface ui colour color',
     type: 'theme',
   },
@@ -379,9 +384,9 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'map-theme',
-    label: 'Light Map',
-    desc: 'Render the basemap in the light palette — set independently of the interface',
-    searchTerms: 'theme light dark mode palette appearance basemap map colour color',
+    label: 'Map',
+    desc: 'The basemap palette — dark, light, or the full-colour cartographic build. Set independently of the interface',
+    searchTerms: 'theme light dark colour color mode palette appearance basemap map cartographic',
     type: 'map-theme',
   },
   {
