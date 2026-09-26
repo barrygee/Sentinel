@@ -173,6 +173,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the semantic token layer the light chrome is drawn from
 - Flip the nav bar, footer and rails with the theme
 - Set the interface and the basemap palettes separately
+- Segmented INTERFACE and MAP rows, with a colour basemap
 
 ### Bug Fixes
 
@@ -1278,6 +1279,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #354 from barrygee/feat/light-theme-chrome
 - Merge pull request #355 from barrygee/feat/light-theme-greys
 - Merge pull request #356 from barrygee/feat/separate-map-theme
+- Merge pull request #357 from barrygee/feat/theme-segmented-controls
 
 ### Refactoring
 
