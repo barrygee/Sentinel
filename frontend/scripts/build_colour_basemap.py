@@ -24,10 +24,11 @@ Every layer in the source that carries a colour paint must appear in the table
 colour map. `designTokens.spec.ts` guards the generated files the same way it
 guards the two logo variants.
 
-The palette is a muted OSM-bright: the map is ground for the overlays drawn on
-it, and `.maplibregl-canvas` dims it with `brightness(0.65) saturate(0.85)`, so
-these values are picked to land right AFTER that filter rather than to look
-correct in isolation.
+The palette is a saturated OSM-bright. `.maplibregl-canvas` dims every basemap
+with `brightness(0.65) saturate(0.85)` — the map is ground for the overlays
+drawn on it — so these values are pitched ABOVE where they should land: what
+looks over-saturated in the raw JSON is what reads as colour on screen. Judge
+them in the app, never in a colour picker.
 """
 
 from __future__ import annotations
@@ -41,63 +42,63 @@ ASSETS = Path(__file__).resolve().parents[1] / "assets"
 # way the layer list is ordered.
 COLOURS: dict[str, dict[str, str]] = {
     # ── Ground and water ───────────────────────────────────────────────────
-    "background": {"background-color": "rgb(246, 243, 236)"},
-    "earth": {"fill-color": "rgb(246, 243, 236)"},
-    "surroundings_earth": {"fill-color": "rgb(246, 243, 236)"},
-    "water": {"fill-color": "rgb(158, 197, 223)"},
-    "surroundings_water": {"fill-color": "rgb(158, 197, 223)"},
-    "waterway": {"line-color": "rgb(158, 197, 223)"},
-    "coastline": {"line-color": "hsla(205, 40%, 55%, 0.45)"},
-    "surroundings_coastline": {"line-color": "hsla(205, 40%, 55%, 0.45)"},
-    "landcover_ice_shelf": {"fill-color": "rgb(240, 246, 248)"},
+    "background": {"background-color": "rgb(249, 243, 228)"},
+    "earth": {"fill-color": "rgb(249, 243, 228)"},
+    "surroundings_earth": {"fill-color": "rgb(249, 243, 228)"},
+    "water": {"fill-color": "rgb(106, 176, 224)"},
+    "surroundings_water": {"fill-color": "rgb(106, 176, 224)"},
+    "waterway": {"line-color": "rgb(96, 168, 219)"},
+    "coastline": {"line-color": "hsla(205, 62%, 45%, 0.55)"},
+    "surroundings_coastline": {"line-color": "hsla(205, 62%, 45%, 0.55)"},
+    "landcover_ice_shelf": {"fill-color": "rgb(238, 248, 252)"},
     # ── Land cover ─────────────────────────────────────────────────────────
-    "landuse_residential": {"fill-color": "rgb(238, 233, 224)"},
-    "landcover_wood": {"fill-color": "rgb(197, 219, 190)"},
-    "park": {"fill-color": "rgb(205, 227, 197)"},
-    "park_outline": {"line-color": "hsl(110, 28%, 68%)"},
+    "landuse_residential": {"fill-color": "rgb(242, 231, 213)"},
+    "landcover_wood": {"fill-color": "rgb(150, 205, 140)"},
+    "park": {"fill-color": "rgb(166, 216, 152)"},
+    "park_outline": {"line-color": "hsl(110, 42%, 55%)"},
     "building": {
-        "fill-color": "rgb(226, 219, 209)",
-        "fill-outline-color": "rgb(210, 202, 190)",
+        "fill-color": "rgb(226, 209, 186)",
+        "fill-outline-color": "rgb(203, 181, 153)",
     },
     # ── Aeroways and piers ─────────────────────────────────────────────────
-    "aeroway-area": {"fill-color": "rgb(233, 231, 233)"},
-    "aeroway-runway": {"line-color": "rgb(248, 248, 250)"},
-    "aeroway-runway-casing": {"line-color": "rgb(206, 204, 208)"},
-    "aeroway-taxiway": {"line-color": "rgb(233, 231, 233)"},
-    "road_area_pier": {"fill-color": "rgb(246, 243, 236)"},
-    "road_pier": {"line-color": "rgb(246, 243, 236)"},
-    # ── Roads: motorway amber, major cream, minor white ────────────────────
-    "highway_motorway_casing": {"line-color": "rgb(226, 166, 106)"},
-    "highway_motorway_inner": {"line-color": "rgb(250, 202, 146)"},
-    "highway_motorway_subtle": {"line-color": "rgba(250, 202, 146, 0.7)"},
-    "tunnel_motorway_casing": {"line-color": "rgb(226, 166, 106)"},
-    "tunnel_motorway_inner": {"line-color": "rgb(252, 221, 184)"},
-    "highway_major_casing": {"line-color": "rgb(223, 200, 150)"},
-    "highway_major_inner": {"line-color": "rgb(252, 233, 186)"},
-    "highway_major_subtle": {"line-color": "rgba(252, 233, 186, 0.7)"},
-    "highway_minor": {"line-color": "rgb(252, 251, 248)"},
-    "highway_path": {"line-color": "rgb(226, 214, 197)"},
-    "surroundings_motorway": {"line-color": "hsla(30, 60%, 66%, 0.65)"},
+    "aeroway-area": {"fill-color": "rgb(226, 224, 232)"},
+    "aeroway-runway": {"line-color": "rgb(250, 250, 253)"},
+    "aeroway-runway-casing": {"line-color": "rgb(190, 188, 200)"},
+    "aeroway-taxiway": {"line-color": "rgb(226, 224, 232)"},
+    "road_area_pier": {"fill-color": "rgb(249, 243, 228)"},
+    "road_pier": {"line-color": "rgb(249, 243, 228)"},
+    # ── Roads: motorway orange, major gold, minor white ────────────────────
+    "highway_motorway_casing": {"line-color": "rgb(214, 122, 32)"},
+    "highway_motorway_inner": {"line-color": "rgb(251, 176, 72)"},
+    "highway_motorway_subtle": {"line-color": "rgba(251, 176, 72, 0.8)"},
+    "tunnel_motorway_casing": {"line-color": "rgb(214, 122, 32)"},
+    "tunnel_motorway_inner": {"line-color": "rgb(253, 205, 143)"},
+    "highway_major_casing": {"line-color": "rgb(220, 174, 70)"},
+    "highway_major_inner": {"line-color": "rgb(255, 216, 122)"},
+    "highway_major_subtle": {"line-color": "rgba(255, 216, 122, 0.8)"},
+    "highway_minor": {"line-color": "rgb(255, 255, 253)"},
+    "highway_path": {"line-color": "rgb(214, 190, 158)"},
+    "surroundings_motorway": {"line-color": "hsla(30, 85%, 58%, 0.75)"},
     # ── Rail ───────────────────────────────────────────────────────────────
-    "railway": {"line-color": "rgb(184, 178, 172)"},
-    "railway_dashline": {"line-color": "rgb(232, 229, 224)"},
-    "railway_service": {"line-color": "rgb(196, 191, 185)"},
-    "railway_service_dashline": {"line-color": "rgb(236, 233, 229)"},
-    "railway_transit": {"line-color": "rgb(196, 191, 185)"},
-    "railway_transit_dashline": {"line-color": "rgb(236, 233, 229)"},
+    "railway": {"line-color": "rgb(150, 142, 134)"},
+    "railway_dashline": {"line-color": "rgb(226, 220, 212)"},
+    "railway_service": {"line-color": "rgb(172, 164, 156)"},
+    "railway_service_dashline": {"line-color": "rgb(232, 227, 220)"},
+    "railway_transit": {"line-color": "rgb(172, 164, 156)"},
+    "railway_transit_dashline": {"line-color": "rgb(232, 227, 220)"},
     # ── Boundaries ─────────────────────────────────────────────────────────
-    "boundary_state": {"line-color": "rgb(190, 164, 190)"},
-    "boundary_country_z0-4": {"line-color": "rgb(176, 148, 176)"},
-    "boundary_country_z5-": {"line-color": "rgb(176, 148, 176)"},
-    "surroundings_boundary": {"line-color": "rgb(190, 164, 190)"},
+    "boundary_state": {"line-color": "rgb(176, 122, 180)"},
+    "boundary_country_z0-4": {"line-color": "rgb(157, 96, 163)"},
+    "boundary_country_z5-": {"line-color": "rgb(157, 96, 163)"},
+    "surroundings_boundary": {"line-color": "rgb(176, 122, 180)"},
 }
 
 # Labels: one ink, one halo, at three weights. Place names carry the map's
 # information, so they sit darker than anything they are drawn over.
-LABEL_INK = "rgb(58, 62, 68)"
-LABEL_INK_MINOR = "rgb(92, 97, 104)"
-LABEL_HALO = "rgb(246, 243, 236)"
-WATER_LABEL_INK = "rgb(62, 108, 145)"
+LABEL_INK = "rgb(48, 44, 38)"
+LABEL_INK_MINOR = "rgb(86, 80, 71)"
+LABEL_HALO = "rgb(252, 248, 238)"
+WATER_LABEL_INK = "rgb(21, 89, 143)"
 
 LABELS: dict[str, str] = {
     "water_name": WATER_LABEL_INK,

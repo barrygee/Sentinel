@@ -95,11 +95,11 @@
        frames (darker than the canvas on dark, lighter on light), and the
        tooltips that hang off it deliberately do NOT follow (below). */
     --chrome-bg: #000000; /* the nav bar and footer */
-    /* The right-hand map bar (the domain side menus and MapLibre's own
-       controls). It sits on the map rather than beside a panel, so on dark it
-       matches the icon rails, and on light it joins the chrome — a step darker
-       than the left rail. */
-    --map-bar-bg: rgba(var(--rail-rgb), 0.98);
+    /* The right-hand map bar: the domain side menus and MapLibre's own
+       controls. It is a rail like the left one and matches it in both themes
+       — it has its own name only so the two can diverge later without
+       hunting down call sites. */
+    --map-bar-bg: var(--rail-bg);
     --rail-rgb: 16, 19, 29;
     --rail-bg: rgba(var(--rail-rgb), 0.98); /* the 44px icon rails */
     --rail-border: rgba(255, 255, 255, 0.06);
@@ -221,10 +221,11 @@
 
     /* Chrome in light: darkest of the three greys, so the frame reads as the
        frame. The left icon rail is the lightest of them (above). */
-    /* Deliberately well down the grey scale: the frame reads as a frame, and
-       dark ink still clears AA on it (5.8:1). */
-    --chrome-bg: #8e959e;
-    --map-bar-bg: #8e959e;
+    /* A step below the panel canvas, so the frame reads as a frame without
+       becoming a band of mid grey across the top and bottom of the screen.
+       Dark ink sits at 10.7:1 on it. */
+    --chrome-bg: #dcdfe2;
+    --map-bar-bg: var(--rail-bg);
     --rail-bg: #f2f3f4;
     --rail-border: rgba(16, 19, 29, 0.08);
     --rail-surface: #e6e8eb;

@@ -1,38 +1,46 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { isLightTheme, overlayAccentColor } from './mapTheme'
+import { isBrightBasemap, overlayAccentColor } from './mapTheme'
 
 beforeEach(() => {
   delete document.documentElement.dataset.mapTheme
 })
 
-describe('isLightTheme', () => {
-  it('is true when the document element declares the light theme', () => {
+describe('isBrightBasemap', () => {
+  it('is true for the light basemap', () => {
     document.documentElement.dataset.mapTheme = 'light'
-    expect(isLightTheme()).toBe(true)
+    expect(isBrightBasemap()).toBe(true)
   })
 
-  it('is false when the document element declares the dark theme', () => {
+  it('is true for the colour basemap — cream land and blue sea are bright too', () => {
+    document.documentElement.dataset.mapTheme = 'colour'
+    expect(isBrightBasemap()).toBe(true)
+  })
+
+  it('is false for the dark basemap', () => {
     document.documentElement.dataset.mapTheme = 'dark'
-    expect(isLightTheme()).toBe(false)
+    expect(isBrightBasemap()).toBe(false)
   })
 
-  it('is false when no theme has been published yet', () => {
-    expect(isLightTheme()).toBe(false)
+  it('is false when no palette has been published yet', () => {
+    expect(isBrightBasemap()).toBe(false)
   })
 })
 
 describe('overlayAccentColor', () => {
-  it('is black on the light basemap, where lime would disappear', () => {
-    document.documentElement.dataset.mapTheme = 'light'
-    expect(overlayAccentColor()).toBe('#000000')
-  })
+  it.each(['light', 'colour'])(
+    'is black on the %s basemap, where lime would disappear',
+    (theme) => {
+      document.documentElement.dataset.mapTheme = theme
+      expect(overlayAccentColor()).toBe('#000000')
+    },
+  )
 
   it('is the brand lime on the dark basemap', () => {
     document.documentElement.dataset.mapTheme = 'dark'
     expect(overlayAccentColor()).toBe('#c8ff00')
   })
 
-  it('defaults to the lime when no theme has been published yet', () => {
+  it('defaults to the lime when no palette has been published yet', () => {
     expect(overlayAccentColor()).toBe('#c8ff00')
   })
 })
