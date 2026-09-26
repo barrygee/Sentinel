@@ -69,6 +69,7 @@ const ringsSpies = vi.hoisted(() => ({
   updateCenter: vi.fn(),
   setLocationAvailable: vi.fn(),
   setOrigin: vi.fn(),
+  initRings: vi.fn(),
   visible: false,
 }))
 vi.mock('@/components/land/controls/range-rings/LandRangeRingsControl', () => ({
@@ -79,6 +80,7 @@ vi.mock('@/components/land/controls/range-rings/LandRangeRingsControl', () => ({
     updateCenter = ringsSpies.updateCenter
     setLocationAvailable = ringsSpies.setLocationAvailable
     setOrigin = ringsSpies.setOrigin
+    _initRings = ringsSpies.initRings
     get visible() {
       return ringsSpies.visible
     }
@@ -689,16 +691,19 @@ describe('LandView', () => {
       namesSpies.applyVisibility.mockClear()
       roadsSpies.applyVisibility.mockClear()
       terrainSpies.initLayers.mockClear()
+      ringsSpies.initRings.mockClear()
       // A fresh style ships its own layer visibilities (and drops the terrain
-      // overlay's sources/layers), so all three must reapply.
+      // overlay's and range rings' sources/layers), so all four must reapply.
       shared.emit!('style-loaded', map)
       expect(namesSpies.applyVisibility).toHaveBeenCalledOnce()
       expect(roadsSpies.applyVisibility).toHaveBeenCalledOnce()
       expect(terrainSpies.initLayers).toHaveBeenCalledOnce()
+      expect(ringsSpies.initRings).toHaveBeenCalledOnce()
       shared.emit!('style-loaded', map)
       expect(namesSpies.applyVisibility).toHaveBeenCalledTimes(2)
       expect(roadsSpies.applyVisibility).toHaveBeenCalledTimes(2)
       expect(terrainSpies.initLayers).toHaveBeenCalledTimes(2)
+      expect(ringsSpies.initRings).toHaveBeenCalledTimes(2)
     })
 
     it('updates the marker + range-rings centre when a location fix arrives', async () => {
