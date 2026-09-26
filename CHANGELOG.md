@@ -407,6 +407,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Mock the API in the light-theme audit so the rail renders
 - Restack the light greys and keep map ink white
 - Lighter chrome, matching map bar, vibrant colour basemap
+- Correct the ISS downlink to the 437.800 MHz V/U repeater
 
 ### Chores
 
@@ -1284,6 +1285,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #357 from barrygee/feat/theme-segmented-controls
 - Merge pull request #358 from barrygee/fix/light-chrome-grey
 - Merge pull request #359 from barrygee/feat/drop-light-interface
+- Merge pull request #360 from barrygee/chore/iss-radio-frequencies
 
 ### Refactoring
 
