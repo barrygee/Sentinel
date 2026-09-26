@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth for satellite radio frequencies. NORAD ID -> radio fields. Frequencies in Hz (integer). Editable in-app (Settings > Space > Satellite Radio) or by hand-editing this file; in-app edits are written back here.",
+  "_comment": "Single source of truth for satellite radio frequencies. NORAD ID -> radio fields. Frequencies in Hz (integer). Editable in-app (Settings > Space > Satellite Frequencies (JSON)) or by hand-editing this file; in-app edits are written back here.",
   "7530": {
     "uplink_hz": 145850000,
     "uplink_mode": "USB",
@@ -95,12 +95,12 @@
   "25544": {
     "uplink_hz": 145990000,
     "uplink_mode": "FM",
-    "downlink_hz": 145800000,
+    "downlink_hz": 437800000,
     "downlink_mode": "FM",
-    "ctcss_hz": 67.0,
+    "ctcss_hz": 67,
     "transponder_type": "FM",
     "beacon_hz": 145825000,
-    "packet_info": "Mode V APRS · AFSK · 1200 baud · DL 145.8250 MHz",
+    "packet_info": "Mode V APRS · AFSK · 1200 baud · DL 437.8250 MHz",
     "radio_status": "active",
     "radio_notes": "ISS ham radio (RS0ISS/NA1SS): V/V FM voice repeater 145.990 up (67.0 Hz CTCSS) / 437.800 down; APRS digipeater 145.825 (1k2 AFSK); SSTV 145.800 (PD120); ARISS school contacts 145.800 down / 144.490 up. EVA/spacewalk: US space-to-space UHF ~414.2 / 417.1 MHz (S-band relay via TDRS); Russian Orlan/Soyuz VHF 121.75 / 130.165 / 143.625 MHz."
   },
@@ -155,7 +155,7 @@
     "uplink_mode": "FM",
     "downlink_hz": 436795000,
     "downlink_mode": "FM",
-    "ctcss_hz": 67.0,
+    "ctcss_hz": 67,
     "transponder_type": "FM repeater",
     "beacon_hz": 149025000,
     "radio_status": "active",
@@ -1254,7 +1254,7 @@
     "uplink_mode": "FM",
     "downlink_hz": 145960000,
     "downlink_mode": "FM",
-    "ctcss_hz": 67.0,
+    "ctcss_hz": 67,
     "transponder_type": "FM repeater",
     "beacon_hz": 145960000,
     "radio_status": "active",
