@@ -409,6 +409,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restack the light greys and keep map ink white
 - Lighter chrome, matching map bar, vibrant colour basemap
 - Correct the ISS downlink to the 437.800 MHz V/U repeater
+- Theme terrain contour ink per basemap so lines read (#363)
 
 ### Chores
 
