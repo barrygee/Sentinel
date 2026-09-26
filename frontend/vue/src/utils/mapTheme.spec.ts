@@ -1,8 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { isBrightBasemap, overlayAccentColor } from './mapTheme'
+import { currentMapTheme, isBrightBasemap, overlayAccentColor } from './mapTheme'
 
 beforeEach(() => {
   delete document.documentElement.dataset.mapTheme
+})
+
+describe('currentMapTheme', () => {
+  it.each(['dark', 'light', 'colour'])('reports the published %s palette', (theme) => {
+    document.documentElement.dataset.mapTheme = theme
+    expect(currentMapTheme()).toBe(theme)
+  })
+
+  it('falls back to dark when no palette has been published yet', () => {
+    expect(currentMapTheme()).toBe('dark')
+  })
+
+  it('falls back to dark for an unrecognised value', () => {
+    document.documentElement.dataset.mapTheme = 'sepia'
+    expect(currentMapTheme()).toBe('dark')
+  })
 })
 
 describe('isBrightBasemap', () => {

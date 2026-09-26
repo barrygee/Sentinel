@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import type * as maplibregl from 'maplibre-gl'
 
@@ -18,6 +18,7 @@ import {
   CONTOUR_MINOR_LAYER,
   CONTOUR_INDEX_LAYER,
   CONTOUR_LABEL_LAYER,
+  CONTOUR_PALETTES,
 } from './TerrainToggleControl'
 import { TERRAIN_PMTILES_PATH, TERRAIN_PMTILES_URL } from './terrainDem'
 import { useBasemapStore } from '@/stores/basemap'
@@ -92,6 +93,21 @@ beforeEach(() => {
   demMock.loadTerrainDem.mockReset().mockResolvedValue(DEM)
   vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
+
+afterEach(() => {
+  delete document.documentElement.dataset.mapTheme
+})
+
+interface AddedLayer {
+  id: string
+  paint: Record<string, unknown>
+}
+
+// The paint block of the most recent addLayer call for `id`.
+function paintOf(map: FakeMap, id: string): Record<string, unknown> {
+  const calls = map.addLayer.mock.calls.filter((call) => (call[0] as AddedLayer).id === id)
+  return (calls.at(-1)![0] as AddedLayer).paint
+}
 
 describe('TerrainToggleControl constructor', () => {
   it('seeds visibility from the basemap store (default off)', () => {
@@ -325,5 +341,69 @@ describe('missing DEM archive', () => {
     control.toggle()
     expect(control.visible).toBe(false)
     expect(demMock.loadTerrainDem).toHaveBeenCalledOnce()
+  })
+})
+
+describe('contour palette per basemap', () => {
+  it.each(['dark', 'light', 'colour'] as const)(
+    'paints lines and labels with the %s palette',
+    async (theme) => {
+      document.documentElement.dataset.mapTheme = theme
+      store.setLayer('terrain', true)
+      const control = new TerrainToggleControl(store)
+      const map = fakeMap()
+      control.onAdd(map.map)
+      await flush()
+
+      const palette = CONTOUR_PALETTES[theme]
+      expect(paintOf(map, CONTOUR_MINOR_LAYER)).toMatchObject({
+        'line-color': palette.minorColor,
+        'line-opacity': palette.minorOpacity,
+      })
+      expect(paintOf(map, CONTOUR_INDEX_LAYER)).toMatchObject({
+        'line-color': palette.indexColor,
+        'line-opacity': palette.indexOpacity,
+      })
+      expect(paintOf(map, CONTOUR_LABEL_LAYER)).toMatchObject({
+        'text-color': palette.labelColor,
+        'text-halo-color': palette.labelHaloColor,
+      })
+    },
+  )
+
+  it('uses the dark palette when no map theme has been published', async () => {
+    store.setLayer('terrain', true)
+    const control = new TerrainToggleControl(store)
+    const map = fakeMap()
+    control.onAdd(map.map)
+    await flush()
+    expect(paintOf(map, CONTOUR_INDEX_LAYER)['line-color']).toBe(CONTOUR_PALETTES.dark.indexColor)
+  })
+
+  it('re-reads the palette when a style swap re-adds the overlay', async () => {
+    document.documentElement.dataset.mapTheme = 'dark'
+    store.setLayer('terrain', true)
+    const control = new TerrainToggleControl(store)
+    const map = fakeMap()
+    control.onAdd(map.map)
+    await flush()
+
+    // A palette change reloads the style, dropping the overlay's layers and
+    // sources; the map then re-runs initLayers.
+    document.documentElement.dataset.mapTheme = 'colour'
+    map.sources.clear()
+    map.layers.splice(0, map.layers.length, 'waterway', 'highway_path', 'water_name')
+    control.initLayers()
+    await flush()
+
+    expect(paintOf(map, CONTOUR_INDEX_LAYER)['line-color']).toBe(CONTOUR_PALETTES.colour.indexColor)
+    expect(paintOf(map, CONTOUR_LABEL_LAYER)['text-color']).toBe(CONTOUR_PALETTES.colour.labelColor)
+  })
+
+  it('gives each basemap its own ink rather than one shared colour', () => {
+    const indexColors = new Set(
+      Object.values(CONTOUR_PALETTES).map((palette) => palette.indexColor),
+    )
+    expect(indexColors.size).toBe(3)
   })
 })

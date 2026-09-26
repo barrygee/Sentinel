@@ -1,5 +1,7 @@
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@/stores/basemap'
+import type { MapTheme } from '@/stores/theme'
+import { currentMapTheme } from '@/utils/mapTheme'
 import {
   CONTOUR_MAX_ZOOM,
   CONTOUR_MIN_ZOOM,
@@ -25,6 +27,48 @@ const SOURCES = [CONTOUR_SOURCE, HILLSHADE_SOURCE]
 const HILLSHADE_BEFORE = 'waterway'
 const CONTOUR_BEFORE = 'highway_path'
 const LABEL_BEFORE = 'water_name'
+
+interface ContourPalette {
+  minorColor: string
+  minorOpacity: number
+  indexColor: string
+  indexOpacity: number
+  labelColor: string
+  labelHaloColor: string
+}
+
+/**
+ * Contour ink per basemap. The lines sit on top of the hillshade, which darkens
+ * slopes, so each palette has to hold against both the flat ground and the
+ * shaded side of a hill: pale blue on the dark map, and a dark survey brown on
+ * the light and colour maps (where the old pale blue all but vanished).
+ */
+export const CONTOUR_PALETTES: Record<MapTheme, ContourPalette> = {
+  dark: {
+    minorColor: 'hsl(200, 45%, 72%)',
+    minorOpacity: 0.45,
+    indexColor: 'hsl(200, 55%, 80%)',
+    indexOpacity: 0.8,
+    labelColor: 'hsl(200, 55%, 84%)',
+    labelHaloColor: 'hsl(232, 5%, 19%)',
+  },
+  light: {
+    minorColor: 'hsl(25, 30%, 32%)',
+    minorOpacity: 0.55,
+    indexColor: 'hsl(25, 40%, 22%)',
+    indexOpacity: 0.85,
+    labelColor: 'hsl(25, 40%, 20%)',
+    labelHaloColor: 'hsla(0, 0%, 100%, 0.85)',
+  },
+  colour: {
+    minorColor: 'hsl(25, 45%, 24%)',
+    minorOpacity: 0.6,
+    indexColor: 'hsl(25, 55%, 16%)',
+    indexOpacity: 0.9,
+    labelColor: 'hsl(25, 55%, 14%)',
+    labelHaloColor: 'hsla(45, 45%, 90%, 0.85)',
+  },
+}
 
 /**
  * Hillshade + contour-line overlay driven entirely by a local DEM archive.
@@ -134,6 +178,9 @@ export class TerrainToggleControl extends SentinelControlBase {
 
   private _addLayers(dem: TerrainDem): void {
     const map = this.map
+    // Read at add time: a palette change reloads the style, which drops these
+    // layers, and the map's style.load re-run of initLayers re-adds them here.
+    const palette = CONTOUR_PALETTES[currentMapTheme()]
     const before = (id: string) => (map.getLayer(id) ? id : undefined)
 
     map.addSource(HILLSHADE_SOURCE, {
@@ -174,7 +221,11 @@ export class TerrainToggleControl extends SentinelControlBase {
         source: CONTOUR_SOURCE,
         'source-layer': 'contours',
         filter: ['!=', ['get', 'level'], 1],
-        paint: { 'line-color': 'hsl(200, 35%, 62%)', 'line-opacity': 0.22, 'line-width': 0.6 },
+        paint: {
+          'line-color': palette.minorColor,
+          'line-opacity': palette.minorOpacity,
+          'line-width': 0.8,
+        },
       },
       before(CONTOUR_BEFORE),
     )
@@ -185,7 +236,11 @@ export class TerrainToggleControl extends SentinelControlBase {
         source: CONTOUR_SOURCE,
         'source-layer': 'contours',
         filter: ['==', ['get', 'level'], 1],
-        paint: { 'line-color': 'hsl(200, 35%, 66%)', 'line-opacity': 0.45, 'line-width': 1.1 },
+        paint: {
+          'line-color': palette.indexColor,
+          'line-opacity': palette.indexOpacity,
+          'line-width': 1.4,
+        },
       },
       before(CONTOUR_BEFORE),
     )
@@ -206,10 +261,10 @@ export class TerrainToggleControl extends SentinelControlBase {
           'text-letter-spacing': 0.06,
         },
         paint: {
-          'text-color': 'hsl(200, 40%, 74%)',
-          'text-halo-color': 'hsl(232, 5%, 19%)',
-          'text-halo-width': 1,
-          'text-opacity': 0.9,
+          'text-color': palette.labelColor,
+          'text-halo-color': palette.labelHaloColor,
+          'text-halo-width': 1.2,
+          'text-opacity': 1,
         },
       },
       before(LABEL_BEFORE),

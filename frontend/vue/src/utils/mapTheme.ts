@@ -1,3 +1,5 @@
+import type { MapTheme } from '@/stores/theme'
+
 /**
  * Theme lookups for map overlays.
  *
@@ -12,6 +14,16 @@
  * controls, and an overlay's ink has to answer to the ground it is drawn on,
  * not to the panels around it.
  */
+
+/**
+ * The basemap palette currently loaded, for overlays whose ink differs per
+ * map rather than just dark vs bright. Anything unrecognised reads as dark,
+ * the default palette.
+ */
+export function currentMapTheme(): MapTheme {
+  const mapTheme = document.documentElement.dataset.mapTheme
+  return mapTheme === 'light' || mapTheme === 'colour' ? mapTheme : 'dark'
+}
 
 /**
  * Whether the basemap currently loaded is a BRIGHT one — the light palette or
