@@ -221,8 +221,10 @@
 
     /* Chrome in light: darkest of the three greys, so the frame reads as the
        frame. The left icon rail is the lightest of them (above). */
-    --chrome-bg: #cfd4da;
-    --map-bar-bg: #cfd4da;
+    /* Deliberately well down the grey scale: the frame reads as a frame, and
+       dark ink still clears AA on it (5.8:1). */
+    --chrome-bg: #8e959e;
+    --map-bar-bg: #8e959e;
     --rail-bg: #f2f3f4;
     --rail-border: rgba(16, 19, 29, 0.08);
     --rail-surface: #e6e8eb;

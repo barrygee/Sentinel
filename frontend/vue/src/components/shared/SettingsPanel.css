@@ -671,7 +671,11 @@
   gap: 8px;
 }
 
-.settings-source-override-group {
+/* The segmented single-select family: the source-override picker and the two
+   theme rows (`BaseSegmentedSetting`) are the same control, so they share one
+   set of rules rather than two copies that drift. */
+.settings-source-override-group,
+.settings-segmented-group {
   display: flex;
   flex-direction: row;
   gap: 0;
@@ -681,7 +685,8 @@
   background: var(--surface);
 }
 
-.settings-source-override-btn {
+.settings-source-override-btn,
+.settings-segmented-btn {
   background: transparent;
   border: none;
   border-right: 1px solid var(--border);
@@ -699,17 +704,20 @@
   user-select: none;
 }
 
-.settings-source-override-btn:last-child {
+.settings-source-override-btn:last-child,
+.settings-segmented-btn:last-child {
   border-right: none;
 }
 
-.settings-source-override-btn:hover {
+.settings-source-override-btn:hover,
+.settings-segmented-btn:hover {
   background: rgba(var(--ink-rgb), 0.05);
   color: rgba(var(--ink-rgb), 0.8);
 }
 
-.settings-source-override-btn.is-active {
-  background: var(--color-accent);
+.settings-source-override-btn.is-active,
+.settings-segmented-btn.is-active {
+  background: var(--accent);
   color: var(--accent-ink);
 }
 

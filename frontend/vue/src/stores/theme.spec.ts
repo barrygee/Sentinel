@@ -215,9 +215,9 @@ describe('theme store map theme', () => {
   })
 
   it('re-reads its own key from the settings endpoint', async () => {
-    stubFetch({ lightTheme: false, lightMapTheme: true })
+    stubFetch({ lightTheme: false, mapTheme: 'light' })
     const store = useThemeStore()
-    await store.hydrateLightMapThemeFromDb()
+    await store.hydrateMapThemeFromDb()
     expect(store.mapTheme).toBe('light')
     expect(store.theme).toBe('dark')
   })
@@ -225,14 +225,63 @@ describe('theme store map theme', () => {
   it('keeps the current map theme when the endpoint fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
     const store = useThemeStore()
-    await store.hydrateLightMapThemeFromDb()
+    await store.hydrateMapThemeFromDb()
     expect(store.mapTheme).toBe('dark')
   })
 
   it('keeps the current map theme when the response is not ok', async () => {
-    stubFetch({ lightMapTheme: true }, false)
+    stubFetch({ mapTheme: 'light' }, false)
     const store = useThemeStore()
-    await store.hydrateLightMapThemeFromDb()
+    await store.hydrateMapThemeFromDb()
     expect(store.mapTheme).toBe('dark')
+  })
+})
+
+describe('theme store map theme — the colour palette', () => {
+  it('accepts colour as a persisted value', () => {
+    localStorage.setItem(MAP_LS_KEY, JSON.stringify('colour'))
+    expect(useThemeStore().mapTheme).toBe('colour')
+    expect(document.documentElement.dataset.mapTheme).toBe('colour')
+  })
+
+  it('is not "light" for overlay purposes', () => {
+    // Overlay ink asks `isMapLight`; the colour build is mid-toned and, dimmed
+    // by the canvas filter, takes the dark palette's lime and white.
+    const store = useThemeStore()
+    store.setMapTheme('colour')
+    expect(store.isMapLight).toBe(false)
+  })
+
+  it('adopts the three-way value from the config database', () => {
+    const store = useThemeStore()
+    store.hydrateMapTheme('colour')
+    expect(store.mapTheme).toBe('colour')
+  })
+
+  it('falls back to the pre-colour boolean when that is all the config has', () => {
+    const store = useThemeStore()
+    store.hydrateMapTheme(undefined, true)
+    expect(store.mapTheme).toBe('light')
+  })
+
+  it('ignores an unknown value rather than guessing', () => {
+    const store = useThemeStore()
+    store.setMapTheme('colour')
+    store.hydrateMapTheme('sepia')
+    expect(store.mapTheme).toBe('colour')
+  })
+
+  it('prefers the three-way value over the legacy flag', async () => {
+    stubFetch({ mapTheme: 'colour', lightMapTheme: true })
+    const store = useThemeStore()
+    await store.hydrateMapThemeFromDb()
+    expect(store.mapTheme).toBe('colour')
+  })
+
+  it('reads the legacy flag from the endpoint when the new key is absent', async () => {
+    stubFetch({ lightMapTheme: true })
+    const store = useThemeStore()
+    await store.hydrateMapThemeFromDb()
+    expect(store.mapTheme).toBe('light')
   })
 })

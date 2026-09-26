@@ -9,6 +9,13 @@ import { usePersistedRef } from './_persist'
  */
 export type AppTheme = 'dark' | 'light'
 
+/**
+ * The basemap's palette. Unlike the interface it has three settings: the dark
+ * and light pairs, plus a full-colour cartographic one for when the map is
+ * being read as a map rather than used as ground for the overlays.
+ */
+export type MapTheme = 'dark' | 'light' | 'colour'
+
 const LS_KEY = 'sentinel_theme'
 const MAP_LS_KEY = 'sentinel_map_theme'
 
@@ -16,6 +23,10 @@ const DEFAULT_THEME: AppTheme = 'dark'
 
 function isAppTheme(candidate: unknown): candidate is AppTheme {
   return candidate === 'dark' || candidate === 'light'
+}
+
+function isMapTheme(candidate: unknown): candidate is MapTheme {
+  return isAppTheme(candidate) || candidate === 'colour'
 }
 
 /**
@@ -34,7 +45,7 @@ function applyThemeAttribute(theme: AppTheme): void {
  * attribute (see `utils/mapTheme.ts`) exactly as the stylesheets read the
  * interface one.
  */
-function applyMapThemeAttribute(theme: AppTheme): void {
+function applyMapThemeAttribute(theme: MapTheme): void {
   document.documentElement.dataset.mapTheme = theme
 }
 
@@ -55,7 +66,7 @@ export const useThemeStore = defineStore('theme', () => {
   // who had turned the light theme on was looking at a light map. Seeding the
   // map from the interface theme when its own key is absent keeps that view
   // intact through the upgrade; from then on the two move independently.
-  const mapTheme = usePersistedRef<AppTheme>(MAP_LS_KEY, theme.value, isAppTheme)
+  const mapTheme = usePersistedRef<MapTheme>(MAP_LS_KEY, theme.value, isMapTheme)
 
   // The pre-paint script in index.html has normally set these already;
   // re-apply so the attributes are still correct when the store is created in
@@ -74,7 +85,7 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   /** The same for the basemap, which has its own control and its own key. */
-  function setMapTheme(next: AppTheme): void {
+  function setMapTheme(next: MapTheme): void {
     mapTheme.value = next
   }
 
@@ -88,7 +99,10 @@ export const useThemeStore = defineStore('theme', () => {
     setTheme(light ? 'light' : 'dark')
   }
 
-  /** Boolean face of `setMapTheme`, stored as `app.lightMapTheme`. */
+  /**
+   * Boolean face of `setMapTheme`, kept for the pre-`colour` config flag
+   * (`app.lightMapTheme`) that older installs still have.
+   */
   function setLightMapTheme(light: boolean): void {
     setMapTheme(light ? 'light' : 'dark')
   }
@@ -112,14 +126,35 @@ export const useThemeStore = defineStore('theme', () => {
     if (typeof remote === 'boolean') setLightMapTheme(remote)
   }
 
+  /**
+   * Adopt `app.mapTheme`, the three-way value the control writes now. Falls
+   * back to the older boolean `app.lightMapTheme` so a config written before
+   * COLOUR existed still restores the palette it recorded; anything else
+   * (including a missing key) leaves the local value alone.
+   */
+  function hydrateMapTheme(remote: unknown, legacyLightFlag?: unknown): void {
+    if (isMapTheme(remote)) {
+      setMapTheme(remote)
+      return
+    }
+    hydrateLightMapTheme(legacyLightFlag)
+  }
+
   /** Re-read `app.lightTheme` from the DB, for the control's staged lifecycle. */
   async function hydrateLightThemeFromDb(): Promise<void> {
     await hydrateFromDb(hydrateLightTheme, 'lightTheme')
   }
 
-  /** The same for `app.lightMapTheme`. */
-  async function hydrateLightMapThemeFromDb(): Promise<void> {
-    await hydrateFromDb(hydrateLightMapTheme, 'lightMapTheme')
+  /** Re-read the basemap palette, preferring `app.mapTheme` over the flag. */
+  async function hydrateMapThemeFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/app')
+      if (!res.ok) return
+      const data = await res.json()
+      hydrateMapTheme(data?.mapTheme, data?.lightMapTheme)
+    } catch {
+      /* offline / transient — localStorage already holds a usable value */
+    }
   }
 
   /** Shared fetch for the two staged controls' re-hydration. */
@@ -146,7 +181,8 @@ export const useThemeStore = defineStore('theme', () => {
     setMapTheme,
     setLightMapTheme,
     hydrateLightMapTheme,
-    hydrateLightMapThemeFromDb,
+    hydrateMapTheme,
+    hydrateMapThemeFromDb,
   }
 })
 

@@ -120,10 +120,11 @@ const DEFAULT_LABEL_DATA_POINTS = {
       // Theme — the backend is authoritative, so a choice made on another
       // device wins over this browser's localStorage. Absent means dark.
       themeStore.hydrateLightTheme(data.app?.lightTheme ?? false)
-      // No `?? false` here: a config written before the map got its own
-      // control has no key, and defaulting would drag the basemap back to dark
-      // under a light interface. An absent value leaves the seeded one alone.
-      themeStore.hydrateLightMapTheme(data.app?.lightMapTheme)
+      // No defaulting here: a config written before the map got its own
+      // control has neither key, and falling back would drag the basemap away
+      // from the palette the operator is looking at. An absent value leaves
+      // the seeded one alone; the boolean is the pre-COLOUR form.
+      themeStore.hydrateMapTheme(data.app?.mapTheme, data.app?.lightMapTheme)
 
       // Notification blip sound — default OFF when absent from the DB.
       const soundOn = data.app?.notificationSound

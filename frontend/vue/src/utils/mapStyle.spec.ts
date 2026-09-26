@@ -58,6 +58,8 @@ describe('basemapStyleUrl', () => {
     [false, 'dark', '/assets/fiord.json'],
     [true, 'light', '/assets/positron-online.json'],
     [false, 'light', '/assets/positron.json'],
+    [true, 'colour', '/assets/cartographic-online.json'],
+    [false, 'colour', '/assets/cartographic.json'],
   ] as const)('picks the %s/%s basemap', (online, theme, expected) => {
     expect(basemapStyleUrl(online, theme)).toBe(expected)
   })

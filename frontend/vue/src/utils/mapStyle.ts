@@ -1,5 +1,5 @@
 import type { Map, StyleSpecification, TransformStyleFunction } from 'maplibre-gl'
-import type { AppTheme } from '@/stores/theme'
+import type { MapTheme } from '@/stores/theme'
 
 /**
  * Make a style's `sprite` URL absolute against the page origin.
@@ -30,19 +30,25 @@ export function setMapStyle(map: Map, styleUrl: string): void {
 }
 
 /**
- * The four bundled basemaps: a dark (`fiord`) and a light (`positron`) pair,
- * each with an online build (planet vector tiles) and an offline one (the
- * local PMTiles archives). The light styles are recolours of the dark ones —
- * same sources, same layer ids — so a theme change is a repaint, not a
- * different map.
+ * The six bundled basemaps: a dark (`fiord`), a light (`positron`) and a
+ * full-colour (`cartographic`) pair, each with an online build (planet vector
+ * tiles) and an offline one (the local PMTiles archives). All six are the same
+ * map — same sources, same layers in the same order, same layer ids — with
+ * only their paint colours differing, so a palette change is a repaint and
+ * every layer-id-driven control keeps working. The colour pair is generated
+ * from the light one by `frontend/scripts/build_colour_basemap.py`.
  */
-const BASEMAP_STYLES: Record<AppTheme, { online: string; offline: string }> = {
+const BASEMAP_STYLES: Record<MapTheme, { online: string; offline: string }> = {
   dark: { online: '/assets/fiord-online.json', offline: '/assets/fiord.json' },
   light: { online: '/assets/positron-online.json', offline: '/assets/positron.json' },
+  colour: {
+    online: '/assets/cartographic-online.json',
+    offline: '/assets/cartographic.json',
+  },
 }
 
 /** The basemap style a map should be showing for the given connectivity and theme. */
-export function basemapStyleUrl(online: boolean, theme: AppTheme): string {
+export function basemapStyleUrl(online: boolean, theme: MapTheme): string {
   const pair = BASEMAP_STYLES[theme]
   return online ? pair.online : pair.offline
 }

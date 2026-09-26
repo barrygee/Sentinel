@@ -25,9 +25,10 @@ export async function installDefaultMocks(page: Page): Promise<void> {
   // (the Sea vessel layers, their status line and the feed polling) are never
   // created. An empty style loads instantly and needs no tiles, sprites or
   // glyphs, which is all the accessible-surface assertions need. The glob
-  // covers both themes — `fiord*` is the dark pair, `positron*` the light one.
+  // covers all three palettes — `fiord*` is the dark pair, `positron*` the
+  // light one and `cartographic*` the full-colour build.
   const emptyStyle = JSON.stringify({ version: 8, sources: {}, layers: [] })
-  await page.route('**/assets/{fiord,positron}*.json', (route) => {
+  await page.route('**/assets/{fiord,positron,cartographic}*.json', (route) => {
     void route.fulfill({ contentType: 'application/json', body: emptyStyle })
   })
 

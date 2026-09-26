@@ -70,6 +70,46 @@ describe('design tokens', () => {
  * or a colour literal sneaking back into a retrofitted stylesheet all ship
  * silently otherwise. These are the invariants the chrome retrofit rests on.
  */
+/**
+ * The three basemap palettes are one map with three paints: same sources, same
+ * layers in the same order, same ids. That is what makes a palette change a
+ * repaint rather than a different map, and what lets every layer-id-driven
+ * control (`RoadsToggleControl`, `NamesToggleControl`, the terrain contours)
+ * work across all three. The colour pair is generated from the light one by
+ * `frontend/scripts/build_colour_basemap.py`; this is what fails when someone
+ * hand-edits the output instead of re-running the script.
+ */
+describe('basemap palettes', () => {
+  function layerIds(styleName: string): string[] {
+    const style = JSON.parse(
+      readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
+    )
+    return style.layers.map((layer: { id: string }) => layer.id)
+  }
+
+  it.each([
+    ['offline', 'positron', 'cartographic'],
+    ['online', 'positron-online', 'cartographic-online'],
+  ])('keeps the %s colour build on the light build’s geometry', (_kind, light, colour) => {
+    expect(layerIds(colour)).toEqual(layerIds(light))
+  })
+
+  it('recolours the colour build rather than copying the light one', () => {
+    const colour = readFileSync(
+      resolve(process.cwd(), '../../frontend/assets/cartographic.json'),
+      'utf8',
+    )
+    const light = readFileSync(
+      resolve(process.cwd(), '../../frontend/assets/positron.json'),
+      'utf8',
+    )
+    expect(colour).not.toBe(light)
+    // The generator stamps where the file came from; a hand-written style
+    // would not carry it.
+    expect(JSON.parse(colour).metadata['sentinel:provenance']).toContain('build_colour_basemap.py')
+  })
+})
+
 describe('semantic theme tokens', () => {
   const templateCss = readFileSync(
     resolve(process.cwd(), '../../frontend/assets/template.css'),
