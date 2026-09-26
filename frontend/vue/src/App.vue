@@ -3,11 +3,7 @@
 
   <header id="nav">
     <div id="nav-logo">
-      <!-- The mark and wordmark are white, so the light nav bar needs the
-           ink variant of the same artwork (see logo-ink.svg). Swapped by src
-           rather than recoloured in CSS because an <img> cannot be reached
-           into, and inverting it would take the green dot with it. -->
-      <img id="logo-img" :src="logoSrc" alt="SENTINEL" />
+      <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL" />
     </div>
     <nav id="nav-right" aria-label="Domains">
       <RouterLink
@@ -153,7 +149,6 @@ import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
-import { useThemeStore } from '@/stores/theme'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -161,10 +156,6 @@ const settingsStore = useSettingsStore()
 const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocation()
 const { hydrateFromConfig: hydrateRingOriginFromConfig } = useRangeRingOrigin()
 const notificationsStore = useNotificationsStore()
-const themeStore = useThemeStore()
-
-/** The nav logo: white artwork on the dark chrome, ink artwork on the light. */
-const logoSrc = computed(() => (themeStore.isLight ? '/assets/logo-ink.svg' : '/assets/logo.svg'))
 
 onMounted(async () => {
   // Reconcile with the config first: a valid config location seeds the

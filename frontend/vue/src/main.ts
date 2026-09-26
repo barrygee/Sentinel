@@ -119,7 +119,6 @@ const DEFAULT_LABEL_DATA_POINTS = {
 
       // Theme — the backend is authoritative, so a choice made on another
       // device wins over this browser's localStorage. Absent means dark.
-      themeStore.hydrateLightTheme(data.app?.lightTheme ?? false)
       // No defaulting here: a config written before the map got its own
       // control has neither key, and falling back would drag the basemap away
       // from the palette the operator is looking at. An absent value leaves

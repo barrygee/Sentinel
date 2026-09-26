@@ -5,7 +5,6 @@ import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { defineComponent, h, reactive, ref, nextTick } from 'vue'
 import { axe } from 'jest-axe'
-import { useThemeStore } from '@/stores/theme'
 
 // ---- Shared mock state ----------------------------------------------------
 const shared = vi.hoisted(() => ({
@@ -195,19 +194,8 @@ describe('App', () => {
   })
 
   describe('nav logo', () => {
-    it('serves the white artwork on the dark chrome', () => {
+    it('serves the white artwork — the chrome is dark, always', () => {
       expect(mountApp().get('#logo-img').attributes('src')).toBe('/assets/logo.svg')
-    })
-
-    it('swaps to the ink artwork when the light theme is on', async () => {
-      // The mark and wordmark are white; an <img> cannot be recoloured from
-      // CSS, so the light nav bar needs the second file. Without this the logo
-      // is white-on-near-white and the brand disappears.
-      const theme = useThemeStore()
-      theme.setTheme('light')
-      await nextTick()
-
-      expect(mountApp().get('#logo-img').attributes('src')).toBe('/assets/logo-ink.svg')
     })
   })
 

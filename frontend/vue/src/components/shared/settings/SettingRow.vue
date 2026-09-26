@@ -62,7 +62,6 @@
     />
     <!-- Mirrors to the store at once (the maps repaint as you switch it) and
          stages the config-database write for APPLY CHANGES. -->
-    <ThemeControl v-else-if="item.type === 'theme'" @stage="emit('stage', item.id, $event)" />
     <MapThemeControl
       v-else-if="item.type === 'map-theme'"
       @stage="emit('stage', item.id, $event)"
@@ -204,7 +203,6 @@ import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
-import ThemeControl from './ThemeControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'

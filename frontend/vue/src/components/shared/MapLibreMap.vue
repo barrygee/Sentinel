@@ -126,10 +126,16 @@ defineExpose({ getMap })
   background-color: #2d3548;
 }
 
-/* The same seam filler for the light theme: its water colour as the canvas
-   filter above renders it, not as the style declares it. */
-:root[data-theme='light'] .map-container {
+/* The same seam filler for the other basemaps — each one's water colour as
+   the canvas filter above renders it, not as the style declares it. Keyed on
+   `data-map-theme`: the basemap has its own palette, independent of the
+   interface, which is always dark. */
+:root[data-map-theme='light'] .map-container {
   background-color: rgb(127, 131, 132);
+}
+
+:root[data-map-theme='colour'] .map-container {
+  background-color: rgb(75, 113, 140);
 }
 
 #map {
@@ -160,13 +166,6 @@ defineExpose({ getMap })
 
 .maplibregl-ctrl-icon {
   filter: invert(1) brightness(1.2) !important;
-}
-
-/* MapLibre's own control icons are black artwork, inverted above so they read
-   on the dark chrome. The light chrome needs them as drawn. */
-:root[data-theme='light'] .maplibregl-ctrl-icon,
-:root[data-theme='light'] .maplibregl-ctrl-compass .maplibregl-ctrl-icon {
-  filter: none !important;
 }
 
 .maplibregl-ctrl-group button:hover {

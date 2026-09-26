@@ -23,24 +23,22 @@
       crossorigin
     />
     <script>
-      // Set the themes before first paint. The theme store owns both
+      // Publish the palettes before first paint. The theme store owns both
       // attributes, but it is only created once the bundle has parsed — long
-      // enough for a light-theme user to get a full-screen flash of the dark
-      // palette. Kept deliberately tiny and dependency-free. The store writes
-      // values as JSON, hence the quoted form; the bare one is accepted too so
-      // a hand-set key still works.
+      // enough for a basemap change to show as a flash of the wrong one.
+      // Kept deliberately tiny and dependency-free. The interface palette is
+      // fixed dark; the map's is the operator's, stored as JSON, hence the
+      // quoted form — the bare one is accepted too so a hand-set key works.
       try {
-        var _read = function (key) {
-          var raw = localStorage.getItem(key)
-          return raw === '"light"' || raw === 'light'
-        }
-        var _light = _read('sentinel_theme')
-        document.documentElement.dataset.theme = _light ? 'light' : 'dark'
-        // The map has its own key; before the two were split it had none, so
-        // an absent key follows the interface exactly as the store's seed does.
-        var _mapRaw = localStorage.getItem('sentinel_map_theme')
-        var _mapLight = _mapRaw === null ? _light : _read('sentinel_map_theme')
-        document.documentElement.dataset.mapTheme = _mapLight ? 'light' : 'dark'
+        document.documentElement.dataset.theme = 'dark'
+        var _map = localStorage.getItem('sentinel_map_theme')
+        var _mapTheme =
+          _map === '"light"' || _map === 'light'
+            ? 'light'
+            : _map === '"colour"' || _map === 'colour'
+              ? 'colour'
+              : 'dark'
+        document.documentElement.dataset.mapTheme = _mapTheme
       } catch (e) {}
     </script>
     <script>
@@ -54,8 +52,8 @@
         } catch (e) {}
       }
     </script>
-    <script type="module" crossorigin src="/spa-assets/index-BcNmE_VS.js"></script>
-    <link rel="stylesheet" crossorigin href="/spa-assets/index-D_bR-rDW.css">
+    <script type="module" crossorigin src="/spa-assets/index-D0yIn44s.js"></script>
+    <link rel="stylesheet" crossorigin href="/spa-assets/index-Bf450bMt.css">
   </head>
   <body>
     <div id="app"></div>
