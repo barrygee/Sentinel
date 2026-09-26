@@ -54,7 +54,8 @@ describe('design tokens', () => {
  */
 /**
  * The three basemap palettes are one map with three paints: same sources, same
- * layers in the same order, same ids. That is what makes a palette change a
+ * layers in the same order, same ids — bar the low-zoom land cover the colour
+ * build adds, tagged `sentinel:colour-only`. That is what makes a palette change a
  * repaint rather than a different map, and what lets every layer-id-driven
  * control (`RoadsToggleControl`, `NamesToggleControl`, the terrain contours)
  * work across all three. The colour pair is generated from the light one by
@@ -62,18 +63,40 @@ describe('design tokens', () => {
  * hand-edits the output instead of re-running the script.
  */
 describe('basemap palettes', () => {
-  function layerIds(styleName: string): string[] {
+  interface StyleLayer {
+    id: string
+    metadata?: Record<string, unknown>
+  }
+
+  function styleLayers(styleName: string): StyleLayer[] {
     const style = JSON.parse(
       readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
     )
-    return style.layers.map((layer: { id: string }) => layer.id)
+    return style.layers
+  }
+
+  /** Every layer id, minus the low-zoom land cover only the colour build adds. */
+  function sharedLayerIds(styleName: string): string[] {
+    return styleLayers(styleName)
+      .filter((layer) => !layer.metadata?.['sentinel:colour-only'])
+      .map((layer) => layer.id)
   }
 
   it.each([
     ['offline', 'positron', 'cartographic'],
     ['online', 'positron-online', 'cartographic-online'],
   ])('keeps the %s colour build on the light build’s geometry', (_kind, light, colour) => {
-    expect(layerIds(colour)).toEqual(layerIds(light))
+    expect(sharedLayerIds(colour)).toEqual(sharedLayerIds(light))
+  })
+
+  it.each([
+    ['offline', 'positron', 'cartographic'],
+    ['online', 'positron-online', 'cartographic-online'],
+  ])('adds %s land cover to the colour build only', (_kind, light, colour) => {
+    const colourOnly = (styleName: string) =>
+      styleLayers(styleName).filter((layer) => layer.metadata?.['sentinel:colour-only'])
+    expect(colourOnly(colour).length).toBeGreaterThan(0)
+    expect(colourOnly(light)).toEqual([])
   })
 
   it('recolours the colour build rather than copying the light one', () => {

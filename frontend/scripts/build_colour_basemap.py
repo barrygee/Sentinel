@@ -7,7 +7,10 @@ one geometry: the same sources, the same layers in the same order, the same
 filters and the same widths. Only `paint` colours differ, which is what lets a
 palette change be a repaint rather than a different map, and what lets every
 layer-id-driven control (`RoadsToggleControl`, `NamesToggleControl`, terrain)
-keep working untouched across all of them.
+keep working untouched across all of them. The one exception is a handful of
+low-zoom land-cover fills the colour build adds on top (see `EXTRA_LAYERS`);
+they are tagged `sentinel:colour-only` in their metadata and no control keys
+off them.
 
 So this script does not author a style: it copies `positron{,-online}.json`
 and substitutes a colour per layer id from the table below. The LIGHT pair is
@@ -118,9 +121,146 @@ LABELS: dict[str, str] = {
     "surroundings_place_city": LABEL_INK,
 }
 
+# Low-zoom land cover — the one structural addition the colour map makes. Zoomed
+# out, the light pair draws land as a single flat fill (wood only arrives at
+# z10), which is right for a monochrome map but leaves a colour map with nothing
+# to be colourful about. Both tile sources carry a coarse global land cover the
+# other palettes ignore: the protomaps `landcover` layer (z0–7) offline, and the
+# OpenMapTiles `landcover` layer online (ice from z0, vegetation/sand from ~z7).
+# These layers exist ONLY in the colour build and are tagged so the palette
+# geometry spec can tell them apart from the shared layers.
+COLOUR_ONLY = "sentinel:colour-only"
+
+PROTOMAPS_LANDCOVER = [
+    "match",
+    ["get", "kind"],
+    "forest", "rgb(150, 205, 140)",
+    "grassland", "rgb(200, 226, 160)",
+    "scrub", "rgb(186, 212, 150)",
+    "farmland", "rgb(236, 234, 190)",
+    "barren", "rgb(240, 222, 182)",
+    "glacier", "rgb(246, 251, 253)",
+    "urban_area", "rgb(234, 220, 204)",
+    "rgba(0, 0, 0, 0)",
+]  # fmt: skip
+
+OPENMAPTILES_LANDCOVER = [
+    "match",
+    ["get", "class"],
+    "wood", "rgb(150, 205, 140)",
+    "grass", "rgb(200, 226, 160)",
+    "farmland", "rgb(236, 234, 190)",
+    "wetland", "rgb(178, 214, 196)",
+    "sand", "rgb(240, 222, 182)",
+    "rock", "rgb(222, 214, 202)",
+    "ice", "rgb(246, 251, 253)",
+    "rgba(0, 0, 0, 0)",
+]  # fmt: skip
+
+# From z8 the UK archive's `landuse` layer carries detailed OSM cover (farmland,
+# meadow, forest, scrub, wetland…) where its coarse `landcover` stops at z7, so
+# this continues the cover over the UK at every zoom beyond that.
+PROTOMAPS_LANDUSE_COVER = [
+    "match",
+    ["get", "kind"],
+    ["forest", "wood"], "rgb(150, 205, 140)",
+    ["grassland", "grass", "meadow", "recreation_ground", "village_green"], "rgb(200, 226, 160)",
+    ["scrub", "heath"], "rgb(186, 212, 150)",
+    ["farmland", "farmyard", "orchard", "vineyard", "allotments"], "rgb(236, 234, 190)",
+    "wetland", "rgb(178, 214, 196)",
+    ["bare_rock", "sand", "beach", "scree"], "rgb(240, 222, 182)",
+    "glacier", "rgb(246, 251, 253)",
+    "rgba(0, 0, 0, 0)",
+]  # fmt: skip
+
+
+def landcover_layer(
+    layer_id: str,
+    source: str,
+    colour: list,
+    source_layer: str = "landcover",
+    **extra: object,
+) -> dict:
+    """A colour-only land-cover fill over `source`'s `source_layer`."""
+    return {
+        "id": layer_id,
+        "type": "fill",
+        "source": source,
+        "source-layer": source_layer,
+        "metadata": {COLOUR_ONLY: True},
+        **extra,
+        "filter": [
+            "match",
+            ["geometry-type"],
+            ["MultiPolygon", "Polygon"],
+            True,
+            False,
+        ],
+        "paint": {"fill-antialias": False, "fill-color": colour, "fill-opacity": 0.9},
+    }
+
+
+# Build name -> [(insert after this layer id, layer)]. Each sits directly on the
+# earth it belongs to, so water, parks and everything else still draw over it.
+EXTRA_LAYERS: dict[str, list[tuple[str, dict]]] = {
+    "positron": [
+        (
+            "surroundings_earth",
+            landcover_layer(
+                "surroundings_landcover", "surroundings", PROTOMAPS_LANDCOVER
+            ),
+        ),
+        # Both go straight after `earth`, so list the detailed UK cover first:
+        # the coarse layer inserted after it lands beneath it.
+        (
+            "earth",
+            landcover_layer(
+                "landuse_cover",
+                "openmaptiles",
+                PROTOMAPS_LANDUSE_COVER,
+                "landuse",
+                minzoom=8,
+            ),
+        ),
+        (
+            "earth",
+            landcover_layer("landcover_lowzoom", "openmaptiles", PROTOMAPS_LANDCOVER),
+        ),
+    ],
+    "positron-online": [
+        # The planet tiles carry nothing but ice below ~z7, so the world view
+        # borrows the bundled offline surroundings archive (local, so it loads
+        # in online mode too), then hands over to the planet's own land cover
+        # from z7 up (the shared `landcover_wood` draws over it from z10).
+        (
+            "background",
+            landcover_layer(
+                "landcover_lowzoom", "openmaptiles", OPENMAPTILES_LANDCOVER, minzoom=7
+            ),
+        ),
+        (
+            "background",
+            landcover_layer(
+                "surroundings_landcover", "surroundings", PROTOMAPS_LANDCOVER, maxzoom=7
+            ),
+        ),
+    ],
+}
+
+# Build name -> sources the colour-only layers need that the light build lacks.
+EXTRA_SOURCES: dict[str, dict[str, dict]] = {
+    "positron-online": {
+        "surroundings": {
+            "type": "vector",
+            "url": "pmtiles:///assets/tiles/surroundings.pmtiles",
+        },
+    },
+}
+
 PROVENANCE = (
     "Generated by frontend/scripts/build_colour_basemap.py from {source}.json — "
-    "identical geometry, colour palette substituted per layer id. Do not hand-edit: "
+    "identical geometry plus colour-only land cover, palette substituted per layer id. "
+    "Do not hand-edit: "
     "re-run the script instead, or the three palettes drift apart."
 )
 
@@ -166,11 +306,24 @@ def recolour(style: dict, source_name: str) -> dict:
     return style
 
 
+def add_layers(style: dict, additions: list[tuple[str, dict]]) -> None:
+    """Insert each colour-only layer directly after its anchor layer id."""
+    for anchor_id, layer in additions:
+        ids = [existing["id"] for existing in style["layers"]]
+        if anchor_id not in ids:
+            raise SystemExit(
+                f"Anchor layer {anchor_id!r} not found for {layer['id']!r}"
+            )
+        style["layers"].insert(ids.index(anchor_id) + 1, layer)
+
+
 def build(source_name: str, target_name: str) -> None:
     source = ASSETS / f"{source_name}.json"
     target = ASSETS / f"{target_name}.json"
-    style = json.loads(source.read_text())
-    target.write_text(json.dumps(recolour(style, source_name), indent=2) + "\n")
+    style = recolour(json.loads(source.read_text()), source_name)
+    style["sources"].update(EXTRA_SOURCES.get(source_name, {}))
+    add_layers(style, EXTRA_LAYERS.get(source_name, []))
+    target.write_text(json.dumps(style, indent=2) + "\n")
     print(f"wrote {target.relative_to(ASSETS.parents[1])}")
 
 
