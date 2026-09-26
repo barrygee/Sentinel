@@ -117,7 +117,7 @@ const aprsSourceConfigured = computed(() => sdrStore.aprsRadioId !== null)
 const rangeRingsActive = ref(false)
 const locationActive = computed(() => userLocation.value !== null)
 
-const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
 
 // Connectivity and theme both swap the basemap; `onStyleLoaded` re-asserts the
 // layer toggles once the new style has loaded.
@@ -126,7 +126,7 @@ function syncStyleToState(): void {
 }
 
 useConnectivity(syncStyleToState)
-watch(() => themeStore.theme, syncStyleToState)
+watch(() => themeStore.mapTheme, syncStyleToState)
 
 function onMapCreated(m: Map) {
   _map = m

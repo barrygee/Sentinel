@@ -9,9 +9,15 @@
  * a theme change reloads the basemap.
  */
 
-/** Whether the light basemap is the one currently loaded. */
+/**
+ * Whether the light basemap is the one currently loaded.
+ *
+ * Reads `data-map-theme`, not `data-theme`: the interface and the map have
+ * separate controls, and an overlay's ink has to answer to the ground it is
+ * drawn on, not to the panels around it.
+ */
 export function isLightTheme(): boolean {
-  return document.documentElement.dataset.theme === 'light'
+  return document.documentElement.dataset.mapTheme === 'light'
 }
 
 /**

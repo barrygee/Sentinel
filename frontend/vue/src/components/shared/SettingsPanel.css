@@ -76,11 +76,10 @@
 #settings-sidebar {
   width: 48px;
   flex-shrink: 0;
-  /* `--surface`, not `--rail-bg`: the panel pins its own greys (above), and a
-     rail painted in the app's near-white would vanish against this canvas —
-     the surface grey keeps it reading as a strip. */
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  /* The rail is pinned dark (`theme-dark` in SettingsPanel.vue), so these
+     tokens resolve to the charcoal and its white hairline in either palette. */
+  background: var(--rail-bg);
+  border-right: 1px solid var(--rail-border);
   display: flex;
   flex-direction: column;
   padding: 0;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
-import ThemeControl from './ThemeControl.vue'
+import MapThemeControl from './MapThemeControl.vue'
 import { useThemeStore } from '@/stores/theme'
 
 vi.mock('@/services/settingsApi', () => ({
@@ -13,15 +13,16 @@ vi.mock('@/services/settingsApi', () => ({
 }))
 import * as settingsApi from '@/services/settingsApi'
 
-/** Stub the fetch the theme store's hydrateLightThemeFromDb uses. */
+/** Stub the fetch the theme store's hydrateLightMapThemeFromDb uses. */
 function stubFetch(payload: unknown, ok = true): void {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
 }
 
-describe('ThemeControl', () => {
+describe('MapThemeControl', () => {
   beforeEach(() => {
     localStorage.clear()
     delete document.documentElement.dataset.theme
+    delete document.documentElement.dataset.mapTheme
     setActivePinia(createPinia())
     stubFetch({}) // hydrate is a no-op: the store keeps its default (dark)
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
@@ -31,31 +32,31 @@ describe('ThemeControl', () => {
   })
 
   it('renders the switch off, reflecting the dark default', async () => {
-    const wrapper = mount(ThemeControl)
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('false')
   })
 
-  it('leaves the basemap alone — the map has its own control', async () => {
-    const wrapper = mount(ThemeControl)
+  it('leaves the interface alone — the chrome has its own control', async () => {
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
     await wrapper.find('[role="switch"]').trigger('click')
 
-    // The two palettes are independent: turning the interface light must not
-    // drag the basemap with it (`MapThemeControl` owns that).
-    expect(useThemeStore().theme).toBe('light')
-    expect(useThemeStore().mapTheme).toBe('dark')
-    expect(document.documentElement.dataset.mapTheme).toBe('dark')
+    // The two palettes are independent: a light basemap must not drag the
+    // panels with it (`ThemeControl` owns those).
+    expect(useThemeStore().mapTheme).toBe('light')
+    expect(useThemeStore().theme).toBe('dark')
+    expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
   it('switches the app to light at once and stages the DB write', async () => {
-    const wrapper = mount(ThemeControl)
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
     await wrapper.find('[role="switch"]').trigger('click')
 
     // Mirrored immediately — the maps repaint while the panel is still open.
-    expect(useThemeStore().theme).toBe('light')
-    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(useThemeStore().mapTheme).toBe('light')
+    expect(document.documentElement.dataset.mapTheme).toBe('light')
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('true')
 
     // ...but nothing is persisted until APPLY CHANGES runs the staged writer.
@@ -63,48 +64,46 @@ describe('ThemeControl', () => {
     const staged = wrapper.emitted('stage')
     expect(staged).toHaveLength(1)
     await (staged![0]![0] as () => unknown)()
-    expect(settingsApi.put).toHaveBeenCalledWith('app', 'lightTheme', true)
+    expect(settingsApi.put).toHaveBeenCalledWith('app', 'lightMapTheme', true)
   })
 
   it('switches back to dark and stages that too', async () => {
-    stubFetch({ lightTheme: true })
-    const wrapper = mount(ThemeControl)
+    stubFetch({ lightMapTheme: true })
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
     await wrapper.find('[role="switch"]').trigger('click')
-    expect(useThemeStore().theme).toBe('dark')
+    expect(useThemeStore().mapTheme).toBe('dark')
     const staged = wrapper.emitted('stage')!
     await (staged[staged.length - 1]![0] as () => unknown)()
-    expect(settingsApi.put).toHaveBeenCalledWith('app', 'lightTheme', false)
+    expect(settingsApi.put).toHaveBeenCalledWith('app', 'lightMapTheme', false)
   })
 
   it('hydrates the switch from the DB on mount', async () => {
-    stubFetch({ lightTheme: true })
-    const wrapper = mount(ThemeControl)
+    stubFetch({ lightMapTheme: true })
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
-    expect(useThemeStore().theme).toBe('light')
+    expect(useThemeStore().mapTheme).toBe('light')
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('true')
   })
 
   it('re-syncs when a new config is uploaded', async () => {
-    const wrapper = mount(ThemeControl)
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('false')
-    stubFetch({ lightTheme: true })
+    stubFetch({ lightMapTheme: true })
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     await flushPromises()
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('true')
   })
 
   it('names the switch for assistive technology', async () => {
-    const wrapper = mount(ThemeControl)
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
-    expect(wrapper.find('[role="switch"]').attributes('aria-label')).toBe(
-      'Use the light palette for the interface',
-    )
+    expect(wrapper.find('[role="switch"]').attributes('aria-label')).toBe('Use the light basemap')
   })
 
   it('has no accessibility violations', async () => {
-    const wrapper = mount(ThemeControl)
+    const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),

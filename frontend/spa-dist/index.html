@@ -23,16 +23,24 @@
       crossorigin
     />
     <script>
-      // Set the theme before first paint. The theme store is the owner of this
-      // attribute, but it is only created once the bundle has parsed — long
+      // Set the themes before first paint. The theme store owns both
+      // attributes, but it is only created once the bundle has parsed — long
       // enough for a light-theme user to get a full-screen flash of the dark
       // palette. Kept deliberately tiny and dependency-free. The store writes
-      // the value as JSON, hence the quoted form; the bare one is accepted too
-      // so a hand-set key still works.
+      // values as JSON, hence the quoted form; the bare one is accepted too so
+      // a hand-set key still works.
       try {
-        var _theme = localStorage.getItem('sentinel_theme')
-        var _light = _theme === '"light"' || _theme === 'light'
+        var _read = function (key) {
+          var raw = localStorage.getItem(key)
+          return raw === '"light"' || raw === 'light'
+        }
+        var _light = _read('sentinel_theme')
         document.documentElement.dataset.theme = _light ? 'light' : 'dark'
+        // The map has its own key; before the two were split it had none, so
+        // an absent key follows the interface exactly as the store's seed does.
+        var _mapRaw = localStorage.getItem('sentinel_map_theme')
+        var _mapLight = _mapRaw === null ? _light : _read('sentinel_map_theme')
+        document.documentElement.dataset.mapTheme = _mapLight ? 'light' : 'dark'
       } catch (e) {}
     </script>
     <script>
@@ -46,8 +54,8 @@
         } catch (e) {}
       }
     </script>
-    <script type="module" crossorigin src="/spa-assets/index-C3nlFuuB.js"></script>
-    <link rel="stylesheet" crossorigin href="/spa-assets/index-B52gNyYj.css">
+    <script type="module" crossorigin src="/spa-assets/index-DTTmHRgy.js"></script>
+    <link rel="stylesheet" crossorigin href="/spa-assets/index-CYCClmMh.css">
   </head>
   <body>
     <div id="app"></div>

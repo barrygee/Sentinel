@@ -105,7 +105,7 @@ describe('SentrySiteMap', () => {
   })
 
   it('builds on the light basemap when the light theme is active', () => {
-    useThemeStore().setTheme('light')
+    useThemeStore().setMapTheme('light')
     mountMap()
     expect(mapRegistry.instances[0]!.setStyle).toHaveBeenCalledWith(
       '/assets/positron-online.json',
@@ -116,12 +116,12 @@ describe('SentrySiteMap', () => {
   it("repaints onto the other theme's basemap when the theme changes", async () => {
     mountMap()
     const created = mapRegistry.instances[0]!
-    useThemeStore().setTheme('light')
+    useThemeStore().setMapTheme('light')
     await nextTick()
     expect(created.setStyle).toHaveBeenLastCalledWith('/assets/positron-online.json', {
       transformStyle: absoluteSpriteTransform,
     })
-    useThemeStore().setTheme('dark')
+    useThemeStore().setMapTheme('dark')
     await nextTick()
     expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord-online.json', {
       transformStyle: absoluteSpriteTransform,
