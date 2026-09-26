@@ -49,7 +49,7 @@ const themeStore = useThemeStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
 
 // User location drives the "go to my location" button and the on-map marker.
 const { location: userLocation, start: startLocation } = useUserLocation()
@@ -107,7 +107,7 @@ function syncStyleToState(): void {
 useConnectivity(syncStyleToState)
 
 // A theme change swaps the basemap the same way a connectivity change does.
-watch(() => themeStore.theme, syncStyleToState)
+watch(() => themeStore.mapTheme, syncStyleToState)
 
 function onMapCreated(m: MapLibreGlMap) {
   _map = m

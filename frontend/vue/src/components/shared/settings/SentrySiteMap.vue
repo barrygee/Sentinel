@@ -42,7 +42,7 @@ import { useThemeStore } from '@/stores/theme'
  *  Online only: a Sentry site is being placed from a live host list, so there
  *  is no off-grid case to serve here. */
 const themeStore = useThemeStore()
-const styleUrl = () => basemapStyleUrl(true, themeStore.theme)
+const styleUrl = () => basemapStyleUrl(true, themeStore.mapTheme)
 
 /** Close enough to read the Pi's surroundings without implying GPS precision. */
 const SITE_ZOOM = 11
@@ -95,7 +95,7 @@ watch(
 
 // The marker lives outside the style, so a theme repaint only needs the style.
 watch(
-  () => themeStore.theme,
+  () => themeStore.mapTheme,
   () => {
     /* v8 ignore start -- the watcher only fires while mounted, by which point
        map is always set; defensive only, matching the guards either side */

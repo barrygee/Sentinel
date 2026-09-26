@@ -10,7 +10,14 @@
     :class="{ 'settings-panel-visible': store.open }"
     @keydown="onKeydown"
   >
-    <div id="settings-sidebar" :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }">
+    <!-- `theme-dark`: this rail keeps its charcoal whatever the app's palette
+         is doing. It is the settings panel's own furniture, and the panel is a
+         fixed light island by design. -->
+    <div
+      id="settings-sidebar"
+      class="theme-dark"
+      :class="{ 'settings-sidebar--collapsed': !store.sidebarOpen }"
+    >
       <BaseIconButton
         v-for="s in visibleSections"
         :key="s.key"
@@ -363,10 +370,19 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'theme',
-    label: 'Light Theme',
-    desc: 'Render the maps and the interface in the light palette instead of the dark one',
-    searchTerms: 'theme light dark mode palette appearance basemap colour color',
+    label: 'Light Interface',
+    desc: 'Render the panels, rails and chrome in the light palette instead of the dark one',
+    searchTerms: 'theme light dark mode palette appearance interface ui colour color',
     type: 'theme',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'map-theme',
+    label: 'Light Map',
+    desc: 'Render the basemap in the light palette — set independently of the interface',
+    searchTerms: 'theme light dark mode palette appearance basemap map colour color',
+    type: 'map-theme',
   },
   {
     section: 'app',

@@ -285,7 +285,7 @@ describe('SpaceMap', () => {
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
-      useThemeStore().setTheme('light')
+      useThemeStore().setMapTheme('light')
       await nextTick()
       expect(map.setStyle).toHaveBeenCalledWith('/assets/positron-online.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()
@@ -296,7 +296,7 @@ describe('SpaceMap', () => {
 
     it('does nothing when the map is not yet created', async () => {
       mountMap()
-      useThemeStore().setTheme('light')
+      useThemeStore().setMapTheme('light')
       await expect(nextTick()).resolves.not.toThrow()
     })
   })

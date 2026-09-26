@@ -3,10 +3,13 @@ import BaseToggleSetting from '@/components/base/BaseToggleSetting.vue'
 import { useThemeStore } from '@/stores/theme'
 
 /**
- * Settings row for the light/dark theme. The switch mirrors into the theme
- * store immediately — the maps repaint and `<html data-theme>` flips as the
- * operator watches — while the persisted write waits for APPLY CHANGES like
- * every other staged setting.
+ * Settings row for the INTERFACE palette — the panels, rails and chrome. The
+ * basemap has its own row (`MapThemeControl`) so the two can be set
+ * independently; a dark map under a light interface is a normal pairing.
+ *
+ * The switch mirrors into the theme store immediately — `<html data-theme>`
+ * flips as the operator watches — while the persisted write waits for APPLY
+ * CHANGES like every other staged setting.
  */
 const theme = useThemeStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -14,8 +17,8 @@ const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 <template>
   <BaseToggleSetting
-    label="LIGHT THEME"
-    accessible-name="Use the light theme for the maps and the interface"
+    label="LIGHT INTERFACE"
+    accessible-name="Use the light palette for the interface"
     namespace="app"
     setting-key="lightTheme"
     :hydrate-from-db="theme.hydrateLightThemeFromDb"

@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import { useThemeStore } from './theme'
 
 const LS_KEY = 'sentinel_theme'
+const MAP_LS_KEY = 'sentinel_map_theme'
 
 /** What the store persisted to localStorage, as the raw JSON string. */
 function persisted(): string | null {
@@ -22,6 +23,7 @@ function stubFetch(payload: unknown, ok = true): void {
 beforeEach(() => {
   localStorage.clear()
   delete document.documentElement.dataset.theme
+  delete document.documentElement.dataset.mapTheme
   setActivePinia(createPinia())
 })
 
@@ -146,5 +148,91 @@ describe('theme store hydrateLightThemeFromDb', () => {
     const store = useThemeStore()
     await store.hydrateLightThemeFromDb()
     expect(store.theme).toBe('dark')
+  })
+})
+
+describe('theme store map theme', () => {
+  it('starts dark and publishes that on its own attribute', () => {
+    const store = useThemeStore()
+    expect(store.mapTheme).toBe('dark')
+    expect(store.isMapLight).toBe(false)
+    expect(document.documentElement.dataset.mapTheme).toBe('dark')
+  })
+
+  it('seeds from the interface theme when it has no key of its own', () => {
+    // The upgrade path: before the split, one switch drove both, so an
+    // operator running the light theme was looking at a light map. Seeding
+    // keeps that view through the first load after the split.
+    localStorage.setItem(LS_KEY, JSON.stringify('light'))
+    const store = useThemeStore()
+    expect(store.mapTheme).toBe('light')
+    expect(document.documentElement.dataset.mapTheme).toBe('light')
+  })
+
+  it('prefers its own persisted value over the interface theme', () => {
+    localStorage.setItem(LS_KEY, JSON.stringify('light'))
+    localStorage.setItem(MAP_LS_KEY, JSON.stringify('dark'))
+    const store = useThemeStore()
+    expect(store.theme).toBe('light')
+    expect(store.mapTheme).toBe('dark')
+  })
+
+  it('switches independently of the interface, persisting its own key', async () => {
+    const store = useThemeStore()
+    store.setMapTheme('light')
+    await nextTick()
+
+    expect(store.mapTheme).toBe('light')
+    expect(document.documentElement.dataset.mapTheme).toBe('light')
+    expect(localStorage.getItem(MAP_LS_KEY)).toBe(JSON.stringify('light'))
+    // The interface is untouched — and its key is never written, because
+    // nothing changed it (the store persists on change, not on creation).
+    expect(store.theme).toBe('dark')
+    expect(themeAttribute()).toBe('dark')
+    expect(persisted()).toBeNull()
+  })
+
+  it('takes a boolean from the light-map switch', () => {
+    const store = useThemeStore()
+    store.setLightMapTheme(true)
+    expect(store.mapTheme).toBe('light')
+    store.setLightMapTheme(false)
+    expect(store.mapTheme).toBe('dark')
+  })
+
+  it('adopts a flag from the config database, and ignores a missing one', () => {
+    localStorage.setItem(LS_KEY, JSON.stringify('light'))
+    const store = useThemeStore()
+    expect(store.mapTheme).toBe('light')
+
+    // A config written before the split has no map key at all; leaving the
+    // seeded value alone is what stops the basemap flipping under the operator.
+    store.hydrateLightMapTheme(undefined)
+    expect(store.mapTheme).toBe('light')
+
+    store.hydrateLightMapTheme(false)
+    expect(store.mapTheme).toBe('dark')
+  })
+
+  it('re-reads its own key from the settings endpoint', async () => {
+    stubFetch({ lightTheme: false, lightMapTheme: true })
+    const store = useThemeStore()
+    await store.hydrateLightMapThemeFromDb()
+    expect(store.mapTheme).toBe('light')
+    expect(store.theme).toBe('dark')
+  })
+
+  it('keeps the current map theme when the endpoint fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const store = useThemeStore()
+    await store.hydrateLightMapThemeFromDb()
+    expect(store.mapTheme).toBe('dark')
+  })
+
+  it('keeps the current map theme when the response is not ok', async () => {
+    stubFetch({ lightMapTheme: true }, false)
+    const store = useThemeStore()
+    await store.hydrateLightMapThemeFromDb()
+    expect(store.mapTheme).toBe('dark')
   })
 })

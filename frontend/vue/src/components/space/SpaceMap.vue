@@ -50,7 +50,7 @@ const { location: userLocation, start: startLocation } = useUserLocation()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
 
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
@@ -93,7 +93,7 @@ useConnectivity(() => {
 })
 
 watch(
-  () => themeStore.theme,
+  () => themeStore.mapTheme,
   () => {
     const m = _map
     if (!m) return

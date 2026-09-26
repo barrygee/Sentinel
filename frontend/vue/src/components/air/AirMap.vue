@@ -64,7 +64,7 @@ const themeStore = useThemeStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.theme))
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
 
 // The 3D view was removed from the map options, so the map is always flat. The
 // two readers below (ADS-B labels, military-base extrusions) still ask, and a
@@ -180,7 +180,7 @@ useConnectivity(() => {
 
 // A theme change is the same operation as a connectivity change: reload the
 // basemap, then put the overlays back.
-watch(() => themeStore.theme, syncStyleToState)
+watch(() => themeStore.mapTheme, syncStyleToState)
 
 function onMapCreated(m: MapLibreGlMap) {
   _map = m

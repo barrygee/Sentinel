@@ -286,18 +286,18 @@ describe('SatelliteControl ground-track colour', () => {
   }
 
   afterEach(() => {
-    delete document.documentElement.dataset.theme
+    delete document.documentElement.dataset.mapTheme
   })
 
   it('draws every orbit in the brand lime on the dark basemap', async () => {
-    document.documentElement.dataset.theme = 'dark'
+    document.documentElement.dataset.mapTheme = 'dark'
     const colours = await orbitTrackColours()
     expect(colours).toHaveLength(4)
     expect(colours).toEqual(['#c8ff00', '#c8ff00', '#c8ff00', '#c8ff00'])
   })
 
   it('draws every orbit in black on the light basemap, where lime vanishes', async () => {
-    document.documentElement.dataset.theme = 'light'
+    document.documentElement.dataset.mapTheme = 'light'
     const colours = await orbitTrackColours()
     expect(colours).toHaveLength(4)
     expect(colours).toEqual(['#000000', '#000000', '#000000', '#000000'])
