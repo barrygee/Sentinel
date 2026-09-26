@@ -138,20 +138,7 @@ describe('land store', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({ defaultLayers: ['trafficCameras'] }),
-        }),
-      )
-      const store = useLandStore()
-      await store.hydrateDefaultLayers()
-      expect(store.defaultLayers).toEqual(['trafficCameras'])
-    })
-
-    it('narrows a saved list naming several layers to the first in priority order', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-          ok: true,
-          json: async () => ({ defaultLayers: ['repeaters', 'trafficCameras', 'aprs'] }),
+          json: async () => ({ defaultLayers: ['aprs'] }),
         }),
       )
       const store = useLandStore()
@@ -159,13 +146,37 @@ describe('land store', () => {
       expect(store.defaultLayers).toEqual(['aprs'])
     })
 
-    it('narrows a saved list of only unknown layers to nothing', async () => {
+    it('narrows a saved list naming several layers to the first in priority order', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({ defaultLayers: ['weather', 'nonsense'] }),
+          json: async () => ({ defaultLayers: ['repeaters', 'aprs'] }),
         }),
+      )
+      const store = useLandStore()
+      await store.hydrateDefaultLayers()
+      expect(store.defaultLayers).toEqual(['aprs'])
+    })
+
+    it('falls back to the repeater layer when a saved list names only unknown layers', async () => {
+      // e.g. the removed traffic-cameras layer — the map must not come up blank.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ defaultLayers: ['trafficCameras', 'nonsense'] }),
+        }),
+      )
+      const store = useLandStore()
+      await store.hydrateDefaultLayers()
+      expect(store.defaultLayers).toEqual(['repeaters'])
+    })
+
+    it('keeps an explicitly empty saved list empty', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ defaultLayers: [] }) }),
       )
       const store = useLandStore()
       await store.hydrateDefaultLayers()
@@ -255,7 +266,6 @@ describe('land store', () => {
     it('starts with every layer off, so hydration decides what shows', () => {
       const store = useLandStore()
       expect(store.aprsLayerVisible).toBe(false)
-      expect(store.trafficCamerasLayerVisible).toBe(false)
       expect(store.repeatersLayerVisible).toBe(false)
       expect(store.activeLayer).toBe(null)
     })
@@ -266,14 +276,6 @@ describe('land store', () => {
       expect(store.aprsLayerVisible).toBe(true)
       store.setAprsLayerVisible(false)
       expect(store.aprsLayerVisible).toBe(false)
-    })
-
-    it('toggles traffic cameras, so the map control and the layers control stay in step', () => {
-      const store = useLandStore()
-      store.setTrafficCamerasLayerVisible(true)
-      expect(store.trafficCamerasLayerVisible).toBe(true)
-      store.setTrafficCamerasLayerVisible(false)
-      expect(store.trafficCamerasLayerVisible).toBe(false)
     })
 
     it('toggles repeaters', () => {
@@ -288,14 +290,9 @@ describe('land store', () => {
   describe('selectLayer / activeLayer', () => {
     it('shows exactly the chosen layer and switches the others off', () => {
       const store = useLandStore()
-      store.selectLayer('trafficCameras')
-      expect(store.activeLayer).toBe('trafficCameras')
-      expect(store.aprsLayerVisible).toBe(false)
-      expect(store.repeatersLayerVisible).toBe(false)
-
       store.selectLayer('repeaters')
       expect(store.activeLayer).toBe('repeaters')
-      expect(store.trafficCamerasLayerVisible).toBe(false)
+      expect(store.aprsLayerVisible).toBe(false)
 
       store.selectLayer('aprs')
       expect(store.activeLayer).toBe('aprs')
@@ -304,9 +301,8 @@ describe('land store', () => {
 
     it('reports APRS first when more than one flag is set directly', () => {
       const store = useLandStore()
-      store.setTrafficCamerasLayerVisible(true)
       store.setRepeatersLayerVisible(true)
-      expect(store.activeLayer).toBe('trafficCameras')
+      expect(store.activeLayer).toBe('repeaters')
       store.setAprsLayerVisible(true)
       expect(store.activeLayer).toBe('aprs')
     })
@@ -323,8 +319,8 @@ describe('land store', () => {
       const store = useLandStore()
       store.selectLayer('aprs')
       expect(store.currentDefaultLayers()).toEqual(['aprs'])
-      store.selectLayer('trafficCameras')
-      expect(store.currentDefaultLayers()).toEqual(['trafficCameras'])
+      store.selectLayer('repeaters')
+      expect(store.currentDefaultLayers()).toEqual(['repeaters'])
     })
 
     it('returns an empty list when every layer is off', () => {

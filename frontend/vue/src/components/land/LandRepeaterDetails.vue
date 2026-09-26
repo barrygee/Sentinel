@@ -83,7 +83,7 @@
 <script setup lang="ts">
 /**
  * `LandRepeaterDetails` — the accordion body for one repeater site in the
- * Land FILTER pane, the counterpart of `LandCameraDetails`: the site's
+ * Land FILTER pane: the site's
  * identity and position, then one BaseDataGrid per licensed channel with its
  * frequencies, modes and access details. The output and input frequencies
  * are tune buttons with a save bookmark (`LandRepeaterFrequencyCell`); the

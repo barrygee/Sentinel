@@ -35,7 +35,7 @@ describe('LandMapLayersControl', () => {
     vi.mocked(settingsApi.getNamespace).mockReset().mockResolvedValue(null)
   })
 
-  // The three data layers (APRS, cameras, repeaters) are the sidebar's FILTER
+  // The two data layers (APRS, repeaters) are the sidebar's FILTER
   // sub-tabs now, so this card carries only the shared base-map switch.
   it('lists the base-map switch alone, with no data-layer rows', () => {
     const wrapper = mountControl()
@@ -84,7 +84,7 @@ describe('LandMapLayersControl', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({ defaultLayers: ['trafficCameras'] }),
+          json: async () => ({ defaultLayers: ['aprs'] }),
         }),
       )
       const basemapStore = useBasemapStore()
@@ -96,7 +96,7 @@ describe('LandMapLayersControl', () => {
 
       expect(basemapStore.layers.names).toBe(true)
       expect(isOn(wrapper, 'Location names')).toBe(true)
-      expect(landStore.activeLayer).toBe('trafficCameras')
+      expect(landStore.activeLayer).toBe('aprs')
       vi.unstubAllGlobals()
     })
 
@@ -115,20 +115,20 @@ describe('LandMapLayersControl', () => {
       vi.unstubAllGlobals()
     })
 
-    it('leaves the chosen layer alone when the uploaded config names none it knows', async () => {
+    it('leaves the chosen layer alone when the uploaded config names no layer', async () => {
       vi.mocked(settingsApi.getNamespace).mockResolvedValue({})
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ defaultLayers: ['weather'] }) }),
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ defaultLayers: [] }) }),
       )
       const landStore = useLandStore()
-      landStore.selectLayer('repeaters')
+      landStore.selectLayer('aprs')
       mountControl()
 
       document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
       await flushPromises()
 
-      expect(landStore.activeLayer).toBe('repeaters')
+      expect(landStore.activeLayer).toBe('aprs')
       vi.unstubAllGlobals()
     })
   })

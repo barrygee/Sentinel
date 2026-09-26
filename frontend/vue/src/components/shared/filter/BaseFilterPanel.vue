@@ -63,7 +63,7 @@
     <div v-else class="bfp-results-body">
       <template v-for="(item, index) in items" :key="item.key">
         <!-- A group heading opens each run of rows that share a `groupLabel`
-             (a camera feed's cameras, say) and collapses the run on click, so a
+             (one data source's entries, say) and collapses the run on click, so a
              source with hundreds of rows can be folded away. It is a plain
              disclosure button outside the listbox: keyboard row navigation and
              `aria-activedescendant` only ever see the rows of open groups. -->
@@ -213,7 +213,7 @@ const props = withDefaults(
     clearFocusOnInput?: boolean
     /**
      * Whether groups start folded shut. Suits a pane whose groups are long
-     * lists the user picks from (a camera feed's every camera, say), where
+     * lists the user picks from (every entry of one data source, say), where
      * opening on a wall of rows hides the group headings themselves. A search
      * query opens every group regardless, so a match is never folded away.
      */

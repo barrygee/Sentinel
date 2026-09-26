@@ -6,7 +6,6 @@ import {
   APRS_BADGE_BACKGROUND,
   APRS_COUNT_RING,
   REPEATER_COUNT_RING,
-  TRAFFIC_CAMERA_COUNT_RING,
 } from './aprs'
 
 /**
@@ -49,12 +48,11 @@ describe('APRS label palette', () => {
   })
 
   // Each Land layer groups its own points, and a count marker's ring is the
-  // only thing saying which set it stands for — so the three must differ, and
+  // only thing saying which set it stands for — so the two must differ, and
   // each must stay translucent enough for the map to show through.
   describe('Land count-marker rings', () => {
     const rings = {
       APRS: APRS_COUNT_RING,
-      'traffic cameras': TRAFFIC_CAMERA_COUNT_RING,
       repeaters: REPEATER_COUNT_RING,
     }
 

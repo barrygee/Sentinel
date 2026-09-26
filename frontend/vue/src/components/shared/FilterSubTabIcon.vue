@@ -303,23 +303,6 @@
     <path d="M6 12.2h4" />
   </svg>
   <svg
-    v-else-if="category === 'trafficCameras'"
-    width="19"
-    height="19"
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.4"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    <!-- Pole-mounted CCTV housing with its lens hood, not a photo camera. -->
-    <path d="M2 2v12M2 4.5h4.5v2" />
-    <rect x="4" y="6.5" width="7.5" height="4" rx="1" />
-    <path d="M11.5 7.6l2.8-1.1v5l-2.8-1.1" />
-  </svg>
-  <svg
     v-else-if="category === 'repeaters'"
     width="19"
     height="19"
@@ -362,7 +345,7 @@
 // all/civil/military-aircraft glyphs (the old side-menu filter icons) plus
 // airports and military bases; Space uses one glyph
 // per satellite category; Sea reuses its side menu's hull glyphs; Land uses
-// the APRS / camera / repeater glyphs its map markers carry. Any
+// the APRS / repeater glyphs its map markers carry. Any
 // unrecognised id falls back to the "unknown" glyph.
 import SeaFamilyGlyph from '@/components/sea/SeaFamilyGlyph.vue'
 import { isSeaFilterCategory } from '@/utils/aisShipType'

@@ -547,7 +547,7 @@ describe('MapSidebar', () => {
         const categories = wrapper
           .findAll('.msb-rail-subbtn')
           .map((subTab) => subTab.attributes('data-filter-cat'))
-        expect(categories).toEqual(['aprs', 'trafficCameras', 'repeaters'])
+        expect(categories).toEqual(['aprs', 'repeaters'])
       })
 
       it('disables APRS and says why while no SDR is decoding it', async () => {
@@ -567,23 +567,25 @@ describe('MapSidebar', () => {
 
       it('makes the clicked tab the one layer the map draws, and saves it at once', async () => {
         const putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
+        // APRS is only selectable once a radio decodes it.
+        useSdrStore().aprsRadioId = 4
         const wrapper = await openLandFilter()
         const landStore = useLandStore()
 
-        await wrapper.find('.msb-rail-subbtn[data-filter-cat="trafficCameras"]').trigger('click')
-        expect(landStore.activeLayer).toBe('trafficCameras')
-        expect(putSpy).toHaveBeenLastCalledWith('land', 'defaultLayers', ['trafficCameras'])
-        expect(
-          wrapper.find('.msb-rail-subbtn[data-filter-cat="trafficCameras"]').classes(),
-        ).toContain('msb-rail-btn-active')
+        await wrapper.find('.msb-rail-subbtn[data-filter-cat="aprs"]').trigger('click')
+        expect(landStore.activeLayer).toBe('aprs')
+        expect(putSpy).toHaveBeenLastCalledWith('land', 'defaultLayers', ['aprs'])
+        expect(wrapper.find('.msb-rail-subbtn[data-filter-cat="aprs"]').classes()).toContain(
+          'msb-rail-btn-active',
+        )
 
         await wrapper.find('.msb-rail-subbtn[data-filter-cat="repeaters"]').trigger('click')
         expect(landStore.activeLayer).toBe('repeaters')
         expect(putSpy).toHaveBeenLastCalledWith('land', 'defaultLayers', ['repeaters'])
         // Single-select: the previous layer's tab goes dark.
-        expect(
-          wrapper.find('.msb-rail-subbtn[data-filter-cat="trafficCameras"]').classes(),
-        ).not.toContain('msb-rail-btn-active')
+        expect(wrapper.find('.msb-rail-subbtn[data-filter-cat="aprs"]').classes()).not.toContain(
+          'msb-rail-btn-active',
+        )
       })
 
       it('lights no tab while every layer is off', async () => {

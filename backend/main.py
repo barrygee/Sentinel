@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 from backend.database import (
     backfill_satellite_radio_store,
     create_tables,
-    merge_default_land_feeds,
     migrate_sdr_radios_to_settings,
     prune_removed_settings,
     seed_default_settings,
@@ -18,7 +17,7 @@ from backend.database import (
     seed_sdr_data_from_files,
 )
 from backend.routers import adsb_source as adsb_source_router
-from backend.routers import air, land, land_feeds, sea, space
+from backend.routers import air, land, sea, space
 from backend.routers import sdr as sdr_router
 from backend.routers import sentry as sentry_router
 from backend.routers import settings as settings_router
@@ -27,7 +26,6 @@ from backend.services import sdr as sdr_service
 from backend.services import sdr_decode as sdr_decode_service
 from backend.services.ais_stream import reader as ais_reader
 from backend.services.flight_history import cleanup_old_snapshots
-from backend.services.land_feeds.poller import poller as land_feeds_poller
 from backend.services.sentry_fleet import fleet_poller
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -60,9 +58,6 @@ async def lifespan(app: FastAPI):
     # so a stale key can never be mistaken for a live default.
     await prune_removed_settings()
     await seed_default_settings()
-    # Runs after the seeder so a fresh install (no row yet) is a no-op here
-    # and an existing one picks up feeds added to the defaults since.
-    await merge_default_land_feeds()
     await seed_sdr_data_from_files()
     await seed_sdr_bandplan_from_file()
     await backfill_satellite_radio_store()
@@ -79,8 +74,6 @@ async def lifespan(app: FastAPI):
     # Sea: warm the vessel store from the last snapshot and start the AISStream
     # watchdog (it only opens the socket once the domain is enabled and keyed).
     await ais_reader.start()
-    # Land: start one poll task per enabled live feed (traffic cameras etc).
-    await land_feeds_poller.start()
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
     # signal arrives so blocked WS stream loops exit immediately, THEN run
@@ -119,7 +112,6 @@ async def lifespan(app: FastAPI):
         pass
     await fleet_poller.stop_all()
     await ais_reader.stop()
-    await land_feeds_poller.stop()
     await sdr_decode_service.shutdown_all_decoders()
     await sdr_service.shutdown_all()
 
@@ -138,7 +130,6 @@ app = FastAPI(
 app.include_router(air.router)
 app.include_router(space.router)
 app.include_router(land.router)
-app.include_router(land_feeds.router)
 app.include_router(sea.router)
 app.include_router(settings_router.router)
 app.include_router(sdr_router.router)

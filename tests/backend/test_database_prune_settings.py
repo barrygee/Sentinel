@@ -1,7 +1,8 @@
 """Tests for prune_removed_settings() — backend/database.py.
 
 The migration deletes settings rows belonging to features that no longer exist
-(currently trunk tracking, removed in ADR-0004). It runs on every startup, so
+(trunk tracking, removed in ADR-0004; the ADS-B label switches; and the Land
+live camera feeds, whose per-feed credential rows are matched by key prefix). It runs on every startup, so
 the cases that matter most are the negative ones: it must never touch a live
 setting, and a second run must be a no-op.
 
@@ -124,6 +125,89 @@ class TestPruneRemovedSettings:
         # the query match on the namespace alone and delete a whole namespace.
         assert db._REMOVED_SETTING_KEYS
         for entry in db._REMOVED_SETTING_KEYS:
+            assert isinstance(entry, tuple)
+            assert len(entry) == 2
+            assert all(isinstance(part, str) and part for part in entry)
+
+
+class TestPruneRemovedLandCameraFeeds:
+    """The Land live camera feeds were removed: their feed list, the
+    offered-defaults bookkeeping and every per-feed credential must go."""
+
+    async def test_deletes_the_feed_list_and_offered_bookkeeping(self, session_factory):
+        await _add_settings(
+            session_factory,
+            [
+                ("land", "feeds", [{"id": "durham-cc", "enabled": True}]),
+                ("land", "defaultFeedsOffered", ["durham-cc", "tfl-jamcams"]),
+            ],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == []
+
+    async def test_deletes_every_feed_credential_row_by_prefix(self, session_factory):
+        # Credentials were stored one secret row per feed id, so there is no
+        # fixed key — only the prefix identifies them. No exact-key row is
+        # present here, so the prefix clause alone must do the deleting.
+        await _add_settings(
+            session_factory,
+            [
+                ("land", "feedCredential:utmc", {"username": "u", "password": "p"}),
+                ("land", "feedCredential:tfl-jamcams", {"apiKey": "k"}),
+            ],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == []
+
+    async def test_leaves_live_land_settings_and_near_miss_keys(self, session_factory):
+        # The prefix includes its colon, so a key that merely starts with
+        # "feedCredential" (or "feeds") is a different setting and survives,
+        # as do the live Land settings beside the removed rows.
+        await _add_settings(
+            session_factory,
+            [
+                ("land", "feedCredential:utmc", {"username": "u"}),
+                ("land", "feeds", []),
+                ("land", "feedCredentialNote", "keep"),
+                ("land", "feedsLegend", "keep"),
+                ("land", "defaultLayers", ["repeaters"]),
+                ("land", "aprsChannelHz", 144_800_000),
+            ],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == [
+            ("land", "aprsChannelHz"),
+            ("land", "defaultLayers"),
+            ("land", "feedCredentialNote"),
+            ("land", "feedsLegend"),
+        ]
+
+    async def test_prefix_match_is_scoped_to_the_land_namespace(self, session_factory):
+        await _add_settings(
+            session_factory,
+            [
+                ("land", "feedCredential:utmc", {"username": "u"}),
+                ("sea", "feedCredential:utmc", "another namespace"),
+            ],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == [("sea", "feedCredential:utmc")]
+
+    async def test_prefix_is_matched_literally_not_as_a_like_pattern(self, session_factory, monkeypatch):
+        # startswith(autoescape=True) must escape LIKE wildcards: a prefix
+        # containing "_" must not match an arbitrary character in its place.
+        monkeypatch.setattr(db, "_REMOVED_SETTING_PREFIXES", (("land", "old_cred:"),))
+        await _add_settings(
+            session_factory,
+            [("land", "old_cred:a", 1), ("land", "oldXcred:b", 2)],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == [("land", "oldXcred:b")]
+
+    async def test_removed_prefixes_are_all_namespace_prefix_pairs(self):
+        # An empty prefix would match every key in the namespace and wipe it.
+        assert db._REMOVED_SETTING_PREFIXES
+        for entry in db._REMOVED_SETTING_PREFIXES:
             assert isinstance(entry, tuple)
             assert len(entry) == 2
             assert all(isinstance(part, str) and part for part in entry)

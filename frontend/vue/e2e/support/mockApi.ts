@@ -187,24 +187,6 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     })
   })
 
-  // Land live feeds: an empty feed list and empty per-feed feature
-  // collections, so the traffic-cameras control and the LIVE FEEDS settings
-  // card have something well-formed to read without the Land view falling
-  // back to the no-data overlay.
-  await page.route('**/api/land/feeds', (route) => {
-    if (route.request().method() !== 'GET') {
-      void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ feeds: [] }) })
-      return
-    }
-    void route.fulfill({ contentType: 'application/json', body: JSON.stringify({ feeds: [] }) })
-  })
-  await page.route('**/api/land/feeds/*/features', (route) => {
-    void route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({ type: 'FeatureCollection', features: [] }),
-    })
-  })
-
   // UK repeater directory. `repeaters` is the Land map's DEFAULT layer, so the
   // RepeatersControl fetches this on every /land/ visit — left unmocked the SPA
   // fallback HTML would make the map, the REPEATERS list and the accessible

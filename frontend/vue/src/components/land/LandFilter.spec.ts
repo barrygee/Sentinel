@@ -4,20 +4,17 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import LandFilter from './LandFilter.vue'
 import { useLandStore, type AprsStation } from '@/stores/land'
-import { useLandFeedsStore } from '@/stores/landFeeds'
 import { useRepeatersStore } from '@/stores/repeaters'
 import { useSdrStore, type SdrStoredFrequency } from '@/stores/sdr'
 import { useNotificationsStore } from '@/stores/notifications'
-import LandCameraDetails from './LandCameraDetails.vue'
 import LandRepeaterDetails from './LandRepeaterDetails.vue'
 import LandRepeaterFilters from './LandRepeaterFilters.vue'
 import { repeaterSearchKey } from '@/constants/repeaters'
-import type { CameraFeature, FeedWithStatus } from '@/types/landFeeds'
 import type { RepeaterChannel, RepeaterStation } from '@/types/repeaters'
 
 /**
  * Mount the pane and unfold every group heading — the Land pane starts its
- * camera / station groups collapsed, and most assertions here are about the
+ * station groups collapsed, and most assertions here are about the
  * rows inside them.
  */
 async function mountWithGroupsOpen(options: { attachTo?: Element } = {}) {
@@ -238,7 +235,7 @@ describe('LandFilter', () => {
       expect(text).toContain('WIDE1-1')
       expect(text).toContain('rolling')
       // Every APRS value renders inside the wrapper that uppercases and
-      // resizes it; the camera and repeater accordions are outside it.
+      // resizes it; the repeater accordion is outside it.
       expect(wrapper.find('.bfp-accordion-body .land-filter-station').exists()).toBe(true)
 
       // The raw frame is reference material, so it starts collapsed.
@@ -468,280 +465,6 @@ describe('LandFilter', () => {
   })
 })
 
-// ── traffic cameras ────────────────────────────────────────────────────────
-
-function feed(overrides: Partial<FeedWithStatus>): FeedWithStatus {
-  return {
-    id: 'durham-cc',
-    name: 'Durham County Council',
-    category: 'traffic-cameras',
-    provider: 'durham',
-    url: 'https://example.test',
-    enabled: true,
-    refreshSeconds: 60,
-    datasets: [],
-    bbox: null,
-    location: null,
-    auth: { type: 'none' },
-    status: {
-      lastFetchAt: null,
-      lastError: null,
-      featureCount: 0,
-      credentialConfigured: false,
-      running: true,
-    },
-    ...overrides,
-  }
-}
-
-function camera(
-  id: string,
-  sourceId: string,
-  overrides: Partial<CameraFeature['properties']> = {},
-  coordinates: [number, number] = [-1.58, 54.78],
-): CameraFeature {
-  return {
-    type: 'Feature',
-    geometry: { type: 'Point', coordinates },
-    properties: {
-      kind: 'camera',
-      id: `${sourceId}:${id}`,
-      name: id,
-      description: '',
-      view: null,
-      updatedAt: null,
-      state: 'live',
-      imageUrl: null,
-      clipUrl: null,
-      externalUrl: null,
-      sourceId,
-      sourceName: sourceId === 'durham-cc' ? 'Durham County Council' : 'TfL JamCams',
-      attribution: sourceId === 'durham-cc' ? 'OGL v3.0' : 'Powered by TfL Open Data',
-      ...overrides,
-    },
-  }
-}
-
-describe('LandFilter — traffic cameras', () => {
-  let store: ReturnType<typeof useLandStore>
-  let feedsStore: ReturnType<typeof useLandFeedsStore>
-
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stations: [] }) }),
-    )
-    store = useLandStore()
-    // Both flags are set directly: the map draws one layer at a time, but the
-    // pane is built to list several sets at once (group headings, the joined
-    // search label), so those branches need both on.
-    store.setAprsLayerVisible(true)
-    store.setTrafficCamerasLayerVisible(true)
-    feedsStore = useLandFeedsStore()
-    feedsStore.feeds = [
-      feed({ id: 'durham-cc' }),
-      feed({ id: 'tfl-jamcams', name: 'TfL JamCams', refreshSeconds: 300 }),
-    ]
-    feedsStore.featuresByFeed = {
-      'durham-cc': {
-        type: 'FeatureCollection',
-        features: [
-          camera('Framwellgate Peth', 'durham-cc', { view: 'View towards the City Centre' }),
-          camera('Milburngate', 'durham-cc', { state: 'offline' }),
-        ],
-      },
-      'tfl-jamcams': {
-        type: 'FeatureCollection',
-        features: [camera('A406 Billet Upass E', 'tfl-jamcams', { view: 'West' }, [-0.01, 51.6])],
-      },
-    }
-  })
-  afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
-
-  it('lists cameras after the stations, grouped per source under a plain heading', async () => {
-    store.aprsStations = [station()]
-    const wrapper = await mountWithGroupsOpen()
-    const headings = wrapper.findAll('.bfp-group-heading')
-    expect(headings.map((heading) => heading.find('.bfp-group-heading-label').text())).toEqual([
-      'APRS STATIONS',
-      'Durham County Council',
-      'TfL JamCams',
-    ])
-    // The in-view count and licence line were deliberately dropped so each
-    // source folds into one clean row.
-    expect(headings[1]!.find('.bfp-group-heading-meta').exists()).toBe(false)
-    expect(headings[1]!.find('.bfp-group-heading-note').exists()).toBe(false)
-    const rows = wrapper.findAll('.bfp-result-item')
-    expect(rows).toHaveLength(4)
-    expect(rows[1]!.find('.bfp-result-primary').text()).toBe('Framwellgate Peth')
-    expect(rows[1]!.find('.bfp-result-secondary').text()).toBe(
-      'View towards the City Centre · LIVE',
-    )
-    expect(rows[2]!.find('.bfp-result-secondary').text()).toBe('OFFLINE')
-    expect(rows[1]!.attributes('id')).toBe('land-filter-row-cam-durham-cc-Framwellgate-Peth')
-    expect(wrapper.find('input').attributes('placeholder')).toBe('CALLSIGN · CAMERA · ROAD')
-  })
-
-  it('starts every group folded shut, with the headings alone showing', () => {
-    store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
-    const headings = wrapper.findAll('.bfp-group-heading')
-    expect(headings).toHaveLength(3)
-    expect(headings.map((heading) => heading.attributes('aria-expanded'))).toEqual([
-      'false',
-      'false',
-      'false',
-    ])
-    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(0)
-  })
-
-  it('names each camera row for assistive tech with its source and state', async () => {
-    const wrapper = await mountWithGroupsOpen()
-    const option = wrapper.find('#land-filter-opt-cam-durham-cc-Milburngate')
-    expect(option.attributes('aria-label')).toBe(
-      'Traffic camera Milburngate, Durham County Council, offline',
-    )
-  })
-
-  it('lists only the cameras inside the map viewport', async () => {
-    feedsStore.setViewportBounds({ west: -2, east: -1, south: 54, north: 55 })
-    const wrapper = await mountWithGroupsOpen()
-    const headings = wrapper.findAll('.bfp-group-heading')
-    // London is out of view, so the TfL heading is not rendered at all.
-    expect(headings).toHaveLength(1)
-    expect(headings[0]!.find('.bfp-group-heading-label').text()).toBe('Durham County Council')
-    expect(wrapper.findAll('.bfp-result-item')).toHaveLength(2)
-  })
-
-  it('names the search field for both sets once cameras are listed', async () => {
-    store.aprsStations = [station()]
-    const wrapper = await mountWithGroupsOpen()
-    expect(wrapper.find('input').attributes('aria-label')).toBe(
-      'Filter APRS stations and traffic cameras by name or callsign',
-    )
-    expect(wrapper.find('[role="listbox"]').attributes('aria-label')).toBe(
-      'APRS stations and traffic cameras',
-    )
-  })
-
-  it('gives stations no group heading while no camera source is enabled', () => {
-    feedsStore.feeds = []
-    store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
-    expect(wrapper.findAll('.bfp-group-heading')).toHaveLength(0)
-    expect(wrapper.find('input').attributes('placeholder')).toBe(
-      'CALLSIGN · SYMBOL · PATH · COMMENT',
-    )
-  })
-
-  it('matches cameras on name, view, source and description', async () => {
-    store.aprsStations = [station()]
-    const wrapper = mount(LandFilter)
-    for (const [needle, expected] of [
-      ['billet', ['A406 Billet Upass E']],
-      ['city centre', ['Framwellgate Peth']],
-      ['tfl', ['A406 Billet Upass E']],
-      ['zzz', []],
-    ] as Array<[string, string[]]>) {
-      store.setSearchQuery(needle)
-      await flushPromises()
-      const cameraRows = wrapper
-        .findAll('.bfp-result-item')
-        .map((row) => row.find('.bfp-result-primary').text())
-        .filter((name) => name !== 'M0ABC-9')
-      expect(cameraRows).toEqual(expected)
-    }
-    expect(wrapper.find('.bfp-no-results').text()).toBe('Nothing matches')
-  })
-
-  it('tells the operator when nothing is in view with the APRS layer off', () => {
-    store.setAprsLayerVisible(false)
-    feedsStore.setViewportBounds({ west: 10, east: 11, south: 10, north: 11 })
-    expect(mount(LandFilter).find('.bfp-no-results').text()).toBe(
-      'Nothing in view — traffic cameras',
-    )
-  })
-
-  it("expands a camera row into LandCameraDetails with the feed's cadence, and the preview flies there", async () => {
-    const wrapper = await mountWithGroupsOpen()
-    await wrapper.find('#land-filter-row-cam-tfl-jamcams-A406-Billet-Upass-E').trigger('click')
-    const details = wrapper.findComponent(LandCameraDetails)
-    expect(details.exists()).toBe(true)
-    expect(details.props('refreshSeconds')).toBe(300)
-    expect(store.searchExpandedCallsign).toBe('tfl-jamcams:A406 Billet Upass E')
-    const dispatched = vi.spyOn(document, 'dispatchEvent')
-    details.vm.$emit('preview', 'tfl-jamcams:A406 Billet Upass E')
-    const event = dispatched.mock.calls[0]![0] as CustomEvent<{ featureId: string }>
-    // The old single `land-camera-selected` event was split in two; the pane's
-    // preview still opens the popup on the map (CAMERA_PREVIEW_EVENT).
-    expect(event.type).toBe('land-preview-camera')
-    expect(event.detail.featureId).toBe('tfl-jamcams:A406 Billet Upass E')
-  })
-
-  it("falls back to LandCameraDetails' own cadence when the feed is gone", async () => {
-    const wrapper = await mountWithGroupsOpen()
-    // The feed row has been removed from Settings but its snapshot is still in
-    // the store, so no refreshSeconds can be resolved for the row.
-    feedsStore.feeds = [feed({ id: 'durham-cc' })]
-    await flushPromises()
-    await wrapper.find('#land-filter-row-cam-durham-cc-Milburngate').trigger('click')
-    expect(wrapper.findComponent(LandCameraDetails).props('refreshSeconds')).toBe(60)
-  })
-
-  it('keeps a camera row open across an APRS poll, but collapses it when the camera leaves the feed', async () => {
-    store.aprsStations = [station()]
-    const wrapper = await mountWithGroupsOpen()
-    await wrapper.find('#land-filter-row-cam-durham-cc-Milburngate').trigger('click')
-    expect(store.searchExpandedCallsign).toBe('durham-cc:Milburngate')
-    store.aprsStations = [station({ callsign: 'MB7UMS' })]
-    await flushPromises()
-    expect(store.searchExpandedCallsign).toBe('durham-cc:Milburngate')
-    feedsStore.featuresByFeed = {
-      'durham-cc': {
-        type: 'FeatureCollection',
-        features: [camera('Framwellgate Peth', 'durham-cc')],
-      },
-    }
-    await flushPromises()
-    expect(store.searchExpandedCallsign).toBe('')
-  })
-
-  it('leaves an expanded station (or nothing) alone when the camera sources change', async () => {
-    store.aprsStations = [station()]
-    const wrapper = await mountWithGroupsOpen()
-    feedsStore.setViewportBounds({ west: -2, east: -1, south: 54, north: 55 })
-    await flushPromises()
-    expect(store.searchExpandedCallsign).toBe('')
-    await wrapper.find('#land-filter-row-M0ABC-9').trigger('click')
-    feedsStore.featuresByFeed = {}
-    await flushPromises()
-    expect(store.searchExpandedCallsign).toBe('M0ABC-9')
-  })
-
-  it('still collapses an expanded station that ages out while cameras are listed', async () => {
-    store.aprsStations = [station()]
-    const wrapper = await mountWithGroupsOpen()
-    await wrapper.find('#land-filter-row-M0ABC-9').trigger('click')
-    expect(store.searchExpandedCallsign).toBe('M0ABC-9')
-    store.aprsStations = []
-    await flushPromises()
-    expect(store.searchExpandedCallsign).toBe('')
-  })
-
-  it('has no accessibility violations with grouped camera rows, one expanded', async () => {
-    store.aprsStations = [station()]
-    const wrapper = await mountWithGroupsOpen({ attachTo: document.body })
-    await wrapper.find('#land-filter-row-cam-durham-cc-Framwellgate-Peth').trigger('click')
-    expect(
-      await axe(wrapper.element.parentElement!, { rules: { region: { enabled: false } } }),
-    ).toHaveNoViolations()
-  })
-})
-
 // ── UK repeater directory ──────────────────────────────────────────────────
 
 function channel(overrides: Partial<RepeaterChannel> = {}): RepeaterChannel {
@@ -898,28 +621,17 @@ describe('LandFilter — repeaters', () => {
     expect(mount(LandFilter).find('.bfp-no-results').text()).toBe('Nothing in view — repeaters')
   })
 
-  it('lists all three sets together, stations first, with a joined label', async () => {
+  it('lists both sets together, stations first, with a joined label', async () => {
     store.setAprsLayerVisible(true)
-    store.setTrafficCamerasLayerVisible(true)
     store.aprsStations = [station()]
-    const feedsStore = useLandFeedsStore()
-    feedsStore.feeds = [feed({ id: 'durham-cc' })]
-    feedsStore.featuresByFeed = {
-      'durham-cc': {
-        type: 'FeatureCollection',
-        features: [camera('Framwellgate Peth', 'durham-cc')],
-      },
-    }
     const wrapper = await mountWithGroupsOpen()
     expect(
       wrapper.findAll('.bfp-result-item').map((row) => row.find('.bfp-result-primary').text()),
-    ).toEqual(['M0ABC-9', 'Framwellgate Peth', 'GB3NM'])
+    ).toEqual(['M0ABC-9', 'GB3NM'])
     expect(wrapper.find('input').attributes('aria-label')).toBe(
-      'Filter APRS stations, traffic cameras and repeaters by name or callsign',
+      'Filter APRS stations and repeaters by name or callsign',
     )
-    expect(wrapper.find('input').attributes('placeholder')).toBe(
-      'CALLSIGN · CAMERA · ROAD · TOWN · BAND · MODE',
-    )
+    expect(wrapper.find('input').attributes('placeholder')).toBe('CALLSIGN · TOWN · BAND · MODE')
   })
 
   it('expands a repeater row into its details, keeping an APRS callsign clash apart', async () => {

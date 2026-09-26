@@ -33,7 +33,6 @@ const CATEGORIES = [
   'other',
   // Land: one per data layer.
   'aprs',
-  'trafficCameras',
   'repeaters',
 ]
 

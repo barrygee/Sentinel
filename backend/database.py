@@ -261,6 +261,18 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
     # rendered in Settings, so nothing edited or read these any more.
     ("air", "labelsVisible"),
     ("air", "labelFields"),
+    # Land live camera feeds (removed 2026-09-26): the feed list and the
+    # bookkeeping of which default feeds had been offered to this install.
+    ("land", "feeds"),
+    ("land", "defaultFeedsOffered"),
+)
+
+# Key-prefix families pruned the same way, for removed features that stored one
+# row per entity rather than a fixed key.
+_REMOVED_SETTING_PREFIXES: tuple[tuple[str, str], ...] = (
+    # Land live camera feeds: one secret credential row per feed id. They are
+    # dropped rather than left behind so no orphaned API key or login lingers.
+    ("land", "feedCredential:"),
 )
 
 
@@ -280,7 +292,11 @@ async def prune_removed_settings() -> None:
                     *(
                         and_(UserSettings.namespace == namespace, UserSettings.key == key)
                         for namespace, key in _REMOVED_SETTING_KEYS
-                    )
+                    ),
+                    *(
+                        and_(UserSettings.namespace == namespace, UserSettings.key.startswith(prefix, autoescape=True))
+                        for namespace, prefix in _REMOVED_SETTING_PREFIXES
+                    ),
                 )
             )
         )
@@ -473,117 +489,6 @@ async def backfill_satellite_radio_store() -> None:
         await upsert_setting(session, "space", "satelliteRadio", merged)
 
 
-# Bookkeeping key recording which default ``land.feeds`` ids have ever been
-# offered to this install. It is what lets a deleted feed STAY deleted — see
-# merge_default_land_feeds.
-_OFFERED_FEEDS_KEY = "defaultFeedsOffered"
-
-
-def _default_land_feeds() -> list | None:
-    """The ``land.feeds`` list as shipped in default_config.json, or None."""
-    default_feeds = next(
-        (value for namespace, key, value in _build_default_settings() if (namespace, key) == ("land", "feeds")),
-        None,
-    )
-    return default_feeds if isinstance(default_feeds, list) else None
-
-
-def _feed_ids(feeds: list) -> list[str]:
-    """Ids of every dict entry in a feed list, in order."""
-    return [feed["id"] for feed in feeds if isinstance(feed, dict) and isinstance(feed.get("id"), str)]
-
-
-async def _read_setting_json(session, namespace: str, key: str):
-    """Return (row, parsed value) for one settings row; value is None if unusable."""
-    from backend.models import UserSettings  # avoid circular import
-
-    result = await session.execute(
-        select(UserSettings).where(UserSettings.namespace == namespace, UserSettings.key == key)
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        return None, None
-    try:
-        return row, json.loads(row.value)
-    except (json.JSONDecodeError, TypeError):
-        return row, None
-
-
-async def _write_setting_json(session, namespace: str, key: str, value, ts: int) -> None:
-    """Upsert one settings row with a JSON-encoded value."""
-    from backend.models import UserSettings  # avoid circular import
-
-    row, _ = await _read_setting_json(session, namespace, key)
-    if row is None:
-        session.add(UserSettings(namespace=namespace, key=key, value=json.dumps(value), updated_at=ts))
-    else:
-        row.value = json.dumps(value)
-        row.updated_at = ts
-
-
-async def merge_default_land_feeds() -> None:
-    """Offer each default ``land.feeds`` entry to an existing database ONCE.
-
-    ``seed_default_settings`` only inserts *missing keys*, so once an install
-    has a ``land.feeds`` row a feed added to ``default_config.json`` later
-    (TrafficWatchNI, UTMC, …) would never appear for it. This appends those by
-    feed id, disabled as they are seeded, so they show up in Settings › LAND ›
-    LIVE CAMERA FEEDS ready to switch on. Stored feeds are left exactly as the
-    operator has them.
-
-    **Once** is the important word, and what this used to get wrong. Appending
-    every default the stored list lacked meant a feed the operator had
-    *deleted* was indistinguishable from one they had never been offered, so it
-    silently came back — disabled, as if freshly seeded — on the very next
-    startup, and again after every restart. ``land``/``defaultFeedsOffered``
-    records the ids already offered, so a deletion now sticks while a genuinely
-    new default still arrives.
-
-    An install predating that key is assumed to have seen everything shipped
-    today: this function ran on every boot, so any current default is either
-    stored or was deliberately removed. Marking them all offered without
-    appending is what makes an already-deleted feed stay gone.
-    """
-    default_feeds = _default_land_feeds()
-    if default_feeds is None:
-        return
-    default_ids = _feed_ids(default_feeds)
-    ts = int(time.time() * 1000)
-
-    async with AsyncSessionLocal() as session:
-        feeds_row, stored = await _read_setting_json(session, "land", "feeds")
-        if feeds_row is None:
-            # seed_default_settings will insert the full default list, so every
-            # default is being offered right now.
-            await _write_setting_json(session, "land", _OFFERED_FEEDS_KEY, default_ids, ts)
-            await session.commit()
-            return
-        if not isinstance(stored, list):
-            return
-
-        offered_row, offered = await _read_setting_json(session, "land", _OFFERED_FEEDS_KEY)
-        if offered_row is None or not isinstance(offered, list):
-            # Pre-existing install (see the docstring): record, append nothing.
-            await _write_setting_json(session, "land", _OFFERED_FEEDS_KEY, default_ids, ts)
-            await session.commit()
-            return
-
-        already_offered = set(offered)
-        stored_ids = set(_feed_ids(stored))
-        missing = [
-            feed
-            for feed in default_feeds
-            if isinstance(feed, dict) and feed.get("id") not in stored_ids and feed.get("id") not in already_offered
-        ]
-        if missing:
-            feeds_row.value = json.dumps([*stored, *missing])
-            feeds_row.updated_at = ts
-        if missing or not already_offered.issuperset(default_ids):
-            merged_offered = [*offered, *[feed_id for feed_id in default_ids if feed_id not in already_offered]]
-            await _write_setting_json(session, "land", _OFFERED_FEEDS_KEY, merged_offered, ts)
-        await session.commit()
-
-
 async def seed_default_settings() -> None:
     """Insert default URL settings on startup — only if a row does not already exist."""
     from backend.models import UserSettings  # avoid circular import
@@ -638,8 +543,7 @@ async def seed_default_settings() -> None:
         ("land", "onlineUrl"),
         ("land", "offgridSource"),
         # Land has no remote feed URL or connectivity override: its data is the
-        # APRS sidecar, the live camera feeds (their own `land.feeds` list) and
-        # the bundled repeater directory.
+        # APRS sidecar and the bundled repeater directory.
         ("land", "sourceOverride"),
         ("land", "onlineDataSourceURL"),
         ("land", "offgridDataSourceURL"),

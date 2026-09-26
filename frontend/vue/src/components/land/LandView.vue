@@ -6,7 +6,7 @@
       ref="mapRef"
       :style-url="styleUrl"
       region-label="Land domain map"
-      region-description="Interactive map of APRS stations, traffic cameras and UK amateur-radio repeaters. The same items are listed in accessible data tables."
+      region-description="Interactive map of APRS stations and UK amateur-radio repeaters. The same items are listed in accessible data tables."
       :center="[-2, 54]"
       :zoom="6"
       @map-created="onMapCreated"
@@ -36,7 +36,6 @@ import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 import { useLandStore } from '@/stores/land'
-import { useLandFeedsStore } from '@/stores/landFeeds'
 import { useRepeatersStore } from '@/stores/repeaters'
 import { useBasemapStore } from '@/stores/basemap'
 import { useConnectivity } from '@/composables/useConnectivity'
@@ -54,7 +53,6 @@ import { useSentrySitesStore } from '@/stores/sentrySites'
 import { useSettingsStore } from '@/stores/settings'
 import { useSdrStore } from '@/stores/sdr'
 import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
-import { TrafficCamerasControl } from '@/components/land/controls/traffic-cameras/TrafficCamerasControl'
 import { RepeatersControl } from '@/components/land/controls/repeaters/RepeatersControl'
 import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
@@ -68,7 +66,6 @@ const LOCATE_ZOOM = 10
 const appStore = useAppStore()
 const themeStore = useThemeStore()
 const landStore = useLandStore()
-const landFeedsStore = useLandFeedsStore()
 const repeatersStore = useRepeatersStore()
 const basemapStore = useBasemapStore()
 const sentrySitesStore = useSentrySitesStore()
@@ -97,7 +94,6 @@ const ctxMenu = useMapContextMenu()
 let _map: Map | null = null
 let _initialStyleUrl: string | null = null
 let _aprsControl: AprsStationsControl | null = null
-let _trafficCamerasControl: TrafficCamerasControl | null = null
 let _repeatersControl: RepeatersControl | null = null
 let _rangeRingsControl: LandRangeRingsControl | null = null
 let _namesControl: NamesToggleControl | null = null
@@ -137,7 +133,6 @@ function onMapCreated(m: Map) {
   // owns the visible controls — and hide the native control corner.
   _rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   _aprsControl = new AprsStationsControl(landStore)
-  _trafficCamerasControl = new TrafficCamerasControl(landStore, landFeedsStore)
   _repeatersControl = new RepeatersControl(landStore, repeatersStore)
   // Location names and roads are shared base-map layers driven by the
   // cross-domain basemap store, so Land shows whatever the other domains were
@@ -156,7 +151,6 @@ function onMapCreated(m: Map) {
   _sentrySitesControl.onAdd(m)
   _rangeRingsControl.onAdd(m)
   _aprsControl.onAdd(m)
-  _trafficCamerasControl.onAdd(m)
   _repeatersControl.onAdd(m)
   _namesControl.onAdd(m)
   _roadsControl.onAdd(m)
@@ -164,8 +158,7 @@ function onMapCreated(m: Map) {
   // APRS starts visible per the land.defaultLayers config (default ["aprs"]),
   // but only once a radio is decoding it.
   _aprsControl.setVisible(aprsSourceConfigured.value && landStore.defaultLayers.includes('aprs'))
-  // Traffic cameras and repeaters follow the same config, with no receiver gate.
-  _trafficCamerasControl.setVisible(landStore.defaultLayers.includes('trafficCameras'))
+  // Repeaters follow the same config, with no receiver gate.
   _repeatersControl.setVisible(landStore.defaultLayers.includes('repeaters'))
   rangeRingsActive.value = _rangeRingsControl.visible
 
@@ -212,7 +205,6 @@ onMounted(() => {
   watch(
     () => landStore.defaultLayers,
     (layers) => {
-      _trafficCamerasControl?.setVisible(layers.includes('trafficCameras'))
       _repeatersControl?.setVisible(layers.includes('repeaters'))
     },
   )
@@ -222,10 +214,6 @@ onMounted(() => {
   watch(
     () => landStore.aprsLayerVisible,
     (visible) => _aprsControl?.setVisible(aprsSourceConfigured.value && visible),
-  )
-  watch(
-    () => landStore.trafficCamerasLayerVisible,
-    (visible) => _trafficCamerasControl?.setVisible(visible),
   )
   watch(
     () => landStore.repeatersLayerVisible,
@@ -266,7 +254,6 @@ onUnmounted(() => {
   ctxMenu.detach(_map)
   _rangeRingsControl?.onRemove()
   _aprsControl?.onRemove()
-  _trafficCamerasControl?.onRemove()
   _repeatersControl?.onRemove()
   _namesControl?.onRemove()
   _roadsControl?.onRemove()
@@ -275,7 +262,6 @@ onUnmounted(() => {
   _sentrySitesControl = null
   _locationMarker.remove()
   _rangeRingsControl = _aprsControl = null
-  _trafficCamerasControl = null
   _repeatersControl = null
   _namesControl = _roadsControl = _terrainControl = null
 })

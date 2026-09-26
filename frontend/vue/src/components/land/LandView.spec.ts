@@ -112,39 +112,6 @@ vi.mock('@/components/land/controls/aprs/AprsStationsControl', () => ({
   },
 }))
 
-const trafficCamerasSpies = vi.hoisted(() => ({
-  onAdd: vi.fn(),
-  onRemove: vi.fn(),
-  handleClickPublic: vi.fn(),
-  setVisible: vi.fn(),
-}))
-// Traffic cameras have no receiver gate (unlike APRS), but otherwise own their
-// visibility on the land store the same way, so the map and rail can't disagree.
-vi.mock('@/components/land/controls/traffic-cameras/TrafficCamerasControl', () => ({
-  TrafficCamerasControl: class {
-    private _store: {
-      trafficCamerasLayerVisible: boolean
-      setTrafficCamerasLayerVisible: (visible: boolean) => void
-    }
-    constructor(store: {
-      trafficCamerasLayerVisible: boolean
-      setTrafficCamerasLayerVisible: (visible: boolean) => void
-    }) {
-      this._store = store
-    }
-    onAdd = trafficCamerasSpies.onAdd
-    onRemove = trafficCamerasSpies.onRemove
-    handleClickPublic = (...args: unknown[]) => {
-      this._store.setTrafficCamerasLayerVisible(!this._store.trafficCamerasLayerVisible)
-      return trafficCamerasSpies.handleClickPublic(...args)
-    }
-    setVisible = (visible: boolean) => {
-      this._store.setTrafficCamerasLayerVisible(visible)
-      return trafficCamerasSpies.setVisible(visible)
-    }
-  },
-}))
-
 const repeatersSpies = vi.hoisted(() => ({
   onAdd: vi.fn(),
   onRemove: vi.fn(),
@@ -152,7 +119,7 @@ const repeatersSpies = vi.hoisted(() => ({
   setVisible: vi.fn(),
 }))
 // The UK repeater directory layer, added with the same store-owned visibility
-// contract as APRS and the cameras: the control writes the land store's flag so
+// contract as APRS: the control writes the land store's flag so
 // the map and the FILTER pane's REPEATERS list can never disagree.
 vi.mock('@/components/land/controls/repeaters/RepeatersControl', () => ({
   REPEATER_LOCATE_EVENT: 'land-locate-repeater',
@@ -327,7 +294,7 @@ function makeFakeMap() {
     once: vi.fn(),
     getLayer: vi.fn(() => undefined),
     setLayoutProperty: vi.fn(),
-    // The traffic-cameras control reads the viewport bounds on every render.
+    // The repeaters control reads the viewport bounds on every render.
     getBounds: vi.fn(() => ({
       getWest: () => -2,
       getSouth: () => 53,
@@ -483,7 +450,6 @@ describe('LandView', () => {
       shared.emit!('map-created', map)
       expect(ringsSpies.onAdd).toHaveBeenCalledWith(map)
       expect(aprsSpies.onAdd).toHaveBeenCalledWith(map)
-      expect(trafficCamerasSpies.onAdd).toHaveBeenCalledWith(map)
       expect(repeatersSpies.onAdd).toHaveBeenCalledWith(map)
       expect(native.style.display).toBe('none') // native controls hidden
       expect(locationState.start).toHaveBeenCalledOnce()
@@ -540,10 +506,9 @@ describe('LandView', () => {
       mountView()
       shared.emit!('map-created', map)
       // The shipped default is ["repeaters"], and exactly one layer is ever
-      // drawn — so the other two are explicitly switched off.
+      // drawn — so APRS is explicitly switched off.
       expect(repeatersSpies.setVisible).toHaveBeenCalledWith(true)
       expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
     it('shows the APRS layer when the config names it, with a receiver present', () => {
@@ -554,18 +519,6 @@ describe('LandView', () => {
       mountView()
       shared.emit!('map-created', map)
       expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
-      expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
-    })
-
-    it('shows the traffic-cameras layer when the config names it, with no receiver gate', () => {
-      const land = useLandStore()
-      vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
-      land.defaultLayers = ['trafficCameras']
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
-      expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
       expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
@@ -591,17 +544,15 @@ describe('LandView', () => {
       expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
-    it('applies a later defaultLayers change to the traffic-cameras and repeater layers', async () => {
+    it('applies a later defaultLayers change to the repeater layer', async () => {
       const land = useLandStore()
       vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
-      trafficCamerasSpies.setVisible.mockClear()
       repeatersSpies.setVisible.mockClear()
-      land.defaultLayers = ['trafficCameras'] // the config swaps repeaters for cameras
+      land.defaultLayers = ['aprs'] // the config swaps repeaters for APRS
       await nextTick()
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
       expect(repeatersSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
@@ -646,7 +597,7 @@ describe('LandView', () => {
     // The rail no longer carries the data-layer buttons: the sidebar's FILTER
     // sub-tabs and Settings › LAND › Map Layers flip the store flags directly,
     // and the view drives each control off its flag. These replace the old
-    // "toggling APRS / traffic cameras from the rail" cases.
+    // "toggling APRS from the rail" cases.
     it('follows an APRS layer switch made on the store', async () => {
       const land = useLandStore()
       const map = makeFakeMap()
@@ -677,23 +628,6 @@ describe('LandView', () => {
       // Nothing is decoding, so the flag alone must not light the layer.
       expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
       expect(aprsSpies.setVisible).not.toHaveBeenCalledWith(true)
-    })
-
-    it('follows a traffic-cameras layer switch made on the store', async () => {
-      const land = useLandStore()
-      const map = makeFakeMap()
-      mountView()
-      shared.emit!('map-created', map)
-      trafficCamerasSpies.setVisible.mockClear()
-
-      land.selectLayer('trafficCameras')
-      await nextTick()
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(true)
-
-      trafficCamerasSpies.setVisible.mockClear()
-      land.setTrafficCamerasLayerVisible(false)
-      await nextTick()
-      expect(trafficCamerasSpies.setVisible).toHaveBeenCalledWith(false)
     })
 
     it('follows a repeaters layer switch made on the store', async () => {
@@ -800,7 +734,6 @@ describe('LandView', () => {
       wrapper.unmount()
       expect(ringsSpies.onRemove).toHaveBeenCalledOnce()
       expect(aprsSpies.onRemove).toHaveBeenCalledOnce()
-      expect(trafficCamerasSpies.onRemove).toHaveBeenCalledOnce()
       expect(repeatersSpies.onRemove).toHaveBeenCalledOnce()
       expect(namesSpies.onRemove).toHaveBeenCalledOnce()
       expect(terrainSpies.onRemove).toHaveBeenCalledOnce()

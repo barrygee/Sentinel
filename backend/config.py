@@ -163,13 +163,6 @@ class Settings(BaseSettings):
     # rate is 8x higher.
     ais_decoder_default_bw_hz: int = 16_000
 
-    # ── Land live feeds (traffic cameras / traffic data / webcams) ───────────
-    # Optional headless-deployment override for feed credentials, keyed by
-    # feed id: {"durham-cc": {...}, "tfl-jamcams": {"apiKey": "..."}}. Set in
-    # `.env` (never committed); a credential saved from Settings › LAND
-    # (per-feed, via `PUT /api/land/feeds/{id}/credentials`) takes precedence.
-    land_feed_credentials_json: str = ""
-
     # ── UK amateur-radio repeaters (ukrepeater.net / RSGB ETCC) ───────────────
     # The ETCC "voice repeaters and gateways (with status)" CSV export. The list
     # changes a few times a week at most, so it is refreshed daily and the last

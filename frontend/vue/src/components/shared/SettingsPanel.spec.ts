@@ -268,12 +268,12 @@ describe('SettingsPanel', () => {
       return wrapper.findAll('.settings-group-label').map((node) => node.text())
     }
 
-    it('groups the Land rows under APRS, REPEATERS and LIVE CAMERA FEEDS, with MAP last', async () => {
+    it('groups the Land rows under APRS and REPEATERS, with MAP last', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'LAND')
       // An exact list also proves no group is split in two: a heading renders
       // wherever the group changes, so a stray row would repeat one.
-      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS', 'LIVE CAMERA FEEDS', 'MAP'])
+      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS', 'MAP'])
       expect(renderedItemIds(wrapper)).toEqual([
         'land-aprs-sdr-source',
         'land-aprs-channel',
@@ -281,7 +281,6 @@ describe('SettingsPanel', () => {
         'land-aprs-retention',
         'land-repeater-label-fields',
         'land-repeaters-file',
-        'land-feeds',
         'land-map-layers',
       ])
     })

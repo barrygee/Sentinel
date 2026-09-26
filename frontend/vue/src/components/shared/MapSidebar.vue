@@ -104,7 +104,7 @@
            is the open tab. Air = aircraft/airports/military bases; Space = one
            per satellite category that currently has data — single-select,
            driving which category the search pane (AirFilter/SpaceFilter)
-           shows. Land = its three data layers (APRS / cameras / repeaters),
+           shows. Land = its two data layers (APRS / repeaters),
            also single-select: the chosen tab is the one layer the map draws
            (each is hundreds of markers, so they are never stacked) and the
            pane lists it. Styled to mirror the right
@@ -316,7 +316,6 @@ const landFilterSubTabs = computed<FilterSubTab[]>(() => {
       label: aprsSourceConfigured ? 'APRS STATIONS' : 'APRS STATIONS — NO SDR SET',
       disabled: !aprsSourceConfigured,
     },
-    { id: 'trafficCameras', label: 'TRAFFIC CAMERAS' },
     { id: 'repeaters', label: 'REPEATERS' },
   ]
 })
