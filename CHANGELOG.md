@@ -172,6 +172,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw satellite ground tracks in black on the light basemap
 - Add the semantic token layer the light chrome is drawn from
 - Flip the nav bar, footer and rails with the theme
+- Set the interface and the basemap palettes separately
 
 ### Bug Fixes
 
@@ -1276,6 +1277,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #353 from barrygee/feat/light-theme-sdr
 - Merge pull request #354 from barrygee/feat/light-theme-chrome
 - Merge pull request #355 from barrygee/feat/light-theme-greys
+- Merge pull request #356 from barrygee/feat/separate-map-theme
 
 ### Refactoring
 
