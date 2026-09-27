@@ -373,3 +373,39 @@ class RepeaterCache(Base):
     payload = Column(Text, nullable=False)  # JSON list of normalised repeater stations
     fetched_at = Column(Integer, nullable=False)  # Unix ms when the upstream CSV was fetched
     expires_at = Column(Integer, nullable=False)  # fetched_at + repeaters_ttl_ms
+
+
+class OfflineMapRegion(Base):
+    """One user-requested offline map region (a `pmtiles extract` job and its result).
+
+    The primary key is a server-generated UUID string — never a client-supplied
+    value — because it doubles as the on-disk filename stem
+    (``<id>.pmtiles`` / ``<id>.terrain.pmtiles`` under ``settings.offline_tiles_dir``),
+    so no client input ever reaches the filesystem. ``status`` tracks the job
+    lifecycle; ``bytes_done``/``phase`` are updated by the job runner roughly once
+    a second while running, for the frontend's polled progress bar.
+    """
+
+    __tablename__ = "offline_map_region"
+
+    id = Column(Text, primary_key=True)  # str(uuid.uuid4()), also the archive filename stem
+    label = Column(Text, nullable=False)  # operator-chosen name, 1-60 chars, stripped
+    west = Column(Float, nullable=False)
+    south = Column(Float, nullable=False)
+    east = Column(Float, nullable=False)
+    north = Column(Float, nullable=False)
+    max_zoom = Column(Integer, nullable=False)
+    include_basemap = Column(Boolean, nullable=False, default=True)
+    include_terrain = Column(Boolean, nullable=False, default=True)
+    # queued | running | complete | failed | cancelled
+    status = Column(Text, nullable=False, default="queued")
+    # basemap | terrain | NULL — which extract phase is currently running
+    phase = Column(Text, nullable=True)
+    bytes_done = Column(Integer, nullable=False, default=0)  # live progress, from .part file size(s)
+    bytes_estimated = Column(Integer, nullable=False, default=0)  # from the estimator, at queue time
+    tiles_estimated = Column(Integer, nullable=False, default=0)
+    size_bytes = Column(Integer, nullable=True)  # final on-disk size once complete
+    error = Column(Text, nullable=True)  # generic message only — never raw subprocess stderr
+    source_url = Column(Text, nullable=False)  # basemap source URL used for this job (audit trail)
+    created_at = Column(Integer, nullable=False)  # Unix ms
+    completed_at = Column(Integer, nullable=True)  # Unix ms — set on complete/failed/cancelled

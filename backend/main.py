@@ -16,8 +16,9 @@ from backend.database import (
     seed_sdr_bandplan_from_file,
     seed_sdr_data_from_files,
 )
+from backend.error_handlers import request_validation_error_handler
 from backend.routers import adsb_source as adsb_source_router
-from backend.routers import air, land, sea, space
+from backend.routers import air, land, offline_map, sea, space
 from backend.routers import sdr as sdr_router
 from backend.routers import sentry as sentry_router
 from backend.routers import settings as settings_router
@@ -26,8 +27,10 @@ from backend.services import sdr as sdr_service
 from backend.services import sdr_decode as sdr_decode_service
 from backend.services.ais_stream import reader as ais_reader
 from backend.services.flight_history import cleanup_old_snapshots
+from backend.services.offline_map.job_runner import runner as offline_map_job_runner
 from backend.services.sentry_fleet import fleet_poller
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -74,6 +77,10 @@ async def lifespan(app: FastAPI):
     # Sea: warm the vessel store from the last snapshot and start the AISStream
     # watchdog (it only opens the socket once the domain is enabled and keyed).
     await ais_reader.start()
+    # Offline map downloads: recover from an unclean previous shutdown (mark
+    # stale queued/running rows failed, drop orphan .part files), rebuild the
+    # tile-tier registry, and start the one-job-at-a-time worker.
+    await offline_map_job_runner.start()
 
     # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
     # signal arrives so blocked WS stream loops exit immediately, THEN run
@@ -87,6 +94,7 @@ async def lifespan(app: FastAPI):
             sdr_service.wake_all_subscribers()
             sdr_decode_service.wake_all_decoders()
             ais_reader.wake()
+            offline_map_job_runner.wake()
         except Exception:
             logging.getLogger(__name__).exception("wake_all_subscribers failed")
         prev = _orig_handlers.get(signum)
@@ -114,6 +122,7 @@ async def lifespan(app: FastAPI):
     await ais_reader.stop()
     await sdr_decode_service.shutdown_all_decoders()
     await sdr_service.shutdown_all()
+    await offline_map_job_runner.stop()
 
 
 app = FastAPI(
@@ -125,6 +134,7 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
 )
+app.add_exception_handler(RequestValidationError, request_validation_error_handler)
 
 # ── API routers ────────────────────────────────────────────────────────────────
 app.include_router(air.router)
@@ -135,6 +145,7 @@ app.include_router(settings_router.router)
 app.include_router(sdr_router.router)
 app.include_router(sentry_router.router)
 app.include_router(adsb_source_router.router)
+app.include_router(offline_map.router)
 
 
 # ── Health probe ───────────────────────────────────────────────────────────────
