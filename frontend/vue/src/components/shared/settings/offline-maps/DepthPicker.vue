@@ -70,7 +70,8 @@ function onInput(event: Event): void {
 
 /* BaseSliderRow is styled for the dark SDR panel: inset 20px, with faint
    9px text. Here it spans the form column like the fields above it, and its
-   label and readout use the settings panel's field-label type. */
+   label and readout match the rest of the group (12.5px, the size of a
+   section description). */
 .oma-depth-picker :deep(.sdr-radio-section) {
   padding: 0;
 }
@@ -81,7 +82,7 @@ function onInput(event: Event): void {
 
 .oma-depth-picker :deep(.sdr-field-label) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.16em;
   color: rgba(var(--ink-rgb), 0.6); /* matches .settings-location-label (AA) */
@@ -89,7 +90,7 @@ function onInput(event: Event): void {
 
 .oma-depth-picker :deep(.sdr-slider-val) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: none;

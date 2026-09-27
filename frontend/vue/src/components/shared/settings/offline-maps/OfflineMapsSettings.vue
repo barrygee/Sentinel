@@ -238,6 +238,13 @@ onMounted(() => {
   max-width: none;
 }
 
+/* Every piece of text in the group uses the size of a section description
+   (`.settings-item-desc`). Buttons keep the shared settings button style. */
+.oma-shell :deep(:is(p, label, span, dt, dd, h3, li, input)) {
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
 .oma-download-button {
   align-self: flex-start;
 }
