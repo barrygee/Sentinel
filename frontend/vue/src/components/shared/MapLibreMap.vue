@@ -135,7 +135,7 @@ defineExpose({ getMap })
 }
 
 :root[data-map-theme='colour'] .map-container {
-  background-color: rgb(75, 113, 140);
+  background-color: rgb(97, 135, 161);
 }
 
 #map {
@@ -151,6 +151,13 @@ defineExpose({ getMap })
    with the marks on top of it. */
 .maplibregl-canvas {
   filter: brightness(0.65) saturate(0.85);
+}
+
+/* The colour map exists to be colourful, and the shared dimming above greys it
+   into a muddy khaki. It is still settled beneath the overlays, just less, and
+   it gives up less saturation. */
+:root[data-map-theme='colour'] .maplibregl-canvas {
+  filter: brightness(0.7) saturate(0.95);
 }
 
 .maplibregl-ctrl-group {

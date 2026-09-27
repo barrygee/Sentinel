@@ -25,10 +25,11 @@ colour map. `designTokens.spec.ts` guards the generated files the same way it
 guards the two logo variants.
 
 The palette is a saturated OSM-bright. `.maplibregl-canvas` dims every basemap
-with `brightness(0.65) saturate(0.85)` — the map is ground for the overlays
-drawn on it — so these values are pitched ABOVE where they should land: what
-looks over-saturated in the raw JSON is what reads as colour on screen. Judge
-them in the app, never in a colour picker.
+so the map stays ground for the overlays drawn on it — the colour map gets a
+lighter, saturation-boosting filter than dark/light (see `MapLibreMap.vue`), but
+it is still dimmed, so these values are pitched ABOVE where they should land:
+what looks over-saturated in the raw JSON is what reads as colour on screen.
+Judge them in the app, never in a colour picker.
 """
 
 from __future__ import annotations
@@ -38,24 +39,42 @@ from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 
+# Land is warm sand when zoomed out and cream when zoomed in. Woods and parks
+# only draw from z10 (the layers keep the light build's zoom ranges — geometry
+# is shared), so a flat cream land fill leaves a zoomed-out map with nothing
+# but water and borders. A warmer, neutral ground tone gives it body without
+# reading as vegetation, and it has faded to cream by the zoom where the real
+# land cover takes over.
+LAND: list = [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    4,
+    "rgb(241, 230, 202)",
+    7,
+    "rgb(246, 237, 212)",
+    10,
+    "rgb(249, 241, 218)",
+]
+
 # Layer id -> the colour paints it gets. Grouped the way the map reads, not the
 # way the layer list is ordered.
-COLOURS: dict[str, dict[str, str]] = {
+COLOURS: dict[str, dict[str, str | list]] = {
     # ── Ground and water ───────────────────────────────────────────────────
-    "background": {"background-color": "rgb(249, 243, 228)"},
-    "earth": {"fill-color": "rgb(249, 243, 228)"},
-    "surroundings_earth": {"fill-color": "rgb(249, 243, 228)"},
-    "water": {"fill-color": "rgb(106, 176, 224)"},
-    "surroundings_water": {"fill-color": "rgb(106, 176, 224)"},
-    "waterway": {"line-color": "rgb(96, 168, 219)"},
-    "coastline": {"line-color": "hsla(205, 62%, 45%, 0.55)"},
-    "surroundings_coastline": {"line-color": "hsla(205, 62%, 45%, 0.55)"},
+    "background": {"background-color": LAND},
+    "earth": {"fill-color": LAND},
+    "surroundings_earth": {"fill-color": LAND},
+    "water": {"fill-color": "rgb(136, 194, 232)"},
+    "surroundings_water": {"fill-color": "rgb(136, 194, 232)"},
+    "waterway": {"line-color": "rgb(120, 184, 226)"},
+    "coastline": {"line-color": "hsla(205, 66%, 42%, 0.55)"},
+    "surroundings_coastline": {"line-color": "hsla(205, 66%, 42%, 0.55)"},
     "landcover_ice_shelf": {"fill-color": "rgb(238, 248, 252)"},
     # ── Land cover ─────────────────────────────────────────────────────────
-    "landuse_residential": {"fill-color": "rgb(242, 231, 213)"},
-    "landcover_wood": {"fill-color": "rgb(150, 205, 140)"},
-    "park": {"fill-color": "rgb(166, 216, 152)"},
-    "park_outline": {"line-color": "hsl(110, 42%, 55%)"},
+    "landuse_residential": {"fill-color": "rgb(244, 224, 204)"},
+    "landcover_wood": {"fill-color": "rgb(128, 196, 120)"},
+    "park": {"fill-color": "rgb(148, 212, 132)"},
+    "park_outline": {"line-color": "hsl(112, 45%, 50%)"},
     "building": {
         "fill-color": "rgb(226, 209, 186)",
         "fill-outline-color": "rgb(203, 181, 153)",
@@ -65,8 +84,8 @@ COLOURS: dict[str, dict[str, str]] = {
     "aeroway-runway": {"line-color": "rgb(250, 250, 253)"},
     "aeroway-runway-casing": {"line-color": "rgb(190, 188, 200)"},
     "aeroway-taxiway": {"line-color": "rgb(226, 224, 232)"},
-    "road_area_pier": {"fill-color": "rgb(249, 243, 228)"},
-    "road_pier": {"line-color": "rgb(249, 243, 228)"},
+    "road_area_pier": {"fill-color": "rgb(249, 241, 218)"},
+    "road_pier": {"line-color": "rgb(249, 241, 218)"},
     # ── Roads: motorway orange, major gold, minor white ────────────────────
     "highway_motorway_casing": {"line-color": "rgb(214, 122, 32)"},
     "highway_motorway_inner": {"line-color": "rgb(251, 176, 72)"},
@@ -87,10 +106,10 @@ COLOURS: dict[str, dict[str, str]] = {
     "railway_transit": {"line-color": "rgb(172, 164, 156)"},
     "railway_transit_dashline": {"line-color": "rgb(232, 227, 220)"},
     # ── Boundaries ─────────────────────────────────────────────────────────
-    "boundary_state": {"line-color": "rgb(176, 122, 180)"},
-    "boundary_country_z0-4": {"line-color": "rgb(157, 96, 163)"},
-    "boundary_country_z5-": {"line-color": "rgb(157, 96, 163)"},
-    "surroundings_boundary": {"line-color": "rgb(176, 122, 180)"},
+    "boundary_state": {"line-color": "rgb(176, 110, 186)"},
+    "boundary_country_z0-4": {"line-color": "rgb(158, 82, 168)"},
+    "boundary_country_z5-": {"line-color": "rgb(158, 82, 168)"},
+    "surroundings_boundary": {"line-color": "rgb(176, 110, 186)"},
 }
 
 # Labels: one ink, one halo, at three weights. Place names carry the map's
@@ -125,7 +144,7 @@ PROVENANCE = (
 )
 
 
-def colour_paints(layer_id: str) -> dict[str, str] | None:
+def colour_paints(layer_id: str) -> dict[str, str | list] | None:
     """The colour paints for a layer id, or None when it is not in the table."""
     if layer_id in COLOURS:
         return COLOURS[layer_id]
