@@ -23,7 +23,21 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "rgb(249, 243, 228)"
+        "background-color": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          "rgb(241, 230, 202)",
+          7,
+          "rgb(246, 237, 212)",
+          10,
+          "rgb(249, 241, 218)"
+        ]
       }
     },
     {
@@ -32,7 +46,21 @@
       "source": "surroundings",
       "source-layer": "earth",
       "paint": {
-        "fill-color": "rgb(249, 243, 228)"
+        "fill-color": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          "rgb(241, 230, 202)",
+          7,
+          "rgb(246, 237, 212)",
+          10,
+          "rgb(249, 241, 218)"
+        ]
       }
     },
     {
@@ -54,7 +82,7 @@
       ],
       "paint": {
         "fill-antialias": false,
-        "fill-color": "rgb(106, 176, 224)"
+        "fill-color": "rgb(136, 194, 232)"
       }
     },
     {
@@ -63,7 +91,7 @@
       "source": "surroundings",
       "source-layer": "earth",
       "paint": {
-        "line-color": "hsla(205, 62%, 45%, 0.55)",
+        "line-color": "hsla(205, 66%, 42%, 0.55)",
         "line-width": 1
       }
     },
@@ -86,7 +114,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(176, 122, 180)",
+        "line-color": "rgb(176, 110, 186)",
         "line-dasharray": [
           2,
           2
@@ -231,7 +259,21 @@
       "source": "openmaptiles",
       "source-layer": "earth",
       "paint": {
-        "fill-color": "rgb(249, 243, 228)"
+        "fill-color": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          "rgb(241, 230, 202)",
+          7,
+          "rgb(246, 237, 212)",
+          10,
+          "rgb(249, 241, 218)"
+        ]
       }
     },
     {
@@ -240,7 +282,7 @@
       "source": "openmaptiles",
       "source-layer": "earth",
       "paint": {
-        "line-color": "hsla(205, 62%, 45%, 0.55)",
+        "line-color": "hsla(205, 66%, 42%, 0.55)",
         "line-width": 1
       }
     },
@@ -262,7 +304,7 @@
         false
       ],
       "paint": {
-        "fill-color": "rgb(166, 216, 152)",
+        "fill-color": "rgb(148, 212, 132)",
         "fill-opacity": 0.55
       }
     },
@@ -284,7 +326,7 @@
         false
       ],
       "paint": {
-        "line-color": "hsl(110, 42%, 55%)",
+        "line-color": "hsl(112, 45%, 50%)",
         "line-dasharray": [
           2,
           2
@@ -310,7 +352,7 @@
       ],
       "paint": {
         "fill-antialias": false,
-        "fill-color": "rgb(106, 176, 224)"
+        "fill-color": "rgb(136, 194, 232)"
       }
     },
     {
@@ -377,7 +419,7 @@
         ]
       ],
       "paint": {
-        "fill-color": "rgb(242, 231, 213)",
+        "fill-color": "rgb(244, 224, 204)",
         "fill-opacity": [
           "interpolate",
           [
@@ -424,7 +466,7 @@
         ]
       ],
       "paint": {
-        "fill-color": "rgb(150, 205, 140)",
+        "fill-color": "rgb(128, 196, 120)",
         "fill-opacity": [
           "interpolate",
           [
@@ -458,7 +500,7 @@
         false
       ],
       "paint": {
-        "line-color": "rgb(96, 168, 219)",
+        "line-color": "rgb(120, 184, 226)",
         "line-opacity": 0.6
       }
     },
@@ -757,7 +799,7 @@
       ],
       "paint": {
         "fill-antialias": true,
-        "fill-color": "rgb(249, 243, 228)"
+        "fill-color": "rgb(249, 241, 218)"
       }
     },
     {
@@ -798,7 +840,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(249, 243, 228)",
+        "line-color": "rgb(249, 241, 218)",
         "line-width": [
           "interpolate",
           [
@@ -1650,7 +1692,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(176, 122, 180)",
+        "line-color": "rgb(176, 110, 186)",
         "line-dasharray": [
           2,
           2
@@ -1702,7 +1744,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(157, 96, 163)",
+        "line-color": "rgb(158, 82, 168)",
         "line-dasharray": [
           2,
           2
@@ -1744,7 +1786,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "rgb(157, 96, 163)",
+        "line-color": "rgb(158, 82, 168)",
         "line-dasharray": [
           2,
           2
