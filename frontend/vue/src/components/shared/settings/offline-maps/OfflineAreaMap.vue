@@ -5,7 +5,7 @@
     ref="containerRef"
     class="offline-area-map"
     role="region"
-    aria-label="Map for choosing an offline download area. Use Draw Area or Use Current View, or enter the North/South/East/West bounds directly below."
+    aria-label="Map for choosing an offline download area. Draw or resize the area here, or enter its North, South, East and West bounds in the fields below."
   ></div>
 </template>
 
@@ -23,10 +23,12 @@
  * scroll; zoom is available via the +/- control, double-click, pinch and the
  * keyboard.
  *
- * Renders two overlays, both rebuilt on `style.load` (a theme swap replaces
+ * Renders three overlays, all rebuilt on `style.load` (a theme swap replaces
  * the whole style, per the PR #363/#364 lesson) with theme-aware ink from
  * `overlayAccentColor()`/`isBrightBasemap()`:
  * - the in-progress/committed selection, dashed (`line-dasharray`);
+ * - a round handle on each of its corners, dragged to resize it
+ *   (`RectangleResizeHandler`);
  * - every downloaded region, as a solid muted outline.
  *
  * The draw interaction itself is `RectangleDrawHandler`; this component owns
@@ -41,12 +43,15 @@ import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { overlayAccentColor, isBrightBasemap } from '@/utils/mapTheme'
 import { useThemeStore } from '@/stores/theme'
 import { RectangleDrawHandler, type LngLatBounds } from './rectangleDrawHandler'
+import { RectangleResizeHandler } from './rectangleResizeHandler'
 
 const SETTINGS_MAP_ZOOM = 5
 const SETTINGS_MAP_CENTER: [number, number] = [-2, 54]
 
 const SELECTION_SOURCE = 'offline-area-selection'
 const SELECTION_LAYER = 'offline-area-selection-line'
+const CORNERS_SOURCE = 'offline-area-corners'
+const CORNERS_LAYER = 'offline-area-corner-handles'
 const REGIONS_SOURCE = 'offline-area-regions'
 const REGIONS_LAYER = 'offline-area-regions-line'
 
@@ -70,6 +75,7 @@ const styleUrl = () => basemapStyleUrl(true, themeStore.mapTheme)
 const containerRef = ref<HTMLElement | null>(null)
 let map: MapLibreGlMap | null = null
 let drawHandler: RectangleDrawHandler | null = null
+let resizeHandler: RectangleResizeHandler | null = null
 let previewFrame: number | null = null
 
 function boundsToPolygon(bounds: LngLatBounds): GeoJSON.Feature {
@@ -92,14 +98,34 @@ function boundsToPolygon(bounds: LngLatBounds): GeoJSON.Feature {
   }
 }
 
+/** The four corners as points, drawn as the grab handles for resizing. */
+function boundsToCornerPoints(bounds: LngLatBounds): GeoJSON.Feature[] {
+  const corners: [number, number][] = [
+    [bounds.west, bounds.north],
+    [bounds.east, bounds.north],
+    [bounds.east, bounds.south],
+    [bounds.west, bounds.south],
+  ]
+  return corners.map((coordinates) => ({
+    type: 'Feature',
+    properties: {},
+    geometry: { type: 'Point', coordinates },
+  }))
+}
+
 function setSelectionPreview(bounds: LngLatBounds | null): void {
   if (previewFrame !== null) cancelAnimationFrame(previewFrame)
   previewFrame = requestAnimationFrame(() => {
     previewFrame = null
-    const source = map?.getSource(SELECTION_SOURCE) as GeoJSONSource | undefined
-    source?.setData({
+    const outlineSource = map?.getSource(SELECTION_SOURCE) as GeoJSONSource | undefined
+    outlineSource?.setData({
       type: 'FeatureCollection',
       features: bounds ? [boundsToPolygon(bounds)] : [],
+    })
+    const cornersSource = map?.getSource(CORNERS_SOURCE) as GeoJSONSource | undefined
+    cornersSource?.setData({
+      type: 'FeatureCollection',
+      features: bounds ? boundsToCornerPoints(bounds) : [],
     })
   })
 }
@@ -133,6 +159,26 @@ function initLayers(): void {
         'line-color': accent,
         'line-width': 2,
         'line-dasharray': [2, 1.5],
+      },
+    })
+  }
+
+  if (!map.getSource(CORNERS_SOURCE)) {
+    map.addSource(CORNERS_SOURCE, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!map.getLayer(CORNERS_LAYER)) {
+    map.addLayer({
+      id: CORNERS_LAYER,
+      type: 'circle',
+      source: CORNERS_SOURCE,
+      paint: {
+        'circle-radius': 5,
+        'circle-color': bright ? '#ffffff' : '#1a1f2b',
+        'circle-stroke-color': accent,
+        'circle-stroke-width': 2,
       },
     })
   }
@@ -177,11 +223,20 @@ onMounted(() => {
   map.on('style.load', initLayers)
   map.on('load', () => map?.resize())
 
-  drawHandler = new RectangleDrawHandler(map, {
+  const rectangleDraw = new RectangleDrawHandler(map, {
     onComplete: (bounds) => emit('draw-complete', bounds),
     onPreview: setSelectionPreview,
     onArmedChange: (armed) => emit('armed-change', armed),
   })
+  drawHandler = rectangleDraw
+  resizeHandler = new RectangleResizeHandler(map, {
+    getBounds: () => props.selection,
+    // Drawing a new rectangle and resizing the current one are never both live.
+    isBlocked: () => rectangleDraw.isArmed,
+    onPreview: setSelectionPreview,
+    onComplete: (bounds) => emit('draw-complete', bounds),
+  })
+  resizeHandler.enable()
 })
 
 watch(
@@ -249,6 +304,7 @@ defineExpose({ armDraw, cancelDraw, currentViewBounds, flyToBounds })
 onUnmounted(() => {
   if (previewFrame !== null) cancelAnimationFrame(previewFrame)
   drawHandler?.disarm()
+  resizeHandler?.disable()
   /* v8 ignore start -- map is always set after a successful mount */
   if (map) {
     map.remove()
@@ -260,10 +316,11 @@ onUnmounted(() => {
 
 <style scoped>
 .offline-area-map {
+  /* Landscape: the whole map card width, 16:9, capped so it never fills a
+     laptop screen on a wide window. */
   width: 100%;
-  height: 60vh;
+  aspect-ratio: 16 / 9;
   max-height: 480px;
-  min-height: 260px;
   background-color: #2d3548;
 }
 </style>

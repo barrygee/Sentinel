@@ -96,7 +96,7 @@ const progressAccessibleName = computed(() => `${phaseLabel.value} download prog
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 10px;
-  color: rgba(var(--ink-rgb), 0.65);
+  font-size: 12px;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 </style>

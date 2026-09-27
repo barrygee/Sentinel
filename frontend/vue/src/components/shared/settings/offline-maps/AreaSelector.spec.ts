@@ -35,6 +35,16 @@ describe('AreaSelector', () => {
     expect(wrapper.findAll('button')[0]!.attributes('aria-pressed')).toBe('true')
   })
 
+  it('points screen readers at the keyboard alternative without showing it on screen', () => {
+    const wrapper = mountSelector()
+    const drawButton = wrapper.findAll('button')[0]!
+    const noteId = drawButton.attributes('aria-describedby')
+    expect(noteId).toBeTruthy()
+    const note = wrapper.find(`[id="${noteId}"]`)
+    expect(note.classes()).toContain('sr-only')
+    expect(note.text()).toContain('North, South, East')
+  })
+
   it('shows the drawing hint only while armed', async () => {
     const wrapper = mountSelector({ armed: false })
     expect(wrapper.find('.oma-area-selector-hint').text()).toBe('')

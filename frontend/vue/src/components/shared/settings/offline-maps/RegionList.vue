@@ -94,11 +94,11 @@ watch(
 
 .oma-region-list-heading {
   margin: 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.65);
+  color: rgba(var(--ink-rgb), 0.6); /* matches .settings-location-label (AA) */
 }
 
 /* Focusable only programmatically (WCAG-legitimate: it is the fallback focus
@@ -118,14 +118,15 @@ watch(
 
 .oma-region-list-empty {
   margin: 0;
-  font-size: 11px;
-  color: rgba(var(--ink-rgb), 0.65);
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .oma-region-list-total {
   margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  text-align: right;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 </style>

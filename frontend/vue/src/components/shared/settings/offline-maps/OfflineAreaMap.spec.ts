@@ -7,9 +7,10 @@ const mapRegistry = vi.hoisted(() => ({ instances: [] as FakeMap[], controls: []
 
 interface FakeMap {
   options: Record<string, unknown>
-  handlers: Record<string, () => void>
+  handlers: Record<string, (event?: unknown) => void>
   scrollZoom: { disable: ReturnType<typeof vi.fn> }
   on: ReturnType<typeof vi.fn>
+  off: ReturnType<typeof vi.fn>
   addControl: ReturnType<typeof vi.fn>
   setStyle: ReturnType<typeof vi.fn>
   resize: ReturnType<typeof vi.fn>
@@ -37,9 +38,10 @@ vi.mock('maplibre-gl', () => {
     this.scrollZoom = { disable: vi.fn() }
     this.sources = new NativeMap()
     this.layers = new NativeSet()
-    this.on = vi.fn((event: string, callback: () => void) => {
+    this.on = vi.fn((event: string, callback: (event?: unknown) => void) => {
       this.handlers[event] = callback
     })
+    this.off = vi.fn()
     this.addControl = vi.fn((control: unknown) => mapRegistry.controls.push(control))
     this.setStyle = vi.fn()
     this.resize = vi.fn()
@@ -72,6 +74,7 @@ function currentMap(): FakeMap {
 
 const SELECTION_SOURCE = 'offline-area-selection'
 const REGIONS_SOURCE = 'offline-area-regions'
+const CORNERS_SOURCE = 'offline-area-corners'
 const REGIONS_LAYER = 'offline-area-regions-line'
 
 const REGION_A = { west: -2, south: 51, east: -1, north: 52 }
@@ -174,6 +177,86 @@ describe('OfflineAreaMap', () => {
       [REGION_A.west, REGION_A.south],
     ])
     void wrapper
+  })
+
+  it('draws a grab handle on each of the four selection corners, and none without a selection', async () => {
+    const wrapper = mountMap({ selection: REGION_A })
+    await loadStyle()
+    const map = currentMap()
+    const cornerData = map.sources.get(CORNERS_SOURCE)!.setData.mock.calls.at(-1)![0]
+    expect(
+      cornerData.features.map(
+        (feature: { geometry: { coordinates: number[] } }) => feature.geometry.coordinates,
+      ),
+    ).toEqual([
+      [REGION_A.west, REGION_A.north],
+      [REGION_A.east, REGION_A.north],
+      [REGION_A.east, REGION_A.south],
+      [REGION_A.west, REGION_A.south],
+    ])
+    await wrapper.setProps({ selection: null })
+    expect(map.sources.get(CORNERS_SOURCE)!.setData.mock.calls.at(-1)![0].features).toEqual([])
+  })
+
+  describe('resizing the selection by its corners', () => {
+    // A flat stand-in projection: 100px per degree, y growing southwards, so the
+    // corners of the one-degree test region sit well apart on screen.
+    const projectToScreen = ([longitude, latitude]: [number, number]) => ({
+      x: longitude * 100,
+      y: -latitude * 100,
+    })
+
+    function prepareMapForResize() {
+      const map = currentMap()
+      const canvas = document.createElement('canvas')
+      Object.assign(map, {
+        project: projectToScreen,
+        getCanvas: () => canvas,
+        dragPan: { isEnabled: () => true, enable: vi.fn(), disable: vi.fn() },
+        boxZoom: { isEnabled: () => true, enable: vi.fn(), disable: vi.fn() },
+        dragRotate: { isEnabled: () => true, enable: vi.fn(), disable: vi.fn() },
+        touchZoomRotate: { isEnabled: () => true, enable: vi.fn(), disable: vi.fn() },
+      })
+      return map
+    }
+
+    function mouseDownAt(point: { x: number; y: number }) {
+      return { originalEvent: { button: 0 }, point, preventDefault: vi.fn() }
+    }
+
+    it('dragging the north-east corner emits the resized area, south-west held fixed', async () => {
+      const wrapper = mountMap({ selection: REGION_A })
+      await loadStyle()
+      const map = prepareMapForResize()
+      const northEast = projectToScreen([REGION_A.east, REGION_A.north])
+
+      const downEvent = mouseDownAt(northEast)
+      map.handlers['mousedown']!(downEvent)
+      expect(downEvent.preventDefault).toHaveBeenCalled()
+      map.handlers['mousemove']!({
+        lngLat: { lng: 1, lat: 53 },
+        point: { x: 10, y: -530 },
+      })
+      window.dispatchEvent(new Event('mouseup'))
+
+      expect(wrapper.emitted('draw-complete')![0]![0]).toEqual({
+        west: REGION_A.west,
+        south: REGION_A.south,
+        east: 1,
+        north: 53,
+      })
+    })
+
+    it('does not start a resize while a new rectangle is being drawn', async () => {
+      const wrapper = mountMap({ selection: REGION_A })
+      await loadStyle()
+      const map = prepareMapForResize()
+      ;(wrapper.vm as unknown as { armDraw: () => void }).armDraw()
+
+      const downEvent = mouseDownAt(projectToScreen([REGION_A.east, REGION_A.north]))
+      map.handlers['mousedown']!(downEvent)
+      expect(downEvent.preventDefault).not.toHaveBeenCalled()
+    })
   })
 
   it('updates the selection preview when the selection prop changes', async () => {

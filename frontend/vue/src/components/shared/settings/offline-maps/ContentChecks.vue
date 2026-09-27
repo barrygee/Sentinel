@@ -1,40 +1,43 @@
 <template>
   <div class="oma-content-checks">
-    <label class="oma-content-check">
-      <BaseCheckbox
-        :checked="includeBasemap"
-        input-class="oma-content-check-input"
-        box-class="oma-content-check-box"
-        accessible-name="Include basemap tiles"
-        :disabled="basemapForceDisabled"
-        :described-by-id="basemapForceDisabled ? atLeastOneNoteId : undefined"
-        @change="emit('update:includeBasemap', ($event.target as HTMLInputElement).checked)"
-      >
-        <span class="oma-content-check-label">Basemap</span>
-        <span class="oma-content-check-desc">Vector map tiles — roads, water, place names.</span>
-      </BaseCheckbox>
-    </label>
-    <label class="oma-content-check">
-      <BaseCheckbox
-        :checked="includeTerrain"
-        input-class="oma-content-check-input"
-        box-class="oma-content-check-box"
-        accessible-name="Include terrain data"
-        :disabled="terrainForceDisabled"
-        :described-by-id="terrainForceDisabled ? atLeastOneNoteId : undefined"
-        @change="emit('update:includeTerrain', ($event.target as HTMLInputElement).checked)"
-      >
-        <span class="oma-content-check-label">Terrain</span>
-        <span class="oma-content-check-desc">
-          Elevation data for hillshade and contour lines{{
-            maxZoom > terrainMaxZoom ? ` (up to z${terrainMaxZoom})` : ''
-          }}.
-        </span>
-      </BaseCheckbox>
-    </label>
-    <p :id="atLeastOneNoteId" class="oma-content-checks-note">
-      At least one of Basemap or Terrain must stay selected. Works offline in DARK, LIGHT and
-      COLOUR.
+    <BaseCheckbox
+      v-for="option in options"
+      :key="option.key"
+      class="oma-content-check"
+      input-class="oma-content-check-input"
+      box-class="oma-content-check-box"
+      :checked="option.checked"
+      :accessible-name="option.accessibleName"
+      :disabled="option.forceDisabled"
+      :described-by-id="option.forceDisabled ? atLeastOneNoteId : undefined"
+      @change="option.update(($event.target as HTMLInputElement).checked)"
+    >
+      <template #checkmark>
+        <svg
+          v-if="option.checked"
+          width="10"
+          height="7"
+          viewBox="0 0 8 5"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M1 2.5L3 4.5L7 0.5"
+            stroke="#0a0c10"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </template>
+      <span class="oma-content-check-text">
+        <span class="oma-content-check-label">{{ option.label }}</span>
+        <span class="oma-content-check-desc">{{ option.description }}</span>
+      </span>
+    </BaseCheckbox>
+    <p :id="atLeastOneNoteId" class="settings-location-hint oma-content-checks-note">
+      At least one of Basemap or Terrain must stay selected. Works offline in DARK, LIGHT and COLOUR
+      map styles.
     </p>
   </div>
 </template>
@@ -66,56 +69,91 @@ const emit = defineEmits<{
 const atLeastOneNoteId = useId()
 const basemapForceDisabled = computed(() => props.includeBasemap && !props.includeTerrain)
 const terrainForceDisabled = computed(() => props.includeTerrain && !props.includeBasemap)
+
+/** The two choices, rendered from one template so they can't drift apart. */
+const options = computed(() => [
+  {
+    key: 'basemap',
+    label: 'Basemap',
+    description: 'Vector map tiles — roads, water, place names.',
+    accessibleName: 'Include basemap tiles',
+    checked: props.includeBasemap,
+    forceDisabled: basemapForceDisabled.value,
+    update: (checked: boolean) => emit('update:includeBasemap', checked),
+  },
+  {
+    key: 'terrain',
+    label: 'Terrain',
+    description: `Elevation data for hillshade and contour lines${
+      props.maxZoom > props.terrainMaxZoom ? ` (up to z${props.terrainMaxZoom})` : ''
+    }.`,
+    accessibleName: 'Include terrain data',
+    checked: props.includeTerrain,
+    forceDisabled: terrainForceDisabled.value,
+    update: (checked: boolean) => emit('update:includeTerrain', checked),
+  },
+])
 </script>
 
 <style scoped>
 .oma-content-checks {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .oma-content-check {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
 }
 
-.oma-content-check-box {
+/* The box renders inside BaseCheckbox, so it needs :deep() anchored at the
+   root label. Same square box as the label-fields tables elsewhere in Settings. */
+.oma-content-check :deep(.oma-content-check-box) {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  border: 1px solid var(--rule);
-  background: var(--surface);
-  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  background: rgba(16, 19, 29, 0.1);
+  display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s;
 }
 
-.oma-content-check-input:checked + .oma-content-check-box {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+.oma-content-check :deep(.oma-content-check-input:checked + .oma-content-check-box) {
+  background: #c8ff00;
+}
+
+.oma-content-check :deep(.oma-content-check-input:disabled + .oma-content-check-box) {
+  opacity: 0.6;
+}
+
+.oma-content-check :deep(.oma-content-check-input:focus-visible + .oma-content-check-box) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.oma-content-check-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .oma-content-check-label {
-  display: block;
-  font-size: 12px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
 }
 
 .oma-content-check-desc {
-  display: block;
-  font-size: 11px;
-  color: rgba(var(--ink-rgb), 0.65);
-}
-
-.oma-content-checks-note {
-  margin: 4px 0 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: rgba(var(--ink-rgb), 0.65);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 </style>

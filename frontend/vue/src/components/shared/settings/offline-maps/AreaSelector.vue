@@ -6,6 +6,7 @@
         variant="ghost"
         :active="armed"
         :aria-pressed="armed"
+        :aria-describedby="keyboardNoteId"
         @click="emit('toggle-draw')"
       >
         {{ armed ? 'CANCEL DRAWING' : 'DRAW AREA' }}
@@ -14,25 +15,23 @@
         USE CURRENT VIEW
       </BaseButton>
     </div>
-    <p class="oma-area-selector-keyboard-note">
-      Using a keyboard or screen reader: drawing on the map isn't operable that way — enter the
-      North/South/East/West bounds below instead, or use Use Current View.
+    <!-- Screen readers only: drawing and resizing on the map need a pointer,
+         so point keyboard users at the equivalent fields (WCAG 2.5.7). -->
+    <p :id="keyboardNoteId" class="sr-only">
+      Drawing on the map needs a mouse or touch. Keyboard users can enter the North, South, East and
+      West bounds below, or use Use Current View.
     </p>
     <!-- Always present (not v-if) so the text CHANGE is what triggers the polite
-         announcement — some assistive tech announces a live region's content
-         changing more reliably than a whole node being inserted with content
-         already in it. Not role="status": a second status region elsewhere in
-         the app trips Playwright's strict-mode "exactly one match" locators
-         (see CLAUDE.md), and aria-live="polite" alone is the correct role-less
-         equivalent here. -->
-    <p class="oma-area-selector-hint" aria-live="polite">
+         announcement. Not role="status": a second status region elsewhere in
+         the app trips Playwright's strict-mode locators (see CLAUDE.md). -->
+    <p class="settings-location-hint oma-area-selector-hint" aria-live="polite">
       {{
         armed
-          ? 'Drawing armed. Drag a corner to the opposite corner, or tap once per corner. Press Escape to cancel.'
+          ? 'Drag from one corner to the opposite corner, or tap each corner. Press Escape to cancel.'
           : ''
       }}
     </p>
-    <p v-if="currentViewError" class="oma-area-selector-error" role="alert">
+    <p v-if="currentViewError" class="settings-location-error oma-area-selector-error" role="alert">
       {{ currentViewError }}
     </p>
   </div>
@@ -48,7 +47,7 @@
  * that knows what a "usable" bbox means to *this* form (no antimeridian
  * crossing, since v1 rejects rather than splitting it, per the BUILD CONTRACT).
  */
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
 
@@ -64,6 +63,7 @@ const emit = defineEmits<{
   'area-selected': [bounds: LngLatBounds]
 }>()
 
+const keyboardNoteId = useId()
 const currentViewError = ref<string | null>(null)
 
 function useCurrentView(): void {
@@ -93,25 +93,5 @@ function useCurrentView(): void {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.oma-area-selector-keyboard-note {
-  margin: 0;
-  font-size: 11px;
-  color: rgba(var(--ink-rgb), 0.65);
-}
-
-.oma-area-selector-hint {
-  margin: 0;
-  min-height: 1.4em;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(var(--ink-rgb), 0.65);
-}
-
-.oma-area-selector-error {
-  margin: 0;
-  font-size: 11px;
-  color: var(--danger);
 }
 </style>

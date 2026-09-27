@@ -10,7 +10,7 @@
       :value="modelValue"
       @input="onInput"
     />
-    <p v-if="modelValue > terrainMaxZoom" class="oma-depth-terrain-note">
+    <p v-if="modelValue > terrainMaxZoom" class="settings-location-hint oma-depth-terrain-note">
       Terrain is only available up to z{{ terrainMaxZoom }} — deeper zooms overzoom the same DEM
       tile, as they do online.
     </p>
@@ -68,15 +68,35 @@ function onInput(event: Event): void {
   gap: 6px;
 }
 
-/* BaseSliderRow's readout is styled for the dark SDR panel. On the light
-   settings island that grey fails 4.5:1, so darken it here only. */
-.oma-depth-picker :deep(.sdr-slider-val) {
-  color: rgba(var(--ink-rgb), 0.8);
+/* BaseSliderRow is styled for the dark SDR panel: inset 20px, with faint
+   9px text. Here it spans the form column like the fields above it, and its
+   label and readout use the settings panel's field-label type. */
+.oma-depth-picker :deep(.sdr-radio-section) {
+  padding: 0;
 }
 
-.oma-depth-terrain-note {
-  margin: 0;
-  font-size: 11px;
-  color: rgba(var(--ink-rgb), 0.65);
+.oma-depth-picker :deep(.sdr-slider-header) {
+  margin-bottom: 10px;
+}
+
+.oma-depth-picker :deep(.sdr-field-label) {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: rgba(var(--ink-rgb), 0.6); /* matches .settings-location-label (AA) */
+}
+
+.oma-depth-picker :deep(.sdr-slider-val) {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.oma-depth-picker :deep(.sdr-panel-slider) {
+  background: rgba(var(--ink-rgb), 0.15);
 }
 </style>

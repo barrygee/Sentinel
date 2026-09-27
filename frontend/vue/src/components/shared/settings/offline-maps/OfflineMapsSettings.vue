@@ -34,14 +34,16 @@
         @update:include-terrain="store.setDraftIncludeTerrain"
       />
 
-      <div class="oma-label-field">
-        <label class="oma-label-label" for="oma-label-input">LABEL</label>
+      <div class="settings-location-field">
+        <label class="settings-location-label" for="oma-label-input">LABEL</label>
         <input
           id="oma-label-input"
           type="text"
-          class="oma-label-input"
+          class="settings-location-input oma-label-input"
           maxlength="60"
           placeholder="e.g. Lake District"
+          spellcheck="false"
+          autocomplete="off"
           :value="store.draft.label"
           @input="store.setDraftLabel(($event.target as HTMLInputElement).value)"
         />
@@ -52,14 +54,19 @@
         :free-bytes="store.status?.free_bytes ?? 0"
       />
 
-      <p v-if="downloadDisabledReason" class="oma-disabled-reason" role="alert">
+      <p
+        v-if="downloadDisabledReason"
+        class="settings-location-hint oma-disabled-reason"
+        role="alert"
+      >
         {{ downloadDisabledReason }}
       </p>
-      <p v-if="store.submitError" class="oma-disabled-reason" role="alert">
+      <p v-if="store.submitError" class="settings-location-error oma-submit-error" role="alert">
         {{ store.submitError }}
       </p>
 
       <BaseButton
+        class="oma-download-button"
         type="button"
         variant="primary"
         :disabled="downloadDisabledReason !== null || store.submitting"
@@ -207,61 +214,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Field, label and message styling comes from the settings panel's shared
+   `settings-location-*` classes (the LOCATION section), so this group reads
+   like every other one. Only the layout lives here. */
 .oma-shell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* One column the width of the LOCATION fields, so the bounds, the depth
+   slider and the label all line up. */
 .oma-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.oma-label-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.oma-label-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  color: rgba(var(--ink-rgb), 0.65);
+  gap: 22px;
+  width: 100%;
+  max-width: 464px;
 }
 
 .oma-label-input {
-  border: none;
-  background: var(--surface);
-  border-radius: 0;
-  height: 34px;
-  padding: 0 10px;
-  font-size: 13px;
-  color: inherit;
-  box-shadow: inset 0 -1px 0 var(--settings-field-line);
+  max-width: none;
 }
 
-.oma-disabled-reason {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--danger);
-}
-
-@media (min-width: 768px) {
-  .oma-shell {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-
-  .oma-shell > .offline-area-map {
-    flex: 1 1 50%;
-  }
-
-  .oma-form {
-    flex: 1 1 50%;
-  }
+.oma-download-button {
+  align-self: flex-start;
 }
 </style>

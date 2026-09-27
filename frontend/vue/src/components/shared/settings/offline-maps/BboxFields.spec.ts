@@ -26,6 +26,17 @@ describe('BboxFields', () => {
     expect((inputFor(wrapper, 'WEST').element as HTMLInputElement).value).toBe('-3.20000')
   })
 
+  it('leaves every field blank, showing its placeholder, until an area exists', async () => {
+    const wrapper = mountFields({ west: 0, south: 0, east: 0, north: 0 })
+    for (const input of wrapper.findAll('input')) {
+      expect((input.element as HTMLInputElement).value).toBe('')
+      expect(input.attributes('placeholder')).toBe('0.000')
+    }
+    await wrapper.setProps({ bounds: VALID })
+    expect((wrapper.findAll('input')[0]!.element as HTMLInputElement).value).not.toBe('')
+    wrapper.unmount()
+  })
+
   it('does not reformat the text of a focused field while multi-digit typing is in progress', async () => {
     const wrapper = mountFields()
     const north = inputFor(wrapper, 'NORTH')

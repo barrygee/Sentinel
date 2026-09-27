@@ -1,13 +1,17 @@
 <template>
-  <div class="oma-bbox-fields">
-    <div v-for="field in fields" :key="field.key" class="oma-bbox-field">
-      <label class="oma-bbox-label" :for="`${idPrefix}-${field.key}`">{{ field.label }}</label>
+  <div class="settings-location-fields oma-bbox-fields">
+    <div v-for="field in fields" :key="field.key" class="settings-location-field oma-bbox-field">
+      <label class="settings-location-label" :for="`${idPrefix}-${field.key}`">{{
+        field.label
+      }}</label>
       <input
         :id="`${idPrefix}-${field.key}`"
         type="text"
         inputmode="decimal"
-        class="oma-bbox-input"
-        :class="{ 'oma-bbox-input--invalid': shouldValidate && fieldErrors[field.key] !== null }"
+        class="settings-location-input"
+        :class="{
+          'settings-location-input--invalid': shouldValidate && fieldErrors[field.key] !== null,
+        }"
         :value="fieldText[field.key]"
         :aria-invalid="shouldValidate && fieldErrors[field.key] !== null"
         :aria-describedby="
@@ -16,6 +20,7 @@
             : undefined
         "
         spellcheck="false"
+        autocomplete="off"
         placeholder="0.000"
         @input="onInput(field.key, ($event.target as HTMLInputElement).value)"
         @focus="focusedField = field.key"
@@ -25,7 +30,7 @@
       <p
         v-if="shouldValidate && fieldErrors[field.key] !== null"
         :id="`${idPrefix}-${field.key}-error`"
-        class="oma-bbox-error"
+        class="settings-location-error oma-bbox-error"
         aria-live="polite"
       >
         {{ fieldErrors[field.key] }}
@@ -88,24 +93,33 @@ const fields: { key: FieldKey; label: string }[] = [
   { key: 'west', label: 'WEST' },
 ]
 
+/** True once the bounds describe an actual area rather than the empty 0/0/0/0 draft. */
+function describesArea(bounds: LngLatBounds): boolean {
+  return bounds.west !== bounds.east || bounds.south !== bounds.north
+}
+
+/** What a field shows for a bound: blank (so its placeholder appears, like the
+ *  LOCATION fields) until an area exists, then the value to five places. */
+function displayText(bounds: LngLatBounds, key: FieldKey): string {
+  return describesArea(bounds) ? formatBound(bounds[key]) : ''
+}
+
 function formatBound(value: number): string {
   return Number.isFinite(value) ? value.toFixed(5) : ''
 }
 
 const fieldText = reactive<Record<FieldKey, string>>({
-  north: formatBound(props.bounds.north),
-  south: formatBound(props.bounds.south),
-  east: formatBound(props.bounds.east),
-  west: formatBound(props.bounds.west),
+  north: displayText(props.bounds, 'north'),
+  south: displayText(props.bounds, 'south'),
+  east: displayText(props.bounds, 'east'),
+  west: displayText(props.bounds, 'west'),
 })
 
 const focusedField = ref<FieldKey | null>(null)
 /** True once the operator has typed in any field — part of the pristine-state gate. */
 const hasInteracted = ref(false)
 
-const hasArea = computed(
-  () => props.bounds.west !== props.bounds.east || props.bounds.south !== props.bounds.north,
-)
+const hasArea = computed(() => describesArea(props.bounds))
 const shouldValidate = computed(() => hasInteracted.value || hasArea.value)
 
 watch(
@@ -113,7 +127,7 @@ watch(
   (bounds) => {
     for (const field of fields) {
       if (focusedField.value === field.key) continue
-      fieldText[field.key] = formatBound(bounds[field.key])
+      fieldText[field.key] = displayText(bounds, field.key)
     }
   },
 )
@@ -136,49 +150,15 @@ function onBlur(key: FieldKey): void {
     fieldText[key] = formatBound(parsed)
     if (parsed !== props.bounds[key]) emit('update:bounds', { ...props.bounds, [key]: parsed })
   } else {
-    fieldText[key] = formatBound(props.bounds[key])
+    fieldText[key] = displayText(props.bounds, key)
   }
 }
 </script>
 
 <style scoped>
+/* Styling is the settings panel's shared LOCATION field set. The form column
+   already caps the width, so the pair grid fills it. */
 .oma-bbox-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 12px;
-}
-
-.oma-bbox-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.oma-bbox-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  color: rgba(var(--ink-rgb), 0.65);
-}
-
-.oma-bbox-input {
-  border: none;
-  background: var(--surface);
-  border-radius: 0;
-  height: 34px;
-  padding: 0 10px;
-  font-size: 13px;
-  color: inherit;
-  box-shadow: inset 0 -1px 0 var(--settings-field-line);
-}
-
-.oma-bbox-input--invalid {
-  box-shadow: inset 0 -1px 0 var(--danger);
-}
-
-.oma-bbox-error {
-  margin: 0;
-  font-size: 10px;
-  color: var(--danger);
+  max-width: none;
 }
 </style>

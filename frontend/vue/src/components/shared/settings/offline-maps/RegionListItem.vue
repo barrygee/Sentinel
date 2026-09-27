@@ -180,7 +180,7 @@ defineExpose({ focusSelectButton })
   align-items: flex-start;
   gap: 8px;
   border-bottom: 1px solid var(--rule);
-  padding: 8px 0;
+  padding: 12px 0;
 }
 
 .oma-region-summary {
@@ -208,20 +208,23 @@ defineExpose({ focusSelectButton })
 }
 
 .oma-region-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .oma-region-meta {
-  font-size: 10px;
-  color: rgba(var(--ink-rgb), 0.65);
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .oma-region-error {
-  margin: 2px 0 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--danger);
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--danger-hover);
 }
 
 .oma-region-progress {

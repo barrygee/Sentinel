@@ -111,8 +111,10 @@ onUnmounted(() => {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
 }
 
 .oma-estimate-headline--warning {
@@ -120,9 +122,9 @@ onUnmounted(() => {
 }
 
 .oma-estimate-tiles {
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(var(--ink-rgb), 0.65);
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .oma-estimate-breakdown {
@@ -135,8 +137,9 @@ onUnmounted(() => {
 .oma-estimate-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  color: rgba(var(--ink-rgb), 0.65);
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 
 .oma-estimate-row dt,
@@ -147,7 +150,8 @@ onUnmounted(() => {
 .oma-estimate-warning {
   margin: 0;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--danger);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--danger-hover);
 }
 </style>
