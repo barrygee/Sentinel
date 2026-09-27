@@ -482,7 +482,7 @@ describe('SettingsPanel', () => {
   // so there is no longer a staged edit for that event to supersede.
 
   describe('group labels', () => {
-    it('groups App Settings under GENERAL, LOCATION and CONFIGURATION', async () => {
+    it('groups App Settings under GENERAL, LOCATION, OFFLINE MAPS and CONFIGURATION', async () => {
       const store = useSettingsStore()
       store.openPanel('app')
       const wrapper = mountPanel()
@@ -490,6 +490,7 @@ describe('SettingsPanel', () => {
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'GENERAL',
         'LOCATION',
+        'OFFLINE MAPS',
         'CONFIGURATION',
       ])
     })

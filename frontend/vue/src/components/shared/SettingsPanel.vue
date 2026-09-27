@@ -393,6 +393,17 @@ const ALL_SETTINGS: SettingItem[] = [
     type: 'range-ring-origin',
   },
   {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'offline-maps',
+    label: 'Offline Maps',
+    desc: 'Download basemap and terrain tiles for an area so it works with no connection',
+    searchTerms:
+      'offline download area region pmtiles terrain basemap dark light colour cartographic',
+    type: 'offline-maps',
+    groupLabel: 'OFFLINE MAPS',
+  },
+  {
     section: 'air',
     sectionLabel: 'AIR',
     id: 'air-source-override',

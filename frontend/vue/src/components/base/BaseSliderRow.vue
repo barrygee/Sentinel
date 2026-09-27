@@ -10,6 +10,7 @@
       class="sdr-panel-slider"
       type="range"
       :aria-label="accessibleName"
+      :aria-valuetext="readout"
       :min="min"
       :max="max"
       :step="step"

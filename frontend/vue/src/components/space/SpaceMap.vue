@@ -31,6 +31,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
+import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { SatelliteControl } from './controls/satellite/SatelliteControl'
@@ -54,6 +55,14 @@ const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.ma
 
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
+
+// Reload the offline basemap tiles when a download job completes while this
+// map is showing the offline style — see the composable's doc. Space has no
+// terrain overlay, so no terrain control is passed.
+const offlineTierRefresh = useOfflineTierRefresh(
+  () => _map,
+  () => !appStore.isOnline,
+)
 
 const satelliteControlRef = shallowRef<SatelliteControl | null>(null)
 let satelliteControl: SatelliteControl | null = null
@@ -79,6 +88,7 @@ function reinitAfterStyleLoad(): void {
   daynightControl?.initLayers()
   namesControl?.applyVisibility()
   satelliteControl?.initLayers()
+  offlineTierRefresh.applyCurrentVersion()
 }
 
 function loadStyle(m: MapLibreGlMap, url: string): void {
@@ -186,6 +196,8 @@ function onStyleLoaded(m: MapLibreGlMap) {
   const desiredStyle = styleUrl.value
   if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {
     loadStyle(m, desiredStyle)
+  } else {
+    offlineTierRefresh.applyCurrentVersion()
   }
   _initialStyleUrl = null
 }

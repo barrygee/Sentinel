@@ -216,6 +216,7 @@ const terrainSpies = vi.hoisted(() => ({
   onRemove: vi.fn(),
   initLayers: vi.fn(),
   setVisible: vi.fn(),
+  refreshTiles: vi.fn(),
 }))
 vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
   TerrainToggleControl: class {
@@ -223,6 +224,9 @@ vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
     onRemove = terrainSpies.onRemove
     initLayers = terrainSpies.initLayers
     setVisible = terrainSpies.setVisible
+    // Called by useOfflineTierRefresh when the offline tiers version changes
+    // while showing the offline style.
+    refreshTiles = terrainSpies.refreshTiles
   },
 }))
 
@@ -266,6 +270,7 @@ const LandSideMenuStub = defineComponent({
 import LandView from './LandView.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import { useLandStore } from '@/stores/land'
 import { useRepeatersStore } from '@/stores/repeaters'
 import { useBasemapStore } from '@/stores/basemap'
@@ -306,6 +311,9 @@ function makeFakeMap() {
       getNorthEast: () => ({ lng: -1, lat: 55 }),
     })),
     _container: container,
+    // useOfflineTierRefresh's applyCurrentVersion() reads this on every style
+    // load; no source in this fake style, so it's a no-op (returns undefined).
+    getSource: vi.fn(() => undefined),
   }
 }
 
@@ -415,6 +423,38 @@ describe('LandView', () => {
       mountView()
       shared.emit!('style-loaded', map)
       expect(map.setStyle).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('offline tier refresh', () => {
+    it('refreshes the offline basemap tiles and the terrain control when a download completes while offline', async () => {
+      const app = useAppStore()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      app.isOnline = false
+      await nextTick()
+      shared.emit!('style-loaded', map)
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.status = {
+        basemap_available: true,
+        terrain_available: true,
+        basemap_max_zoom: 14,
+        terrain_max_zoom: 12,
+        free_bytes: 0,
+        used_bytes: 0,
+        sources_configured: true,
+        pmtiles_available: true,
+        tiers_version: 'v1',
+        avg_tile_bytes: { basemap: {}, terrain: {} },
+      }
+      await nextTick() // the first assignment (bootstrap) is skipped
+
+      offlineMapsStore.status = { ...offlineMapsStore.status, tiers_version: 'v2' }
+      await nextTick()
+
+      expect(map.getSource).toHaveBeenCalledWith('openmaptiles')
+      expect(terrainSpies.refreshTiles).toHaveBeenCalledOnce()
     })
   })
 

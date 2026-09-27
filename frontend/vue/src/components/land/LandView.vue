@@ -42,6 +42,8 @@ import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
+import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import LandSideMenu from '@/components/land/LandSideMenu.vue'
@@ -65,6 +67,7 @@ const LOCATE_ZOOM = 10
 
 const appStore = useAppStore()
 const themeStore = useThemeStore()
+const offlineMapsStore = useOfflineMapsStore()
 const landStore = useLandStore()
 const repeatersStore = useRepeatersStore()
 const basemapStore = useBasemapStore()
@@ -103,6 +106,14 @@ let _sentrySitesControl: SentrySitesControl | null = null
 let _roadsControl: RoadsToggleControl | null = null
 let _terrainControl: TerrainToggleControl | null = null
 
+// Reload the offline basemap/terrain tiles when a download job completes
+// while this map is showing the offline style — see the composable's doc.
+const offlineTierRefresh = useOfflineTierRefresh(
+  () => _map,
+  () => !appStore.isOnline,
+  () => _terrainControl,
+)
+
 // APRS has a receiver only once an SDR has been named as the APRS radio in
 // Settings → LAND (backed by the same single backend decode bridge the SDR
 // panel's APRS button drives). Without one nothing is decoding, so the layer is
@@ -140,7 +151,7 @@ function onMapCreated(m: Map) {
   // apply the stored visibility to this map's style.
   _namesControl = new NamesToggleControl(basemapStore)
   _roadsControl = new RoadsToggleControl(basemapStore)
-  _terrainControl = new TerrainToggleControl(basemapStore)
+  _terrainControl = new TerrainToggleControl(basemapStore, offlineMapsStore)
   _sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
     // The operator's own position joins the grouping pass, so a Sentry sitting
     // on top of it collapses into a count instead of two marks smearing
@@ -280,5 +291,6 @@ function onStyleLoaded(m: Map) {
   // setStyle drops the rings' sources and layers too; rebuild them so they
   // survive a palette change and pick up that palette's stroke.
   _rangeRingsControl?._initRings()
+  offlineTierRefresh.applyCurrentVersion()
 }
 </script>

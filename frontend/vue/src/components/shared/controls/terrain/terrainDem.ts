@@ -1,19 +1,24 @@
-// Offline elevation plumbing for the terrain overlay.
+// Elevation plumbing for the terrain overlay.
 //
-// The DEM is a Terrarium-encoded raster PMTiles archive (see README → Offline
-// maps) served from the /assets static mount, so hillshade and contours work
-// with no network at all. Hillshade is drawn natively by MapLibre straight from
-// the `pmtiles://` URL. Contours are generated client-side by maplibre-contour,
-// which normally fetches DEM tiles over HTTP — here its tile fetch is swapped
-// for a direct PMTiles range read so it reads the same local archive.
+// The DEM is Terrarium-encoded, served by the backend's resolver endpoint
+// (`GET /api/offline-map/terrain/{z}/{x}/{y}`, see
+// `docs/plans/offline-map-downloads.md`): completed offline-region terrain
+// archives newest first, then the bundled `uk-terrain.pmtiles`, else 204. That
+// means this module no longer opens a PMTiles archive itself — the resolver
+// does — and both hillshade (native MapLibre raster-dem) and contours
+// (maplibre-contour) simply fetch it over plain HTTP like any other tile
+// server. `TerrainToggleControl` is what knows *whether* terrain is available
+// (`status.terrain_available`) and at what depth (`status.terrain_max_zoom`);
+// this module only turns a maxzoom + tiers-version into a configured
+// `mlcontour.DemSource`.
 import * as maplibregl from 'maplibre-gl'
 import mlcontour from 'maplibre-contour'
-import { PMTiles } from 'pmtiles'
+import { withTierVersion } from '@/utils/offlineTileVersion'
 
-export const TERRAIN_PMTILES_PATH = '/assets/tiles/uk-terrain.pmtiles'
-export const TERRAIN_PMTILES_URL = `pmtiles://${TERRAIN_PMTILES_PATH}`
+/** Tile URL template for both the raster-dem hillshade source and the contour DEM fetch. */
+export const TERRAIN_TILE_URL_TEMPLATE = '/api/offline-map/terrain/{z}/{x}/{y}'
 
-// Mapterhorn archives are 512px WebP tiles; MapLibre needs the size up front.
+// Mapterhorn/region archives are 512px WebP (or PNG) tiles; MapLibre needs the size up front.
 export const TERRAIN_TILE_SIZE = 512
 
 // Metre intervals per zoom as [minor, index]. Zooms without an entry reuse the
@@ -29,10 +34,8 @@ export const CONTOUR_MIN_ZOOM = 9
 export const CONTOUR_MAX_ZOOM = 15
 
 export interface TerrainDem {
-  /** Native max zoom of the DEM archive. */
+  /** The maxzoom this DEM source was configured for (from `status.terrain_max_zoom`). */
   maxzoom: number
-  /** [west, south, east, north] coverage of the archive. */
-  bounds: [number, number, number, number]
   /** Tile URL template for the contour vector source (maplibre-contour protocol). */
   contourTilesUrl: string
 }
@@ -43,79 +46,81 @@ interface DemTile {
   data: Float32Array
 }
 type FetchAndParse = (
-  z: number,
-  x: number,
-  y: number,
+  zoom: number,
+  tileX: number,
+  tileY: number,
   abortController: AbortController,
   timer?: unknown,
 ) => Promise<DemTile>
 interface PatchableManager {
-  getTile: (url: string, abortController: AbortController) => Promise<{ data: Blob }>
   fetchAndParseTile: FetchAndParse
 }
 
 let _dem: Promise<TerrainDem> | null = null
+let _demKey: string | null = null
+
+function demKey(maxzoom: number, tiersVersion: string | null): string {
+  return `${maxzoom}:${tiersVersion ?? ''}`
+}
 
 /**
- * Open the local DEM archive and register the contour protocol with MapLibre.
- * Memoised — the protocol must only be registered once per app lifetime. A
- * missing archive rejects, and the rejection is not cached so a later attempt
- * (e.g. after the file is installed) can succeed.
+ * Configure the contour protocol for the given terrain depth/tiers-version and
+ * register it with MapLibre. Memoised per `(maxzoom, tiersVersion)` — either
+ * changing forces a fresh `DemSource`, since maplibre-contour bakes both the
+ * `url` and `maxzoom` in at construction; a `tiersVersion` change is how a
+ * completed/deleted terrain region gets the contour layer to actually rebuild
+ * against the new tiles rather than serving cached-empty (204) ones forever.
  */
-export function loadTerrainDem(): Promise<TerrainDem> {
-  if (!_dem) {
-    _dem = openTerrainDem().catch((err: unknown) => {
+export function loadTerrainDem(
+  maxzoom: number,
+  tiersVersion: string | null = null,
+): Promise<TerrainDem> {
+  const key = demKey(maxzoom, tiersVersion)
+  if (!_dem || _demKey !== key) {
+    _demKey = key
+    _dem = openTerrainDem(maxzoom, tiersVersion).catch((error: unknown) => {
       _dem = null
-      throw err
+      throw error
     })
   }
   return _dem
 }
 
-/** Test hook: forget the memoised archive. */
+/** Test hook: forget the memoised DEM source. */
 export function _resetTerrainDem(): void {
   _dem = null
+  _demKey = null
 }
 
-async function openTerrainDem(): Promise<TerrainDem> {
-  const archive = new PMTiles(TERRAIN_PMTILES_PATH)
-  // Rejects (404) when the archive is not installed — the caller reports that.
-  const header = await archive.getHeader()
-  const maxzoom = header.maxZoom
-
+async function openTerrainDem(maxzoom: number, tiersVersion: string | null): Promise<TerrainDem> {
   const demSource = new mlcontour.DemSource({
-    url: `${TERRAIN_PMTILES_URL}/{z}/{x}/{y}`,
+    url: withTierVersion(TERRAIN_TILE_URL_TEMPLATE, tiersVersion),
     encoding: 'terrarium',
     maxzoom,
-    // Contours are built on the main thread: maplibre-contour's worker fetches
-    // tiles with plain fetch(), which cannot read a PMTiles archive. Decoding
-    // (createImageBitmap) is still async, and tiles are cached, so the cost is
-    // a few ms of marching-squares per tile.
+    // Decoding stays on the main thread: the flat-tile substitution below is
+    // patched onto this manager instance, and a worker would run its own copy
+    // that never sees the patch, silently losing the fallback at the edge of
+    // a regional extract. Revisit if maplibre-contour grows a way to apply
+    // the patch worker-side too.
     worker: false,
     cacheSize: 200,
   })
   const manager = demSource.manager as unknown as PatchableManager
 
-  // Read tiles straight out of the archive instead of over HTTP.
-  manager.getTile = async (url, abortController) => {
-    const [z, x, y] = url.split('/').slice(-3).map(Number) as [number, number, number]
-    const tile = await archive.getZxy(z, x, y, abortController.signal)
-    if (!tile) throw new Error(`terrain: no DEM tile at ${z}/${x}/${y}`)
-    return { data: new Blob([tile.data]) }
-  }
-
   // Contour generation needs all 8 neighbours of a tile and fails the whole
-  // tile if any is missing. At the edge of a regional extract neighbours are
-  // absent, so substitute a flat sea-level tile rather than dropping contours.
+  // tile if any is missing. At the edge of a regional extract (or wherever
+  // the resolver has no tile at all) the endpoint answers 204, which fails to
+  // decode as an image — substitute a flat sea-level tile rather than
+  // dropping contours, exactly as for a genuinely absent PMTiles tile before.
   let tileSize = TERRAIN_TILE_SIZE
   const fetchAndParse = manager.fetchAndParseTile
-  manager.fetchAndParseTile = async (z, x, y, abortController, timer) => {
+  manager.fetchAndParseTile = async (zoom, tileX, tileY, abortController, timer) => {
     try {
-      const tile = await fetchAndParse(z, x, y, abortController, timer)
+      const tile = await fetchAndParse(zoom, tileX, tileY, abortController, timer)
       tileSize = tile.width
       return tile
-    } catch (err) {
-      if (abortController.signal.aborted) throw err
+    } catch (error) {
+      if (abortController.signal.aborted) throw error
       return { width: tileSize, height: tileSize, data: new Float32Array(tileSize * tileSize) }
     }
   }
@@ -124,7 +129,6 @@ async function openTerrainDem(): Promise<TerrainDem> {
 
   return {
     maxzoom,
-    bounds: [header.minLon, header.minLat, header.maxLon, header.maxLat],
     contourTilesUrl: demSource.contourProtocolUrl({
       thresholds: CONTOUR_THRESHOLDS,
       elevationKey: 'ele',

@@ -1,0 +1,443 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
+import { defineComponent, h } from 'vue'
+import { axe } from 'jest-axe'
+import { OfflineMapsApiError } from '@/services/offlineMapsApi'
+
+const apiMock = vi.hoisted(() => ({
+  getOfflineMapStatus: vi.fn(),
+  listOfflineRegions: vi.fn(),
+  createOfflineRegion: vi.fn(),
+  deleteOfflineRegion: vi.fn(),
+  getOfflineRegion: vi.fn(),
+  estimateOfflineArea: vi.fn(),
+}))
+vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/offlineMapsApi')>()),
+  getOfflineMapStatus: apiMock.getOfflineMapStatus,
+  listOfflineRegions: apiMock.listOfflineRegions,
+  createOfflineRegion: apiMock.createOfflineRegion,
+  deleteOfflineRegion: apiMock.deleteOfflineRegion,
+  getOfflineRegion: apiMock.getOfflineRegion,
+  estimateOfflineArea: apiMock.estimateOfflineArea,
+}))
+
+// OfflineAreaMap owns a real MapLibre instance — stubbed here (it has its own
+// dedicated spec) with a fake that exposes the same imperative surface and
+// re-emits armed-change/draw-complete so OfflineMapsSettings's own wiring is
+// what's under test.
+const areaMapStub = vi.hoisted(() => ({
+  armDraw: vi.fn(),
+  cancelDraw: vi.fn(),
+  currentViewBounds: vi.fn(() => ({ west: -1, south: 50, east: 1, north: 52 })),
+  flyToBounds: vi.fn(),
+}))
+vi.mock('./OfflineAreaMap.vue', () => ({
+  default: defineComponent({
+    name: 'OfflineAreaMap',
+    props: {
+      selection: { type: Object, default: null },
+      regions: { type: Array, default: () => [] },
+    },
+    emits: ['draw-complete', 'armed-change'],
+    setup(_props, { expose }) {
+      expose(areaMapStub)
+      return () => h('div', { class: 'offline-area-map-stub' })
+    },
+  }),
+}))
+
+import OfflineMapsSettings from './OfflineMapsSettings.vue'
+import { useAppStore } from '@/stores/app'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
+
+const STATUS = {
+  basemap_available: true,
+  terrain_available: true,
+  basemap_max_zoom: 14,
+  terrain_max_zoom: 12,
+  free_bytes: 10_000_000_000,
+  used_bytes: 0,
+  sources_configured: true,
+  pmtiles_available: true,
+  tiers_version: 'v1',
+  avg_tile_bytes: { basemap: { '0': 100 }, terrain: { '0': 50 } },
+}
+
+function mountSettings() {
+  return mount(OfflineMapsSettings)
+}
+
+describe('OfflineMapsSettings', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    apiMock.getOfflineMapStatus.mockResolvedValue(STATUS)
+    apiMock.listOfflineRegions.mockResolvedValue([])
+  })
+
+  it('fetches status and regions on mount', async () => {
+    mountSettings()
+    await flushPromises()
+    expect(apiMock.getOfflineMapStatus).toHaveBeenCalled()
+    expect(apiMock.listOfflineRegions).toHaveBeenCalled()
+  })
+
+  describe('download disabled reasons', () => {
+    it('is disabled with "Draw or enter an area first." when no area is drawn', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe('Draw or enter an area first.')
+      const downloadButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'DOWNLOAD')!
+      expect(downloadButton.attributes('disabled')).toBeDefined()
+    })
+
+    it('is disabled with a bounds-fix message for an invalid (out-of-range) area', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 999)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe(
+        'Fix the highlighted area bounds before downloading.',
+      )
+    })
+
+    it('is disabled when neither Basemap nor Terrain is ticked', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      offlineMapsStore.setDraftIncludeBasemap(false)
+      offlineMapsStore.setDraftIncludeTerrain(false)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe('Tick Basemap, Terrain, or both.')
+    })
+
+    it('is disabled off grid with a connectivity message', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      useAppStore().setOnline(false)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe(
+        'Downloads need a connection — you are off grid.',
+      )
+    })
+
+    it('is disabled when the offline tile source is not configured/reachable', async () => {
+      apiMock.getOfflineMapStatus.mockResolvedValue({ ...STATUS, sources_configured: false })
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe(
+        'The offline tile source is not available on this server.',
+      )
+    })
+
+    it('is disabled when pmtiles_available is false even if sources_configured is true', async () => {
+      apiMock.getOfflineMapStatus.mockResolvedValue({ ...STATUS, pmtiles_available: false })
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe(
+        'The offline tile source is not available on this server.',
+      )
+    })
+
+    it('is disabled when the estimate exceeds free disk space', async () => {
+      apiMock.getOfflineMapStatus.mockResolvedValue({ ...STATUS, free_bytes: 1 })
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').text()).toBe(
+        'This exceeds the free disk space available.',
+      )
+    })
+
+    it('is enabled (no disabled-reason paragraph) once a valid area with room fits', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.oma-disabled-reason').exists()).toBe(false)
+      const downloadButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'DOWNLOAD')!
+      expect(downloadButton.attributes('disabled')).toBeUndefined()
+    })
+
+    it('disables DOWNLOAD while a create request is submitting', async () => {
+      let resolveCreate!: () => void
+      apiMock.createOfflineRegion.mockReturnValue(
+        new Promise((resolve) => {
+          resolveCreate = () =>
+            resolve({
+              id: 'r',
+              label: 'x',
+              west: -1,
+              south: 50,
+              east: 1,
+              north: 52,
+              max_zoom: 12,
+              include_basemap: true,
+              include_terrain: true,
+              status: 'queued',
+              phase: null,
+              bytes_done: 0,
+              bytes_estimated: 0,
+              tiles_estimated: 0,
+              size_bytes: null,
+              error: null,
+              created_at: 1,
+              completed_at: null,
+            })
+        }),
+      )
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+      await wrapper.vm.$nextTick()
+      const downloadButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'DOWNLOAD')!
+      await downloadButton.trigger('click')
+      expect(downloadButton.attributes('disabled')).toBeDefined()
+      resolveCreate()
+      await flushPromises()
+      expect(
+        wrapper
+          .findAll('button')
+          .find((button) => button.text() === 'DOWNLOAD')!
+          .attributes('disabled'),
+      ).toBeUndefined()
+    })
+  })
+
+  describe('wiring between the map and the form', () => {
+    it('arms/disarms the map draw handler from the DRAW AREA button', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const drawButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('DRAW AREA'))!
+      await drawButton.trigger('click')
+      expect(areaMapStub.armDraw).toHaveBeenCalled()
+    })
+
+    it('cancels drawing when toggled again while armed', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      await wrapper.findComponent({ name: 'OfflineAreaMap' }).vm.$emit('armed-change', true)
+      const drawButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('CANCEL DRAWING'))!
+      await drawButton.trigger('click')
+      expect(areaMapStub.cancelDraw).toHaveBeenCalled()
+    })
+
+    it('commits the drawn bounds to the draft store on draw-complete', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      await wrapper
+        .findComponent({ name: 'OfflineAreaMap' })
+        .vm.$emit('draw-complete', { west: -3, south: 54, east: -2, north: 55 })
+      expect(offlineMapsStore.draft).toMatchObject({ west: -3, south: 54, east: -2, north: 55 })
+    })
+
+    it('commits bounds typed into the BboxFields to the draft store', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      const northInput = wrapper
+        .findAll('.oma-bbox-field')
+        .find((field) => field.text().startsWith('NORTH'))!
+        .find('input')
+      await northInput.trigger('focus')
+      await northInput.setValue('60')
+      expect(offlineMapsStore.draft.north).toBe(60)
+    })
+
+    it('commits a depth change from the slider to the draft store, clamped by the store', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      await wrapper.find('input[type="range"]').setValue('9')
+      expect(offlineMapsStore.draft.maxZoom).toBe(9)
+    })
+
+    it('commits a typed label to the draft store', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      await wrapper.find('#oma-label-input').setValue('Lake District')
+      expect(offlineMapsStore.draft.label).toBe('Lake District')
+    })
+
+    it('uses the area map to resolve "use current view" bounds', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      const useCurrentViewButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'USE CURRENT VIEW')!
+      await useCurrentViewButton.trigger('click')
+      expect(offlineMapsStore.draft).toMatchObject({ west: -1, south: 50, east: 1, north: 52 })
+    })
+
+    it('flies the area map to a selected region', async () => {
+      apiMock.listOfflineRegions.mockResolvedValue([
+        {
+          id: 'r1',
+          label: 'Lakes',
+          west: -3,
+          south: 54,
+          east: -2,
+          north: 55,
+          max_zoom: 12,
+          include_basemap: true,
+          include_terrain: true,
+          status: 'complete',
+          phase: null,
+          bytes_done: 100,
+          bytes_estimated: 100,
+          tiles_estimated: 10,
+          size_bytes: 100,
+          error: null,
+          created_at: 1,
+          completed_at: 2,
+        },
+      ])
+      const wrapper = mountSettings()
+      await flushPromises()
+      await wrapper.find('.oma-region-select').trigger('click')
+      expect(areaMapStub.flyToBounds).toHaveBeenCalledWith({
+        west: -3,
+        south: 54,
+        east: -2,
+        north: 55,
+      })
+    })
+
+    it('passes only complete regions to the area map as outlines', async () => {
+      apiMock.listOfflineRegions.mockResolvedValue([
+        {
+          id: 'complete',
+          label: 'A',
+          west: -3,
+          south: 54,
+          east: -2,
+          north: 55,
+          max_zoom: 12,
+          include_basemap: true,
+          include_terrain: true,
+          status: 'complete',
+          phase: null,
+          bytes_done: 100,
+          bytes_estimated: 100,
+          tiles_estimated: 10,
+          size_bytes: 100,
+          error: null,
+          created_at: 1,
+          completed_at: 2,
+        },
+        {
+          id: 'queued',
+          label: 'B',
+          west: 1,
+          south: 1,
+          east: 2,
+          north: 2,
+          max_zoom: 12,
+          include_basemap: true,
+          include_terrain: true,
+          status: 'queued',
+          phase: null,
+          bytes_done: 0,
+          bytes_estimated: 100,
+          tiles_estimated: 10,
+          size_bytes: null,
+          error: null,
+          created_at: 1,
+          completed_at: null,
+        },
+      ])
+      const wrapper = mountSettings()
+      await flushPromises()
+      const areaMapComponent = wrapper.findComponent({ name: 'OfflineAreaMap' })
+      expect(areaMapComponent.props('regions')).toEqual([
+        { west: -3, south: 54, east: -2, north: 55 },
+      ])
+    })
+  })
+
+  it('queues a download on DOWNLOAD click', async () => {
+    apiMock.createOfflineRegion.mockResolvedValue({
+      id: 'new',
+      label: 'Untitled area',
+      west: -1,
+      south: 50,
+      east: 1,
+      north: 52,
+      max_zoom: 12,
+      include_basemap: true,
+      include_terrain: true,
+      status: 'queued',
+      phase: null,
+      bytes_done: 0,
+      bytes_estimated: 100,
+      tiles_estimated: 10,
+      size_bytes: null,
+      error: null,
+      created_at: 1,
+      completed_at: null,
+    })
+    const wrapper = mountSettings()
+    await flushPromises()
+    const offlineMapsStore = useOfflineMapsStore()
+    offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+    await wrapper.vm.$nextTick()
+    const downloadButton = wrapper.findAll('button').find((button) => button.text() === 'DOWNLOAD')!
+    await downloadButton.trigger('click')
+    await flushPromises()
+    expect(apiMock.createOfflineRegion).toHaveBeenCalled()
+    expect(offlineMapsStore.regions).toHaveLength(1)
+  })
+
+  it('shows the store submitError as an alert', async () => {
+    apiMock.createOfflineRegion.mockRejectedValue(
+      new OfflineMapsApiError(507, 'Not enough free disk space.'),
+    )
+    const wrapper = mountSettings()
+    await flushPromises()
+    const offlineMapsStore = useOfflineMapsStore()
+    offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
+    await wrapper.vm.$nextTick()
+    const downloadButton = wrapper.findAll('button').find((button) => button.text() === 'DOWNLOAD')!
+    await downloadButton.trigger('click')
+    await flushPromises()
+    const alerts = wrapper.findAll('[role="alert"]')
+    expect(alerts.some((alert) => alert.text() === 'Not enough free disk space.')).toBe(true)
+  })
+
+  it('has no accessibility violations', async () => {
+    const wrapper = mountSettings()
+    await flushPromises()
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+})

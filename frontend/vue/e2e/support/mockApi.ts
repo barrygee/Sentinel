@@ -16,7 +16,26 @@ import landRepeatersFixture from '../fixtures/land-repeaters.json' with { type: 
  * AFTER this one — Playwright matches routes in most-recently-registered order
  * so the override wins.
  *
- * WebSocket routes (/ws/sdr/**) must be stubbed separately per-test using
+ * WebSocket routes (/ws/sdr/** A healthy offline-map status: both sources present, plenty of disk, and a
+ *  tiny calibration table so estimates are easy to reason about. Exported for
+ *  specs that need to assert against the same numbers. */
+export const OFFLINE_MAP_STATUS = {
+  basemap_available: true,
+  terrain_available: true,
+  basemap_max_zoom: 14,
+  terrain_max_zoom: 12,
+  free_bytes: 50_000_000_000,
+  used_bytes: 0,
+  sources_configured: true,
+  pmtiles_available: true,
+  tiers_version: 'e2e-tiers-1',
+  avg_tile_bytes: {
+    basemap: { '0': 20_000, '6': 20_000, '12': 8_000, '14': 4_000 },
+    terrain: { '0': 60_000, '12': 60_000 },
+  },
+}
+
+/**) must be stubbed separately per-test using
  * `page.routeWebSocket(...)`.
  */
 export async function installDefaultMocks(page: Page): Promise<void> {
@@ -284,6 +303,23 @@ export async function installDefaultMocks(page: Page): Promise<void> {
 
   // Connectivity probe URL — return 204 so the app considers itself online
   await page.route('/api/probe', (route) => {
+    void route.fulfill({ status: 204 })
+  })
+
+  // Offline map downloads. App.vue fetches status + regions on every load and
+  // the offline styles/terrain read tiles through the resolver endpoints, so
+  // every spec needs these answered. No downloaded regions; empty tiles (204).
+  // offline-maps.spec.ts overrides regions/create/delete with its own routes.
+  await page.route('/api/offline-map/status', (route) => {
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(OFFLINE_MAP_STATUS),
+    })
+  })
+  await page.route('/api/offline-map/regions', (route) => {
+    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.route('**/api/offline-map/{basemap,terrain}/**', (route) => {
     void route.fulfill({ status: 204 })
   })
 

@@ -124,6 +124,7 @@ interface FakeMap {
   addControl: ReturnType<typeof vi.fn>
   getContainer: ReturnType<typeof vi.fn>
   ctrlEl: HTMLElement | null
+  getSource: ReturnType<typeof vi.fn>
 }
 
 function makeFakeMap(withCtrlEl = true): FakeMap {
@@ -144,6 +145,9 @@ function makeFakeMap(withCtrlEl = true): FakeMap {
     getCenter: vi.fn(() => ({ lng: 1, lat: 2 })),
     addControl: vi.fn(),
     getContainer: vi.fn(() => container),
+    // useOfflineTierRefresh's applyCurrentVersion() reads this on every style
+    // load; no source in this fake style, so it's a no-op (returns undefined).
+    getSource: vi.fn(() => undefined),
   }
 }
 

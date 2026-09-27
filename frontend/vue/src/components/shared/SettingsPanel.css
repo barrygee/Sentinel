@@ -65,6 +65,14 @@
   outline: none !important;
 }
 
+/* The domain maps' global control styling (MapLibreMap.vue) inverts the zoom
+   icons to white for their dark control bar. On this light island the bar is
+   light too, which left + and − nearly invisible on the embedded maps (Sentry
+   site, Offline Maps). Restore MapLibre's own dark icons here (WCAG 1.4.11). */
+#settings-panel .maplibregl-ctrl-icon {
+  filter: none !important;
+}
+
 #settings-sidebar,
 #settings-content {
   position: relative;
