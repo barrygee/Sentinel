@@ -176,6 +176,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Segmented INTERFACE and MAP rows, with a colour basemap
 - Drop the light interface, keep the map's three palettes
 - Remove live camera feeds and their settings **(breaking change)**
+- Give the colour basemap more colour at every zoom (#365)
 
 ### Bug Fixes
 
