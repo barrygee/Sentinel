@@ -1,63 +1,88 @@
 <template>
-  <li class="oma-region-item">
-    <div class="oma-region-summary">
-      <button
-        ref="selectButtonRef"
-        type="button"
-        class="oma-region-select"
-        :disabled="confirming"
-        :aria-label="`Show ${region.label} on map`"
-        @click="emit('select')"
-      >
-        <span class="oma-region-label">{{ region.label }}</span>
-      </button>
-      <span class="oma-region-meta">
-        z{{ region.max_zoom }} · {{ contentsSummary }} · {{ metaTail }}
-      </span>
-      <p
-        v-if="region.status === 'failed' && region.error"
-        class="oma-region-error"
-        :role="failedThisSession ? 'alert' : undefined"
-      >
-        {{ region.error }}
-      </p>
-      <DownloadProgress
-        v-if="isActive"
-        class="oma-region-progress"
-        :status="region.status"
-        :phase="region.phase"
-        :bytes-done="region.bytes_done"
-        :bytes-estimated="region.bytes_estimated"
-        @cancel="emit('cancel-job')"
-      />
-    </div>
-    <template v-if="!isActive">
-      <button
-        v-if="!confirming"
-        ref="deleteButtonRef"
-        type="button"
-        class="oma-region-delete"
-        :aria-label="`Delete offline area ${region.label}`"
-        @click="emit('delete-request')"
-      >
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-          <line x1="2.5" y1="2.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5" />
-          <line x1="10.5" y1="2.5" x2="2.5" y2="10.5" stroke="currentColor" stroke-width="1.5" />
-        </svg>
-      </button>
-      <div v-else class="oma-region-confirm">
-        <span class="oma-region-confirm-label">DELETE?</span>
-        <BaseButton type="button" variant="danger" @click="emit('delete-confirm')">YES</BaseButton>
-        <BaseButton
-          ref="confirmNoButtonRef"
+  <li class="sdr-device-item oma-region-item">
+    <div class="sdr-device-row oma-region-row">
+      <div class="oma-region-summary" :class="{ 'oma-region-summary--dimmed': confirming }">
+        <button
+          ref="selectButtonRef"
           type="button"
-          variant="ghost"
-          @click="emit('delete-cancel')"
+          class="sdr-device-info oma-region-select"
+          :disabled="confirming"
+          :aria-label="`Show ${region.label} on map`"
+          @click="emit('select')"
         >
-          NO
-        </BaseButton>
+          {{ region.label }}
+        </button>
+        <span class="oma-region-meta">
+          z{{ region.max_zoom }} · {{ contentsSummary }} · {{ metaTail }}
+        </span>
+        <p
+          v-if="region.status === 'failed' && region.error"
+          class="oma-region-error"
+          :role="failedThisSession ? 'alert' : undefined"
+        >
+          {{ region.error }}
+        </p>
+        <DownloadProgress
+          v-if="isActive"
+          class="oma-region-progress"
+          :status="region.status"
+          :phase="region.phase"
+          :bytes-done="region.bytes_done"
+          :bytes-estimated="region.bytes_estimated"
+          @cancel="emit('cancel-job')"
+        />
       </div>
-    </template>
+      <template v-if="!isActive">
+        <button
+          v-if="!confirming"
+          ref="deleteButtonRef"
+          type="button"
+          class="sdr-device-btn sdr-device-btn--danger oma-region-delete"
+          title="Delete"
+          :aria-label="`Delete offline area ${region.label}`"
+          @click="emit('delete-request')"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <line
+              x1="2.5"
+              y1="2.5"
+              x2="10.5"
+              y2="10.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+            <line
+              x1="10.5"
+              y1="2.5"
+              x2="2.5"
+              y2="10.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+        <div v-else class="sdr-device-confirm oma-region-confirm">
+          <span class="sdr-device-confirm-label">DELETE?</span>
+          <button
+            type="button"
+            class="sdr-device-confirm-btn sdr-device-confirm-btn--yes"
+            @click="emit('delete-confirm')"
+          >
+            YES
+          </button>
+          <button
+            ref="confirmNoButtonRef"
+            type="button"
+            class="sdr-device-confirm-btn"
+            @click="emit('delete-cancel')"
+          >
+            NO
+          </button>
+        </div>
+      </template>
+    </div>
   </li>
 </template>
 
@@ -79,7 +104,6 @@
  * export below.
  */
 import { computed, nextTick, ref, watch } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
 import DownloadProgress from './DownloadProgress.vue'
 import { formatByteSize } from '@/utils/offlineMapEstimate'
 import type { OfflineRegion } from '@/services/offlineMapsApi'
@@ -124,7 +148,7 @@ const metaTail = computed(() => {
 
 const selectButtonRef = ref<HTMLButtonElement | null>(null)
 const deleteButtonRef = ref<HTMLButtonElement | null>(null)
-const confirmNoButtonRef = ref<InstanceType<typeof BaseButton> | null>(null)
+const confirmNoButtonRef = ref<HTMLButtonElement | null>(null)
 
 watch(
   () => props.confirming,
@@ -133,8 +157,7 @@ watch(
     if (confirming) {
       // NO is the safe default focus target — a stray Enter/Space while
       // focus lands here can't confirm a destructive action.
-      const noButtonElement = confirmNoButtonRef.value?.$el as HTMLButtonElement | undefined
-      noButtonElement?.focus()
+      confirmNoButtonRef.value?.focus()
     } else {
       // Cancelling returns focus to the row it came from. If this fires
       // because the row was instead just confirmed for deletion, the row is
@@ -175,12 +198,12 @@ defineExpose({ focusSelectButton })
 </script>
 
 <style scoped>
-.oma-region-item {
-  display: flex;
+/* Row, name, delete icon and the DELETE? YES / NO confirmation all use the
+   settings panel's shared device-list styles (as in the Sentry hosts list),
+   so this list looks like the others in Settings. Only what those classes
+   don't cover lives here. */
+.oma-region-row {
   align-items: flex-start;
-  gap: 8px;
-  border-bottom: 1px solid var(--rule);
-  padding: 12px 0;
 }
 
 .oma-region-summary {
@@ -191,68 +214,42 @@ defineExpose({ focusSelectButton })
   min-width: 0;
 }
 
+/* Same dimming the Sentry hosts list gives a row awaiting delete confirmation. */
+.oma-region-summary--dimmed {
+  opacity: 0.4;
+}
+
 .oma-region-select {
   align-self: flex-start;
+  max-width: 100%;
   background: none;
   border: none;
   padding: 0;
   text-align: left;
   cursor: pointer;
-  color: inherit;
-  font-family: inherit;
 }
 
 .oma-region-select:disabled {
   cursor: default;
-  opacity: 0.5;
-}
-
-.oma-region-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
 }
 
 .oma-region-meta {
-  font-size: 12px;
-  line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.6);
 }
 
 .oma-region-error {
   margin: 0;
-  font-size: 11px;
   font-weight: 500;
-  line-height: 1.45;
   color: var(--danger-hover);
 }
 
 .oma-region-progress {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-.oma-region-delete {
-  flex-shrink: 0;
-  min-width: 24px;
-  min-height: 24px;
-  background: none;
-  border: none;
-  padding: 6px;
-  cursor: pointer;
-  color: var(--danger);
-}
-
+/* The shared confirm row is hidden until a stylesheet shows it; this one only
+   renders while confirming. */
 .oma-region-confirm {
-  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.oma-region-confirm-label {
-  white-space: nowrap;
 }
 </style>

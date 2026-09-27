@@ -239,8 +239,10 @@ onMounted(() => {
 }
 
 /* Every piece of text in the group uses the size of a section description
-   (`.settings-item-desc`). Buttons keep the shared settings button style. */
-.oma-shell :deep(:is(p, label, span, dt, dd, h3, li, input)) {
+   (`.settings-item-desc`). Buttons, and the small DELETE? confirm label that
+   goes with them, keep the shared settings styles. */
+.oma-shell :deep(:is(p, label, span, dt, dd, h3, li, input):not(.sdr-device-confirm-label)),
+.oma-shell :deep(.oma-region-select) {
   font-size: 12.5px;
   line-height: 1.55;
 }
