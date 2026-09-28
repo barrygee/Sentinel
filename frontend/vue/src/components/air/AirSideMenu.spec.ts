@@ -181,7 +181,7 @@ describe('AirSideMenu', () => {
 
     it('toggles the shared terrain layer on the basemap store and greys out without tiles', async () => {
       const basemapStore = useBasemapStore()
-      const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+      const terrain = () => wrapper.find('[aria-label="Terrain contour lines"]')
       expect(terrain().classes()).not.toContain('active')
       expect(terrain().attributes('disabled')).toBeUndefined()
 
@@ -289,7 +289,7 @@ describe('AirSideMenu', () => {
       // mode buttons are gone): terrain is the one rail action that goes to a
       // store rather than the map, so it works with no map attached at all.
       const basemapStore = useBasemapStore()
-      await wrapper.find('[aria-label="Terrain relief and contour lines"]').trigger('click')
+      await wrapper.find('[aria-label="Terrain contour lines"]').trigger('click')
       expect(basemapStore.layers.terrain).toBe(true)
     })
   })

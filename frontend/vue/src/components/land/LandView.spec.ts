@@ -212,7 +212,7 @@ vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
   },
 }))
 
-// Terrain (hillshade + contours) is the third shared base-map layer.
+// Terrain (contours) is the third shared base-map layer.
 const terrainSpies = vi.hoisted(() => ({
   onAdd: vi.fn(),
   onRemove: vi.fn(),

@@ -440,7 +440,7 @@ onMounted(() => {
     () => basemapStore.layers.names,
     (on) => namesControl?.setVisible(on),
   )
-  // Terrain relief/contours likewise — one shared choice across Air, Sea and Land.
+  // Terrain contours likewise — one shared choice across Air, Sea and Land.
   watch(
     () => basemapStore.layers.terrain,
     (on) => terrainControl?.setVisible(on),

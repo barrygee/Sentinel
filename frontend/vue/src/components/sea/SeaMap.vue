@@ -205,7 +205,7 @@ onMounted(() => {
     () => seaStore.overlayStates.ports,
     () => portsControl?.applyVisibility(),
   )
-  // Terrain relief/contours are a shared base-map layer, so this map follows
+  // Terrain contours are a shared base-map layer, so this map follows
   // the basemap store — whether flipped on its own rail, another map, or Settings.
   watch(
     () => basemapStore.layers.terrain,

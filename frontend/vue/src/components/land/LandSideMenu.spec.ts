@@ -54,7 +54,7 @@ describe('LandSideMenu', () => {
       'Go to my location',
       'Map layers',
       'Range rings',
-      'Terrain relief and contour lines',
+      'Terrain contour lines',
     ]) {
       expect(wrapper.find(`[aria-label="${name}"]`).exists()).toBe(true)
     }
@@ -132,7 +132,7 @@ describe('LandSideMenu', () => {
   it('toggles the shared terrain layer on the basemap store and reflects it, disabled without tiles', async () => {
     const basemapStore = useBasemapStore()
     const { wrapper } = mountMenu()
-    const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+    const terrain = () => wrapper.find('[aria-label="Terrain contour lines"]')
     expect(terrain().classes()).not.toContain('active')
     expect(terrain().attributes('disabled')).toBeUndefined()
     expect(terrain().attributes('data-tooltip')).toBe('TERRAIN')
@@ -154,7 +154,7 @@ describe('LandSideMenu', () => {
   it('reads the terrain active state straight off the shared basemap store', async () => {
     const basemapStore = useBasemapStore()
     const { wrapper } = mountMenu()
-    const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+    const terrain = () => wrapper.find('[aria-label="Terrain contour lines"]')
     expect(terrain().classes()).not.toContain('active')
 
     // A change made on another map (or restored from storage) lights it up here
@@ -198,7 +198,7 @@ describe('LandSideMenu accordion', () => {
     const labels = wrapper
       .findAll('#land-layers-panel button')
       .map((button) => button.attributes('aria-label'))
-    expect(labels).toEqual(['Range rings', 'Terrain relief and contour lines'])
+    expect(labels).toEqual(['Range rings', 'Terrain contour lines'])
   })
 })
 
@@ -223,7 +223,7 @@ describe('LandSideMenu accessibility', () => {
     const basemapStore = useBasemapStore()
     const { wrapper } = mountMenu()
     await wrapper.find('[aria-label="Map layers"]').trigger('click')
-    const terrain = wrapper.find('[aria-label="Terrain relief and contour lines"]')
+    const terrain = wrapper.find('[aria-label="Terrain contour lines"]')
     // A real <button>, so Enter/Space activate it — assert the native element
     // rather than simulating the browser's own click synthesis.
     expect(terrain.element.tagName).toBe('BUTTON')

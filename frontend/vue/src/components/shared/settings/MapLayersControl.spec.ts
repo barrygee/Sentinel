@@ -39,7 +39,7 @@ describe('MapLayersControl', () => {
       'Ground vehicles',
       'Towers',
       'Location names',
-      'Terrain relief & contours',
+      'Terrain contours',
       'Airports',
       'Military bases',
     ])
@@ -113,12 +113,12 @@ describe('MapLayersControl', () => {
     it('reads and writes terrain on the basemap store too', async () => {
       const basemapStore = useBasemapStore()
       const wrapper = mountControl()
-      expect(isOn(wrapper, 'Terrain relief & contours')).toBe(false)
+      expect(isOn(wrapper, 'Terrain contours')).toBe(false)
 
-      await switchOf(wrapper, 'Terrain relief & contours').trigger('click')
+      await switchOf(wrapper, 'Terrain contours').trigger('click')
 
       expect(basemapStore.layers.terrain).toBe(true)
-      expect(isOn(wrapper, 'Terrain relief & contours')).toBe(true)
+      expect(isOn(wrapper, 'Terrain contours')).toBe(true)
     })
 
     it('toggles back off again', async () => {
@@ -145,7 +145,7 @@ describe('MapLayersControl', () => {
   describe('staging for APPLY CHANGES', () => {
     // A flip applies at once, but must also stage a save — otherwise the panel's
     // APPLY finds nothing pending and reports "NO CHANGES" after a real change.
-    it.each(['Airports', 'Location names', 'Terrain relief & contours'])(
+    it.each(['Airports', 'Location names', 'Terrain contours'])(
       'stages one save per flip of %s',
       async (label) => {
         const wrapper = mountControl()

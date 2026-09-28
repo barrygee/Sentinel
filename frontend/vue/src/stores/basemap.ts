@@ -14,7 +14,7 @@ export interface BasemapLayerStates {
   roads: boolean
   /** Place-name labels (country/state/city/town/village/suburb + water names). */
   names: boolean
-  /** Shaded relief and contour lines from the local elevation archive. */
+  /** Contour lines from the local elevation archive. */
   terrain: boolean
 }
 
