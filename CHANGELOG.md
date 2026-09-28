@@ -177,6 +177,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the light interface, keep the map's three palettes
 - Remove live camera feeds and their settings **(breaking change)**
 - Give the colour basemap more colour at every zoom (#365)
+- Download map areas for offline use (#366)
 
 ### Bug Fixes
 
