@@ -417,6 +417,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Offline console errors, green areas, grey colour map and a Roads setting (#368)
 - Draw the satellite brackets in black on bright basemaps (#369)
 - Stop the ADS-B and SDR connect 503s filling the console (#370)
+- Hide the antimeridian seam on the offline colour map (#373)
 
 ### Chores
 
