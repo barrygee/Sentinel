@@ -1,6 +1,6 @@
 <template>
   <!-- Terrain glyph: two nested contour arcs over a baseline. Decorative — the
-       surrounding button carries the "Terrain relief and contour lines"
+       surrounding button carries the "Terrain contour lines"
        accessible name. currentColor so it takes the rail's hover/active tint. -->
   <svg
     width="16"

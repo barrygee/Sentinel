@@ -110,7 +110,7 @@
             <circle cx="12" cy="12" r="1.5" fill="currentColor" />
           </svg>
         </BaseIconButton>
-        <!-- TERRAIN: shaded relief + contour lines from the local elevation
+        <!-- TERRAIN: contour lines from the local elevation
              archive. A shared base-map layer (basemap store), so the choice
              follows the operator to the other maps. Disabled, with the tooltip
              saying why, when the archive is not installed on this server. -->
@@ -126,7 +126,7 @@
           :disabled="!basemapStore.terrainAvailable"
           tooltip-side="left"
           :tooltip="basemapStore.terrainAvailable ? 'TERRAIN' : 'TERRAIN — TILES NOT INSTALLED'"
-          accessible-name="Terrain relief and contour lines"
+          accessible-name="Terrain contour lines"
           @click="toggleTerrain"
         >
           <TerrainIcon />

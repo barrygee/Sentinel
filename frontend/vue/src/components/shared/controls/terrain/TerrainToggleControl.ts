@@ -3,30 +3,19 @@ import type { BasemapStore } from '@/stores/basemap'
 import type { OfflineMapsStore } from '@/stores/offlineMaps'
 import type { MapTheme } from '@/stores/theme'
 import { currentMapTheme } from '@/utils/mapTheme'
-import { withTierVersion } from '@/utils/offlineTileVersion'
 import { getOfflineMapStatus } from '@/services/offlineMapsApi'
-import {
-  CONTOUR_MAX_ZOOM,
-  CONTOUR_MIN_ZOOM,
-  TERRAIN_TILE_SIZE,
-  TERRAIN_TILE_URL_TEMPLATE,
-  loadTerrainDem,
-  type TerrainDem,
-} from './terrainDem'
+import { CONTOUR_MAX_ZOOM, CONTOUR_MIN_ZOOM, loadTerrainDem, type TerrainDem } from './terrainDem'
 
-export const HILLSHADE_SOURCE = 'terrain-dem'
 export const CONTOUR_SOURCE = 'terrain-contours'
-export const HILLSHADE_LAYER = 'terrain-hillshade'
 export const CONTOUR_MINOR_LAYER = 'terrain-contour-minor'
 export const CONTOUR_INDEX_LAYER = 'terrain-contour-index'
 export const CONTOUR_LABEL_LAYER = 'terrain-contour-label'
 
-const LAYERS = [CONTOUR_LABEL_LAYER, CONTOUR_INDEX_LAYER, CONTOUR_MINOR_LAYER, HILLSHADE_LAYER]
-const SOURCES = [CONTOUR_SOURCE, HILLSHADE_SOURCE]
+const LAYERS = [CONTOUR_LABEL_LAYER, CONTOUR_INDEX_LAYER, CONTOUR_MINOR_LAYER]
+const SOURCES = [CONTOUR_SOURCE]
 
-// Where the overlay slots into the Fiord style: relief under the waterways,
-// contour lines under the roads, elevation labels under the map's own text.
-const HILLSHADE_BEFORE = 'waterway'
+// Where the overlay slots into the style: contour lines under the roads,
+// elevation labels under the map's own text.
 const CONTOUR_BEFORE = 'highway_path'
 const LABEL_BEFORE = 'water_name'
 
@@ -40,10 +29,8 @@ interface ContourPalette {
 }
 
 /**
- * Contour ink per basemap. The lines sit on top of the hillshade, which darkens
- * slopes, so each palette has to hold against both the flat ground and the
- * shaded side of a hill: pale blue on the dark map, and a dark survey brown on
- * the light and colour maps (where the old pale blue all but vanished).
+ * Contour ink per basemap: pale blue on the dark map, and a dark survey brown
+ * on the light and colour maps (where the old pale blue all but vanished).
  */
 export const CONTOUR_PALETTES: Record<MapTheme, ContourPalette> = {
   dark: {
@@ -73,7 +60,8 @@ export const CONTOUR_PALETTES: Record<MapTheme, ContourPalette> = {
 }
 
 /**
- * Hillshade + contour-line overlay, its DEM served by the backend's offline-map
+ * Contour-line overlay (no hillshade — the shaded relief was dropped as visual
+ * noise under the lines), its DEM served by the backend's offline-map
  * terrain resolver rather than a local archive opened in the browser (see
  * `terrainDem.ts`'s doc comment for the full resolver chain). Shared by the
  * Air, Sea and Land maps — like roads and place names, the visibility lives on
@@ -111,7 +99,7 @@ export class TerrainToggleControl extends SentinelControlBase {
     return 'T'
   }
   get buttonTitle(): string {
-    return 'Toggle terrain relief and contour lines'
+    return 'Toggle terrain contour lines'
   }
 
   protected onInit(): void {
@@ -163,8 +151,8 @@ export class TerrainToggleControl extends SentinelControlBase {
    *    region can turn `terrain_available` true without needing a reload
    *    (M1);
    *  - if we already have layers up, rebuild them against the new version so
-   *    the raster-dem tiles and the contour vector tiles both refetch instead
-   *    of serving what MapLibre cached as "no tile here" while offline.
+   *    the contour tiles refetch instead of serving what MapLibre cached as
+   *    "no tile here" while offline.
    */
   refreshTiles(): void {
     if (!this.available) {
@@ -225,7 +213,7 @@ export class TerrainToggleControl extends SentinelControlBase {
     }
     // Toggled off (or the control was removed) while the status/DEM lookup was in flight.
     if (!this.visible || !this.map) return
-    if (this.map.getSource(HILLSHADE_SOURCE)) return
+    if (this.map.getSource(CONTOUR_SOURCE)) return
     try {
       this._addLayers(this._dem)
     } catch (error) {
@@ -264,31 +252,6 @@ export class TerrainToggleControl extends SentinelControlBase {
     // layers, and the map's style.load re-run of initLayers re-adds them here.
     const palette = CONTOUR_PALETTES[currentMapTheme()]
     const before = (id: string) => (map.getLayer(id) ? id : undefined)
-
-    map.addSource(HILLSHADE_SOURCE, {
-      type: 'raster-dem',
-      tiles: [withTierVersion(TERRAIN_TILE_URL_TEMPLATE, this._tiersVersion)],
-      encoding: 'terrarium',
-      tileSize: TERRAIN_TILE_SIZE,
-      maxzoom: dem.maxzoom,
-    })
-    map.addLayer(
-      {
-        id: HILLSHADE_LAYER,
-        type: 'hillshade',
-        source: HILLSHADE_SOURCE,
-        paint: {
-          // Tuned to the Fiord palette: lifted blue-grey light, near-background
-          // shadow, no accent — relief without washing the dark map out.
-          'hillshade-exaggeration': 0.38,
-          'hillshade-highlight-color': 'hsl(222, 28%, 52%)',
-          'hillshade-shadow-color': 'hsl(228, 30%, 14%)',
-          'hillshade-accent-color': 'hsla(0, 0%, 0%, 0)',
-          'hillshade-illumination-direction': 335,
-        },
-      },
-      before(HILLSHADE_BEFORE),
-    )
 
     map.addSource(CONTOUR_SOURCE, {
       type: 'vector',

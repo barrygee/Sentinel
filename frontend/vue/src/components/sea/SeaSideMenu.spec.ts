@@ -80,7 +80,7 @@ describe('SeaSideMenu', () => {
   it('toggles the shared terrain layer on the basemap store and reflects it, disabled without tiles', async () => {
     const basemapStore = useBasemapStore()
     const { wrapper } = mountMenu()
-    const terrain = () => wrapper.find('[aria-label="Terrain relief and contour lines"]')
+    const terrain = () => wrapper.find('[aria-label="Terrain contour lines"]')
     expect(terrain().classes()).not.toContain('active')
     expect(terrain().attributes('disabled')).toBeUndefined()
 

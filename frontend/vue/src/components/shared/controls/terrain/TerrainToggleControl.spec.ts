@@ -19,15 +19,12 @@ vi.mock('@/services/offlineMapsApi', () => ({
 
 import {
   TerrainToggleControl,
-  HILLSHADE_SOURCE,
   CONTOUR_SOURCE,
-  HILLSHADE_LAYER,
   CONTOUR_MINOR_LAYER,
   CONTOUR_INDEX_LAYER,
   CONTOUR_LABEL_LAYER,
   CONTOUR_PALETTES,
 } from './TerrainToggleControl'
-import { TERRAIN_TILE_URL_TEMPLATE } from './terrainDem'
 import { useBasemapStore } from '@/stores/basemap'
 import type { OfflineMapsStore } from '@/stores/offlineMaps'
 
@@ -151,7 +148,7 @@ describe('TerrainToggleControl constructor', () => {
   it('exposes its label and title', () => {
     const control = new TerrainToggleControl(store, offlineMapsStore)
     expect(control.buttonLabel).toBe('T')
-    expect(control.buttonTitle).toBe('Toggle terrain relief and contour lines')
+    expect(control.buttonTitle).toBe('Toggle terrain contour lines')
   })
 })
 
@@ -183,21 +180,18 @@ describe('TerrainToggleControl.onInit', () => {
     control.onAdd(map.map)
     await flush()
 
-    expect(map.addSource).toHaveBeenCalledWith(HILLSHADE_SOURCE, {
-      type: 'raster-dem',
-      // offlineMapsStore's tiersVersion defaults to 'v1' in this suite's fake store.
-      tiles: [`${TERRAIN_TILE_URL_TEMPLATE}?v=v1`],
-      encoding: 'terrarium',
-      tileSize: 512,
-      maxzoom: DEM.maxzoom,
-    })
+    // Contours only — no hillshade relief source or layer.
+    expect(map.addSource).toHaveBeenCalledTimes(1)
+    const addedLayerTypes = map.addLayer.mock.calls.map(
+      (call) => (call[0] as { type: string }).type,
+    )
+    expect(addedLayerTypes).toEqual(['line', 'line', 'symbol'])
     expect(map.addSource).toHaveBeenCalledWith(
       CONTOUR_SOURCE,
       expect.objectContaining({ type: 'vector', tiles: [DEM.contourTilesUrl] }),
     )
-    // Relief under waterways, lines under roads, labels under the map's text.
+    // Lines under roads, labels under the map's text.
     expect(map.layers).toEqual([
-      HILLSHADE_LAYER,
       'waterway',
       CONTOUR_MINOR_LAYER,
       CONTOUR_INDEX_LAYER,
@@ -214,12 +208,7 @@ describe('TerrainToggleControl.onInit', () => {
     const map = fakeMap({ styleLayers: [] })
     control.onAdd(map.map)
     await flush()
-    expect(map.layers).toEqual([
-      HILLSHADE_LAYER,
-      CONTOUR_MINOR_LAYER,
-      CONTOUR_INDEX_LAYER,
-      CONTOUR_LABEL_LAYER,
-    ])
+    expect(map.layers).toEqual([CONTOUR_MINOR_LAYER, CONTOUR_INDEX_LAYER, CONTOUR_LABEL_LAYER])
   })
 
   it('defers to the style.load event when the style is not ready', async () => {
@@ -232,7 +221,7 @@ describe('TerrainToggleControl.onInit', () => {
 
     map.styleLoadHandlers[0]!()
     await flush()
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
   })
 })
 
@@ -264,9 +253,8 @@ describe('TerrainToggleControl.toggle', () => {
       CONTOUR_LABEL_LAYER,
       CONTOUR_INDEX_LAYER,
       CONTOUR_MINOR_LAYER,
-      HILLSHADE_LAYER,
     ])
-    expect(map.removeSource.mock.calls.map((c) => c[0])).toEqual([CONTOUR_SOURCE, HILLSHADE_SOURCE])
+    expect(map.removeSource.mock.calls.map((c) => c[0])).toEqual([CONTOUR_SOURCE])
     expect(map.layers).toEqual(['waterway', 'highway_path', 'water_name'])
   })
 
@@ -279,7 +267,7 @@ describe('TerrainToggleControl.toggle', () => {
     control.initLayers() // e.g. a redundant re-init with the overlay already present
     await flush()
     expect(demMock.loadTerrainDem).toHaveBeenCalledOnce()
-    expect(map.addSource).toHaveBeenCalledTimes(2)
+    expect(map.addSource).toHaveBeenCalledTimes(1)
   })
 
   it('does nothing while the overlay was toggled off during the archive open', async () => {
@@ -335,7 +323,7 @@ describe('TerrainToggleControl.setVisible', () => {
     control.setVisible(true)
     await flush()
     expect(control.visible).toBe(true)
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
     expect(setLayer).not.toHaveBeenCalled()
 
     control.setVisible(true) // no-op when unchanged
@@ -389,7 +377,7 @@ describe('TerrainToggleControl.refreshTiles', () => {
     const map = fakeMap()
     control.onAdd(map.map)
     await flush()
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
 
     demMock.loadTerrainDem.mockClear()
     map.removeSource.mockClear()
@@ -403,8 +391,8 @@ describe('TerrainToggleControl.refreshTiles', () => {
     await flush()
     expect(demMock.loadTerrainDem).toHaveBeenCalledWith(DEM.maxzoom, 'v2')
     // The old sources/layers were torn down and rebuilt, not left stale.
-    expect(map.removeSource).toHaveBeenCalledWith(HILLSHADE_SOURCE)
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.removeSource).toHaveBeenCalledWith(CONTOUR_SOURCE)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
   })
 
   it('does nothing when available and the tiers version has not changed', async () => {
@@ -492,7 +480,7 @@ describe('TerrainToggleControl.refreshTiles', () => {
     control.refreshTiles()
     await flush()
     expect(control.available).toBe(true)
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
   })
 
   it('leaves the control disabled (not a verdict) when the re-probe fails transiently', async () => {
@@ -540,7 +528,7 @@ describe('a fetch/DEM-configuration error is transient, not a verdict (M1)', () 
 
     control.initLayers()
     await flush()
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
   })
 
   it('leaves availability untouched (and retries later) when configuring the DEM source throws', async () => {
@@ -561,7 +549,7 @@ describe('a fetch/DEM-configuration error is transient, not a verdict (M1)', () 
     demMock.loadTerrainDem.mockResolvedValue(DEM)
     control.initLayers()
     await flush()
-    expect(map.sources.has(HILLSHADE_SOURCE)).toBe(true)
+    expect(map.sources.has(CONTOUR_SOURCE)).toBe(true)
   })
 })
 

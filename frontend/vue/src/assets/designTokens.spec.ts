@@ -92,6 +92,74 @@ describe('basemap palettes', () => {
   })
 })
 
+/**
+ * The colour map draws no green area fills. Woodland, parks and national
+ * parks were the only green on it, and protected areas painted legal
+ * boundaries (Northeast Greenland's ice cap, Saharan reserves) as parkland —
+ * so the generator hides the fills and keeps only the dashed outline. The
+ * light and dark palettes are untouched.
+ */
+describe('colour basemap green areas', () => {
+  interface StyleLayer {
+    id: string
+    layout?: { visibility?: string }
+    paint?: Record<string, unknown>
+  }
+
+  function layerById(styleName: string, layerId: string): StyleLayer | undefined {
+    const style = JSON.parse(
+      readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
+    ) as { layers: StyleLayer[] }
+    return style.layers.find((layer) => layer.id === layerId)
+  }
+
+  it.each([
+    ['cartographic', 'landcover_wood'],
+    ['cartographic', 'park'],
+    ['cartographic', 'national_park'],
+    ['cartographic-online', 'landcover_wood'],
+    ['cartographic-online', 'park'],
+  ])('hides the %s %s fill', (styleName, layerId) => {
+    const layer = layerById(styleName, layerId)
+    expect(layer).toBeDefined()
+    expect(layer?.layout?.visibility).toBe('none')
+  })
+
+  it.each(['cartographic', 'cartographic-online'])(
+    'keeps the %s park outline, faded in from z6 to z8',
+    (styleName) => {
+      const outline = layerById(styleName, 'park_outline')
+      expect(outline?.layout?.visibility).not.toBe('none')
+      expect(outline?.paint?.['line-opacity']).toEqual([
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        6,
+        0,
+        8,
+        1,
+      ])
+    },
+  )
+
+  it('keeps the offline national park outline visible', () => {
+    expect(layerById('cartographic', 'national_park_outline')?.layout?.visibility).not.toBe('none')
+  })
+
+  it.each([
+    ['positron', 'landcover_wood'],
+    ['positron', 'park'],
+    ['positron', 'national_park'],
+    ['fiord', 'landcover_wood'],
+    ['fiord', 'park'],
+    ['fiord', 'national_park'],
+  ])('leaves the %s %s fill drawn', (styleName, layerId) => {
+    const layer = layerById(styleName, layerId)
+    expect(layer).toBeDefined()
+    expect(layer?.layout?.visibility).not.toBe('none')
+  })
+})
+
 describe('semantic theme tokens', () => {
   const templateCss = readFileSync(
     resolve(process.cwd(), '../../frontend/assets/template.css'),

@@ -84,7 +84,7 @@ const options = computed(() => [
   {
     key: 'terrain',
     label: 'Terrain',
-    description: `Elevation data for hillshade and contour lines${
+    description: `Elevation data for contour lines${
       props.maxZoom > props.terrainMaxZoom ? ` (up to z${props.terrainMaxZoom})` : ''
     }.`,
     accessibleName: 'Include terrain data',

@@ -47,7 +47,7 @@ const LAYER_ROWS: LabelFieldRow[] = [
   { key: 'groundVehicles', label: 'Ground vehicles' },
   { key: 'towers', label: 'Towers' },
   { key: 'names', label: 'Location names' },
-  { key: 'terrain', label: 'Terrain relief & contours' },
+  { key: 'terrain', label: 'Terrain contours' },
   { key: 'airports', label: 'Airports' },
   { key: 'militaryBases', label: 'Military bases' },
 ]

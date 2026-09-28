@@ -5,9 +5,8 @@
 // `docs/plans/offline-map-downloads.md`): completed offline-region terrain
 // archives newest first, then the bundled `uk-terrain.pmtiles`, else 204. That
 // means this module no longer opens a PMTiles archive itself — the resolver
-// does — and both hillshade (native MapLibre raster-dem) and contours
-// (maplibre-contour) simply fetch it over plain HTTP like any other tile
-// server. `TerrainToggleControl` is what knows *whether* terrain is available
+// does — and the contours (maplibre-contour) simply fetch it over plain HTTP
+// like any other tile server. `TerrainToggleControl` is what knows *whether* terrain is available
 // (`status.terrain_available`) and at what depth (`status.terrain_max_zoom`);
 // this module only turns a maxzoom + tiers-version into a configured
 // `mlcontour.DemSource`.
@@ -15,7 +14,7 @@ import * as maplibregl from 'maplibre-gl'
 import mlcontour from 'maplibre-contour'
 import { withTierVersion } from '@/utils/offlineTileVersion'
 
-/** Tile URL template for both the raster-dem hillshade source and the contour DEM fetch. */
+/** Tile URL template for the contour DEM fetch. */
 export const TERRAIN_TILE_URL_TEMPLATE = '/api/offline-map/terrain/{z}/{x}/{y}'
 
 // Mapterhorn/region archives are 512px WebP (or PNG) tiles; MapLibre needs the size up front.
