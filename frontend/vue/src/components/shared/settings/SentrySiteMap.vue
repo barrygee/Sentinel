@@ -33,16 +33,18 @@
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
-import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, ignoreOfflineTileErrors, setMapStyle } from '@/utils/mapStyle'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
+import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 
-/** The same online basemap the Air/Land domain maps load, in the current theme.
- *  Online only: a Sentry site is being placed from a live host list, so there
- *  is no off-grid case to serve here. */
+/** The same basemap the Air/Land domain maps load: the online or offline build
+ *  (whichever the app is using right now), in the current theme. A Sentry on
+ *  the LAN is often viewed with no internet, so this must work off grid too. */
 const themeStore = useThemeStore()
-const styleUrl = () => basemapStyleUrl(true, themeStore.mapTheme)
+const appStore = useAppStore()
+const styleUrl = () => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme)
 
 /** Close enough to read the Pi's surroundings without implying GPS precision. */
 const SITE_ZOOM = 11
@@ -73,6 +75,7 @@ onMounted(() => {
     fadeDuration: 0,
   })
   setMapStyle(map, styleUrl())
+  ignoreOfflineTileErrors(map)
   // Everything except the wheel: see the component doc for why.
   map.scrollZoom.disable()
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
@@ -93,16 +96,14 @@ watch(
   },
 )
 
-// The marker lives outside the style, so a theme repaint only needs the style.
-watch(
-  () => themeStore.mapTheme,
-  () => {
-    /* v8 ignore start -- the watcher only fires while mounted, by which point
+// The marker lives outside the style, so a theme change or a switch between
+// online and offline only needs the style swapped.
+watch(styleUrl, () => {
+  /* v8 ignore start -- the watcher only fires while mounted, by which point
        map is always set; defensive only, matching the guards either side */
-    if (map) setMapStyle(map, styleUrl())
-    /* v8 ignore stop */
-  },
-)
+  if (map) setMapStyle(map, styleUrl())
+  /* v8 ignore stop */
+})
 
 onUnmounted(() => {
   siteMarker.destroy()

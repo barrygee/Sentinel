@@ -165,6 +165,43 @@ test.describe('Settings panel', () => {
     expect(hit).toMatch(/RTL-SDR v3/i)
   })
 
+  test('SPACE TLE category menu paints above the TLE import row beneath it', async ({ page }) => {
+    await page.goto('/space/')
+    await waitForShellHydration(page)
+    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="SPACE"]').click()
+    await expect(page.locator('#settings-section-heading')).toHaveText(/space/i)
+
+    // Each TLE category row is its own stacking context, so without the fix the
+    // import row further down painted over the online row's open menu.
+    const onlineTrigger = page.locator('.tle-dropdown-selected').first()
+    await onlineTrigger.scrollIntoViewIfNeeded()
+    await onlineTrigger.dispatchEvent('mousedown')
+    const openMenu = page.locator('.tle-dropdown-menu--open')
+    await expect(openMenu).toBeVisible()
+
+    const overlap = await page.evaluate(() => {
+      const menu = document.querySelector('.tle-dropdown-menu--open')!
+      const rows = [...document.querySelectorAll('.tle-cat-row-ctrl')]
+      const nextRow = rows[rows.findIndex((row) => row.contains(menu)) + 1]
+      if (!nextRow) return null
+      const menuRect = menu.getBoundingClientRect()
+      const rowRect = nextRow.getBoundingClientRect()
+      if (rowRect.top >= menuRect.bottom) return null
+      return { x: menuRect.left + 30, y: Math.max(menuRect.top, rowRect.top) + 5 }
+    })
+    // The menu must actually reach the next row, or this test proves nothing.
+    expect(overlap).not.toBeNull()
+    const menuIsOnTop = await page.evaluate(
+      ({ x, y }) =>
+        document
+          .querySelector('.tle-dropdown-menu--open')!
+          .contains(document.elementFromPoint(x, y)),
+      overlap!,
+    )
+    expect(menuIsOnTop).toBe(true)
+  })
+
   test('settings footer shows "NO CHANGES" when no edits are pending', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)

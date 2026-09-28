@@ -882,6 +882,14 @@
   isolation: isolate;
 }
 
+/* Each TLE row is its own stacking context (isolation above), so its menu's
+   z-index only counts inside that row, and the next TLE row down the panel
+   painted over an open menu. Lift the row whose menu is open above the rest. */
+.tle-cat-row-ctrl:has(.tle-dropdown--open) {
+  position: relative;
+  z-index: 2;
+}
+
 .tle-status-line {
   min-height: 0;
 }

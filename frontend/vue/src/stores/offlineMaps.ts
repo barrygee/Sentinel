@@ -48,7 +48,9 @@ const DRAFT_DEFAULTS: OfflineMapDraft = {
   south: 0,
   east: 0,
   north: 0,
-  maxZoom: 12,
+  // Street level with buildings. Inside the bundled UK archive a lower depth
+  // loses nothing, but anywhere else the map stops gaining detail at this zoom.
+  maxZoom: 14,
   includeBasemap: true,
   includeTerrain: true,
   label: '',

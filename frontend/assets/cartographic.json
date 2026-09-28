@@ -165,7 +165,7 @@
             "get",
             "kind"
           ],
-          "motorway"
+          "highway"
         ]
       ],
       "layout": {
@@ -236,7 +236,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -565,7 +565,7 @@
               "get",
               "kind"
             ],
-            "motorway"
+            "highway"
           ]
         ]
       ],
@@ -924,12 +924,32 @@
       "source-layer": "roads",
       "minzoom": 9,
       "filter": [
-        "!=",
+        "all",
         [
-          "get",
-          "kind"
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
         ],
-        "ferry"
+        [
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "minor_road",
+            "other"
+          ],
+          true,
+          false
+        ]
       ],
       "layout": {
         "line-cap": "round",
@@ -986,7 +1006,30 @@
           20,
           12
         ]
-      }
+      },
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "kind"
+          ],
+          "major_road"
+        ]
+      ]
     },
     {
       "id": "highway_major_inner",
@@ -1016,7 +1059,30 @@
           20,
           10
         ]
-      }
+      },
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "kind"
+          ],
+          "major_road"
+        ]
+      ]
     },
     {
       "id": "highway_major_subtle",
@@ -1039,19 +1105,12 @@
           false
         ],
         [
-          "match",
+          "==",
           [
             "get",
             "kind"
           ],
-          [
-            "primary",
-            "secondary",
-            "tertiary",
-            "trunk"
-          ],
-          true,
-          false
+          "major_road"
         ]
       ],
       "layout": {
@@ -1097,7 +1156,38 @@
           20,
           12
         ]
-      }
+      },
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "kind"
+          ],
+          "highway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "is_tunnel"
+          ],
+          true
+        ]
+      ]
     },
     {
       "id": "highway_motorway_inner",
@@ -1127,7 +1217,38 @@
           20,
           30
         ]
-      }
+      },
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "kind"
+          ],
+          "highway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "is_tunnel"
+          ],
+          true
+        ]
+      ]
     },
     {
       "id": "highway_motorway_subtle",
@@ -1155,7 +1276,7 @@
             "get",
             "kind"
           ],
-          "motorway"
+          "highway"
         ]
       ],
       "layout": {
@@ -1528,7 +1649,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -1561,7 +1682,7 @@
             "get",
             "kind"
           ],
-          "motorway"
+          "highway"
         ],
         [
           "match",
@@ -1591,7 +1712,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -1644,7 +1765,7 @@
             "get",
             "kind"
           ],
-          "motorway"
+          "highway"
         ]
       ],
       "layout": {
@@ -1813,6 +1934,230 @@
       }
     },
     {
+      "id": "poi",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "pois",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "pub",
+            "bar",
+            "cafe",
+            "restaurant",
+            "fast_food",
+            "ice_cream",
+            "bakery",
+            "supermarket",
+            "convenience",
+            "clothes",
+            "hairdresser",
+            "hotel",
+            "hostel",
+            "guest_house",
+            "camp_site",
+            "school",
+            "kindergarten",
+            "university",
+            "college",
+            "hospital",
+            "clinic",
+            "doctors",
+            "dentist",
+            "pharmacy",
+            "veterinary",
+            "fuel",
+            "parking",
+            "place_of_worship",
+            "museum",
+            "library",
+            "theatre",
+            "cinema",
+            "attraction",
+            "zoo",
+            "police",
+            "fire_station",
+            "post_office",
+            "bank",
+            "townhall",
+            "stadium",
+            "swimming_pool",
+            "golf_course",
+            "playground",
+            "castle",
+            "monument",
+            "information",
+            "station",
+            "train_station",
+            "bus_station",
+            "aerodrome"
+          ],
+          true,
+          false
+        ],
+        [
+          "<=",
+          [
+            "get",
+            "min_zoom"
+          ],
+          [
+            "zoom"
+          ]
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          "pub",
+          "beer",
+          "bar",
+          "bar",
+          "cafe",
+          "cafe",
+          "restaurant",
+          "restaurant",
+          "fast_food",
+          "fast_food",
+          "ice_cream",
+          "ice_cream",
+          "bakery",
+          "bakery",
+          "supermarket",
+          "grocery",
+          "convenience",
+          "grocery",
+          "clothes",
+          "clothing_store",
+          "hairdresser",
+          "hairdresser",
+          "hotel",
+          "lodging",
+          "hostel",
+          "lodging",
+          "guest_house",
+          "lodging",
+          "camp_site",
+          "campsite",
+          "school",
+          "school",
+          "kindergarten",
+          "school",
+          "university",
+          "college",
+          "college",
+          "college",
+          "hospital",
+          "hospital",
+          "clinic",
+          "doctors",
+          "doctors",
+          "doctors",
+          "dentist",
+          "dentist",
+          "pharmacy",
+          "pharmacy",
+          "veterinary",
+          "veterinary",
+          "fuel",
+          "fuel",
+          "parking",
+          "parking",
+          "place_of_worship",
+          "place_of_worship",
+          "museum",
+          "museum",
+          "library",
+          "library",
+          "theatre",
+          "theatre",
+          "cinema",
+          "cinema",
+          "attraction",
+          "attraction",
+          "zoo",
+          "zoo",
+          "police",
+          "police",
+          "fire_station",
+          "fire_station",
+          "post_office",
+          "post",
+          "bank",
+          "bank",
+          "townhall",
+          "town_hall",
+          "stadium",
+          "stadium",
+          "swimming_pool",
+          "swimming",
+          "golf_course",
+          "golf",
+          "playground",
+          "playground",
+          "castle",
+          "castle",
+          "monument",
+          "monument",
+          "information",
+          "information",
+          "station",
+          "railway",
+          "train_station",
+          "railway",
+          "bus_station",
+          "bus",
+          "aerodrome",
+          "airport",
+          ""
+        ],
+        "icon-size": 0.9,
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 11,
+        "text-anchor": "top",
+        "text-offset": [
+          0,
+          0.8
+        ],
+        "text-max-width": 8,
+        "text-optional": true,
+        "symbol-sort-key": [
+          "get",
+          "min_zoom"
+        ]
+      },
+      "paint": {
+        "text-color": "rgb(86, 80, 71)",
+        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-width": 2,
+        "text-halo-blur": 0
+      }
+    },
+    {
       "id": "place_other",
       "type": "symbol",
       "source": "openmaptiles",
@@ -1853,7 +2198,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -1926,7 +2271,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -1999,7 +2344,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2082,7 +2427,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2179,7 +2524,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2276,7 +2621,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2337,7 +2682,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2399,7 +2744,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2481,7 +2826,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2564,7 +2909,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",
@@ -2634,7 +2979,7 @@
           "coalesce",
           [
             "get",
-            "name_en"
+            "name:en"
           ],
           [
             "get",

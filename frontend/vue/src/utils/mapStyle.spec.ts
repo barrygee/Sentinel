@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { Map, StyleSpecification } from 'maplibre-gl'
-import { absoluteSpriteTransform, basemapStyleUrl, setMapStyle } from './mapStyle'
+import {
+  absoluteSpriteTransform,
+  basemapStyleUrl,
+  ignoreOfflineTileErrors,
+  setMapStyle,
+} from './mapStyle'
 
 function style(sprite: StyleSpecification['sprite']): StyleSpecification {
   return { version: 8, sources: {}, layers: [], sprite }
@@ -69,5 +74,45 @@ describe('basemapStyleUrl', () => {
     // style off grid leaves the map blank, which is the failure this guards.
     expect(basemapStyleUrl(false, 'dark')).not.toBe(basemapStyleUrl(true, 'dark'))
     expect(basemapStyleUrl(false, 'light')).not.toBe(basemapStyleUrl(true, 'light'))
+  })
+})
+
+describe('ignoreOfflineTileErrors', () => {
+  function mapWithErrorHandler() {
+    let errorHandler: ((event: { error?: unknown }) => void) | undefined
+    const map = {
+      on: vi.fn((eventName: string, handler: (event: { error?: unknown }) => void) => {
+        if (eventName === 'error') errorHandler = handler
+      }),
+    }
+    ignoreOfflineTileErrors(map as unknown as Map)
+    return (event: { error?: unknown }) => errorHandler!(event)
+  }
+
+  it('stays quiet about a tile that failed because there is no network (status 0)', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const reportError = mapWithErrorHandler()
+    reportError({ error: { status: 0, url: 'https://tiles.openfreemap.org/planet/2/1/1.pbf' } })
+    expect(consoleError).not.toHaveBeenCalled()
+    consoleError.mockRestore()
+  })
+
+  it('still logs a server error, a missing url, or any other map error', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const reportError = mapWithErrorHandler()
+    const serverError = { status: 500, url: '/api/offline-map/basemap/1/1/1' }
+    const noUrl = { status: 0 }
+    const styleError = new Error('style is broken')
+    reportError({ error: serverError })
+    reportError({ error: noUrl })
+    reportError({ error: styleError })
+    reportError({ error: null })
+    expect(consoleError.mock.calls.map((call) => call[0])).toEqual([
+      serverError,
+      noUrl,
+      styleError,
+      null,
+    ])
+    consoleError.mockRestore()
   })
 })
