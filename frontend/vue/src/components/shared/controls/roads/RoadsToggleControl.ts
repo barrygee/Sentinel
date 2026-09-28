@@ -56,6 +56,17 @@ export class RoadsToggleControl extends SentinelControlBase {
     this._basemapStore.setLayer('roads', this.roadsVisible)
   }
 
+  /**
+   * Adopt a visibility decided elsewhere — Settings › Maps › Roads, or the same
+   * layer being toggled on another domain's map. Unlike `handleClick` this does
+   * not write back to the store: the store is where the value came from.
+   */
+  setVisible(visible: boolean): void {
+    if (this.roadsVisible === visible) return
+    this.roadsVisible = visible
+    this.applyVisibility()
+  }
+
   /** Push the current visibility onto the style. Public because a map that
    *  swaps its style (online↔offline) must re-apply it after the reload. */
   applyVisibility(): void {

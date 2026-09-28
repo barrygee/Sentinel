@@ -505,8 +505,9 @@ describe('SettingsPanel', () => {
         .findAllComponents({ name: 'SettingRow' })
         .map((row) => (row.props('item') as { label: string }).label)
       const mapsStart = titles.indexOf('Map Style')
-      expect(titles.slice(mapsStart, mapsStart + 3)).toEqual([
+      expect(titles.slice(mapsStart, mapsStart + 4)).toEqual([
         'Map Style',
+        'Roads',
         'Range Ring Origin',
         'Offline Maps',
       ])

@@ -600,6 +600,18 @@ describe('AirMap', () => {
       expect(last('names').setVisible).toHaveBeenCalledWith(true)
     })
 
+    it('pushes a roads change onto the shared control', async () => {
+      const basemap = useBasemapStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+
+      basemap.setLayer('roads', !basemap.layers.roads)
+      await nextTick()
+
+      expect(last('roads').setVisible).toHaveBeenCalledWith(basemap.layers.roads)
+    })
+
     it('pushes a terrain change onto the shared control', async () => {
       const basemap = useBasemapStore()
       const map = makeFakeMap()

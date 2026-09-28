@@ -211,6 +211,12 @@ onMounted(() => {
     () => basemapStore.layers.terrain,
     (on) => terrainControl?.setVisible(on),
   )
+  // Roads are a shared base-map layer too: follow the store whether the change
+  // came from this map's rail, another map, or Settings › Maps › Roads.
+  watch(
+    () => basemapStore.layers.roads,
+    (on) => roadsControl?.setVisible(on),
+  )
   // Seed the overlays from the default-layers config once it is known. The
   // store only honours it until the operator has made a choice of their own.
   void seaStore.hydrateDefaultLayers()

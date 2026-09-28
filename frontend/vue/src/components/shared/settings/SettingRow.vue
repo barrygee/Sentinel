@@ -66,6 +66,10 @@
       v-else-if="item.type === 'map-theme'"
       @stage="emit('stage', item.id, $event)"
     />
+    <MapRoadsControl
+      v-else-if="item.type === 'map-roads'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <SourceOverrideControl
       v-else-if="item.type === 'source-override'"
       :ns="item.ns!"
@@ -204,6 +208,7 @@ import MapLayersControl from './MapLayersControl.vue'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
+import MapRoadsControl from './MapRoadsControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
 import OfflineSourceControl from './OfflineSourceControl.vue'
@@ -247,6 +252,7 @@ const emit = defineEmits<{
 // that the sole card under its own LOCATION heading is not a lone 300px sliver.
 const HALF_TYPES = new Set([
   'location',
+  'map-roads',
   'range-ring-origin',
   'map-layers',
   'sea-map-layers',
@@ -279,6 +285,7 @@ const FULL_TYPES = new Set([
 ])
 const NATURAL_HEIGHT_TYPES = new Set([
   'location',
+  'map-roads',
   'sea-ais-key',
   'sea-coverage-area',
   'range-ring-origin',

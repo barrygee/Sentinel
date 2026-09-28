@@ -114,3 +114,39 @@ describe('RoadsToggleControl.handleClick', () => {
     expect(map.setLayoutProperty).not.toHaveBeenCalled()
   })
 })
+
+describe('RoadsToggleControl.setVisible — a change decided elsewhere', () => {
+  it('adopts the new visibility and pushes it onto the style', () => {
+    const control = new RoadsToggleControl(basemapStore)
+    const map = fakeMap({ existingLayers: ['highway_minor'] })
+    control.onAdd(map.map)
+    map.setLayoutProperty.mockClear()
+
+    control.setVisible(true)
+
+    expect(control.roadsVisible).toBe(true)
+    expect(map.setLayoutProperty).toHaveBeenCalledWith(expect.any(String), 'visibility', 'visible')
+  })
+
+  it('does not write back to the store — that is where the value came from', () => {
+    const control = new RoadsToggleControl(basemapStore)
+    control.onAdd(fakeMap().map)
+    const setLayer = vi.spyOn(basemapStore, 'setLayer')
+
+    control.setVisible(true)
+
+    expect(setLayer).not.toHaveBeenCalled()
+  })
+
+  it('is a no-op when it already agrees', () => {
+    basemapStore.setLayer('roads', true)
+    const control = new RoadsToggleControl(basemapStore)
+    const map = fakeMap({ existingLayers: ['highway_minor'] })
+    control.onAdd(map.map)
+    map.setLayoutProperty.mockClear()
+
+    control.setVisible(true)
+
+    expect(map.setLayoutProperty).not.toHaveBeenCalled()
+  })
+})
