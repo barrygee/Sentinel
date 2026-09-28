@@ -258,6 +258,37 @@ describe('OfflineMapsSettings', () => {
       expect(offlineMapsStore.draft).toMatchObject({ west: -3, south: 54, east: -2, north: 55 })
     })
 
+    it('CLEAR AREA forgets the selected area but keeps depth and contents', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      await wrapper
+        .findComponent({ name: 'OfflineAreaMap' })
+        .vm.$emit('draw-complete', { west: -3, south: 54, east: -2, north: 55 })
+      offlineMapsStore.setDraftMaxZoom(10)
+      const clearButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'CLEAR AREA')!
+      await clearButton.trigger('click')
+      expect(offlineMapsStore.hasDraftArea).toBe(false)
+      expect(offlineMapsStore.draft.maxZoom).toBe(10)
+      expect(areaMapStub.cancelDraw).not.toHaveBeenCalled()
+    })
+
+    it('CLEAR AREA also stops a drawing in progress', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.setDraftBbox(-3, 54, -2, 55)
+      await wrapper.findComponent({ name: 'OfflineAreaMap' }).vm.$emit('armed-change', true)
+      const clearButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'CLEAR AREA')!
+      await clearButton.trigger('click')
+      expect(areaMapStub.cancelDraw).toHaveBeenCalled()
+      expect(offlineMapsStore.hasDraftArea).toBe(false)
+    })
+
     it('commits bounds typed into the BboxFields to the draft store', async () => {
       const wrapper = mountSettings()
       await flushPromises()

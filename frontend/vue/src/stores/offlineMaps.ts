@@ -182,6 +182,15 @@ export const useOfflineMapsStore = defineStore('offlineMaps', () => {
     draft.value.north = north
   }
 
+  /** Forget the drawn/typed area (back to "no area selected"). Depth, contents
+   *  and label are kept, since they're choices about the next download. */
+  function clearDraftArea(): void {
+    draft.value.west = DRAFT_DEFAULTS.west
+    draft.value.south = DRAFT_DEFAULTS.south
+    draft.value.east = DRAFT_DEFAULTS.east
+    draft.value.north = DRAFT_DEFAULTS.north
+  }
+
   function setDraftMaxZoom(maxZoom: number): void {
     draft.value.maxZoom = Math.min(
       OFFLINE_MAX_ZOOM,
@@ -329,6 +338,7 @@ export const useOfflineMapsStore = defineStore('offlineMaps', () => {
     fetchRegions,
     fetchServerEstimate,
     setDraftBbox,
+    clearDraftArea,
     setDraftMaxZoom,
     setDraftIncludeBasemap,
     setDraftIncludeTerrain,

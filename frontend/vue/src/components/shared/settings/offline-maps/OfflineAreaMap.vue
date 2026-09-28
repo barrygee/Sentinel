@@ -45,8 +45,10 @@ import { useThemeStore } from '@/stores/theme'
 import { RectangleDrawHandler, type LngLatBounds } from './rectangleDrawHandler'
 import { RectangleResizeHandler } from './rectangleResizeHandler'
 
-const SETTINGS_MAP_ZOOM = 5
-const SETTINGS_MAP_CENTER: [number, number] = [-2, 54]
+/** The whole world, as far north and south as Web Mercator reaches. */
+const WORLD_BOUNDS: [number, number, number, number] = [-180, -85, 180, 85]
+/** Breathing room kept around a selected area when the map frames it. */
+const SELECTION_PADDING_PX = 32
 
 const SELECTION_SOURCE = 'offline-area-selection'
 const SELECTION_LAYER = 'offline-area-selection-line'
@@ -138,6 +140,48 @@ function renderRegionsOutline(): void {
   })
 }
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Frame the selected area in full, or the whole world when nothing is selected. */
+function showSelectionOrWorld(): void {
+  if (!map) return
+  if (props.selection) {
+    const { west, south, east, north } = props.selection
+    map.fitBounds([west, south, east, north], { padding: SELECTION_PADDING_PX, duration: 0 })
+  } else {
+    map.fitBounds(WORLD_BOUNDS, { padding: 0, duration: 0 })
+  }
+}
+
+/** True when the whole of `bounds` is inside the map's current view. */
+function isFullyInView(visibleMap: MapLibreGlMap, bounds: LngLatBounds): boolean {
+  const view = visibleMap.getBounds()
+  return (
+    bounds.west >= view.getWest() &&
+    bounds.east <= view.getEast() &&
+    bounds.south >= view.getSouth() &&
+    bounds.north <= view.getNorth()
+  )
+}
+
+/**
+ * An area typed into the fields can land off-screen, so bring all of it into
+ * view. Drawn or resized areas are already on screen and stay put.
+ */
+function frameIfOffScreen(bounds: LngLatBounds): void {
+  /* v8 ignore start -- called from the selection watcher, which Vue stops before
+     onUnmounted tears the map down, so the map always exists here */
+  if (!map) return
+  /* v8 ignore stop */
+  if (isFullyInView(map, bounds)) return
+  map.fitBounds([bounds.west, bounds.south, bounds.east, bounds.north], {
+    padding: SELECTION_PADDING_PX,
+    duration: prefersReducedMotion() ? 0 : 600,
+  })
+}
+
 /** (Re)build both overlays. Called on load and again after every style swap. */
 function initLayers(): void {
   if (!map) return
@@ -212,8 +256,11 @@ onMounted(() => {
   /* v8 ignore stop */
   map = new maplibregl.Map({
     container: containerRef.value,
-    center: SETTINGS_MAP_CENTER,
-    zoom: SETTINGS_MAP_ZOOM,
+    // A rough first frame; the real framing happens once the map has its size.
+    bounds: WORLD_BOUNDS,
+    // One copy of the world, so the whole world shows once and drawn
+    // coordinates stay within -180..180.
+    renderWorldCopies: false,
     attributionControl: false,
     fadeDuration: 0,
   })
@@ -221,7 +268,12 @@ onMounted(() => {
   map.scrollZoom.disable()
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
   map.on('style.load', initLayers)
-  map.on('load', () => map?.resize())
+  // Frame the area (or the world) only once the map knows its real size: fitting
+  // earlier works from a zero-size container and lands on the wrong zoom.
+  map.on('load', () => {
+    map?.resize()
+    showSelectionOrWorld()
+  })
 
   const rectangleDraw = new RectangleDrawHandler(map, {
     onComplete: (bounds) => emit('draw-complete', bounds),
@@ -250,7 +302,10 @@ watch(
 
 watch(
   () => props.selection,
-  (bounds) => setSelectionPreview(bounds),
+  (bounds) => {
+    setSelectionPreview(bounds)
+    if (bounds) frameIfOffScreen(bounds)
+  },
 )
 
 watch(
@@ -271,20 +326,19 @@ function cancelDraw(): void {
 }
 
 /**
- * The map's current visible bounds, for "USE CURRENT VIEW". Latitude is
- * clamped to the Web Mercator limit; longitude is left unwrapped so the
- * caller can detect (and reject) an antimeridian-crossing view.
- *
- * This map is always flat Mercator (never globe), so — unlike the domain
- * maps — there is no "meaningless below z3" globe case to guard against here.
+ * The map's current visible bounds, for "USE CURRENT VIEW", clamped to the
+ * one copy of the world the map shows: -180..180 longitude and the Web
+ * Mercator latitude limit. Zoomed out to the whole world the view is wider
+ * than the world itself, and unclamped it would read as an area crossing the
+ * antimeridian.
  */
 function currentViewBounds(): LngLatBounds | null {
   if (!map) return null
   const bounds = map.getBounds()
   return {
-    west: bounds.getWest(),
+    west: Math.max(-180, bounds.getWest()),
     south: Math.max(-85.05112877980659, bounds.getSouth()),
-    east: bounds.getEast(),
+    east: Math.min(180, bounds.getEast()),
     north: Math.min(85.05112877980659, bounds.getNorth()),
   }
 }
@@ -292,10 +346,9 @@ function currentViewBounds(): LngLatBounds | null {
 /** Fly the settings map to frame the given bounds (a region-list row was clicked).
  *  Honours `prefers-reduced-motion` (WCAG 2.3.3) — an instant jump instead of the pan/zoom. */
 function flyToBounds(bounds: LngLatBounds): void {
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   map?.fitBounds([bounds.west, bounds.south, bounds.east, bounds.north], {
-    padding: 32,
-    duration: reduceMotion ? 0 : 600,
+    padding: SELECTION_PADDING_PX,
+    duration: prefersReducedMotion() ? 0 : 600,
   })
 }
 

@@ -14,6 +14,9 @@
       <BaseButton type="button" variant="ghost" @click="useCurrentView">
         USE CURRENT VIEW
       </BaseButton>
+      <BaseButton type="button" variant="ghost" :disabled="!hasArea" @click="emit('clear')">
+        CLEAR AREA
+      </BaseButton>
     </div>
     <!-- Screen readers only: drawing and resizing on the map need a pointer,
          so point keyboard users at the equivalent fields (WCAG 2.5.7). -->
@@ -39,7 +42,7 @@
 
 <script setup lang="ts">
 /**
- * `AreaSelector` — the "DRAW AREA" / "USE CURRENT VIEW" pair above
+ * `AreaSelector` — the "DRAW AREA" / "USE CURRENT VIEW" / "CLEAR AREA" buttons above
  * `BboxFields`. Neither button touches the map directly: `DRAW AREA` toggles
  * `RectangleDrawHandler` on `OfflineAreaMap` (armed there, via the parent's
  * exposed ref); "USE CURRENT VIEW" reads the map's bounds through
@@ -56,11 +59,15 @@ const props = defineProps<{
   armed: boolean
   /** Reads the settings map's current visible bounds; `null` if the map isn't ready. */
   getCurrentViewBounds: () => LngLatBounds | null
+  /** Whether an area is currently selected (enables CLEAR AREA). */
+  hasArea: boolean
 }>()
 
 const emit = defineEmits<{
   'toggle-draw': []
   'area-selected': [bounds: LngLatBounds]
+  /** Remove the selected area. */
+  clear: []
 }>()
 
 const keyboardNoteId = useId()

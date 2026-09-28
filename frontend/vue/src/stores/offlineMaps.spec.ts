@@ -110,6 +110,25 @@ describe('useOfflineMapsStore', () => {
       expect(store.draft.west).toBe(-3) // unchanged
     })
 
+    it('clearDraftArea forgets the area but keeps depth, contents and label', () => {
+      const store = useOfflineMapsStore()
+      store.setDraftBbox(-3, 54, -2, 55)
+      store.setDraftMaxZoom(9)
+      store.setDraftIncludeTerrain(false)
+      store.setDraftLabel('Lakes')
+      store.clearDraftArea()
+      expect(store.hasDraftArea).toBe(false)
+      expect(store.draft).toMatchObject({
+        west: 0,
+        south: 0,
+        east: 0,
+        north: 0,
+        maxZoom: 9,
+        includeTerrain: false,
+        label: 'Lakes',
+      })
+    })
+
     it('clamps setDraftMaxZoom to [OFFLINE_MIN_ZOOM, OFFLINE_MAX_ZOOM] and rounds', () => {
       const store = useOfflineMapsStore()
       store.setDraftMaxZoom(2)

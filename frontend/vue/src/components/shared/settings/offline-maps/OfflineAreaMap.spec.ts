@@ -149,6 +149,71 @@ describe('OfflineAreaMap', () => {
     expect(map.resize).toHaveBeenCalled()
   })
 
+  describe('what the map shows', () => {
+    it('starts on a single copy of the whole world', () => {
+      mountMap()
+      const map = currentMap()
+      expect(map.options).toMatchObject({ bounds: [-180, -85, 180, 85], renderWorldCopies: false })
+      map.handlers.load!()
+      expect(map.fitBounds).toHaveBeenCalledWith([-180, -85, 180, 85], { padding: 0, duration: 0 })
+    })
+
+    it('opens framed on an already-selected area, in full', () => {
+      mountMap({ selection: REGION_A })
+      const map = currentMap()
+      map.handlers.load!()
+      expect(map.fitBounds).toHaveBeenCalledWith(
+        [REGION_A.west, REGION_A.south, REGION_A.east, REGION_A.north],
+        { padding: 32, duration: 0 },
+      )
+    })
+
+    it('ignores a load event that arrives after the map was torn down', () => {
+      const wrapper = mountMap()
+      const map = currentMap()
+      const lateLoad = map.handlers.load!
+      wrapper.unmount()
+      lateLoad()
+      expect(map.fitBounds).not.toHaveBeenCalled()
+    })
+
+    it('brings a newly selected area into view when it is off-screen', async () => {
+      // The fake map's view is 5°W–0°, 50–55°N; this area is well outside it.
+      const wrapper = mountMap({ selection: null })
+      const map = currentMap()
+      await wrapper.setProps({ selection: { west: 113, south: -38, east: 153, north: -12 } })
+      expect(map.fitBounds).toHaveBeenCalledWith([113, -38, 153, -12], {
+        padding: 32,
+        duration: 600,
+      })
+    })
+
+    it('jumps rather than glides to an off-screen area when reduced motion is preferred', async () => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn(() => ({ matches: true })),
+      )
+      const wrapper = mountMap({ selection: null })
+      const map = currentMap()
+      await wrapper.setProps({ selection: { west: 113, south: -38, east: 153, north: -12 } })
+      expect(map.fitBounds).toHaveBeenCalledWith([113, -38, 153, -12], { padding: 32, duration: 0 })
+    })
+
+    it('leaves the view alone when the new area is already fully visible', async () => {
+      const wrapper = mountMap({ selection: null })
+      const map = currentMap()
+      await wrapper.setProps({ selection: { west: -4, south: 51, east: -1, north: 54 } })
+      expect(map.fitBounds).not.toHaveBeenCalled()
+    })
+
+    it('does not move when the selection is cleared', async () => {
+      const wrapper = mountMap({ selection: REGION_A })
+      const map = currentMap()
+      await wrapper.setProps({ selection: null })
+      expect(map.fitBounds).not.toHaveBeenCalled()
+    })
+  })
+
   it('(re)builds the selection and regions sources/layers on every style.load', async () => {
     mountMap()
     await loadStyle()
@@ -356,6 +421,21 @@ describe('OfflineAreaMap', () => {
         east: 0,
         north: 85.05112877980659,
       })
+    })
+
+    it('currentViewBounds() clamps longitude to one world when zoomed out past it', () => {
+      const wrapper = mountMap()
+      const map = currentMap()
+      map.getBounds = vi.fn(() => ({
+        getWest: () => -250,
+        getSouth: () => -60,
+        getEast: () => 250,
+        getNorth: () => 70,
+      }))
+      const bounds = (
+        wrapper.vm as unknown as { currentViewBounds: () => typeof REGION_A | null }
+      ).currentViewBounds()
+      expect(bounds).toEqual({ west: -180, south: -60, east: 180, north: 70 })
     })
 
     it('currentViewBounds() returns null once the map has been torn down', () => {

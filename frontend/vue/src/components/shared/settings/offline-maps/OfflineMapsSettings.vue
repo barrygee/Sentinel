@@ -12,8 +12,10 @@
       <AreaSelector
         :armed="drawArmed"
         :get-current-view-bounds="getCurrentViewBounds"
+        :has-area="hasArea"
         @toggle-draw="onToggleDraw"
         @area-selected="onDrawComplete"
+        @clear="onClearArea"
       />
 
       <BboxFields :bounds="draftBounds" @update:bounds="onBoundsFieldsUpdate" />
@@ -173,6 +175,12 @@ function onToggleDraw(): void {
 
 function onDrawComplete(bounds: LngLatBounds): void {
   store.setDraftBbox(bounds.west, bounds.south, bounds.east, bounds.north)
+}
+
+/** CLEAR AREA: drop the selected area, stopping any drawing in progress. */
+function onClearArea(): void {
+  if (drawArmed.value) areaMapRef.value?.cancelDraw()
+  store.clearDraftArea()
 }
 
 function onBoundsFieldsUpdate(bounds: LngLatBounds): void {

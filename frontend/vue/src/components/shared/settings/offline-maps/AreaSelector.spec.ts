@@ -6,14 +6,23 @@ import AreaSelector from './AreaSelector.vue'
 const SAMPLE_BOUNDS = { west: -1, south: 50, east: 1, north: 52 }
 
 function mountSelector(
-  props: { armed?: boolean; getCurrentViewBounds?: () => typeof SAMPLE_BOUNDS | null } = {},
+  props: {
+    armed?: boolean
+    getCurrentViewBounds?: () => typeof SAMPLE_BOUNDS | null
+    hasArea?: boolean
+  } = {},
 ) {
   return mount(AreaSelector, {
     props: {
       armed: props.armed ?? false,
       getCurrentViewBounds: props.getCurrentViewBounds ?? (() => SAMPLE_BOUNDS),
+      hasArea: props.hasArea ?? false,
     },
   })
+}
+
+function clearButton(wrapper: ReturnType<typeof mountSelector>) {
+  return wrapper.findAll('button').find((button) => button.text() === 'CLEAR AREA')!
 }
 
 describe('AreaSelector', () => {
@@ -43,6 +52,19 @@ describe('AreaSelector', () => {
     const note = wrapper.find(`[id="${noteId}"]`)
     expect(note.classes()).toContain('sr-only')
     expect(note.text()).toContain('North, South, East')
+  })
+
+  it('disables CLEAR AREA until an area is selected', async () => {
+    const wrapper = mountSelector({ hasArea: false })
+    expect(clearButton(wrapper).attributes('disabled')).toBeDefined()
+    await wrapper.setProps({ hasArea: true })
+    expect(clearButton(wrapper).attributes('disabled')).toBeUndefined()
+  })
+
+  it('emits clear when CLEAR AREA is pressed', async () => {
+    const wrapper = mountSelector({ hasArea: true })
+    await clearButton(wrapper).trigger('click')
+    expect(wrapper.emitted('clear')).toHaveLength(1)
   })
 
   it('shows the drawing hint only while armed', async () => {
