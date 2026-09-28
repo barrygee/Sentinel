@@ -1382,6 +1382,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Thin the README and move setup to the top (#327)
 - Document off-grid AIS decode, and rebuild the SPA bundle
 - Lead the Docker section with the all-decoders command
+- Add the offline map downloads plan (#371)
 
 ### Tests
 
