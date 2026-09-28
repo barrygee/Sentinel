@@ -79,6 +79,12 @@ let map: MapLibreGlMap | null = null
 let drawHandler: RectangleDrawHandler | null = null
 let resizeHandler: RectangleResizeHandler | null = null
 let previewFrame: number | null = null
+/**
+ * True until the user pans or zooms. The list of downloaded areas arrives a
+ * moment after the map loads, so the opening view is re-framed when it does,
+ * but never once the user has moved the map themselves.
+ */
+let openingViewPending = true
 
 function boundsToPolygon(bounds: LngLatBounds): GeoJSON.Feature {
   const { west, south, east, north } = bounds
@@ -144,12 +150,39 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-/** Frame the selected area in full, or the whole world when nothing is selected. */
-function showSelectionOrWorld(): void {
+/**
+ * The smallest box holding the selected area and every downloaded area, or
+ * null when there is neither. Downloaded areas never cross the antimeridian
+ * (the backend refuses them), so a plain min/max is enough.
+ */
+function areasOfInterest(): LngLatBounds | null {
+  const areas = props.selection ? [props.selection, ...props.regions] : props.regions
+  const [first, ...rest] = areas
+  if (!first) return null
+  return rest.reduce<LngLatBounds>(
+    (combined, area) => ({
+      west: Math.min(combined.west, area.west),
+      south: Math.min(combined.south, area.south),
+      east: Math.max(combined.east, area.east),
+      north: Math.max(combined.north, area.north),
+    }),
+    { ...first },
+  )
+}
+
+/**
+ * Open on what matters: the selected and downloaded areas, zoomed in as far
+ * as possible with all of them fully visible, or the whole world when there
+ * are none.
+ */
+function frameAreasOrWorld(): void {
   if (!map) return
-  if (props.selection) {
-    const { west, south, east, north } = props.selection
-    map.fitBounds([west, south, east, north], { padding: SELECTION_PADDING_PX, duration: 0 })
+  const areas = areasOfInterest()
+  if (areas) {
+    map.fitBounds([areas.west, areas.south, areas.east, areas.north], {
+      padding: SELECTION_PADDING_PX,
+      duration: 0,
+    })
   } else {
     map.fitBounds(WORLD_BOUNDS, { padding: 0, duration: 0 })
   }
@@ -268,11 +301,21 @@ onMounted(() => {
   map.scrollZoom.disable()
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
   map.on('style.load', initLayers)
-  // Frame the area (or the world) only once the map knows its real size: fitting
+  // Frame the areas (or the world) once the map knows its real size: a fit made
   // earlier works from a zero-size container and lands on the wrong zoom.
   map.on('load', () => {
     map?.resize()
-    showSelectionOrWorld()
+    frameAreasOrWorld()
+  })
+  // The settings panel animates open, so the map can grow after it loads; a fit
+  // made mid-animation leaves the areas smaller than they should be. Re-frame
+  // on each resize until the user takes over.
+  map.on('resize', () => {
+    if (openingViewPending) frameAreasOrWorld()
+  })
+  // Only user gestures carry an originalEvent; fitBounds and flyTo don't.
+  map.on('movestart', (event: { originalEvent?: Event }) => {
+    if (event.originalEvent) openingViewPending = false
   })
 
   const rectangleDraw = new RectangleDrawHandler(map, {
@@ -310,7 +353,10 @@ watch(
 
 watch(
   () => props.regions,
-  () => renderRegionsOutline(),
+  () => {
+    renderRegionsOutline()
+    if (openingViewPending) frameAreasOrWorld()
+  },
   { deep: true },
 )
 

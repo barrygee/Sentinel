@@ -168,6 +168,76 @@ describe('OfflineAreaMap', () => {
       )
     })
 
+    it('opens zoomed to fit every downloaded area', () => {
+      mountMap({ regions: [REGION_A, REGION_B] })
+      const map = currentMap()
+      map.handlers.load!()
+      expect(map.fitBounds).toHaveBeenCalledWith(
+        [REGION_A.west, REGION_A.south, REGION_B.east, REGION_B.north],
+        { padding: 32, duration: 0 },
+      )
+    })
+
+    it('fits the selected area and the downloaded areas together', () => {
+      const selection = { west: -6, south: 49, east: -4, north: 50 }
+      mountMap({ selection, regions: [REGION_B] })
+      const map = currentMap()
+      map.handlers.load!()
+      expect(map.fitBounds).toHaveBeenCalledWith(
+        [selection.west, selection.south, REGION_B.east, REGION_B.north],
+        { padding: 32, duration: 0 },
+      )
+    })
+
+    it('re-frames when the downloaded areas arrive after the map has loaded', async () => {
+      const wrapper = mountMap({ regions: [] })
+      const map = currentMap()
+      map.handlers.load!()
+      expect(map.fitBounds).toHaveBeenLastCalledWith([-180, -85, 180, 85], {
+        padding: 0,
+        duration: 0,
+      })
+      await wrapper.setProps({ regions: [REGION_A] })
+      expect(map.fitBounds).toHaveBeenLastCalledWith(
+        [REGION_A.west, REGION_A.south, REGION_A.east, REGION_A.north],
+        { padding: 32, duration: 0 },
+      )
+    })
+
+    it('never re-frames once the user has panned or zoomed', async () => {
+      const wrapper = mountMap({ regions: [] })
+      const map = currentMap()
+      map.handlers.load!()
+      map.handlers.movestart!({ originalEvent: new MouseEvent('mousedown') })
+      map.fitBounds.mockClear()
+      await wrapper.setProps({ regions: [REGION_A] })
+      expect(map.fitBounds).not.toHaveBeenCalled()
+    })
+
+    it('keeps re-framing after its own programmatic moves (no originalEvent)', async () => {
+      const wrapper = mountMap({ regions: [] })
+      const map = currentMap()
+      map.handlers.load!()
+      map.handlers.movestart!({})
+      await wrapper.setProps({ regions: [REGION_A] })
+      expect(map.fitBounds).toHaveBeenLastCalledWith(
+        [REGION_A.west, REGION_A.south, REGION_A.east, REGION_A.north],
+        { padding: 32, duration: 0 },
+      )
+    })
+
+    it('re-frames when the map grows (the panel animating open), until the user moves it', () => {
+      mountMap({ regions: [REGION_A] })
+      const map = currentMap()
+      map.handlers.load!()
+      map.fitBounds.mockClear()
+      map.handlers.resize!()
+      expect(map.fitBounds).toHaveBeenCalledTimes(1)
+      map.handlers.movestart!({ originalEvent: new MouseEvent('mousedown') })
+      map.handlers.resize!()
+      expect(map.fitBounds).toHaveBeenCalledTimes(1)
+    })
+
     it('ignores a load event that arrives after the map was torn down', () => {
       const wrapper = mountMap()
       const map = currentMap()
