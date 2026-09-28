@@ -3,7 +3,7 @@
   "metadata": {
     "sentinel:theme": "light",
     "sentinel:derived-from": "fiord-online.json (Sentinel dark basemap)",
-    "sentinel:palette": "Colours from openmaptiles/positron-gl-style — BSD-3-Clause (code), design derived from CartoDB Basemaps by Stamen/Paul Norman, CC-BY 3.0. Geometry, filters, sources, sprite and glyphs are Sentinel's own. The only structural change from the dark style: park/park_outline are drawn beneath water, so protected areas do not paint over the sea."
+    "sentinel:palette": "Colours from openmaptiles/positron-gl-style \u2014 BSD-3-Clause (code), design derived from CartoDB Basemaps by Stamen/Paul Norman, CC-BY 3.0. Geometry, filters, sources, sprite and glyphs are Sentinel's own. The only structural change from the dark style: park/park_outline are drawn beneath water, so protected areas do not paint over the sea."
   },
   "sources": {
     "openmaptiles": {
@@ -1777,6 +1777,107 @@
           22,
           15
         ]
+      }
+    },
+    {
+      "id": "poi",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "poi",
+      "minzoom": 15,
+      "filter": [
+        "match",
+        [
+          "get",
+          "class"
+        ],
+        [
+          "airport",
+          "attraction",
+          "bakery",
+          "bank",
+          "bar",
+          "beer",
+          "bus",
+          "cafe",
+          "campsite",
+          "castle",
+          "cinema",
+          "clothing_store",
+          "college",
+          "dentist",
+          "doctors",
+          "fast_food",
+          "fire_station",
+          "fuel",
+          "golf",
+          "grocery",
+          "hairdresser",
+          "hospital",
+          "ice_cream",
+          "information",
+          "library",
+          "lodging",
+          "monument",
+          "museum",
+          "parking",
+          "pharmacy",
+          "place_of_worship",
+          "playground",
+          "police",
+          "post",
+          "railway",
+          "restaurant",
+          "school",
+          "shop",
+          "stadium",
+          "swimming",
+          "theatre",
+          "town_hall",
+          "veterinary",
+          "zoo"
+        ],
+        true,
+        false
+      ],
+      "layout": {
+        "icon-image": [
+          "get",
+          "class"
+        ],
+        "icon-size": 0.9,
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name_en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 11,
+        "text-anchor": "top",
+        "text-offset": [
+          0,
+          0.8
+        ],
+        "text-max-width": 8,
+        "text-optional": true,
+        "symbol-sort-key": [
+          "get",
+          "rank"
+        ]
+      },
+      "paint": {
+        "text-color": "#bbb",
+        "text-halo-color": "#fff",
+        "text-halo-width": 2,
+        "text-halo-blur": 0
       }
     },
     {

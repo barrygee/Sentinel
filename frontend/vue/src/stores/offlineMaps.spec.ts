@@ -75,7 +75,7 @@ describe('useOfflineMapsStore', () => {
     it('starts with the pristine 0/0/0/0 draft and reports hasDraftArea=false', () => {
       const store = useOfflineMapsStore()
       expect(store.hasDraftArea).toBe(false)
-      expect(store.draft).toMatchObject({ west: 0, south: 0, east: 0, north: 0, maxZoom: 12 })
+      expect(store.draft).toMatchObject({ west: 0, south: 0, east: 0, north: 0, maxZoom: 14 })
     })
 
     it('seeds lastCreatedRegionId from a valid stored string', () => {

@@ -5,6 +5,7 @@ import { NamesToggleControl } from './NamesToggleControl'
 import { useBasemapStore, type BasemapStore } from '@/stores/basemap'
 
 const NAME_LAYERS = [
+  'poi',
   'place_suburb',
   'place_village',
   'place_town',

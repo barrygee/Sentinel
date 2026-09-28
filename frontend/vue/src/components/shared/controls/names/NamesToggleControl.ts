@@ -1,8 +1,10 @@
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@/stores/basemap'
 
-/** Base-style layers carrying place-name labels. */
+/** Base-style layers carrying place-name labels, and the places-of-interest
+ *  labels (`poi`), which hide and show with them. */
 const NAME_LAYERS = [
+  'poi',
   'place_suburb',
   'place_village',
   'place_town',

@@ -122,6 +122,7 @@ WATER_LABEL_INK = "rgb(21, 89, 143)"
 LABELS: dict[str, str] = {
     "water_name": WATER_LABEL_INK,
     "highway_name_other": LABEL_INK_MINOR,
+    "poi": LABEL_INK_MINOR,
     "highway_ref": LABEL_INK_MINOR,
     "place_other": LABEL_INK_MINOR,
     "place_suburb": LABEL_INK_MINOR,
