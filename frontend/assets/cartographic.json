@@ -18,6 +18,11 @@
     "surroundings": {
       "type": "vector",
       "url": "pmtiles:///assets/tiles/surroundings.pmtiles"
+    },
+    "national_parks": {
+      "type": "geojson",
+      "data": "/assets/national-parks.geojson",
+      "attribution": "National Parks \u00a9 Office for National Statistics (OGL v3.0); contains OS data \u00a9 Crown copyright and database right 2022"
     }
   },
   "sprite": "/assets/sprites/ofm",
@@ -36,11 +41,11 @@
             "zoom"
           ],
           4,
-          "rgb(241, 230, 202)",
+          "rgb(229, 231, 234)",
           7,
-          "rgb(246, 237, 212)",
+          "rgb(236, 238, 240)",
           10,
-          "rgb(249, 241, 218)"
+          "rgb(243, 244, 246)"
         ]
       }
     },
@@ -59,11 +64,11 @@
             "zoom"
           ],
           4,
-          "rgb(241, 230, 202)",
+          "rgb(229, 231, 234)",
           7,
-          "rgb(246, 237, 212)",
+          "rgb(236, 238, 240)",
           10,
-          "rgb(249, 241, 218)"
+          "rgb(243, 244, 246)"
         ]
       }
     },
@@ -173,7 +178,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "hsla(30, 85%, 58%, 0.75)",
+        "line-color": "rgba(132, 137, 146, 0.75)",
         "line-width": [
           "interpolate",
           [
@@ -251,9 +256,9 @@
         "visibility": "none"
       },
       "paint": {
-        "text-color": "rgb(48, 44, 38)",
+        "text-color": "rgb(42, 45, 52)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -272,11 +277,11 @@
             "zoom"
           ],
           4,
-          "rgb(241, 230, 202)",
+          "rgb(229, 231, 234)",
           7,
-          "rgb(246, 237, 212)",
+          "rgb(236, 238, 240)",
           10,
-          "rgb(249, 241, 218)"
+          "rgb(243, 244, 246)"
         ]
       }
     },
@@ -294,18 +299,36 @@
       "id": "park",
       "type": "fill",
       "source": "openmaptiles",
-      "source-layer": "park",
+      "source-layer": "landuse",
       "filter": [
-        "match",
+        "all",
         [
-          "geometry-type"
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
         ],
         [
-          "MultiPolygon",
-          "Polygon"
-        ],
-        true,
-        false
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "park",
+            "nature_reserve",
+            "national_park",
+            "protected_area"
+          ],
+          true,
+          false
+        ]
       ],
       "paint": {
         "fill-color": "rgb(148, 212, 132)",
@@ -316,19 +339,58 @@
       "id": "park_outline",
       "type": "line",
       "source": "openmaptiles",
-      "source-layer": "park",
+      "source-layer": "landuse",
       "filter": [
-        "match",
+        "all",
         [
-          "geometry-type"
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
         ],
         [
-          "MultiPolygon",
-          "Polygon"
-        ],
-        true,
-        false
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "park",
+            "nature_reserve",
+            "national_park",
+            "protected_area"
+          ],
+          true,
+          false
+        ]
       ],
+      "paint": {
+        "line-color": "hsl(112, 45%, 50%)",
+        "line-dasharray": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "national_park",
+      "type": "fill",
+      "source": "national_parks",
+      "paint": {
+        "fill-color": "rgb(148, 212, 132)",
+        "fill-opacity": 0.55
+      }
+    },
+    {
+      "id": "national_park_outline",
+      "type": "line",
+      "source": "national_parks",
       "paint": {
         "line-color": "hsl(112, 45%, 50%)",
         "line-dasharray": [
@@ -417,13 +479,13 @@
           "==",
           [
             "get",
-            "kind_detail"
+            "kind"
           ],
           "residential"
         ]
       ],
       "paint": {
-        "fill-color": "rgb(244, 224, 204)",
+        "fill-color": "rgb(230, 231, 235)",
         "fill-opacity": [
           "interpolate",
           [
@@ -461,12 +523,17 @@
           false
         ],
         [
-          "==",
+          "match",
           [
             "get",
             "kind"
           ],
-          "wood"
+          [
+            "wood",
+            "forest"
+          ],
+          true,
+          false
         ]
       ],
       "paint": {
@@ -528,9 +595,9 @@
       ],
       "paint": {
         "fill-antialias": false,
-        "fill-color": "rgb(226, 209, 186)",
+        "fill-color": "rgb(217, 219, 224)",
         "fill-opacity": 1,
-        "fill-outline-color": "rgb(203, 181, 153)"
+        "fill-outline-color": "rgb(195, 198, 205)"
       }
     },
     {
@@ -556,8 +623,12 @@
         [
           "all",
           [
-            "get",
-            "is_tunnel"
+            "==",
+            [
+              "get",
+              "is_tunnel"
+            ],
+            true
           ],
           [
             "==",
@@ -574,7 +645,7 @@
         "line-join": "miter"
       },
       "paint": {
-        "line-color": "rgb(214, 122, 32)",
+        "line-color": "rgb(150, 155, 163)",
         "line-opacity": 1,
         "line-width": [
           "interpolate",
@@ -617,7 +688,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(253, 205, 143)",
+        "line-color": "rgb(196, 200, 206)",
         "line-opacity": 1,
         "line-width": [
           "interpolate",
@@ -803,7 +874,7 @@
       ],
       "paint": {
         "fill-antialias": true,
-        "fill-color": "rgb(249, 241, 218)"
+        "fill-color": "rgb(243, 244, 246)"
       }
     },
     {
@@ -844,7 +915,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(249, 241, 218)",
+        "line-color": "rgb(243, 244, 246)",
         "line-width": [
           "interpolate",
           [
@@ -895,7 +966,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(214, 190, 158)",
+        "line-color": "rgb(224, 226, 231)",
         "line-dasharray": [
           2,
           2
@@ -956,7 +1027,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(255, 255, 253)",
+        "line-color": "rgb(231, 233, 237)",
         "line-opacity": 1,
         "line-width": [
           "interpolate",
@@ -985,7 +1056,7 @@
         "line-join": "miter"
       },
       "paint": {
-        "line-color": "rgb(220, 174, 70)",
+        "line-color": "rgb(146, 151, 160)",
         "line-dasharray": [
           12,
           0
@@ -1042,7 +1113,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(255, 216, 122)",
+        "line-color": "rgb(172, 177, 185)",
         "line-width": [
           "interpolate",
           [
@@ -1118,7 +1189,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgba(255, 216, 122, 0.8)",
+        "line-color": "rgba(172, 177, 185, 0.8)",
         "line-opacity": 1,
         "line-width": 2
       }
@@ -1134,7 +1205,7 @@
         "line-join": "miter"
       },
       "paint": {
-        "line-color": "rgb(214, 122, 32)",
+        "line-color": "rgb(104, 109, 118)",
         "line-dasharray": [
           2,
           0
@@ -1200,7 +1271,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgb(251, 176, 72)",
+        "line-color": "rgb(132, 137, 146)",
         "line-width": [
           "interpolate",
           [
@@ -1284,7 +1355,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgba(251, 176, 72, 0.8)",
+        "line-color": "rgba(132, 137, 146, 0.8)",
         "line-width": [
           "interpolate",
           [
@@ -1665,7 +1736,7 @@
       "paint": {
         "text-color": "rgb(21, 89, 143)",
         "text-halo-blur": 0,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -1729,9 +1800,9 @@
         "text-transform": "uppercase"
       },
       "paint": {
-        "text-color": "rgb(86, 80, 71)",
+        "text-color": "rgb(82, 87, 97)",
         "text-halo-blur": 0,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 2,
         "text-opacity": 1,
         "text-translate": [
@@ -1787,9 +1858,9 @@
         "visibility": "none"
       },
       "paint": {
-        "text-color": "rgb(86, 80, 71)",
+        "text-color": "rgb(82, 87, 97)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1,
         "text-opacity": 1,
         "text-translate": [
@@ -2151,8 +2222,8 @@
         ]
       },
       "paint": {
-        "text-color": "rgb(86, 80, 71)",
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-color": "rgb(82, 87, 97)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 2,
         "text-halo-blur": 0
       }
@@ -2218,9 +2289,9 @@
         "visibility": "none"
       },
       "paint": {
-        "text-color": "rgb(86, 80, 71)",
+        "text-color": "rgb(82, 87, 97)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1,
         "text-opacity": 0.6
       }
@@ -2291,9 +2362,9 @@
         "visibility": "none"
       },
       "paint": {
-        "text-color": "rgb(86, 80, 71)",
+        "text-color": "rgb(82, 87, 97)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -2365,9 +2436,9 @@
       },
       "paint": {
         "icon-opacity": 0.7,
-        "text-color": "rgb(86, 80, 71)",
+        "text-color": "rgb(82, 87, 97)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -2448,9 +2519,9 @@
       },
       "paint": {
         "icon-opacity": 0.7,
-        "text-color": "rgb(48, 44, 38)",
+        "text-color": "rgb(42, 45, 52)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -2545,9 +2616,9 @@
       },
       "paint": {
         "icon-opacity": 0.7,
-        "text-color": "rgb(48, 44, 38)",
+        "text-color": "rgb(42, 45, 52)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -2642,9 +2713,9 @@
       },
       "paint": {
         "icon-opacity": 0.7,
-        "text-color": "rgb(48, 44, 38)",
+        "text-color": "rgb(42, 45, 52)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -2697,9 +2768,9 @@
         "visibility": "none"
       },
       "paint": {
-        "text-color": "rgb(86, 80, 71)",
+        "text-color": "rgb(82, 87, 97)",
         "text-halo-blur": 1,
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1
       }
     },
@@ -2770,8 +2841,8 @@
         "text-transform": "uppercase"
       },
       "paint": {
-        "text-color": "rgb(48, 44, 38)",
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-color": "rgb(42, 45, 52)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1.4,
         "text-opacity": 1
       }
@@ -2852,8 +2923,8 @@
         "text-transform": "uppercase"
       },
       "paint": {
-        "text-color": "rgb(48, 44, 38)",
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-color": "rgb(42, 45, 52)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1.4,
         "text-opacity": 1
       }
@@ -2938,8 +3009,8 @@
         "text-transform": "uppercase"
       },
       "paint": {
-        "text-color": "rgb(48, 44, 38)",
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-color": "rgb(42, 45, 52)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1.4,
         "text-opacity": 1
       }
@@ -3009,8 +3080,8 @@
         "visibility": "none"
       },
       "paint": {
-        "text-color": "rgb(48, 44, 38)",
-        "text-halo-color": "rgb(252, 248, 238)",
+        "text-color": "rgb(42, 45, 52)",
+        "text-halo-color": "rgb(249, 250, 251)",
         "text-halo-width": 1.4,
         "text-opacity": [
           "interpolate",

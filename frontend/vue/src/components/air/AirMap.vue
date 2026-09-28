@@ -445,6 +445,12 @@ onMounted(() => {
     () => basemapStore.layers.terrain,
     (on) => terrainControl?.setVisible(on),
   )
+  // Roads are a shared base-map layer too: follow the store whether the change
+  // came from this map's rail, another map, or Settings › Maps › Roads.
+  watch(
+    () => basemapStore.layers.roads,
+    (on) => roadsControl?.setVisible(on),
+  )
 
   // Only the drawn zones are driven here; overhead-alert detection lives in
   // useAirAlertsService, off the same list.

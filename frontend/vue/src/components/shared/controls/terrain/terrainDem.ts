@@ -127,6 +127,18 @@ async function openTerrainDem(maxzoom: number, tiersVersion: string | null): Pro
 
   demSource.setupMaplibre(maplibregl)
 
+  // maplibre-contour caches each contour tile and, with worker:false, hands
+  // MapLibre the SAME ArrayBuffer every time that tile is asked for. MapLibre
+  // transfers it to its worker, which detaches it, so the next request for the
+  // tile (any style reload, e.g. going offline, re-requests everything) fails
+  // with "DataCloneError: ArrayBuffer at index 0 is already detached". Replace
+  // the handler with one that gives MapLibre its own copy each time.
+  maplibregl.addProtocol(demSource.contourProtocolId, async (request, abortController) => {
+    const response = await demSource.contourProtocolV4(request, abortController)
+    const cached = response.data as ArrayBuffer
+    return { ...response, data: cached.slice(0) }
+  })
+
   return {
     maxzoom,
     contourTilesUrl: demSource.contourProtocolUrl({

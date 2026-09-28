@@ -178,6 +178,8 @@ Offline map data has two tiers, and either works on its own:
 
 Both tiers feed the same map: the offline basemap styles read tiles through `GET /api/offline-map/basemap/{z}/{x}/{y}` and terrain through `GET /api/offline-map/terrain/{z}/{x}/{y}`, which check downloaded regions newest-first, then fall back to the bundled base archive, then return an empty tile (204) if neither has it.
 
+The offline map data has no national park boundaries, so the offline styles draw them from a bundled file, `frontend/assets/national-parks.geojson`: the 15 national parks of Great Britain, from the ONS *National Parks (December 2022) Boundaries GB BGC*. Source: Office for National Statistics, licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/); contains OS data © Crown copyright and database right 2022.
+
 Switch to offline map rendering via **Settings › Connectivity Mode › Offline**, or let Sentinel fail over automatically.
 
 ---

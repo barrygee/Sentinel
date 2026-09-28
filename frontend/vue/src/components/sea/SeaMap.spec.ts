@@ -410,6 +410,10 @@ describe('SeaMap', () => {
       basemap.setLayer('terrain', true)
       await nextTick()
       expect(last('terrain').setVisible).toHaveBeenCalledExactlyOnceWith(true)
+      // Roads follow it too, so Settings › Maps › Roads reaches this map.
+      basemap.setLayer('roads', !basemap.layers.roads)
+      await nextTick()
+      expect(last('roads').setVisible).toHaveBeenCalledExactlyOnceWith(basemap.layers.roads)
     })
 
     it('seeds the overlays from the default-layers config on a first visit', async () => {

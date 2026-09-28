@@ -259,6 +259,12 @@ onMounted(() => {
     () => basemapStore.layers.terrain,
     (on) => _terrainControl?.setVisible(on),
   )
+  // Roads are a shared base-map layer too: follow the store whether the change
+  // came from this map's rail, another map, or Settings › Maps › Roads.
+  watch(
+    () => basemapStore.layers.roads,
+    (on) => _roadsControl?.setVisible(on),
+  )
 })
 
 onUnmounted(() => {

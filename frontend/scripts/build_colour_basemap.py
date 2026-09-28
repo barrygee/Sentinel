@@ -24,7 +24,8 @@ Every layer in the source that carries a colour paint must appear in the table
 colour map. `designTokens.spec.ts` guards the generated files the same way it
 guards the two logo variants.
 
-The palette is a saturated OSM-bright. `.maplibregl-canvas` dims every basemap
+The palette is light grey land and grey-scale roads, with saturated water and
+green areas carrying the colour. `.maplibregl-canvas` dims every basemap
 so the map stays ground for the overlays drawn on it — the colour map gets a
 lighter, saturation-boosting filter than dark/light (see `MapLibreMap.vue`), but
 it is still dimmed, so these values are pitched ABOVE where they should land:
@@ -39,22 +40,21 @@ from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 
-# Land is warm sand when zoomed out and cream when zoomed in. Woods and parks
-# only draw from z10 (the layers keep the light build's zoom ranges — geometry
-# is shared), so a flat cream land fill leaves a zoomed-out map with nothing
-# but water and borders. A warmer, neutral ground tone gives it body without
-# reading as vegetation, and it has faded to cream by the zoom where the real
-# land cover takes over.
+# Land is a neutral light grey: slightly deeper when zoomed out, so a map with
+# little but water and borders on it still has body, and lighter by the zoom
+# where roads, buildings and land cover take over. Grey rather than the old
+# warm sand so the colour map reads as a clean, modern base under the
+# saturated roads, water and green, not as parchment.
 LAND: list = [
     "interpolate",
     ["linear"],
     ["zoom"],
     4,
-    "rgb(241, 230, 202)",
+    "rgb(229, 231, 234)",
     7,
-    "rgb(246, 237, 212)",
+    "rgb(236, 238, 240)",
     10,
-    "rgb(249, 241, 218)",
+    "rgb(243, 244, 246)",
 ]
 
 # Layer id -> the colour paints it gets. Grouped the way the map reads, not the
@@ -71,33 +71,39 @@ COLOURS: dict[str, dict[str, str | list]] = {
     "surroundings_coastline": {"line-color": "hsla(205, 66%, 42%, 0.55)"},
     "landcover_ice_shelf": {"fill-color": "rgb(238, 248, 252)"},
     # ── Land cover ─────────────────────────────────────────────────────────
-    "landuse_residential": {"fill-color": "rgb(244, 224, 204)"},
+    "landuse_residential": {"fill-color": "rgb(230, 231, 235)"},
     "landcover_wood": {"fill-color": "rgb(128, 196, 120)"},
     "park": {"fill-color": "rgb(148, 212, 132)"},
     "park_outline": {"line-color": "hsl(112, 45%, 50%)"},
+    # National parks come from a bundled ONS file (offline only) and read as parks.
+    "national_park": {"fill-color": "rgb(148, 212, 132)"},
+    "national_park_outline": {"line-color": "hsl(112, 45%, 50%)"},
     "building": {
-        "fill-color": "rgb(226, 209, 186)",
-        "fill-outline-color": "rgb(203, 181, 153)",
+        "fill-color": "rgb(217, 219, 224)",
+        "fill-outline-color": "rgb(195, 198, 205)",
     },
     # ── Aeroways and piers ─────────────────────────────────────────────────
     "aeroway-area": {"fill-color": "rgb(226, 224, 232)"},
     "aeroway-runway": {"line-color": "rgb(250, 250, 253)"},
     "aeroway-runway-casing": {"line-color": "rgb(190, 188, 200)"},
     "aeroway-taxiway": {"line-color": "rgb(226, 224, 232)"},
-    "road_area_pier": {"fill-color": "rgb(249, 241, 218)"},
-    "road_pier": {"line-color": "rgb(249, 241, 218)"},
-    # ── Roads: motorway orange, major gold, minor white ────────────────────
-    "highway_motorway_casing": {"line-color": "rgb(214, 122, 32)"},
-    "highway_motorway_inner": {"line-color": "rgb(251, 176, 72)"},
-    "highway_motorway_subtle": {"line-color": "rgba(251, 176, 72, 0.8)"},
-    "tunnel_motorway_casing": {"line-color": "rgb(214, 122, 32)"},
-    "tunnel_motorway_inner": {"line-color": "rgb(253, 205, 143)"},
-    "highway_major_casing": {"line-color": "rgb(220, 174, 70)"},
-    "highway_major_inner": {"line-color": "rgb(255, 216, 122)"},
-    "highway_major_subtle": {"line-color": "rgba(255, 216, 122, 0.8)"},
-    "highway_minor": {"line-color": "rgb(255, 255, 253)"},
-    "highway_path": {"line-color": "rgb(214, 190, 158)"},
-    "surroundings_motorway": {"line-color": "hsla(30, 85%, 58%, 0.75)"},
+    "road_area_pier": {"fill-color": "rgb(243, 244, 246)"},
+    "road_pier": {"line-color": "rgb(243, 244, 246)"},
+    # ── Roads: a grey scale, darkest for motorways ─────────────────────────
+    # Grey roads on the light grey land read like a modern street map and keep
+    # the hierarchy by depth of grey rather than by hue, leaving colour to the
+    # water, green areas and the overlays drawn on top.
+    "highway_motorway_casing": {"line-color": "rgb(104, 109, 118)"},
+    "highway_motorway_inner": {"line-color": "rgb(132, 137, 146)"},
+    "highway_motorway_subtle": {"line-color": "rgba(132, 137, 146, 0.8)"},
+    "tunnel_motorway_casing": {"line-color": "rgb(150, 155, 163)"},
+    "tunnel_motorway_inner": {"line-color": "rgb(196, 200, 206)"},
+    "highway_major_casing": {"line-color": "rgb(146, 151, 160)"},
+    "highway_major_inner": {"line-color": "rgb(172, 177, 185)"},
+    "highway_major_subtle": {"line-color": "rgba(172, 177, 185, 0.8)"},
+    "highway_minor": {"line-color": "rgb(231, 233, 237)"},
+    "highway_path": {"line-color": "rgb(224, 226, 231)"},
+    "surroundings_motorway": {"line-color": "rgba(132, 137, 146, 0.75)"},
     # ── Rail ───────────────────────────────────────────────────────────────
     "railway": {"line-color": "rgb(150, 142, 134)"},
     "railway_dashline": {"line-color": "rgb(226, 220, 212)"},
@@ -114,9 +120,9 @@ COLOURS: dict[str, dict[str, str | list]] = {
 
 # Labels: one ink, one halo, at three weights. Place names carry the map's
 # information, so they sit darker than anything they are drawn over.
-LABEL_INK = "rgb(48, 44, 38)"
-LABEL_INK_MINOR = "rgb(86, 80, 71)"
-LABEL_HALO = "rgb(252, 248, 238)"
+LABEL_INK = "rgb(42, 45, 52)"
+LABEL_INK_MINOR = "rgb(82, 87, 97)"
+LABEL_HALO = "rgb(249, 250, 251)"
 WATER_LABEL_INK = "rgb(21, 89, 143)"
 
 LABELS: dict[str, str] = {

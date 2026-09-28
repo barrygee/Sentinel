@@ -388,6 +388,16 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'app',
     sectionLabel: 'App Settings',
+    id: 'map-roads',
+    label: 'Roads',
+    desc: 'Show road lines, road names and road numbers on every map',
+    searchTerms: 'roads streets motorways highways show hide map layer',
+    type: 'map-roads',
+    groupLabel: 'MAPS',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
     id: 'range-ring-origin',
     label: 'Range Ring Origin',
     desc: 'The point range rings are drawn around on the Air and Land maps — the location of your Sentinel instance, or a Sentry site',

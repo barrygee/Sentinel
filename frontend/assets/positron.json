@@ -17,6 +17,11 @@
     "surroundings": {
       "type": "vector",
       "url": "pmtiles:///assets/tiles/surroundings.pmtiles"
+    },
+    "national_parks": {
+      "type": "geojson",
+      "data": "/assets/national-parks.geojson",
+      "attribution": "National Parks \u00a9 Office for National Statistics (OGL v3.0); contains OS data \u00a9 Crown copyright and database right 2022"
     }
   },
   "sprite": "/assets/sprites/ofm",
@@ -251,18 +256,36 @@
       "id": "park",
       "type": "fill",
       "source": "openmaptiles",
-      "source-layer": "park",
+      "source-layer": "landuse",
       "filter": [
-        "match",
+        "all",
         [
-          "geometry-type"
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
         ],
         [
-          "MultiPolygon",
-          "Polygon"
-        ],
-        true,
-        false
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "park",
+            "nature_reserve",
+            "national_park",
+            "protected_area"
+          ],
+          true,
+          false
+        ]
       ],
       "paint": {
         "fill-color": "rgb(230, 233, 229)",
@@ -273,19 +296,58 @@
       "id": "park_outline",
       "type": "line",
       "source": "openmaptiles",
-      "source-layer": "park",
+      "source-layer": "landuse",
       "filter": [
-        "match",
+        "all",
         [
-          "geometry-type"
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
         ],
         [
-          "MultiPolygon",
-          "Polygon"
-        ],
-        true,
-        false
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "park",
+            "nature_reserve",
+            "national_park",
+            "protected_area"
+          ],
+          true,
+          false
+        ]
       ],
+      "paint": {
+        "line-color": "hsl(140, 14%, 72%)",
+        "line-dasharray": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "national_park",
+      "type": "fill",
+      "source": "national_parks",
+      "paint": {
+        "fill-color": "rgb(230, 233, 229)",
+        "fill-opacity": 0.55
+      }
+    },
+    {
+      "id": "national_park_outline",
+      "type": "line",
+      "source": "national_parks",
       "paint": {
         "line-color": "hsl(140, 14%, 72%)",
         "line-dasharray": [
@@ -374,7 +436,7 @@
           "==",
           [
             "get",
-            "kind_detail"
+            "kind"
           ],
           "residential"
         ]
@@ -418,12 +480,17 @@
           false
         ],
         [
-          "==",
+          "match",
           [
             "get",
             "kind"
           ],
-          "wood"
+          [
+            "wood",
+            "forest"
+          ],
+          true,
+          false
         ]
       ],
       "paint": {
@@ -513,8 +580,12 @@
         [
           "all",
           [
-            "get",
-            "is_tunnel"
+            "==",
+            [
+              "get",
+              "is_tunnel"
+            ],
+            true
           ],
           [
             "==",

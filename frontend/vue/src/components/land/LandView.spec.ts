@@ -187,6 +187,7 @@ const roadsSpies = vi.hoisted(() => ({
   onRemove: vi.fn(),
   handleClickPublic: vi.fn(),
   applyVisibility: vi.fn(),
+  setVisible: vi.fn(),
 }))
 vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
   RoadsToggleControl: class {
@@ -203,6 +204,7 @@ vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
     onAdd = roadsSpies.onAdd
     onRemove = roadsSpies.onRemove
     applyVisibility = roadsSpies.applyVisibility
+    setVisible = roadsSpies.setVisible
     handleClickPublic = (...args: unknown[]) => {
       this._store.setLayer('roads', !this._store.layers.roads)
       return roadsSpies.handleClickPublic(...args)
@@ -531,6 +533,18 @@ describe('LandView', () => {
       expect(namesSpies.setVisible).toHaveBeenCalledWith(true)
     })
 
+    it('follows a roads change made on another map or in Settings', async () => {
+      const basemapStore = useBasemapStore()
+      const map = makeFakeMap()
+      mountView()
+      shared.emit!('map-created', map)
+      await nextTick()
+
+      basemapStore.setLayer('roads', !basemapStore.layers.roads)
+      await nextTick()
+      expect(roadsSpies.setVisible).toHaveBeenCalledWith(basemapStore.layers.roads)
+    })
+
     it('follows a terrain change made on another map or in Settings', async () => {
       const basemapStore = useBasemapStore()
       const map = makeFakeMap()
@@ -711,9 +725,11 @@ describe('LandView', () => {
       mountView()
       basemapStore.setLayer('names', true)
       basemapStore.setLayer('terrain', true)
+      basemapStore.setLayer('roads', !basemapStore.layers.roads)
       await nextTick()
       expect(namesSpies.setVisible).not.toHaveBeenCalled()
       expect(terrainSpies.setVisible).not.toHaveBeenCalled()
+      expect(roadsSpies.setVisible).not.toHaveBeenCalled()
     })
 
     it('does nothing when a data layer changes before the map exists', async () => {
