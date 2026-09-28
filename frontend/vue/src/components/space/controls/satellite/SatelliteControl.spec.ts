@@ -37,13 +37,17 @@ vi.mock('maplibre-gl', () => {
 
 // Sprite factories touch <canvas>; stub the icon/bracket to sentinels and make
 // buildFootprintFeatures controllable (it can be told to throw).
-const spriteState = vi.hoisted(() => ({ footprintThrows: false }))
+const spriteState = vi.hoisted(() => ({ footprintThrows: false, bracketColours: [] as string[] }))
 vi.mock('./satelliteSprites', () => {
   const fakeImage = () =>
     ({ width: 1, height: 1, data: new Uint8ClampedArray(4) }) as unknown as ImageData
   return {
     createSatelliteIcon: fakeImage,
-    createSatBracket: fakeImage,
+    // Records the ink each bracket sprite is drawn in, for the theme tests.
+    createSatBracket: (colour: string) => {
+      spriteState.bracketColours.push(colour)
+      return fakeImage()
+    },
     buildFootprintFeatures: (geom: unknown) => {
       if (spriteState.footprintThrows) throw new Error('bad footprint')
       return {
@@ -301,6 +305,27 @@ describe('SatelliteControl ground-track colour', () => {
     const colours = await orbitTrackColours()
     expect(colours).toHaveLength(4)
     expect(colours).toEqual(['#000000', '#000000', '#000000', '#000000'])
+  })
+})
+
+describe('SatelliteControl bracket ink per basemap', () => {
+  beforeEach(() => {
+    spriteState.bracketColours = []
+  })
+
+  afterEach(() => {
+    delete document.documentElement.dataset.mapTheme
+  })
+
+  it.each([
+    ['dark', '#c8ff00'],
+    ['light', '#000000'],
+    ['colour', '#000000'],
+  ])('draws the bracket sprite for the %s basemap in %s', async (mapTheme, expectedColour) => {
+    document.documentElement.dataset.mapTheme = mapTheme
+    const { control } = await mounted()
+    expect(spriteState.bracketColours).toEqual([expectedColour])
+    control.onRemove()
   })
 })
 
