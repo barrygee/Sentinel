@@ -13,7 +13,7 @@ import asyncio
 import logging
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.config import settings
@@ -77,6 +77,20 @@ class FakeProcess:
         await self._release.wait()
         self.returncode = self._final_returncode
         return b"", self._stderr
+
+
+@pytest.fixture()
+def test_engine(tmp_path):
+    """File-backed SQLite for this module, overriding the shared in-memory one.
+
+    The job cancels its progress sampler when a phase ends, and a cancel that
+    lands mid-write makes SQLAlchemy discard that connection. With the shared
+    in-memory engine (one StaticPool connection) the replacement connection is
+    a brand-new, empty database, so the job's next write failed with "no such
+    table" — only when the timing lined up, which it did on slower CI runners.
+    A file behaves like production: any new connection sees the same schema.
+    """
+    return create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'job_runner.db'}")
 
 
 @pytest.fixture()
