@@ -11,8 +11,8 @@
       {{ percent }}%
     </progress>
     <div class="oma-progress-footer">
-      <span v-if="isIndeterminate">{{ phaseLabel }} — starting…</span>
-      <span v-else
+      <span v-if="isIndeterminate" class="oma-progress-status">{{ phaseLabel }} — starting…</span>
+      <span v-else class="oma-progress-status"
         >{{ phaseLabel }} — {{ percent }}% · {{ formatByteSize(bytesDone) }} /
         {{ formatByteSize(bytesEstimated) }}</span
       >
@@ -69,7 +69,8 @@ const progressAccessibleName = computed(() => `${phaseLabel.value} download prog
 .oma-progress {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* Room between the bar and the status / CANCEL row beneath it. */
+  gap: 12px;
   width: 100%;
 }
 
@@ -96,7 +97,13 @@ const progressAccessibleName = computed(() => `${phaseLabel.value} download prog
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 12px;
+}
+
+/* Smaller than the group's 12.5px text: a secondary read-out beside the
+   CANCEL button, not a label (the group-wide size rule excludes it). */
+.oma-progress-footer .oma-progress-status {
+  font-size: 11px;
+  letter-spacing: 0.04em;
   color: rgba(var(--ink-rgb), 0.6);
 }
 </style>
