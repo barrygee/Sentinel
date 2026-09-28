@@ -229,7 +229,7 @@ onMounted(() => {
 .oma-form {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 34px;
   width: 100%;
   max-width: 464px;
 }

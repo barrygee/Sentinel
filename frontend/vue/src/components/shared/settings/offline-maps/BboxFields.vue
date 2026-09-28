@@ -160,5 +160,6 @@ function onBlur(key: FieldKey): void {
    already caps the width, so the pair grid fills it. */
 .oma-bbox-fields {
   max-width: none;
+  row-gap: 20px;
 }
 </style>
