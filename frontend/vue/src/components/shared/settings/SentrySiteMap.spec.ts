@@ -67,6 +67,7 @@ vi.mock('maplibre-gl', () => {
 
 import SentrySiteMap from './SentrySiteMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
+import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 
 const GATESHEAD = { latitude: 54.951186, longitude: -1.532995, label: 'Gateshead' }
@@ -126,6 +127,26 @@ describe('SentrySiteMap', () => {
     expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord-online.json', {
       transformStyle: absoluteSpriteTransform,
     })
+  })
+
+  it('uses the offline basemap with no internet, and switches when the connection changes', async () => {
+    const appStore = useAppStore()
+    appStore.setOnline(false)
+    mountMap()
+    const created = mapRegistry.instances[0]!
+    expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord.json', {
+      transformStyle: absoluteSpriteTransform,
+    })
+    appStore.setOnline(true)
+    await nextTick()
+    expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord-online.json', {
+      transformStyle: absoluteSpriteTransform,
+    })
+  })
+
+  it('listens for map errors so offline tile failures are not logged', () => {
+    mountMap()
+    expect(mapRegistry.instances[0]!.handlers.error).toBeTypeOf('function')
   })
 
   // Without this the map swallows the settings panel's own scroll, which is the

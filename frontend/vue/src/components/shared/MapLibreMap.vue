@@ -19,7 +19,7 @@
 // Never put it in ref() or reactive() — Vue's Proxy wrapping breaks WebGL internals.
 import { ref, onMounted, onUnmounted, useId } from 'vue'
 import * as maplibregl from 'maplibre-gl'
-import { setMapStyle } from '@/utils/mapStyle'
+import { ignoreOfflineTileErrors, setMapStyle } from '@/utils/mapStyle'
 import type { Map } from 'maplibre-gl'
 
 // `regionLabel`/`regionDescription` are deliberately NOT named `ariaLabel` etc.:
@@ -81,6 +81,7 @@ onMounted(() => {
     maxCanvasSize: [MAX_CANVAS_SIZE_PX, MAX_CANVAS_SIZE_PX],
   })
   setMapStyle(map, props.styleUrl)
+  ignoreOfflineTileErrors(map)
 
   map.on('load', () => {
     map?.resize()

@@ -52,3 +52,29 @@ export function basemapStyleUrl(online: boolean, theme: MapTheme): string {
   const pair = BASEMAP_STYLES[theme]
   return online ? pair.online : pair.offline
 }
+
+/** True for a request that never reached a server (no network): MapLibre
+ *  reports those as an AJAXError with HTTP status 0. */
+function isNetworkUnreachable(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { status?: unknown }).status === 0 &&
+    typeof (error as { url?: unknown }).url === 'string'
+  )
+}
+
+/**
+ * Stop MapLibre printing an error for every map tile it can't fetch because
+ * there is no internet. Without an `error` listener MapLibre logs each failure
+ * to the console, and a map showing the online basemap with no connection
+ * (Connectivity Mode set to Online, or the moment before Auto notices the
+ * connection has gone) fails dozens of tiles a second. Every other map error
+ * (a broken style, a server answering 500) is still logged.
+ */
+export function ignoreOfflineTileErrors(map: Map): void {
+  map.on('error', (event: { error?: unknown }) => {
+    if (isNetworkUnreachable(event.error)) return
+    console.error(event.error)
+  })
+}

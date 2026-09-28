@@ -16,9 +16,9 @@
  * component, which owns `window.map`) — like `SentrySiteMap.vue`, this is a
  * second, independent map instance living entirely inside the settings panel.
  *
- * Always the ONLINE basemap for the current theme: choosing a download area
- * needs a connection anyway, and it lets an operator frame territory outside
- * anything already downloaded. Scroll-wheel zoom is off (as in
+ * Shows the same basemap as the domain maps: the online build while there is
+ * internet, the offline one (downloaded areas + bundled tiles) when there
+ * isn't, so the preview still shows a map with no connection. Scroll-wheel zoom is off (as in
  * `SentrySiteMap`) so the map doesn't swallow the settings panel's own
  * scroll; zoom is available via the +/- control, double-click, pinch and the
  * keyboard.
@@ -39,8 +39,9 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
 import type { Map as MapLibreGlMap, GeoJSONSource } from 'maplibre-gl'
-import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
+import { basemapStyleUrl, ignoreOfflineTileErrors, setMapStyle } from '@/utils/mapStyle'
 import { overlayAccentColor, isBrightBasemap } from '@/utils/mapTheme'
+import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 import { RectangleDrawHandler, type LngLatBounds } from './rectangleDrawHandler'
 import { RectangleResizeHandler } from './rectangleResizeHandler'
@@ -72,7 +73,8 @@ const emit = defineEmits<{
 }>()
 
 const themeStore = useThemeStore()
-const styleUrl = () => basemapStyleUrl(true, themeStore.mapTheme)
+const appStore = useAppStore()
+const styleUrl = () => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme)
 
 const containerRef = ref<HTMLElement | null>(null)
 let map: MapLibreGlMap | null = null
@@ -298,6 +300,7 @@ onMounted(() => {
     fadeDuration: 0,
   })
   setMapStyle(map, styleUrl())
+  ignoreOfflineTileErrors(map)
   map.scrollZoom.disable()
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
   map.on('style.load', initLayers)
@@ -334,14 +337,13 @@ onMounted(() => {
   resizeHandler.enable()
 })
 
-watch(
-  () => themeStore.mapTheme,
-  () => {
-    /* v8 ignore start -- guarded the same way SentrySiteMap's theme watcher is */
-    if (map) setMapStyle(map, styleUrl())
-    /* v8 ignore stop */
-  },
-)
+// A theme change, or losing/regaining the internet, swaps the style (the
+// overlays are rebuilt on style.load).
+watch(styleUrl, () => {
+  /* v8 ignore start -- guarded the same way SentrySiteMap's theme watcher is */
+  if (map) setMapStyle(map, styleUrl())
+  /* v8 ignore stop */
+})
 
 watch(
   () => props.selection,

@@ -66,6 +66,7 @@ vi.mock('maplibre-gl', () => {
 })
 
 import OfflineAreaMap from './OfflineAreaMap.vue'
+import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 
 function currentMap(): FakeMap {
@@ -139,6 +140,17 @@ describe('OfflineAreaMap', () => {
       '/assets/positron-online.json',
       expect.anything(),
     )
+  })
+
+  it('shows the offline basemap with no internet, and switches when the connection changes', async () => {
+    const appStore = useAppStore()
+    appStore.setOnline(false)
+    mountMap()
+    const map = currentMap()
+    expect(map.setStyle.mock.calls.at(-1)![0]).toBe('/assets/fiord.json')
+    appStore.setOnline(true)
+    await Promise.resolve()
+    expect(map.setStyle.mock.calls.at(-1)![0]).toBe('/assets/fiord-online.json')
   })
 
   it('resizes once the map load event fires', () => {
