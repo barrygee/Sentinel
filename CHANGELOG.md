@@ -418,6 +418,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw the satellite brackets in black on bright basemaps (#369)
 - Stop the ADS-B and SDR connect 503s filling the console (#370)
 - Hide the antimeridian seam on the offline colour map (#373)
+- Remove green area fills from the colour map and hillshade from terrain (#374)
 
 ### Chores
 
