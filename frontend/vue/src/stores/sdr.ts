@@ -23,6 +23,10 @@ export interface SdrRadio {
   // A 'private' device still runs and holds its port but is hidden from the
   // operational radio list (SdrDeviceSelector filters it out) — see ADR-0009.
   visibility?: 'public' | 'private'
+  // Whether the backend can currently reach this radio's device (a mirrored
+  // dongle unplugged, or its Sentry host down, reports false) and why not.
+  device_available?: boolean
+  unavailable_reason?: string
 }
 
 export interface SdrFrequencyGroup {

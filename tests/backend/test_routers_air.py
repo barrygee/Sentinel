@@ -8,7 +8,9 @@ import logging
 import httpx
 
 from backend.config import settings
+from backend.routers import air as air_router
 from backend.services import adsb as adsb_service
+from backend.services.upstream_rate_limit import UpstreamThrottledError
 
 
 # ── /api/air/messages ─────────────────────────────────────────────────────────
@@ -332,6 +334,168 @@ class TestAdsbUpstreamFailover:
         assert resp.status_code == 200
         assert calls == [self.ONLINE]
         assert self._air_warnings(caplog) == ""
+
+
+# ── /api/air/adsb/point — borrowing the nearest cached row ────────────────────
+
+
+class TestAdsbNearbyCacheFallback:
+    """A fetch that cannot happen for a brand-new point borrows a nearby cached row.
+
+    The query point follows the map centre, so every pan lands on a cache key
+    with no row. Before this fallback, a locally throttled or rate-limited fetch
+    for such a key answered 503 — a console error on every pan — even though
+    aircraft for a point a few miles away were sitting in the cache.
+    """
+
+    ONLINE = "https://online.example/v2"
+    OFFGRID = "http://offgrid.example/data/aircraft.json"
+    # Radius 100 nm, so a row may stand in when its centre is within 50 nm.
+    RADIUS = 100
+
+    @classmethod
+    def _point(cls, lat: float, lon: float, radius: int | None = None) -> str:
+        return f"/api/air/adsb/point/{lat}/{lon}/{radius or cls.RADIUS}"
+
+    def _configure_sources(self, client):
+        client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
+        client.put(
+            "/api/settings/air/offgridDataSourceURL",
+            json={"value": {"url": self.OFFGRID}},
+        )
+
+    def _prime(self, client, monkeypatch, lat, lon, payload, radius=None):
+        """Cache `payload` for (lat, lon) through a successful upstream fetch."""
+
+        async def succeeding_fetch(fetch_lat, fetch_lon, fetch_radius, base_url):
+            return payload
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", succeeding_fetch)
+        resp = client.get(self._point(lat, lon, radius))
+        assert resp.headers["X-Cache"] == "MISS"
+
+    @staticmethod
+    def _fail_every_fetch(monkeypatch, error: Exception):
+        async def failing_fetch(fetch_lat, fetch_lon, fetch_radius, base_url):
+            raise error
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", failing_fetch)
+
+    @staticmethod
+    def _rate_limited() -> httpx.HTTPStatusError:
+        request = httpx.Request("GET", "https://online.example/v2/point")
+        response = httpx.Response(429, request=request)
+        return httpx.HTTPStatusError("slow down", request=request, response=response)
+
+    def test_throttled_fetch_serves_the_nearby_row(self, client, monkeypatch):
+        self._configure_sources(client)
+        payload = {"ac": [{"hex": "abc123"}], "total": 1}
+        self._prime(client, monkeypatch, 54.0, -1.5, payload)
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.3, -1.5))
+
+        assert resp.status_code == 200
+        assert resp.headers["X-Cache"] == "NEARBY"
+        assert resp.json() == payload
+
+    def test_rate_limited_fetch_serves_the_nearby_row(self, client, monkeypatch):
+        self._configure_sources(client)
+        payload = {"ac": [{"hex": "def456"}], "total": 1}
+        self._prime(client, monkeypatch, 54.0, -1.5, payload)
+        self._fail_every_fetch(monkeypatch, self._rate_limited())
+
+        resp = client.get(self._point(54.3, -1.5))
+
+        assert resp.status_code == 200
+        assert resp.headers["X-Cache"] == "NEARBY"
+
+    def test_unreachable_upstream_serves_the_nearby_row(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": [], "total": 0})
+        self._fail_every_fetch(monkeypatch, httpx.ConnectError("no route to host"))
+
+        resp = client.get(self._point(54.3, -1.5))
+
+        assert resp.headers["X-Cache"] == "NEARBY"
+
+    def test_the_closest_of_several_rows_wins(self, client, monkeypatch):
+        self._configure_sources(client)
+        # The far row is inserted first, so returning it would mean the query
+        # fell back to insertion order instead of ordering by distance.
+        self._prime(client, monkeypatch, 54.6, -1.5, {"ac": [{"hex": "far"}]})
+        self._prime(client, monkeypatch, 54.1, -1.5, {"ac": [{"hex": "near"}]})
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert resp.json() == {"ac": [{"hex": "near"}]}
+
+    def test_a_row_just_inside_half_the_radius_is_used(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": []})
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        # 0.8 degrees of latitude = 48 nm, under the 50 nm limit.
+        resp = client.get(self._point(54.8, -1.5))
+
+        assert resp.status_code == 200
+        assert resp.headers["X-Cache"] == "NEARBY"
+
+    def test_a_row_just_beyond_half_the_radius_is_not_used(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": []})
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        # 0.9 degrees of latitude = 54 nm, over the 50 nm limit.
+        resp = client.get(self._point(54.9, -1.5))
+
+        assert resp.status_code == 503
+
+    def test_longitude_is_scaled_by_latitude(self, client, monkeypatch):
+        """At 54N a degree of longitude is ~35 nm, not 60 nm.
+
+        1.3 degrees east is ~46 nm there, so the row qualifies; measuring
+        longitude like latitude would put it at 78 nm and wrongly refuse it.
+        """
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": []})
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -0.2))
+
+        assert resp.headers["X-Cache"] == "NEARBY"
+
+    def test_a_row_for_another_radius_is_not_borrowed(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": []}, radius=250)
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert resp.status_code == 503
+
+    def test_a_row_past_the_stale_window_is_not_borrowed(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": []})
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+        # Jump the router's clock past the stale window since the row was cached.
+        real_now = air_router.now_ms()
+        monkeypatch.setattr(
+            air_router, "now_ms", lambda: real_now + settings.adsb_stale_ms + 1_000
+        )
+
+        resp = client.get(self._point(54.3, -1.5))
+
+        assert resp.status_code == 503
+
+    def test_an_empty_cache_still_answers_503(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert resp.status_code == 503
 
 
 # ── /api/air/adsb/point — off-grid source with no Settings field ──────────────

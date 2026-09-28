@@ -14,6 +14,7 @@ Endpoints:
 
 import json
 import logging
+import math
 from urllib.parse import urlsplit
 
 import httpx
@@ -69,6 +70,39 @@ async def _record_history_bg(aircraft_list: list[dict]) -> None:
         await record_aircraft_batch(aircraft_list, db, now_ms())
 
 
+# How far (nm) a cached query centre may be from the requested one and still
+# stand in for it. Half the query radius keeps most of the requested area
+# covered by the borrowed row's own 250 nm circle.
+_NEARBY_FRACTION_OF_RADIUS = 0.5
+
+
+async def _nearest_recent_row(db: AsyncSession, lat: float, lon: float, radius: int) -> AdsbCache | None:
+    """Return the closest cached ADS-B row for the same radius, or None.
+
+    Only rows still inside the stale window are considered, and only one whose
+    centre lies within half the query radius of (lat, lon) — beyond that the
+    borrowed aircraft list would miss too much of the area being asked about.
+    """
+    oldest_usable = now_ms() - settings.adsb_stale_ms
+    lon_scale = math.cos(math.radians(lat))
+    # Equirectangular squared distance in degrees: plenty accurate at these ranges,
+    # and cheap enough for SQLite to order by.
+    squared_distance = (AdsbCache.lat - lat) * (AdsbCache.lat - lat) + ((AdsbCache.lon - lon) * lon_scale) * (
+        (AdsbCache.lon - lon) * lon_scale
+    )
+    result = await db.execute(
+        select(AdsbCache)
+        .where(AdsbCache.radius_nm == radius, AdsbCache.fetched_at >= oldest_usable)
+        .order_by(squared_distance)
+        .limit(1)
+    )
+    nearest = result.scalar_one_or_none()
+    if nearest is None:
+        return None
+    distance_nm = 60 * math.hypot(nearest.lat - lat, (nearest.lon - lon) * lon_scale)
+    return nearest if distance_nm <= radius * _NEARBY_FRACTION_OF_RADIUS else None
+
+
 @router.get("/adsb/point/{lat}/{lon}/{radius}")
 async def get_aircraft_near_point(
     lat: float,
@@ -86,6 +120,8 @@ async def get_aircraft_near_point(
       - THROTTLED: our own limiter declined the call (see adsb_min_request_interval_ms)
                 → serve existing cache row regardless of age
       - STALE:  upstream failed (non-429) but row within adsb_stale_ms → serve old data
+      - NEARBY: no row for this exact point and no fresh fetch → serve the nearest
+                recent row (the point tracks the map centre, so pans miss the cache)
       - 503:    upstream failed and no usable cached entry
     """
     # Build a deterministic cache key from the query parameters
@@ -195,6 +231,15 @@ async def get_aircraft_near_point(
             background_tasks.add_task(_record_history_bg, data.get("ac", []))
 
         return JSONResponse(content=data, headers={"X-Cache": "MISS"})
+
+    # No row for this exact point: the query point follows the map centre, so
+    # every pan lands on a fresh cache key. Borrow the nearest recent row so a
+    # throttled/rate-limited/failed fetch shows the aircraft we already have
+    # instead of a 503 (and a console error) until the next successful poll.
+    if row is None:
+        nearby_row = await _nearest_recent_row(db, lat, lon, radius)
+        if nearby_row is not None:
+            return JSONResponse(content=json.loads(nearby_row.payload), headers={"X-Cache": "NEARBY"})
 
     # Rate-limited: serve whatever we have cached, regardless of age
     if rate_limited and row:
