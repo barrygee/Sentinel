@@ -413,6 +413,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Correct the ISS downlink to the 437.800 MHz V/U repeater
 - Theme terrain contour ink per basemap so lines read (#363)
 - Draw range rings in black on light and colour basemaps (#364)
+- Offline preview, road styling, places of interest and TLE menu (#367)
 
 ### Chores
 
