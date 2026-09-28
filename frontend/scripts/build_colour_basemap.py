@@ -57,6 +57,8 @@ LAND: list = [
     "rgb(243, 244, 246)",
 ]
 
+WATER = "rgb(136, 194, 232)"
+
 # Layer id -> the colour paints it gets. Grouped the way the map reads, not the
 # way the layer list is ordered.
 COLOURS: dict[str, dict[str, str | list]] = {
@@ -64,8 +66,8 @@ COLOURS: dict[str, dict[str, str | list]] = {
     "background": {"background-color": LAND},
     "earth": {"fill-color": LAND},
     "surroundings_earth": {"fill-color": LAND},
-    "water": {"fill-color": "rgb(136, 194, 232)"},
-    "surroundings_water": {"fill-color": "rgb(136, 194, 232)"},
+    "water": {"fill-color": WATER},
+    "surroundings_water": {"fill-color": WATER},
     "waterway": {"line-color": "rgb(120, 184, 226)"},
     "coastline": {"line-color": "hsla(205, 66%, 42%, 0.55)"},
     "surroundings_coastline": {"line-color": "hsla(205, 66%, 42%, 0.55)"},
@@ -160,8 +162,25 @@ def colour_paints(layer_id: str) -> dict[str, str | list] | None:
     return None
 
 
+def source_background_is_water(style: dict) -> bool:
+    """Whether the source paints its background in its own water colour.
+
+    The offline builds draw land as an `earth` fill, so their background only
+    shows where no polygon covers the canvas — and the water polygons do not
+    quite meet at the 180° antimeridian. Painting the background as water hides
+    that seam; painting it as land draws a pale line down the ocean at 180°.
+    The online builds have no `earth` layer, so their background IS the land.
+    Follow whichever choice the source made.
+    """
+    paints = {layer["id"]: layer.get("paint", {}) for layer in style["layers"]}
+    background = paints.get("background", {}).get("background-color")
+    water = paints.get("water", {}).get("fill-color")
+    return background is not None and background == water
+
+
 def recolour(style: dict, source_name: str) -> dict:
     """Return `style` with every colour paint replaced from the table."""
+    background_is_water = source_background_is_water(style)
     missing: list[str] = []
     for layer in style["layers"]:
         paint = layer.get("paint")
@@ -172,6 +191,8 @@ def recolour(style: dict, source_name: str) -> dict:
             continue
 
         replacements = colour_paints(layer["id"])
+        if layer["id"] == "background" and background_is_water:
+            replacements = {"background-color": WATER}
         if replacements is None:
             missing.append(layer["id"])
             continue
