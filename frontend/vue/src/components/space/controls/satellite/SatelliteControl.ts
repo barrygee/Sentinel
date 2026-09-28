@@ -224,15 +224,18 @@ export class SatelliteControl extends SentinelControlBase {
       if (this.map.hasImage(n)) this.map.removeImage(n)
     })
     this.map.addImage('iss-icon-sprite', createSatelliteIcon(), { pixelRatio: 2, sdf: false })
-    this.map.addImage('iss-bracket-sprite', createSatBracket(), { pixelRatio: 2, sdf: false })
-
-    const trackVis = this.issVisible && this.trackVisible ? 'visible' : 'none'
-    const fpVis = this.issVisible && this.footprintVisible ? 'visible' : 'none'
-    const issVis = this.issVisible ? 'visible' : 'none'
 
     // One read per style load: a theme change reloads the basemap, which is
     // what brings this method round again.
     const trackColor = overlayAccentColor()
+    this.map.addImage('iss-bracket-sprite', createSatBracket(trackColor), {
+      pixelRatio: 2,
+      sdf: false,
+    })
+
+    const trackVis = this.issVisible && this.trackVisible ? 'visible' : 'none'
+    const fpVis = this.issVisible && this.footprintVisible ? 'visible' : 'none'
+    const issVis = this.issVisible ? 'visible' : 'none'
 
     this.map.addSource('iss-track-source', { type: 'geojson', data: this._trackGeojson })
     this.map.addSource('iss-footprint-source', { type: 'geojson', data: this._footprintGeojson })

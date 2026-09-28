@@ -98,6 +98,11 @@ describe('createSatBracket', () => {
     expect(lastContext.strokeStyle).toBe('#c8ff00')
   })
 
+  it('strokes the brackets in the colour it is given', () => {
+    createSatBracket('#000000')
+    expect(lastContext.strokeStyle).toBe('#000000')
+  })
+
   it('strokes one bracket per corner (four total)', () => {
     createSatBracket()
     expect(lastContext.stroke).toHaveBeenCalledTimes(4)

@@ -28,7 +28,13 @@ export function createSatelliteIcon(): ImageData {
   return ctx.getImageData(0, 0, size, size)
 }
 
-export function createSatBracket(): ImageData {
+/**
+ * Corner-bracket sprite framing the tracked satellite.
+ *
+ * @param color Bracket ink — pass `overlayAccentColor()` so the brackets read
+ *   black on the bright basemaps (light/colour) and lime on the dark one.
+ */
+export function createSatBracket(color = '#c8ff00'): ImageData {
   const size = 96
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = size
@@ -40,7 +46,7 @@ export function createSatBracket(): ImageData {
     arm = 14
   ctx.fillStyle = 'rgba(0,0,0,0.10)'
   ctx.fillRect(left, top, right - left, bottom - top)
-  ctx.strokeStyle = '#c8ff00'
+  ctx.strokeStyle = color
   ctx.lineWidth = 2.5
   ctx.lineCap = 'square'
   ;(
