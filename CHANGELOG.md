@@ -415,6 +415,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw range rings in black on light and colour basemaps (#364)
 - Offline preview, road styling, places of interest and TLE menu (#367)
 - Offline console errors, green areas, grey colour map and a Roads setting (#368)
+- Draw the satellite brackets in black on bright basemaps (#369)
 
 ### Chores
 
