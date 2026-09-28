@@ -57,6 +57,9 @@ const controlMocks = vi.hoisted(() => {
       setRadiusNm = vi.fn()
       destroy = vi.fn()
       renderAtTime = vi.fn()
+      // TerrainToggleControl's own method, called by useOfflineTierRefresh
+      // when the offline tiers version changes while showing the offline style.
+      refreshTiles = vi.fn()
       constructor(...args: unknown[]) {
         this.args = args
         ;(instances[name] ||= []).push(this as unknown as Record<string, unknown>)
@@ -168,6 +171,7 @@ const MapLibreMapStub = defineComponent({
 import AirMap from './AirMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
 import { useSettingsStore } from '@/stores/settings'
@@ -185,6 +189,7 @@ interface FakeMap {
   getCenter: ReturnType<typeof vi.fn>
   getZoom: ReturnType<typeof vi.fn>
   getPitch: ReturnType<typeof vi.fn>
+  getSource: ReturnType<typeof vi.fn>
 }
 
 function makeFakeMap(): FakeMap {
@@ -199,6 +204,9 @@ function makeFakeMap(): FakeMap {
     getCenter: vi.fn(() => ({ lng: 1, lat: 2 })),
     getZoom: vi.fn(() => 7),
     getPitch: vi.fn(() => 30),
+    // useOfflineTierRefresh's applyCurrentVersion() reads this on every style
+    // load; no source in this fake style, so it's a no-op (returns undefined).
+    getSource: vi.fn(() => undefined),
   }
 }
 
@@ -283,6 +291,35 @@ describe('AirMap', () => {
       shared.emit!('style-loaded', map)
       // Still exactly one adsb control — the guard returned early.
       expect(controlMocks.instances.adsb).toHaveLength(1)
+    })
+
+    it('refreshes the offline basemap tiles and the terrain control when a download completes while offline', async () => {
+      const app = useAppStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+      app.isOnline = false
+      await nextTick()
+      const offlineMapsStore = useOfflineMapsStore()
+      offlineMapsStore.status = {
+        basemap_available: true,
+        terrain_available: true,
+        basemap_max_zoom: 14,
+        terrain_max_zoom: 12,
+        free_bytes: 0,
+        used_bytes: 0,
+        sources_configured: true,
+        pmtiles_available: true,
+        tiers_version: 'v1',
+        avg_tile_bytes: { basemap: {}, terrain: {} },
+      }
+      await nextTick() // the first assignment (bootstrap) is skipped
+
+      offlineMapsStore.status = { ...offlineMapsStore.status, tiers_version: 'v2' }
+      await nextTick()
+
+      expect(map.getSource).toHaveBeenCalledWith('openmaptiles')
+      expect(last('terrain').refreshTiles).toHaveBeenCalledOnce()
     })
 
     it('runs a corrective style reload when connectivity changed before load', async () => {

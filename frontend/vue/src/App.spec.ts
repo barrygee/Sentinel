@@ -144,9 +144,23 @@ const RouterLinkStub = defineComponent({
   },
 })
 
+// App.vue's onMounted fetches offline-map status/regions unconditionally (so a
+// queued/running download resumes polling from app bootstrap) — stub the API
+// module so that round trip is deterministic rather than an unmocked `fetch`.
+const offlineMapsApiMock = vi.hoisted(() => ({
+  getOfflineMapStatus: vi.fn(),
+  listOfflineRegions: vi.fn(),
+}))
+vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/offlineMapsApi')>()),
+  getOfflineMapStatus: offlineMapsApiMock.getOfflineMapStatus,
+  listOfflineRegions: offlineMapsApiMock.listOfflineRegions,
+}))
+
 import App from './App.vue'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 
 function mountApp(options: { attach?: boolean } = {}) {
   return mount(App, {
@@ -177,6 +191,19 @@ describe('App', () => {
     footerProps = null
     localStorage.clear()
     document.body.innerHTML = ''
+    offlineMapsApiMock.getOfflineMapStatus.mockResolvedValue({
+      basemap_available: true,
+      terrain_available: true,
+      basemap_max_zoom: 14,
+      terrain_max_zoom: 12,
+      free_bytes: 0,
+      used_bytes: 0,
+      sources_configured: true,
+      pmtiles_available: true,
+      tiers_version: 'v1',
+      avg_tile_bytes: { basemap: {}, terrain: {} },
+    })
+    offlineMapsApiMock.listOfflineRegions.mockResolvedValue([])
   })
 
   describe('mount lifecycle', () => {
@@ -190,6 +217,14 @@ describe('App', () => {
       expect(shared.startGps).toHaveBeenCalled()
       expect(shared.airStart).toHaveBeenCalled()
       expect(shared.spaceStart).toHaveBeenCalled()
+    })
+
+    it('fetches offline-map status and regions so a running download resumes polling from app bootstrap', async () => {
+      mountApp()
+      await flushPromises()
+      expect(offlineMapsApiMock.getOfflineMapStatus).toHaveBeenCalled()
+      expect(offlineMapsApiMock.listOfflineRegions).toHaveBeenCalled()
+      expect(useOfflineMapsStore().status).toMatchObject({ tiers_version: 'v1' })
     })
   })
 

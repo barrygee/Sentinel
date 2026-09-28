@@ -482,7 +482,7 @@ describe('SettingsPanel', () => {
   // so there is no longer a staged edit for that event to supersede.
 
   describe('group labels', () => {
-    it('groups App Settings under GENERAL, LOCATION and CONFIGURATION', async () => {
+    it('groups App Settings under GENERAL, LOCATION, MAPS and CONFIGURATION', async () => {
       const store = useSettingsStore()
       store.openPanel('app')
       const wrapper = mountPanel()
@@ -490,8 +490,27 @@ describe('SettingsPanel', () => {
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'GENERAL',
         'LOCATION',
+        'MAPS',
         'CONFIGURATION',
       ])
+    })
+
+    it('puts every map setting together under MAPS', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      // SettingRow is stubbed here, so read each row's item prop rather than its text.
+      const titles = wrapper
+        .findAllComponents({ name: 'SettingRow' })
+        .map((row) => (row.props('item') as { label: string }).label)
+      const mapsStart = titles.indexOf('Map Style')
+      expect(titles.slice(mapsStart, mapsStart + 3)).toEqual([
+        'Map Style',
+        'Range Ring Origin',
+        'Offline Maps',
+      ])
+      expect(titles.indexOf('Sentinel Location')).toBe(mapsStart - 1)
     })
   })
 

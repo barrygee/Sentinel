@@ -368,15 +368,6 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'app',
     sectionLabel: 'App Settings',
-    id: 'map-theme',
-    label: 'Map',
-    desc: 'The basemap palette — dark, light, or the full-colour cartographic build. Set independently of the interface',
-    searchTerms: 'theme light dark colour color mode palette appearance basemap map cartographic',
-    type: 'map-theme',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
     id: 'location',
     label: 'Sentinel Location',
     desc: 'Set a fixed latitude / longitude for your position',
@@ -386,11 +377,34 @@ const ALL_SETTINGS: SettingItem[] = [
   {
     section: 'app',
     sectionLabel: 'App Settings',
+    id: 'map-theme',
+    label: 'Map Style',
+    desc: 'The basemap palette — dark, light, or the full-colour cartographic build. Set independently of the interface',
+    searchTerms:
+      'theme light dark colour color mode palette appearance basemap map style cartographic',
+    type: 'map-theme',
+    groupLabel: 'MAPS',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
     id: 'range-ring-origin',
     label: 'Range Ring Origin',
     desc: 'The point range rings are drawn around on the Air and Land maps — the location of your Sentinel instance, or a Sentry site',
     searchTerms: 'range rings sentry centre center origin',
     type: 'range-ring-origin',
+    groupLabel: 'MAPS',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'offline-maps',
+    label: 'Offline Maps',
+    desc: 'Download basemap and terrain tiles for an area so it works with no connection',
+    searchTerms:
+      'offline download area region pmtiles terrain basemap dark light colour cartographic',
+    type: 'offline-maps',
+    groupLabel: 'MAPS',
   },
   {
     section: 'air',

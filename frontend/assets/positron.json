@@ -8,7 +8,9 @@
   "sources": {
     "openmaptiles": {
       "type": "vector",
-      "url": "pmtiles:///assets/tiles/uk.pmtiles"
+      "tiles": ["/api/offline-map/basemap/{z}/{x}/{y}"],
+      "minzoom": 0,
+      "maxzoom": 14
     },
     "surroundings": {
       "type": "vector",

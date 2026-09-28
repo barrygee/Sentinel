@@ -27,6 +27,9 @@ const controlMocks = vi.hoisted(() => {
       setOrigin = vi.fn()
       setVisible = vi.fn()
       handleClickPublic = vi.fn()
+      // TerrainToggleControl's own method, called by useOfflineTierRefresh
+      // when the offline tiers version changes while showing the offline style.
+      refreshTiles = vi.fn()
       visible = false
       constructor(...args: unknown[]) {
         this.args = args
@@ -124,6 +127,7 @@ import SeaMap from './SeaMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSeaStore } from '@/stores/sea'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import { useBasemapStore } from '@/stores/basemap'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
@@ -137,6 +141,7 @@ interface FakeMap {
   getZoom: ReturnType<typeof vi.fn>
   getContainer: () => HTMLElement
   nativeCtrl: HTMLElement
+  getSource: ReturnType<typeof vi.fn>
 }
 
 function makeFakeMap(): FakeMap {
@@ -155,6 +160,9 @@ function makeFakeMap(): FakeMap {
     getZoom: vi.fn(() => 8),
     getContainer: () => container,
     nativeCtrl,
+    // useOfflineTierRefresh's applyCurrentVersion() reads this on every style
+    // load; no source in this fake style, so it's a no-op (returns undefined).
+    getSource: vi.fn(() => undefined),
   }
 }
 
@@ -195,6 +203,35 @@ describe('SeaMap', () => {
     app.isOnline = false
     await nextTick()
     expect(stub.props('styleUrl')).toBe('/assets/fiord.json')
+  })
+
+  it('refreshes the offline basemap tiles and the terrain control when a download completes while offline', async () => {
+    const app = useAppStore()
+    const map = makeFakeMap()
+    mountMap()
+    bringUp(map)
+    app.isOnline = false
+    await nextTick()
+    const offlineMapsStore = useOfflineMapsStore()
+    offlineMapsStore.status = {
+      basemap_available: true,
+      terrain_available: true,
+      basemap_max_zoom: 14,
+      terrain_max_zoom: 12,
+      free_bytes: 0,
+      used_bytes: 0,
+      sources_configured: true,
+      pmtiles_available: true,
+      tiers_version: 'v1',
+      avg_tile_bytes: { basemap: {}, terrain: {} },
+    }
+    await nextTick() // the first assignment (bootstrap) is skipped
+
+    offlineMapsStore.status = { ...offlineMapsStore.status, tiers_version: 'v2' }
+    await nextTick()
+
+    expect(map.getSource).toHaveBeenCalledWith('openmaptiles')
+    expect(last('terrain').refreshTiles).toHaveBeenCalledOnce()
   })
 
   it('opens where the operator left the map, or on the UK by default', () => {

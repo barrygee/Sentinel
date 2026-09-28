@@ -7,6 +7,7 @@
       :checked="checked"
       :disabled="disabled"
       :aria-label="accessibleName"
+      :aria-describedby="describedById"
       @change="emit('change', $event)"
     />
     <span :class="boxClass">
@@ -67,12 +68,16 @@ withDefaults(
      * `BaseToggleSwitch`.
      */
     accessibleName?: string
+    /** `id` of an element describing extra state/constraints (e.g. "at least one of
+     *  these must stay checked") — set when that context isn't in the visible label. */
+    describedById?: string
   }>(),
   {
     inputClass: undefined,
     boxClass: undefined,
     disabled: false,
     accessibleName: undefined,
+    describedById: undefined,
   },
 )
 

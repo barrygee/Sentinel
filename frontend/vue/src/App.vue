@@ -149,6 +149,7 @@ import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -156,6 +157,7 @@ const settingsStore = useSettingsStore()
 const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocation()
 const { hydrateFromConfig: hydrateRingOriginFromConfig } = useRangeRingOrigin()
 const notificationsStore = useNotificationsStore()
+const offlineMapsStore = useOfflineMapsStore()
 
 onMounted(async () => {
   // Reconcile with the config first: a valid config location seeds the
@@ -170,6 +172,11 @@ onMounted(async () => {
   // aircraft/overhead/satellite-pass alerts fire from any page.
   useAirAlertsService().start()
   useSpaceAlertsService().start()
+  // Offline-map downloads keep running server-side whether or not Settings is
+  // open — fetch status/regions once here so a queued/running job resumes
+  // polling from app bootstrap, not only when the Settings panel is mounted.
+  void offlineMapsStore.fetchStatus()
+  void offlineMapsStore.fetchRegions()
 })
 
 // Surface the "no location available" state as a single app-wide alerts-panel

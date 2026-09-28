@@ -29,6 +29,8 @@ import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
+import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
@@ -46,6 +48,7 @@ const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
 const sentrySitesStore = useSentrySitesStore()
 const themeStore = useThemeStore()
+const offlineMapsStore = useOfflineMapsStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
@@ -75,6 +78,14 @@ let terrainControl: TerrainToggleControl | null = null
 // Sentry sites are plotted on every domain map — no side-menu button.
 let sentrySitesControl: SentrySitesControl | null = null
 
+// Reload the offline basemap/terrain tiles when a download job completes
+// while this map is showing the offline style — see the composable's doc.
+const offlineTierRefresh = useOfflineTierRefresh(
+  () => _map,
+  () => !appStore.isOnline,
+  () => terrainControl,
+)
+
 defineExpose({
   getVesselsControl: () => vesselsControl,
   getFerryRoutes: () => ferryRoutesControl,
@@ -91,17 +102,20 @@ function _reinitAfterStyle(): void {
   vesselsControl?.initLayers()
   ferryRoutesControl?.initLayers()
   portsControl?.initLayers()
+  offlineTierRefresh.applyCurrentVersion()
 }
 
-/** Load `styleUrl` if it isn't already loaded, re-adding the overlays after. */
-function syncStyleToState(): void {
+/** Load `styleUrl` if it isn't already loaded, re-adding the overlays after.
+ *  Returns whether a reload was actually triggered. */
+function syncStyleToState(): boolean {
   const m = _map
-  if (!m) return
+  if (!m) return false
   const targetStyle = styleUrl.value
-  if (_currentStyleUrl === targetStyle) return
+  if (_currentStyleUrl === targetStyle) return false
   _currentStyleUrl = targetStyle
   setMapStyle(m, targetStyle)
   m.once('style.load', _reinitAfterStyle)
+  return true
 }
 
 useConnectivity(syncStyleToState)
@@ -126,7 +140,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
-  terrainControl = new TerrainToggleControl(basemapStore)
+  terrainControl = new TerrainToggleControl(basemapStore, offlineMapsStore)
   sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
     getUserLocation,
     userMarker: _locationMarker,
@@ -152,7 +166,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
 
   // The connectivity probe (or a theme change) may have landed before _map was
   // set; correct the style now that the controls exist to re-init on it.
-  syncStyleToState()
+  if (!syncStyleToState()) offlineTierRefresh.applyCurrentVersion()
 }
 
 function _clearLocationVisuals(): void {

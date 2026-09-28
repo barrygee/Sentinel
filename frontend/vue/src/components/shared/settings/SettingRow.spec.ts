@@ -7,6 +7,13 @@ import { shallowMount } from '@vue/test-utils'
 // byte-range offsets, so the merge creates phantom uncovered function entries.
 // shallowMount already stubs child components so the mock doesn't affect test behaviour.
 vi.mock('./ExportAllControl.vue', () => ({ default: { name: 'ExportAllControl' } }))
+// Same reasoning as ExportAllControl above: OfflineMapsSettings owns its own
+// MapLibre instance and a dozen sub-components, all covered by their own
+// specs — mock it here so SettingRow's dispatch test doesn't create a second,
+// differently-offset function-coverage record for it.
+vi.mock('./offline-maps/OfflineMapsSettings.vue', () => ({
+  default: { name: 'OfflineMapsSettings' },
+}))
 import type { Component } from 'vue'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
@@ -48,6 +55,7 @@ import SdrOptionsControl from './SdrOptionsControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ExportAllControl from './ExportAllControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
+import OfflineMapsSettings from './offline-maps/OfflineMapsSettings.vue'
 
 function mountRow(item: Partial<SettingItem> & { type: string }) {
   const fullItem: SettingItem = {
@@ -105,6 +113,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sdr-bandplan-file', JsonDataControl],
   ['config-current', ConfigCurrentControl],
   ['export-all', ExportAllControl],
+  ['offline-maps', OfflineMapsSettings],
 ]
 
 describe('SettingRow', () => {

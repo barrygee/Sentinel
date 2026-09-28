@@ -9,11 +9,42 @@ COPY frontend/assets/ /repo/frontend/assets/
 # outDir is ../../frontend/spa-dist — resolves to /repo/frontend/spa-dist
 RUN npm run build
 
-# ── Stage 2: Python backend ───────────────────────────────────────────────────
+# ── Stage 2: fetch the pinned go-pmtiles binary ───────────────────────────────
+# go-pmtiles (the CLI used for `pmtiles extract` region downloads — distinct
+# from the Python `pmtiles` package used for local tile serving) publishes no
+# checksums.txt file, but GitHub itself records a SHA-256 digest per release
+# asset. The sums below were confirmed against those on 2026-09-27 via:
+#   gh api repos/protomaps/go-pmtiles/releases/tags/v1.31.2 --jq \
+#     '.assets[] | select(.name | contains("Linux")) | "\(.name) \(.digest)"'
+# Re-run that (or `curl -sL <asset-url> | sha256sum` against the same asset)
+# and update both the version and the two hashes on any version bump.
+FROM debian:bookworm-slim AS pmtiles-fetcher
+ARG TARGETARCH
+ARG PMTILES_VERSION=1.31.2
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /tmp/pmtiles
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      amd64) archive="go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"; \
+             sha256="3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f" ;; \
+      arm64) archive="go-pmtiles_${PMTILES_VERSION}_Linux_arm64.tar.gz"; \
+             sha256="f8bd47e7ea866863489cad588fbaf2f31f42e5821f7a03f009b3769f05801cb1" ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o "${archive}" \
+      "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/${archive}"; \
+    echo "${sha256}  ${archive}" | sha256sum -c -; \
+    tar -xzf "${archive}"; \
+    install -m 0755 pmtiles /usr/local/bin/pmtiles
+
+# ── Stage 3: Python backend ───────────────────────────────────────────────────
 FROM python:3.12-slim
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=pmtiles-fetcher /usr/local/bin/pmtiles /usr/local/bin/pmtiles
 
 ENV UV_HTTP_TIMEOUT=120
 

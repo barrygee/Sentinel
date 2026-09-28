@@ -1,4 +1,10 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+# Repo root, used to resolve the bundled base PMTiles archives from a relative
+# default without depending on the process's current working directory.
+_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -197,6 +203,41 @@ class Settings(BaseSettings):
     # Read timeout (seconds) for calls to a Sentry host, once connected.
     sentry_read_timeout_s: float = 5.0
 
+    # ── Offline map downloads (user-selected region extracts) ────────────────
+    # Where extracted region archives (<uuid>.pmtiles / <uuid>.terrain.pmtiles)
+    # and their in-progress .part files are stored. Empty means "next to the
+    # database file" (<dir of db_path>/tiles — in Docker that's the existing
+    # sentinel_db volume at /app/data/tiles, so no new compose volume is
+    # required). Resolved and created on startup.
+    offline_tiles_dir: str = ""
+    # Planet build that basemap downloads are cut from. Empty (the default)
+    # means "find the newest Protomaps Basemap v4 build automatically"
+    # (services/offline_map/basemap_source.py): Protomaps deletes each dated
+    # build after about a week, so a fixed address would soon stop working.
+    # Set it only to use a specific build, e.g. a self-hosted copy.
+    offline_basemap_source_url: str = ""
+    # Where the automatic lookup reads the list of available builds from, and
+    # the host the dated build files live on.
+    offline_basemap_builds_index_url: str = "https://build-metadata.protomaps.dev/builds.json"
+    offline_basemap_builds_base_url: str = "https://build.protomaps.com"
+    # Mapterhorn's whole-planet Terrarium DEM archive (z0–12), the same source
+    # our bundled uk-terrain.pmtiles was built from.
+    offline_terrain_source_url: str = "https://download.mapterhorn.com/planet.pmtiles"
+    # Path/name of the go-pmtiles binary (bundled in backend/Dockerfile; must be
+    # on PATH or an absolute path for local, non-Docker dev).
+    pmtiles_bin: str = "pmtiles"
+    # Bundled base archives that every tile resolver falls back to underneath
+    # any downloaded regions. Relative paths are resolved from the repo root.
+    offline_basemap_base_archive: str = str(_ROOT_DIR / "frontend" / "assets" / "tiles" / "uk.pmtiles")
+    offline_terrain_base_archive: str = str(_ROOT_DIR / "frontend" / "assets" / "tiles" / "uk-terrain.pmtiles")
+    # Safety margin applied on top of the estimated download size when checking
+    # free disk space before queuing a job (10% — matches the plan's "estimate
+    # plus a 10% margin" gate).
+    offline_disk_margin_ratio: float = 1.10
+    # How often (seconds) the job runner samples the growing .part file(s) to
+    # update a running region's bytes_done for polling clients.
+    offline_progress_sample_s: float = 1.0
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -204,3 +245,24 @@ class Settings(BaseSettings):
 
 # Singleton settings object — imported by all modules that need configuration
 settings = Settings()
+
+
+def resolved_offline_tiles_dir() -> Path:
+    """Resolve `settings.offline_tiles_dir` to an absolute directory.
+
+    An empty value (the default) means "next to the database file" —
+    `<dir of db_path>/tiles` — resolved against the repo root exactly like
+    `db_path` itself, so it lands on the `sentinel_db` volume in Docker
+    (`/app/data/tiles`) rather than silently resolving to `Path("")` (the
+    process's current working directory — the container's ephemeral layer in
+    Docker, or the repo root locally) if a caller forgets this step. Every
+    reader of the tiles directory (the job runner, the tile resolver, the
+    status endpoint's disk-usage scan) must go through this one function
+    rather than reading `settings.offline_tiles_dir` directly.
+    """
+    if settings.offline_tiles_dir:
+        return Path(settings.offline_tiles_dir)
+    db_path = Path(settings.db_path)
+    if not db_path.is_absolute():
+        db_path = _ROOT_DIR / db_path
+    return db_path.parent / "tiles"

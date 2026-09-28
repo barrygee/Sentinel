@@ -1,13 +1,15 @@
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@/stores/basemap'
+import type { OfflineMapsStore } from '@/stores/offlineMaps'
 import type { MapTheme } from '@/stores/theme'
 import { currentMapTheme } from '@/utils/mapTheme'
+import { withTierVersion } from '@/utils/offlineTileVersion'
+import { getOfflineMapStatus } from '@/services/offlineMapsApi'
 import {
   CONTOUR_MAX_ZOOM,
   CONTOUR_MIN_ZOOM,
-  TERRAIN_PMTILES_PATH,
-  TERRAIN_PMTILES_URL,
   TERRAIN_TILE_SIZE,
+  TERRAIN_TILE_URL_TEMPLATE,
   loadTerrainDem,
   type TerrainDem,
 } from './terrainDem'
@@ -71,24 +73,36 @@ export const CONTOUR_PALETTES: Record<MapTheme, ContourPalette> = {
 }
 
 /**
- * Hillshade + contour-line overlay driven entirely by a local DEM archive.
- * Shared by the Air, Sea and Land maps — like roads and place names, the
- * visibility lives on the cross-domain basemap store, so the choice follows
- * the operator from one map to the next. Sources and layers are only added
- * while the overlay is on, so a missing archive costs nothing until the user
- * asks for terrain — at which point the layer is marked unavailable on the
- * store (the rails disable their buttons) and the title says what to install.
+ * Hillshade + contour-line overlay, its DEM served by the backend's offline-map
+ * terrain resolver rather than a local archive opened in the browser (see
+ * `terrainDem.ts`'s doc comment for the full resolver chain). Shared by the
+ * Air, Sea and Land maps — like roads and place names, the visibility lives on
+ * the cross-domain basemap store, so the choice follows the operator from one
+ * map to the next. Sources and layers are only added while the overlay is on,
+ * so a first-ever toggle costs one `/api/offline-map/status` round trip.
+ *
+ * Availability (M1): unavailable is a STATUS FACT (`status.terrain_available
+ * === false`), never inferred from a fetch/configuration error — a transient
+ * network failure leaves `available`/the persisted `terrain` layer preference
+ * untouched and simply retries on the next `initLayers()` call (a toggle, a
+ * style reload, or `refreshTiles()`), per the "don't punish a blip" rule.
  */
 export class TerrainToggleControl extends SentinelControlBase {
   visible: boolean
-  /** False once the DEM archive turned out to be missing. */
+  /** False only once the server has actually SAID no terrain source is configured. */
   available: boolean
   private _basemapStore: BasemapStore
+  private _offlineMapsStore: OfflineMapsStore
   private _dem: TerrainDem | null = null
+  /** `status.terrain_max_zoom`, fetched once and reused by every later toggle/style-reload. */
+  private _maxZoom: number | null = null
+  /** The tiers version the current `_dem` (if any) was built against. */
+  private _tiersVersion: string | null = null
 
-  constructor(basemapStore: BasemapStore) {
+  constructor(basemapStore: BasemapStore, offlineMapsStore: OfflineMapsStore) {
     super()
     this._basemapStore = basemapStore
+    this._offlineMapsStore = offlineMapsStore
     this.visible = basemapStore.layers.terrain
     this.available = basemapStore.terrainAvailable
   }
@@ -141,26 +155,87 @@ export class TerrainToggleControl extends SentinelControlBase {
     void this._ensureLayers()
   }
 
-  private async _ensureLayers(): Promise<void> {
-    try {
-      this._dem ??= await loadTerrainDem()
-    } catch (err) {
-      this._markUnavailable(err)
+  /**
+   * Called by `useOfflineTierRefresh` whenever `offlineMapsStore.tiersVersion`
+   * changes (a region completed or was deleted) while this map is showing the
+   * offline style. Two independent jobs:
+   *  - if we are currently disabled, re-probe `/status` — a completed terrain
+   *    region can turn `terrain_available` true without needing a reload
+   *    (M1);
+   *  - if we already have layers up, rebuild them against the new version so
+   *    the raster-dem tiles and the contour vector tiles both refetch instead
+   *    of serving what MapLibre cached as "no tile here" while offline.
+   */
+  refreshTiles(): void {
+    if (!this.available) {
+      void this._recheckAvailability()
       return
     }
-    // Toggled off (or the control was removed) while the archive was opening.
+    const currentTiersVersion = this._offlineMapsStore.tiersVersion
+    if (currentTiersVersion === this._tiersVersion) return
+    this._tiersVersion = currentTiersVersion
+    this._dem = null
+    if (!this.visible || !this.map) return
+    this._removeLayers()
+    void this._ensureLayers()
+  }
+
+  private async _recheckAvailability(): Promise<void> {
+    try {
+      const status = await getOfflineMapStatus()
+      if (!status.terrain_available) return
+      this.available = true
+      this._maxZoom = status.terrain_max_zoom
+      this._enableButton()
+      if (this.visible && this.map) void this._ensureLayers()
+    } catch {
+      // Still can't confirm — leave disabled and try again on the next
+      // tiersVersion change or manual toggle (M3: a failed poll/probe must
+      // not be treated as a final answer).
+    }
+  }
+
+  private async _ensureLayers(): Promise<void> {
+    if (this._maxZoom === null) {
+      let status
+      try {
+        status = await getOfflineMapStatus()
+      } catch (error) {
+        // Transient — leave `available`/the persisted preference untouched
+        // and retry on the next initLayers()/refreshTiles() call (M1/M3).
+        console.warn('terrain: status fetch failed, will retry', error)
+        return
+      }
+      if (!status.terrain_available) {
+        this._markUnavailable('terrain: server reports no terrain source configured')
+        return
+      }
+      this._maxZoom = status.terrain_max_zoom
+      this._tiersVersion = this._offlineMapsStore.tiersVersion
+    }
+    try {
+      this._dem ??= await loadTerrainDem(this._maxZoom, this._tiersVersion)
+    } catch (error) {
+      // Configuring the DemSource is local (no network of its own) and should
+      // not normally fail, but treat it the same as a status-fetch hiccup
+      // rather than a hard "unavailable" — see M1.
+      console.warn('terrain: DEM configuration failed, will retry', error)
+      this._dem = null
+      return
+    }
+    // Toggled off (or the control was removed) while the status/DEM lookup was in flight.
     if (!this.visible || !this.map) return
     if (this.map.getSource(HILLSHADE_SOURCE)) return
     try {
       this._addLayers(this._dem)
-    } catch (err) {
+    } catch (error) {
       // A style swap raced the archive open; the style.load re-init will retry.
-      console.warn('terrain: deferring overlay until the style is ready', err)
+      console.warn('terrain: deferring overlay until the style is ready', error)
     }
   }
 
-  private _markUnavailable(err: unknown): void {
-    console.warn(`terrain: DEM archive not available at ${TERRAIN_PMTILES_PATH}`, err)
+  private _markUnavailable(reason: string): void {
+    console.warn(reason)
     this.available = false
     this.visible = false
     this._basemapStore.setLayer('terrain', false)
@@ -170,10 +245,17 @@ export class TerrainToggleControl extends SentinelControlBase {
   }
 
   private _disableButton(): void {
-    this.button.title = `Terrain tiles not installed — add ${TERRAIN_PMTILES_PATH} (see README)`
+    this.button.title = 'Terrain data not available on this server'
     this.button.setAttribute('aria-label', this.button.title)
     this.button.disabled = true
     this.button.style.cursor = 'not-allowed'
+  }
+
+  private _enableButton(): void {
+    this.button.title = this.buttonTitle
+    this.button.setAttribute('aria-label', this.buttonTitle)
+    this.button.disabled = false
+    this.button.style.cursor = ''
   }
 
   private _addLayers(dem: TerrainDem): void {
@@ -185,9 +267,10 @@ export class TerrainToggleControl extends SentinelControlBase {
 
     map.addSource(HILLSHADE_SOURCE, {
       type: 'raster-dem',
-      url: TERRAIN_PMTILES_URL,
+      tiles: [withTierVersion(TERRAIN_TILE_URL_TEMPLATE, this._tiersVersion)],
       encoding: 'terrarium',
       tileSize: TERRAIN_TILE_SIZE,
+      maxzoom: dem.maxzoom,
     })
     map.addLayer(
       {
@@ -210,7 +293,6 @@ export class TerrainToggleControl extends SentinelControlBase {
     map.addSource(CONTOUR_SOURCE, {
       type: 'vector',
       tiles: [dem.contourTilesUrl],
-      bounds: dem.bounds,
       minzoom: CONTOUR_MIN_ZOOM,
       maxzoom: CONTOUR_MAX_ZOOM,
     })

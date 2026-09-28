@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=1.26",
     "aiofiles>=24.1",
     "websockets>=13",
+    "pmtiles>=3.8.1",
 ]
 
 [dependency-groups]
@@ -25,6 +26,7 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "ruff>=0.7",
     "mypy>=1.13",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.ruff]

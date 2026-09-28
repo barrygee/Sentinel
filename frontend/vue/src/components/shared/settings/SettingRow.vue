@@ -184,6 +184,10 @@
       @stage="emit('stage', item.id, $event)"
     />
     <ExportAllControl v-else-if="item.type === 'export-all'" />
+    <!-- Owns its own map, form, progress and region list — no stage/commit:
+         every action (draw, download, delete) applies immediately, like the
+         other map/data controls (SentryHostsControl, SdrDevicesControl). -->
+    <OfflineMapsSettings v-else-if="item.type === 'offline-maps'" />
   </div>
 </template>
 
@@ -226,6 +230,7 @@ import SdrOptionsControl from './SdrOptionsControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ExportAllControl from './ExportAllControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
+import OfflineMapsSettings from './offline-maps/OfflineMapsSettings.vue'
 
 const props = defineProps<{
   item: SettingItem
@@ -266,7 +271,12 @@ const HALF_TYPES = new Set([
 const HALF_STACKED_TYPES = new Set(['sdr-frequencies-file', 'sdr-bandplan-file'])
 // The remaining raw-JSON editors take the full row, at the width indented JSON
 // wants — neither has a sibling to pair with.
-const FULL_TYPES = new Set(['space-sat-radio-file', 'land-repeaters-file', 'config-current'])
+const FULL_TYPES = new Set([
+  'space-sat-radio-file',
+  'land-repeaters-file',
+  'config-current',
+  'offline-maps',
+])
 const NATURAL_HEIGHT_TYPES = new Set([
   'location',
   'sea-ais-key',
@@ -276,6 +286,7 @@ const NATURAL_HEIGHT_TYPES = new Set([
   'sea-map-layers',
   'land-map-layers',
   'overhead-alerts',
+  'offline-maps',
 ])
 const isTriple = false
 const isHalf = HALF_TYPES.has(props.item.type)

@@ -32,6 +32,8 @@ import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { useOverheadAlertZones } from '@/composables/useOverheadAlertZones'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
+import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
+import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 
@@ -61,6 +63,7 @@ const settingsStore = useSettingsStore()
 const playbackStore = usePlaybackStore()
 const sentrySitesStore = useSentrySitesStore()
 const themeStore = useThemeStore()
+const offlineMapsStore = useOfflineMapsStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
@@ -113,6 +116,14 @@ let clearControl: ClearOverlaysControl | null = null
 // SentrySitesControl. No side-menu button: the sites are always shown.
 let sentrySitesControl: SentrySitesControl | null = null
 
+// Reload the offline basemap/terrain tiles when a download job completes
+// while this map is showing the offline style — see the composable's doc.
+const offlineTierRefresh = useOfflineTierRefresh(
+  () => _map,
+  () => !appStore.isOnline,
+  () => terrainControl,
+)
+
 // Expose for AirSideMenu
 const getAdsbControl = () => adsbControl
 const getAdsbLabels = () => adsbLabelsControl
@@ -158,6 +169,7 @@ function reinitAfterStyleLoad(): void {
   awacsControl?.initLayers()
   adsbControl?.initLayers()
   adsbControl?.handleConnectivityChange()
+  offlineTierRefresh.applyCurrentVersion()
 }
 
 /** Load `styleUrl` if it isn't already loaded, re-adding the overlays after. */
@@ -226,7 +238,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   })
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
-  terrainControl = new TerrainToggleControl(basemapStore)
+  terrainControl = new TerrainToggleControl(basemapStore, offlineMapsStore)
   airportsControl = new AirportsToggleControl(airStore)
   militaryBasesControl = new MilitaryBasesToggleControl(airStore, is3DActive)
   aaraControl = new AaraToggleControl(airStore)
@@ -270,7 +282,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // (e.g. the offgrid probe fired before _map was set, so the callback was a
   // no-op), the map has loaded the wrong style. Correct it now that the
   // controls exist to be re-added.
-  syncStyleToState()
+  if (!syncStyleToState()) offlineTierRefresh.applyCurrentVersion()
 }
 
 async function _loadMultiPlayback(): Promise<void> {
