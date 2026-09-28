@@ -32,21 +32,7 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": [
-          "interpolate",
-          [
-            "linear"
-          ],
-          [
-            "zoom"
-          ],
-          4,
-          "rgb(229, 231, 234)",
-          7,
-          "rgb(236, 238, 240)",
-          10,
-          "rgb(243, 244, 246)"
-        ]
+        "background-color": "rgb(136, 194, 232)"
       }
     },
     {
