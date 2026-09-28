@@ -187,6 +187,18 @@ export function useSdrControlSocket(options: UseSdrControlSocketOptions) {
     _ctrlDataConfirmed = false
     sessionStorage.setItem('sdrLastRadioId', String(radioId))
 
+    // The radio list already says this device is unreachable, so the connect
+    // POST would only be refused with a 503 — which the browser logs as a
+    // console error on every page that mounts the panel. Report the reason
+    // straight away instead; a later radio-list load that finds the device
+    // back re-runs selection and connects then.
+    const knownRadio = _sdrStore().radios.find((radio) => radio.id === radioId)
+    if (knownRadio?.device_available === false) {
+      closeControlSocket()
+      onDeviceUnavailable(knownRadio.unavailable_reason || 'That radio is currently unavailable.')
+      return
+    }
+
     try {
       const res = await fetch('/api/sdr/connect', {
         method: 'POST',

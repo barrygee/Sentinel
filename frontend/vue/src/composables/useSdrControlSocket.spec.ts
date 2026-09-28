@@ -482,3 +482,74 @@ describe('a radio whose device is unavailable', () => {
     expect(onDeviceUnavailable).toHaveBeenCalledWith('That radio is currently unavailable.')
   })
 })
+
+describe('a radio the radio list already reports as unavailable', () => {
+  /**
+   * The backend's radio list carries `device_available`, so a radio known to be
+   * unreachable need not be dialled at all: the connect POST would only be
+   * refused with a 503, which the browser logs as a console error on every page
+   * that mounts the panel.
+   */
+  function seedRadio(overrides: Record<string, unknown>) {
+    useSdrStore().radios = [
+      { id: 1, name: 'RTL-SDR V4', host: 'h', port: 1234, enabled: true, ...overrides },
+    ]
+  }
+
+  it('reports the list reason without calling the connect endpoint', async () => {
+    seedRadio({ device_available: false, unavailable_reason: 'Its Sentry host is not reachable.' })
+    const { socket, onDeviceUnavailable } = createHarness()
+
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(onDeviceUnavailable).toHaveBeenCalledWith('Its Sentry host is not reachable.')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(FakeWebSocket.instances).toHaveLength(0)
+  })
+
+  it('falls back to a general message when the list gives no reason', async () => {
+    seedRadio({ device_available: false })
+    const { socket, onDeviceUnavailable } = createHarness()
+
+    await socket.openControlSocket(1)
+
+    expect(onDeviceUnavailable).toHaveBeenCalledWith('That radio is currently unavailable.')
+  })
+
+  it('keeps the stored radio id so the selection survives until the device returns', async () => {
+    seedRadio({ device_available: false })
+    const { socket } = createHarness()
+
+    await socket.openControlSocket(1)
+
+    expect(sessionStorage.getItem('sdrLastRadioId')).toBe('1')
+  })
+
+  it('connects once the list reports the device available again', async () => {
+    seedRadio({ device_available: false })
+    const { socket, onDeviceUnavailable } = createHarness()
+    await socket.openControlSocket(1)
+    onDeviceUnavailable.mockClear()
+
+    seedRadio({ device_available: true })
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(onDeviceUnavailable).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledWith('/api/sdr/connect', expect.anything())
+    expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+
+  it('still dials a radio whose availability the list does not state', async () => {
+    // Older backends (and hand-typed radios) omit the field entirely; only an
+    // explicit false may skip the connect.
+    seedRadio({})
+    const { socket } = createHarness()
+
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/sdr/connect', expect.anything())
+  })
+})
