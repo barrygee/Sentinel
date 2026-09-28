@@ -47,6 +47,10 @@ vi.mock('maplibre-contour', () => ({
         fakes.demSources.push(this as unknown as Record<string, unknown>)
       }
       setupMaplibre = vi.fn()
+      contourProtocolId = 'dem-contour'
+      // Like the real library with worker:false: the same cached buffer every time.
+      cachedContourTile = new Uint8Array([1, 2, 3, 4]).buffer
+      contourProtocolV4 = vi.fn(async () => ({ data: this.cachedContourTile }))
       contourProtocolUrl = vi.fn(
         (opts: unknown) => `dem-contour://{z}/{x}/{y}?${JSON.stringify(opts)}`,
       )
@@ -136,6 +140,30 @@ describe('loadTerrainDem', () => {
     expect(fakes.demSources[1]!.options).toMatchObject({
       url: `${TERRAIN_TILE_URL_TEMPLATE}?v=v2`,
     })
+  })
+})
+
+describe('contour tile handler', () => {
+  it('gives MapLibre its own copy of each contour tile, so re-requests survive a transfer', async () => {
+    await loadTerrainDem(12)
+    const demSource = fakes.demSources.at(-1) as unknown as { cachedContourTile: ArrayBuffer }
+    const [protocolId, handler] = fakes.addProtocol.mock.calls.at(-1) as [
+      string,
+      (
+        request: { url: string },
+        abortController: AbortController,
+      ) => Promise<{ data: ArrayBuffer }>,
+    ]
+    expect(protocolId).toBe('dem-contour')
+
+    const first = await handler({ url: 'dem-contour://10/1/1' }, new AbortController())
+    expect(first.data).not.toBe(demSource.cachedContourTile)
+    expect([...new Uint8Array(first.data)]).toEqual([1, 2, 3, 4])
+    // MapLibre transfers (detaches) what it is given; the library's cache must survive it.
+    structuredClone(first.data, { transfer: [first.data] })
+    expect(first.data.byteLength).toBe(0)
+    const second = await handler({ url: 'dem-contour://10/1/1' }, new AbortController())
+    expect([...new Uint8Array(second.data)]).toEqual([1, 2, 3, 4])
   })
 })
 
