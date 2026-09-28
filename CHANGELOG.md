@@ -1423,6 +1423,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the off-grid AIS decode path
 - Cover the off-grid AIS frontend at 100%
 - Cover the light theme to the 100% gate
+- Run the job-runner tests on a file-backed database (#372)
 
 ### Build System
 
