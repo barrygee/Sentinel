@@ -47,14 +47,10 @@
             :active="notifNoradId === expandedSat!.norad_id"
             active-class="sfr-acc-notif-btn--active"
             :accessible-name="
-              notifNoradId === expandedSat!.norad_id
-                ? 'Disable pass notifications'
-                : 'Enable pass notifications'
+              notifNoradId === expandedSat!.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
             "
             :tooltip="
-              notifNoradId === expandedSat!.norad_id
-                ? 'Disable pass notifications'
-                : 'Enable pass notifications'
+              notifNoradId === expandedSat!.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
             "
             @click.stop="togglePassNotif(expandedSat!)"
           >

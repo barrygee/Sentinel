@@ -18,7 +18,7 @@
               </template>
               <template v-else-if="item.action">
                 <span class="notif-label-default">{{ store.getLabelForType(item.type) }}</span>
-                <span class="notif-label-disable">DISABLE NOTIFICATIONS</span>
+                <span class="notif-label-disable">DISABLE ALERTS</span>
               </template>
               <template v-else>{{ store.getLabelForType(item.type) }}</template>
             </span>
@@ -34,7 +34,7 @@
               <BaseIconAction
                 v-else-if="item.action"
                 class="notif-action"
-                accessible-name="Disable notifications"
+                accessible-name="Disable alerts"
                 @click.stop="runActionAndDismiss(item)"
               >
                 <BellIcon struck />
@@ -62,7 +62,7 @@
     <button
       v-if="store.total > 0"
       id="notif-clear-all-btn"
-      aria-label="Clear notifications"
+      aria-label="Clear alerts"
       @click="store.clearAll()"
     >
       CLEAR

@@ -103,14 +103,10 @@
                 :active="notifNoradId === pass.norad_id"
                 active-class="spp-acc-notif-btn--active"
                 :accessible-name="
-                  notifNoradId === pass.norad_id
-                    ? 'Disable pass notifications'
-                    : 'Enable pass notifications'
+                  notifNoradId === pass.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
                 "
                 :tooltip="
-                  notifNoradId === pass.norad_id
-                    ? 'Disable pass notifications'
-                    : 'Enable pass notifications'
+                  notifNoradId === pass.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
                 "
                 @click.stop="togglePassNotif(pass)"
               >

@@ -198,7 +198,7 @@ describe('NotificationsPanel', () => {
       const callback = vi.fn()
       seedItems([makeItem({ id: '1', type: 'tracking', action: { label: 'OFF', callback } })])
       const wrapper = mount(NotificationsPanel)
-      expect(wrapper.find('.notif-label-disable').text()).toBe('DISABLE NOTIFICATIONS')
+      expect(wrapper.find('.notif-label-disable').text()).toBe('DISABLE ALERTS')
 
       await wrapper.find('.notif-action').trigger('click')
       expect(callback).toHaveBeenCalledOnce()

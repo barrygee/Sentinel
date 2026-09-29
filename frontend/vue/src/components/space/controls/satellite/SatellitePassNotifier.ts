@@ -1,6 +1,11 @@
 import type { useNotificationsStore } from '@/stores/notifications'
 import { isPassNotifEnabled, setPassNotifEnabled } from './passNotifStore'
 
+/** The detail line of the "pass alerts on" card, which is also how it is found again to dismiss. */
+const PASS_ALERTS_ENABLED_DETAIL = 'Pass alerts enabled'
+/** Every wording that card has had — alerts saved before the rename still carry the old one. */
+const PASS_ALERTS_ENABLED_DETAILS = [PASS_ALERTS_ENABLED_DETAIL, 'Pass notifications enabled']
+
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
 
 export interface SatellitePassNotifierContext {
@@ -35,7 +40,7 @@ export class SatellitePassNotifier {
     this.toggle()
   }
 
-  // Remove the persistent "Pass notifications enabled" alert for a satellite
+  // Remove the persistent "Pass alerts enabled" alert for a satellite
   // when its notifications are turned off, so the alerts list stays in sync.
   private _dismissEnabledAlert(noradId: string): void {
     const { notificationsStore } = this._ctx
@@ -44,7 +49,7 @@ export class SatellitePassNotifier {
         (i) =>
           i.type === 'tracking' &&
           i.noradId === noradId &&
-          i.detail === 'Pass notifications enabled',
+          PASS_ALERTS_ENABLED_DETAILS.includes(i.detail),
       )
       .map((i) => i.id)
     stale.forEach((id) => notificationsStore.dismiss(id))
@@ -85,11 +90,11 @@ export class SatellitePassNotifier {
       notificationsStore.add({
         type: 'tracking',
         title: name,
-        detail: 'Pass notifications enabled',
+        detail: PASS_ALERTS_ENABLED_DETAIL,
         noradId,
         // Target this specific satellite (not whichever is active later).
         action: {
-          label: 'DISABLE NOTIFICATIONS',
+          label: 'DISABLE ALERTS',
           callback: () => {
             setPassNotifEnabled(noradId, false)
             this._dismissEnabledAlert(noradId)
