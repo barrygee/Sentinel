@@ -24,7 +24,7 @@
  * Settings control for the SDR panel's on/off options, gathered into one box.
  *
  * Replaces the separate toggle rows (auto-center, snap to known frequencies,
- * band plan, known-frequency labels, waterfall timestamps, decode mute) with a
+ * band plan, known-frequency labels, decode mute, waterfall timestamps) with a
  * single list built on
  * the domains' "Label Data Points" table — name plus the Settings panel's
  * standard toggle switch, with no column headings and no per-option prose.
@@ -84,16 +84,16 @@ const OPTIONS: SdrOption[] = [
     mirrorToStore: sdrStore.setShowKnownFreqs,
   },
   {
-    settingKey: 'showWaterfallTimestamps',
-    label: 'Show Waterfall Timestamps',
-    readFromStore: () => sdrStore.showWaterfallTimestamps,
-    mirrorToStore: sdrStore.setShowWaterfallTimestamps,
-  },
-  {
     settingKey: 'muteAudioWhileDecoding',
     label: 'Mute Audio While Decoding',
     readFromStore: () => sdrStore.muteAudioWhileDecoding,
     mirrorToStore: sdrStore.setMuteAudioWhileDecoding,
+  },
+  {
+    settingKey: 'showWaterfallTimestamps',
+    label: 'Show Waterfall Timestamps',
+    readFromStore: () => sdrStore.showWaterfallTimestamps,
+    mirrorToStore: sdrStore.setShowWaterfallTimestamps,
   },
 ]
 

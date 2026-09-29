@@ -19,8 +19,8 @@ const ROW = {
   snapToKnown: 1,
   showBandPlan: 2,
   showKnownFreqs: 3,
-  showWaterfallTimestamps: 4,
-  muteWhileDecoding: 5,
+  muteWhileDecoding: 4,
+  showWaterfallTimestamps: 5,
 } as const
 
 function switches(wrapper: ReturnType<typeof mount>) {
@@ -64,8 +64,8 @@ describe('SdrOptionsControl', () => {
       'Snap to Known Frequencies',
       'Show Band Plan',
       'Display Known Frequencies',
-      'Show Waterfall Timestamps',
       'Mute Audio While Decoding',
+      'Show Waterfall Timestamps',
     ])
     // The old per-toggle prose is gone — only the option names are on screen.
     expect(wrapper.text()).not.toContain('re-centers the display')
