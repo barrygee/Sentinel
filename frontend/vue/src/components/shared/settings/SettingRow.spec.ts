@@ -22,7 +22,6 @@ import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
 import LandAprsChannelControl from './LandAprsChannelControl.vue'
-import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
@@ -77,7 +76,6 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['overhead-alerts', OverheadAlertsControl],
   ['land-aprs-retention', LandAprsRetentionControl],
   ['land-aprs-channel', LandAprsChannelControl],
-  ['probe-url', ProbeUrlControl],
   ['location', LocationControl],
   ['range-ring-origin', RangeRingOriginControl],
   ['map-layers', MapLayersControl],
@@ -146,6 +144,11 @@ describe('SettingRow', () => {
     expect(editor.props('filename')).toBe('uk_repeaters.json')
   })
 
+  it('renders nothing for the removed connectivity probe URL type', () => {
+    const wrapper = mountRow({ id: 'p', type: 'probe-url', label: 'Probe' })
+    expect(wrapper.find('input').exists()).toBe(false)
+  })
+
   it('stages the location card like every other control, rather than saving on its own', () => {
     const wrapper = mountRow({ id: 'sentinel-location', type: 'location', label: 'Location' })
     const staged = () => {}
@@ -161,11 +164,16 @@ describe('SettingRow', () => {
   })
 
   it('renders the label and an optional description', () => {
-    const withDesc = mountRow({ id: 'x', type: 'probe-url', label: 'Probe', desc: 'A URL' })
-    expect(withDesc.find('.settings-item-label').text()).toBe('Probe')
-    expect(withDesc.find('.settings-item-desc').text()).toBe('A URL')
+    const withDesc = mountRow({
+      id: 'x',
+      type: 'notification-sound',
+      label: 'Alert Sound',
+      desc: 'A blip',
+    })
+    expect(withDesc.find('.settings-item-label').text()).toBe('Alert Sound')
+    expect(withDesc.find('.settings-item-desc').text()).toBe('A blip')
 
-    const withoutDesc = mountRow({ id: 'x', type: 'probe-url', label: 'Probe' })
+    const withoutDesc = mountRow({ id: 'x', type: 'notification-sound', label: 'Alert Sound' })
     expect(withoutDesc.find('.settings-item-desc').exists()).toBe(false)
   })
 
@@ -177,20 +185,25 @@ describe('SettingRow', () => {
   })
 
   it('forwards a child stage event with the item id', () => {
-    const wrapper = mountRow({ id: 'probe-1', type: 'probe-url', label: 'Probe' })
+    const wrapper = mountRow({ id: 'sdr-1', type: 'sdr-options', label: 'SDR Options' })
     const staged = () => {}
-    wrapper.findComponent(ProbeUrlControl).vm.$emit('stage', staged)
-    expect(wrapper.emitted('stage')).toEqual([['probe-1', staged]])
+    wrapper.findComponent(SdrOptionsControl).vm.$emit('stage', staged)
+    expect(wrapper.emitted('stage')).toEqual([['sdr-1', staged]])
   })
 
   it('forwards a child commit event', () => {
-    const wrapper = mountRow({ id: 'probe-1', type: 'probe-url', label: 'Probe' })
-    wrapper.findComponent(ProbeUrlControl).vm.$emit('commit')
+    const wrapper = mountRow({ id: 'sdr-1', type: 'sdr-options', label: 'SDR Options' })
+    wrapper.findComponent(SdrOptionsControl).vm.$emit('commit')
     expect(wrapper.emitted('commit')).toHaveLength(1)
   })
 
   it('has no accessibility violations', async () => {
-    const wrapper = mountRow({ id: 'x', type: 'probe-url', label: 'Probe', desc: 'A URL' })
+    const wrapper = mountRow({
+      id: 'x',
+      type: 'notification-sound',
+      label: 'Alert Sound',
+      desc: 'A blip',
+    })
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()

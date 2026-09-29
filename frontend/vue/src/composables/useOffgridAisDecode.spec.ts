@@ -104,28 +104,6 @@ describe('useOffgridAisDecode', () => {
 
       expect(startSpy).not.toHaveBeenCalled()
     })
-
-    it('decodes when the browser reports itself offline in auto mode', async () => {
-      useAppStore().setConnectivityMode('auto')
-      useAppStore().setOnline(false)
-      designateReceiver(7)
-
-      mountDecode()
-      await nextTick()
-
-      expect(startSpy).toHaveBeenCalledWith(7)
-    })
-
-    it('does not decode in auto mode while the browser is online', async () => {
-      useAppStore().setConnectivityMode('auto')
-      useAppStore().setOnline(true)
-      designateReceiver(7)
-
-      mountDecode()
-      await nextTick()
-
-      expect(startSpy).not.toHaveBeenCalled()
-    })
   })
 
   describe("SEA's own source override", () => {
@@ -151,9 +129,19 @@ describe('useOffgridAisDecode', () => {
       expect(startSpy).not.toHaveBeenCalled()
     })
 
-    it('defers to the global mode when the override is auto', async () => {
+    it("defers to the global mode for a legacy 'auto' override", async () => {
       useAppStore().setConnectivityMode('offgrid')
       setSeaOverride('auto')
+      designateReceiver(7)
+
+      mountDecode()
+      await nextTick()
+
+      expect(startSpy).toHaveBeenCalledWith(7)
+    })
+
+    it('defers to the global mode when SEA has no mode of its own', async () => {
+      useAppStore().setConnectivityMode('offgrid')
       designateReceiver(7)
 
       mountDecode()

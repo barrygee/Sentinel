@@ -12,6 +12,7 @@ from backend.database import (
     create_tables,
     migrate_sdr_radios_to_settings,
     prune_removed_settings,
+    resolve_retired_auto_modes,
     seed_default_settings,
     seed_sdr_bandplan_from_file,
     seed_sdr_data_from_files,
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
     # so a stale key can never be mistaken for a live default.
     await prune_removed_settings()
     await seed_default_settings()
+    await resolve_retired_auto_modes()
     await seed_sdr_data_from_files()
     await seed_sdr_bandplan_from_file()
     await backfill_satellite_radio_store()

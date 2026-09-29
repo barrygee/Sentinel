@@ -131,13 +131,13 @@ describe('SentrySiteMap', () => {
 
   it('uses the offline basemap with no internet, and switches when the connection changes', async () => {
     const appStore = useAppStore()
-    appStore.setOnline(false)
+    appStore.setConnectivityMode('offgrid')
     mountMap()
     const created = mapRegistry.instances[0]!
     expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord.json', {
       transformStyle: absoluteSpriteTransform,
     })
-    appStore.setOnline(true)
+    appStore.setConnectivityMode('online')
     await nextTick()
     expect(created.setStyle).toHaveBeenLastCalledWith('/assets/fiord-online.json', {
       transformStyle: absoluteSpriteTransform,

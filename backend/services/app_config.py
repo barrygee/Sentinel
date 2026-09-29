@@ -46,6 +46,11 @@ INTERNAL_KEYS: dict[str, frozenset[str]] = {
 }
 
 
+# Sections that store their own data-source mode in `{section}.sourceOverride`.
+SOURCE_MODE_SECTIONS: tuple[str, ...] = ("air", "space", "sea")
+SOURCE_MODES: frozenset[str] = frozenset({"online", "offgrid"})
+
+
 class InvalidConfigError(ValueError):
     """A config document (or one value in it) that must not be persisted."""
 
@@ -180,6 +185,25 @@ def _assign_missing_radio_ids(config: dict) -> None:
             next_id += 1
 
 
+async def _resolve_retired_auto_modes(db: AsyncSession, config: dict) -> None:
+    """Replace the retired 'auto' mode (from an older export or hand-edit) with
+    an explicit one, so the store only ever holds 'online' or 'offgrid': an
+    app-level 'auto' becomes 'online', a section's becomes the app-level mode."""
+    app_block = config.get("app")
+    if isinstance(app_block, dict) and "connectivityMode" in app_block:
+        if app_block["connectivityMode"] not in SOURCE_MODES:
+            app_block["connectivityMode"] = "online"
+        app_mode = app_block["connectivityMode"]
+    else:
+        app_mode = await get_setting(db, "app", "connectivityMode", default="online")
+        if app_mode not in SOURCE_MODES:
+            app_mode = "online"
+    for section in SOURCE_MODE_SECTIONS:
+        block = config.get(section)
+        if isinstance(block, dict) and "sourceOverride" in block and block["sourceOverride"] not in SOURCE_MODES:
+            block["sourceOverride"] = app_mode
+
+
 async def apply_config(db: AsyncSession, config: Any) -> None:
     """Upsert every setting in a config document into user_settings.
 
@@ -195,6 +219,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
         raise InvalidConfigError("Config must be a JSON object")
 
     _assign_missing_radio_ids(config)
+    await _resolve_retired_auto_modes(db, config)
 
     # Validate app.location up front so a bad coordinate rejects the whole
     # document rather than being persisted.
@@ -208,6 +233,8 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     previous_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
     previous_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
 
+    from backend.database import is_removed_setting  # avoid import cycle at module load
+
     timestamp = now_ms()
     for namespace, entries in config.items():
         if namespace.startswith("_") or not isinstance(entries, dict):
@@ -216,6 +243,10 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
             # Data files have their own editors — an old export that still
             # carries them must not silently overwrite the dedicated stores.
             if is_hidden_key(namespace, key):
+                continue
+            # Settings of removed features were pruned at startup; an old
+            # export or stale config file must not bring them back.
+            if is_removed_setting(namespace, key):
                 continue
             # Secrets are redacted from exports, so a document can only ever
             # carry a blank — never let it wipe the stored one.

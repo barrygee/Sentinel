@@ -42,6 +42,12 @@ const props = defineProps<{
   options: ReadonlyArray<{ value: TValue; label: string }>
   /** Accessible name for the group — the setting, not the options. */
   accessibleName: string
+  /**
+   * Emit even when the already-selected option is picked again. For settings
+   * where choosing is an action as well as a value — e.g. Connectivity Mode,
+   * which also resets every section to the chosen mode.
+   */
+  reselectable?: boolean
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: TValue] }>()
@@ -62,7 +68,7 @@ const keyboard = useRadioGroupKeyboard({
 })
 
 function select(value: TValue): void {
-  if (value === props.modelValue) return
+  if (value === props.modelValue && !props.reselectable) return
   emit('update:modelValue', value)
 }
 </script>

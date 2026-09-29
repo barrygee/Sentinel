@@ -581,22 +581,6 @@
   gap: 26px;
 }
 
-.settings-connectivity-switch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.settings-connectivity-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.6);
-  user-select: none;
-}
-
 /* No fill, no border, no inset — like the cards themselves it sits directly on
    the panel canvas, separated by space alone. */
 .settings-connectivity-override-summary {
@@ -652,26 +636,8 @@
 .settings-conn-override-val--online {
   color: var(--accent-text-deep);
 }
-.settings-conn-override-val--offline {
+.settings-conn-override-val--offgrid {
   color: var(--danger-strong);
-}
-
-.settings-connectivity-warning {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 18px;
-  background: var(--warn-soft);
-  border-radius: 0;
-}
-
-.settings-connectivity-warning-msg {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11.5px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: var(--warn-text-strong);
-  line-height: 1.5;
 }
 
 /* ── Source override segmented control ────────────────────────────── */

@@ -2,7 +2,6 @@
     "_comment": "Default application configuration \u2014 seeds the database on first startup. The live copy of every setting is backend/data/sentinel_config.json: it is rewritten whenever a setting changes, and edits saved to it are applied to the app automatically.",
     "app": {
         "connectivityMode": "online",
-        "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico",
         "location": {
             "latitude": "",
             "longitude": ""
@@ -23,7 +22,7 @@
     "air": {
         "enabled": true,
         "replayEnabled": false,
-        "sourceOverride": "auto",
+        "sourceOverride": "online",
         "onlineDataSourceURL": "https://api.adsb.lol/v2",
         "offgridDataSourceURL": {
             "url": ""
@@ -68,7 +67,7 @@
     },
     "space": {
         "enabled": true,
-        "sourceOverride": "auto",
+        "sourceOverride": "online",
         "filterHoverPreview": "stay",
         "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
         "onlineUrls": {
@@ -85,7 +84,7 @@
     },
     "sea": {
         "enabled": true,
-        "sourceOverride": "auto",
+        "sourceOverride": "online",
         "onlineUrl": "wss://stream.aisstream.io/v0/stream",
         "offgridSource": {
             "url": ""

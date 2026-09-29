@@ -1,133 +1,150 @@
 <template>
   <div class="settings-connectivity-wrap">
-    <div class="settings-connectivity-switch">
-      <span class="settings-connectivity-label">OFF GRID</span>
-      <BaseToggleSwitch
-        :model-value="offGrid"
-        accessible-name="Toggle off grid mode"
-        @update:model-value="toggle"
-      />
-    </div>
-    <div v-if="overrideConflicts.length > 0" class="settings-connectivity-override-summary">
+    <BaseSegmentedSetting
+      :model-value="mode"
+      :options="SOURCE_MODE_OPTIONS"
+      accessible-name="Connectivity mode"
+      reselectable
+      @update:model-value="selectMode"
+    />
+    <div v-if="differingSections.length > 0" class="settings-connectivity-override-summary">
       <div class="settings-conn-override-heading">SECTION OVERRIDES</div>
-      <div v-for="c in overrideConflicts" :key="c.ns" class="settings-conn-override-row">
-        <span class="settings-conn-override-ns">{{ c.ns.toUpperCase() }}</span>
-        <span class="settings-conn-override-arrow">→</span>
+      <BaseWarningNotice
+        v-if="hasPickedMode"
+        :message="`These section overrides will be set to ${modeLabel(mode)} when you click APPLY CHANGES.`"
+      />
+      <div
+        v-for="section in differingSections"
+        :key="section.ns"
+        class="settings-conn-override-row"
+      >
+        <span class="settings-conn-override-ns">{{ section.ns.toUpperCase() }}</span>
         <span
           class="settings-conn-override-val"
-          :class="'settings-conn-override-val--' + c.override"
-          >{{ c.override.toUpperCase() }}</span
+          :class="'settings-conn-override-val--' + section.mode"
+          >{{ modeLabel(section.mode) }}</span
         >
+        <template v-if="hasPickedMode">
+          <span class="settings-conn-override-arrow" aria-hidden="true">→</span>
+          <span class="sr-only">will become</span>
+          <span class="settings-conn-override-val" :class="'settings-conn-override-val--' + mode">{{
+            modeLabel(mode)
+          }}</span>
+        </template>
       </div>
-    </div>
-    <div v-if="warningVisible" class="settings-connectivity-warning">
-      <span class="settings-connectivity-warning-msg"
-        >Some domains have source overrides set. Switching will reset all overrides to AUTO.</span
-      >
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+/**
+ * The app-wide connectivity mode: ONLINE or OFF GRID.
+ *
+ * Each section (Air, Space, Sea) also stores its own mode in `sourceOverride`,
+ * so picking one here sets every section to it — the sections' own pickers are
+ * for running one section differently afterwards. Sections already set
+ * differently are listed so that reset is never a surprise.
+ */
+import { computed, onMounted, ref } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
 import { useAppStore } from '@/stores/app'
-import type { ConnectivityMode } from '@/stores/app'
-import BaseToggleSwitch from '@/components/base/BaseToggleSwitch.vue'
+import BaseSegmentedSetting from '@/components/base/BaseSegmentedSetting.vue'
+import BaseWarningNotice from '@/components/base/BaseWarningNotice.vue'
+import {
+  APP_MODE_STORAGE_KEY,
+  SOURCE_MODE_LABELS,
+  SOURCE_MODE_OPTIONS,
+  SOURCE_MODE_SECTIONS,
+  asSourceMode,
+  sectionModeStorageKey,
+  type SourceMode,
+} from '@/utils/sourceMode'
 
 const appStore = useAppStore()
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
-const LS_KEY = 'sentinel_app_connectivityMode'
-const DOMAIN_NAMESPACES = ['air', 'space', 'sea', 'land']
+const mode = ref<SourceMode>(readCachedMode())
+/** Each section's stored mode; null when unset, which means "follows the app". */
+const sectionModes = ref<Record<string, SourceMode | null>>(readCachedSectionModes())
+/** True once a mode has been picked here, so the list shows what each section becomes. */
+const hasPickedMode = ref(false)
 
-const offGrid = ref(false)
-const warningVisible = ref(false)
+function readCachedMode(): SourceMode {
+  try {
+    return asSourceMode(localStorage.getItem(APP_MODE_STORAGE_KEY)) ?? 'online'
+  } catch {
+    return 'online'
+  }
+}
 
-try {
-  offGrid.value = (localStorage.getItem(LS_KEY) ?? 'online') === 'offgrid'
-} catch {}
-
-const overrideConflicts = computed(() => {
-  const appMode = offGrid.value ? 'offgrid' : 'online'
-  return DOMAIN_NAMESPACES.flatMap((ns) => {
-    let override = 'auto'
+function readCachedSectionModes(): Record<string, SourceMode | null> {
+  const modes: Record<string, SourceMode | null> = {}
+  for (const section of SOURCE_MODE_SECTIONS) {
     try {
-      override = localStorage.getItem('sentinel_' + ns + '_sourceOverride') ?? 'auto'
-    } catch {}
-    return override !== 'auto' && override !== appMode ? [{ ns, override }] : []
-  })
-})
-
-function hasOverrides(): boolean {
-  return DOMAIN_NAMESPACES.some((ns) => {
-    try {
-      const v = localStorage.getItem('sentinel_' + ns + '_sourceOverride')
-      return !!v && v !== 'auto'
+      modes[section] = asSourceMode(localStorage.getItem(sectionModeStorageKey(section)))
     } catch {
-      return false
+      modes[section] = null
     }
-  })
+  }
+  return modes
 }
 
-function resetAllOverrides(): void {
-  DOMAIN_NAMESPACES.forEach((ns) => {
-    try {
-      localStorage.setItem('sentinel_' + ns + '_sourceOverride', 'auto')
-    } catch {}
-    settingsApi.put(ns, 'sourceOverride', 'auto')
-  })
+function modeLabel(sourceMode: SourceMode): string {
+  return SOURCE_MODE_LABELS[sourceMode]
 }
 
-function toggle(nextOffGrid: boolean): void {
-  offGrid.value = nextOffGrid
-  const newMode = offGrid.value ? 'offgrid' : 'online'
-  const needsOverrideReset = hasOverrides()
-  if (needsOverrideReset) warningVisible.value = true
+/** Sections running in a different mode from the one selected here. */
+const differingSections = computed(() =>
+  SOURCE_MODE_SECTIONS.flatMap((ns) => {
+    const sectionMode = sectionModes.value[ns]
+    return sectionMode && sectionMode !== mode.value ? [{ ns, mode: sectionMode }] : []
+  }),
+)
+
+function selectMode(nextMode: SourceMode): void {
+  hasPickedMode.value = true
+  mode.value = nextMode
+  // Awaited as one promise: APPLY CHANGES reloads the page shortly after the
+  // staged work resolves, and an unfinished section write would be lost.
   emit('stage', () => {
-    if (needsOverrideReset) {
-      resetAllOverrides()
-      window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
+    for (const section of SOURCE_MODE_SECTIONS) {
+      try {
+        localStorage.setItem(sectionModeStorageKey(section), nextMode)
+      } catch {}
     }
     try {
-      localStorage.setItem(LS_KEY, newMode)
+      localStorage.setItem(APP_MODE_STORAGE_KEY, nextMode)
     } catch {}
-    settingsApi.put('app', 'connectivityMode', newMode)
-    appStore.setConnectivityMode(newMode as ConnectivityMode)
+    appStore.setConnectivityMode(nextMode)
+    window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
+    return Promise.all([
+      ...SOURCE_MODE_SECTIONS.map((section) =>
+        settingsApi.put(section, 'sourceOverride', nextMode),
+      ),
+      settingsApi.put('app', 'connectivityMode', nextMode),
+    ])
   })
 }
 
 onMounted(async () => {
-  const data = await settingsApi.getNamespace('app')
-  if (data?.connectivityMode) {
-    const backendMode = data.connectivityMode as string
-    const backendOffGrid = backendMode === 'offgrid'
-    if (backendOffGrid !== offGrid.value) {
-      offGrid.value = backendOffGrid
-      try {
-        localStorage.setItem(LS_KEY, backendMode)
-      } catch {}
-      appStore.setConnectivityMode(backendMode as ConnectivityMode)
-    }
+  const appSettings = await settingsApi.getNamespace('app')
+  const backendMode = asSourceMode(appSettings?.connectivityMode)
+  if (backendMode && backendMode !== mode.value) {
+    mode.value = backendMode
+    try {
+      localStorage.setItem(APP_MODE_STORAGE_KEY, backendMode)
+    } catch {}
+    appStore.setConnectivityMode(backendMode)
   }
-})
-
-window.addEventListener('sentinel:sourceOverrideChanged', () => {
-  // computed re-evaluates automatically
+  // The backend is authoritative for section modes too (another device, or a
+  // hand-edit of the config file, may have changed them).
+  const sectionSettings = await Promise.all(
+    SOURCE_MODE_SECTIONS.map((section) => settingsApi.getNamespace(section)),
+  )
+  SOURCE_MODE_SECTIONS.forEach((section, sectionIndex) => {
+    const stored = asSourceMode(sectionSettings[sectionIndex]?.sourceOverride)
+    if (stored) sectionModes.value[section] = stored
+  })
 })
 </script>
-
-<style scoped>
-/* BaseToggleSwitch's default "on" color is a hardcoded lime (#c8ff00). This
-   control's on-state previously referenced `--color-accent`, a custom
-   property that is never actually defined anywhere in the app, so today it
-   renders as transparent (the track never visibly changes color, though the
-   thumb still slides and darkens). That's arguably a latent bug, but this
-   phase is a pure markup/CSS consolidation with zero intended behaviour
-   change, so this override reproduces the existing look exactly rather than
-   silently "fixing" it as a side effect of the refactor. */
-:deep(.toggle-track.is-on) {
-  background: var(--color-accent);
-}
-</style>

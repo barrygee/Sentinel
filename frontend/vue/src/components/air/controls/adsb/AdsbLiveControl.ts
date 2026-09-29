@@ -1,3 +1,4 @@
+import { readCachedSectionMode, type SourceMode } from '@/utils/sourceMode'
 import * as maplibregl from 'maplibre-gl'
 import type { AirStore, AirNotifStore, NotificationsStore, TrackingStore } from '../types'
 import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '@/stores/airNotif'
@@ -2548,14 +2549,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Effective connectivity mode ----
 
-  private _effectiveMode(): string {
-    try {
-      const override = localStorage.getItem('sentinel_air_sourceOverride') || 'auto'
-      if (override !== 'auto') return override
-      return localStorage.getItem('sentinel_app_connectivityMode') || 'auto'
-    } catch (e) {
-      return 'auto'
-    }
+  private _effectiveMode(): SourceMode {
+    return readCachedSectionMode('air')
   }
 
   // ---- Public clear method (called by AirMap.vue on connectivity change) ----

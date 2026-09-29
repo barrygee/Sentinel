@@ -124,7 +124,7 @@ describe('OfflineMapsSettings', () => {
       await flushPromises()
       const offlineMapsStore = useOfflineMapsStore()
       offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
-      useAppStore().setOnline(false)
+      useAppStore().setConnectivityMode('offgrid')
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.oma-disabled-reason').text()).toBe(
         'Downloads need a connection — you are off grid.',

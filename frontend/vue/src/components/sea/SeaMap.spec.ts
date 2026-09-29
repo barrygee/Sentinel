@@ -216,7 +216,7 @@ describe('SeaMap', () => {
     expect(stub.props('styleUrl')).toBe('/assets/fiord-online.json')
     expect(stub.props('regionLabel')).toBe('Sea domain map — live vessels')
     expect(stub.props('regionDescription')).toContain('Filter panel')
-    app.isOnline = false
+    app.connectivityMode = 'offgrid'
     await nextTick()
     expect(stub.props('styleUrl')).toBe('/assets/fiord.json')
   })
@@ -226,7 +226,7 @@ describe('SeaMap', () => {
     const map = makeFakeMap()
     mountMap()
     bringUp(map)
-    app.isOnline = false
+    app.connectivityMode = 'offgrid'
     await nextTick()
     const offlineMapsStore = useOfflineMapsStore()
     offlineMapsStore.status = {
@@ -348,7 +348,7 @@ describe('SeaMap', () => {
       bringUp(map)
       expect(basemapLayerSync.getMap!()).toBe(map)
       expect(basemapLayerSync.apply).toHaveBeenCalledOnce()
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.connectivityCb!(false)
       map.onceHandlers['style.load']!()
@@ -364,7 +364,7 @@ describe('SeaMap', () => {
       expect(map.setStyle).not.toHaveBeenCalled()
       // useConnectivity sets the store before it calls back, so the spec does
       // too — the style the map wants is derived from the store, not the arg.
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
@@ -391,7 +391,7 @@ describe('SeaMap', () => {
       const map = makeFakeMap()
       mountMap()
       shared.emit!('map-created', map)
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       shared.emit!('style-loaded', map)
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()

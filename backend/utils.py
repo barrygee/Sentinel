@@ -83,6 +83,18 @@ def _valid_url(url: object) -> str | None:
     return None
 
 
+def _effective_mode(section_mode: object, app_mode: object) -> str:
+    """The section's own mode if set, else the app-level mode, else 'online'.
+
+    Startup converts any legacy 'auto' away, but anything that isn't
+    'online'/'offgrid' is still treated as unset here rather than trusted.
+    """
+    for candidate in (section_mode, app_mode):
+        if candidate in ("online", "offgrid"):
+            return str(candidate)
+    return "online"
+
+
 async def resolve_effective_mode(domain: str, db: AsyncSession) -> str:
     """Return ``"online"`` or ``"offgrid"`` for one domain's active source.
 
@@ -106,11 +118,7 @@ async def resolve_effective_mode(domain: str, db: AsyncSession) -> str:
         except (json.JSONDecodeError, TypeError):
             values[f"{row.namespace}.{row.key}"] = row.value
 
-    override = values.get(f"{domain}.sourceOverride", "auto")
-    if override in ("online", "offgrid"):
-        return str(override)
-    mode = values.get("app.connectivityMode", "online") or "online"
-    return "offgrid" if mode == "offgrid" else "online"
+    return _effective_mode(values.get(f"{domain}.sourceOverride"), values.get("app.connectivityMode"))
 
 
 async def resolve_domain_urls(
@@ -150,12 +158,9 @@ async def resolve_domain_urls(
         except (json.JSONDecodeError, TypeError):
             settings_map[namespaced_key] = row.value
 
-    # Resolve effective mode
-    override = settings_map.get(f"{domain}.sourceOverride", "auto")
-    if override in ("online", "offgrid"):
-        effective_mode = override
-    else:
-        effective_mode = settings_map.get("app.connectivityMode", "online") or "online"
+    effective_mode = _effective_mode(
+        settings_map.get(f"{domain}.sourceOverride"), settings_map.get("app.connectivityMode")
+    )
 
     _online_key = {"air": "onlineDataSourceURL"}.get(domain, "onlineUrl")
     _offgrid_key = {"air": "offgridDataSourceURL"}.get(domain, "offgridSource")

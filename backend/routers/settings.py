@@ -19,6 +19,8 @@ from backend.db_helpers import upsert_setting
 from backend.models import UserSettings
 from backend.services import app_config_file
 from backend.services.app_config import (
+    SOURCE_MODE_SECTIONS,
+    SOURCE_MODES,
     InvalidConfigError,
     apply_config,
     build_config_snapshot,
@@ -349,6 +351,11 @@ async def upsert_setting_endpoint(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     if namespace == "land" and key == "aprsChannelHz":
         value = _validated_aprs_channel_hz(value)
+    is_mode_setting = (namespace in SOURCE_MODE_SECTIONS and key == "sourceOverride") or (
+        namespace == "app" and key == "connectivityMode"
+    )
+    if is_mode_setting and value not in SOURCE_MODES:
+        raise HTTPException(status_code=400, detail=f"{key} must be 'online' or 'offgrid'")
     await upsert_setting(db, namespace, key, value)
     if namespace == "land" and key == "aprsChannelHz":
         from backend.routers.sdr import apply_aprs_channel  # avoid import cycle at module load

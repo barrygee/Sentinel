@@ -33,11 +33,6 @@
       @stage="emit('stage', item.id, $event)"
       @commit="emit('commit')"
     />
-    <ProbeUrlControl
-      v-else-if="item.type === 'probe-url'"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
     <!-- Stages only: an edit hands back a closure that APPLY CHANGES runs, so
          the location saves with the rest of the panel. No `commit` — pressing
          Enter in a field saves that field there and then. -->
@@ -197,7 +192,6 @@ import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
 import LandAprsChannelControl from './LandAprsChannelControl.vue'
-import ProbeUrlControl from './ProbeUrlControl.vue'
 import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'

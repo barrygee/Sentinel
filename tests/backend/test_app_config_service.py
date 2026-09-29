@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database
 from backend.models import UserSettings
+from backend.services import app_config
 from backend.services.app_config import (
     InvalidConfigError,
     apply_config,
@@ -184,6 +185,24 @@ class TestApplyConfig:
         assert await _value(session_factory, "_meta", "version") is None
         assert await _value(session_factory, "app", "notificationSound") is True
 
+    async def test_does_not_resurrect_settings_of_removed_features(
+        self, session_factory
+    ):
+        async with session_factory() as session:
+            await apply_config(
+                session,
+                {
+                    "app": {
+                        "connectivityProbeUrl": "https://x",
+                        "notificationSound": True,
+                    },
+                    "land": {"feedCredential:7": "pw"},
+                },
+            )
+        assert await _row(session_factory, "app", "connectivityProbeUrl") is None
+        assert await _row(session_factory, "land", "feedCredential:7") is None
+        assert await _value(session_factory, "app", "notificationSound") is True
+
     async def test_leaves_an_unchanged_value_untouched(self, session_factory):
         await _add(session_factory, [("app", "notificationSound", True)])
         async with session_factory() as session:
@@ -210,3 +229,61 @@ class TestApplyConfig:
         async with session_factory() as session:
             await apply_config(session, {"sdr": {"ais_radio_id": 4}})
         assert calls == [(None, 4)]
+
+
+class TestRetiredAutoMode:
+    async def test_an_app_auto_becomes_online(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(session, {"app": {"connectivityMode": "auto"}})
+        assert await _value(session_factory, "app", "connectivityMode") == "online"
+
+    async def test_a_section_auto_follows_the_documents_app_mode(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(
+                session,
+                {
+                    "app": {"connectivityMode": "offgrid"},
+                    "sea": {"sourceOverride": "auto"},
+                },
+            )
+        assert await _value(session_factory, "sea", "sourceOverride") == "offgrid"
+
+    async def test_a_section_auto_follows_the_stored_app_mode_when_the_document_has_none(
+        self, session_factory
+    ):
+        await _add(session_factory, [("app", "connectivityMode", "offgrid")])
+        async with session_factory() as session:
+            await apply_config(session, {"air": {"sourceOverride": "auto"}})
+        assert await _value(session_factory, "air", "sourceOverride") == "offgrid"
+
+    async def test_a_section_auto_becomes_online_when_the_stored_app_mode_is_invalid(
+        self, session_factory
+    ):
+        await _add(session_factory, [("app", "connectivityMode", "auto")])
+        async with session_factory() as session:
+            await apply_config(session, {"space": {"sourceOverride": "auto"}})
+        assert await _value(session_factory, "space", "sourceOverride") == "online"
+
+    async def test_an_explicit_section_mode_is_kept(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(
+                session,
+                {
+                    "app": {"connectivityMode": "online"},
+                    "sea": {"sourceOverride": "offgrid"},
+                },
+            )
+        assert await _value(session_factory, "sea", "sourceOverride") == "offgrid"
+
+    async def test_sections_without_a_mode_of_their_own_are_not_touched(
+        self, session_factory
+    ):
+        async with session_factory() as session:
+            await apply_config(session, {"land": {"sourceOverride": "auto"}})
+        # Land has no data-source mode; its keys are not the 'auto' resolver's business.
+        assert await _value(session_factory, "land", "sourceOverride") == "auto"
+
+
+def test_the_source_mode_sections_are_air_space_and_sea():
+    assert app_config.SOURCE_MODE_SECTIONS == ("air", "space", "sea")
+    assert app_config.SOURCE_MODES == frozenset({"online", "offgrid"})

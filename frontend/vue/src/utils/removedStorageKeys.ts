@@ -20,6 +20,9 @@ export const REMOVED_STORAGE_KEYS: readonly string[] = [
   // ADS-B per-aircraft label field list (removed 2026-09-11): the picker was
   // never rendered in Settings and the map never read the cached value.
   'adsbLabelFields',
+  // Connectivity auto mode (removed 2026-09-29): the URL it probed to detect
+  // internet access. Connectivity is now an explicit ONLINE / OFF GRID choice.
+  'sentinel_app_connectivityProbeUrl',
 ]
 
 /**
