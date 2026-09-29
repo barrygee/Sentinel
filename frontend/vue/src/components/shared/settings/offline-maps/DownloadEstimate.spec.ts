@@ -26,16 +26,18 @@ describe('DownloadEstimate', () => {
 
   it('shows the formatted total size and tile count, split basemap/terrain', () => {
     const wrapper = mountEstimate(ESTIMATE, 10 * 1024 * 1024 * 1024)
-    expect(wrapper.find('.oma-estimate-size').text()).toBe('1.5 MB')
+    expect(wrapper.find('.oma-estimate-size').text()).toBe('Up to 1.5 MB')
     expect(wrapper.find('.oma-estimate-tiles').text()).toBe('· 150 tiles')
     const rows = wrapper.findAll('.oma-estimate-row dd')
-    expect(rows[0]!.text()).toBe('1.0 MB')
-    expect(rows[1]!.text()).toBe('512 KB')
+    expect(rows[0]!.text()).toBe('Up to 1.0 MB')
+    expect(rows[1]!.text()).toBe('Up to 512 KB')
+    // Free space is measured, not estimated, so it carries no "Up to".
+    expect(rows[2]!.text()).toBe('10 GB')
   })
 
   it('renders 0 B / 0 tiles when there is no estimate yet', () => {
     const wrapper = mountEstimate(null, 0)
-    expect(wrapper.find('.oma-estimate-size').text()).toBe('0 B')
+    expect(wrapper.find('.oma-estimate-size').text()).toBe('Up to 0 B')
     expect(wrapper.find('.oma-estimate-tiles').text()).toBe('· 0 tiles')
   })
 
@@ -69,7 +71,7 @@ describe('DownloadEstimate', () => {
   it('announces the settled estimate once the debounce elapses', async () => {
     const wrapper = mountEstimate(ESTIMATE, 10 * 1024 * 1024 * 1024)
     await vi.advanceTimersByTimeAsync(500)
-    expect(wrapper.find('.sr-only').text()).toBe('Estimated download: 1.5 MB, 150 tiles.')
+    expect(wrapper.find('.sr-only').text()).toBe('Estimated download: up to 1.5 MB, 150 tiles.')
   })
 
   it('announces "no area selected yet" when the estimate is null', async () => {
