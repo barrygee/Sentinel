@@ -74,7 +74,7 @@
  * rather than "NO CHANGES".
  */
 import { onMounted, ref } from 'vue'
-import { useAirStore, USER_ALERT_LOCATION_ID, type OverheadAlertConfig } from '@/stores/air'
+import { useAirStore } from '@/stores/air'
 import * as settingsApi from '@/services/settingsApi'
 import {
   useOverheadAlertZones,
@@ -87,33 +87,7 @@ const airStore = useAirStore()
 const { locations } = useOverheadAlertZones()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
-/**
- * Read the stored settings, accepting the pre-split single configuration the
- * config database may still hold (`{civil, mil, radiusNm}`) and mapping it onto
- * the operator's own location.
- */
-function readStoredAlerts(
-  data: Record<string, unknown> | null,
-): Record<string, OverheadAlertConfig> | null {
-  const stored = data?.overheadAlerts
-  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null
-  const record = stored as Record<string, unknown>
-  if (typeof record.civil === 'boolean' || typeof record.mil === 'boolean') {
-    return {
-      [USER_ALERT_LOCATION_ID]: {
-        civil: record.civil === true,
-        mil: record.mil === true,
-        radiusNm: typeof record.radiusNm === 'number' ? record.radiusNm : 10,
-      },
-    }
-  }
-  return record as Record<string, OverheadAlertConfig>
-}
-
-onMounted(async () => {
-  const stored = readStoredAlerts(await settingsApi.getNamespace('air'))
-  if (stored) airStore.hydrateOverheadAlerts(stored)
-})
+onMounted(() => void airStore.loadOverheadAlertsFromConfig())
 
 /** Queue the config-database write for APPLY CHANGES. */
 function stageWrite(): void {

@@ -8,8 +8,8 @@ const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 <template>
   <BaseToggleSetting
-    label="NOTIFICATION SOUND"
-    accessible-name="Toggle the notification blip sound"
+    label="ALERT SOUND"
+    accessible-name="Toggle the alert blip sound"
     namespace="app"
     setting-key="notificationSound"
     :hydrate-from-db="app.hydrateNotificationSoundFromDb"

@@ -22,6 +22,7 @@ import ConnectivityToggle from './ConnectivityToggle.vue'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
 import LandAprsChannelControl from './LandAprsChannelControl.vue'
+import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
 import LocationControl from './LocationControl.vue'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
@@ -76,6 +77,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['overhead-alerts', OverheadAlertsControl],
   ['land-aprs-retention', LandAprsRetentionControl],
   ['land-aprs-channel', LandAprsChannelControl],
+  ['notification-subscriptions', NotificationSubscriptionsControl],
   ['location', LocationControl],
   ['range-ring-origin', RangeRingOriginControl],
   ['map-layers', MapLayersControl],
@@ -142,6 +144,17 @@ describe('SettingRow', () => {
     expect(editor.props('getUrl')).toBe('/api/land/repeaters/file')
     expect(editor.props('postUrl')).toBe('/api/land/repeaters/file')
     expect(editor.props('filename')).toBe('uk_repeaters.json')
+  })
+
+  it('forwards the alerts card stage event with the item id', () => {
+    const wrapper = mountRow({
+      id: 'notification-subscriptions',
+      type: 'notification-subscriptions',
+      label: 'Alerts',
+    })
+    const staged = async () => {}
+    wrapper.findComponent(NotificationSubscriptionsControl).vm.$emit('stage', staged)
+    expect(wrapper.emitted('stage')).toEqual([['notification-subscriptions', staged]])
   })
 
   it('renders nothing for the removed connectivity probe URL type', () => {

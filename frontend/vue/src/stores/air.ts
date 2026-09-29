@@ -132,6 +132,28 @@ export function sentryAlertLocationId(hostId: number): string {
   return `sentry:${hostId}`
 }
 
+/**
+ * Parse `air.overheadAlerts` as the config database holds it, accepting the
+ * pre-split single configuration (`{civil, mil, radiusNm}`) and mapping it onto
+ * the operator's own location. Null when there is nothing usable.
+ */
+export function parseStoredOverheadAlerts(
+  stored: unknown,
+): Record<string, OverheadAlertConfig> | null {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null
+  const record = stored as Record<string, unknown>
+  if (typeof record.civil === 'boolean' || typeof record.mil === 'boolean') {
+    return {
+      [USER_ALERT_LOCATION_ID]: {
+        civil: record.civil === true,
+        mil: record.mil === true,
+        radiusNm: typeof record.radiusNm === 'number' ? record.radiusNm : 10,
+      },
+    }
+  }
+  return record as Record<string, OverheadAlertConfig>
+}
+
 const DEFAULT_OVERHEAD_ALERT: OverheadAlertConfig = {
   civil: false,
   mil: false,
@@ -369,6 +391,16 @@ export const useAirStore = defineStore('air', () => {
     _persistOverheadAlerts()
   }
 
+  /**
+   * Adopt `air.overheadAlerts` from the config database, so this browser alerts
+   * on (and lists) what was chosen on any device. No-op when nothing is stored.
+   */
+  async function loadOverheadAlertsFromConfig(): Promise<void> {
+    const air = await settingsApi.getNamespace('air')
+    const stored = parseStoredOverheadAlerts(air?.overheadAlerts)
+    if (stored) hydrateOverheadAlerts(stored)
+  }
+
   /** Forget a location's settings — for a Sentry that has left the fleet. */
   function forgetOverheadAlert(locationId: string): void {
     if (!(locationId in overheadAlerts.value)) return
@@ -419,6 +451,7 @@ export const useAirStore = defineStore('air', () => {
     overheadAlertFor,
     setOverheadAlert,
     hydrateOverheadAlerts,
+    loadOverheadAlertsFromConfig,
     forgetOverheadAlert,
     replayEnabled,
     filterQuery,

@@ -148,6 +148,10 @@
          applies the moment it is flipped, exactly as MapLayersControl does. -->
     <SentryHostsControl v-else-if="item.type === 'sdr-sentry-hosts'" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
+    <NotificationSubscriptionsControl
+      v-else-if="item.type === 'notification-subscriptions'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <SdrOptionsControl
       v-else-if="item.type === 'sdr-options'"
       @stage="emit('stage', item.id, $event)"
@@ -221,6 +225,7 @@ import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
+import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ExportAllControl from './ExportAllControl.vue'
 import JsonDataControl from './JsonDataControl.vue'
