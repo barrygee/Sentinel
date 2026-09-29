@@ -422,6 +422,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Use subtle dark road colours on the dark map (#375)
 - Draw dark map parks beneath water to remove ocean patches (#376)
 - Darken the dashed boundary lines on the dark map (#377)
+- Make the roads toggle hide every road, and add names and borders toggles (#378)
 
 ### Chores
 
