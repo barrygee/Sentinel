@@ -421,6 +421,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove green area fills from the colour map and hillshade from terrain (#374)
 - Use subtle dark road colours on the dark map (#375)
 - Draw dark map parks beneath water to remove ocean patches (#376)
+- Darken the dashed boundary lines on the dark map (#377)
 
 ### Chores
 
