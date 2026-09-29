@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import type { SourceMode } from '@/utils/sourceMode'
 
-export type ConnectivityMode = 'auto' | 'online' | 'offgrid'
+/** The app-wide data-source mode (Settings › Connectivity Mode). */
+export type ConnectivityMode = SourceMode
 
 export const useAppStore = defineStore('app', () => {
-  const connectivityMode = ref<ConnectivityMode>('auto')
-  const isOnline = ref(true)
+  const connectivityMode = ref<ConnectivityMode>('online')
+  /** True in ONLINE mode — which basemap/feeds the app-wide views use. */
+  const isOnline = computed(() => connectivityMode.value === 'online')
   const enabledDomains = ref<string[]>(['air', 'space', 'sea', 'land', 'sdr'])
 
   // Visibility of the map's right-edge controls rail (#side-menu on Air,
@@ -52,10 +55,6 @@ export const useAppStore = defineStore('app', () => {
     window.dispatchEvent(new CustomEvent('sentinel:connectivityModeChanged', { detail: { mode } }))
   }
 
-  function setOnline(online: boolean) {
-    isOnline.value = online
-  }
-
   function setEnabledDomains(domains: string[]) {
     enabledDomains.value = domains
   }
@@ -74,7 +73,6 @@ export const useAppStore = defineStore('app', () => {
     setNotificationSound,
     hydrateNotificationSoundFromDb,
     setConnectivityMode,
-    setOnline,
     setEnabledDomains,
     firstEnabledDomain,
   }

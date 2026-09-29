@@ -2134,12 +2134,12 @@ describe('AdsbLiveControl playback + polling stop branches', () => {
     expect(priv(control)._callsignMarkers['air1']).toBeUndefined()
   })
 
-  it('_effectiveMode falls back to auto when localStorage throws', () => {
+  it('_effectiveMode falls back to online when localStorage throws', () => {
     const { control } = mounted()
     const spy = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new Error('blocked')
     })
-    expect(priv(control)._effectiveMode()).toBe('auto')
+    expect(priv(control)._effectiveMode()).toBe('online')
     spy.mockRestore()
   })
 })
@@ -2430,11 +2430,18 @@ describe('AdsbLiveControl final branch sweep', () => {
     expect(true).toBe(true)
   })
 
-  it('_effectiveMode returns the connectivity mode when override is auto', () => {
+  it("_effectiveMode follows the app mode for a legacy 'auto' override", () => {
     const { control } = mounted()
     localStorage.setItem('sentinel_air_sourceOverride', 'auto')
+    localStorage.setItem('sentinel_app_connectivityMode', 'offgrid')
+    expect(priv(control)._effectiveMode()).toBe('offgrid')
+  })
+
+  it("_effectiveMode prefers AIR's own mode over the app mode", () => {
+    const { control } = mounted()
+    localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
     localStorage.setItem('sentinel_app_connectivityMode', 'online')
-    expect(priv(control)._effectiveMode()).toBe('online')
+    expect(priv(control)._effectiveMode()).toBe('offgrid')
   })
 
   it('clearAircraft removes an existing tag marker', () => {

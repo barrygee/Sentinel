@@ -1,3 +1,4 @@
+import { resolveSectionMode } from '@/utils/sourceMode'
 import { computed, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useSdrStore } from '@/stores/sdr'
@@ -40,12 +41,13 @@ export function useOffgridAisDecode() {
    * the two must agree, or Sentinel would hold a dongle while reading vessels
    * from the internet, or read locally while decoding nothing.
    */
-  const isOffgrid = computed(() => {
-    const override = settingsStore.getSetting<string>('sea', 'sourceOverride', 'auto')
-    if (override === 'online') return false
-    if (override === 'offgrid') return true
-    return appStore.connectivityMode === 'offgrid' || !appStore.isOnline
-  })
+  const isOffgrid = computed(
+    () =>
+      resolveSectionMode(
+        settingsStore.getSetting<unknown>('sea', 'sourceOverride', null),
+        appStore.connectivityMode,
+      ) === 'offgrid',
+  )
 
   /** The radio designated as the AIS receiver, or null when none is set. */
   const designatedRadioId = computed<number | null>(() => {

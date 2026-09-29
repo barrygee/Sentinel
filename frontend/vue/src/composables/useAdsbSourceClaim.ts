@@ -1,3 +1,4 @@
+import { resolveSectionMode } from '@/utils/sourceMode'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
@@ -49,12 +50,13 @@ export function useAdsbSourceClaim() {
    * agree, or Sentinel would claim a dongle while reading aircraft from the
    * internet, or read locally while holding nothing.
    */
-  const shouldHold = computed(() => {
-    const override = settingsStore.getSetting<string>('air', 'sourceOverride', 'auto')
-    if (override === 'online') return false
-    if (override === 'offgrid') return true
-    return appStore.connectivityMode === 'offgrid' || !appStore.isOnline
-  })
+  const shouldHold = computed(
+    () =>
+      resolveSectionMode(
+        settingsStore.getSetting<unknown>('air', 'sourceOverride', null),
+        appStore.connectivityMode,
+      ) === 'offgrid',
+  )
 
   function stopRenewals(): void {
     if (renewalTimer !== null) {

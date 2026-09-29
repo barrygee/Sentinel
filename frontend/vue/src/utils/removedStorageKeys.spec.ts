@@ -12,6 +12,7 @@ describe('clearRemovedStorageKeys', () => {
       'sdrTrunkTrackingEnabled',
       'sdrTrunkChannelMap',
       'adsbLabelFields',
+      'sentinel_app_connectivityProbeUrl',
     ])
   })
 

@@ -308,7 +308,7 @@ describe('SentryHostDetails', () => {
 
     it('is hidden off-grid, where the online basemap cannot load', async () => {
       const wrapper = mount(SentryHostDetails, { props: { host: HOST } })
-      useAppStore().setOnline(false)
+      useAppStore().setConnectivityMode('offgrid')
       await wrapper.find('.sentry-host-details-toggle').trigger('click')
       await flushPromises()
       expect(wrapper.find('.stub-site-map').exists()).toBe(false)

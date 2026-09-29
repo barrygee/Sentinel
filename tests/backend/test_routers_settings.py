@@ -640,7 +640,68 @@ class TestConfigFileStatus:
         }
 
 
-class TestConfigUploadValidation:
+class TestConnectivityModeValidation:
+    @pytest.mark.parametrize("namespace", ["air", "space", "sea"])
+    def test_a_section_accepts_online_and_offgrid(self, client, namespace):
+        for mode in ("online", "offgrid"):
+            resp = client.put(
+                f"/api/settings/{namespace}/sourceOverride", json={"value": mode}
+            )
+            assert resp.status_code == 200
+        assert (
+            client.get(f"/api/settings/{namespace}").json()["sourceOverride"]
+            == "offgrid"
+        )
+
+    @pytest.mark.parametrize("value", ["auto", "", None, "ONLINE"])
+    def test_a_section_rejects_anything_else(self, client, value):
+        resp = client.put("/api/settings/sea/sourceOverride", json={"value": value})
+        assert resp.status_code == 400
+        assert "sourceOverride must be 'online' or 'offgrid'" in resp.json()["detail"]
+        assert "sourceOverride" not in client.get("/api/settings/sea").json()
+
+    def test_the_app_mode_rejects_auto(self, client):
+        resp = client.put("/api/settings/app/connectivityMode", json={"value": "auto"})
+        assert resp.status_code == 400
+        assert "connectivityMode must be 'online' or 'offgrid'" in resp.json()["detail"]
+
+    def test_the_app_mode_accepts_offgrid(self, client):
+        assert (
+            client.put(
+                "/api/settings/app/connectivityMode", json={"value": "offgrid"}
+            ).status_code
+            == 200
+        )
+        assert client.get("/api/settings/app").json()["connectivityMode"] == "offgrid"
+
+    def test_other_keys_named_like_a_mode_are_not_validated(self, client):
+        # Land has no data-source mode, so its keys are free-form as before.
+        assert (
+            client.put(
+                "/api/settings/land/sourceOverride", json={"value": "auto"}
+            ).status_code
+            == 200
+        )
+
+
+class TestConfigUploadAutoMode:
+    def test_an_uploaded_auto_is_stored_as_an_explicit_mode(self, client):
+        payload = json.dumps(
+            {"app": {"connectivityMode": "offgrid"}, "air": {"sourceOverride": "auto"}}
+        )
+        resp = client.post(
+            "/api/settings/config/upload",
+            files={
+                "file": (
+                    "sentinel_config.json",
+                    io.BytesIO(payload.encode()),
+                    "application/json",
+                )
+            },
+        )
+        assert resp.status_code == 200
+        assert client.get("/api/settings/air").json()["sourceOverride"] == "offgrid"
+
     def test_an_invalid_upload_is_a_400(self, client):
         resp = client.post(
             "/api/settings/config/upload",

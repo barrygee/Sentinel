@@ -14,7 +14,7 @@ describe('app store', () => {
 
   it('has the expected initial state', () => {
     const store = useAppStore()
-    expect(store.connectivityMode).toBe('auto')
+    expect(store.connectivityMode).toBe('online')
     expect(store.isOnline).toBe(true)
     expect(store.enabledDomains).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect(store.notificationSound).toBe(false)
@@ -57,25 +57,27 @@ describe('app store', () => {
   it('setConnectivityMode changes the mode and dispatches an event', () => {
     const store = useAppStore()
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
-    store.setConnectivityMode('online')
-    expect(store.connectivityMode).toBe('online')
+    store.setConnectivityMode('offgrid')
+    expect(store.connectivityMode).toBe('offgrid')
     expect(dispatchSpy).toHaveBeenCalledOnce()
     const event = dispatchSpy.mock.calls[0]![0] as CustomEvent
     expect(event.type).toBe('sentinel:connectivityModeChanged')
-    expect(event.detail).toEqual({ mode: 'online' })
+    expect(event.detail).toEqual({ mode: 'offgrid' })
   })
 
   it('setConnectivityMode is a no-op (no event) when the mode is unchanged', () => {
     const store = useAppStore()
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
-    store.setConnectivityMode('auto') // already 'auto'
+    store.setConnectivityMode('online') // already 'online'
     expect(dispatchSpy).not.toHaveBeenCalled()
   })
 
-  it('setOnline toggles the online flag', () => {
+  it('isOnline follows the connectivity mode', () => {
     const store = useAppStore()
-    store.setOnline(false)
+    store.setConnectivityMode('offgrid')
     expect(store.isOnline).toBe(false)
+    store.setConnectivityMode('online')
+    expect(store.isOnline).toBe(true)
   })
 
   it('setEnabledDomains replaces the enabled domains', () => {

@@ -83,4 +83,25 @@ describe('BaseSegmentedSetting', () => {
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
   })
+
+  describe('reselectable', () => {
+    it('does not emit when the selected option is picked again, by default', async () => {
+      const wrapper = mountGroup('light')
+      await radios(wrapper)[1]!.trigger('click')
+      expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    })
+
+    it('emits the selected option again when reselectable', async () => {
+      const wrapper = mount(BaseSegmentedSetting, {
+        props: {
+          modelValue: 'light',
+          options: OPTIONS,
+          accessibleName: 'Basemap palette',
+          reselectable: true,
+        },
+      })
+      await radios(wrapper as unknown as ReturnType<typeof mountGroup>)[1]!.trigger('click')
+      expect(wrapper.emitted('update:modelValue')).toEqual([['light']])
+    })
+  })
 })

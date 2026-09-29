@@ -266,6 +266,9 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
     # bookkeeping of which default feeds had been offered to this install.
     ("land", "feeds"),
     ("land", "defaultFeedsOffered"),
+    # Connectivity auto mode (removed 2026-09-29): the URL it probed to detect
+    # internet access. Connectivity is now an explicit online/offgrid choice.
+    ("app", "connectivityProbeUrl"),
 )
 
 # Key-prefix families pruned the same way, for removed features that stored one
@@ -275,6 +278,20 @@ _REMOVED_SETTING_PREFIXES: tuple[tuple[str, str], ...] = (
     # dropped rather than left behind so no orphaned API key or login lingers.
     ("land", "feedCredential:"),
 )
+
+
+def is_removed_setting(namespace: str, key: str) -> bool:
+    """True for a setting that belongs to a removed feature (see the lists above).
+
+    Config imports skip these, so an old export or a stale live config file
+    can't resurrect a row `prune_removed_settings()` just deleted.
+    """
+    if (namespace, key) in _REMOVED_SETTING_KEYS:
+        return True
+    return any(
+        namespace == prefix_namespace and key.startswith(prefix)
+        for prefix_namespace, prefix in _REMOVED_SETTING_PREFIXES
+    )
 
 
 async def prune_removed_settings() -> None:
@@ -488,6 +505,61 @@ async def backfill_satellite_radio_store() -> None:
             return  # already in sync — nothing to write
 
         await upsert_setting(session, "space", "satelliteRadio", merged)
+
+
+async def resolve_retired_auto_modes() -> None:
+    """Replace the retired connectivity 'auto' mode with an explicit one.
+
+    'auto' once meant "probe the internet" for `app.connectivityMode` and
+    "follow the app mode" for a section's `sourceOverride`. Both are now always
+    'online' or 'offgrid': an app-level 'auto' becomes 'online', and a section
+    'auto' becomes the app-level mode it was following. Idempotent.
+    """
+    from backend.models import UserSettings  # avoid circular import
+    from backend.services.app_config import SOURCE_MODE_SECTIONS, SOURCE_MODES
+
+    def _stored_value(row: UserSettings) -> object:
+        try:
+            return json.loads(row.value)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+    async with AsyncSessionLocal() as session:
+        timestamp = int(time.time() * 1000)
+        changed = False
+
+        mode_row = (
+            await session.execute(
+                select(UserSettings).where(UserSettings.namespace == "app", UserSettings.key == "connectivityMode")
+            )
+        ).scalar_one_or_none()
+        app_mode = _stored_value(mode_row) if mode_row is not None else "online"
+        if app_mode not in SOURCE_MODES:
+            app_mode = "online"
+            if mode_row is not None:
+                mode_row.value = json.dumps(app_mode)
+                mode_row.updated_at = timestamp
+                changed = True
+
+        section_rows = (
+            (
+                await session.execute(
+                    select(UserSettings).where(
+                        UserSettings.namespace.in_(SOURCE_MODE_SECTIONS), UserSettings.key == "sourceOverride"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for row in section_rows:
+            if _stored_value(row) not in SOURCE_MODES:
+                row.value = json.dumps(app_mode)
+                row.updated_at = timestamp
+                changed = True
+
+        if changed:
+            await session.commit()
 
 
 async def seed_default_settings() -> None:

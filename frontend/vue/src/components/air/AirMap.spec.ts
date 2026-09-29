@@ -260,7 +260,7 @@ describe('AirMap', () => {
       expect(wrapper.findComponent(MapLibreMapStub).props('styleUrl')).toBe(
         '/assets/fiord-online.json',
       )
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       // styleUrl is computed; re-read after Vue updates the prop binding.
       return nextTick().then(() => {
         expect(wrapper.findComponent(MapLibreMapStub).props('styleUrl')).toBe('/assets/fiord.json')
@@ -314,7 +314,7 @@ describe('AirMap', () => {
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       const offlineMapsStore = useOfflineMapsStore()
       offlineMapsStore.status = {
@@ -343,7 +343,7 @@ describe('AirMap', () => {
       const map = makeFakeMap()
       mountMap()
       shared.emit!('map-created', map) // records _currentStyleUrl as the online style
-      app.isOnline = false // desired style is now offline
+      app.connectivityMode = 'offgrid' // desired style is now offline
       await nextTick()
       shared.emit!('style-loaded', map)
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)
@@ -420,7 +420,7 @@ describe('AirMap', () => {
       bringUp(map)
       expect(basemapLayerSync.getMap!()).toBe(map)
       expect(basemapLayerSync.apply).toHaveBeenCalledOnce()
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.connectivityCb!(false)
       map.onceHandlers['style.load']!()
@@ -434,7 +434,7 @@ describe('AirMap', () => {
       bringUp(map)
       // useConnectivity sets the store before it calls back, so the spec does
       // too — the style the map wants is derived from the store, not the arg.
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.connectivityCb!(false) // online → offline
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord.json', STYLE_OPTIONS)

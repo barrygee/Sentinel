@@ -15,6 +15,7 @@ import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { onlineKey, offgridKey } from '@/utils/domainKeys'
 import NoDataOverlay from './NoDataOverlay.vue'
+import { resolveSectionMode, sectionModeStorageKey, type SourceMode } from '@/utils/sourceMode'
 
 const props = defineProps<{ domain: string }>()
 
@@ -23,20 +24,18 @@ const settingsStore = useSettingsStore()
 
 const hasUrl = ref(true)
 
-function _readSourceOverride(): string {
+function _readSourceOverride(): string | null {
   try {
-    return localStorage.getItem(`sentinel_${props.domain}_sourceOverride`) || 'auto'
+    return localStorage.getItem(sectionModeStorageKey(props.domain))
   } catch {
-    return 'auto'
+    return null
   }
 }
 
 const _sourceOverride = ref(_readSourceOverride())
 
-function _effectiveMode(): string {
-  const override = _sourceOverride.value
-  if (override !== 'auto') return override
-  return appStore.connectivityMode
+function _effectiveMode(): SourceMode {
+  return resolveSectionMode(_sourceOverride.value, appStore.connectivityMode)
 }
 
 // The space domain has no remote data source — satellite positions are

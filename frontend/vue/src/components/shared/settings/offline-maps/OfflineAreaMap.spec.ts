@@ -144,11 +144,11 @@ describe('OfflineAreaMap', () => {
 
   it('shows the offline basemap with no internet, and switches when the connection changes', async () => {
     const appStore = useAppStore()
-    appStore.setOnline(false)
+    appStore.setConnectivityMode('offgrid')
     mountMap()
     const map = currentMap()
     expect(map.setStyle.mock.calls.at(-1)![0]).toBe('/assets/fiord.json')
-    appStore.setOnline(true)
+    appStore.setConnectivityMode('online')
     await Promise.resolve()
     expect(map.setStyle.mock.calls.at(-1)![0]).toBe('/assets/fiord-online.json')
   })

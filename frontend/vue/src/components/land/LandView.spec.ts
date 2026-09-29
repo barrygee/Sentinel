@@ -410,7 +410,7 @@ describe('LandView', () => {
 
     it('uses the offline style when offline', () => {
       const app = useAppStore()
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       const wrapper = mountView()
       expect(wrapper.findComponent(MapLibreMapStub).props('styleUrl')).toBe(OFFLINE_STYLE)
     })
@@ -422,7 +422,7 @@ describe('LandView', () => {
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.emit!('style-loaded', map)
       expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE, STYLE_OPTIONS)
@@ -450,7 +450,7 @@ describe('LandView', () => {
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.emit!('style-loaded', map)
       const offlineMapsStore = useOfflineMapsStore()
@@ -484,11 +484,11 @@ describe('LandView', () => {
       shared.emit!('map-created', map)
       // useConnectivity sets the store before it calls back, so the spec does
       // too — the style the map wants is derived from the store, not the arg.
-      app.isOnline = false
+      app.connectivityMode = 'offgrid'
       await nextTick()
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledWith(OFFLINE_STYLE, STYLE_OPTIONS)
-      app.isOnline = true
+      app.connectivityMode = 'online'
       await nextTick()
       shared.connectivityCb!(true)
       expect(map.setStyle).toHaveBeenCalledWith(ONLINE_STYLE, STYLE_OPTIONS)

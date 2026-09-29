@@ -495,6 +495,17 @@ describe('SettingsPanel', () => {
       ])
     })
 
+    it('no longer offers the connectivity probe URL', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      const titles = wrapper
+        .findAllComponents({ name: 'SettingRow' })
+        .map((row) => (row.props('item') as { label: string }).label)
+      expect(titles).not.toContain('Connectivity Probe URL')
+    })
+
     it('puts every map setting together under MAP', async () => {
       const store = useSettingsStore()
       store.openPanel('app')

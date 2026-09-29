@@ -19,7 +19,7 @@ import './assets/a11y.css'
 import App from './App.vue'
 import router from './router'
 import { useAppStore } from './stores/app'
-import type { ConnectivityMode } from './stores/app'
+import { APP_MODE_STORAGE_KEY, asSourceMode } from './utils/sourceMode'
 import { useAirStore } from './stores/air'
 import type { AdsbTagFields } from './stores/air'
 import { useLandStore } from './stores/land'
@@ -47,13 +47,9 @@ clearRemovedStorageKeys()
 // Hydrate app store from localStorage before first render.
 const appStore = useAppStore()
 try {
-  const savedMode = localStorage.getItem('sentinel_app_connectivityMode') as ConnectivityMode | null
-  if (savedMode && (['auto', 'online', 'offgrid'] as string[]).includes(savedMode)) {
-    appStore.setConnectivityMode(savedMode)
-    // Initialise isOnline so styleUrl computes correctly before any component mounts.
-    if (savedMode === 'offgrid') appStore.setOnline(false)
-    else if (savedMode === 'online') appStore.setOnline(true)
-  }
+  // Set before any component mounts so the maps pick the right basemap first time.
+  const savedMode = asSourceMode(localStorage.getItem(APP_MODE_STORAGE_KEY))
+  if (savedMode) appStore.setConnectivityMode(savedMode)
 } catch {}
 
 // Load per-domain enabled state from backend before first render.
@@ -95,7 +91,7 @@ const DEFAULT_LABEL_DATA_POINTS = {
     if (res.ok) {
       const data = (await res.json()) as Record<string, Record<string, unknown>>
       // Seed the settings store from this same payload so reads like
-      // sdr.bandPlan (waterfall band strip) and app.connectivityProbeUrl
+      // sdr.bandPlan (waterfall band strip)
       // resolve to the persisted values instead of their fallbacks. Nothing
       // else calls loadAll(), so without this the store stays empty.
       settingsStore.allSettings = data
@@ -109,12 +105,12 @@ const DEFAULT_LABEL_DATA_POINTS = {
 
       // Sync connectivity mode from backend — backend is authoritative so a mode
       // set from another session doesn't get overridden by a stale localStorage value.
-      const backendMode = data.app?.connectivityMode as string | undefined
-      if (backendMode && (['auto', 'online', 'offgrid'] as string[]).includes(backendMode)) {
+      const backendMode = asSourceMode(data.app?.connectivityMode)
+      if (backendMode) {
         try {
-          localStorage.setItem('sentinel_app_connectivityMode', backendMode)
+          localStorage.setItem(APP_MODE_STORAGE_KEY, backendMode)
         } catch {}
-        appStore.setConnectivityMode(backendMode as ConnectivityMode)
+        appStore.setConnectivityMode(backendMode)
       }
 
       // Theme — the backend is authoritative, so a choice made on another
