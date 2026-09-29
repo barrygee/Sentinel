@@ -30,6 +30,7 @@ import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
+import { useBasemapLayerSync } from '@/composables/useBasemapLayerSync'
 import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
@@ -78,6 +79,10 @@ let terrainControl: TerrainToggleControl | null = null
 // Sentry sites are plotted on every domain map — no side-menu button.
 let sentrySitesControl: SentrySitesControl | null = null
 
+// Borders have no rail button: Settings › Map is their only switch, and
+// this map follows it through the shared basemap store.
+const basemapLayerSync = useBasemapLayerSync(() => _map, ['borders'])
+
 // Reload the offline basemap/terrain tiles when a download job completes
 // while this map is showing the offline style — see the composable's doc.
 const offlineTierRefresh = useOfflineTierRefresh(
@@ -97,6 +102,7 @@ defineExpose({
 function _reinitAfterStyle(): void {
   roadsControl?.applyVisibility()
   namesControl?.applyVisibility()
+  basemapLayerSync.apply()
   terrainControl?.initLayers()
   rangeRingsControl?._initRings()
   vesselsControl?.initLayers()
@@ -132,6 +138,7 @@ function onMapCreated(m: MapLibreGlMap) {
 }
 
 function onStyleLoaded(m: MapLibreGlMap) {
+  basemapLayerSync.apply()
   if (vesselsControl) return // already initialised (style reload handled above)
 
   vesselsControl = new AisVesselsControl(seaStore)
@@ -212,7 +219,7 @@ onMounted(() => {
     (on) => terrainControl?.setVisible(on),
   )
   // Roads are a shared base-map layer too: follow the store whether the change
-  // came from this map's rail, another map, or Settings › Maps › Roads.
+  // came from this map's rail, another map, or Settings › Map › Map Layers.
   watch(
     () => basemapStore.layers.roads,
     (on) => roadsControl?.setVisible(on),

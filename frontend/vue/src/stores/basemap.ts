@@ -14,16 +14,20 @@ export interface BasemapLayerStates {
   roads: boolean
   /** Place-name labels (country/state/city/town/village/suburb + water names). */
   names: boolean
+  /** Country and state boundary lines. */
+  borders: boolean
   /** Contour lines from the local elevation archive. */
   terrain: boolean
 }
 
 const LS_KEY = 'sentinel_basemapLayers'
 
-/** All off by default — the maps start uncluttered and the operator opts in. */
+/** Off by default so the maps start uncluttered and the operator opts in —
+ *  except borders, which the basemaps have always drawn. */
 const DEFAULTS: BasemapLayerStates = {
   roads: false,
   names: false,
+  borders: true,
   terrain: false,
 }
 

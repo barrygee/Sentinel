@@ -32,6 +32,7 @@ import { useConnectivity } from '@/composables/useConnectivity'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
+import { useBasemapLayerSync } from '@/composables/useBasemapLayerSync'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { SatelliteControl } from './controls/satellite/SatelliteControl'
@@ -55,6 +56,10 @@ const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.ma
 
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
+
+// Roads and borders have no button on this map's rail: Settings › Map is
+// their only switch, and this map follows it through the shared basemap store.
+const basemapLayerSync = useBasemapLayerSync(() => _map, ['roads', 'borders'])
 
 // Reload the offline basemap tiles when a download job completes while this
 // map is showing the offline style — see the composable's doc. Space has no
@@ -87,6 +92,7 @@ function getUserLocation(): [number, number] | null {
 function reinitAfterStyleLoad(): void {
   daynightControl?.initLayers()
   namesControl?.applyVisibility()
+  basemapLayerSync.apply()
   satelliteControl?.initLayers()
   offlineTierRefresh.applyCurrentVersion()
 }
@@ -152,6 +158,7 @@ function onGoToLocation(): void {
 useDocumentEvent('space-go-to-location', onGoToLocation)
 
 function onStyleLoaded(m: MapLibreGlMap) {
+  basemapLayerSync.apply()
   if (satelliteControl) return
 
   satelliteControl = new SatelliteControl(

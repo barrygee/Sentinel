@@ -11,6 +11,7 @@
         "mapLayers": {
             "roads": false,
             "names": false,
+            "borders": true,
             "terrain": false
         }
     },

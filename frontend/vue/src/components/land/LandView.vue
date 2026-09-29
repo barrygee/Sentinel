@@ -35,7 +35,7 @@ import type { Map } from 'maplibre-gl'
 import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
-import { useLandStore } from '@/stores/land'
+import { useLandStore, isLandLayer } from '@/stores/land'
 import { useRepeatersStore } from '@/stores/repeaters'
 import { useBasemapStore } from '@/stores/basemap'
 import { useConnectivity } from '@/composables/useConnectivity'
@@ -43,6 +43,8 @@ import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { useMapContextMenu } from '@/composables/useMapContextMenu'
 import { useOfflineTierRefresh } from '@/composables/useOfflineTierRefresh'
+import { useBasemapLayerSync } from '@/composables/useBasemapLayerSync'
+import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import MapLibreMap from '@/components/shared/MapLibreMap.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
@@ -105,6 +107,10 @@ let _namesControl: NamesToggleControl | null = null
 let _sentrySitesControl: SentrySitesControl | null = null
 let _roadsControl: RoadsToggleControl | null = null
 let _terrainControl: TerrainToggleControl | null = null
+
+// Borders have no rail button: Settings › Map is their only switch, and
+// this map follows it through the shared basemap store.
+const basemapLayerSync = useBasemapLayerSync(() => _map, ['borders'])
 
 // Reload the offline basemap/terrain tiles when a download job completes
 // while this map is showing the offline style — see the composable's doc.
@@ -200,6 +206,15 @@ function toggleRangeRings() {
   rangeRingsActive.value = !rangeRingsActive.value
 }
 
+/** Re-read the Land layer settings after an app-config JSON upload, so the
+ *  map (and the sidebar's layer tabs) show what the uploaded file says. */
+async function hydrateLayersFromDb(): Promise<void> {
+  await Promise.all([landStore.hydrateDefaultLayers(), repeatersStore.hydrateFiltersFromDb()])
+  const [layer] = landStore.defaultLayers
+  if (isLandLayer(layer)) landStore.selectLayer(layer)
+}
+useDocumentEvent('sentinel:config-uploaded', () => void hydrateLayersFromDb())
+
 onMounted(() => {
   // The backend resumes the persisted APRS radio on startup, so the database is
   // the truth about whether anything is decoding — the store's localStorage
@@ -260,7 +275,7 @@ onMounted(() => {
     (on) => _terrainControl?.setVisible(on),
   )
   // Roads are a shared base-map layer too: follow the store whether the change
-  // came from this map's rail, another map, or Settings › Maps › Roads.
+  // came from this map's rail, another map, or Settings › Map › Map Layers.
   watch(
     () => basemapStore.layers.roads,
     (on) => _roadsControl?.setVisible(on),
@@ -293,6 +308,7 @@ function onStyleLoaded(m: Map) {
   // base-map toggles every time one loads.
   _namesControl?.applyVisibility()
   _roadsControl?.applyVisibility()
+  basemapLayerSync.apply()
   _terrainControl?.initLayers()
   // setStyle drops the rings' sources and layers too; rebuild them so they
   // survive a palette change and pick up that palette's stroke.

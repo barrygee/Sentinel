@@ -90,6 +90,30 @@ describe('useOfflineMapsStore', () => {
       expect(store.lastCreatedRegionId).toBe('')
     })
 
+    it('restores a saved draft with neither Basemap nor Terrain as both selected', () => {
+      localStorage.setItem(
+        'sentinel_offlineMapsDraft',
+        JSON.stringify({ label: 'Saved', includeBasemap: false, includeTerrain: false }),
+      )
+      const store = useOfflineMapsStore()
+      expect(store.draft).toMatchObject({
+        label: 'Saved',
+        includeBasemap: true,
+        includeTerrain: true,
+      })
+    })
+
+    it('restores a saved draft with one of Basemap or Terrain selected unchanged', () => {
+      localStorage.setItem(
+        'sentinel_offlineMapsDraft',
+        JSON.stringify({ includeBasemap: false, includeTerrain: true }),
+      )
+      expect(useOfflineMapsStore().draft).toMatchObject({
+        includeBasemap: false,
+        includeTerrain: true,
+      })
+    })
+
     it('persists the draft bbox to localStorage so it survives a remount', () => {
       const store = useOfflineMapsStore()
       store.setDraftBbox(-3, 54, -2, 55)
@@ -142,13 +166,36 @@ describe('useOfflineMapsStore', () => {
     it('sets includeBasemap/includeTerrain/label independently', () => {
       const store = useOfflineMapsStore()
       store.setDraftIncludeBasemap(false)
-      store.setDraftIncludeTerrain(false)
       store.setDraftLabel('My Area')
       expect(store.draft).toMatchObject({
         includeBasemap: false,
-        includeTerrain: false,
+        includeTerrain: true,
         label: 'My Area',
       })
+      store.setDraftIncludeBasemap(true)
+      store.setDraftIncludeTerrain(false)
+      expect(store.draft).toMatchObject({ includeBasemap: true, includeTerrain: false })
+    })
+
+    it('refuses to untick terrain when basemap is already off', () => {
+      const store = useOfflineMapsStore()
+      store.setDraftIncludeBasemap(false)
+      store.setDraftIncludeTerrain(false)
+      expect(store.draft).toMatchObject({ includeBasemap: false, includeTerrain: true })
+    })
+
+    it('refuses to untick basemap when terrain is already off', () => {
+      const store = useOfflineMapsStore()
+      store.setDraftIncludeTerrain(false)
+      store.setDraftIncludeBasemap(false)
+      expect(store.draft).toMatchObject({ includeBasemap: true, includeTerrain: false })
+    })
+
+    it('still lets the only ticked box be re-ticked (a no-op true)', () => {
+      const store = useOfflineMapsStore()
+      store.setDraftIncludeTerrain(false)
+      store.setDraftIncludeBasemap(true)
+      expect(store.draft).toMatchObject({ includeBasemap: true, includeTerrain: false })
     })
   })
 
@@ -270,6 +317,29 @@ describe('useOfflineMapsStore', () => {
       )
       expect(store.regions[0]).toEqual(created)
       expect(store.lastCreatedRegionId).toBe('new')
+    })
+
+    it('sends the label, then clears it once the download is queued', async () => {
+      apiMock.createOfflineRegion.mockResolvedValue(region({ id: 'new', label: 'Lake District' }))
+      const store = useOfflineMapsStore()
+      store.setDraftBbox(-1, 50, 1, 52)
+      store.setDraftLabel('Lake District')
+      expect(await store.createRegionFromDraft()).toBe(true)
+      expect(apiMock.createOfflineRegion).toHaveBeenCalledWith(
+        expect.objectContaining({ label: 'Lake District' }),
+      )
+      expect(store.draft.label).toBe('')
+      // Cleared in storage too, so a reload does not bring the old label back.
+      expect(JSON.parse(localStorage.getItem('sentinel_offlineMapsDraft')!).label).toBe('')
+    })
+
+    it('keeps the label when the download is rejected, so it can be retried', async () => {
+      apiMock.createOfflineRegion.mockRejectedValue(new OfflineMapsApiError(422, 'bad'))
+      const store = useOfflineMapsStore()
+      store.setDraftBbox(-1, 50, 1, 52)
+      store.setDraftLabel('Lake District')
+      expect(await store.createRegionFromDraft()).toBe(false)
+      expect(store.draft.label).toBe('Lake District')
     })
 
     it('trims a whitespace-only label down to the "Untitled area" default', async () => {

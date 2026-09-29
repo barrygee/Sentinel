@@ -38,21 +38,25 @@ describe('ContentChecks', () => {
     expect(wrapper.emitted('update:includeTerrain')).toEqual([[false]])
   })
 
-  it('disables and describes the basemap box when it is the only one ticked', () => {
+  it('disables the basemap box when it is the only one ticked', () => {
     const wrapper = mountChecks({ includeBasemap: true, includeTerrain: false })
     const basemapInput = checkboxes(wrapper)[0]!
     expect(basemapInput.attributes('disabled')).toBeDefined()
-    const noteId = wrapper.find('.oma-content-checks-note').attributes('id')
-    expect(basemapInput.attributes('aria-describedby')).toBe(noteId)
     // The other (unticked) box must stay enabled — the user can still tick it.
     expect(checkboxes(wrapper)[1]!.attributes('disabled')).toBeUndefined()
   })
 
-  it('disables and describes the terrain box when it is the only one ticked', () => {
+  it('disables the terrain box when it is the only one ticked', () => {
     const wrapper = mountChecks({ includeBasemap: false, includeTerrain: true })
     const terrainInput = checkboxes(wrapper)[1]!
     expect(terrainInput.attributes('disabled')).toBeDefined()
     expect(checkboxes(wrapper)[0]!.attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows no at-least-one or map-style note', () => {
+    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: false })
+    expect(wrapper.text()).not.toContain('At least one of Basemap or Terrain')
+    expect(wrapper.text()).not.toContain('Works offline in')
   })
 
   it('disables neither box when both are ticked', () => {

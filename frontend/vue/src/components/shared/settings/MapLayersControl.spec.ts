@@ -38,7 +38,6 @@ describe('MapLayersControl', () => {
       'AWACS',
       'Ground vehicles',
       'Towers',
-      'Location names',
       'Terrain contours',
       'Airports',
       'Military bases',
@@ -55,12 +54,17 @@ describe('MapLayersControl', () => {
       expect(isOn(wrapper, 'Range rings')).toBe(true)
     })
 
-    it('reads place names off the shared basemap store, not the Air overlays', () => {
-      // Names describe the base map every domain draws, so they live on the
-      // cross-domain store; reading them from the Air overlays would go stale
-      // the moment another map changed them.
-      useBasemapStore().setLayer('names', true)
-      expect(isOn(mountControl(), 'Location names')).toBe(true)
+    it('reads terrain off the shared basemap store, not the Air overlays', () => {
+      // Terrain describes the base map every domain draws, so it lives on the
+      // cross-domain store; reading it from the Air overlays would go stale
+      // the moment another map changed it.
+      useBasemapStore().setLayer('terrain', true)
+      expect(isOn(mountControl(), 'Terrain contours')).toBe(true)
+    })
+
+    it('offers no Location names switch (its one switch is in App Settings › Map)', () => {
+      const wrapper = mountControl()
+      expect(rows(wrapper).some((row) => row.text().includes('Location names'))).toBe(false)
     })
 
     it('shows ground vehicles and towers on by default', () => {
@@ -101,15 +105,6 @@ describe('MapLayersControl', () => {
       expect(airStore.overlayStates[key]).toBe(!before)
     })
 
-    it('writes place names to the basemap store', async () => {
-      const basemapStore = useBasemapStore()
-      const wrapper = mountControl()
-
-      await switchOf(wrapper, 'Location names').trigger('click')
-
-      expect(basemapStore.layers.names).toBe(true)
-    })
-
     it('reads and writes terrain on the basemap store too', async () => {
       const basemapStore = useBasemapStore()
       const wrapper = mountControl()
@@ -145,19 +140,16 @@ describe('MapLayersControl', () => {
   describe('staging for APPLY CHANGES', () => {
     // A flip applies at once, but must also stage a save — otherwise the panel's
     // APPLY finds nothing pending and reports "NO CHANGES" after a real change.
-    it.each(['Airports', 'Location names', 'Terrain contours'])(
-      'stages one save per flip of %s',
-      async (label) => {
-        const wrapper = mountControl()
+    it.each(['Airports', 'Terrain contours'])('stages one save per flip of %s', async (label) => {
+      const wrapper = mountControl()
 
-        await switchOf(wrapper, label).trigger('click')
-        await switchOf(wrapper, label).trigger('click')
+      await switchOf(wrapper, label).trigger('click')
+      await switchOf(wrapper, label).trigger('click')
 
-        const staged = wrapper.emitted('stage')!
-        expect(staged).toHaveLength(2)
-        expect(typeof staged[0]![0]).toBe('function')
-      },
-    )
+      const staged = wrapper.emitted('stage')!
+      expect(staged).toHaveLength(2)
+      expect(typeof staged[0]![0]).toBe('function')
+    })
 
     it('does not stage anything until a switch is flipped', () => {
       expect(mountControl().emitted('stage')).toBeUndefined()
@@ -166,7 +158,7 @@ describe('MapLayersControl', () => {
     it('writes the current state of both layer sets when the staged save runs', async () => {
       const wrapper = mountControl()
       await switchOf(wrapper, 'Airports').trigger('click')
-      await switchOf(wrapper, 'Location names').trigger('click')
+      await switchOf(wrapper, 'Terrain contours').trigger('click')
       // Ignore the immediate write each flip makes; only the staged one counts.
       vi.mocked(settingsApi.put).mockClear()
 
@@ -182,7 +174,7 @@ describe('MapLayersControl', () => {
       expect(settingsApi.put).toHaveBeenCalledWith(
         'app',
         'mapLayers',
-        expect.objectContaining({ names: true }),
+        expect.objectContaining({ terrain: true }),
       )
     })
 
@@ -213,7 +205,7 @@ describe('MapLayersControl', () => {
       vi.mocked(settingsApi.getNamespace).mockImplementation(async (namespace) =>
         namespace === 'air'
           ? { mapLayers: { rangeRings: true, awacs: false } }
-          : { mapLayers: { names: true } },
+          : { mapLayers: { terrain: true } },
       )
       const wrapper = mountControl()
 
@@ -224,7 +216,7 @@ describe('MapLayersControl', () => {
       expect(settingsApi.getNamespace).toHaveBeenCalledWith('app')
       expect(isOn(wrapper, 'Range rings')).toBe(true)
       expect(isOn(wrapper, 'AWACS')).toBe(false)
-      expect(isOn(wrapper, 'Location names')).toBe(true)
+      expect(isOn(wrapper, 'Terrain contours')).toBe(true)
     })
 
     it('leaves the switches alone when the config database is unreachable', async () => {

@@ -111,8 +111,10 @@ describe('OfflineMapsSettings', () => {
       await flushPromises()
       const offlineMapsStore = useOfflineMapsStore()
       offlineMapsStore.setDraftBbox(-1, 50, 1, 52)
-      offlineMapsStore.setDraftIncludeBasemap(false)
-      offlineMapsStore.setDraftIncludeTerrain(false)
+      // The store's setters refuse to reach "both off", so write the draft
+      // directly: this guard is the last line if anything else ever does.
+      offlineMapsStore.draft.includeBasemap = false
+      offlineMapsStore.draft.includeTerrain = false
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.oma-disabled-reason').text()).toBe('Tick Basemap, Terrain, or both.')
     })
