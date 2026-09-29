@@ -9,7 +9,6 @@
       :checked="option.checked"
       :accessible-name="option.accessibleName"
       :disabled="option.forceDisabled"
-      :described-by-id="option.forceDisabled ? atLeastOneNoteId : undefined"
       @change="option.update(($event.target as HTMLInputElement).checked)"
     >
       <template #checkmark>
@@ -35,10 +34,6 @@
         <span class="oma-content-check-desc">{{ option.description }}</span>
       </span>
     </BaseCheckbox>
-    <p :id="atLeastOneNoteId" class="settings-location-hint oma-content-checks-note">
-      At least one of Basemap or Terrain must stay selected. Works offline in DARK, LIGHT and COLOUR
-      map styles.
-    </p>
   </div>
 </template>
 
@@ -47,11 +42,11 @@
  * `ContentChecks` — the Basemap/Terrain checkboxes (D3 in the plan: content
  * checkboxes, not theme checkboxes, because all three basemap themes share
  * the same tiles — unticking a theme would save nothing). At least one must
- * stay ticked, enforced by disabling whichever box is currently the only one
- * ticked, so there is no way to reach "both off" rather than a validation
- * message after the fact.
+ * stay ticked: whichever box is the only one ticked is disabled, and the
+ * store ignores a request to untick it, so there is no way to reach "both off"
+ * rather than a validation message after the fact.
  */
-import { computed, useId } from 'vue'
+import { computed } from 'vue'
 import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
 
 const props = defineProps<{
@@ -66,7 +61,6 @@ const emit = defineEmits<{
   'update:includeTerrain': [value: boolean]
 }>()
 
-const atLeastOneNoteId = useId()
 const basemapForceDisabled = computed(() => props.includeBasemap && !props.includeTerrain)
 const terrainForceDisabled = computed(() => props.includeTerrain && !props.includeBasemap)
 

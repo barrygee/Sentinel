@@ -56,6 +56,21 @@ const DRAFT_DEFAULTS: OfflineMapDraft = {
   label: '',
 }
 
+/**
+ * Restore a saved draft with at least one of Basemap or Terrain selected. A
+ * download of neither is meaningless (the backend rejects it), so a stored
+ * draft with both off (hand-edited, or saved before this rule) comes back with
+ * both on.
+ */
+function withContentSelected(parsed: unknown): Partial<OfflineMapDraft> {
+  // usePersistedObject only calls this with a parsed plain object.
+  const saved = parsed as Partial<OfflineMapDraft>
+  if (saved.includeBasemap === false && saved.includeTerrain === false) {
+    return { ...saved, includeBasemap: true, includeTerrain: true }
+  }
+  return saved
+}
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
@@ -95,7 +110,11 @@ function isNonTerminal(region: OfflineRegion): boolean {
 export const useOfflineMapsStore = defineStore('offlineMaps', () => {
   const status = ref<OfflineMapStatus | null>(null)
   const regions = ref<OfflineRegion[]>([])
-  const draft = usePersistedObject<OfflineMapDraft>(DRAFT_STORAGE_KEY, DRAFT_DEFAULTS)
+  const draft = usePersistedObject<OfflineMapDraft>(
+    DRAFT_STORAGE_KEY,
+    DRAFT_DEFAULTS,
+    withContentSelected,
+  )
   const lastCreatedRegionId = usePersistedRef<string>(
     LAST_CREATED_REGION_STORAGE_KEY,
     '',
@@ -200,11 +219,16 @@ export const useOfflineMapsStore = defineStore('offlineMaps', () => {
     )
   }
 
+  // At least one of Basemap or Terrain must stay selected: unticking the only
+  // selected one is ignored, whoever asks. The checkboxes also disable that
+  // box, but the rule lives here so nothing can reach "both off".
   function setDraftIncludeBasemap(include: boolean): void {
+    if (!include && !draft.value.includeTerrain) return
     draft.value.includeBasemap = include
   }
 
   function setDraftIncludeTerrain(include: boolean): void {
+    if (!include && !draft.value.includeBasemap) return
     draft.value.includeTerrain = include
   }
 
@@ -300,6 +324,9 @@ export const useOfflineMapsStore = defineStore('offlineMaps', () => {
       })
       upsertRegion(region)
       lastCreatedRegionId.value = region.id
+      // The label named the area just queued; clear it so the next area
+      // starts unnamed rather than reusing it.
+      draft.value.label = ''
       startPollingKnownRegions()
       return true
     } catch (error) {
