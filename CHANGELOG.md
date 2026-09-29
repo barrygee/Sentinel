@@ -178,6 +178,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove live camera feeds and their settings **(breaking change)**
 - Give the colour basemap more colour at every zoom (#365)
 - Download map areas for offline use (#366)
+- Mirror every setting to a live, two-way sentinel_config.json
+- Make connectivity an explicit online / off-grid choice
+- Add an Alerts card to review and switch off enabled alerts
 
 ### Bug Fixes
 
@@ -423,6 +426,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw dark map parks beneath water to remove ocean patches (#376)
 - Darken the dashed boundary lines on the dark map (#377)
 - Make the roads toggle hide every road, and add names and borders toggles (#378)
+- Label download size estimates as upper bounds
 
 ### Chores
 
@@ -1370,6 +1374,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Flip the Air, Sea and Land panes with the theme
 - Flip the Space pane and give the severity scale light values
 - Flip the SDR list tabs, keep the RADIO tab dark
+- Extract BaseWarningNotice from the map notice banner
+- Say "alerts" instead of "notifications" across the app
 
 ### Documentation
 
@@ -1460,6 +1466,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle
 - Rebuild bundle
 - Rebuild bundle
+- Rebuild the committed SPA bundle
 
 ### Continuous Integration
 
@@ -1520,6 +1527,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Lead a Sentry's details with its status dot (#302)
 - Show a Sentry's position above its address (#303)
 - Put coordinates beside each location name
+- Format the satellite pass notifier spec
 
 ### Dependencies
 
