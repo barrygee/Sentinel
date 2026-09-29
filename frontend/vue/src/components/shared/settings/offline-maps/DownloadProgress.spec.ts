@@ -40,7 +40,7 @@ describe('DownloadProgress', () => {
   it('becomes determinate and shows percent/MB once bytes start arriving', () => {
     const wrapper = mountProgress({ bytesDone: 250, bytesEstimated: 1000 })
     expect(wrapper.find('progress').attributes('value')).toBe('25')
-    expect(wrapper.text()).toContain('25% · 250 B / 1000 B')
+    expect(wrapper.text()).toContain('25% · 250 B / up to 1000 B')
   })
 
   it('clamps the percent at 100 even if bytes_done overshoots the estimate', () => {

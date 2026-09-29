@@ -13,7 +13,7 @@
     <div class="oma-progress-footer">
       <span v-if="isIndeterminate" class="oma-progress-status">{{ phaseLabel }} — starting…</span>
       <span v-else class="oma-progress-status"
-        >{{ phaseLabel }} — {{ percent }}% · {{ formatByteSize(bytesDone) }} /
+        >{{ phaseLabel }} — {{ percent }}% · {{ formatByteSize(bytesDone) }} / up to
         {{ formatByteSize(bytesEstimated) }}</span
       >
       <BaseButton type="button" variant="danger" @click="emit('cancel')">CANCEL</BaseButton>

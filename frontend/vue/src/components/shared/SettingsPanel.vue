@@ -415,7 +415,7 @@ const ALL_SETTINGS: SettingItem[] = [
     sectionLabel: 'App Settings',
     id: 'offline-maps',
     label: 'Offline Maps',
-    desc: 'Download basemap and terrain tiles for an area so it works with no connection',
+    desc: 'Download basemap and terrain tiles for an area so it works with no internet connection',
     searchTerms:
       'offline download area region pmtiles terrain basemap dark light colour cartographic',
     type: 'offline-maps',

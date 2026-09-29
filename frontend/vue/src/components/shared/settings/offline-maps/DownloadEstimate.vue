@@ -4,7 +4,7 @@
       class="oma-estimate-headline"
       :class="{ 'oma-estimate-headline--warning': exceedsFreeSpace }"
     >
-      <span class="oma-estimate-size">{{ formatByteSize(estimate?.totalBytes ?? 0) }}</span>
+      <span class="oma-estimate-size">Up to {{ formatByteSize(estimate?.totalBytes ?? 0) }}</span>
       <span class="oma-estimate-tiles"
         >· {{ formatTileCount(totalTiles) }} tile{{ totalTiles === 1 ? '' : 's' }}</span
       >
@@ -12,11 +12,11 @@
     <dl class="oma-estimate-breakdown">
       <div class="oma-estimate-row">
         <dt>Basemap</dt>
-        <dd>{{ formatByteSize(estimate?.basemapBytes ?? 0) }}</dd>
+        <dd>Up to {{ formatByteSize(estimate?.basemapBytes ?? 0) }}</dd>
       </div>
       <div class="oma-estimate-row">
         <dt>Terrain</dt>
-        <dd>{{ formatByteSize(estimate?.terrainBytes ?? 0) }}</dd>
+        <dd>Up to {{ formatByteSize(estimate?.terrainBytes ?? 0) }}</dd>
       </div>
       <div class="oma-estimate-row">
         <dt>Free space</dt>
@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 /**
- * `DownloadEstimate` — the live "~1.2 GB · 184,300 tiles" preview, split into
+ * `DownloadEstimate` — the live "Up to 1.2 GB · 184,300 tiles" preview, split into
  * basemap/terrain against free disk space, per the plan's "no size cap"
  * decision (Q3): the estimate is the only signal, and it turns to a warning
  * style — the sole reason Download is disabled — when it exceeds free space.
@@ -43,6 +43,11 @@
  * passes a fresh `estimate` each time via the store's `draftEstimate`), but
  * the `aria-live` announcement is debounced ~500 ms so a screen reader hears
  * one settled sentence rather than a number for every intermediate frame.
+ *
+ * Every figure is labelled "Up to": the per-tile sizes behind it are a worst
+ * case (they ignore the archive storing identical sea tiles once, and terrain
+ * having none over open sea), so a coastal area can download at well under
+ * half of it. A worst case is what the free-space check needs.
  */
 import { onUnmounted, ref, watch } from 'vue'
 import {
@@ -88,7 +93,7 @@ watch(
       debounceTimer = null
       const tiles = (estimate?.basemapTiles ?? 0) + (estimate?.terrainTiles ?? 0)
       announced.value = estimate
-        ? `Estimated download: ${formatByteSize(estimate.totalBytes)}, ${formatTileCount(tiles)} tiles.`
+        ? `Estimated download: up to ${formatByteSize(estimate.totalBytes)}, ${formatTileCount(tiles)} tiles.`
         : 'No area selected yet.'
     }, ANNOUNCE_DEBOUNCE_MS)
   },
