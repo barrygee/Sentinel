@@ -353,9 +353,21 @@ const ALL_SETTINGS: SettingItem[] = [
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'notification-sound',
-    label: 'Notification Sound',
-    desc: 'Play a subtle blip when a new alert or notification arrives',
+    label: 'Alert Sound',
+    desc: 'Play a subtle blip when a new alert arrives',
     type: 'notification-sound',
+    groupLabel: 'ALERTS',
+  },
+  {
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'notification-subscriptions',
+    label: 'Alerts',
+    // The description is rendered by the control itself, so it can hide with the list.
+    desc: '',
+    searchTerms:
+      'notifications alerts bell aircraft landing departure satellite pass overhead clear cancel turn off disable',
+    type: 'notification-subscriptions',
   },
   {
     section: 'app',

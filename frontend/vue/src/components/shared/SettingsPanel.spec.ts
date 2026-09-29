@@ -482,17 +482,30 @@ describe('SettingsPanel', () => {
   // so there is no longer a staged edit for that event to supersede.
 
   describe('group labels', () => {
-    it('groups App Settings under GENERAL, LOCATION, MAP and CONFIGURATION', async () => {
+    it('groups App Settings under GENERAL, ALERTS, LOCATION, MAP and CONFIGURATION', async () => {
       const store = useSettingsStore()
       store.openPanel('app')
       const wrapper = mountPanel()
       await flushPromises()
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'GENERAL',
+        'ALERTS',
         'LOCATION',
         'MAP',
         'CONFIGURATION',
       ])
+    })
+
+    it('puts the alert sound and the alerts list together under ALERTS', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      const titles = wrapper
+        .findAllComponents({ name: 'SettingRow' })
+        .map((row) => (row.props('item') as { label: string }).label)
+      const alertsStart = titles.indexOf('Alert Sound')
+      expect(titles.slice(alertsStart, alertsStart + 2)).toEqual(['Alert Sound', 'Alerts'])
     })
 
     it('no longer offers the connectivity probe URL', async () => {

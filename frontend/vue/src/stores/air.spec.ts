@@ -4,8 +4,10 @@ import {
   useAirStore,
   DEFAULT_OVERHEAD_ALERT_RADIUS_NM,
   USER_ALERT_LOCATION_ID,
+  parseStoredOverheadAlerts,
   sentryAlertLocationId,
 } from './air'
+import * as settingsApi from '@/services/settingsApi'
 
 const LS_OVERLAYS = 'overlayStates'
 const LS_TAGS = 'adsbTagFields_v3'
@@ -488,6 +490,58 @@ describe('air store — map layers config mirroring', () => {
       })
       store.setAdsbTypeFilter('civil')
       expect(store.adsbTypeFilter).toBe('civil')
+    })
+  })
+})
+
+describe('air store — overhead alerts from the config database', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  describe('parseStoredOverheadAlerts', () => {
+    it.each([[undefined], [null], ['on'], [[]]])('rejects %j', (stored) => {
+      expect(parseStoredOverheadAlerts(stored)).toBeNull()
+    })
+
+    it('passes a per-location record through', () => {
+      const stored = { user: { civil: true, mil: false, radiusNm: 4 } }
+      expect(parseStoredOverheadAlerts(stored)).toEqual(stored)
+    })
+
+    it('maps the pre-split single configuration onto your own location', () => {
+      expect(parseStoredOverheadAlerts({ civil: true, mil: false, radiusNm: 6 })).toEqual({
+        [USER_ALERT_LOCATION_ID]: { civil: true, mil: false, radiusNm: 6 },
+      })
+    })
+
+    it('defaults the radius of the single configuration to 10 NM', () => {
+      expect(parseStoredOverheadAlerts({ mil: true })).toEqual({
+        [USER_ALERT_LOCATION_ID]: { civil: false, mil: true, radiusNm: 10 },
+      })
+    })
+  })
+
+  describe('loadOverheadAlertsFromConfig', () => {
+    it('adopts air.overheadAlerts from the backend', async () => {
+      const stored = { user: { civil: false, mil: true, radiusNm: 3 } }
+      vi.spyOn(settingsApi, 'getNamespace').mockResolvedValue({ overheadAlerts: stored })
+      const store = useAirStore()
+      await store.loadOverheadAlertsFromConfig()
+      expect(settingsApi.getNamespace).toHaveBeenCalledWith('air')
+      expect(store.overheadAlertFor(USER_ALERT_LOCATION_ID)).toEqual(stored.user)
+    })
+
+    it('keeps the local settings when the backend has none', async () => {
+      vi.spyOn(settingsApi, 'getNamespace').mockResolvedValue(null)
+      const store = useAirStore()
+      store.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true })
+      await store.loadOverheadAlertsFromConfig()
+      expect(store.overheadAlertFor(USER_ALERT_LOCATION_ID).civil).toBe(true)
     })
   })
 })
