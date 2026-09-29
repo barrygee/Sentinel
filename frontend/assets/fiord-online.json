@@ -1645,7 +1645,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "hsla(195,47%,62%,0.26)",
+        "line-color": "hsla(195,47%,62%,0.12)",
         "line-dasharray": [
           2,
           2
@@ -1697,7 +1697,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "hsla(195,47%,62%,0.26)",
+        "line-color": "hsla(195,47%,62%,0.12)",
         "line-dasharray": [
           2,
           2
@@ -1739,7 +1739,7 @@
       },
       "paint": {
         "line-blur": 0.4,
-        "line-color": "hsla(195,47%,62%,0.26)",
+        "line-color": "hsla(195,47%,62%,0.12)",
         "line-dasharray": [
           2,
           2
