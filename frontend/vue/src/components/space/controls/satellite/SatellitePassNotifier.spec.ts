@@ -80,9 +80,7 @@ describe('SatellitePassNotifier.toggleEnabled', () => {
 
     expect(isPassNotifEnabled(NORAD)).toBe(false)
     expect(changedEvents).toEqual([{ noradId: NORAD, enabled: false }])
-    expect(notificationsStore.items.find((i) => i.detail === 'Pass alerts enabled')).toBe(
-      undefined,
-    )
+    expect(notificationsStore.items.find((i) => i.detail === 'Pass alerts enabled')).toBe(undefined)
   })
 
   it('the alert action callback disables notifications for that satellite', () => {
