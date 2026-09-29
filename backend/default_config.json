@@ -1,5 +1,5 @@
 {
-    "_comment": "Default application configuration \u2014 loaded on first startup to seed the database. Upload a modified copy via Settings > Config to override all settings at once.",
+    "_comment": "Default application configuration \u2014 seeds the database on first startup. The live copy of every setting is backend/data/sentinel_config.json: it is rewritten whenever a setting changes, and edits saved to it are applied to the app automatically.",
     "app": {
         "connectivityMode": "online",
         "connectivityProbeUrl": "https://tile.openstreetmap.org/favicon.ico",
@@ -7,7 +7,12 @@
             "latitude": "",
             "longitude": ""
         },
+        "rangeRingOrigin": {
+            "kind": "user",
+            "sentryHostId": null
+        },
         "notificationSound": false,
+        "mapTheme": "dark",
         "mapLayers": {
             "roads": false,
             "names": false,
@@ -22,6 +27,16 @@
         "onlineDataSourceURL": "https://api.adsb.lol/v2",
         "offgridDataSourceURL": {
             "url": ""
+        },
+        "offgridSdrSource": null,
+        "mapLayers": {
+            "rangeRings": false,
+            "aara": true,
+            "awacs": true,
+            "groundVehicles": true,
+            "towers": true,
+            "airports": true,
+            "militaryBases": true
         },
         "labelDataPoints": {
             "civil": {
@@ -95,6 +110,7 @@
     },
     "land": {
         "enabled": false,
+        "aprsChannelHz": 144800000,
         "labelDataPoints": {
             "time": false,
             "callsign": true,
@@ -140,10 +156,17 @@
         "defaultGain": 30,
         "defaultSquelch": -60,
         "autoCenterWaterfallOnTune": true,
+        "snapToKnown": true,
         "showBandPlan": true,
         "showKnownFreqs": true,
         "digitalDecodeDefault": false,
         "muteAudioWhileDecoding": true,
-        "radios": []
+        "showWaterfallTimestamps": true,
+        "waterfallTimestampIntervalSec": 5,
+        "resumeDelaySec": 0,
+        "recordRawIq": false,
+        "radios": [],
+        "aprs_radio_id": null,
+        "ais_radio_id": null
     }
 }

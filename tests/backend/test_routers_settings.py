@@ -617,3 +617,34 @@ class TestAprsChannelSetting:
         assert "aprsChannelHz" in resp.json()["detail"]
         assert "aprsChannelHz" not in client.get("/api/settings/land").json()
         apply_channel.assert_not_awaited()
+
+
+class TestConfigFileStatus:
+    def test_reports_the_live_file_path_and_edit_stamp(
+        self, client, monkeypatch, tmp_path
+    ):
+        from backend.config import settings as app_settings
+        from backend.services import app_config_file
+
+        monkeypatch.setattr(
+            app_settings, "app_config_path", str(tmp_path / "live.json")
+        )
+        monkeypatch.setattr(app_config_file.sync, "external_edit_at", 1234)
+        resp = client.get("/api/settings/config/file-status")
+        assert resp.status_code == 200
+        # Tests skip the lifespan, so the background sync is not running here.
+        assert resp.json() == {
+            "path": str(tmp_path / "live.json"),
+            "syncing": False,
+            "external_edit_at": 1234,
+        }
+
+
+class TestConfigUploadValidation:
+    def test_an_invalid_upload_is_a_400(self, client):
+        resp = client.post(
+            "/api/settings/config/upload",
+            files={"file": ("c.json", io.BytesIO(b"[1]"), "application/json")},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Config must be a JSON object"

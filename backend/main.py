@@ -22,7 +22,7 @@ from backend.routers import air, land, offline_map, sea, space
 from backend.routers import sdr as sdr_router
 from backend.routers import sentry as sentry_router
 from backend.routers import settings as settings_router
-from backend.services import aprs_store
+from backend.services import app_config_file, aprs_store
 from backend.services import sdr as sdr_service
 from backend.services import sdr_decode as sdr_decode_service
 from backend.services.ais_stream import reader as ais_reader
@@ -64,6 +64,9 @@ async def lifespan(app: FastAPI):
     await seed_sdr_data_from_files()
     await seed_sdr_bandplan_from_file()
     await backfill_satellite_radio_store()
+    # Live config file: apply an edit made while Sentinel was stopped, write the
+    # seeded/migrated settings out, then keep file and database in sync both ways.
+    await app_config_file.sync.start()
     # Materialise the digital-decode ingest secret (auto-generated into the shared
     # volume the decoder container reads) so the sidecar can authenticate.
     sdr_decode_service.resolve_ingest_secret()
@@ -123,6 +126,7 @@ async def lifespan(app: FastAPI):
     await sdr_decode_service.shutdown_all_decoders()
     await sdr_service.shutdown_all()
     await offline_map_job_runner.stop()
+    await app_config_file.sync.stop()
 
 
 app = FastAPI(

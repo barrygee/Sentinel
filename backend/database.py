@@ -176,6 +176,7 @@ def _build_default_settings() -> list[tuple[str, str, object]]:
     overrides = {
         ("air", "onlineDataSourceURL"): settings.adsb_upstream_base,
         ("space", "onlineUrl"): settings.celestrak_iss_url,
+        ("land", "aprsChannelHz"): settings.aprs_channel_hz,
     }
     result = []
     for ns, key, value in rows:
@@ -520,6 +521,32 @@ async def seed_default_settings() -> None:
             else:
                 await session.delete(old_row)
         await session.commit()
+
+    # The map palette was once a boolean `app.lightMapTheme`; it is now the
+    # three-way `app.mapTheme`. Carry an old choice across before the default
+    # ("dark") is seeded below, which would otherwise flip a light-map install.
+    async with AsyncSessionLocal() as session:
+        legacy_row = (
+            await session.execute(
+                select(UserSettings).where(UserSettings.namespace == "app", UserSettings.key == "lightMapTheme")
+            )
+        ).scalar_one_or_none()
+        if legacy_row is not None:
+            current_row = (
+                await session.execute(
+                    select(UserSettings).where(UserSettings.namespace == "app", UserSettings.key == "mapTheme")
+                )
+            ).scalar_one_or_none()
+            if current_row is None:
+                try:
+                    was_light = json.loads(legacy_row.value) is True
+                except (json.JSONDecodeError, TypeError):
+                    was_light = False
+                legacy_row.key = "mapTheme"
+                legacy_row.value = json.dumps("light" if was_light else "dark")
+            else:
+                await session.delete(legacy_row)
+            await session.commit()
 
     # Remove stale rows seeded by earlier versions.
     #   land: no built-in default URLs; users must configure them. (sea now

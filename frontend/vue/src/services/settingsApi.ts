@@ -50,3 +50,25 @@ export async function getAll(): Promise<Record<string, Record<string, unknown>> 
     return null
   }
 }
+
+/** The backend's live config file, as `GET /api/settings/config/file-status` reports it. */
+export interface ConfigFileStatus {
+  /** Absolute path of the live `sentinel_config.json` on the server. */
+  path: string
+  /** False when the backend isn't mirroring settings to the file (e.g. in tests). */
+  syncing: boolean
+  /** Epoch ms of the last hand-edit of the file that was applied; 0 = none since startup. */
+  external_edit_at: number
+}
+
+/** Read the live config file's status, or null if the backend can't be reached. */
+export async function getConfigFileStatus(): Promise<ConfigFileStatus | null> {
+  try {
+    const res = await fetch(`${BASE}/config/file-status`)
+    if (!res.ok) return null
+    const status = (await res.json()) as Partial<ConfigFileStatus>
+    return typeof status.external_edit_at === 'number' ? (status as ConfigFileStatus) : null
+  } catch {
+    return null
+  }
+}

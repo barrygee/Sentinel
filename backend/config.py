@@ -203,6 +203,14 @@ class Settings(BaseSettings):
     # Read timeout (seconds) for calls to a Sentry host, once connected.
     sentry_read_timeout_s: float = 5.0
 
+    # ── Live application config file ──────────────────────────────────────────
+    # Every setting is mirrored to this JSON file (rewritten on each change) and
+    # edits saved to it are applied to the app — see services/app_config_file.py.
+    # Relative paths resolve against the repo root. The default sits under
+    # backend/, which docker-compose bind-mounts, so the file can be edited from
+    # the host.
+    app_config_path: str = "backend/data/sentinel_config.json"
+
     # ── Offline map downloads (user-selected region extracts) ────────────────
     # Where extracted region archives (<uuid>.pmtiles / <uuid>.terrain.pmtiles)
     # and their in-progress .part files are stored. Empty means "next to the
@@ -266,3 +274,9 @@ def resolved_offline_tiles_dir() -> Path:
     if not db_path.is_absolute():
         db_path = _ROOT_DIR / db_path
     return db_path.parent / "tiles"
+
+
+def resolved_app_config_path() -> Path:
+    """Resolve `settings.app_config_path` (the live config file) to an absolute path."""
+    config_path = Path(settings.app_config_path)
+    return config_path if config_path.is_absolute() else _ROOT_DIR / config_path
