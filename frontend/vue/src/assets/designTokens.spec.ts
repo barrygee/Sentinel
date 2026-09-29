@@ -93,6 +93,42 @@ describe('basemap palettes', () => {
 })
 
 /**
+ * Marine protected areas reach far offshore, so a park fill drawn above water
+ * paints straight-edged slabs across the sea. Every basemap must draw its park
+ * layers beneath `water`, which then covers their offshore parts.
+ */
+describe('basemap park layers beneath water', () => {
+  const PARK_LAYER_IDS = ['park', 'park_outline', 'national_park', 'national_park_outline']
+
+  function layerIds(styleName: string): string[] {
+    const style = JSON.parse(
+      readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
+    ) as { layers: { id: string }[] }
+    return style.layers.map((layer) => layer.id)
+  }
+
+  it.each([
+    'fiord',
+    'fiord-online',
+    'positron',
+    'positron-online',
+    'cartographic',
+    'cartographic-online',
+  ])('draws every %s park layer before water', (styleName) => {
+    const ids = layerIds(styleName)
+    const waterIndex = ids.indexOf('water')
+    const presentParkIds = PARK_LAYER_IDS.filter((layerId) => ids.includes(layerId))
+
+    expect(waterIndex).toBeGreaterThan(-1)
+    // Online builds have no national park source; they still carry `park`.
+    expect(presentParkIds).toContain('park')
+    for (const layerId of presentParkIds) {
+      expect(ids.indexOf(layerId), layerId).toBeLessThan(waterIndex)
+    }
+  })
+})
+
+/**
  * The colour map draws no green area fills. Woodland, parks and national
  * parks were the only green on it, and protected areas painted legal
  * boundaries (Northeast Greenland's ice cap, Saharan reserves) as parkland —

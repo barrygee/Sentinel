@@ -10,11 +10,10 @@ layer-id-driven control (`RoadsToggleControl`, `NamesToggleControl`, terrain)
 keep working untouched across all of them.
 
 So this script does not author a style: it copies `positron{,-online}.json`
-and substitutes a colour per layer id from the table below. The LIGHT pair is
-the source rather than the dark one because it carries one structural fix the
-colour map needs too — `park`/`park_outline` are drawn BENEATH `water`, since
-marine protected areas reach far offshore and any park fill bright enough to
-read on land is a visible slab on the sea. Run this after any change to the
+and substitutes a colour per layer id from the table below. All three pairs
+draw `park`/`park_outline` BENEATH `water`, since marine protected areas reach
+far offshore and any park fill bright enough to read on land is a visible slab
+on the sea. Run this after any change to the
 pair's geometry so the colour build keeps up:
 
     python3 frontend/scripts/build_colour_basemap.py
