@@ -278,6 +278,18 @@ export async function installDefaultMocks(page: Page): Promise<void> {
   await page.route('/api/settings/app', (route) => {
     void route.fulfill({ contentType: 'application/json', body: JSON.stringify({}) })
   })
+  // Live config-file status, polled by useConfigFileSync. A constant
+  // external_edit_at means "never edited on disk", so tests never reload.
+  await page.route('/api/settings/config/file-status', (route) => {
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        path: '/app/backend/data/sentinel_config.json',
+        syncing: true,
+        external_edit_at: 0,
+      }),
+    })
+  })
   // Top-level settings fetch (/api/settings) — used by main.ts to seed enabled
   // domains and other bootstrap data. Return all 5 domains enabled so the full
   // navigation renders (sea, land, etc.). Without this, DOMAINS_ON_BY_DEFAULT in

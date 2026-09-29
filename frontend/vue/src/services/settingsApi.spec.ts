@@ -4,6 +4,7 @@ import {
   put,
   del,
   getAll,
+  getConfigFileStatus,
   notifySettingsChanged,
   SETTINGS_CHANGED_EVENT,
 } from './settingsApi'
@@ -121,5 +122,38 @@ describe('settingsApi change notifications', () => {
     await del('sdr', 'gain')
     expect(listener).not.toHaveBeenCalled()
     document.removeEventListener(SETTINGS_CHANGED_EVENT, listener)
+  })
+})
+
+describe('settingsApi.getConfigFileStatus', () => {
+  const STATUS = {
+    path: '/app/backend/data/sentinel_config.json',
+    syncing: true,
+    external_edit_at: 42,
+  }
+
+  it('returns the live config file status', async () => {
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve(STATUS) }))
+    await expect(getConfigFileStatus()).resolves.toEqual(STATUS)
+    expect(global.fetch).toHaveBeenCalledWith('/api/settings/config/file-status')
+  })
+
+  it('returns null on a non-OK response', async () => {
+    mockFetch(() => ({ ok: false, json: () => Promise.resolve(STATUS) }))
+    await expect(getConfigFileStatus()).resolves.toBeNull()
+  })
+
+  it('returns null when the body has no numeric external_edit_at', async () => {
+    // e.g. the SPA served against an older backend, or a catch-all stub answering {}.
+    mockFetch(() => ({
+      ok: true,
+      json: () => Promise.resolve({ path: 'x', external_edit_at: '42' }),
+    }))
+    await expect(getConfigFileStatus()).resolves.toBeNull()
+  })
+
+  it('returns null when the request fails', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof fetch
+    await expect(getConfigFileStatus()).resolves.toBeNull()
   })
 })

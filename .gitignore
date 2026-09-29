@@ -28,6 +28,10 @@ __pycache__/
 # sdr_frequencies.seed.json carries the canonical defaults a fresh clone seeds
 # from. (Leading-slash anchors to the repo root; `./` would NOT match.)
 /backend/data/sdr_frequencies.json
+# Live application config: every setting of THIS install, rewritten on each
+# change (services/app_config_file.py). The committed backend/default_config.json
+# holds the defaults a fresh clone seeds from.
+/backend/data/sentinel_config.json
 
 # Local environment / secrets (never commit) — see .env.example
 .env

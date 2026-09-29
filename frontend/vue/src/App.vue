@@ -144,6 +144,7 @@ import SdrTabPanel from '@/components/sdr/SdrTabPanel.vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
+import { useConfigFileSync } from '@/composables/useConfigFileSync'
 import { useAirAlertsService } from '@/composables/useAirAlertsService'
 import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { useAppStore } from '@/stores/app'
@@ -158,6 +159,10 @@ const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocat
 const { hydrateFromConfig: hydrateRingOriginFromConfig } = useRangeRingOrigin()
 const notificationsStore = useNotificationsStore()
 const offlineMapsStore = useOfflineMapsStore()
+
+// A hand-edit of the live sentinel_config.json reloads the app so every
+// setting it changed is what the UI shows.
+useConfigFileSync()
 
 onMounted(async () => {
   // Reconcile with the config first: a valid config location seeds the

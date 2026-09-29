@@ -2,21 +2,30 @@
 Settings router — user preferences and overlay toggle persistence.
 
 Endpoints:
-  GET  /api/settings                    — all settings as { namespace: { key: value } }
-  GET  /api/settings/{namespace}        — settings for one namespace as { key: value }
-  PUT  /api/settings/{namespace}/{key}  — upsert a single setting
-  GET  /api/settings/config/preview     — current settings as a downloadable config JSON
-  POST /api/settings/config/upload      — replace all settings from an uploaded config JSON
+  GET  /api/settings                     — all settings as { namespace: { key: value } }
+  GET  /api/settings/{namespace}         — settings for one namespace as { key: value }
+  PUT  /api/settings/{namespace}/{key}   — upsert a single setting
+  GET  /api/settings/config/preview      — current settings as a downloadable config JSON
+  POST /api/settings/config/upload       — replace all settings from an uploaded config JSON
+  GET  /api/settings/config/file-status  — where the live config file is, and when it was last edited outside the app
 """
 
 import json
-from functools import lru_cache
 from typing import Any
 
 from backend.cache import now_ms
 from backend.database import get_db
-from backend.db_helpers import get_setting, upsert_setting
+from backend.db_helpers import upsert_setting
 from backend.models import UserSettings
+from backend.services import app_config_file
+from backend.services.app_config import (
+    InvalidConfigError,
+    apply_config,
+    build_config_snapshot,
+    is_secret_setting,
+    rows_to_namespace_dict,
+    validated_location,
+)
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
@@ -34,61 +43,8 @@ class SettingValueIn(BaseModel):
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-# Settings that are secrets. They are stored in user_settings like any other
-# value but never leave the backend through this router (redacted on read,
-# refused on write, skipped on config upload) — each has its own endpoint that
-# reports only whether it is configured. See routers/sea.py for the AIS key.
-_SECRET_SETTING_KEYS: frozenset[tuple[str, str]] = frozenset({("sea", "aisstreamApiKey")})
-
-
-def _is_secret_setting(namespace: str, key: str) -> bool:
-    """True for a setting that never round-trips through the generic settings
-    API — redacted on read, refused on write, skipped on config upload."""
-    return (namespace, key) in _SECRET_SETTING_KEYS
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
-
-def _validated_location(value: Any) -> dict:
-    """Normalise/validate an app.location value.
-
-    Returns {"latitude": "", "longitude": ""} for an empty/unset location
-    (signals "use browser geolocation"), or {"latitude": float,
-    "longitude": float} for a valid pair. Raises HTTPException(400) for an
-    invalid partial or out-of-range pair so a bad coordinate can't poison
-    the persisted config.
-    """
-    if not isinstance(value, dict):
-        raise HTTPException(status_code=400, detail="location must be an object")
-
-    lat_raw = value.get("latitude")
-    lon_raw = value.get("longitude")
-
-    def _is_empty(v: Any) -> bool:
-        return v is None or (isinstance(v, str) and v.strip() == "")
-
-    lat_empty, lon_empty = _is_empty(lat_raw), _is_empty(lon_raw)
-    if lat_empty and lon_empty:
-        return {"latitude": "", "longitude": ""}
-    if lat_empty != lon_empty:
-        raise HTTPException(
-            status_code=400,
-            detail="location requires both latitude and longitude, or neither",
-        )
-
-    try:
-        lat = float(lat_raw)
-        lon = float(lon_raw)
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail="latitude/longitude must be numbers") from exc
-
-    if not (-90 <= lat <= 90):
-        raise HTTPException(status_code=400, detail="latitude out of range [-90, 90]")
-    if not (-180 <= lon <= 180):
-        raise HTTPException(status_code=400, detail="longitude out of range [-180, 180]")
-
-    return {"latitude": lat, "longitude": lon}
 
 
 def _validated_aprs_channel_hz(value: Any) -> int:
@@ -110,47 +66,6 @@ def _validated_aprs_channel_hz(value: Any) -> int:
             detail=f"aprsChannelHz must be a frequency in Hz between {APRS_CHANNEL_MIN_HZ} and {APRS_CHANNEL_MAX_HZ}",
         )
     return channel_hz
-
-
-@lru_cache(maxsize=1)
-def _canonical_key_order() -> dict[str, list[str]]:
-    """Per-namespace canonical key order, read from default_config.json.
-
-    UserSettings rows have no inherent order — a key seeded later (e.g. a new
-    setting added in a release) lands wherever its row was inserted, so the
-    served / exported config drifts from the template's readable layout. We
-    re-order each namespace dict to match default_config.json; keys not in the
-    template keep their original relative order, appended after the known ones.
-    """
-    from backend.database import _CONFIG_PATH  # avoid import cycle at module load
-
-    try:
-        raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-    return {ns: list(entries.keys()) for ns, entries in raw.items() if isinstance(entries, dict)}
-
-
-def _rows_to_namespace_dict(rows, namespace: str | None = None) -> dict:
-    """Convert a list of UserSettings rows to { key: parsed_value }, ordered to
-    match default_config.json for that namespace (unknown keys kept last in
-    their original order)."""
-    parsed: dict = {}
-    for row in rows:
-        if _is_secret_setting(row.namespace, row.key):
-            continue
-        try:
-            parsed[row.key] = json.loads(row.value)
-        except (json.JSONDecodeError, TypeError):
-            parsed[row.key] = row.value
-
-    order = _canonical_key_order().get(namespace or "", [])
-    if not order:
-        return parsed
-    rank = {k: i for i, k in enumerate(order)}
-    # Stable sort: known keys by template position, unknown keys after, each
-    # group preserving the row order they came in with.
-    return dict(sorted(parsed.items(), key=lambda kv: rank.get(kv[0], len(order))))
 
 
 _VALID_MODES = {"AM", "NFM", "WFM", "USB", "LSB", "CW"}
@@ -354,59 +269,18 @@ async def get_all_settings(db: AsyncSession = Depends(get_db)):
     for row in rows:
         grouped.setdefault(row.namespace, []).append(row)
 
-    return JSONResponse({ns: _rows_to_namespace_dict(ns_rows, ns) for ns, ns_rows in grouped.items()})
+    return JSONResponse({ns: rows_to_namespace_dict(ns_rows, ns) for ns, ns_rows in grouped.items()})
 
 
-# ── Config preview (must be registered before /{namespace}) ─────────────────
-
-# Curated reference data that now lives in dedicated files with their own
-# Settings editors (backend/data/sdr_frequencies.json → Settings > SDR,
-# sdr_bandplan.json → Settings > SDR, satellite_radio.json → Settings > Space).
-# These keys are excluded from the app-config JSON so they are neither shown
-# nor round-tripped here. The runtime UserSettings mirrors still exist (the SDR
-# panel/waterfall and satellite display read them) — they're just no longer
-# part of the application config.
-_EXCLUDED_DATA_KEYS: dict[str, frozenset[str]] = {
-    "sdr": frozenset({"groups", "frequencies", "searchRanges", "bandPlan"}),
-    "space": frozenset({"satelliteRadio"}),
-}
-
-# Internal state that lives in user_settings for convenience but is not a
-# setting: nothing in the Settings UI edits it, and copying it between
-# installs is actively harmful (two Sentinels sharing an instanceId look like
-# the same client to Sentry's device reservations). Hidden from the exported /
-# editable config and ignored on upload.
-_INTERNAL_KEYS: dict[str, frozenset[str]] = {
-    "app": frozenset({"instanceId"}),
-}
-
-
-def _is_hidden_key(namespace: str, key: str) -> bool:
-    """True for keys that never round-trip through the app-config JSON."""
-    return key in _EXCLUDED_DATA_KEYS.get(namespace, frozenset()) or key in _INTERNAL_KEYS.get(namespace, frozenset())
-
-
-def _strip_data_keys(config: dict) -> dict:
-    """Drop the moved data keys (SDR frequencies/groups/bandplan, satellite
-    radio) and internal-only keys from an exported config dict."""
-    for ns, block in list(config.items()):
-        if isinstance(block, dict):
-            config[ns] = {k: v for k, v in block.items() if not _is_hidden_key(ns, k)}
-    return config
+# ── Config document (must be registered before /{namespace}) ────────────────
+# Which keys make up the document (and which are secret / data / internal) is
+# owned by services/app_config.py, shared with the live config-file sync.
 
 
 @router.get("/config/preview")
 async def config_preview(db: AsyncSession = Depends(get_db)):
     """Return the current settings as a config JSON file (downloadable)."""
-    result = await db.execute(select(UserSettings))
-    rows = result.scalars().all()
-
-    grouped: dict[str, list] = {}
-    for row in rows:
-        grouped.setdefault(row.namespace, []).append(row)
-
-    config = {ns: _rows_to_namespace_dict(ns_rows, ns) for ns, ns_rows in grouped.items()}
-    payload = json.dumps(_strip_data_keys(config), indent=2, ensure_ascii=False)
+    payload = json.dumps(await build_config_snapshot(db), indent=2, ensure_ascii=False)
     return Response(content=payload, media_type="application/json")
 
 
@@ -422,88 +296,28 @@ async def config_upload(
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
 
-    if not isinstance(config, dict):
-        raise HTTPException(status_code=400, detail="Config must be a JSON object")
-
-    # Assign sequential IDs to any sdr.radios entries that are missing them
-    sdr_radios = config.get("sdr", {}).get("radios") if isinstance(config.get("sdr"), dict) else None
-    if isinstance(sdr_radios, list):
-        next_id = max((r.get("id", 0) for r in sdr_radios if isinstance(r, dict)), default=0) + 1
-        for r in sdr_radios:
-            if isinstance(r, dict) and not isinstance(r.get("id"), int):
-                r["id"] = next_id
-                next_id += 1
-
-    # Validate app.location up front so a bad coordinate rejects the whole
-    # upload rather than being persisted (raises HTTPException(400)).
-    app_ns = config.get("app")
-    if isinstance(app_ns, dict) and "location" in app_ns:
-        app_ns["location"] = _validated_location(app_ns["location"])
-
-    # The APRS decoder is a running process, not just a stored value: if the
-    # upload changes `sdr.aprs_radio_id`, the bridge must follow it so the JSON
-    # edit takes effect exactly as picking the radio in Settings > LAND would.
-    previous_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
-    previous_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
-
-    ts = now_ms()
-    for namespace, keys in config.items():
-        if not isinstance(keys, dict):
-            continue
-        for key, value in keys.items():
-            # SDR frequencies/groups/searchRanges/bandPlan and satellite radio
-            # are no longer part of the app config — they live in dedicated
-            # files with their own editors. Ignore them here so an old/exported
-            # config that still carries them can't silently overwrite the
-            # dedicated stores.
-            if _is_hidden_key(namespace, key):
-                continue
-            # Secrets are redacted from exports, so an uploaded config can only
-            # ever carry a blank — never let it wipe the stored one.
-            if _is_secret_setting(namespace, key):
-                continue
-            result = await db.execute(
-                select(UserSettings).where(
-                    UserSettings.namespace == namespace,
-                    UserSettings.key == key,
-                )
-            )
-            row = result.scalar_one_or_none()
-            value_str = json.dumps(value)
-            if row:
-                row.value = value_str
-                row.updated_at = ts
-            else:
-                db.add(
-                    UserSettings(
-                        namespace=namespace,
-                        key=key,
-                        value=value_str,
-                        updated_at=ts,
-                    )
-                )
-
-    await db.commit()
-
-    next_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
-    if next_aprs_radio_id != previous_aprs_radio_id:
-        from backend.routers.sdr import reconcile_aprs_decode  # avoid import cycle at module load
-
-        await reconcile_aprs_decode(db, previous_aprs_radio_id, next_aprs_radio_id)
-    elif isinstance(config.get("land"), dict) and "aprsChannelHz" in config["land"]:
-        # Same radio, but the uploaded JSON may have moved the APRS channel.
-        from backend.routers.sdr import apply_aprs_channel  # avoid import cycle at module load
-        from backend.services.aprs_store import read_aprs_channel_hz  # avoid import cycle at module load
-
-        await apply_aprs_channel(await read_aprs_channel_hz(db))
-
-    next_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
-    if next_ais_radio_id != previous_ais_radio_id:
-        from backend.routers.sdr import reconcile_ais_decode  # avoid import cycle at module load
-
-        await reconcile_ais_decode(db, previous_ais_radio_id, next_ais_radio_id)
+    try:
+        await apply_config(db, config)
+    except InvalidConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return JSONResponse({"status": "ok"})
+
+
+@router.get("/config/file-status")
+async def config_file_status():
+    """Report the live config file and when it was last edited outside the app.
+
+    `external_edit_at` (epoch ms, 0 = not since startup) moves whenever a saved
+    edit to the file is applied; the SPA polls it and reloads its settings.
+    """
+    return JSONResponse(
+        {
+            "path": str(app_config_file.sync.path),
+            "syncing": app_config_file.sync.is_running,
+            "external_edit_at": app_config_file.sync.external_edit_at,
+        }
+    )
 
 
 # ── Namespace / key endpoints (registered after /config/* to avoid shadowing) ─
@@ -514,7 +328,7 @@ async def get_namespace_settings(namespace: str, db: AsyncSession = Depends(get_
     """Return settings for a single namespace as { key: value }."""
     result = await db.execute(select(UserSettings).where(UserSettings.namespace == namespace))
     rows = result.scalars().all()
-    return JSONResponse(_rows_to_namespace_dict(rows, namespace))
+    return JSONResponse(rows_to_namespace_dict(rows, namespace))
 
 
 @router.put("/{namespace}/{key}", status_code=200)
@@ -525,11 +339,14 @@ async def upsert_setting_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Upsert a single user setting. Creates the row if it doesn't exist."""
-    if _is_secret_setting(namespace, key):
+    if is_secret_setting(namespace, key):
         raise HTTPException(status_code=400, detail=f"{namespace}/{key} is a secret — use its dedicated endpoint")
     value = body.value
     if namespace == "app" and key == "location":
-        value = _validated_location(value)
+        try:
+            value = validated_location(value)
+        except InvalidConfigError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     if namespace == "land" and key == "aprsChannelHz":
         value = _validated_aprs_channel_hz(value)
     await upsert_setting(db, namespace, key, value)
