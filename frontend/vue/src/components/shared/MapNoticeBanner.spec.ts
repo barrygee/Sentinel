@@ -28,18 +28,18 @@ describe('MapNoticeBanner', () => {
 
   it('hides the decorative glyph from assistive tech', () => {
     const wrapper = mount(MapNoticeBanner, { props: { message: MESSAGE } })
-    expect(wrapper.find('.map-notice-icon').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.find('.warning-notice-icon').attributes('aria-hidden')).toBe('true')
   })
 
   it('carries the warning in words for screen readers', () => {
     const wrapper = mount(MapNoticeBanner, { props: { message: MESSAGE } })
-    expect(wrapper.find('.map-notice-message .sr-only').text()).toBe('Warning:')
+    expect(wrapper.find('.warning-notice-message .sr-only').text()).toBe('Warning:')
   })
 
   it('renders no action wrapper when no action is given', () => {
     // Without this guard an empty flex child would add a stray gap.
     const wrapper = mount(MapNoticeBanner, { props: { message: MESSAGE } })
-    expect(wrapper.find('.map-notice-action').exists()).toBe(false)
+    expect(wrapper.find('.warning-notice-action').exists()).toBe(false)
   })
 
   it('renders an action when one is slotted in', () => {
@@ -47,7 +47,7 @@ describe('MapNoticeBanner', () => {
       props: { message: MESSAGE },
       slots: { action: '<button type="button">Take control</button>' },
     })
-    expect(wrapper.find('.map-notice-action button').text()).toBe('Take control')
+    expect(wrapper.find('.warning-notice-action button').text()).toBe('Take control')
   })
 
   it('has no accessibility violations', async () => {

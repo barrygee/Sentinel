@@ -91,7 +91,7 @@ describe('SeaSourceNotice', () => {
     // The shared banner prefixes the wording with its warning glyph and a
     // screen-reader-only "Warning:", so the message is carried rather than
     // being the whole text.
-    expect(banner.find('.map-notice-message').text()).toBe(`Warning: ${message}`)
+    expect(banner.find('.warning-notice-message').text()).toBe(`Warning: ${message}`)
     expect(banner.text()).toContain(message)
   })
 
@@ -100,8 +100,8 @@ describe('SeaSourceNotice', () => {
     // reach assistive tech as words rather than as a yellow box and a glyph.
     const wrapper = mount(SeaSourceNotice, { props: { feed: feed('stale') } })
     const banner = wrapper.find('.sea-source-notice')
-    expect(banner.find('.map-notice-icon').attributes('aria-hidden')).toBe('true')
-    expect(banner.find('.map-notice-message .sr-only').text()).toBe('Warning:')
+    expect(banner.find('.warning-notice-icon').attributes('aria-hidden')).toBe('true')
+    expect(banner.find('.warning-notice-message .sr-only').text()).toBe('Warning:')
   })
 
   it('appends the backend error to the degraded banners', () => {

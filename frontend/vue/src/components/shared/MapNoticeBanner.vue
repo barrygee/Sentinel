@@ -1,17 +1,12 @@
 <template>
-  <div class="map-notice" role="status">
-    <!-- GOV.UK Design System "Warning text": a filled circle carrying an
-         exclamation mark, paired with visually-hidden wording so the warning
-         is announced rather than left to the colour and glyph alone. -->
-    <span class="map-notice-icon" aria-hidden="true">!</span>
-    <p class="map-notice-message"><span class="sr-only">Warning: </span>{{ message }}</p>
-    <div v-if="$slots.action" class="map-notice-action"><slot name="action" /></div>
-  </div>
+  <BaseWarningNotice class="map-notice" :message="message">
+    <template v-if="$slots.action" #action><slot name="action" /></template>
+  </BaseWarningNotice>
 </template>
 
 <script setup lang="ts">
 /**
- * The yellow warning strip a map shows when it is empty for a reason the
+ * Places the yellow warning strip (`BaseWarningNotice`) a map shows when it is empty for a reason the
  * operator can act on — a stopped decoder container, a radio tuned off
  * channel, an upstream that is reconnecting.
  *
@@ -35,6 +30,8 @@
  * rail never costs the operator a control; only the optional action slot takes
  * pointer events back.
  */
+import BaseWarningNotice from '@/components/base/BaseWarningNotice.vue'
+
 defineProps<{
   /** The warning to show. The caller renders nothing when there is none. */
   message: string
@@ -61,19 +58,7 @@ defineProps<{
   /* Informational, so it must never swallow a click meant for the map or the
      rail beneath it; the action slot re-enables pointer events for itself. */
   pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
   max-width: min(560px, calc(100vw - var(--map-notice-inset-left) - 24px));
-  padding: 10px 14px;
-  /* Square, matching the settings design language. */
-  border-radius: 0;
-  /* The warn fill rather than danger: nothing is broken and no data is lost —
-     the map is simply not receiving yet, and the operator can usually fix it. */
-  background: var(--sev-warn);
-  color: var(--accent-ink);
-  font-size: 12.5px;
-  line-height: 1.55;
   box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.25);
 }
 
@@ -90,32 +75,5 @@ defineProps<{
     /* Rail (44px) + open panel (386px). */
     --map-notice-inset-left: 430px;
   }
-}
-
-.map-notice-icon {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  /* The one round thing here, on purpose: GOV.UK's warning mark is a circle. */
-  border-radius: 50%;
-  background: var(--accent-ink);
-  color: var(--sev-warn);
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1;
-  /* The glyph sits marginally high in the circle at this weight. */
-  padding-bottom: 1px;
-}
-
-.map-notice-message {
-  margin: 0;
-}
-
-.map-notice-action {
-  flex-shrink: 0;
-  pointer-events: auto;
 }
 </style>
