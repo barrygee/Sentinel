@@ -199,9 +199,8 @@ export const useLandStore = defineStore('land', () => {
   }
 
   /**
-   * The `land.defaultLayers` list the current flags describe — read by
-   * `LandMapLayersControl` when it stages a choice as the new persisted
-   * default, mirroring `useSeaStore.currentDefaultLayers()`.
+   * The `land.defaultLayers` list the current flags describe, mirroring
+   * `useSeaStore.currentDefaultLayers()`.
    */
   function currentDefaultLayers(): string[] {
     return activeLayer.value ? [activeLayer.value] : []

@@ -254,7 +254,6 @@ describe('SettingsPanel', () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'LAND')
       const ids = renderedItemIds(wrapper)
-      expect(ids).toContain('land-map-layers')
       expect(ids).toContain('land-repeater-label-fields')
       expect(ids).toContain('land-repeaters-file')
       // The Land map has no single feed URL to point at — the layers each have
@@ -262,18 +261,20 @@ describe('SettingsPanel', () => {
       expect(ids).not.toContain('land-online-source')
       expect(ids).not.toContain('land-offline-source')
       expect(ids).not.toContain('land-source-override')
+      // Location names, its only switch, now lives once in App Settings › Map.
+      expect(ids).not.toContain('land-map-layers')
     })
 
     function groupLabels(wrapper: ReturnType<typeof mountPanel>): string[] {
       return wrapper.findAll('.settings-group-label').map((node) => node.text())
     }
 
-    it('groups the Land rows under APRS and REPEATERS, with MAP last', async () => {
+    it('groups the Land rows under APRS and REPEATERS', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'LAND')
       // An exact list also proves no group is split in two: a heading renders
       // wherever the group changes, so a stray row would repeat one.
-      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS', 'MAP'])
+      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS'])
       expect(renderedItemIds(wrapper)).toEqual([
         'land-aprs-sdr-source',
         'land-aprs-channel',
@@ -281,7 +282,6 @@ describe('SettingsPanel', () => {
         'land-aprs-retention',
         'land-repeater-label-fields',
         'land-repeaters-file',
-        'land-map-layers',
       ])
     })
 
@@ -482,7 +482,7 @@ describe('SettingsPanel', () => {
   // so there is no longer a staged edit for that event to supersede.
 
   describe('group labels', () => {
-    it('groups App Settings under GENERAL, LOCATION, MAPS and CONFIGURATION', async () => {
+    it('groups App Settings under GENERAL, LOCATION, MAP and CONFIGURATION', async () => {
       const store = useSettingsStore()
       store.openPanel('app')
       const wrapper = mountPanel()
@@ -490,12 +490,12 @@ describe('SettingsPanel', () => {
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'GENERAL',
         'LOCATION',
-        'MAPS',
+        'MAP',
         'CONFIGURATION',
       ])
     })
 
-    it('puts every map setting together under MAPS', async () => {
+    it('puts every map setting together under MAP', async () => {
       const store = useSettingsStore()
       store.openPanel('app')
       const wrapper = mountPanel()
@@ -507,11 +507,26 @@ describe('SettingsPanel', () => {
       const mapsStart = titles.indexOf('Map Style')
       expect(titles.slice(mapsStart, mapsStart + 4)).toEqual([
         'Map Style',
-        'Roads',
+        'Map Layers',
         'Range Ring Origin',
         'Offline Maps',
       ])
       expect(titles.indexOf('Sentinel Location')).toBe(mapsStart - 1)
+    })
+
+    it('shows Map Style and Map Layers with no description', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      const descriptions = Object.fromEntries(
+        wrapper
+          .findAllComponents({ name: 'SettingRow' })
+          .map((row) => row.props('item') as { id: string; desc: string })
+          .map((item) => [item.id, item.desc]),
+      )
+      expect(descriptions['map-theme']).toBe('')
+      expect(descriptions['map-basemap-layers']).toBe('')
     })
   })
 

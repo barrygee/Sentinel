@@ -39,6 +39,22 @@ function last(name: string): Record<string, ReturnType<typeof vi.fn>> {
   return arr[arr.length - 1] as unknown as Record<string, ReturnType<typeof vi.fn>>
 }
 
+// The borders (and, on Space, roads) sync is its own composable with its own
+// spec; here it is a spy so each test can check the groups this map asks for
+// and that the map re-applies them after every style load.
+const basemapLayerSync = vi.hoisted(() => ({
+  apply: vi.fn(),
+  groups: null as null | readonly string[],
+  getMap: null as null | (() => unknown),
+}))
+vi.mock('@/composables/useBasemapLayerSync', () => ({
+  useBasemapLayerSync: (getMap: () => unknown, groups: readonly string[]) => {
+    basemapLayerSync.getMap = getMap
+    basemapLayerSync.groups = groups
+    return { apply: basemapLayerSync.apply }
+  },
+}))
+
 vi.mock('./controls/satellite/SatelliteControl', () => ({
   SatelliteControl: controlMocks.make('satellite'),
 }))
@@ -309,6 +325,23 @@ describe('SpaceMap', () => {
     it('does nothing when the map is not yet created', () => {
       mountMap()
       expect(() => shared.connectivityCb!(false)).not.toThrow()
+    })
+
+    it('follows the shared roads and borders settings, re-applying them after every style load', async () => {
+      const app = useAppStore()
+      const map = makeFakeMap()
+      basemapLayerSync.apply.mockClear()
+      mountMap()
+      expect(basemapLayerSync.groups).toEqual(['roads', 'borders'])
+      expect(basemapLayerSync.getMap!()).toBeNull()
+      bringUp(map)
+      expect(basemapLayerSync.getMap!()).toBe(map)
+      expect(basemapLayerSync.apply).toHaveBeenCalledOnce()
+      app.isOnline = false
+      await nextTick()
+      shared.connectivityCb!(false)
+      map.onceHandlers['style.load']!()
+      expect(basemapLayerSync.apply).toHaveBeenCalledTimes(2)
     })
 
     it('reloads the style and re-inits layers when connectivity flips', async () => {

@@ -1,24 +1,6 @@
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@/stores/basemap'
-
-/** Base-style layers carrying road geometry, names and shields. */
-const ROAD_LAYERS = [
-  'highway_path',
-  'highway_minor',
-  'highway_major_casing',
-  'highway_major_inner',
-  'highway_major_subtle',
-  'highway_motorway_casing',
-  'highway_motorway_inner',
-  'highway_motorway_subtle',
-  'highway_name_motorway',
-  'highway_name_other',
-  'highway_ref',
-  'tunnel_motorway_casing',
-  'tunnel_motorway_inner',
-  'road_area_pier',
-  'road_pier',
-]
+import { applyBasemapLayerVisibility } from '@/utils/basemapLayers'
 
 /**
  * Toggles the base map's road lines and labels. Shared by every domain map —
@@ -57,7 +39,7 @@ export class RoadsToggleControl extends SentinelControlBase {
   }
 
   /**
-   * Adopt a visibility decided elsewhere — Settings › Maps › Roads, or the same
+   * Adopt a visibility decided elsewhere — Settings › Map › Map Layers, or the same
    * layer being toggled on another domain's map. Unlike `handleClick` this does
    * not write back to the store: the store is where the value came from.
    */
@@ -70,10 +52,7 @@ export class RoadsToggleControl extends SentinelControlBase {
   /** Push the current visibility onto the style. Public because a map that
    *  swaps its style (online↔offline) must re-apply it after the reload. */
   applyVisibility(): void {
-    const visibility = this.roadsVisible ? 'visible' : 'none'
-    ROAD_LAYERS.forEach((id) => {
-      if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', visibility)
-    })
+    applyBasemapLayerVisibility(this.map, 'roads', this.roadsVisible)
     this.setButtonActive(this.roadsVisible)
   }
 }

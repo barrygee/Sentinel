@@ -1,19 +1,6 @@
 import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@/stores/basemap'
-
-/** Base-style layers carrying place-name labels, and the places-of-interest
- *  labels (`poi`), which hide and show with them. */
-const NAME_LAYERS = [
-  'poi',
-  'place_suburb',
-  'place_village',
-  'place_town',
-  'place_city',
-  'place_state',
-  'place_country',
-  'place_country_other',
-  'water_name',
-]
+import { applyBasemapLayerVisibility } from '@/utils/basemapLayers'
 
 /**
  * Toggles the base map's place-name labels. Shared by every domain map — the
@@ -66,10 +53,7 @@ export class NamesToggleControl extends SentinelControlBase {
   /** Push the current visibility onto the style. Public because a map that
    *  swaps its style (online↔offline) must re-apply it after the reload. */
   applyVisibility(): void {
-    const visibility = this.namesVisible ? 'visible' : 'none'
-    NAME_LAYERS.forEach((id) => {
-      if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', visibility)
-    })
+    applyBasemapLayerVisibility(this.map, 'names', this.namesVisible)
     this.setButtonActive(this.namesVisible)
   }
 }

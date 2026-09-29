@@ -379,21 +379,22 @@ const ALL_SETTINGS: SettingItem[] = [
     sectionLabel: 'App Settings',
     id: 'map-theme',
     label: 'Map Style',
-    desc: 'The basemap palette — dark, light, or the full-colour cartographic build. Set independently of the interface',
+    desc: '',
     searchTerms:
       'theme light dark colour color mode palette appearance basemap map style cartographic',
     type: 'map-theme',
-    groupLabel: 'MAPS',
+    groupLabel: 'MAP',
   },
   {
     section: 'app',
     sectionLabel: 'App Settings',
-    id: 'map-roads',
-    label: 'Roads',
-    desc: 'Show road lines, road names and road numbers on every map',
-    searchTerms: 'roads streets motorways highways show hide map layer',
-    type: 'map-roads',
-    groupLabel: 'MAPS',
+    id: 'map-basemap-layers',
+    label: 'Map Layers',
+    desc: '',
+    searchTerms:
+      'roads streets motorways highways location place city town names labels borders boundaries countries show hide map layers',
+    type: 'map-basemap-layers',
+    groupLabel: 'MAP',
   },
   {
     section: 'app',
@@ -403,7 +404,7 @@ const ALL_SETTINGS: SettingItem[] = [
     desc: 'The point range rings are drawn around on the Air and Land maps — the location of your Sentinel instance, or a Sentry site',
     searchTerms: 'range rings sentry centre center origin',
     type: 'range-ring-origin',
-    groupLabel: 'MAPS',
+    groupLabel: 'MAP',
   },
   {
     section: 'app',
@@ -414,7 +415,7 @@ const ALL_SETTINGS: SettingItem[] = [
     searchTerms:
       'offline download area region pmtiles terrain basemap dark light colour cartographic',
     type: 'offline-maps',
-    groupLabel: 'MAPS',
+    groupLabel: 'MAP',
   },
   {
     section: 'air',
@@ -451,7 +452,7 @@ const ALL_SETTINGS: SettingItem[] = [
     label: 'Map Layers',
     desc: 'Which overlays the maps draw. The rails keep the few worth flipping mid-task; toggling one there updates it here.',
     searchTerms:
-      'range rings a2a refuelling refueling awacs ground vehicles towers location names terrain contours contour lines elevation airports military bases overlays',
+      'range rings a2a refuelling refueling awacs ground vehicles towers terrain contours contour lines elevation airports military bases overlays',
     type: 'map-layers',
     groupLabel: 'MAP',
   },
@@ -661,16 +662,6 @@ const ALL_SETTINGS: SettingItem[] = [
     searchTerms: 'repeaters directory json ukrepeater etcc data file',
     type: 'land-repeaters-file',
     groupLabel: 'REPEATERS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-map-layers',
-    label: 'Map Layers',
-    desc: 'Base-map overlays on the Land map. The data layer itself (APRS stations or repeaters) is chosen from the tabs beneath FILTER in the side panel.',
-    searchTerms: 'location names place names overlays',
-    type: 'land-map-layers',
-    groupLabel: 'MAP',
   },
   {
     section: 'sdr',

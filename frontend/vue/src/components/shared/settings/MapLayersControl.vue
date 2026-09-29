@@ -20,8 +20,9 @@
  * this table and a switch here moves the layer on the map — there is one value,
  * not two that have to be kept in step.
  *
- * `names` and `terrain` live on the shared basemap store because they describe
- * the base map every domain draws; the rest are Air overlays.
+ * `terrain` lives on the shared basemap store because it describes the base
+ * map every domain draws; the rest are Air overlays. Location names is also a
+ * shared base-map layer, but its one switch is in App Settings › Map.
  *
  * A flip takes effect (and is saved) at once, but it also stages a re-save for
  * APPLY CHANGES, as the Sea and Land tables do — otherwise APPLY finds nothing
@@ -33,8 +34,8 @@ import * as settingsApi from '@/services/settingsApi'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'
 
-/** An Air overlay flag, or a shared base-map layer (place names, terrain). */
-type MapLayerKey = keyof OverlayStates | 'names' | 'terrain'
+/** An Air overlay flag, or the shared terrain base-map layer. */
+type MapLayerKey = keyof OverlayStates | 'terrain'
 
 // One unlabelled column: every row is a plain on/off, so a heading would say
 // nothing the switch does not.
@@ -46,7 +47,6 @@ const LAYER_ROWS: LabelFieldRow[] = [
   { key: 'awacs', label: 'AWACS' },
   { key: 'groundVehicles', label: 'Ground vehicles' },
   { key: 'towers', label: 'Towers' },
-  { key: 'names', label: 'Location names' },
   { key: 'terrain', label: 'Terrain contours' },
   { key: 'airports', label: 'Airports' },
   { key: 'militaryBases', label: 'Military bases' },
@@ -58,7 +58,7 @@ const emit = defineEmits<{ stage: [fn: () => Promise<void>] }>()
 
 function isLayerOn(_columnKey: string, layer: string): boolean {
   const key = layer as MapLayerKey
-  if (key === 'names' || key === 'terrain') return basemapStore.layers[key]
+  if (key === 'terrain') return basemapStore.layers.terrain
   return airStore.overlayStates[key]
 }
 
@@ -78,8 +78,8 @@ async function hydrateLayersFromDb(): Promise<void> {
 useDocumentEvent('sentinel:config-uploaded', () => void hydrateLayersFromDb())
 
 function toggleLayer(layer: MapLayerKey): void {
-  if (layer === 'names' || layer === 'terrain') {
-    basemapStore.setLayer(layer, !basemapStore.layers[layer])
+  if (layer === 'terrain') {
+    basemapStore.setLayer('terrain', !basemapStore.layers.terrain)
   } else {
     airStore.setOverlay(layer, !airStore.overlayStates[layer])
   }

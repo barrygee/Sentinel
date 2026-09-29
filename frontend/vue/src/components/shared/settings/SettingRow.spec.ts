@@ -28,7 +28,7 @@ import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import MapLayersControl from './MapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
-import MapRoadsControl from './MapRoadsControl.vue'
+import MapBasemapLayersControl from './MapBasemapLayersControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
 import OfflineSourceControl from './OfflineSourceControl.vue'
@@ -49,7 +49,6 @@ import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
-import LandMapLayersControl from './LandMapLayersControl.vue'
 import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
@@ -84,7 +83,7 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['map-layers', MapLayersControl],
   ['notification-sound', NotificationSoundControl],
   ['map-theme', MapThemeControl],
-  ['map-roads', MapRoadsControl],
+  ['map-basemap-layers', MapBasemapLayersControl],
   ['source-override', SourceOverrideControl, { ns: 'air' }],
   ['online-source', OnlineSourceControl, { ns: 'air', defaultUrl: '' }],
   ['offline-source', OfflineSourceControl, { ns: 'air', defaultUrl: '' }],
@@ -107,7 +106,6 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sea-coverage-area', SeaCoverageAreaControl],
   ['sea-label-fields', SeaLabelFieldsControl],
   ['sea-map-layers', SeaMapLayersControl],
-  ['land-map-layers', LandMapLayersControl],
   ['air-replay-toggle', AirReplayToggleControl],
   ['sdr-devices', SdrDevicesControl],
   ['sdr-options', SdrOptionsControl],

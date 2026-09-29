@@ -2,7 +2,7 @@
    defines tiny stub components (with untyped capture props) to stand in for
    LandView's children. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, enableAutoUnmount } from '@vue/test-utils'
+import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSdrStore } from '@/stores/sdr'
 import { defineComponent, h, nextTick } from 'vue'
@@ -12,6 +12,22 @@ import { axe } from 'jest-axe'
 const shared = vi.hoisted(() => ({
   emit: null as null | ((event: string, ...args: unknown[]) => void),
   connectivityCb: null as null | ((online: boolean) => void),
+}))
+
+// The borders (and, on Space, roads) sync is its own composable with its own
+// spec; here it is a spy so each test can check the groups this map asks for
+// and that the map re-applies them after every style load.
+const basemapLayerSync = vi.hoisted(() => ({
+  apply: vi.fn(),
+  groups: null as null | readonly string[],
+  getMap: null as null | (() => unknown),
+}))
+vi.mock('@/composables/useBasemapLayerSync', () => ({
+  useBasemapLayerSync: (getMap: () => unknown, groups: readonly string[]) => {
+    basemapLayerSync.getMap = getMap
+    basemapLayerSync.groups = groups
+    return { apply: basemapLayerSync.apply }
+  },
 }))
 
 vi.mock('@/composables/useConnectivity', () => ({
@@ -587,6 +603,42 @@ describe('LandView', () => {
       expect(filtersSpy).toHaveBeenCalledOnce()
     })
 
+    it('re-reads the Land layers after a config upload and selects the uploaded layer', async () => {
+      const land = useLandStore()
+      const layersSpy = vi.spyOn(land, 'hydrateDefaultLayers').mockImplementation(async () => {
+        land.defaultLayers = ['aprs']
+      })
+      const filtersSpy = vi.spyOn(useRepeatersStore(), 'hydrateFiltersFromDb').mockResolvedValue()
+      const selectSpy = vi.spyOn(land, 'selectLayer')
+      mountView()
+      await flushPromises()
+      layersSpy.mockClear()
+      filtersSpy.mockClear()
+      selectSpy.mockClear()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(layersSpy).toHaveBeenCalledOnce()
+      expect(filtersSpy).toHaveBeenCalledOnce()
+      expect(selectSpy).toHaveBeenCalledExactlyOnceWith('aprs')
+    })
+
+    it('selects no layer after a config upload that names none', async () => {
+      const land = useLandStore()
+      vi.spyOn(land, 'hydrateDefaultLayers').mockImplementation(async () => {
+        land.defaultLayers = []
+      })
+      const selectSpy = vi.spyOn(land, 'selectLayer')
+      mountView()
+      await flushPromises()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(selectSpy).not.toHaveBeenCalled()
+    })
+
     it('applies a later defaultLayers change to the APRS layer', async () => {
       const land = useLandStore()
       vi.spyOn(land, 'hydrateDefaultLayers').mockResolvedValue()
@@ -743,9 +795,13 @@ describe('LandView', () => {
     it('re-asserts the base-map layer visibility on every style load', () => {
       const map = makeFakeMap()
       mountView()
+      expect(basemapLayerSync.groups).toEqual(['borders'])
+      expect(basemapLayerSync.getMap!()).toBeNull()
       shared.emit!('map-created', map)
+      expect(basemapLayerSync.getMap!()).toBe(map)
       namesSpies.applyVisibility.mockClear()
       roadsSpies.applyVisibility.mockClear()
+      basemapLayerSync.apply.mockClear()
       terrainSpies.initLayers.mockClear()
       ringsSpies.initRings.mockClear()
       // A fresh style ships its own layer visibilities (and drops the terrain
@@ -753,11 +809,13 @@ describe('LandView', () => {
       shared.emit!('style-loaded', map)
       expect(namesSpies.applyVisibility).toHaveBeenCalledOnce()
       expect(roadsSpies.applyVisibility).toHaveBeenCalledOnce()
+      expect(basemapLayerSync.apply).toHaveBeenCalledOnce()
       expect(terrainSpies.initLayers).toHaveBeenCalledOnce()
       expect(ringsSpies.initRings).toHaveBeenCalledOnce()
       shared.emit!('style-loaded', map)
       expect(namesSpies.applyVisibility).toHaveBeenCalledTimes(2)
       expect(roadsSpies.applyVisibility).toHaveBeenCalledTimes(2)
+      expect(basemapLayerSync.apply).toHaveBeenCalledTimes(2)
       expect(terrainSpies.initLayers).toHaveBeenCalledTimes(2)
       expect(ringsSpies.initRings).toHaveBeenCalledTimes(2)
     })

@@ -66,8 +66,8 @@
       v-else-if="item.type === 'map-theme'"
       @stage="emit('stage', item.id, $event)"
     />
-    <MapRoadsControl
-      v-else-if="item.type === 'map-roads'"
+    <MapBasemapLayersControl
+      v-else-if="item.type === 'map-basemap-layers'"
       @stage="emit('stage', item.id, $event)"
     />
     <SourceOverrideControl
@@ -151,10 +151,6 @@
     />
     <!-- No stage/commit: a layer switch belongs to the map it draws on, so it
          applies the moment it is flipped, exactly as MapLayersControl does. -->
-    <LandMapLayersControl
-      v-else-if="item.type === 'land-map-layers'"
-      @stage="emit('stage', item.id, $event)"
-    />
     <SentryHostsControl v-else-if="item.type === 'sdr-sentry-hosts'" />
     <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
     <SdrOptionsControl
@@ -208,7 +204,7 @@ import MapLayersControl from './MapLayersControl.vue'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
-import MapRoadsControl from './MapRoadsControl.vue'
+import MapBasemapLayersControl from './MapBasemapLayersControl.vue'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import OnlineSourceControl from './OnlineSourceControl.vue'
 import OfflineSourceControl from './OfflineSourceControl.vue'
@@ -228,7 +224,6 @@ import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import AirReplayToggleControl from './AirReplayToggleControl.vue'
-import LandMapLayersControl from './LandMapLayersControl.vue'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
@@ -252,7 +247,7 @@ const emit = defineEmits<{
 // that the sole card under its own LOCATION heading is not a lone 300px sliver.
 const HALF_TYPES = new Set([
   'location',
-  'map-roads',
+  'map-basemap-layers',
   'range-ring-origin',
   'map-layers',
   'sea-map-layers',
@@ -270,7 +265,6 @@ const HALF_TYPES = new Set([
   'sea-ais-key',
   'sea-coverage-area',
   'sea-label-fields',
-  'land-map-layers',
 ])
 // Two columns wide, but each starting a fresh row, so the SDR pair stacks
 // rather than sitting shoulder to shoulder.
@@ -285,13 +279,12 @@ const FULL_TYPES = new Set([
 ])
 const NATURAL_HEIGHT_TYPES = new Set([
   'location',
-  'map-roads',
+  'map-basemap-layers',
   'sea-ais-key',
   'sea-coverage-area',
   'range-ring-origin',
   'map-layers',
   'sea-map-layers',
-  'land-map-layers',
   'overhead-alerts',
   'offline-maps',
 ])
