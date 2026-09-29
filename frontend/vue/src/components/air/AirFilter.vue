@@ -101,12 +101,8 @@
               class="acft-acc-btn"
               :active="notifEnabled.has(item.key)"
               active-class="acft-acc-btn--active"
-              :accessible-name="
-                notifEnabled.has(item.key) ? 'Disable notifications' : 'Enable notifications'
-              "
-              :tooltip="
-                notifEnabled.has(item.key) ? 'Disable notifications' : 'Enable notifications'
-              "
+              :accessible-name="notifEnabled.has(item.key) ? 'Disable alerts' : 'Enable alerts'"
+              :tooltip="notifEnabled.has(item.key) ? 'Disable alerts' : 'Enable alerts'"
               @click.stop="toggleNotif(item.key)"
             >
               <!-- Strike-through shown when notifications for this aircraft are off. -->
@@ -832,7 +828,7 @@ function toggleNotif(hex: string) {
         type: 'tracking',
         title: callsign,
         action: {
-          label: 'DISABLE NOTIFICATIONS',
+          label: 'DISABLE ALERTS',
           callback: () => {
             airNotifStore.disable(hex)
             if (c._trackingNotifIds) delete c._trackingNotifIds[hex]

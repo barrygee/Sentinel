@@ -802,7 +802,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       ? `onmouseenter="this.style.color='#c8ff00'" onmouseleave="this.style.color='#c8ff00'"`
       : ''
     const bellBtn =
-      `<button class="tag-notif-btn" data-hex="${props.hex}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle notifications">` +
+      `<button class="tag-notif-btn" data-hex="${props.hex}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle alerts">` +
       `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">` +
       `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
       `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
@@ -1375,7 +1375,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const btn = document.createElement('button')
       btn.className = 'tag-notif-btn'
       btn.dataset['hex'] = props.hex
-      btn.setAttribute('aria-label', 'Toggle notifications')
+      btn.setAttribute('aria-label', 'Toggle alerts')
       btn.style.cssText =
         'background:none;border:none;cursor:pointer;padding:0 6px;color:#c8ff00;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent;'
       btn.addEventListener('mouseenter', () => {
@@ -2404,7 +2404,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
           this._notificationsStore.update({
             id: item.id,
             action: {
-              label: 'DISABLE NOTIFICATIONS',
+              label: 'DISABLE ALERTS',
               callback: () => {
                 this._notifEnabled.delete(hex)
                 if (this._trackingNotifIds) delete this._trackingNotifIds[hex]

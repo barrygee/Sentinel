@@ -148,14 +148,14 @@ export const useNotificationsStore = defineStore('notifications', () => {
       departure: 'DEPARTED',
       track: 'TRACKING',
       untrack: 'UNTRACKED',
-      tracking: 'NOTIFICATIONS ON',
+      tracking: 'ALERTS ON',
       autotune: 'AUTOTUNE',
-      'notif-off': 'NOTIFICATIONS OFF',
+      'notif-off': 'ALERTS OFF',
       system: 'SYSTEM',
       message: 'MESSAGE',
       emergency: '⚠ EMERGENCY',
       'squawk-clr': 'SQUAWK CLEARED',
-      overhead: 'OVERHEAD NOTIFICATION',
+      overhead: 'OVERHEAD ALERT',
     }
     return map[type] ?? 'NOTICE'
   }

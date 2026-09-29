@@ -67,9 +67,9 @@ describe('SatellitePassNotifier.toggleEnabled', () => {
 
     expect(isPassNotifEnabled(NORAD)).toBe(true)
     expect(changedEvents).toEqual([{ noradId: NORAD, enabled: true }])
-    const alert = notificationsStore.items.find((i) => i.detail === 'Pass notifications enabled')
+    const alert = notificationsStore.items.find((i) => i.detail === 'Pass alerts enabled')
     expect(alert).toMatchObject({ type: 'tracking', title: SAT_NAME, noradId: NORAD })
-    expect(alert!.action?.label).toBe('DISABLE NOTIFICATIONS')
+    expect(alert!.action?.label).toBe('DISABLE ALERTS')
   })
 
   it('disabling fires the change event and dismisses the enabled alert', () => {
@@ -80,7 +80,7 @@ describe('SatellitePassNotifier.toggleEnabled', () => {
 
     expect(isPassNotifEnabled(NORAD)).toBe(false)
     expect(changedEvents).toEqual([{ noradId: NORAD, enabled: false }])
-    expect(notificationsStore.items.find((i) => i.detail === 'Pass notifications enabled')).toBe(
+    expect(notificationsStore.items.find((i) => i.detail === 'Pass alerts enabled')).toBe(
       undefined,
     )
   })
@@ -88,7 +88,7 @@ describe('SatellitePassNotifier.toggleEnabled', () => {
   it('the alert action callback disables notifications for that satellite', () => {
     const notifier = new SatellitePassNotifier(makeContext())
     notifier.toggleEnabled()
-    const alert = notificationsStore.items.find((i) => i.detail === 'Pass notifications enabled')!
+    const alert = notificationsStore.items.find((i) => i.detail === 'Pass alerts enabled')!
     changedEvents = []
 
     alert.action!.callback()
@@ -138,7 +138,14 @@ describe('SatellitePassNotifier deferred enable (no location yet)', () => {
 describe('SatellitePassNotifier._dismissEnabledAlert filtering', () => {
   it('dismisses only matching tracking alerts, leaving others intact', () => {
     const notifier = new SatellitePassNotifier(makeContext())
-    // A matching alert for our satellite, plus two that must survive.
+    // Two matching alerts for our satellite — the current wording and the one
+    // saved in browsers before the rename — plus two that must survive.
+    notificationsStore.add({
+      type: 'tracking',
+      title: SAT_NAME,
+      detail: 'Pass alerts enabled',
+      noradId: NORAD,
+    })
     notificationsStore.add({
       type: 'tracking',
       title: SAT_NAME,
@@ -164,7 +171,11 @@ describe('SatellitePassNotifier._dismissEnabledAlert filtering', () => {
 
     const remaining = notificationsStore.items
     expect(
-      remaining.some((i) => i.noradId === NORAD && i.detail === 'Pass notifications enabled'),
+      remaining.some(
+        (i) =>
+          i.noradId === NORAD &&
+          (i.detail === 'Pass alerts enabled' || i.detail === 'Pass notifications enabled'),
+      ),
     ).toBe(false)
     expect(remaining.some((i) => i.noradId === '99999')).toBe(true)
     expect(remaining.some((i) => i.detail === 'Some other detail')).toBe(true)
