@@ -1,59 +1,33 @@
 <template>
-  <div class="oma-content-checks">
-    <BaseCheckbox
-      v-for="option in options"
-      :key="option.key"
-      class="oma-content-check"
-      input-class="oma-content-check-input"
-      box-class="oma-content-check-box"
-      :checked="option.checked"
-      :accessible-name="option.accessibleName"
-      :disabled="option.forceDisabled"
-      @change="option.update(($event.target as HTMLInputElement).checked)"
-    >
-      <template #checkmark>
-        <svg
-          v-if="option.checked"
-          width="10"
-          height="7"
-          viewBox="0 0 8 5"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M1 2.5L3 4.5L7 0.5"
-            stroke="#0a0c10"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </template>
-      <span class="oma-content-check-text">
-        <span class="oma-content-check-label">{{ option.label }}</span>
-        <span class="oma-content-check-desc">{{ option.description }}</span>
-      </span>
-    </BaseCheckbox>
-  </div>
+  <LabelFieldsTable
+    :columns="COLUMNS"
+    :rows="ROWS"
+    :is-checked="isIncluded"
+    :is-disabled="isLocked"
+    :show-header="false"
+    control="switch"
+    field-header="Content"
+    @toggle="(_columnKey, rowKey) => toggleContent(rowKey as ContentKey)"
+  />
 </template>
 
 <script setup lang="ts">
 /**
- * `ContentChecks` — the Basemap/Terrain checkboxes (D3 in the plan: content
- * checkboxes, not theme checkboxes, because all three basemap themes share
- * the same tiles — unticking a theme would save nothing). At least one must
- * stay ticked: whichever box is the only one ticked is disabled, and the
- * store ignores a request to untick it, so there is no way to reach "both off"
- * rather than a validation message after the fact.
+ * `ContentChecks` — the Basemap/Terrain switches (D3 in the plan: content
+ * choices, not theme choices, because all three basemap themes share the same
+ * tiles — unticking a theme would save nothing). Drawn as the same switch list
+ * as Settings › Map Layers. At least one must stay on: whichever is the only
+ * one on is disabled, and the store ignores a request to switch it off, so
+ * there is no way to reach "both off" rather than a validation message after
+ * the fact.
  */
-import { computed } from 'vue'
-import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
+import LabelFieldsTable, { type LabelFieldRow } from '../LabelFieldsTable.vue'
+
+type ContentKey = 'basemap' | 'terrain'
 
 const props = defineProps<{
   includeBasemap: boolean
   includeTerrain: boolean
-  maxZoom: number
-  terrainMaxZoom: number
 }>()
 
 const emit = defineEmits<{
@@ -61,93 +35,25 @@ const emit = defineEmits<{
   'update:includeTerrain': [value: boolean]
 }>()
 
-const basemapForceDisabled = computed(() => props.includeBasemap && !props.includeTerrain)
-const terrainForceDisabled = computed(() => props.includeTerrain && !props.includeBasemap)
+// One unlabelled column, as in Map Layers: every row is a plain on/off.
+const COLUMNS = [{ key: 'on', label: 'Include' }]
 
-/** The two choices, rendered from one template so they can't drift apart. */
-const options = computed(() => [
-  {
-    key: 'basemap',
-    label: 'Basemap',
-    description: 'Vector map tiles — roads, water, place names.',
-    accessibleName: 'Include basemap tiles',
-    checked: props.includeBasemap,
-    forceDisabled: basemapForceDisabled.value,
-    update: (checked: boolean) => emit('update:includeBasemap', checked),
-  },
-  {
-    key: 'terrain',
-    label: 'Terrain',
-    description: `Elevation data for contour lines${
-      props.maxZoom > props.terrainMaxZoom ? ` (up to z${props.terrainMaxZoom})` : ''
-    }.`,
-    accessibleName: 'Include terrain data',
-    checked: props.includeTerrain,
-    forceDisabled: terrainForceDisabled.value,
-    update: (checked: boolean) => emit('update:includeTerrain', checked),
-  },
-])
+const ROWS: LabelFieldRow[] = [
+  { key: 'basemap', label: 'Basemap' },
+  { key: 'terrain', label: 'Terrain' },
+]
+
+function isIncluded(_columnKey: string, rowKey: string): boolean {
+  return rowKey === 'basemap' ? props.includeBasemap : props.includeTerrain
+}
+
+/** The one option still on is locked, so both can never be off. */
+function isLocked(columnKey: string, rowKey: string): boolean {
+  return isIncluded(columnKey, rowKey) && props.includeBasemap !== props.includeTerrain
+}
+
+function toggleContent(content: ContentKey): void {
+  if (content === 'basemap') emit('update:includeBasemap', !props.includeBasemap)
+  else emit('update:includeTerrain', !props.includeTerrain)
+}
 </script>
-
-<style scoped>
-.oma-content-checks {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.oma-content-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  cursor: pointer;
-}
-
-/* The box renders inside BaseCheckbox, so it needs :deep() anchored at the
-   root label. Same square box as the label-fields tables elsewhere in Settings. */
-.oma-content-check :deep(.oma-content-check-box) {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  background: rgba(16, 19, 29, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.oma-content-check :deep(.oma-content-check-input:checked + .oma-content-check-box) {
-  background: #c8ff00;
-}
-
-.oma-content-check :deep(.oma-content-check-input:disabled + .oma-content-check-box) {
-  opacity: 0.6;
-}
-
-.oma-content-check :deep(.oma-content-check-input:focus-visible + .oma-content-check-box) {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-.oma-content-check-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.oma-content-check-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-
-.oma-content-check-desc {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-body);
-  line-height: 1.5;
-  color: rgba(var(--ink-rgb), 0.6);
-}
-</style>

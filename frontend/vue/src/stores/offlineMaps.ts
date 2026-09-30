@@ -115,6 +115,11 @@ export const useOfflineMapsStore = defineStore('offlineMaps', () => {
     DRAFT_DEFAULTS,
     withContentSelected,
   )
+  // The drawn area lasts for this page session only (it still survives the
+  // settings panel remounting): a reload opens Offline Maps with no area, so
+  // no stale selection box or estimate greets the user. Depth, contents and
+  // label are still restored.
+  clearDraftArea()
   const lastCreatedRegionId = usePersistedRef<string>(
     LAST_CREATED_REGION_STORAGE_KEY,
     '',

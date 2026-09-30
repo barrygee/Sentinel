@@ -3,54 +3,64 @@ import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import ContentChecks from './ContentChecks.vue'
 
-function mountChecks(
-  props: {
-    includeBasemap?: boolean
-    includeTerrain?: boolean
-    maxZoom?: number
-    terrainMaxZoom?: number
-  } = {},
-) {
+function mountChecks(props: { includeBasemap?: boolean; includeTerrain?: boolean } = {}) {
   return mount(ContentChecks, {
     props: {
       includeBasemap: props.includeBasemap ?? true,
       includeTerrain: props.includeTerrain ?? true,
-      maxZoom: props.maxZoom ?? 12,
-      terrainMaxZoom: props.terrainMaxZoom ?? 12,
     },
   })
 }
 
-function checkboxes(wrapper: ReturnType<typeof mountChecks>) {
-  return wrapper.findAll('input[type="checkbox"]')
+function switches(wrapper: ReturnType<typeof mountChecks>) {
+  return wrapper.findAll('[role="switch"]')
 }
 
 describe('ContentChecks', () => {
-  it('emits update:includeBasemap when the basemap box is toggled', async () => {
-    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: true })
-    await checkboxes(wrapper)[0]!.setValue(false)
-    expect(wrapper.emitted('update:includeBasemap')).toEqual([[false]])
-  })
-
-  it('emits update:includeTerrain when the terrain box is toggled', async () => {
-    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: true })
-    await checkboxes(wrapper)[1]!.setValue(false)
-    expect(wrapper.emitted('update:includeTerrain')).toEqual([[false]])
-  })
-
-  it('disables the basemap box when it is the only one ticked', () => {
+  it('lists Basemap then Terrain as switches reflecting the props', () => {
     const wrapper = mountChecks({ includeBasemap: true, includeTerrain: false })
-    const basemapInput = checkboxes(wrapper)[0]!
-    expect(basemapInput.attributes('disabled')).toBeDefined()
-    // The other (unticked) box must stay enabled — the user can still tick it.
-    expect(checkboxes(wrapper)[1]!.attributes('disabled')).toBeUndefined()
+    expect(switches(wrapper).map((control) => control.attributes('aria-label'))).toEqual([
+      'Basemap',
+      'Terrain',
+    ])
+    expect(switches(wrapper).map((control) => control.attributes('aria-checked'))).toEqual([
+      'true',
+      'false',
+    ])
   })
 
-  it('disables the terrain box when it is the only one ticked', () => {
+  it('emits update:includeBasemap when the basemap switch is flipped', async () => {
+    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: true })
+    await switches(wrapper)[0]!.trigger('click')
+    expect(wrapper.emitted('update:includeBasemap')).toEqual([[false]])
+    expect(wrapper.emitted('update:includeTerrain')).toBeUndefined()
+  })
+
+  it('emits update:includeTerrain when the terrain switch is flipped', async () => {
+    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: false })
+    await switches(wrapper)[1]!.trigger('click')
+    expect(wrapper.emitted('update:includeTerrain')).toEqual([[true]])
+    expect(wrapper.emitted('update:includeBasemap')).toBeUndefined()
+  })
+
+  it('disables the basemap switch when it is the only one on', () => {
+    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: false })
+    expect(switches(wrapper)[0]!.attributes('disabled')).toBeDefined()
+    // The other (off) switch must stay enabled — the user can still turn it on.
+    expect(switches(wrapper)[1]!.attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables the terrain switch when it is the only one on', () => {
     const wrapper = mountChecks({ includeBasemap: false, includeTerrain: true })
-    const terrainInput = checkboxes(wrapper)[1]!
-    expect(terrainInput.attributes('disabled')).toBeDefined()
-    expect(checkboxes(wrapper)[0]!.attributes('disabled')).toBeUndefined()
+    expect(switches(wrapper)[1]!.attributes('disabled')).toBeDefined()
+    expect(switches(wrapper)[0]!.attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables neither switch when both are on', () => {
+    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: true })
+    for (const control of switches(wrapper)) {
+      expect(control.attributes('disabled')).toBeUndefined()
+    }
   })
 
   it('shows no at-least-one or map-style note', () => {
@@ -59,21 +69,7 @@ describe('ContentChecks', () => {
     expect(wrapper.text()).not.toContain('Works offline in')
   })
 
-  it('disables neither box when both are ticked', () => {
-    const wrapper = mountChecks({ includeBasemap: true, includeTerrain: true })
-    for (const checkbox of checkboxes(wrapper)) {
-      expect(checkbox.attributes('disabled')).toBeUndefined()
-    }
-  })
-
-  it('notes the terrain zoom ceiling only when the requested depth exceeds it', async () => {
-    const wrapper = mountChecks({ maxZoom: 12, terrainMaxZoom: 12 })
-    expect(wrapper.find('.oma-content-check-desc').text()).not.toContain('up to z12')
-    await wrapper.setProps({ maxZoom: 14 })
-    expect(wrapper.findAll('.oma-content-check-desc')[1]!.text()).toContain('up to z12')
-  })
-
-  it('has no accessibility violations, including with a box force-disabled', async () => {
+  it('has no accessibility violations, including with a switch force-disabled', async () => {
     const wrapper = mountChecks({ includeBasemap: true, includeTerrain: false })
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),

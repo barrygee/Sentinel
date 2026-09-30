@@ -18,24 +18,6 @@
         @clear="onClearArea"
       />
 
-      <BboxFields :bounds="draftBounds" @update:bounds="onBoundsFieldsUpdate" />
-
-      <DepthPicker
-        v-model="maxZoomModel"
-        :min-zoom="OFFLINE_MIN_ZOOM"
-        :max-zoom="OFFLINE_MAX_ZOOM"
-        :terrain-max-zoom="terrainMaxZoom"
-      />
-
-      <ContentChecks
-        :include-basemap="store.draft.includeBasemap"
-        :include-terrain="store.draft.includeTerrain"
-        :max-zoom="store.draft.maxZoom"
-        :terrain-max-zoom="terrainMaxZoom"
-        @update:include-basemap="store.setDraftIncludeBasemap"
-        @update:include-terrain="store.setDraftIncludeTerrain"
-      />
-
       <div class="settings-location-field">
         <label class="settings-location-label" for="oma-label-input">LABEL</label>
         <input
@@ -51,7 +33,25 @@
         />
       </div>
 
+      <BboxFields :bounds="draftBounds" @update:bounds="onBoundsFieldsUpdate" />
+
+      <DepthPicker
+        v-model="maxZoomModel"
+        :min-zoom="OFFLINE_MIN_ZOOM"
+        :max-zoom="OFFLINE_MAX_ZOOM"
+        :terrain-max-zoom="terrainMaxZoom"
+      />
+
+      <ContentChecks
+        :include-basemap="store.draft.includeBasemap"
+        :include-terrain="store.draft.includeTerrain"
+        @update:include-basemap="store.setDraftIncludeBasemap"
+        @update:include-terrain="store.setDraftIncludeTerrain"
+      />
+
+      <!-- Estimate and DOWNLOAD only mean anything for an area being chosen. -->
       <DownloadEstimate
+        v-if="hasArea"
         :estimate="store.draftEstimate"
         :free-bytes="store.status?.free_bytes ?? 0"
       />
@@ -68,6 +68,7 @@
       </p>
 
       <BaseButton
+        v-if="hasArea"
         class="oma-download-button"
         type="button"
         variant="primary"
@@ -104,7 +105,7 @@ import { useAppStore } from '@/stores/app'
 import { OFFLINE_MAX_ZOOM, OFFLINE_MIN_ZOOM, useOfflineMapsStore } from '@/stores/offlineMaps'
 import { OFFLINE_DISK_MARGIN_RATIO } from '@/utils/offlineMapEstimate'
 import BaseButton from '@/components/base/BaseButton.vue'
-import OfflineAreaMap from './OfflineAreaMap.vue'
+import OfflineAreaMap, { type OfflineRegionOutline } from './OfflineAreaMap.vue'
 import AreaSelector from './AreaSelector.vue'
 import BboxFields from './BboxFields.vue'
 import DepthPicker from './DepthPicker.vue'
@@ -131,7 +132,7 @@ const draftBounds = computed<LngLatBounds>(() => ({
 
 const terrainMaxZoom = computed(() => store.status?.terrain_max_zoom ?? 12)
 
-const completedRegionBounds = computed<LngLatBounds[]>(() =>
+const completedRegionBounds = computed<OfflineRegionOutline[]>(() =>
   store.regions
     .filter((region) => region.status === 'complete')
     .map((region) => ({
@@ -139,6 +140,7 @@ const completedRegionBounds = computed<LngLatBounds[]>(() =>
       south: region.south,
       east: region.east,
       north: region.north,
+      label: region.label,
     })),
 )
 
@@ -148,7 +150,9 @@ const maxZoomModel = computed({
 })
 
 const downloadDisabledReason = computed<string | null>(() => {
-  if (!store.hasDraftArea) return 'Draw or enter an area first.'
+  // With no area the estimate and DOWNLOAD are hidden outright, so there is
+  // nothing to explain.
+  if (!store.hasDraftArea) return null
   if (!isBboxValid(draftBounds.value)) return 'Fix the highlighted area bounds before downloading.'
   if (!store.draft.includeBasemap && !store.draft.includeTerrain) {
     return 'Tick Basemap, Terrain, or both.'
@@ -168,6 +172,7 @@ const downloadDisabledReason = computed<string | null>(() => {
   return null
 })
 
+/** DRAW AREA: arm drawing, or cancel it if pressed again before a box is drawn. */
 function onToggleDraw(): void {
   if (drawArmed.value) areaMapRef.value?.cancelDraw()
   else areaMapRef.value?.armDraw()
@@ -206,7 +211,10 @@ function onSelectRegion(region: OfflineRegion): void {
 }
 
 async function onDownload(): Promise<void> {
-  await store.createRegionFromDraft()
+  // Once queued, the area is the new region's (outlined and listed as such),
+  // so drop the selection: the estimate and DOWNLOAD only belong to an area
+  // still being chosen.
+  if (await store.createRegionFromDraft()) store.clearDraftArea()
 }
 
 onMounted(() => {
@@ -248,11 +256,20 @@ onMounted(() => {
 
 /* Every piece of text in the group uses the size of a section description
    (`.settings-item-desc`). Buttons keep the shared settings button style, and
-   two small read-outs keep their own size: the DELETE? confirm label beside
-   its buttons, and the download progress status beside CANCEL. */
+   some text keeps its own smaller size: the field captions (NORTH … LABEL,
+   DEPTH) and
+   the DOWNLOADED AREAS heading, the DELETE? confirm label beside its buttons,
+   and the download progress status beside CANCEL. */
 .oma-shell
   :deep(
-    :is(p, label, span, dt, dd, h3, li, input):not(.sdr-device-confirm-label, .oma-progress-status)
+    :is(p, label, span, dt, dd, h3, li, input):not(
+      .settings-location-label,
+      .sdr-field-label,
+      .lft-row-name,
+      .oma-region-list-heading,
+      .sdr-device-confirm-label,
+      .oma-progress-status
+    )
   ),
 .oma-shell :deep(.oma-region-select) {
   font-size: var(--settings-text-body);

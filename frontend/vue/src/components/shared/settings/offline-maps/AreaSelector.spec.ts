@@ -22,26 +22,35 @@ function mountSelector(
 }
 
 function clearButton(wrapper: ReturnType<typeof mountSelector>) {
-  return wrapper.findAll('button').find((button) => button.text() === 'CLEAR AREA')!
+  return wrapper.findAll('button').find((button) => button.text() === 'CLEAR AREA')
 }
 
 describe('AreaSelector', () => {
-  it('shows DRAW AREA when unarmed and CANCEL DRAWING when armed', async () => {
-    const wrapper = mountSelector({ armed: false })
-    expect(wrapper.text()).toContain('DRAW AREA')
+  it('keeps DRAW AREA while drawing, and shows CLEAR AREA only once a box exists', async () => {
+    const wrapper = mountSelector({ armed: false, hasArea: false })
+    expect(wrapper.findAll('button')[0]!.text()).toBe('DRAW AREA')
     await wrapper.setProps({ armed: true })
-    expect(wrapper.text()).toContain('CANCEL DRAWING')
+    expect(wrapper.findAll('button')[0]!.text()).toBe('DRAW AREA')
+    await wrapper.setProps({ armed: false, hasArea: true })
+    expect(wrapper.findAll('button')[0]!.text()).toBe('CLEAR AREA')
   })
 
-  it('emits toggle-draw when the draw button is clicked', async () => {
+  it('emits toggle-draw when DRAW AREA is clicked, armed or not', async () => {
     const wrapper = mountSelector()
     await wrapper.findAll('button')[0]!.trigger('click')
-    expect(wrapper.emitted('toggle-draw')).toHaveLength(1)
+    await wrapper.setProps({ armed: true })
+    await wrapper.findAll('button')[0]!.trigger('click')
+    expect(wrapper.emitted('toggle-draw')).toHaveLength(2)
+    expect(wrapper.emitted('clear')).toBeUndefined()
   })
 
-  it('reflects armed state via aria-pressed on the draw button', async () => {
-    const wrapper = mountSelector({ armed: true })
-    expect(wrapper.findAll('button')[0]!.attributes('aria-pressed')).toBe('true')
+  it('shows DRAW AREA as pressed (highlighted, aria-pressed) while drawing is armed', async () => {
+    const wrapper = mountSelector({ armed: false })
+    expect(wrapper.findAll('button')[0]!.attributes('aria-pressed')).toBe('false')
+    await wrapper.setProps({ armed: true })
+    const button = wrapper.findAll('button')[0]!
+    expect(button.classes()).toContain('ba-btn--active')
+    expect(button.attributes('aria-pressed')).toBe('true')
   })
 
   it('points screen readers at the keyboard alternative without showing it on screen', () => {
@@ -54,24 +63,47 @@ describe('AreaSelector', () => {
     expect(note.text()).toContain('North, South, East')
   })
 
-  it('disables CLEAR AREA until an area is selected', async () => {
+  it('shows no CLEAR AREA until an area is selected, then the draw button becomes it', async () => {
     const wrapper = mountSelector({ hasArea: false })
-    expect(clearButton(wrapper).attributes('disabled')).toBeDefined()
+    expect(clearButton(wrapper)).toBeUndefined()
+    expect(wrapper.findAll('button')).toHaveLength(2)
     await wrapper.setProps({ hasArea: true })
-    expect(clearButton(wrapper).attributes('disabled')).toBeUndefined()
+    expect(wrapper.findAll('button')).toHaveLength(2)
+    expect(wrapper.findAll('button')[0]!.text()).toBe('CLEAR AREA')
+    expect(wrapper.text()).not.toContain('DRAW AREA')
   })
 
-  it('emits clear when CLEAR AREA is pressed', async () => {
+  it('emits clear, not toggle-draw, when CLEAR AREA is pressed', async () => {
     const wrapper = mountSelector({ hasArea: true })
-    await clearButton(wrapper).trigger('click')
+    await clearButton(wrapper)!.trigger('click')
     expect(wrapper.emitted('clear')).toHaveLength(1)
+    expect(wrapper.emitted('toggle-draw')).toBeUndefined()
   })
 
-  it('shows the drawing hint only while armed', async () => {
+  it('drops the toggle semantics and keyboard note while it reads CLEAR AREA', () => {
+    const button = mountSelector({ hasArea: true }).findAll('button')[0]!
+    expect(button.attributes('aria-pressed')).toBeUndefined()
+    expect(button.attributes('aria-describedby')).toBeUndefined()
+  })
+
+  it('shows no visible drawing instructions, armed or not', async () => {
     const wrapper = mountSelector({ armed: false })
-    expect(wrapper.find('.oma-area-selector-hint').text()).toBe('')
     await wrapper.setProps({ armed: true })
-    expect(wrapper.find('.oma-area-selector-hint').text()).toContain('Press Escape to cancel')
+    expect(wrapper.text()).not.toContain('Drag from one corner')
+    expect(wrapper.find('.oma-area-selector-hint').exists()).toBe(false)
+  })
+
+  it('disables USE CURRENT VIEW while drawing or while an area exists, enabling it otherwise', async () => {
+    const wrapper = mountSelector({ armed: false, hasArea: false })
+    const currentViewButton = () => wrapper.findAll('button')[1]!
+    expect(currentViewButton().attributes('disabled')).toBeUndefined()
+    await wrapper.setProps({ armed: true })
+    expect(currentViewButton().attributes('disabled')).toBeDefined()
+    await wrapper.setProps({ armed: false, hasArea: true })
+    expect(currentViewButton().attributes('disabled')).toBeDefined()
+    // Cleared (or saved, which clears it): available again.
+    await wrapper.setProps({ hasArea: false })
+    expect(currentViewButton().attributes('disabled')).toBeUndefined()
   })
 
   it('emits area-selected with the current view bounds when the map is ready', async () => {

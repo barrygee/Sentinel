@@ -3,7 +3,17 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 
-const mapRegistry = vi.hoisted(() => ({ instances: [] as FakeMap[], controls: [] as unknown[] }))
+const mapRegistry = vi.hoisted(() => ({
+  instances: [] as FakeMap[],
+  controls: [] as unknown[],
+  markers: [] as {
+    element: HTMLElement
+    anchor: string
+    offset: [number, number]
+    lngLat: [number, number]
+    remove: () => void
+  }[],
+}))
 
 interface FakeMap {
   options: Record<string, unknown>
@@ -20,6 +30,10 @@ interface FakeMap {
   sources: Map<string, { setData: ReturnType<typeof vi.fn> }>
   layers: Set<string>
   getSource: ReturnType<typeof vi.fn>
+  zoomIn: ReturnType<typeof vi.fn>
+  pixelsPerDegree: number
+  project: ReturnType<typeof vi.fn>
+  zoomOut: ReturnType<typeof vi.fn>
   getLayer: ReturnType<typeof vi.fn>
   addSource: ReturnType<typeof vi.fn>
   addLayer: ReturnType<typeof vi.fn>
@@ -47,6 +61,14 @@ vi.mock('maplibre-gl', () => {
     this.resize = vi.fn()
     this.remove = vi.fn()
     this.fitBounds = vi.fn()
+    // Flat projection, `pixelsPerDegree` px per degree, y growing southwards.
+    this.pixelsPerDegree = 100
+    this.project = vi.fn(([longitude, latitude]: [number, number]) => ({
+      x: longitude * this.pixelsPerDegree,
+      y: -latitude * this.pixelsPerDegree,
+    }))
+    this.zoomIn = vi.fn()
+    this.zoomOut = vi.fn()
     this.getBounds = vi.fn(() => ({
       getWest: () => -5,
       getSouth: () => 50,
@@ -62,10 +84,30 @@ vi.mock('maplibre-gl', () => {
   function NavigationControl(this: Record<string, unknown>, options: Record<string, unknown>) {
     this.options = options
   }
-  return { Map, NavigationControl }
+  function Marker(
+    this: Record<string, unknown>,
+    options: { element: HTMLElement; anchor: string; offset: [number, number] },
+  ) {
+    const record = {
+      element: options.element,
+      anchor: options.anchor,
+      offset: options.offset,
+      lngLat: [0, 0] as [number, number],
+      remove: vi.fn(),
+    }
+    mapRegistry.markers.push(record)
+    this.setLngLat = (lngLat: [number, number]) => {
+      record.lngLat = lngLat
+      return this
+    }
+    this.addTo = () => this
+    this.remove = record.remove
+  }
+  return { Map, NavigationControl, Marker }
 })
 
 import OfflineAreaMap from './OfflineAreaMap.vue'
+import type { LngLatBounds } from './rectangleDrawHandler'
 import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 
@@ -78,12 +120,10 @@ const REGIONS_SOURCE = 'offline-area-regions'
 const CORNERS_SOURCE = 'offline-area-corners'
 const REGIONS_LAYER = 'offline-area-regions-line'
 
-const REGION_A = { west: -2, south: 51, east: -1, north: 52 }
-const REGION_B = { west: 1, south: 53, east: 2, north: 54 }
+const REGION_A = { west: -2, south: 51, east: -1, north: 52, label: 'Area A' }
+const REGION_B = { west: 1, south: 53, east: 2, north: 54, label: 'Area B' }
 
-function mountMap(
-  props: { selection?: typeof REGION_A | null; regions?: (typeof REGION_A)[] } = {},
-) {
+function mountMap(props: { selection?: LngLatBounds | null; regions?: (typeof REGION_A)[] } = {}) {
   return mount(OfflineAreaMap, {
     props: { selection: props.selection ?? null, regions: props.regions ?? [] },
   })
@@ -100,6 +140,7 @@ describe('OfflineAreaMap', () => {
     setActivePinia(createPinia())
     mapRegistry.instances.length = 0
     mapRegistry.controls.length = 0
+    mapRegistry.markers.length = 0
     vi.useFakeTimers()
     vi.stubGlobal(
       'requestAnimationFrame',
@@ -124,12 +165,23 @@ describe('OfflineAreaMap', () => {
     delete document.documentElement.dataset.mapTheme
   })
 
-  it('builds the map on the online basemap for the current theme, with scroll-zoom off and the +/- control', () => {
-    mountMap()
+  it('builds the map on the online basemap for the current theme, with scroll-zoom off and rail-style +/- buttons', async () => {
+    const wrapper = mountMap()
     const map = currentMap()
     expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord-online.json', expect.anything())
     expect(map.scrollZoom.disable).toHaveBeenCalled()
-    expect(mapRegistry.controls).toHaveLength(1)
+    // MapLibre's stock white control is replaced, not added alongside.
+    expect(mapRegistry.controls).toHaveLength(0)
+    await wrapper.find('[aria-label="Zoom in"]').trigger('click')
+    expect(map.zoomIn).toHaveBeenCalledTimes(1)
+    expect(map.zoomOut).not.toHaveBeenCalled()
+    await wrapper.find('[aria-label="Zoom out"]').trigger('click')
+    expect(map.zoomOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('puts the zoom buttons inside the named map region', () => {
+    const wrapper = mountMap()
+    expect(wrapper.find('[role="region"] [aria-label="Zoom in"]').exists()).toBe(true)
   })
 
   it('rebuilds onto the other theme basemap when the theme changes', async () => {
@@ -424,6 +476,56 @@ describe('OfflineAreaMap', () => {
     expect(map.sources.get(REGIONS_SOURCE)!.setData.mock.calls.at(-1)![0].features).toHaveLength(2)
   })
 
+  it('labels each completed region with a tooltip-style chip inset in its upper-left corner', async () => {
+    const wrapper = mountMap({ regions: [REGION_A] })
+    await loadStyle()
+    const firstChip = mapRegistry.markers.at(-1)!
+    expect(firstChip.element.className).toBe('offline-area-region-name')
+    expect(firstChip.element.textContent).toBe('Area A')
+    // Top-left anchor at the NW corner, nudged right and down, puts the chip
+    // inside the box with a small gap to the outline.
+    expect(firstChip.anchor).toBe('top-left')
+    expect(firstChip.offset).toEqual([4, 4])
+    expect(firstChip.lngLat).toEqual([REGION_A.west, REGION_A.north])
+
+    await wrapper.setProps({ regions: [REGION_B] })
+    // The old chips are removed rather than left stacking up.
+    expect(firstChip.remove).toHaveBeenCalled()
+    const latest = mapRegistry.markers.at(-1)!
+    expect(latest.element.textContent).toBe('Area B')
+    expect(latest.lngLat).toEqual([REGION_B.west, REGION_B.north])
+  })
+
+  it("hides a region's name while its box is too small on screen to hold it, and shows it again on zooming in", async () => {
+    mountMap({ regions: [REGION_A] })
+    await loadStyle()
+    const map = currentMap()
+    const chip = mapRegistry.markers.at(-1)!.element
+    // jsdom has no layout, so give the chip a real-looking size: 60×20px.
+    Object.defineProperty(chip, 'offsetWidth', { configurable: true, value: 60 })
+    Object.defineProperty(chip, 'offsetHeight', { configurable: true, value: 20 })
+
+    // REGION_A is 1° square: 100px at the default scale — room for 60 + 2×4.
+    map.handlers.zoom!()
+    expect(chip.style.visibility).toBe('visible')
+
+    // Zoomed out to 50px: 68px of name and inset no longer fits the width.
+    map.pixelsPerDegree = 50
+    map.handlers.zoom!()
+    expect(chip.style.visibility).toBe('hidden')
+
+    // Exactly the name plus both insets (68px) still fits.
+    map.pixelsPerDegree = 68
+    map.handlers.zoom!()
+    expect(chip.style.visibility).toBe('visible')
+
+    // Too short (height 20 + 2×4 = 28 > 27px) hides it, whatever the width.
+    Object.defineProperty(chip, 'offsetWidth', { configurable: true, value: 1 })
+    map.pixelsPerDegree = 27
+    map.handlers.resize!()
+    expect(chip.style.visibility).toBe('hidden')
+  })
+
   describe('exposed imperative surface', () => {
     it('armDraw()/cancelDraw() proxy to the internal RectangleDrawHandler', async () => {
       const wrapper = mountMap()
@@ -578,28 +680,49 @@ describe('OfflineAreaMap', () => {
     expect(() => styleLoadHandler()).not.toThrow()
   })
 
-  it('paints the regions outline more subtly on a bright (light/colour) basemap than the dark one', async () => {
-    // Goes through the theme store's own setter (not poking the dataset
-    // attribute directly): the store re-applies its own dataset value the
-    // moment `useThemeStore()` is instantiated (mounting the component does
-    // this), which would otherwise clobber a directly-set attribute.
-    useThemeStore().setMapTheme('colour')
+  it("draws downloaded regions in the selection's dashed accent style, without handles", async () => {
     mountMap({ regions: [REGION_A] })
     await loadStyle()
-    const brightMap = currentMap()
-    const brightLayer = brightMap.addLayer.mock.calls.find(
-      (call) => (call[0] as { id: string }).id === REGIONS_LAYER,
-    )![0] as { paint: { 'line-opacity': number } }
-    expect(brightLayer.paint['line-opacity']).toBe(0.35)
+    const map = currentMap()
+    const paintOf = (layerId: string) =>
+      (
+        map.addLayer.mock.calls.find((call) => (call[0] as { id: string }).id === layerId)![0] as {
+          paint: Record<string, unknown>
+        }
+      ).paint
+    expect(paintOf(REGIONS_LAYER)).toEqual(paintOf('offline-area-selection-line'))
+    expect(paintOf(REGIONS_LAYER)['line-dasharray']).toEqual([2, 1.5])
+  })
 
-    useThemeStore().setMapTheme('dark')
+  it('fills each downloaded region with a semi-transparent dark wash beneath its outline', async () => {
     mountMap({ regions: [REGION_A] })
     await loadStyle()
-    const darkMap = currentMap()
-    const darkLayer = darkMap.addLayer.mock.calls.find(
-      (call) => (call[0] as { id: string }).id === REGIONS_LAYER,
-    )![0] as { paint: { 'line-opacity': number } }
-    expect(darkLayer.paint['line-opacity']).toBe(0.45)
+    const map = currentMap()
+    const layerIds = map.addLayer.mock.calls.map((call) => (call[0] as { id: string }).id)
+    const fill = map.addLayer.mock.calls.find(
+      (call) => (call[0] as { id: string }).id === 'offline-area-regions-fill',
+    )![0] as { type: string; source: string; paint: Record<string, unknown> }
+    expect(fill.type).toBe('fill')
+    expect(fill.source).toBe(REGIONS_SOURCE)
+    expect(fill.paint['fill-opacity']).toBeGreaterThan(0)
+    expect(fill.paint['fill-opacity']).toBeLessThan(1)
+    expect(layerIds.indexOf('offline-area-regions-fill')).toBeLessThan(
+      layerIds.indexOf(REGIONS_LAYER),
+    )
+  })
+
+  it('makes the region fill more transparent on the dark basemap than on a bright one', async () => {
+    const fillOpacity = async (theme: 'dark' | 'colour') => {
+      useThemeStore().setMapTheme(theme)
+      mountMap({ regions: [REGION_A] })
+      await loadStyle()
+      const fill = currentMap().addLayer.mock.calls.find(
+        (call) => (call[0] as { id: string }).id === 'offline-area-regions-fill',
+      )![0] as { paint: { 'fill-opacity': number } }
+      return fill.paint['fill-opacity']
+    }
+    expect(await fillOpacity('colour')).toBe(0.25)
+    expect(await fillOpacity('dark')).toBe(0.15)
   })
 
   it('names the map region for screen readers', () => {

@@ -38,15 +38,18 @@ describe('RegionList', () => {
     const wrapper = mountList([])
     expect(wrapper.find('.oma-region-list-empty').exists()).toBe(true)
     expect(wrapper.findAll('li')).toHaveLength(0)
+    // Nothing downloaded: the heading carries no total.
+    expect(wrapper.find('.oma-region-list-heading').text()).toBe('Downloaded Areas')
   })
 
-  it('renders one row per region and the total downloaded size', () => {
+  it('renders one row per region and the total downloaded size in the heading', () => {
     const wrapper = mountList(
       [region({ id: 'a', label: 'A' }), region({ id: 'b', label: 'B' })],
       2 * 1024 * 1024,
     )
     expect(wrapper.findAll('li')).toHaveLength(2)
-    expect(wrapper.find('.oma-region-list-total').text()).toBe('Total downloaded: 2.0 MB')
+    expect(wrapper.find('.oma-region-list-heading').text()).toBe('Downloaded Areas (2.0 MB)')
+    expect(wrapper.text()).not.toContain('Total downloaded')
   })
 
   it('re-emits select-region with the full region object', async () => {

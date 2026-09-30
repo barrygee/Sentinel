@@ -77,6 +77,28 @@ describe('OfflineMapsSettings', () => {
     apiMock.listOfflineRegions.mockResolvedValue([])
   })
 
+  it('shows the estimate for a drawn area with 0 free space until the server status arrives', async () => {
+    // Status still in flight: nothing yet says how much disk is free.
+    apiMock.getOfflineMapStatus.mockReturnValue(new Promise(() => {}))
+    const wrapper = mountSettings()
+    await flushPromises()
+    useOfflineMapsStore().setDraftBbox(-1, 50, 1, 52)
+    await wrapper.vm.$nextTick()
+    const estimate = wrapper.findComponent({ name: 'DownloadEstimate' })
+    expect(estimate.exists()).toBe(true)
+    expect(estimate.props('freeBytes')).toBe(0)
+  })
+
+  it("passes the server's free space to the estimate once status has loaded", async () => {
+    const wrapper = mountSettings()
+    await flushPromises()
+    useOfflineMapsStore().setDraftBbox(-1, 50, 1, 52)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'DownloadEstimate' }).props('freeBytes')).toBe(
+      STATUS.free_bytes,
+    )
+  })
+
   it('fetches status and regions on mount', async () => {
     mountSettings()
     await flushPromises()
@@ -85,14 +107,13 @@ describe('OfflineMapsSettings', () => {
   })
 
   describe('download disabled reasons', () => {
-    it('is disabled with "Draw or enter an area first." when no area is drawn', async () => {
+    it('hides the estimate and DOWNLOAD, with no reason line, when no area is drawn', async () => {
       const wrapper = mountSettings()
       await flushPromises()
-      expect(wrapper.find('.oma-disabled-reason').text()).toBe('Draw or enter an area first.')
-      const downloadButton = wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'DOWNLOAD')!
-      expect(downloadButton.attributes('disabled')).toBeDefined()
+      expect(wrapper.find('.oma-disabled-reason').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('Draw or enter an area first.')
+      expect(wrapper.findAll('button').some((button) => button.text() === 'DOWNLOAD')).toBe(false)
+      expect(wrapper.find('.oma-estimate').exists()).toBe(false)
     })
 
     it('is disabled with a bounds-fix message for an invalid (out-of-range) area', async () => {
@@ -219,35 +240,25 @@ describe('OfflineMapsSettings', () => {
       expect(downloadButton.attributes('disabled')).toBeDefined()
       resolveCreate()
       await flushPromises()
-      expect(
-        wrapper
-          .findAll('button')
-          .find((button) => button.text() === 'DOWNLOAD')!
-          .attributes('disabled'),
-      ).toBeUndefined()
+      // Queued: the selected area is cleared, so DOWNLOAD goes with it.
+      expect(offlineMapsStore.hasDraftArea).toBe(false)
+      expect(wrapper.findAll('button').some((button) => button.text() === 'DOWNLOAD')).toBe(false)
     })
   })
 
   describe('wiring between the map and the form', () => {
-    it('arms/disarms the map draw handler from the DRAW AREA button', async () => {
+    it('arms the map draw handler from DRAW AREA, and cancels when pressed again before a box is drawn', async () => {
       const wrapper = mountSettings()
       await flushPromises()
-      const drawButton = wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('DRAW AREA'))!
-      await drawButton.trigger('click')
-      expect(areaMapStub.armDraw).toHaveBeenCalled()
-    })
-
-    it('cancels drawing when toggled again while armed', async () => {
-      const wrapper = mountSettings()
-      await flushPromises()
+      const drawButton = () =>
+        wrapper.findAll('button').find((button) => button.text() === 'DRAW AREA')!
+      await drawButton().trigger('click')
+      expect(areaMapStub.armDraw).toHaveBeenCalledTimes(1)
+      expect(areaMapStub.cancelDraw).not.toHaveBeenCalled()
       await wrapper.findComponent({ name: 'OfflineAreaMap' }).vm.$emit('armed-change', true)
-      const drawButton = wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('CANCEL DRAWING'))!
-      await drawButton.trigger('click')
-      expect(areaMapStub.cancelDraw).toHaveBeenCalled()
+      await drawButton().trigger('click')
+      expect(areaMapStub.cancelDraw).toHaveBeenCalledTimes(1)
+      expect(areaMapStub.armDraw).toHaveBeenCalledTimes(1)
     })
 
     it('commits the drawn bounds to the draft store on draw-complete', async () => {
@@ -277,16 +288,16 @@ describe('OfflineMapsSettings', () => {
       expect(areaMapStub.cancelDraw).not.toHaveBeenCalled()
     })
 
-    it('CLEAR AREA also stops a drawing in progress', async () => {
+    it('CLEAR AREA pressed mid-draw stops the drawing and clears the area', async () => {
       const wrapper = mountSettings()
       await flushPromises()
       const offlineMapsStore = useOfflineMapsStore()
       offlineMapsStore.setDraftBbox(-3, 54, -2, 55)
       await wrapper.findComponent({ name: 'OfflineAreaMap' }).vm.$emit('armed-change', true)
-      const clearButton = wrapper
+      await wrapper
         .findAll('button')
         .find((button) => button.text() === 'CLEAR AREA')!
-      await clearButton.trigger('click')
+        .trigger('click')
       expect(areaMapStub.cancelDraw).toHaveBeenCalled()
       expect(offlineMapsStore.hasDraftArea).toBe(false)
     })
@@ -412,7 +423,7 @@ describe('OfflineMapsSettings', () => {
       await flushPromises()
       const areaMapComponent = wrapper.findComponent({ name: 'OfflineAreaMap' })
       expect(areaMapComponent.props('regions')).toEqual([
-        { west: -3, south: 54, east: -2, north: 55 },
+        { west: -3, south: 54, east: -2, north: 55, label: 'A' },
       ])
     })
   })
@@ -448,6 +459,9 @@ describe('OfflineMapsSettings', () => {
     await flushPromises()
     expect(apiMock.createOfflineRegion).toHaveBeenCalled()
     expect(offlineMapsStore.regions).toHaveLength(1)
+    // The queued area becomes the region; the selection and its estimate go.
+    expect(offlineMapsStore.hasDraftArea).toBe(false)
+    expect(wrapper.find('.oma-estimate').exists()).toBe(false)
   })
 
   it('shows the store submitError as an alert', async () => {
@@ -464,6 +478,8 @@ describe('OfflineMapsSettings', () => {
     await flushPromises()
     const alerts = wrapper.findAll('[role="alert"]')
     expect(alerts.some((alert) => alert.text() === 'Not enough free disk space.')).toBe(true)
+    // A rejected download keeps the area, so the user can adjust and retry.
+    expect(offlineMapsStore.hasDraftArea).toBe(true)
   })
 
   it('has no accessibility violations', async () => {
