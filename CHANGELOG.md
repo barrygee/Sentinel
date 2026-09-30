@@ -183,6 +183,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add an Alerts card to review and switch off enabled alerts
 - Label the alert sound toggle enable/disable
 - Remove the last-set time from Sentinel Location
+- Unify control sizing and tighten settings copy
+- Rework the area picker and preview map
 
 ### Bug Fixes
 
@@ -429,6 +431,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Darken the dashed boundary lines on the dark map (#377)
 - Make the roads toggle hide every road, and add names and borders toggles (#378)
 - Label download size estimates as upper bounds
+- Keep the selected aircraft's trail attached between fetches
+- Remove the military base CLICK TO ZOOM hover hint
 
 ### Chores
 
@@ -1309,6 +1313,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #360 from barrygee/chore/iss-radio-frequencies
 - Merge pull request #361 from barrygee/feat/remove-camera-feeds
 - Merge pull request #380 from barrygee/fix/settings-alert-sound-location-fonts
+- Merge pull request #381 from barrygee/fix/air-trail-and-base-hint
 
 ### Refactoring
 
@@ -1469,6 +1474,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle
 - Rebuild bundle
 - Rebuild bundle
+- Rebuild the committed SPA bundle
 - Rebuild the committed SPA bundle
 - Rebuild the committed SPA bundle
 
