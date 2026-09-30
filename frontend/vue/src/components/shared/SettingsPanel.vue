@@ -354,7 +354,7 @@ const ALL_SETTINGS: SettingItem[] = [
     sectionLabel: 'App Settings',
     id: 'notification-sound',
     label: 'Alert Sound',
-    desc: 'Play a subtle blip when a new alert arrives',
+    desc: '',
     type: 'notification-sound',
     groupLabel: 'ALERTS',
   },
