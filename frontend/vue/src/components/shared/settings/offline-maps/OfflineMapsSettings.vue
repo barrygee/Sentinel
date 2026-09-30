@@ -237,7 +237,7 @@ onMounted(() => {
 .oma-form {
   display: flex;
   flex-direction: column;
-  gap: 34px;
+  gap: 48px;
   width: 100%;
   max-width: 464px;
 }
@@ -255,7 +255,7 @@ onMounted(() => {
     :is(p, label, span, dt, dd, h3, li, input):not(.sdr-device-confirm-label, .oma-progress-status)
   ),
 .oma-shell :deep(.oma-region-select) {
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   line-height: 1.55;
 }
 

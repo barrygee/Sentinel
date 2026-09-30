@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-location-wrap">
+  <div class="settings-location-wrap sea-coverage-wrap">
     <p class="settings-location-status">{{ statusText }}</p>
     <p v-if="errorText" class="settings-location-notice" role="alert">{{ errorText }}</p>
 
@@ -160,10 +160,15 @@ function useWorldwide(): void {
 </script>
 
 <style scoped>
+/* More air between the summary, the edge fields and the buttons than the
+   shared location layout gives, so the blocks read as separate steps. */
+.sea-coverage-wrap {
+  gap: 24px;
+}
 .sea-coverage-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
+  gap: 24px 16px;
 }
 .sea-coverage-actions {
   display: flex;
@@ -172,6 +177,6 @@ function useWorldwide(): void {
   justify-content: flex-start;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 16px;
 }
 </style>
