@@ -90,7 +90,7 @@
 /**
  * `RegionListItem` — one offline area, at any stage: queued/running (an
  * embedded `DownloadProgress` + a Cancel action in place of Delete), complete
- * (label, zoom, contents, size, date — click to fly there), or failed/
+ * (label, zoom, contents, size — click to fly there), or failed/
  * cancelled (a status badge, the error text for a failure, and Delete to
  * dismiss it). Delete asks for confirmation inline (never `window.confirm`,
  * which is both inaccessible chrome and untestable) — the same disclosure
@@ -139,7 +139,7 @@ const contentsSummary = computed(() => {
  *  size (H4: it must not read as "complete" with "0 B"). */
 const metaTail = computed(() => {
   if (props.region.status === 'complete') {
-    return `${formatByteSize(props.region.size_bytes ?? 0)} · ${new Date(props.region.created_at).toLocaleDateString()}`
+    return formatByteSize(props.region.size_bytes ?? 0)
   }
   if (props.region.status === 'failed') return 'Failed'
   if (props.region.status === 'cancelled') return 'Cancelled'

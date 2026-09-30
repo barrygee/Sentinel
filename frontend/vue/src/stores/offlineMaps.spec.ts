@@ -114,17 +114,18 @@ describe('useOfflineMapsStore', () => {
       })
     })
 
-    it('persists the draft bbox to localStorage so it survives a remount', () => {
+    it('keeps the drawn area only for the page session, restoring depth/contents/label but no area after a reload', () => {
       const store = useOfflineMapsStore()
       store.setDraftBbox(-3, 54, -2, 55)
+      store.setDraftMaxZoom(9)
+      store.setDraftLabel('Fells')
       expect(store.hasDraftArea).toBe(true)
-      const persisted = JSON.parse(localStorage.getItem('sentinel_offlineMapsDraft')!)
-      expect(persisted).toMatchObject({ west: -3, south: 54, east: -2, north: 55 })
 
-      // A second store instance (e.g. after remounting Settings) reads the same value.
+      // A new store instance is what a page reload produces.
       setActivePinia(createPinia())
       const reopened = useOfflineMapsStore()
-      expect(reopened.draft).toMatchObject({ west: -3, south: 54, east: -2, north: 55 })
+      expect(reopened.hasDraftArea).toBe(false)
+      expect(reopened.draft).toMatchObject({ maxZoom: 9, label: 'Fells' })
     })
 
     it('ignores a bbox update containing a non-finite value', () => {

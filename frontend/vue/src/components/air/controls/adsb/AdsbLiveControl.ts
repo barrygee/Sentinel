@@ -110,7 +110,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _trailsGeojson: { type: 'FeatureCollection'; features: TrailGeoFeature[] }
   private _trailLineGeojson: {
     type: 'FeatureCollection'
-    features: GeoJSON.Feature<GeoJSON.LineString, { emerg: 0 | 1; military: 0 | 1 }>[]
+    features: GeoJSON.Feature<GeoJSON.LineString, { emerg: 0 | 1; military: 0 | 1; hex: string }>[]
   }
 
   private _trails: Record<string, TrailEntry[]> = {}
@@ -1810,14 +1810,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         })
       }
 
-      // Build LineString: historical points + current interpolated position as last coord
-      const lineCoords: [number, number][] = points.map((p) => [p.lon, p.lat])
-      const interpCoords = this._interpolatedCoords(hex)
-      if (interpCoords) lineCoords.push(interpCoords)
-      // Deduplicate consecutive identical coords to avoid zero-length segments
-      const dedupedCoords = lineCoords.filter(
-        (c, i) => i === 0 || c[0] !== lineCoords[i - 1][0] || c[1] !== lineCoords[i - 1][1],
-      )
+      const dedupedCoords = this._trailLineCoords(hex, points)
       if (dedupedCoords.length >= 2) {
         lineFeatures.push({
           type: 'Feature',
@@ -1854,6 +1847,43 @@ export class AdsbLiveControl implements maplibregl.IControl {
         (this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource).setData(
           this._trailLineGeojson as GeoJSON.GeoJSON,
         )
+    } catch (_) {}
+  }
+
+  /** Trail line vertices: historical reported points, then the aircraft's current interpolated position. */
+  private _trailLineCoords(hex: string, points: TrailEntry[]): [number, number][] {
+    const lineCoords: [number, number][] = points.map((point) => [point.lon, point.lat])
+    const interpCoords = this._interpolatedCoords(hex)
+    if (interpCoords) lineCoords.push(interpCoords)
+    // Deduplicate consecutive identical coords to avoid zero-length segments
+    return lineCoords.filter(
+      (coord, index) =>
+        index === 0 ||
+        coord[0] !== lineCoords[index - 1][0] ||
+        coord[1] !== lineCoords[index - 1][1],
+    )
+  }
+
+  /**
+   * Keeps the trail line's leading vertex attached to the dead-reckoned icon.
+   * The icon moves every interpolation tick but _rebuildTrails only runs per
+   * fetch, so without this the line end lags behind the aircraft and then snaps
+   * forward on the next data reception. Only the single-feature line source is
+   * updated (not the dots) to keep the per-tick setData cost minimal.
+   */
+  private _refreshTrailLineHead(): void {
+    if (this._isPlayback) return
+    const hex = this._trailHex ?? this._selectedHex
+    const lineFeature = this._trailLineGeojson.features[0]
+    const points = hex ? this._trails[hex] : undefined
+    if (!hex || !lineFeature || lineFeature.properties.hex !== hex || !points) return
+    const lineCoords = this._trailLineCoords(hex, points)
+    if (lineCoords.length < 2) return
+    lineFeature.geometry.coordinates = lineCoords
+    try {
+      ;(
+        this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource | undefined
+      )?.setData(this._trailLineGeojson as GeoJSON.GeoJSON)
     } catch (_) {}
   }
 
@@ -1939,6 +1969,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         } as GeoJSON.GeoJSON)
       }
     } catch (e) {}
+
+    this._refreshTrailLineHead()
 
     if (this._tagMarker && this._tagHex) {
       const interpolatedFeature = this._interpolatedFeatures.find(

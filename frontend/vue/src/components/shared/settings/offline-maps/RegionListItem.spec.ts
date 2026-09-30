@@ -33,12 +33,9 @@ function mountItem(region: Partial<OfflineRegion> = {}, confirming = false) {
 }
 
 describe('RegionListItem', () => {
-  it('shows zoom, contents and the completed size/date for a complete region', () => {
+  it('shows zoom, contents and the completed size — but no date — for a complete region', () => {
     const wrapper = mountItem()
-    const expectedDate = new Date(BASE_REGION.created_at).toLocaleDateString()
-    expect(wrapper.find('.oma-region-meta').text()).toBe(
-      `z12 · basemap + terrain · 4.8 MB · ${expectedDate}`,
-    )
+    expect(wrapper.find('.oma-region-meta').text()).toBe('z12 · basemap + terrain · 4.8 MB')
   })
 
   it('falls back to 0 B for a complete region with a null size_bytes', () => {

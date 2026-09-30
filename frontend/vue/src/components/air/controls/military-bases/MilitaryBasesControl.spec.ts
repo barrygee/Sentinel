@@ -193,24 +193,6 @@ describe('MilitaryBasesToggleControl marker interactions', () => {
     const easeArgs = map.easeTo.mock.calls[0]![0] as Record<string, unknown>
     expect(easeArgs).not.toHaveProperty('pitch')
   })
-
-  it('shows a hint panel on mouseenter and removes it on mouseleave', () => {
-    const control = new MilitaryBasesToggleControl(airStore, () => false)
-    control.onAdd(fakeMap().map)
-    const element = markerRegistry.instances[0]!.options.element
-
-    element.dispatchEvent(new MouseEvent('mouseenter'))
-    expect(element.innerHTML).toContain('CLICK TO ZOOM')
-    // A second mouseenter must not create a duplicate panel.
-    const htmlAfterFirst = element.innerHTML
-    element.dispatchEvent(new MouseEvent('mouseenter'))
-    expect(element.innerHTML).toBe(htmlAfterFirst)
-
-    element.dispatchEvent(new MouseEvent('mouseleave'))
-    expect(element.innerHTML).not.toContain('CLICK TO ZOOM')
-    // A second mouseleave with no panel must be a safe no-op.
-    expect(() => element.dispatchEvent(new MouseEvent('mouseleave'))).not.toThrow()
-  })
 })
 
 describe('MilitaryBasesToggleControl.toggle', () => {

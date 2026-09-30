@@ -75,19 +75,12 @@
         type="button"
         variant="ghost"
         class="sdr-devices-btn"
-        :style="GHOST_BUTTON_STYLE"
         :disabled="probing"
         @click="probeExisting"
       >
         TEST CONNECTION
       </BaseButton>
-      <BaseButton
-        type="button"
-        variant="ghost"
-        class="sdr-devices-btn"
-        :style="GHOST_BUTTON_STYLE"
-        @click="emit('cancel')"
-      >
+      <BaseButton type="button" variant="ghost" class="sdr-devices-btn" @click="emit('cancel')">
         CANCEL
       </BaseButton>
       <BaseButton
@@ -137,15 +130,10 @@ import {
   type SentryHealthProbeResult,
 } from '@/services/sentryApi'
 
-// Matches SdrDeviceForm's established bridge from the default ghost/primary
-// look down to this settings editor's smaller, dimmer 10px chrome.
-const GHOST_BUTTON_STYLE =
-  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
-  '--ba-ghost-color: rgba(16, 19, 29, 0.6); --ba-ghost-hover-color: rgba(16, 19, 29, 0.9)'
+// SAVE keeps SdrDeviceForm's undimmed disabled look; size and colours come
+// from SettingsPanel.css's `.sdr-devices-form-actions` rule.
 const PRIMARY_BUTTON_STYLE =
-  '--ba-primary-padding: 8px 18px; --ba-primary-font-size: var(--settings-text-caption); ' +
-  '--ba-primary-font-weight: 600; --ba-primary-letter-spacing: 0.16em; ' +
-  '--ba-disabled-opacity: 1; --ba-disabled-cursor: default'
+  '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 
 const props = defineProps<{ host: SentryHost | null }>()
 const emit = defineEmits<{ save: []; cancel: [] }>()

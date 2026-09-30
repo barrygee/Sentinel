@@ -634,7 +634,7 @@ describe('LocationControl', () => {
       await flushPromises()
       const fields = inputs(wrapper)
       const labels = wrapper.findAll('label')
-      expect(labels.map((label) => label.text())).toEqual(['LAT', 'LON'])
+      expect(labels.map((label) => label.text())).toEqual(['LATITUDE', 'LONGITUDE'])
       expect(labels[0]!.attributes('for')).toBe(fields.lat.attributes('id'))
       expect(labels[1]!.attributes('for')).toBe(fields.lon.attributes('id'))
       expect(fields.lat.attributes('aria-describedby')).toBe(

@@ -8,7 +8,7 @@
 
     <div class="settings-location-fields">
       <div class="settings-location-field">
-        <label class="settings-location-label" :for="latitudeInputId">LAT</label>
+        <label class="settings-location-label" :for="latitudeInputId">LATITUDE</label>
         <input
           :id="latitudeInputId"
           v-model="latitudeDraft"
@@ -31,7 +31,7 @@
       </div>
 
       <div class="settings-location-field">
-        <label class="settings-location-label" :for="longitudeInputId">LON</label>
+        <label class="settings-location-label" :for="longitudeInputId">LONGITUDE</label>
         <input
           :id="longitudeInputId"
           v-model="longitudeDraft"

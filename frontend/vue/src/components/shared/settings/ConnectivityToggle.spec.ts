@@ -57,11 +57,11 @@ describe('ConnectivityToggle', () => {
     vi.restoreAllMocks()
   })
 
-  it('offers exactly ONLINE and OFF GRID, with ONLINE selected by default', async () => {
+  it('offers exactly OFF GRID then ONLINE, with ONLINE selected by default', async () => {
     const { wrapper } = await mountToggle()
     expect(wrapper.findAll('[role="radio"]').map((node) => node.text())).toEqual([
-      'ONLINE',
       'OFF GRID',
+      'ONLINE',
     ])
     expect(checkedLabel(wrapper)).toBe('ONLINE')
   })

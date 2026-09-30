@@ -9,8 +9,8 @@ export const SOURCE_MODE_LABELS: Readonly<Record<SourceMode, string>> = {
 
 /** The two choices every connectivity picker offers, in display order. */
 export const SOURCE_MODE_OPTIONS: ReadonlyArray<{ value: SourceMode; label: string }> = [
-  { value: 'online', label: SOURCE_MODE_LABELS.online },
   { value: 'offgrid', label: SOURCE_MODE_LABELS.offgrid },
+  { value: 'online', label: SOURCE_MODE_LABELS.online },
 ]
 
 /**

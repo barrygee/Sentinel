@@ -44,14 +44,14 @@ describe('SourceOverrideControl', () => {
     vi.restoreAllMocks()
   })
 
-  it('offers exactly ONLINE and OFF GRID — no AUTO — as a named radio group', async () => {
+  it('offers exactly OFF GRID then ONLINE — no AUTO — as a named radio group', async () => {
     const wrapper = await mountControl()
     expect(wrapper.find('[role="radiogroup"]').attributes('aria-label')).toBe(
       'AIR data source mode',
     )
     expect(wrapper.findAll('[role="radio"]').map((node) => node.text())).toEqual([
-      'ONLINE',
       'OFF GRID',
+      'ONLINE',
     ])
   })
 

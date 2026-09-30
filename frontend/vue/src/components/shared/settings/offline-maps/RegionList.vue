@@ -1,7 +1,9 @@
 <template>
   <div class="oma-region-list-wrap">
     <h3 id="oma-region-list-heading" ref="headingRef" tabindex="-1" class="oma-region-list-heading">
-      Downloaded Areas
+      Downloaded Areas<template v-if="regions.length > 0">
+        ({{ formatByteSize(totalBytes) }})</template
+      >
     </h3>
     <p v-if="regions.length === 0" class="oma-region-list-empty">
       No offline areas downloaded yet.
@@ -20,7 +22,6 @@
         @delete-cancel="confirmId = null"
       />
     </ul>
-    <p class="oma-region-list-total">Total downloaded: {{ formatByteSize(totalBytes) }}</p>
   </div>
 </template>
 
@@ -28,8 +29,8 @@
 /**
  * `RegionList` — every known offline area, queued/running/complete/failed/
  * cancelled alike (the store polls all of them regardless of whether this
- * panel is even mounted — see `stores/offlineMaps.ts`), plus the total disk
- * usage line. Owns which row's delete confirmation is open, and — because
+ * panel is even mounted — see `stores/offlineMaps.ts`), with the total disk
+ * usage in the heading once there is anything downloaded. Owns which row's delete confirmation is open, and — because
  * only the list knows what remains after a row is removed — where focus goes
  * once a confirmed delete actually completes (WCAG 2.4.3): the row that now
  * occupies the deleted row's position, or this list's own heading if the list
@@ -94,7 +95,7 @@ watch(
 
 .oma-region-list-heading {
   margin: 0;
-  font-size: var(--settings-text-title);
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -120,13 +121,6 @@ watch(
 }
 
 .oma-region-list-empty {
-  margin: 0;
-  font-size: var(--settings-text-body);
-  line-height: 1.5;
-  color: rgba(var(--ink-rgb), 0.6);
-}
-
-.oma-region-list-total {
   margin: 0;
   font-size: var(--settings-text-body);
   line-height: 1.5;

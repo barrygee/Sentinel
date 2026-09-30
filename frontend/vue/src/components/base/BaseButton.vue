@@ -59,9 +59,9 @@ export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
  *   `--ba-primary-font-size`, `--ba-primary-font-weight`,
  *   `--ba-primary-letter-spacing` — e.g. `SdrDeviceForm.vue`'s SAVE button
  *   (sized to match its sibling CANCEL ghost button rather than the full-size
- *   `#settings-apply-btn` look) and `SpaceTleOnlineControl.vue`/
- *   `SpaceTleManualControl.vue`'s UPDATE TLE button (sized to match its
- *   sibling plain `tle-action-btn`).
+ *   `#settings-apply-btn` look). Inside the Settings panel, `SettingsPanel.css`
+ *   sizes every ghost/primary/danger button (bar APPLY CHANGES) to match the
+ *   segmented pickers.
  * - `danger`: `--ba-danger-bg`, `--ba-danger-color` — e.g.
  *   `SpaceTleDatabaseControl.vue`'s CLEAR ALL button, which swaps to an amber
  *   "confirm this?" tint while a destructive action is pending (hover keeps
@@ -196,8 +196,7 @@ withDefaults(defineProps<BaseButtonProps>(), {
   border-radius: 6px;
   /* No default explicit height: the default look's 12px top/bottom padding
      plus its text line-height already lands at ~37px. Sites that shrink the
-     padding (e.g. the TLE "UPDATE TLE" buttons, matching their sibling
-     tle-action-btn's fixed 37px) set --ba-primary-height explicitly instead. */
+     padding set --ba-primary-height explicitly instead. */
   height: var(--ba-primary-height, auto);
   padding: var(--ba-primary-padding, 12px 30px);
   color: var(--accent-ink);

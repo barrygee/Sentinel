@@ -218,7 +218,9 @@ test.describe('Air domain', () => {
     await expect(rangeRingButton).toBeVisible()
 
     const zoomInTooltipDisplay = await page
-      .locator('button[data-tooltip="ZOOM IN"]')
+      // Scoped to the rail: the Settings › Offline Maps preview has its own
+      // ZOOM IN button (MapZoomButtons) in the page too.
+      .locator('#side-menu button[data-tooltip="ZOOM IN"]')
       .evaluate((button) => getComputedStyle(button, '::before').display)
     const rangeRingTooltipDisplay = await rangeRingButton.evaluate(
       (button) => getComputedStyle(button, '::before').display,

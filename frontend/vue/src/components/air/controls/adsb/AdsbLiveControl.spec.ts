@@ -1299,6 +1299,139 @@ describe('AdsbLiveControl trails', () => {
   })
 })
 
+describe('AdsbLiveControl trail line head', () => {
+  /** A position record for an aircraft last reported `secondsAgo` ago, heading east at 400kt. */
+  function movingPosition(secondsAgo: number) {
+    const lastSeen = Date.now() - secondsAgo * 1000
+    return {
+      lon: -0.1,
+      lat: 51.5,
+      gs: 400,
+      track: 90,
+      lastSeen,
+      prevLon: -0.1,
+      prevLat: 51.5,
+      prevSeen: lastSeen - 2000,
+      interpLon: -0.1,
+      interpLat: 51.5,
+    }
+  }
+
+  /** A selected aircraft with a two-point trail, the line built as a fetch would. */
+  function selectedWithTrail() {
+    const { control, map } = mounted()
+    map.layers.add('adsb-trail-line')
+    seedFeature(control)
+    priv(control)._trails['abc123'] = [
+      { lon: -0.3, lat: 51.5, alt: 100 },
+      { lon: -0.2, lat: 51.5, alt: 200 },
+    ]
+    control._selectedHex = 'abc123'
+    priv(control)._lastPositions['abc123'] = movingPosition(0)
+    priv(control)._interpolate()
+    priv(control)._rebuildTrails()
+    return { control, map }
+  }
+
+  function lineCoords(map: ReturnType<typeof mounted>['map']): number[][] {
+    const line = map.sourceData[
+      'adsb-trail-line-source'
+    ] as GeoJSON.FeatureCollection<GeoJSON.LineString>
+    return line.features[0]!.geometry.coordinates
+  }
+
+  it('moves the line end with the dead-reckoned aircraft on every interpolation tick, between fetches', () => {
+    const { control, map } = selectedWithTrail()
+    const headBefore = lineCoords(map).at(-1)!
+
+    // No new fetch: the aircraft has just flown on for 10s since its last report.
+    priv(control)._lastPositions['abc123'] = movingPosition(10)
+    priv(control)._interpolate()
+
+    const headAfter = lineCoords(map).at(-1)!
+    expect(headAfter).toEqual(control._interpolatedCoords('abc123'))
+    // Heading east, so the head has moved east of where it was drawn at the fetch.
+    expect(headAfter[0]!).toBeGreaterThan(headBefore[0]!)
+    // The historical points are untouched.
+    expect(lineCoords(map).slice(0, 2)).toEqual([
+      [-0.3, 51.5],
+      [-0.2, 51.5],
+    ])
+  })
+
+  it('follows the hovered trail when one overrides the selection', () => {
+    const { control, map } = selectedWithTrail()
+    control._trailHex = 'abc123'
+    control._selectedHex = null
+    priv(control)._lastPositions['abc123'] = movingPosition(10)
+    priv(control)._interpolate()
+    expect(lineCoords(map).at(-1)).toEqual(control._interpolatedCoords('abc123'))
+  })
+
+  it('leaves the line alone during playback, which owns the trail sources', () => {
+    const { control, map } = selectedWithTrail()
+    const coordsBefore = structuredClone(lineCoords(map))
+    priv(control)._isPlayback = true
+    priv(control)._lastPositions['abc123'] = movingPosition(10)
+    priv(control)._interpolate()
+    expect(lineCoords(map)).toEqual(coordsBefore)
+  })
+
+  it('does nothing with no aircraft selected or hovered', () => {
+    const { control, map } = selectedWithTrail()
+    const coordsBefore = structuredClone(lineCoords(map))
+    control._selectedHex = null
+    control._trailHex = null
+    priv(control)._lastPositions['abc123'] = movingPosition(10)
+    priv(control)._interpolate()
+    expect(lineCoords(map)).toEqual(coordsBefore)
+  })
+
+  it('does nothing when the drawn line belongs to a different aircraft than the active one', () => {
+    const { control, map } = selectedWithTrail()
+    const coordsBefore = structuredClone(lineCoords(map))
+    seedFeature(control, { hex: 'other1' })
+    priv(control)._trails['other1'] = [{ lon: 1, lat: 52, alt: 0 }]
+    // The active hex changed but the line has not been rebuilt for it yet.
+    control._selectedHex = 'other1'
+    priv(control)._lastPositions['abc123'] = movingPosition(10)
+    priv(control)._interpolate()
+    expect(lineCoords(map)).toEqual(coordsBefore)
+  })
+
+  it('does nothing when no line is drawn yet', () => {
+    const { control, map } = mounted()
+    seedFeature(control)
+    priv(control)._trails['abc123'] = [{ lon: -0.2, lat: 51.5, alt: 0 }]
+    control._selectedHex = 'abc123'
+    priv(control)._interpolate()
+    expect(map.sourceData['adsb-trail-line-source']).toEqual({
+      type: 'FeatureCollection',
+      features: [],
+    })
+  })
+
+  it("does nothing once the active aircraft's trail history has gone", () => {
+    const { control, map } = selectedWithTrail()
+    const coordsBefore = structuredClone(lineCoords(map))
+    delete priv(control)._trails['abc123']
+    priv(control)._lastPositions['abc123'] = movingPosition(10)
+    priv(control)._interpolate()
+    expect(lineCoords(map)).toEqual(coordsBefore)
+  })
+
+  it('keeps the existing line rather than collapsing it to a single point', () => {
+    const { control, map } = selectedWithTrail()
+    const coordsBefore = lineCoords(map)
+    // One history point sitting exactly at the (stationary) aircraft: deduped,
+    // that is a single vertex — not a drawable line.
+    priv(control)._trails['abc123'] = [{ lon: -0.1, lat: 51.5, alt: 0 }]
+    delete priv(control)._lastPositions['abc123']
+    priv(control)._interpolate()
+    expect(lineCoords(map)).toEqual(coordsBefore)
+  })
+})
+
 describe('AdsbLiveControl interpolation', () => {
   it('dead-reckons a moving aircraft and reposition the tag', () => {
     const { control } = mounted()

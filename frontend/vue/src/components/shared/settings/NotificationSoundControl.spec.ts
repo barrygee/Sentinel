@@ -57,26 +57,26 @@ describe('NotificationSoundControl', () => {
     it('offers to enable the sound while it is off', async () => {
       const wrapper = mount(NotificationSoundControl)
       await flushPromises()
-      expect(caption(wrapper)).toBe('Enable alert sound')
+      expect(caption(wrapper)).toBe('Enable')
       expect(switchName(wrapper)).toBe('Enable alert sound')
     })
 
-    it('flips to offering to disable the sound once switched on, and back again', async () => {
+    it('flips to enabled once switched on, and back again', async () => {
       const wrapper = mount(NotificationSoundControl)
       await flushPromises()
       await wrapper.find('[role="switch"]').trigger('click')
-      expect(caption(wrapper)).toBe('Disable alert sound')
-      expect(switchName(wrapper)).toBe('Disable alert sound')
+      expect(caption(wrapper)).toBe('Enabled')
+      expect(switchName(wrapper)).toBe('Alert sound enabled')
       await wrapper.find('[role="switch"]').trigger('click')
-      expect(caption(wrapper)).toBe('Enable alert sound')
+      expect(caption(wrapper)).toBe('Enable')
       expect(switchName(wrapper)).toBe('Enable alert sound')
     })
 
-    it('offers to disable the sound when the saved setting has it on', async () => {
+    it('reads enabled when the saved setting has it on', async () => {
       stubFetch({ notificationSound: true })
       const wrapper = mount(NotificationSoundControl)
       await flushPromises()
-      expect(caption(wrapper)).toBe('Disable alert sound')
+      expect(caption(wrapper)).toBe('Enabled')
     })
 
     it('never mentions the old blip wording', async () => {

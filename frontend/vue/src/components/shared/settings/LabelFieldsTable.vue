@@ -21,6 +21,7 @@
             v-else-if="control === 'switch'"
             :model-value="isChecked(column.key, row.key)"
             :accessible-name="accessibleName(row, column)"
+            :disabled="isDisabled(column.key, row.key)"
             @update:model-value="emit('toggle', column.key, row.key)"
           />
           <BaseCheckbox
@@ -30,6 +31,7 @@
             box-class="lft-box"
             :accessible-name="accessibleName(row, column)"
             :checked="isChecked(column.key, row.key)"
+            :disabled="isDisabled(column.key, row.key)"
             @change="emit('toggle', column.key, row.key)"
           >
             <template #checkmark>
@@ -95,6 +97,11 @@ const props = withDefaults(
     rows: LabelFieldRow[]
     /** Whether the field in this column/row pair is currently switched on. */
     isChecked: (columnKey: string, rowKey: string) => boolean
+    /**
+     * Whether the control in this column/row pair is locked (e.g. the last
+     * option of a must-keep-one set). Defaults to never.
+     */
+    isDisabled?: (columnKey: string, rowKey: string) => boolean
     /** Fill of a checked box — the owning domain's accent colour. */
     accentColor?: string
     /** Tick colour, dark by default so it reads on a bright accent fill. */
@@ -119,6 +126,7 @@ const props = withDefaults(
     fieldHeader: 'Field',
     showHeader: true,
     control: 'checkbox',
+    isDisabled: () => false,
   },
 )
 
@@ -155,7 +163,9 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
 }
 .lft-header {
   display: grid;
-  padding: 0 4px 10px;
+  /* No side padding: the header grid must be exactly as wide as the rows' for
+     each column heading to sit centred over its checkboxes. */
+  padding: 0 0 10px;
 }
 .lft-header-field,
 .lft-header-col {
@@ -167,10 +177,14 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
   color: rgba(16, 19, 29, 0.38);
 }
 .lft-header-field {
-  padding-left: 10px;
+  /* Lines up with the row names (.lft-row-label's 12px inset). */
+  padding-left: 12px;
 }
 .lft-header-col {
   text-align: center;
+  /* Letter-spacing trails the last letter too, nudging centred text left;
+     matching it on the left re-centres the heading over its column. */
+  padding-left: 0.16em;
 }
 .lft-row {
   display: grid;
