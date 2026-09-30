@@ -166,7 +166,7 @@ function onInput(event: Event): void {
 }
 .number-setting-unit {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -185,7 +185,7 @@ function onInput(event: Event): void {
   box-shadow: inset 0 -1px 0 var(--settings-field-line, var(--rule));
   color: var(--ink);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   font-weight: 500;
   letter-spacing: 0.04em;
   text-align: center;

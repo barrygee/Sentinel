@@ -82,7 +82,7 @@ function onInput(event: Event): void {
 
 .oma-depth-picker :deep(.sdr-field-label) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   font-weight: 600;
   letter-spacing: 0.16em;
   color: rgba(var(--ink-rgb), 0.6); /* matches .settings-location-label (AA) */
@@ -90,7 +90,7 @@ function onInput(event: Event): void {
 
 .oma-depth-picker :deep(.sdr-slider-val) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: none;

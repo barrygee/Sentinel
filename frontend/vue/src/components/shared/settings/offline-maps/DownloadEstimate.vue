@@ -116,7 +116,7 @@ onUnmounted(() => {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--ink);
@@ -127,7 +127,7 @@ onUnmounted(() => {
 }
 
 .oma-estimate-tiles {
-  font-size: 12px;
+  font-size: var(--settings-text-body);
   font-weight: 400;
   color: rgba(var(--ink-rgb), 0.6);
 }
@@ -142,7 +142,7 @@ onUnmounted(() => {
 .oma-estimate-row {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--settings-text-body);
   line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.6);
 }
@@ -154,7 +154,7 @@ onUnmounted(() => {
 
 .oma-estimate-warning {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   font-weight: 500;
   line-height: 1.45;
   color: var(--danger-hover);

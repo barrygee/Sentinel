@@ -31,6 +31,15 @@ function inputs(wrapper: ReturnType<typeof mountControl>) {
 
 const statusText = (wrapper: ReturnType<typeof mountControl>) =>
   wrapper.find('.settings-location-status').text()
+/**
+ * Once a position is set the control shows no status line at all — it used to
+ * print a "Last set <date>" line, which was removed — so assert both that the
+ * line is gone and that no timestamp text leaked anywhere into the control.
+ */
+function expectNoStatusLine(wrapper: ReturnType<typeof mountControl>): void {
+  expect(wrapper.find('.settings-location-status').exists()).toBe(false)
+  expect(wrapper.text()).not.toContain('Last set')
+}
 const errorTexts = (wrapper: ReturnType<typeof mountControl>) =>
   wrapper.findAll('.settings-location-error').map((node) => node.text())
 const hintTexts = (wrapper: ReturnType<typeof mountControl>) =>
@@ -162,7 +171,7 @@ describe('LocationControl', () => {
       expect(statusText(wrapper)).toBe(NO_POSITION)
     })
 
-    it('reports when the position was last set', async () => {
+    it('shows no status line or set time once a position is stored', async () => {
       const timestamp = 1_700_000_000_000
       localStorage.setItem(
         STORAGE_KEY,
@@ -170,7 +179,8 @@ describe('LocationControl', () => {
       )
       const wrapper = mountControl()
       await flushPromises()
-      expect(statusText(wrapper)).toBe(`Last set ${new Date(timestamp).toLocaleString()}.`)
+      expectNoStatusLine(wrapper)
+      expect(wrapper.text()).not.toContain(new Date(timestamp).toLocaleString())
     })
 
     it('reports no position when a timestamp exists but the latitude is blank', async () => {
@@ -187,11 +197,11 @@ describe('LocationControl', () => {
       expect(statusText(wrapper)).toBe(NO_POSITION)
     })
 
-    it('reports no position when the stored pair carries no timestamp', async () => {
+    it('treats a stored pair without a timestamp as a set position', async () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ latitude: 51.5, longitude: -0.12 }))
       const wrapper = mountControl()
       await flushPromises()
-      expect(statusText(wrapper)).toBe(NO_POSITION)
+      expectNoStatusLine(wrapper)
     })
   })
 
@@ -281,11 +291,12 @@ describe('LocationControl', () => {
   })
 
   describe('saving', () => {
-    it('persists a valid pair and reports when it was set', async () => {
+    it('persists a valid pair and drops the no-position notice', async () => {
       const liveSpy = vi.fn()
       window.addEventListener('sentinel:setUserLocation', liveSpy)
       const wrapper = mountControl()
       await flushPromises()
+      expect(statusText(wrapper)).toBe(NO_POSITION)
       const fields = inputs(wrapper)
       await fields.lat.setValue('51.5')
       await fields.lon.setValue('-0.12')
@@ -302,28 +313,8 @@ describe('LocationControl', () => {
         longitude: -0.12,
         persist: false,
       })
-      expect(statusText(wrapper)).toMatch(/^Last set /)
+      expectNoStatusLine(wrapper)
       window.removeEventListener('sentinel:setUserLocation', liveSpy)
-    })
-
-    it('takes the timestamp from what the composable stored, not the clock', async () => {
-      const storedTimestamp = 1_700_000_000_000
-      // Stand in for useUserLocation's listener, which writes the stored copy
-      // (including its `ts`) in response to the dispatched set.
-      const store = () =>
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ latitude: 51.5, longitude: -0.12, ts: storedTimestamp }),
-        )
-      window.addEventListener('sentinel:setUserLocation', store)
-      const wrapper = mountControl()
-      await flushPromises()
-      const fields = inputs(wrapper)
-      await fields.lat.setValue('51.5')
-      await fields.lon.setValue('-0.12')
-      await applyStagedSave(wrapper)
-      expect(statusText(wrapper)).toBe(`Last set ${new Date(storedTimestamp).toLocaleString()}.`)
-      window.removeEventListener('sentinel:setUserLocation', store)
     })
 
     it('clears the position when both fields are blank', async () => {
@@ -525,24 +516,7 @@ describe('LocationControl', () => {
       const fields = inputs(wrapper)
       expect(fields.latValue()).toBe('12.34000')
       expect(fields.lonValue()).toBe('56.78000')
-      expect(statusText(wrapper)).toMatch(/^Last set /)
-    })
-
-    it('takes the synced timestamp from the stored copy when there is one', async () => {
-      const storedTimestamp = 1_700_000_000_000
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ latitude: 12.34, longitude: 56.78, ts: storedTimestamp }),
-      )
-      const wrapper = mountControl()
-      await flushPromises()
-      window.dispatchEvent(
-        new CustomEvent('settings:locationSynced', {
-          detail: { latitude: 12.34, longitude: 56.78 },
-        }),
-      )
-      await flushPromises()
-      expect(statusText(wrapper)).toBe(`Last set ${new Date(storedTimestamp).toLocaleString()}.`)
+      expectNoStatusLine(wrapper)
     })
 
     it('clears a pending error when an external set supersedes it', async () => {

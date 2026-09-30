@@ -71,7 +71,7 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import { flashSentryDeviceSerial, SentryApiRequestError } from '@/services/sentryApi'
 
 const GHOST_BUTTON_STYLE =
-  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: 10px; ' +
+  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
   '--ba-ghost-color: rgba(16, 19, 29, 0.6); --ba-ghost-hover-color: rgba(16, 19, 29, 0.9)'
 
 const props = defineProps<{ hostId: number; deviceId: string }>()
@@ -117,7 +117,7 @@ async function confirmFlash(): Promise<void> {
 .sdr-serial-flash-note {
   margin: 0 0 8px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   color: #d94436;
 }
 .sdr-serial-flash-confirm {
@@ -128,7 +128,7 @@ async function confirmFlash(): Promise<void> {
 .sdr-serial-flash-warning {
   margin: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: var(--settings-text-caption);
   line-height: 1.5;
   color: rgba(16, 19, 29, 0.6);
 }

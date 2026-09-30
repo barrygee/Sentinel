@@ -131,7 +131,7 @@ function stageForget(): void {
 <style scoped>
 /* Status as a small caps label, matching the field labels beneath it. */
 .sea-key-status {
-  font-size: 10px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;

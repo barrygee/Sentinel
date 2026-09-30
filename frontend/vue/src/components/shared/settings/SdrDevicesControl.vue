@@ -395,7 +395,7 @@ onBeforeUnmount(() => {
 .sdr-host-group-header {
   padding: 10px 14px 6px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: var(--settings-text-title);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;

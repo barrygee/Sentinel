@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .settings-datasource-hint {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   line-height: 1.5;
   opacity: 0.7;
 }

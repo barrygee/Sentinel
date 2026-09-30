@@ -508,6 +508,21 @@ describe('SettingsPanel', () => {
       expect(titles.slice(alertsStart, alertsStart + 2)).toEqual(['Alert Sound', 'Alerts'])
     })
 
+    it('shows the alert sound without a description line', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      // SettingRow is stubbed here, so assert on the item it is handed:
+      // SettingRow renders the description line only when `desc` is non-empty.
+      const alertSoundItem = wrapper
+        .findAllComponents({ name: 'SettingRow' })
+        .map((row) => row.props('item') as { label: string; desc: string })
+        .find((item) => item.label === 'Alert Sound')
+      expect(alertSoundItem).toBeDefined()
+      expect(alertSoundItem!.desc).toBe('')
+    })
+
     it('no longer offers the connectivity probe URL', async () => {
       const store = useSettingsStore()
       store.openPanel('app')

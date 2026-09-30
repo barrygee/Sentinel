@@ -212,13 +212,13 @@ import {
 // ghost/primary look (10px type, 8px/18px padding, auto height) — bridge those
 // deltas via the established `--ba-*` custom-property hooks.
 const GHOST_BUTTON_STYLE =
-  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: 10px; ' +
+  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
   '--ba-ghost-color: rgba(16, 19, 29, 0.6); --ba-ghost-hover-color: rgba(16, 19, 29, 0.9)'
 // The original `.sdr-devices-btn--primary` never had a disabled visual
 // treatment at all (unlike BaseButton's shared dimmed/not-allowed default),
 // so `saving` never visibly dims this SAVE button — preserve that.
 const PRIMARY_BUTTON_STYLE =
-  '--ba-primary-padding: 8px 18px; --ba-primary-font-size: 10px; ' +
+  '--ba-primary-padding: 8px 18px; --ba-primary-font-size: var(--settings-text-caption); ' +
   '--ba-primary-font-weight: 600; --ba-primary-letter-spacing: 0.16em; ' +
   '--ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 

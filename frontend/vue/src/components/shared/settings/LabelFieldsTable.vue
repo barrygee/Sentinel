@@ -160,7 +160,7 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
 .lft-header-field,
 .lft-header-col {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -191,7 +191,7 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
 }
 .lft-row-abbr {
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.05em;
   color: rgba(16, 19, 29, 0.4);
@@ -199,7 +199,7 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
 }
 .lft-row-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: var(--settings-text-caption);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -240,7 +240,7 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
   }
   .lft-header-field,
   .lft-header-col {
-    font-size: 8px;
+    font-size: var(--settings-text-caption);
     letter-spacing: 0.14em;
   }
 }
