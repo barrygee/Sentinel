@@ -1,4 +1,4 @@
-import { SentinelControlBase } from '../sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
 import type { AdsbLiveControl } from '../adsb/AdsbLiveControl'
 import type { AdsbLabelsToggleControl } from '../adsb-labels/AdsbLabelsToggleControl'
 import type { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsToggleControl'

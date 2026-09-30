@@ -12,7 +12,7 @@ import {
   createTowerBlip,
   createGroundVehicleBlip,
   createUAVBlip,
-} from './adsbSprites'
+} from '@/components/shared/map-kit/sprites/adsbSprites'
 import {
   appendMirrored,
   createAccentBadge,

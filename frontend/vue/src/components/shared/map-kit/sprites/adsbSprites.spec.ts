@@ -6,7 +6,7 @@ import {
   createTowerBlip,
   createGroundVehicleBlip,
   createUAVBlip,
-} from './adsbSprites'
+} from '@/components/shared/map-kit/sprites/adsbSprites'
 
 // jsdom does not implement canvas 2D rendering, so stub getContext with a
 // recording fake context. Drawing calls are captured for geometry/colour

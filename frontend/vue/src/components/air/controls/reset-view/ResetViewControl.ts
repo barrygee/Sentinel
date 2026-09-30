@@ -1,4 +1,4 @@
-import { SentinelControlBase } from '../sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
 
 const HOME_CENTER: [number, number] = [-4.4815, 54.1453]
 const HOME_ZOOM = 6

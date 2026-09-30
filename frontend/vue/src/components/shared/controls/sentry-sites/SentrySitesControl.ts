@@ -1,6 +1,6 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
-import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
 import { buildLocationMarkerSvg } from '@/components/shared/UserLocationMarker'
 import {
   buildCountMarker,

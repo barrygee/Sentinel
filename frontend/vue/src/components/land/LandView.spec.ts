@@ -88,7 +88,7 @@ const ringsSpies = vi.hoisted(() => ({
   initRings: vi.fn(),
   visible: false,
 }))
-vi.mock('@/components/land/controls/range-rings/LandRangeRingsControl', () => ({
+vi.mock('@/components/shared/controls/range-rings/LandRangeRingsControl', () => ({
   LandRangeRingsControl: class {
     onAdd = ringsSpies.onAdd
     onRemove = ringsSpies.onRemove

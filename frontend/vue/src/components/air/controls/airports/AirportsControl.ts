@@ -1,5 +1,5 @@
 import * as maplibregl from 'maplibre-gl'
-import { SentinelControlBase } from '../sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
 import type { AirStore } from '../types'
 
 type LngLat = [number, number]

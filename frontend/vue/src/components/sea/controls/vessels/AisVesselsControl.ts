@@ -1,7 +1,7 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
-import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
-import { createBracket } from '@/components/air/controls/adsb/adsbSprites'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { createBracket } from '@/components/shared/map-kit/sprites/adsbSprites'
 import { createVesselArrow, createVesselDot } from './vesselSprites'
 import { createFlagBadge } from './vesselFlagBadge'
 import {
