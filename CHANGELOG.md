@@ -1316,6 +1316,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #380 from barrygee/fix/settings-alert-sound-location-fonts
 - Merge pull request #381 from barrygee/fix/air-trail-and-base-hint
 - Merge pull request #382 from barrygee/fix/air-alert-click-handler
+- Merge pull request #383 from barrygee/docs/section-containers-plan
 
 ### Refactoring
 
@@ -1405,6 +1406,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document off-grid AIS decode, and rebuild the SPA bundle
 - Lead the Docker section with the all-decoders command
 - Add the offline map downloads plan (#371)
+- Add section-containers architecture plan
 
 ### Tests
 
