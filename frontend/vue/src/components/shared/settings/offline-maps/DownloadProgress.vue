@@ -102,7 +102,7 @@ const progressAccessibleName = computed(() => `${phaseLabel.value} download prog
 /* Smaller than the group's 12.5px text: a secondary read-out beside the
    CANCEL button, not a label (the group-wide size rule excludes it). */
 .oma-progress-footer .oma-progress-status {
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   letter-spacing: 0.04em;
   color: rgba(var(--ink-rgb), 0.6);
 }

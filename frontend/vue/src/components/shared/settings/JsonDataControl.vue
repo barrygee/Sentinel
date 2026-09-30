@@ -177,7 +177,7 @@ async function exportData(): Promise<void> {
 
 <style scoped>
 .satradio-error {
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   color: #ff6b6b;
   align-self: center;
 }

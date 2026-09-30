@@ -137,7 +137,7 @@ const options = computed(() => [
 
 .oma-content-check-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -146,7 +146,7 @@ const options = computed(() => [
 
 .oma-content-check-desc {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: var(--settings-text-body);
   line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.6);
 }

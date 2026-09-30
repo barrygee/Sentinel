@@ -229,7 +229,7 @@ function onTriggerKeydown(keyboardEvent: KeyboardEvent): void {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-caption);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -291,7 +291,7 @@ function onTriggerKeydown(keyboardEvent: KeyboardEvent): void {
   padding: 9px 12px;
   border-radius: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-caption);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;

@@ -186,7 +186,7 @@ function onToggleOption(_column: string, settingKey: string): void {
    `:deep()` is required: the table renders inside a child component. */
 .sdr-options-table :deep(.lft-row-name) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: var(--settings-text-caption);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: rgba(16, 19, 29, 0.85);

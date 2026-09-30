@@ -149,7 +149,7 @@ function onRadiusBlur(locationId: string): void {
 .overhead-alerts-empty {
   margin: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   color: rgba(16, 19, 29, 0.5);
 }
 
@@ -173,7 +173,7 @@ function onRadiusBlur(locationId: string): void {
 .overhead-alerts-name {
   margin: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -183,7 +183,7 @@ function onRadiusBlur(locationId: string): void {
 .overhead-alerts-coords {
   margin: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: var(--settings-text-caption);
   color: rgba(16, 19, 29, 0.5);
   font-variant-numeric: tabular-nums;
 }
@@ -204,7 +204,7 @@ function onRadiusBlur(locationId: string): void {
 
 .overhead-alerts-toggle-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.16em;
   color: rgba(16, 19, 29, 0.55);
@@ -220,7 +220,7 @@ function onRadiusBlur(locationId: string): void {
 
 .overhead-alerts-radius-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.16em;
   color: rgba(16, 19, 29, 0.55);
@@ -238,7 +238,7 @@ function onRadiusBlur(locationId: string): void {
   padding: 4px 0 6px;
   color: rgba(16, 19, 29, 0.92);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   font-variant-numeric: tabular-nums;
   box-shadow: inset 0 -1px 0 var(--settings-field-line, rgba(16, 19, 29, 0.12));
   transition: box-shadow 0.15s;
@@ -251,7 +251,7 @@ function onRadiusBlur(locationId: string): void {
 
 .overhead-alerts-radius-unit {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   color: rgba(16, 19, 29, 0.5);
 }
 </style>

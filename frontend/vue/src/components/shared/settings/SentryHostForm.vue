@@ -140,10 +140,10 @@ import {
 // Matches SdrDeviceForm's established bridge from the default ghost/primary
 // look down to this settings editor's smaller, dimmer 10px chrome.
 const GHOST_BUTTON_STYLE =
-  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: 10px; ' +
+  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
   '--ba-ghost-color: rgba(16, 19, 29, 0.6); --ba-ghost-hover-color: rgba(16, 19, 29, 0.9)'
 const PRIMARY_BUTTON_STYLE =
-  '--ba-primary-padding: 8px 18px; --ba-primary-font-size: 10px; ' +
+  '--ba-primary-padding: 8px 18px; --ba-primary-font-size: var(--settings-text-caption); ' +
   '--ba-primary-font-weight: 600; --ba-primary-letter-spacing: 0.16em; ' +
   '--ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 
@@ -227,7 +227,7 @@ async function save(): Promise<void> {
   align-items: center;
   padding: 8px 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   color: rgba(16, 19, 29, 0.75);
 }
 .sentry-host-probe--fail {

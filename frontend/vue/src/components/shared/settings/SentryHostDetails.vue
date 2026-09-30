@@ -309,7 +309,7 @@ watch(
 }
 .sentry-host-details-toggle-title {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -329,20 +329,20 @@ watch(
   --ba-grid-row-gap: 20px;
   --ba-grid-column-gap: 24px;
   --ba-cell-gap: 7px;
-  /* Section titles take .settings-group-label's scale; field labels take
+  /* Section titles take the shared heading size; field labels take
      .sdr-devices-form-label's. Both sit darker than those panel greys (0.35 /
      0.5): at this size they are the only carrier of the field's meaning, so
      they hold AA contrast rather than the decorative weight larger headings
      can afford. */
-  --ba-grid-title-font-size: 10px;
+  --ba-grid-title-font-size: var(--settings-text-title);
   --ba-grid-title-font-weight: 600;
   --ba-grid-title-letter-spacing: 0.22em;
   --ba-grid-title-color: rgba(16, 19, 29, 0.75);
-  --ba-cell-label-font-size: 10px;
+  --ba-cell-label-font-size: var(--settings-text-caption);
   --ba-cell-label-font-weight: 600;
   --ba-cell-label-letter-spacing: 0.14em;
   --ba-cell-label-color: rgba(16, 19, 29, 0.62);
-  --ba-cell-value-font-size: 13px;
+  --ba-cell-value-font-size: var(--settings-text-value);
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-letter-spacing: 0.02em;
   --ba-cell-value-color: rgba(16, 19, 29, 0.92);

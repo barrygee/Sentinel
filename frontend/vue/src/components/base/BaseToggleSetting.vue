@@ -95,7 +95,7 @@ const { value, applyChange } = useStagedSetting<boolean>({
 }
 .toggle-setting-label {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;

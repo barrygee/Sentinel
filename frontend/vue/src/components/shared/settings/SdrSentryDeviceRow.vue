@@ -35,7 +35,7 @@ import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
 import type { SentryDeviceStatus } from '@/services/sentryApi'
 
 const ADD_BUTTON_STYLE =
-  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: 10px; ' +
+  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
   '--ba-ghost-color: rgba(16, 19, 29, 0.6); --ba-ghost-hover-color: rgba(16, 19, 29, 0.9)'
 
 const props = defineProps<{
@@ -86,7 +86,7 @@ const stateLabel = computed(() => {
 <style scoped>
 .sdr-sentry-device-state {
   margin-left: 8px;
-  font-size: 10px;
+  font-size: var(--settings-text-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(16, 19, 29, 0.45);

@@ -136,7 +136,7 @@ async function exportAllConfigs(): Promise<void> {
 
 .settings-export-all-status {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: var(--settings-text-small);
   color: rgba(16, 19, 29, 0.5);
 }
 </style>

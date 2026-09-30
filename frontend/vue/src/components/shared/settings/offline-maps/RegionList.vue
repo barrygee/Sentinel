@@ -94,7 +94,7 @@ watch(
 
 .oma-region-list-heading {
   margin: 0;
-  font-size: 9px;
+  font-size: var(--settings-text-title);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -121,14 +121,14 @@ watch(
 
 .oma-region-list-empty {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--settings-text-body);
   line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.6);
 }
 
 .oma-region-list-total {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--settings-text-body);
   line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.6);
 }
