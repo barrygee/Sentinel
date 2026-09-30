@@ -213,26 +213,6 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
           this.map.easeTo(easeOpts)
         })
 
-        let hintPanel: HTMLDivElement | null = null
-        el.addEventListener('mouseenter', () => {
-          if (!hintPanel) {
-            hintPanel = document.createElement('div')
-            hintPanel.style.cssText = 'pointer-events:none;margin-top:4px'
-            hintPanel.innerHTML =
-              `<div style="display:inline-block;background:rgba(0,0,0,0.7);color:#fff;` +
-              `font-family:'Barlow Condensed','Barlow',sans-serif;font-size:12px;font-weight:400;` +
-              `padding:5px 12px 7px;white-space:nowrap;user-select:none">` +
-              `<span style="opacity:0.5;letter-spacing:.05em">CLICK TO ZOOM</span></div>`
-            el.appendChild(hintPanel)
-          }
-        })
-        el.addEventListener('mouseleave', () => {
-          if (hintPanel) {
-            hintPanel.remove()
-            hintPanel = null
-          }
-        })
-
         return new maplibregl.Marker({
           element: el,
           anchor: 'top-left',
