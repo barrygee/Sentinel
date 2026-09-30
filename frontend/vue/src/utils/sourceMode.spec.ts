@@ -15,10 +15,10 @@ describe('sourceMode', () => {
     vi.restoreAllMocks()
   })
 
-  it('offers exactly ONLINE then OFF GRID, labelled from the shared map', () => {
+  it('offers exactly OFF GRID then ONLINE, labelled from the shared map', () => {
     expect(SOURCE_MODE_OPTIONS).toEqual([
-      { value: 'online', label: 'ONLINE' },
       { value: 'offgrid', label: 'OFF GRID' },
+      { value: 'online', label: 'ONLINE' },
     ])
     expect(SOURCE_MODE_LABELS).toEqual({ online: 'ONLINE', offgrid: 'OFF GRID' })
   })

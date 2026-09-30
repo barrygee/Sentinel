@@ -104,7 +104,7 @@ function onActivate(): void {
 }
 .ring-origin-option-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;

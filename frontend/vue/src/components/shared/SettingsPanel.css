@@ -424,7 +424,7 @@
 .settings-location-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -647,25 +647,28 @@
   gap: 8px;
 }
 
-/* The segmented single-select family: the source-override picker and the two
-   theme rows (`BaseSegmentedSetting`) are the same control, so they share one
-   set of rules rather than two copies that drift. */
+/* The segmented single-select family: the source-override picker, the theme
+   rows (`BaseSegmentedSetting`) and the SDR device form's STATUS/VISIBILITY
+   pairs are the same control, so they share one set of rules rather than
+   copies that drift. */
 .settings-source-override-group,
-.settings-segmented-group {
+.settings-segmented-group,
+.sdr-devices-enabled-group {
   display: flex;
   flex-direction: row;
-  gap: 0;
+  /* Options sit apart on the panel background, so each pill carries its own
+     surface fill rather than the group. */
+  gap: 2px;
   border-radius: 0;
   overflow: hidden;
   width: fit-content;
-  background: var(--surface);
 }
 
 .settings-source-override-btn,
-.settings-segmented-btn {
-  background: transparent;
+.settings-segmented-btn,
+.sdr-devices-enabled-btn {
+  background: var(--surface);
   border: none;
-  border-right: 1px solid var(--border);
   padding: 8px 16px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
@@ -680,19 +683,18 @@
   user-select: none;
 }
 
-.settings-source-override-btn:last-child,
-.settings-segmented-btn:last-child {
-  border-right: none;
-}
-
 .settings-source-override-btn:hover,
-.settings-segmented-btn:hover {
-  background: rgba(var(--ink-rgb), 0.05);
+.settings-segmented-btn:hover,
+.sdr-devices-enabled-btn:hover {
+  /* Tint layered over the pill's own surface fill. */
+  background:
+    linear-gradient(rgba(var(--ink-rgb), 0.05), rgba(var(--ink-rgb), 0.05)), var(--surface);
   color: rgba(var(--ink-rgb), 0.8);
 }
 
 .settings-source-override-btn.is-active,
-.settings-segmented-btn.is-active {
+.settings-segmented-btn.is-active,
+.sdr-devices-enabled-btn.is-active {
   background: var(--accent);
   color: var(--accent-ink);
 }
@@ -1521,38 +1523,6 @@
   margin: 0;
 }
 
-.sdr-devices-enabled-group {
-  display: flex;
-  gap: 8px;
-}
-
-.sdr-devices-enabled-btn {
-  background: var(--hover-surface);
-  border: none;
-  border-radius: 0;
-  padding: 6px 14px;
-  color: rgba(var(--ink-rgb), 0.45);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.sdr-devices-enabled-btn:hover {
-  color: rgba(var(--ink-rgb), 0.7);
-  background: rgba(var(--ink-rgb), 0.1);
-}
-
-.sdr-devices-enabled-btn.is-active {
-  background: var(--color-accent);
-  color: var(--accent-ink);
-}
-
 .sdr-devices-form-error {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
@@ -1567,8 +1537,19 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 2px;
   padding-top: 2px;
+}
+
+/* SAVE / CANCEL rows read as a segmented pair (ONLINE / OFF GRID): the same
+   2px gap, surface fill, dimmed ink and hover tint. Sizing comes from the
+   panel-wide BaseButton rule. */
+#settings-panel .sdr-devices-form-actions .ba-btn--ghost {
+  --ba-ghost-bg: var(--surface);
+  --ba-ghost-hover-bg:
+    linear-gradient(rgba(var(--ink-rgb), 0.05), rgba(var(--ink-rgb), 0.05)), var(--surface);
+  --ba-ghost-color: rgba(var(--ink-rgb), 0.5);
+  --ba-ghost-hover-color: rgba(var(--ink-rgb), 0.8);
 }
 
 /* .sdr-devices-btn's own chrome (+ its --primary modifier) now lives in the
@@ -1587,12 +1568,31 @@
    ghost/primary/danger chrome is shared app-wide, so square it here rather
    than in the atom: the #settings-panel id out-specifies the atom's scoped
    class rules, and the override never leaks outside the panel. */
-#settings-panel .ba-btn--ghost {
-  --ba-ghost-radius: 0;
-}
 #settings-panel .ba-btn--primary,
 #settings-panel .ba-btn--danger {
   border-radius: 0;
+}
+
+/* Action buttons take the segmented pickers' size (ONLINE / OFF GRID, see
+   .settings-segmented-btn) so every button in the panel shares one height.
+   APPLY CHANGES is the panel's commit action and keeps its larger size. */
+#settings-panel .ba-btn--ghost {
+  --ba-ghost-radius: 0;
+  --ba-ghost-height: auto;
+  --ba-ghost-padding: 8px 16px;
+  --ba-ghost-font-size: var(--settings-text-caption);
+  --ba-ghost-letter-spacing: 0.18em;
+}
+#settings-panel .ba-btn--primary:not(#settings-apply-btn) {
+  --ba-primary-height: auto;
+  --ba-primary-padding: 8px 16px;
+  --ba-primary-font-size: var(--settings-text-caption);
+}
+#settings-panel .ba-btn--danger {
+  height: auto;
+  padding: 8px 16px;
+  font-size: var(--settings-text-caption);
+  letter-spacing: 0.18em;
 }
 
 /* ============================================================

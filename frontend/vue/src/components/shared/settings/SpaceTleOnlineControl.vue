@@ -44,8 +44,6 @@
         variant="primary"
         class="tle-action-btn tle-action-btn--primary"
         style="
-          --ba-primary-height: 37px;
-          --ba-primary-padding: 0 18px;
           --ba-primary-font-weight: 600;
           --ba-primary-letter-spacing: 0.16em;
           --ba-disabled-opacity: 0.4;

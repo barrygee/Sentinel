@@ -35,7 +35,6 @@
           type="button"
           variant="ghost"
           class="sdr-devices-btn"
-          :style="GHOST_BUTTON_STYLE"
           :disabled="flashing"
           @click="cancel"
         >

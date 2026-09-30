@@ -1,5 +1,12 @@
 <template>
-  <LabelFieldsTable :columns="COLUMNS" :rows="ROWS" :is-checked="isChecked" @toggle="onToggle" />
+  <!-- No field heading: the rows are self-evidently the fields. -->
+  <LabelFieldsTable
+    :columns="COLUMNS"
+    :rows="ROWS"
+    :is-checked="isChecked"
+    field-header=""
+    @toggle="onToggle"
+  />
 </template>
 
 <script setup lang="ts">
@@ -26,18 +33,18 @@ const fields = ref<AdsbTagFields>({
 
 const COLUMNS: LabelFieldColumn[] = [
   { key: 'civil', label: 'Civil' },
-  { key: 'mil', label: 'Mil' },
+  { key: 'mil', label: 'Military' },
 ]
 
 const ROWS: LabelFieldRow[] = [
-  { key: 'callsign', abbr: 'CSS', label: 'Callsign' },
-  { key: 'altitude', abbr: 'ALT', label: 'Altitude' },
-  { key: 'speed', abbr: 'SPD', label: 'Speed' },
-  { key: 'heading', abbr: 'HDG', label: 'Heading' },
-  { key: 'aircraftType', abbr: 'TYP', label: 'Aircraft Type' },
-  { key: 'registration', abbr: 'REG', label: 'Registration' },
-  { key: 'squawk', abbr: 'SQK', label: 'Squawk' },
-  { key: 'category', abbr: 'CAT', label: 'Category' },
+  { key: 'callsign', label: 'Callsign' },
+  { key: 'altitude', label: 'Altitude' },
+  { key: 'speed', label: 'Speed' },
+  { key: 'heading', label: 'Heading' },
+  { key: 'aircraftType', label: 'Aircraft Type' },
+  { key: 'registration', label: 'Registration' },
+  { key: 'squawk', label: 'Squawk' },
+  { key: 'category', label: 'Category' },
 ]
 
 onMounted(async () => {

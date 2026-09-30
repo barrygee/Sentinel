@@ -144,12 +144,7 @@
 
     <div v-if="errorMsg" class="sdr-devices-form-error">{{ errorMsg }}</div>
     <div class="sdr-devices-form-actions">
-      <BaseButton
-        type="button"
-        variant="ghost"
-        class="sdr-devices-btn"
-        :style="GHOST_BUTTON_STYLE"
-        @click="emit('cancel')"
+      <BaseButton type="button" variant="ghost" class="sdr-devices-btn" @click="emit('cancel')"
         >CANCEL</BaseButton
       >
       <BaseButton
@@ -208,19 +203,12 @@ import {
   type SentryDeviceStatus,
 } from '@/services/sentryApi'
 
-// `.sdr-devices-btn`/`--primary` are smaller and dimmer than the default
-// ghost/primary look (10px type, 8px/18px padding, auto height) — bridge those
-// deltas via the established `--ba-*` custom-property hooks.
-const GHOST_BUTTON_STYLE =
-  '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
-  '--ba-ghost-color: rgba(16, 19, 29, 0.6); --ba-ghost-hover-color: rgba(16, 19, 29, 0.9)'
 // The original `.sdr-devices-btn--primary` never had a disabled visual
 // treatment at all (unlike BaseButton's shared dimmed/not-allowed default),
-// so `saving` never visibly dims this SAVE button — preserve that.
+// so `saving` never visibly dims this SAVE button — preserve that. Size and
+// colours come from SettingsPanel.css's `.sdr-devices-form-actions` rule.
 const PRIMARY_BUTTON_STYLE =
-  '--ba-primary-padding: 8px 18px; --ba-primary-font-size: var(--settings-text-caption); ' +
-  '--ba-primary-font-weight: 600; --ba-primary-letter-spacing: 0.16em; ' +
-  '--ba-disabled-opacity: 1; --ba-disabled-cursor: default'
+  '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 
 const props = defineProps<{
   /** The radio being edited, or null when adding a new manual radio. */
