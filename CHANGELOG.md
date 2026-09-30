@@ -433,6 +433,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Label download size estimates as upper bounds
 - Keep the selected aircraft's trail attached between fetches
 - Remove the military base CLICK TO ZOOM hover hint
+- Clear aircraft alert click handler when the Air map unmounts
 
 ### Chores
 
@@ -1314,6 +1315,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #361 from barrygee/feat/remove-camera-feeds
 - Merge pull request #380 from barrygee/fix/settings-alert-sound-location-fonts
 - Merge pull request #381 from barrygee/fix/air-trail-and-base-hint
+- Merge pull request #382 from barrygee/fix/air-alert-click-handler
 
 ### Refactoring
 
