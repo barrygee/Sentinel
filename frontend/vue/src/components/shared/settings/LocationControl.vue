@@ -1,6 +1,8 @@
 <template>
   <div class="settings-location-wrap">
-    <p class="settings-location-status">{{ statusText }}</p>
+    <p v-if="!hasPosition" class="settings-location-status">
+      No position set — using browser geolocation, if it is available.
+    </p>
 
     <p v-if="pairError" class="settings-location-notice" role="alert">{{ pairError }}</p>
 
@@ -58,8 +60,7 @@
 /**
  * Settings > Sentinel Location — a fixed latitude/longitude for your own position.
  *
- * Mirrors Sentry's Sentry Location panel: a "last set" line, stacked labelled
- * fields with a decimal-degrees hint apiece and per-field validation on blur.
+ * Mirrors Sentry's Sentry Location panel: stacked labelled fields with a decimal-degrees hint apiece and per-field validation on blur.
  * Edits stage into APPLY CHANGES like every other control here (Enter in a
  * field applies at once); saving is what moves the marker on the maps.
  */
@@ -101,24 +102,13 @@ const saving = ref(false)
 // GPS tick — which dispatches settings:locationSynced every few seconds — would
 // overwrite half-typed coordinates.
 const hasUnsavedEdits = ref(false)
-// When the stored position was last written. Sourced from localStorage rather
-// than the config: the backend normalises app.location down to lat/lon and
-// keeps no timestamp, and the stored copy is refreshed by every set — typed,
-// right-clicked on the map, or a GPS fix.
-const lastSetMs = ref<number | null>(null)
-
-const statusText = computed(() =>
-  lastSetMs.value !== null && latitudeDraft.value !== '' && longitudeDraft.value !== ''
-    ? `Last set ${new Date(lastSetMs.value).toLocaleString()}.`
-    : 'No position set — using browser geolocation, if it is available.',
-)
+const hasPosition = computed(() => latitudeDraft.value !== '' && longitudeDraft.value !== '')
 
 interface StoredLocation {
   latitude?: number
   longitude?: number
   lat?: number
   lon?: number
-  ts?: number
 }
 
 function readStoredLocation(): StoredLocation | null {
@@ -136,7 +126,6 @@ if (stored) {
   const storedLongitude = stored.longitude ?? stored.lon
   if (storedLatitude != null) latitudeDraft.value = storedLatitude.toFixed(5)
   if (storedLongitude != null) longitudeDraft.value = storedLongitude.toFixed(5)
-  lastSetMs.value = stored.ts ?? null
 }
 
 onMounted(async () => {
@@ -158,7 +147,6 @@ onMounted(async () => {
     // the unset state rather than a stale localStorage value.
     latitudeDraft.value = ''
     longitudeDraft.value = ''
-    lastSetMs.value = null
   }
 })
 
@@ -231,7 +219,6 @@ async function save(): Promise<void> {
       // The one authoritative clear signal: useUserLocation's listener wipes
       // stored/in-memory state and the maps drop the marker + overlays.
       window.dispatchEvent(new CustomEvent('sentinel:userLocationCleared'))
-      lastSetMs.value = null
       hasUnsavedEdits.value = false
       await settingsApi.put('app', 'location', { latitude: '', longitude: '' })
       return
@@ -250,7 +237,6 @@ async function save(): Promise<void> {
     } finally {
       selfSetting = false
     }
-    lastSetMs.value = readStoredLocation()?.ts ?? Date.now()
     hasUnsavedEdits.value = false
     await settingsApi.put('app', 'location', { latitude, longitude })
   } finally {
@@ -271,7 +257,6 @@ function onLocationSynced(event: Event): void {
   latitudeError.value = null
   longitudeError.value = null
   pairError.value = null
-  lastSetMs.value = readStoredLocation()?.ts ?? Date.now()
 }
 
 window.addEventListener('settings:locationSynced', onLocationSynced)
