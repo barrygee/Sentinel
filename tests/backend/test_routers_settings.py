@@ -553,7 +553,7 @@ class TestConfigUpload:
 
 class TestSettingCoercionHelpers:
     def test_coerce_float_parses_or_falls_back(self):
-        from backend.routers.settings import _coerce_float
+        from backend.services.sdr_frequencies import _coerce_float
 
         assert _coerce_float("12.5", 0.0) == 12.5
         assert _coerce_float(7, 0.0) == 7.0
@@ -561,7 +561,7 @@ class TestSettingCoercionHelpers:
         assert _coerce_float(None, -2.0) == -2.0
 
     def test_coerce_optional_int_parses_or_falls_back(self):
-        from backend.routers.settings import _coerce_optional_int
+        from backend.services.sdr_frequencies import _coerce_optional_int
 
         assert _coerce_optional_int("2048000", 0) == 2048000
         assert _coerce_optional_int(1536000, 0) == 1536000
@@ -569,7 +569,7 @@ class TestSettingCoercionHelpers:
         assert _coerce_optional_int(None, 99) == 99
 
     def test_default_bandwidth_by_mode_matches_frontend(self):
-        from backend.routers.settings import _DEFAULT_BW_BY_MODE
+        from backend.services.sdr_frequencies import _DEFAULT_BW_BY_MODE
 
         assert _DEFAULT_BW_BY_MODE["WFM"] == 500_000
         assert _DEFAULT_BW_BY_MODE["NFM"] == 12_500
