@@ -181,6 +181,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Mirror every setting to a live, two-way sentinel_config.json
 - Make connectivity an explicit online / off-grid choice
 - Add an Alerts card to review and switch off enabled alerts
+- Label the alert sound toggle enable/disable
+- Remove the last-set time from Sentinel Location
 
 ### Bug Fixes
 
@@ -1306,6 +1308,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #359 from barrygee/feat/drop-light-interface
 - Merge pull request #360 from barrygee/chore/iss-radio-frequencies
 - Merge pull request #361 from barrygee/feat/remove-camera-feeds
+- Merge pull request #380 from barrygee/fix/settings-alert-sound-location-fonts
 
 ### Refactoring
 
@@ -1467,6 +1470,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle
 - Rebuild bundle
 - Rebuild the committed SPA bundle
+- Rebuild the committed SPA bundle
 
 ### Continuous Integration
 
@@ -1528,6 +1532,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show a Sentry's position above its address (#303)
 - Put coordinates beside each location name
 - Format the satellite pass notifier spec
+- Add vertical space in Offline Maps and Coverage Area
+- Put every settings view on one type scale
 
 ### Dependencies
 
