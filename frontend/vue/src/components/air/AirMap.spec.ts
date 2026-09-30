@@ -958,6 +958,17 @@ describe('AirMap', () => {
       expect(last('overheadZone').onRemove).toHaveBeenCalled()
     })
 
+    it('clears the aircraft click handler on unmount so alerts route to /air/', () => {
+      const map = makeFakeMap()
+      const wrapper = mountMap()
+      bringUp(map)
+      expect(getAircraftClickHandler()).not.toBeNull()
+      wrapper.unmount()
+      // A stale handler would call selectByHex on a torn-down control and
+      // silently no-op; null makes NotificationsPanel route to /air/ instead.
+      expect(getAircraftClickHandler()).toBeNull()
+    })
+
     it('skips saving state when no map was ever created', () => {
       const air = useAirStore()
       const saveSpy = vi.spyOn(air, 'saveMapState')

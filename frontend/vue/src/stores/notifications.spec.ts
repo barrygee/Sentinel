@@ -7,6 +7,7 @@ import {
   registerSatelliteClickHandler,
   getSatelliteClickHandler,
   clearSatelliteClickHandler,
+  clearAircraftClickHandler,
   setPendingAircraftTarget,
   setPendingSatelliteTarget,
 } from './notifications'
@@ -44,6 +45,13 @@ describe('notifications store', () => {
       const handler = vi.fn()
       registerAircraftClickHandler(handler)
       expect(handler).toHaveBeenCalledWith('abc123')
+    })
+
+    it('clears the aircraft click handler', () => {
+      registerAircraftClickHandler(vi.fn())
+      expect(getAircraftClickHandler()).not.toBeNull()
+      clearAircraftClickHandler()
+      expect(getAircraftClickHandler()).toBeNull()
     })
 
     it('registers, returns, and clears the satellite click handler', () => {
