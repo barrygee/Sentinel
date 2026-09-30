@@ -1,0 +1,22 @@
+{
+  "bw_hz": "int",
+  "center_hz": "int",
+  "connected": "bool",
+  "control_available": "bool",
+  "gain_auto": "bool",
+  "gain_db": "float",
+  "is_owner": "bool",
+  "locked": "bool",
+  "mode": "str",
+  "offset_hz": "int",
+  "radio_id": "int",
+  "radio_name": "str",
+  "sample_rate": "int",
+  "scan_active": "bool",
+  "scan_groups": "list",
+  "search_active": "bool",
+  "search_current_hz": "null",
+  "search_high_hz": "null",
+  "search_low_hz": "null",
+  "type": "str"
+}

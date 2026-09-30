@@ -61,6 +61,13 @@ export async function seedSidebarTabMap(page: Page, tabMap: Record<string, strin
  * Seed pre-existing notifications into localStorage.
  * The notifications store reads `localStorage.getItem('notifications')` on init.
  * Each item must conform to the NotificationItem shape (id, type, title, detail, ts).
+ * `hex`/`noradId`/`satName` are optional and drive the click-to-navigate
+ * behaviour in NotificationsPanel.vue (aircraft vs satellite targets); items
+ * with neither field are not clickable-to-navigate. `action`/`clickAction`
+ * cannot be seeded — they're functions, and the store's own `_save()` strips
+ * them from persisted state for the same reason, so a seeded item never
+ * carries one (matching how a page reload behaves for real callback-bearing
+ * notifications today).
  */
 export async function seedNotifications(
   page: Page,
@@ -70,6 +77,9 @@ export async function seedNotifications(
     title: string
     detail: string
     ts: number
+    hex?: string
+    noradId?: string
+    satName?: string
   }>,
 ): Promise<void> {
   await page.addInitScript((serialised: string) => {

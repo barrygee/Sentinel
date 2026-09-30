@@ -1,0 +1,2667 @@
+{
+  "air": {
+    "enabled": true,
+    "labelDataPoints": {
+      "civil": {
+        "aircraftType": false,
+        "altitude": false,
+        "callsign": true,
+        "category": false,
+        "heading": false,
+        "registration": false,
+        "speed": false,
+        "squawk": false
+      },
+      "mil": {
+        "aircraftType": true,
+        "altitude": false,
+        "callsign": true,
+        "category": false,
+        "heading": false,
+        "registration": false,
+        "speed": false,
+        "squawk": false
+      }
+    },
+    "mapLayers": {
+      "aara": true,
+      "airports": true,
+      "awacs": true,
+      "groundVehicles": true,
+      "militaryBases": true,
+      "rangeRings": false,
+      "towers": true
+    },
+    "offgridDataSourceURL": {
+      "url": ""
+    },
+    "offgridSdrSource": null,
+    "onlineDataSourceURL": "https://api.adsb.lol/v2",
+    "overheadAlerts": {
+      "civil": false,
+      "mil": false,
+      "radiusNm": 10
+    },
+    "replayEnabled": false,
+    "sourceOverride": "online"
+  },
+  "app": {
+    "connectivityMode": "online",
+    "location": {
+      "latitude": "",
+      "longitude": ""
+    },
+    "mapLayers": {
+      "borders": true,
+      "names": false,
+      "roads": false,
+      "terrain": false
+    },
+    "mapTheme": "dark",
+    "notificationSound": false,
+    "rangeRingOrigin": {
+      "kind": "user",
+      "sentryHostId": null
+    }
+  },
+  "land": {
+    "aprsChannelHz": 144800000,
+    "aprsRetentionMinutes": 5,
+    "defaultLayers": [
+      "repeaters"
+    ],
+    "enabled": false,
+    "labelDataPoints": {
+      "altitude": false,
+      "callsign": true,
+      "comment": false,
+      "course": false,
+      "latitude": false,
+      "longitude": false,
+      "path": false,
+      "speed": false,
+      "symbol": true,
+      "symbolText": false,
+      "time": false
+    },
+    "repeaterFilters": {
+      "bands": [],
+      "modes": [],
+      "status": "all"
+    },
+    "repeaterLabelFields": {
+      "band": true,
+      "callsign": true,
+      "channel": false,
+      "input": false,
+      "keeper": false,
+      "location": false,
+      "locator": false,
+      "modes": false,
+      "output": false,
+      "status": false,
+      "symbol": true,
+      "tone": false
+    }
+  },
+  "sdr": {
+    "ais_radio_id": null,
+    "aprs_radio_id": null,
+    "autoCenterWaterfallOnTune": true,
+    "bandPlan": [],
+    "defaultGain": 30,
+    "defaultSampleRate": 2048000,
+    "defaultSquelch": -60,
+    "digitalDecodeDefault": false,
+    "enabled": true,
+    "frequencies": [],
+    "groups": [],
+    "muteAudioWhileDecoding": true,
+    "offgridSource": {
+      "url": "http://localhost"
+    },
+    "onlineUrl": "https://",
+    "radios": [],
+    "recordRawIq": false,
+    "resumeDelaySec": 0,
+    "searchRanges": [],
+    "showBandPlan": true,
+    "showKnownFreqs": true,
+    "showWaterfallTimestamps": true,
+    "snapToKnown": true,
+    "waterfallTimestampIntervalSec": 5
+  },
+  "sea": {
+    "aisBoundingBoxes": [
+      [
+        [
+          -90,
+          -180
+        ],
+        [
+          90,
+          180
+        ]
+      ]
+    ],
+    "aisSdrRadioId": null,
+    "defaultLayers": [
+      "vessels",
+      "vesselLabels",
+      "ferryRoutes",
+      "ports"
+    ],
+    "enabled": true,
+    "labelDataPoints": {
+      "course": false,
+      "destination": false,
+      "flag": false,
+      "mmsi": false,
+      "name": true,
+      "speed": false,
+      "type": false
+    },
+    "offgridSource": {
+      "url": ""
+    },
+    "onlineUrl": "wss://stream.aisstream.io/v0/stream",
+    "sourceOverride": "online"
+  },
+  "space": {
+    "enabled": true,
+    "filterHoverPreview": "stay",
+    "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+    "onlineUrls": {
+      "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+      "amateur": "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
+      "cubesat": "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
+      "military": "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
+      "navigation": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
+      "science": "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
+      "space_station": "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
+      "unknown": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+      "weather": "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle"
+    },
+    "satelliteRadio": {
+      "14129": {
+        "beacon_hz": 145987000,
+        "downlink_hz": 145987000,
+        "downlink_mode": "CW",
+        "radio_notes": "Engineering Beacon; Beacon (unmodulated carrier)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "14781": {
+        "beacon_hz": 145825000,
+        "downlink_hz": 145825000,
+        "downlink_mode": "AFSK",
+        "packet_info": "1k2 AFSK TLM · 1200 baud",
+        "radio_notes": "1k2 AFSK TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "20442": {
+        "beacon_hz": 437125000,
+        "downlink_hz": 437150000,
+        "downlink_mode": "BPSK",
+        "packet_info": "BPSK 1k2 Transceiver · 1200 baud",
+        "radio_notes": "BPSK 1k2 Transceiver; Mode U TLM; Carrier",
+        "radio_status": "active",
+        "transponder_type": "Transponder",
+        "uplink_hz": 145840000,
+        "uplink_mode": "BPSK"
+      },
+      "20580": {
+        "downlink_hz": 2287500000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Hubble Space Telescope — S-band TT&C via TDRS (~2287.5 MHz); science data S/Ku-band.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "22825": {
+        "beacon_hz": 436795000,
+        "downlink_hz": 436795000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U AFSK Beacon · 1200 baud",
+        "radio_notes": "Mode V/U FM; Mode U AFSK Beacon; Mode S; Mode U - GMSK9k6",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145850000,
+        "uplink_mode": "FM"
+      },
+      "22826": {
+        "beacon_hz": 435772000,
+        "downlink_hz": 435772000,
+        "downlink_mode": "BPSK",
+        "packet_info": "BPSK CW carrier · 1200 baud",
+        "radio_notes": "BPSK CW carrier",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "23439": {
+        "beacon_hz": 29352500,
+        "downlink_hz": 29352500,
+        "downlink_mode": "CW",
+        "radio_notes": "Mode T TLM 1",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "24278": {
+        "beacon_hz": 435795000,
+        "downlink_hz": 435800000,
+        "downlink_mode": "USB",
+        "packet_info": "Mode U Digitalker · FM · DL 435.9100 MHz",
+        "radio_notes": "Mode U CW Beacon; Mode V/U Linear Transponder; Mode U Digitalker",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 145900000,
+        "uplink_mode": "LSB"
+      },
+      "25397": {
+        "downlink_hz": 435225000,
+        "downlink_mode": "FSK",
+        "packet_info": "Mode U 9k6 FSK · 9600 baud",
+        "radio_notes": "Mode U 9k6 FSK",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "25544": {
+        "beacon_hz": 145825000,
+        "ctcss_hz": 67,
+        "downlink_hz": 437800000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode V APRS · AFSK · 1200 baud · DL 437.8250 MHz",
+        "radio_notes": "ISS ham radio (RS0ISS/NA1SS): V/V FM voice repeater 145.990 up (67.0 Hz CTCSS) / 437.800 down; APRS digipeater 145.825 (1k2 AFSK); SSTV 145.800 (PD120); ARISS school contacts 145.800 down / 144.490 up. EVA/spacewalk: US space-to-space UHF ~414.2 / 417.1 MHz (S-band relay via TDRS); Russian Orlan/Soyuz VHF 121.75 / 130.165 / 143.625 MHz.",
+        "radio_status": "active",
+        "transponder_type": "FM",
+        "uplink_hz": 145990000,
+        "uplink_mode": "FM"
+      },
+      "25867": {
+        "downlink_hz": 2250000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Chandra X-ray Observatory (CXO) — DSN S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "25989": {
+        "downlink_hz": 2263000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "XMM-Newton (ESA, HEO) — S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "25994": {
+        "downlink_hz": 8212500000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Terra (EOS AM-1) — direct broadcast X-band 8212.5 MHz; S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "26407": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "26931": {
+        "downlink_hz": 145825000,
+        "downlink_mode": "AFSK",
+        "packet_info": "Mode V/V APRS AFSK · 1200 baud",
+        "radio_notes": "Mode V/V APRS AFSK; PE0SAT - 1k2 AFSK APRS; Mode V - R2 Backup APRS 1K2",
+        "radio_status": "active",
+        "transponder_type": "Digital repeater",
+        "uplink_hz": 145825000,
+        "uplink_mode": "AFSK"
+      },
+      "26998": {
+        "downlink_hz": 2287500000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "TIMED — S-band TT&C ~2287.5 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "27607": {
+        "beacon_hz": 149025000,
+        "ctcss_hz": 67,
+        "downlink_hz": 436795000,
+        "downlink_mode": "FM",
+        "radio_notes": "Mode V/U FM Voice CTCSS 67.0 Hz; Mode V TLM",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145850000,
+        "uplink_mode": "FM"
+      },
+      "27663": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "27844": {
+        "beacon_hz": 437470000,
+        "downlink_hz": 437470000,
+        "downlink_mode": "AFSK",
+        "packet_info": "Mode U TLM · AFSK · 1200 baud",
+        "radio_notes": "Mode U TLM; PE0SAT - CW Beacon",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "27848": {
+        "beacon_hz": 436847500,
+        "downlink_hz": 436847500,
+        "downlink_mode": "CW",
+        "packet_info": "Mode U AFSK TLM · 1200 baud · DL 437.4900 MHz",
+        "radio_notes": "Mode U CW Beacon; Mode U AFSK TLM; PE0SAT - CW Beacon",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "27939": {
+        "beacon_hz": 435352000,
+        "downlink_hz": 435352000,
+        "downlink_mode": "CW",
+        "radio_notes": "Mode U CW Beacon; PE0SAT - CW Beacon; Mode U FM Doka",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "28190": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "28474": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "28485": {
+        "downlink_hz": 2272500000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Swift — S-band TT&C; Malindi ground station.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "28874": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "28895": {
+        "beacon_hz": 437463100,
+        "downlink_hz": 437463100,
+        "downlink_mode": "CW",
+        "radio_notes": "Mode U CW BEACON",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "28912": {
+        "downlink_hz": 1691000000,
+        "downlink_mode": "HRIT",
+        "radio_notes": "Meteosat-9 / MSG-2 (EUMETSAT, geo) backup/rapid-scan; L-band 1691 MHz.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "29486": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "29601": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "31797": {
+        "radio_notes": "SAR-Lupe 2 (German recon) — X-band SAR radar; comms/TT&C classified. No public downlink.",
+        "radio_status": "active",
+        "transponder_type": "Radar"
+      },
+      "32260": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32275": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32276": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32384": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32393": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32395": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32711": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "32785": {
+        "beacon_hz": 437275000,
+        "downlink_hz": 437475000,
+        "downlink_mode": "GMSK",
+        "packet_info": "Mode U TLM 2 · AFSK · 1200 baud",
+        "radio_notes": "Mode U TLM 1; Mode U TLM 2; PE0SAT - CW Beacon; Mode L/U Digipeater",
+        "radio_status": "active",
+        "transponder_type": "Digital repeater",
+        "uplink_hz": 1267600000,
+        "uplink_mode": "GMSK"
+      },
+      "32791": {
+        "beacon_hz": 437485700,
+        "downlink_hz": 437485000,
+        "downlink_mode": "FMN",
+        "packet_info": "Mode U Digi · FMN",
+        "radio_notes": "Mode U Digi; PE0SAT - CW Beacon; Mode U TLM; CW; Mode U SSTV",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "32953": {
+        "beacon_hz": 435315700,
+        "downlink_hz": 435315700,
+        "downlink_mode": "CW",
+        "radio_notes": "PE0SAT - CW Beacon; Telemetry Beacon 1 Beacon; Telemetry Beacon 2 Beacon; 435.353",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "32958": {
+        "downlink_hz": 1704500000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "FengYun-3A AHRPT L-band ~1704.5 MHz.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "33053": {
+        "downlink_hz": 2245500000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Fermi Gamma-ray (FGST/GLAST) — S-band TT&C via TDRS.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "33499": {
+        "beacon_hz": 437385000,
+        "downlink_hz": 437385000,
+        "downlink_mode": "CW",
+        "packet_info": "Mode U MSG · AFSK · 1200 baud · DL 437.4450 MHz",
+        "radio_notes": "CW Beacon; Mode U MSG",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "35491": {
+        "downlink_hz": 1694100000,
+        "downlink_mode": "HRIT",
+        "radio_notes": "GOES-14 (NOAA, geo) on-orbit storage; legacy GVAR/HRIT L-band.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "35752": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "35932": {
+        "beacon_hz": 437505000,
+        "downlink_hz": 437505000,
+        "downlink_mode": "CW",
+        "packet_info": "FSK 1k2 Beacon · AFSK · 1200 baud",
+        "radio_notes": "CW Beacon; FSK 1k2 Beacon; PE0SAT - CW Beacon; PE0SAT - 1k2 BPSK AFSK Tones",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "35933": {
+        "beacon_hz": 435950000,
+        "downlink_hz": 435950000,
+        "downlink_mode": "GMSK",
+        "packet_info": "TLM Mobitex GMSK · 4800 baud",
+        "radio_notes": "TLM Mobitex GMSK; Digipeater (Mobitex, idle mode: 10 sec interval)",
+        "radio_status": "active",
+        "transponder_type": "Digital repeater",
+        "uplink_hz": 435950000,
+        "uplink_mode": "GMSK"
+      },
+      "35935": {
+        "beacon_hz": 437325000,
+        "downlink_hz": 437325000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "GFSK Telemetry; CW Beacon; GMSK Telemetry Drifted",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "36086": {
+        "radio_notes": "ISS Poisk (MRM-2) module — part of the ISS complex; Russian-segment VHF/S-band.",
+        "radio_status": "active"
+      },
+      "36111": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "36112": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "36122": {
+        "beacon_hz": 435791000,
+        "downlink_hz": 435675000,
+        "downlink_mode": "FM",
+        "radio_notes": "CW Beacon; Mode V/U FM",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145825000,
+        "uplink_mode": "FM"
+      },
+      "36395": {
+        "downlink_hz": 2245000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "SDO (Solar Dynamics Observatory, geo) — Ka-band science 26.5 GHz; S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "36402": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "36411": {
+        "downlink_hz": 1694100000,
+        "downlink_mode": "LRIT",
+        "radio_notes": "EWS-G2 (ex-GOES-15) — USSF; legacy L-band imagery.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "36508": {
+        "downlink_hz": 2278000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "CryoSat-2 (ESA) — X-band science 8100 MHz; S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "36585": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "36828": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37210": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37214": {
+        "downlink_hz": 1704500000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "FengYun-3B AHRPT L-band ~1704.5 MHz.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "37224": {
+        "beacon_hz": 437305000,
+        "downlink_hz": 437305000,
+        "downlink_mode": "AFSK",
+        "packet_info": "AFSK Beacon · 1200 baud",
+        "radio_notes": "AFSK Beacon",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "37256": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37384": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37763": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37839": {
+        "beacon_hz": 437275000,
+        "downlink_hz": 437275000,
+        "downlink_mode": "CW",
+        "packet_info": "TLM · FSK · 2400 baud · DL 437.5050 MHz",
+        "radio_notes": "CW Beacon; TLM",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "37841": {
+        "beacon_hz": 437425000,
+        "downlink_hz": 437425000,
+        "downlink_mode": "CW",
+        "radio_notes": "CW Beacon",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "37846": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37847": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37849": {
+        "downlink_hz": 7812000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Suomi NPP HRD X-band 7812 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "37867": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37868": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37869": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "37948": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38091": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38250": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38251": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38358": {
+        "downlink_hz": 8025000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "NuSTAR — X-band science downlink; S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "38552": {
+        "downlink_hz": 1691000000,
+        "downlink_mode": "HRIT",
+        "radio_notes": "Meteosat-10 / MSG-3 (EUMETSAT, geo) HRIT/LRIT L-band 1691/1695.15 MHz; EUMETCast.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "38771": {
+        "downlink_hz": 1701300000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "Metop-B AHRPT 1701.3 MHz L-band (no APT).",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "38775": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38833": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38857": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "38953": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39088": {
+        "radio_notes": "Sapphire (Canadian SSA) — military space-surveillance optical payload; TT&C not publicly published. No open-listen downlink.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39090": {
+        "radio_status": "silent"
+      },
+      "39155": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39166": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39197": {
+        "downlink_hz": 2280000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "IRIS solar observatory — S-band TT&C.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "39199": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39216": {
+        "downlink_hz": 1691000000,
+        "downlink_mode": "LRIT",
+        "radio_notes": "INSAT-3D (ISRO/IMD, geo) LRIT/meteorological data L-band ~1691 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39260": {
+        "downlink_hz": 1704500000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "FengYun-3C AHRPT L-band ~1704.5 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39417": {
+        "beacon_hz": 437356000,
+        "downlink_hz": 437356000,
+        "downlink_mode": "FSK",
+        "packet_info": "FSK1k2 TLM · 1200 baud",
+        "radio_notes": "FSK1k2 TLM; FSK9K6 TLM; 14.099 MHz CW Beacon",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39430": {
+        "downlink_hz": 8198000000,
+        "downlink_mode": "FM",
+        "packet_info": "4k8 GMSK · 4800 baud · DL 437.2500 MHz",
+        "radio_notes": "Mode X (8MHz); 4k8 GMSK",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39440": {
+        "beacon_hz": 437445000,
+        "downlink_hz": 437445000,
+        "downlink_mode": "AFSK",
+        "packet_info": "UHF 1K2 AFSK Telemetry · 1200 baud",
+        "radio_notes": "UHF 1K2 AFSK Telemetry; Mode U - FSK9k6 - AX.25 TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39444": {
+        "beacon_hz": 145935000,
+        "downlink_hz": 145950000,
+        "downlink_mode": "USB",
+        "packet_info": "BPSK Telemetry · 1200 baud · DL 145.9350 MHz",
+        "radio_notes": "Mode U/V Linear; CW Beacon; BPSK Telemetry",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 435130000,
+        "uplink_mode": "LSB"
+      },
+      "39446": {
+        "beacon_hz": 437384000,
+        "downlink_hz": 437384000,
+        "downlink_mode": "FSK",
+        "packet_info": "PE0SAT - 9k6 FSK TLM · 9600 baud",
+        "radio_notes": "PE0SAT - 9k6 FSK TLM; Transmitter; 9k6 FSK TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39451": {
+        "downlink_hz": 2215000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Swarm-B (ESA geomagnetic) — S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39452": {
+        "downlink_hz": 2215000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Swarm-A (ESA geomagnetic) — S-band TT&C ~2215 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39453": {
+        "downlink_hz": 2215000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Swarm-C (ESA geomagnetic) — S-band TT&C.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "39533": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39620": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39635": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "39741": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40001": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40012": {
+        "beacon_hz": 437421500,
+        "downlink_hz": 437421500,
+        "downlink_mode": "FSK",
+        "packet_info": "9k6 FSK TLM · 9600 baud",
+        "radio_notes": "9k6 FSK TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "40021": {
+        "beacon_hz": 145980000,
+        "downlink_hz": 145980000,
+        "downlink_mode": "CW",
+        "packet_info": "BPSK TLM 1k2 callsign 4X4HSL · 1200 baud",
+        "radio_notes": "CW TLM beacon callsign 4X4HSL; BPSK TLM 1k2 callsign 4X4HSL; PE0SAT - 1k2 BPSK TLM",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "40025": {
+        "beacon_hz": 145815000,
+        "downlink_hz": 145935000,
+        "downlink_mode": "USB",
+        "packet_info": "BPSK Telemetry · 1200 baud · DL 145.8150 MHz",
+        "radio_notes": "BPSK Telemetry; PE0SAT - 1k2 BPSK TLM; Linear Transponder; CW Beacon",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 435047000,
+        "uplink_mode": "LSB"
+      },
+      "40069": {
+        "downlink_hz": 137100000,
+        "downlink_mode": "LRPT",
+        "radio_notes": "Meteor-M N2 LRPT 137.100 MHz (digital QPSK 72k, SatDump); HRPT L-band 1700.0 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "40105": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40128": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40129": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40267": {
+        "downlink_hz": 1694100000,
+        "downlink_mode": "HRIT",
+        "radio_notes": "Himawari-8 (JMA, geo) — standby behind Himawari-9.",
+        "radio_status": "inactive",
+        "transponder_type": "Telemetry"
+      },
+      "40269": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40294": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40315": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40534": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40544": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40545": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40549": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40730": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40732": {
+        "downlink_hz": 1691000000,
+        "downlink_mode": "HRIT",
+        "radio_notes": "Meteosat-11 / MSG-4 (EUMETSAT, geo) prime service; L-band 1691 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "40748": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40749": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40889": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40890": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40908": {
+        "beacon_hz": 437200000,
+        "downlink_hz": 144390000,
+        "downlink_mode": "AFSK",
+        "packet_info": "APRS Digipeater · AFSK · 1200 baud",
+        "radio_notes": "CW Beacon; APRS Digipeater; GFSK Telemetry; BPSK Telemetry",
+        "radio_status": "active",
+        "transponder_type": "Digital repeater",
+        "uplink_hz": 144390000,
+        "uplink_mode": "AFSK"
+      },
+      "40938": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "40967": {
+        "radio_status": "silent"
+      },
+      "41019": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41174": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41175": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41241": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41328": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41330": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41434": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41469": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41549": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41550": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41586": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41752": {
+        "downlink_hz": 1691000000,
+        "downlink_mode": "LRIT",
+        "radio_notes": "INSAT-3DR (ISRO/IMD, geo) L-band ~1691 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "41836": {
+        "downlink_hz": 1694100000,
+        "downlink_mode": "HRIT",
+        "radio_notes": "Himawari-9 (JMA, geo) HRIT/LRIT L-band ~1694.1 MHz (HimawariCast).",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "41847": {
+        "beacon_hz": 435710000,
+        "downlink_hz": 435615000,
+        "downlink_mode": "FMN",
+        "radio_notes": "FM Transponder; CW Telemetry",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145925000,
+        "uplink_mode": "FMN"
+      },
+      "41859": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41860": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41861": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41862": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "41866": {
+        "downlink_hz": 1686600000,
+        "downlink_mode": "GRB",
+        "radio_notes": "GOES-16 (GOES-East legacy/standby). GRB L-band 1686.6 MHz; HRIT 1694.1 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "42738": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "QZSS (CDMA, GPS-interoperable): L1C/A & L1C 1575.42, L2C 1227.60, L5 1176.45, L6/LEX 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "42917": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "QZSS (CDMA, GPS-interoperable): L1C/A & L1C 1575.42, L2C 1227.60, L5 1176.45, L6/LEX 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "42939": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "42965": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "QZSS (CDMA, GPS-interoperable): L1C/A & L1C 1575.42, L2C 1227.60, L5 1176.45, L6/LEX 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43001": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43002": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43010": {
+        "downlink_hz": 1704500000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "FengYun-3D AHRPT 1704.5 MHz; MPT X-band 7820 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43013": {
+        "downlink_hz": 7812000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "NOAA-20 (JPSS-1) HRD X-band 7812 MHz; no APT/HRPT.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43017": {
+        "beacon_hz": 145960000,
+        "ctcss_hz": 67,
+        "downlink_hz": 145960000,
+        "downlink_mode": "FM",
+        "radio_notes": "DUV TLM; Mode U/V FM Voice CTCSS 67.0Hz",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 435250000,
+        "uplink_mode": "FM"
+      },
+      "43055": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43056": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43057": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43058": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43107": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43108": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43194": {
+        "downlink_hz": 2280000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Zhangheng-1 (CSES-1) — S-band TT&C; also carries amateur-coordinated science.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43207": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43208": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43226": {
+        "downlink_hz": 1686600000,
+        "downlink_mode": "GRB",
+        "radio_notes": "GOES-17 (GOES-West legacy). GRB L-band 1686.6 MHz; HRIT 1694.1 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43245": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43246": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43286": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43508": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43539": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43564": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43565": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43566": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43567": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43581": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43582": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43602": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43603": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43622": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43623": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43647": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43648": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43678": {
+        "beacon_hz": 145900000,
+        "downlink_hz": 145900000,
+        "downlink_mode": "FM",
+        "radio_notes": "Mode S; FM VOICE; CW Beacon",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 437500000,
+        "uplink_mode": "FM"
+      },
+      "43683": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43687": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43689": {
+        "downlink_hz": 1701300000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "Metop-C AHRPT 1701.3 MHz L-band (no APT).",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43700": {
+        "beacon_hz": 10489795000,
+        "downlink_hz": 10489540000,
+        "downlink_mode": "FM",
+        "packet_info": "BPSK400 Upper Beacon · 400 baud · DL 10489.7950 MHz",
+        "radio_notes": "BPSK400 Upper Beacon; CW Only Transpoder; Narrowband digimodes(500Hz max BW); digimodes(2700Hz max BW); SSB Only Transpoder; BPSK400 Middle Beacon; Mixed modes(2700Hz max BW)",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 2400040000,
+        "uplink_mode": "FM"
+      },
+      "43706": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43707": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43770": {
+        "beacon_hz": 145920000,
+        "downlink_hz": 145920000,
+        "downlink_mode": "DUV",
+        "packet_info": "AFSK9k6 digital data · 9600 baud",
+        "radio_notes": "DUV TLM; AFSK9k6 digital data",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43786": {
+        "beacon_hz": 145860000,
+        "downlink_hz": 145860000,
+        "downlink_mode": "BPSK",
+        "packet_info": "BPSK1k2 AX.25 TLM · 1200 baud",
+        "radio_notes": "BPSK1k2 AX.25 TLM; BPSK14k4",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43803": {
+        "beacon_hz": 145840000,
+        "downlink_hz": 145855000,
+        "downlink_mode": "USB",
+        "packet_info": "BPSK1k2 TLM · 1200 baud · DL 145.8400 MHz",
+        "radio_notes": "BPSK1k2 TLM; U/V SSB Transponder; U/V CW Transponder",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 435100000,
+        "uplink_mode": "LSB"
+      },
+      "43823": {
+        "downlink_hz": 1692140000,
+        "downlink_mode": "LRIT",
+        "radio_notes": "GEO-KOMPSAT-2A / GK-2A (KMA, geo) LRIT/HRIT L-band ~1692.14 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "43873": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "43880": {
+        "downlink_hz": 435600000,
+        "downlink_mode": "FSK",
+        "packet_info": "Mode U - FSK 9600 AX.25 · 9600 baud",
+        "radio_notes": "Mode U - FSK 9600 AX.25",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "44204": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44231": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44299": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44337": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44387": {
+        "downlink_hz": 137900000,
+        "downlink_mode": "LRPT",
+        "radio_notes": "Meteor-M2-2 LRPT 137.900 MHz (intermittent history); HRPT L-band.",
+        "radio_status": "partial",
+        "transponder_type": "Telemetry"
+      },
+      "44506": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44542": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44543": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44709": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44793": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44794": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44850": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44864": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44865": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "44881": {
+        "beacon_hz": 145910000,
+        "downlink_hz": 145915000,
+        "downlink_mode": "USB",
+        "packet_info": "Mode V GMSK4k8 AX.25 TLM · 4800 baud · DL 145.8900 MHz",
+        "radio_notes": "Mode V CW TLM; Mode V GMSK4k8 AX.25 TLM; Mode U/V Linear Transponder; Transmitter 401.545-401.555; S-band telemetry",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 435270000,
+        "uplink_mode": "LSB"
+      },
+      "44909": {
+        "beacon_hz": 435605000,
+        "downlink_hz": 435610000,
+        "downlink_mode": "USB",
+        "packet_info": "Mode U · FSK · DL 435.3150 MHz",
+        "radio_notes": "Mode U - Beacon; Mode U; Mode V/U - Transponder; Doka-B; Mode U Audio",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 145935000,
+        "uplink_mode": "LSB"
+      },
+      "45344": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "45358": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "45807": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "45854": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "46495": {
+        "beacon_hz": 435950000,
+        "downlink_hz": 435950000,
+        "downlink_mode": "AFSK TUBiX10",
+        "packet_info": "BPSK · DL 2266.0000 MHz",
+        "radio_notes": "AFSK 1k2 TLM; BPSK",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "46805": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "46826": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "48274": {
+        "downlink_hz": 437600000,
+        "downlink_mode": "FM",
+        "radio_notes": "China Space Station core (Tianhe). Amateur UHF payload; TT&C via Tianlian (S/Ka-band relay). Feitian EVA suit UHF comms.",
+        "radio_status": "active",
+        "transponder_type": "FM"
+      },
+      "48859": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "49008": {
+        "downlink_hz": 1704500000,
+        "downlink_mode": "AHRPT",
+        "radio_notes": "FengYun-3E AHRPT L-band (early-morning orbit).",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "49044": {
+        "radio_notes": "ISS Nauka (MLM) module — part of the ISS complex; shares ISS comms (S-band TDRS, VHF).",
+        "radio_status": "active"
+      },
+      "49336": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "QZSS (CDMA, GPS-interoperable): L1C/A & L1C 1575.42, L2C 1227.60, L5 1176.45, L6/LEX 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "49809": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "49810": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "50466": {
+        "beacon_hz": 435575000,
+        "downlink_hz": 435575000,
+        "downlink_mode": "CW",
+        "packet_info": "Mode U - GMSK4k8 AX.25 Telemetry · 4800 baud · DL 435.7250 MHz",
+        "radio_notes": "Mode U - Telemetry; Mode U - GMSK4k8 AX.25 Telemetry; Mode U Audio",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "51850": {
+        "downlink_hz": 1686600000,
+        "downlink_mode": "GRB",
+        "radio_notes": "GOES-18 (GOES-West operational). GRB 1686.6 MHz; HRIT 1694.1 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "52984": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "53109": {
+        "beacon_hz": 436750000,
+        "downlink_hz": 436750000,
+        "downlink_mode": "GMSK",
+        "packet_info": "Mode U TLM 2k4 GMSK AX25 · 2400 baud",
+        "radio_notes": "Mode U TLM 2k4 GMSK AX25",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "53239": {
+        "radio_notes": "CSS Wentian lab module — part of the CSS complex (S/Ka-band TT&C via Tianlian).",
+        "radio_status": "active"
+      },
+      "54031": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "54216": {
+        "radio_notes": "CSS Mengtian lab module — part of the CSS complex (S/Ka-band TT&C via Tianlian).",
+        "radio_status": "active"
+      },
+      "54234": {
+        "downlink_hz": 7812000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "NOAA-21 (JPSS-2) HRD X-band 7812 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "54377": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "54743": {
+        "downlink_hz": 1686000000,
+        "downlink_mode": "DIGITAL",
+        "radio_notes": "Meteosat-12 / MTG-I1 (EUMETSAT, geo) FCI via EUMETCast; raw downlink Ka-band.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "55268": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "56564": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "56759": {
+        "beacon_hz": 1176450000,
+        "downlink_hz": 1176450000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "NavIC/IRNSS: L5 1176.45 MHz and S-band 2492.028 MHz (RHCP).",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "57166": {
+        "downlink_hz": 137900000,
+        "downlink_mode": "LRPT",
+        "radio_notes": "Meteor-M2-3 LRPT 137.900 MHz (QPSK); HRPT L-band 1700 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57172": {
+        "beacon_hz": 437625000,
+        "downlink_hz": 437625000,
+        "downlink_mode": "GMSK USP",
+        "packet_info": "Mode S - BPSK 2Mbps TLM · DL 2402.4000 MHz",
+        "radio_notes": "Mode U - GMSK 9k6 (USP) TLM; Mode S - BPSK 2Mbps TLM; Mode U - SSTV; Mode U - GMSK 4k8 (USP) TLM; Mode U - CW",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57178": {
+        "beacon_hz": 436570000,
+        "downlink_hz": 436570000,
+        "downlink_mode": "GMSK USP",
+        "radio_notes": "Mode U - GMSK 4k8 (USP FEC) TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57180": {
+        "beacon_hz": 435290000,
+        "downlink_hz": 435290000,
+        "downlink_mode": "GMSK USP",
+        "packet_info": "Mode U - Robot 36 SSTV",
+        "radio_notes": "Mode U - GMSK 4k8 (USP FEC) TLM; Mode U - Robot 36 SSTV; Mode U - GMSK 9k6 (USP FEC)",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57182": {
+        "beacon_hz": 436080000,
+        "downlink_hz": 436080000,
+        "downlink_mode": "GMSK USP",
+        "radio_notes": "Mode U - GMSK 4k8 (USP FEC) TLM; Mode U - GMSK 2k4 (USP FEC) TLM; Mode U - GMSK 9k6 (USP FEC)",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57184": {
+        "downlink_hz": 435860000,
+        "downlink_mode": "FSK",
+        "packet_info": "Mode U - FSK9k6 · 9600 baud",
+        "radio_notes": "Mode U - FSK9k6; Mode U AFSK 1k2; Mode U - DOKA 9k6; Mode U - AFSK 1k2",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57187": {
+        "beacon_hz": 437875000,
+        "downlink_hz": 437875000,
+        "downlink_mode": "GMSK USP",
+        "packet_info": "Mode U - GMSK 4k8 (USP FEC) TLM · 4800 baud",
+        "radio_notes": "Mode U - GMSK 2k4 (USP FEC) TLM; Mode U - GMSK 4k8 (USP FEC) TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57189": {
+        "beacon_hz": 437825000,
+        "downlink_hz": 437825000,
+        "downlink_mode": "GMSK USP",
+        "packet_info": "SSTV - Robot 72",
+        "radio_notes": "Mode U - GMSK 2k4 (USP FEC) TLM; SSTV - Robot 72",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57191": {
+        "downlink_hz": 436550000,
+        "downlink_mode": "LoRa",
+        "packet_info": "[Experiment] LoRa (62.5 kHz bandwidth) (as FSK) · 38400 baud",
+        "radio_notes": "Mode U - LoRa 62.5k; [Experiment] LoRa (62.5 kHz bandwidth) (as FSK)",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57203": {
+        "beacon_hz": 436125000,
+        "downlink_hz": 436125000,
+        "downlink_mode": "GMSK USP",
+        "packet_info": "Mode U - Robot 36 SSTV",
+        "radio_notes": "Mode U - GMSK 4k8 (USP FEC) TLM; Mode U - GMSK 2k4 (USP FEC) TLM; Mode U - GMSK 9k6 (USP FEC) TLM; Mode U - Robot 36 SSTV",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57217": {
+        "beacon_hz": 437100000,
+        "downlink_hz": 437100000,
+        "downlink_mode": "GMSK USP",
+        "radio_notes": "Mode U - GMSK 4k8 (USP FEC) TLM",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "57517": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "58654": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "58655": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "58990": {
+        "downlink_hz": 1691000000,
+        "downlink_mode": "LRIT",
+        "radio_notes": "INSAT-3DS (ISRO/IMD, geo) L-band meteorological data.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "59051": {
+        "downlink_hz": 137100000,
+        "downlink_mode": "LRPT",
+        "radio_notes": "Meteor-M2-4 LRPT 137.100 MHz (QPSK); HRPT L-band.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "59112": {
+        "beacon_hz": 145840000,
+        "downlink_hz": 145825000,
+        "downlink_mode": "AFSK",
+        "packet_info": "Mode U - GMSK9k6 - AX.25 G3RUH - Telemetry · 9600 baud · DL 437.0250 MHz",
+        "radio_notes": "Mode V - CW; Mode U - GMSK9k6 - AX.25 G3RUH - Telemetry; Mode V - SSTV - Martin M1 SSTV; Mode V/V - APRS digipeater; Mode S - QPSK 2.048 Msps - CCSDS 131.0-B Convolutional code k=7, r=0.5, randomizer on",
+        "radio_status": "active",
+        "transponder_type": "Digital repeater",
+        "uplink_hz": 145825000,
+        "uplink_mode": "AFSK"
+      },
+      "59598": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "59600": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "60133": {
+        "downlink_hz": 1686600000,
+        "downlink_mode": "GRB",
+        "radio_notes": "GOES-19 (GOES-East operational). GRB 1686.6 MHz; HRIT 1694.1 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "60209": {
+        "beacon_hz": 435800000,
+        "downlink_hz": 1616250000,
+        "downlink_mode": "BPSK",
+        "packet_info": "GlobalStar EyeStar 2M32G1D · BPSK · 2320000 baud",
+        "radio_notes": "GlobalStar EyeStar 2M32G1D; UHF TLM 1k2 BPSK",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "60240": {
+        "downlink_hz": 2263000000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - AFSK1k2 · 1200 baud · DL 435.9500 MHz",
+        "radio_notes": "Mode S - Transmitter; Mode U - AFSK1k2",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61182": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "61183": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "61186": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "61187": {
+        "beacon_hz": 1561098000,
+        "downlink_hz": 1561098000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "BeiDou (CDMA): B1I 1561.098, B1C 1575.42, B2a 1176.45, B2b 1207.14, B3I 1268.52 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "61746": {
+        "beacon_hz": 436835000,
+        "downlink_hz": 10475000000,
+        "downlink_mode": "DVB-S2",
+        "radio_notes": "Mode X - DVB-S2; Mode U - CW Beacon; Mode U - GFSK9k6 - AX.25 Beacon and Telemetry (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61753": {
+        "beacon_hz": 435200000,
+        "downlink_hz": 435650000,
+        "downlink_mode": "FSK",
+        "packet_info": "Mode U - FSK38k4 · 38400 baud",
+        "radio_notes": "Mode U - FSK38k4; Mode U - Telemetry",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61754": {
+        "downlink_hz": 435700000,
+        "downlink_mode": "FSK",
+        "packet_info": "Mode U - FSK38k4 · 38400 baud",
+        "radio_notes": "Mode U - FSK38k4",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61757": {
+        "radio_status": "silent"
+      },
+      "61762": {
+        "beacon_hz": 435890000,
+        "downlink_hz": 435890000,
+        "downlink_mode": "SSTV",
+        "packet_info": "Mode U - Robot 36 SSTV",
+        "radio_notes": "Mode U - Robot 36 SSTV; Mode U - GMSK 2k4 (USP) TLM; Mode U - GMSK 19k2 (USP) TLM",
+        "radio_status": "active",
+        "transponder_type": "SSTV"
+      },
+      "61764": {
+        "downlink_hz": 401030000,
+        "downlink_mode": "GMSK USP",
+        "radio_notes": "Mode U - GMSK2k4 USP",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61772": {
+        "downlink_hz": 436540000,
+        "downlink_mode": "GMSK USP",
+        "radio_notes": "Mode U - GMSK2k4 USP; Mode X - DVB-S2",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61779": {
+        "downlink_hz": 435615000,
+        "downlink_mode": "BPSK",
+        "packet_info": "Mode U - BPSK (DOKA) - 4k8 · 4800 baud",
+        "radio_notes": "Mode U - BPSK (DOKA) - 4k8; Mode U - Transmitter",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "61781": {
+        "beacon_hz": 435400000,
+        "downlink_hz": 435400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - Telemetry · BPSK · 9600 baud",
+        "radio_notes": "Image download; Mode V/U - FM Transceiver; Mode U - Telemetry; Mode U - SSDV",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145850000,
+        "uplink_mode": "FM"
+      },
+      "61784": {
+        "beacon_hz": 437400000,
+        "downlink_hz": 437400000,
+        "downlink_mode": "FSK",
+        "packet_info": "FSK1k2 - AX.25 Beacon · 1200 baud",
+        "radio_notes": "FSK1k2 - AX.25 Beacon",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "61785": {
+        "beacon_hz": 436200000,
+        "downlink_hz": 436200000,
+        "downlink_mode": "CW",
+        "radio_notes": "Mode U - CW Beacon; Mode X - DVB-S2; Mode U - GFSK9k6 - AX.25 Beacon and Telemetry (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "62339": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "62876": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "QZSS (CDMA, GPS-interoperable): L1C/A & L1C 1575.42, L2C 1227.60, L5 1176.45, L6/LEX 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "63130": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "63213": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63214": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63215": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63217": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63218": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63219": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH; Mode V/U - FM Transponder - Beacon",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63237": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63238": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH - Beacon · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH - Beacon; Mode V/U - FM Transponder",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63239": {
+        "beacon_hz": 436400000,
+        "downlink_hz": 436400000,
+        "downlink_mode": "FM",
+        "packet_info": "Mode U - BPSK9k6 G3RUH · 9600 baud",
+        "radio_notes": "Mode U - BPSK9k6 G3RUH; Mode V/U - FM Transponder - Beacon",
+        "radio_status": "active",
+        "transponder_type": "FM repeater",
+        "uplink_hz": 145970000,
+        "uplink_mode": "FM"
+      },
+      "63492": {
+        "radio_status": "silent"
+      },
+      "64202": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "64878": {
+        "beacon_hz": 435830000,
+        "downlink_hz": 435830000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64879": {
+        "beacon_hz": 436940000,
+        "downlink_hz": 436940000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64880": {
+        "beacon_hz": 435970000,
+        "downlink_hz": 435970000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64881": {
+        "beacon_hz": 436270000,
+        "downlink_hz": 10473350000,
+        "downlink_mode": "DVB-S2",
+        "radio_notes": "Mode X - DVB-S2; Mode U - GFSK9k6 - AX.25 Beacon and Telemetry (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Telemetry"
+      },
+      "64890": {
+        "beacon_hz": 436160000,
+        "downlink_hz": 436160000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64891": {
+        "beacon_hz": 436660000,
+        "downlink_hz": 436660000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64892": {
+        "beacon_hz": 435335000,
+        "downlink_hz": 435335000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64893": {
+        "beacon_hz": 435740000,
+        "downlink_hz": 435740000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "64894": {
+        "beacon_hz": 436436000,
+        "downlink_hz": 436436000,
+        "downlink_mode": "GFSK",
+        "radio_notes": "Mode U - GFSK9k6 - AX.25 Beacon and Ham Payload (Geoscan framing)",
+        "radio_status": "active",
+        "transponder_type": "Beacon"
+      },
+      "65590": {
+        "beacon_hz": 1602000000,
+        "downlink_hz": 1602000000,
+        "downlink_mode": "FDMA",
+        "radio_notes": "GLONASS (FDMA L1 ~1598-1606, L2 ~1242-1249 MHz); GLONASS-K/K2 add CDMA L3OC 1202.025 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "67160": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "67162": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "Galileo (CDMA): E1 1575.42, E5a 1176.45, E5b 1207.14, E5 AltBOC 1191.795, E6 1278.75 MHz.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "67588": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "67683": {
+        "beacon_hz": 400630000,
+        "downlink_hz": 145825000,
+        "downlink_mode": "FSK",
+        "packet_info": "Mode V/V - FSK9k6 - Digipeater - AX.25 G3RUH · 9600 baud",
+        "radio_notes": "Mode V/V - FSK9k6 - Digipeater - AX.25 G3RUH; Mode U - FSK9k6 - AX.25 G3RUH -TLM",
+        "radio_status": "active",
+        "transponder_type": "Digital repeater",
+        "uplink_hz": 145825000,
+        "uplink_mode": "FSK"
+      },
+      "68791": {
+        "beacon_hz": 1575420000,
+        "downlink_hz": 1575420000,
+        "downlink_mode": "CDMA",
+        "radio_notes": "GPS L-band (CDMA): L1 C/A & L1C 1575.42, L2 1227.60, L5 1176.45 MHz. Receive-only navigation signals.",
+        "radio_status": "active",
+        "transponder_type": "Navigation"
+      },
+      "7530": {
+        "beacon_hz": 29502000,
+        "downlink_hz": 29400000,
+        "downlink_mode": "USB",
+        "radio_notes": "AO-7 (Oscar 7). Mode A (V/A) non-inverting: uplink 145.850-145.950 MHz USB/CW, downlink 29.400-29.500 MHz USB/CW, TLM beacon 29.502 MHz CW. Mode B (U/V) inverting: uplink 432.125-432.175 MHz LSB/CW, downlink 145.975-145.925 MHz USB/CW, TLM beacon 145.972/145.975 MHz CW. 13 cm beacon 2304.100 MHz CW (40mW).",
+        "radio_status": "active",
+        "transponder_type": "Linear",
+        "uplink_hz": 145850000,
+        "uplink_mode": "USB"
+      }
+    },
+    "sourceOverride": "online"
+  }
+}

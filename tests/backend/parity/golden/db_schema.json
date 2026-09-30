@@ -1,0 +1,1618 @@
+{
+  "adsb_cache": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "cache_key",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "lat",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "lon",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "radius_nm",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payload",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "ac_count",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "fetched_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "expires_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "cache_key"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "air_aircraft": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "registration",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "hex",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "type_code",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "callsign",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "first_seen",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "last_seen",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "flight_count",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "last_seen"
+        ],
+        "name": "ix_air_aircraft_last_seen",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "registration"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "air_flights": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "aircraft_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "registration",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "callsign",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "started_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "last_active_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "snapshot_count",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "registration"
+        ],
+        "name": "ix_air_flights_registration",
+        "unique": false
+      },
+      {
+        "column_names": [
+          "started_at",
+          "last_active_at"
+        ],
+        "name": "ix_air_flights_started_last",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "air_messages": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "msg_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "type",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "title",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "detail",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "ts",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "dismissed",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "msg_id"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "air_snapshots": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "flight_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "ts",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "lat",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "lon",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "alt_baro",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "gs",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "track",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "baro_rate",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "squawk",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "flight_id",
+          "ts"
+        ],
+        "name": "ix_air_snapshots_flight_id_ts",
+        "unique": false
+      },
+      {
+        "column_names": [
+          "ts"
+        ],
+        "name": "ix_air_snapshots_ts",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "air_tracking": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "hex",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "callsign",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "follow",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "added_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "hex"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "aprs_stations": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "callsign",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "latitude",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "longitude",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "symbol",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "comment",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "course",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "speed",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "altitude",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "path",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "raw",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "last_heard_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "callsign"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "offline_map_region": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "label",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "west",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "south",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "east",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "north",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "max_zoom",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "include_basemap",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "include_terrain",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "status",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "phase",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "bytes_done",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "bytes_estimated",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "tiles_estimated",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "size_bytes",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "error",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "source_url",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "completed_at",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "repeater_cache": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "cache_key",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "payload",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "fetched_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "expires_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "cache_key"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "satellite_catalogue": {
+    "columns": [
+      {
+        "default": null,
+        "name": "norad_id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "category",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "category_source",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "name_source",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "uplink_hz",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "uplink_mode",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "downlink_hz",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "downlink_mode",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "ctcss_hz",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "transponder_type",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "beacon_hz",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "packet_info",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "radio_status",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "radio_notes",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "norad_id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_frequency_group_links": {
+    "columns": [
+      {
+        "default": null,
+        "name": "frequency_id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "group_id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "frequency_id",
+      "group_id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_frequency_groups": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "slug",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "color",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "sort_order",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_radios": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "host",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "port",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "description",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "enabled",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "bandwidth",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "rf_gain",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "agc",
+        "nullable": true,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_recordings": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "notes",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "radio_id",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "radio_name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "frequency_hz",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "gain_db",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "squelch_dbfs",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "sample_rate",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "started_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "ended_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "duration_s",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "file_size_bytes",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "has_iq_file",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "iq_file_size_bytes",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "status",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_search_ranges": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "label",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "low_hz",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "high_hz",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "step_hz",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "threshold_dbfs",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "dwell_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "band_name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "enabled",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "notes",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "sort_order",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_stored_frequencies": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "group_id",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "label",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "frequency_hz",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "squelch",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "gain",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "bandwidth",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "sample_rate",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "volume",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "zoom",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "zmin",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "zmax",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "scannable",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "favourite",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "notes",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "sea_vessel_cache": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "mmsi",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "payload",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "track",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "mmsi"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "sentry_hosts": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "address",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "port",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "auth_token",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "enabled",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "last_seen_at",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "last_error",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "address",
+          "port"
+        ],
+        "name": "uq_sentry_hosts_address_port"
+      }
+    ]
+  },
+  "tle_cache": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "cache_key",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "payload",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "source",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "fetched_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "expires_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "cache_key"
+        ],
+        "name": null
+      }
+    ]
+  },
+  "user_settings": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "namespace",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "key",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "value",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "namespace",
+          "key"
+        ],
+        "name": "uq_user_settings_ns_key"
+      }
+    ]
+  }
+}

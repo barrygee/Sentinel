@@ -1,0 +1,14 @@
+[
+  "claim",
+  "demod",
+  "digital_channel",
+  "digital_decode",
+  "fft_size",
+  "gain",
+  "mode",
+  "ping",
+  "release",
+  "sample_rate",
+  "sweep_state",
+  "tune"
+]

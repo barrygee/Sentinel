@@ -1,0 +1,1104 @@
+[
+  {
+    "path": "/api/openapi.json",
+    "type": "Route",
+    "name": "openapi",
+    "methods": [
+      "GET",
+      "HEAD"
+    ]
+  },
+  {
+    "path": "/api/docs",
+    "type": "Route",
+    "name": "swagger_ui_html",
+    "methods": [
+      "GET",
+      "HEAD"
+    ]
+  },
+  {
+    "path": "/docs/oauth2-redirect",
+    "type": "Route",
+    "name": "swagger_ui_redirect",
+    "methods": [
+      "GET",
+      "HEAD"
+    ]
+  },
+  {
+    "path": "/api/redoc",
+    "type": "Route",
+    "name": "redoc_html",
+    "methods": [
+      "GET",
+      "HEAD"
+    ]
+  },
+  {
+    "path": "/api/air/adsb/point/{lat}/{lon}/{radius}",
+    "type": "Route",
+    "name": "get_aircraft_near_point",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/messages",
+    "type": "Route",
+    "name": "list_air_messages",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/messages",
+    "type": "Route",
+    "name": "create_air_message",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/air/messages/{msg_id}",
+    "type": "Route",
+    "name": "dismiss_air_message",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/air/messages",
+    "type": "Route",
+    "name": "dismiss_all_air_messages",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/air/tracking",
+    "type": "Route",
+    "name": "list_tracked_aircraft",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/tracking",
+    "type": "Route",
+    "name": "add_tracked_aircraft",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/air/tracking/{hex}",
+    "type": "Route",
+    "name": "remove_tracked_aircraft",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/air/recordings/available-dates",
+    "type": "Route",
+    "name": "get_available_dates",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/snapshots",
+    "type": "Route",
+    "name": "get_snapshots_window",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/flights",
+    "type": "Route",
+    "name": "list_aircraft_history",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/flights/{registration}",
+    "type": "Route",
+    "name": "list_flights_for_aircraft",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/flights/{registration}/{flight_id}",
+    "type": "Route",
+    "name": "get_flight_snapshots",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/flights/{registration}",
+    "type": "Route",
+    "name": "delete_aircraft_history",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/space/iss",
+    "type": "Route",
+    "name": "get_iss",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/satellite/{norad_id}",
+    "type": "Route",
+    "name": "get_satellite",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/iss/passes",
+    "type": "Route",
+    "name": "get_iss_passes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/satellite/{norad_id}/passes",
+    "type": "Route",
+    "name": "get_satellite_passes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/passes",
+    "type": "Route",
+    "name": "get_multi_satellite_passes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/daynight",
+    "type": "Route",
+    "name": "get_daynight",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/tle/status",
+    "type": "Route",
+    "name": "get_tle_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/tle/list",
+    "type": "Route",
+    "name": "get_tle_list",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/tle/uncategorised",
+    "type": "Route",
+    "name": "get_tle_uncategorised",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/tle/fetch",
+    "type": "Route",
+    "name": "fetch_tle_from_url",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/space/tle/manual",
+    "type": "Route",
+    "name": "store_tle_manual",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/space/tle/category",
+    "type": "Route",
+    "name": "patch_tle_category",
+    "methods": [
+      "PATCH"
+    ]
+  },
+  {
+    "path": "/api/space/tle/satellite",
+    "type": "Route",
+    "name": "patch_tle_satellite",
+    "methods": [
+      "PATCH"
+    ]
+  },
+  {
+    "path": "/api/space/radio/file",
+    "type": "Route",
+    "name": "get_radio_file",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/space/radio/file",
+    "type": "Route",
+    "name": "set_radio_file",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/space/tle",
+    "type": "Route",
+    "name": "clear_tle_data",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/land/aprs/stations",
+    "type": "Route",
+    "name": "list_aprs_stations",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/land/repeaters",
+    "type": "Route",
+    "name": "list_repeaters",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/land/repeaters/file",
+    "type": "Route",
+    "name": "get_repeaters_file",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/land/repeaters/file",
+    "type": "Route",
+    "name": "set_repeaters_file",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sea/vessels",
+    "type": "Route",
+    "name": "get_vessels",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sea/vessels/{mmsi}/track",
+    "type": "Route",
+    "name": "get_vessel_track",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sea/status",
+    "type": "Route",
+    "name": "get_feed_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sea/ais-key",
+    "type": "Route",
+    "name": "get_ais_key_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sea/ais-key",
+    "type": "Route",
+    "name": "put_ais_key",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sea/ais-key",
+    "type": "Route",
+    "name": "delete_ais_key",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/settings",
+    "type": "Route",
+    "name": "get_all_settings",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/settings/config/preview",
+    "type": "Route",
+    "name": "config_preview",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/settings/config/upload",
+    "type": "Route",
+    "name": "config_upload",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/settings/config/file-status",
+    "type": "Route",
+    "name": "config_file_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/settings/{namespace}",
+    "type": "Route",
+    "name": "get_namespace_settings",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/settings/{namespace}/{key}",
+    "type": "Route",
+    "name": "upsert_setting_endpoint",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/settings/{namespace}/{key}",
+    "type": "Route",
+    "name": "delete_setting_endpoint",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/radios",
+    "type": "Route",
+    "name": "list_radios",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/radios",
+    "type": "Route",
+    "name": "create_radio",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/radios/{radio_id}",
+    "type": "Route",
+    "name": "update_radio",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/radios/{radio_id}",
+    "type": "Route",
+    "name": "delete_radio",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/groups",
+    "type": "Route",
+    "name": "list_groups",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/groups",
+    "type": "Route",
+    "name": "create_group",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/groups/{group_id}",
+    "type": "Route",
+    "name": "update_group",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/groups/{group_id}",
+    "type": "Route",
+    "name": "delete_group",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/frequencies",
+    "type": "Route",
+    "name": "list_frequencies",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/frequencies",
+    "type": "Route",
+    "name": "create_frequency",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/frequencies/{freq_id}",
+    "type": "Route",
+    "name": "update_frequency",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/frequencies/{freq_id}",
+    "type": "Route",
+    "name": "patch_frequency",
+    "methods": [
+      "PATCH"
+    ]
+  },
+  {
+    "path": "/api/sdr/frequencies/{freq_id}",
+    "type": "Route",
+    "name": "delete_frequency",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/search-ranges",
+    "type": "Route",
+    "name": "list_search_ranges",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/search-ranges",
+    "type": "Route",
+    "name": "create_search_range",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/search-ranges/{range_id}",
+    "type": "Route",
+    "name": "update_search_range",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/search-ranges/{range_id}",
+    "type": "Route",
+    "name": "delete_search_range",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/data/frequencies",
+    "type": "Route",
+    "name": "get_sdr_data_frequencies",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/data/frequencies",
+    "type": "Route",
+    "name": "set_sdr_data_frequencies",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/data/bandplan",
+    "type": "Route",
+    "name": "get_sdr_data_bandplan",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/data/bandplan",
+    "type": "Route",
+    "name": "set_sdr_data_bandplan",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings",
+    "type": "Route",
+    "name": "list_recordings",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings/start",
+    "type": "Route",
+    "name": "start_recording",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings/stop",
+    "type": "Route",
+    "name": "stop_recording",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings/{rec_id}",
+    "type": "Route",
+    "name": "update_recording",
+    "methods": [
+      "PATCH"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings/{rec_id}",
+    "type": "Route",
+    "name": "delete_recording",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings/{rec_id}/file",
+    "type": "Route",
+    "name": "get_recording_wav",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/recordings/{rec_id}/iq",
+    "type": "Route",
+    "name": "get_recording_iq",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/connect",
+    "type": "Route",
+    "name": "connect_radio",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/disconnect",
+    "type": "Route",
+    "name": "disconnect_radio",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/status/{radio_id}",
+    "type": "Route",
+    "name": "radio_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/ws/sdr/{radio_id}/iq",
+    "type": "WebSocketRoute",
+    "name": "sdr_iq_websocket",
+    "methods": null
+  },
+  {
+    "path": "/ws/sdr/{radio_id}",
+    "type": "WebSocketRoute",
+    "name": "sdr_websocket",
+    "methods": null
+  },
+  {
+    "path": "/api/sdr/decode/ingest",
+    "type": "Route",
+    "name": "ingest_decode_event",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/decode/config",
+    "type": "Route",
+    "name": "decode_config",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/aprs/start",
+    "type": "Route",
+    "name": "aprs_start",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/aprs/stop",
+    "type": "Route",
+    "name": "aprs_stop",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/aprs/status/{radio_id}",
+    "type": "Route",
+    "name": "aprs_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/aprs/ingest",
+    "type": "Route",
+    "name": "ingest_aprs_event",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/aprs/config",
+    "type": "Route",
+    "name": "aprs_decode_config",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/ais/start",
+    "type": "Route",
+    "name": "ais_start",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/ais/stop",
+    "type": "Route",
+    "name": "ais_stop",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/ais/status/{radio_id}",
+    "type": "Route",
+    "name": "ais_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/ais/ingest",
+    "type": "Route",
+    "name": "ingest_ais_event",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/ais/config",
+    "type": "Route",
+    "name": "ais_decode_config",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/decode/status/{radio_id}",
+    "type": "Route",
+    "name": "decode_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/ws/sdr/{radio_id}/decode",
+    "type": "WebSocketRoute",
+    "name": "sdr_decode_websocket",
+    "methods": null
+  },
+  {
+    "path": "/ws/sdr/{radio_id}/decode/audio",
+    "type": "WebSocketRoute",
+    "name": "sdr_decode_audio_websocket",
+    "methods": null
+  },
+  {
+    "path": "/api/sdr/sentry-hosts",
+    "type": "Route",
+    "name": "list_hosts",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts",
+    "type": "Route",
+    "name": "create_host",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/locations",
+    "type": "Route",
+    "name": "list_host_locations",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}",
+    "type": "Route",
+    "name": "get_host",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}",
+    "type": "Route",
+    "name": "update_host",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}",
+    "type": "Route",
+    "name": "delete_host",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/test",
+    "type": "Route",
+    "name": "test_host",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/info",
+    "type": "Route",
+    "name": "get_host_info",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/devices",
+    "type": "Route",
+    "name": "get_host_devices",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/devices/records",
+    "type": "Route",
+    "name": "get_host_device_records",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}",
+    "type": "Route",
+    "name": "patch_host_device",
+    "methods": [
+      "PATCH"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}",
+    "type": "Route",
+    "name": "delete_host_device",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}/serial",
+    "type": "Route",
+    "name": "flash_host_device_serial",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi",
+    "type": "Route",
+    "name": "get_host_wifi",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi",
+    "type": "Route",
+    "name": "put_host_wifi",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi",
+    "type": "Route",
+    "name": "delete_host_wifi",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/enable",
+    "type": "Route",
+    "name": "enable_host_wifi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/disable",
+    "type": "Route",
+    "name": "disable_host_wifi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/confirm",
+    "type": "Route",
+    "name": "confirm_host_wifi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/interfaces",
+    "type": "Route",
+    "name": "list_host_wifi_interfaces",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/clients",
+    "type": "Route",
+    "name": "list_host_wifi_clients",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/adsb/source",
+    "type": "Route",
+    "name": "get_source",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/adsb/source",
+    "type": "Route",
+    "name": "put_source",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/adsb/claim",
+    "type": "Route",
+    "name": "claim",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/adsb/claim",
+    "type": "Route",
+    "name": "release",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr/adsb/config",
+    "type": "Route",
+    "name": "decoder_config",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/offline-map/basemap/{zoom}/{tile_x}/{tile_y}",
+    "type": "Route",
+    "name": "get_basemap_tile",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/offline-map/terrain/{zoom}/{tile_x}/{tile_y}",
+    "type": "Route",
+    "name": "get_terrain_tile",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/offline-map/status",
+    "type": "Route",
+    "name": "get_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/offline-map/estimate",
+    "type": "Route",
+    "name": "post_estimate",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/offline-map/regions",
+    "type": "Route",
+    "name": "post_region",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/offline-map/regions",
+    "type": "Route",
+    "name": "get_regions",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/offline-map/regions/{region_id}",
+    "type": "Route",
+    "name": "get_region",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/offline-map/regions/{region_id}",
+    "type": "Route",
+    "name": "delete_region",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/health",
+    "type": "Route",
+    "name": "health_check",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/favicon.ico",
+    "type": "Route",
+    "name": "favicon_ico",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/assets",
+    "type": "Mount",
+    "name": "assets",
+    "methods": null
+  },
+  {
+    "path": "/fonts",
+    "type": "Mount",
+    "name": "fonts",
+    "methods": null
+  },
+  {
+    "path": "/spa-assets",
+    "type": "Mount",
+    "name": "spa-assets",
+    "methods": null
+  },
+  {
+    "path": "/{full_path:path}",
+    "type": "Route",
+    "name": "serve_spa",
+    "methods": [
+      "GET"
+    ]
+  }
+]
