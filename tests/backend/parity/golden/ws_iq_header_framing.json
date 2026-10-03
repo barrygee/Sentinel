@@ -1,0 +1,10 @@
+{
+  "header_format": "<II",
+  "header_hex": "00401f0000e1f505",
+  "header_length_bytes": 8,
+  "decoded_sample_rate": 2048000,
+  "decoded_center_hz": 100000000,
+  "payload_length_bytes": 8,
+  "payload_hex": "0102030405060708",
+  "total_length_bytes": 16
+}

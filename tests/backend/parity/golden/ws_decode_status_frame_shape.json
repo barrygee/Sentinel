@@ -1,0 +1,5 @@
+{
+  "active": "bool",
+  "decoder_reachable": "bool",
+  "type": "str"
+}

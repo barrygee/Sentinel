@@ -1,0 +1,183 @@
+{
+  "app": {
+    "connectivityMode": "online",
+    "location": {
+      "latitude": "",
+      "longitude": ""
+    },
+    "rangeRingOrigin": {
+      "kind": "user",
+      "sentryHostId": null
+    },
+    "notificationSound": false,
+    "mapTheme": "dark",
+    "mapLayers": {
+      "roads": false,
+      "names": false,
+      "borders": true,
+      "terrain": false
+    }
+  },
+  "air": {
+    "enabled": true,
+    "replayEnabled": false,
+    "sourceOverride": "online",
+    "onlineDataSourceURL": "https://api.adsb.lol/v2",
+    "offgridDataSourceURL": {
+      "url": ""
+    },
+    "offgridSdrSource": null,
+    "mapLayers": {
+      "rangeRings": false,
+      "aara": true,
+      "awacs": true,
+      "groundVehicles": true,
+      "towers": true,
+      "airports": true,
+      "militaryBases": true
+    },
+    "labelDataPoints": {
+      "civil": {
+        "callsign": true,
+        "altitude": false,
+        "speed": false,
+        "heading": false,
+        "aircraftType": false,
+        "registration": false,
+        "squawk": false,
+        "category": false
+      },
+      "mil": {
+        "callsign": true,
+        "altitude": false,
+        "speed": false,
+        "heading": false,
+        "aircraftType": true,
+        "registration": false,
+        "squawk": false,
+        "category": false
+      }
+    },
+    "overheadAlerts": {
+      "civil": false,
+      "mil": false,
+      "radiusNm": 10
+    }
+  },
+  "space": {
+    "enabled": true,
+    "sourceOverride": "online",
+    "filterHoverPreview": "stay",
+    "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+    "onlineUrls": {
+      "space_station": "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
+      "amateur": "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle",
+      "weather": "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle",
+      "military": "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
+      "navigation": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
+      "science": "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
+      "cubesat": "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
+      "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+      "unknown": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
+    }
+  },
+  "sea": {
+    "enabled": true,
+    "sourceOverride": "online",
+    "onlineUrl": "wss://stream.aisstream.io/v0/stream",
+    "offgridSource": {
+      "url": ""
+    },
+    "aisBoundingBoxes": [
+      [
+        [
+          -90,
+          -180
+        ],
+        [
+          90,
+          180
+        ]
+      ]
+    ],
+    "labelDataPoints": {
+      "name": true,
+      "type": false,
+      "mmsi": false,
+      "flag": false,
+      "destination": false,
+      "speed": false,
+      "course": false
+    },
+    "defaultLayers": [
+      "vessels",
+      "vesselLabels",
+      "ferryRoutes",
+      "ports"
+    ],
+    "aisSdrRadioId": null
+  },
+  "land": {
+    "enabled": false,
+    "aprsChannelHz": 144800000,
+    "labelDataPoints": {
+      "time": false,
+      "callsign": true,
+      "symbol": true,
+      "symbolText": false,
+      "latitude": false,
+      "longitude": false,
+      "course": false,
+      "speed": false,
+      "altitude": false,
+      "path": false,
+      "comment": false
+    },
+    "aprsRetentionMinutes": 5,
+    "defaultLayers": [
+      "repeaters"
+    ],
+    "repeaterFilters": {
+      "bands": [],
+      "modes": [],
+      "status": "all"
+    },
+    "repeaterLabelFields": {
+      "symbol": true,
+      "callsign": true,
+      "band": true,
+      "location": false,
+      "modes": false,
+      "output": false,
+      "input": false,
+      "tone": false,
+      "channel": false,
+      "locator": false,
+      "keeper": false,
+      "status": false
+    }
+  },
+  "sdr": {
+    "enabled": true,
+    "onlineUrl": "https://",
+    "offgridSource": {
+      "url": "http://localhost"
+    },
+    "defaultSampleRate": 2048000,
+    "defaultGain": 30,
+    "defaultSquelch": -60,
+    "autoCenterWaterfallOnTune": true,
+    "snapToKnown": true,
+    "showBandPlan": true,
+    "showKnownFreqs": true,
+    "digitalDecodeDefault": false,
+    "muteAudioWhileDecoding": true,
+    "showWaterfallTimestamps": true,
+    "waterfallTimestampIntervalSec": 5,
+    "resumeDelaySec": 0,
+    "recordRawIq": false,
+    "radios": [],
+    "aprs_radio_id": null,
+    "ais_radio_id": null
+  }
+}

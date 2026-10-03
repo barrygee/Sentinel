@@ -1,0 +1,13 @@
+{
+  "bw_hz": "int",
+  "center_hz": "int",
+  "control_available": "bool",
+  "gain_auto": "bool",
+  "gain_db": "float",
+  "is_owner": "bool",
+  "locked": "bool",
+  "mode": "str",
+  "offset_hz": "int",
+  "sample_rate": "int",
+  "type": "str"
+}
