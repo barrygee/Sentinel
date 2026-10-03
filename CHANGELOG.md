@@ -1320,6 +1320,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #384 from barrygee/test/p0-parity-baseline
 - Merge branch 'main' into refactor/p1-bus-settings-feed
 - Merge pull request #385 from barrygee/refactor/p1-bus-settings-feed
+- Merge branch 'main' into refactor/p2-map-kit-base
+- Merge pull request #386 from barrygee/refactor/p2-map-kit-base
 
 ### Refactoring
 
@@ -1391,6 +1393,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract BaseWarningNotice from the map notice banner
 - Say "alerts" instead of "notifications" across the app
 - Add in-process event bus and break the settings/sdr import cycle
+- Move shared map base code out of the Air and Land sections
 
 ### Documentation
 
