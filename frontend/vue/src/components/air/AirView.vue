@@ -18,9 +18,6 @@
         :get-map="() => airMapRef?.getMap?.() ?? null"
       />
     </Teleport>
-    <Teleport v-if="playbackPaneReady" :to="sidebarPaneSelector('playback')">
-      <AirReplayPanel />
-    </Teleport>
   </div>
 </template>
 
@@ -30,7 +27,6 @@ import AirMap from './AirMap.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import AirSideMenu from './AirSideMenu.vue'
 import AirFilter from './AirFilter.vue'
-import AirReplayPanel from './AirReplayPanel.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import AdsbSourceNotice from './AdsbSourceNotice.vue'
 import { sidebarPaneSelector } from '@/constants/sidebarPanes'
@@ -48,11 +44,10 @@ const adsbSourceClaim = useAdsbSourceClaim()
 const airMapRef = ref<InstanceType<typeof AirMap> | null>(null)
 const airFilterRef = ref<InstanceType<typeof AirFilter> | null>(null)
 
-// msb-pane-search / msb-pane-playback live in MapSidebar, a sibling of
+// msb-pane-search lives in MapSidebar, a sibling of
 // <RouterView> in App.vue — see useSidebarPaneTarget for why this waits
 // rather than teleporting unconditionally.
 const { ready: searchPaneReady } = useSidebarPaneTarget('search')
-const { ready: playbackPaneReady } = useSidebarPaneTarget('playback')
 
 // Stable proxy passed to AirSideMenu — markRaw prevents Vue from tracking
 // mutations, so nulling airMapRef during unmount never triggers a re-render

@@ -592,41 +592,6 @@ describe('AdsbLiveControl.selectByHex', () => {
   })
 })
 
-describe('AdsbLiveControl playback hooks', () => {
-  it('pauseLive stops polling and empties the live sources', () => {
-    const { control, map } = mounted()
-    control.pauseLive()
-    expect(map.sourceData['adsb-live']).toEqual({ type: 'FeatureCollection', features: [] })
-  })
-
-  it('resumeLive resets state and restarts polling when visible', () => {
-    const { control } = mounted()
-    control.pauseLive()
-    control.resumeLive()
-    expect(control._geojson.features).toHaveLength(0)
-  })
-
-  it('setPlaybackFeatures replaces the feature collection', () => {
-    const { control } = mounted()
-    const feature = seedFeature(control)
-    control._geojson.features = []
-    control.setPlaybackFeatures([feature])
-    expect(control._geojson.features).toHaveLength(1)
-  })
-
-  it('setPlaybackFeatures repositions the tag marker for the tracked aircraft', () => {
-    const { control } = mounted()
-    const feature = seedFeature(control)
-    control._selectedHex = 'abc123'
-    control._applySelection() // creates the tag marker + sets _tagHex
-    const tagMarker = control._tagMarker!
-    ;(tagMarker.setLngLat as ReturnType<typeof vi.fn>).mockClear()
-    feature.geometry.coordinates = [1, 2]
-    control.setPlaybackFeatures([feature])
-    expect(tagMarker.setLngLat).toHaveBeenCalledWith([1, 2])
-  })
-})
-
 describe('AdsbLiveControl polling', () => {
   it('clearAircraft stops polling and empties all sources', () => {
     const { control, map } = mounted()
@@ -875,16 +840,6 @@ describe('AdsbLiveControl map event handlers', () => {
     const spy = vi.spyOn(priv(control), '_updateCallsignMarkers')
     map.fire('zoomend', undefined, {})
     expect(spy).toHaveBeenCalled()
-  })
-
-  it('routes hover trail rebuilds through the playback hook when in playback', () => {
-    const { control, map } = mounted()
-    seedFeature(control)
-    priv(control)._isPlayback = true
-    const hook = vi.fn()
-    control._onPlaybackSelectionChange = hook
-    map.fire('mouseenter', 'adsb-hit', { features: [{ properties: { hex: 'abc123' } }] })
-    expect(hook).toHaveBeenCalled()
   })
 })
 
@@ -1284,15 +1239,6 @@ describe('AdsbLiveControl trails', () => {
     expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-trail-line', 'visibility', 'none')
   })
 
-  it('does not clobber trail sources during playback', () => {
-    const { control } = mounted()
-    priv(control)._isPlayback = true
-    seedFeature(control)
-    priv(control)._trails['abc123'] = [{ lon: -0.1, lat: 51.5, alt: 100 }]
-    control._trailHex = 'abc123'
-    expect(() => priv(control)._rebuildTrails()).not.toThrow()
-  })
-
   it('is a no-op without a map', () => {
     const control = makeControl()
     expect(() => priv(control)._rebuildTrails()).not.toThrow()
@@ -1366,15 +1312,6 @@ describe('AdsbLiveControl trail line head', () => {
     priv(control)._lastPositions['abc123'] = movingPosition(10)
     priv(control)._interpolate()
     expect(lineCoords(map).at(-1)).toEqual(control._interpolatedCoords('abc123'))
-  })
-
-  it('leaves the line alone during playback, which owns the trail sources', () => {
-    const { control, map } = selectedWithTrail()
-    const coordsBefore = structuredClone(lineCoords(map))
-    priv(control)._isPlayback = true
-    priv(control)._lastPositions['abc123'] = movingPosition(10)
-    priv(control)._interpolate()
-    expect(lineCoords(map)).toEqual(coordsBefore)
   })
 
   it('does nothing with no aircraft selected or hovered', () => {
@@ -2228,25 +2165,7 @@ describe('AdsbLiveControl tracking restore deep', () => {
   })
 })
 
-describe('AdsbLiveControl playback + polling stop branches', () => {
-  it('pauseLive aborts an in-flight fetch and removes the tag marker', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    control._selectedHex = 'abc123'
-    control._applySelection()
-    priv(control)._fetchAbort = new AbortController()
-    control.pauseLive()
-    expect(control._tagMarker).toBeNull()
-  })
-
-  it('resumeLive restarts polling when visible', () => {
-    vi.useFakeTimers()
-    const { control } = mounted()
-    control.pauseLive()
-    control.resumeLive()
-    expect(priv(control)._pollInterval).not.toBeNull()
-  })
-
+describe('AdsbLiveControl polling stop branches', () => {
   it('clearAircraft clears hover and parked timers', () => {
     const { control } = mounted()
     priv(control)._hoverHideTimer = setTimeout(() => {}, 1000)
@@ -2297,15 +2216,6 @@ describe('AdsbLiveControl final branch sweep', () => {
     map.fire('mouseenter', 'adsb-hit', { features: [] })
     map.fire('mouseenter', 'adsb-trail-line', { features: [] })
     expect(control._trailHex).toBeNull()
-  })
-
-  it('routes hover-leave trail rebuild through the playback hook', () => {
-    const { control, map } = mounted()
-    priv(control)._isPlayback = true
-    const hook = vi.fn()
-    control._onPlaybackSelectionChange = hook
-    map.fire('mouseleave', 'adsb-hit', {})
-    expect(hook).toHaveBeenCalled()
   })
 
   it('decorates the status bar name for an emergency aircraft', () => {
@@ -2428,17 +2338,9 @@ describe('AdsbLiveControl final branch sweep', () => {
     expect(priv(control)._callsignMarkers['dimnew']).toBeDefined()
   })
 
-  it('_applySelection is a no-op without a map and fires the playback hook', () => {
+  it('_applySelection is a no-op without a map', () => {
     const noMap = makeControl()
     expect(() => noMap._applySelection()).not.toThrow()
-    const { control } = mounted()
-    seedFeature(control)
-    priv(control)._isPlayback = true
-    const hook = vi.fn()
-    control._onPlaybackSelectionChange = hook
-    control._selectedHex = 'abc123'
-    control._applySelection()
-    expect(hook).toHaveBeenCalled()
   })
 
   it('removes the callsign marker for an aircraft aged out during interpolation', () => {
@@ -2584,15 +2486,6 @@ describe('AdsbLiveControl final branch sweep', () => {
     control._applySelection()
     control.clearAircraft()
     expect(control._tagMarker).toBeNull()
-  })
-
-  it('setPlaybackFeatures refreshes labels when visible', () => {
-    const { control } = mounted()
-    control.labelsVisible = true
-    enableAllFields(control)
-    const feature = seedFeature(control)
-    control.setPlaybackFeatures([feature])
-    expect(control._geojson.features).toHaveLength(1)
   })
 
   it('toggle-off skips a callsign marker whose aircraft has vanished', () => {
@@ -3473,14 +3366,6 @@ describe('AdsbLiveControl branch completion: interpolation + polling', () => {
     expect(priv(control)._pollInterval).toBeNull()
   })
 
-  it('resumeLive does not start polling when hidden', () => {
-    const { control } = mounted()
-    control.pauseLive()
-    control.visible = false
-    control.resumeLive()
-    expect(priv(control)._pollInterval).toBeNull()
-  })
-
   it('startPolling skips the immediate fetch when the cache is fresh and reuses the interp timer', () => {
     vi.useFakeTimers()
     const { control } = mounted()
@@ -3489,15 +3374,6 @@ describe('AdsbLiveControl branch completion: interpolation + polling', () => {
     const spy = vi.spyOn(priv(control), '_fetch')
     priv(control)._startPolling()
     expect(spy).not.toHaveBeenCalled()
-  })
-
-  it('setPlaybackFeatures leaves the tag put when the tracked hex is absent', () => {
-    const { control } = mounted()
-    seedFeature(control)
-    control._selectedHex = 'abc123'
-    control._applySelection()
-    control._tagHex = 'abc123'
-    expect(() => control.setPlaybackFeatures([])).not.toThrow()
   })
 })
 

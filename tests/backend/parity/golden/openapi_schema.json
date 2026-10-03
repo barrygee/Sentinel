@@ -1887,188 +1887,6 @@
         ]
       }
     },
-    "/api/air/flights": {
-      "get": {
-        "description": "Return all stored aircraft ordered by most recently seen, paginated.",
-        "operationId": "list_aircraft_history_api_air_flights_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Aircraft History",
-        "tags": [
-          "air"
-        ]
-      }
-    },
-    "/api/air/flights/{registration}": {
-      "delete": {
-        "description": "Delete all stored flights and snapshots for a given registration.",
-        "operationId": "delete_aircraft_history_api_air_flights__registration__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration",
-            "required": true,
-            "schema": {
-              "title": "Registration",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Aircraft History",
-        "tags": [
-          "air"
-        ]
-      },
-      "get": {
-        "description": "Return all flight sessions for a given registration, newest first.",
-        "operationId": "list_flights_for_aircraft_api_air_flights__registration__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration",
-            "required": true,
-            "schema": {
-              "title": "Registration",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Flights For Aircraft",
-        "tags": [
-          "air"
-        ]
-      }
-    },
-    "/api/air/flights/{registration}/{flight_id}": {
-      "get": {
-        "description": "Return all position snapshots for a specific flight — used for playback.",
-        "operationId": "get_flight_snapshots_api_air_flights__registration___flight_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "registration",
-            "required": true,
-            "schema": {
-              "title": "Registration",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "flight_id",
-            "required": true,
-            "schema": {
-              "title": "Flight Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Flight Snapshots",
-        "tags": [
-          "air"
-        ]
-      }
-    },
     "/api/air/messages": {
       "delete": {
         "description": "Soft-delete all air messages in one query.",
@@ -2181,76 +1999,6 @@
           }
         },
         "summary": "Dismiss Air Message",
-        "tags": [
-          "air"
-        ]
-      }
-    },
-    "/api/air/recordings/available-dates": {
-      "get": {
-        "description": "Return UTC calendar dates that have snapshot data, with time extents and counts.",
-        "operationId": "get_available_dates_api_air_recordings_available_dates_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Available Dates",
-        "tags": [
-          "air"
-        ]
-      }
-    },
-    "/api/air/snapshots": {
-      "get": {
-        "description": "Return all snapshots across all aircraft within a time window (max 24 hours).",
-        "operationId": "get_snapshots_window_api_air_snapshots_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "start_ms",
-            "required": true,
-            "schema": {
-              "title": "Start Ms",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "end_ms",
-            "required": true,
-            "schema": {
-              "title": "End Ms",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Snapshots Window",
         "tags": [
           "air"
         ]
@@ -2860,6 +2608,28 @@
       }
     },
     "/api/sdr/adsb/source": {
+      "delete": {
+        "description": "Unset the ADS-B receiver (the picker's \"Not set\" option).\n\nReleases the device first if AIR still holds it, so clearing the choice\nnever leaves a dongle reserved by a source that no longer exists.",
+        "operationId": "delete_source_api_sdr_adsb_source_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Source Api Sdr Adsb Source Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Source",
+        "tags": [
+          "adsb-source"
+        ]
+      },
       "get": {
         "description": "Report which Sentry device is configured as the ADS-B receiver.",
         "operationId": "get_source_api_sdr_adsb_source_get",

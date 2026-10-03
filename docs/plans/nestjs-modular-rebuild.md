@@ -190,6 +190,8 @@ Nest specifics: multipart via `FileInterceptor('file')` (memory storage). `ensur
 
 ### 3.4 AirModule ← `backend/routers/air.py`, `services/adsb.py`, `services/flight_history.py`, `services/upstream_rate_limit.py`
 
+> **Update 2026-10-03:** Air flight replay has since been removed from the Python app — `services/flight_history.py`, the `/api/air/recordings/available-dates`, `/api/air/snapshots` and `/api/air/flights*` routes, the `air_aircraft`/`air_flights`/`air_snapshots` tables, the `air.replayEnabled` setting and the frontend REPLAY tab (`AirReplayPanel`, `airReplayCalendar.ts`, `AirMultiPlaybackControl`, `stores/playback.ts`, `AirReplayToggleControl`). The inventory below is the frozen 7b6a456e snapshot; skip every replay row when porting.
+
 Controller `AirController` (`/api/air`):
 
 | Method | Path | Request | Response / headers | Errors | Maps from |

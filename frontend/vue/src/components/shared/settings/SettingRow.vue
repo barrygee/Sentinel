@@ -140,10 +140,6 @@
       v-else-if="item.type === 'sea-map-layers'"
       @stage="emit('stage', item.id, $event)"
     />
-    <AirReplayToggleControl
-      v-else-if="item.type === 'air-replay-toggle'"
-      @stage="emit('stage', item.id, $event)"
-    />
     <!-- No stage/commit: a layer switch belongs to the map it draws on, so it
          applies the moment it is flipped, exactly as MapLayersControl does. -->
     <SentryHostsControl v-else-if="item.type === 'sdr-sentry-hosts'" />
@@ -221,7 +217,6 @@ import RepeaterLabelFieldsControl from './RepeaterLabelFieldsControl.vue'
 import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
-import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'

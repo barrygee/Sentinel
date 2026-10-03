@@ -11,8 +11,7 @@
  * transport buttons. Extracted from (not a rewrite of) the ~24 hand-rolled
  * `<button>` + family-class + conditional-active-class copies across
  * `SdrPanel`, `SdrFrequencyManagerTab`, `SdrSearchRangesTab`, `SpacePasses`,
- * `SourceOverrideControl`, `SpaceHoverPreviewControl`, `SdrDeviceForm` and
- * `AirReplayPanel`.
+ * `SourceOverrideControl`, `SpaceHoverPreviewControl` and `SdrDeviceForm`.
  *
  * The component owns only the shared shape: a `type="button"` element whose
  * active/selected state maps to the caller's CSS family's own active class

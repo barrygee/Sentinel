@@ -12,7 +12,6 @@ import * as settingsApi from '@/services/settingsApi'
 const LS_OVERLAYS = 'overlayStates'
 const LS_TAGS = 'adsbTagFields_v3'
 const LS_RADIUS = 'overheadAlertRadiusNm'
-const LS_REPLAY = 'airReplayEnabled'
 
 describe('air store', () => {
   beforeEach(() => {
@@ -26,7 +25,6 @@ describe('air store', () => {
   it('initialises overlay states to the defaults', () => {
     const store = useAirStore()
     expect(store.overlayStates.adsb).toBe(true)
-    expect(store.replayEnabled).toBe(false)
     expect(store.filterQuery).toBe('')
     expect(store.filterOpen).toBe(false)
     expect(store.mapCenter).toBeNull()
@@ -201,25 +199,6 @@ describe('air store', () => {
     })
   })
 
-  describe('readPersistedReplayEnabled', () => {
-    it('reads an enabled flag of "1" as true', () => {
-      localStorage.setItem(LS_REPLAY, '1')
-      expect(useAirStore().replayEnabled).toBe(true)
-    })
-
-    it('treats any other value as false', () => {
-      localStorage.setItem(LS_REPLAY, '0')
-      expect(useAirStore().replayEnabled).toBe(false)
-    })
-
-    it('defaults to false when localStorage throws', () => {
-      vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
-        throw new Error('blocked')
-      })
-      expect(useAirStore().replayEnabled).toBe(false)
-    })
-  })
-
   describe('reading the legacy radius during migration', () => {
     // The pre-split radius has no setting of its own any more; it survives only
     // to be carried onto the operator's own alert location.
@@ -279,26 +258,6 @@ describe('air store', () => {
       civil: { ...store.adsbTagFields.civil, squawk: true },
     })
     expect(store.adsbTagFields.civil.squawk).toBe(true)
-  })
-
-  describe('setReplayEnabled', () => {
-    it('persists "1" when enabled and "0" when disabled', () => {
-      const store = useAirStore()
-      store.setReplayEnabled(true)
-      expect(store.replayEnabled).toBe(true)
-      expect(localStorage.getItem(LS_REPLAY)).toBe('1')
-      store.setReplayEnabled(false)
-      expect(localStorage.getItem(LS_REPLAY)).toBe('0')
-    })
-
-    it('swallows write failures', () => {
-      const store = useAirStore()
-      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-        throw new Error('quota')
-      })
-      expect(() => store.setReplayEnabled(true)).not.toThrow()
-      expect(store.replayEnabled).toBe(true)
-    })
   })
 
   describe('persisting alert settings', () => {
