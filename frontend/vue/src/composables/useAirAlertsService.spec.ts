@@ -225,7 +225,8 @@ describe('useAirAlertsService', () => {
 
     // Click router: no handler registered → no-op; then routes to a handler.
     expect(() => clickRouter('abc')).not.toThrow()
-    const { registerAircraftClickHandler } = await import('@/stores/notifications')
+    const { registerAircraftClickHandler } =
+      await import('@/components/air/aircraftNotificationTarget')
     const handler = vi.fn()
     registerAircraftClickHandler(handler)
     clickRouter('abc')

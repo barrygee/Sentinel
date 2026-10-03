@@ -1,5 +1,6 @@
 import { watch } from 'vue'
-import { useNotificationsStore, getAircraftClickHandler } from '@/stores/notifications'
+import { useNotificationsStore } from '@/stores/notifications'
+import { getAircraftClickHandler } from '@/components/air/aircraftNotificationTarget'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { ADSB_POLL_INTERVAL_MS } from '@/constants/adsb'
