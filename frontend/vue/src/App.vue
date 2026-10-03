@@ -113,7 +113,7 @@
   <aside class="app-sidebar-region" aria-label="Map controls">
     <MapSidebar ref="sidebarRef" :hide-tabs="isSdrRoute">
       <template #radio>
-        <SdrTabPanel />
+        <component :is="persistentRadioPane" v-if="persistentRadioPane" />
       </template>
     </MapSidebar>
   </aside>
@@ -140,7 +140,8 @@ import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
-import SdrTabPanel from '@/components/sdr/SdrTabPanel.vue'
+import '@/shell/sections'
+import { getNavEntries, getPersistentRadioPane } from '@/shell/sectionRegistry'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
@@ -285,13 +286,11 @@ const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)
 
 const sidebarOpen = computed(() => sidebarRef.value?.open ?? false)
 
-const ALL_NAV_DOMAINS: [string, string][] = [
-  ['air', 'AIR'],
-  ['space', 'SPACE'],
-  ['sea', 'SEA'],
-  ['land', 'LAND'],
-  ['sdr', 'SDR'],
-]
+// Nav entries and the persistent radio pane come from the section registry
+// (populated by the `shell/sections` import above) rather than being
+// hard-coded here — see docs/plans/section-containers.md §1.3 (F1, F11).
+const ALL_NAV_DOMAINS = getNavEntries()
+const persistentRadioPane = getPersistentRadioPane()
 
 const navDomains = computed(() =>
   ALL_NAV_DOMAINS.filter(([d]) => appStore.enabledDomains.includes(d)),

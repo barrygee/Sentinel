@@ -1,20 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AirView from '@/components/air/AirView.vue'
-import SpaceView from '@/components/space/SpaceView.vue'
-import SeaView from '@/components/sea/SeaView.vue'
-import LandView from '@/components/land/LandView.vue'
-import SdrView from '@/components/sdr/SdrView.vue'
+import '@/shell/sections'
+import { getSectionRoutes } from '@/shell/sectionRegistry'
 import { useAppStore } from '@/stores/app'
+
+// Routes are built from the section registry rather than importing each
+// section's view directly — see docs/plans/section-containers.md §1.3 (F1).
+// The registry is populated by the `shell/sections` import above, which must
+// run before `getSectionRoutes()` is read.
+const sectionRoutes = getSectionRoutes()
+// "/" always redirects to the first registered section, which is AIR today —
+// identical to the previous hard-coded `/air/` redirect while sections
+// register in nav order.
+const defaultSectionPath = sectionRoutes[0]?.path ?? '/air/'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/air/' },
-    { path: '/air/', component: AirView, meta: { domain: 'air' } },
-    { path: '/space/', component: SpaceView, meta: { domain: 'space' } },
-    { path: '/sea/', component: SeaView, meta: { domain: 'sea' } },
-    { path: '/land/', component: LandView, meta: { domain: 'land' } },
-    { path: '/sdr/', component: SdrView, meta: { domain: 'sdr' } },
+    { path: '/', redirect: defaultSectionPath },
+    ...sectionRoutes,
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
