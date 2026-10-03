@@ -434,6 +434,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the selected aircraft's trail attached between fetches
 - Remove the military base CLICK TO ZOOM hover hint
 - Clear aircraft alert click handler when the Air map unmounts
+- Allow the off-grid ADS-B SDR source to be set back to "Not set"
 
 ### Chores
 
@@ -1322,6 +1323,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #385 from barrygee/refactor/p1-bus-settings-feed
 - Merge branch 'main' into refactor/p2-map-kit-base
 - Merge pull request #386 from barrygee/refactor/p2-map-kit-base
+- Merge pull request #387 from barrygee/fix/adsb-source-unset
 
 ### Refactoring
 
