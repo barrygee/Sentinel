@@ -40,7 +40,7 @@ from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
 from backend.platform.bus import bus
-from backend.services import ais_decode, aprs_store, sdr_decode
+from backend.services import aprs_store, sdr_decode
 from backend.services import sdr as sdr_svc
 from backend.services.sdr_data import write_sdr_frequencies_file
 from backend.services.sdr_frequencies import reconcile_sdr_frequencies
@@ -1432,6 +1432,10 @@ async def aprs_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get
     bridge = await sdr_decode.get_or_create_aprs_bridge(
         radio["host"], radio["port"], broadcaster, channel_hz=channel_hz
     )
+    # Recorded for the ingest endpoint's bus publish (decode.aprs.<radio_id>)
+    # below — the bridge has no other way to know which business radio id it
+    # was started for (it is keyed internally by host:port).
+    bridge.radio_id = body.radio_id
     await bridge.start(bw_hz=body.bw_hz or None)
     await upsert_setting(db, "sdr", "aprs_radio_id", body.radio_id)
     return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
@@ -1480,6 +1484,12 @@ async def ingest_aprs_event(body: DecodeEventIn, x_decode_secret: str = Header(d
     subscribers (the waterfall panels), mirroring the voice ingest contract. Raw
     TNC2 ``log`` events and status frames carry no position and are relay-only.
     """
+    # Docstring intentionally unchanged (it feeds the OpenAPI schema the parity
+    # golden pins byte-for-byte) even though the station write below has moved:
+    # this endpoint keeps the ingest gate (the 409 below) but now publishes the
+    # decoded event on decode.aprs.<radio_id> (B2) instead of writing straight
+    # into aprs_store itself — backend/services/aprs_store.py subscribes and
+    # performs the exact upsert this router used to do directly.
     secret = sdr_decode.resolve_ingest_secret()
     if not secret:
         raise HTTPException(503, "decode ingestion disabled")
@@ -1488,9 +1498,11 @@ async def ingest_aprs_event(body: DecodeEventIn, x_decode_secret: str = Header(d
     bridge = sdr_decode.get_active_aprs_bridge()
     if bridge is None:
         raise HTTPException(409, "aprs decode not active")
-    station = aprs_store.station_from_event(body.event)
-    if station is not None:
-        await aprs_store.upsert_station(station, now_ms())
+    # raise_errors=True: before the bus existed this was a direct call, so a
+    # store-write failure surfaced as a 500 to the sidecar (which retries) —
+    # preserve that rather than swallowing it as a fire-and-forget publish.
+    radio_id = getattr(bridge, "radio_id", None)
+    await bus.publish(f"decode.aprs.{radio_id}", {"event": body.event, "radio_id": radio_id}, raise_errors=True)
     # Default the frame type to "aprs" so the frontend can route it; the sidecar
     # may override it (e.g. "log", "decode_status") via its own "type" key.
     bridge.publish_event({"type": "aprs", **body.event})
@@ -1531,6 +1543,7 @@ async def _start_aprs_best_effort(radios: list, radio_id: int, channel_hz: int) 
         bridge = await sdr_decode.get_or_create_aprs_bridge(
             radio["host"], radio["port"], broadcaster, channel_hz=channel_hz
         )
+        bridge.radio_id = radio_id
         await bridge.start()
     except (ConnectionError, OSError):
         logging.getLogger(__name__).exception("Failed to start APRS decode on radio %s", radio_id)
@@ -1641,6 +1654,10 @@ async def ais_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_
     except ConnectionError as exc:
         raise HTTPException(502, f"radio connect failed: {exc}") from exc
     bridge = await sdr_decode.get_or_create_ais_bridge(radio["host"], radio["port"], broadcaster)
+    # Recorded for the ingest endpoint's bus publish (decode.ais.<radio_id>)
+    # below — the bridge has no other way to know which business radio id it
+    # was started for (it is keyed internally by host:port).
+    bridge.radio_id = body.radio_id
     await bridge.start(bw_hz=body.bw_hz or None)
     await upsert_setting(db, "sdr", "ais_radio_id", body.radio_id)
     return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
@@ -1692,6 +1709,12 @@ async def ingest_ais_event(body: DecodeEventIn, x_decode_secret: str = Header(de
     active session's WS subscribers (the waterfall panels); raw ``log`` lines
     carry no vessel data and are relay-only.
     """
+    # Docstring intentionally unchanged (it feeds the OpenAPI schema the parity
+    # golden pins byte-for-byte) even though the vessel-store write below has
+    # moved: this endpoint keeps the ingest gate (the 409 below) but now
+    # publishes the decoded event on decode.ais.<radio_id> (B2) instead of
+    # calling ais_decode.ingest_event directly — backend/services/ais_decode.py
+    # subscribes and performs the exact same ingest this router used to do.
     secret = sdr_decode.resolve_ingest_secret()
     if not secret:
         raise HTTPException(503, "decode ingestion disabled")
@@ -1700,7 +1723,11 @@ async def ingest_ais_event(body: DecodeEventIn, x_decode_secret: str = Header(de
     bridge = sdr_decode.get_active_ais_bridge()
     if bridge is None:
         raise HTTPException(409, "ais decode not active")
-    ais_decode.ingest_event(body.event)
+    # raise_errors=True: before the bus existed this was a direct call, so a
+    # store-write failure surfaced as a 500 to the sidecar (which retries) —
+    # preserve that rather than swallowing it as a fire-and-forget publish.
+    radio_id = getattr(bridge, "radio_id", None)
+    await bus.publish(f"decode.ais.{radio_id}", {"event": body.event, "radio_id": radio_id}, raise_errors=True)
     # Default the frame type to "ais" so the frontend can route it; the sidecar
     # may override it (e.g. "log", "decode_status") via its own "type" key.
     bridge.publish_event({"type": "ais", **body.event})
@@ -1739,6 +1766,7 @@ async def _start_ais_best_effort(radios: list, radio_id: int) -> None:
     try:
         broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
         bridge = await sdr_decode.get_or_create_ais_bridge(radio["host"], radio["port"], broadcaster)
+        bridge.radio_id = radio_id
         await bridge.start()
     except (ConnectionError, OSError):
         logging.getLogger(__name__).exception("Failed to start AIS decode on radio %s", radio_id)

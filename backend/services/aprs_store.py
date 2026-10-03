@@ -14,10 +14,12 @@ alike, mirroring ``flight_history``.
 
 from __future__ import annotations
 
+from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.db_helpers import get_setting
 from backend.models import AprsStation
+from backend.platform.bus import bus
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -202,3 +204,22 @@ async def _cleanup_expired(db: AsyncSession, now_ms: int) -> int:
     cutoff = now_ms - await _retention_ms(db)
     result = await db.execute(delete(AprsStation).where(AprsStation.last_heard_ms < cutoff))
     return result.rowcount or 0
+
+
+async def _on_decode_event(payload: dict) -> None:
+    """Bus subscriber: upsert a decoded APRS event's station (B2).
+
+    Subscribed to ``decode.aprs.*`` — the SDR hub's ingest endpoint keeps its
+    409 gate and secret check, but publishes the decoded event here instead of
+    calling straight into this module, so Land (not the SDR router) owns the
+    write. Opens its own session via :func:`upsert_station`'s default, exactly
+    as the direct call from ``routers/sdr.py`` did.
+    """
+    station = station_from_event(payload["event"])
+    if station is not None:
+        await upsert_station(station, now_ms())
+
+
+# Registered at import time (not in the app lifespan) so tests — which skip
+# lifespan — still get this subscriber; see backend/platform/bus.py's docstring.
+bus.subscribe("decode.aprs.*", _on_decode_event)
