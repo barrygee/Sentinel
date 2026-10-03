@@ -1317,6 +1317,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #381 from barrygee/fix/air-trail-and-base-hint
 - Merge pull request #382 from barrygee/fix/air-alert-click-handler
 - Merge pull request #383 from barrygee/docs/section-containers-plan
+- Merge pull request #384 from barrygee/test/p0-parity-baseline
 
 ### Refactoring
 
@@ -1449,6 +1450,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the off-grid AIS frontend at 100%
 - Cover the light theme to the 100% gate
 - Run the job-runner tests on a file-backed database (#372)
+- Add P0 parity baseline for the section-containers split
 
 ### Build System
 
