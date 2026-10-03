@@ -120,20 +120,51 @@ describe('NotificationSubscriptionsControl', () => {
       expect(turnOff).toHaveBeenCalledWith([])
     })
 
-    it('CANCEL ALL ALERTS clears received alerts at once, and is disabled when there are none', async () => {
-      const notifications = useNotificationsStore()
+    it('CANCEL ALL ALERTS switches every listed alert off at once and counts them', async () => {
       const wrapper = await mountControl()
-      expect(button(wrapper, /CANCEL ALL ALERTS/).text()).toBe('CANCEL ALL ALERTS (0)')
-      expect(button(wrapper, /CANCEL ALL ALERTS/).attributes('disabled')).toBeDefined()
+      // Counts the alerts the operator has switched on — not received
+      // notifications, of which there are none yet. It used to be disabled
+      // here, with alerts listed right above it.
+      const cancelButton = button(wrapper, /CANCEL ALL ALERTS/)
+      expect(cancelButton.text()).toBe('CANCEL ALL ALERTS (2)')
+      expect(cancelButton.attributes('disabled')).toBeUndefined()
 
-      notifications.add({ title: 'ONE' })
-      notifications.add({ title: 'TWO' })
-      await nextTick()
-      expect(button(wrapper, /CANCEL ALL ALERTS/).text()).toBe('CANCEL ALL ALERTS (2)')
-      await button(wrapper, /CANCEL ALL ALERTS/).trigger('click')
-      expect(notifications.total).toBe(0)
-      // Clearing received alerts is not a setting — nothing is staged for it.
+      await cancelButton.trigger('click')
+      await flushPromises()
+
+      expect(turnOff).toHaveBeenCalledOnce()
+      expect(turnOff).toHaveBeenCalledWith([AIRCRAFT.key, SATELLITE.key])
+      // It acts immediately, so nothing is staged for APPLY CHANGES.
       expect(wrapper.emitted('stage')).toBeUndefined()
+    })
+
+    it('CANCEL ALL ALERTS also clears received alerts, including the bell cards', async () => {
+      const notifications = useNotificationsStore()
+      notifications.add({ title: 'LANDED' })
+      // A bell card: its action turns a subscription off, so the panel's own
+      // CLEAR keeps it — but every subscription is off after CANCEL ALL.
+      notifications.add({
+        title: 'ALERTS ON',
+        type: 'tracking',
+        action: { label: 'OFF', callback: vi.fn() },
+      })
+      const wrapper = await mountControl()
+
+      await button(wrapper, /CANCEL ALL ALERTS/).trigger('click')
+      await flushPromises()
+
+      expect(notifications.total).toBe(0)
+    })
+
+    it('CANCEL ALL ALERTS drops unapplied unticks — they are moot once everything is off', async () => {
+      const wrapper = await mountControl()
+      await checkbox(wrapper, 'BAW123').trigger('change')
+      expect((checkbox(wrapper, 'BAW123').element as HTMLInputElement).checked).toBe(false)
+
+      await button(wrapper, /CANCEL ALL ALERTS/).trigger('click')
+      await flushPromises()
+
+      expect((checkbox(wrapper, 'BAW123').element as HTMLInputElement).checked).toBe(true)
     })
 
     it('has no accessibility violations', async () => {
