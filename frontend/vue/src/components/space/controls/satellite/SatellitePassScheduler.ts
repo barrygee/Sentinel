@@ -1,3 +1,4 @@
+import { getCapability } from '@/shell/capabilities'
 import type { useNotificationsStore } from '@/stores/notifications'
 
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
@@ -223,7 +224,7 @@ class ActionTrack {
 
 // Auto-tune track: fires at AOS (zero lead) to retune the SDR, and arms a
 // one-shot LOS restore for the pass it tuned for. Extends ActionTrack only for
-// the AOS timeline + LOS guard; the fire body dispatches the SdrPanel events.
+// the AOS timeline + LOS guard; the fire body calls the radio capability.
 class AutoTuneTrack extends ActionTrack {
   private _losTimeout: ReturnType<typeof setTimeout> | null = null
   private _lastFiredLos = 0
@@ -280,26 +281,24 @@ class AutoTuneTrack extends ActionTrack {
       return
     }
     const mhz = (dl.hz / 1e6).toFixed(3)
-    // Ask the always-mounted SdrPanel to select/start the default radio (if
-    // stopped) and tune to the downlink. SdrPanel adds the "AUTO-TUNED" alert
+    // Ask the SDR (the `radio` capability, served by the always-mounted
+    // SdrPanel) to select/start the default radio (if stopped) and tune to the
+    // downlink. Absent when no sdr section is registered — the pass still
+    // leaves its trace notification below. SdrPanel adds the "AUTO-TUNED" alert
     // once it actually applies the tune (or a failure notice). The token
     // identifies this pass so the matching LOS restore can be ignored if a
     // newer pass has taken over the radio meanwhile.
     const token = `${this._ctx.noradId}:${pass.aos_unix_ms}`
     const record = this._ctx.recordOnPass()
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: {
-          hz: dl.hz,
-          mode: dl.mode,
-          source: 'auto-tune',
-          satName: name,
-          noradId: this._ctx.noradId,
-          token,
-          record,
-        },
-      }),
-    )
+    getCapability('radio')?.tune({
+      hz: dl.hz,
+      mode: dl.mode,
+      source: 'auto-tune',
+      satName: name,
+      noradId: this._ctx.noradId,
+      token,
+      record,
+    })
     // Lightweight trace in the alerts tab regardless of SDR state. Mirror the
     // record state in the wording (and via the "& RECORD" label) so a pass
     // firing now reads the same as an armed upcoming pass — the trace is what's
@@ -337,11 +336,12 @@ class AutoTuneTrack extends ActionTrack {
       if (this._lastFiredLos === pass.los_unix_ms) return
       /* v8 ignore stop */
       this._lastFiredLos = pass.los_unix_ms
-      document.dispatchEvent(
-        new CustomEvent('sentinel:sdr-tune-restore', {
-          detail: { source: 'auto-tune', satName: name, noradId: this._ctx.noradId, token },
-        }),
-      )
+      getCapability('radio')?.restore({
+        source: 'auto-tune',
+        satName: name,
+        noradId: this._ctx.noradId,
+        token,
+      })
     }
     const delay = pass.los_unix_ms - Date.now()
     /* v8 ignore start -- unreachable: _fireTune (our only caller) runs solely

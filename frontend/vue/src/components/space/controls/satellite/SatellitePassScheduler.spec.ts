@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { SatellitePassScheduler, type SatellitePassSchedulerCtx } from './SatellitePassScheduler'
 import { useNotificationsStore } from '@/stores/notifications'
+import { provideFakeRadio } from '@/test/fakeRadio'
+import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
 
 const HEADS_UP_LEAD_MS = 5 * 60 * 1000
 const REFRESH_MS = 5 * 60 * 1000
@@ -38,15 +40,10 @@ let downlink: { hz: number; mode: string } | null
 let flags: { headsUp: boolean; autoTune: boolean; record: boolean }
 let fetchResponse: { ok: boolean; body: unknown }
 let fetchSpy: ReturnType<typeof vi.fn>
-let tuneEvents: CustomEvent[]
-let restoreEvents: CustomEvent[]
-
-function onTune(event: Event): void {
-  tuneEvents.push(event as CustomEvent)
-}
-function onRestore(event: Event): void {
-  restoreEvents.push(event as CustomEvent)
-}
+// What the scheduler asked of the SDR, through the `radio` capability.
+let tuneRequests: RadioTuneRequest[]
+let restoreRequests: RadioRestoreRequest[]
+let radio: ReturnType<typeof provideFakeRadio>
 
 function makeCtx(overrides: Partial<SatellitePassSchedulerCtx> = {}): SatellitePassSchedulerCtx {
   return {
@@ -76,10 +73,11 @@ beforeEach(() => {
   downlink = { hz: 145_800_000, mode: 'FM' }
   flags = { headsUp: true, autoTune: true, record: false }
   fetchResponse = { ok: true, body: { passes: [] } }
-  tuneEvents = []
-  restoreEvents = []
-  document.addEventListener('sentinel:sdr-tune-external', onTune)
-  document.addEventListener('sentinel:sdr-tune-restore', onRestore)
+  tuneRequests = []
+  restoreRequests = []
+  radio = provideFakeRadio()
+  radio.tune.mockImplementation((request) => void tuneRequests.push(request))
+  radio.restore.mockImplementation((request) => void restoreRequests.push(request))
   fetchSpy = vi.fn(() =>
     Promise.resolve({
       ok: fetchResponse.ok,
@@ -92,8 +90,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  document.removeEventListener('sentinel:sdr-tune-external', onTune)
-  document.removeEventListener('sentinel:sdr-tune-restore', onRestore)
+  radio.withdraw()
   vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -134,7 +131,7 @@ describe('SatellitePassScheduler._fetchAndSchedule endpoint + guards', () => {
     // Nothing was stored, so a refire is a no-op (no tune dispatched).
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     scheduler.stop()
   })
 
@@ -144,7 +141,7 @@ describe('SatellitePassScheduler._fetchAndSchedule endpoint + guards', () => {
     await startAndFlush(scheduler)
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     scheduler.stop()
   })
 
@@ -154,7 +151,7 @@ describe('SatellitePassScheduler._fetchAndSchedule endpoint + guards', () => {
     await startAndFlush(scheduler)
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     scheduler.stop()
   })
 
@@ -181,7 +178,7 @@ describe('SatellitePassScheduler._fetchAndSchedule endpoint + guards', () => {
     // The stopped guard prevented storing/scheduling.
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
   })
 
   it('re-fetches on the 5-minute refresh interval', async () => {
@@ -366,15 +363,15 @@ describe('SatellitePassScheduler heads-up track', () => {
 })
 
 describe('SatellitePassScheduler auto-tune track', () => {
-  it('dispatches an external tune and adds an autotune notification at AOS', async () => {
+  it('asks the radio to tune and adds an autotune notification at AOS', async () => {
     fetchResponse = { ok: true, body: { passes: [makePass(30_000, 600_000)] } }
     flags = { headsUp: false, autoTune: true, record: false }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
     await vi.advanceTimersByTimeAsync(30_000)
 
-    expect(tuneEvents).toHaveLength(1)
-    expect(tuneEvents[0]!.detail).toMatchObject({
+    expect(tuneRequests).toHaveLength(1)
+    expect(tuneRequests[0]).toMatchObject({
       hz: 145_800_000,
       mode: 'FM',
       source: 'auto-tune',
@@ -387,14 +384,14 @@ describe('SatellitePassScheduler auto-tune track', () => {
     scheduler.stop()
   })
 
-  it('wording and event flag reflect record mode', async () => {
+  it('wording and the tune request reflect record mode', async () => {
     fetchResponse = { ok: true, body: { passes: [makePass(30_000, 600_000)] } }
     flags = { headsUp: false, autoTune: true, record: true }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
     await vi.advanceTimersByTimeAsync(30_000)
 
-    expect(tuneEvents[0]!.detail).toMatchObject({ record: true })
+    expect(tuneRequests[0]).toMatchObject({ record: true })
     const alert = notificationsStore.items.find((i) => i.type === 'autotune')
     expect(alert!.detail).toBe('Auto-tuning & recording SDR → 145.800 MHz FM')
     scheduler.stop()
@@ -408,7 +405,7 @@ describe('SatellitePassScheduler auto-tune track', () => {
     await startAndFlush(scheduler)
     await vi.advanceTimersByTimeAsync(30_000)
 
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     const alert = notificationsStore.items.find((i) => i.type === 'system')
     expect(alert!.detail).toBe('Auto-tune skipped — no downlink frequency known')
     scheduler.stop()
@@ -420,7 +417,7 @@ describe('SatellitePassScheduler auto-tune track', () => {
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
     await vi.advanceTimersByTimeAsync(30_000)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     scheduler.stop()
   })
 
@@ -431,15 +428,30 @@ describe('SatellitePassScheduler auto-tune track', () => {
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
     await vi.advanceTimersByTimeAsync(30_000) // AOS → tune
-    expect(restoreEvents).toHaveLength(0)
+    expect(restoreRequests).toHaveLength(0)
     await vi.advanceTimersByTimeAsync(570_000) // LOS → restore
-    expect(restoreEvents).toHaveLength(1)
-    expect(restoreEvents[0]!.detail).toMatchObject({
+    expect(restoreRequests).toHaveLength(1)
+    expect(restoreRequests[0]).toMatchObject({
       source: 'auto-tune',
       satName: 'ISS (ZARYA)',
       noradId: '25544',
       token: `25544:${T0 + 30_000}`,
     })
+    scheduler.stop()
+  })
+  it('still leaves its trace, and arms LOS, when no SDR section provides a radio', async () => {
+    radio.withdraw()
+    fetchResponse = { ok: true, body: { passes: [makePass(30_000, 600_000)] } }
+    flags = { headsUp: false, autoTune: true, record: false }
+    const scheduler = new SatellitePassScheduler(makeCtx())
+    await startAndFlush(scheduler)
+    await vi.advanceTimersByTimeAsync(30_000) // AOS: nothing to tune
+    await vi.advanceTimersByTimeAsync(570_000) // LOS: nothing to restore
+
+    expect(tuneRequests).toHaveLength(0)
+    expect(restoreRequests).toHaveLength(0)
+    const alert = notificationsStore.items.find((i) => i.type === 'autotune')
+    expect(alert!.detail).toBe('Auto-tuning SDR → 145.800 MHz FM')
     scheduler.stop()
   })
 })
@@ -449,11 +461,11 @@ describe('SatellitePassScheduler.refireAutoTuneForCurrentPass', () => {
     fetchResponse = { ok: true, body: { passes: [makePass(-60_000, 600_000)] } }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
-    tuneEvents = []
+    tuneRequests = []
     scheduler.stop()
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
   })
 
   it('is a no-op when no passes have been fetched', async () => {
@@ -462,7 +474,7 @@ describe('SatellitePassScheduler.refireAutoTuneForCurrentPass', () => {
     await startAndFlush(scheduler)
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     scheduler.stop()
   })
 
@@ -472,12 +484,12 @@ describe('SatellitePassScheduler.refireAutoTuneForCurrentPass', () => {
     flags = { headsUp: false, autoTune: true, record: false }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
-    expect(tuneEvents).toHaveLength(1)
+    expect(tuneRequests).toHaveLength(1)
 
     // Re-fire (e.g. record just enabled): the overhead pass tunes again.
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(2)
+    expect(tuneRequests).toHaveLength(2)
     scheduler.stop()
   })
 
@@ -489,13 +501,13 @@ describe('SatellitePassScheduler.refireAutoTuneForCurrentPass', () => {
     flags = { headsUp: false, autoTune: true, record: false }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
-    expect(tuneEvents).toHaveLength(1)
+    expect(tuneRequests).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(60_000) // past LOS (no refresh yet)
 
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
     // The ended pass is not re-tuned.
-    expect(tuneEvents).toHaveLength(1)
+    expect(tuneRequests).toHaveLength(1)
     scheduler.stop()
   })
 
@@ -506,11 +518,11 @@ describe('SatellitePassScheduler.refireAutoTuneForCurrentPass', () => {
     flags = { headsUp: false, autoTune: true, record: false }
     const scheduler = new SatellitePassScheduler(makeCtx())
     await startAndFlush(scheduler)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
 
     scheduler.refireAutoTuneForCurrentPass()
     await vi.advanceTimersByTimeAsync(0)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
     scheduler.stop()
   })
 })
@@ -533,6 +545,6 @@ describe('SatellitePassScheduler.stop', () => {
     await vi.advanceTimersByTimeAsync(REFRESH_MS + 1_200_000)
     expect(fetchSpy).not.toHaveBeenCalled()
     expect(notificationsStore.items.some((i) => i.title === 'ISS (ZARYA) PASS')).toBe(false)
-    expect(tuneEvents).toHaveLength(0)
+    expect(tuneRequests).toHaveLength(0)
   })
 })

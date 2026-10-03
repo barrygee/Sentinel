@@ -5,7 +5,7 @@ import { axe } from 'jest-axe'
 import LandFilter from './LandFilter.vue'
 import { useLandStore, type AprsStation } from '@/stores/land'
 import { useRepeatersStore } from '@/stores/repeaters'
-import { useSdrStore, type SdrStoredFrequency } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
 import { useNotificationsStore } from '@/stores/notifications'
 import LandRepeaterDetails from './LandRepeaterDetails.vue'
 import LandRepeaterFilters from './LandRepeaterFilters.vue'
@@ -499,14 +499,10 @@ function repeater(overrides: Partial<RepeaterStation> = {}): RepeaterStation {
   }
 }
 
-function storedFrequency(frequencyHz: number): SdrStoredFrequency {
-  return { id: 1, group_id: null, label: 'GB3NM 2M OUT', frequency_hz: frequencyHz, mode: 'NFM' }
-}
-
 describe('LandFilter — repeaters', () => {
   let store: ReturnType<typeof useLandStore>
   let repeatersStore: ReturnType<typeof useRepeatersStore>
-  let sdrStore: ReturnType<typeof useSdrStore>
+  let radio: ReturnType<typeof provideFakeRadio>
   let notificationsStore: ReturnType<typeof useNotificationsStore>
 
   beforeEach(() => {
@@ -521,13 +517,13 @@ describe('LandFilter — repeaters', () => {
     store.selectLayer('repeaters')
     repeatersStore = useRepeatersStore()
     repeatersStore.stations = [repeater()]
-    sdrStore = useSdrStore()
+    // The SDR is reached through the shell's `radio` capability; a fake
+    // stands in for the sdr section so these specs never touch its store.
+    radio = provideFakeRadio()
     notificationsStore = useNotificationsStore()
-    // The pane pulls the Frequency Manager list once so the bookmarks are
-    // right from the first open; keep it off the network.
-    vi.spyOn(sdrStore, 'loadFrequencies').mockResolvedValue(undefined)
   })
   afterEach(() => {
+    radio.withdraw()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
@@ -699,21 +695,13 @@ describe('LandFilter — repeaters', () => {
 
   describe('tuning the SDR', () => {
     it('tunes the output frequency and notifies, switching digital decode off for FM', async () => {
-      sdrStore.connected = true
+      radio.state.connected = true
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
-      const tuned = vi.fn()
-      document.addEventListener('sentinel:sdr-tune-external', tuned)
 
       await wrapper.find('[title="Tune to 145.6500 NFM"]').trigger('click')
 
-      const event = tuned.mock.calls[0]![0] as CustomEvent<{
-        hz: number
-        mode: string
-        satName: string
-        digital: boolean
-      }>
-      expect(event.detail).toEqual({
+      expect(radio.tune.mock.calls[0]![0]).toEqual({
         hz: 145_650_000,
         mode: 'NFM',
         satName: 'GB3NM 2M output',
@@ -723,60 +711,47 @@ describe('LandFilter — repeaters', () => {
         title: 'GB3NM 2M OUTPUT',
         detail: 'Tuned 145.6500 MHz NFM',
       })
-      document.removeEventListener('sentinel:sdr-tune-external', tuned)
     })
 
     it('tunes the input frequency and switches digital decode on for a DMR channel', async () => {
-      sdrStore.connected = true
+      radio.state.connected = true
       repeatersStore.stations = [repeater({ channels: [channel({ modes: ['M'] })] })]
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
-      const tuned = vi.fn()
-      document.addEventListener('sentinel:sdr-tune-external', tuned)
 
       await wrapper.find('[title="Tune to 145.0500 NFM"]').trigger('click')
 
-      const event = tuned.mock.calls[0]![0] as CustomEvent<{
-        hz: number
-        satName: string
-        digital: boolean
-      }>
-      expect(event.detail.hz).toBe(145_050_000)
-      expect(event.detail.satName).toBe('GB3NM 2M input')
-      expect(event.detail.digital).toBe(true)
+      const request = radio.tune.mock.calls[0]![0]
+      expect(request.hz).toBe(145_050_000)
+      expect(request.satName).toBe('GB3NM 2M input')
+      expect(request.digital).toBe(true)
       expect(notificationsStore.items[0]!.detail).toBe('Tuned 145.0500 MHz NFM · digital decode on')
-      document.removeEventListener('sentinel:sdr-tune-external', tuned)
     })
 
     it('asks for an SDR instead of tuning when none is connected, and clears the hint once one is', async () => {
-      sdrStore.connected = false
+      radio.state.connected = false
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
-      const tuned = vi.fn()
-      document.addEventListener('sentinel:sdr-tune-external', tuned)
 
       await wrapper.find('[title="Connect an SDR to tune"]').trigger('click')
-      expect(tuned).not.toHaveBeenCalled()
+      expect(radio.tune).not.toHaveBeenCalled()
       // Announced, not just styled — the hint is a live status region.
       expect(wrapper.find('[role="status"]').text()).toBe('Connect an SDR before tuning')
       expect(notificationsStore.items).toHaveLength(0)
 
-      sdrStore.connected = true
+      radio.state.connected = true
       await flushPromises()
       await wrapper.find('[title="Tune to 145.6500 NFM"]').trigger('click')
-      expect(tuned).toHaveBeenCalledOnce()
+      expect(radio.tune).toHaveBeenCalledOnce()
       await flushPromises()
       expect(wrapper.find('[role="status"]').exists()).toBe(false)
-      document.removeEventListener('sentinel:sdr-tune-external', tuned)
     })
   })
 
   describe('saving a repeater frequency', () => {
     it('files the output under a REPEATERS group, with the site details as notes', async () => {
-      const groupSpy = vi.spyOn(sdrStore, 'ensureFrequencyGroup').mockResolvedValue(7)
-      const saveSpy = vi
-        .spyOn(sdrStore, 'saveFrequency')
-        .mockResolvedValue(storedFrequency(145_650_000))
+      const groupSpy = radio.frequencies.ensureGroup.mockResolvedValue(7)
+      const saveSpy = radio.frequencies.save
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
 
@@ -806,10 +781,8 @@ describe('LandFilter — repeaters', () => {
           channels: [channel({ ctcssHz: null, dmrColourCode: null })],
         }),
       ]
-      vi.spyOn(sdrStore, 'ensureFrequencyGroup').mockResolvedValue(7)
-      const saveSpy = vi
-        .spyOn(sdrStore, 'saveFrequency')
-        .mockResolvedValue(storedFrequency(145_050_000))
+      radio.frequencies.ensureGroup.mockResolvedValue(7)
+      const saveSpy = radio.frequencies.save
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
 
@@ -827,7 +800,7 @@ describe('LandFilter — repeaters', () => {
     })
 
     it('says so rather than failing silently when the save cannot be filed', async () => {
-      vi.spyOn(sdrStore, 'ensureFrequencyGroup').mockRejectedValue(new Error('offline'))
+      radio.frequencies.ensureGroup.mockRejectedValue(new Error('offline'))
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
 
@@ -843,8 +816,8 @@ describe('LandFilter — repeaters', () => {
     })
 
     it('shows a stored frequency as saved and removes it again on click', async () => {
-      sdrStore.frequencies = [storedFrequency(145_650_000)]
-      const removeSpy = vi.spyOn(sdrStore, 'removeStoredFrequency').mockResolvedValue(undefined)
+      radio.state.storedHz = [145_650_000]
+      const removeSpy = radio.frequencies.remove
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
 
@@ -865,8 +838,8 @@ describe('LandFilter — repeaters', () => {
     })
 
     it('says so when the removal cannot be completed', async () => {
-      sdrStore.frequencies = [storedFrequency(145_050_000)]
-      vi.spyOn(sdrStore, 'removeStoredFrequency').mockRejectedValue(new Error('offline'))
+      radio.state.storedHz = [145_050_000]
+      radio.frequencies.remove.mockRejectedValue(new Error('offline'))
       const wrapper = mount(LandFilter)
       await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
 
@@ -881,20 +854,51 @@ describe('LandFilter — repeaters', () => {
       })
     })
 
-    it('loads the frequency manager list once, and not at all when already loaded', () => {
-      const loadSpy = vi.spyOn(sdrStore, 'loadFrequencies').mockResolvedValue(undefined)
+    it('asks the radio to load its frequency list on mount, so bookmarks are right from the first open', () => {
       mount(LandFilter)
-      expect(loadSpy).toHaveBeenCalledOnce()
+      expect(radio.frequencies.ensureLoaded).toHaveBeenCalledOnce()
+    })
 
-      loadSpy.mockClear()
-      sdrStore.frequencies = [storedFrequency(145_650_000)]
-      mount(LandFilter)
-      expect(loadSpy).not.toHaveBeenCalled()
+    describe('with no SDR section providing a radio', () => {
+      beforeEach(() => {
+        radio.withdraw()
+      })
+
+      it('shows every bookmark as unsaved', async () => {
+        const wrapper = mount(LandFilter)
+        await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+        expect(
+          wrapper.find('[aria-label="Save 145.6500 NFM to the frequency manager"]').exists(),
+        ).toBe(true)
+      })
+
+      it('says the save could not be filed, as for an unreachable backend', async () => {
+        const wrapper = mount(LandFilter)
+        await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+        await wrapper
+          .find('[aria-label="Save 145.6500 NFM to the frequency manager"]')
+          .trigger('click')
+        await flushPromises()
+
+        expect(notificationsStore.items[0]).toMatchObject({
+          detail: 'Could not save the frequency — is the backend reachable?',
+        })
+      })
+
+      it('asks for an SDR instead of tuning', async () => {
+        const wrapper = mount(LandFilter)
+        await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
+
+        await wrapper.find('[title="Connect an SDR to tune"]').trigger('click')
+
+        expect(wrapper.find('[role="status"]').text()).toBe('Connect an SDR before tuning')
+      })
     })
   })
 
   it('has no accessibility violations with a repeater expanded', async () => {
-    sdrStore.connected = true
+    radio.state.connected = true
     const wrapper = mount(LandFilter, { attachTo: document.body })
     await wrapper.find('#land-filter-row-rpt-GB3NM').trigger('click')
     expect(

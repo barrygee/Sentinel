@@ -2,16 +2,16 @@ import type { Ref } from 'vue'
 import type { useNotificationsStore } from '@/stores/notifications'
 import type { SdrMode, SdrRadio } from '@/stores/sdr'
 import { defaultBwHz } from '@/components/sdr/sdrPanelUtils'
+import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
 
 /**
  * Satellite auto-tune reconciliation (extracted from SdrPanel.vue's engine
- * spine — behaviour byte-identical): reacts to the pass scheduler's AOS
- * (`sentinel:sdr-tune-external`) and LOS (`sentinel:sdr-tune-restore`)
- * document events. Owns the pending-tune queue (applied once the control
- * socket opens), the pre-AOS snapshot + LOS restore, lock-in priority between
- * overlapping passes, optional record-the-pass, and the user notifications.
- * The panel keeps the useDocumentEvent registrations and passes the handlers
- * through.
+ * spine — behaviour byte-identical): handles the `radio` capability's
+ * `tune` (a pass at AOS, or a filter's TUNE button) and `restore` (a pass at
+ * LOS). Owns the pending-tune queue (applied once the control socket opens),
+ * the pre-AOS snapshot + LOS restore, lock-in priority between overlapping
+ * passes, optional record-the-pass, and the user notifications. The panel
+ * attaches the handlers to the capability (`attachRadioEngine`).
  */
 export interface UseSdrAutoTuneOptions {
   /** Lazy accessor for the notifications store (the panel's shared instance). */
@@ -168,20 +168,8 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
   // is playing. Because the control socket opens asynchronously, the actual tune
   // is queued in _pendingExternalTune and applied once the socket is open (see
   // the control socket's 'open' handler, which calls drainPendingExternalTune).
-  function onExternalTune(e: Event): void {
-    const detail = (
-      e as CustomEvent<{
-        hz: number
-        mode?: string
-        satName?: string
-        noradId?: string
-        token?: string
-        record?: boolean
-        /** Switch digital decode on/off with the tune; omitted = leave as is. */
-        digital?: boolean
-      }>
-    ).detail
-    if (!detail || !detail.hz) return
+  function onExternalTune(detail: RadioTuneRequest): void {
+    if (!detail.hz) return
     const hz = Math.round(detail.hz)
     const mode = _coerceSdrMode(detail.mode)
     const satName = detail.satName || 'SATELLITE'
@@ -364,17 +352,16 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
   // state captured at AOS. We only act if the radio is still parked on the
   // frequency/mode we auto-tuned to — if the user (or a newer pass) has retuned
   // since, the snapshot is stale and we leave things alone.
-  function onExternalTuneRestore(e: Event): void {
-    const detail = (e as CustomEvent<{ satName?: string; noradId?: string; token?: string }>).detail
+  function onExternalTuneRestore(detail: RadioRestoreRequest): void {
     const snap = _autoTunePrevState
     if (!snap) return
     // Token mismatch means a later AOS overwrote the snapshot; that newer pass
     // owns the restore now, so ignore this stale LOS.
-    if (detail?.token && snap.token && detail.token !== snap.token) return
+    if (detail.token && snap.token && detail.token !== snap.token) return
     _autoTunePrevState = null
 
-    const satName = detail?.satName || 'SATELLITE'
-    const noradId = detail?.noradId
+    const satName = detail.satName || 'SATELLITE'
+    const noradId = detail.noradId
 
     // Bail if the user has taken manual control (retuned, scanned, searched, or
     // stopped) since the auto-tune — respect their state over the restore. Note
