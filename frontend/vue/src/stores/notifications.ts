@@ -91,6 +91,11 @@ export function registerAircraftClickHandler(fn: (hex: string) => void): void {
 export function getAircraftClickHandler(): ((hex: string) => void) | null {
   return _aircraftClickHandler
 }
+// Cleared when AirMap unmounts so an aircraft alert clicked from another section
+// routes to Air (rather than calling a stale, torn-down handler that no-ops).
+export function clearAircraftClickHandler(): void {
+  _aircraftClickHandler = null
+}
 
 // Satellite click handler — registered by SpaceMap while it is mounted. Clicking
 // a satellite alert focuses/tracks that satellite on the space map. Mirrors the
