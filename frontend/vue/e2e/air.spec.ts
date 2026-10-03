@@ -1,12 +1,12 @@
 import { test, expect, type Page } from '@playwright/test'
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
-import { clearPersistedState, seedAirReplayEnabled } from './support/seedStore'
+import { clearPersistedState } from './support/seedStore'
 import milClassificationFixture from './fixtures/adsb-mil-classification.json' with { type: 'json' }
 
 /**
  * Air domain tests: map region, AirSideMenu expand/collapse, overlay buttons,
- * filter combobox, AIRCRAFT accordion, REPLAY tab gating.
+ * filter combobox, AIRCRAFT accordion, no REPLAY tab (flight replay was removed).
  */
 
 test.describe('Air domain', () => {
@@ -137,34 +137,11 @@ test.describe('Air domain', () => {
     )
   })
 
-  test('REPLAY tab is absent from sidebar rail when replay is disabled', async ({ page }) => {
+  test('sidebar rail has no REPLAY tab (flight replay was removed)', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
-    // By default airReplayEnabled=false — the playback tab must not be visible
-    await expect(page.locator('[data-tab="playback"]')).not.toBeVisible()
-  })
-
-  test('REPLAY tab appears in sidebar rail when replay is enabled', async ({ page }) => {
-    await seedAirReplayEnabled(page, true)
-    // Override the settings API so main.ts hydration doesn't re-set replay to false
-    await page.route('/api/settings', (route) => {
-      void route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          air: { enabled: true, replayEnabled: true },
-          space: { enabled: true },
-          sea: { enabled: true },
-          land: { enabled: true },
-          sdr: { enabled: true },
-          app: {},
-        }),
-      })
-    })
-    await page.goto('/air/')
-    await waitForShellHydration(page)
-
-    await expect(page.locator('[data-tab="playback"]')).toBeVisible()
+    await expect(page.locator('[data-tab="playback"]')).toHaveCount(0)
   })
 
   test('NoUrlOverlay hides when settings API returns a valid online URL', async ({ page }) => {

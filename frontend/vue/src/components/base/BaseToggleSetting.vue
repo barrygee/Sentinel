@@ -6,7 +6,7 @@ import { useStagedSetting } from '@/composables/useStagedSetting'
  * `BaseToggleSetting` — a full Settings-panel toggle row: a short uppercase
  * caption plus a `BaseToggleSwitch`, wired to the "mirror-now, stage-write-
  * later" lifecycle via `useStagedSetting`. Every migrated pure toggle control
- * (`SdrAutoCenterControl`, `AirReplayToggleControl`, etc.) is a thin wrapper
+ * (`SdrAutoCenterControl`, etc.) is a thin wrapper
  * that supplies its store bindings as props here instead of re-implementing
  * the switch markup, DB hydration, and staged-write plumbing.
  *

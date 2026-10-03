@@ -135,7 +135,7 @@ flowchart LR
 | `app` | core | registry, settings API + validation from manifests, `sentinel_config.json` sync, notifications (`/api/air/messages*`), offline maps + tile resolver, `/assets` (styles, fonts, sprites, pmtiles), shell SPA | `user_settings` (incl. `sdr.radios`, `app.instanceId`), `air_messages`, `offline_map_region`, offline tiles dir | — (host) | bus |
 | `gateway` | core | Caddy; static Caddyfile with env-templated upstreams for known ids + admin API (internal only) for new ids; `handle_errors` 503 page | — | — | — |
 | `bus` | core | NATS core (JetStream deferred) | — | — | — |
-| `air` | `air` | `routers/air.py` (minus messages), `/api/sdr/adsb/*` logic (via hub reservation proxy), `adsb`, `flight_history`, `upstream_rate_limit`, snapshot cleanup | `adsb_cache`, `air_aircraft`, `air_flights`, `air_snapshots`, `air_tracking` | `air` | core; optional hub + `decoder-adsb` |
+| `air` | `air` | `routers/air.py` (minus messages), `/api/sdr/adsb/*` logic (via hub reservation proxy), `adsb`, `upstream_rate_limit` | `adsb_cache`, `air_tracking` | `air` | core; optional hub + `decoder-adsb` |
 | `space` | `space` | `space`, `tle`, `satellite`, `daynight`, `sat_radio` | `tle_cache`, `satellite_catalogue` | `space` | core; optional `radio` capability |
 | `sea` | `sea` | `sea`, `ais_stream`, `ais_store`, `ais_decode` (bus subscriber), off-grid AIS start/stop client | `sea_vessel_cache` | `sea` | core; optional hub + `decoder-ais` |
 | `land` | `land` | `land`, `repeaters`, `aprs_store` (bus subscriber), APRS cleanup, APRS start/stop client | `aprs_stations`, `repeater_cache` | `land` | core; optional hub + `decoder-aprs` |

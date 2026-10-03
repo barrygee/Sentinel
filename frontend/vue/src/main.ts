@@ -131,10 +131,6 @@ const DEFAULT_LABEL_DATA_POINTS = {
       airStore.hydrateMapLayers(data.air?.mapLayers)
       basemapStore.hydrateLayers(data.app?.mapLayers)
 
-      // Replay recording toggle — default OFF when absent from the DB.
-      const replayOn = data.air?.replayEnabled
-      airStore.setReplayEnabled(typeof replayOn === 'boolean' ? replayOn : false)
-
       // Hydrate labelDataPoints from API into store before first render.
       const remote = data.air?.labelDataPoints as AdsbTagFields | undefined
       if (

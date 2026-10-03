@@ -84,9 +84,7 @@ const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div
 function teleportTargets(): void {
   const search = document.createElement('div')
   search.id = 'msb-pane-search'
-  const playback = document.createElement('div')
-  playback.id = 'msb-pane-playback'
-  document.body.append(search, playback)
+  document.body.append(search)
 }
 
 function mountView(airMapStub = makeAirMapStub()) {
@@ -96,7 +94,6 @@ function mountView(airMapStub = makeAirMapStub()) {
         AirMap: airMapStub,
         AirSideMenu: AirSideMenuStub,
         AirFilter: AirFilterStub,
-        AirReplayPanel: InertStub,
         NoUrlOverlay: InertStub,
       },
     },
@@ -122,8 +119,8 @@ describe('AirView', () => {
 
     it('does not teleport until the sidebar panes appear', () => {
       // No teleportTargets() call: MapSidebar hasn't rendered its panes yet,
-      // so both Teleports stay gated off (v-if="...Ready") — AirFilter/
-      // AirReplayPanel never mount, and nothing throws.
+      // so the Teleport stays gated off (v-if="searchPaneReady") — AirFilter
+      // never mounts, and nothing throws.
       expect(() => mountView()).not.toThrow()
       expect(document.querySelector('.air-filter-stub')).toBeNull()
     })

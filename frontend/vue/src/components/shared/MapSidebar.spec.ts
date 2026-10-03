@@ -28,7 +28,6 @@ function setPath(path: string): void {
 // Exposed surface of the component (defineExpose).
 interface SidebarVm {
   switchTab: (tab: string) => void
-  openPlaybackTab: () => void
   openRadioTab: () => void
   closeRadioTab: () => void
   show: () => void
@@ -54,13 +53,6 @@ describe('MapSidebar', () => {
       const wrapper = mountSidebar()
       const tabIds = wrapper.findAll('.msb-rail-btn').map((node) => node.attributes('data-tab'))
       expect(tabIds).toEqual(['search', 'alerts', 'tracking', 'passes'])
-    })
-
-    it('adds the REPLAY tab when air replay recording is enabled', () => {
-      useAirStore().replayEnabled = true
-      const wrapper = mountSidebar()
-      const tabIds = wrapper.findAll('.msb-rail-btn').map((node) => node.attributes('data-tab'))
-      expect(tabIds).toContain('playback')
     })
 
     it('hides the rail and shows only the radio pane when hideTabs is set', () => {
@@ -180,15 +172,6 @@ describe('MapSidebar', () => {
       expect(states).toContain(true)
     })
 
-    it('openPlaybackTab opens the panel on the playback tab', () => {
-      useAirStore().replayEnabled = true
-      const wrapper = mountSidebar()
-      const vm = wrapper.vm as unknown as SidebarVm
-      vm.openPlaybackTab()
-      expect(vm.open).toBe(true)
-      expect(vm.activeTab).toBe('playback')
-    })
-
     it('does not persist the transient radio tab', () => {
       const wrapper = mountSidebar()
       ;(wrapper.vm as unknown as SidebarVm).openRadioTab()
@@ -237,17 +220,10 @@ describe('MapSidebar', () => {
       expect(wrapper.vm.activeTab).toBe('search')
     })
 
-    it('does not restore the playback tab when replay is disabled', () => {
+    it('falls back to search for the removed REPLAY tab id an older build stored', () => {
       localStorage.setItem(TAB_MAP_KEY, JSON.stringify({ air: 'playback' }))
       const wrapper = mountSidebar()
       expect(wrapper.vm.activeTab).toBe('search')
-    })
-
-    it('restores the playback tab when replay is enabled', () => {
-      useAirStore().replayEnabled = true
-      localStorage.setItem(TAB_MAP_KEY, JSON.stringify({ air: 'playback' }))
-      const wrapper = mountSidebar()
-      expect(wrapper.vm.activeTab).toBe('playback')
     })
 
     it('treats the root path as having no active domain', () => {
@@ -272,39 +248,6 @@ describe('MapSidebar', () => {
   })
 
   describe('reactivity and events', () => {
-    it('falls back to search if replay is disabled while the playback tab is active', async () => {
-      const airStore = useAirStore()
-      airStore.replayEnabled = true
-      const wrapper = mountSidebar()
-      ;(wrapper.vm as unknown as SidebarVm).openPlaybackTab()
-      expect(wrapper.vm.activeTab).toBe('playback')
-
-      airStore.replayEnabled = false
-      await flushPromises()
-      expect(wrapper.vm.activeTab).toBe('search')
-    })
-
-    it('leaves the active tab alone when replay is enabled', async () => {
-      const airStore = useAirStore()
-      const wrapper = mountSidebar()
-      expect(wrapper.vm.activeTab).toBe('search')
-      // Enabling replay must not change the current (non-playback) tab.
-      airStore.replayEnabled = true
-      await flushPromises()
-      expect(wrapper.vm.activeTab).toBe('search')
-    })
-
-    it('leaves a non-playback tab alone when replay is disabled', async () => {
-      const airStore = useAirStore()
-      airStore.replayEnabled = true
-      const wrapper = mountSidebar()
-      ;(wrapper.vm as unknown as SidebarVm).switchTab('tracking')
-      airStore.replayEnabled = false
-      await flushPromises()
-      // Disabling replay only resets the playback tab; tracking is untouched.
-      expect(wrapper.vm.activeTab).toBe('tracking')
-    })
-
     it('responds to the SDR open and toggle panel events', async () => {
       const wrapper = mountSidebar()
       document.dispatchEvent(new CustomEvent('sentinel:sdr-open-panel'))

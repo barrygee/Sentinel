@@ -133,7 +133,7 @@ def _readsb_to_airplanes(payload: dict, lat: float, lon: float, radius: int) -> 
 
     **The list is named `aircraft`, not `ac`.** Renaming it here rather than
     teaching the frontend a second shape keeps every consumer — map, labels,
-    replay, overhead alerts — reading one format.
+    overhead alerts — reading one format.
 
     **readsb does not filter by radius.** It reports everything its aerial hears,
     which is the whole receiver's range rather than the map pane being asked

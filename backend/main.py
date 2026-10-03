@@ -27,7 +27,6 @@ from backend.services import app_config_file, aprs_store
 from backend.services import sdr as sdr_service
 from backend.services import sdr_decode as sdr_decode_service
 from backend.services.ais_stream import reader as ais_reader
-from backend.services.flight_history import cleanup_old_snapshots
 from backend.services.offline_map.job_runner import runner as offline_map_job_runner
 from backend.services.sentry_fleet import fleet_poller
 from fastapi import FastAPI
@@ -40,12 +39,8 @@ SPA_DIR = ROOT_DIR / "frontend" / "spa-dist"
 
 
 async def _daily_cleanup_loop() -> None:
-    """Run flight-history and APRS-station cleanup once at startup, then every 24h."""
+    """Run APRS-station cleanup once at startup, then every 24h."""
     while True:
-        try:
-            await cleanup_old_snapshots()
-        except Exception:
-            logging.getLogger(__name__).exception("Flight history cleanup failed")
         try:
             await aprs_store.cleanup_expired(int(time.time() * 1000))
         except Exception:

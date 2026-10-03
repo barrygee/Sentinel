@@ -484,15 +484,6 @@ const ALL_SETTINGS: SettingItem[] = [
     groupLabel: 'LABELS',
   },
   {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-replay-toggle',
-    label: 'Flight Replay',
-    desc: 'Record aircraft movements to the database so you can replay them later via the REPLAY tab. When off, no flight history is recorded and the REPLAY tab is hidden. Off by default.',
-    type: 'air-replay-toggle',
-    groupLabel: 'REPLAY',
-  },
-  {
     section: 'space',
     sectionLabel: 'SPACE',
     id: 'space-online-source',

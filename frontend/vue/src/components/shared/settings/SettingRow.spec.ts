@@ -49,7 +49,6 @@ import SeaAisKeyControl from './SeaAisKeyControl.vue'
 import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
-import AirReplayToggleControl from './AirReplayToggleControl.vue'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrOptionsControl from './SdrOptionsControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
@@ -106,7 +105,6 @@ const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
   ['sea-coverage-area', SeaCoverageAreaControl],
   ['sea-label-fields', SeaLabelFieldsControl],
   ['sea-map-layers', SeaMapLayersControl],
-  ['air-replay-toggle', AirReplayToggleControl],
   ['sdr-devices', SdrDevicesControl],
   ['sdr-options', SdrOptionsControl],
   ['sdr-frequencies-file', JsonDataControl],

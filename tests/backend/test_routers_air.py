@@ -143,64 +143,6 @@ class TestAirTracking:
         assert resp.json() == {"status": "removed"}
 
 
-# ── /api/air/recordings/available-dates ───────────────────────────────────────
-
-
-class TestRecordingsAvailableDates:
-    def test_empty_returns_empty_list(self, client):
-        resp = client.get("/api/air/recordings/available-dates")
-        assert resp.status_code == 200
-        assert resp.json() == []
-
-
-# ── /api/air/snapshots ────────────────────────────────────────────────────────
-
-
-class TestSnapshotsWindow:
-    def test_empty_window_returns_aircraft_empty(self, client):
-        resp = client.get("/api/air/snapshots", params={"start_ms": 0, "end_ms": 1000})
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body == {"start_ms": 0, "end_ms": 1000, "aircraft": {}}
-
-    def test_window_over_24h_returns_400(self, client):
-        # 24h + 1ms exceeds the cap → 400
-        cap = 24 * 3600 * 1000
-        resp = client.get(
-            "/api/air/snapshots", params={"start_ms": 0, "end_ms": cap + 1}
-        )
-        assert resp.status_code == 400
-
-    def test_window_exactly_24h_is_accepted(self, client):
-        cap = 24 * 3600 * 1000
-        resp = client.get("/api/air/snapshots", params={"start_ms": 0, "end_ms": cap})
-        assert resp.status_code == 200
-
-
-# ── /api/air/flights ──────────────────────────────────────────────────────────
-
-
-class TestFlightsList:
-    def test_empty(self, client):
-        resp = client.get("/api/air/flights")
-        assert resp.status_code == 200
-        # Pin shape — empty list or {} depending on serializer. Accept either.
-        body = resp.json()
-        assert body in ([], {})
-
-    def test_unknown_registration_returns_empty_list(self, client):
-        # Current contract: unknown registration is not a 404 — it returns an
-        # empty list of flights, same as a known registration with no history.
-        resp = client.get("/api/air/flights/UNKNOWN")
-        assert resp.status_code == 200
-        assert resp.json() == []
-
-    def test_delete_unknown_registration(self, client):
-        # Pin current contract — should not 500.
-        resp = client.delete("/api/air/flights/UNKNOWN")
-        assert resp.status_code in (200, 404)
-
-
 # ── /api/air/adsb/point — upstream failure handling ───────────────────────────
 
 
