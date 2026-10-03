@@ -17,6 +17,7 @@ from typing import Any
 from backend.cache import now_ms
 from backend.db_helpers import get_setting
 from backend.models import UserSettings
+from backend.platform.bus import bus
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -270,21 +271,37 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
 
     await db.commit()
 
-    # Decoder reconciliation lives with the SDR router, which owns the bridges.
+    # Decoder reconciliation is owned by whichever module manages the running
+    # bridges (routers/sdr.py) — publish the change on the event bus instead
+    # of importing that router directly (that import is exactly the cycle
+    # routers/sdr <-> routers/settings <-> services/app_config <-> database
+    # this module was part of). `db` rides in the payload alongside the
+    # JSON-safe `keys` so a subscriber reads through this same
+    # already-committed session; see the note in routers/settings.py's PUT
+    # handler for why.
     next_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
     if next_aprs_radio_id != previous_aprs_radio_id:
-        from backend.routers.sdr import reconcile_aprs_decode  # avoid import cycle at module load
-
-        await reconcile_aprs_decode(db, previous_aprs_radio_id, next_aprs_radio_id)
+        await bus.publish(
+            "sdr.decode.radio-reassigned",
+            {"decoder": "aprs", "db": db, "previous": previous_aprs_radio_id, "next": next_aprs_radio_id},
+            # Preserves today's behaviour: an exception from
+            # reconcile_aprs_decode() used to propagate out of apply_config()
+            # unwrapped (a 500 from /api/settings/config/upload, or logged by
+            # the config-file sync's broad except Exception).
+            raise_errors=True,
+        )
     elif isinstance(config.get("land"), dict) and "aprsChannelHz" in config["land"]:
-        # Same radio, but the document may have moved the APRS channel.
-        from backend.routers.sdr import apply_aprs_channel  # avoid import cycle at module load
-        from backend.services.aprs_store import read_aprs_channel_hz  # avoid import cycle at module load
-
-        await apply_aprs_channel(await read_aprs_channel_hz(db))
+        # Same radio, but the document may have moved the APRS channel. This
+        # is the exact same event routers/settings.py's PUT handler publishes
+        # for a direct land/aprsChannelHz write — one subscriber (in
+        # routers/sdr.py) re-reads the freshly committed channel and applies
+        # it, whichever path triggered it.
+        await bus.publish("settings.changed.land", {"keys": ["aprsChannelHz"], "db": db}, raise_errors=True)
 
     next_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
     if next_ais_radio_id != previous_ais_radio_id:
-        from backend.routers.sdr import reconcile_ais_decode  # avoid import cycle at module load
-
-        await reconcile_ais_decode(db, previous_ais_radio_id, next_ais_radio_id)
+        await bus.publish(
+            "sdr.decode.radio-reassigned",
+            {"decoder": "ais", "db": db, "previous": previous_ais_radio_id, "next": next_ais_radio_id},
+            raise_errors=True,
+        )

@@ -39,9 +39,11 @@ from backend.config import settings
 from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
+from backend.platform.bus import bus
 from backend.services import ais_decode, aprs_store, sdr_decode
 from backend.services import sdr as sdr_svc
 from backend.services.sdr_data import write_sdr_frequencies_file
+from backend.services.sdr_frequencies import reconcile_sdr_frequencies
 from backend.services.sentry_fleet import fleet_poller
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
@@ -741,7 +743,6 @@ async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db
 
     Reconciles into the dedicated tables (reusing the same logic as the config
     upload), then re-derives the snapshot and writes sdr_frequencies.json."""
-    from backend.routers.settings import _reconcile_sdr_frequencies
     from backend.services.sdr_data import reconcile_search_ranges
 
     if not isinstance(body, dict):
@@ -750,7 +751,7 @@ async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db
     freqs = body.get("frequencies") if isinstance(body.get("frequencies"), list) else []
     ranges = body.get("searchRanges") if isinstance(body.get("searchRanges"), list) else []
 
-    await _reconcile_sdr_frequencies(db, freqs, groups)
+    await reconcile_sdr_frequencies(db, freqs, groups)
     await reconcile_search_ranges(db, ranges)
     await db.commit()
     await _sync_groups(db)  # mirrors groups+frequencies, writes the file
@@ -1583,6 +1584,27 @@ async def resume_persisted_aprs() -> None:
     await _start_aprs_best_effort(radios, radio_id, channel_hz)
 
 
+async def _on_land_settings_changed(payload: dict) -> None:
+    """Bus subscriber: retune a running APRS bridge when ``land/aprsChannelHz``
+    changes, exactly as a direct call to ``apply_aprs_channel`` always has.
+
+    Subscribed to ``settings.changed.land`` — the same event whether the
+    channel was written via the Settings PUT endpoint or an app-config
+    upload/file-sync, so both paths converge on this one reaction (they used
+    to call ``apply_aprs_channel`` separately). Re-reads the channel from
+    ``payload["db"]`` (the writer's own, already-committed session) rather
+    than trusting a raw value in the payload, matching what the config-upload
+    path already did before this migration.
+    """
+    if "aprsChannelHz" not in payload.get("keys", ()):
+        return
+    channel_hz = await aprs_store.read_aprs_channel_hz(payload["db"])
+    await apply_aprs_channel(channel_hz)
+
+
+bus.subscribe("settings.changed.land", _on_land_settings_changed)
+
+
 # ── AIS decode (Direwolf sidecar, off-grid Sea) ─────────────────────────────────
 # The Sea twin of the APRS block above. Same control surface, same secret-authed
 # ingest/config contract; the differences are that the bridge owns TWO channels
@@ -1753,6 +1775,26 @@ async def resume_persisted_ais() -> None:
             return
         radios = await _get_radios(db)
     await _start_ais_best_effort(radios, radio_id)
+
+
+async def _on_decode_radio_reassigned(payload: dict) -> None:
+    """Bus subscriber: move the APRS/AIS decode bridge when an app-config
+    upload or file-sync reassigns its radio, exactly as the direct calls to
+    ``reconcile_aprs_decode``/``reconcile_ais_decode`` always have.
+
+    services/app_config.py publishes ``sdr.decode.radio-reassigned`` only when
+    ``sdr/aprs_radio_id`` or ``sdr/ais_radio_id`` actually changed, one decoder
+    per publish. It is deliberately a separate subject from the generic
+    ``settings.changed.sdr`` feed: a plain ``PUT /api/settings/sdr/{key}`` has
+    never reconciled a bridge (the dedicated ``/api/sdr/{aprs,ais}/start`` and
+    ``/stop`` endpoints start/stop it inline), so it must not reach this.
+    """
+    reconcile_by_decoder = {"aprs": reconcile_aprs_decode, "ais": reconcile_ais_decode}
+    reconcile = reconcile_by_decoder[payload["decoder"]]
+    await reconcile(payload["db"], payload["previous"], payload["next"])
+
+
+bus.subscribe("sdr.decode.radio-reassigned", _on_decode_radio_reassigned)
 
 
 @router.get("/api/sdr/decode/status/{radio_id}")

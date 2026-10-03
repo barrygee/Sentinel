@@ -437,12 +437,12 @@ async def seed_sdr_data_from_files() -> None:
     sync, so this only *seeds* — it does not clobber user edits on later boots.
     """
     from backend.models import SdrFrequencyGroup, SdrSearchRange  # avoid circular import
-    from backend.routers.settings import _reconcile_sdr_frequencies  # avoid circular import
     from backend.services.sdr_data import (
         load_sdr_frequencies_file,
         reconcile_search_ranges,
         write_sdr_frequencies_file,
     )
+    from backend.services.sdr_frequencies import reconcile_sdr_frequencies
 
     data = load_sdr_frequencies_file()
 
@@ -452,7 +452,7 @@ async def seed_sdr_data_from_files() -> None:
 
         if groups_empty and (data["groups"] or data["frequencies"]):
             # Rebuild groups + frequencies from the file (catalogue authoritative).
-            await _reconcile_sdr_frequencies(session, data["frequencies"], data["groups"])
+            await reconcile_sdr_frequencies(session, data["frequencies"], data["groups"])
             await session.commit()
 
         if ranges_empty and data["searchRanges"]:
