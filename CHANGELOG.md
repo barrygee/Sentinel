@@ -185,6 +185,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the last-set time from Sentinel Location
 - Unify control sizing and tighten settings copy
 - Rework the area picker and preview map
+- Remove the flight replay feature **(breaking change)**
 
 ### Bug Fixes
 
@@ -1324,6 +1325,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge branch 'main' into refactor/p2-map-kit-base
 - Merge pull request #386 from barrygee/refactor/p2-map-kit-base
 - Merge pull request #387 from barrygee/fix/adsb-source-unset
+- Merge remote-tracking branch 'origin/main' into feat/remove-flight-replay
+- Merge pull request #388 from barrygee/feat/remove-flight-replay
 
 ### Refactoring
 
