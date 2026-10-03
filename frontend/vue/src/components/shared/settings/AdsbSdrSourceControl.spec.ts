@@ -2,7 +2,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
 
+import { createPinia, setActivePinia } from 'pinia'
+import { nextTick } from 'vue'
 import AdsbSdrSourceControl from './AdsbSdrSourceControl.vue'
+import { useSettingsStore } from '@/stores/settings'
 import * as adsbSourceApi from '@/services/adsbSourceApi'
 import * as sentryApi from '@/services/sentryApi'
 
@@ -56,6 +59,7 @@ function snapshotWith(
 let setSourceSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
     configured: false,
     sentry_host_id: null,
@@ -308,7 +312,29 @@ describe('AdsbSdrSourceControl', () => {
     })
   })
 
-  it('saves the host id and device id split correctly', async () => {
+  /** Run the change the control last staged — what APPLY CHANGES does. */
+  async function applyStaged(wrapper: ReturnType<typeof mount>): Promise<void> {
+    const staged = wrapper.emitted('stage') as Array<[() => Promise<unknown>]>
+    await staged[staged.length - 1]![0]()
+  }
+
+  it('stages a pick rather than saving it, so APPLY CHANGES has something to save', async () => {
+    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ id: 7 })])
+    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'serial:97710286', name: 'ADSB' }),
+    )
+
+    const wrapper = mount(AdsbSdrSourceControl)
+    await flushPromises()
+    await wrapper.find('[data-value="7:serial:97710286"]').trigger('mousedown')
+    await flushPromises()
+
+    // Regression: it used to save on the spot, so Apply said "NO CHANGES".
+    expect(wrapper.emitted('stage')).toHaveLength(1)
+    expect(setSourceSpy).not.toHaveBeenCalled()
+  })
+
+  it('saves the host id and device id split correctly on apply', async () => {
     // `serial:97710286` contains a colon, so a naive split would save
     // "serial" as the device and drop the rest.
     vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ id: 7 })])
@@ -319,8 +345,23 @@ describe('AdsbSdrSourceControl', () => {
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
     await wrapper.find('[data-value="7:serial:97710286"]').trigger('mousedown')
+    await applyStaged(wrapper)
 
     expect(setSourceSpy).toHaveBeenCalledWith(7, 'serial:97710286')
+  })
+
+  it('makes apply fail when the device cannot be saved, so the panel says ERROR', async () => {
+    setSourceSpy.mockResolvedValue(null)
+    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ id: 7 })])
+    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'serial:97710286', name: 'ADSB' }),
+    )
+
+    const wrapper = mount(AdsbSdrSourceControl)
+    await flushPromises()
+    await wrapper.find('[data-value="7:serial:97710286"]').trigger('mousedown')
+
+    await expect(applyStaged(wrapper)).rejects.toThrow('Could not save the ADS-B source')
   })
 
   it('pre-selects the device already configured', async () => {
@@ -342,31 +383,140 @@ describe('AdsbSdrSourceControl', () => {
     )
   })
 
-  it('clears the saved source when set back to "Not set"', async () => {
-    const clearSourceSpy = vi.spyOn(adsbSourceApi, 'clearAdsbSource').mockResolvedValue({
-      configured: false,
-      sentry_host_id: null,
-      sentry_device_id: null,
+  describe('set back to "Not set"', () => {
+    beforeEach(() => {
+      vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
+        configured: true,
+        sentry_host_id: 1,
+        sentry_device_id: 'serial:AAA',
+      })
+      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
+      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
+        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
+      )
     })
-    vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
-      configured: true,
-      sentry_host_id: 1,
-      sentry_device_id: 'serial:AAA',
+
+    it('stages the clear, and clears the saved source on apply', async () => {
+      const clearSourceSpy = vi.spyOn(adsbSourceApi, 'clearAdsbSource').mockResolvedValue({
+        configured: false,
+        sentry_host_id: null,
+        sentry_device_id: null,
+      })
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+      await wrapper.find('[data-value=""]').trigger('mousedown')
+      await flushPromises()
+      expect(clearSourceSpy).not.toHaveBeenCalled()
+
+      await applyStaged(wrapper)
+
+      // Regression: "Not set" used to be dropped on the floor, so the old
+      // device came back on reload and Apply reported no changes.
+      expect(clearSourceSpy).toHaveBeenCalledOnce()
+      expect(setSourceSpy).not.toHaveBeenCalled()
     })
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-    )
 
-    const wrapper = mount(AdsbSdrSourceControl)
-    await flushPromises()
-    await wrapper.find('[data-value=""]').trigger('mousedown')
-    await flushPromises()
+    it('makes apply fail when the clear does not land', async () => {
+      vi.spyOn(adsbSourceApi, 'clearAdsbSource').mockResolvedValue(null)
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+      await wrapper.find('[data-value=""]').trigger('mousedown')
 
-    // Regression: "Not set" used to be dropped on the floor, so the old device
-    // came back on reload and Apply reported no changes.
-    expect(clearSourceSpy).toHaveBeenCalledOnce()
-    expect(setSourceSpy).not.toHaveBeenCalled()
+      await expect(applyStaged(wrapper)).rejects.toThrow('Could not clear the ADS-B source')
+    })
+  })
+
+  describe('when the Settings panel reopens', () => {
+    it('drops an unapplied pick by re-reading the saved choice', async () => {
+      const getSourceSpy = vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
+        configured: true,
+        sentry_host_id: 1,
+        sentry_device_id: 'serial:AAA',
+      })
+      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
+      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
+        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
+      )
+      const settings = useSettingsStore()
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+      await wrapper.find('[data-value=""]').trigger('mousedown')
+      expect(wrapper.find('[role="option"][aria-selected="true"]').exists()).toBe(false)
+
+      settings.openPanel()
+      await nextTick()
+      await flushPromises()
+
+      expect(getSourceSpy).toHaveBeenCalledTimes(2)
+      expect(wrapper.find('[role="option"][aria-selected="true"]').attributes('data-value')).toBe(
+        '1:serial:AAA',
+      )
+      // Re-reading is hydration, not a pick — nothing new is staged.
+      expect(wrapper.emitted('stage')).toHaveLength(1)
+    })
+
+    it('shows "Not set" when the saved choice has since been cleared', async () => {
+      const getSourceSpy = vi
+        .spyOn(adsbSourceApi, 'getAdsbSource')
+        .mockResolvedValueOnce({
+          configured: true,
+          sentry_host_id: 1,
+          sentry_device_id: 'serial:AAA',
+        })
+        .mockResolvedValueOnce({ configured: false, sentry_host_id: null, sentry_device_id: null })
+      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
+      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
+        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
+      )
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+
+      useSettingsStore().openPanel()
+      await nextTick()
+      await flushPromises()
+
+      expect(getSourceSpy).toHaveBeenCalledTimes(2)
+      expect(wrapper.find('[role="option"][aria-selected="true"]').exists()).toBe(false)
+    })
+
+    it('keeps the current choice when the backend cannot be reached', async () => {
+      vi.spyOn(adsbSourceApi, 'getAdsbSource')
+        .mockResolvedValueOnce({
+          configured: true,
+          sentry_host_id: 1,
+          sentry_device_id: 'serial:AAA',
+        })
+        .mockResolvedValueOnce(null)
+      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
+      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
+        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
+      )
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+
+      useSettingsStore().openPanel()
+      await nextTick()
+      await flushPromises()
+
+      expect(wrapper.find('[role="option"][aria-selected="true"]').attributes('data-value')).toBe(
+        '1:serial:AAA',
+      )
+    })
+
+    it('does nothing when the panel closes', async () => {
+      const getSourceSpy = vi.spyOn(adsbSourceApi, 'getAdsbSource')
+      const settings = useSettingsStore()
+      settings.openPanel()
+      mount(AdsbSdrSourceControl)
+      await flushPromises()
+      const callsAfterMount = getSourceSpy.mock.calls.length
+
+      settings.closePanel()
+      await nextTick()
+      await flushPromises()
+
+      expect(getSourceSpy.mock.calls.length).toBe(callsAfterMount)
+    })
   })
 
   describe('when there is nothing to pick', () => {
