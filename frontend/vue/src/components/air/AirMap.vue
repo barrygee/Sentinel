@@ -21,11 +21,11 @@ import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
+import { useNotificationsStore } from '@/stores/notifications'
 import {
-  useNotificationsStore,
   registerAircraftClickHandler,
   clearAircraftClickHandler,
-} from '@/stores/notifications'
+} from './aircraftNotificationTarget'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useTrackingStore } from '@/stores/tracking'
 import { useSettingsStore } from '@/stores/settings'

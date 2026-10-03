@@ -1,39 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { TransitionGroup } from 'vue'
 import { axe } from 'jest-axe'
 
-// Mock only the module-level click-routing helpers so each test controls whether
-// a live map handler is registered; the real store (items, dismiss, clearAll,
-// getLabelForType, syncFromBackend) is preserved.
-vi.mock('@/stores/notifications', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/stores/notifications')>()
-  return {
-    ...actual,
-    getAircraftClickHandler: vi.fn(),
-    getSatelliteClickHandler: vi.fn(),
-    setPendingAircraftTarget: vi.fn(),
-    setPendingSatelliteTarget: vi.fn(),
-  }
-})
-
 const routerPush = vi.hoisted(() => vi.fn())
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }))
 
 import NotificationsPanel from './NotificationsPanel.vue'
+import { useNotificationsStore, type NotificationItem } from '@/stores/notifications'
 import {
-  useNotificationsStore,
-  getAircraftClickHandler,
-  getSatelliteClickHandler,
-  setPendingAircraftTarget,
-  setPendingSatelliteTarget,
-  type NotificationItem,
-} from '@/stores/notifications'
-import {
-  setAutoTuneEnabled,
-  isAutoTuneEnabled,
-} from '@/components/space/controls/satellite/passNotifStore'
+  registerNotificationDismissHook,
+  registerNotificationTarget,
+  resetNotificationRegistryForTests,
+  type NotificationTarget,
+} from '@/shell/notificationRegistry'
+
+// The panel holds no section knowledge: sections register click targets and
+// dismiss hooks with the shell. These specs register stand-ins and check the
+// panel delegates to them (the real Air/Space targets have their own specs).
+function aircraftLikeTarget(): NotificationTarget {
+  return { sectionId: 'air', priority: 20, matches: (item) => Boolean(item.hex), open: vi.fn() }
+}
 
 // Capture the ResizeObserver callback so the scroll-hint logic can be driven by hand.
 const observerRegistry = vi.hoisted(() => ({ callback: null as null | (() => void) }))
@@ -72,6 +60,7 @@ describe('NotificationsPanel', () => {
     // restoreMocks only resets vi.spyOn spies — the vi.fn()s from the vi.mock
     // factory leak call history across tests, so clear them by hand.
     vi.clearAllMocks()
+    resetNotificationRegistryForTests()
   })
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -130,66 +119,52 @@ describe('NotificationsPanel', () => {
 
   describe('item click routing', () => {
     it('invokes a custom clickAction and routes nowhere else', async () => {
+      const target = aircraftLikeTarget()
+      registerNotificationTarget(target)
       const clickAction = vi.fn()
       seedItems([makeItem({ id: '1', clickAction, hex: 'abc123' })])
       const wrapper = mount(NotificationsPanel)
       await wrapper.find('.notif-item').trigger('click')
       expect(clickAction).toHaveBeenCalledOnce()
+      expect(target.open).not.toHaveBeenCalled()
       expect(routerPush).not.toHaveBeenCalled()
     })
 
-    it('calls the registered satellite handler with the satellite name', async () => {
-      const handler = vi.fn()
-      ;(getSatelliteClickHandler as Mock).mockReturnValue(handler)
-      seedItems([makeItem({ id: '1', type: 'tracking', noradId: '25544', satName: 'ISS' })])
+    it('opens the alert through the section target that matches it, passing the router', async () => {
+      const target = aircraftLikeTarget()
+      registerNotificationTarget(target)
+      const item = makeItem({ id: '1', type: 'flight', hex: 'ab12cd' })
+      seedItems([item])
       const wrapper = mount(NotificationsPanel)
       await wrapper.find('.notif-item').trigger('click')
-      expect(handler).toHaveBeenCalledWith('25544', 'ISS')
+      expect(target.open).toHaveBeenCalledOnce()
+      const [openedItem, context] = (target.open as ReturnType<typeof vi.fn>).mock.calls[0]!
+      expect(openedItem).toMatchObject({ id: '1', hex: 'ab12cd' })
+      expect(context.router.push).toBe(routerPush)
     })
 
-    it('stashes the satellite target and routes to /space/ when no handler is mounted', async () => {
-      ;(getSatelliteClickHandler as Mock).mockReturnValue(null)
-      // No satName → falls back to the title for the display name.
-      seedItems([makeItem({ id: '1', type: 'tracking', noradId: '25544', title: 'ISS PASS' })])
+    it('does nothing when no registered section can open the alert', async () => {
+      const target = aircraftLikeTarget()
+      registerNotificationTarget(target)
+      seedItems([makeItem({ id: '1', type: 'tracking', noradId: '25544' })])
       const wrapper = mount(NotificationsPanel)
       await wrapper.find('.notif-item').trigger('click')
-      expect(setPendingSatelliteTarget).toHaveBeenCalledWith('25544', 'ISS PASS')
-      expect(routerPush).toHaveBeenCalledWith('/space/')
-    })
-
-    it('falls back to the noradId for the name when satName and title are empty', async () => {
-      ;(getSatelliteClickHandler as Mock).mockReturnValue(null)
-      seedItems([makeItem({ id: '1', type: 'tracking', noradId: '25544', title: '' })])
-      const wrapper = mount(NotificationsPanel)
-      await wrapper.find('.notif-item').trigger('click')
-      expect(setPendingSatelliteTarget).toHaveBeenCalledWith('25544', '25544')
-    })
-
-    it('calls the registered aircraft handler', async () => {
-      const handler = vi.fn()
-      ;(getAircraftClickHandler as Mock).mockReturnValue(handler)
-      seedItems([makeItem({ id: '1', type: 'flight', hex: 'ab12cd' })])
-      const wrapper = mount(NotificationsPanel)
-      await wrapper.find('.notif-item').trigger('click')
-      expect(handler).toHaveBeenCalledWith('ab12cd')
-    })
-
-    it('stashes the aircraft target and routes to /air/ when no handler is mounted', async () => {
-      ;(getAircraftClickHandler as Mock).mockReturnValue(null)
-      seedItems([makeItem({ id: '1', type: 'flight', hex: 'ab12cd' })])
-      const wrapper = mount(NotificationsPanel)
-      await wrapper.find('.notif-item').trigger('click')
-      expect(setPendingAircraftTarget).toHaveBeenCalledWith('ab12cd')
-      expect(routerPush).toHaveBeenCalledWith('/air/')
-    })
-
-    it('does nothing when the item has no actionable target', async () => {
-      seedItems([makeItem({ id: '1', type: 'system' })])
-      const wrapper = mount(NotificationsPanel)
-      await wrapper.find('.notif-item').trigger('click')
+      expect(target.open).not.toHaveBeenCalled()
       expect(routerPush).not.toHaveBeenCalled()
-      expect(setPendingAircraftTarget).not.toHaveBeenCalled()
-      expect(setPendingSatelliteTarget).not.toHaveBeenCalled()
+    })
+
+    it('shows a pointer only on alerts that do something when clicked', () => {
+      registerNotificationTarget(aircraftLikeTarget())
+      seedItems([
+        makeItem({ id: 'target', hex: 'ab12cd', ts: 3 }),
+        makeItem({ id: 'action', clickAction: vi.fn(), ts: 2 }),
+        makeItem({ id: 'inert', noradId: '25544', ts: 1 }),
+      ])
+      const wrapper = mount(NotificationsPanel)
+      const styles = wrapper.findAll('.notif-item').map((row) => row.attributes('style') ?? '')
+      expect(styles[0]).toContain('cursor: pointer')
+      expect(styles[1]).toContain('cursor: pointer')
+      expect(styles[2]).not.toContain('cursor')
     })
   })
 
@@ -220,36 +195,24 @@ describe('NotificationsPanel', () => {
     })
   })
 
-  describe('cancelAutoTune', () => {
-    it('disables auto-tune, announces it, and dismisses the card', async () => {
-      setAutoTuneEnabled('25544', true, { name: 'ISS' })
-      expect(isAutoTuneEnabled('25544')).toBe(true)
-      const dispatched = vi.fn()
-      document.addEventListener('satellite-auto-tune-changed', dispatched)
-
+  describe('closing an autotune card', () => {
+    it('runs the registered dismiss hooks, then dismisses the card', async () => {
+      const calls: string[] = []
+      registerNotificationDismissHook('autotune', (item) => {
+        calls.push(`hook ${item.id}, still listed: ${useNotificationsStore().items.length}`)
+      })
       seedItems([makeItem({ id: '1', type: 'autotune', noradId: '25544', detail: 'Pass' })])
       const wrapper = mount(NotificationsPanel)
-      await wrapper.find('.notif-dismiss').trigger('click')
+      const close = wrapper.find('.notif-dismiss')
+      expect(close.attributes('aria-label')).toBe('Disable autotune')
 
-      expect(isAutoTuneEnabled('25544')).toBe(false)
-      expect(dispatched).toHaveBeenCalledOnce()
+      await close.trigger('click')
+
+      expect(calls).toEqual(['hook 1, still listed: 1'])
       expect(useNotificationsStore().items).toHaveLength(0)
-      document.removeEventListener('satellite-auto-tune-changed', dispatched)
     })
 
-    it('only dismisses when auto-tune was not enabled for the satellite', async () => {
-      const dispatched = vi.fn()
-      document.addEventListener('satellite-auto-tune-changed', dispatched)
-      seedItems([makeItem({ id: '1', type: 'autotune', noradId: '99999', detail: 'Pass' })])
-      const wrapper = mount(NotificationsPanel)
-      await wrapper.find('.notif-dismiss').trigger('click')
-
-      expect(dispatched).not.toHaveBeenCalled()
-      expect(useNotificationsStore().items).toHaveLength(0)
-      document.removeEventListener('satellite-auto-tune-changed', dispatched)
-    })
-
-    it('dismisses an autotune card that carries no noradId', async () => {
+    it('just dismisses when no section registered a hook', async () => {
       seedItems([makeItem({ id: '1', type: 'autotune', detail: 'Pass' })])
       const wrapper = mount(NotificationsPanel)
       await wrapper.find('.notif-dismiss').trigger('click')
