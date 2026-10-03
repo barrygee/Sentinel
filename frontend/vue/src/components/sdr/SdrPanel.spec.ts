@@ -67,6 +67,20 @@ vi.mock('@/services/sdrSearchApi', () => ({
 }))
 
 import SdrPanel from './SdrPanel.vue'
+import { createSdrRadioCapability, resetRadioEngineForTests } from './radioCapability'
+import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
+
+// Other sections tune the SDR through the sdr section's `radio` capability;
+// the mounted panel attaches itself as its engine. Fields are typed loosely
+// so a spec can send an incomplete or ill-typed request, as untyped callers
+// could.
+const sdrRadio = createSdrRadioCapability()
+function radioTune(fields: Record<string, unknown>): void {
+  sdrRadio.tune(fields as unknown as RadioTuneRequest)
+}
+function radioRestore(fields: Record<string, unknown>): void {
+  sdrRadio.restore(fields as RadioRestoreRequest)
+}
 
 enableAutoUnmount(afterEach)
 
@@ -158,6 +172,8 @@ function makeRadio(over: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  // No engine or queued radio call may leak from one spec into the next.
+  resetRadioEngineForTests()
   setActivePinia(createPinia())
   sockets = []
   fetchState = {
@@ -1360,18 +1376,55 @@ describe('SdrPanel — range search', () => {
 })
 
 // =============================================================================
-describe('SdrPanel — satellite auto-tune (external events)', () => {
-  function externalTune(detail: Record<string, unknown>) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', { detail }))
-  }
-  function externalRestore(detail: Record<string, unknown>) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-restore', { detail }))
-  }
+describe('SdrPanel — satellite auto-tune (radio capability)', () => {
+  it('applies a tune sent before the panel mounted, once its radios have loaded', async () => {
+    const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
+    radioTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS' })
+
+    await mountReady()
+    const socket = lastSocket()
+    socket.open()
+    await flushPromises()
+
+    expect(socket.sent.map((sent) => JSON.parse(sent))).toContainEqual({
+      cmd: 'tune',
+      frequency_hz: 145_800_000,
+    })
+    expect(notifAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'ISS AUTO-TUNED' }))
+  })
+
+  it('never attaches if it unmounts before its radios have loaded', async () => {
+    fetchState.radios = []
+    sessionStorage.removeItem('sdrLastRadioId')
+    const wrapper = mountPanel()
+    wrapper.unmount()
+    await flushPromises()
+    const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
+
+    radioTune({ hz: 100_000_000, satName: 'LATE' })
+    await flushPromises()
+
+    // An attached (stale) engine would have answered with a failure notice.
+    expect(notifAdd).not.toHaveBeenCalled()
+  })
+
+  it('stops receiving radio calls once unmounted', async () => {
+    fetchState.radios = []
+    sessionStorage.removeItem('sdrLastRadioId')
+    const wrapper = await mountReady()
+    wrapper.unmount()
+    const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
+
+    radioTune({ hz: 100_000_000, satName: 'AFTER' })
+    await flushPromises()
+
+    expect(notifAdd).not.toHaveBeenCalled()
+  })
 
   it('ignores an external tune with no frequency', async () => {
     const { socket } = await mountConnected()
     socket.sent.length = 0
-    externalTune({ hz: 0 })
+    radioTune({ hz: 0 })
     expect(socket.sent).toHaveLength(0)
   })
 
@@ -1383,7 +1436,7 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
     await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
     await flushPromises()
     socket.sent.length = 0
-    externalTune({ hz: 137_500_000, mode: 'FM', satName: 'NOAA-19', record: false })
+    radioTune({ hz: 137_500_000, mode: 'FM', satName: 'NOAA-19', record: false })
     await flushPromises()
     expect(socket.sent.map((s) => JSON.parse(s).cmd)).toContain('tune')
     expect(notifAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'NOAA-19 AUTO-TUNED' }))
@@ -1393,7 +1446,7 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
     const { socket } = await mountConnected()
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
     socket.sent.length = 0
-    externalTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS', record: true })
+    radioTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS', record: true })
     await flushPromises()
     expect(audioMock.initAudio).toHaveBeenCalled()
     expect(audioMock.startRecording).toHaveBeenCalled()
@@ -1407,10 +1460,10 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
     await wrapper.find('.sdr-freq-input-large').setValue('100.000')
     await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
     await flushPromises()
-    externalTune({ hz: 137_000_000, mode: 'FM', satName: 'PASS-A', token: 'A' })
+    radioTune({ hz: 137_000_000, mode: 'FM', satName: 'PASS-A', token: 'A' })
     await flushPromises()
     // A second pass (token B) arrives while A still holds → skipped.
-    externalTune({ hz: 138_000_000, mode: 'FM', satName: 'PASS-B', token: 'B' })
+    radioTune({ hz: 138_000_000, mode: 'FM', satName: 'PASS-B', token: 'B' })
     await flushPromises()
     expect(notifAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'PASS-B PASS SKIPPED' }))
   })
@@ -1421,7 +1474,7 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
     const wrapper = await mountReady()
     void wrapper
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
-    externalTune({ hz: 100_000_000, satName: 'SAT-X' })
+    radioTune({ hz: 100_000_000, satName: 'SAT-X' })
     await flushPromises()
     expect(notifAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'SAT-X AUTO-TUNE' }))
   })
@@ -1429,10 +1482,10 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
   it('restores to idle on LOS when the radio was stopped before the pass', async () => {
     const { socket } = await mountConnected()
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
-    externalTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
+    radioTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
     await flushPromises()
     socket.sent.length = 0
-    externalRestore({ satName: 'ISS', token: 'T1' })
+    radioRestore({ satName: 'ISS', token: 'T1' })
     await flushPromises()
     expect(audioMock.stop).toHaveBeenCalled()
     expect(notifAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'ISS PASS ENDED' }))
@@ -1440,11 +1493,11 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
 
   it('ignores a stale LOS whose token no longer matches', async () => {
     const { socket } = await mountConnected()
-    externalTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
+    radioTune({ hz: 145_800_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
     await flushPromises()
     socket.sent.length = 0
     audioMock.stop.mockClear() // isolate the restore's effect from async setup bleed
-    externalRestore({ satName: 'ISS', token: 'OTHER' })
+    radioRestore({ satName: 'ISS', token: 'OTHER' })
     await flushPromises()
     expect(audioMock.stop).not.toHaveBeenCalled()
   })
@@ -1455,10 +1508,10 @@ describe('SdrPanel — satellite auto-tune (external events)', () => {
     await wrapper.find('.sdr-freq-input-large').setValue('100.000')
     await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
     await flushPromises()
-    externalTune({ hz: 137_000_000, mode: 'FM', satName: 'NOAA', token: 'T2' })
+    radioTune({ hz: 137_000_000, mode: 'FM', satName: 'NOAA', token: 'T2' })
     await flushPromises()
     socket.sent.length = 0
-    externalRestore({ satName: 'NOAA', token: 'T2' })
+    radioRestore({ satName: 'NOAA', token: 'T2' })
     await flushPromises()
     const tune = socket.sent.map((s) => JSON.parse(s)).find((m) => m.cmd === 'tune')
     expect(tune?.frequency_hz).toBe(100_000_000)
@@ -2096,16 +2149,12 @@ describe('SdrPanel — scanner lock toggle & validation edges', () => {
 
 // =============================================================================
 describe('SdrPanel — auto-tune radio-selection branches', () => {
-  function externalTune(detail: Record<string, unknown>) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', { detail }))
-  }
-
   it('selects a different last-used radio when none is active', async () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1' })] // no auto-select
     sessionStorage.setItem('sdrLastRadioId', '2')
     const wrapper = await mountReady()
     void wrapper
-    externalTune({ hz: 145_000_000, mode: 'NFM', satName: 'SAT', token: 'Z' })
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'SAT', token: 'Z' })
     await flushPromises()
     // selectRadio(radio 2) was invoked → a control socket opened for it.
     expect(sockets.some((s) => s.url.includes('/ws/sdr/2'))).toBe(true)
@@ -2588,10 +2637,6 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
 
 // =============================================================================
 describe('SdrPanel — branch coverage B (modes, ranges, groups, recording)', () => {
-  function externalTune(detail: Record<string, unknown>) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', { detail }))
-  }
-
   it('coerces every demod mode string from an external tune', async () => {
     const { wrapper } = await mountConnected()
     await wrapper.find('.sdr-freq-input-large').setValue('100.000')
@@ -2607,7 +2652,7 @@ describe('SdrPanel — branch coverage B (modes, ranges, groups, recording)', ()
       ['weird', 'NFM'],
     ] as const) {
       audioMock.setMode.mockClear()
-      externalTune({ hz: 137_000_000, mode: input, satName: 'S' })
+      radioTune({ hz: 137_000_000, mode: input, satName: 'S' })
       await flushPromises()
       expect(audioMock.setMode).toHaveBeenCalledWith(expected)
     }
@@ -2698,11 +2743,7 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
   it('drains a queued external tune once the socket opens', async () => {
     const wrapper = await mountReady() // socket created but not yet open (CONNECTING)
     void wrapper
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'ISS' },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'ISS' })
     await flushPromises()
     const socket = lastSocket()
     socket.open() // open handler applies the pending tune
@@ -2885,12 +2926,6 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
 
 // =============================================================================
 describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
-  function externalTune(detail: Record<string, unknown>) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', { detail }))
-  }
-  function externalRestore(detail: Record<string, unknown>) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-restore', { detail }))
-  }
   async function play(wrapper: VueWrapper) {
     await wrapper.find('.sdr-freq-input-large').setValue('100.000')
     await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
@@ -2927,7 +2962,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
   it('ignores a restore with no prior auto-tune snapshot', async () => {
     const { wrapper } = await mountConnected()
     audioMock.stop.mockClear()
-    externalRestore({ satName: 'X', token: 'T' })
+    radioRestore({ satName: 'X', token: 'T' })
     await wrapper.vm.$nextTick()
     expect(audioMock.stop).not.toHaveBeenCalled()
   })
@@ -2935,13 +2970,13 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
   it('skips the restore entirely while a scan is active', async () => {
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const { wrapper } = await mountConnected()
-    externalTune({ hz: 145_000_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'ISS', token: 'T1' })
     await flushPromises()
     await accordionToggle(wrapper, 'sdr-scanner-section').trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scanActive
     audioMock.stop.mockClear()
-    externalRestore({ satName: 'ISS', token: 'T1' })
+    radioRestore({ satName: 'ISS', token: 'T1' })
     await flushPromises()
     // scanActive → onExternalTuneRestore returns before touching the radio.
     expect(audioMock.stop).not.toHaveBeenCalled()
@@ -2949,11 +2984,11 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
 
   it('finalises an auto-started recording and stops the idle radio on LOS', async () => {
     const { socket } = await mountConnected()
-    externalTune({ hz: 145_000_000, mode: 'NFM', satName: 'ISS', token: 'T1', record: true })
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'ISS', token: 'T1', record: true })
     await flushPromises()
     audioMock.stopRecording.mockClear()
     socket.sent.length = 0
-    externalRestore({ satName: 'ISS', token: 'T1' })
+    radioRestore({ satName: 'ISS', token: 'T1' })
     await flushPromises()
     // startedRecording → stopRecording; was idle before AOS → stop.
     expect(audioMock.stopRecording).toHaveBeenCalled()
@@ -2963,14 +2998,14 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
   it('leaves the radio alone on restore if the user retuned away', async () => {
     const { wrapper, socket } = await mountConnected()
     await play(wrapper)
-    externalTune({ hz: 137_000_000, mode: 'FM', satName: 'NOAA', token: 'T2' })
+    radioTune({ hz: 137_000_000, mode: 'FM', satName: 'NOAA', token: 'T2' })
     await flushPromises()
     // Manually retune away (the Tune button is disabled while playing, so use Enter).
     await wrapper.find('.sdr-freq-input-large').setValue('99.000')
     await wrapper.find('.sdr-freq-input-large').trigger('keydown.enter')
     await flushPromises()
     socket.sent.length = 0
-    externalRestore({ satName: 'NOAA', token: 'T2' })
+    radioRestore({ satName: 'NOAA', token: 'T2' })
     await flushPromises()
     // onTunedFreq is false → no restore tune.
     expect(socket.sent.map((s) => JSON.parse(s)).filter((m) => m.cmd === 'tune')).toHaveLength(0)
@@ -3238,11 +3273,7 @@ describe('SdrPanel — branch coverage F (guards & engine internals)', () => {
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan active
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'SAT', token: 'X' },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'SAT', token: 'X' })
     await flushPromises()
     // _isAutoTuneLockHeld returns false (scan active) → the tune proceeds (snapshot taken).
     expect(notifAdd).toHaveBeenCalled()
@@ -3257,11 +3288,7 @@ describe('SdrPanel — branch coverage F (guards & engine internals)', () => {
     await flushPromises()
     audioMock.startRecording.mockClear()
     // A second auto-tune recording attempt no-ops while already recording.
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'S', record: true },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'S', record: true })
     await flushPromises()
     expect(audioMock.startRecording).not.toHaveBeenCalled()
   })
@@ -3442,11 +3469,7 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
     sessionStorage.removeItem('sdrLastRadioId')
     const wrapper = await mountReady()
     void wrapper
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'S' },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'S' })
     await flushPromises()
     expect(sockets.length).toBeGreaterThan(0) // selectRadio(first enabled) opened a socket
   })
@@ -3571,11 +3594,7 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
     audioMock.startRecording.mockResolvedValueOnce(undefined as never)
     const { wrapper } = await mountConnected()
     void wrapper
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'S', record: true },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'S', record: true })
     await flushPromises()
     // _startRecording returned false → _startAutoTuneRecording bails (no RECORDING notif).
     expect(true).toBe(true)
@@ -3903,11 +3922,7 @@ describe('SdrPanel — branch coverage K (search helpers & guards)', () => {
     fetchState.frequencies = [makeFreq({ id: 10, frequency_hz: 118e6, scannable: true })]
     const { wrapper } = await mountConnected()
     // Take a pass so a snapshot exists.
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'A', token: 'A' },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'A', token: 'A' })
     await flushPromises()
     // Start a scan so _isAutoTuneLockHeld sees scanActive and returns false.
     await accordionToggle(wrapper, 'sdr-scanner-section').trigger('click')
@@ -3915,11 +3930,7 @@ describe('SdrPanel — branch coverage K (search helpers & guards)', () => {
     await wrapper.find('.sdr-search-adhoc-play').trigger('click')
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
     // A second overlapping pass: lock not held (scan) → proceeds, not skipped.
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 146_000_000, mode: 'NFM', satName: 'B', token: 'B' },
-      }),
-    )
+    radioTune({ hz: 146_000_000, mode: 'NFM', satName: 'B', token: 'B' })
     await flushPromises()
     expect(notifAdd.mock.calls.some(([o]) => /SKIPPED/.test((o as { title: string }).title))).toBe(
       false,
@@ -4040,11 +4051,7 @@ describe('SdrPanel — branch coverage L (final reachable paths)', () => {
     sessionStorage.setItem('sdrLastRadioId', '99') // no such radio → falls through to lastId branch then first-enabled
     const wrapper = await mountReady()
     void wrapper
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', satName: 'S' },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', satName: 'S' })
     await flushPromises()
     expect(sockets.length).toBeGreaterThan(0)
   })
@@ -4213,7 +4220,7 @@ describe('SdrPanel — defensive default branches', () => {
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
     socket.sent.length = 0
     // No satName → defaults to "SATELLITE".
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-tune-external', { detail: { hz: 145e6 } }))
+    radioTune({ hz: 145e6 })
     await flushPromises()
     expect(notifAdd).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'SATELLITE AUTO-TUNED' }),
@@ -4243,16 +4250,10 @@ describe('SdrPanel — remaining reachable branch arms', () => {
 
   it('defaults the satellite name when an external restore omits it', async () => {
     const { socket } = await mountConnected()
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-external', {
-        detail: { hz: 145_000_000, mode: 'NFM', token: 'T1' },
-      }),
-    )
+    radioTune({ hz: 145_000_000, mode: 'NFM', token: 'T1' })
     await flushPromises()
     const notifAdd = vi.spyOn(useNotificationsStore(), 'add')
-    document.dispatchEvent(
-      new CustomEvent('sentinel:sdr-tune-restore', { detail: { token: 'T1' } }),
-    )
+    radioRestore({ token: 'T1' })
     await flushPromises()
     expect(notifAdd).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'SATELLITE PASS ENDED' }),
