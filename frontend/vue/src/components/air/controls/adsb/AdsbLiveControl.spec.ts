@@ -36,7 +36,7 @@ vi.mock('maplibre-gl', () => {
 })
 
 // Sprite factories touch <canvas>; stub them to opaque sentinels.
-vi.mock('./adsbSprites', () => {
+vi.mock('@/components/shared/map-kit/sprites/adsbSprites', () => {
   const fake = () =>
     ({ width: 1, height: 1, data: new Uint8ClampedArray(4) }) as unknown as ImageData
   return {

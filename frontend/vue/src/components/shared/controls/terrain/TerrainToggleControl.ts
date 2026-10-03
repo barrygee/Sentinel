@@ -1,4 +1,4 @@
-import { SentinelControlBase } from '@/components/air/controls/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@/stores/basemap'
 import type { OfflineMapsStore } from '@/stores/offlineMaps'
 import type { MapTheme } from '@/stores/theme'

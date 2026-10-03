@@ -19,7 +19,7 @@ shared base — never inline logic in the map view component. (Project rule from
 
 ## The base class
 
-`components/air/controls/sentinel-control-base/SentinelControlBase.ts`
+`components/shared/map-kit/sentinel-control-base/SentinelControlBase.ts`
 (`abstract class SentinelControlBase implements maplibregl.IControl`) owns the
 chrome so features only implement behavior:
 

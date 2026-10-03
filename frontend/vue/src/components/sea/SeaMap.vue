@@ -38,7 +38,7 @@ import { NamesToggleControl } from '@/components/shared/controls/names/NamesTogg
 import { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsToggleControl'
 import { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 import { SentrySitesControl } from '@/components/shared/controls/sentry-sites/SentrySitesControl'
-import { LandRangeRingsControl } from '@/components/land/controls/range-rings/LandRangeRingsControl'
+import { LandRangeRingsControl } from '@/components/shared/controls/range-rings/LandRangeRingsControl'
 import { AisVesselsControl } from './controls/vessels/AisVesselsControl'
 import { FerryRoutesControl } from './controls/ferry-routes/FerryRoutesControl'
 import { PortsControl } from './controls/ports/PortsControl'

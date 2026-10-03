@@ -75,7 +75,7 @@ vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
 vi.mock('@/components/shared/controls/sentry-sites/SentrySitesControl', () => ({
   SentrySitesControl: controlMocks.make('sentrySites'),
 }))
-vi.mock('@/components/land/controls/range-rings/LandRangeRingsControl', () => ({
+vi.mock('@/components/shared/controls/range-rings/LandRangeRingsControl', () => ({
   LandRangeRingsControl: controlMocks.make('rangeRings'),
 }))
 vi.mock('./controls/vessels/AisVesselsControl', () => ({

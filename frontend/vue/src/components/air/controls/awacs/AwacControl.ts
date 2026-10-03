@@ -1,4 +1,4 @@
-import { SentinelControlBase } from '../sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
 import type { AirStore } from '../types'
 
 // ---- AWACS orbit zone dataset ----
