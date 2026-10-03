@@ -88,7 +88,7 @@ class TestMappingOntoTheAppsShape:
 
     def test_preserves_the_per_aircraft_fields_verbatim(self) -> None:
         # airplanes.live derives its feed from readsb, so the field names already
-        # match — copying them through unchanged is what keeps labels, replay and
+        # match — copying them through unchanged is what keeps labels and
         # overhead alerts working off one shape.
         aircraft = {
             "hex": "4009f5",

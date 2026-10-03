@@ -12,6 +12,16 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 # Path to the bundled default config — used to seed the DB on first startup.
 _CONFIG_PATH = Path(__file__).parent / "default_config.json"
 
+# Tables left behind by removed features, dropped by create_tables() on
+# startup. Ordered child-first so the drop works even with foreign keys on.
+_REMOVED_TABLES: tuple[str, ...] = (
+    # Air flight replay (removed 2026-10-03): position snapshots, flight
+    # sessions and the aircraft identity registry they hung off.
+    "air_snapshots",
+    "air_flights",
+    "air_aircraft",
+)
+
 # Async SQLAlchemy engine backed by SQLite via aiosqlite
 engine = create_async_engine(
     f"sqlite+aiosqlite:///{settings.db_path}",
@@ -20,7 +30,7 @@ engine = create_async_engine(
 
 
 # SQLite serialises writes on a single file lock. Concurrent endpoints (e.g.
-# multiple ADS-B cache upserts plus a background flight-history writer) can
+# multiple ADS-B cache upserts plus the SDR/AIS/APRS writers) can
 # collide and raise "database is locked" — surfaced as a 500. WAL lets readers
 # proceed during writes, and busy_timeout makes new writers wait up to N ms for
 # the lock instead of failing immediately.
@@ -64,7 +74,6 @@ async def create_tables():
             "ALTER TABLE sdr_radios ADD COLUMN bandwidth INTEGER",
             "ALTER TABLE sdr_radios ADD COLUMN rf_gain REAL",
             "ALTER TABLE sdr_radios ADD COLUMN agc INTEGER",
-            "ALTER TABLE air_aircraft ADD COLUMN callsign TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE sdr_frequency_groups ADD COLUMN slug TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE satellite_catalogue ADD COLUMN uplink_hz INTEGER",
             "ALTER TABLE satellite_catalogue ADD COLUMN uplink_mode TEXT",
@@ -131,14 +140,14 @@ async def create_tables():
             )
         except OperationalError:
             pass
-        for idx_sql in [
-            "CREATE INDEX IF NOT EXISTS ix_air_flights_registration ON air_flights (registration)",
-            "CREATE INDEX IF NOT EXISTS ix_air_snapshots_flight_id_ts ON air_snapshots (flight_id, ts)",
-            "CREATE INDEX IF NOT EXISTS ix_air_aircraft_last_seen ON air_aircraft (last_seen DESC)",
-            "CREATE INDEX IF NOT EXISTS ix_air_snapshots_ts ON air_snapshots (ts)",
-            "CREATE INDEX IF NOT EXISTS ix_air_flights_started_last ON air_flights (started_at, last_active_at)",
-        ]:
-            await conn.execute(sa_text(idx_sql))
+        # Air flight replay (removed 2026-10-03) recorded ADS-B history into
+        # these three tables. Nothing reads or writes them any more, so drop
+        # them (and their indexes with them) from existing databases rather
+        # than leave the recorded history on disk. Child tables first, in case
+        # an older schema ever declared real foreign keys. Idempotent: a fresh
+        # install never had them.
+        for removed_table in _REMOVED_TABLES:
+            await conn.execute(sa_text(f"DROP TABLE IF EXISTS {removed_table}"))
     # Ensure recordings directory exists inside the data volume
     recordings_dir = Path(settings.db_path).parent / "recordings"
     recordings_dir.mkdir(parents=True, exist_ok=True)
@@ -269,6 +278,9 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
     # Connectivity auto mode (removed 2026-09-29): the URL it probed to detect
     # internet access. Connectivity is now an explicit online/offgrid choice.
     ("app", "connectivityProbeUrl"),
+    # Air flight replay (removed 2026-10-03): the opt-in switch that turned on
+    # ADS-B history recording. The recorded tables are dropped in create_tables.
+    ("air", "replayEnabled"),
 )
 
 # Key-prefix families pruned the same way, for removed features that stored one

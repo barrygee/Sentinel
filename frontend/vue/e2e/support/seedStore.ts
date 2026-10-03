@@ -10,24 +10,9 @@ import type { Page } from '@playwright/test'
  * control initial store state without touching application code.
  *
  * Usage:
- *   await seedAirReplayEnabled(page, true)
+ *   await seedSidebarOpen(page, true)
  *   await page.goto('/air/')
  */
-
-/**
- * Seed the `airReplayEnabled` localStorage flag.
- * The air store reads `localStorage.getItem('airReplayEnabled') === '1'`
- * synchronously on construction. Seeding before goto ensures the REPLAY
- * tab renders in the sidebar rail.
- */
-export async function seedAirReplayEnabled(page: Page, enabled: boolean): Promise<void> {
-  await page.addInitScript(
-    (value: string) => {
-      localStorage.setItem('airReplayEnabled', value)
-    },
-    enabled ? '1' : '0',
-  )
-}
 
 /**
  * Seed the map-sidebar open/closed state in sessionStorage.

@@ -334,8 +334,8 @@ describe('semantic theme tokens', () => {
 
   it('scopes each palette to both the themed root and a pinned island', () => {
     // An island class pins its palette regardless of `<html data-theme>`: the
-    // settings panel is light in both themes, and the map sidebar is pinned
-    // dark until the domain panes inside it move onto the tokens. Both only
+    // settings panel is light in both themes, and the SDR page is pinned dark
+    // (its spectrum trace and waterfall are an instrument view). Both only
     // work while the values are reachable through the class as well as the
     // root selector.
     const selectorLists = [...ruleBodies(templateCss).keys()]
@@ -356,11 +356,10 @@ describe('semantic theme tokens', () => {
     }
 
     expect(settingsPanelVue).toContain('class="theme-light"')
-    // The sidebar pins the panes whose contents have not moved onto the tokens
-    // yet (passes, playback, radio) — the class may sit alongside others.
-    expect(
-      readFileSync(resolve(process.cwd(), 'src/components/shared/MapSidebar.vue'), 'utf8'),
-    ).toMatch(/class="[^"]*\btheme-dark\b/)
+    // The SDR page pins the dark island — the class may sit alongside others.
+    expect(readFileSync(resolve(process.cwd(), 'src/components/sdr/SdrView.vue'), 'utf8')).toMatch(
+      /class="[^"]*\btheme-dark\b/,
+    )
   })
 
   it('leaves no colour literals in the retrofitted settings panel stylesheet', () => {

@@ -9,7 +9,7 @@ window (``land``/``aprsRetentionMinutes``, default 5 min) are dropped by
 
 Kept deliberately small and self-contained (its own ``AsyncSessionLocal``
 sessions) so it can be called from the ingest endpoint and the background sweep
-alike, mirroring ``flight_history``.
+alike.
 """
 
 from __future__ import annotations

@@ -23,6 +23,9 @@ export const REMOVED_STORAGE_KEYS: readonly string[] = [
   // Connectivity auto mode (removed 2026-09-29): the URL it probed to detect
   // internet access. Connectivity is now an explicit ONLINE / OFF GRID choice.
   'sentinel_app_connectivityProbeUrl',
+  // Air flight replay (removed 2026-10-03): the cached opt-in switch that
+  // recorded ADS-B history and showed the REPLAY sidebar tab.
+  'airReplayEnabled',
 ]
 
 /**

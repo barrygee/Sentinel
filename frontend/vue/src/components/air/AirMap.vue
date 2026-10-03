@@ -55,8 +55,6 @@ import { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBa
 import { AaraToggleControl } from './controls/aara/AaraControl'
 import { AwacToggleControl } from './controls/awacs/AwacControl'
 import { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
-import { AirMultiPlaybackControl } from './controls/adsb/AirMultiPlaybackControl'
-import { usePlaybackStore, PLAYBACK_SPEEDS } from '@/stores/playback'
 
 const appStore = useAppStore()
 const airStore = useAirStore()
@@ -65,7 +63,6 @@ const notificationsStore = useNotificationsStore()
 const airNotifStore = useAirNotifStore()
 const trackingStore = useTrackingStore()
 const settingsStore = useSettingsStore()
-const playbackStore = usePlaybackStore()
 const sentrySitesStore = useSentrySitesStore()
 const themeStore = useThemeStore()
 const offlineMapsStore = useOfflineMapsStore()
@@ -101,8 +98,6 @@ const ctxMenu = useMapContextMenu()
 // Cached map instance — plain variable, never reactive
 let _map: MapLibreGlMap | null = null
 let _currentStyleUrl: string | null = null
-let _multiPlaybackControl: AirMultiPlaybackControl | null = null
-let _playbackTimer: ReturnType<typeof setTimeout> | null = null
 
 // Control instances — plain variables, initialised in onStyleLoaded
 let adsbControl: AdsbLiveControl | null = null
@@ -296,63 +291,6 @@ function onStyleLoaded(m: MapLibreGlMap) {
   if (!syncStyleToState()) offlineTierRefresh.applyCurrentVersion()
 }
 
-async function _loadMultiPlayback(): Promise<void> {
-  if (!adsbControl || !_map || !playbackStore.pendingStartMs || !playbackStore.pendingEndMs) {
-    playbackStore.exit()
-    return
-  }
-  try {
-    const resp = await fetch(
-      `/api/air/snapshots?start_ms=${playbackStore.pendingStartMs}&end_ms=${playbackStore.pendingEndMs}`,
-    )
-    if (!resp.ok) {
-      playbackStore.exit()
-      return
-    }
-    const data = await resp.json()
-    playbackStore.setData(data)
-    settingsStore.closePanel()
-    _multiPlaybackControl?.destroy()
-    _multiPlaybackControl = new AirMultiPlaybackControl(_map, adsbControl)
-    _multiPlaybackControl.renderAtTime(playbackStore.cursorMs!, playbackStore.aircraft)
-    playbackStore.play()
-  } catch {
-    playbackStore.exit()
-  }
-}
-
-const PLAYBACK_TICK_MS = 100
-
-function _schedulePlaybackTick(): void {
-  _stopPlaybackTimer()
-  /* v8 ignore start -- defensive: every caller (status watch, speed watch, the
-     tick's own reschedule) only invokes this while status is 'playing', so the
-     guard is never the path taken. */
-  if (playbackStore.status !== 'playing') return
-  /* v8 ignore stop */
-  const cursor = playbackStore.cursorMs!
-  const end = playbackStore.windowEndMs!
-  if (cursor >= end) {
-    playbackStore.pause()
-    return
-  }
-
-  _playbackTimer = setTimeout(() => {
-    const speed = PLAYBACK_SPEEDS[playbackStore.speedIdx]
-    const nextCursor = Math.min(end, cursor + PLAYBACK_TICK_MS * speed)
-    playbackStore.seek(nextCursor)
-    _multiPlaybackControl?.renderAtTime(nextCursor, playbackStore.aircraft)
-    if (playbackStore.status === 'playing') _schedulePlaybackTick()
-  }, PLAYBACK_TICK_MS)
-}
-
-function _stopPlaybackTimer(): void {
-  if (_playbackTimer) {
-    clearTimeout(_playbackTimer)
-    _playbackTimer = null
-  }
-}
-
 // Drop the marker. Bound both to the userLocation watcher (null transition) and
 // to sentinel:userLocationCleared so a config-clear is deterministic even if the
 // watcher already ran with a stale
@@ -466,48 +404,11 @@ onMounted(() => {
   // Only the drawn zones are driven here; overhead-alert detection lives in
   // useAirAlertsService, off the same list.
   watch(activeZones, (zones) => overheadZoneControl?.setZones(zones), { immediate: true })
-
-  watch(
-    () => playbackStore.status,
-    async (status) => {
-      if (status === 'loading') {
-        adsbControl?.pauseLive()
-        await _loadMultiPlayback()
-      } else if (status === 'idle') {
-        _stopPlaybackTimer()
-        _multiPlaybackControl?.destroy()
-        _multiPlaybackControl = null
-      } else if (status === 'playing') {
-        _schedulePlaybackTick()
-      } else if (status === 'paused') {
-        _stopPlaybackTimer()
-      }
-    },
-  )
-
-  watch(
-    () => playbackStore.speedIdx,
-    () => {
-      if (playbackStore.status === 'playing') _schedulePlaybackTick()
-    },
-  )
-
-  watch(
-    () => playbackStore.cursorMs,
-    (ms) => {
-      // Handles manual scrubbing (timer tick calls renderAtTime directly)
-      if (ms !== null && _multiPlaybackControl && playbackStore.status !== 'playing')
-        _multiPlaybackControl.renderAtTime(ms, playbackStore.aircraft)
-    },
-  )
 })
 
 onBeforeUnmount(() => {
   clearAircraftClickHandler()
   window.removeEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
-  _stopPlaybackTimer()
-  _multiPlaybackControl?.destroy()
-  _multiPlaybackControl = null
   const m = _map
   ctxMenu.detach(m)
   if (m) {

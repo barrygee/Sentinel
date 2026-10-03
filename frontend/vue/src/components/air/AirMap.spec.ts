@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
+import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { defineComponent, h, nextTick } from 'vue'
 
@@ -34,7 +34,6 @@ const controlMocks = vi.hoisted(() => {
       handleConnectivityChange = vi.fn()
       syncToAdsb = vi.fn()
       selectByHex = vi.fn()
-      pauseLive = vi.fn()
       setLocationAvailable = vi.fn()
       setOrigin = vi.fn()
       ringsVisible = false
@@ -125,9 +124,6 @@ vi.mock('./controls/awacs/AwacControl', () => ({ AwacToggleControl: controlMocks
 vi.mock('./controls/adsb/AdsbLiveControl', () => ({
   AdsbLiveControl: controlMocks.make('adsb'),
 }))
-vi.mock('./controls/adsb/AirMultiPlaybackControl', () => ({
-  AirMultiPlaybackControl: controlMocks.make('multiPlayback'),
-}))
 
 vi.mock('@/components/shared/UserLocationMarker', () => ({
   UserLocationMarker: class {
@@ -190,8 +186,6 @@ import { useAppStore } from '@/stores/app'
 import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
-import { useSettingsStore } from '@/stores/settings'
-import { usePlaybackStore } from '@/stores/playback'
 import { getAircraftClickHandler } from '@/stores/notifications'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
@@ -797,149 +791,6 @@ describe('AirMap', () => {
       const wrapper = mountMap()
       shared.emit!('map-created', map)
       expect((wrapper.vm as unknown as { getMap: () => unknown }).getMap()).toBe(map)
-    })
-  })
-
-  describe('playback', () => {
-    it('exits immediately when the playback window is incomplete', async () => {
-      const playback = usePlaybackStore()
-      const map = makeFakeMap()
-      mountMap()
-      bringUp(map)
-      playback.pendingStartMs = null
-      playback.activate() // status → loading
-      await flushPromises()
-      expect(last('adsb').pauseLive).toHaveBeenCalled()
-      expect(playback.status).toBe('idle')
-    })
-
-    it('exits when the snapshot fetch is not ok', async () => {
-      const playback = usePlaybackStore()
-      ;(fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false })
-      const map = makeFakeMap()
-      mountMap()
-      bringUp(map)
-      playback.pendingStartMs = 1000
-      playback.pendingEndMs = 2000
-      playback.activate()
-      await flushPromises()
-      expect(playback.status).toBe('idle')
-    })
-
-    it('exits when the snapshot fetch rejects', async () => {
-      const playback = usePlaybackStore()
-      ;(fetch as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network'))
-      const map = makeFakeMap()
-      mountMap()
-      bringUp(map)
-      playback.pendingStartMs = 1000
-      playback.pendingEndMs = 2000
-      playback.activate()
-      await flushPromises()
-      expect(playback.status).toBe('idle')
-    })
-
-    // Loads a window under real timers (so flushPromises resolves the fetch),
-    // leaving playback in the 'playing' state with the control constructed.
-    async function loadWindow(playback: ReturnType<typeof usePlaybackStore>, endMs = 1000) {
-      ;(fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          start_ms: 0,
-          end_ms: endMs,
-          aircraft: { ABC: { snapshots: [{ ts: 0 }] } },
-        }),
-      })
-      const map = makeFakeMap()
-      mountMap()
-      bringUp(map)
-      // Non-zero pending values: the load guard treats 0 as "incomplete".
-      playback.pendingStartMs = 1
-      playback.pendingEndMs = endMs
-      playback.activate()
-      await flushPromises()
-    }
-
-    it('loads data, closes the panel and starts playing', async () => {
-      const playback = usePlaybackStore()
-      const settings = useSettingsStore()
-      const closeSpy = vi.spyOn(settings, 'closePanel')
-      await loadWindow(playback)
-      expect(closeSpy).toHaveBeenCalled()
-      expect(controlMocks.instances.multiPlayback).toHaveLength(1)
-      expect(playback.status).toBe('playing')
-    })
-
-    it('advances the cursor on a tick and pauses at the end of the window', async () => {
-      const playback = usePlaybackStore()
-      await loadWindow(playback, 1000)
-      // Re-schedule the tick loop under fake timers for deterministic stepping.
-      vi.useFakeTimers()
-      playback.pause()
-      await nextTick()
-      playback.play()
-      await nextTick()
-
-      vi.advanceTimersByTime(100)
-      expect(last('multiPlayback').renderAtTime).toHaveBeenCalled()
-      expect(playback.cursorMs).toBeGreaterThan(0)
-
-      vi.advanceTimersByTime(2000)
-      expect(playback.status).toBe('paused')
-    })
-
-    it('reschedules on a speed change while playing, but not while paused', async () => {
-      const playback = usePlaybackStore()
-      await loadWindow(playback, 10000)
-      vi.useFakeTimers()
-      // Playing → speed change reschedules the tick (true branch).
-      playback.speedIdx = 1
-      await nextTick()
-      // Paused → speed change schedules nothing (false branch).
-      playback.pause()
-      await nextTick()
-      playback.speedIdx = 2
-      await nextTick()
-      // Manual scrub while paused re-renders via the cursor watch.
-      last('multiPlayback').renderAtTime.mockClear()
-      playback.seek(500)
-      await nextTick()
-      expect(last('multiPlayback').renderAtTime).toHaveBeenCalled()
-    })
-
-    it('stops rescheduling when the status flips away from playing mid-tick', async () => {
-      const playback = usePlaybackStore()
-      await loadWindow(playback, 100000)
-      vi.useFakeTimers()
-      // A render that pauses playback simulates the status changing between the
-      // tick being scheduled and its callback running.
-      last('multiPlayback').renderAtTime.mockImplementation(() => playback.pause())
-      playback.pause()
-      await nextTick()
-      playback.play()
-      await nextTick()
-      vi.advanceTimersByTime(100)
-      // The tick ran once, observed the paused status and did not reschedule.
-      expect(playback.status).toBe('paused')
-    })
-
-    it('ignores a status with no matching watch arm', async () => {
-      const playback = usePlaybackStore()
-      await loadWindow(playback)
-      // 'ready' is a valid status but no playback watch arm handles it.
-      expect(() => {
-        playback.status = 'ready'
-      }).not.toThrow()
-      await nextTick()
-    })
-
-    it('tears down the multi-playback control when playback returns to idle', async () => {
-      const playback = usePlaybackStore()
-      await loadWindow(playback)
-      const multi = last('multiPlayback')
-      playback.exit() // status → idle, cursorMs → null
-      await nextTick()
-      expect(multi.destroy).toHaveBeenCalled()
     })
   })
 

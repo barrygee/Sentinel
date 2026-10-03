@@ -20,7 +20,6 @@
   },
   "air": {
     "enabled": true,
-    "replayEnabled": false,
     "sourceOverride": "online",
     "onlineDataSourceURL": "https://api.adsb.lol/v2",
     "offgridDataSourceURL": {

@@ -18,7 +18,6 @@ export const SIDEBAR_PANE_IDS = {
   alerts: 'msb-pane-alerts',
   tracking: 'msb-pane-tracking',
   passes: 'msb-pane-passes',
-  playback: 'msb-pane-playback',
   radio: 'msb-pane-radio',
 } as const
 

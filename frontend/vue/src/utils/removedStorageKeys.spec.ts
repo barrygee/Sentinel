@@ -13,6 +13,7 @@ describe('clearRemovedStorageKeys', () => {
       'sdrTrunkChannelMap',
       'adsbLabelFields',
       'sentinel_app_connectivityProbeUrl',
+      'airReplayEnabled',
     ])
   })
 

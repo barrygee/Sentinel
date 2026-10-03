@@ -589,14 +589,12 @@ describe('SettingsPanel', () => {
         'map-layers',
         'air-overhead-alerts',
         'air-tag-fields',
-        'air-replay-toggle',
       ])
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'DATA SOURCES',
         'MAP',
         'ALERTS',
         'LABELS',
-        'REPLAY',
       ])
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',
