@@ -1,5 +1,7 @@
 import { registerSection } from '@/shell/sectionRegistry'
+import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
 import AirView from './AirView.vue'
+import { airSidebarFilter } from './airSidebarFilter'
 
 /**
  * Registers the AIR section with the shell (route + nav entry).
@@ -15,3 +17,6 @@ registerSection({
   navOrder: 10,
   route: { path: '/air/', component: AirView },
 })
+
+// FILTER rail sub-tabs (F2).
+registerSidebarFilterSubTabs('air', airSidebarFilter)

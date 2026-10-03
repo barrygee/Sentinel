@@ -91,7 +91,7 @@ export const REPEATER_LOCATE_EVENT = 'land-locate-repeater'
 
 /**
  * The rail button's repeater glyph: a mast on splayed legs with RX/TX arcs either side
- * of the antenna (the same artwork FilterSubTabIcon draws for the REPEATERS
+ * of the antenna (the same artwork LandFilterSubTabIcon draws for the REPEATERS
  * sub-tab — keep them in step). The map label pills deliberately don't carry
  * it — at marker size the tower is unreadable, so their well holds a plain
  * filled dot instead (see the `symbol` field below).

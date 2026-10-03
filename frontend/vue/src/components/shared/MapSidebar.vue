@@ -2,6 +2,7 @@
   <div v-if="!hideTabs" id="map-sidebar-rail">
     <template v-for="tab in tabs" :key="tab.id">
       <BaseIconButton
+        v-show="!tab.sectionId || tab.sectionId === activeDomain"
         class="msb-rail-btn"
         :class="{
           'msb-rail-btn-active': activeTab === tab.id && open,
@@ -58,21 +59,8 @@
           />
           <circle cx="12" cy="9" r="2.2" fill="currentColor" />
         </svg>
-        <!-- passes -->
-        <svg
-          v-else-if="tab.id === 'passes'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          stroke-linecap="round"
-        >
-          <path d="M2 22 C4 14, 10 6, 14 2" stroke="currentColor" stroke-width="1.6" />
-          <path d="M10 22 C12 14, 18 6, 22 2" stroke="currentColor" stroke-width="1.6" />
-          <path d="M18 22 C20 17, 24 12, 26 9" stroke="currentColor" stroke-width="1.6" />
-        </svg>
+        <!-- a section-only tab (e.g. Space's PASSES) brings its own glyph -->
+        <component :is="tab.icon" v-else-if="tab.icon" />
       </BaseIconButton>
 
       <!-- Category sub-tabs: rail buttons shown beneath the FILTER tab while it
@@ -89,8 +77,8 @@
         v-for="sub in tab.id === 'search' && activeTab === 'search' && open ? filterSubTabs : []"
         :key="`sub-${sub.id}`"
         class="msb-rail-btn msb-rail-subbtn"
-        :class="{ 'msb-rail-btn-active': isFilterCategoryActive(sub.id) }"
-        :active="isFilterCategoryActive(sub.id)"
+        :class="{ 'msb-rail-btn-active': sub.active }"
+        :active="sub.active"
         :disabled="sub.disabled"
         style="
           --ba-rail-bg: var(--rail-surface);
@@ -101,10 +89,10 @@
         tooltip-side="right"
         :tooltip="sub.label"
         :accessible-name="sub.label"
-        :aria-pressed="isFilterCategoryActive(sub.id)"
-        @click="selectFilterCategory(sub.id)"
+        :aria-pressed="sub.active"
+        @click="selectFilterSubTab(sub)"
       >
-        <FilterSubTabIcon :category="sub.id" />
+        <component :is="sub.icon" :category="sub.id" />
       </BaseIconButton>
     </template>
   </div>
@@ -158,34 +146,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, type Component } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
-import FilterSubTabIcon from './FilterSubTabIcon.vue'
 import FilterFunnelIcon from './FilterFunnelIcon.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
-import { useAirStore, type AdsbTypeFilter, type AirFilterCategory } from '@/stores/air'
-import { useSpaceStore } from '@/stores/space'
-import { useSeaStore } from '@/stores/sea'
-import { SEA_FILTER_CATEGORIES, type SeaFilterCategory } from '@/utils/aisShipType'
-import { useLandStore, type LandLayer } from '@/stores/land'
-import { useSdrStore } from '@/stores/sdr'
-import { SATELLITE_CATEGORY_SECTION_LABELS } from '@/utils/satelliteUtils'
 import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
+import {
+  getSidebarFilterSubTabs,
+  getSidebarSectionTabs,
+  type SidebarFilterSubTab,
+} from '@/shell/sidebarRegistry'
 
 const notifStore = useNotificationsStore()
-const airStore = useAirStore()
-const spaceStore = useSpaceStore()
-const seaStore = useSeaStore()
-const landStore = useLandStore()
-const sdrStore = useSdrStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)
 
-const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
-  passes: 'space',
+// Tabs only one section shows: 'radio' (the SDR route applies it) plus every
+// section-only tab a section registered (Space's 'passes').
+const SECTION_ONLY_TABS: Record<string, string> = {
   radio: 'sdr',
+  ...Object.fromEntries(getSidebarSectionTabs().map((tab) => [tab.id, tab.sectionId])),
 }
 
 withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
@@ -226,125 +208,47 @@ watch(
   { immediate: true },
 )
 
-const tabs = computed(() => [
-  { id: 'search' as SidebarTab, label: 'FILTER' },
-  { id: 'alerts' as SidebarTab, label: 'ALERTS' },
-  { id: 'tracking' as SidebarTab, label: 'TRACKING' },
-  { id: 'passes' as SidebarTab, label: 'PASSES' },
+interface RailTab {
+  id: SidebarTab
+  label: string
+  /** Set on a section-only tab: shown only on that section's routes. */
+  sectionId?: string
+  /** A section-only tab's glyph (core tabs draw theirs inline above). */
+  icon?: Component
+}
+
+const tabs = computed<RailTab[]>(() => [
+  { id: 'search', label: 'FILTER' },
+  { id: 'alerts', label: 'ALERTS' },
+  { id: 'tracking', label: 'TRACKING' },
+  ...getSidebarSectionTabs(),
 ])
 
-// FILTER category sub-tabs shown in the rail beneath the FILTER tab. Air has a
-// fixed set; Space is data-driven (only categories that currently have satellites,
-// published by SpaceFilter into the store). Empty on other domains (no sub-tabs).
-// The three aircraft tabs share the aircraft list and set the ADS-B type
-// filter (all / civil / military) on the map as well.
-const AIR_AIRCRAFT_SUBTABS: Record<string, AdsbTypeFilter> = {
-  aircraft: 'all',
-  civil: 'civil',
-  milAircraft: 'mil',
+// FILTER category sub-tabs shown in the rail beneath the FILTER tab — whatever
+// the active section registered (shell/sidebarRegistry.ts); none for a section
+// that registered nothing (e.g. SDR). Each entry carries its lit state, glyph
+// and select action from that section.
+interface RailFilterSubTab extends SidebarFilterSubTab {
+  active: boolean
+  icon: Component
+  select: () => void
 }
-const AIR_FILTER_SUBTABS: { id: string; label: string }[] = [
-  { id: 'aircraft', label: 'ALL AIRCRAFT' },
-  { id: 'civil', label: 'CIVIL AIRCRAFT' },
-  { id: 'milAircraft', label: 'MILITARY AIRCRAFT' },
-  { id: 'airports', label: 'AIRPORTS' },
-  { id: 'mil', label: 'MILITARY BASES' },
-]
-const SEA_FILTER_SUBTABS: { id: string; label: string }[] = SEA_FILTER_CATEGORIES.map(
-  (category) => ({
-    id: category,
-    label: category === 'all' ? 'ALL VESSELS' : category.toUpperCase(),
-  }),
-)
-interface FilterSubTab {
-  id: string
-  label: string
-  /** Greyed out, with the label saying why (Land's APRS with no receiver). */
-  disabled?: boolean
-}
-// Land's tabs are layer toggles. APRS has a receiver only once an SDR has been
-// named as the APRS radio in Settings → LAND; without one nothing is decoding,
-// so its tab is disabled rather than offering a layer that could only be empty.
-const landFilterSubTabs = computed<FilterSubTab[]>(() => {
-  const aprsSourceConfigured = sdrStore.aprsRadioId !== null
-  return [
-    {
-      id: 'aprs',
-      label: aprsSourceConfigured ? 'APRS STATIONS' : 'APRS STATIONS — NO SDR SET',
-      disabled: !aprsSourceConfigured,
-    },
-    { id: 'repeaters', label: 'REPEATERS' },
-  ]
-})
-const filterSubTabs = computed<FilterSubTab[]>(() => {
-  if (activeDomain.value === 'air') return AIR_FILTER_SUBTABS
-  if (activeDomain.value === 'sea') return SEA_FILTER_SUBTABS
-  if (activeDomain.value === 'land') return landFilterSubTabs.value
-  if (activeDomain.value === 'space')
-    return spaceStore.spaceAvailableCategories.map((cat) => ({
-      id: cat,
-      label: SATELLITE_CATEGORY_SECTION_LABELS[cat] || cat.replace(/_/g, ' ').toUpperCase(),
-    }))
-  return []
+const filterSubTabs = computed<RailFilterSubTab[]>(() => {
+  const section = getSidebarFilterSubTabs(activeDomain.value)
+  if (!section) return []
+  return section.tabs().map((subTab) => ({
+    ...subTab,
+    active: section.isActive(subTab.id),
+    icon: section.icon,
+    select: () => section.select(subTab.id),
+  }))
 })
 
-// The currently-selected FILTER category for the single-select domains,
-// driving the sub-tab active highlight.
-const activeFilterCategory = computed<string>(() => {
-  if (activeDomain.value === 'air') return airStore.airFilterCategory
-  if (activeDomain.value === 'sea') return seaStore.seaFilterCategory
-  // defensive: the only reader of this computed is the per-item v-for below,
-  // gated on the same air/space check via filterSubTabs — for every other
-  // domain that list is empty, so the v-for body (and this computed) is never
-  // evaluated with a non-air activeDomain that also isn't 'space'. Kept as a
-  // safe fallback if a future reader (e.g. an always-rendered aria-current)
-  // accesses it unconditionally.
-  /* v8 ignore start -- unreachable given the current v-for gating; see above */
-  if (activeDomain.value === 'space') return spaceStore.spaceFilterCategory
-  return ''
-  /* v8 ignore stop */
-})
-
-/** Whether a sub-tab is lit: the chosen category on Air/Sea/Space, the
- *  layer the map is drawing on Land. */
-function isFilterCategoryActive(id: string): boolean {
-  if (activeDomain.value === 'land') return landStore.activeLayer === id
-  if (activeDomain.value === 'air' && id in AIR_AIRCRAFT_SUBTABS) {
-    return (
-      airStore.airFilterCategory === 'aircraft' &&
-      airStore.adsbTypeFilter === AIR_AIRCRAFT_SUBTABS[id]
-    )
-  }
-  return activeFilterCategory.value === id
-}
-
-// Pick a FILTER category from a rail sub-tab: open the panel on the FILTER tab and
-// set the active domain's category so its search pane shows just that list —
-// or, on Land, make that the one layer the map draws, saved as
-// `land.defaultLayers` at once.
-function selectFilterCategory(id: string) {
+// Pick a FILTER category from a rail sub-tab: open the panel on the FILTER tab,
+// then let the section apply it (show just that list, or draw that layer).
+function selectFilterSubTab(subTab: RailFilterSubTab) {
   switchTab('search')
-  if (activeDomain.value === 'air') {
-    const typeFilter = AIR_AIRCRAFT_SUBTABS[id]
-    if (typeFilter) {
-      airStore.setAirFilterCategory('aircraft')
-      airStore.setAdsbTypeFilter(typeFilter)
-    } else {
-      airStore.setAirFilterCategory(id as AirFilterCategory)
-    }
-  } else if (activeDomain.value === 'sea') {
-    seaStore.setSeaFilterCategory(id as SeaFilterCategory)
-  } else if (activeDomain.value === 'land') {
-    landStore.selectLayer(id as LandLayer)
-    void landStore.persistDefaultLayers()
-  } else {
-    // defensive: this is only ever called from the sub-tab rail buttons,
-    // themselves only rendered (via filterSubTabs) for the air/space domains —
-    // so once 'air' is excluded, the domain here is always 'space'.
-    /* v8 ignore start -- unreachable given the sub-tab rail gating; see above */
-    if (activeDomain.value === 'space') spaceStore.setSpaceFilterCategory(id)
-    /* v8 ignore stop */
-  }
+  subTab.select()
 }
 
 // Change the active tab without altering the panel's open/closed state.
@@ -445,7 +349,7 @@ function _restoreOpen(): boolean {
 function _restoreTab(domain: string): SidebarTab {
   const saved = _readTabMap()[domain]
   if (!saved || !(VALID_TABS as readonly string[]).includes(saved)) return 'search'
-  const required = DOMAIN_SPECIFIC_TABS[saved]
+  const required = SECTION_ONLY_TABS[saved]
   if (required && required !== domain) return 'search' // defensive
   return saved as SidebarTab
 }
@@ -677,10 +581,6 @@ defineExpose({
    `.msb-rail-btn`/`.msb-rail-btn-active`/`.msb-rail-btn-pulse`/`.msb-rail-subbtn`
    classes above remain on the rendered buttons (passed through to the atom)
    purely so the selectors below and existing tests can still target them. */
-
-body:not([data-domain='space']) #map-sidebar-rail .msb-rail-btn[data-tab='passes'] {
-  display: none;
-}
 
 body[data-domain='sdr'] #map-sidebar-rail {
   display: none;
