@@ -47,6 +47,7 @@ from pathlib import Path
 
 import numpy as np
 from backend.config import settings
+from backend.platform.bus import bus
 from backend.services.sdr import RadioBroadcaster, _iq_bytes_to_complex
 
 logger = logging.getLogger(__name__)
@@ -1129,6 +1130,31 @@ def get_ais_bridge(host: str, port: int) -> AisDecodeBridge | None:
 
 def get_active_ais_bridge() -> AisDecodeBridge | None:
     return next(iter(_ais_bridges.values()), None)
+
+
+async def _on_ais_status_request(_payload: dict) -> dict[str, object]:
+    """Bus responder: report the active AIS decode bridge's state (B3).
+
+    Registered on ``hub.decode.ais.status`` so Sea's router no longer imports
+    this module (and reads bridge state in-process) — it asks the bus instead,
+    exactly reproducing what ``get_active_ais_bridge()`` + the bridge's
+    properties returned for ``routers/sea.py``'s off-grid status snapshot.
+    ``channel_a_hz``/``channel_b_hz`` are ``None`` when no bridge is active,
+    matching the previous direct-call shape byte-for-byte.
+    """
+    bridge = get_active_ais_bridge()
+    return {
+        "running": bool(bridge and bridge.running),
+        "on_channel": bool(bridge and bridge.on_channel),
+        "decoder_reachable": bool(bridge and bridge.decoder_reachable),
+        "channel_a_hz": bridge.channel_a_hz if bridge else None,
+        "channel_b_hz": bridge.channel_b_hz if bridge else None,
+    }
+
+
+# Registered at import time (not in the app lifespan) so tests — which skip
+# lifespan — still get a responder; see backend/platform/bus.py's docstring.
+bus.reply("hub.decode.ais.status", _on_ais_status_request)
 
 
 async def get_or_create_ais_bridge(

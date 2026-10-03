@@ -25,6 +25,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from backend.platform.bus import bus
 from backend.services import ais_store
 
 # AIVDM message types that carry a position (ITU-R M.1371):
@@ -149,3 +150,19 @@ def ingest_event(event: dict[str, Any]) -> bool:
     if envelope is None:
         return False
     return ais_store.store.ingest_envelope(envelope)
+
+
+async def _on_decode_event(payload: dict) -> None:
+    """Bus subscriber: feed a decoded AIS event into the live vessel store (B2).
+
+    Subscribed to ``decode.ais.*`` — the SDR hub's ingest endpoint keeps its
+    409 gate and secret check, but publishes the decoded event here instead of
+    calling straight into this module, so Sea (not the SDR router) owns the
+    write.
+    """
+    ingest_event(payload["event"])
+
+
+# Registered at import time (not in the app lifespan) so tests — which skip
+# lifespan — still get this subscriber; see backend/platform/bus.py's docstring.
+bus.subscribe("decode.ais.*", _on_decode_event)
