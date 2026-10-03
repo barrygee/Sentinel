@@ -436,6 +436,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the military base CLICK TO ZOOM hover hint
 - Clear aircraft alert click handler when the Air map unmounts
 - Allow the off-grid ADS-B SDR source to be set back to "Not set"
+- Make CANCEL ALL ALERTS actually turn alerts off
 
 ### Chores
 
@@ -1331,6 +1332,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #389 from barrygee/refactor/p1-decode-events-bus
 - Merge remote-tracking branch 'origin/main' into refactor/p2-section-registry
 - Merge pull request #390 from barrygee/refactor/p2-section-registry
+- Merge pull request #391 from barrygee/fix/settings-clear-alerts
 
 ### Refactoring
 
