@@ -1,5 +1,7 @@
 # Sentinel NestJS Rebuild — Architecture Plan
 
+> **Superseded (2026-09-30)** as a deployment model by [`section-containers.md`](section-containers.md) — owner decision. Its module inventory (§3, Appendix A) remains a useful reference.
+
 Date: 2026-09-12
 Author: tech lead (architect agent)
 Status: proposed — for product-owner sign-off before Phase 0 starts

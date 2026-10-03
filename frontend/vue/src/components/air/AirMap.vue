@@ -21,7 +21,11 @@ import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
-import { useNotificationsStore, registerAircraftClickHandler } from '@/stores/notifications'
+import {
+  useNotificationsStore,
+  registerAircraftClickHandler,
+  clearAircraftClickHandler,
+} from '@/stores/notifications'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useTrackingStore } from '@/stores/tracking'
 import { useSettingsStore } from '@/stores/settings'
@@ -499,6 +503,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearAircraftClickHandler()
   window.removeEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
   _stopPlaybackTimer()
   _multiPlaybackControl?.destroy()
