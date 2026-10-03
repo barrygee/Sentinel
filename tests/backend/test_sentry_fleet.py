@@ -737,3 +737,47 @@ async def test_a_poll_does_not_touch_another_hosts_radios(session_factory, monke
     await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
 
     assert (await _reload_radio(session_factory, other_radio))["port"] == 1111
+
+
+async def test_a_port_follow_is_announced_like_a_settings_write(session_factory, monkeypatch):
+    # B7: sdr.radios is a core setting, so the hub writes it through the
+    # settings client — which announces settings.changed.sdr exactly as
+    # PUT /api/settings/sdr/radios would.
+    from backend.platform.bus import bus
+
+    host_id = await _create_host(session_factory)
+    radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=2345, host_id=host_id)
+    monkeypatch.setattr(
+        sentry_fleet,
+        "SentryClient",
+        _fake_client_class([_status_with_device("serial:AAA", 4343)]),
+    )
+    announced: list[dict] = []
+    unsubscribe = bus.subscribe("settings.changed.sdr", announced.append)
+    try:
+        await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+    finally:
+        unsubscribe()
+
+    assert [payload["keys"] for payload in announced] == [["radios"]]
+    assert (await _reload_radio(session_factory, radio_id))["port"] == 4343
+
+
+async def test_an_unchanged_poll_announces_nothing(session_factory, monkeypatch):
+    from backend.platform.bus import bus
+
+    host_id = await _create_host(session_factory)
+    await _create_radio(session_factory, device_id="serial:AAA", port=4343, host_id=host_id)
+    monkeypatch.setattr(
+        sentry_fleet,
+        "SentryClient",
+        _fake_client_class([_status_with_device("serial:AAA", 4343)]),
+    )
+    announced: list[dict] = []
+    unsubscribe = bus.subscribe("settings.changed.sdr", announced.append)
+    try:
+        await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+    finally:
+        unsubscribe()
+
+    assert announced == []

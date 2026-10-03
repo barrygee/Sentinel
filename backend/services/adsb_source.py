@@ -13,21 +13,21 @@ step. See Sentinel ADR-0003.
 window where the device is ours but still on the wrong frequency, and a second
 request that can fail on its own means handling "claimed but not tuned" — a
 state nothing wants to be in and nothing would clean up.
+
+**Air never talks to Sentry itself.** The Sentry hosts and their console
+passwords belong to the radio hub, so every claim, release and address lookup
+is a bus request to the hub's reservation proxy
+(`services/sentry_reservations.py`, plan item B6). The hub supplies the lease
+holder — this Sentinel's `app.instanceId` — so Air does not handle that either.
 """
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
 from typing import Any
 
 from backend.db_helpers import get_setting, upsert_setting
-from backend.models import SentryHost
-from backend.services.sentry_client import (
-    SentryApiError,
-    SentryClient,
-    SentryUnreachableError,
-)
+from backend.platform.bus import bus
 from sqlalchemy.ext.asyncio import AsyncSession
 
 ADSB_CENTRE_HZ = 1_090_000_000
@@ -60,8 +60,14 @@ or two without leaving a dongle held for minutes after its user has gone."""
 
 SOURCE_SETTING_NAMESPACE = "air"
 SOURCE_SETTING_KEY = "offgridSdrSource"
-INSTANCE_ID_NAMESPACE = "app"
-INSTANCE_ID_KEY = "instanceId"
+
+# Request subjects answered by the radio hub's reservation proxy.
+ACQUIRE_SUBJECT = "hub.sentry.reservation.acquire"
+RELEASE_SUBJECT = "hub.sentry.reservation.release"
+DEVICE_ADDRESS_SUBJECT = "hub.sentry.device.address"
+HUB_REQUEST_TIMEOUT: float | None = None
+"""No bus-level limit: the hub's Sentry client already bounds every call with
+its connect/read timeouts, and one claim may be several Sentry round trips."""
 
 RESERVATION_LABEL = "Sentinel — AIR (ADS-B)"
 """What Sentry's console shows against the claimed device. Names the *view*, not
@@ -85,23 +91,6 @@ class AdsbSource:
 
     host_id: int
     device_id: str
-
-
-async def get_instance_id(db: AsyncSession) -> str:
-    """This Sentinel's stable identity, as seen by Sentry's reservations.
-
-    Generated once and stored, because it is the only thing distinguishing
-    "renewing my own lease" from "stealing someone else's". A value regenerated
-    per process — or per request — would lock this Sentinel out of the device it
-    is holding the moment it restarted, and it would have to wait out the lease
-    it took itself.
-    """
-    stored = await get_setting(db, INSTANCE_ID_NAMESPACE, INSTANCE_ID_KEY)
-    if isinstance(stored, str) and stored:
-        return stored
-    generated = f"sentinel:{uuid.uuid4()}"
-    await upsert_setting(db, INSTANCE_ID_NAMESPACE, INSTANCE_ID_KEY, generated)
-    return generated
 
 
 async def get_source(db: AsyncSession) -> AdsbSource | None:
@@ -139,19 +128,47 @@ async def clear_source(db: AsyncSession) -> None:
     await upsert_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY, None)
 
 
-async def _client_for_source(db: AsyncSession, source: AdsbSource) -> SentryClient:
-    host = await db.get(SentryHost, source.host_id)
-    if host is None:
-        raise AdsbSourceError(
+def _host_error(reply: dict[str, Any]) -> AdsbSourceError | None:
+    """The operator-facing error for a host the hub could not use, if that is what failed."""
+    if reply["reason"] == "unknown_host":
+        return AdsbSourceError(
             "unknown_host",
             "The Sentry host this ADS-B source belongs to no longer exists. Pick a source again.",
         )
-    if not host.enabled:
-        raise AdsbSourceError(
+    if reply["reason"] == "host_disabled":
+        return AdsbSourceError(
             "host_disabled",
-            f"The Sentry host {host.name or host.address} is switched off in Sentinel.",
+            f"The Sentry host {reply['host_label']} is switched off in Sentinel.",
         )
-    return SentryClient(host.address, host.port, host.auth_token)
+    return None
+
+
+def _acquire_error(reply: dict[str, Any]) -> AdsbSourceError:
+    """Translate a failed hub acquire reply into the error an operator sees."""
+    host_error = _host_error(reply)
+    if host_error is not None:
+        return host_error
+    if reply["reason"] == "unreachable":
+        return AdsbSourceError("host_unreachable", reply["message"])
+    if reply["stage"] == "patch":
+        return AdsbSourceError(
+            reply["code"] or "tuning_failed",
+            f"The device was claimed but could not be tuned: {reply['message']}",
+        )
+    if reply["status_code"] == 409:
+        context = reply["context"]
+        return AdsbSourceError(
+            "device_reserved",
+            reply["message"],
+            holder=context.get("holder"),
+            label=context.get("label"),
+        )
+    if reply["status_code"] == 401:
+        return AdsbSourceError(
+            "unauthenticated",
+            "Sentinel could not sign in to that Sentry. Check its console password in Settings → SDR.",
+        )
+    return AdsbSourceError(reply["code"] or "sentry_error", reply["message"])
 
 
 async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, Any]:
@@ -174,38 +191,16 @@ async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, 
             "No Sentry SDR is set as the Off Grid ADS-B source. Choose one in Settings → AIR.",
         )
 
-    holder = await get_instance_id(db)
-    client = await _client_for_source(db, source)
-
-    try:
-        reservation = await client.acquire_reservation(
-            source.device_id,
-            holder=holder,
-            label=RESERVATION_LABEL,
-            ttl_seconds=RESERVATION_TTL_SECONDS,
-            force=force,
-        )
-    except SentryUnreachableError as error:
-        raise AdsbSourceError("host_unreachable", str(error)) from error
-    except SentryApiError as error:
-        if error.status_code == 409:
-            raise AdsbSourceError(
-                "device_reserved",
-                error.message,
-                holder=error.context.get("holder"),
-                label=error.context.get("label"),
-            ) from error
-        if error.status_code == 401:
-            raise AdsbSourceError(
-                "unauthenticated",
-                "Sentinel could not sign in to that Sentry. Check its console password in Settings → SDR.",
-            ) from error
-        raise AdsbSourceError(error.code or "sentry_error", error.message) from error
-
-    try:
-        await client.patch_device(
-            source.device_id,
-            {
+    reply = await bus.request(
+        ACQUIRE_SUBJECT,
+        {
+            "db": db,
+            "host_id": source.host_id,
+            "device_id": source.device_id,
+            "label": RESERVATION_LABEL,
+            "ttl_seconds": RESERVATION_TTL_SECONDS,
+            "force": force,
+            "patch": {
                 "center_hz": ADSB_CENTRE_HZ,
                 "sample_rate": ADSB_SAMPLE_RATE,
                 # Fixed maximum gain, not AGC — see `ADSB_GAIN_DB`.
@@ -213,19 +208,15 @@ async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, 
                 "gain_db": ADSB_GAIN_DB,
                 "enabled": True,
             },
-            holder=holder,
-        )
-    except SentryUnreachableError as error:
-        raise AdsbSourceError("host_unreachable", str(error)) from error
-    except SentryApiError as error:
-        raise AdsbSourceError(
-            error.code or "tuning_failed",
-            f"The device was claimed but could not be tuned: {error.message}",
-        ) from error
+        },
+        timeout=HUB_REQUEST_TIMEOUT,
+    )
+    if not reply["ok"]:
+        raise _acquire_error(reply)
 
     return {
         "source": {"sentry_host_id": source.host_id, "sentry_device_id": source.device_id},
-        "reservation": reservation.data,
+        "reservation": reply["reservation"],
         "tuned": {"center_hz": ADSB_CENTRE_HZ, "sample_rate": ADSB_SAMPLE_RATE},
         "renew_within_seconds": RENEWAL_INTERVAL_SECONDS,
     }
@@ -241,13 +232,12 @@ async def release(db: AsyncSession) -> bool:
     source = await get_source(db)
     if source is None:
         return False
-    holder = await get_instance_id(db)
-    try:
-        client = await _client_for_source(db, source)
-        await client.release_reservation(source.device_id, holder=holder)
-    except (AdsbSourceError, SentryUnreachableError, SentryApiError):
-        return False
-    return True
+    reply = await bus.request(
+        RELEASE_SUBJECT,
+        {"db": db, "host_id": source.host_id, "device_id": source.device_id},
+        timeout=HUB_REQUEST_TIMEOUT,
+    )
+    return bool(reply["ok"])
 
 
 async def get_decoder_config(db: AsyncSession) -> dict[str, Any]:
@@ -265,21 +255,15 @@ async def get_decoder_config(db: AsyncSession) -> dict[str, Any]:
     if source is None:
         return {"configured": False, "rtl_tcp": None}
 
-    host = await db.get(SentryHost, source.host_id)
-    if host is None:
+    reply = await bus.request(
+        DEVICE_ADDRESS_SUBJECT,
+        {"db": db, "host_id": source.host_id, "device_id": source.device_id},
+        timeout=HUB_REQUEST_TIMEOUT,
+    )
+    if not reply["ok"] or not reply["found"]:
         return {"configured": False, "rtl_tcp": None}
-
-    client = SentryClient(host.address, host.port, host.auth_token)
-    try:
-        export = await client.get_sdr_export()
-    except (SentryUnreachableError, SentryApiError):
-        return {"configured": False, "rtl_tcp": None}
-
-    for device in (export.data or {}).get("sdrs", []):
-        if device.get("sentry_device_id") == source.device_id:
-            return {
-                "configured": True,
-                "rtl_tcp": {"host": device.get("host"), "port": device.get("port")},
-                "sentry_device_id": source.device_id,
-            }
-    return {"configured": False, "rtl_tcp": None}
+    return {
+        "configured": True,
+        "rtl_tcp": {"host": reply["host"], "port": reply["port"]},
+        "sentry_device_id": source.device_id,
+    }
