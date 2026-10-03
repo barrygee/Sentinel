@@ -1318,6 +1318,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #382 from barrygee/fix/air-alert-click-handler
 - Merge pull request #383 from barrygee/docs/section-containers-plan
 - Merge pull request #384 from barrygee/test/p0-parity-baseline
+- Merge branch 'main' into refactor/p1-bus-settings-feed
+- Merge pull request #385 from barrygee/refactor/p1-bus-settings-feed
 
 ### Refactoring
 
@@ -1388,6 +1390,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Flip the SDR list tabs, keep the RADIO tab dark
 - Extract BaseWarningNotice from the map notice banner
 - Say "alerts" instead of "notifications" across the app
+- Add in-process event bus and break the settings/sdr import cycle
 
 ### Documentation
 
