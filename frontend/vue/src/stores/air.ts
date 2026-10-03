@@ -256,16 +256,6 @@ function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
   }
 }
 
-const LS_REPLAY_ENABLED_KEY = 'airReplayEnabled'
-
-function readPersistedReplayEnabled(): boolean {
-  try {
-    return localStorage.getItem(LS_REPLAY_ENABLED_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
 /** The pre-split app-wide radius. Read only to migrate it onto the operator's
  *  own alert location — nothing else uses it now. */
 function readPersistedRadius(): number {
@@ -288,9 +278,6 @@ export const useAirStore = defineStore('air', () => {
   )
   /** Overhead-alert settings per location — see `OverheadAlertConfig`. */
   const overheadAlerts = ref<Record<string, OverheadAlertConfig>>(readPersistedOverheadAlerts())
-  // Replay (flight history recording + REPLAY tab). Opt-in, default OFF.
-  // localStorage for instant restore; DB hydrate happens in main.ts at startup.
-  const replayEnabled = ref<boolean>(readPersistedReplayEnabled())
   const filterQuery = ref('')
   const filterOpen = ref(false)
   // The active FILTER category (aircraft / airports / military bases), driven by
@@ -351,13 +338,6 @@ export const useAirStore = defineStore('air', () => {
 
   function setAdsbTagFields(fields: AdsbTagFields) {
     adsbTagFields.value = fields
-  }
-
-  function setReplayEnabled(on: boolean) {
-    replayEnabled.value = on
-    try {
-      localStorage.setItem(LS_REPLAY_ENABLED_KEY, on ? '1' : '0')
-    } catch {}
   }
 
   /** The settings for one location, falling back to "off, default radius". */
@@ -453,7 +433,6 @@ export const useAirStore = defineStore('air', () => {
     hydrateOverheadAlerts,
     loadOverheadAlertsFromConfig,
     forgetOverheadAlert,
-    replayEnabled,
     filterQuery,
     filterOpen,
     airFilterCategory,
@@ -466,7 +445,6 @@ export const useAirStore = defineStore('air', () => {
     persistMapLayers,
     hydrateMapLayers,
     setAdsbTagFields,
-    setReplayEnabled,
     setFilter,
     setAirFilterCategory,
     adsbTypeFilter,

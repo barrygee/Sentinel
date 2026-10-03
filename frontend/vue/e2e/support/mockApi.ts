@@ -91,12 +91,6 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     if (route.request().method() !== 'GET') void route.fulfill({ status: 204 })
     else void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
   })
-  await page.route('**/api/air/recordings/**', (route) => {
-    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
-  })
-  await page.route('**/api/air/snapshots**', (route) => {
-    void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
-  })
 
   // Space TLE status — report data present so NoUrlOverlay hides
   await page.route('/api/space/tle/status', (route) => {

@@ -100,54 +100,6 @@
     ]
   },
   {
-    "path": "/api/air/recordings/available-dates",
-    "type": "Route",
-    "name": "get_available_dates",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/snapshots",
-    "type": "Route",
-    "name": "get_snapshots_window",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/flights",
-    "type": "Route",
-    "name": "list_aircraft_history",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/flights/{registration}",
-    "type": "Route",
-    "name": "list_flights_for_aircraft",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/flights/{registration}/{flight_id}",
-    "type": "Route",
-    "name": "get_flight_snapshots",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/flights/{registration}",
-    "type": "Route",
-    "name": "delete_aircraft_history",
-    "methods": [
-      "DELETE"
-    ]
-  },
-  {
     "path": "/api/space/iss",
     "type": "Route",
     "name": "get_iss",
@@ -969,6 +921,14 @@
     "name": "put_source",
     "methods": [
       "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr/adsb/source",
+    "type": "Route",
+    "name": "delete_source",
+    "methods": [
+      "DELETE"
     ]
   },
   {

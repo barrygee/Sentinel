@@ -28,7 +28,16 @@ from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import UserSettings
-from backend.services import ais_store, sdr_decode
+from backend.platform.bus import bus
+
+# Imported for its side effect (B2): registers the decode.ais.* bus subscriber
+# that upserts off-grid AIS events into ais_store, at module-import time so it
+# is in place even in tests, which skip the app lifespan. This router never
+# calls ais_decode directly — it only reads ais_store.
+from backend.services import (
+    ais_decode,  # noqa: F401
+    ais_store,
+)
 from backend.services.ais_stream import key_fingerprint, reader
 from backend.utils import resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -68,7 +77,7 @@ def _parse_bbox(raw: str | None) -> tuple[float, float, float, float] | None:
     return south, west, north, east
 
 
-def _offgrid_decode_snapshot() -> dict[str, object]:
+async def _offgrid_decode_snapshot() -> dict[str, object]:
     """Feed status for the off-grid source: the SDR AIS decode bridge.
 
     Shaped exactly like :meth:`AisStreamReader.snapshot` — same keys, same
@@ -85,11 +94,15 @@ def _offgrid_decode_snapshot() -> dict[str, object]:
     The retune case is deliberately not ``live``: the vessel picture is going
     stale either way, and calling it live would hide the one fault the operator
     can actually see and fix.
+
+    Reads the bridge's state over the bus (``hub.decode.ais.status``, B3)
+    rather than importing ``services.sdr_decode`` directly, so Sea never reads
+    the decode bridge in-process.
     """
-    bridge = sdr_decode.get_active_ais_bridge()
-    running = bool(bridge and bridge.running)
-    on_channel = bool(bridge and bridge.on_channel)
-    decoder_reachable = bool(bridge and bridge.decoder_reachable)
+    bridge_state = await bus.request("hub.decode.ais.status", {})
+    running = bool(bridge_state["running"])
+    on_channel = bool(bridge_state["on_channel"])
+    decoder_reachable = bool(bridge_state["decoder_reachable"])
     if not running:
         status, error = "no-source", "No off-grid AIS receiver selected"
     elif not decoder_reachable:
@@ -116,8 +129,8 @@ def _offgrid_decode_snapshot() -> dict[str, object]:
         # troubleshooting steps. Absent from the online snapshot.
         "decoderReachable": decoder_reachable,
         "onChannel": on_channel,
-        "channelAHz": bridge.channel_a_hz if bridge else None,
-        "channelBHz": bridge.channel_b_hz if bridge else None,
+        "channelAHz": bridge_state["channel_a_hz"],
+        "channelBHz": bridge_state["channel_b_hz"],
     }
 
 
@@ -136,7 +149,7 @@ async def _ensure_active_feed(db: AsyncSession) -> dict[str, object]:
     # after a switch never serves the previous source's vessels.
     await ais_store.store.switch_source(mode)
     if mode == "offgrid":
-        return _offgrid_decode_snapshot()
+        return await _offgrid_decode_snapshot()
     await reader.ensure()
     return {"mode": "online", **reader.snapshot()}
 

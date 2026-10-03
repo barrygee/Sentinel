@@ -73,31 +73,6 @@
           <path d="M10 22 C12 14, 18 6, 22 2" stroke="currentColor" stroke-width="1.6" />
           <path d="M18 22 C20 17, 24 12, 26 9" stroke="currentColor" stroke-width="1.6" />
         </svg>
-        <!-- playback / replay -->
-        <svg
-          v-else-if="tab.id === 'playback'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M20 12 A8 8 0 1 1 16.5 5.4"
-            stroke="currentColor"
-            stroke-width="1.8"
-            fill="none"
-          />
-          <polyline
-            points="20,2 20,6 16,6"
-            stroke="currentColor"
-            stroke-width="1.8"
-            fill="none"
-            stroke-linejoin="miter"
-          />
-          <polygon points="9.5,8 9.5,16 16,12" fill="currentColor" />
-        </svg>
       </BaseIconButton>
 
       <!-- Category sub-tabs: rail buttons shown beneath the FILTER tab while it
@@ -170,16 +145,6 @@
         >
           <slot name="passes" />
         </div>
-        <!-- `theme-dark` pins the dark palette for this pane and anything
-             teleported into it. The replay timeline paints itself on a <canvas>, which no stylesheet reaches — it moves with the other canvas/overlay palettes.
-             Drop the class with that slice. -->
-        <div
-          :id="SIDEBAR_PANE_IDS.playback"
-          class="msb-pane theme-dark"
-          :class="{ 'msb-pane-active': activeTab === 'playback' }"
-        >
-          <slot name="playback" />
-        </div>
       </template>
       <div
         :id="SIDEBAR_PANE_IDS.radio"
@@ -220,27 +185,21 @@ const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 const DOMAIN_SPECIFIC_TABS: Record<string, string> = {
   passes: 'space',
-  playback: 'air',
   radio: 'sdr',
 }
 
 withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
 
-type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'playback' | 'radio'
+type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'radio'
 
 const SS_KEY = 'sentinel_sidebar_open'
 // Per-domain tab memory in localStorage (survives refresh): each section
 // remembers its own last tab, so returning to Space resumes 'passes' while Air
-// resumes 'playback'. 'radio' is never stored (it's re-applied by the SDR route).
+// resumes e.g. 'tracking'. 'radio' is never stored (it's re-applied by the SDR
+// route). A stored tab that no longer exists (e.g. the removed air REPLAY tab's
+// 'playback') fails the VALID_TABS check and restores to 'search'.
 const SS_TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
-const VALID_TABS: readonly SidebarTab[] = [
-  'search',
-  'alerts',
-  'tracking',
-  'passes',
-  'playback',
-  'radio',
-]
+const VALID_TABS: readonly SidebarTab[] = ['search', 'alerts', 'tracking', 'passes', 'radio']
 
 function _domainFromPath(): string {
   return window.location.pathname.split('/').filter(Boolean)[0] ?? ''
@@ -272,8 +231,6 @@ const tabs = computed(() => [
   { id: 'alerts' as SidebarTab, label: 'ALERTS' },
   { id: 'tracking' as SidebarTab, label: 'TRACKING' },
   { id: 'passes' as SidebarTab, label: 'PASSES' },
-  // REPLAY tab only appears when air replay recording is enabled (Settings > AIR).
-  ...(airStore.replayEnabled ? [{ id: 'playback' as SidebarTab, label: 'REPLAY' }] : []),
 ])
 
 // FILTER category sub-tabs shown in the rail beneath the FILTER tab. Air has a
@@ -390,15 +347,6 @@ function selectFilterCategory(id: string) {
   }
 }
 
-// If replay gets disabled while the REPLAY tab is active, fall back to SEARCH so
-// the now-hidden pane isn't left showing.
-watch(
-  () => airStore.replayEnabled,
-  (enabled) => {
-    if (!enabled && activeTab.value === 'playback') setTab('search')
-  },
-)
-
 // Change the active tab without altering the panel's open/closed state.
 function setTab(tab: SidebarTab) {
   activeTab.value = tab
@@ -435,11 +383,6 @@ function show() {
 function hide() {
   open.value = false
   _persistOpen(false)
-}
-
-function openPlaybackTab() {
-  show()
-  switchTab('playback')
 }
 
 // The SDR route force-opens the panel to show the radio tab. Remember whether the
@@ -504,8 +447,6 @@ function _restoreTab(domain: string): SidebarTab {
   if (!saved || !(VALID_TABS as readonly string[]).includes(saved)) return 'search'
   const required = DOMAIN_SPECIFIC_TABS[saved]
   if (required && required !== domain) return 'search' // defensive
-  // REPLAY is hidden when air replay recording is off — don't restore into it.
-  if (saved === 'playback' && !airStore.replayEnabled) return 'search'
   return saved as SidebarTab
 }
 
@@ -532,15 +473,14 @@ useDocumentEvent('sentinel:domain-changed', (e: Event) => {
   // SDR is special: its 'radio' tab is applied by App.vue's isSdrRoute watch, so
   // don't touch activeTab here (closeRadioTab handles leaving SDR).
   if (domain === 'sdr') return
-  // Restore the tab this section was last left on (Space → 'passes', Air →
-  // 'playback', else 'search'). This makes per-section tab memory work on in-app
+  // Restore the tab this section was last left on (Space → 'passes', else the
+  // section's own saved tab, defaulting to 'search'). This makes per-section tab memory work on in-app
   // navigation. Panel open/closed state is left untouched.
   setTab(_restoreTab(domain))
 })
 
 defineExpose({
   switchTab,
-  openPlaybackTab,
   openRadioTab,
   closeRadioTab,
   show,
@@ -742,10 +682,6 @@ body:not([data-domain='space']) #map-sidebar-rail .msb-rail-btn[data-tab='passes
   display: none;
 }
 
-body:not([data-domain='air']) #map-sidebar-rail .msb-rail-btn[data-tab='playback'] {
-  display: none;
-}
-
 body[data-domain='sdr'] #map-sidebar-rail {
   display: none;
 }
@@ -775,16 +711,6 @@ body[data-domain='sdr'] #map-sidebar-rail {
 
 body[data-domain='sdr'] #map-sidebar {
   left: 44px;
-}
-
-#msb-pane-playback {
-  overflow-y: auto;
-  scrollbar-width: none;
-  flex-direction: column;
-}
-
-#msb-pane-playback::-webkit-scrollbar {
-  display: none;
 }
 
 #msb-pane-radio {

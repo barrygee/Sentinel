@@ -42,7 +42,6 @@
       "mil": false,
       "radiusNm": 10
     },
-    "replayEnabled": false,
     "sourceOverride": "online"
   },
   "app": {

@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
-import {
-  clearPersistedState,
-  seedSidebarOpen,
-  seedSidebarTabMap,
-  seedAirReplayEnabled,
-} from './support/seedStore'
+import { clearPersistedState, seedSidebarOpen, seedSidebarTabMap } from './support/seedStore'
 
 /**
  * Map sidebar tests: open/close, rail tab switching, domain-specific tabs,
- * REPLAY tab gating, SDR route behaviour, and mobile close affordance.
+ * SDR route behaviour, and mobile close affordance.
  */
 
 test.describe('Map sidebar', () => {
@@ -91,37 +86,11 @@ test.describe('Map sidebar', () => {
     await expect(page.locator('[data-tab="passes"]')).toBeVisible()
   })
 
-  test('REPLAY tab is absent when air replay is disabled (default)', async ({ page }) => {
-    // Default: airReplayEnabled = false (the key is '0' or absent)
+  test('Air has no REPLAY tab (flight replay was removed)', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
-    // The REPLAY tab button should not be in the DOM at all when replay is off
-    await expect(page.locator('[data-tab="playback"]')).not.toBeVisible()
-  })
-
-  test('REPLAY tab appears when airReplayEnabled is seeded to true', async ({ page }) => {
-    await seedAirReplayEnabled(page, true)
-    // Also stub the settings API to return replayEnabled:true — main.ts reads this
-    // and would otherwise override the localStorage seed with false (default)
-    await page.route('/api/settings', (route) => {
-      void route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          air: { enabled: true, replayEnabled: true },
-          space: { enabled: true },
-          sea: { enabled: true },
-          land: { enabled: true },
-          sdr: { enabled: true },
-          app: {},
-        }),
-      })
-    })
-    await page.goto('/air/')
-    await waitForShellHydration(page)
-
-    // With replay enabled: the playback tab button should be present and visible
-    await expect(page.locator('[data-tab="playback"]')).toBeVisible()
+    await expect(page.locator('[data-tab="playback"]')).toHaveCount(0)
   })
 
   test('SDR route hides the main rail and shows the SDR rail', async ({ page }) => {

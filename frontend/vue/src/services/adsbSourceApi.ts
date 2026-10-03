@@ -102,6 +102,21 @@ export async function setAdsbSource(
 }
 
 /**
+ * Unset the ADS-B receiver — the picker's "Not set" option. The backend gives
+ * back any device AIR still holds before forgetting it.
+ */
+export async function clearAdsbSource(): Promise<AdsbSourceConfig | null> {
+  try {
+    const response = await fetch(`${BASE}/source`, { method: 'DELETE' })
+    if (!response.ok) return null
+    notifySettingsChanged()
+    return (await response.json()) as AdsbSourceConfig
+  } catch {
+    return null
+  }
+}
+
+/**
  * Claim the source device and tune it, or renew an existing claim.
  *
  * The same call does both — renewing is claiming again — so the caller's timer

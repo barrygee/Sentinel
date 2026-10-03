@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { claimAdsbSource, getAdsbSource, releaseAdsbSource, setAdsbSource } from './adsbSourceApi'
+import {
+  claimAdsbSource,
+  clearAdsbSource,
+  getAdsbSource,
+  releaseAdsbSource,
+  setAdsbSource,
+} from './adsbSourceApi'
 
 /**
  * Tests for the `/api/sdr/adsb` client.
@@ -118,6 +124,43 @@ describe('setAdsbSource', () => {
     fetchSpy.mockRejectedValue(new Error('offline'))
 
     expect(await setAdsbSource(1, 'serial:AAA')).toBeNull()
+  })
+})
+
+describe('clearAdsbSource', () => {
+  it('sends a DELETE for the source and returns the unconfigured state', async () => {
+    const unconfigured = { configured: false, sentry_host_id: null, sentry_device_id: null }
+    fetchSpy.mockResolvedValue(jsonResponse(unconfigured))
+
+    expect(await clearAdsbSource()).toEqual(unconfigured)
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(url).toBe('/api/sdr/adsb/source')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('announces a settings change once the backend has cleared the source', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ configured: false }))
+    const listener = vi.fn()
+    document.addEventListener('sentinel:settings-changed', listener)
+    await clearAdsbSource()
+    expect(listener).toHaveBeenCalledTimes(1)
+    document.removeEventListener('sentinel:settings-changed', listener)
+  })
+
+  it('returns null without announcing a change when the backend refuses', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({}, false, 500))
+    const listener = vi.fn()
+    document.addEventListener('sentinel:settings-changed', listener)
+
+    expect(await clearAdsbSource()).toBeNull()
+    expect(listener).not.toHaveBeenCalled()
+    document.removeEventListener('sentinel:settings-changed', listener)
+  })
+
+  it('returns null when the network is down', async () => {
+    fetchSpy.mockRejectedValue(new Error('offline'))
+
+    expect(await clearAdsbSource()).toBeNull()
   })
 })
 

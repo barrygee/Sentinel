@@ -1,7 +1,7 @@
 /**
  * `useRadioGroupKeyboard` — the keyboard model for a `role="radiogroup"` of
  * pill buttons (the segmented single-select groups: MODE pills, device
- * ENABLED/DISABLED, source override, playback speed…).
+ * ENABLED/DISABLED, source override…).
  *
  * Implements the WAI-ARIA radio-group pattern for buttons that carry
  * `role="radio"`: the group is one tab stop (roving tabindex — only the

@@ -46,7 +46,7 @@ describe('useSidebarPaneTarget', () => {
       return queued.length
     })
 
-    const wrapper = mountHarness('playback')
+    const wrapper = mountHarness('tracking')
     expect(readyOf(wrapper)).toBe(false)
 
     // First frame: pane still absent → reschedules another frame.
@@ -56,7 +56,7 @@ describe('useSidebarPaneTarget', () => {
 
     // Pane mounts; next frame flips ready to true.
     const pane = document.createElement('div')
-    pane.id = SIDEBAR_PANE_IDS.playback
+    pane.id = SIDEBAR_PANE_IDS.tracking
     document.body.appendChild(pane)
     queued.shift()!(0)
     expect(readyOf(wrapper)).toBe(true)

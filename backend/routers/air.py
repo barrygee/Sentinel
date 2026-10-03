@@ -20,18 +20,15 @@ from urllib.parse import urlsplit
 import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
-from backend.database import AsyncSessionLocal, get_db
-from backend.db_helpers import get_setting
-from backend.models import AdsbCache, AirAircraft, AirFlight, AirMessage, AirSnapshot, AirTracking
+from backend.database import get_db
+from backend.models import AdsbCache, AirMessage, AirTracking
 from backend.services import adsb as adsb_service
-from backend.services.flight_history import record_aircraft_batch
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy import text as sa_text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,12 +59,6 @@ router = APIRouter(prefix="/api/air", tags=["air"])
 
 
 # ── ADS-B proxy ────────────────────────────────────────────────────────────────
-
-
-async def _record_history_bg(aircraft_list: list[dict]) -> None:
-    """Background task: write ADS-B snapshots to the history tables."""
-    async with AsyncSessionLocal() as db:
-        await record_aircraft_batch(aircraft_list, db, now_ms())
 
 
 # How far (nm) a cached query centre may be from the requested one and still
@@ -108,7 +99,6 @@ async def get_aircraft_near_point(
     lat: float,
     lon: float,
     radius: int = 250,
-    background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Proxy the upstream /v2/point endpoint with a SQLite write-through cache.
@@ -126,10 +116,6 @@ async def get_aircraft_near_point(
     """
     # Build a deterministic cache key from the query parameters
     cache_key = f"{lat:.4f}_{lon:.4f}_{radius}"
-
-    # Replay history recording is opt-in (default OFF). When disabled we still
-    # serve and cache live ADS-B data, but never populate the history tables.
-    replay_enabled = bool(await get_setting(db, "air", "replayEnabled", default=False))
 
     primary_url, fallback_url = await resolve_domain_urls(
         "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
@@ -223,12 +209,7 @@ async def get_aircraft_near_point(
             await db.commit()
         except OperationalError:
             await db.rollback()
-            if replay_enabled and background_tasks is not None:
-                background_tasks.add_task(_record_history_bg, data.get("ac", []))
             return JSONResponse(content=data, headers={"X-Cache": "BYPASS"})
-
-        if replay_enabled and background_tasks is not None:
-            background_tasks.add_task(_record_history_bg, data.get("ac", []))
 
         return JSONResponse(content=data, headers={"X-Cache": "MISS"})
 
@@ -373,183 +354,3 @@ async def remove_tracked_aircraft(hex: str, db: AsyncSession = Depends(get_db)):
     await db.delete(row)
     await db.commit()
     return JSONResponse({"status": "removed"})
-
-
-# ── Recordings ────────────────────────────────────────────────────────────────
-
-
-@router.get("/recordings/available-dates")
-async def get_available_dates(db: AsyncSession = Depends(get_db)):
-    """Return UTC calendar dates that have snapshot data, with time extents and counts."""
-    result = await db.execute(
-        sa_text("""
-        SELECT date(ts / 1000, 'unixepoch') AS day,
-               MIN(ts) AS day_start_ms,
-               MAX(ts) AS day_end_ms,
-               COUNT(*) AS snapshot_count
-        FROM air_snapshots
-        GROUP BY day
-        ORDER BY day DESC
-    """)
-    )
-    rows = result.fetchall()
-    return JSONResponse([{"date": r[0], "start_ms": r[1], "end_ms": r[2], "count": r[3]} for r in rows])
-
-
-@router.get("/snapshots")
-async def get_snapshots_window(
-    start_ms: int,
-    end_ms: int,
-    db: AsyncSession = Depends(get_db),
-):
-    """Return all snapshots across all aircraft within a time window (max 24 hours)."""
-    if end_ms - start_ms > 24 * 3600 * 1000:
-        raise HTTPException(status_code=400, detail="Window exceeds 24 hours")
-    result = await db.execute(
-        sa_text("""
-        SELECT s.ts, s.lat, s.lon, s.alt_baro, s.gs, s.track, s.baro_rate, s.squawk,
-               f.registration, f.callsign, ac.type_code, ac.hex
-        FROM air_snapshots s
-        JOIN air_flights f ON f.id = s.flight_id
-        JOIN air_aircraft ac ON ac.registration = f.registration
-        WHERE s.ts BETWEEN :start_ms AND :end_ms
-        ORDER BY s.ts ASC, f.registration ASC
-    """),
-        {"start_ms": start_ms, "end_ms": end_ms},
-    )
-    rows = result.fetchall()
-
-    aircraft: dict = {}
-    for r in rows:
-        reg = r[8]
-        if reg not in aircraft:
-            aircraft[reg] = {
-                "registration": reg,
-                "callsign": r[9] or "",
-                "type_code": r[10] or "",
-                "hex": r[11] or "",
-                "snapshots": [],
-            }
-        aircraft[reg]["snapshots"].append(
-            {
-                "ts": r[0],
-                "lat": r[1],
-                "lon": r[2],
-                "alt_baro": r[3],
-                "gs": r[4],
-                "track": r[5],
-                "baro_rate": r[6],
-                "squawk": r[7],
-            }
-        )
-    return JSONResponse({"start_ms": start_ms, "end_ms": end_ms, "aircraft": aircraft})
-
-
-# ── Flight history ─────────────────────────────────────────────────────────────
-
-
-@router.get("/flights")
-async def list_aircraft_history(
-    limit: int = 100,
-    offset: int = 0,
-    db: AsyncSession = Depends(get_db),
-):
-    """Return all stored aircraft ordered by most recently seen, paginated."""
-    result = await db.execute(select(AirAircraft).order_by(AirAircraft.last_seen.desc()).limit(limit).offset(offset))
-    rows = result.scalars().all()
-    return JSONResponse(
-        [
-            {
-                "registration": a.registration,
-                "hex": a.hex,
-                "type_code": a.type_code,
-                "callsign": a.callsign or "",
-                "flight_count": a.flight_count,
-                "first_seen": a.first_seen,
-                "last_seen": a.last_seen,
-            }
-            for a in rows
-        ]
-    )
-
-
-@router.get("/flights/{registration}")
-async def list_flights_for_aircraft(registration: str, db: AsyncSession = Depends(get_db)):
-    """Return all flight sessions for a given registration, newest first."""
-    result = await db.execute(
-        select(AirFlight).where(AirFlight.registration == registration).order_by(AirFlight.started_at.desc())
-    )
-    rows = result.scalars().all()
-    return JSONResponse(
-        [
-            {
-                "flight_id": f.id,
-                "callsign": f.callsign,
-                "started_at": f.started_at,
-                "last_active_at": f.last_active_at,
-                "snapshot_count": f.snapshot_count,
-            }
-            for f in rows
-        ]
-    )
-
-
-@router.get("/flights/{registration}/{flight_id}")
-async def get_flight_snapshots(
-    registration: str,
-    flight_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    """Return all position snapshots for a specific flight — used for playback."""
-    flight_result = await db.execute(
-        select(AirFlight).where(
-            AirFlight.id == flight_id,
-            AirFlight.registration == registration,
-        )
-    )
-    flight = flight_result.scalar_one_or_none()
-    if not flight:
-        raise HTTPException(status_code=404, detail="Flight not found")
-
-    snap_result = await db.execute(
-        select(AirSnapshot).where(AirSnapshot.flight_id == flight_id).order_by(AirSnapshot.ts.asc())
-    )
-    snaps = snap_result.scalars().all()
-    return JSONResponse(
-        {
-            "registration": registration,
-            "flight_id": flight_id,
-            "callsign": flight.callsign,
-            "started_at": flight.started_at,
-            "snapshots": [
-                {
-                    "ts": s.ts,
-                    "lat": s.lat,
-                    "lon": s.lon,
-                    "alt_baro": s.alt_baro,
-                    "gs": s.gs,
-                    "track": s.track,
-                    "baro_rate": s.baro_rate,
-                    "squawk": s.squawk,
-                }
-                for s in snaps
-            ],
-        }
-    )
-
-
-@router.delete("/flights/{registration}", status_code=200)
-async def delete_aircraft_history(registration: str, db: AsyncSession = Depends(get_db)):
-    """Delete all stored flights and snapshots for a given registration."""
-    from sqlalchemy import delete as sa_delete
-
-    flight_result = await db.execute(select(AirFlight.id).where(AirFlight.registration == registration))
-    flight_ids = [row[0] for row in flight_result.all()]
-
-    if flight_ids:
-        await db.execute(sa_delete(AirSnapshot).where(AirSnapshot.flight_id.in_(flight_ids)))
-        await db.execute(sa_delete(AirFlight).where(AirFlight.id.in_(flight_ids)))
-
-    await db.execute(sa_delete(AirAircraft).where(AirAircraft.registration == registration))
-    await db.commit()
-    return JSONResponse({"status": "deleted"})
