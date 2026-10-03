@@ -2608,6 +2608,28 @@
       }
     },
     "/api/sdr/adsb/source": {
+      "delete": {
+        "description": "Unset the ADS-B receiver (the picker's \"Not set\" option).\n\nReleases the device first if AIR still holds it, so clearing the choice\nnever leaves a dongle reserved by a source that no longer exists.",
+        "operationId": "delete_source_api_sdr_adsb_source_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Source Api Sdr Adsb Source Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Source",
+        "tags": [
+          "adsb-source"
+        ]
+      },
       "get": {
         "description": "Report which Sentry device is configured as the ADS-B receiver.",
         "operationId": "get_source_api_sdr_adsb_source_get",
