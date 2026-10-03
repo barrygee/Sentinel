@@ -127,6 +127,18 @@ async def set_source(db: AsyncSession, host_id: int, device_id: str) -> AdsbSour
     return AdsbSource(host_id=host_id, device_id=device_id)
 
 
+async def clear_source(db: AsyncSession) -> None:
+    """Unset the ADS-B receiver, giving back any device it still holds first.
+
+    The release must come before the setting is cleared: once it is gone,
+    nothing remembers which device to release, and the lease would sit on that
+    dongle until it expired. Stored as `null` rather than deleted so the key
+    keeps its place in the config document, as its default does.
+    """
+    await release(db)
+    await upsert_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY, None)
+
+
 async def _client_for_source(db: AsyncSession, source: AdsbSource) -> SentryClient:
     host = await db.get(SentryHost, source.host_id)
     if host is None:

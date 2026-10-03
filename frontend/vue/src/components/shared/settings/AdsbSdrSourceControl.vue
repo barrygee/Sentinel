@@ -32,7 +32,7 @@
  * that only took effect on some later Save would look broken in between.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getAdsbSource, setAdsbSource } from '@/services/adsbSourceApi'
+import { clearAdsbSource, getAdsbSource, setAdsbSource } from '@/services/adsbSourceApi'
 import SettingsDropdown, { type SettingsDropdownOption } from './SettingsDropdown.vue'
 import { getSentryHostDevices, listSentryHosts, type SentryHost } from '@/services/sentryApi'
 
@@ -160,9 +160,16 @@ async function loadSelection(): Promise<void> {
   }
 }
 
-/** Persist the chosen device. See the note above on why this saves immediately. */
+/**
+ * Persist the chosen device, or clear it when "Not set" is picked. See the note
+ * above on why this saves immediately — which is also why the panel's Apply
+ * reports no changes: there is nothing staged for it to save.
+ */
 async function saveSelection(value: string): Promise<void> {
-  if (!value) return
+  if (!value) {
+    await clearAdsbSource()
+    return
+  }
   // `device_id` itself contains a colon ("serial:ABC"), so split once only.
   const separator = value.indexOf(':')
   const hostId = Number(value.slice(0, separator))

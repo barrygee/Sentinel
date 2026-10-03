@@ -342,7 +342,12 @@ describe('AdsbSdrSourceControl', () => {
     )
   })
 
-  it('does not save when cleared back to "Not set"', async () => {
+  it('clears the saved source when set back to "Not set"', async () => {
+    const clearSourceSpy = vi.spyOn(adsbSourceApi, 'clearAdsbSource').mockResolvedValue({
+      configured: false,
+      sentry_host_id: null,
+      sentry_device_id: null,
+    })
     vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
       configured: true,
       sentry_host_id: 1,
@@ -356,7 +361,11 @@ describe('AdsbSdrSourceControl', () => {
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
     await wrapper.find('[data-value=""]').trigger('mousedown')
+    await flushPromises()
 
+    // Regression: "Not set" used to be dropped on the floor, so the old device
+    // came back on reload and Apply reported no changes.
+    expect(clearSourceSpy).toHaveBeenCalledOnce()
     expect(setSourceSpy).not.toHaveBeenCalled()
   })
 

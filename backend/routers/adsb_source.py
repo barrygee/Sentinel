@@ -85,6 +85,17 @@ async def put_source(body: AdsbSourceIn, db: AsyncSession = Depends(get_db)) -> 
     }
 
 
+@router.delete("/source")
+async def delete_source(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+    """Unset the ADS-B receiver (the picker's "Not set" option).
+
+    Releases the device first if AIR still holds it, so clearing the choice
+    never leaves a dongle reserved by a source that no longer exists.
+    """
+    await adsb_source.clear_source(db)
+    return {"configured": False, "sentry_host_id": None, "sentry_device_id": None}
+
+
 @router.post("/claim")
 async def claim(body: ClaimIn, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Claim the source device and tune it to 1090 MHz. Also the renewal call.

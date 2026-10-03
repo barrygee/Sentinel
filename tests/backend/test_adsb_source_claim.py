@@ -132,6 +132,69 @@ class TestChoosingTheSource:
         assert response.status_code == 200
 
 
+class TestClearingTheSource:
+    """The picker's "Not set" option — it used to be impossible to reach."""
+
+    def test_clearing_reports_and_persists_no_source(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_sentry(monkeypatch, sentry_ok)
+        set_source(client, register_host(client))
+
+        response = client.delete("/api/sdr/adsb/source")
+
+        unconfigured = {
+            "configured": False,
+            "sentry_host_id": None,
+            "sentry_device_id": None,
+        }
+        assert response.status_code == 200
+        assert response.json() == unconfigured
+        assert client.get("/api/sdr/adsb/source").json() == unconfigured
+        # Kept as null, like its default, so the key holds its place in the
+        # config document rather than vanishing from it.
+        assert client.get("/api/settings/air").json()["offgridSdrSource"] is None
+
+    def test_gives_the_device_back_before_forgetting_it(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen = _install_sentry(monkeypatch, sentry_ok)
+        set_source(client, register_host(client))
+        client.post("/api/sdr/adsb/claim", json={})
+
+        client.delete("/api/sdr/adsb/source")
+
+        # Once the source is cleared nothing remembers which device to release,
+        # so the release has to have gone out for *that* device.
+        releases = [
+            request
+            for request in seen
+            if request.method == "DELETE" and request.url.path.endswith("/reservation")
+        ]
+        assert len(releases) == 1
+        assert DEVICE_ID in releases[0].url.path
+
+    def test_still_clears_when_the_sentry_is_unreachable(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def unreachable(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("gone")
+
+        _install_sentry(monkeypatch, unreachable)
+        set_source(client, register_host(client))
+
+        response = client.delete("/api/sdr/adsb/source")
+
+        assert response.status_code == 200
+        assert client.get("/api/sdr/adsb/source").json()["configured"] is False
+
+    def test_clearing_with_nothing_set_is_harmless(self, client: Any) -> None:
+        response = client.delete("/api/sdr/adsb/source")
+
+        assert response.status_code == 200
+        assert response.json()["configured"] is False
+
+
 class TestClaimingAndTuning:
     def test_refuses_when_no_source_is_configured(self, client: Any) -> None:
         response = client.post("/api/sdr/adsb/claim", json={})

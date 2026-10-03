@@ -972,6 +972,14 @@
     ]
   },
   {
+    "path": "/api/sdr/adsb/source",
+    "type": "Route",
+    "name": "delete_source",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
     "path": "/api/sdr/adsb/claim",
     "type": "Route",
     "name": "claim",
