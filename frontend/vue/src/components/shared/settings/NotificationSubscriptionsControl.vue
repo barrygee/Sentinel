@@ -27,10 +27,9 @@
         <BaseButton
           variant="ghost"
           class="settings-config-btn"
-          :disabled="notificationsStore.total === 0"
           style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
-          @click="notificationsStore.clearAll()"
-          >CANCEL ALL ALERTS ({{ notificationsStore.total }})</BaseButton
+          @click="cancelAllAlerts"
+          >CANCEL ALL ALERTS ({{ subscriptions.length }})</BaseButton
         >
       </div>
     </template>
@@ -44,8 +43,9 @@
  *
  * Unticking stages the change; APPLY CHANGES switches those notifications off
  * (like every other setting in the panel). SELECT ALL / DESELECT ALL ticks or
- * unticks the lot. CANCEL ALL ALERTS is different: it empties the alerts
- * already received, at once — the same as the notifications panel's own CLEAR.
+ * unticks the lot. CANCEL ALL ALERTS is different: it acts at once, switching
+ * every listed alert off and emptying the alerts already received — including
+ * the bell cards, which would otherwise only control subscriptions now off.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -93,6 +93,17 @@ function toggleAll(): void {
     ? new Set(subscriptions.value.map((subscription) => subscription.key))
     : new Set()
   stagePendingOff()
+}
+
+/**
+ * Switch every listed alert off and clear what has been received. Acts
+ * immediately rather than staging, so any unapplied ticks are moot and dropped.
+ */
+async function cancelAllAlerts(): Promise<void> {
+  const allKeys = subscriptions.value.map((subscription) => subscription.key)
+  pendingOff.value = new Set()
+  await turnOff(allKeys)
+  notificationsStore.clearAll({ keepActionCards: false })
 }
 
 onMounted(refresh)
