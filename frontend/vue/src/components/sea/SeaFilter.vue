@@ -23,7 +23,7 @@
           v-if="portFor(item.key)"
           :port="portFor(item.key)!.properties"
           :coordinates="portFor(item.key)!.geometry.coordinates as [number, number]"
-          :sdr-connected="sdrStore.connected"
+          :sdr-connected="radioConnected"
           :tune-notice="tuneNotice === item.key"
           @tune="tunePortChannel(portFor(item.key)!.properties, $event)"
         />
@@ -52,7 +52,7 @@ import BaseFilterPanel, {
 import SeaVesselDetails from './SeaVesselDetails.vue'
 import SeaPortDetails from './SeaPortDetails.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
-import { useSdrStore } from '@/stores/sdr'
+import { useRadio } from '@/shell/useRadio'
 import { useNotificationsStore } from '@/stores/notifications'
 import { familyMatchesCategory, vesselFamilyLabel } from '@/utils/aisShipType'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
@@ -65,7 +65,7 @@ import {
 import { formatMarineVhfMhz, marineVhfChannelHz, MARINE_VHF_MODE } from '@/utils/marineVhf'
 
 const seaStore = useSeaStore()
-const sdrStore = useSdrStore()
+const { radio, connected: radioConnected } = useRadio()
 const notificationsStore = useNotificationsStore()
 
 /** Whether the ports overlay is on — the ports are listed exactly when they
@@ -169,7 +169,7 @@ const tuneNotice = ref<string | null>(null)
 
 /** Tune the SDR to a port's channel, the way the Air pane tunes an airport. */
 function tunePortChannel(port: PortProperties, portChannel: PortChannel): void {
-  if (!sdrStore.connected) {
+  if (!radio.value || !radioConnected.value) {
     tuneNotice.value = port.locode
     return
   }
@@ -180,11 +180,7 @@ function tunePortChannel(port: PortProperties, portChannel: PortChannel): void {
   if (hz === null) return
   /* v8 ignore stop */
   const display = `CH ${portChannel.channel} ${formatMarineVhfMhz(portChannel.channel)}`
-  document.dispatchEvent(
-    new CustomEvent('sentinel:sdr-tune-external', {
-      detail: { hz, mode: MARINE_VHF_MODE, satName: `${port.name} ${portChannel.label}` },
-    }),
-  )
+  radio.value.tune({ hz, mode: MARINE_VHF_MODE, satName: `${port.name} ${portChannel.label}` })
   notificationsStore.add({
     type: 'system',
     title: `${port.locode} ${portChannel.label.toUpperCase()}`,

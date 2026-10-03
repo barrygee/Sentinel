@@ -145,13 +145,36 @@ test.describe('Notification click-to-navigate, every type (P0 parity)', () => {
     })
   }
 
-  // EXCLUDED SCENARIO: visiting /air/ once (which registers the Air click
-  // handler via AirMap.vue's registerAircraftClickHandler), leaving the
-  // section, and then clicking an aircraft (hex) alert from elsewhere. The
-  // handler is never cleared on AirMap unmount (unlike
-  // clearSatelliteClickHandler for Space), so the stale handler is called
-  // instead of the panel routing back to /air/ — a known bug.
-  // TODO(P0): add after PR #382 merges
+  // Regression lock for the F9 fix (PR #382): visiting /air/ registers the
+  // Air click handler (AirMap.vue's registerAircraftClickHandler). Leaving the
+  // section in-app (no page reload, so module state survives) must clear it,
+  // otherwise the stale handler swallows the click and the panel never routes
+  // back to /air/.
+  test('aircraft alert still navigates to /air/ after visiting and leaving Air in-app', async ({
+    page,
+  }) => {
+    const title = 'PARITY AIRCRAFT AFTER LEAVE'
+    await seedNotifications(page, [
+      {
+        id: 'parity-aircraft-after-leave',
+        type: 'flight',
+        title,
+        detail: 'Seeded for the P0 parity baseline',
+        ts: Date.now(),
+        hex: 'AB1234',
+      },
+    ])
+
+    await page.goto('/air/')
+    await waitForShellHydration(page)
+    await page.locator('[data-domain="land"]').first().click()
+    await expect(page).toHaveURL(/\/land\/$/)
+
+    await openAlertsPane(page)
+    await notifCard(page, title).locator('.notif-title').click()
+
+    await expect(page).toHaveURL(/\/air\/$/)
+  })
 
   test('overhead notifications are stale-cleared on load rather than staying clickable (OverheadAlertsTracker)', async ({
     page,

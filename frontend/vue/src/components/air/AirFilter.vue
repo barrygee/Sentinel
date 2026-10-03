@@ -197,7 +197,7 @@ import type { MilitaryBasesToggleControl } from './controls/military-bases/Milit
 import { storeToRefs } from 'pinia'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAirNotifStore } from '@/stores/airNotif'
-import { useSdrStore } from '@/stores/sdr'
+import { useRadio } from '@/shell/useRadio'
 import { useAirStore } from '@/stores/air'
 
 interface PlaneResult {
@@ -235,7 +235,7 @@ const props = defineProps<{
 
 const notificationsStore = useNotificationsStore()
 const airNotifStore = useAirNotifStore()
-const sdrStore = useSdrStore()
+const { radio, connected: sdrConnected } = useRadio()
 const airStore = useAirStore()
 
 const panelRef = useTemplateRef<InstanceType<typeof BaseFilterPanel>>('panelRef')
@@ -309,8 +309,6 @@ function clearSignalLostTimer() {
     signalLostTimer = null
   }
 }
-
-const sdrConnected = computed(() => sdrStore.connected)
 
 const query = ref('')
 
@@ -770,16 +768,12 @@ function formatVerticalRate(baroRate: unknown): string {
 // Tune the connected SDR to a clicked frequency. If no radio is connected, show
 // a subtle inline notice instead of attempting to tune.
 function tuneFreq(r: AirportResult, f: AirportFreq) {
-  if (!sdrStore.connected) {
+  if (!radio.value || !sdrConnected.value) {
     tuneNotice.value = r.icao
     return
   }
   tuneNotice.value = null
-  document.dispatchEvent(
-    new CustomEvent('sentinel:sdr-tune-external', {
-      detail: { hz: f.hz, mode: f.mode, satName: `${r.name} ${f.label}` },
-    }),
-  )
+  radio.value.tune({ hz: f.hz, mode: f.mode, satName: `${r.name} ${f.label}` })
   notificationsStore.add({
     type: 'system',
     title: `${r.icao} ${f.label.toUpperCase()}`,

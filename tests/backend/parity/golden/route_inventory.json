@@ -44,6 +44,30 @@
     ]
   },
   {
+    "path": "/api/air/tracking",
+    "type": "Route",
+    "name": "list_tracked_aircraft",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/air/tracking",
+    "type": "Route",
+    "name": "add_tracked_aircraft",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/air/tracking/{hex}",
+    "type": "Route",
+    "name": "remove_tracked_aircraft",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
     "path": "/api/air/messages",
     "type": "Route",
     "name": "list_air_messages",
@@ -71,30 +95,6 @@
     "path": "/api/air/messages",
     "type": "Route",
     "name": "dismiss_all_air_messages",
-    "methods": [
-      "DELETE"
-    ]
-  },
-  {
-    "path": "/api/air/tracking",
-    "type": "Route",
-    "name": "list_tracked_aircraft",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/tracking",
-    "type": "Route",
-    "name": "add_tracked_aircraft",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/air/tracking/{hex}",
-    "type": "Route",
-    "name": "remove_tracked_aircraft",
     "methods": [
       "DELETE"
     ]

@@ -1,34 +1,19 @@
-import asyncio
 import logging
-import signal
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-from backend.database import (
-    backfill_satellite_radio_store,
-    create_tables,
-    migrate_sdr_radios_to_settings,
-    prune_removed_settings,
-    resolve_retired_auto_modes,
-    seed_default_settings,
-    seed_sdr_bandplan_from_file,
-    seed_sdr_data_from_files,
-)
+from backend.core import notifications as notifications_router
 from backend.error_handlers import request_validation_error_handler
+from backend.modules import MODULES
+from backend.platform.lifecycle import run_lifecycles
 from backend.routers import adsb_source as adsb_source_router
 from backend.routers import air, land, offline_map, sea, space
 from backend.routers import sdr as sdr_router
 from backend.routers import sentry as sentry_router
 from backend.routers import settings as settings_router
-from backend.services import app_config_file, aprs_store
-from backend.services import sdr as sdr_service
-from backend.services import sdr_decode as sdr_decode_service
-from backend.services.ais_stream import reader as ais_reader
-from backend.services.offline_map.job_runner import runner as offline_map_job_runner
-from backend.services.sentry_fleet import fleet_poller
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
@@ -38,92 +23,17 @@ ROOT_DIR = Path(__file__).parent.parent
 SPA_DIR = ROOT_DIR / "frontend" / "spa-dist"
 
 
-async def _daily_cleanup_loop() -> None:
-    """Run APRS-station cleanup once at startup, then every 24h."""
-    while True:
-        try:
-            await aprs_store.cleanup_expired(int(time.time() * 1000))
-        except Exception:
-            logging.getLogger(__name__).exception("APRS station cleanup failed")
-        await asyncio.sleep(24 * 60 * 60)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler — creates tables and seeds defaults on startup."""
-    await create_tables()
-    await migrate_sdr_radios_to_settings()
-    # Drop settings rows left behind by removed features before the seeders run,
-    # so a stale key can never be mistaken for a live default.
-    await prune_removed_settings()
-    await seed_default_settings()
-    await resolve_retired_auto_modes()
-    await seed_sdr_data_from_files()
-    await seed_sdr_bandplan_from_file()
-    await backfill_satellite_radio_store()
-    # Live config file: apply an edit made while Sentinel was stopped, write the
-    # seeded/migrated settings out, then keep file and database in sync both ways.
-    await app_config_file.sync.start()
-    # Materialise the digital-decode ingest secret (auto-generated into the shared
-    # volume the decoder container reads) so the sidecar can authenticate.
-    sdr_decode_service.resolve_ingest_secret()
-    # Resume background APRS decode on the persisted radio (best-effort; a missing
-    # radio or unreachable dongle is logged and skipped, never blocking startup).
-    await sdr_router.resume_persisted_aprs()
-    await sdr_router.resume_persisted_ais()
-    cleanup_task = asyncio.create_task(_daily_cleanup_loop())
-    # Start one poller task per enabled Sentry host (ADR-0009).
-    await fleet_poller.start_all()
-    # Sea: warm the vessel store from the last snapshot and start the AISStream
-    # watchdog (it only opens the socket once the domain is enabled and keyed).
-    await ais_reader.start()
-    # Offline map downloads: recover from an unclean previous shutdown (mark
-    # stale queued/running rows failed, drop orphan .part files), rebuild the
-    # tile-tier registry, and start the one-job-at-a-time worker.
-    await offline_map_job_runner.start()
+    """Run every module's lifecycle (backend/modules/) for the life of the app.
 
-    # Chain SIGTERM/SIGINT: wake all SDR subscriber queues the instant the
-    # signal arrives so blocked WS stream loops exit immediately, THEN run
-    # uvicorn's original handler to start its graceful shutdown. Without the
-    # pre-wake, uvicorn waits on those never-returning WS tasks before it
-    # invokes lifespan shutdown — a deadlock that hangs `--reload`.
-    _orig_handlers: dict[int, object] = {}
-
-    def _chain(signum, frame):
-        try:
-            sdr_service.wake_all_subscribers()
-            sdr_decode_service.wake_all_decoders()
-            ais_reader.wake()
-            offline_map_job_runner.wake()
-        except Exception:
-            logging.getLogger(__name__).exception("wake_all_subscribers failed")
-        prev = _orig_handlers.get(signum)
-        if callable(prev):
-            prev(signum, frame)
-
-    for _sig in (signal.SIGTERM, signal.SIGINT):
-        _orig_handlers[_sig] = signal.getsignal(_sig)
-        signal.signal(_sig, _chain)
-
-    yield
-    # Shutdown: cancel the cleanup loop and await it so uvicorn's graceful
-    # shutdown doesn't hang waiting on a still-cancelling task. Then stop all
-    # SDR broadcasters/connections (their long-lived tasks would otherwise
-    # block shutdown indefinitely).
-    for _sig, _prev in _orig_handlers.items():
-        if callable(_prev) or _prev in (signal.SIG_DFL, signal.SIG_IGN):
-            signal.signal(_sig, _prev)
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
-    await fleet_poller.stop_all()
-    await ais_reader.stop()
-    await sdr_decode_service.shutdown_all_decoders()
-    await sdr_service.shutdown_all()
-    await offline_map_job_runner.stop()
-    await app_config_file.sync.stop()
+    Each module owns its startup, shutdown and SIGTERM/SIGINT wake hook; see
+    backend/platform/lifecycle.py for the phase ordering and why the wake
+    chain must not be removed (without it `--reload` deadlocks on long-lived
+    SDR WebSocket tasks and a running `pmtiles extract`).
+    """
+    async with run_lifecycles(MODULES):
+        yield
 
 
 app = FastAPI(
@@ -139,6 +49,8 @@ app.add_exception_handler(RequestValidationError, request_validation_error_handl
 
 # ── API routers ────────────────────────────────────────────────────────────────
 app.include_router(air.router)
+# Core notifications keep their /api/air/messages paths (B5).
+app.include_router(notifications_router.router)
 app.include_router(space.router)
 app.include_router(land.router)
 app.include_router(sea.router)

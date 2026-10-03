@@ -43,6 +43,11 @@ from typing import Any, NoReturn
 from backend.cache import now_ms
 from backend.database import get_db
 from backend.models import SentryHost
+
+# Imported for its side effect (B6): registers the hub's Sentry reservation
+# proxy (hub.sentry.*) on the bus at import time, so Air's ADS-B claim reaches
+# it even in tests, which skip the app lifespan.
+from backend.services import sentry_reservations  # noqa: F401
 from backend.services.sentry_client import (
     SentryApiError,
     SentryClient,

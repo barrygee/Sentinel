@@ -1,12 +1,11 @@
 """
 Air domain router — ADS-B live tracking.
 
+The notification endpoints under /api/air/messages are core, not Air — they
+live in backend/core/notifications.py (B5).
+
 Endpoints:
   GET    /api/air/adsb/point/{lat}/{lon}/{radius}  — ADS-B aircraft proxy with SQLite cache
-  GET    /api/air/messages                         — List air-domain notification messages
-  POST   /api/air/messages                         — Create a new air message
-  DELETE /api/air/messages/{msg_id}                — Dismiss (soft-delete) a message
-  DELETE /api/air/messages                         — Dismiss all messages
   GET    /api/air/tracking                         — List currently tracked aircraft
   POST   /api/air/tracking                         — Add aircraft to tracking
   DELETE /api/air/tracking/{hex}                   — Remove aircraft from tracking
@@ -21,7 +20,7 @@ import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import get_db
-from backend.models import AdsbCache, AirMessage, AirTracking
+from backend.models import AdsbCache, AirTracking
 from backend.services import adsb as adsb_service
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls
@@ -35,16 +34,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 # ── Request body schemas ───────────────────────────────────────────────────────
-
-
-class MessageIn(BaseModel):
-    """Body for POST /api/air/messages — creates a new notification message."""
-
-    msg_id: str  # client-generated unique id
-    type: str  # 'emergency' | 'flight' | 'system' | 'squawk-clr' etc.
-    title: str  # short headline shown in the panel
-    detail: str = ""  # optional secondary text
-    ts: int  # event timestamp, Unix ms
 
 
 class TrackingIn(BaseModel):
@@ -235,67 +224,6 @@ async def get_aircraft_near_point(
     if row and is_within_stale(row.fetched_at, settings.adsb_stale_ms):
         return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "STALE"})
     raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
-
-
-# ── Notification messages ──────────────────────────────────────────────────────
-
-
-@router.get("/messages")
-async def list_air_messages(db: AsyncSession = Depends(get_db)):
-    """Return all non-dismissed air messages, newest first."""
-    result = await db.execute(
-        select(AirMessage)
-        .where(AirMessage.dismissed == False)  # noqa: E712
-        .order_by(AirMessage.ts.desc())
-    )
-    rows = result.scalars().all()
-    # Serialise to plain dicts (omit the dismissed flag — client doesn't need it)
-    return JSONResponse(
-        [
-            {"msg_id": msg.msg_id, "type": msg.type, "title": msg.title, "detail": msg.detail, "ts": msg.ts}
-            for msg in rows
-        ]
-    )
-
-
-@router.post("/messages", status_code=201)
-async def create_air_message(body: MessageIn, db: AsyncSession = Depends(get_db)):
-    """Persist a new air message. Idempotent: if msg_id already exists, returns 200 'exists'."""
-    existing = await db.execute(select(AirMessage).where(AirMessage.msg_id == body.msg_id))
-    if existing.scalar_one_or_none():
-        return JSONResponse({"status": "exists"}, status_code=200)  # already stored, no-op
-
-    db.add(
-        AirMessage(
-            msg_id=body.msg_id,
-            type=body.type,
-            title=body.title,
-            detail=body.detail,
-            ts=body.ts,
-        )
-    )
-    await db.commit()
-    return JSONResponse({"status": "created"}, status_code=201)
-
-
-@router.delete("/messages/{msg_id}", status_code=200)
-async def dismiss_air_message(msg_id: str, db: AsyncSession = Depends(get_db)):
-    """Soft-delete a single message by msg_id (sets dismissed=True). Idempotent: missing row returns 200."""
-    result = await db.execute(select(AirMessage).where(AirMessage.msg_id == msg_id))
-    row = result.scalar_one_or_none()
-    if not row:
-        return JSONResponse({"status": "absent"})
-    row.dismissed = True
-    await db.commit()
-    return JSONResponse({"status": "dismissed"})
-
-
-@router.delete("/messages", status_code=200)
-async def dismiss_all_air_messages(db: AsyncSession = Depends(get_db)):
-    """Soft-delete all air messages in one query."""
-    await db.execute(AirMessage.__table__.update().values(dismissed=True))
-    await db.commit()
-    return JSONResponse({"status": "cleared"})
 
 
 # ── Tracking ───────────────────────────────────────────────────────────────────

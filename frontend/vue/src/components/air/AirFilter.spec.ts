@@ -41,7 +41,7 @@ import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesCont
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useAirStore } from '@/stores/air'
 import { useNotificationsStore } from '@/stores/notifications'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
 
 interface PlaneProps {
   hex: string
@@ -561,7 +561,7 @@ describe('AirFilter', () => {
       }
     })
 
-    it('shows an inline notice instead of tuning when no SDR is connected', async () => {
+    it('shows an inline notice instead of tuning when no SDR section provides a radio', async () => {
       const wrapper = mountFilter(makeAdsb([]))
       await setCategory('airports')
       await wrapper.find('.bfp-result-option').trigger('click')
@@ -569,22 +569,36 @@ describe('AirFilter', () => {
       expect(wrapper.find('.apt-acc-notice').exists()).toBe(true)
     })
 
-    it('tunes the SDR and posts a notification when one is connected', async () => {
-      const sdr = useSdrStore()
-      sdr.connected = true
-      const notifs = useNotificationsStore()
-      const addSpy = vi.spyOn(notifs, 'add')
-      const tuneEvents: CustomEvent[] = []
-      document.addEventListener('sentinel:sdr-tune-external', (event) =>
-        tuneEvents.push(event as CustomEvent),
-      )
-      const wrapper = mountFilter(makeAdsb([]))
-      await setCategory('airports')
-      await wrapper.find('.bfp-result-option').trigger('click')
-      await wrapper.find('.apt-acc-freq').trigger('click')
-      expect(tuneEvents).toHaveLength(1)
-      expect(tuneEvents[0]!.detail).toMatchObject({ mode: 'AM', hz: 118_500_000 })
-      expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'system' }))
+    it('shows the notice, and does not tune, when the radio is not connected', async () => {
+      const radio = provideFakeRadio({ connected: false })
+      try {
+        const wrapper = mountFilter(makeAdsb([]))
+        await setCategory('airports')
+        await wrapper.find('.bfp-result-option').trigger('click')
+        await wrapper.find('.apt-acc-freq').trigger('click')
+        expect(wrapper.find('.apt-acc-notice').exists()).toBe(true)
+        expect(radio.tune).not.toHaveBeenCalled()
+      } finally {
+        radio.withdraw()
+      }
+    })
+
+    it('tunes the SDR through the radio capability and posts a notification when connected', async () => {
+      const radio = provideFakeRadio({ connected: true })
+      try {
+        const notifs = useNotificationsStore()
+        const addSpy = vi.spyOn(notifs, 'add')
+        const wrapper = mountFilter(makeAdsb([]))
+        await setCategory('airports')
+        await wrapper.find('.bfp-result-option').trigger('click')
+        await wrapper.find('.apt-acc-freq').trigger('click')
+        expect(radio.tune).toHaveBeenCalledTimes(1)
+        expect(radio.tune.mock.calls[0]![0]).toMatchObject({ mode: 'AM', hz: 118_500_000 })
+        expect(wrapper.find('.apt-acc-notice').exists()).toBe(false)
+        expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'system' }))
+      } finally {
+        radio.withdraw()
+      }
     })
   })
 

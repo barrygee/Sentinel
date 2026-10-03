@@ -22,7 +22,7 @@
         <LandRepeaterDetails
           v-if="repeaterFor(item.key)"
           :station="repeaterFor(item.key)!"
-          :sdr-connected="sdrStore.connected"
+          :sdr-connected="radioConnected"
           :is-saved="isFrequencySaved"
           :tune-notice="tuneNotice === item.key"
           @locate="locateRepeater"
@@ -146,7 +146,8 @@ import {
 } from '@/constants/repeaters'
 import type { RepeaterStation } from '@/types/repeaters'
 import { useLandStore, type AprsStation } from '@/stores/land'
-import { useSdrStore } from '@/stores/sdr'
+import { useRadio } from '@/shell/useRadio'
+import type { RadioFrequencies } from '@/shell/radioCapability'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { RepeaterFrequencySide } from '@/components/land/LandRepeaterDetails.vue'
 import { REPEATER_LOCATE_EVENT } from '@/components/land/controls/repeaters/RepeatersControl'
@@ -162,7 +163,7 @@ import {
 
 const landStore = useLandStore()
 const repeatersStore = useRepeatersStore()
-const sdrStore = useSdrStore()
+const { radio, connected: radioConnected } = useRadio()
 const notificationsStore = useNotificationsStore()
 
 /** Whether repeaters take part in this pane (layer on + directory loaded). */
@@ -308,11 +309,22 @@ const tuneNotice = ref<string | null>(null)
 // the SDR panel loads otherwise — fetch it once so the pane is right from
 // the first open.
 onMounted(() => {
-  if (sdrStore.frequencies.length === 0) void sdrStore.loadFrequencies()
+  radio.value?.frequencies.ensureLoaded()
 })
 
+/**
+ * The SDR's Frequency Manager, or a throw — inside the save/remove `try`
+ * blocks, so a missing SDR section reads as the same "could not save" notice
+ * as an unreachable backend.
+ */
+function requireRadioFrequencies(): RadioFrequencies {
+  const frequencies = radio.value?.frequencies
+  if (!frequencies) throw new Error('No SDR section provides the radio capability')
+  return frequencies
+}
+
 function isFrequencySaved(mhz: number): boolean {
-  return sdrStore.hasStoredFrequency(repeaterMhzToHz(mhz))
+  return radio.value?.frequencies.has(repeaterMhzToHz(mhz)) ?? false
 }
 
 function channelSideMhz(channel: RepeaterChannel, side: RepeaterFrequencySide): number {
@@ -326,7 +338,7 @@ function tuneRepeater(
   side: RepeaterFrequencySide,
 ): void {
   const rowKey = repeaterSearchKey(station.callsign)
-  if (!sdrStore.connected) {
+  if (!radio.value || !radioConnected.value) {
     tuneNotice.value = rowKey
     return
   }
@@ -335,16 +347,12 @@ function tuneRepeater(
   // A DMR / D-STAR / Fusion / P25 / NXDN channel also switches the SDR's
   // digital decoder on; an FM-only one switches it off so audio isn't muted.
   const digital = channelHasDigitalDecode(channel)
-  document.dispatchEvent(
-    new CustomEvent('sentinel:sdr-tune-external', {
-      detail: {
-        hz: repeaterMhzToHz(mhz),
-        mode: REPEATER_SDR_MODE,
-        satName: `${station.callsign} ${channel.band} ${side}`,
-        digital,
-      },
-    }),
-  )
+  radio.value.tune({
+    hz: repeaterMhzToHz(mhz),
+    mode: REPEATER_SDR_MODE,
+    satName: `${station.callsign} ${channel.band} ${side}`,
+    digital,
+  })
   notificationsStore.add({
     type: 'system',
     title: `${station.callsign} ${channel.band} ${side.toUpperCase()}`,
@@ -376,8 +384,9 @@ async function saveRepeaterFrequency(
   try {
     // Filed under a REPEATERS group so they stay together in the manager —
     // created on first use if the operator has not made one.
-    const groupId = await sdrStore.ensureFrequencyGroup(REPEATER_FREQUENCY_GROUP_NAME)
-    await sdrStore.saveFrequency({
+    const frequencies = requireRadioFrequencies()
+    const groupId = await frequencies.ensureGroup(REPEATER_FREQUENCY_GROUP_NAME)
+    await frequencies.save({
       label,
       frequency_hz: repeaterMhzToHz(mhz),
       mode: REPEATER_SDR_MODE,
@@ -407,7 +416,7 @@ async function removeRepeaterFrequency(
   const mhz = channelSideMhz(channel, side)
   const label = `${station.callsign} ${channel.band} ${side === 'output' ? 'OUT' : 'IN'}`
   try {
-    await sdrStore.removeStoredFrequency(repeaterMhzToHz(mhz))
+    await requireRadioFrequencies().remove(repeaterMhzToHz(mhz))
     notificationsStore.add({
       type: 'system',
       title: label,
