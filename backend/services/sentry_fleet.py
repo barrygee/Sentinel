@@ -25,8 +25,8 @@ from typing import Any
 
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.db_helpers import get_setting, upsert_setting
 from backend.models import SentryHost
+from backend.platform.settings_client import read_setting, write_setting
 from backend.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
 from sqlalchemy import select
 
@@ -231,8 +231,11 @@ class SentryFleetPoller:
         if not addresses:
             return
 
+        # `sdr.radios` is a core setting (it is in the config file), so the
+        # hub reads and writes it through the settings client — the same path
+        # as PUT /api/settings — rather than touching the row directly (B7).
         async with AsyncSessionLocal() as db:
-            radios = await get_setting(db, "sdr", "radios", default=[])
+            radios = await read_setting(db, "sdr", "radios", default=[])
             if not isinstance(radios, list):
                 return
             changed = False
@@ -258,7 +261,7 @@ class SentryFleetPoller:
                     radio["port"] = iq_port
                     changed = True
             if changed:
-                await upsert_setting(db, "sdr", "radios", radios)
+                await write_setting(db, "sdr", "radios", radios)
 
     async def _record_failure(self, host_id: int, snapshot: HostSnapshot, message: str) -> None:
         snapshot.reachable = False

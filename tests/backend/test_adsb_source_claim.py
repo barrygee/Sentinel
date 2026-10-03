@@ -382,6 +382,112 @@ class TestFailuresAnOperatorCanAct_On:
         assert seen == []
 
 
+class TestHubFailuresInOperatorWords:
+    """Air asks the hub's reservation proxy and words the failure itself (B6)."""
+
+    def test_a_deleted_host_asks_for_a_new_source(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen = _install_sentry(monkeypatch, sentry_ok)
+        host_id = register_host(client)
+        set_source(client, host_id)
+        client.delete(f"/api/sdr/sentry-hosts/{host_id}")
+
+        response = client.post("/api/sdr/adsb/claim", json={})
+
+        detail = response.json()["detail"]
+        assert detail["code"] == "unknown_host"
+        assert "Pick a source again" in detail["message"]
+        assert seen == []
+
+    def test_a_disabled_host_is_named_in_the_message(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_sentry(monkeypatch, sentry_ok)
+        host_id = register_host(client)
+        client.put(f"/api/sdr/sentry-hosts/{host_id}", json={"enabled": False})
+        set_source(client, host_id)
+
+        detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
+
+        assert "Attic Pi" in detail["message"]
+
+    def test_claimed_but_not_tuned_says_so_with_sentrys_code(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def rejects_tuning(request: httpx.Request) -> httpx.Response:
+            if request.method == "PATCH":
+                return httpx.Response(
+                    422,
+                    json={"detail": {"code": "bad_rate", "message": "Unsupported rate."}},
+                )
+            return sentry_ok(request)
+
+        _install_sentry(monkeypatch, rejects_tuning)
+        set_source(client, register_host(client))
+
+        detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
+
+        assert detail["code"] == "bad_rate"
+        assert detail["message"] == (
+            "The device was claimed but could not be tuned: Unsupported rate."
+        )
+
+    def test_claimed_but_not_tuned_with_an_empty_code_falls_back_to_tuning_failed(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def rejects_tuning(request: httpx.Request) -> httpx.Response:
+            if request.method == "PATCH":
+                return httpx.Response(500, json={"detail": {"code": "", "message": "No."}})
+            return sentry_ok(request)
+
+        _install_sentry(monkeypatch, rejects_tuning)
+        set_source(client, register_host(client))
+
+        detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
+
+        assert detail["code"] == "tuning_failed"
+        assert detail["message"] == "The device was claimed but could not be tuned: No."
+
+    def test_another_sentry_error_with_an_empty_code_falls_back_to_sentry_error(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def broken(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/auth/login":
+                return httpx.Response(
+                    204, headers={"set-cookie": "sentry_session=g; Path=/"}
+                )
+            return httpx.Response(503, json={"detail": {"code": "", "message": "Down."}})
+
+        _install_sentry(monkeypatch, broken)
+        set_source(client, register_host(client))
+
+        detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
+
+        assert detail["code"] == "sentry_error"
+        assert detail["message"] == "Down."
+
+    def test_another_sentry_error_passes_its_code_through(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def broken(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/auth/login":
+                return httpx.Response(
+                    204, headers={"set-cookie": "sentry_session=g; Path=/"}
+                )
+            return httpx.Response(
+                503, json={"detail": {"code": "usb_reset", "message": "Dongle resetting."}}
+            )
+
+        _install_sentry(monkeypatch, broken)
+        set_source(client, register_host(client))
+
+        detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
+
+        assert detail["code"] == "usb_reset"
+        assert detail["message"] == "Dongle resetting."
+
+
 class TestReleasing:
     def test_release_sends_a_delete(
         self, client: Any, monkeypatch: pytest.MonkeyPatch

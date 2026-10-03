@@ -139,10 +139,15 @@ class EventBus:
         """
         return self.subscribe(subject, handler)
 
-    async def request(self, subject: str, payload: EventPayload, timeout: float = 5.0) -> Any:
+    async def request(self, subject: str, payload: EventPayload, timeout: float | None = 5.0) -> Any:
         """Call the first responder registered for `subject` via `reply()` and
         return its result, or raise `asyncio.TimeoutError` after `timeout`
         seconds or `LookupError` if nothing replies to `subject`.
+
+        `timeout=None` waits for the responder however long it takes — for a
+        responder whose own I/O is already bounded (e.g. the hub's Sentry
+        calls, which carry the client's connect/read timeouts), where a second,
+        shorter limit here would only cut off a slow-but-working answer.
         """
         for pattern, handler in list(self._subscriptions):
             if _pattern_matches(pattern, subject):
