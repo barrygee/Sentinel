@@ -230,13 +230,21 @@ export const useNotificationsStore = defineStore('notifications', () => {
     fetch(`/api/air/messages/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {})
   }
 
-  function clearAll(): void {
-    // Keep only cards holding a live action (the bell that turns an active
-    // subscription off). Don't keep by type: satellite pass heads-ups are also
-    // typed 'tracking' but are one-shot alerts, and keeping them meant CLEAR
-    // left the list full.
-    const toKeep = items.value.filter((i) => !!i.action)
-    const toRemove = items.value.filter((i) => !i.action)
+  /**
+   * Empty the received alerts.
+   *
+   * By default cards holding a live action are kept — that action is the bell
+   * that turns an active subscription off, and the panel's CLEAR must not take
+   * away the only way to do so. Settings' CANCEL ALL ALERTS switches every
+   * subscription off first, so it passes `keepActionCards: false`: the bells
+   * would only control subscriptions that no longer exist.
+   */
+  function clearAll({ keepActionCards = true }: { keepActionCards?: boolean } = {}): void {
+    // Don't keep by type: satellite pass heads-ups are also typed 'tracking'
+    // but are one-shot alerts, and keeping them meant CLEAR left the list full.
+    const shouldKeep = (item: NotificationItem): boolean => keepActionCards && !!item.action
+    const toKeep = items.value.filter(shouldKeep)
+    const toRemove = items.value.filter((item) => !shouldKeep(item))
     toRemove.forEach((i) => {
       fetch(`/api/air/messages/${encodeURIComponent(i.id)}`, { method: 'DELETE' }).catch(() => {})
     })
