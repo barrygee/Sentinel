@@ -1,18 +1,38 @@
+import type { Component } from 'vue'
+
 /**
  * Shared types for the Settings panel's data-driven control registry.
  *
- * `SettingsPanel.vue` renders `ALL_SETTINGS` (a flat list of `SettingItem`s)
- * into `SettingRow.vue`, which dispatches on `type` to the matching control
- * component. Both files depend on this shape, so it lives here rather than
- * inside either component (a component should not be imported purely for its
- * types).
+ * Sections register `SettingItem`s with `shell/settingsRegistry.ts`;
+ * `SettingsPanel.vue` lists them and `SettingRow.vue` renders each item's
+ * `control`. Several modules depend on this shape, so it lives here rather
+ * than inside any one of them.
  */
+
+/** How a setting is edited: the control, its props, and how it talks to the panel. */
+export interface SettingControl {
+  component: Component
+  /** Props passed to the control, e.g. a settings namespace or a file's URLs. */
+  props?: Record<string, unknown>
+  /**
+   * The panel events the control emits: `stage` hands APPLY CHANGES a
+   * closure to run; `commit` asks the panel to apply now. A control that
+   * applies everything itself emits neither.
+   */
+  emits?: ReadonlyArray<'stage' | 'commit'>
+  /**
+   * Card width: two columns, two columns on a fresh row, or the full row.
+   * Omitted = one column.
+   */
+  layout?: 'half' | 'half-stacked' | 'full'
+  /** Let the card grow to its content instead of the row's fixed height. */
+  naturalHeight?: boolean
+}
 
 /**
  * Describes one entry in the Settings panel's navigation/search registry —
- * which section it belongs to, its label/description, which control renders
- * it (`type`), and any type-specific configuration the control needs (e.g.
- * `ns` for the settings namespace, `defaultUrl` for source controls).
+ * which section it belongs to, its label/description and search words, and
+ * the control that edits it.
  */
 export interface SettingItem {
   section: string
@@ -33,8 +53,5 @@ export interface SettingItem {
    * not printed twice.
    */
   hideLabel?: boolean
-  type: string
-  // type-specific props
-  ns?: string
-  defaultUrl?: string
+  control: SettingControl
 }

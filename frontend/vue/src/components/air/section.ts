@@ -1,5 +1,7 @@
 import { registerSection } from '@/shell/sectionRegistry'
 import AirView from './AirView.vue'
+// Registers this section's Settings nav entry and items (F3).
+import './settings'
 
 /**
  * Registers the AIR section with the shell (route + nav entry).

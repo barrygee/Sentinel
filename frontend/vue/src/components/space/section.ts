@@ -1,5 +1,7 @@
 import { registerSection } from '@/shell/sectionRegistry'
 import SpaceView from './SpaceView.vue'
+// Registers this section's Settings nav entry and items (F3).
+import './settings'
 
 /**
  * Registers the SPACE section with the shell (route + nav entry).

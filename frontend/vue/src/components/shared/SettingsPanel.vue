@@ -294,6 +294,8 @@ import { useAppStore } from '@/stores/app'
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@/types/settings'
 import SettingRow from './settings/SettingRow.vue'
+import './settings/appSettings'
+import { getSettingItems, getSettingsSections } from '@/shell/settingsRegistry'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
@@ -326,443 +328,28 @@ const pending = ref<Map<string, () => Promise<unknown> | void>>(new Map())
 const applyStatusMsg = ref('')
 const applyStatusClass = ref('')
 
-interface NavSection {
-  key: string
-  label: string
-}
-const NAV_SECTIONS: NavSection[] = [
-  { key: 'app', label: 'App Settings' },
-  { key: 'air', label: 'AIR' },
-  { key: 'space', label: 'SPACE' },
-  { key: 'sea', label: 'SEA' },
-  { key: 'land', label: 'LAND' },
-  { key: 'sdr', label: 'SDR' },
-]
-
-const ALL_SETTINGS: SettingItem[] = [
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'connectivity-mode',
-    label: 'Connectivity Mode',
-    desc: 'Sets every section to this mode, replacing any section overrides',
-    type: 'connectivity-toggle',
-    groupLabel: 'GENERAL',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'notification-sound',
-    label: 'Alert Sound',
-    desc: '',
-    type: 'notification-sound',
-    groupLabel: 'ALERTS',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'notification-subscriptions',
-    label: 'Alerts',
-    // The description is rendered by the control itself, so it can hide with the list.
-    desc: '',
-    searchTerms:
-      'notifications alerts bell aircraft landing departure satellite pass overhead clear cancel turn off disable',
-    type: 'notification-subscriptions',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'location',
-    label: 'Sentinel Location',
-    desc: '',
-    // Keeps the setting findable by the words the removed description carried.
-    searchTerms: 'fixed latitude longitude position',
-    type: 'location',
-    groupLabel: 'LOCATION',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'map-theme',
-    label: 'Map Style',
-    desc: '',
-    searchTerms:
-      'theme light dark colour color mode palette appearance basemap map style cartographic',
-    type: 'map-theme',
-    groupLabel: 'MAP',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'map-basemap-layers',
-    label: 'Map Layers',
-    desc: '',
-    searchTerms:
-      'roads streets motorways highways location place city town names labels borders boundaries countries show hide map layers',
-    type: 'map-basemap-layers',
-    groupLabel: 'MAP',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'range-ring-origin',
-    label: 'Range Ring Origin',
-    desc: 'The point on the map range rings are drawn',
-    searchTerms: 'range rings sentry centre center origin',
-    type: 'range-ring-origin',
-    groupLabel: 'MAP',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'offline-maps',
-    label: 'Offline Maps',
-    desc: 'Download basemap and terrain tiles for an area so it works with no internet connection',
-    searchTerms:
-      'offline download area region pmtiles terrain basemap dark light colour cartographic',
-    type: 'offline-maps',
-    groupLabel: 'MAP',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-source-override',
-    label: 'Source Override',
-    desc: 'Overrides the app-wide Connectivity Mode for this section',
-    type: 'source-override',
-    ns: 'air',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-offgrid-sdr-source',
-    label: 'Off Grid ADS-B SDR',
-    desc: 'Which Sentry SDR receives ADS-B. Held and tuned to 1090 MHz while AIR is open off grid',
-    type: 'adsb-sdr-source',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-online-source',
-    label: 'Online Data Source',
-    desc: 'URL for live air data feed',
-    type: 'online-source',
-    ns: 'air',
-    defaultUrl: 'https://api.adsb.lol/v2',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'map-layers',
-    label: 'Map Layers',
-    desc: 'Which overlays the maps draw. The rails keep the few worth flipping mid-task; toggling one there updates it here.',
-    searchTerms:
-      'range rings a2a refuelling refueling awacs ground vehicles towers terrain contours contour lines elevation airports military bases overlays',
-    type: 'map-layers',
-    groupLabel: 'MAP',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-overhead-alerts',
-    label: 'Overhead Aircraft Alerts',
-    desc: 'Notify when aircraft are overhead, per location',
-    searchTerms: 'overhead alerts civil military radius sentry location zone',
-    type: 'overhead-alerts',
-    groupLabel: 'ALERTS',
-  },
-  {
-    section: 'air',
-    sectionLabel: 'AIR',
-    id: 'air-tag-fields',
-    label: 'Label Data Points',
-    desc: '',
-    // Keeps the setting findable by the words the removed description carried.
-    searchTerms: 'data fields aircraft labels civil military',
-    type: 'air-tag-fields',
-    groupLabel: 'LABELS',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-online-source',
-    label: 'Online Data Source',
-    desc: 'URL to fetch TLE data from — select a category and click UPDATE TLE',
-    type: 'space-tle-online',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-manual-tle',
-    label: 'TLE Import',
-    desc: 'Upload a .txt file of TLE data',
-    type: 'space-tle-manual',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-tle-database',
-    label: 'TLE Database',
-    desc: 'Satellite count, sources, and per-category last-updated times. Clear all data, or clear a single category (e.g. space station, amateur radio).',
-    type: 'space-tle-db',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-sat-radio-file',
-    label: 'Satellite Frequencies (JSON)',
-    desc: '',
-    searchTerms:
-      'bulk-edit all satellite frequencies raw json backend/data/satellite_radio.json database',
-    type: 'space-sat-radio-file',
-    groupLabel: 'SATELLITE DATA',
-  },
-  {
-    section: 'space',
-    sectionLabel: 'SPACE',
-    id: 'space-filter-hover-preview',
-    label: 'Filter Hover Behaviour',
-    desc: 'When hovering over a satellite in the search results, choose whether the map stays in place or flies to that satellite',
-    type: 'space-hover-preview',
-    groupLabel: 'FILTER HOVER',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-source-override',
-    label: 'Source Override',
-    desc: 'Overrides the app-wide Connectivity Mode for this section',
-    type: 'source-override',
-    ns: 'sea',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-ais-sdr-source',
-    label: 'Off Grid AIS SDR',
-    desc: 'Which SDR radio receives AIS when the Sea map is off grid',
-    searchTerms: 'ais sdr radio receiver off grid aivdm',
-    type: 'sea-ais-sdr-source',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-online-source',
-    label: 'Online Data Source',
-    desc: 'AISStream WebSocket URL for live vessel positions',
-    searchTerms: 'ais aisstream vessels ships websocket',
-    type: 'online-source',
-    ns: 'sea',
-    defaultUrl: 'wss://stream.aisstream.io/v0/stream',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-ais-key',
-    label: 'AIS Data API Key',
-    desc: '',
-    searchTerms: 'ais aisstream api key secret token vessels ships',
-    type: 'sea-ais-key',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-coverage-area',
-    label: 'Coverage Area',
-    desc: 'The bounding box AIS covers. Worldwide is hundreds of messages a second — a regional box is lighter.',
-    searchTerms: 'ais bounding box bbox region area subscription',
-    type: 'sea-coverage-area',
-    groupLabel: 'DATA SOURCES',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-map-layers',
-    label: 'Map Layers',
-    desc: 'Which overlays the Sea map draws. Changes show on the map at once; APPLY CHANGES saves them as the defaults for every device.',
-    searchTerms: 'vessel labels range rings ferry routes ports harbours vhf overlays',
-    type: 'sea-map-layers',
-    groupLabel: 'MAP',
-  },
-  {
-    section: 'sea',
-    sectionLabel: 'SEA',
-    id: 'sea-label-fields',
-    label: 'Vessel Label Fields',
-    desc: 'Which details each vessel shows on its map label',
-    searchTerms: 'vessel label name type mmsi destination speed course',
-    type: 'sea-label-fields',
-    groupLabel: 'LABELS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-aprs-sdr-source',
-    label: 'Off Grid APRS SDR',
-    desc: 'Which SDR radio decodes APRS. Decode runs in the background on it and keeps it on the APRS channel; until one is set, the map\u2019s APRS layer stays off',
-    searchTerms: 'aprs radio receiver direwolf packet land map layer',
-    type: 'aprs-sdr-source',
-    groupLabel: 'APRS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-aprs-channel',
-    label: 'APRS Channel',
-    desc: 'Frequency the APRS radio is kept on \u2014 144.800 MHz in Europe/UK, 144.390 MHz in North America. The decoder retunes the radio here if anything moves it off',
-    searchTerms: 'aprs channel frequency mhz 144.800 144.390 packet',
-    type: 'land-aprs-channel',
-    ns: 'land',
-    groupLabel: 'APRS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-aprs-label-fields',
-    label: 'APRS Label Fields',
-    desc: 'Choose which data fields appear on APRS station labels on the map',
-    type: 'land-aprs-label-fields',
-    ns: 'land',
-    groupLabel: 'APRS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-aprs-retention',
-    label: 'APRS Retention',
-    desc: 'Minutes a heard APRS station stays on the map after its last signal',
-    type: 'land-aprs-retention',
-    ns: 'land',
-    groupLabel: 'APRS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-repeater-label-fields',
-    label: 'Repeater Label Fields',
-    desc: 'Choose which data fields appear on amateur-radio repeater labels on the map',
-    searchTerms: 'repeater label callsign band frequency mode ctcss locator keeper',
-    type: 'land-repeater-label-fields',
-    ns: 'land',
-    groupLabel: 'REPEATERS',
-  },
-  {
-    section: 'land',
-    sectionLabel: 'LAND',
-    id: 'land-repeaters-file',
-    label: 'Repeater Directory (JSON)',
-    desc: 'The UK repeater directory the Land map plots — refreshed daily from ukrepeater.net, with a bundled copy for offline installs. Edit or replace it here; a replacement is kept for 30 days before the daily refresh resumes.',
-    searchTerms: 'repeaters directory json ukrepeater etcc data file',
-    type: 'land-repeaters-file',
-    groupLabel: 'REPEATERS',
-  },
-  {
-    section: 'sdr',
-    sectionLabel: 'SDR',
-    id: 'sdr-sentry-hosts',
-    label: 'Sentry Hosts',
-    // No description: the SENTRY HOSTS group heading already names the card.
-    // The former blurb stays as search terms so the card is still findable.
-    desc: '',
-    searchTerms: 'register raspberry pi sentry remote sdr devices',
-    type: 'sdr-sentry-hosts',
-    groupLabel: 'SENTRY HOSTS',
-  },
-  {
-    section: 'sdr',
-    sectionLabel: 'SDR',
-    id: 'sdr-devices',
-    label: 'SDR Devices',
-    desc: 'Configure RTL-SDR devices reachable via rtl_tcp, or mirror one from a registered Sentry host',
-    type: 'sdr-devices',
-    groupLabel: 'DEVICES',
-  },
-  {
-    section: 'sdr',
-    sectionLabel: 'SDR',
-    id: 'sdr-options',
-    label: 'SDR Options',
-    desc: '',
-    // The options box shows names and checkboxes only, so its per-option prose
-    // lives here instead — searchable without putting text back on the page.
-    searchTerms:
-      'auto-center waterfall on tune snap to known frequencies show band plan display known frequencies mute audio while decoding waterfall spectrum scan search resume delay seconds hold resume',
-    type: 'sdr-options',
-    // The group heading already reads SDR OPTIONS directly above the card, so
-    // the card's own title only said it twice. Kept in the registry (screen
-    // readers and search still need a name for the box) but hidden on screen.
-    hideLabel: true,
-    groupLabel: 'SDR OPTIONS',
-  },
-  // The raw-JSON editors carry no description: the box below the title already
-  // shows the document, and the prose only pushed the controls down. What it
-  // said stays in `searchTerms` so the boxes are still findable by what they
-  // edit (band plan, search ranges, …) rather than by title alone.
-  {
-    section: 'sdr',
-    sectionLabel: 'SDR',
-    id: 'sdr-frequencies-file',
-    label: 'Frequencies & Groups (JSON)',
-    desc: '',
-    searchTerms:
-      'bulk-edit frequency groups stored frequencies search ranges raw json backend/data/sdr_frequencies.json database',
-    type: 'sdr-frequencies-file',
-    groupLabel: 'FREQUENCY DATA',
-  },
-  {
-    section: 'sdr',
-    sectionLabel: 'SDR',
-    id: 'sdr-bandplan-file',
-    label: 'Band Plan (JSON)',
-    desc: '',
-    searchTerms:
-      'bulk-edit coloured rf band-plan strip raw json backend/data/sdr_bandplan.json database',
-    type: 'sdr-bandplan-file',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'config-current',
-    label: 'Application Config',
-    desc: '',
-    searchTerms: 'settings currently stored in the database raw json',
-    type: 'config-current',
-    // Export All carries no groupLabel of its own, so it stays under this
-    // heading — the same way the AIR/SPACE sections continue a group.
-    groupLabel: 'CONFIGURATION',
-  },
-  {
-    section: 'app',
-    sectionLabel: 'App Settings',
-    id: 'export-all',
-    label: 'Export All Configuration',
-    desc: 'Back up your full configuration (sentinel_config.json, sdr_frequencies.json and sdr_bandplan.json) to a single folder you choose',
-    type: 'export-all',
-  },
-]
-
-const DOMAIN_SECTIONS = new Set(['air', 'space', 'sea', 'land', 'sdr'])
-const visibleSections = computed(() =>
-  NAV_SECTIONS.filter(
-    (s) => !DOMAIN_SECTIONS.has(s.key) || appStore.enabledDomains.includes(s.key),
-  ),
+// Every Settings section and item comes from the registry: core registers
+// 'app' (./settings/appSettings), each section registers its own (F3). A domain
+// section is offered — in the nav and in search — only while it is enabled.
+const navSections = getSettingsSections()
+const allSettings = getSettingItems()
+const domainSectionKeys = new Set(
+  navSections.filter((section) => section.domain).map((section) => section.key),
 )
+function isSectionOffered(key: string): boolean {
+  return !domainSectionKeys.has(key) || appStore.enabledDomains.includes(key)
+}
+const visibleSections = computed(() => navSections.filter((s) => isSectionOffered(s.key)))
 
 const sectionHeading = computed(() => {
   if (searchQuery.value.trim()) return 'SEARCH RESULTS'
-  const s = NAV_SECTIONS.find((n) => n.key === activeSection.value)
+  const s = navSections.find((n) => n.key === activeSection.value)
   if (!s) return activeSection.value
   return s.key === 'app' ? s.label : s.label + ' SETTINGS'
 })
 
 const currentSectionItems = computed(() =>
-  ALL_SETTINGS.filter((s) => s.section === activeSection.value),
+  allSettings.filter((s) => s.section === activeSection.value),
 )
 
 const searchResults = computed<SettingItem[]>(() => {
@@ -771,9 +358,9 @@ const searchResults = computed<SettingItem[]>(() => {
      (it sits behind v-if="searchQuery.trim()"), so q is never empty here */
   if (!q) return []
   /* v8 ignore stop */
-  return ALL_SETTINGS.filter(
+  return allSettings.filter(
     (s) =>
-      (!DOMAIN_SECTIONS.has(s.section) || appStore.enabledDomains.includes(s.section)) &&
+      isSectionOffered(s.section) &&
       (s.label.toLowerCase().includes(q) ||
         s.desc.toLowerCase().includes(q) ||
         (s.searchTerms?.toLowerCase().includes(q) ?? false) ||

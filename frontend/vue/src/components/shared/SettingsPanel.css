@@ -330,10 +330,9 @@
 }
 
 /* SettingRow still tags cards by width intent, but the grid is one column, so
-   every class resolves to that same single track. They must NOT use `span 2` /
-   `span 3`: that would create implicit extra columns and break the layout. */
+   every class resolves to that same single track. They must NOT use `span 2`:
+   that would create implicit extra columns and break the layout. */
 .settings-item--half,
-.settings-item--triple,
 .settings-item--half-stacked,
 .settings-item--full {
   grid-column: 1 / -1;

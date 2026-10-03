@@ -1,5 +1,7 @@
 import { registerSection } from '@/shell/sectionRegistry'
 import LandView from './LandView.vue'
+// Registers this section's Settings nav entry and items (F3).
+import './settings'
 
 /**
  * Registers the LAND section with the shell (route + nav entry).

@@ -19,4 +19,12 @@ describe('components/land/section', () => {
       route: { path: '/land/', component: LandView },
     })
   })
+
+  it('registers its Settings section and items', async () => {
+    await import('./section')
+    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+
+    expect(getSettingsSections().map((section) => section.key)).toContain('land')
+    expect(getSettingItems().some((item) => item.section === 'land')).toBe(true)
+  })
 })
