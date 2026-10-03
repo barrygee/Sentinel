@@ -42,6 +42,11 @@ jobs:
       - name: Format check (ruff format)
         run: uv run --project backend ruff format --check backend
 
+      - name: Import boundaries (import-linter)
+        # Sections may not import each other; core/platform may import no
+        # section. Contracts live in backend/pyproject.toml [tool.importlinter].
+        run: PYTHONPATH=. uv run --project backend lint-imports --config backend/pyproject.toml
+
       - name: Tests (pytest)
         # pytest.ini sets pythonpath=. — run from the repo root, as documented.
         run: uv run --project backend pytest
