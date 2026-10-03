@@ -84,7 +84,10 @@
       @stage="emit('stage', item.id, $event)"
       @commit="emit('commit')"
     />
-    <AdsbSdrSourceControl v-else-if="item.type === 'adsb-sdr-source'" />
+    <AdsbSdrSourceControl
+      v-else-if="item.type === 'adsb-sdr-source'"
+      @stage="emit('stage', item.id, $event)"
+    />
     <AprsSdrSourceControl
       v-else-if="item.type === 'aprs-sdr-source'"
       @stage="emit('stage', item.id, $event)"

@@ -27,14 +27,17 @@
  *
  * Devices come from the Sentry hosts already registered in Settings → SDR, so
  * there is nothing to type: an operator picks the dongle they already named.
- * Saved immediately on change rather than staged with the panel's other
- * settings, because the AIR view acts on it the moment it is set, and a choice
- * that only took effect on some later Save would look broken in between.
+ * Staged like every other setting in the panel, and saved by APPLY CHANGES. It
+ * used to save the moment it was picked, which left Apply reporting "no
+ * changes" right after the operator had changed it — and looked broken.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { clearAdsbSource, getAdsbSource, setAdsbSource } from '@/services/adsbSourceApi'
 import SettingsDropdown, { type SettingsDropdownOption } from './SettingsDropdown.vue'
 import { getSentryHostDevices, listSentryHosts, type SentryHost } from '@/services/sentryApi'
+import { useSettingsStore } from '@/stores/settings'
+
+const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 /** A device option's `value` is `${hostId}:${deviceId}` — the two ids the backend needs, in one. */
 const devices = ref<SettingsDropdownOption[]>([])
@@ -153,21 +156,26 @@ async function loadDevices(): Promise<void> {
 
 async function loadSelection(): Promise<void> {
   const source = await getAdsbSource()
-  if (source?.configured && source.sentry_host_id !== null && source.sentry_device_id) {
-    isHydrating = true
-    selected.value = `${source.sentry_host_id}:${source.sentry_device_id}`
-    isHydrating = false
-  }
+  // An unreachable backend leaves the current choice alone rather than
+  // blanking the control.
+  if (source === null) return
+  isHydrating = true
+  selected.value =
+    source.configured && source.sentry_host_id !== null && source.sentry_device_id
+      ? `${source.sentry_host_id}:${source.sentry_device_id}`
+      : ''
+  isHydrating = false
 }
 
 /**
- * Persist the chosen device, or clear it when "Not set" is picked. See the note
- * above on why this saves immediately — which is also why the panel's Apply
- * reports no changes: there is nothing staged for it to save.
+ * Persist the chosen device, or clear it when "Not set" is picked. Run by
+ * APPLY CHANGES. Throws when the backend refuses or cannot be reached, so the
+ * panel reports ERROR rather than SAVED — the API client returns null on
+ * failure instead of throwing.
  */
 async function saveSelection(value: string): Promise<void> {
   if (!value) {
-    await clearAdsbSource()
+    if ((await clearAdsbSource()) === null) throw new Error('Could not clear the ADS-B source')
     return
   }
   // `device_id` itself contains a colon ("serial:ABC"), so split once only.
@@ -179,7 +187,9 @@ async function saveSelection(value: string): Promise<void> {
      the UI; it guards a hand-edited stored setting. */
   if (!Number.isFinite(hostId) || !deviceId) return
   /* v8 ignore stop */
-  await setAdsbSource(hostId, deviceId)
+  if ((await setAdsbSource(hostId, deviceId)) === null) {
+    throw new Error('Could not save the ADS-B source')
+  }
 }
 
 // Watched rather than handled on a change event: the dropdown is a listbox, so
@@ -188,12 +198,23 @@ watch(
   selected,
   (value) => {
     if (isHydrating) return
-    void saveSelection(value)
+    emit('stage', () => saveSelection(value))
   },
   // Synchronous so the `isHydrating` flag still stands when the watcher runs:
   // the default pre-flush would fire after hydration had already cleared it,
   // and the restored choice would be treated as an operator's pick.
   { flush: 'sync' },
+)
+
+// The panel stays mounted while closed, so a pick that was never applied would
+// still be showing next time it opens. Re-read the saved choice on each open,
+// as the panel drops unapplied changes then too.
+const settingsStore = useSettingsStore()
+watch(
+  () => settingsStore.open,
+  (isOpen) => {
+    if (isOpen) void loadSelection()
+  },
 )
 
 onMounted(async () => {

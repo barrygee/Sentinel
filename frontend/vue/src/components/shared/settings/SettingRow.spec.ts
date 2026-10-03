@@ -167,6 +167,13 @@ describe('SettingRow', () => {
     expect(wrapper.emitted('stage')).toEqual([['sentinel-location', staged]])
   })
 
+  it('stages the off-grid ADS-B SDR pick, so APPLY CHANGES saves it', () => {
+    const wrapper = mountRow({ id: 'adsb-sdr-source', type: 'adsb-sdr-source', label: 'SDR' })
+    const staged = async () => {}
+    wrapper.findComponent(AdsbSdrSourceControl).vm.$emit('stage', staged)
+    expect(wrapper.emitted('stage')).toEqual([['adsb-sdr-source', staged]])
+  })
+
   it('renders only the label for an unrecognised type', () => {
     const wrapper = mountRow({ id: 'z', type: 'mystery-type', label: 'Mystery' })
     expect(wrapper.find('.settings-item-label').text()).toBe('Mystery')
