@@ -479,6 +479,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Lead AIR and SEA with data sources, move LAND map layers last
 - Remove the vessel row's Centre on map action
 - Rebuild bundle
+- Enforce section boundaries with a local ESLint rule
 
 ### Other
 
@@ -1348,6 +1349,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #399 from barrygee/refactor/p2-move-section-settings
 - Merge branch 'main' into refactor/p2-capabilities
 - Merge pull request #400 from barrygee/refactor/p2-capabilities
+- Merge branch 'main' into chore/p2-section-boundaries-lint
+- Merge pull request #401 from barrygee/chore/p2-section-boundaries-lint
 
 ### Refactoring
 
