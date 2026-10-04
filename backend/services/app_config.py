@@ -205,6 +205,15 @@ async def _resolve_retired_auto_modes(db: AsyncSession, config: dict) -> None:
             block["sourceOverride"] = app_mode
 
 
+# Settings a config upload announces on the bus when it changes them (the
+# Settings PUT announces every write; apply_config writes rows directly).
+_ANNOUNCED_SETTINGS: tuple[tuple[str, str], ...] = (
+    ("sea", "aisSdrRadioId"),
+    ("sea", "sourceOverride"),
+    ("app", "connectivityMode"),
+)
+
+
 async def apply_config(db: AsyncSession, config: Any) -> None:
     """Upsert every setting in a config document into user_settings.
 
@@ -233,6 +242,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     # the edit takes effect exactly as picking the radio in Settings would.
     previous_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
     previous_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
+    previous_announced = {item: await get_setting(db, *item, default=None) for item in _ANNOUNCED_SETTINGS}
 
     from backend.database import is_removed_setting  # avoid import cycle at module load
 
@@ -272,7 +282,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     await db.commit()
 
     # Decoder reconciliation is owned by whichever module manages the running
-    # bridges (routers/sdr.py) — publish the change on the event bus instead
+    # bridges (radio_hub/routers/decode.py) — publish the change on the event bus instead
     # of importing that router directly (that import is exactly the cycle
     # routers/sdr <-> routers/settings <-> services/app_config <-> database
     # this module was part of). `db` rides in the payload alongside the
@@ -294,7 +304,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
         # Same radio, but the document may have moved the APRS channel. This
         # is the exact same event routers/settings.py's PUT handler publishes
         # for a direct land/aprsChannelHz write — one subscriber (in
-        # routers/sdr.py) re-reads the freshly committed channel and applies
+        # radio_hub/routers/decode.py) re-reads the freshly committed channel and applies
         # it, whichever path triggered it.
         await bus.publish("settings.changed.land", {"keys": ["aprsChannelHz"], "db": db}, raise_errors=True)
 
@@ -305,3 +315,13 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
             {"decoder": "ais", "db": db, "previous": previous_ais_radio_id, "next": next_ais_radio_id},
             raise_errors=True,
         )
+
+    # A document can change which radio Sea decodes AIS on, or whether Sea is
+    # off grid. Announce those like a Settings save would, so whoever reacts to
+    # them (Sea's AIS receiver) does whichever path wrote them.
+    changed_keys: dict[str, list[str]] = {}
+    for (namespace, key), previous in previous_announced.items():
+        if await get_setting(db, namespace, key, default=None) != previous:
+            changed_keys.setdefault(namespace, []).append(key)
+    for namespace, keys in changed_keys.items():
+        await bus.publish(f"settings.changed.{namespace}", {"keys": keys, "db": db})

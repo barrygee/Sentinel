@@ -139,10 +139,10 @@ class TestRadioHubModule:
             recorder(calls, "secret", is_async=False),
         )
         monkeypatch.setattr(
-            radio_hub.sdr_router, "resume_persisted_aprs", recorder(calls, "aprs")
+            radio_hub.decode_router, "resume_persisted_aprs", recorder(calls, "aprs")
         )
         monkeypatch.setattr(
-            radio_hub.sdr_router, "resume_persisted_ais", recorder(calls, "ais")
+            radio_hub.decode_router, "resume_persisted_ais", recorder(calls, "ais")
         )
         monkeypatch.setattr(
             radio_hub.fleet_poller, "start_all", recorder(calls, "fleet.start")
@@ -191,10 +191,30 @@ class TestRadioHubModule:
 
 
 class TestSeaModule:
-    def test_hooks_drive_the_ais_reader(self):
-        assert sea.lifecycle.start == ais_reader.start
+    def test_stop_and_wake_drive_the_ais_reader(self):
         assert sea.lifecycle.stop == ais_reader.stop
         assert sea.lifecycle.wake == ais_reader.wake
+
+    async def test_start_warms_the_reader_then_reconciles_the_ais_receiver(
+        self, monkeypatch
+    ):
+        calls: list[str] = []
+
+        async def reader_start() -> None:
+            calls.append("reader")
+
+        async def reconcile_now() -> None:
+            calls.append("receiver")
+
+        monkeypatch.setattr(ais_reader, "start", reader_start)
+        monkeypatch.setattr(sea.sea_ais_receiver, "reconcile_now", reconcile_now)
+        await sea.lifecycle.start()
+        assert calls == ["reader", "receiver"]
+
+    def test_sea_starts_after_the_radio_hub(self):
+        # The receiver asks the hub to decode, so the hub must be up first.
+        order = [module.name for module in modules.MODULES]
+        assert order.index("radio-hub") < order.index("sea")
 
 
 class TestLandModule:

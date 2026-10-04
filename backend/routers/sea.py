@@ -96,7 +96,7 @@ async def _offgrid_decode_snapshot() -> dict[str, object]:
     can actually see and fix.
 
     Reads the bridge's state over the bus (``hub.decode.ais.status``, B3)
-    rather than importing ``services.sdr_decode`` directly, so Sea never reads
+    rather than importing ``radio_hub.services.sdr_decode`` directly, so Sea never reads
     the decode bridge in-process.
     """
     bridge_state = await bus.request("hub.decode.ais.status", {})

@@ -235,6 +235,50 @@
         "title": "DecodeEventIn",
         "type": "object"
       },
+      "DecoderManifest": {
+        "description": "A decoder container's manifest, as far as the radio hub reads it.",
+        "properties": {
+          "contracts": {
+            "maxLength": 16,
+            "title": "Contracts",
+            "type": "string"
+          },
+          "decoderKind": {
+            "pattern": "^[a-z][a-z0-9-]{1,31}$",
+            "title": "Decoderkind",
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^[a-z][a-z0-9-]{1,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "decoder",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pcm": {
+            "$ref": "#/components/schemas/PcmSpec"
+          },
+          "version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "decoderKind",
+          "version",
+          "contracts",
+          "pcm"
+        ],
+        "title": "DecoderManifest",
+        "type": "object"
+      },
       "DeviceSnapshotOut": {
         "description": "Response for `GET /api/sdr/sentry-hosts/{host_id}/devices` — the cached poll snapshot.",
         "properties": {
@@ -577,6 +621,47 @@
         "title": "HealthProbeResult",
         "type": "object"
       },
+      "ManifestDecodeControlIn": {
+        "description": "Body for starting a manifest-declared decoder kind on a radio.\n\n``bw_hz`` overrides the manifest's channel bandwidth (0 = the manifest's).\n``offset_hz`` places a ``relative`` kind's channel against the radio's centre\nfrequency; an ``absolute`` kind tunes to its own channels and ignores it.",
+        "properties": {
+          "bw_hz": {
+            "default": 0,
+            "maximum": 200000.0,
+            "minimum": 0.0,
+            "title": "Bw Hz",
+            "type": "integer"
+          },
+          "offset_hz": {
+            "default": 0,
+            "maximum": 10000000.0,
+            "minimum": -10000000.0,
+            "title": "Offset Hz",
+            "type": "integer"
+          },
+          "radio_id": {
+            "title": "Radio Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "radio_id"
+        ],
+        "title": "ManifestDecodeControlIn",
+        "type": "object"
+      },
+      "ManifestDecodeStopIn": {
+        "properties": {
+          "radio_id": {
+            "title": "Radio Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "radio_id"
+        ],
+        "title": "ManifestDecodeStopIn",
+        "type": "object"
+      },
       "MessageIn": {
         "description": "Body for POST /api/air/messages — creates a new notification message.",
         "properties": {
@@ -628,6 +713,68 @@
           "radio_id"
         ],
         "title": "PacketDecodeControlIn",
+        "type": "object"
+      },
+      "PcmSpec": {
+        "additionalProperties": false,
+        "description": "The PCM feed a decoder expects on its TCP port.",
+        "properties": {
+          "bwHz": {
+            "default": 12500,
+            "maximum": 200000.0,
+            "minimum": 1000.0,
+            "title": "Bwhz",
+            "type": "integer"
+          },
+          "channels": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Channels",
+            "type": "integer"
+          },
+          "channelsHz": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "title": "Channelshz",
+            "type": "array"
+          },
+          "demod": {
+            "const": "fm",
+            "default": "fm",
+            "title": "Demod",
+            "type": "string"
+          },
+          "ownership": {
+            "default": "relative",
+            "enum": [
+              "relative",
+              "absolute"
+            ],
+            "title": "Ownership",
+            "type": "string"
+          },
+          "port": {
+            "maximum": 65535.0,
+            "minimum": 1024.0,
+            "title": "Port",
+            "type": "integer"
+          },
+          "rate": {
+            "const": 48000,
+            "default": 48000,
+            "title": "Rate",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "title": "PcmSpec",
         "type": "object"
       },
       "RadioIn": {
@@ -3414,6 +3561,347 @@
           }
         },
         "summary": "Decode Status",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders": {
+      "get": {
+        "description": "The decoder manifests registered with this hub.",
+        "operationId": "list_decoders_api_sdr_decoders_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Decoders",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders/register": {
+      "post": {
+        "description": "Register a decoder container's manifest (idempotent).\n\n201 the first time a kind is registered, 200 when the same manifest is sent\nagain or replaces its own earlier version, 409 when another decoder holds the\nkind, the kind is decoding, or its PCM port is taken.",
+        "operationId": "register_decoder_api_sdr_decoders_register_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-decode-secret",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Decode-Secret",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecoderManifest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Decoder",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders/{kind}/config": {
+      "get": {
+        "description": "Whether a session for this kind is serving PCM, for the decoder's supervisor.\n\n404 for a kind the hub doesn't know — after a hub restart, that is the\ndecoder's cue to register again.",
+        "operationId": "decoder_config_api_sdr_decoders__kind__config_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9-]{1,31}$",
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-decode-secret",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Decode-Secret",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decoder Config",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders/{kind}/ingest": {
+      "post": {
+        "description": "Receive a decoded event from a decoder container, publish it, and fan it out.\n\nSame gate as every other kind: secret-authed (fails closed) and 409 when no\nsession is active. The event is published as ``decode.<kind>.<radioId>`` for\nany section, then relayed to the radio's ``/ws/sdr/{id}/decode`` subscribers\nwith ``type`` defaulted to the kind.",
+        "operationId": "ingest_decoder_event_api_sdr_decoders__kind__ingest_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9-]{1,31}$",
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-decode-secret",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Decode-Secret",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecodeEventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Decoder Event",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders/{kind}/start": {
+      "post": {
+        "description": "Start (or retune) a decoder kind on a radio; it runs until stopped.",
+        "operationId": "start_decoder_api_sdr_decoders__kind__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9-]{1,31}$",
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestDecodeControlIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Decoder",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders/{kind}/status/{radio_id}": {
+      "get": {
+        "description": "Whether a kind is decoding on a radio, decoder reachability, and (for an\nabsolute kind) whether the span covers its channels.",
+        "operationId": "decoder_status_api_sdr_decoders__kind__status__radio_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "radio_id",
+            "required": true,
+            "schema": {
+              "title": "Radio Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9-]{1,31}$",
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decoder Status",
+        "tags": [
+          "sdr"
+        ]
+      }
+    },
+    "/api/sdr/decoders/{kind}/stop": {
+      "post": {
+        "description": "Stop a decoder kind on a radio (a no-op when it isn't running there).",
+        "operationId": "stop_decoder_api_sdr_decoders__kind__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9-]{1,31}$",
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestDecodeStopIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Decoder",
         "tags": [
           "sdr"
         ]

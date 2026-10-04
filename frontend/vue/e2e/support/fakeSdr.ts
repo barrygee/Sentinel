@@ -7,8 +7,8 @@ import type { Page, WebSocketRoute } from '@playwright/test'
  * entirely in the Playwright process via `page.routeWebSocket`. No real
  * dongle, no backend.
  *
- * Protocol notes (see `backend/services/sdr.py` `_broadcast_iq` and
- * `backend/routers/sdr.py`, and `frontend/vue/src/components/sdr/SdrPanel.vue`
+ * Protocol notes (see `backend/radio_hub/services/sdr.py` `_broadcast_iq` and
+ * `backend/radio_hub/routers/radio_control.py`, and `frontend/vue/src/components/sdr/SdrPanel.vue`
  * `onCtrlSocketMessage`):
  *  - Control socket: JSON frames both ways. The panel sends `{cmd: ...}`
  *    objects (tune/mode/gain/squelch/sample_rate/fft_size/demod/claim/release/

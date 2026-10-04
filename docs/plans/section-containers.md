@@ -356,7 +356,7 @@ Four rules make that safe:
 | `/api/air/messages` | app |
 | `/api/air/` | air |
 | `/api/space/`, `/api/sea/`, `/api/land/` | section |
-| `/api/sdr/radios`, `/api/sdr/connect`, `/api/sdr/disconnect`, `/api/sdr/status`, `/api/sdr/sentry-hosts`, `/api/sdr/decode/`, `/api/sdr/aprs/`, `/api/sdr/ais/` | radio-hub (sea/land call the hub for start/stop on the user's behalf; the browser paths stay where they are) |
+| `/api/sdr/radios`, `/api/sdr/connect`, `/api/sdr/disconnect`, `/api/sdr/status`, `/api/sdr/sentry-hosts`, `/api/sdr/decode/`, `/api/sdr/decoders/`, `/api/sdr/aprs/`, `/api/sdr/ais/` | radio-hub (sea/land call the hub for start/stop on the user's behalf; the browser paths stay where they are) |
 | `/api/sdr/adsb/` | air |
 | `/api/sdr/` (rest: frequencies, groups, search ranges, data, recordings) | sdr |
 | `/ws/sdr/` | radio-hub |

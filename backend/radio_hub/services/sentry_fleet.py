@@ -5,7 +5,7 @@ interval, caching the latest snapshot in memory so router reads never block on
 a remote round-trip to a Raspberry Pi that may be slow or off the network. On
 failure the poller backs off exponentially rather than hammering an
 unreachable host — the same shape as
-`backend.services.sdr.RadioBroadcaster._reconnect`. `last_seen_at`/`last_error`
+`backend.radio_hub.services.sdr.RadioBroadcaster._reconnect`. `last_seen_at`/`last_error`
 are mirrored onto the host's DB row so the UI can show reachability without
 polling itself.
 
@@ -27,7 +27,7 @@ from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.models import SentryHost
 from backend.platform.settings_client import read_setting, write_setting
-from backend.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
+from backend.radio_hub.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)

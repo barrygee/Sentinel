@@ -24,10 +24,11 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database as backend_database
 from backend.config import settings
-from backend.routers import sdr as sdr_router
-from backend.services import aprs_store, sdr_decode
-from backend.services import sdr as sdr_svc
-from backend.services.sdr_decode import AprsDecodeBridge
+from backend.radio_hub.routers import decode as decode_router
+from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr_decode
+from backend.radio_hub.services.sdr_decode import AprsDecodeBridge
+from backend.services import aprs_store
 
 
 class _FakeBroadcaster:
@@ -351,12 +352,12 @@ class TestLandStations:
 class TestResumePersistedAprs:
     async def test_noop_when_nothing_persisted(self, client):
         # No aprs_radio_id setting → nothing to resume.
-        await sdr_router.resume_persisted_aprs()
+        await decode_router.resume_persisted_aprs()
         assert sdr_decode.get_active_aprs_bridge() is None
 
     async def test_skips_missing_radio(self, client):
         client.put("/api/settings/sdr/aprs_radio_id", json={"value": 4242})
-        await sdr_router.resume_persisted_aprs()
+        await decode_router.resume_persisted_aprs()
         assert sdr_decode.get_active_aprs_bridge() is None
 
     async def test_resumes_saved_radio(self, client, monkeypatch):
@@ -372,7 +373,7 @@ class TestResumePersistedAprs:
         monkeypatch.setattr(
             sdr_decode, "get_or_create_aprs_bridge", AsyncMock(return_value=bridge)
         )
-        await sdr_router.resume_persisted_aprs()
+        await decode_router.resume_persisted_aprs()
         bridge.start.assert_awaited_once()
 
     async def test_resume_uses_the_persisted_channel(self, client, monkeypatch):
@@ -386,7 +387,7 @@ class TestResumePersistedAprs:
             AsyncMock(return_value=_FakeBroadcaster()),
         )
         monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", factory)
-        await sdr_router.resume_persisted_aprs()
+        await decode_router.resume_persisted_aprs()
         assert factory.await_args.kwargs == {"channel_hz": 144_390_000}
 
     async def test_connect_failure_is_swallowed(self, client, monkeypatch):
@@ -398,7 +399,7 @@ class TestResumePersistedAprs:
             AsyncMock(side_effect=ConnectionError("no dongle")),
         )
         # Must not raise — a failed resume never blocks startup.
-        await sdr_router.resume_persisted_aprs()
+        await decode_router.resume_persisted_aprs()
         assert sdr_decode.get_active_aprs_bridge() is None
 
 
@@ -436,7 +437,7 @@ class TestReconcileAprsDecode:
         _patch_bridge_factories(monkeypatch, next_bridge)
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, previous_id, next_id)
+            await decode_router.reconcile_aprs_decode(db, previous_id, next_id)
 
         previous_bridge.stop.assert_awaited_once()
         assert "h1:1" not in sdr_decode._aprs_bridges
@@ -450,7 +451,7 @@ class TestReconcileAprsDecode:
         monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", start_factory)
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, previous_id, None)
+            await decode_router.reconcile_aprs_decode(db, previous_id, None)
 
         previous_bridge.stop.assert_awaited_once()
         start_factory.assert_not_awaited()
@@ -461,7 +462,7 @@ class TestReconcileAprsDecode:
         _patch_bridge_factories(monkeypatch, next_bridge)
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, None, next_id)
+            await decode_router.reconcile_aprs_decode(db, None, next_id)
 
         next_bridge.start.assert_awaited_once()
 
@@ -475,7 +476,7 @@ class TestReconcileAprsDecode:
         _patch_bridge_factories(monkeypatch, next_bridge)
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, 4242, next_id)
+            await decode_router.reconcile_aprs_decode(db, 4242, next_id)
 
         next_bridge.start.assert_awaited_once()
 
@@ -486,7 +487,7 @@ class TestReconcileAprsDecode:
         monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", start_factory)
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, None, 4242)
+            await decode_router.reconcile_aprs_decode(db, None, 4242)
 
         start_factory.assert_not_awaited()
         assert sdr_decode.get_active_aprs_bridge() is None
@@ -496,7 +497,7 @@ class TestReconcileAprsDecode:
         monkeypatch.setattr(sdr_decode, "get_or_create_aprs_bridge", start_factory)
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, "1", "2")
+            await decode_router.reconcile_aprs_decode(db, "1", "2")
 
         start_factory.assert_not_awaited()
 
@@ -509,7 +510,7 @@ class TestReconcileAprsDecode:
         )
 
         async with await self._session() as db:
-            await sdr_router.reconcile_aprs_decode(db, None, next_id)
+            await decode_router.reconcile_aprs_decode(db, None, next_id)
 
         assert sdr_decode.get_active_aprs_bridge() is None
 
@@ -521,9 +522,9 @@ class TestApplyAprsChannel:
     async def test_moves_the_active_bridge(self):
         bridge = _register_aprs_bridge()
         bridge.set_channel_hz = AsyncMock()
-        await sdr_router.apply_aprs_channel(144_390_000)
+        await decode_router.apply_aprs_channel(144_390_000)
         bridge.set_channel_hz.assert_awaited_once_with(144_390_000)
 
     async def test_noop_without_a_running_bridge(self):
-        await sdr_router.apply_aprs_channel(144_390_000)  # must not raise
+        await decode_router.apply_aprs_channel(144_390_000)  # must not raise
         assert sdr_decode.get_active_aprs_bridge() is None

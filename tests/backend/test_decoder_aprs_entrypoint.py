@@ -17,7 +17,6 @@ import types
 from pathlib import Path
 from unittest.mock import patch
 
-
 _ENTRYPOINT_PATH = (
     Path(__file__).resolve().parents[2] / "decoder" / "aprs" / "entrypoint.py"
 )
