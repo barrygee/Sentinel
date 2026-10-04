@@ -1343,6 +1343,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #396 from barrygee/refactor/p2-3-notification-registry
 - Merge remote-tracking branch 'origin/main' into refactor/p2-3-sidebar-registry
 - Merge pull request #397 from barrygee/refactor/p2-3-sidebar-registry
+- Merge remote-tracking branch 'origin/main' into refactor/p2-3-settings-registry
+- Merge pull request #398 from barrygee/refactor/p2-3-settings-registry
 
 ### Refactoring
 
@@ -1417,6 +1419,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move shared map base code out of the Air and Land sections
 - Build routes, nav and the persistent radio pane from a section registry
 - Route decoded APRS/AIS events through the event bus
+- P2.3 settings registry replaces the hard-coded catalogue
 - P2.3 sidebar registry for FILTER sub-tabs and section tabs
 - P2.3 notification and background-service registries
 - P1.3 core notifications, Sentry proxy, module lifecycles
