@@ -1346,6 +1346,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into refactor/p2-3-settings-registry
 - Merge pull request #398 from barrygee/refactor/p2-3-settings-registry
 - Merge pull request #399 from barrygee/refactor/p2-move-section-settings
+- Merge branch 'main' into refactor/p2-capabilities
+- Merge pull request #400 from barrygee/refactor/p2-capabilities
 
 ### Refactoring
 
@@ -1426,6 +1428,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - P1.3 core notifications, Sentry proxy, module lifecycles
 - P2.3 typed radio capability replaces SDR tune events
 - Move section settings controls into their sections
+- Capabilities and registries remove the last cross-section imports
 
 ### Documentation
 
