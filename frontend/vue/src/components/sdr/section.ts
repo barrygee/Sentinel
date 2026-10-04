@@ -1,4 +1,6 @@
+import { provideCapability } from '@/shell/capabilities'
 import { registerSection } from '@/shell/sectionRegistry'
+import { createSdrRadioCapability } from './radioCapability'
 import SdrView from './SdrView.vue'
 import SdrTabPanel from './SdrTabPanel.vue'
 
@@ -21,3 +23,7 @@ registerSection({
   route: { path: '/sdr/', component: SdrView },
   persistentRadioPane: SdrTabPanel,
 })
+
+// The `radio` capability other sections tune and file frequencies through
+// (F6) — provided here, at registration, so it exists before the app mounts.
+provideCapability('radio', createSdrRadioCapability())

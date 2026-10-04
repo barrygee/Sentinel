@@ -79,57 +79,6 @@ function _save(items: NotificationItem[]): void {
   } catch {}
 }
 
-let _aircraftClickHandler: ((hex: string) => void) | null = null
-export function registerAircraftClickHandler(fn: (hex: string) => void): void {
-  _aircraftClickHandler = fn
-  if (_pendingAircraftTarget) {
-    const hex = _pendingAircraftTarget
-    _pendingAircraftTarget = null
-    fn(hex)
-  }
-}
-export function getAircraftClickHandler(): ((hex: string) => void) | null {
-  return _aircraftClickHandler
-}
-// Cleared when AirMap unmounts so an aircraft alert clicked from another section
-// routes to Air (rather than calling a stale, torn-down handler that no-ops).
-export function clearAircraftClickHandler(): void {
-  _aircraftClickHandler = null
-}
-
-// Satellite click handler — registered by SpaceMap while it is mounted. Clicking
-// a satellite alert focuses/tracks that satellite on the space map. Mirrors the
-// aircraft handler above.
-let _satelliteClickHandler: ((noradId: string, name: string) => void) | null = null
-export function registerSatelliteClickHandler(fn: (noradId: string, name: string) => void): void {
-  _satelliteClickHandler = fn
-  if (_pendingSatelliteTarget) {
-    const { noradId, name } = _pendingSatelliteTarget
-    _pendingSatelliteTarget = null
-    fn(noradId, name)
-  }
-}
-export function getSatelliteClickHandler(): ((noradId: string, name: string) => void) | null {
-  return _satelliteClickHandler
-}
-// Cleared when SpaceMap unmounts so a sat alert clicked from another section
-// routes to Space (rather than calling a stale, torn-down handler).
-export function clearSatelliteClickHandler(): void {
-  _satelliteClickHandler = null
-}
-
-// When an alert is clicked from another section, the target map isn't mounted
-// yet (so no handler is registered). The panel routes to the right section and
-// stashes the target here; the map drains it on registration (see above).
-let _pendingAircraftTarget: string | null = null
-let _pendingSatelliteTarget: { noradId: string; name: string } | null = null
-export function setPendingAircraftTarget(hex: string): void {
-  _pendingAircraftTarget = hex
-}
-export function setPendingSatelliteTarget(noradId: string, name: string): void {
-  _pendingSatelliteTarget = { noradId, name }
-}
-
 export const useNotificationsStore = defineStore('notifications', () => {
   const items = ref<NotificationItem[]>(_load())
   const panelOpen = ref(false)

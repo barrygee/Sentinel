@@ -8,7 +8,7 @@
           :key="item.id"
           class="notif-item"
           :data-type="item.type"
-          :style="item.clickAction || item.hex || item.noradId ? 'cursor:pointer' : ''"
+          :style="item.clickAction || findNotificationTarget(item) ? 'cursor:pointer' : ''"
           @click="handleItemClick(item)"
         >
           <div class="notif-header">
@@ -86,18 +86,8 @@ import { useRouter } from 'vue-router'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
 import BellIcon from './BellIcon.vue'
 import ScrollHintChevronIcon from './ScrollHintChevronIcon.vue'
-import {
-  useNotificationsStore,
-  getAircraftClickHandler,
-  getSatelliteClickHandler,
-  setPendingAircraftTarget,
-  setPendingSatelliteTarget,
-  type NotificationItem,
-} from '@/stores/notifications'
-import {
-  setAutoTuneEnabled,
-  isAutoTuneEnabled,
-} from '@/components/space/controls/satellite/passNotifStore'
+import { useNotificationsStore, type NotificationItem } from '@/stores/notifications'
+import { findNotificationTarget, runNotificationDismissHooks } from '@/shell/notificationRegistry'
 
 const store = useNotificationsStore()
 const router = useRouter()
@@ -110,36 +100,15 @@ function runActionAndDismiss(item: NotificationItem): void {
   store.dismiss(item.id)
 }
 
-// Clicking an alert navigates the map to its subject, centring it in the
-// viewport without locking on. Aircraft (hex) focus on the air map; satellites
-// (noradId) centre on the space map. If the target
-// section isn't mounted, route to it first and stash the target — the map drains
-// it when it registers its handler.
+// Clicking an alert navigates the map to its subject. The section that owns
+// the subject registered a target for it (aircraft → Air, satellites → Space;
+// see shell/notificationRegistry.ts); with no target the click does nothing.
 function handleItemClick(item: NotificationItem): void {
   if (item.clickAction) {
     item.clickAction()
     return
   }
-  if (item.noradId) {
-    const name = item.satName || item.title || item.noradId
-    const handler = getSatelliteClickHandler()
-    if (handler) {
-      handler(item.noradId, name)
-      return
-    }
-    setPendingSatelliteTarget(item.noradId, name)
-    void router.push('/space/')
-    return
-  }
-  if (item.hex) {
-    const handler = getAircraftClickHandler()
-    if (handler) {
-      handler(item.hex)
-      return
-    }
-    setPendingAircraftTarget(item.hex)
-    void router.push('/air/')
-  }
+  findNotificationTarget(item)?.open(item, { router })
 }
 
 // Green type label for an autotune card. The "armed" card folds record state
@@ -154,17 +123,10 @@ function autotuneLabel(item: NotificationItem): string {
   return store.getLabelForType(item.type)
 }
 
-// Closing an autotune notification cancels auto-tune for that satellite, not
-// just the card. Disables the persisted flag and tells the schedulers + the
-// space UI toggles to stand down via the same event they already listen to.
+// Closing an autotune card does more than dismiss it: Space registered a
+// dismiss hook that cancels auto-tune for that satellite.
 function cancelAutoTune(item: NotificationItem): void {
-  const noradId = item.noradId
-  if (noradId && isAutoTuneEnabled(noradId)) {
-    setAutoTuneEnabled(noradId, false)
-    document.dispatchEvent(
-      new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled: false } }),
-    )
-  }
+  runNotificationDismissHooks(item)
   store.dismiss(item.id)
 }
 const listRef = ref<HTMLElement | null>(null)

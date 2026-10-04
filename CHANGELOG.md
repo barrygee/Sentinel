@@ -1336,6 +1336,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #391 from barrygee/fix/settings-clear-alerts
 - Merge remote-tracking branch 'origin/main' into fix/adsb-source-staged
 - Merge pull request #392 from barrygee/fix/adsb-source-staged
+- Merge pull request #393 from barrygee/test/p0-air-alert-after-leave
+- Merge pull request #394 from barrygee/refactor/p1-3-core-modules
+- Merge pull request #395 from barrygee/refactor/p2-3-shell-registries
+- Merge remote-tracking branch 'origin/main' into refactor/p2-3-notification-registry
+- Merge pull request #396 from barrygee/refactor/p2-3-notification-registry
 
 ### Refactoring
 
@@ -1410,6 +1415,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move shared map base code out of the Air and Land sections
 - Build routes, nav and the persistent radio pane from a section registry
 - Route decoded APRS/AIS events through the event bus
+- P2.3 notification and background-service registries
+- P1.3 core notifications, Sentry proxy, module lifecycles
+- P2.3 typed radio capability replaces SDR tune events
 
 ### Documentation
 
@@ -1473,6 +1481,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the light theme to the 100% gate
 - Run the job-runner tests on a file-backed database (#372)
 - Add P0 parity baseline for the section-containers split
+- Lock aircraft alert navigation after leaving Air
 
 ### Build System
 

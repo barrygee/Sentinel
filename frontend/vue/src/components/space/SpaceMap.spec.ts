@@ -125,7 +125,7 @@ import { absoluteSpriteTransform } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
 import { useSpaceStore } from '@/stores/space'
-import { getSatelliteClickHandler } from '@/stores/notifications'
+import { getSatelliteClickHandler } from './satelliteNotificationTarget'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
 const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }

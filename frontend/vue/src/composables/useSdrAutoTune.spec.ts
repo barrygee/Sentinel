@@ -5,6 +5,7 @@ import { useSdrAutoTune, type UseSdrAutoTuneOptions } from './useSdrAutoTune'
 import { defaultBwHz } from '@/components/sdr/sdrPanelUtils'
 import type { useNotificationsStore } from '@/stores/notifications'
 import type { SdrRadio } from '@/stores/sdr'
+import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
 
 function makeRadio(overrides: Partial<SdrRadio> = {}): SdrRadio {
   return {
@@ -17,12 +18,16 @@ function makeRadio(overrides: Partial<SdrRadio> = {}): SdrRadio {
   } as SdrRadio
 }
 
-function aosEvent(detail: Record<string, unknown> | undefined): Event {
-  return new CustomEvent('sentinel:sdr-tune-external', { detail })
+// The radio capability's tune/restore requests. Typed loosely here so a spec
+// can also hand the handlers an ill-typed field (e.g. `digital: 'yes'`) — the
+// requests come from other sections' code, and the handlers still guard
+// against that at runtime.
+function tuneRequest(fields: Record<string, unknown>): RadioTuneRequest {
+  return fields as unknown as RadioTuneRequest
 }
 
-function losEvent(detail: Record<string, unknown> | undefined): Event {
-  return new CustomEvent('sentinel:sdr-tune-restore', { detail })
+function restoreRequest(fields: Record<string, unknown>): RadioRestoreRequest {
+  return fields as RadioRestoreRequest
 }
 
 function createHarness(overrides: Partial<UseSdrAutoTuneOptions> = {}) {
@@ -107,7 +112,13 @@ describe('useSdrAutoTune — AOS while already playing', () => {
   it('retunes the running radio to the downlink and notifies', () => {
     const harness = playingHarness()
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, mode: 'FM', satName: 'NOAA 19', noradId: '33591', token: 'p1' }),
+      tuneRequest({
+        hz: 137_100_000,
+        mode: 'FM',
+        satName: 'NOAA 19',
+        noradId: '33591',
+        token: 'p1',
+      }),
     )
     expect(harness.options.currentFreqHz.value).toBe(137_100_000)
     expect(harness.options.currentMode.value).toBe('NFM') // FM coerced to narrowband
@@ -136,25 +147,27 @@ describe('useSdrAutoTune — AOS while already playing', () => {
     for (const [downlinkMode, expectedMode] of modeCases) {
       const harness = playingHarness()
       harness.autoTune.onExternalTune(
-        aosEvent({ hz: 137_100_000, mode: downlinkMode, token: 'p1' }),
+        tuneRequest({ hz: 137_100_000, mode: downlinkMode, token: 'p1' }),
       )
       expect(harness.options.currentMode.value).toBe(expectedMode)
     }
   })
 
-  it('ignores an event without a frequency', () => {
+  it('ignores a request without a frequency', () => {
     const harness = playingHarness()
-    harness.autoTune.onExternalTune(aosEvent(undefined))
-    harness.autoTune.onExternalTune(aosEvent({ hz: 0 }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 0 }))
+    harness.autoTune.onExternalTune(tuneRequest({}))
     expect(harness.sendCmd).not.toHaveBeenCalled()
     expect(harness.addNotification).not.toHaveBeenCalled()
   })
 
   it('skips a later overlapping pass while an earlier one holds the radio', () => {
     const harness = playingHarness()
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1' }))
+    harness.autoTune.onExternalTune(
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1' }),
+    )
     harness.sendCmd.mockClear()
-    harness.autoTune.onExternalTune(aosEvent({ hz: 145_800_000, satName: 'ISS', token: 'p2' }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 145_800_000, satName: 'ISS', token: 'p2' }))
     expect(harness.sendCmd).not.toHaveBeenCalled() // not retuned
     expect(harness.options.currentFreqHz.value).toBe(137_100_000)
     expect(harness.addNotification).toHaveBeenCalledWith(
@@ -164,16 +177,18 @@ describe('useSdrAutoTune — AOS while already playing', () => {
 
   it('lets a manual retune release the lock so the next pass takes over', () => {
     const harness = playingHarness()
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1' }))
+    harness.autoTune.onExternalTune(
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1' }),
+    )
     harness.options.currentFreqHz.value = 100_000_000 // user retuned away
-    harness.autoTune.onExternalTune(aosEvent({ hz: 145_800_000, satName: 'ISS', token: 'p2' }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 145_800_000, satName: 'ISS', token: 'p2' }))
     expect(harness.options.currentFreqHz.value).toBe(145_800_000)
   })
 
   it('auto-starts a recording when the pass requests it', async () => {
     const harness = playingHarness()
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
     )
     await flushPromises()
     expect(harness.startRecording).toHaveBeenCalledTimes(1)
@@ -189,7 +204,7 @@ describe('useSdrAutoTune — AOS while already playing', () => {
       isRecording: ref(true),
     })
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
     )
     await flushPromises()
     expect(harness.startRecording).not.toHaveBeenCalled()
@@ -202,7 +217,7 @@ describe('useSdrAutoTune — AOS while already playing', () => {
       startRecording: vi.fn().mockResolvedValue(false),
     })
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
     )
     await flushPromises()
     expect(harness.addNotification).not.toHaveBeenCalledWith(
@@ -214,7 +229,7 @@ describe('useSdrAutoTune — AOS while already playing', () => {
 describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
   it('notifies a failure when no radio is configured', () => {
     const harness = createHarness({ knownRadios: ref<SdrRadio[]>([]) })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19' }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000, satName: 'NOAA 19' }))
     expect(harness.addNotification).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'system', title: 'NOAA 19 AUTO-TUNE' }),
     )
@@ -225,7 +240,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
     const harness = createHarness({
       knownRadios: ref<SdrRadio[]>([makeRadio({ enabled: false })]),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19' }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000, satName: 'NOAA 19' }))
     expect(harness.selectRadio).not.toHaveBeenCalled()
     expect(harness.addNotification).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'system' }),
@@ -237,14 +252,14 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
     const harness = createHarness({
       knownRadios: ref<SdrRadio[]>([makeRadio(), makeRadio({ id: 2, name: 'RTL-SDR #2' })]),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000 }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000 }))
     expect(harness.selectRadio).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
   })
 
   it('queues the tune and lets selectRadio + the socket-open drain apply it', async () => {
     const harness = createHarness()
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, mode: 'FM', satName: 'NOAA 19', record: false }),
+      tuneRequest({ hz: 137_100_000, mode: 'FM', satName: 'NOAA 19', record: false }),
     )
     expect(harness.selectRadio).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
     expect(harness.sendCmd).not.toHaveBeenCalled() // still queued
@@ -267,7 +282,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
       selectedRadioId: ref<number | null>(1),
       isSocketOpen: vi.fn(() => true),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000 }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000 }))
     await flushPromises()
     expect(harness.selectRadio).not.toHaveBeenCalled()
     expect(harness.sendCmd).toHaveBeenCalledWith({ cmd: 'tune', frequency_hz: 137_100_000 })
@@ -278,7 +293,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
       selectedRadioId: ref<number | null>(1),
       isSocketConnecting: vi.fn(() => true),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000 }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000 }))
     expect(harness.selectRadio).not.toHaveBeenCalled()
     expect(harness.sendCmd).not.toHaveBeenCalled() // queued for the open handler
   })
@@ -292,7 +307,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
         setDigital,
       })
       harness.autoTune.onExternalTune(
-        aosEvent({ hz: 439_712_500, mode: 'NFM', satName: 'GB7NB 70CM output', digital: true }),
+        tuneRequest({ hz: 439_712_500, mode: 'NFM', satName: 'GB7NB 70CM output', digital: true }),
       )
       expect(setDigital).toHaveBeenCalledWith(true)
     })
@@ -305,7 +320,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
         setDigital,
       })
       harness.autoTune.onExternalTune(
-        aosEvent({ hz: 145_725_000, mode: 'NFM', satName: 'GB3NB 2M output', digital: false }),
+        tuneRequest({ hz: 145_725_000, mode: 'NFM', satName: 'GB3NB 2M output', digital: false }),
       )
       expect(setDigital).toHaveBeenCalledWith(false)
     })
@@ -317,7 +332,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
         selectedRadioId: ref<number | null>(1),
         setDigital,
       })
-      harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19' }))
+      harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000, satName: 'NOAA 19' }))
       expect(setDigital).not.toHaveBeenCalled()
     })
 
@@ -328,7 +343,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
         selectedRadioId: ref<number | null>(1),
         setDigital,
       })
-      harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, digital: 'yes' }))
+      harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000, digital: 'yes' }))
       expect(setDigital).not.toHaveBeenCalled()
     })
 
@@ -338,7 +353,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
         selectedRadioId: ref<number | null>(1),
       })
       expect(() =>
-        harness.autoTune.onExternalTune(aosEvent({ hz: 439_712_500, digital: true })),
+        harness.autoTune.onExternalTune(tuneRequest({ hz: 439_712_500, digital: true })),
       ).not.toThrow()
       expect(harness.sendCmd).toHaveBeenCalledWith({ cmd: 'tune', frequency_hz: 439_712_500 })
     })
@@ -346,7 +361,7 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
     it('carries the request through the queued/drain path too', async () => {
       const setDigital = vi.fn()
       const harness = createHarness({ setDigital })
-      harness.autoTune.onExternalTune(aosEvent({ hz: 439_712_500, digital: true }))
+      harness.autoTune.onExternalTune(tuneRequest({ hz: 439_712_500, digital: true }))
       expect(setDigital).not.toHaveBeenCalled() // still queued
       harness.options.selectedRadioId.value = 1
       harness.autoTune.drainPendingExternalTune()
@@ -366,7 +381,9 @@ describe('useSdrAutoTune — AOS from stopped (hands-free start)', () => {
       selectedRadioId: ref<number | null>(1),
       isSocketOpen: vi.fn(() => true),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19', record: true }))
+    harness.autoTune.onExternalTune(
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', record: true }),
+    )
     await flushPromises()
     expect(harness.startRecording).toHaveBeenCalledTimes(1)
   })
@@ -379,7 +396,7 @@ describe('useSdrAutoTune — LOS restore', () => {
       selectedRadioId: ref<number | null>(1),
     })
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, mode: 'FM', satName: 'NOAA 19', token: 'p1' }),
+      tuneRequest({ hz: 137_100_000, mode: 'FM', satName: 'NOAA 19', token: 'p1' }),
     )
     harness.sendCmd.mockClear()
     harness.addNotification.mockClear()
@@ -388,23 +405,23 @@ describe('useSdrAutoTune — LOS restore', () => {
 
   it('does nothing without a snapshot', () => {
     const harness = createHarness()
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))
     expect(harness.stop).not.toHaveBeenCalled()
     expect(harness.sendCmd).not.toHaveBeenCalled()
   })
 
   it('ignores a stale LOS whose token no longer owns the snapshot', () => {
     const harness = tunedFromPlayingHarness()
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'other-pass' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'other-pass' }))
     expect(harness.sendCmd).not.toHaveBeenCalled()
     // The owning pass's LOS still restores afterwards.
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1', satName: 'NOAA 19' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1', satName: 'NOAA 19' }))
     expect(harness.sendCmd).toHaveBeenCalledWith({ cmd: 'tune', frequency_hz: 145_000_000 })
   })
 
   it('retunes back to the pre-AOS frequency/mode when it was playing before', () => {
     const harness = tunedFromPlayingHarness()
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1', satName: 'NOAA 19' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1', satName: 'NOAA 19' }))
     expect(harness.options.currentFreqHz.value).toBe(145_000_000)
     expect(harness.options.currentMode.value).toBe('AM')
     expect(harness.sdrAudio.setMode).toHaveBeenCalledWith('AM')
@@ -423,9 +440,11 @@ describe('useSdrAutoTune — LOS restore', () => {
       selectedRadioId: ref<number | null>(1),
       isSocketOpen: vi.fn(() => true),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1' }))
+    harness.autoTune.onExternalTune(
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1' }),
+    )
     await flushPromises() // hands-free start applied; playing is now true
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1', satName: 'NOAA 19' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1', satName: 'NOAA 19' }))
     expect(harness.stop).toHaveBeenCalledTimes(1)
     expect(harness.addNotification).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -438,7 +457,7 @@ describe('useSdrAutoTune — LOS restore', () => {
   it('leaves the radio alone when the user retuned away mid-pass', () => {
     const harness = tunedFromPlayingHarness()
     harness.options.currentFreqHz.value = 100_000_000 // manual retune
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))
     expect(harness.sendCmd).not.toHaveBeenCalled()
     expect(harness.options.currentFreqHz.value).toBe(100_000_000)
   })
@@ -449,10 +468,10 @@ describe('useSdrAutoTune — LOS restore', () => {
       selectedRadioId: ref<number | null>(1),
       scanActive: ref(false),
     })
-    harness.autoTune.onExternalTune(aosEvent({ hz: 137_100_000, token: 'p1' }))
+    harness.autoTune.onExternalTune(tuneRequest({ hz: 137_100_000, token: 'p1' }))
     harness.sendCmd.mockClear()
     harness.options.scanActive.value = true
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))
     expect(harness.sendCmd).not.toHaveBeenCalled()
   })
 
@@ -462,18 +481,18 @@ describe('useSdrAutoTune — LOS restore', () => {
       selectedRadioId: ref<number | null>(1),
     })
     harness.autoTune.onExternalTune(
-      aosEvent({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
+      tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
     )
     await flushPromises()
     harness.options.currentFreqHz.value = 100_000_000 // retuned away mid-pass
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))
     expect(harness.stopRecordingIfActive).toHaveBeenCalledTimes(1)
     expect(harness.sendCmd).toHaveBeenCalledTimes(2) // only the AOS tune+mode, no restore
   })
 
   it('never stops a manual recording the user began (startedRecording unset)', () => {
     const harness = tunedFromPlayingHarness()
-    harness.autoTune.onExternalTuneRestore(losEvent({ token: 'p1' }))
+    harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))
     expect(harness.stopRecordingIfActive).not.toHaveBeenCalled()
   })
 })

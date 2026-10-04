@@ -599,6 +599,7 @@ import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
 import SdrFavouritesSection from './SdrFavouritesSection.vue'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import SdrSettingsAccordion from './SdrSettingsAccordion.vue'
+import { attachRadioEngine } from './radioCapability'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
@@ -1962,7 +1963,7 @@ onMounted(() => {
   sdrAudio.onSquelchChange(onSquelchChangeCallback)
   sdrAudio.onPower(updateSignalBar)
 
-  loadRadios()
+  initialRadiosLoad = loadRadios()
   reloadData()
 })
 
@@ -1978,6 +1979,27 @@ onUnmounted(() => {
 // teleported menu, settle window and dismiss listeners — the panel no longer
 // registers document-level click/scroll/resize handlers for menus.
 useDocumentEvent('sdr:radios-changed', onRadiosChanged)
-useDocumentEvent('sentinel:sdr-tune-external', onExternalTune)
-useDocumentEvent('sentinel:sdr-tune-restore', onExternalTuneRestore)
+
+// The `radio` capability's tune/restore (F6) reach the engine through here.
+// Attached once the first radio-list load has settled (success or not), so a
+// tune queued by the capability before then — e.g. a pass that fires during
+// boot — picks from the real radio list instead of failing on an empty one.
+// Detached on unmount; calls after that queue until the next mount.
+let initialRadiosLoad: Promise<unknown> = Promise.resolve()
+let detachRadioEngine: (() => void) | null = null
+let radioEngineMounted = false
+function attachRadioEngineIfMounted(): void {
+  if (!radioEngineMounted) return
+  detachRadioEngine = attachRadioEngine({ tune: onExternalTune, restore: onExternalTuneRestore })
+}
+onMounted(() => {
+  radioEngineMounted = true
+  // Same handler either way: a failed load still leaves the cached list.
+  void initialRadiosLoad.then(attachRadioEngineIfMounted, attachRadioEngineIfMounted)
+})
+onUnmounted(() => {
+  radioEngineMounted = false
+  detachRadioEngine?.()
+  detachRadioEngine = null
+})
 </script>
