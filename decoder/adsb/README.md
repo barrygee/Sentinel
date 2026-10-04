@@ -79,6 +79,7 @@ curl -s localhost:8090/data/aircraft.json | head
   decoding nothing. Almost always the dongle is not on 1090 MHz: open AIR off
   grid so Sentinel claims and tunes it, or check the warning this container logs
   at startup.
+- **Pipeline restarts after 30 s with no samples** — the source stopped sending without closing the connection (e.g. the Pi rebooted or left the network). socat's inactivity timeout (`-T 30`) ends the pipeline so it reconnects instead of waiting for ever.
 - **`Broken pipe` from socat** — readsb exited; the line above it says why. The
   supervisor relaunches the whole pipeline every few seconds, so a Sentry reboot
   or a briefly-dropped network heals by itself.
