@@ -48,6 +48,7 @@ from pathlib import Path
 import numpy as np
 from backend.config import settings
 from backend.platform.bus import bus
+from backend.radio_hub.services import device_claims
 from backend.radio_hub.services.sdr import RadioBroadcaster, _iq_bytes_to_complex
 
 logger = logging.getLogger(__name__)
@@ -833,6 +834,8 @@ class ChannelOwningDecodeBridge(PcmDecodeBridge):
         self._on_channel = False
         self._last_retune_monotonic = 0.0
         self._retune_task: asyncio.Task | None = None
+        # True while a retune was skipped because the dongle is claimed for ADS-B.
+        self._yielding_to_claim = False
 
     # ── subclass contract ──────────────────────────────────────────────────
     def owned_channels_hz(self) -> tuple[int, ...]:
@@ -919,6 +922,16 @@ class ChannelOwningDecodeBridge(PcmDecodeBridge):
         """
         self._last_retune_monotonic = time.monotonic()
         connection = self._broadcaster.connection
+        # The ADS-B claim wins a shared dongle: pause rather than pull it off
+        # 1090 MHz. The next throttled attempt after the claim ends retunes.
+        if device_claims.is_claimed(connection.host, connection.port):
+            if not self._yielding_to_claim:
+                logger.info("%s decode paused: the radio is claimed for ADS-B", self.kind)
+                self._yielding_to_claim = True
+            return
+        if self._yielding_to_claim:
+            logger.info("%s decode resuming: the ADS-B claim has ended", self.kind)
+            self._yielding_to_claim = False
         if connection.center_hz and self._channels_in_span(
             sample_rate=connection.sample_rate, center_hz=connection.center_hz
         ):

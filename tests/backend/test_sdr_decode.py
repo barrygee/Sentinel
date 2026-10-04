@@ -271,6 +271,8 @@ class _FakeConnection:
     """Stand-in for the rtl_tcp connection: mirrors centre/rate, records retunes."""
 
     def __init__(self, center_hz: int = 0, sample_rate: int = 1_024_000) -> None:
+        self.host = "h"
+        self.port = 1234
         self.center_hz = center_hz
         self.sample_rate = sample_rate
         self.tuned_to: list[int] = []

@@ -57,6 +57,8 @@ class _FakeConnection:
     """The slice of RtlTcpConnection a channel-owning bridge tunes through."""
 
     def __init__(self) -> None:
+        self.host = "roof"
+        self.port = 1234
         self.center_hz = 0
         self.sample_rate = SAMPLE_RATE
         self.tuned: list[int] = []

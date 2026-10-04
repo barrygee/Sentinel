@@ -30,6 +30,8 @@ RADIOS = [{"id": 2, "name": "AIS dongle", "host": "pi", "port": 4444}]
 
 
 class _FakeConnection:
+    host = "pi"
+    port = 4444
     center_hz = 162_000_000
     sample_rate = 1_024_000
 
