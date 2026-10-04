@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 
 const registerSection = vi.hoisted(() => vi.fn())
 vi.mock('@/shell/sectionRegistry', () => ({ registerSection }))
+const registerSidebarFilterSubTabs = vi.hoisted(() => vi.fn())
+vi.mock('@/shell/sidebarRegistry', () => ({ registerSidebarFilterSubTabs }))
 // AirView.vue's real module graph pulls in a full MapLibre map — heavy, and
 // irrelevant to what this test asserts (the registration wiring, not the
 // view's own behaviour, which AirView.spec.ts already covers).
@@ -27,6 +29,14 @@ describe('components/air/section', () => {
       route: { path: '/air/', component: AirView },
     })
   })
+
+  it('registers its FILTER rail sub-tabs', async () => {
+    const { airSidebarFilter } = await import('./airSidebarFilter')
+    await import('./section')
+
+    expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith('air', airSidebarFilter)
+  })
+
   it('registers the aircraft alert click target', async () => {
     const { aircraftNotificationTarget } = await import('./aircraftNotificationTarget')
     await import('./section')

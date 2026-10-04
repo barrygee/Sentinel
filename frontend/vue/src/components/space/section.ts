@@ -4,8 +4,11 @@ import {
   registerNotificationTarget,
 } from '@/shell/notificationRegistry'
 import { registerSection } from '@/shell/sectionRegistry'
-import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
+import { registerSidebarFilterSubTabs, registerSidebarSectionTab } from '@/shell/sidebarRegistry'
 import SpaceView from './SpaceView.vue'
+import { spaceSidebarFilter } from './spaceSidebarFilter'
+import SpacePassesTabIcon from './SpacePassesTabIcon.vue'
+import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { cancelAutoTuneOnDismiss, satelliteNotificationTarget } from './satelliteNotificationTarget'
 
 /**
@@ -24,6 +27,14 @@ registerSection({
   route: { path: '/space/', component: SpaceView },
 })
 
+// FILTER rail sub-tabs and the PASSES rail tab (F2).
+registerSidebarFilterSubTabs('space', spaceSidebarFilter)
+registerSidebarSectionTab({
+  id: 'passes',
+  label: 'PASSES',
+  sectionId: 'space',
+  icon: SpacePassesTabIcon,
+})
 registerNotificationTarget(satelliteNotificationTarget)
 registerNotificationDismissHook('autotune', cancelAutoTuneOnDismiss)
 registerBackgroundService({ id: 'space-alerts', start: () => useSpaceAlertsService().start() })

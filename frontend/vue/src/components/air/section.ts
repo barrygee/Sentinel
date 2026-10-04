@@ -1,8 +1,10 @@
 import { registerBackgroundService } from '@/shell/backgroundServices'
 import { registerNotificationTarget } from '@/shell/notificationRegistry'
 import { registerSection } from '@/shell/sectionRegistry'
-import { useAirAlertsService } from '@/composables/useAirAlertsService'
+import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
 import AirView from './AirView.vue'
+import { airSidebarFilter } from './airSidebarFilter'
+import { useAirAlertsService } from '@/composables/useAirAlertsService'
 import { aircraftNotificationTarget } from './aircraftNotificationTarget'
 
 /**
@@ -22,5 +24,7 @@ registerSection({
   route: { path: '/air/', component: AirView },
 })
 
+// FILTER rail sub-tabs (F2).
+registerSidebarFilterSubTabs('air', airSidebarFilter)
 registerNotificationTarget(aircraftNotificationTarget)
 registerBackgroundService({ id: 'air-alerts', start: () => useAirAlertsService().start() })

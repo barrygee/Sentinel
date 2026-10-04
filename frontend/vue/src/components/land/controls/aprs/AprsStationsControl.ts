@@ -65,7 +65,7 @@ export class AprsStationsControl extends SentinelControlBase {
   }
 
   get buttonLabel(): string {
-    // A handheld transceiver (the same glyph FilterSubTabIcon draws for the
+    // A handheld transceiver (the same glyph LandFilterSubTabIcon draws for the
     // APRS STATIONS sub-tab — keep them in step).
     return (
       '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +

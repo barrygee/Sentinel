@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 
 const registerSection = vi.hoisted(() => vi.fn())
 vi.mock('@/shell/sectionRegistry', () => ({ registerSection }))
+const registerSidebarFilterSubTabs = vi.hoisted(() => vi.fn())
+vi.mock('@/shell/sidebarRegistry', () => ({ registerSidebarFilterSubTabs }))
 // LandView.vue's real module graph pulls in a full MapLibre map — heavy, and
 // irrelevant to what this test asserts (the registration wiring, not the
 // view's own behaviour, which LandView.spec.ts already covers).
@@ -18,5 +20,12 @@ describe('components/land/section', () => {
       navOrder: 40,
       route: { path: '/land/', component: LandView },
     })
+  })
+
+  it('registers its FILTER rail sub-tabs', async () => {
+    const { landSidebarFilter } = await import('./landSidebarFilter')
+    await import('./section')
+
+    expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith('land', landSidebarFilter)
   })
 })

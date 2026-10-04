@@ -10,6 +10,26 @@ import { useSeaStore } from '@/stores/sea'
 import { useLandStore } from '@/stores/land'
 import { useSdrStore } from '@/stores/sdr'
 import * as settingsApi from '@/services/settingsApi'
+import { registerSidebarFilterSubTabs, registerSidebarSectionTab } from '@/shell/sidebarRegistry'
+import { airSidebarFilter } from '@/components/air/airSidebarFilter'
+import { seaSidebarFilter } from '@/components/sea/seaSidebarFilter'
+import { landSidebarFilter } from '@/components/land/landSidebarFilter'
+import { spaceSidebarFilter } from '@/components/space/spaceSidebarFilter'
+import SpacePassesTabIcon from '@/components/space/SpacePassesTabIcon.vue'
+
+// MapSidebar shows whatever the sections registered. Register the real
+// sections' sub-tabs and PASSES tab, as each section.ts does, so these specs
+// exercise the wired-up rail. (SDR registers nothing, like the real app.)
+registerSidebarFilterSubTabs('air', airSidebarFilter)
+registerSidebarFilterSubTabs('space', spaceSidebarFilter)
+registerSidebarFilterSubTabs('sea', seaSidebarFilter)
+registerSidebarFilterSubTabs('land', landSidebarFilter)
+registerSidebarSectionTab({
+  id: 'passes',
+  label: 'PASSES',
+  sectionId: 'space',
+  icon: SpacePassesTabIcon,
+})
 
 const TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
 const OPEN_KEY = 'sentinel_sidebar_open'
@@ -53,6 +73,24 @@ describe('MapSidebar', () => {
       const wrapper = mountSidebar()
       const tabIds = wrapper.findAll('.msb-rail-btn').map((node) => node.attributes('data-tab'))
       expect(tabIds).toEqual(['search', 'alerts', 'tracking', 'passes'])
+    })
+
+    it('shows a section-only tab on its own section and hides it elsewhere', async () => {
+      const wrapper = mountSidebar()
+      const passes = () => wrapper.find('.msb-rail-btn[data-tab="passes"]').element as HTMLElement
+      expect(passes().style.display).toBe('none')
+
+      document.dispatchEvent(
+        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'space', prev: 'air' } }),
+      )
+      await flushPromises()
+      expect(passes().style.display).toBe('')
+
+      document.dispatchEvent(
+        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'sea', prev: 'space' } }),
+      )
+      await flushPromises()
+      expect(passes().style.display).toBe('none')
     })
 
     it('hides the rail and shows only the radio pane when hideTabs is set', () => {
@@ -346,6 +384,20 @@ describe('MapSidebar', () => {
       expect(
         wrapper.find('.msb-rail-subbtn[data-filter-cat="milAircraft"]').attributes('data-tooltip'),
       ).toBe('MILITARY AIRCRAFT')
+    })
+
+    it('selecting a sub-tab re-announces the FILTER tab, so the section list refreshes', async () => {
+      const wrapper = mountSidebar()
+      await openFilter(wrapper)
+      const announced: string[] = []
+      const record = (event: Event) => announced.push((event as CustomEvent<string>).detail)
+      document.addEventListener('msb-tab-switch', record)
+      try {
+        await wrapper.find('.msb-rail-subbtn[data-filter-cat="airports"]').trigger('click')
+      } finally {
+        document.removeEventListener('msb-tab-switch', record)
+      }
+      expect(announced).toEqual(['search'])
     })
 
     it('selecting a sub-tab sets the air category, highlights it, and keeps the panel open', async () => {
