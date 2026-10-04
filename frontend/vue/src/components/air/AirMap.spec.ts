@@ -186,7 +186,7 @@ import { useAppStore } from '@/stores/app'
 import { useOfflineMapsStore } from '@/stores/offlineMaps'
 import { useAirStore } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
-import { getAircraftClickHandler } from '@/stores/notifications'
+import { getAircraftClickHandler } from './aircraftNotificationTarget'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
 const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }

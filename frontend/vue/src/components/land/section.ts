@@ -1,5 +1,7 @@
 import { registerSection } from '@/shell/sectionRegistry'
+import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
 import LandView from './LandView.vue'
+import { landSidebarFilter } from './landSidebarFilter'
 // Registers this section's Settings nav entry and items (F3).
 import './settings'
 
@@ -15,3 +17,6 @@ registerSection({
   navOrder: 40,
   route: { path: '/land/', component: LandView },
 })
+
+// FILTER rail sub-tabs (F2).
+registerSidebarFilterSubTabs('land', landSidebarFilter)

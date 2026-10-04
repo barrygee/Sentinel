@@ -1,16 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import {
-  useNotificationsStore,
-  registerAircraftClickHandler,
-  getAircraftClickHandler,
-  registerSatelliteClickHandler,
-  getSatelliteClickHandler,
-  clearSatelliteClickHandler,
-  clearAircraftClickHandler,
-  setPendingAircraftTarget,
-  setPendingSatelliteTarget,
-} from './notifications'
+import { useNotificationsStore } from './notifications'
 import { useAppStore } from './app'
 import { playNotificationSound } from '../composables/useNotificationSound'
 
@@ -31,43 +21,6 @@ describe('notifications store', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.useRealTimers()
-  })
-
-  describe('module click-handler registry', () => {
-    it('registers and returns the aircraft click handler', () => {
-      const handler = vi.fn()
-      registerAircraftClickHandler(handler)
-      expect(getAircraftClickHandler()).toBe(handler)
-    })
-
-    it('drains a pending aircraft target on registration', () => {
-      setPendingAircraftTarget('abc123')
-      const handler = vi.fn()
-      registerAircraftClickHandler(handler)
-      expect(handler).toHaveBeenCalledWith('abc123')
-    })
-
-    it('clears the aircraft click handler', () => {
-      registerAircraftClickHandler(vi.fn())
-      expect(getAircraftClickHandler()).not.toBeNull()
-      clearAircraftClickHandler()
-      expect(getAircraftClickHandler()).toBeNull()
-    })
-
-    it('registers, returns, and clears the satellite click handler', () => {
-      const handler = vi.fn()
-      registerSatelliteClickHandler(handler)
-      expect(getSatelliteClickHandler()).toBe(handler)
-      clearSatelliteClickHandler()
-      expect(getSatelliteClickHandler()).toBeNull()
-    })
-
-    it('drains a pending satellite target on registration', () => {
-      setPendingSatelliteTarget('25544', 'ISS')
-      const handler = vi.fn()
-      registerSatelliteClickHandler(handler)
-      expect(handler).toHaveBeenCalledWith('25544', 'ISS')
-    })
   })
 
   describe('load from storage', () => {

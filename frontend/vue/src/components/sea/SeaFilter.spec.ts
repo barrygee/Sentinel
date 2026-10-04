@@ -5,7 +5,7 @@ import { nextTick } from 'vue'
 import { axe } from 'jest-axe'
 import SeaFilter from './SeaFilter.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
 import { useNotificationsStore } from '@/stores/notifications'
 import { PORTS_DATA } from './controls/ports/portsData'
 
@@ -260,41 +260,49 @@ describe('SeaFilter', () => {
       expect(wrapper.find('.bfp-expanded').text()).toContain('PRIDE OF KENT')
     })
 
-    it('asks for an SDR before tuning, then tunes the channel and notifies', async () => {
-      const sdrStore = useSdrStore()
-      const notificationsStore = useNotificationsStore()
-      const tuneListener = vi.fn()
-      document.addEventListener('sentinel:sdr-tune-external', tuneListener)
+    it('asks for an SDR before tuning, then tunes the channel through the radio capability and notifies', async () => {
+      const radio = provideFakeRadio({ connected: false })
+      try {
+        const notificationsStore = useNotificationsStore()
+        store.setSearchExpandedPort('GBSOU')
+        const wrapper = mount(SeaFilter)
+        const channelButton = wrapper.find('.sea-port-channel')
+        await channelButton.trigger('click')
+        expect(radio.tune).not.toHaveBeenCalled()
+        expect(wrapper.find('.sea-port-notice').exists()).toBe(true)
+        // Another port's row shows no notice: it is keyed by LOCODE.
+        store.setSearchExpandedPort('GBDVR')
+        await nextTick()
+        expect(wrapper.find('.sea-port-notice').exists()).toBe(false)
+        store.setSearchExpandedPort('GBSOU')
+        await nextTick()
+        expect(wrapper.find('.sea-port-notice').exists()).toBe(true)
+
+        radio.state.connected = true
+        await nextTick()
+        await wrapper.find('.sea-port-channel').trigger('click')
+        expect(wrapper.find('.sea-port-notice').exists()).toBe(false)
+        expect(radio.tune).toHaveBeenCalledOnce()
+        expect(radio.tune.mock.calls[0]![0]).toEqual({
+          hz: 156_600_000,
+          mode: 'NFM',
+          satName: 'Southampton VTS',
+        })
+        expect(notificationsStore.items[0]).toMatchObject({
+          type: 'system',
+          title: 'GBSOU VTS',
+          detail: 'Tuned CH 12 156.600 NFM',
+        })
+      } finally {
+        radio.withdraw()
+      }
+    })
+
+    it('asks for an SDR when no section provides a radio at all', async () => {
       store.setSearchExpandedPort('GBSOU')
       const wrapper = mount(SeaFilter)
-      const channelButton = wrapper.find('.sea-port-channel')
-      await channelButton.trigger('click')
-      expect(tuneListener).not.toHaveBeenCalled()
-      expect(wrapper.find('.sea-port-notice').exists()).toBe(true)
-      // Another port's row shows no notice: it is keyed by LOCODE.
-      store.setSearchExpandedPort('GBDVR')
-      await nextTick()
-      expect(wrapper.find('.sea-port-notice').exists()).toBe(false)
-      store.setSearchExpandedPort('GBSOU')
-      await nextTick()
-      expect(wrapper.find('.sea-port-notice').exists()).toBe(true)
-
-      sdrStore.setConnected(true)
-      await nextTick()
       await wrapper.find('.sea-port-channel').trigger('click')
-      expect(wrapper.find('.sea-port-notice').exists()).toBe(false)
-      expect(tuneListener).toHaveBeenCalledOnce()
-      expect((tuneListener.mock.calls[0]![0] as CustomEvent).detail).toEqual({
-        hz: 156_600_000,
-        mode: 'NFM',
-        satName: 'Southampton VTS',
-      })
-      expect(notificationsStore.items[0]).toMatchObject({
-        type: 'system',
-        title: 'GBSOU VTS',
-        detail: 'Tuned CH 12 156.600 NFM',
-      })
-      document.removeEventListener('sentinel:sdr-tune-external', tuneListener)
+      expect(wrapper.find('.sea-port-notice').exists()).toBe(true)
     })
 
     it('has no accessibility violations', async () => {

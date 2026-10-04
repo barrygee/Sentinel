@@ -32,3 +32,15 @@ describe('components/sdr/section', () => {
     expect(getSettingItems().some((item) => item.section === 'sdr')).toBe(true)
   })
 })
+
+describe('components/sdr/section — radio capability', () => {
+  it('provides the radio capability at registration, before anything mounts', async () => {
+    await import('./section')
+    const { getCapability } = await import('@/shell/capabilities')
+
+    const radio = getCapability('radio')
+    expect(radio).toBeDefined()
+    expect(typeof radio!.tune).toBe('function')
+    expect(typeof radio!.frequencies.save).toBe('function')
+  })
+})

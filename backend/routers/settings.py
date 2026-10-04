@@ -14,9 +14,8 @@ import json
 from typing import Any
 
 from backend.database import get_db
-from backend.db_helpers import upsert_setting
 from backend.models import UserSettings
-from backend.platform.bus import bus
+from backend.platform.settings_client import write_setting
 from backend.services import app_config_file
 from backend.services.app_config import (
     SOURCE_MODE_SECTIONS,
@@ -168,20 +167,17 @@ async def upsert_setting_endpoint(
     )
     if is_mode_setting and value not in SOURCE_MODES:
         raise HTTPException(status_code=400, detail=f"{key} must be 'online' or 'offgrid'")
-    await upsert_setting(db, namespace, key, value)
-    # Announce the write on the event bus rather than calling into whichever
-    # module owns a reaction to it (e.g. SDR retuning a running APRS bridge
-    # when land/aprsChannelHz changes) — this is what lets routers/settings.py
-    # avoid importing routers/sdr.py. `db` rides along in the payload (not
-    # just the JSON-safe `keys` list) so a subscriber reads the value it just
-    # saw committed, through the same session/engine as this request — not a
-    # generic module-level session, which would diverge under a test's
-    # per-request `get_db` override. That is an in-process-only convenience
-    # this bus deliberately keeps to (see backend/platform/bus.py); it goes
-    # away once a subscriber lives in a separate process from the writer.
-    await bus.publish(
-        f"settings.changed.{namespace}",
-        {"keys": [key], "db": db},
+    # Store and announce the write on the event bus rather than calling into
+    # whichever module owns a reaction to it (e.g. SDR retuning a running APRS
+    # bridge when land/aprsChannelHz changes) — this is what lets
+    # routers/settings.py avoid importing routers/sdr.py. Background writers
+    # (e.g. the Sentry fleet poller) go through the same write_setting, so a
+    # reaction can't tell who wrote the value.
+    await write_setting(
+        db,
+        namespace,
+        key,
+        value,
         # Preserves today's behaviour: before this change, a raised exception
         # from apply_aprs_channel() (the one subscriber this currently
         # reaches) propagated out of this handler as an unhandled exception

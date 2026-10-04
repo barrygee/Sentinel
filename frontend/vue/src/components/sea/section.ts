@@ -1,5 +1,7 @@
 import { registerSection } from '@/shell/sectionRegistry'
+import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
 import SeaView from './SeaView.vue'
+import { seaSidebarFilter } from './seaSidebarFilter'
 // Registers this section's Settings nav entry and items (F3).
 import './settings'
 
@@ -15,3 +17,6 @@ registerSection({
   navOrder: 30,
   route: { path: '/sea/', component: SeaView },
 })
+
+// FILTER rail sub-tabs (F2).
+registerSidebarFilterSubTabs('sea', seaSidebarFilter)

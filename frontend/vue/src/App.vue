@@ -146,8 +146,7 @@ import { useUserLocation } from '@/composables/useUserLocation'
 import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { useConfigFileSync } from '@/composables/useConfigFileSync'
-import { useAirAlertsService } from '@/composables/useAirAlertsService'
-import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
+import { startBackgroundServices } from '@/shell/backgroundServices'
 import { useAppStore } from '@/stores/app'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
@@ -174,10 +173,10 @@ onMounted(async () => {
   // location does; a missing key leaves the local choice alone.
   await hydrateRingOriginFromConfig()
   startGps()
-  // App-level alert services run independently of the active section so
-  // aircraft/overhead/satellite-pass alerts fire from any page.
-  useAirAlertsService().start()
-  useSpaceAlertsService().start()
+  // Each section's background services (aircraft/overhead and satellite-pass
+  // alerts) run independently of the active section, so alerts fire from any
+  // page. Sections register them in their section.ts (F7).
+  startBackgroundServices()
   // Offline-map downloads keep running server-side whether or not Settings is
   // open — fetch status/regions once here so a queued/running job resumes
   // polling from app bootstrap, not only when the Settings panel is mounted.

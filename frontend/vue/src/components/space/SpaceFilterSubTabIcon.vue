@@ -1,115 +1,9 @@
 <template>
-  <!-- Line-style category glyph for the FILTER rail sub-tabs. Decorative: the
-       parent button carries the accessible name, so the SVG is aria-hidden.
+  <!-- Space FILTER rail sub-tab glyphs, one per satellite category. The categories are data-driven, so an unknown one gets the fallback glyph. Decorative: the parent rail
+       button carries the accessible name, so every glyph is aria-hidden.
        Colour/size follow the rail's other icons via currentColor + 19px. -->
-  <!-- ── Air categories ── -->
   <svg
-    v-if="category === 'aircraft'"
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-    <rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-    <rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-    <rect x="13" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.5" />
-  </svg>
-  <svg
-    v-else-if="category === 'civil'"
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <path
-      d="M12 2C12.8 2 13.2 3.6 13.2 6.6 L21 11.5 V13.4 L13.2 11 V16.5 L15.5 18.5 V20 L12 19 L8.5 20 V18.5 L10.8 16.5 V11 L3 13.4 V11.5 L10.8 6.6 C10.8 3.6 11.2 2 12 2Z"
-      fill="currentColor"
-    />
-  </svg>
-  <svg
-    v-else-if="category === 'milAircraft'"
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <polygon
-      points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
-      stroke="currentColor"
-      stroke-width="1.4"
-      stroke-linejoin="round"
-      fill="none"
-    />
-  </svg>
-  <svg
-    v-else-if="category === 'airports'"
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <path
-      d="M6 13 L18 13 L16 7 L8 7 Z"
-      stroke="currentColor"
-      stroke-width="1.6"
-      stroke-linejoin="round"
-      fill="none"
-    />
-    <path
-      d="M10 13 L9 21.5 M14 13 L15 21.5"
-      stroke="currentColor"
-      stroke-width="1.6"
-      stroke-linecap="round"
-    />
-    <line
-      x1="4.5"
-      y1="21.5"
-      x2="19.5"
-      y2="21.5"
-      stroke="currentColor"
-      stroke-width="1.6"
-      stroke-linecap="round"
-    />
-    <line
-      x1="12"
-      y1="7"
-      x2="12"
-      y2="2.5"
-      stroke="currentColor"
-      stroke-width="1.6"
-      stroke-linecap="round"
-    />
-  </svg>
-  <svg
-    v-else-if="category === 'mil'"
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <polygon
-      points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
-      stroke="currentColor"
-      stroke-width="1.4"
-      stroke-linejoin="round"
-      fill="none"
-    />
-  </svg>
-
-  <!-- ── Space categories ── -->
-  <svg
-    v-else-if="category === 'space_station'"
+    v-if="category === 'space_station'"
     width="19"
     height="19"
     viewBox="0 0 24 24"
@@ -280,75 +174,13 @@
     <line x1="1.5" y1="12" x2="7.5" y2="12" stroke="currentColor" stroke-width="0.9" />
     <line x1="16.5" y1="12" x2="22.5" y2="12" stroke="currentColor" stroke-width="0.9" />
   </svg>
-  <!-- ── Sea categories: the same hull glyphs the Sea map's own rail uses. ── -->
-  <SeaFamilyGlyph v-else-if="isSeaFilterCategory(category)" :category="category" :size="19" />
-
-  <!-- ── Land categories ── (the same glyphs the map markers carry) -->
-  <svg
-    v-else-if="category === 'aprs'"
-    width="19"
-    height="19"
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.4"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    <!-- Handheld transceiver: antenna, body, display, keypad. -->
-    <path d="M5.5 5.5V1.5" />
-    <rect x="3.5" y="5.5" width="9" height="9" rx="1" />
-    <rect x="5.5" y="7.5" width="5" height="2.5" rx="0.4" />
-    <path d="M6 12.2h4" />
-  </svg>
-  <svg
-    v-else-if="category === 'repeaters'"
-    width="19"
-    height="19"
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.4"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    <!-- Mast on splayed legs with RX/TX arcs either side of the antenna. -->
-    <path d="M8 1.8v12.7" />
-    <path d="M8 7.4l-3.6 7.1M8 7.4l3.6 7.1" />
-    <path d="M5.4 1.6a3.4 3.4 0 0 0 0 5.2M10.6 1.6a3.4 3.4 0 0 1 0 5.2" />
-  </svg>
-  <svg
-    v-else
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <!-- Unknown / fallback: a question mark. -->
-    <path
-      d="M8 8.2 A4 4 0 1 1 12 12.4 V15.5"
-      stroke="currentColor"
-      stroke-width="1.8"
-      stroke-linecap="round"
-      fill="none"
-    />
-    <circle cx="12" cy="19.5" r="1.15" fill="currentColor" />
-  </svg>
+  <UnknownCategoryGlyph v-else />
 </template>
 
 <script setup lang="ts">
-// Renders the line-style glyph for a FILTER rail sub-tab category. Air uses the
-// all/civil/military-aircraft glyphs (the old side-menu filter icons) plus
-// airports and military bases; Space uses one glyph
-// per satellite category; Sea reuses its side menu's hull glyphs; Land uses
-// the APRS / repeater glyphs its map markers carry. Any
-// unrecognised id falls back to the "unknown" glyph.
-import SeaFamilyGlyph from '@/components/sea/SeaFamilyGlyph.vue'
-import { isSeaFilterCategory } from '@/utils/aisShipType'
+// Registered with the shell's sidebar registry as Space's sub-tab icon
+// (components/space/spaceSidebarFilter.ts).
+import UnknownCategoryGlyph from '@/components/shared/UnknownCategoryGlyph.vue'
 
 defineProps<{ category: string }>()
 </script>

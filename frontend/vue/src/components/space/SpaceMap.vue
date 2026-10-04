@@ -19,11 +19,11 @@ import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'
 import { useSpaceStore } from '@/stores/space'
 import { useBasemapStore } from '@/stores/basemap'
+import { useNotificationsStore } from '@/stores/notifications'
 import {
-  useNotificationsStore,
   registerSatelliteClickHandler,
   clearSatelliteClickHandler,
-} from '@/stores/notifications'
+} from './satelliteNotificationTarget'
 import { useTrackingStore } from '@/stores/tracking'
 import { useThemeStore } from '@/stores/theme'
 import { useSentrySitesStore } from '@/stores/sentrySites'
