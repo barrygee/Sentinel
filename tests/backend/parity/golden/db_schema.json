@@ -1176,6 +1176,71 @@
       }
     ]
   },
+  "sea_vessel_static": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "mmsi",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "callsign",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "imo",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "ship_type",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "mmsi"
+        ],
+        "name": null
+      }
+    ]
+  },
   "sentry_hosts": {
     "columns": [
       {

@@ -27,12 +27,12 @@ docker compose up --build -d                  # app only, no decoders
 
 **Start here if you want the radio features.** The decoders (digital voice, APRS, off-grid AIS, off-grid ADS-B) are opt-in sidecar containers, so a bare `docker compose up` starts only the app and the map stays empty of anything an SDR would feed. `--profile all` starts every one of them in a single command.
 
-| Want | Command |
-| --- | --- |
-| Everything | `docker compose --profile all up --build -d` |
-| Just one | `docker compose --profile ais up --build -d` (or `aprs` · `adsb` · `decoder`) |
-| App only | `docker compose up --build -d` |
-| No flag at all | set `COMPOSE_PROFILES=all` in `.env`, then plain `docker compose up -d` |
+| Want           | Command                                                                       |
+| -------------- | ----------------------------------------------------------------------------- |
+| Everything     | `docker compose --profile all up --build -d`                                  |
+| Just one       | `docker compose --profile ais up --build -d` (or `aprs` · `adsb` · `decoder`) |
+| App only       | `docker compose up --build -d`                                                |
+| No flag at all | set `COMPOSE_PROFILES=all` in `.env`, then plain `docker compose up -d`       |
 
 **Each decoder needs its own dongle.** They cannot share a receiver — every one holds its own `rtl_tcp` connection and tunes it — so `--profile all` means four radios. With one stick, start the single profile you want. Details for each: [Optional decoder sidecars](#optional-decoder-sidecars).
 
@@ -67,19 +67,20 @@ Outside the Vite dev server the backend serves the **pre-built** bundle, so rebu
 
 Settings are Pydantic (`backend/config.py`), overridable via environment variables or a git-ignored `.env` in the repo root — copy `.env.example`. Everything has a working default; no secrets are required to run.
 
-| Variable                                 | Default                                 | Purpose                                                                                             |
-| ---------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `DB_PATH`                                | `backend/sentinel.db`                   | SQLite file (Docker sets `/app/data/sentinel.db`)                                                   |
-| `ADSB_TTL_MS` / `ADSB_STALE_MS`          | `10000` / `60000`                       | ADS-B cache fresh window / stale window                                                             |
-| `ADSB_UPSTREAM_BASE`                     | `https://api.adsb.lol/v2`               | ADS-B upstream                                                                                      |
-| `TLE_TTL_MS` / `TLE_STALE_MS`            | 6 h / 12 h                              | TLE cache windows                                                                                   |
-| `TLE_MANUAL_TTL_MS`                      | 30 d                                    | TTL for manually uploaded TLEs                                                                      |
-| `CELESTRAK_ISS_URL`                      | Celestrak active-satellites feed        | Default TLE source                                                                                  |
-| `AISSTREAM_API_KEY`                      | _(empty)_                               | [AISStream.io](https://aisstream.io) key for SEA (Settings › SEA takes precedence)                  |
-| `AISSTREAM_WS_URL`                       | `wss://stream.aisstream.io/v0/stream`   | AISStream endpoint                                                                                  |
-| `SEA_AIS_STALE_MS` / `SEA_AIS_CACHE_MAX` | 30 min / `50000`                        | Vessel retention / in-memory cap                                                                    |
-| `REPEATERS_UPSTREAM_URL`                 | `https://ukrepeater.net/csvcreate8.php` | UK repeater register; refreshed daily, stale copy served for 30 d                                   |
-| `SENTINEL_DECODER_SECRET`                | _(auto-generated)_                      | Optional override for the sidecar ingest secret                                                     |
+| Variable                                                   | Default                                 | Purpose                                                                                                                |
+| ---------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `DB_PATH`                                                  | `backend/sentinel.db`                   | SQLite file (Docker sets `/app/data/sentinel.db`)                                                                      |
+| `ADSB_TTL_MS` / `ADSB_STALE_MS`                            | `10000` / `60000`                       | ADS-B cache fresh window / stale window                                                                                |
+| `ADSB_UPSTREAM_BASE`                                       | `https://api.adsb.lol/v2`               | ADS-B upstream                                                                                                         |
+| `TLE_TTL_MS` / `TLE_STALE_MS`                              | 6 h / 12 h                              | TLE cache windows                                                                                                      |
+| `TLE_MANUAL_TTL_MS`                                        | 30 d                                    | TTL for manually uploaded TLEs                                                                                         |
+| `CELESTRAK_ISS_URL`                                        | Celestrak active-satellites feed        | Default TLE source                                                                                                     |
+| `AISSTREAM_API_KEY`                                        | _(empty)_                               | [AISStream.io](https://aisstream.io) key for SEA (Settings › SEA takes precedence)                                     |
+| `AISSTREAM_WS_URL`                                         | `wss://stream.aisstream.io/v0/stream`   | AISStream endpoint                                                                                                     |
+| `SEA_AIS_STALE_MS` / `SEA_AIS_CACHE_MAX`                   | 30 min / `50000`                        | Vessel retention / in-memory cap                                                                                       |
+| `SEA_VESSEL_STATIC_RETENTION_MS` / `SEA_VESSEL_STATIC_MAX` | 90 d / `250000`                         | How long vessel names/callsigns/types are remembered after last heard (so position-only reports are still named) / cap |
+| `REPEATERS_UPSTREAM_URL`                                   | `https://ukrepeater.net/csvcreate8.php` | UK repeater register; refreshed daily, stale copy served for 30 d                                                      |
+| `SENTINEL_DECODER_SECRET`                                  | _(auto-generated)_                      | Optional override for the sidecar ingest secret                                                                        |
 
 Decoder (`DECODER_*`, `APRS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tunables are wired by `docker-compose.yml` and rarely need changing — see `backend/config.py`.
 
@@ -87,13 +88,13 @@ Decoder (`DECODER_*`, `APRS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tu
 
 ## Domains
 
-| Domain    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **AIR**   | ADS-B aircraft from [adsb.lol](https://adsb.lol), proxied and cached (10 s fresh / 60 s stale). Airports with frequencies, military bases, AWACS lobes, range rings, overhead-alert zone. [Off Grid](#off-grid-ads-b) decoding from your own SDR.                                                                                                                                                                                                                                                          |
-| **SPACE** | SGP4 propagation from TLEs (ISS by default, any NORAD ID). Multi-orbit ground track, footprint, pass prediction with heads-up notifications and optional SDR **auto-tune** to a downlink, day/night terminator, TLE database management (Celestrak fetch, upload, categorise).                                                                                                                                                                                                                                                                                              |
-| **SEA**   | Live AIS from AISStream.io (free key → Settings › SEA). One WebSocket per process, vessels held in memory with static data merged in, 30-min retention, dead-reckoned between 10 s polls, snapshotted to SQLite for warm restarts. Type-coloured hulls, filter/search pane (the map's accessible data list), recent track on select, charted ferry routes from the base tiles. Coverage box in Settings › SEA — worldwide is heavy; pick a region on a small host. Also decodes [Off Grid](#off-grid-ais) from your own SDR, with no internet at all.                                                                                                          |
-| **LAND**  | Two layers, one at a time: **APRS stations** from the [Direwolf sidecar](#aprs-decoding); the **UK repeater directory** from [ukrepeater.net](https://ukrepeater.net/) with per-channel frequencies (tap to tune the SDR), modes, tones, BAND/MODE/STATUS filters and configurable labels. The register refreshes daily and falls back to `backend/data/uk_repeaters.json` offline; the directory is viewable/editable as JSON in Settings › LAND. |
-| **SDR**   | Each radio is a remote `rtl_tcp`. One IQ broadcaster per radio fans FFT frames to every WebSocket client for a live spectrum + waterfall. Tune, set bandwidth/gain, demodulate audio, colour-coded frequency groups, range search, band plan overlay, WAV + raw-IQ recording. Optional [digital voice](#digital-voice-decoding) and [APRS](#aprs-decoding) decode.                                                                                                                                                                                                          |
+| Domain    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AIR**   | ADS-B aircraft from [adsb.lol](https://adsb.lol), proxied and cached (10 s fresh / 60 s stale). Airports with frequencies, military bases, AWACS lobes, range rings, overhead-alert zone. [Off Grid](#off-grid-ads-b) decoding from your own SDR.                                                                                                                                                                                                                                                                                                     |
+| **SPACE** | SGP4 propagation from TLEs (ISS by default, any NORAD ID). Multi-orbit ground track, footprint, pass prediction with heads-up notifications and optional SDR **auto-tune** to a downlink, day/night terminator, TLE database management (Celestrak fetch, upload, categorise).                                                                                                                                                                                                                                                                        |
+| **SEA**   | Live AIS from AISStream.io (free key → Settings › SEA). One WebSocket per process, vessels held in memory with static data merged in, 30-min retention, dead-reckoned between 10 s polls, snapshotted to SQLite for warm restarts. Type-coloured hulls, filter/search pane (the map's accessible data list), recent track on select, charted ferry routes from the base tiles. Coverage box in Settings › SEA — worldwide is heavy; pick a region on a small host. Also decodes [Off Grid](#off-grid-ais) from your own SDR, with no internet at all. |
+| **LAND**  | Two layers, one at a time: **APRS stations** from the [Direwolf sidecar](#aprs-decoding); the **UK repeater directory** from [ukrepeater.net](https://ukrepeater.net/) with per-channel frequencies (tap to tune the SDR), modes, tones, BAND/MODE/STATUS filters and configurable labels. The register refreshes daily and falls back to `backend/data/uk_repeaters.json` offline; the directory is viewable/editable as JSON in Settings › LAND.                                                                                                    |
+| **SDR**   | Each radio is a remote `rtl_tcp`. One IQ broadcaster per radio fans FFT frames to every WebSocket client for a live spectrum + waterfall. Tune, set bandwidth/gain, demodulate audio, colour-coded frequency groups, range search, band plan overlay, WAV + raw-IQ recording. Optional [digital voice](#digital-voice-decoding) and [APRS](#aprs-decoding) decode.                                                                                                                                                                                    |
 
 ---
 
@@ -156,29 +157,29 @@ Offline map data has two tiers, and either works on its own:
 
 1. **Bundled base archive** — [PMTiles](https://protomaps.com) files placed in `frontend/assets/tiles/`, extracted once by hand:
 
-   | File                   | Coverage                                                                                                    |
-   | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-   | `surroundings.pmtiles` | Global overview (zoom 0–6)                                                                                  |
-   | `uk.pmtiles`           | Regional detail (zoom 0–14)                                                                                 |
-   | `uk-terrain.pmtiles`   | Optional Terrarium DEM for the **TERRAIN** layer (hillshade + contours); the button is disabled when absent |
+    | File                   | Coverage                                                                                                    |
+    | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+    | `surroundings.pmtiles` | Global overview (zoom 0–6)                                                                                  |
+    | `uk.pmtiles`           | Regional detail (zoom 0–14)                                                                                 |
+    | `uk-terrain.pmtiles`   | Optional Terrarium DEM for the **TERRAIN** layer (hillshade + contours); the button is disabled when absent |
 
-   ```bash
-   brew install pmtiles    # or a binary from https://github.com/protomaps/go-pmtiles/releases
-   mkdir -p frontend/assets/tiles
-   pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles frontend/assets/tiles/surroundings.pmtiles --maxzoom=6
-   pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles frontend/assets/tiles/uk.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=14
-   pmtiles extract https://download.mapterhorn.com/planet.pmtiles frontend/assets/tiles/uk-terrain.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=12
-   ```
+    ```bash
+    brew install pmtiles    # or a binary from https://github.com/protomaps/go-pmtiles/releases
+    mkdir -p frontend/assets/tiles
+    pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles frontend/assets/tiles/surroundings.pmtiles --maxzoom=6
+    pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles frontend/assets/tiles/uk.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=14
+    pmtiles extract https://download.mapterhorn.com/planet.pmtiles frontend/assets/tiles/uk-terrain.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=12
+    ```
 
-   `--bbox` is `west,south,east,north`; add `--dry-run` to see the download size first.
+    `--bbox` is `west,south,east,north`; add `--dry-run` to see the download size first.
 
 2. **In-app downloads** — **Settings › App Settings › Offline Maps** lets you pick any area, no rebuild or restart needed. Draw a dashed rectangle on the settings map or click **Use current view**, fine-tune the N/S/E/W fields, pick a depth (max zoom 6–14), and tick **Basemap** and/or **Terrain** (both on by default; at least one required). A live estimate shows size and tile count against free disk space as you adjust the selection, and Download is disabled if it won't fit. Progress and Cancel are shown while a job runs (one at a time), and downloaded regions appear in a list below with size/date and a delete action. Downloaded areas work offline in all three basemap themes (**DARK**, **LIGHT**, **COLOUR**) and go through the same TERRAIN button — terrain downloads to z12 and MapLibre overzooms beyond that, same as the bundled archive. This requires connectivity to reach the source archives, so it's disabled in **Off Grid** connectivity mode.
 
-   Regions are stored server-side: in Docker under `/app/data/tiles` (the existing `sentinel_db` volume, so no new volume is needed); outside Docker under `<directory of the SQLite db>/tiles` unless `OFFLINE_TILES_DIR` overrides it. Extraction uses the `pmtiles` (go-pmtiles) CLI, bundled in the Docker image; for non-Docker dev, install it yourself (`brew install pmtiles` or a binary from the [releases page](https://github.com/protomaps/go-pmtiles/releases)) and make sure it's on `PATH`, or point `PMTILES_BIN` at it. The basemap is cut from the newest Protomaps planet build, which the backend finds automatically. Protomaps deletes each dated build after about a week, so there is nothing to keep updated. Set `OFFLINE_BASEMAP_SOURCE_URL` only to force a specific build (see `.env.example`). The terrain source (`OFFLINE_TERRAIN_SOURCE_URL`) rarely changes.
+    Regions are stored server-side: in Docker under `/app/data/tiles` (the existing `sentinel_db` volume, so no new volume is needed); outside Docker under `<directory of the SQLite db>/tiles` unless `OFFLINE_TILES_DIR` overrides it. Extraction uses the `pmtiles` (go-pmtiles) CLI, bundled in the Docker image; for non-Docker dev, install it yourself (`brew install pmtiles` or a binary from the [releases page](https://github.com/protomaps/go-pmtiles/releases)) and make sure it's on `PATH`, or point `PMTILES_BIN` at it. The basemap is cut from the newest Protomaps planet build, which the backend finds automatically. Protomaps deletes each dated build after about a week, so there is nothing to keep updated. Set `OFFLINE_BASEMAP_SOURCE_URL` only to force a specific build (see `.env.example`). The terrain source (`OFFLINE_TERRAIN_SOURCE_URL`) rarely changes.
 
 Both tiers feed the same map: the offline basemap styles read tiles through `GET /api/offline-map/basemap/{z}/{x}/{y}` and terrain through `GET /api/offline-map/terrain/{z}/{x}/{y}`, which check downloaded regions newest-first, then fall back to the bundled base archive, then return an empty tile (204) if neither has it.
 
-The offline map data has no national park boundaries, so the offline styles draw them from a bundled file, `frontend/assets/national-parks.geojson`: the 15 national parks of Great Britain, from the ONS *National Parks (December 2022) Boundaries GB BGC*. Source: Office for National Statistics, licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/); contains OS data © Crown copyright and database right 2022.
+The offline map data has no national park boundaries, so the offline styles draw them from a bundled file, `frontend/assets/national-parks.geojson`: the 15 national parks of Great Britain, from the ONS _National Parks (December 2022) Boundaries GB BGC_. Source: Office for National Statistics, licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/); contains OS data © Crown copyright and database right 2022.
 
 Switch to offline map rendering via **Settings › Connectivity Mode › Offline**, or let Sentinel fail over automatically.
 

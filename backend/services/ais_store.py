@@ -10,7 +10,10 @@ message, so the live picture lives in memory and is only *snapshotted* to the
 Two maps are kept, both keyed by MMSI: the vessel's latest position record and
 its static data (name, type, destination, IMO), which arrive in different
 message types and are merged so a position report without static data still
-gets a name once one has been heard. A per-vessel track ring buffer holds the
+gets a name once one has been heard. The static map is a durable directory: it
+outlives the live picture's retention, restarts (``sea_vessel_static``) and
+online/off-grid source switches, so a ship named once is named whenever it is
+next heard — even off grid, where often only its position reports get through. A per-vessel track ring buffer holds the
 recent path, thinned by time and distance so anchored ships collapse to a point.
 """
 
@@ -27,7 +30,7 @@ from typing import Any
 from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.models import SeaVesselCache
+from backend.models import SeaVesselCache, SeaVesselStatic
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -35,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 # Rows per snapshot transaction — small enough that each write lock is brief.
 _PERSIST_CHUNK = 1_000
+
+# The static fields kept in the durable directory. Destination is per voyage, so
+# it is held for live merging only and never persisted.
+_STATIC_FIELDS = ("name", "type", "destination", "imo", "callsign")
 
 # ── AIS ship-type mapping ─────────────────────────────────────────────────────
 # ITU-R M.1371 ship-and-cargo type codes. Tens digit = family; a handful of
@@ -200,7 +207,11 @@ class AisVesselStore:
 
     def __init__(self) -> None:
         self._vessels: dict[str, dict[str, Any]] = {}
+        # MMSI → static data. Survives prune() and clear(); persisted to
+        # sea_vessel_static with when it was last heard.
         self._static: dict[str, dict[str, str]] = {}
+        self._static_heard_ms: dict[str, int] = {}
+        self._dirty_static: set[str] = set()
         self._tracks: dict[str, deque[tuple[float, float, int]]] = {}
         # Newest position timestamp across the whole store — the "how fresh is
         # this picture" figure the snapshot endpoint reports.
@@ -216,6 +227,20 @@ class AisVesselStore:
     def _mark_dirty(self, mmsi: str) -> None:
         self._dirty_mmsis.add(mmsi)
         self._dirty = True
+
+    def _remember_static(self, mmsi: str, static_data: dict[str, str], heard_ms: int) -> None:
+        """Record a vessel's static data in the durable directory."""
+        self._static[mmsi] = static_data
+        self._static_heard_ms[mmsi] = heard_ms
+        self._dirty_static.add(mmsi)
+        self._dirty = True
+        overflow = len(self._static) - settings.sea_vessel_static_max
+        if overflow > 0:
+            # Rare (only past the cap), so a sort here is cheaper than keeping an ordered index.
+            for oldest in sorted(self._static_heard_ms, key=self._static_heard_ms.__getitem__)[:overflow]:
+                self._static.pop(oldest, None)
+                self._static_heard_ms.pop(oldest, None)
+                self._dirty_static.discard(oldest)
 
     # ── ingest ────────────────────────────────────────────────────────────────
 
@@ -239,6 +264,7 @@ class AisVesselStore:
         mmsi = _string_value(metadata.get("MMSI") or message.get("UserID") or message.get("UserId"))
         if not mmsi.isdigit() or not 5 <= len(mmsi) <= 10:
             return False
+        received = received_ms if received_ms is not None else now_ms()
 
         if message_type in ("ShipStaticData", "StaticDataReport"):
             previous = self._static.get(mmsi, {})
@@ -253,7 +279,7 @@ class AisVesselStore:
                 "callsign": _string_value(message.get("CallSign") or report_b.get("CallSign"))
                 or previous.get("callsign", ""),
             }
-            self._static[mmsi] = static_data
+            self._remember_static(mmsi, static_data, received)
             self._merge_static_into_live(mmsi, static_data)
 
         latitude = _number_value(metadata.get("latitude", metadata.get("Latitude", message.get("Latitude"))))
@@ -266,9 +292,14 @@ class AisVesselStore:
 
         static_data = self._static.get(mmsi, {})
         position_ms = parse_ais_timestamp_ms(metadata.get("time_utc", metadata.get("TimeUtc")))
-        received = received_ms if received_ms is not None else now_ms()
         type_label, family = classify_ship_type(message.get("Type") or static_data.get("type"))
-        name = _string_value(metadata.get("ShipName") or message.get("Name")) or static_data.get("name", "")
+        heard_name = _string_value(metadata.get("ShipName") or message.get("Name"))
+        # AISStream names every message in its metadata; keep the directory in
+        # step so the name is there when the vessel is next heard off grid.
+        if heard_name and heard_name != static_data.get("name"):
+            static_data = {**dict.fromkeys(_STATIC_FIELDS, ""), **static_data, "name": heard_name}
+            self._remember_static(mmsi, static_data, received)
+        name = heard_name or static_data.get("name", "")
         nav_status = _number_value(message.get("NavigationalStatus"))
         record: dict[str, Any] = {
             "mmsi": mmsi,
@@ -352,15 +383,19 @@ class AisVesselStore:
         return len(expired)
 
     def _forget(self, mmsi: str) -> None:
+        # The vessel's static data stays in the directory: it names the ship
+        # when it is next heard.
         self._vessels.pop(mmsi, None)
         self._tracks.pop(mmsi, None)
-        self._static.pop(mmsi, None)
         self._dirty_mmsis.discard(mmsi)
 
     def clear(self) -> None:
-        """Forget everything (tests, and a source switch)."""
+        """Forget the live picture (tests, and a source switch).
+
+        The static directory is kept: a ship's name is true whichever source
+        heard it, so names learned online label the same ships off grid.
+        """
         self._vessels.clear()
-        self._static.clear()
         self._tracks.clear()
         self.newest_position_ms = None
         self._dirty_mmsis.clear()
@@ -430,15 +465,21 @@ class AisVesselStore:
         SQLite for seconds and blocked every other writer. Only dirty MMSIs are
         upserted (``force`` writes everything), in chunks each committed on its
         own with the event loop yielded between them; rows outside the retention
-        window are deleted afterwards. Returns the number of rows written.
+        window are deleted afterwards. Static data heard since the last snapshot
+        is upserted into ``sea_vessel_static`` the same way (``force`` doesn't
+        rewrite the whole directory — it is kept current incrementally). Returns
+        the number of vessel rows written.
         """
         if not self._dirty and not force:
             return 0
         mmsis = list(self._vessels) if force else [mmsi for mmsi in self._dirty_mmsis if mmsi in self._vessels]
+        static_mmsis = [mmsi for mmsi in self._dirty_static if mmsi in self._static]
         self._dirty_mmsis.clear()
+        self._dirty_static.clear()
         self._dirty = False
         written = 0
-        cutoff = now_ms() - settings.sea_ais_stale_ms
+        current = now_ms()
+        cutoff = current - settings.sea_ais_stale_ms
         async with AsyncSessionLocal() as db:
             for start in range(0, len(mmsis), _PERSIST_CHUNK):
                 rows = []
@@ -473,18 +514,69 @@ class AisVesselStore:
                 await asyncio.sleep(0)
             await db.execute(delete(SeaVesselCache).where(SeaVesselCache.updated_at < cutoff))
             await db.commit()
+            await self._persist_static(db, static_mmsis, current)
         return written
+
+    async def _persist_static(self, db, mmsis: list[str], current_ms: int) -> None:
+        """Upsert the given directory entries, then drop rows past their retention."""
+        for start in range(0, len(mmsis), _PERSIST_CHUNK):
+            rows = [
+                {
+                    "mmsi": mmsi,
+                    "name": self._static[mmsi].get("name", ""),
+                    "callsign": self._static[mmsi].get("callsign", ""),
+                    "imo": self._static[mmsi].get("imo", ""),
+                    "ship_type": self._static[mmsi].get("type", ""),
+                    "updated_at": self._static_heard_ms[mmsi],
+                }
+                for mmsi in mmsis[start : start + _PERSIST_CHUNK]
+            ]
+            statement = sqlite_insert(SeaVesselStatic).values(rows)
+            await db.execute(
+                statement.on_conflict_do_update(
+                    index_elements=[SeaVesselStatic.mmsi],
+                    set_={
+                        column: statement.excluded[column]
+                        for column in ("name", "callsign", "imo", "ship_type", "updated_at")
+                    },
+                )
+            )
+            await db.commit()
+            await asyncio.sleep(0)
+        await db.execute(
+            delete(SeaVesselStatic).where(
+                SeaVesselStatic.updated_at < current_ms - settings.sea_vessel_static_retention_ms
+            )
+        )
+        await db.commit()
 
     async def load_snapshot(self, current_ms: int | None = None) -> int:
         """Warm the empty store from ``sea_vessel_cache``; returns vessels loaded.
 
         Only rows still inside the retention window are restored, and the store
-        is left dirty=False so a persist immediately afterwards is a no-op.
+        is left dirty=False so a persist immediately afterwards is a no-op. The
+        static directory is reloaded from ``sea_vessel_static`` first (newest
+        ``sea_vessel_static_max`` rows inside its retention).
         """
         current = current_ms if current_ms is not None else now_ms()
         cutoff = current - settings.sea_ais_stale_ms
         loaded = 0
         async with AsyncSessionLocal() as db:
+            static_rows = await db.execute(
+                select(SeaVesselStatic)
+                .where(SeaVesselStatic.updated_at >= current - settings.sea_vessel_static_retention_ms)
+                .order_by(SeaVesselStatic.updated_at.desc())
+                .limit(settings.sea_vessel_static_max)
+            )
+            for known in static_rows.scalars().all():
+                self._static[known.mmsi] = {
+                    "name": known.name,
+                    "type": known.ship_type,
+                    "destination": "",
+                    "imo": known.imo,
+                    "callsign": known.callsign,
+                }
+                self._static_heard_ms[known.mmsi] = known.updated_at
             result = await db.execute(select(SeaVesselCache).where(SeaVesselCache.updated_at >= cutoff))
             for cached in result.scalars().all():
                 try:
@@ -511,6 +603,9 @@ class AisVesselStore:
                 ):
                     self.newest_position_ms = position_ms
                 loaded += 1
+                # A vessel snapshotted before its name was heard is named from the directory.
+                if cached.mmsi in self._static:
+                    self._merge_static_into_live(cached.mmsi, self._static[cached.mmsi])
         self._dirty = False
         return loaded
 

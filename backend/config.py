@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     sea_ais_stale_ms: int = 1_800_000
     # Hard cap on the in-memory vessel store; oldest vessels are evicted first.
     sea_ais_cache_max: int = 50_000
+    # Vessel names/callsigns/types (sea_vessel_static) are remembered this long
+    # after they were last heard (90 days), so a returning ship — or one heard
+    # only by position off grid — is named at once. Capped, oldest dropped first.
+    sea_vessel_static_retention_ms: int = 7_776_000_000
+    sea_vessel_static_max: int = 250_000
     # Per-vessel recent-path ring buffer: samples kept, and the minimum time and
     # distance between stored fixes so an anchored ship collapses to one point.
     sea_ais_track_samples: int = 64
