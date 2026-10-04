@@ -189,6 +189,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Decoder kinds declared by a manifest (P3.3)
 - Python stub decoder for CI-testing the decoder contract (P3.4)
 - Decode off-grid AIS from the backend, browser or not
+- Remember vessel names so position-only reports are named
 
 ### Bug Fixes
 
@@ -442,6 +443,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Save the off-grid ADS-B SDR pick with APPLY CHANGES
 - Make CANCEL ALL ALERTS actually turn alerts off
 - The ADS-B claim wins a shared dongle
+- Reconnect when the rtl_tcp stream goes silent
 
 ### Chores
 
@@ -1363,6 +1365,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #406 from barrygee/feat/p3-4-stub-decoder
 - Merge pull request #408 from barrygee/feat/sea-ais-headless-decode
 - Merge pull request #409 from barrygee/feat/adsb-claim-wins-shared-dongle
+- Merge branch 'main' into feat/sea-vessel-static-cache
+- Merge pull request #407 from barrygee/feat/sea-vessel-static-cache
+- Merge branch 'main' into fix/adsb-decoder-stall-watchdog
+- Merge pull request #410 from barrygee/fix/adsb-decoder-stall-watchdog
 
 ### Refactoring
 
