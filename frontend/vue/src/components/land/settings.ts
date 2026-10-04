@@ -1,10 +1,10 @@
 import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
-import AprsLabelFieldsControl from '@/components/shared/settings/AprsLabelFieldsControl.vue'
-import AprsSdrSourceControl from '@/components/shared/settings/AprsSdrSourceControl.vue'
+import AprsLabelFieldsControl from '@/components/land/settings/AprsLabelFieldsControl.vue'
+import AprsSdrSourceControl from '@/components/land/settings/AprsSdrSourceControl.vue'
 import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'
-import LandAprsChannelControl from '@/components/shared/settings/LandAprsChannelControl.vue'
-import LandAprsRetentionControl from '@/components/shared/settings/LandAprsRetentionControl.vue'
-import RepeaterLabelFieldsControl from '@/components/shared/settings/RepeaterLabelFieldsControl.vue'
+import LandAprsChannelControl from '@/components/land/settings/LandAprsChannelControl.vue'
+import LandAprsRetentionControl from '@/components/land/settings/LandAprsRetentionControl.vue'
+import RepeaterLabelFieldsControl from '@/components/land/settings/RepeaterLabelFieldsControl.vue'
 
 /**
  * LAND's Settings section (F3): the APRS receiver and channel, station/repeater labels, APRS retention and the repeater directory file.

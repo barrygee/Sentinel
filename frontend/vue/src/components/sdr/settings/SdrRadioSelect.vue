@@ -32,7 +32,9 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { listRadios, type SdrRadioRecord } from '@/services/sdrRadiosApi'
-import SettingsDropdown, { type SettingsDropdownOption } from './SettingsDropdown.vue'
+import SettingsDropdown, {
+  type SettingsDropdownOption,
+} from '@/components/shared/settings/SettingsDropdown.vue'
 
 /** How often the list re-reads the configured radios. */
 const REFRESH_INTERVAL_MS = 5000

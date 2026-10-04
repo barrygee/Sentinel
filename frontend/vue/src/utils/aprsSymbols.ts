@@ -294,7 +294,7 @@ export interface AprsSymbolSvgOptions {
 /**
  * Build a complete, self-contained SVG string for an APRS symbol — used for the
  * map markers (DOM string). ``color`` drives both stroke and any filled parts
- * (via ``currentColor``). The table uses the :class:`SdrAprsSymbol` component
+ * (via ``currentColor``). The table uses the :class:`AprsSymbol` component
  * instead, which inherits colour from the surrounding text.
  */
 export function aprsSymbolSvg(

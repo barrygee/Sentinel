@@ -10,7 +10,10 @@
  * map picks changes up by watching the repeaters store, so no event bridge.
  */
 import { ref, onMounted } from 'vue'
-import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldColumn,
+  type LabelFieldRow,
+} from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useRepeatersStore } from '@/stores/repeaters'
 import * as settingsApi from '@/services/settingsApi'
 import type { RepeaterLabelFieldMap } from '@/types/repeaters'

@@ -40,7 +40,7 @@
                    so the panel and the map agree at a glance. It carries the
                    type as its accessible name, so nothing is lost by dropping
                    the text. -->
-              <SdrAprsSymbol :symbol="stationFor(item.key)!.symbol" />
+              <AprsSymbol :symbol="stationFor(item.key)!.symbol" />
             </BaseDataCell>
             <BaseDataCell
               label="TIME"
@@ -125,7 +125,7 @@ import BaseFilterPanel, {
 import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
 import BaseDataCell from '@/components/base/BaseDataCell.vue'
 import ChevronIcon from '@/components/shared/ChevronIcon.vue'
-import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
+import AprsSymbol from '@/components/shared/AprsSymbol.vue'
 import LandRepeaterFilters from '@/components/land/LandRepeaterFilters.vue'
 import LandRepeaterDetails from '@/components/land/LandRepeaterDetails.vue'
 import { useRepeatersStore } from '@/stores/repeaters'

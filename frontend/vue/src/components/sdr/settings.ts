@@ -1,8 +1,8 @@
 import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
 import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'
-import SdrDevicesControl from '@/components/shared/settings/SdrDevicesControl.vue'
-import SdrOptionsControl from '@/components/shared/settings/SdrOptionsControl.vue'
-import SentryHostsControl from '@/components/shared/settings/SentryHostsControl.vue'
+import SdrDevicesControl from '@/components/sdr/settings/SdrDevicesControl.vue'
+import SdrOptionsControl from '@/components/sdr/settings/SdrOptionsControl.vue'
+import SentryHostsControl from '@/components/sdr/settings/SentryHostsControl.vue'
 
 /**
  * SDR's Settings section (F3): Sentry hosts, devices, receiver options and the frequency / band-plan files.

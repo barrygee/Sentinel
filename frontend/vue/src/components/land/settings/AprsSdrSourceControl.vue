@@ -31,7 +31,7 @@
  * so nothing needs retuning by hand here.
  */
 import { onMounted, ref, watch } from 'vue'
-import SdrRadioSelect from './SdrRadioSelect.vue'
+import SdrRadioSelect from '@/components/sdr/settings/SdrRadioSelect.vue'
 import { useSdrStore } from '@/stores/sdr'
 
 const sdrStore = useSdrStore()

@@ -35,7 +35,10 @@
  * the staged writer.
  */
 import { onMounted } from 'vue'
-import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldColumn,
+  type LabelFieldRow,
+} from '@/components/shared/settings/LabelFieldsTable.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import SdrTimestampIntervalControl from './SdrTimestampIntervalControl.vue'
 import { useSdrStore } from '@/stores/sdr'
