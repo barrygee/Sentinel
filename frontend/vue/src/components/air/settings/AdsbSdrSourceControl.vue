@@ -33,7 +33,9 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { clearAdsbSource, getAdsbSource, setAdsbSource } from '@/services/adsbSourceApi'
-import SettingsDropdown, { type SettingsDropdownOption } from './SettingsDropdown.vue'
+import SettingsDropdown, {
+  type SettingsDropdownOption,
+} from '@/components/shared/settings/SettingsDropdown.vue'
 import { getSentryHostDevices, listSentryHosts, type SentryHost } from '@/services/sentryApi'
 import { useSettingsStore } from '@/stores/settings'
 

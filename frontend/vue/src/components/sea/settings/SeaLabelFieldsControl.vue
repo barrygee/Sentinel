@@ -16,7 +16,10 @@
  * with the fields on APPLY, as `sea.defaultLayers`.
  */
 import { ref, onMounted } from 'vue'
-import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldColumn,
+  type LabelFieldRow,
+} from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useSeaStore, type SeaLabelFieldMap } from '@/stores/sea'
 import * as settingsApi from '@/services/settingsApi'
 

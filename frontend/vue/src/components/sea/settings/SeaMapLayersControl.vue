@@ -28,7 +28,9 @@
  */
 import { useSeaStore, type SeaOverlayStates } from '@/stores/sea'
 import * as settingsApi from '@/services/settingsApi'
-import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldRow,
+} from '@/components/shared/settings/LabelFieldsTable.vue'
 
 type SeaMapLayerKey = Exclude<keyof SeaOverlayStates, 'vessels'>
 

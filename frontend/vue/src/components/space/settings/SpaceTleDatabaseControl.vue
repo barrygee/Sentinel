@@ -42,8 +42,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { SATELLITE_CATEGORY_FULL_LABELS, formatTleAge } from '../../../utils/satelliteUtils'
-import { useDocumentEvent } from '../../../composables/useDocumentEvent'
+import { SATELLITE_CATEGORY_FULL_LABELS, formatTleAge } from '@/utils/satelliteUtils'
+import { useDocumentEvent } from '@/composables/useDocumentEvent'
 import BaseButton from '@/components/base/BaseButton.vue'
 
 type CatInfo = { count: number; last_updated: number }

@@ -1,9 +1,9 @@
 import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
 import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'
-import SpaceHoverPreviewControl from '@/components/shared/settings/SpaceHoverPreviewControl.vue'
-import SpaceTleDatabaseControl from '@/components/shared/settings/SpaceTleDatabaseControl.vue'
-import SpaceTleManualControl from '@/components/shared/settings/SpaceTleManualControl.vue'
-import SpaceTleOnlineControl from '@/components/shared/settings/SpaceTleOnlineControl.vue'
+import SpaceHoverPreviewControl from '@/components/space/settings/SpaceHoverPreviewControl.vue'
+import SpaceTleDatabaseControl from '@/components/space/settings/SpaceTleDatabaseControl.vue'
+import SpaceTleManualControl from '@/components/space/settings/SpaceTleManualControl.vue'
+import SpaceTleOnlineControl from '@/components/space/settings/SpaceTleOnlineControl.vue'
 
 /**
  * SPACE's Settings section (F3): satellite (TLE) data, the satellite radio file and filter hover preview.

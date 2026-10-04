@@ -25,7 +25,7 @@
  * left holding the dongle until the next visit to Sea.
  */
 import { onMounted, ref, watch } from 'vue'
-import SdrRadioSelect from './SdrRadioSelect.vue'
+import SdrRadioSelect from '@/components/sdr/settings/SdrRadioSelect.vue'
 import { useSdrStore } from '@/stores/sdr'
 import * as settingsApi from '@/services/settingsApi'
 

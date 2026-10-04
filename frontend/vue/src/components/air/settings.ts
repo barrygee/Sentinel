@@ -1,9 +1,9 @@
 import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
-import AdsbSdrSourceControl from '@/components/shared/settings/AdsbSdrSourceControl.vue'
-import AdsbTagFieldsControl from '@/components/shared/settings/AdsbTagFieldsControl.vue'
-import MapLayersControl from '@/components/shared/settings/MapLayersControl.vue'
+import AdsbSdrSourceControl from '@/components/air/settings/AdsbSdrSourceControl.vue'
+import AdsbTagFieldsControl from '@/components/air/settings/AdsbTagFieldsControl.vue'
+import MapLayersControl from '@/components/air/settings/MapLayersControl.vue'
 import OnlineSourceControl from '@/components/shared/settings/OnlineSourceControl.vue'
-import OverheadAlertsControl from '@/components/shared/settings/OverheadAlertsControl.vue'
+import OverheadAlertsControl from '@/components/air/settings/OverheadAlertsControl.vue'
 import SourceOverrideControl from '@/components/shared/settings/SourceOverrideControl.vue'
 
 /**

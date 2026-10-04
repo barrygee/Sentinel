@@ -113,7 +113,7 @@
                 <td>{{ formatTime(event.ts) }}</td>
                 <td>{{ event.from ?? '—' }}</td>
                 <td>
-                  <SdrAprsSymbol v-if="event.symbol" :symbol="event.symbol" />
+                  <AprsSymbol v-if="event.symbol" :symbol="event.symbol" />
                   <span v-else>—</span>
                 </td>
                 <td>{{ formatCoord(event.latitude) }}</td>
@@ -198,7 +198,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import SdrAprsSymbol from '@/components/sdr/SdrAprsSymbol.vue'
+import AprsSymbol from '@/components/shared/AprsSymbol.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'
 

@@ -1,10 +1,10 @@
 import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
 import OnlineSourceControl from '@/components/shared/settings/OnlineSourceControl.vue'
-import SeaAisKeyControl from '@/components/shared/settings/SeaAisKeyControl.vue'
-import SeaAisSdrSourceControl from '@/components/shared/settings/SeaAisSdrSourceControl.vue'
-import SeaCoverageAreaControl from '@/components/shared/settings/SeaCoverageAreaControl.vue'
-import SeaLabelFieldsControl from '@/components/shared/settings/SeaLabelFieldsControl.vue'
-import SeaMapLayersControl from '@/components/shared/settings/SeaMapLayersControl.vue'
+import SeaAisKeyControl from '@/components/sea/settings/SeaAisKeyControl.vue'
+import SeaAisSdrSourceControl from '@/components/sea/settings/SeaAisSdrSourceControl.vue'
+import SeaCoverageAreaControl from '@/components/sea/settings/SeaCoverageAreaControl.vue'
+import SeaLabelFieldsControl from '@/components/sea/settings/SeaLabelFieldsControl.vue'
+import SeaMapLayersControl from '@/components/sea/settings/SeaMapLayersControl.vue'
 import SourceOverrideControl from '@/components/shared/settings/SourceOverrideControl.vue'
 
 /**

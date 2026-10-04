@@ -19,7 +19,10 @@
  * the live map via a DOM event the ADS-B control listens for).
  */
 import { ref, onMounted } from 'vue'
-import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldColumn,
+  type LabelFieldRow,
+} from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useAirStore, type AdsbTagFields, type AdsbTagFieldMap } from '@/stores/air'
 import * as settingsApi from '@/services/settingsApi'
 

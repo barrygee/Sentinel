@@ -11,7 +11,10 @@
  * watching the store, so no DOM event bridge is needed.
  */
 import { ref, onMounted } from 'vue'
-import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldColumn,
+  type LabelFieldRow,
+} from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useLandStore, type AprsLabelFieldMap } from '@/stores/land'
 import * as settingsApi from '@/services/settingsApi'
 
