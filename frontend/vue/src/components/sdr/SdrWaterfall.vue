@@ -471,7 +471,7 @@ function applyZoom() {
 const WF_AUTOL = 100
 
 // ── Spectrum dB axis — driven live by the Min/Max sliders (SDR++ behaviour) ──
-// The backend emits dBFS (0 dB = full-scale tone — see backend/services/sdr.py).
+// The backend emits dBFS (0 dB = full-scale tone — see backend/radio_hub/services/sdr.py).
 // SDR++ Min/Max move both the spectrum y-axis AND the waterfall colour range
 // (User Guide v1.1, pp. 30-31); the per-device range below only seeds the
 // initial slider values. The watcher on [zmin, zmax] calls
@@ -2357,7 +2357,7 @@ let xdeltaMHz = 1 / HZ_PER_MHZ
 // (8192) and accept the blockiness past that — going higher costs Pi CPU on
 // every frame.
 const MIN_BINS = 1024
-// Keep in sync with MAX_FFT_SIZE in backend/services/sdr.py — the backend
+// Keep in sync with MAX_FFT_SIZE in backend/radio_hub/services/sdr.py — the backend
 // snaps any request above this back down to the cap, so asking for more than
 // MAX_BINS just wastes the frontend's per-zoom math.
 const MAX_BINS = 32768

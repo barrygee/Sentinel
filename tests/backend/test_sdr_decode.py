@@ -2,7 +2,7 @@
 tests/backend/test_sdr_decode.py
 
 Tests for the server-side FM-demodulation DSP core in
-backend/services/sdr_decode.py — the chain that feeds dsd-fme:
+backend/radio_hub/services/sdr_decode.py — the chain that feeds dsd-fme:
 
     IQ decimate → NCO mix → channel LPF → FM discriminator → resample to 48 kHz
 
@@ -26,22 +26,21 @@ import numpy as np
 import pytest
 
 from backend.config import settings
-from backend.services import sdr_decode
-from backend.services.sdr_decode import (
+from backend.radio_hub.services import sdr_decode
+from backend.radio_hub.services.sdr_decode import (
+    _AUDIO_BYTES_PER_SAMPLE,
+    _AUDIO_RATE_MEASURE_SECONDS,
     DEFAULT_DECODE_BW_HZ,
     OUTPUT_RATE,
     AisDecodeBridge,
     AprsDecodeBridge,
-    DigitalDecodeBridge,
     DemodState,
-    _AUDIO_BYTES_PER_SAMPLE,
-    _AUDIO_RATE_MEASURE_SECONDS,
+    DigitalDecodeBridge,
     _build_lpf_taps,
     _compute_iq_decim,
     demod_chunk,
     demod_chunk_stereo,
 )
-
 
 # ── Synthetic-signal helpers ──────────────────────────────────────────────────
 

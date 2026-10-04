@@ -17,7 +17,7 @@ state nothing wants to be in and nothing would clean up.
 **Air never talks to Sentry itself.** The Sentry hosts and their console
 passwords belong to the radio hub, so every claim, release and address lookup
 is a bus request to the hub's reservation proxy
-(`services/sentry_reservations.py`, plan item B6). The hub supplies the lease
+(`radio_hub/services/sentry_reservations.py`, plan item B6). The hub supplies the lease
 holder — this Sentinel's `app.instanceId` — so Air does not handle that either.
 """
 

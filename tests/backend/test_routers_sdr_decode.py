@@ -1,7 +1,7 @@
 """
 tests/backend/test_routers_sdr_decode.py
 
-Tests for the digital-decode HTTP/WebSocket surface in backend/routers/sdr.py:
+Tests for the digital-decode HTTP/WebSocket surface in backend/radio_hub/routers/decode.py:
 
     POST /api/sdr/decode/ingest          — sidecar → backend decoded events
     GET  /api/sdr/decode/status/{id}     — is decode active / decoder reachable
@@ -21,9 +21,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from backend.config import settings
-from backend.routers import sdr as sdr_router
-from backend.services import sdr_decode
-from backend.services.sdr_decode import DigitalDecodeBridge
+from backend.radio_hub import radios as radio_registry
+from backend.radio_hub.routers import decode as decode_router
+from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr_decode
+from backend.radio_hub.services.sdr_decode import DigitalDecodeBridge
 
 
 class _FakeBroadcaster:
@@ -173,7 +175,7 @@ def _patch_resolve(monkeypatch, broadcaster, radio):
     async def _fake_resolve(radio_id, websocket):
         return broadcaster, radio
 
-    monkeypatch.setattr(sdr_router, "_resolve_broadcaster", _fake_resolve)
+    monkeypatch.setattr(radio_registry, "resolve_broadcaster", _fake_resolve)
 
 
 class TestDecodeWebsocket:
@@ -195,7 +197,7 @@ class TestDecodeWebsocket:
         async def _no_bridge(host, port, timeout=3.0):
             return None
 
-        monkeypatch.setattr(sdr_router, "_wait_for_bridge", _no_bridge)
+        monkeypatch.setattr(decode_router, "_wait_for_bridge", _no_bridge)
         with client.websocket_connect("/ws/sdr/1/decode") as ws:
             status = ws.receive_json()
             assert status["active"] is False
@@ -207,7 +209,7 @@ class TestDecodeWebsocket:
         async def _no_bridge(host, port, timeout=3.0):
             return None
 
-        monkeypatch.setattr(sdr_router, "_wait_for_bridge", _no_bridge)
+        monkeypatch.setattr(decode_router, "_wait_for_bridge", _no_bridge)
         from starlette.websockets import WebSocketDisconnect as StarletteWSDisconnect
 
         with pytest.raises(StarletteWSDisconnect):
@@ -218,11 +220,11 @@ class TestDecodeWebsocket:
 class TestWaitForBridge:
     async def test_returns_bridge_once_present(self):
         bridge = _register_bridge("hX", 1)
-        found = await sdr_router._wait_for_bridge("hX", 1, timeout=1.0)
+        found = await decode_router._wait_for_bridge("hX", 1, timeout=1.0)
         assert found is bridge
 
     async def test_times_out_when_absent(self):
-        found = await sdr_router._wait_for_bridge("ghost", 1, timeout=0.2)
+        found = await decode_router._wait_for_bridge("ghost", 1, timeout=0.2)
         assert found is None
 
     async def test_finds_aprs_bridge_for_radio(self):
@@ -230,7 +232,7 @@ class TestWaitForBridge:
         # the wait must fall through to the APRS registry.
         bridge = sdr_decode.AprsDecodeBridge(_FakeBroadcaster(), pcm_port=0)
         sdr_decode._aprs_bridges["hA:2"] = bridge
-        found = await sdr_router._wait_for_bridge("hA", 2, timeout=1.0)
+        found = await decode_router._wait_for_bridge("hA", 2, timeout=1.0)
         assert found is bridge
 
 
@@ -306,10 +308,10 @@ def _patch_control(monkeypatch):
     radio = {"id": 1, "name": "Test", "host": "h1", "port": 1234}
     _patch_resolve(monkeypatch, _ControlBroadcaster(), radio)
     monkeypatch.setattr(
-        sdr_router.sdr_svc, "get_connection", lambda host, port: _FakeConn()
+        sdr_svc, "get_connection", lambda host, port: _FakeConn()
     )
     # Neutralise the finally-block teardown so it doesn't interfere with assertions.
-    monkeypatch.setattr(sdr_router.sdr_decode, "stop_bridge", AsyncMock())
+    monkeypatch.setattr(sdr_decode, "stop_bridge", AsyncMock())
 
 
 class TestControlDigitalCommands:
@@ -319,7 +321,7 @@ class TestControlDigitalCommands:
         fake_bridge.start = AsyncMock()
         get_or_create = AsyncMock(return_value=fake_bridge)
         monkeypatch.setattr(
-            sdr_router.sdr_decode, "get_or_create_bridge", get_or_create
+            sdr_decode, "get_or_create_bridge", get_or_create
         )
 
         with client.websocket_connect("/ws/sdr/1") as ws:
@@ -344,7 +346,7 @@ class TestControlDigitalCommands:
     def test_disable_stops_bridge(self, client, monkeypatch):
         _patch_control(monkeypatch)
         stop_bridge = AsyncMock()
-        monkeypatch.setattr(sdr_router.sdr_decode, "stop_bridge", stop_bridge)
+        monkeypatch.setattr(sdr_decode, "stop_bridge", stop_bridge)
 
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()
@@ -361,7 +363,7 @@ class TestControlDigitalCommands:
         _patch_control(monkeypatch)
         fake_bridge = MagicMock()
         monkeypatch.setattr(
-            sdr_router.sdr_decode, "get_bridge", lambda host, port: fake_bridge
+            sdr_decode, "get_bridge", lambda host, port: fake_bridge
         )
 
         with client.websocket_connect("/ws/sdr/1") as ws:
@@ -376,7 +378,7 @@ class TestControlDigitalCommands:
     def test_digital_channel_noop_when_no_bridge(self, client, monkeypatch):
         _patch_control(monkeypatch)
         monkeypatch.setattr(
-            sdr_router.sdr_decode, "get_bridge", lambda host, port: None
+            sdr_decode, "get_bridge", lambda host, port: None
         )
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()
@@ -414,7 +416,7 @@ class TestDecodeConfig:
         # while a bridge is actually serving PCM (started, not merely created).
         settings.decoder_ingest_secret = "s"
         monkeypatch.setattr(
-            sdr_router.sdr_decode,
+            sdr_decode,
             "get_active_bridge",
             lambda: SimpleNamespace(running=True),
         )
@@ -424,7 +426,7 @@ class TestDecodeConfig:
     def test_active_false_when_bridge_not_yet_serving(self, client, monkeypatch):
         settings.decoder_ingest_secret = "s"
         monkeypatch.setattr(
-            sdr_router.sdr_decode,
+            sdr_decode,
             "get_active_bridge",
             lambda: SimpleNamespace(running=False),
         )

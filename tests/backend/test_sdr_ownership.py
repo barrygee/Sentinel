@@ -1,5 +1,5 @@
-"""Tests for the SDR tuning-ownership coordination in backend.services.sdr and
-backend.routers.sdr.
+"""Tests for the SDR tuning-ownership coordination in backend.radio_hub.services.sdr and
+backend.radio_hub.routers.radio_control.
 
 Two Sentinel backends sharing one dongle through the fan-out relay coordinate a
 single tuning owner over the relay's NDJSON control channel; the others are
@@ -22,8 +22,9 @@ import json
 import pytest
 
 from backend.config import settings
-from backend.routers import sdr as sdr_router
-from backend.services import sdr as sdr_svc
+from backend.radio_hub import radios as radio_registry
+from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr_decode
 
 
 async def _wait_until(predicate, timeout: float = 1.0) -> None:
@@ -1082,9 +1083,9 @@ def _patch_router(monkeypatch, conn):
     async def _fake_resolve(radio_id, websocket):
         return _RouterBroadcaster(), radio
 
-    monkeypatch.setattr(sdr_router, "_resolve_broadcaster", _fake_resolve)
-    monkeypatch.setattr(sdr_router.sdr_svc, "get_connection", lambda host, port: conn)
-    monkeypatch.setattr(sdr_router.sdr_decode, "stop_bridge", _async_noop)
+    monkeypatch.setattr(radio_registry, "resolve_broadcaster", _fake_resolve)
+    monkeypatch.setattr(sdr_svc, "get_connection", lambda host, port: conn)
+    monkeypatch.setattr(sdr_decode, "stop_bridge", _async_noop)
 
 
 async def _async_noop(*args, **kwargs):
@@ -1178,7 +1179,7 @@ def test_ws_sweep_state_caps_and_truncates_group_list(client, monkeypatch):
         )
         ws.send_json({"cmd": "ping"})
         assert ws.receive_json()["type"] == "pong"
-    from backend.routers.sdr import MAX_SCAN_GROUP_NAME_LEN, MAX_SCAN_GROUPS
+    from backend.radio_hub.routers.radio_control import MAX_SCAN_GROUP_NAME_LEN, MAX_SCAN_GROUPS
 
     assert len(conn.sweep["scan_groups"]) == MAX_SCAN_GROUPS  # list length capped
     assert all(
@@ -1187,7 +1188,7 @@ def test_ws_sweep_state_caps_and_truncates_group_list(client, monkeypatch):
 
 
 def test_sanitize_optional_hz():
-    from backend.routers.sdr import _sanitize_optional_hz
+    from backend.radio_hub.routers.radio_control import _sanitize_optional_hz
 
     assert _sanitize_optional_hz(None) is None
     assert _sanitize_optional_hz(156_000_000) == 156_000_000
@@ -1262,7 +1263,7 @@ def test_connect_endpoint_succeeds_as_follower(client, monkeypatch):
     async def _get_or_create(host, port):
         return conn
 
-    monkeypatch.setattr(sdr_router.sdr_svc, "get_or_create_connection", _get_or_create)
+    monkeypatch.setattr(sdr_svc, "get_or_create_connection", _get_or_create)
     resp = client.post(
         "/api/sdr/connect", json={"radio_id": 1, "frequency_hz": 121_000_000}
     )

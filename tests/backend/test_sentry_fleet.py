@@ -1,4 +1,4 @@
-"""Tests for backend.services.sentry_fleet — the per-Sentry-host background
+"""Tests for backend.radio_hub.services.sentry_fleet — the per-Sentry-host background
 poller that caches each enabled host's live device status (ADR-0009).
 
 `AsyncSessionLocal` (imported directly by this module, not via `get_db`) is
@@ -23,11 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.database import Base
 from backend import db_helpers
+from backend.database import Base
 from backend.models import SentryHost  # noqa: F401 — register the ORM model with Base
-from backend.services import sentry_fleet
-from backend.services.sentry_client import (
+from backend.radio_hub.services import sentry_fleet
+from backend.radio_hub.services.sentry_client import (
     SentryApiError,
     SentryResponse,
     SentryUnreachableError,
@@ -342,7 +342,7 @@ async def test_poll_once_api_error_uses_code_and_message_as_last_error(
 async def test_poll_once_unexpected_exception_is_caught_logged_and_treated_as_failure(
     session_factory, monkeypatch, caplog
 ):
-    caplog.set_level(logging.ERROR, logger="backend.services.sentry_fleet")
+    caplog.set_level(logging.ERROR, logger="backend.radio_hub.services.sentry_fleet")
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
         sentry_fleet, "SentryClient", _fake_client_class([ValueError("boom")])
@@ -554,7 +554,7 @@ async def test_auth_token_never_appears_in_log_record_on_poll_failure(
 ):
     """Uses the real SentryClient (over a MockTransport) so the failure message
     is genuinely produced by the production error path, not a test double."""
-    caplog.set_level(logging.DEBUG, logger="backend.services.sentry_fleet")
+    caplog.set_level(logging.DEBUG, logger="backend.radio_hub.services.sentry_fleet")
     host_id = await _create_host(session_factory, auth_token="ULTRA-SECRET-TOKEN")
 
     def handler(request: httpx.Request) -> httpx.Response:

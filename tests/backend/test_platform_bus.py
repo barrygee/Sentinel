@@ -5,7 +5,7 @@ Unit tests for backend/platform/bus.py — the in-process, NATS-shaped event bus
 that replaces direct cross-section calls (settings → SDR side effects).
 
 Each test builds its own EventBus so nothing leaks into the process-wide
-`bus` singleton that routers/sdr.py subscribes to at import time.
+`bus` singleton that radio_hub/routers/decode.py subscribes to at import time.
 """
 
 import asyncio

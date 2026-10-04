@@ -16,13 +16,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.platform.bus import bus
-from backend.routers import sdr as sdr_router
+from backend.radio_hub.routers import decode as decode_router
 
 
 class TestLandSettingsSubscriber:
     def test_a_different_land_key_does_not_retune(self, client, monkeypatch):
         apply_channel = AsyncMock()
-        monkeypatch.setattr(sdr_router, "apply_aprs_channel", apply_channel)
+        monkeypatch.setattr(decode_router, "apply_aprs_channel", apply_channel)
 
         resp = client.put("/api/settings/land/aprsRetentionMinutes", json={"value": 45})
 
@@ -33,7 +33,7 @@ class TestLandSettingsSubscriber:
         # Before the bus, apply_aprs_channel was called inline and its error
         # escaped the endpoint; publish(raise_errors=True) must keep that.
         monkeypatch.setattr(
-            sdr_router,
+            decode_router,
             "apply_aprs_channel",
             AsyncMock(side_effect=RuntimeError("radio gone")),
         )
@@ -50,8 +50,8 @@ class TestDecodeRadioReassignedSubscriber:
         # reconcile path — only a config upload/file-sync reassignment does.
         reconcile_aprs = AsyncMock()
         reconcile_ais = AsyncMock()
-        monkeypatch.setattr(sdr_router, "reconcile_aprs_decode", reconcile_aprs)
-        monkeypatch.setattr(sdr_router, "reconcile_ais_decode", reconcile_ais)
+        monkeypatch.setattr(decode_router, "reconcile_aprs_decode", reconcile_aprs)
+        monkeypatch.setattr(decode_router, "reconcile_ais_decode", reconcile_ais)
 
         client.put("/api/settings/sdr/aprs_radio_id", json={"value": 3})
         client.put("/api/settings/sdr/ais_radio_id", json={"value": 4})
@@ -71,8 +71,8 @@ class TestDecodeRadioReassignedSubscriber:
     ):
         called_mock = AsyncMock()
         not_called_mock = AsyncMock()
-        monkeypatch.setattr(sdr_router, called, called_mock)
-        monkeypatch.setattr(sdr_router, not_called, not_called_mock)
+        monkeypatch.setattr(decode_router, called, called_mock)
+        monkeypatch.setattr(decode_router, not_called, not_called_mock)
         session = object()
 
         await bus.publish(

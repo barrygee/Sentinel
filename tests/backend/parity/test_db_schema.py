@@ -18,8 +18,8 @@ import json
 
 import pytest
 from sqlalchemy import inspect
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from backend import database as database_module
 from tests.backend.parity.conftest import assert_golden, render_json

@@ -34,10 +34,11 @@ import asyncio
 import pytest
 from starlette.websockets import WebSocketDisconnect as StarletteWSDisconnect
 
-from backend.routers import sdr as sdr_router
-from backend.services import sdr as sdr_svc
-from backend.services import sdr_decode
-from backend.services.sdr import compute_fft_frame
+from backend.radio_hub import radios as radio_registry
+from backend.radio_hub.routers import decode as decode_router
+from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr_decode
+from backend.radio_hub.services.sdr import compute_fft_frame
 from tests.backend.parity.conftest import assert_golden, render_json
 
 # ── Shared fakes (same shape as test_routers_sdr_decode.py's) ────────────────
@@ -91,19 +92,19 @@ def _patch_resolve(monkeypatch, broadcaster, radio):
     async def _fake_resolve(radio_id, websocket):
         return broadcaster, radio
 
-    monkeypatch.setattr(sdr_router, "_resolve_broadcaster", _fake_resolve)
+    monkeypatch.setattr(radio_registry, "resolve_broadcaster", _fake_resolve)
 
 
 def _patch_control(monkeypatch):
     radio = {"id": 1, "name": "Test", "host": "h1", "port": 1234}
     _patch_resolve(monkeypatch, _ControlBroadcaster(), radio)
     monkeypatch.setattr(
-        sdr_router.sdr_svc, "get_connection", lambda host, port: _FakeConn()
+        sdr_svc, "get_connection", lambda host, port: _FakeConn()
     )
     # Neutralise the finally-block teardown so it doesn't interfere with assertions.
     from unittest.mock import AsyncMock
 
-    monkeypatch.setattr(sdr_router.sdr_decode, "stop_bridge", AsyncMock())
+    monkeypatch.setattr(sdr_decode, "stop_bridge", AsyncMock())
 
 
 def _type_shape(value):
@@ -128,7 +129,7 @@ def _type_shape(value):
 
 # ── Accepted control commands ─────────────────────────────────────────────────
 
-# The `cmd` values backend/routers/sdr.py's `sdr_websocket._read_commands`
+# The `cmd` values backend/radio_hub/routers/radio_control.py's `sdr_websocket._read_commands`
 # recognises. Kept as an explicit golden-backed list (rather than parsed from
 # source) so a silently dropped/renamed command is caught by a plain text diff.
 ACCEPTED_CONTROL_COMMANDS = sorted(
@@ -236,7 +237,7 @@ class TestControlSocketMessageShapes:
         async def _no_bridge(host, port, timeout=3.0):
             return None
 
-        monkeypatch.setattr(sdr_router, "_wait_for_bridge", _no_bridge)
+        monkeypatch.setattr(decode_router, "_wait_for_bridge", _no_bridge)
         with client.websocket_connect("/ws/sdr/1/decode") as ws:
             status = ws.receive_json()
         assert status == {

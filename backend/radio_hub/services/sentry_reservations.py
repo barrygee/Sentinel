@@ -39,7 +39,7 @@ from typing import Any
 from backend.core.instance_identity import get_instance_id
 from backend.models import SentryHost
 from backend.platform.bus import EventPayload, bus
-from backend.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
+from backend.radio_hub.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 ACQUIRE_SUBJECT = "hub.sentry.reservation.acquire"
