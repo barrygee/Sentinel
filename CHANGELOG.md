@@ -186,6 +186,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Unify control sizing and tighten settings copy
 - Rework the area picker and preview map
 - Remove the flight replay feature **(breaking change)**
+- Decoder kinds declared by a manifest (P3.3)
+- Python stub decoder for CI-testing the decoder contract (P3.4)
+- Decode off-grid AIS from the backend, browser or not
 
 ### Bug Fixes
 
@@ -438,6 +441,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Allow the off-grid ADS-B SDR source to be set back to "Not set"
 - Save the off-grid ADS-B SDR pick with APPLY CHANGES
 - Make CANCEL ALL ALERTS actually turn alerts off
+- The ADS-B claim wins a shared dongle
 
 ### Chores
 
@@ -1351,6 +1355,14 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #400 from barrygee/refactor/p2-capabilities
 - Merge branch 'main' into chore/p2-section-boundaries-lint
 - Merge pull request #401 from barrygee/chore/p2-section-boundaries-lint
+- Merge branch 'main' into docs/p2-storage-key-table
+- Merge pull request #402 from barrygee/docs/p2-storage-key-table
+- Merge pull request #403 from barrygee/refactor/p3-1-radio-hub-carve
+- Merge pull request #404 from barrygee/refactor/p3-2-iq-capture-api
+- Merge pull request #405 from barrygee/feat/p3-3-manifest-decoders
+- Merge pull request #406 from barrygee/feat/p3-4-stub-decoder
+- Merge pull request #408 from barrygee/feat/sea-ais-headless-decode
+- Merge pull request #409 from barrygee/feat/adsb-claim-wins-shared-dongle
 
 ### Refactoring
 
@@ -1432,6 +1444,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - P2.3 typed radio capability replaces SDR tune events
 - Move section settings controls into their sections
 - Capabilities and registries remove the last cross-section imports
+- Carve the radio hub into backend/radio_hub (P3.1)
+- IQ capture as a hub bus API (P3.2, plan B12)
 
 ### Documentation
 
@@ -1452,6 +1466,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Lead the Docker section with the all-decoders command
 - Add the offline map downloads plan (#371)
 - Add section-containers architecture plan
+- Browser storage keys by owner
 
 ### Tests
 
