@@ -59,6 +59,11 @@ EXPECTED_CENTRE_HZ = 1_090_000_000
 EXPECTED_SAMPLE_RATE = 2_400_000
 
 RESTART_DELAY_SECONDS = 5
+# A connection that stays open but carries no samples for this long is treated
+# as dead. A streaming dongle sends ~4.8 MB/s, so 30 s of silence is never a
+# quiet moment; it is a Pi that rebooted or dropped off the network without
+# closing the socket, which socat would otherwise wait on for ever.
+STALL_TIMEOUT_SECONDS = 30
 """Pause before relaunching the pipeline, so a hard-down Sentry is not hammered."""
 
 
@@ -155,7 +160,9 @@ def build_pipeline(host: str, port: int, json_dir: str) -> subprocess.Popen[byte
 
     `set -o pipefail` so the whole pipeline reports failure when *any* stage
     dies, not just the last: without it a dropped connection at `socat` leaves
-    readsb reading an empty stdin and looking healthy for ever.
+    readsb reading an empty stdin and looking healthy for ever. `socat -T` covers
+    the case where the connection never drops at all — a half-open socket after
+    the far end vanished — by exiting after STALL_TIMEOUT_SECONDS without data.
     """
     readsb_arguments = [
         "readsb",
@@ -173,7 +180,7 @@ def build_pipeline(host: str, port: int, json_dir: str) -> subprocess.Popen[byte
         *shlex.split(os.environ.get("READSB_EXTRA_ARGS", "")),
     ]
     pipeline = (
-        f"socat -u TCP:{shlex.quote(host)}:{port} - "
+        f"socat -u -T {STALL_TIMEOUT_SECONDS} TCP:{shlex.quote(host)}:{port} - "
         f"| tail -c +{RTL_TCP_HEADER_BYTES + 1} "
         f"| {' '.join(shlex.quote(argument) for argument in readsb_arguments)}"
     )

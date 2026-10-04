@@ -47,6 +47,11 @@ jobs:
         # section. Contracts live in backend/pyproject.toml [tool.importlinter].
         run: PYTHONPATH=. uv run --project backend lint-imports --config backend/pyproject.toml
 
+      # socat lets test_decoder_adsb_entrypoint run the ADS-B decoder's real
+      # pipeline (its stall timeout) instead of skipping.
+      - name: Install socat
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq socat
+
       - name: Tests (pytest)
         # pytest.ini sets pythonpath=. — run from the repo root, as documented.
         run: uv run --project backend pytest
