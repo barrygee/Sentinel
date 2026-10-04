@@ -1,7 +1,7 @@
 """
 tests/backend/test_sdr_fft.py
 
-Tests for the pure DSP helper functions in backend/services/sdr.py.
+Tests for the pure DSP helper functions in backend/radio_hub/services/sdr.py.
 
 Covered:
     _iq_bytes_to_complex    — uint8 IQ pairs → normalised complex float array
@@ -15,7 +15,7 @@ import time
 import numpy as np
 import pytest
 
-from backend.services.sdr import (
+from backend.radio_hub.services.sdr import (
     DEFAULT_FFT_SIZE,
     _hann_window,
     _iq_bytes_to_complex,

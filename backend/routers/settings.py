@@ -15,6 +15,7 @@ from typing import Any
 
 from backend.database import get_db
 from backend.models import UserSettings
+from backend.platform.aprs_channel import APRS_CHANNEL_MAX_HZ, APRS_CHANNEL_MIN_HZ, coerce_aprs_channel_hz
 from backend.platform.settings_client import write_setting
 from backend.services import app_config_file
 from backend.services.app_config import (
@@ -54,12 +55,6 @@ def _validated_aprs_channel_hz(value: Any) -> int:
     Rejected (400) rather than silently defaulted so a typo in Settings doesn't
     quietly leave APRS decoding the wrong channel.
     """
-    from backend.services.aprs_store import (  # avoid import cycle at module load
-        APRS_CHANNEL_MAX_HZ,
-        APRS_CHANNEL_MIN_HZ,
-        coerce_aprs_channel_hz,
-    )
-
     channel_hz = coerce_aprs_channel_hz(value)
     if channel_hz is None:
         raise HTTPException(

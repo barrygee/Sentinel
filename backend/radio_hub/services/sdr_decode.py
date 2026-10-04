@@ -11,7 +11,7 @@ server, the exact demodulation chain the browser AudioWorklet runs in
 
 The physical RTL-SDR is reached over a single-client ``rtl_tcp`` connection, so
 the decoder cannot open its own connection.  Instead the bridge subscribes to
-the existing :class:`~backend.services.sdr.RadioBroadcaster` IQ fan-out (exactly
+the existing :class:`~backend.radio_hub.services.sdr.RadioBroadcaster` IQ fan-out (exactly
 like IQ recording does) and never touches ``rtl_tcp`` directly.
 
 The same FM-discriminator PCM feed also drives **APRS** packet decode: Direwolf
@@ -48,7 +48,7 @@ from pathlib import Path
 import numpy as np
 from backend.config import settings
 from backend.platform.bus import bus
-from backend.services.sdr import RadioBroadcaster, _iq_bytes_to_complex
+from backend.radio_hub.services.sdr import RadioBroadcaster, _iq_bytes_to_complex
 
 logger = logging.getLogger(__name__)
 

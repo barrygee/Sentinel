@@ -139,10 +139,10 @@ class TestRadioHubModule:
             recorder(calls, "secret", is_async=False),
         )
         monkeypatch.setattr(
-            radio_hub.sdr_router, "resume_persisted_aprs", recorder(calls, "aprs")
+            radio_hub.decode_router, "resume_persisted_aprs", recorder(calls, "aprs")
         )
         monkeypatch.setattr(
-            radio_hub.sdr_router, "resume_persisted_ais", recorder(calls, "ais")
+            radio_hub.decode_router, "resume_persisted_ais", recorder(calls, "ais")
         )
         monkeypatch.setattr(
             radio_hub.fleet_poller, "start_all", recorder(calls, "fleet.start")

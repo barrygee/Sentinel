@@ -1,10 +1,10 @@
 """Radio hub lifecycle: decode bridges, resumed background decodes, the Sentry fleet poller, IQ broadcasters."""
 
 from backend.platform.lifecycle import ModuleLifecycle
-from backend.routers import sdr as sdr_router
-from backend.services import sdr as sdr_service
-from backend.services import sdr_decode as sdr_decode_service
-from backend.services.sentry_fleet import fleet_poller
+from backend.radio_hub.routers import decode as decode_router
+from backend.radio_hub.services import sdr as sdr_service
+from backend.radio_hub.services import sdr_decode as sdr_decode_service
+from backend.radio_hub.services.sentry_fleet import fleet_poller
 
 
 async def _start() -> None:
@@ -14,8 +14,8 @@ async def _start() -> None:
     # Resume background APRS/AIS decode on the persisted radios (best-effort; a
     # missing radio or unreachable dongle is logged and skipped, never blocking
     # startup).
-    await sdr_router.resume_persisted_aprs()
-    await sdr_router.resume_persisted_ais()
+    await decode_router.resume_persisted_aprs()
+    await decode_router.resume_persisted_ais()
     # One poller task per enabled Sentry host (ADR-0009).
     await fleet_poller.start_all()
 

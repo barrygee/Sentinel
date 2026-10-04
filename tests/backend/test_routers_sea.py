@@ -237,7 +237,7 @@ class TestOffgridFeedSelection:
 
     @pytest.fixture(autouse=True)
     def _clear_ais_bridges(self):
-        from backend.services import sdr_decode
+        from backend.radio_hub.services import sdr_decode
 
         sdr_decode._ais_bridges.clear()
         yield
@@ -249,7 +249,7 @@ class TestOffgridFeedSelection:
     def _register_bridge(self, *, running=True, on_channel=True, reachable=True):
         import asyncio
 
-        from backend.services import sdr_decode
+        from backend.radio_hub.services import sdr_decode
 
         class _FakeBroadcaster:
             def subscribe_iq(self):

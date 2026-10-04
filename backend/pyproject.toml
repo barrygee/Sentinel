@@ -107,31 +107,25 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.routers.sentry", "backend.services.sdr", "backend.services.sdr_decode",
-    "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.services.sentry_client",
-    "backend.services.sentry_fleet", "backend.services.sentry_reservations", "backend.modules.sdr",
-    "backend.modules.radio_hub",
-]
-ignore_imports = [
-    # Validates land/aprsChannelHz on PUT. Moves to the Land manifest schema (plan §4.3 rule 1).
-    "backend.routers.settings -> backend.services.aprs_store",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Air imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
-source_modules = ["backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source"]
+source_modules = [
+    "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
+]
 forbidden_modules = [
     "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
     "backend.services.sat_radio", "backend.modules.space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.routers.sentry", "backend.services.sdr", "backend.services.sdr_decode",
-    "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.services.sentry_client",
-    "backend.services.sentry_fleet", "backend.services.sentry_reservations", "backend.modules.sdr",
-    "backend.modules.radio_hub",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
 [[tool.importlinter.contracts]]
@@ -147,10 +141,8 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.routers.sentry", "backend.services.sdr", "backend.services.sdr_decode",
-    "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.services.sentry_client",
-    "backend.services.sentry_fleet", "backend.services.sentry_reservations", "backend.modules.sdr",
-    "backend.modules.radio_hub",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
 [[tool.importlinter.contracts]]
@@ -166,38 +158,33 @@ forbidden_modules = [
     "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
     "backend.services.sat_radio", "backend.modules.space",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.routers.sentry", "backend.services.sdr", "backend.services.sdr_decode",
-    "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.services.sentry_client",
-    "backend.services.sentry_fleet", "backend.services.sentry_reservations", "backend.modules.sdr",
-    "backend.modules.radio_hub",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Land imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
-source_modules = ["backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land"]
+source_modules = [
+    "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
+]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
     "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
     "backend.services.sat_radio", "backend.modules.space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
-    "backend.routers.sdr", "backend.routers.sentry", "backend.services.sdr", "backend.services.sdr_decode",
-    "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.services.sentry_client",
-    "backend.services.sentry_fleet", "backend.services.sentry_reservations", "backend.modules.sdr",
-    "backend.modules.radio_hub",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
 [[tool.importlinter.contracts]]
-name = "SDR and radio hub import no other section"
+name = "SDR section imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
-    "backend.routers.sdr", "backend.routers.sentry", "backend.services.sdr", "backend.services.sdr_decode",
-    "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.services.sentry_client",
-    "backend.services.sentry_fleet", "backend.services.sentry_reservations", "backend.modules.sdr",
-    "backend.modules.radio_hub",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
@@ -206,8 +193,28 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
+    "backend.radio_hub", "backend.modules.radio_hub",
 ]
 ignore_imports = [
-    # The APRS bridge reads land/aprsChannelHz through Land's helper. Goes when the hub carve (P3) reads it via the settings client.
-    "backend.routers.sdr -> backend.services.aprs_store",
+    # Recording start/stop drives IQ capture on the hub's broadcaster directly. Goes with the
+    # hub.iq-capture.{start,stop} bus API (plan B12, P3).
+    "backend.routers.sdr -> backend.radio_hub.services.sdr",
+    "backend.routers.sdr -> backend.radio_hub.radios",
+]
+
+[[tool.importlinter.contracts]]
+name = "Radio hub imports no section"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = [
+    "backend.radio_hub", "backend.modules.radio_hub",
+]
+forbidden_modules = [
+    "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
+    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
+    "backend.services.sat_radio", "backend.modules.space",
+    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
+    "backend.modules.sea",
+    "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
 ]

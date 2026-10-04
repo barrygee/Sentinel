@@ -1,7 +1,7 @@
 """
 tests/backend/test_sentry_reservations.py
 
-Tests for backend/services/sentry_reservations.py — the radio hub's Sentry
+Tests for backend/radio_hub/services/sentry_reservations.py — the radio hub's Sentry
 reservation proxy (section-containers plan, B6). Air no longer reads
 `sentry_hosts` or builds a `SentryClient`; it sends `hub.sentry.*` requests on
 the bus and gets a plain-dict reply back.
@@ -33,7 +33,7 @@ from sqlalchemy.orm import sessionmaker
 from backend.core.instance_identity import get_instance_id
 from backend.models import SentryHost
 from backend.platform.bus import bus
-from backend.services.sentry_reservations import (
+from backend.radio_hub.services.sentry_reservations import (
     ACQUIRE_SUBJECT,
     DEVICE_ADDRESS_SUBJECT,
     RELEASE_SUBJECT,

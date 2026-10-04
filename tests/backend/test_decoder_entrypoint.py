@@ -8,11 +8,9 @@ The long-running main() loop is not exercised (it drives a real subprocess).
 """
 
 import importlib.util
+import queue as _queue
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import queue as _queue
-
 
 _ENTRYPOINT_PATH = Path(__file__).resolve().parents[2] / "decoder" / "entrypoint.py"
 

@@ -1,4 +1,4 @@
-"""Tests for backend.services.sdr.RadioBroadcaster read-loop disconnect handling.
+"""Tests for backend.radio_hub.services.sdr.RadioBroadcaster read-loop disconnect handling.
 
 Regression: a radio reboot/unplug closes the rtl_tcp stream, which surfaces as an
 ``IncompleteReadError`` (EOF) from ``readexactly``. That was skipped as a transient
@@ -8,7 +8,7 @@ never cleared — leaving the Settings/SDR status dot green for an offline radio
 
 import asyncio
 
-from backend.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr as sdr_svc
 
 
 class _EofReader:

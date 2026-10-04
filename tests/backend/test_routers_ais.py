@@ -24,10 +24,12 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database as backend_database
 from backend.config import settings
-from backend.routers import sdr as sdr_router
-from backend.services import ais_store, sdr_decode
-from backend.services import sdr as sdr_svc
-from backend.services.sdr_decode import AisDecodeBridge
+from backend.radio_hub import radios as radio_registry
+from backend.radio_hub.routers import decode as decode_router
+from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr_decode
+from backend.radio_hub.services.sdr_decode import AisDecodeBridge
+from backend.services import ais_store
 
 
 class _FakeBroadcaster:
@@ -115,8 +117,8 @@ class TestAisStart:
         # A bare connection refusal tells the operator nothing about what to do.
         radio_id = _add_radio(client)
         monkeypatch.setattr(
-            sdr_router,
-            "_device_availability",
+            radio_registry,
+            "device_availability",
             lambda radio: (False, "Dongle unplugged."),
         )
         resp = client.post("/api/sdr/ais/start", json={"radio_id": radio_id})
@@ -365,14 +367,14 @@ class TestAisDecodeConfig:
 
 class TestResumePersistedAis:
     async def test_no_op_when_no_radio_was_persisted(self, client):
-        await sdr_router.resume_persisted_ais()
+        await decode_router.resume_persisted_ais()
         assert sdr_decode._ais_bridges == {}
 
     async def test_missing_radio_is_skipped_without_raising(self, client, monkeypatch):
         # The radio was deleted since it was chosen; a failed resume must never
         # block application startup.
         client.put("/api/settings/sdr/ais_radio_id", json={"value": 999})
-        await sdr_router.resume_persisted_ais()
+        await decode_router.resume_persisted_ais()
         assert sdr_decode._ais_bridges == {}
 
     async def test_starts_the_persisted_radio(self, client, monkeypatch):
@@ -388,7 +390,7 @@ class TestResumePersistedAis:
         monkeypatch.setattr(
             sdr_decode, "get_or_create_ais_bridge", AsyncMock(return_value=bridge)
         )
-        await sdr_router.resume_persisted_ais()
+        await decode_router.resume_persisted_ais()
         bridge.start.assert_awaited_once()
 
     async def test_unreachable_dongle_is_logged_and_skipped(self, client, monkeypatch):
@@ -399,7 +401,7 @@ class TestResumePersistedAis:
             "get_or_create_broadcaster",
             AsyncMock(side_effect=ConnectionError("no dongle")),
         )
-        await sdr_router.resume_persisted_ais()  # must not raise
+        await decode_router.resume_persisted_ais()  # must not raise
         assert sdr_decode._ais_bridges == {}
 
 
@@ -424,7 +426,7 @@ class TestReconcileAisDecode:
             sdr_decode, "get_or_create_ais_bridge", AsyncMock(return_value=bridge)
         )
         async with await self._session() as db:
-            await sdr_router.reconcile_ais_decode(db, previous_id, next_id)
+            await decode_router.reconcile_ais_decode(db, previous_id, next_id)
         stopped.assert_awaited_once_with("h1", 1234)
         bridge.start.assert_awaited_once()
 
@@ -432,6 +434,6 @@ class TestReconcileAisDecode:
         stopped = AsyncMock()
         monkeypatch.setattr(sdr_decode, "stop_ais_bridge", stopped)
         async with await self._session() as db:
-            await sdr_router.reconcile_ais_decode(db, None, None)
+            await decode_router.reconcile_ais_decode(db, None, None)
         stopped.assert_not_awaited()
         assert sdr_decode._ais_bridges == {}

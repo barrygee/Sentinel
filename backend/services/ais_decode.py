@@ -5,7 +5,7 @@ The Sea domain has two sources of vessels and exactly one picture of them:
   * **online** — :mod:`backend.services.ais_stream` reads AISStream.io envelopes
     over a WebSocket;
   * **off grid** — the ``ais-decoder`` sidecar (Direwolf's AIS modem, fed by
-    :class:`~backend.services.sdr_decode.AisDecodeBridge`) decodes AIVDM
+    :class:`~backend.radio_hub.services.sdr_decode.AisDecodeBridge`) decodes AIVDM
     sentences off the air and POSTs them to the SDR router's AIS ingest.
 
 This module is the adapter for the second: it turns one decoded sidecar event

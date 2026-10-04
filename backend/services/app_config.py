@@ -272,7 +272,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     await db.commit()
 
     # Decoder reconciliation is owned by whichever module manages the running
-    # bridges (routers/sdr.py) — publish the change on the event bus instead
+    # bridges (radio_hub/routers/decode.py) — publish the change on the event bus instead
     # of importing that router directly (that import is exactly the cycle
     # routers/sdr <-> routers/settings <-> services/app_config <-> database
     # this module was part of). `db` rides in the payload alongside the
@@ -294,7 +294,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
         # Same radio, but the document may have moved the APRS channel. This
         # is the exact same event routers/settings.py's PUT handler publishes
         # for a direct land/aprsChannelHz write — one subscriber (in
-        # routers/sdr.py) re-reads the freshly committed channel and applies
+        # radio_hub/routers/decode.py) re-reads the freshly committed channel and applies
         # it, whichever path triggered it.
         await bus.publish("settings.changed.land", {"keys": ["aprsChannelHz"], "db": db}, raise_errors=True)
 
