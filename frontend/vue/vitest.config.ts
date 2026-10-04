@@ -10,7 +10,7 @@ export default mergeConfig(
       environment: 'jsdom',
       globals: true,
       setupFiles: ['./src/test/setup.ts'],
-      include: ['src/**/*.{test,spec}.{ts,vue}'],
+      include: ['src/**/*.{test,spec}.{ts,vue}', 'eslint-rules/**/*.spec.ts'],
       restoreMocks: true,
       // jest-axe runs a full DOM audit per assertion; under the parallel load of
       // the whole suite these can exceed the 5s default on a busy machine.
@@ -18,7 +18,7 @@ export default mergeConfig(
       coverage: {
         provider: 'v8',
         reporter: ['text-summary', 'text', 'html', 'lcov'],
-        include: ['src/**/*.{ts,vue}'],
+        include: ['src/**/*.{ts,vue}', 'eslint-rules/**/*.ts'],
         all: false,
         exclude: [
           'src/main.ts',
@@ -27,6 +27,7 @@ export default mergeConfig(
           'src/**/*.d.ts',
           'src/test/**',
           'src/**/*.{test,spec}.{ts,vue}',
+          'eslint-rules/**/*.spec.ts',
         ],
         // Full coverage gate — the backfill is complete (phases 6a–6g), so every
         // source file is exercised. CI fails on any drop below 100%, which keeps
