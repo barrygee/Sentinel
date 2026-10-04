@@ -1,7 +1,7 @@
 import { resolveSectionMode } from '@/utils/sourceMode'
 import { computed, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
-import { useSdrStore } from '@/stores/sdr'
+import { useRadio } from '@/shell/useRadio'
 import { useSettingsStore } from '@/stores/settings'
 
 /**
@@ -30,7 +30,8 @@ import { useSettingsStore } from '@/stores/settings'
  */
 export function useOffgridAisDecode() {
   const appStore = useAppStore()
-  const sdrStore = useSdrStore()
+  // Decode runs through the radio platform's `radio.decoders` (F10).
+  const { radio } = useRadio()
   const settingsStore = useSettingsStore()
 
   /**
@@ -63,16 +64,19 @@ export function useOffgridAisDecode() {
   watch(
     radioToDecodeOn,
     async (nextRadioId) => {
+      const decoders = radio.value?.decoders
+      // No radio platform registered: there is nothing to decode on.
+      if (!decoders) return
       if (nextRadioId !== null) {
         // The backend runs a single AIS bridge, so starting on another radio
         // hands decode over rather than running two — no explicit stop first.
         // Starting one that is already decoding is a no-op server-side.
-        await sdrStore.startAis(nextRadioId)
+        await decoders.start('ais', nextRadioId)
         return
       }
       // Gone online, or the radio was cleared: release whatever is decoding.
-      const decodingRadioId = sdrStore.aisRadioId
-      if (decodingRadioId !== null) await sdrStore.stopAis(decodingRadioId)
+      const decodingRadioId = decoders.activeRadioId('ais')
+      if (decodingRadioId !== null) await decoders.stop('ais', decodingRadioId)
     },
     { immediate: true },
   )

@@ -9,7 +9,7 @@ import {
 } from '@/components/shared/map-cluster/mapCluster'
 import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
 import { formatLatitude, formatLongitude } from '@/utils/locationUtils'
-import type { SentrySite } from '@/services/sentryApi'
+import type { RadioSite } from '@/shell/radioSitesCapability'
 import { siteLabel } from '@/utils/sentrySiteLabel'
 import type { useSentrySitesStore } from '@/stores/sentrySites'
 import type { useSettingsStore } from '@/stores/settings'
@@ -153,7 +153,7 @@ export class SentrySitesControl extends SentinelControlBase {
   }
 
   /** Add/update/remove markers so the on-map set matches `sites`. */
-  private _syncMarkers(sites: SentrySite[]): void {
+  private _syncMarkers(sites: RadioSite[]): void {
     const { plotted, clusters, userLocationCounted } = this._planMarkers(sites)
     const seenSites = new Set<number>()
     const seenClusters = new Set<string>()
@@ -203,7 +203,7 @@ export class SentrySitesControl extends SentinelControlBase {
    * collapsing — but it is not a site, so it is reported back separately rather
    * than plotted by this control.
    */
-  private _planMarkers(sites: SentrySite[]): MarkerPlan {
+  private _planMarkers(sites: RadioSite[]): MarkerPlan {
     const positions = new Map<string, ScreenPosition>()
     const points: ClusterPoint[] = sites.map((site) => {
       positions.set(siteKey(site), this.map.project([site.longitude, site.latitude]))
@@ -215,7 +215,7 @@ export class SentrySitesControl extends SentinelControlBase {
       points.push({ key: USER_LOCATION_KEY, site: null })
     }
 
-    const plotted: SentrySite[] = []
+    const plotted: RadioSite[] = []
     const clusters: SentryCluster[] = []
     let userLocationCounted = false
     for (const group of groupByProximity(points, positions, SITE_GROUP_RADIUS_PX)) {
@@ -246,7 +246,7 @@ export class SentrySitesControl extends SentinelControlBase {
   }
 
   /** Add or move one site's marker. */
-  private _syncSiteMarker(site: SentrySite): void {
+  private _syncSiteMarker(site: RadioSite): void {
     const coords: [number, number] = [site.longitude, site.latitude]
     const existing = this._markers.get(site.id)
     if (existing) {
@@ -275,7 +275,7 @@ export class SentrySitesControl extends SentinelControlBase {
    * name, and means the details panel cannot swallow a click meant for the mark
    * it is butted against.
    */
-  private _buildSiteElement(site: SentrySite): HTMLElement {
+  private _buildSiteElement(site: RadioSite): HTMLElement {
     const element = document.createElement('button')
     element.type = 'button'
     element.className = 'sentry-map-marker'
@@ -310,7 +310,7 @@ export class SentrySitesControl extends SentinelControlBase {
    * every one of these values: a screen reader should hear them once, not
    * twice.
    */
-  private _buildDetails(site: SentrySite): HTMLElement {
+  private _buildDetails(site: RadioSite): HTMLElement {
     const details = document.createElement('span')
     details.className = 'sentry-map-marker-info'
     details.setAttribute('aria-hidden', 'true')
@@ -400,7 +400,7 @@ export class SentrySitesControl extends SentinelControlBase {
 
   /** The accessible equivalent of the markers: every site, with its position and
    *  reachability, regardless of how the visual layer has grouped them. */
-  private _renderA11yTable(sites: SentrySite[]): void {
+  private _renderA11yTable(sites: RadioSite[]): void {
     /* v8 ignore start -- defensive: _render only runs after onInit created the region */
     if (!this._a11yRegion) return
     /* v8 ignore stop */
@@ -446,14 +446,14 @@ export interface HideableMarker {
  *  (`site: null` — it is grouped like any other point, but never plotted here). */
 interface ClusterPoint {
   key: string
-  site: SentrySite | null
+  site: RadioSite | null
 }
 
 /** A group of marks too close together to tell apart at this zoom. */
 interface SentryCluster {
   key: string
   /** The sites in the group — everything but the operator's own position. */
-  sites: SentrySite[]
+  sites: RadioSite[]
   /** Whether the operator's own position is one of the marks counted. */
   holdsUserLocation: boolean
   /** How many marks the count stands for, the operator's position included. */
@@ -465,7 +465,7 @@ interface SentryCluster {
 
 /** How the marks in view are split between drawn and counted. */
 interface MarkerPlan {
-  plotted: SentrySite[]
+  plotted: RadioSite[]
   clusters: SentryCluster[]
   /** Whether a count now stands for the operator's own position, so the view's
    *  marker for it must be hidden. */
@@ -473,7 +473,7 @@ interface MarkerPlan {
 }
 
 /** Narrows a group's members to the ones that are sites. */
-function isSite(site: SentrySite | null): site is SentrySite {
+function isSite(site: RadioSite | null): site is RadioSite {
   return site !== null
 }
 
@@ -497,14 +497,14 @@ function clusterLabel(cluster: SentryCluster): string {
 
 /** Everything a site marker says, as its accessible name — the same values its
  *  details panel shows, which is why that panel is `aria-hidden`. */
-function siteMarkerLabel(site: SentrySite): string {
+function siteMarkerLabel(site: RadioSite): string {
   const status = site.reachable ? 'online' : 'off air'
   const position = `${formatLatitude(site.latitude)} ${formatLongitude(site.longitude)}`
   return `Sentry ${siteLabel(site)}, ${site.address}:${site.port}, ${status}, at ${position} — open in Settings`
 }
 
 /** Identity of a site for clustering — its host id, which is stable across polls. */
-function siteKey(site: SentrySite): string {
+function siteKey(site: RadioSite): string {
   return String(site.id)
 }
 

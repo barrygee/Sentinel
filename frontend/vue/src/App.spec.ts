@@ -13,13 +13,22 @@ const shared = vi.hoisted(() => ({
   hydrateFromConfig: null as null | ReturnType<typeof vi.fn>,
   airStart: null as null | ReturnType<typeof vi.fn>,
   spaceStart: null as null | ReturnType<typeof vi.fn>,
-  route: null as null | { path: string },
+  route: null as null | { path: string; meta: { domain?: string } },
 }))
 
-// Controllable route so isSdrRoute (and its watch) can be driven.
+// Controllable route so isSdrRoute (and its watch) can be driven. A section
+// route carries its id as `meta.domain` (from the section registry); setRoute
+// keeps the two in step the way vue-router would.
+function setRoute(path: string): void {
+  const section = path.split('/').filter(Boolean)[0]
+  const sectionIds = ['air', 'space', 'sea', 'land', 'sdr']
+  shared.route!.path = path
+  shared.route!.meta = section && sectionIds.includes(section) ? { domain: section } : {}
+}
+
 vi.mock('vue-router', () => ({
   useRoute: () => {
-    if (!shared.route) shared.route = reactive({ path: '/air/' })
+    if (!shared.route) shared.route = reactive({ path: '/air/', meta: { domain: 'air' } })
     return shared.route
   },
 }))
@@ -101,12 +110,14 @@ const MapSidebarStub = defineComponent({
   },
 })
 
-let footerProps: { sidebarOpen: boolean; hasRightMenu: boolean } | null = null
+let footerProps: { sidebarOpen: boolean; hasRightMenu: boolean; activeSectionId?: string } | null =
+  null
 const AppFooterStub = defineComponent({
   name: 'AppFooter',
   props: {
     sidebarOpen: { type: Boolean, default: false },
     hasRightMenu: { type: Boolean, default: false },
+    activeSectionId: { type: String, default: undefined },
   },
   emits: ['toggle-sidebar'],
   setup(props, { emit }) {
@@ -186,7 +197,7 @@ describe('App', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    shared.route = reactive({ path: '/air/' })
+    shared.route = reactive({ path: '/air/', meta: { domain: 'air' } })
     if (shared.locationUnavailable) shared.locationUnavailable.value = false
     footerProps = null
     localStorage.clear()
@@ -309,7 +320,7 @@ describe('App', () => {
       await wrapper.find('#nav-burger-btn').trigger('click')
       expect(wrapper.find('#nav-overlay').classes()).toContain('nav-overlay-open')
 
-      shared.route!.path = '/space/'
+      setRoute('/space/')
       await nextTick()
       expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
     })
@@ -344,12 +355,12 @@ describe('App', () => {
       await flushPromises()
       expect(wrapper.find('.map-sidebar-stub').attributes('data-hide-tabs')).toBe('false')
 
-      shared.route!.path = '/sdr/'
+      setRoute('/sdr/')
       await nextTick()
       expect(sidebarSpies.openRadioTab).toHaveBeenCalled()
       expect(wrapper.find('.map-sidebar-stub').attributes('data-hide-tabs')).toBe('true')
 
-      shared.route!.path = '/air/'
+      setRoute('/air/')
       await nextTick()
       expect(sidebarSpies.closeRadioTab).toHaveBeenCalled()
     })
@@ -407,21 +418,36 @@ describe('App', () => {
       mountApp() // starts on /air/
       expect(footerProps!.hasRightMenu).toBe(true)
 
-      shared.route!.path = '/space/'
+      setRoute('/space/')
       await nextTick()
       expect(footerProps!.hasRightMenu).toBe(true)
 
-      shared.route!.path = '/sea/'
+      setRoute('/sea/')
       await nextTick()
       expect(footerProps!.hasRightMenu).toBe(true)
 
-      shared.route!.path = '/sdr/'
+      setRoute('/sdr/')
       await nextTick()
       expect(footerProps!.hasRightMenu).toBe(false)
 
-      shared.route!.path = '/unknown/'
+      setRoute('/unknown/')
       await nextTick()
       expect(footerProps!.hasRightMenu).toBe(false)
+    })
+  })
+
+  describe('active section for the footer', () => {
+    it("tells the footer which section is on screen, from the route's section id", async () => {
+      mountApp() // starts on /air/
+      expect(footerProps!.activeSectionId).toBe('air')
+
+      setRoute('/sdr/')
+      await nextTick()
+      expect(footerProps!.activeSectionId).toBe('sdr')
+
+      setRoute('/unknown/')
+      await nextTick()
+      expect(footerProps!.activeSectionId).toBe('')
     })
   })
 
@@ -528,14 +554,14 @@ describe('App', () => {
       mountApp()
       expect(document.title).toBe('SENTINEL — AIR')
 
-      shared.route!.path = '/sdr/'
+      setRoute('/sdr/')
       await nextTick()
       expect(document.title).toBe('SENTINEL — SDR')
     })
 
     it('falls back to the bare app title for an unrecognised route', async () => {
       mountApp()
-      shared.route!.path = '/unknown/'
+      setRoute('/unknown/')
       await nextTick()
       expect(document.title).toBe('SENTINEL')
     })
@@ -543,7 +569,7 @@ describe('App', () => {
     it('falls back to the bare app title for the segment-less root path', async () => {
       mountApp()
       // '/'.split('/') has no truthy segment → titleForPath's `?? ''` fallback.
-      shared.route!.path = '/'
+      setRoute('/')
       await nextTick()
       expect(document.title).toBe('SENTINEL')
     })
@@ -554,7 +580,7 @@ describe('App', () => {
       // Immediate watch ran (previousPath undefined) → focus must NOT have moved.
       expect(document.activeElement).not.toBe(main)
 
-      shared.route!.path = '/space/'
+      setRoute('/space/')
       await nextTick() // route watcher runs, schedules the focus() on nextTick
       await nextTick() // inner nextTick callback runs
       expect(document.activeElement).toBe(main)

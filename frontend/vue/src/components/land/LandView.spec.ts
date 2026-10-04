@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
 import { defineComponent, h, nextTick } from 'vue'
 import { axe } from 'jest-axe'
 
@@ -362,13 +362,19 @@ function mountView() {
 
 enableAutoUnmount(afterEach)
 
+// Which radio decodes APRS comes from the `radio` capability (F10) — a fake here.
+let fakeRadio: ReturnType<typeof provideFakeRadio>
+afterEach(() => {
+  fakeRadio.withdraw()
+})
+
 describe('LandView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     // The APRS layer only runs when an SDR has been chosen as the APRS radio,
     // so the map-control cases start from a configured receiver; the gating
     // itself is exercised in its own cases below.
-    useSdrStore().setAprsRadioId(1)
+    fakeRadio = provideFakeRadio({ activeDecoders: { aprs: 1 } })
     // The repeater filters hydrate from the config database on mount; stub the
     // request so no test depends on a backend (asserted in its own case below).
     vi.spyOn(useRepeatersStore(), 'hydrateFiltersFromDb').mockResolvedValue()
@@ -725,7 +731,7 @@ describe('LandView', () => {
 
     it('keeps the APRS layer off when its flag goes on with no receiver', async () => {
       const land = useLandStore()
-      useSdrStore().setAprsRadioId(null)
+      fakeRadio.state.activeDecoders.aprs = null
       const map = makeFakeMap()
       mountView()
       shared.emit!('map-created', map)
@@ -890,7 +896,7 @@ describe('LandView', () => {
 describe('LandView — APRS with no receiver', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    useSdrStore().setAprsRadioId(null)
+    fakeRadio = provideFakeRadio({ activeDecoders: { aprs: null } })
     vi.spyOn(useRepeatersStore(), 'hydrateFiltersFromDb').mockResolvedValue()
     // The config names APRS, so only the missing receiver can hold it off.
     const land = useLandStore()
@@ -918,28 +924,36 @@ describe('LandView — APRS with no receiver', () => {
     shared.emit!('map-created', map)
     aprsSpies.setVisible.mockClear()
 
-    useSdrStore().setAprsRadioId(3)
+    fakeRadio.state.activeDecoders.aprs = 3
     await nextTick()
 
     expect(aprsSpies.setVisible).toHaveBeenCalledWith(true)
   })
 
   it('drops the layer again if the receiver is cleared', async () => {
-    useSdrStore().setAprsRadioId(3)
+    fakeRadio.state.activeDecoders.aprs = 3
     const map = makeFakeMap()
     mountView()
     shared.emit!('map-created', map)
     aprsSpies.setVisible.mockClear()
 
-    useSdrStore().setAprsRadioId(null)
+    fakeRadio.state.activeDecoders.aprs = null
     await nextTick()
 
     expect(aprsSpies.setVisible).toHaveBeenCalledWith(false)
   })
 
   it('reads the decoding radio back from the database on mount', () => {
-    const spy = vi.spyOn(useSdrStore(), 'hydrateAprsFromDb').mockResolvedValue()
     mountView()
-    expect(spy).toHaveBeenCalledOnce()
+    expect(fakeRadio.decoders.refresh).toHaveBeenCalledExactlyOnceWith('aprs')
+  })
+
+  it('keeps the layer off, without failing, when no section provides a radio', () => {
+    fakeRadio.withdraw()
+    const map = makeFakeMap()
+    mountView()
+    shared.emit!('map-created', map)
+
+    expect(aprsSpies.setVisible).not.toHaveBeenCalledWith(true)
   })
 })

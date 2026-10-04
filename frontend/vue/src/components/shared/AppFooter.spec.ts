@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { defineComponent, h } from 'vue'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import AppFooter from './AppFooter.vue'
 import { useSettingsStore } from '@/stores/settings'
-import { useSdrStore } from '@/stores/sdr'
+import { registerFooterItem, resetFooterRegistryForTests } from '@/shell/footerRegistry'
 import { useAppStore } from '@/stores/app'
 
 describe('AppFooter', () => {
@@ -119,93 +120,46 @@ describe('AppFooter', () => {
     })
   })
 
-  describe('SDR active-frequency indicator', () => {
-    // Put the radio into the "parked on a single frequency" state the indicator
-    // surfaces: streaming, not sweeping, tuned somewhere.
-    function parkSdrOnFrequency(frequencyHz = 145_800_000) {
-      const sdrStore = useSdrStore()
-      sdrStore.currentFreqHz = frequencyHz
-      sdrStore.playing = true
-      sdrStore.scanSweeping = false
-      sdrStore.searchSweeping = false
-      return sdrStore
-    }
+  describe('registered footer items', () => {
+    afterEach(() => {
+      resetFooterRegistryForTests()
+    })
 
-    it('is hidden when the radio is not playing', () => {
+    it('renders nothing extra when no section registered an item', () => {
       const wrapper = mount(AppFooter)
-      expect(wrapper.find('#footer-sdr').exists()).toBe(false)
+      expect(wrapper.find('#footer-right').findAll('.stand-in-item')).toHaveLength(0)
     })
 
-    it('shows the tuned frequency when parked on a single frequency', () => {
-      parkSdrOnFrequency(145_800_000)
+    it('renders every registered item in order, before the settings button, with the active section', () => {
+      const StandIn = (name: string) =>
+        defineComponent({
+          props: { activeSectionId: { type: String, required: true } },
+          setup: (props) => () =>
+            h('span', { class: 'stand-in-item' }, `${name}:${props.activeSectionId}`),
+        })
+      registerFooterItem({ id: 'second', order: 20, component: StandIn('second') })
+      registerFooterItem({ id: 'first', order: 10, component: StandIn('first') })
+
+      const wrapper = mount(AppFooter, { props: { activeSectionId: 'sea' } })
+
+      const right = wrapper.find('#footer-right')
+      expect(right.findAll('.stand-in-item').map((item) => item.text())).toEqual([
+        'first:sea',
+        'second:sea',
+      ])
+      expect(right.element.lastElementChild?.id).toBe('settings-btn')
+    })
+
+    it('passes an empty section id when none is given', () => {
+      const Echo = defineComponent({
+        props: { activeSectionId: { type: String, required: true } },
+        setup: (props) => () => h('span', { class: 'stand-in-item' }, `[${props.activeSectionId}]`),
+      })
+      registerFooterItem({ id: 'echo', order: 10, component: Echo })
+
       const wrapper = mount(AppFooter)
-      const indicator = wrapper.find('#footer-sdr')
-      expect(indicator.exists()).toBe(true)
-      expect(indicator.find('.footer-sdr-freq').text()).toBe('145.800 MHz')
-    })
 
-    it('omits the name when the frequency is not a saved one', () => {
-      parkSdrOnFrequency(145_800_000)
-      const wrapper = mount(AppFooter)
-      expect(wrapper.find('.footer-sdr-name').exists()).toBe(false)
-      expect(wrapper.find('#footer-sdr').attributes('aria-label')).toBe('SDR active on 145.800 MHz')
-    })
-
-    it('shows the known name when the frequency matches a saved one', () => {
-      const sdrStore = parkSdrOnFrequency(145_800_000)
-      sdrStore.frequencies = [
-        { id: 1, group_id: null, label: 'ISS VOICE', frequency_hz: 145_800_000, mode: 'NFM' },
-      ]
-      const wrapper = mount(AppFooter)
-      expect(wrapper.find('.footer-sdr-name').text()).toBe('ISS VOICE')
-      expect(wrapper.find('#footer-sdr').attributes('aria-label')).toBe(
-        'SDR active on 145.800 MHz, ISS VOICE',
-      )
-    })
-
-    it('is hidden while a scan is mid-sweep (hopping, not stopped)', () => {
-      const sdrStore = parkSdrOnFrequency()
-      sdrStore.scanSweeping = true
-      const wrapper = mount(AppFooter)
-      expect(wrapper.find('#footer-sdr').exists()).toBe(false)
-    })
-
-    it('is hidden while a search is mid-sweep (hopping, not stopped)', () => {
-      const sdrStore = parkSdrOnFrequency()
-      sdrStore.searchSweeping = true
-      const wrapper = mount(AppFooter)
-      expect(wrapper.find('#footer-sdr').exists()).toBe(false)
-    })
-
-    it('is hidden when there is no tuned frequency', () => {
-      const sdrStore = parkSdrOnFrequency()
-      sdrStore.currentFreqHz = 0
-      const wrapper = mount(AppFooter)
-      expect(wrapper.find('#footer-sdr').exists()).toBe(false)
-    })
-
-    it('is hidden in the SDR section while the RADIO tab is selected', () => {
-      const sdrStore = parkSdrOnFrequency()
-      sdrStore.activeTab = 'radio'
-      const wrapper = mount(AppFooter, { props: { sdrSectionActive: true } })
-      expect(wrapper.find('#footer-sdr').exists()).toBe(false)
-    })
-
-    it('is shown in the SDR section on tabs other than RADIO', () => {
-      const sdrStore = parkSdrOnFrequency(145_800_000)
-      sdrStore.activeTab = 'recordings'
-      const wrapper = mount(AppFooter, { props: { sdrSectionActive: true } })
-      expect(wrapper.find('#footer-sdr').exists()).toBe(true)
-      expect(wrapper.find('.footer-sdr-freq').text()).toBe('145.800 MHz')
-    })
-
-    it('has no accessibility violations while the indicator is shown', async () => {
-      const sdrStore = parkSdrOnFrequency(145_800_000)
-      sdrStore.frequencies = [
-        { id: 1, group_id: null, label: 'ISS VOICE', frequency_hz: 145_800_000, mode: 'NFM' },
-      ]
-      const wrapper = mount(AppFooter)
-      expect(await axe(wrapper.html())).toHaveNoViolations()
+      expect(wrapper.find('.stand-in-item').text()).toBe('[]')
     })
   })
 

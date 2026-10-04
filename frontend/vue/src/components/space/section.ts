@@ -1,6 +1,7 @@
 import { registerBackgroundService } from '@/shell/backgroundServices'
 import {
   registerNotificationDismissHook,
+  registerNotificationSubscriptionSource,
   registerNotificationTarget,
 } from '@/shell/notificationRegistry'
 import { registerSection } from '@/shell/sectionRegistry'
@@ -10,6 +11,7 @@ import { spaceSidebarFilter } from './spaceSidebarFilter'
 import SpacePassesTabIcon from './SpacePassesTabIcon.vue'
 import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { cancelAutoTuneOnDismiss, satelliteNotificationTarget } from './satelliteNotificationTarget'
+import { satellitePassSubscriptions } from './satelliteNotificationSubscriptions'
 // Registers this section's Settings nav entry and items (F3).
 import './settings'
 
@@ -26,6 +28,7 @@ registerSection({
   id: 'space',
   label: 'SPACE',
   navOrder: 20,
+  enabledByDefault: true,
   route: { path: '/space/', component: SpaceView },
 })
 
@@ -39,4 +42,6 @@ registerSidebarSectionTab({
 })
 registerNotificationTarget(satelliteNotificationTarget)
 registerNotificationDismissHook('autotune', cancelAutoTuneOnDismiss)
+// Its pass bells, listed and cancelled in Settings › Alerts.
+registerNotificationSubscriptionSource(satellitePassSubscriptions)
 registerBackgroundService({ id: 'space-alerts', start: () => useSpaceAlertsService().start() })

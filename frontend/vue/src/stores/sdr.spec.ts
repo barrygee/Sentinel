@@ -1777,10 +1777,9 @@ describe('sdr store', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
+          // The central `air` settings namespace, where AIR's receiver is stored.
           json: async () => ({
-            configured: true,
-            sentry_host_id: 7,
-            sentry_device_id: 'serial:97710286',
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'serial:97710286' },
           }),
         }),
       )
@@ -1788,6 +1787,8 @@ describe('sdr store', () => {
       store.radios = [mirroredRadio]
       await store.hydrateAdsbSourceFromDb()
 
+      // Read from the central settings, never from AIR's own API.
+      expect(fetch).toHaveBeenCalledWith('/api/settings/air')
       expect(store.adsbSourceKey).toBe('7:serial:97710286')
       expect(store.radioReservation(3)).toBe('ADS-B')
     })
@@ -1800,9 +1801,7 @@ describe('sdr store', () => {
         vi.fn().mockResolvedValue({
           ok: true,
           json: async () => ({
-            configured: true,
-            sentry_host_id: 7,
-            sentry_device_id: 'usb:1-1.2',
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'usb:1-1.2' },
           }),
         }),
       )
@@ -1818,10 +1817,9 @@ describe('sdr store', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
+          // The central `air` settings namespace, where AIR's receiver is stored.
           json: async () => ({
-            configured: true,
-            sentry_host_id: 7,
-            sentry_device_id: 'serial:97710286',
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'serial:97710286' },
           }),
         }),
       )
@@ -1837,10 +1835,9 @@ describe('sdr store', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
+          // The central `air` settings namespace, where AIR's receiver is stored.
           json: async () => ({
-            configured: true,
-            sentry_host_id: 7,
-            sentry_device_id: 'serial:97710286',
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'serial:97710286' },
           }),
         }),
       )
@@ -1852,12 +1849,18 @@ describe('sdr store', () => {
     })
 
     it.each([
+      ['an unset source', { offgridSdrSource: null }],
+      ['a missing key', {}],
+      ['a half-written source', { offgridSdrSource: { sentry_host_id: 7, sentry_device_id: '' } }],
       [
-        'an unconfigured source',
-        { configured: false, sentry_host_id: null, sentry_device_id: null },
+        'a source with no host',
+        { offgridSdrSource: { sentry_host_id: null, sentry_device_id: 'x' } },
       ],
-      ['a half-written source', { configured: true, sentry_host_id: 7, sentry_device_id: '' }],
-      ['a source with no host', { configured: true, sentry_host_id: null, sentry_device_id: 'x' }],
+      [
+        'a non-integer host id',
+        { offgridSdrSource: { sentry_host_id: '7', sentry_device_id: 'x' } },
+      ],
+      ['a non-string device id', { offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 9 } }],
       ['an unreachable backend', null],
     ])('holds no ADS-B reservation for %s', async (_label, payload) => {
       vi.stubGlobal(

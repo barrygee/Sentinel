@@ -32,16 +32,14 @@
     <div id="footer-center"></div>
 
     <div id="footer-right">
-      <div
-        v-if="sdrIndicatorVisible"
-        id="footer-sdr"
-        class="footer-sdr"
-        role="status"
-        :aria-label="sdrIndicatorAriaLabel"
-      >
-        <span class="footer-code footer-sdr-freq">{{ sdrFreqDisplay }}</span>
-        <span v-if="sdrFreqName" class="footer-code footer-sdr-name">{{ sdrFreqName }}</span>
-      </div>
+      <!-- Live state sections show here on every page (e.g. SDR's tuned
+           frequency) — registered in shell/footerRegistry.ts. -->
+      <component
+        :is="item.component"
+        v-for="item in footerItems"
+        :key="item.id"
+        :active-section-id="activeSectionId ?? ''"
+      />
       <button
         id="settings-btn"
         aria-label="Settings"
@@ -102,12 +100,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { useSdrStore } from '@/stores/sdr'
+import { getFooterItems } from '@/shell/footerRegistry'
 import { useAppStore } from '@/stores/app'
 
 const props = defineProps<{
   sidebarOpen?: boolean
-  sdrSectionActive?: boolean
+  /** The section on screen, e.g. 'sdr' — passed to registered footer items. */
+  activeSectionId?: string
   // True on views that have a right-edge controls rail (Air/Space). The footer's
   // side-menu toggle only renders when this is set.
   hasRightMenu?: boolean
@@ -118,7 +117,7 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
-const sdrStore = useSdrStore()
+const footerItems = getFooterItems()
 const appStore = useAppStore()
 
 // The side-menu toggle is shown only where a right rail exists AND it is
@@ -153,42 +152,4 @@ function onToggleSidePanel(): void {
     emit('toggle-sidebar')
   }
 }
-
-// True when the radio is streaming AND parked on a single frequency — i.e.
-// tuned to one channel, or locked onto a signal during a scan or search. While
-// a scan/search is mid-sweep (hopping between frequencies) the store's scan/
-// searchSweeping flags are set, so this stays false until it stops on one.
-const sdrParkedOnFreq = computed<boolean>(
-  () =>
-    sdrStore.playing &&
-    !sdrStore.scanSweeping &&
-    !sdrStore.searchSweeping &&
-    sdrStore.currentFreqHz > 0,
-)
-
-// Known label for the tuned frequency, matched against the saved frequency list
-// by exact frequency; empty when it isn't a saved one (e.g. a manual tune or an
-// arbitrary search step). Only read while the indicator is rendered, where the
-// frequency is necessarily active.
-const sdrFreqName = computed<string>(
-  () =>
-    sdrStore.frequencies.find((freq) => freq.frequency_hz === sdrStore.currentFreqHz)?.label ?? '',
-)
-
-// "145.800 MHz" — matches the radio panel's own tuned-frequency formatting.
-const sdrFreqDisplay = computed<string>(() => `${(sdrStore.currentFreqHz / 1e6).toFixed(3)} MHz`)
-
-// Hidden only on the SDR section's RADIO tab — that panel already shows the
-// tuned frequency, so footer copy would be redundant there. It still shows on
-// the SDR section's other tabs (Frequency Manager, Search Ranges, …) and on
-// every other section.
-const sdrIndicatorVisible = computed<boolean>(
-  () => sdrParkedOnFreq.value && !(props.sdrSectionActive && sdrStore.activeTab === 'radio'),
-)
-
-const sdrIndicatorAriaLabel = computed<string>(() =>
-  sdrFreqName.value
-    ? `SDR active on ${sdrFreqDisplay.value}, ${sdrFreqName.value}`
-    : `SDR active on ${sdrFreqDisplay.value}`,
-)
 </script>

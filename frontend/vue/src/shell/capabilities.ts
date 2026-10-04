@@ -1,11 +1,12 @@
 import { shallowReactive } from 'vue'
 import type { RadioCapability } from './radioCapability'
+import type { RadioSitesCapability } from './radioSitesCapability'
 
 /**
  * Shell capability registry (docs/plans/section-containers.md §3.6).
  *
- * A capability is a typed service one section offers the others — today only
- * `radio`, provided by the sdr section. It replaces reaching into another
+ * A capability is a typed service one section offers the others — `radio`
+ * and `radioSites`, both provided by the sdr section today. It replaces reaching into another
  * section's store or firing an untyped document `CustomEvent` at whichever
  * component happens to listen: the caller asks the shell for the capability
  * by name and gets `undefined` when no section provides it, so it can degrade
@@ -16,6 +17,7 @@ import type { RadioCapability } from './radioCapability'
  */
 export interface CapabilityMap {
   radio: RadioCapability
+  radioSites: RadioSitesCapability
 }
 
 export type CapabilityName = keyof CapabilityMap

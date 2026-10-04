@@ -14,9 +14,11 @@ vi.mock('@/shell/sidebarRegistry', () => ({
 vi.mock('./SpaceView.vue', () => ({ default: { name: 'SpaceView' } }))
 const registerNotificationTarget = vi.hoisted(() => vi.fn())
 const registerNotificationDismissHook = vi.hoisted(() => vi.fn())
+const registerNotificationSubscriptionSource = vi.hoisted(() => vi.fn())
 vi.mock('@/shell/notificationRegistry', () => ({
   registerNotificationTarget,
   registerNotificationDismissHook,
+  registerNotificationSubscriptionSource,
 }))
 const registerBackgroundService = vi.hoisted(() => vi.fn())
 vi.mock('@/shell/backgroundServices', () => ({ registerBackgroundService }))
@@ -34,6 +36,7 @@ describe('components/space/section', () => {
       id: 'space',
       label: 'SPACE',
       navOrder: 20,
+      enabledByDefault: true,
       route: { path: '/space/', component: SpaceView },
     })
   })
@@ -89,5 +92,14 @@ describe('components/space/section', () => {
 
     expect(getSettingsSections().map((section) => section.key)).toContain('space')
     expect(getSettingItems().some((item) => item.section === 'space')).toBe(true)
+  })
+
+  it('lists its pass bells in Settings › Alerts', async () => {
+    const { satellitePassSubscriptions } = await import('./satelliteNotificationSubscriptions')
+    await import('./section')
+
+    expect(registerNotificationSubscriptionSource).toHaveBeenCalledExactlyOnceWith(
+      satellitePassSubscriptions,
+    )
   })
 })

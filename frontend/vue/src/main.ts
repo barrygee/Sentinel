@@ -20,14 +20,15 @@ import App from './App.vue'
 import router from './router'
 import { useAppStore } from './stores/app'
 import { APP_MODE_STORAGE_KEY, asSourceMode } from './utils/sourceMode'
-import { useAirStore } from './stores/air'
-import type { AdsbTagFields } from './stores/air'
-import { useLandStore } from './stores/land'
 import { useBasemapStore } from './stores/basemap'
 import { useThemeStore } from './stores/theme'
-import type { AprsLabelFieldMap } from './stores/land'
 import { useSettingsStore } from './stores/settings'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
+// Registers every section (routes, nav, capabilities, settings hydrators…)
+// before anything below reads the registries.
+import './shell/sections'
+import { runSettingsHydrators } from './shell/settingsHydration'
+import { getEnabledSectionIds } from './shell/sectionRegistry'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
@@ -52,38 +53,9 @@ try {
   if (savedMode) appStore.setConnectivityMode(savedMode)
 } catch {}
 
-// Load per-domain enabled state from backend before first render.
-const ALL_DOMAINS = ['air', 'space', 'sea', 'land', 'sdr'] as const
-// Domains that are ON by default when the DB has no explicit enabled key for them.
-const DOMAINS_ON_BY_DEFAULT = new Set(['air', 'space', 'sdr'])
-const airStore = useAirStore()
-const landStore = useLandStore()
 const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
-
-const DEFAULT_LABEL_DATA_POINTS = {
-  civil: {
-    callsign: true,
-    altitude: false,
-    speed: false,
-    heading: false,
-    aircraftType: false,
-    registration: false,
-    squawk: false,
-    category: false,
-  },
-  mil: {
-    callsign: true,
-    altitude: false,
-    speed: false,
-    heading: false,
-    aircraftType: true,
-    registration: false,
-    squawk: false,
-    category: false,
-  },
-}
 
 ;(async () => {
   try {
@@ -95,12 +67,9 @@ const DEFAULT_LABEL_DATA_POINTS = {
       // resolve to the persisted values instead of their fallbacks. Nothing
       // else calls loadAll(), so without this the store stays empty.
       settingsStore.allSettings = data
-      const enabled = ALL_DOMAINS.filter((d) => {
-        const val = data[d]?.enabled
-        if (typeof val === 'boolean') return val
-        // Key absent from DB — fall back to per-domain default.
-        return DOMAINS_ON_BY_DEFAULT.has(d)
-      })
+      // Per-section enabled state: a stored `<id>.enabled` wins, else each
+      // registered section's own default (Air/Space/SDR on, Sea/Land off).
+      const enabled = getEnabledSectionIds(data)
       if (enabled.length > 0) appStore.setEnabledDomains(enabled)
 
       // Sync connectivity mode from backend — backend is authoritative so a mode
@@ -125,51 +94,14 @@ const DEFAULT_LABEL_DATA_POINTS = {
       const soundOn = data.app?.notificationSound
       appStore.setNotificationSound(typeof soundOn === 'boolean' ? soundOn : false)
 
-      // Map overlays (Settings > AIR > Map Layers) and the shared base-map
-      // layers — adopt the config so a choice made in the app-config JSON or on
-      // another device is what the maps draw from the first frame.
-      airStore.hydrateMapLayers(data.air?.mapLayers)
+      // The shared base-map layers — adopt the config so a choice made in the
+      // app-config JSON or on another device is what the maps draw from the
+      // first frame.
       basemapStore.hydrateLayers(data.app?.mapLayers)
 
-      // Hydrate labelDataPoints from API into store before first render.
-      const remote = data.air?.labelDataPoints as AdsbTagFields | undefined
-      if (
-        remote &&
-        typeof remote === 'object' &&
-        !Array.isArray(remote) &&
-        typeof remote.civil === 'object' &&
-        typeof remote.mil === 'object'
-      ) {
-        airStore.setAdsbTagFields({
-          civil: { ...DEFAULT_LABEL_DATA_POINTS.civil, ...(remote.civil as object) },
-          mil: { ...DEFAULT_LABEL_DATA_POINTS.mil, ...(remote.mil as object) },
-        })
-      } else {
-        // Seed labelDataPoints into the DB if not yet stored.
-        fetch('/api/settings/air/labelDataPoints', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: DEFAULT_LABEL_DATA_POINTS }),
-        }).catch(() => {})
-      }
-
-      // APRS station label fields — same cross-device rationale as the ADS-B
-      // fields above: adopt the stored choice, or seed the DB from this
-      // browser's current one when the key has never been written.
-      const remoteAprsFields = data.land?.labelDataPoints as Partial<AprsLabelFieldMap> | undefined
-      if (
-        remoteAprsFields &&
-        typeof remoteAprsFields === 'object' &&
-        !Array.isArray(remoteAprsFields)
-      ) {
-        landStore.setAprsLabelFields({ ...landStore.aprsLabelFields, ...remoteAprsFields })
-      } else {
-        fetch('/api/settings/land/labelDataPoints', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: landStore.aprsLabelFields }),
-        }).catch(() => {})
-      }
+      // Each section's own stored settings (Air's map layers and label fields,
+      // Land's APRS label fields…) — registered by the section (F1).
+      runSettingsHydrators(data)
     }
   } catch {}
   app.mount('#app')

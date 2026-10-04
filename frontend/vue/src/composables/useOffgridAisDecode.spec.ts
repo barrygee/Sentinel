@@ -5,7 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { useOffgridAisDecode } from './useOffgridAisDecode'
 import { useAppStore } from '@/stores/app'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
 import { useSettingsStore } from '@/stores/settings'
 
 /**
@@ -32,8 +32,10 @@ function mountDecode() {
   return mount(harness)
 }
 
-let startSpy: ReturnType<typeof vi.spyOn>
-let stopSpy: ReturnType<typeof vi.spyOn>
+// Decode runs through the `radio` capability's decoders (F10) — a fake here.
+let fakeRadio: ReturnType<typeof provideFakeRadio>
+let startSpy: ReturnType<typeof provideFakeRadio>['decoders']['start']
+let stopSpy: ReturnType<typeof provideFakeRadio>['decoders']['stop']
 
 /** Designate a radio as SEA's off-grid AIS receiver. */
 function designateReceiver(radioId: number | null) {
@@ -49,12 +51,13 @@ function setSeaOverride(override: string) {
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  const sdrStore = useSdrStore()
-  startSpy = vi.spyOn(sdrStore, 'startAis').mockResolvedValue(true)
-  stopSpy = vi.spyOn(sdrStore, 'stopAis').mockResolvedValue(true)
+  fakeRadio = provideFakeRadio()
+  startSpy = fakeRadio.decoders.start
+  stopSpy = fakeRadio.decoders.stop
 })
 
 afterEach(() => {
+  fakeRadio.withdraw()
   vi.restoreAllMocks()
 })
 
@@ -67,7 +70,7 @@ describe('useOffgridAisDecode', () => {
       mountDecode()
       await nextTick()
 
-      expect(startSpy).toHaveBeenCalledWith(7)
+      expect(startSpy).toHaveBeenCalledWith('ais', 7)
     })
 
     it('does not decode while online', async () => {
@@ -115,7 +118,7 @@ describe('useOffgridAisDecode', () => {
       mountDecode()
       await nextTick()
 
-      expect(startSpy).toHaveBeenCalledWith(7)
+      expect(startSpy).toHaveBeenCalledWith('ais', 7)
     })
 
     it('does not decode when SEA is pinned online despite a global off-grid mode', async () => {
@@ -137,7 +140,7 @@ describe('useOffgridAisDecode', () => {
       mountDecode()
       await nextTick()
 
-      expect(startSpy).toHaveBeenCalledWith(7)
+      expect(startSpy).toHaveBeenCalledWith('ais', 7)
     })
 
     it('defers to the global mode when SEA has no mode of its own', async () => {
@@ -147,7 +150,7 @@ describe('useOffgridAisDecode', () => {
       mountDecode()
       await nextTick()
 
-      expect(startSpy).toHaveBeenCalledWith(7)
+      expect(startSpy).toHaveBeenCalledWith('ais', 7)
     })
   })
 
@@ -171,12 +174,12 @@ describe('useOffgridAisDecode', () => {
       designateReceiver(7)
       mountDecode()
       await nextTick()
-      useSdrStore().setAisRadioId(7)
+      fakeRadio.state.activeDecoders.ais = 7
 
       useAppStore().setConnectivityMode('online')
       await nextTick()
 
-      expect(stopSpy).toHaveBeenCalledWith(7)
+      expect(stopSpy).toHaveBeenCalledWith('ais', 7)
     })
 
     it('stops decode when the receiver is cleared', async () => {
@@ -184,12 +187,12 @@ describe('useOffgridAisDecode', () => {
       designateReceiver(7)
       mountDecode()
       await nextTick()
-      useSdrStore().setAisRadioId(7)
+      fakeRadio.state.activeDecoders.ais = 7
 
       designateReceiver(null)
       await nextTick()
 
-      expect(stopSpy).toHaveBeenCalledWith(7)
+      expect(stopSpy).toHaveBeenCalledWith('ais', 7)
     })
 
     it('does not call stop when nothing is decoding', async () => {
@@ -209,13 +212,27 @@ describe('useOffgridAisDecode', () => {
       designateReceiver(7)
       mountDecode()
       await nextTick()
-      useSdrStore().setAisRadioId(7)
+      fakeRadio.state.activeDecoders.ais = 7
 
       designateReceiver(9)
       await nextTick()
 
-      expect(startSpy).toHaveBeenLastCalledWith(9)
+      expect(startSpy).toHaveBeenLastCalledWith('ais', 9)
       expect(stopSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('with no section providing a radio', () => {
+    it('decodes nothing, and does not fail', async () => {
+      fakeRadio.withdraw()
+      useAppStore().setConnectivityMode('offgrid')
+      designateReceiver(7)
+
+      const wrapper = mountDecode()
+      await nextTick()
+
+      expect(startSpy).not.toHaveBeenCalled()
+      expect(wrapper.vm.decodeState.designatedRadioId.value).toBe(7)
     })
   })
 

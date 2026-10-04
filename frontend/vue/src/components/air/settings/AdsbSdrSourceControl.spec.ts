@@ -7,7 +7,8 @@ import { nextTick } from 'vue'
 import AdsbSdrSourceControl from './AdsbSdrSourceControl.vue'
 import { useSettingsStore } from '@/stores/settings'
 import * as adsbSourceApi from '@/services/adsbSourceApi'
-import * as sentryApi from '@/services/sentryApi'
+import { provideFakeRadioSites } from '@/test/fakeRadio'
+import type { RadioSiteDevice, RadioSiteDevices } from '@/shell/radioSitesCapability'
 
 /**
  * Tests for choosing which Sentry SDR receives ADS-B.
@@ -20,46 +21,30 @@ import * as sentryApi from '@/services/sentryApi'
  * be able to tell apart before they can fix it.
  */
 
-function host(overrides: Partial<sentryApi.SentryHost> = {}): sentryApi.SentryHost {
-  return {
-    id: 1,
-    name: 'Attic Pi',
-    address: '192.168.5.67',
-    port: 8000,
-    enabled: true,
-    auth_token_set: true,
-    created_at: 0,
-    last_seen_at: null,
-    last_error: null,
-    reachable: true,
-    api_version: '1',
-    ...overrides,
-  }
+// The Sentry fleet comes from the radio platform's `radioSites` capability
+// (Air never touches the Sentry admin API) — a fake here. How the fleet is
+// built from the Sentry hosts is the sdr provider's own spec.
+let radioSites: ReturnType<typeof provideFakeRadioSites>
+
+function device(overrides: Partial<RadioSiteDevice> & { deviceId: string }): RadioSiteDevice {
+  return { name: overrides.deviceId, enabled: true, public: true, ...overrides }
 }
 
-function snapshotWith(
-  ...devices: { device_id: string; name: string; enabled?: boolean; visibility?: string }[]
-) {
-  // Offered by default — the filtering rules get their own tests below.
-  const withDefaults = devices.map((d) => ({
-    enabled: true,
-    visibility: 'public',
-    ...d,
-  }))
-  return {
-    reachable: true,
-    last_error: null,
-    last_polled_at: 0,
-    last_success_at: 0,
-    api_version: '1',
-    status: { generated_at: 0, sdrs: withDefaults as never[] },
-  } as sentryApi.SentryDeviceSnapshot
+/** One enabled host (id 1, "Attic Pi" unless given) publishing these devices. */
+function fleet(...devices: RadioSiteDevice[]): RadioSiteDevices {
+  return { hostCount: 1, hosts: [{ id: 1, label: 'Attic Pi', devices }] }
+}
+
+/** Serve this fleet from the fake radio platform. */
+function serveFleet(devices: RadioSiteDevices) {
+  radioSites.listDevices.mockResolvedValue(devices)
 }
 
 let setSourceSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  radioSites = provideFakeRadioSites()
   vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
     configured: false,
     sentry_host_id: null,
@@ -73,16 +58,16 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  radioSites.withdraw()
   vi.restoreAllMocks()
 })
 
 describe('AdsbSdrSourceControl', () => {
   it('lists every device from every enabled host', async () => {
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith(
-        { device_id: 'serial:97710286', name: 'ADSB' },
-        { device_id: 'usb:1-1.2', name: 'RTL-SDR-V4' },
+    serveFleet(
+      fleet(
+        device({ deviceId: 'serial:97710286', name: 'ADSB' }),
+        device({ deviceId: 'usb:1-1.2', name: 'RTL-SDR-V4' }),
       ),
     )
 
@@ -97,13 +82,13 @@ describe('AdsbSdrSourceControl', () => {
   it('names the host alongside the device', async () => {
     // Two Pis can each have a dongle called "ADSB"; picking the wrong one would
     // tune a receiver in another room.
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([
-      host({ id: 1, name: 'Attic Pi' }),
-      host({ id: 2, name: 'Shed Pi' }),
-    ])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-    )
+    serveFleet({
+      hostCount: 2,
+      hosts: [
+        { id: 1, label: 'Attic Pi', devices: [device({ deviceId: 'serial:AAA', name: 'ADSB' })] },
+        { id: 2, label: 'Shed Pi', devices: [device({ deviceId: 'serial:AAA', name: 'ADSB' })] },
+      ],
+    })
 
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
@@ -113,34 +98,8 @@ describe('AdsbSdrSourceControl', () => {
     expect(options).toContain('Shed Pi — ADSB')
   })
 
-  it('skips hosts that are switched off', async () => {
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ enabled: false })])
-    const devicesSpy = vi.spyOn(sentryApi, 'getSentryHostDevices')
-
-    mount(AdsbSdrSourceControl)
-    await flushPromises()
-
-    expect(devicesSpy).not.toHaveBeenCalled()
-  })
-
-  it('survives an unreachable host rather than losing the whole list', async () => {
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([
-      host({ id: 1, name: 'Dead Pi' }),
-      host({ id: 2, name: 'Live Pi' }),
-    ])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockImplementation(async (hostId: number) => {
-      if (hostId === 1) throw new Error('unreachable')
-      return snapshotWith({ device_id: 'serial:BBB', name: 'ADSB' })
-    })
-
-    const wrapper = mount(AdsbSdrSourceControl)
-    await flushPromises()
-
-    expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toContain('Live Pi — ADSB')
-  })
-
-  it('degrades to an empty list when Sentinel itself cannot be reached', async () => {
-    vi.spyOn(sentryApi, 'listSentryHosts').mockRejectedValue(new Error('offline'))
+  it('offers nothing when no section provides the radio platform', async () => {
+    radioSites.withdraw()
 
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
@@ -148,51 +107,15 @@ describe('AdsbSdrSourceControl', () => {
     expect(wrapper.text()).toContain('Add a Sentry host')
   })
 
-  it('falls back to ids when a host and device have no names', async () => {
-    // Neither name is guaranteed: a Sentry device need not be named, and a host
-    // row's name is optional. Without the fallbacks the list would offer
-    // "undefined — undefined".
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ name: null })])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:AAA', name: '' }),
-    )
-
-    const wrapper = mount(AdsbSdrSourceControl)
-    await flushPromises()
-
-    expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toContain(
-      '192.168.5.67 — serial:AAA',
-    )
-  })
-
-  it('tolerates a host that reports no status payload', async () => {
-    // The poller reports `status: null` for a host it has not reached yet.
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue({
-      reachable: false,
-      last_error: null,
-      last_polled_at: 0,
-      last_success_at: null,
-      api_version: null,
-      status: null,
-    } as sentryApi.SentryDeviceSnapshot)
-
-    const wrapper = mount(AdsbSdrSourceControl)
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('publish no SDRs')
-  })
-
   describe('what is offered as a source', () => {
     it('omits a private device', async () => {
       // Private is the operator saying, on the Sentry side, that this dongle is
       // not for sharing. Offering it here would let AIR claim and tune hardware
       // they have withdrawn.
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith(
-          { device_id: 'serial:PUB', name: 'Public', visibility: 'public' },
-          { device_id: 'serial:PRIV', name: 'Private', visibility: 'private' },
+      serveFleet(
+        fleet(
+          device({ deviceId: 'serial:PUB', name: 'Public', public: true }),
+          device({ deviceId: 'serial:PRIV', name: 'Private', public: false }),
         ),
       )
 
@@ -205,11 +128,10 @@ describe('AdsbSdrSourceControl', () => {
     })
 
     it('omits a disabled device', async () => {
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith(
-          { device_id: 'serial:ON', name: 'Running', enabled: true },
-          { device_id: 'serial:OFF', name: 'Stopped', enabled: false },
+      serveFleet(
+        fleet(
+          device({ deviceId: 'serial:ON', name: 'Running', enabled: true }),
+          device({ deviceId: 'serial:OFF', name: 'Stopped', enabled: false }),
         ),
       )
 
@@ -229,10 +151,7 @@ describe('AdsbSdrSourceControl', () => {
         sentry_host_id: 1,
         sentry_device_id: 'serial:GONE',
       })
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith({ device_id: 'serial:GONE', name: 'Withdrawn', visibility: 'private' }),
-      )
+      serveFleet(fleet(device({ deviceId: 'serial:GONE', name: 'Withdrawn', public: false })))
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -247,10 +166,8 @@ describe('AdsbSdrSourceControl', () => {
       // A timer left running would keep polling for a control that is gone,
       // for the life of the page.
       vi.useFakeTimers()
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      const devicesSpy = vi
-        .spyOn(sentryApi, 'getSentryHostDevices')
-        .mockResolvedValue(snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }))
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
+      const devicesSpy = radioSites.listDevices
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -268,10 +185,8 @@ describe('AdsbSdrSourceControl', () => {
       // unmount inside that window runs the cleanup first, so without a guard
       // the timer it then creates would poll for the life of the page.
       vi.useFakeTimers()
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      const devicesSpy = vi
-        .spyOn(sentryApi, 'getSentryHostDevices')
-        .mockResolvedValue(snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }))
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
+      const devicesSpy = radioSites.listDevices
 
       const wrapper = mount(AdsbSdrSourceControl)
       wrapper.unmount()
@@ -288,19 +203,15 @@ describe('AdsbSdrSourceControl', () => {
       // Visibility can change from Sentry's own console at any moment, and a
       // stale list offers a dongle that has since been taken away.
       vi.useFakeTimers()
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      const devicesSpy = vi
-        .spyOn(sentryApi, 'getSentryHostDevices')
-        .mockResolvedValue(
-          snapshotWith({ device_id: 'serial:AAA', name: 'ADSB', visibility: 'public' }),
-        )
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
+      const devicesSpy = radioSites.listDevices
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
       expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toContain('Attic Pi — ADSB')
 
       devicesSpy.mockResolvedValue(
-        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB', visibility: 'private' }),
+        fleet(device({ deviceId: 'serial:AAA', name: 'ADSB', public: false })),
       )
       await vi.advanceTimersByTimeAsync(5000)
       await flushPromises()
@@ -319,10 +230,16 @@ describe('AdsbSdrSourceControl', () => {
   }
 
   it('stages a pick rather than saving it, so APPLY CHANGES has something to save', async () => {
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ id: 7 })])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:97710286', name: 'ADSB' }),
-    )
+    serveFleet({
+      hostCount: 1,
+      hosts: [
+        {
+          id: 7,
+          label: 'Attic Pi',
+          devices: [device({ deviceId: 'serial:97710286', name: 'ADSB' })],
+        },
+      ],
+    })
 
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
@@ -337,10 +254,16 @@ describe('AdsbSdrSourceControl', () => {
   it('saves the host id and device id split correctly on apply', async () => {
     // `serial:97710286` contains a colon, so a naive split would save
     // "serial" as the device and drop the rest.
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ id: 7 })])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:97710286', name: 'ADSB' }),
-    )
+    serveFleet({
+      hostCount: 1,
+      hosts: [
+        {
+          id: 7,
+          label: 'Attic Pi',
+          devices: [device({ deviceId: 'serial:97710286', name: 'ADSB' })],
+        },
+      ],
+    })
 
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
@@ -352,10 +275,16 @@ describe('AdsbSdrSourceControl', () => {
 
   it('makes apply fail when the device cannot be saved, so the panel says ERROR', async () => {
     setSourceSpy.mockResolvedValue(null)
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host({ id: 7 })])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:97710286', name: 'ADSB' }),
-    )
+    serveFleet({
+      hostCount: 1,
+      hosts: [
+        {
+          id: 7,
+          label: 'Attic Pi',
+          devices: [device({ deviceId: 'serial:97710286', name: 'ADSB' })],
+        },
+      ],
+    })
 
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
@@ -370,10 +299,7 @@ describe('AdsbSdrSourceControl', () => {
       sentry_host_id: 1,
       sentry_device_id: 'serial:97710286',
     })
-    vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-    vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-      snapshotWith({ device_id: 'serial:97710286', name: 'ADSB' }),
-    )
+    serveFleet(fleet(device({ deviceId: 'serial:97710286', name: 'ADSB' })))
 
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
@@ -390,10 +316,7 @@ describe('AdsbSdrSourceControl', () => {
         sentry_host_id: 1,
         sentry_device_id: 'serial:AAA',
       })
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-      )
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
     })
 
     it('stages the clear, and clears the saved source on apply', async () => {
@@ -433,10 +356,7 @@ describe('AdsbSdrSourceControl', () => {
         sentry_host_id: 1,
         sentry_device_id: 'serial:AAA',
       })
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-      )
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
       const settings = useSettingsStore()
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -464,10 +384,7 @@ describe('AdsbSdrSourceControl', () => {
           sentry_device_id: 'serial:AAA',
         })
         .mockResolvedValueOnce({ configured: false, sentry_host_id: null, sentry_device_id: null })
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-      )
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
 
@@ -487,10 +404,7 @@ describe('AdsbSdrSourceControl', () => {
           sentry_device_id: 'serial:AAA',
         })
         .mockResolvedValueOnce(null)
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-      )
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
 
@@ -521,7 +435,7 @@ describe('AdsbSdrSourceControl', () => {
 
   describe('when there is nothing to pick', () => {
     it('sends the operator to SDR settings when no hosts exist', async () => {
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([])
+      serveFleet({ hostCount: 0, hosts: [] })
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -532,8 +446,7 @@ describe('AdsbSdrSourceControl', () => {
     it('points at device visibility when hosts publish nothing', async () => {
       // A Sentry only exports devices its operator enabled, so an empty list is
       // far more often a toggle than a missing dongle.
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(snapshotWith())
+      serveFleet(fleet())
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -542,10 +455,7 @@ describe('AdsbSdrSourceControl', () => {
     })
 
     it('says nothing extra once devices are available', async () => {
-      vi.spyOn(sentryApi, 'listSentryHosts').mockResolvedValue([host()])
-      vi.spyOn(sentryApi, 'getSentryHostDevices').mockResolvedValue(
-        snapshotWith({ device_id: 'serial:AAA', name: 'ADSB' }),
-      )
+      serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()

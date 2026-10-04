@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 /**
- * `SdrRadioSelect` — the "which SDR radio" dropdown shared by the settings
+ * `RadioSelect` — the "which SDR radio" dropdown shared by the settings
  * cards that hand a receiver to a decoder (LAND's Off Grid APRS SDR, SEA's Off Grid AIS SDR).
  *
  * Owns only the radio list: it re-reads the configured radios every few
@@ -29,9 +29,14 @@
  * and why nothing arrives), and adds an explicit "off" row once a radio is
  * chosen — the custom dropdown has no empty entry of its own. What choosing
  * a radio *does* is the owning card's business, through `v-model`.
+ *
+ * Core, not SDR: radios are read through the `radio` capability, so Land and
+ * Sea can offer a receiver without importing the SDR section. With no radio
+ * platform registered the list is simply empty.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { listRadios, type SdrRadioRecord } from '@/services/sdrRadiosApi'
+import { getCapability } from '@/shell/capabilities'
+import type { RadioSummary } from '@/shell/radioCapability'
 import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@/components/shared/settings/SettingsDropdown.vue'
@@ -84,16 +89,16 @@ const hint = computed(() => {
 })
 
 /** Whether a radio can be offered as a receiver. */
-function isOffered(radio: SdrRadioRecord): boolean {
-  return radio.enabled && radio.device_available !== false
+function isOffered(radio: RadioSummary): boolean {
+  return radio.enabled && radio.available
 }
 
 /** Re-read the configured radios and rebuild the option list. */
 async function loadRadios(): Promise<void> {
   withdrawn.value = false
-  let records: SdrRadioRecord[]
+  let records: RadioSummary[]
   try {
-    records = await listRadios()
+    records = (await getCapability('radio')?.listRadios()) ?? []
   } catch {
     // Sentinel itself being unreachable is the caller's problem to show; here
     // it just means there is nothing to offer.

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
-import SdrRadioSelect from './SdrRadioSelect.vue'
-import * as sdrRadiosApi from '@/services/sdrRadiosApi'
+import RadioSelect from './RadioSelect.vue'
+import { provideFakeRadio } from '@/test/fakeRadio'
+import type { RadioSummary } from '@/shell/radioCapability'
 
 /**
- * `SdrRadioSelect` is the shared "which SDR radio" dropdown behind LAND's APRS
+ * `RadioSelect` is the shared "which SDR radio" dropdown behind LAND's APRS
  * receiver and SEA's AIS receiver. It owns exactly one thing — the radio list —
  * and the awkward cases are what earn the tests: a radio can be disabled,
  * unplugged or withdrawn while the panel is open, and the operator must never be
@@ -14,27 +15,13 @@ import * as sdrRadiosApi from '@/services/sdrRadiosApi'
  * keeps polling the backend forever.
  */
 
-function radio(overrides: Partial<sdrRadiosApi.SdrRadioRecord> = {}): sdrRadiosApi.SdrRadioRecord {
-  return {
-    id: 1,
-    name: 'Attic Dongle',
-    host: '192.168.5.67',
-    port: 1234,
-    description: '',
-    enabled: true,
-    bandwidth: null,
-    rf_gain: null,
-    agc: null,
-    sentry_host_id: null,
-    sentry_device_id: null,
-    notes: '',
-    antenna: '',
-    visibility: 'public',
-    device_available: true,
-    unavailable_reason: '',
-    ...overrides,
-  }
+// Radios as the `radio` capability lists them (RadioSelect reads them there,
+// not from the SDR section's API).
+function radio(overrides: Partial<RadioSummary> = {}): RadioSummary {
+  return { id: 1, name: 'Attic Dongle', enabled: true, available: true, ...overrides }
 }
+
+let fakeRadio: ReturnType<typeof provideFakeRadio>
 
 const BASE_PROPS = {
   modelValue: '',
@@ -44,12 +31,9 @@ const BASE_PROPS = {
 }
 
 /** Mount with the radio list the backend would return, and let it settle. */
-async function mountSelect(
-  radios: sdrRadiosApi.SdrRadioRecord[],
-  props: Partial<typeof BASE_PROPS> = {},
-) {
-  vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue(radios)
-  const wrapper = mount(SdrRadioSelect, { props: { ...BASE_PROPS, ...props } })
+async function mountSelect(radios: RadioSummary[], props: Partial<typeof BASE_PROPS> = {}) {
+  fakeRadio.listRadios.mockResolvedValue(radios)
+  const wrapper = mount(RadioSelect, { props: { ...BASE_PROPS, ...props } })
   await flushPromises()
   return wrapper
 }
@@ -69,13 +53,15 @@ function hintText(wrapper: ReturnType<typeof mount>): string {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  fakeRadio = provideFakeRadio()
 })
 
 afterEach(() => {
+  fakeRadio.withdraw()
   vi.useRealTimers()
 })
 
-describe('SdrRadioSelect', () => {
+describe('RadioSelect', () => {
   it('names the dropdown, since it has no visible label of its own', async () => {
     const wrapper = await mountSelect([radio()], { accessibleName: 'APRS decode SDR' })
     expect(wrapper.get('[role="combobox"]').attributes('aria-label')).toBe('APRS decode SDR')
@@ -102,18 +88,9 @@ describe('SdrRadioSelect', () => {
     const wrapper = await mountSelect([
       radio({ id: 1, name: 'Running' }),
       radio({ id: 2, name: 'Switched Off', enabled: false }),
-      radio({ id: 3, name: 'Unplugged', device_available: false }),
+      radio({ id: 3, name: 'Unplugged', available: false }),
     ])
     expect(optionLabels(wrapper)).toEqual(['Running'])
-  })
-
-  it('treats a radio with no availability field as available', async () => {
-    // A manually-entered radio has no Sentry device behind it, so the backend
-    // may omit the flag entirely — that must not hide the radio.
-    const withoutFlag = radio({ id: 4, name: 'Hand Entered' })
-    delete withoutFlag.device_available
-    const wrapper = await mountSelect([withoutFlag])
-    expect(optionLabels(wrapper)).toEqual(['Hand Entered'])
   })
 
   it('emits the chosen radio id upwards rather than keeping its own selection', async () => {
@@ -147,10 +124,10 @@ describe('SdrRadioSelect', () => {
 
   describe('a withdrawn selection', () => {
     it('stays listed, labelled, and explains what has stopped working', async () => {
-      const wrapper = await mountSelect(
-        [radio({ id: 1, name: 'Unplugged', device_available: false })],
-        { modelValue: '1', decodeName: 'APRS decode' },
-      )
+      const wrapper = await mountSelect([radio({ id: 1, name: 'Unplugged', available: false })], {
+        modelValue: '1',
+        decodeName: 'APRS decode',
+      })
       expect(optionLabels(wrapper)).toContain('Unplugged (unavailable)')
       expect(hintText(wrapper)).toBe(
         'The selected radio is no longer available. APRS decode cannot run until that is fixed, or pick another.',
@@ -158,9 +135,9 @@ describe('SdrRadioSelect', () => {
     })
 
     it('stops warning once the radio comes back', async () => {
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios')
-      listSpy.mockResolvedValue([radio({ id: 1, name: 'Unplugged', device_available: false })])
-      const wrapper = mount(SdrRadioSelect, { props: { ...BASE_PROPS, modelValue: '1' } })
+      const listSpy = fakeRadio.listRadios
+      listSpy.mockResolvedValue([radio({ id: 1, name: 'Unplugged', available: false })])
+      const wrapper = mount(RadioSelect, { props: { ...BASE_PROPS, modelValue: '1' } })
       await flushPromises()
       expect(hintText(wrapper)).toContain('no longer available')
 
@@ -175,7 +152,7 @@ describe('SdrRadioSelect', () => {
 
     it('re-reads the list whenever the selection changes', async () => {
       const wrapper = await mountSelect([radio({ id: 1 }), radio({ id: 2, name: 'Shed' })])
-      const listSpy = vi.mocked(sdrRadiosApi.listRadios)
+      const listSpy = fakeRadio.listRadios
       listSpy.mockClear()
       await wrapper.setProps({ modelValue: '2' })
       await flushPromises()
@@ -190,6 +167,13 @@ describe('SdrRadioSelect', () => {
       expect(hintText(wrapper)).toBe('Add a radio under Settings → SDR first; it will appear here.')
     })
 
+    it('offers nothing, as for no radios, when no section provides a radio', async () => {
+      fakeRadio.withdraw()
+      const wrapper = mount(RadioSelect, { props: BASE_PROPS })
+      await flushPromises()
+      expect(triggerText(wrapper)).toBe('No radios — add one in SDR settings')
+    })
+
     it('says so when every configured radio is disabled or unavailable', async () => {
       const wrapper = await mountSelect([radio({ enabled: false })])
       expect(triggerText(wrapper)).toBe('No enabled radios available')
@@ -199,8 +183,8 @@ describe('SdrRadioSelect', () => {
     })
 
     it('treats an unreachable backend as nothing to offer, not a crash', async () => {
-      vi.spyOn(sdrRadiosApi, 'listRadios').mockRejectedValue(new Error('offline'))
-      const wrapper = mount(SdrRadioSelect, { props: BASE_PROPS })
+      fakeRadio.listRadios.mockRejectedValue(new Error('offline'))
+      const wrapper = mount(RadioSelect, { props: BASE_PROPS })
       await flushPromises()
       expect(optionLabels(wrapper)).toEqual([])
       expect(hintText(wrapper)).toContain('Add a radio under Settings → SDR first')
@@ -219,13 +203,13 @@ describe('SdrRadioSelect', () => {
 
   describe('while loading', () => {
     it('says so and stays disabled until the first list arrives', async () => {
-      let releaseList: (records: sdrRadiosApi.SdrRadioRecord[]) => void = () => {}
-      vi.spyOn(sdrRadiosApi, 'listRadios').mockReturnValue(
+      let releaseList: (records: RadioSummary[]) => void = () => {}
+      fakeRadio.listRadios.mockReturnValue(
         new Promise((resolve) => {
           releaseList = resolve
         }),
       )
-      const wrapper = mount(SdrRadioSelect, { props: BASE_PROPS })
+      const wrapper = mount(RadioSelect, { props: BASE_PROPS })
       await wrapper.vm.$nextTick()
       expect(triggerText(wrapper)).toBe('Loading…')
       expect((wrapper.get('[role="combobox"]').element as HTMLButtonElement).disabled).toBe(true)
@@ -242,8 +226,8 @@ describe('SdrRadioSelect', () => {
   describe('keeping the list fresh', () => {
     it('re-reads the radios every five seconds', async () => {
       vi.useFakeTimers()
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([radio()])
-      mount(SdrRadioSelect, { props: BASE_PROPS })
+      const listSpy = fakeRadio.listRadios.mockResolvedValue([radio()])
+      mount(RadioSelect, { props: BASE_PROPS })
       await vi.runOnlyPendingTimersAsync()
       listSpy.mockClear()
 
@@ -255,8 +239,8 @@ describe('SdrRadioSelect', () => {
 
     it('stops refreshing once the control is gone', async () => {
       vi.useFakeTimers()
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([radio()])
-      const wrapper = mount(SdrRadioSelect, { props: BASE_PROPS })
+      const listSpy = fakeRadio.listRadios.mockResolvedValue([radio()])
+      const wrapper = mount(RadioSelect, { props: BASE_PROPS })
       await vi.runOnlyPendingTimersAsync()
       wrapper.unmount()
       listSpy.mockClear()
@@ -269,8 +253,8 @@ describe('SdrRadioSelect', () => {
       // The initial load awaits its request; unmounting inside that window runs
       // the teardown first, so there is nothing left to clear a later timer.
       vi.useFakeTimers()
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([radio()])
-      const wrapper = mount(SdrRadioSelect, { props: BASE_PROPS })
+      const listSpy = fakeRadio.listRadios.mockResolvedValue([radio()])
+      const wrapper = mount(RadioSelect, { props: BASE_PROPS })
       wrapper.unmount()
       await vi.runOnlyPendingTimersAsync()
       listSpy.mockClear()
@@ -287,7 +271,7 @@ describe('SdrRadioSelect', () => {
     const chosen = await mountSelect([radio({ id: 1 })], { modelValue: '1' })
     expect(await axe(chosen.html(), axeOptions)).toHaveNoViolations()
 
-    const withdrawn = await mountSelect([radio({ id: 1, device_available: false })], {
+    const withdrawn = await mountSelect([radio({ id: 1, available: false })], {
       modelValue: '1',
     })
     expect(await axe(withdrawn.html(), axeOptions)).toHaveNoViolations()

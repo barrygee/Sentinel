@@ -1,4 +1,5 @@
 import { useSdrStore } from '@/stores/sdr'
+import { listRadios } from '@/services/sdrRadiosApi'
 import type { SdrMode } from '@/stores/sdr'
 import { MODES } from './sdrPanelUtils'
 import type {
@@ -94,6 +95,44 @@ export function createSdrRadioCapability(): RadioCapability {
       ensureGroup(name) {
         return useSdrStore().ensureFrequencyGroup(name)
       },
+    },
+    // Land's APRS and Sea's AIS decoders (F10). The SDR store stays the one
+    // record of which radio each holds — the SDR panel locks those radios out
+    // with it — so the sections reach it through here instead of importing it.
+    decoders: {
+      activeRadioId(kind) {
+        const store = useSdrStore()
+        return kind === 'aprs' ? store.aprsRadioId : store.aisRadioId
+      },
+      refresh(kind) {
+        const store = useSdrStore()
+        return kind === 'aprs' ? store.hydrateAprsFromDb() : store.hydrateAisFromDb()
+      },
+      async start(kind, radioId) {
+        const store = useSdrStore()
+        if (kind === 'ais') return store.startAis(radioId)
+        const started = await store.startAprs(radioId)
+        // The SDR panel's APRS button reads this flag; only a running decoder sets it.
+        if (started) store.setAprsEnabled(true)
+        return started
+      },
+      async stop(kind, radioId) {
+        const store = useSdrStore()
+        if (kind === 'ais') return store.stopAis(radioId)
+        const stopped = await store.stopAprs(radioId)
+        // Cleared even when the stop was refused: the operator asked for it off.
+        store.setAprsEnabled(false)
+        return stopped
+      },
+    },
+    async listRadios() {
+      const records = await listRadios()
+      return records.map((record) => ({
+        id: record.id,
+        name: record.name,
+        enabled: record.enabled,
+        available: record.device_available !== false,
+      }))
     },
   }
 }

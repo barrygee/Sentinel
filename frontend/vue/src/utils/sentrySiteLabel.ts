@@ -1,4 +1,4 @@
-import type { SentrySite } from '@/services/sentryApi'
+import type { RadioSite } from '@/shell/radioSitesCapability'
 
 /**
  * What to call a Sentry site: its name if it has one, otherwise where it
@@ -9,6 +9,6 @@ import type { SentrySite } from '@/services/sentryApi'
  * picker names the same sites in a plain Vue panel, and must not pull a
  * MapLibre control (and with it maplibre-gl) in to do it.
  */
-export function siteLabel(site: SentrySite): string {
+export function siteLabel(site: RadioSite): string {
   return site.name?.trim() || `${site.address}:${site.port}`
 }

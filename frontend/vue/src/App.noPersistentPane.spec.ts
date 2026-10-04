@@ -15,7 +15,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { defineComponent, h, reactive } from 'vue'
 
 vi.mock('vue-router', () => ({
-  useRoute: () => reactive({ path: '/air/' }),
+  useRoute: () => reactive({ path: '/air/', meta: { domain: 'air' } }),
 }))
 
 vi.mock('@/composables/useUserLocation', () => ({
