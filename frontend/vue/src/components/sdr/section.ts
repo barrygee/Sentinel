@@ -3,6 +3,8 @@ import { registerSection } from '@/shell/sectionRegistry'
 import { createSdrRadioCapability } from './radioCapability'
 import SdrView from './SdrView.vue'
 import SdrTabPanel from './SdrTabPanel.vue'
+// Registers this section's Settings nav entry and items (F3).
+import './settings'
 
 /**
  * Registers the SDR section with the shell (route + nav entry), plus the

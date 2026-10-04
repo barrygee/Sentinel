@@ -1,62 +1,21 @@
-import { vi, describe, it, expect } from 'vitest'
-import { shallowMount } from '@vue/test-utils'
-
-// Prevent the real ExportAllControl from being compiled in this worker's V8 context.
-// Without this, v8 creates a separate function-coverage record for ExportAllControl.vue
-// in both this worker and ExportAllControl.spec.ts's worker; the records have different
-// byte-range offsets, so the merge creates phantom uncovered function entries.
-// shallowMount already stubs child components so the mock doesn't affect test behaviour.
-vi.mock('./ExportAllControl.vue', () => ({ default: { name: 'ExportAllControl' } }))
-// Same reasoning as ExportAllControl above: OfflineMapsSettings owns its own
-// MapLibre instance and a dozen sub-components, all covered by their own
-// specs — mock it here so SettingRow's dispatch test doesn't create a second,
-// differently-offset function-coverage record for it.
-vi.mock('./offline-maps/OfflineMapsSettings.vue', () => ({
-  default: { name: 'OfflineMapsSettings' },
-}))
-import type { Component } from 'vue'
+import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
-import type { SettingItem } from '@/types/settings'
-import ConnectivityToggle from './ConnectivityToggle.vue'
-import OverheadAlertsControl from './OverheadAlertsControl.vue'
-import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
-import LandAprsChannelControl from './LandAprsChannelControl.vue'
-import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
-import LocationControl from './LocationControl.vue'
-import RangeRingOriginControl from './RangeRingOriginControl.vue'
-import MapLayersControl from './MapLayersControl.vue'
-import NotificationSoundControl from './NotificationSoundControl.vue'
-import MapThemeControl from './MapThemeControl.vue'
-import MapBasemapLayersControl from './MapBasemapLayersControl.vue'
-import SourceOverrideControl from './SourceOverrideControl.vue'
-import OnlineSourceControl from './OnlineSourceControl.vue'
-import OfflineSourceControl from './OfflineSourceControl.vue'
-import AdsbSdrSourceControl from './AdsbSdrSourceControl.vue'
-import AprsSdrSourceControl from './AprsSdrSourceControl.vue'
-import SentryHostsControl from './SentryHostsControl.vue'
-import SpaceTleOnlineControl from './SpaceTleOnlineControl.vue'
-import SpaceTleManualControl from './SpaceTleManualControl.vue'
-import SpaceTleDatabaseControl from './SpaceTleDatabaseControl.vue'
-import SpaceTleUncatControl from './SpaceTleUncatControl.vue'
-import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
-import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
-import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
-import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
-import RepeaterLabelFieldsControl from './RepeaterLabelFieldsControl.vue'
-import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
-import SeaAisKeyControl from './SeaAisKeyControl.vue'
-import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
-import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
-import SeaMapLayersControl from './SeaMapLayersControl.vue'
-import SdrDevicesControl from './SdrDevicesControl.vue'
-import SdrOptionsControl from './SdrOptionsControl.vue'
-import ConfigCurrentControl from './ConfigCurrentControl.vue'
-import ExportAllControl from './ExportAllControl.vue'
-import JsonDataControl from './JsonDataControl.vue'
-import OfflineMapsSettings from './offline-maps/OfflineMapsSettings.vue'
+import type { SettingControl, SettingItem } from '@/types/settings'
 
-function mountRow(item: Partial<SettingItem> & { type: string }) {
+// SettingRow renders whatever control the owning section registered (F3), so
+// these specs use stand-in controls; which real control each setting gets is
+// pinned by each section's settings-module spec.
+const StandInControl = defineComponent({
+  name: 'StandInControl',
+  props: { ns: { type: String, default: '' }, filename: { type: String, default: '' } },
+  emits: ['stage', 'commit'],
+  setup: (props) => () => h('div', { class: 'stand-in' }, `${props.ns}|${props.filename}`),
+})
+
+function mountRow(item: Partial<SettingItem> = {}, control: Partial<SettingControl> = {}) {
   const fullItem: SettingItem = {
     section: 'test',
     sectionLabel: 'Test',
@@ -64,164 +23,106 @@ function mountRow(item: Partial<SettingItem> & { type: string }) {
     label: 'Test',
     desc: '',
     ...item,
+    control: { component: StandInControl, ...control },
   }
-  return shallowMount(SettingRow, {
-    props: { item: fullItem, pending: new Map() },
-  })
+  return mount(SettingRow, { props: { item: fullItem, pending: new Map() } })
 }
 
-// Each setting type renders exactly one matching child control.
-const TYPE_TO_COMPONENT: Array<[string, Component, Partial<SettingItem>?]> = [
-  ['connectivity-toggle', ConnectivityToggle],
-  ['overhead-alerts', OverheadAlertsControl],
-  ['land-aprs-retention', LandAprsRetentionControl],
-  ['land-aprs-channel', LandAprsChannelControl],
-  ['notification-subscriptions', NotificationSubscriptionsControl],
-  ['location', LocationControl],
-  ['range-ring-origin', RangeRingOriginControl],
-  ['map-layers', MapLayersControl],
-  ['notification-sound', NotificationSoundControl],
-  ['map-theme', MapThemeControl],
-  ['map-basemap-layers', MapBasemapLayersControl],
-  ['source-override', SourceOverrideControl, { ns: 'air' }],
-  ['online-source', OnlineSourceControl, { ns: 'air', defaultUrl: '' }],
-  ['offline-source', OfflineSourceControl, { ns: 'air', defaultUrl: '' }],
-  ['adsb-sdr-source', AdsbSdrSourceControl],
-  ['aprs-sdr-source', AprsSdrSourceControl],
-  ['sdr-sentry-hosts', SentryHostsControl],
-  ['space-tle-online', SpaceTleOnlineControl],
-  ['space-tle-manual', SpaceTleManualControl],
-  ['space-tle-db', SpaceTleDatabaseControl],
-  ['space-tle-uncat', SpaceTleUncatControl],
-  ['space-tle-satlist', SpaceTleSatListControl],
-  ['space-sat-radio-file', JsonDataControl],
-  ['space-hover-preview', SpaceHoverPreviewControl],
-  ['air-tag-fields', AdsbTagFieldsControl],
-  ['land-aprs-label-fields', AprsLabelFieldsControl],
-  ['land-repeater-label-fields', RepeaterLabelFieldsControl],
-  ['land-repeaters-file', JsonDataControl],
-  ['sea-ais-sdr-source', SeaAisSdrSourceControl],
-  ['sea-ais-key', SeaAisKeyControl],
-  ['sea-coverage-area', SeaCoverageAreaControl],
-  ['sea-label-fields', SeaLabelFieldsControl],
-  ['sea-map-layers', SeaMapLayersControl],
-  ['sdr-devices', SdrDevicesControl],
-  ['sdr-options', SdrOptionsControl],
-  ['sdr-frequencies-file', JsonDataControl],
-  ['sdr-bandplan-file', JsonDataControl],
-  ['config-current', ConfigCurrentControl],
-  ['export-all', ExportAllControl],
-  ['offline-maps', OfflineMapsSettings],
-]
+function cardClasses(wrapper: ReturnType<typeof mountRow>): string[] {
+  return wrapper.find('.settings-item').classes()
+}
 
 describe('SettingRow', () => {
-  it.each(TYPE_TO_COMPONENT)('renders the %s control', (type, component, extra) => {
-    const wrapper = mountRow({ id: type, type, label: type.toUpperCase(), ...extra })
-    const child = wrapper.findComponent(component)
-    expect(child.exists()).toBe(true)
-    // Fire both events so this branch's inline stage/commit forwarders run
-    // (a no-op for the controls that do not declare them).
-    child.vm.$emit('stage', () => {})
-    child.vm.$emit('commit')
+  it('renders the registered control with its props', () => {
+    const wrapper = mountRow({}, { props: { ns: 'sea', filename: 'uk_repeaters.json' } })
+    const control = wrapper.findComponent(StandInControl)
+    expect(control.exists()).toBe(true)
+    expect(control.props()).toEqual({ ns: 'sea', filename: 'uk_repeaters.json' })
   })
 
-  it('defaults the source URLs to empty when no defaultUrl is given', () => {
-    const online = mountRow({ id: 'o', type: 'online-source', label: 'Online', ns: 'air' })
-    expect(online.findComponent(OnlineSourceControl).props('defaultUrl')).toBe('')
-    const offline = mountRow({ id: 'f', type: 'offline-source', label: 'Offline', ns: 'air' })
-    expect(offline.findComponent(OfflineSourceControl).props('defaultUrl')).toBe('')
-  })
-
-  it('points the repeater-directory editor at the Land repeaters file endpoint', () => {
-    const wrapper = mountRow({
-      id: 'land-repeaters-file',
-      type: 'land-repeaters-file',
-      label: 'Repeater Directory (JSON)',
-    })
-    const editor = wrapper.findComponent(JsonDataControl)
-    expect(editor.props('getUrl')).toBe('/api/land/repeaters/file')
-    expect(editor.props('postUrl')).toBe('/api/land/repeaters/file')
-    expect(editor.props('filename')).toBe('uk_repeaters.json')
-  })
-
-  it('forwards the alerts card stage event with the item id', () => {
-    const wrapper = mountRow({
-      id: 'notification-subscriptions',
-      type: 'notification-subscriptions',
-      label: 'Alerts',
-    })
-    const staged = async () => {}
-    wrapper.findComponent(NotificationSubscriptionsControl).vm.$emit('stage', staged)
-    expect(wrapper.emitted('stage')).toEqual([['notification-subscriptions', staged]])
-  })
-
-  it('renders nothing for the removed connectivity probe URL type', () => {
-    const wrapper = mountRow({ id: 'p', type: 'probe-url', label: 'Probe' })
-    expect(wrapper.find('input').exists()).toBe(false)
-  })
-
-  it('stages the location card like every other control, rather than saving on its own', () => {
-    const wrapper = mountRow({ id: 'sentinel-location', type: 'location', label: 'Location' })
-    const staged = () => {}
-    wrapper.findComponent(LocationControl).vm.$emit('stage', staged)
-    expect(wrapper.emitted('stage')).toEqual([['sentinel-location', staged]])
-  })
-
-  it('stages the off-grid ADS-B SDR pick, so APPLY CHANGES saves it', () => {
-    const wrapper = mountRow({ id: 'adsb-sdr-source', type: 'adsb-sdr-source', label: 'SDR' })
-    const staged = async () => {}
-    wrapper.findComponent(AdsbSdrSourceControl).vm.$emit('stage', staged)
-    expect(wrapper.emitted('stage')).toEqual([['adsb-sdr-source', staged]])
-  })
-
-  it('renders only the label for an unrecognised type', () => {
-    const wrapper = mountRow({ id: 'z', type: 'mystery-type', label: 'Mystery' })
-    expect(wrapper.find('.settings-item-label').text()).toBe('Mystery')
-    expect(wrapper.findComponent(ConfigCurrentControl).exists()).toBe(false)
-    expect(wrapper.findComponent(ConnectivityToggle).exists()).toBe(false)
+  it('renders the control without props when none are registered', () => {
+    const wrapper = mountRow()
+    expect(wrapper.find('.stand-in').text()).toBe('|')
   })
 
   it('renders the label and an optional description', () => {
-    const withDesc = mountRow({
-      id: 'x',
-      type: 'notification-sound',
-      label: 'Alert Sound',
-      desc: 'A blip',
-    })
+    const withDesc = mountRow({ label: 'Alert Sound', desc: 'A blip' })
     expect(withDesc.find('.settings-item-label').text()).toBe('Alert Sound')
     expect(withDesc.find('.settings-item-desc').text()).toBe('A blip')
 
-    const withoutDesc = mountRow({ id: 'x', type: 'notification-sound', label: 'Alert Sound' })
+    const withoutDesc = mountRow({ label: 'Alert Sound' })
     expect(withoutDesc.find('.settings-item-desc').exists()).toBe(false)
   })
 
-  it('forwards the Air map-layers stage event with the item id', () => {
-    const wrapper = mountRow({ id: 'map-layers', type: 'map-layers', label: 'Map Layers' })
-    const staged = async () => {}
-    wrapper.findComponent(MapLayersControl).vm.$emit('stage', staged)
-    expect(wrapper.emitted('stage')).toEqual([['map-layers', staged]])
+  it('keeps a hidden label in the accessibility tree only', () => {
+    expect(mountRow({ hideLabel: true }).find('.settings-item-label').classes()).toContain(
+      'sr-only',
+    )
+    expect(mountRow().find('.settings-item-label').classes()).not.toContain('sr-only')
   })
 
-  it('forwards a child stage event with the item id', () => {
-    const wrapper = mountRow({ id: 'sdr-1', type: 'sdr-options', label: 'SDR Options' })
-    const staged = () => {}
-    wrapper.findComponent(SdrOptionsControl).vm.$emit('stage', staged)
-    expect(wrapper.emitted('stage')).toEqual([['sdr-1', staged]])
+  describe('panel events', () => {
+    it('forwards a declared stage event with the item id', () => {
+      const wrapper = mountRow({ id: 'sea-ais-key' }, { emits: ['stage'] })
+      const staged = async () => {}
+      wrapper.findComponent(StandInControl).vm.$emit('stage', staged)
+      expect(wrapper.emitted('stage')).toEqual([['sea-ais-key', staged]])
+      expect(wrapper.emitted('commit')).toBeUndefined()
+    })
+
+    it('forwards a declared commit event', () => {
+      const wrapper = mountRow({}, { emits: ['stage', 'commit'] })
+      wrapper.findComponent(StandInControl).vm.$emit('commit')
+      expect(wrapper.emitted('commit')).toHaveLength(1)
+    })
+
+    it('does not listen for events the control does not declare', () => {
+      const wrapper = mountRow()
+      const control = wrapper.findComponent(StandInControl)
+      control.vm.$emit('stage', () => {})
+      control.vm.$emit('commit')
+      expect(wrapper.emitted('stage')).toBeUndefined()
+      expect(wrapper.emitted('commit')).toBeUndefined()
+    })
+
+    it('a commit-less control never asks the panel to apply now', () => {
+      const wrapper = mountRow({}, { emits: ['stage'] })
+      wrapper.findComponent(StandInControl).vm.$emit('commit')
+      expect(wrapper.emitted('commit')).toBeUndefined()
+    })
   })
 
-  it('forwards a child commit event', () => {
-    const wrapper = mountRow({ id: 'sdr-1', type: 'sdr-options', label: 'SDR Options' })
-    wrapper.findComponent(SdrOptionsControl).vm.$emit('commit')
-    expect(wrapper.emitted('commit')).toHaveLength(1)
+  describe('card layout', () => {
+    it.each([
+      ['half', 'settings-item--half'],
+      ['half-stacked', 'settings-item--half-stacked'],
+      ['full', 'settings-item--full'],
+    ] as const)('a %s control gets the %s card', (layout, expectedClass) => {
+      const classes = cardClasses(mountRow({}, { layout }))
+      expect(classes).toContain(expectedClass)
+      const otherLayouts = [
+        'settings-item--half',
+        'settings-item--half-stacked',
+        'settings-item--full',
+      ].filter((name) => name !== expectedClass)
+      for (const other of otherLayouts) expect(classes).not.toContain(other)
+    })
+
+    it('a control without a layout gets the default one-column card', () => {
+      const classes = cardClasses(mountRow())
+      expect(classes).toEqual(['settings-item'])
+    })
+
+    it('a natural-height control grows to its content', () => {
+      expect(cardClasses(mountRow({}, { naturalHeight: true }))).toContain(
+        'settings-item--natural-height',
+      )
+      expect(cardClasses(mountRow())).not.toContain('settings-item--natural-height')
+    })
   })
 
   it('has no accessibility violations', async () => {
-    const wrapper = mountRow({
-      id: 'x',
-      type: 'notification-sound',
-      label: 'Alert Sound',
-      desc: 'A blip',
-    })
+    const wrapper = mountRow({ label: 'Alert Sound', desc: 'A blip' })
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()

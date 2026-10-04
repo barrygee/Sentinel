@@ -10,6 +10,8 @@ import { spaceSidebarFilter } from './spaceSidebarFilter'
 import SpacePassesTabIcon from './SpacePassesTabIcon.vue'
 import { useSpaceAlertsService } from '@/composables/useSpaceAlertsService'
 import { cancelAutoTuneOnDismiss, satelliteNotificationTarget } from './satelliteNotificationTarget'
+// Registers this section's Settings nav entry and items (F3).
+import './settings'
 
 /**
  * Registers the SPACE section with the shell: route + nav entry, the click

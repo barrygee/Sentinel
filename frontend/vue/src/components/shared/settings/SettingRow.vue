@@ -2,232 +2,25 @@
   <div
     class="settings-item"
     :class="{
-      'settings-item--half': isHalf,
-      'settings-item--half-stacked': isHalfStacked,
-      'settings-item--full': isFull,
-      'settings-item--triple': isTriple,
-      'settings-item--natural-height': isNaturalHeight,
+      'settings-item--half': control.layout === 'half',
+      'settings-item--half-stacked': control.layout === 'half-stacked',
+      'settings-item--full': control.layout === 'full',
+      'settings-item--natural-height': control.naturalHeight,
     }"
   >
     <div class="settings-item-info">
       <div class="settings-item-label" :class="{ 'sr-only': item.hideLabel }">{{ item.label }}</div>
       <div v-if="item.desc" class="settings-item-desc">{{ item.desc }}</div>
     </div>
-    <ConnectivityToggle
-      v-if="item.type === 'connectivity-toggle'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <!-- Mirrors to the store at once (the zone appears on the map as you
-         switch it on) and stages the config-database write for APPLY CHANGES. -->
-    <OverheadAlertsControl
-      v-else-if="item.type === 'overhead-alerts'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <LandAprsRetentionControl
-      v-else-if="item.type === 'land-aprs-retention'"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
-    <LandAprsChannelControl
-      v-else-if="item.type === 'land-aprs-channel'"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
-    <!-- Stages only: an edit hands back a closure that APPLY CHANGES runs, so
-         the location saves with the rest of the panel. No `commit` — pressing
-         Enter in a field saves that field there and then. -->
-    <LocationControl v-else-if="item.type === 'location'" @stage="emit('stage', item.id, $event)" />
-    <!-- No stage/commit either: choosing an origin moves the rings at once,
-         which is the whole point of choosing one. -->
-    <!-- Mirrors to the store at once (the rings move as you choose) and stages
-         the config-database write for APPLY CHANGES. -->
-    <RangeRingOriginControl
-      v-else-if="item.type === 'range-ring-origin'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <!-- No stage/commit: a layer switch belongs to the map it draws on, so it
-         applies the moment it is flipped, exactly as the rail's does. -->
-    <MapLayersControl
-      v-else-if="item.type === 'map-layers'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <NotificationSoundControl
-      v-else-if="item.type === 'notification-sound'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <!-- Mirrors to the store at once (the maps repaint as you switch it) and
-         stages the config-database write for APPLY CHANGES. -->
-    <MapThemeControl
-      v-else-if="item.type === 'map-theme'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <MapBasemapLayersControl
-      v-else-if="item.type === 'map-basemap-layers'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SourceOverrideControl
-      v-else-if="item.type === 'source-override'"
-      :ns="item.ns!"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <OnlineSourceControl
-      v-else-if="item.type === 'online-source'"
-      :ns="item.ns!"
-      :default-url="item.defaultUrl ?? ''"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
-    <OfflineSourceControl
-      v-else-if="item.type === 'offline-source'"
-      :ns="item.ns!"
-      :default-url="item.defaultUrl ?? ''"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
-    <AdsbSdrSourceControl
-      v-else-if="item.type === 'adsb-sdr-source'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <AprsSdrSourceControl
-      v-else-if="item.type === 'aprs-sdr-source'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SpaceTleOnlineControl v-else-if="item.type === 'space-tle-online'" />
-    <SpaceTleManualControl v-else-if="item.type === 'space-tle-manual'" />
-    <SpaceTleDatabaseControl v-else-if="item.type === 'space-tle-db'" />
-    <SpaceTleUncatControl v-else-if="item.type === 'space-tle-uncat'" />
-    <SpaceTleSatListControl v-else-if="item.type === 'space-tle-satlist'" />
-    <JsonDataControl
-      v-else-if="item.type === 'space-sat-radio-file'"
-      get-url="/api/space/radio/file"
-      post-url="/api/space/radio/file"
-      filename="satellite_radio.json"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SpaceHoverPreviewControl
-      v-else-if="item.type === 'space-hover-preview'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <AdsbTagFieldsControl
-      v-else-if="item.type === 'air-tag-fields'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SeaAisSdrSourceControl
-      v-else-if="item.type === 'sea-ais-sdr-source'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <AprsLabelFieldsControl
-      v-else-if="item.type === 'land-aprs-label-fields'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <RepeaterLabelFieldsControl
-      v-else-if="item.type === 'land-repeater-label-fields'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <!-- Staged like the rest, but the write goes to the key's own endpoint —
-         a secret never travels through the generic settings API. -->
-    <SeaAisKeyControl
-      v-else-if="item.type === 'sea-ais-key'"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
-    <SeaCoverageAreaControl
-      v-else-if="item.type === 'sea-coverage-area'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SeaLabelFieldsControl
-      v-else-if="item.type === 'sea-label-fields'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SeaMapLayersControl
-      v-else-if="item.type === 'sea-map-layers'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <!-- No stage/commit: a layer switch belongs to the map it draws on, so it
-         applies the moment it is flipped, exactly as MapLayersControl does. -->
-    <SentryHostsControl v-else-if="item.type === 'sdr-sentry-hosts'" />
-    <SdrDevicesControl v-else-if="item.type === 'sdr-devices'" />
-    <NotificationSubscriptionsControl
-      v-else-if="item.type === 'notification-subscriptions'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <SdrOptionsControl
-      v-else-if="item.type === 'sdr-options'"
-      @stage="emit('stage', item.id, $event)"
-      @commit="emit('commit')"
-    />
-    <JsonDataControl
-      v-else-if="item.type === 'land-repeaters-file'"
-      get-url="/api/land/repeaters/file"
-      post-url="/api/land/repeaters/file"
-      filename="uk_repeaters.json"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <JsonDataControl
-      v-else-if="item.type === 'sdr-frequencies-file'"
-      get-url="/api/sdr/data/frequencies"
-      post-url="/api/sdr/data/frequencies"
-      filename="sdr_frequencies.json"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <JsonDataControl
-      v-else-if="item.type === 'sdr-bandplan-file'"
-      get-url="/api/sdr/data/bandplan"
-      post-url="/api/sdr/data/bandplan"
-      filename="sdr_bandplan.json"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <ConfigCurrentControl
-      v-else-if="item.type === 'config-current'"
-      @stage="emit('stage', item.id, $event)"
-    />
-    <ExportAllControl v-else-if="item.type === 'export-all'" />
-    <!-- Owns its own map, form, progress and region list — no stage/commit:
-         every action (draw, download, delete) applies immediately, like the
-         other map/data controls (SentryHostsControl, SdrDevicesControl). -->
-    <OfflineMapsSettings v-else-if="item.type === 'offline-maps'" />
+    <!-- The control the owning section registered for this item (F3). Only the
+         panel events it declares are listened for: `stage` hands APPLY CHANGES
+         a closure, `commit` applies now. -->
+    <component :is="control.component" v-bind="control.props" v-on="listeners" />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { SettingItem } from '@/types/settings'
-import ConnectivityToggle from './ConnectivityToggle.vue'
-import OverheadAlertsControl from './OverheadAlertsControl.vue'
-import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
-import LandAprsChannelControl from './LandAprsChannelControl.vue'
-import LocationControl from './LocationControl.vue'
-import RangeRingOriginControl from './RangeRingOriginControl.vue'
-import MapLayersControl from './MapLayersControl.vue'
-import SeaMapLayersControl from './SeaMapLayersControl.vue'
-import NotificationSoundControl from './NotificationSoundControl.vue'
-import MapThemeControl from './MapThemeControl.vue'
-import MapBasemapLayersControl from './MapBasemapLayersControl.vue'
-import SourceOverrideControl from './SourceOverrideControl.vue'
-import OnlineSourceControl from './OnlineSourceControl.vue'
-import OfflineSourceControl from './OfflineSourceControl.vue'
-import AdsbSdrSourceControl from './AdsbSdrSourceControl.vue'
-import AprsSdrSourceControl from './AprsSdrSourceControl.vue'
-import SpaceTleOnlineControl from './SpaceTleOnlineControl.vue'
-import SpaceTleManualControl from './SpaceTleManualControl.vue'
-import SpaceTleDatabaseControl from './SpaceTleDatabaseControl.vue'
-import SpaceTleUncatControl from './SpaceTleUncatControl.vue'
-import SpaceTleSatListControl from './SpaceTleSatListControl.vue'
-import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
-import AdsbTagFieldsControl from './AdsbTagFieldsControl.vue'
-import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
-import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
-import RepeaterLabelFieldsControl from './RepeaterLabelFieldsControl.vue'
-import SeaAisKeyControl from './SeaAisKeyControl.vue'
-import SeaCoverageAreaControl from './SeaCoverageAreaControl.vue'
-import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
-import SentryHostsControl from './SentryHostsControl.vue'
-import SdrDevicesControl from './SdrDevicesControl.vue'
-import SdrOptionsControl from './SdrOptionsControl.vue'
-import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
-import ConfigCurrentControl from './ConfigCurrentControl.vue'
-import ExportAllControl from './ExportAllControl.vue'
-import JsonDataControl from './JsonDataControl.vue'
-import OfflineMapsSettings from './offline-maps/OfflineMapsSettings.vue'
 
 const props = defineProps<{
   item: SettingItem
@@ -238,56 +31,13 @@ const emit = defineEmits<{
   commit: []
 }>()
 
-// Two-column controls: wide enough that their labels ("Snap to Known
-// Frequencies") stay on one line beside their checkbox column, that a device
-// list is not squeezed into a single 300px column, or — for the location card —
-// that the sole card under its own LOCATION heading is not a lone 300px sliver.
-const HALF_TYPES = new Set([
-  'location',
-  'map-basemap-layers',
-  'range-ring-origin',
-  'map-layers',
-  'sea-map-layers',
-  'overhead-alerts',
-  'sdr-sentry-hosts',
-  'sdr-devices',
-  'sdr-options',
-  'space-tle-online',
-  'space-tle-manual',
-  'space-tle-db',
-  'space-hover-preview',
-  'air-tag-fields',
-  'land-aprs-label-fields',
-  'land-repeater-label-fields',
-  'sea-ais-key',
-  'sea-coverage-area',
-  'sea-label-fields',
-])
-// Two columns wide, but each starting a fresh row, so the SDR pair stacks
-// rather than sitting shoulder to shoulder.
-const HALF_STACKED_TYPES = new Set(['sdr-frequencies-file', 'sdr-bandplan-file'])
-// The remaining raw-JSON editors take the full row, at the width indented JSON
-// wants — neither has a sibling to pair with.
-const FULL_TYPES = new Set([
-  'space-sat-radio-file',
-  'land-repeaters-file',
-  'config-current',
-  'offline-maps',
-])
-const NATURAL_HEIGHT_TYPES = new Set([
-  'location',
-  'map-basemap-layers',
-  'sea-ais-key',
-  'sea-coverage-area',
-  'range-ring-origin',
-  'map-layers',
-  'sea-map-layers',
-  'overhead-alerts',
-  'offline-maps',
-])
-const isTriple = false
-const isHalf = HALF_TYPES.has(props.item.type)
-const isHalfStacked = HALF_STACKED_TYPES.has(props.item.type)
-const isFull = FULL_TYPES.has(props.item.type)
-const isNaturalHeight = NATURAL_HEIGHT_TYPES.has(props.item.type)
+const control = props.item.control
+
+const listeners: Record<string, (...args: never[]) => void> = {}
+if (control.emits?.includes('stage')) {
+  listeners.stage = (fn: () => Promise<unknown> | void) => emit('stage', props.item.id, fn)
+}
+if (control.emits?.includes('commit')) {
+  listeners.commit = () => emit('commit')
+}
 </script>

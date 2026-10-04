@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 
-// SettingRow imports ExportAllControl, which causes a v8 coverage merge artifact
+// appSettings imports ExportAllControl, which causes a v8 coverage merge artifact
 // when ExportAllControl is loaded in this worker (where it's never exercised) AND
 // in ExportAllControl.spec.ts's worker (where it has 100% coverage). Mocking it
 // here prevents that double-loading without affecting SettingsPanel test behaviour.
@@ -9,6 +9,13 @@ vi.mock('./settings/ExportAllControl.vue', () => ({ default: { name: 'ExportAllC
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SettingsPanel from './SettingsPanel.vue'
+// The panel lists whatever is registered: core's 'app' section comes with it;
+// register the domain sections' settings as each section.ts does in the app.
+import '@/components/air/settings'
+import '@/components/space/settings'
+import '@/components/sea/settings'
+import '@/components/land/settings'
+import '@/components/sdr/settings'
 import SettingRow from './settings/SettingRow.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'

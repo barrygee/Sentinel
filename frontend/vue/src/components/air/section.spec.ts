@@ -54,4 +54,12 @@ describe('components/air/section', () => {
     service.start()
     expect(startAirAlerts).toHaveBeenCalledOnce()
   })
+
+  it('registers its Settings section and items', async () => {
+    await import('./section')
+    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+
+    expect(getSettingsSections().map((section) => section.key)).toContain('air')
+    expect(getSettingItems().some((item) => item.section === 'air')).toBe(true)
+  })
 })

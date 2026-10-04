@@ -82,4 +82,12 @@ describe('components/space/section', () => {
     service.start()
     expect(startSpaceAlerts).toHaveBeenCalledOnce()
   })
+
+  it('registers its Settings section and items', async () => {
+    await import('./section')
+    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+
+    expect(getSettingsSections().map((section) => section.key)).toContain('space')
+    expect(getSettingItems().some((item) => item.section === 'space')).toBe(true)
+  })
 })

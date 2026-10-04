@@ -23,6 +23,14 @@ describe('components/sdr/section', () => {
       persistentRadioPane: SdrTabPanel,
     })
   })
+
+  it('registers its Settings section and items', async () => {
+    await import('./section')
+    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+
+    expect(getSettingsSections().map((section) => section.key)).toContain('sdr')
+    expect(getSettingItems().some((item) => item.section === 'sdr')).toBe(true)
+  })
 })
 
 describe('components/sdr/section — radio capability', () => {

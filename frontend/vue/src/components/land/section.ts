@@ -2,6 +2,8 @@ import { registerSection } from '@/shell/sectionRegistry'
 import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
 import LandView from './LandView.vue'
 import { landSidebarFilter } from './landSidebarFilter'
+// Registers this section's Settings nav entry and items (F3).
+import './settings'
 
 /**
  * Registers the LAND section with the shell (route + nav entry).

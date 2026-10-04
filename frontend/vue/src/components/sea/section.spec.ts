@@ -28,4 +28,12 @@ describe('components/sea/section', () => {
 
     expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith('sea', seaSidebarFilter)
   })
+
+  it('registers its Settings section and items', async () => {
+    await import('./section')
+    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+
+    expect(getSettingsSections().map((section) => section.key)).toContain('sea')
+    expect(getSettingItems().some((item) => item.section === 'sea')).toBe(true)
+  })
 })
